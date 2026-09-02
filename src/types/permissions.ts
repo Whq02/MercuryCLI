@@ -40,7 +40,6 @@ export const RETIRED_PERMISSION_MODE_SPELLINGS: Readonly<Record<string, Permissi
   auto: 'flow',
   bypassPermissions: 'sovereign',
   plan: 'strategy',
-  scribe: 'default',
 }
 
 export function decodePermissionModeSpelling(raw: string): string {

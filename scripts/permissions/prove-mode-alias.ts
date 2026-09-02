@@ -41,7 +41,7 @@ const vocab = await import('../../src/types/permissions.js')
   const advertised = [...vocab.PERMISSION_MODES, ...vocab.EXTERNAL_PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES]
   check('no retired spelling in any advertised mode list', advertised.every(m => !(m in RETIRED)))
   check('the external set is the five new external ids (alphabetical)', JSON.stringify(vocab.EXTERNAL_PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy']))
-  check("the runtime set adds flow/scribe/autopilot/apollo (not bubble)", JSON.stringify(vocab.PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'scribe', 'autopilot', 'apollo']))
+  check("the runtime set adds flow/autopilot/apollo (not bubble)", JSON.stringify(vocab.PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'autopilot', 'apollo']))
 }
 
 section('§2 permissionModeFromString: old-in → new id; junk → default')

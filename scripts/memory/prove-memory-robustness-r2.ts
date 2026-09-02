@@ -46,16 +46,8 @@ sec('MED-3/LOW-7 atomic writes: card body / superseded / promoted / index via at
 sec('LOW-4 index match: link-anchored ](filename) (no sibling false-match)')
 {
   const ec = src('memdir/experienceCards.ts')
-  const sp = src('memdir/scribePromote.ts')
   check('experienceCards refresh matches ](filename)', /includes\(`\]\(\$\{filename\}\)`\)/.test(ec))
-  check('scribePromote dedup matches ](filename)', /includes\(`\]\(\$\{filename\}\)`\)/.test(sp))
-  check('no bare (filename) substring match remains', !/includes\(`\(\$\{filename\}\)`\)/.test(ec) && !/includes\(`\(\$\{filename\}\)`\)/.test(sp))
-}
-
-sec('LOW-5 scribePromote index line is capped')
-{
-  const sp = src('memdir/scribePromote.ts')
-  check('scribePromote wraps its index line in capIndexLine', /const indexLine = capIndexLine\(/.test(sp))
+  check('no bare (filename) substring match remains', !/includes\(`\(\$\{filename\}\)`\)/.test(ec))
 }
 
 sec('LOW-6 capIndexLine surrogate-safe: a boundary emoji never leaves a lone surrogate')

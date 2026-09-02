@@ -9,13 +9,11 @@ import { checker } from '../engine-durability/harness.ts'
 
 process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'accent-snapshot-'))
 delete process.env['MERCURY_CRITTER']
-delete process.env['MERCURY_SCRIBE_GLOW']
 
 const t = checker()
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const accent = await import('../../src/components/mercury-ui/sessionAccent.js')
-const scribe = await import('../../src/utils/scribeMode.js')
 const React = (await import('react')).default
 const { Box, Text, flushPendingSyncWork } = await import('../../src/ink.js')
 const { renderSync } = await import('../../src/ink/root.js')
@@ -27,20 +25,17 @@ t.section('§1 — stability: reads rebuild nothing; the accent object is the sa
 {
   accent.setSessionCritter('jellyfish')
   accent.setSessionAccentOverride(null)
-  scribe.setScribeMode(false)
   const first = accent.getSessionAccentSnapshotKey()
   const b0 = builds()
   let same = true
   for (let i = 0; i < 10_000; i++) if (accent.getSessionAccentSnapshotKey() !== first) same = false
   t.check('10 000 snapshot reads with nothing changed rebuild NOTHING and answer the same value', same && builds() === b0, `builds ${builds() - b0}`)
   t.check('bare: getSessionAccent() is the same object across reads', accent.getSessionAccent() === accent.getSessionAccent())
+  t.check('bare: the accent object IS the catalogue table entry', accent.getSessionAccent() === accent.CRITTERS.jellyfish)
   accent.setSessionAccentOverride('#3f7e96')
   t.check('under /accent: getSessionAccent() is the same object across reads (the tint object is built once per override)', accent.getSessionAccent() === accent.getSessionAccent() && accent.getSessionAccent().accent === '#3f7e96')
   accent.setSessionAccentOverride(null)
-  scribe.setScribeMode(true)
-  t.check('under the glow: getSessionAccent() is the same object across reads', accent.scribeGlowEnabled() && accent.getSessionAccent() === accent.getSessionAccent() && accent.getSessionAccent() !== accent.CRITTERS.jellyfish)
-  scribe.setScribeMode(false)
-  t.check('glow off again: the bare table object', accent.getSessionAccent() === accent.CRITTERS.jellyfish)
+  t.check('override cleared: the bare table object again', accent.getSessionAccent() === accent.CRITTERS.jellyfish)
 }
 
 t.section('§2 — every store dimension rebuilds the snapshot exactly once')
@@ -62,19 +57,6 @@ t.section('§2 — every store dimension rebuilds the snapshot exactly once')
   accent.setSessionAccentOverride(null)
   const r4 = read()
   t.check('an /accent clear rebuilds once', r4.b === r3.b + 1 && !r4.v.includes('#'))
-  scribe.setScribeMode(true)
-  const r5 = read()
-  t.check('a live glow flip rebuilds once and the value carries the glow bit', r5.b === r4.b + 1 && r5.v.endsWith(':glow'))
-  scribe.setScribeMode(false)
-  const r6 = read()
-  t.check('…and the flip back rebuilds once more (the bit moved again)', r6.b === r5.b + 1 && !r6.v.endsWith(':glow'))
-  process.env['MERCURY_SCRIBE_GLOW'] = '0'
-  scribe.setScribeMode(true)
-  const r7 = read()
-  scribe.setScribeMode(false)
-  const r8 = read()
-  t.check('a glow flip with the glow OPTED OUT rebuilds nothing (the value never moved)', r7.b === r6.b && r8.b === r6.b && !r7.v.endsWith(':glow') && r8.v === r6.v, `builds +${r8.b - r6.b}`)
-  delete process.env['MERCURY_SCRIBE_GLOW']
   accent.setSessionCritter('jellyfish')
 }
 
@@ -133,16 +115,14 @@ t.section('§4 — M subscribers under ink: identical-state notifications render
   const inst = renderSync(React.createElement(Parent), { stdout: target, stdin: stdinStub(), patchConsole: false, exitOnCtrlC: false })
   flushPendingSyncWork()
   t.check(`the ${M} subscribers mounted and registered`, renders === M && listeners() >= M)
-  process.env['MERCURY_SCRIBE_GLOW'] = '0'
   renders = 0
   const b0 = builds()
   for (let i = 0; i < 25; i++) {
-    scribe.setScribeMode(true)
-    scribe.setScribeMode(false)
+    accent.setSessionCritter('jellyfish')
+    accent.setSessionAccentOverride(null)
     flushPendingSyncWork()
   }
   t.check(`50 identical-state notifications across ${M} subscribers render NOTHING and build NOTHING`, renders === 0 && builds() === b0, `renders ${renders} builds ${builds() - b0}`)
-  delete process.env['MERCURY_SCRIBE_GLOW']
   renders = 0
   const b1 = builds()
   accent.setSessionCritter('crab')
@@ -164,12 +144,8 @@ t.section('§5 — source locks')
 {
   const src = readFileSync('src/components/mercury-ui/sessionAccent.ts', 'utf8')
   t.check('the hook subscribes through the one snapshot', /useSyncExternalStore\(\s*subscribeSessionCritter,\s*getSessionAccentSnapshotKey,\s*getSessionAccentSnapshotKey,\s*\)/.test(src))
-  t.check('the snapshot memo compares all three inputs (key · override identity · glow bit)', /memo\.key === key && memo\.override === accentOverride && memo\.glow === glow/.test(src))
-  t.check('the snapshot still carries the glow bit (the accent-epoch contract)', /scribeGlowEnabled\(\) \? 'glow'/.test(src))
-  const gate = src.slice(src.indexOf('export function scribeGlowEnabled'), src.indexOf('}', src.indexOf('export function scribeGlowEnabled')))
-  t.check('the glow gate reads the engage boolean BEFORE either flag read', gate.indexOf('isScribeModeOn()') > 0 && gate.indexOf('isScribeModeOn()') < gate.indexOf("flagEnv('MERCURY_SCRIBE_GLOW')"))
+  t.check('the snapshot memo compares both inputs (key · override identity)', /memo\.key === key && memo\.override === accentOverride\) return memo\.value/.test(src))
   t.check('the override tint is memoised on (base, override) identity', /memo\.base === base && memo\.override === accentOverride/.test(src))
-  t.check('the glowed variant is built once per base key', /GLOWED_BY_KEY/.test(src))
 }
 
 t.finish('ACCENT-SNAPSHOT')

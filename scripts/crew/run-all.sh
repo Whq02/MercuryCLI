@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/ui/vshot.py src/daemon/** src/utils/crew/crewClient*
-# gate-watch: src/utils/daemonBreaker* src/utils/scribe/scribeGates* src/utils/swarm/teamHelpers*
+# gate-watch: src/utils/daemonBreaker* src/utils/swarm/teamHelpers*
 # gate-watch: src/utils/teammateMailbox*
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }

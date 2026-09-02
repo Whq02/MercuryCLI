@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
-# gate-watch: src/tools/WorkflowTool/agentHooks* src/utils/scribeMode*
+# gate-watch: src/tools/WorkflowTool/agentHooks*
 # gate-watch: src/utils/swarm/teammatePromptAddendum*
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }

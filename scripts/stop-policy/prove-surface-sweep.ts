@@ -38,7 +38,6 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
   const CLASSIFICATION: Record<string, 'shared-authority' | 'latch-claiming' | 'observer' | 'contract-gate'> = {
     'src/utils/hooks/runStopHook.ts': 'shared-authority',
     'src/utils/hooks/hookHelpers.ts': 'contract-gate',
-    'src/utils/hooks/scribeImplementerStopHook.ts': 'shared-authority',
     'src/utils/hooks/missionHook.ts': 'latch-claiming',
     'src/utils/hooks/forcedReadHook.ts': 'latch-claiming',
     'src/utils/hooks/tabulaFireHooks.ts': 'observer',

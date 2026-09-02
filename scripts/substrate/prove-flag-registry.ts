@@ -111,7 +111,7 @@ check(
 )
 
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
-const optOutSample = ['MERCURY_SCRIBE_BUS_LIVE', 'MERCURY_SCRIBE_MODE', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_SCRIBE_CHATROOM']
+const optOutSample = ['MERCURY_SCRIBE_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
 for (const env of optOutSample) {
   delete process.env[env]
   const on = flagEnabled(env)
@@ -138,7 +138,7 @@ section('§3b default-on OFF vocabulary (falsy spellings all close the door)')
   check(`${env}: re-unset ⇒ ON`, flagEnabled(env))
 }
 
-const optInSample = ['MERCURY_SCRIBE_TASK_ROUTER', 'MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_CLASSIFIER_LLM', 'MERCURY_CLAUDEAI_MCP', 'MERCURY_RELEVANT_RECALL']
+const optInSample = ['MERCURY_AUTOPILOT', 'MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_CLASSIFIER_LLM', 'MERCURY_CLAUDEAI_MCP', 'MERCURY_RELEVANT_RECALL']
 for (const env of optInSample) {
   const spec = FLAG_REGISTRY.find(f => f.env === env)
   if (spec?.kind !== 'opt-in') {
@@ -154,11 +154,11 @@ for (const env of optInSample) {
 }
 let threw = false
 try {
-  flagEnabled('MERCURY_SCRIBE_MODEL')
+  flagEnabled('MERCURY_SCRIBE_OWNER_PID')
 } catch {
   threw = true
 }
-check("value flags refuse flagEnabled (MERCURY_SCRIBE_MODEL throws)", threw)
+check("value flags refuse flagEnabled (MERCURY_SCRIBE_OWNER_PID throws)", threw)
 
 section('§3c the registry reader honours the MERCURY_* spelling only')
 {
@@ -375,7 +375,7 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
     ['point-free map', `const BAD = [${retiredLiteral}]\nconst vals = BAD.map(flagEnv)`, true],
     ['for-of, reader on the loop variable', `const BAD = [${retiredLiteral}]\nfor (const v of BAD) if (flagEnv(v) === '1') n++`, true],
     ['for-of, the name as a LATER argument', `const BAD = [${retiredLiteral}]\nfor (const v of BAD) {\n  stampFlagOnEnv(env, v, '1')\n}`, true],
-    ['spread into a fed array (transitive)', `const RET = [${retiredLiteral}]\nconst LIVE = ['MERCURY_SCRIBE']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
+    ['spread into a fed array (transitive)', `const RET = [${retiredLiteral}]\nconst LIVE = ['MERCURY_CREW']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
     ['clean: a RAW process.env sweep', `const RET = [${retiredLiteral}]\nconst set = RET.filter(v => process.env[v] === '1')\nfor (const v of RET) delete env[v]`, false],
   ]
   for (const [label, text, expectFed] of shapes) {
