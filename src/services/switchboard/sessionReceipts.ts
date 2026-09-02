@@ -1,7 +1,8 @@
-import { appendFileSync, closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import { MAX_TRANSCRIPT_READ_BYTES } from '../../utils/sessionStorage/paths.js'
+import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
@@ -183,24 +184,18 @@ interface WalkedTranscript {
   hasConversation: boolean
 }
 
-/** Read the transcript bytes under the raw-read ceiling: the whole file, or
- *  its tail window with the skipped bytes counted (never an OOM, never a
- *  silent partial). */
+/** Read the transcript bytes under the raw-read ceiling through the one
+ *  transcript reader's byte cursor: the whole file, or its tail window
+ *  with the skipped bytes counted (never an OOM, never a silent partial).
+ *  An unterminated final line rides the reader's carry and is re-joined
+ *  as a line here so the walk counts it unread, never parses it as truth. */
 function readTranscriptWindow(path: string): { text: string; tailBytesSkipped: number } {
   const size = statSync(path).size
-  if (size <= MAX_TRANSCRIPT_READ_BYTES) {
-    return { text: readFileSync(path, 'utf8'), tailBytesSkipped: 0 }
-  }
-  const from = size - MAX_TRANSCRIPT_READ_BYTES
-  const fd = openSync(path, 'r')
-  let raw: string
-  try {
-    const buf = Buffer.alloc(MAX_TRANSCRIPT_READ_BYTES)
-    const n = readSync(fd, buf, 0, buf.length, from)
-    raw = buf.subarray(0, n).toString('utf8')
-  } finally {
-    closeSync(fd)
-  }
+  const from = size <= MAX_TRANSCRIPT_READ_BYTES ? 0 : size - MAX_TRANSCRIPT_READ_BYTES
+  const read = readTranscriptBytesAfter(path, { offset: from, carry: '' })
+  const raw =
+    read.cursor.carry === '' ? read.text : read.text === '' ? read.cursor.carry : `${read.text}\n${read.cursor.carry}`
+  if (from === 0) return { text: raw, tailBytesSkipped: 0 }
   // Drop the window's leading partial line — its head is outside the window.
   const nl = raw.indexOf('\n')
   const dropped = nl === -1 ? raw.length : nl + 1
