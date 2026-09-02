@@ -309,10 +309,17 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
       hook.includes('surfaceSize: verdict.fits ? size : lastFitRef.current'),
   )
   const alt = read('src/ink/components/AlternateScreen.tsx')
-  check('the alternate-screen host reads the floor at the OUTERMOST instance only', alt.includes('const floor = useViewportFloor(size, !nested)'))
+  check('the alternate-screen host reads the floor at the OUTERMOST instance only, on the live size', alt.includes('const floor = useViewportFloor(live, !nested)') && alt.includes('const live = useContext(LiveTerminalSizeContext) ?? size'))
+  const ctx = read('src/ink/components/TerminalSizeContext.tsx')
+  const app = read('src/ink/components/App.tsx')
+  check('the app root provides the live size beside the surface size (one object, two contexts)', ctx.includes('export const LiveTerminalSizeContext') && app.includes('<LiveTerminalSizeContext.Provider value={this.terminalSize}>') && app.includes('<TerminalSizeContext.Provider value={this.terminalSize}>'))
   check(
-    'outermost is decided once at the depth claim and read from the ref on every later render',
-    alt.includes('outermostRef.current = outermost') && alt.includes('const nested = outermostRef.current !== null\n    ? !outermostRef.current'),
+    'nesting is the tree’s own depth context, provided to the children',
+    alt.includes('const AltScreenDepthContext = createContext(0)') &&
+      alt.includes('const depthAbove = useContext(AltScreenDepthContext)') &&
+      alt.includes('const nested = depthAbove > 0') &&
+      alt.includes('<AltScreenDepthContext.Provider value={depthAbove + 1}>') &&
+      !alt.includes('outermostRef'),
   )
   check(
     'the surface stays mounted, out of layout under the floor, back in layout above it — the display named in both states',
@@ -322,10 +329,15 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
   check('the notice is one Text, painted only under the floor', alt.includes('{floor.line === null ? null : (') && alt.includes('{floor.line}'))
   const router = read('src/components/SurfaceRouter.tsx')
   check(
-    'the route surface host reads the same floor and yields the frame under it',
-    router.includes('const floor = useViewportFloor(useContext(TerminalSizeContext), true)') &&
+    'the route surface host reads the same floor on the live size and yields the frame under it',
+    router.includes('const floor = useViewportFloor(useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext), true)') &&
       router.includes("display={floor.fits ? 'flex' : 'none'}") &&
       router.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>'),
+  )
+  check(
+    'the router freezes the REPL subtree’s surface size under the floor (the REPL reads above its own host)',
+    router.includes('const surface = useViewportFloor(liveSize, true)') &&
+      router.includes('<TerminalSizeContext.Provider value={surface.surfaceSize}>{children}</TerminalSizeContext.Provider>'),
   )
 }
 
