@@ -51,7 +51,13 @@ a calm one-line drift note and continues.
 On an interactive boot the launcher paints the enter screen before the main
 bundle loads (release archives carry it as `splash.mjs` + `splash-core.mjs`);
 print, help and version runs and non-TTY invocations skip it, and
-`MERCURY_SPLASH=off` skips it always.
+`MERCURY_SPLASH=off` skips it always. A direct `node dist/mercury.mjs` start
+paints it too: the runtime runs the same asset itself — found beside the
+bundle first (the ordinary build copies the pair there), then in the config
+home, then in the source tree — and hands over by the launcher's own
+exit-code contract, so the boot that follows is the same on both roads. A
+start with any argument boots straight, and a launcher-started boot is never
+splashed twice.
 
 ## The release install (the versioned layout)
 

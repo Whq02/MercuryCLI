@@ -39,7 +39,7 @@ const repl = readFileSync('src/screens/REPL.tsx', 'utf8')
 check(
   'the REPL hop effect owns the swap, mount-skip guarded',
   repl.includes('rekeyedSessionRef.current !== focusedSessionId') &&
-    repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId)"),
+    repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"),
 )
 const prompt = readFileSync('src/components/PromptInput/PromptInput.tsx', 'utf8')
 check(
@@ -102,6 +102,21 @@ p.clearForSubmit('to send')
 await p.rekeyToSession('session-A')
 await p.rekeyToSession('session-C')
 check('(f) a submitted prompt never resurrects across hops', p.text() === '', `text=${JSON.stringify(p.text())}`)
+
+// (g)+(h): a LANDING is not a hop — the slot filling from no session keeps
+// the words typed while it landed (a birth's chat has no saved page of its
+// own); a session that owns a saved page still restores it.
+p.resetPendingInputForTests()
+p.initSession(null, '')
+p.edit('/model')
+await p.rekeyToSession('session-born', { landing: true })
+check('(g) a landing keeps the words typed while it landed', p.text() === '/model', `text=${JSON.stringify(p.text())}`)
+p.edit('page for D')
+await p.flushDrafts()
+await p.rekeyToSession(null)
+p.edit('typed on the resting slot')
+await p.rekeyToSession('session-born', { landing: true })
+check("(h) a landing into a session with its own saved page restores the page", p.text() === 'page for D', `text=${JSON.stringify(p.text())}`)
 
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-draft-per-session: ALL LAWS HOLD' : `\nprove-draft-per-session: ${failures} FAILURE(S)`)

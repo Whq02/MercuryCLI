@@ -28,7 +28,8 @@
 //    per_request_limits. Only STATED fields are decoded — absent ≠ zero.
 //
 //  The picker consumes the vendor's OWN most-popular ordering (a live
-//  ranking, never a Mercury guess) and bounds the rendered rows; the full
+//  ranking, never a Mercury guess) and bounds the rendered rows behind a
+//  DOOR row that expands the group to the full list with a filter; the full
 //  list rides the snapshot for every other surface, and
 //  openrouterModelsForVendor() is the mechanical seam the future
 //  smart-reroute lane consults ("does the connected OpenRouter credential
@@ -556,9 +557,15 @@ export function openrouterEffortVocabularyFor(
 export const OPENROUTER_MODEL_GROUP = 'Mercury — OpenRouter models'
 /** The connect action sentinel (a picker ACTION, never a model). */
 export const OPENROUTER_CONNECT_OPTION_VALUE = '__mercury_openrouter_connect__'
+/** The catalogue DOOR sentinel (a picker ACTION, never a model): the row
+ *  past the bound whose ↵ expands the group to the full live list behind a
+ *  type-to-filter line (isCatalogueDoorRow shape-matches it). */
+export const OPENROUTER_EXPAND_OPTION_VALUE = '__mercury_openrouter_expand__'
 
-/** How many live rows the picker renders (the vendor's most-popular order);
- *  the full catalogue stays available through the snapshot accessors. */
+/** How many live rows the picker renders before the door (the vendor's
+ *  most-popular order); the door expands to every row the snapshot holds
+ *  (getOpenrouterFullModelOptions), and the snapshot accessors serve every
+ *  other surface. */
 const OPENROUTER_PICKER_ROW_BOUND = 24
 
 /**
@@ -611,7 +618,6 @@ export function getOpenrouterModelOptions(
     ]
   }
   const wireReady = openrouterDispatchReady()
-  const pendingReason = 'dispatch wire pending — the provider-wire fold routes OpenRouter turns'
   const rows: ModelOption[] = []
   const snapshot = getCachedOpenrouterCatalogue(availability.keySource, env)
   const models = snapshot?.models ?? []
@@ -628,13 +634,57 @@ export function getOpenrouterModelOptions(
       group: OPENROUTER_MODEL_GROUP,
     })
   }
+  rows.push(...openrouterCatalogueRows(models, availability.source, wireReady, OPENROUTER_PICKER_ROW_BOUND))
+  if (availability.modelCount > OPENROUTER_PICKER_ROW_BOUND) {
+    // THE DOOR: the rows past the bound are one ↵ away — the picker expands
+    // the group in place to the full live list (the same builder, unbounded)
+    // behind a filter line; the copy says exactly that. The count is the
+    // availability's (the snapshot's row count), and the row is an ACTION
+    // (never a model, never counted as one).
+    rows.push({
+      value: OPENROUTER_EXPAND_OPTION_VALUE,
+      label: `OpenRouter — ${availability.modelCount} models live`,
+      description: `↵ expand · ${availability.modelCount} live · type to filter`,
+      descriptionForModel: `The connected OpenRouter credential serves ${availability.modelCount} live models; the picker renders the top ${OPENROUTER_PICKER_ROW_BOUND} by the vendor's own most-popular ranking, and this row expands the group to the full list behind a filter — any listed id also dispatches when typed as openrouter/<vendor>/<model>.`,
+      group: OPENROUTER_MODEL_GROUP,
+      catalogueDoor: { family: 'OpenRouter', total: availability.modelCount },
+    })
+  }
+  return rows
+}
+
+/** EVERY snapshot row as picker rows — the door's expanded list: the same
+ *  builder as the bounded view (healed and deduped the same way, the
+ *  vendor's order), unbounded. Empty unless the lane is ready. */
+export function getOpenrouterFullModelOptions(
+  env: NodeJS.ProcessEnv = process.env,
+): ModelOption[] {
+  const availability = getOpenrouterAvailability(env)
+  if (availability.state !== 'ready') return []
+  const models = getCachedOpenrouterCatalogue(availability.keySource, env)?.models ?? []
+  return openrouterCatalogueRows(models, availability.source, openrouterDispatchReady(), models.length)
+}
+
+/** The ONE picker-row builder over the snapshot's models: the first `bound`
+ *  rows in the vendor's order, each adjudicated by the wire-id owner and
+ *  healed against the WHOLE listed catalogue. The bounded picker view and
+ *  the door's full list both derive here, so a row reads the same at both
+ *  depths. */
+function openrouterCatalogueRows(
+  models: OpenrouterLiveModel[],
+  source: string,
+  wireReady: boolean,
+  bound: number,
+): ModelOption[] {
+  const rows: ModelOption[] = []
+  const pendingReason = 'dispatch wire pending — the provider-wire fold routes OpenRouter turns'
   // The heal adjudicates against the WHOLE listed catalogue (not the
   // rendered slice): a junk-shaped row whose clean twin is listed anywhere
   // heals onto that twin's id.
   const listedIds = new Set(models.map(m => m.id))
   const byId = new Map(models.map(m => [m.id, m]))
   const emitted = new Set<string>()
-  for (const model of models.slice(0, OPENROUTER_PICKER_ROW_BOUND)) {
+  for (const model of models.slice(0, bound)) {
     // PERSISTED ids are provider-QUALIFIED (provwire namespacing ruling,
     // 'openrouter/<full-vendor-slug>' — bare vendor slugs are
     // deliberately unrecognized by the routing law (they would collide with
@@ -660,7 +710,7 @@ export function getOpenrouterModelOptions(
         value: `openrouter/${healed}`,
         label: twin.name ?? healed,
         description: '',
-        descriptionForModel: `${twin.name ?? healed} (${healed}) — served through the connected ${availability.source}, live-listed by the OpenRouter catalogue (most-popular order); persisted as openrouter/${healed}.`,
+        descriptionForModel: `${twin.name ?? healed} (${healed}) — served through the connected ${source}, live-listed by the OpenRouter catalogue (most-popular order); persisted as openrouter/${healed}.`,
         group: OPENROUTER_MODEL_GROUP,
         ...(wireReady ? {} : { unavailable: pendingReason }),
         ...(twin.contextLength !== undefined ? { statedContextWindow: twin.contextLength } : {}),
@@ -672,7 +722,7 @@ export function getOpenrouterModelOptions(
         value: `openrouter/${model.id}`,
         label: model.name ?? model.id,
         description: '',
-        descriptionForModel: `${model.name ?? model.id} (${model.id}) — listed by the connected ${availability.source} but not dispatchable as spelled.`,
+        descriptionForModel: `${model.name ?? model.id} (${model.id}) — listed by the connected ${source} but not dispatchable as spelled.`,
         group: OPENROUTER_MODEL_GROUP,
         unavailable: !rawVerdict.ok
           ? 'not a dispatchable id — the row carries display words, not a catalogue id'
@@ -686,20 +736,10 @@ export function getOpenrouterModelOptions(
       value: `openrouter/${model.id}`,
       label: model.name ?? model.id,
       description: '',
-      descriptionForModel: `${model.name ?? model.id} (${model.id}) — served through the connected ${availability.source}, live-listed by the OpenRouter catalogue (most-popular order); persisted as openrouter/${model.id}.`,
+      descriptionForModel: `${model.name ?? model.id} (${model.id}) — served through the connected ${source}, live-listed by the OpenRouter catalogue (most-popular order); persisted as openrouter/${model.id}.`,
       group: OPENROUTER_MODEL_GROUP,
       ...(wireReady ? {} : { unavailable: pendingReason }),
       ...(model.contextLength !== undefined ? { statedContextWindow: model.contextLength } : {}),
-    })
-  }
-  if (availability.modelCount > OPENROUTER_PICKER_ROW_BOUND) {
-    rows.push({
-      value: OPENROUTER_CONNECT_OPTION_VALUE,
-      label: `OpenRouter — ${availability.modelCount} models live`,
-      description: `top ${OPENROUTER_PICKER_ROW_BOUND} shown (the vendor's most-popular order) · the full catalogue is served live`,
-      descriptionForModel: `The connected OpenRouter credential serves ${availability.modelCount} live models; the picker renders the top ${OPENROUTER_PICKER_ROW_BOUND} by the vendor's own most-popular ranking.`,
-      group: OPENROUTER_MODEL_GROUP,
-      unavailable: 'a summary row — pick a listed model',
     })
   }
   return rows

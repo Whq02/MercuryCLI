@@ -56,6 +56,36 @@ async function main(): Promise<void> {
     return
   }
 
+  // 3b — the launch splash on a DIRECT start. A launcher in front of the
+  // runtime paints the enter screen and hands over through the exit-code
+  // contract; a bare `node mercury.mjs` has no launcher, so the runtime runs
+  // the same asset itself and applies the same table to its own env — step 4
+  // and the alt-screen takeover then see exactly what a launcher would have
+  // armed. Only the bare interactive line can be a takeover, so every other
+  // road pays nothing here (no import); the owner decides the rest and skips
+  // silently when no rung carries the asset.
+  if (args.length === 0 && process.stdout.isTTY) {
+    if (
+      process.platform === 'win32' &&
+      process.env.MERCURY_WIN32_UTF8 !== '0' &&
+      process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
+    ) {
+      // The launchers set the console codepage before their splash; the
+      // splash's glyphs need it as much as the runtime's frames do (the
+      // seam entry is idempotent — step 6 then finds nothing to do).
+      const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
+      ensureWin32ConsoleUtf8()
+    }
+    const { runDirectSplash } = await import('../substrate/directSplash.js')
+    const splash = runDirectSplash({ home: await resolveCompileCacheHome() })
+    if (splash.verdict === 'cancel') {
+      // Ctrl-C / SIGTERM / the idle timeout on the enter screen cancels the
+      // BOOT: the splash restored the screen — stand down, as the launcher
+      // does, with nothing painted and exit 0.
+      return
+    }
+  }
+
   // 4 — splash handover: validates the JSON receipt the splash wrote and
   // applies the operator's choice (cd + argv splice). Ordering: the version
   // fast path has already answered by now (flag boots never arm the splash

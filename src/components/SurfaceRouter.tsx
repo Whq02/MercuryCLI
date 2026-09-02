@@ -28,7 +28,7 @@ import { RouteSurfaceScopeContext } from '../keybindings/RouteSurfaceScope.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { estateGroundBg } from '../utils/mercuryTokens.js';
-import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
+import { LiveTerminalSizeContext, TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
 import { useViewportFloor } from '../ink/hooks/use-viewport-floor.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { BootSplashScreen } from './BootSplashScreen.js';
@@ -117,6 +117,15 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const route = currentSurfaceRoute();
   const entry = getRouteSurface(route.kind);
+  // THE VIEWPORT FLOOR, at the REPL's own reading: the REPL reads the
+  // terminal size ABOVE the alternate-screen host it mounts and hands its
+  // transcript that width as a prop, so a freeze inside the host alone left
+  // the transcript re-laying at the under-floor width (its heights
+  // rescaled twice, its resting pin landed a turn away on the way back).
+  // The surface size the REPL subtree sees is frozen HERE, from the one
+  // latch; the hosts beneath judge the floor on the live size.
+  const liveSize = useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext);
+  const surface = useViewportFloor(liveSize, true);
   // #43 (family): the surface-cycle chord HANDLERS live in
   // GlobalKeybindingHandlers (useGlobalKeybindings.tsx), NOT here — this
   // component mounts ABOVE KeybindingSetup, where useKeybinding has no
@@ -130,7 +139,9 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
           switches (the FullscreenLayout M3 law: mount-switching a provider
           would remount the transcript). The host re-provides false so the
           covering surface's own primitives never park themselves. */}
-      <MotionParkContext.Provider value={entry !== undefined}>{children}</MotionParkContext.Provider>
+      <MotionParkContext.Provider value={entry !== undefined}>
+        <TerminalSizeContext.Provider value={surface.surfaceSize}>{children}</TerminalSizeContext.Provider>
+      </MotionParkContext.Provider>
       {entry ? (
         <RouteSurfaceHost key={surfaceRouteId(route)} kind={route.kind} frame={entry.frame}>
           {/* The keybinding scope (RouteSurfaceScope): bindings mounted
@@ -228,7 +239,7 @@ function RouteSurfaceHost({
   // key left absent is never re-applied. The context's own size object is
   // what the hook freezes and re-provides, so consumers keep its identity
   // while the window fits.
-  const floor = useViewportFloor(useContext(TerminalSizeContext), true);
+  const floor = useViewportFloor(useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext), true);
   return (
     <Box
       ref={elevatedRef}

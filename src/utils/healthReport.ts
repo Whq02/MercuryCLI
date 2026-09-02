@@ -56,6 +56,7 @@ import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { realEnvPin } from '../substrate/startupMenu.js'
 import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
 import { buildRouterModelSnapshot } from './router/modelRegistry.js'
@@ -667,15 +668,27 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'build-identity',
           label: 'Mercury build',
-          run: () => {
+          run: async () => {
  // F (UN-55): the ONE artifact-identity projection —
             // two same-semver builds distinguish by buildTree/buildTime/
             // distribution here, never by mangling the version.
             const identity = describeArtifactIdentity(version)
             const profile = isMercurySubstrateProfileOn()
+            // The enter screen a direct start would paint: the rung carrying
+            // the asset pair, or that none does (a build without it boots
+            // plain — the one reason a tester sees no splash).
+            const [{ resolveSplashAsset }, { runningBundlePayloadDir }] = await Promise.all([
+              import('../substrate/directSplash.js'),
+              import('../services/privateChannel/vendoredRuntime.js'),
+            ])
+            const splash = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: getMercuryHome() })
+            const splashWords =
+              splash === null
+                ? 'splash asset absent (a direct start boots plain)'
+                : `splash asset ${splash.rung === 'payload' ? 'beside the bundle' : splash.rung === 'home' ? 'in the config home' : 'in the source tree'}`
             return {
               status: 'ok',
-              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'}`,
+              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'} · ${splashWords}`,
             }
           },
         },
@@ -2399,17 +2412,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const present = FLAG_REGISTRY.filter(f => flagEnv(f.env) !== undefined)
             const set = present.filter(f => f.selfStamped !== true)
             const stamped = present.filter(f => f.selfStamped === true)
+            // A saved boot default the boot itself copied into the env (the
+            // boot-env applier's receipt names it) is not an operator
+            // override either — realEnvPin is the one attribution owner.
+            const overrides = set.filter(f => realEnvPin(f.env) !== null)
+            const bootApplied = set.filter(f => realEnvPin(f.env) === null)
+            const shortValue = (f: { env: string }): string => `${f.env}=${String(flagEnv(f.env)).slice(0, 12)}`
             const stampNote =
-              stamped.length > 0
-                ? ` · self-stamped (not an override): ${stamped.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 12)}`).join(', ')}`
-                : ''
-            if (set.length === 0) {
+              (stamped.length > 0 ? ` · self-stamped (not an override): ${stamped.map(shortValue).join(', ')}` : '') +
+              (bootApplied.length > 0 ? ` · saved boot defaults (boot-env.json, not an override): ${bootApplied.map(shortValue).join(', ')}` : '')
+            if (overrides.length === 0) {
               return {
                 status: 'ok',
                 evidence: `no env overrides — all ${FLAG_REGISTRY.length} registered flags at their defaults${stampNote}`,
               }
             }
-            const show = set
+            const show = overrides
               .slice(0, 4)
               .map(f => {
                 const value = String(flagEnv(f.env))
@@ -2420,8 +2438,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               .join(', ')
             return {
               status: 'info',
-              evidence: `${set.length} flag(s) overridden in env: ${show}${set.length > 4 ? ` … +${set.length - 4} more` : ''}${stampNote}`,
-              detail: set.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
+              evidence: `${overrides.length} flag(s) overridden in env: ${show}${overrides.length > 4 ? ` … +${overrides.length - 4} more` : ''}${stampNote}`,
+              detail: overrides.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
               link: '/substrate',
             }
           },
@@ -2780,6 +2798,19 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             } catch {
               return { status: 'fail', evidence: 'manifest unreadable — regenerate via scripts/ui/generate-visual-baseline.ts' }
             }
+          },
+        },
+        {
+          id: 'iface-voice',
+          label: 'Voice input',
+          // The capture backend, the transcribing sign-in and the microphone
+          // permission words — read from the SAME owners a capture uses.
+          // Diagnostic: voice input is optional, so an absent backend or a
+          // keyless home is info with its remedy, never a fault.
+          run: async () => {
+            const { describeVoiceReadiness } = await import('../services/voice/voiceSession.js')
+            const readiness = describeVoiceReadiness()
+            return { status: readiness.ready ? ('ok' as const) : ('info' as const), evidence: readiness.line, detail: readiness.detail }
           },
         },
         {

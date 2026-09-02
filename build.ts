@@ -6,7 +6,7 @@
 // vendored ripgrep.
 
 import { resolve } from 'node:path';
-import { chmodSync, copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -753,6 +753,63 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
   }
 }
 
+// Post-build: vendor the VOICE CAPTURE pack beside the bundle — the sixth
+// pack, BUILT rather than fetched: a Node-API addon over the platform's
+// own audio layer, compiled from native/voice by
+// `bun run scripts/vendor/build-voice.ts` (cargo) into vendor/voice/<platform>
+// with every linked crate's licence beside it. Same discipline as the
+// fetched packs: OPTIONAL (absence ⇒ honest degraded manifest `voice-input`;
+// the runtime falls back to a PATH recorder or the no-backend receipt), the
+// HOST platform's pack only, consumed only when its manifest agrees with
+// its bytes AND with the Rust sources it claims to be built from — a
+// PRESENT pack older than native/voice is the re-edited-source-without-a-
+// rebuild class and fails the build naming the command.
+// `MERCURY_BUILD_NO_VENDOR_VOICE=1` forces the degraded condition.
+const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/services/voice/voicePack.ts');
+let voiceVendored = false;
+let voiceMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
+{
+  const voiceDest = resolve(OUT, voiceRelPath);
+  rmSync(voiceDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_VOICE === '1';
+  const hostPlatform = voicePackPlatform();
+  const packDir = resolve(ROOT, voiceRelPath, hostPlatform);
+  const nativeDir = resolve(ROOT, voiceNativePath);
+  if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkVoicePackDir(packDir, { digest: true, platform: hostPlatform });
+    const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? voiceSourceTreeDigest(nativeDir) : null;
+    if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(voiceDest, hostPlatform), { recursive: true });
+      voiceVendored = true;
+      voiceMeta = {
+        version: check.manifest.version,
+        platform: hostPlatform,
+        addon: check.manifest.addon,
+        addonSha256: check.manifest.addonSha256,
+        crates: check.manifest.crates.length,
+      };
+      console.log(`VENDORED voice pack ${check.manifest.version} ${hostPlatform} (built from ${voiceNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(voiceDest, hostPlatform)}`);
+    } else {
+      // GUARD (vendor-staleness law): a PRESENT pack that disagrees with
+      // its manifest, or was built from other Rust sources than the tree
+      // carries, is a stale cache. Mismatch ⇒ FAIL naming the build
+      // command; ABSENCE keeps the honest degrade below.
+      const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${voiceNativePath} is absent` : `the pack was built from other sources than ${voiceNativePath} now holds`;
+      console.error(
+        `BUILD FAILED: vendor/voice/${hostPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/build-voice.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_VOICE=1 — voice pack NOT vendored (degraded: voice-input; proof seam).');
+  } else {
+    console.warn(`no voice pack for ${hostPlatform} — the artifact ships WITHOUT the voice capture addon (degraded: voice-input; the runtime falls back to sox/arecord/ffmpeg on PATH, else the no-backend receipt). Prepare it: bun run scripts/vendor/build-voice.ts (needs cargo)`);
+  }
+}
+
 // Post-build: vendor the typescript COMPILER beside the bundle (
 // — the structural plane's parser facility on projects without
 // their own typescript). Sourced from the repo's own pinned devDependency
@@ -1021,6 +1078,26 @@ let grammarPackMissing: string[] = [];
 }
 
 // ---------------------------------------------------------------------------
+// The enter screen ships beside the bundle from the ORDINARY build: a direct
+// `node dist/mercury.mjs` start resolves the splash asset beside itself first
+// (the release payload's own shape — the packager ships the same pair as
+// splash.mjs + splash-core.mjs), so a source build's dist is as self-contained
+// as an archive. Plain copies of the canonical pair (assets/splash/): the
+// driver imports './splash-core.mjs' beside itself, so both go or neither —
+// a missing canonical file fails the build rather than shipping a torn pair.
+const SPLASH_PAIR = [
+  { src: resolve(ROOT, 'assets', 'splash', 'mercury-splash.mjs'), name: 'splash.mjs' },
+  { src: resolve(ROOT, 'assets', 'splash', 'splash-core.mjs'), name: 'splash-core.mjs' },
+] as const;
+for (const member of SPLASH_PAIR) {
+  if (!existsSync(member.src)) {
+    console.error(`BUILD FAILED: ${member.src} missing — the enter screen ships as a pair beside mercury.mjs`);
+    process.exit(1);
+  }
+  copyFileSync(member.src, resolve(OUT, member.name));
+}
+
+// ---------------------------------------------------------------------------
 // The NOTICE stamp: every built JS
 // artifact carries the composed NOTICE head — product identity, the
 // operator's named text slots (omitted while undrafted; the operator drafts
@@ -1146,6 +1223,31 @@ const manifest = {
         remedy:
           'prepare the pinned Node runtime cache (`bun run scripts/vendor/fetch-node.ts`), then re-run `bun run build.ts` — the launchers run MERCURY_NODE or a PATH node inside the supported range meanwhile',
       },
+  // The enter screen beside the bundle (the pair copied above): a direct
+  // `node dist/mercury.mjs` start resolves it here first, and the isolated
+  // artifact proof holds the record to the real files.
+  splash: {
+    path: 'splash.mjs',
+    core: 'splash-core.mjs',
+    bytes: statSync(resolve(OUT, 'splash.mjs')).size,
+    sha256: createHash('sha256').update(readFileSync(resolve(OUT, 'splash.mjs'))).digest('hex'),
+  },
+  voiceInput: voiceVendored && voiceMeta
+    ? {
+        vendored: true,
+        path: `${voiceRelPath}/${voiceMeta.platform}`,
+        version: voiceMeta.version,
+        platform: voiceMeta.platform,
+        addon: voiceMeta.addon,
+        addonSha256: voiceMeta.addonSha256,
+        crateLicences: voiceMeta.crates,
+      }
+    : {
+        vendored: false,
+        path: voiceRelPath,
+        remedy:
+          'build the voice capture pack (`bun run scripts/vendor/build-voice.ts`, needs cargo), then re-run `bun run build.ts` — the runtime falls back to sox/arecord/ffmpeg on PATH meanwhile, else /speak says no backend',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -1197,6 +1299,7 @@ const manifest = {
     ...(pyrightVendored ? [] : ['python-intelligence']),
     ...(jsDebugVendored ? [] : ['js-debugger']),
     ...(nodeVendored ? [] : ['runtime']),
+    ...(voiceVendored ? [] : ['voice-input']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),

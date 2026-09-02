@@ -134,7 +134,7 @@ section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
 {
   const p = drive(
     'arm-close',
-    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       // Gated on the NOTICE itself (atTick is only the hard deadline —
@@ -162,7 +162,7 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
 {
   const p = drive(
     'arm-expire',
-    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       // 17 ticks ≈ 3.4 s — outside the 3000 ms window. The mark snapshots
@@ -199,7 +199,7 @@ const busyWorld = (): BusyWorld => {
   // The scenario call pins the display flags and the boot cwd in this
   // process's env (and strips any ambient key — captures are keyless by
   // law); the busy home is seeded after it, keyless, for the same cwd.
-  const base = scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg
+  const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
   const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
   seedFirstRun(home, [String(base['cwd'])])
@@ -256,11 +256,12 @@ section('C · busy: one press interrupts AND arms; a second press closes')
       // reads the RAW chunk). The bash-mode footer line is the arm receipt.
       // Every awaitText below fires ON the observed text; its atTick is only
       // the hard deadline (vshot's contract).
-      // The cockpit composer's own placeholder is the needle no earlier
-      // surface paints (the face's hints share '? for shortcuts'); the
-      // shell-mode footer line is the arm receipt, and a journey whose
-      // arm never paints is refused rather than typed blind.
-      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      // The chat's session pill (`… ⇧← back`) is the needle no earlier
+      // surface paints (the face's hints share '? for shortcuts', and the
+      // composer's placeholder paints only on wide screens); the shell-mode
+      // footer line is the arm receipt, and a journey whose arm never paints
+      // is refused rather than typed blind.
+      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // Gated on the RUNNING turn's truthful resting hint — `esc interrupt`
@@ -304,11 +305,12 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      // The cockpit composer's own placeholder is the needle no earlier
-      // surface paints (the face's hints share '? for shortcuts'); the
-      // shell-mode footer line is the arm receipt, and a journey whose
-      // arm never paints is refused rather than typed blind.
-      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      // The chat's session pill (`… ⇧← back`) is the needle no earlier
+      // surface paints (the face's hints share '? for shortcuts', and the
+      // composer's placeholder paints only on wide screens); the shell-mode
+      // footer line is the arm receipt, and a journey whose arm never paints
+      // is refused rather than typed blind.
+      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // A bare ESC lands the moment the truthful busy hint paints.
@@ -353,7 +355,7 @@ section('D · the copy receipt on both trigger paths (the standing scenarios)')
     { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(0, true) },
   ]
   // Drag-release (copy-on-select, default ON).
-  const sel = scenario('copy-receipt-select', 100, 44) as unknown as ScenarioCfg
+  const sel = scenario('copy-receipt-select', 80, 44) as unknown as ScenarioCfg
   const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard')
   if (pSel) {
     check('drag-release raised "Copied to clipboard"', textOf(pSel.grid).includes('Copied to clipboard'))
@@ -362,7 +364,7 @@ section('D · the copy receipt on both trigger paths (the standing scenarios)')
 
   // Plain ctrl+c with a selection (copy-on-select seeded OFF by the
   // scenario, so the receipt can ONLY be this path).
-  const ctl = scenario('copy-receipt-ctrlc', 100, 44) as unknown as ScenarioCfg
+  const ctl = scenario('copy-receipt-ctrlc', 80, 44) as unknown as ScenarioCfg
   const pCtl = drive('receipt-ctrlc', ctl, [...DRAG, { afterPrevTicks: 4, data: CTRL_C }], ctl.total, 'Copied to clipboard')
   if (pCtl) {
     const text = textOf(pCtl.grid)

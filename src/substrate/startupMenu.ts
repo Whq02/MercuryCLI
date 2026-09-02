@@ -26,6 +26,19 @@
         NEVER overwritten (the file is a default layer, not an override).
      4. AUDITED — when THEMIS is on after application, an audit row records
         what was applied (actor 'boot').
+     5. ATTRIBUTED — the applier stamps its receipt (MERCURY_BOOT_ENV_APPLIED:
+        the spellings it wrote, with their values, as JSON) on the same env
+        object. realEnvPin() is the ONE reader of "is this row pinned by the
+        real environment": present in the env AND not that receipt's own
+        stamp. Every surface that speaks rule 3 (the snapshot resolver, the
+        /caching dial, the readiness env section, the doctor's override
+        count) asks it; a bare `env[key] !== undefined` decides nothing. A
+        child Mercury (the owned daemon, the runners it spawns) inherits the
+        stamps WITH the receipt, so it attributes them the same way — and
+        when it applies the file itself it first undoes the inherited copies
+        and re-resolves the file fresh: a child boots exactly as if launched
+        from the operator's shell, so a default changed or cleared since the
+        parent booted reaches it.
 
    Consent model (the CREW precedent): the file exists only because the
    operator set a row in the menu — WRITE-THROUGH: cycling a
@@ -499,14 +512,74 @@ export interface BootEnvApplyResult {
 
 const EMPTY: BootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [] }
 
-// The last apply result, kept so downstream truth surfaces (the readiness
-// collector / capability center env section) can attribute a set flag to the
-// boot file vs the real environment. Null until applyBootMenuEnv runs.
+// The last apply's receipt (applied / env-won / refused / retired) — the
+// in-process record of what THIS boot did. Null until applyBootMenuEnv runs.
+// Attribution — "is a present value the real environment's or the boot's?" —
+// does NOT ride this: it rides the receipt stamped on the env itself
+// (realEnvPin below), which a child process inherits and this one may
+// never have written.
 let lastApplyResult: BootEnvApplyResult | null = null
 
-/** Keys applyBootMenuEnv actually wrote this process (source attribution). */
+/** Keys applyBootMenuEnv actually wrote this process (the last apply's
+ *  receipt). Not the attribution owner — that is realEnvPin. */
 export function bootEnvAppliedKeys(): ReadonlySet<string> {
   return new Set((lastApplyResult?.applied ?? []).map(a => a.env))
+}
+
+/** The applier's receipt spelling: a JSON object of the spellings the
+ *  boot-env applier wrote into an env object, each with the value it wrote,
+ *  stamped on that SAME object — so a child process inherits the
+ *  attribution together with the values. Registered as self-stamped: never
+ *  an operator override. */
+const BOOT_ENV_APPLIED_MARKER = 'MERCURY_BOOT_ENV_APPLIED'
+
+/** The spellings the boot-env applier stamped into `env` — this process's
+ *  apply, or an ancestor Mercury's (the receipt rides the env into
+ *  children) — each with the value it wrote. Empty when nothing was applied
+ *  or the receipt is unreadable: an unreadable receipt attributes NOTHING to
+ *  the boot, so every present value reads as a real pin (the safe side). */
+export function bootEnvSelfApplied(env: NodeJS.ProcessEnv = process.env): ReadonlyMap<string, string> {
+  const out = new Map<string, string>()
+  const raw = flagSpellings(BOOT_ENV_APPLIED_MARKER)
+    .map(sp => env[sp])
+    .find(v => v !== undefined)
+  if (raw === undefined) return out
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return out
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return out
+  for (const [spelling, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof value === 'string') out.set(spelling, value)
+  }
+  return out
+}
+
+/**
+ * THE attribution owner: is `rowEnv` pinned by the REAL environment? A pin
+ * is one of the row's registered spellings present in `env` whose value is
+ * NOT the boot-env applier's own stamp (the receipt names the stamps with
+ * their values, so a value something else set underneath is a pin again).
+ * Answers the pin's spelling + value, or null — null for an unset row AND
+ * for a saved default the boot applied. Every reader that speaks the
+ * explicit-env-wins law asks this; nothing else decides it. Honest at any
+ * moment: before an apply nothing is stamped, so a present value is a pin;
+ * after one, only the receipt's own copies are excused.
+ */
+export function realEnvPin(
+  rowEnv: string,
+  env: NodeJS.ProcessEnv = process.env,
+): { spelling: string; value: string } | null {
+  const stamped = bootEnvSelfApplied(env)
+  for (const spelling of flagSpellings(rowEnv)) {
+    const value = env[spelling]
+    if (value === undefined) continue
+    if (stamped.get(spelling) === value) continue // the boot's own copy of a saved default
+    return { spelling, value }
+  }
+  return null
 }
 
 /**
@@ -545,6 +618,17 @@ export function applyBootMenuEnv(
   for (const r of allSettingRows()) {
     for (const spelling of flagSpellings(r.env)) byEnv.set(spelling, r)
   }
+  // An ancestor Mercury's copies of the saved defaults (the interactive boot
+  // hands the owned daemon its env; the daemon hands its runners theirs)
+  // arrive WITH the receipt naming them. Undo them first: they are not the
+  // real environment, and the file is re-resolved fresh below — a child
+  // boots exactly as if launched from the operator's shell, so a default
+  // changed (or cleared) since the ancestor booted reaches it. A value that
+  // differs from the receipt was set deliberately and stays.
+  for (const [spelling, value] of bootEnvSelfApplied(env)) {
+    if (env[spelling] === value) delete env[spelling]
+  }
+  for (const spelling of flagSpellings(BOOT_ENV_APPLIED_MARKER)) delete env[spelling]
   const appliedRows = new Set<string>()
   for (const [key, value] of Object.entries(o.env as Record<string, unknown>)) {
     const row = byEnv.get(key)
@@ -569,6 +653,15 @@ export function applyBootMenuEnv(
     }
     stampFlagOnEnv(env, row.env, value)
     result.applied.push({ env: row.env, value })
+  }
+  // The receipt: what THIS apply wrote, with values, on the same env object
+  // — realEnvPin's evidence here and in every child that inherits the env.
+  if (result.applied.length > 0) {
+    const receipt: Record<string, string> = {}
+    for (const a of result.applied) {
+      for (const spelling of flagSpellings(a.env)) receipt[spelling] = a.value
+    }
+    stampFlagOnEnv(env, BOOT_ENV_APPLIED_MARKER, JSON.stringify(receipt))
   }
   // THEMIS audit (post-application, so a MERCURY_THEMIS row just applied counts):
   // fire-and-forget — the audit sink must never slow or break boot.
@@ -791,7 +884,9 @@ export interface EffectiveSettingRow {
   env: string
   /** The effective value — null when the row rides its default. */
   value: string | null
-  /** Provenance: the EXPLICIT-ENV-ALWAYS-WINS law is visible per row. */
+  /** Provenance: the EXPLICIT-ENV-ALWAYS-WINS law is visible per row.
+   *  'process-env' is realEnvPin's verdict — the real environment, never the
+   *  boot's own copy of a saved default (that reads 'profile'). */
   source: 'process-env' | 'profile' | 'default'
   /** v1: every menu row applies at session creation (boot-applied env);
    *  per-row live/safe-boundary/restart classes deepen with the in-process
@@ -812,7 +907,9 @@ export interface SessionEffectiveSettingsSnapshotV1 {
 /**
  * Resolve ONE immutable effective-settings snapshot for a session at
  * admission: per menu row — the real environment wins (the :634 law,
- * recorded as provenance), else the saved profile, else the default. The
+ * recorded as provenance; realEnvPin decides it, so a default the boot
+ * itself applied reads as the profile's, never as a pin), else the saved
+ * profile, else the default. The
  * snapshot is a VALUE (the caller persists it where the session lives —
  * the Concourse worker record carries snapshotId + revision); resolving
  * again after a later profile save yields a DIFFERENT snapshot for NEW
@@ -826,11 +923,11 @@ export function resolveEffectiveSettingsSnapshot(args: {
   const processEnv = args.env ?? process.env
   const profile = readBootDefaultsProfile(args.path ?? bootEnvPath())
   const rows: EffectiveSettingRow[] = STARTUP_MENU.map(row => {
-    const spellings = flagSpellings(row.env)
-    const envSpelling = spellings.find(sp => processEnv[sp] !== undefined)
-    if (envSpelling !== undefined) {
-      return { env: row.env, value: processEnv[envSpelling] ?? null, source: 'process-env', applicationClass: 'new-session' }
+    const pin = realEnvPin(row.env, processEnv)
+    if (pin !== null) {
+      return { env: row.env, value: pin.value, source: 'process-env', applicationClass: 'new-session' }
     }
+    const spellings = flagSpellings(row.env)
     const profSpelling = profile ? spellings.find(sp => profile.env[sp] !== undefined) : undefined
     if (profile && profSpelling !== undefined) {
       return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: 'new-session' }
@@ -948,7 +1045,8 @@ export interface ExplicitApplyReceipt {
  * creation via boot-applied env), so a changed row honestly REFUSES with the
  * class named — the vocabulary {applied, queued, refused, no-change} is the
  * contract, ready for the first live-appliable class. Env-pinned rows
- * (source 'process-env') refuse on the EXPLICIT-ENV-ALWAYS-WINS law.
+ * (source 'process-env' — realEnvPin's verdict, so the boot's own copies of
+ * saved defaults never land here) refuse on the EXPLICIT-ENV-ALWAYS-WINS law.
  */
 export function evaluateExplicitApply(
   snapshot: SessionEffectiveSettingsSnapshotV1,
