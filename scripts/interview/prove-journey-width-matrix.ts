@@ -117,17 +117,18 @@ for (const cols of [80, 160]) {
   }
 }
 
-// ── the narrow width: reached by a resize from the cockpit width ──────────
-// The Boot face the arena lands on has no menu below its ratified 64×13
-// floor (splash-core MENU_FLOOR_COLS), so the landing press has no row to
-// press and a boot AT 44 columns never opens the chat. The card's
-// completeness at 44 is graded after a resize from 120: the same laws,
-// read from the settled narrow frame.
+// ── the floor width, reached by a resize from the cockpit width ───────────
+// The viewport floor is 80×22: below it every fullscreen frame paints the
+// one resize line, so a narrower completeness leg has no card to grade
+// (the 44-column leg retired with that floor). The card's completeness at
+// the floor is graded after a resize from 120 — the reflow road, beside
+// the booted 80-column leg's layout road: the same laws, read from the
+// settled frame at 80.
 {
   const narrow = await runArtifactArena({
     turns: TURNS,
     sends: SENDS,
-    resizes: ['15200:44:44'],
+    resizes: ['15200:80:44'],
     seconds: 19,
     cols: 120,
     rows: 44,
@@ -136,7 +137,7 @@ for (const cols of [80, 160]) {
   })
   try {
     void firstOutputTs(narrow)
-    assertWidth('resized-44', grabScreens(narrow, 44, 44, [S(16_600)])[0]!)
+    assertWidth('resized-80', grabScreens(narrow, 80, 44, [S(16_600)])[0]!)
   } finally {
     narrow.cleanup()
   }
