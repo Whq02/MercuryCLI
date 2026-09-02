@@ -37,6 +37,12 @@ const DEFAULT_SCENARIOS = [
   'agents-studio-rich',
 ]
 const READ_MARK: Record<string, string> = { 'keys-escape': 'atlas-open', 'boot-face': 'face' }
+const ROOT_KEYMAP: Record<string, RegExp> = {
+  'boot-face': /↵ start · m menu/,
+  'boot-settings': /↵ start · m menu|esc back/,
+  'cockpit-wide': /\? for shortcuts|shift\+tab to cycle|to cycle\)/,
+  'resume-picker': /ctrl\+c to exit|esc/i,
+}
 
 const scenarios = arg('--scenarios', DEFAULT_SCENARIOS.join(',')).split(',').map(s => s.trim()).filter(Boolean)
 const sizes = arg('--sizes', '100x30,100x40,120x30,120x40')
@@ -48,7 +54,7 @@ const sizes = arg('--sizes', '100x30,100x40,120x30,120x40')
     return { cols: c!, rows: r! }
   })
 const outDir = arg('--out', join(tmpdir(), `mercury-overflow-${process.pid}`))
-const parallel = Math.max(1, Number(arg('--parallel', '2')) || 1)
+const parallel = Math.max(1, Number(arg('--parallel', '1')) || 1)
 mkdirSync(outDir, { recursive: true })
 
 const driver = resolveCaptureDriver()
@@ -71,18 +77,23 @@ const PYTE_PATH = (() => {
 type Cell = { c?: string }
 type Grid = Cell[][]
 type Payload = { grid?: Grid; marks?: Array<{ label: string; grid: Grid }>; endReason?: string }
-const rowsOf = (g: Grid | undefined): string[] => (Array.isArray(g) ? g.map(row => row.map(cell => cell.c ?? ' ').join('')) : [])
+const rowsOf = (g: Grid | undefined): string[] =>
+  Array.isArray(g) ? g.map(row => row.map(cell => (cell.c === undefined || cell.c === '' ? ' ' : cell.c)).join('')) : []
 
 const BOX = new Set(['╭', '╮', '╰', '╯', '│', '─', '├', '┤', '┬', '┴', '┼', '┌', '┐', '└', '┘'])
-const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+d\b/i
+const CUT = new Set(['─', '╰', '╯', '┴', '┬', '┼', '━', '▔', '▁', '═'])
+const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+[cd]\b/i
+const KEY_HINT_ROW = /(^|· )(↑↓|↵|←→|esc|⌫|tab|space|⇧|⌃)/
+const isRule = (line: string): boolean => line.length > 0 && /^(.)\1*$/.test(line) && CUT.has(line[0]!)
 
 type Finding = { kind: 'broken-border' | 'bleed' | 'clip' | 'no-exit' | 'footer-wrapped'; detail: string }
 
-function inspect(rows: string[], cols: number): Finding[] {
+function inspect(rows: string[], cols: number, root?: RegExp): Finding[] {
   const out: Finding[] = []
   const cell = (y: number, x: number): string => rows[y]?.[x] ?? ' '
   for (let y = 0; y < rows.length; y++) {
     const line = rows[y]!
+    if (isRule(line)) continue
     for (let x0 = line.indexOf('╭'); x0 >= 0; x0 = line.indexOf('╭', x0 + 1)) {
       const x1 = line.indexOf('╮', x0 + 1)
       if (x1 < 0) {
@@ -90,6 +101,7 @@ function inspect(rows: string[], cols: number): Finding[] {
         continue
       }
       let closed = false
+      let cut = false
       let lastInner = y
       for (let yy = y + 1; yy < rows.length; yy++) {
         const l = cell(yy, x0)
@@ -97,6 +109,10 @@ function inspect(rows: string[], cols: number): Finding[] {
         if (l === '╰') {
           closed = true
           if (r !== '╯') out.push({ kind: 'broken-border', detail: `row ${yy}: bottom edge ╰ at ${x0} but ${JSON.stringify(r)} at ${x1}` })
+          break
+        }
+        if (isRule(rows[yy]!) || (CUT.has(l) && l !== '│') || (CUT.has(r) && r !== '│')) {
+          cut = true
           break
         }
         lastInner = yy
@@ -113,6 +129,7 @@ function inspect(rows: string[], cols: number): Finding[] {
           out.push({ kind: 'bleed', detail: `row ${yy}: ${JSON.stringify(after)} painted right of the border at ${x1 + 1}` })
         }
       }
+      if (cut) continue
       if (!closed) {
         if (lastInner >= rows.length - 1 && y < rows.length - 4) {
           out.push({ kind: 'clip', detail: `shell opened at row ${y} (x ${x0}..${x1}) never closes — its footer is off screen` })
@@ -123,31 +140,43 @@ function inspect(rows: string[], cols: number): Finding[] {
         const inner = (yy: number): string => rows[yy]!.slice(x0 + 1, x1).trim()
         const footer = inner(lastInner)
         const above = inner(lastInner - 1)
-        if (EXIT_HINT.test(footer) && above !== '' && !EXIT_HINT.test(above)) {
-          if (/^[a-z]/.test(above) && above.includes('·')) {
-            out.push({ kind: 'footer-wrapped', detail: `rows ${lastInner - 1}-${lastInner}: "${above}" / "${footer}"` })
-          }
+        if (EXIT_HINT.test(footer) && above !== '' && KEY_HINT_ROW.test(above) && !above.includes('…')) {
+          out.push({ kind: 'footer-wrapped', detail: `rows ${lastInner - 1}-${lastInner}: "${above}" / "${footer}"` })
         }
       }
     }
   }
   const whole = rows.join('\n')
-  if (!EXIT_HINT.test(whole)) out.push({ kind: 'no-exit', detail: 'no esc / ← / q / ⇧← hint anywhere on the frame' })
+  if (root !== undefined) {
+    if (!root.test(whole) && !EXIT_HINT.test(whole)) out.push({ kind: 'no-exit', detail: `a root screen with no key-map row (${root}) and no exit hint` })
+  } else if (!EXIT_HINT.test(whole)) {
+    out.push({ kind: 'no-exit', detail: 'no esc / ← / q / ⇧← / ctrl+c hint anywhere on the frame' })
+  }
   return out
 }
 
 type Job = { name: string; cols: number; rows: number }
 type Result = { job: Job; ok: boolean; findings: Finding[]; note: string }
 
+function restoreEnv(saved: Record<string, string | undefined>): void {
+  for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]
+  for (const [key, value] of Object.entries(saved)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
+}
+
 async function capture(job: Job): Promise<Result> {
   const { name, cols, rows } = job
   const tag = `${name}-${cols}x${rows}`
   const gridPath = join(outDir, `${tag}.json`)
   const cfgPath = join(outDir, `${tag}.cfg.json`)
+  const saved: Record<string, string | undefined> = { ...process.env }
   let cfg: Record<string, unknown>
   try {
     cfg = { ...scenario(name, cols, rows), out: gridPath }
   } catch (e) {
+    restoreEnv(saved)
     return { job, ok: false, findings: [], note: `scenario refused: ${String(e).slice(0, 200)}` }
   }
   writeFileSync(cfgPath, JSON.stringify(cfg))
@@ -157,6 +186,7 @@ async function capture(job: Job): Promise<Result> {
     MERCURY_FULLSCREEN: '1',
     MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR || CONFIG_HOME,
   }
+  restoreEnv(saved)
   const status = await new Promise<number | null>(resolve => {
     const child = spawn(driver.python, [join(import.meta.dir, 'vshot.py'), cfgPath], { cwd: RUNTIME_CWD, env, stdio: ['ignore', 'ignore', 'pipe'] })
     let stderr = ''
@@ -182,7 +212,7 @@ async function capture(job: Job): Promise<Result> {
   for (const [label, rows] of frames) {
     dump.push(`──── ${tag} · ${label} ────`, ...rows, '')
     if (mark !== undefined && label !== `mark:${mark}`) continue
-    for (const f of inspect(rows, cols)) findings.push({ kind: f.kind, detail: `${label}: ${f.detail}` })
+    for (const f of inspect(rows, cols, ROOT_KEYMAP[name])) findings.push({ kind: f.kind, detail: `${label}: ${f.detail}` })
   }
   writeFileSync(join(outDir, `${tag}.txt`), dump.join('\n'))
   return { job, ok: findings.length === 0, findings, note: payload.endReason ?? '' }
