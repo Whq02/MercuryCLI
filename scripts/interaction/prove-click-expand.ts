@@ -205,8 +205,9 @@ cleanupScenario('click-expand')
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
     )
     check(
-      'lifecycle: the filtered unresolved Bash paints NO ghost card',
-      !lines.some(l => l.includes('sleep 999') || l.includes('Long-running fixture command')),
+      'lifecycle: the unresolved Bash paints as the queued card (its command + waiting…)',
+      lines.some(l => l.includes('sleep 999')) && lines.some(l => l.includes('waiting…')),
+      lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | ') || '(neither row painted)',
     )
     check(
       'lifecycle: the unresolved Bash is never a settled "Ran" row',
