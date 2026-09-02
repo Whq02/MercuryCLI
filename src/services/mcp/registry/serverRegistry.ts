@@ -249,7 +249,12 @@ export class McpServerRegistry {
     if (configType === 'stdio' || configType === 'sdk') {
       return this.enqueue(slot, async gen => {
         if (this.stale(slot, gen, 'connection-lost')) return null
-        slot.connection = { name, type: 'failed', config: slot.config }
+        slot.connection = {
+          name,
+          type: 'failed',
+          config: slot.config,
+          error: `the server closed its connection — a local server is not restarted on its own; /mcp reconnect ${name} starts it again`,
+        }
         this.emit(slot, 'reconnect-auto', { tools: [], commands: [] })
         return null
       }).then(() => undefined)
