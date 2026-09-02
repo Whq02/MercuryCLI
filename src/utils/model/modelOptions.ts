@@ -30,19 +30,16 @@ import {
   type GptSeatAvailability,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import {
-  GEMINI_CONNECT_OPTION_VALUE,
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
 } from '../../services/providers/gemini/geminiCatalogue.js'
 import {
-  OPENROUTER_CONNECT_OPTION_VALUE,
   OPENROUTER_MODEL_GROUP,
   getOpenrouterModelOptions,
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { connectToBrowseReason } from '../../services/providers/catalogueGate.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
-  HUGGINGFACE_CONNECT_OPTION_VALUE,
   HUGGINGFACE_MODEL_GROUP,
   getHuggingfaceModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
@@ -89,6 +86,12 @@ export type ModelOption = {
    *  resolver cannot know. Absent = unknown: the picker paints NO column
    *  rather than a borrowed default. */
   statedContextWindow?: number
+  /** A catalogue DOOR (the live-catalogue row past a picker's row bound):
+   *  ↵ expands its group in place to the full live list behind a
+   *  type-to-filter line. `family` is the display word the expanded header
+   *  paints; `total` the live count from the owning availability chain.
+   *  Door rows are ACTION rows (isProviderActionRow) — never a model. */
+  catalogueDoor?: { family: string; total: number }
 }
 
 /** The GPT-connect sentinel (contract data). */
@@ -407,8 +410,18 @@ export function parseKeyConnectValue(
     : undefined
 }
 
-/** A picker ACTION row (connect/attach sentinels) — surfaces skip the model
- *  columns for these (the GPT connect row's treatment). */
+/** A catalogue DOOR sentinel ('__mercury_<provider>_expand__'): the /model
+ *  row that expands a live catalogue group to its full list. Shape-matched
+ *  for the same reason as the connect sentinels below (the owning catalogue
+ *  modules import this file). The door lives on the /model surface only —
+ *  the inline quick-switcher lists no door. */
+export function isCatalogueDoorRow(value: string): boolean {
+  return /^__mercury_[a-z0-9-]+_expand__$/.test(value)
+}
+
+/** A picker ACTION row (connect/attach sentinels, the catalogue doors) —
+ *  surfaces skip the model columns for these (the GPT connect row's
+ *  treatment), and no composer ever lists one as a model. */
 export function isProviderActionRow(value: string): boolean {
   return (
     value === GPT_CONNECT_OPTION_VALUE ||
@@ -416,8 +429,23 @@ export function isProviderActionRow(value: string): boolean {
     // The auth-lane connect sentinels ('__mercury_<provider>_connect__') —
     // shape-matched here because their owning catalogue modules import this
     // file (a literal import would cycle).
-    /^__mercury_[a-z0-9-]+_connect__$/.test(value)
+    /^__mercury_[a-z0-9-]+_connect__$/.test(value) ||
+    isCatalogueDoorRow(value)
   )
+}
+
+/** The operator's availableModels allowlist over a composed option list.
+ *  The Default row and every ACTION row are exempt (actions are not
+ *  models). ONE owner: getModelOptions applies it to the picker's list and
+ *  the /model door applies it to a group's full live list, so an expanded
+ *  catalogue never lists a model the allowlist refuses. */
+export function applyModelAllowlist(options: ModelOption[]): ModelOption[] {
+  if (getSettings_DEPRECATED().availableModels === undefined) return options
+  return options.filter(opt => {
+    if (opt.value === null) return true
+    if (isProviderActionRow(opt.value)) return true
+    return isModelAllowed(opt.value)
+  })
 }
 
 /**
@@ -812,23 +840,9 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
 
-  // 9. Allowlist filter — the Default row and the provider connect/attach
-  //    action rows exempt (action rows are actions, not models).
-  if (getSettings_DEPRECATED().availableModels !== undefined) {
-    options = options.filter(opt => {
-      if (opt.value === null) return true
-      if (
-        opt.value === GPT_CONNECT_OPTION_VALUE ||
-        opt.value === OPENROUTER_CONNECT_OPTION_VALUE ||
-        opt.value === GEMINI_CONNECT_OPTION_VALUE ||
-        opt.value === HUGGINGFACE_CONNECT_OPTION_VALUE ||
-        opt.value.startsWith(KEY_CONNECT_PREFIX)
-      ) {
-        return true
-      }
-      return isModelAllowed(opt.value)
-    })
-  }
+  // 9. Allowlist filter — the Default row and the provider action rows
+  //    (connect/attach, the catalogue doors) exempt: actions are not models.
+  options = applyModelAllowlist(options)
 
   // 9b. The Anthropic group's credential gate — the law every other family's
   //     group already carries (credentialed ⇒ selectable; absent ⇒ ONE

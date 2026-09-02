@@ -19,9 +19,10 @@
 //        changes (80→100, 100→120): after EVERY change the settled frame
 //        carries EXACTLY ONE copy of the station's furniture — never a
 //        stacked ghost (the operator's screenshot showed 2+). A geometry
-//        UNDER THE VIEWPORT FLOOR (80×30 is under the 100-column floor)
-//        settles to the floor's ONE line and ZERO station copies — the
-//        ghost law there is that no station copy survives either.
+//        UNDER THE VIEWPORT FLOOR settles to the floor's ONE line and ZERO
+//        station copies — the ghost law there is that no station copy
+//        survives either; the floor's own latch, replayed in order, says
+//        which geometries are under (80×30 sits AT the 80-column floor).
 //    G3  the repaint is THROUGH the clear law: each geometry change is
 //        followed by a contained erase before the next settled frame (2J
 //        count ≥ resize count), and the journey never leaves the alternate

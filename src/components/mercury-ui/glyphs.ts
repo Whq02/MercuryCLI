@@ -95,7 +95,8 @@ export const GLYPH = {
   ownHybrid: '⊞',
   // the assist-model picker affordance on the
   // Concourse header (`GPT-5.6 Sol ⌄`) — a width-1 down chevron. ⌄ is also
-  // the product's expand cue (`∴ Thinking ⌄`, the concourse "+N more lines").
+  // the product's expand cue (the collapsed thinking row's fold, the
+  // concourse "+N more lines").
   chevronDown: '⌄',
   // The ⌄ dialect's closed-state mate: a
   // standing two-state disclosure points › when folded and ⌄ when open —
