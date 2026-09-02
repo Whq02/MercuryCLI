@@ -92,8 +92,15 @@ import {
 import { cockpitEngine, mountCockpitEngine, type CockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { flushDoorSync, termWrite } from '../render-engine/cockpit/terminalOut.js'
 import { RESIZE_SETTLE_MS } from './constants.js'
-import { runTeardownSuite } from './root/teardown.js'
-import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js'
+import { runTeardownSuite, type TeardownHost } from './root/teardown.js'
+import {
+  continueRearmBytes,
+  isStopSignal,
+  POSIX_STOP_SIGNALS,
+  restoreTerminalForStop,
+  stopSignalsSupported,
+} from './root/stop-continue.js'
+import { noteModeAcquired, noteModeReleased, shutdownReleaseObligations } from './root/terminalModeLedger.js'
 import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputSupportedNow } from './session/capabilities.js'
 import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
 import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
@@ -101,6 +108,7 @@ import {
   DISABLE_MOUSE_TRACKING,
   ENABLE_MOUSE_TRACKING,
   ENTER_ALT_SCREEN,
+  HIDE_CURSOR,
 } from './termio/dec.js'
 import { setClipboard, supportsTabStatus } from './termio/osc.js'
 import { TerminalWriteProvider } from './useTerminalNotification.js'
@@ -259,6 +267,8 @@ export default class Ink {
 
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
+  private rawModeOffForStop = false
+  private stopListenersAttached = false
 
   private treeDumpBudget = TREE_DUMP_PATH ? TREE_DUMP_BUDGET : 0
 
@@ -309,6 +319,7 @@ export default class Ink {
     if (this.isTTY) {
       options.stdout.on('resize', this.handleResize)
       process.on('SIGCONT', this.resumeAfterContinue)
+      this.attachStopListeners()
       const win32SizeTimer: ReturnType<typeof setInterval> | null =
         process.platform === 'win32'
           ? setInterval(() => this.reconcileSize(), 5_000)
@@ -317,6 +328,7 @@ export default class Ink {
       this.removeTtySubscriptions = () => {
         options.stdout.off('resize', this.handleResize)
         process.off('SIGCONT', this.resumeAfterContinue)
+        this.detachStopListeners()
         if (win32SizeTimer !== null) clearInterval(win32SizeTimer)
       }
     }
@@ -464,11 +476,11 @@ export default class Ink {
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
       this.scheduler.holdForSettle()
+      this.paintResizeHold(columns, rows)
     } else {
       clearTimeout(this.resizeSettleTimer)
     }
     this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
-    this.paintResizeHold(columns, rows)
   }
 
   private paintResizeHold(columns: number, rows: number): void {
@@ -1063,11 +1075,74 @@ export default class Ink {
     this.resetFramesForAltScreen()
   }
 
+  private attachStopListeners(): void {
+    if (this.stopListenersAttached || !stopSignalsSupported()) return
+    for (const signal of POSIX_STOP_SIGNALS) process.on(signal, this.stopForSignal)
+    this.stopListenersAttached = true
+  }
+
+  private detachStopListeners(): void {
+    if (!this.stopListenersAttached) return
+    for (const signal of POSIX_STOP_SIGNALS) process.off(signal, this.stopForSignal)
+    this.stopListenersAttached = false
+  }
+
+  private teardownHost(): TeardownHost {
+    return {
+      altScreenActive: this.altScreenActive,
+      tabStatusSupported: supportsTabStatus(),
+      write: bytes => {
+        writeAllSync(1, Buffer.from(bytes, 'utf8'))
+      },
+      drainStdin: () => drainStdin(this.options.stdin),
+      resetPointer: resetPointerShape,
+    }
+  }
+
+  private stopForSignal = (signal: NodeJS.Signals): void => {
+    if (!isStopSignal(signal)) return
+    this.detachStopListeners()
+    if (this.isTTY && !this.isUnmounted) {
+      flushDoorSync()
+      const receipt = restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)
+      this.rawModeOffForStop = receipt.rawModeOff
+    }
+    try {
+      process.kill(process.pid, signal)
+    } catch {
+    }
+    if (!this.isUnmounted) this.attachStopListeners()
+  }
+
   private resumeAfterContinue = (): void => {
-    if (!this.isTTY) return
+    if (!this.isTTY || this.isUnmounted) return
+    if (this.rawModeOffForStop) {
+      this.rawModeOffForStop = false
+      try {
+        this.options.stdin.setRawMode(true)
+      } catch {
+      }
+    }
+    this.attachStopListeners()
+    if (streamTakesWrites(this.options.stdout)) {
+      termWrite(
+        this.options.stdout,
+        continueRearmBytes({
+          extendedKeys: extendedKeysSupportedNow(),
+          altActive: this.altScreenActive,
+          mouseTracking: this.mouseTracking,
+        }),
+        'mode',
+      )
+      if (shutdownReleaseObligations().includes('cursor-hidden')) {
+        termWrite(this.options.stdout, HIDE_CURSOR, 'mode')
+      }
+    }
     if (this.altScreenActive) {
       this.reenterAltScreen();
       this.armScreenWatchdog();
+      this.needsEraseBeforePaint = true
+      this.scheduleRender()
       return
     }
     this.frontFrame = emptyFrame(
@@ -1088,6 +1163,7 @@ export default class Ink {
     this.writer.reset()
     this.displayCursor = null
     this.ledger.contaminate('blank-reset')
+    this.scheduleRender()
   }
 
   reassertTerminalModes(includeAltScreen = false): void {
@@ -1624,15 +1700,7 @@ export default class Ink {
 
     if (this.isTTY) {
       flushDoorSync()
-      runTeardownSuite({
-        altScreenActive: this.altScreenActive,
-        tabStatusSupported: supportsTabStatus(),
-        write: bytes => {
-          writeAllSync(1, Buffer.from(bytes, 'utf8'))
-        },
-        drainStdin: () => drainStdin(this.options.stdin),
-        resetPointer: resetPointerShape,
-      })
+      runTeardownSuite(this.teardownHost())
     }
 
     this.isUnmounted = true

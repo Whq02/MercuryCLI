@@ -23,6 +23,12 @@ export function bornSession(req: BirthRequest): Promise<BirthOutcome> {
   return withLanding(birth(req))
 }
 
+export function operatorFacingBirthReason(reason: string): string {
+  return reason
+    .replace(/\bask the operator to /g, '')
+    .replace(/leave the model out for its newest row \(([^)]+)\), or name '[a-z-]+' to pick that family/g, '/model $1 picks its newest row')
+}
+
 async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
   if (!(await ensureOwnedDaemon())) return { ok: false, reason: DAEMON_DID_NOT_START }
@@ -55,13 +61,13 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   }
   const sessionId = typeof reply.sessionId === 'string' ? reply.sessionId : undefined
   if (reply.ok !== true || sessionId === undefined) {
-    return { ok: false, reason: String(reply.error ?? 'the session could not start') }
+    return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
   catalogFirstChat(req.workspaceDir, sessionId)
   const hop = await hopIntoBoardSession(sessionId, req.firstPaintMs !== undefined ? { firstPaintMs: req.firstPaintMs } : undefined)
   if (!hop.ok) {
     logForDebugging(`[switchboard] born session ${sessionId} could not be entered: ${hop.reason}`)
-    return { ok: false, reason: hop.reason }
+    return { ok: false, reason: operatorFacingBirthReason(hop.reason) }
   }
   return { ok: true, sessionId, title: hop.title }
 }

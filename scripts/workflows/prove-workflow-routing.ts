@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import '../lib/hermetic.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 let failures = 0

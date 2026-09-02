@@ -1,4 +1,4 @@
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useContext, useState, useSyncExternalStore } from 'react';
 import { Box, MotionParkContext, Text } from '../ink.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
@@ -28,6 +28,8 @@ import { RouteSurfaceScopeContext } from '../keybindings/RouteSurfaceScope.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { estateGroundBg } from '../utils/mercuryTokens.js';
+import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
+import { useViewportFloor } from '../ink/hooks/use-viewport-floor.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { BootSplashScreen } from './BootSplashScreen.js';
 import { MercuryFrame } from './MercuryFrame.js';
@@ -121,6 +123,7 @@ function RouteSurfaceHost({
   const t = useMercuryTokens();
   const ground = estateGroundBg(t);
   const [exitChordArmed, setExitChordArmed] = useState(false);
+  const floor = useViewportFloor(useContext(TerminalSizeContext), true);
   return (
     <Box
       ref={elevatedRef}
@@ -132,15 +135,18 @@ function RouteSurfaceHost({
       flexDirection="column"
       overflow="hidden"
       opaque={true}
+      display={floor.fits ? 'flex' : 'none'}
       {...(ground !== undefined ? { backgroundColor: ground } : {})}
     >
-      <SurfaceOverlayClaim kind={kind} />
-      <SurfaceExitChord onPendingChange={setExitChordArmed} />
-      <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        {children}
-      </Box>
-      {frame === 'inherit' ? <MercuryFrame model={model} routeSurface /> : null}
-      <SurfaceExitChordNotice pending={exitChordArmed} />
+      <TerminalSizeContext.Provider value={floor.surfaceSize}>
+        <SurfaceOverlayClaim kind={kind} />
+        <SurfaceExitChord onPendingChange={setExitChordArmed} />
+        <Box flexDirection="column" flexGrow={1} overflow="hidden">
+          {children}
+        </Box>
+        {frame === 'inherit' ? <MercuryFrame model={model} routeSurface /> : null}
+        <SurfaceExitChordNotice pending={exitChordArmed} />
+      </TerminalSizeContext.Provider>
     </Box>
   );
 }

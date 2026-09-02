@@ -110,7 +110,29 @@ send_stable_run = 0
 send_stable_text = None
 send_stable_eval_tick = -1
 raw_seen = bytearray()
-resizes = sorted(cfg.get("resizes", []), key=lambda r: r.get("atTick", 0))
+TICK_S = 0.2
+_resizes_raw = list(cfg.get("resizes", []))
+_RELATIVE_KEYS = ("atMs", "afterMark", "afterPrevMs")
+if all(not any(k in r for k in _RELATIVE_KEYS) for r in _resizes_raw):
+    resizes = sorted(_resizes_raw, key=lambda r: r.get("atTick", 0))
+else:
+    resizes = _resizes_raw
+
+def _resize_due_s(step, marks_fired_s, last_resize_s):
+    """Seconds after start at which `step` is due; None while its anchor
+    (a mark or a previous resize) has not fired."""
+    if "afterMark" in step:
+        base = marks_fired_s.get(step["afterMark"])
+        if base is None:
+            return None
+        return base + float(step.get("afterMs", 0)) * _scale / 1000.0
+    if "afterPrevMs" in step:
+        if last_resize_s is None:
+            return None
+        return last_resize_s + float(step["afterPrevMs"]) * _scale / 1000.0
+    if "atMs" in step:
+        return float(step["atMs"]) * _scale / 1000.0
+    return _scaled(int(step.get("atTick", 0))) * TICK_S
 tee_path = os.environ.get("VSHOT_TEE")
 tee = open(tee_path, "ab") if tee_path else None
 
@@ -140,22 +162,36 @@ else:
                   "rev": bool(screen.buffer[y][x].reverse)}
                  for x in range(c)] for y in range(r)]
 
+    def snap_cursor():
+        return {"x": screen.cursor.x, "y": screen.cursor.y,
+                "hidden": bool(screen.cursor.hidden)}
+
+    marks_fired_s = {}
+    last_resize_s = None
     t0 = time.monotonic()
-    TICK_S = 0.2
     while True:
         tick = int((time.monotonic() - t0) / TICK_S)
         if tick >= total:
             ended_at_tick, end_reason = tick, "budget"
             break
-        if resized < len(resizes) and tick >= _scaled(int(resizes[resized].get("atTick", 0))):
+        if resized < len(resizes):
+            due_s = _resize_due_s(resizes[resized], marks_fired_s, last_resize_s)
+        else:
+            due_s = None
+        if due_s is not None and (time.monotonic() - t0) >= due_s:
             step = resizes[resized]
+            now_s = time.monotonic() - t0
             stages.append({"cols": cols, "rows": rows, "untilTick": tick,
+                           "untilMs": int(now_s * 1000), "cursor": snap_cursor(),
                            "grid": snap_grid(cols, rows)})
             cols, rows = int(step["cols"]), int(step["rows"])
             screen.resize(rows, cols)
             fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             resized += 1
+            last_resize_s = now_s
         wait = max(0.0, (tick + 1) * TICK_S - (time.monotonic() - t0))
+        if due_s is not None:
+            wait = max(0.0, min(wait, due_s - (time.monotonic() - t0)))
         r, _, _ = select.select([fd], [], [], wait)
         if fd in r:
             try:
@@ -225,8 +261,11 @@ else:
                         ready_seen_pre_sends = True
                 if nxt.get("mark"):
                     marks.append({"label": nxt["mark"], "atTick": tick,
+                                  "atMs": int((time.monotonic() - t0) * 1000),
                                   "cols": cols, "rows": rows,
+                                  "cursor": snap_cursor(),
                                   "grid": snap_grid(cols, rows)})
+                    marks_fired_s[nxt["mark"]] = time.monotonic() - t0
                 if nxt.get("signal"):
                     import signal as _signal
                     os.kill(pid, getattr(_signal, nxt["signal"]))
@@ -278,6 +317,7 @@ else:
               "rev": bool(screen.buffer[y][x].reverse)}
              for x in range(cols)] for y in range(rows)]
     payload = {"cols": cols, "rows": rows, "grid": grid,
+               "cursor": snap_cursor(),
                "readyAt": ready_at,
                "endedAtTick": ended_at_tick,
                "endReason": end_reason,

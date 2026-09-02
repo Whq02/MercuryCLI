@@ -369,7 +369,7 @@ section("§7 the surfaces name the session's family — never the first-party on
   check('the /router header names the estate as it is, with the ruled fence beside it', /every provider lane beside the home lane/.test(routerText) && /seats stay Anthropic/.test(routerText))
 }
 
-section("§8 the operator's sighting: a fresh box's New Session refuses with BOTH doors and no family")
+section("§8 the operator's sighting: a fresh box's New Session is born keyless; a spelled-out id keeps its family's door, spoken to the operator")
 {
   const wm = await import('../../src/services/concourse/workerModels.js')
   const ruled = wm.noAccountRefusal('no-credential:anthropic', undefined, false)
@@ -382,18 +382,26 @@ section("§8 the operator's sighting: a fresh box's New Session refuses with BOT
   rmSync(join(home, 'settings.json'), { force: true })
   resetSettingsCache()
   const fresh = await wm.validateWorkerModelChoice(undefined, 'session')
-  const freshLine = fresh.ok ? 'ok' : `${fresh.reason} · ${fresh.action ?? ''} — ${fresh.detail ?? ''}`
-  check("LIVE: the fresh box's unnamed launch refuses with the ruled sentence (base: '…run /logins anthropic — the anthropic family holds no credential on this account')",
-    !fresh.ok && fresh.reason === 'no-credential:any' && (fresh.action ?? '') === '/logins to choose an account, or /router key <provider> to connect an API key', freshLine)
-  check('…naming no family anywhere on the line', !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(freshLine), freshLine)
+  const freshLine = fresh.ok ? `ok · keyless=${String(fresh.keyless)} · ${fresh.entry.displayName}` : `${fresh.reason} · ${fresh.action ?? ''} — ${fresh.detail ?? ''}`
+  check("LIVE: the fresh box's unnamed launch is BORN keyless (base: '…run /logins anthropic — the anthropic family holds no credential on this account', then the two-door refusal)",
+    fresh.ok && fresh.keyless === true && fresh.entry.displayName === 'no sign-in yet', freshLine)
+  check('…naming no family anywhere on the row', !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(freshLine), freshLine)
+  const freshCrew = await wm.validateWorkerModelChoice(undefined, 'crew')
+  check('…while the keyless CREW seat keeps the ruled two-door sentence (naming no family)', !freshCrew.ok && freshCrew.reason === 'no-credential:any' && !/anthropic|claude|openai/i.test(`${freshCrew.detail} ${freshCrew.action}`), JSON.stringify(freshCrew))
 
+  const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
+  ;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
+  check("LIVE: the face's road sends NO model on the fresh box (screenBirthModel is nothing while the default reads keyless)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
   const facedRegistry = await wm.composeWorkerModelRegistry()
   const facedId = wm.defaultWorkerModelId(facedRegistry, 'session')
   const faced = await wm.validateWorkerModelChoice(facedId, 'session')
   const facedLine = faced.ok ? 'ok' : `${faced.reason} · ${faced.action ?? ''} — ${faced.detail ?? ''}`
-  check("LIVE: the face's launch — the registry default sent as a NAMED id — refuses with the ruled sentence (base: that family's own refusal, addressed to somebody else)",
-    !faced.ok && faced.reason === 'no-credential:any' && (faced.action ?? '') === '/logins to choose an account, or /router key <provider> to connect an API key', facedLine)
-  check('…naming no family anywhere on that line either', !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
+  check("LIVE: the registry's keyless seed spelled out as a NAMED id is the operator's own pick — its family's own door (base: the two-door sentence)",
+    !faced.ok && faced.reason === 'no-credential:anthropic' && /\/logins anthropic/.test(faced.action ?? ''), facedLine)
+  check('…naming ITS family and no other on that line', /anthropic/i.test(facedLine) && !/openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
+  const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.js')
+  const spoken = operatorFacingBirthReason(`model refused (${faced.ok ? '' : faced.reason}) · ${faced.ok ? '' : faced.action ?? ''} — ${faced.ok ? '' : faced.detail ?? ''} (got "${facedId}")`)
+  check("…and on the operator's own road the sentence is spoken TO the operator — no 'ask the operator', the imperative kept", !/ask the operator/.test(spoken) && /run \/logins anthropic/.test(spoken), spoken)
   const otherEntry = facedRegistry.entries.find(e => e.modelId !== facedId && e.session.availability !== 'available')
   if (otherEntry !== undefined) {
     const named = await wm.validateWorkerModelChoice(otherEntry.modelId, 'session')
