@@ -19,6 +19,10 @@ vendor/pyright/
 vendor/grammars/
 vendor/js-debug/
 vendor/node/
+# The voice capture pack is BUILT from native/voice (cargo), never fetched
+# and never tracked: the addon and its licences land here per platform.
+vendor/voice/
+native/voice/target/
 release-out/
 
 # Gate shard artifacts from local runs.
