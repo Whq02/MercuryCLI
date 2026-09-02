@@ -153,7 +153,7 @@ export function applyPreservedSegmentRelinks(
 
   if (segIsLive) {
     const head = messages.get(lastSeg.headUuid)
-    if (head) {
+    if (head && head.parentUuid !== lastSeg.anchorUuid) {
       messages.set(lastSeg.headUuid, {
         ...head,
         parentUuid: lastSeg.anchorUuid,
@@ -167,6 +167,16 @@ export function applyPreservedSegmentRelinks(
     for (const uuid of preservedUuids) {
       const msg = messages.get(uuid)
       if (msg?.type !== 'assistant') continue
+      const usage = msg.message.usage
+      if (
+        usage !== undefined &&
+        usage.input_tokens === 0 &&
+        usage.output_tokens === 0 &&
+        usage.cache_creation_input_tokens === 0 &&
+        usage.cache_read_input_tokens === 0
+      ) {
+        continue
+      }
       messages.set(uuid, {
         ...msg,
         message: {

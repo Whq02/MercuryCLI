@@ -1,5 +1,5 @@
-import { openSync, closeSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 
 export function workerTranscriptPath(rec: { sessionId: string; workspaceId: string }): string {
@@ -24,39 +24,10 @@ export function openWorkerTranscript(path: string): TranscriptReadResult {
 }
 
 export function readAfterCursor(cursor: TranscriptCursor): TranscriptReadResult {
-  let size: number
-  try {
-    size = statSync(cursor.path).size
-  } catch {
-    return { records: [], cursor: { path: cursor.path, offset: 0, carry: '' }, rewound: cursor.offset > 0, malformed: 0 }
-  }
-  let from = cursor.offset
-  let carry = cursor.carry
-  let rewound = false
-  if (size < cursor.offset) {
-    from = 0
-    carry = ''
-    rewound = true
-  }
-  if (size === from) {
-    return { records: [], cursor: { path: cursor.path, offset: from, carry }, rewound, malformed: 0 }
-  }
-  const fd = openSync(cursor.path, 'r')
-  let text: string
-  try {
-    const buf = Buffer.alloc(size - from)
-    const n = readSync(fd, buf, 0, buf.length, from)
-    text = buf.subarray(0, n).toString('utf8')
-  } finally {
-    closeSync(fd)
-  }
-  const combined = carry + text
-  const lastNewline = combined.lastIndexOf('\n')
-  const complete = lastNewline === -1 ? '' : combined.slice(0, lastNewline)
-  const nextCarry = lastNewline === -1 ? combined : combined.slice(lastNewline + 1)
+  const bytes = readTranscriptBytesAfter(cursor.path, { offset: cursor.offset, carry: cursor.carry })
   const records: unknown[] = []
   let malformed = 0
-  for (const rawLine of complete.split('\n')) {
+  for (const rawLine of bytes.text.split('\n')) {
     const line = rawLine.replace(/\r$/, '')
     if (!line.trim()) continue
     try {
@@ -67,8 +38,8 @@ export function readAfterCursor(cursor: TranscriptCursor): TranscriptReadResult 
   }
   return {
     records,
-    cursor: { path: cursor.path, offset: size, carry: nextCarry },
-    rewound,
+    cursor: { path: cursor.path, offset: bytes.cursor.offset, carry: bytes.cursor.carry },
+    rewound: bytes.rewound,
     malformed,
   }
 }

@@ -195,77 +195,126 @@ export function deserializeLiveMessages(serialized: Message[]): Message[] {
   return serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)
 }
 
-export function liveTurnStateOf(messages: Message[]): {
+export type LiveTurnState = {
   inFlight: boolean
   phase: 'thinking' | 'tool' | 'responding' | 'idle'
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
-} {
-  const pending = new Set<string>()
-  const resolved = new Set<string>()
-  let lastPromptMs: number | null = null
-  let lastAssistantMs: number | null = null
-  let hasAssistant = false
-  let lastAssistantKind: 'thinking' | 'tool' | 'responding' | null = null
+}
 
-  const parseTime = (timestamp: string): number | null => {
-    const parsed = Date.parse(timestamp)
-    return Number.isNaN(parsed) ? null : parsed
-  }
+type TurnAccumulator = {
+  pending: Set<string>
+  resolved: Set<string>
+  lastPromptMs: number | null
+  lastAssistantMs: number | null
+  hasAssistant: boolean
+  lastAssistantKind: 'thinking' | 'tool' | 'responding' | null
+}
 
-  for (const message of messages) {
-    if (message.type === 'user') {
-      const content = message.message.content
-      if (Array.isArray(content)) {
-        let carriedToolResult = false
-        for (const block of content) {
-          const record = block as { type?: string; tool_use_id?: string }
-          if (record.type === 'tool_result' && record.tool_use_id) {
-            resolved.add(record.tool_use_id)
-            carriedToolResult = true
-          }
+const freshTurnAccumulator = (): TurnAccumulator => ({
+  pending: new Set(),
+  resolved: new Set(),
+  lastPromptMs: null,
+  lastAssistantMs: null,
+  hasAssistant: false,
+  lastAssistantKind: null,
+})
+
+const cloneTurnAccumulator = (acc: TurnAccumulator): TurnAccumulator => ({
+  pending: new Set(acc.pending),
+  resolved: new Set(acc.resolved),
+  lastPromptMs: acc.lastPromptMs,
+  lastAssistantMs: acc.lastAssistantMs,
+  hasAssistant: acc.hasAssistant,
+  lastAssistantKind: acc.lastAssistantKind,
+})
+
+const parseTurnTime = (timestamp: string): number | null => {
+  const parsed = Date.parse(timestamp)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+function accumulateTurn(acc: TurnAccumulator, message: Message): void {
+  if (message.type === 'user') {
+    const content = message.message.content
+    if (Array.isArray(content)) {
+      let carriedToolResult = false
+      for (const block of content) {
+        const record = block as { type?: string; tool_use_id?: string }
+        if (record.type === 'tool_result' && record.tool_use_id) {
+          acc.resolved.add(record.tool_use_id)
+          carriedToolResult = true
         }
-        if (!carriedToolResult && !message.isMeta) {
-          lastPromptMs = parseTime(message.timestamp) ?? lastPromptMs
-        }
-      } else if (!message.isMeta) {
-        lastPromptMs = parseTime(message.timestamp) ?? lastPromptMs
       }
-    } else if (message.type === 'assistant') {
-      hasAssistant = true
-      lastAssistantMs = parseTime(message.timestamp) ?? lastAssistantMs
-      const content = message.message.content
-      if (Array.isArray(content)) {
-        for (const block of content) {
-          const record = block as { type?: string; id?: string }
-          if (record.type === 'tool_use' && record.id) pending.add(record.id)
-        }
-        const last = content[content.length - 1] as { type?: string } | undefined
-        if (last?.type === 'thinking' || last?.type === 'redacted_thinking') lastAssistantKind = 'thinking'
-        else if (last?.type === 'tool_use') lastAssistantKind = 'tool'
-        else lastAssistantKind = 'responding'
+      if (!carriedToolResult && !message.isMeta) {
+        acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
       }
+    } else if (!message.isMeta) {
+      acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
+    }
+  } else if (message.type === 'assistant') {
+    acc.hasAssistant = true
+    acc.lastAssistantMs = parseTurnTime(message.timestamp) ?? acc.lastAssistantMs
+    const content = message.message.content
+    if (Array.isArray(content)) {
+      for (const block of content) {
+        const record = block as { type?: string; id?: string }
+        if (record.type === 'tool_use' && record.id) acc.pending.add(record.id)
+      }
+      const last = content[content.length - 1] as { type?: string } | undefined
+      if (last?.type === 'thinking' || last?.type === 'redacted_thinking') acc.lastAssistantKind = 'thinking'
+      else if (last?.type === 'tool_use') acc.lastAssistantKind = 'tool'
+      else acc.lastAssistantKind = 'responding'
     }
   }
+}
 
+function settleTurn(acc: TurnAccumulator): LiveTurnState {
   const unresolved = new Set<string>()
-  for (const id of pending) {
-    if (!resolved.has(id)) unresolved.add(id)
+  for (const id of acc.pending) {
+    if (!acc.resolved.has(id)) unresolved.add(id)
   }
   const promptOpen =
-    lastPromptMs !== null &&
-    (lastAssistantMs === null || lastAssistantMs >= lastPromptMs - 1)
+    acc.lastPromptMs !== null &&
+    (acc.lastAssistantMs === null || acc.lastAssistantMs >= acc.lastPromptMs - 1)
   const inFlight =
     unresolved.size > 0 ||
-    lastAssistantKind === 'thinking' ||
-    (promptOpen && !hasAssistant)
+    acc.lastAssistantKind === 'thinking' ||
+    (promptOpen && !acc.hasAssistant)
   let phase: 'thinking' | 'tool' | 'responding' | 'idle' = 'idle'
   if (inFlight) {
     if (unresolved.size > 0) phase = 'tool'
-    else if (lastAssistantKind === 'thinking') phase = 'thinking'
+    else if (acc.lastAssistantKind === 'thinking') phase = 'thinking'
     else phase = 'thinking'
   }
-  return { inFlight, phase, inProgressToolUseIDs: unresolved, turnStartedAtMs: lastPromptMs }
+  return { inFlight, phase, inProgressToolUseIDs: unresolved, turnStartedAtMs: acc.lastPromptMs }
+}
+
+export interface LiveTurnFold {
+  fold(rows: readonly Message[], settledPrefix: number): LiveTurnState
+}
+
+export function createLiveTurnFold(): LiveTurnFold {
+  let settled = freshTurnAccumulator()
+  let settledCount = 0
+  return {
+    fold(rows, settledPrefix) {
+      const k = Math.max(0, Math.min(settledPrefix, rows.length))
+      if (k < settledCount) {
+        settled = freshTurnAccumulator()
+        settledCount = 0
+      }
+      for (; settledCount < k; settledCount++) accumulateTurn(settled, rows[settledCount]!)
+      if (k === rows.length) return settleTurn(settled)
+      const live = cloneTurnAccumulator(settled)
+      for (let i = k; i < rows.length; i++) accumulateTurn(live, rows[i]!)
+      return settleTurn(live)
+    },
+  }
+}
+
+export function liveTurnStateOf(messages: Message[]): LiveTurnState {
+  return createLiveTurnFold().fold(messages, 0)
 }
 
 
