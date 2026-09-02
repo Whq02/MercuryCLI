@@ -10,6 +10,7 @@ import {
   type ModelOption,
   focusedOptionSupports1m,
   getModelOptions,
+  isCatalogueDoorRow,
   resolvesToExistingOption,
   stripContext1m,
   withContext1m,
@@ -60,7 +61,7 @@ export function ModelPicker({
   const setAppState = useSetAppState()
   const appStateEffort = useAppState((s: AppState) => s.effortValue)
   const options = useMemo(() => {
-    const catalogue = getModelOptions().filter(o => o.unavailable === undefined)
+    const catalogue = getModelOptions().filter(o => o.unavailable === undefined && !(typeof o.value === 'string' && isCatalogueDoorRow(o.value)))
     if (
       initial !== null &&
       !resolvesToExistingOption(catalogue, initial) &&

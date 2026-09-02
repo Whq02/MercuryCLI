@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -19,7 +19,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { runArtifactArena, grabScreens, firstOutputTs } = await import('../streaming/artifactArena.ts')
+const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -37,8 +37,7 @@ const DRAFT = 'hello draft mercury'
 const leg = async (tag: string, cols: number, rows: number, gapMs: number): Promise<void> => {
   const SCRATCH = mkdtempSync(join(tmpdir(), `escdraft-${tag}-`))
   const daemonDir = join(SCRATCH, 'daemon')
-  const work = join(SCRATCH, 'work')
-  for (const d of [daemonDir, work]) mkdirSync(d, { recursive: true })
+  mkdirSync(daemonDir, { recursive: true })
   process.env.MERCURY_DAEMON_DIR = daemonDir
   delete process.env.MERCURY_HOME
   process.env.MERCURY_CONCOURSE = 'always'
@@ -52,8 +51,9 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
   const run = await runArtifactArena({
     turns: [],
     sends: [
-      'after:say something settled:2500:\t',
-      'after:say something settled:4000:\r',
+      'after:Quiet seat:2500:\t',
+      'after:Quiet seat:4000:\r',
+      'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
       `after:Type a prompt:${escAt + gapMs}:\x1b`,
@@ -62,12 +62,14 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     cols,
     rows,
     keep: true,
-    seedHome: async (configDir, _cwd) => {
-      seedFirstRun(configDir, [_cwd, work])
+    seedHome: async (configDir, ground) => {
+      spawnSync('git', ['init', '-q', '-b', 'main'], { cwd: ground })
+      spawnSync('git', ['-c', 'user.name=probe', '-c', 'user.email=probe@x', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: ground })
+      seedFirstRun(configDir, [ground])
       process.env.MERCURY_CONFIG_DIR = configDir
-      daemon = spawn('node', [DIST, 'daemon', 'run', work], {
-        cwd: work,
-        env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0', MERCURY_PARTY: '0' },
+      daemon = spawn('node', [DIST, 'daemon', 'run', ground], {
+        cwd: ground,
+        env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0' },
         stdio: ['ignore', logFd, logFd],
       })
       check(`${tag}: the daemon serves`, await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -75,22 +77,21 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
         op: 'concourseDispatch',
         clientMessageId: `escdraft-${tag}`,
         prompt: 'say something settled',
-        workspaceDir: work,
+        workspaceDir: ground,
         title: 'Quiet seat',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))
-      const t = join(paths.getProjectDir(work), `${a.sessionId ?? ''}.jsonl`)
+      const t = join(paths.getProjectDir(ground), `${a.sessionId ?? ''}.jsonl`)
       check(`${tag}: transcript born`, await untilAsync(() => existsSync(t) && statSync(t).size > 100, 30_000))
     },
     extraEnv: { MERCURY_CONCOURSE: 'always', MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_CACHE_CLOCK: '0' },
   })
   try {
-    const t0 = firstOutputTs(run)
     const escSends = run.sendLog
       .filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b')
-      .map(s => s.sent - t0)
+      .map(s => sendStamp(run, s))
       .sort((a, b) => a - b)
     const draftSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8') === DRAFT)
     check(`${tag}: the journey ran whole (draft + two escs sent)`, escSends.length === 2 && draftSend !== undefined, `escs at ${escSends.join(',')}`)
