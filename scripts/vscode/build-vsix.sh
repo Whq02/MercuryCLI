@@ -7,10 +7,16 @@ OUT=dist/mercury-vscode.vsix
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/mercury-vsix.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
 
-VERSION=$(node -p "require('./$SRC/package.json').version")
+VERSION=$(node -p "require('./package.json').version")
 
 mkdir -p "$STAGE/extension"
-cp "$SRC/package.json" "$SRC/extension.js" "$SRC/README.md" "$SRC/LICENSE.txt" "$STAGE/extension/"
+cp "$SRC/extension.js" "$SRC/README.md" "$SRC/LICENSE.txt" "$STAGE/extension/"
+node -e '
+const fs = require("node:fs")
+const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
+manifest.version = process.argv[2]
+fs.writeFileSync(process.argv[3], JSON.stringify(manifest, null, 2) + "\n")
+' "$SRC/package.json" "$VERSION" "$STAGE/extension/package.json"
 mkdir -p "$STAGE/extension/media"
 cp "$SRC/media/mercury.svg" "$STAGE/extension/media/"
 

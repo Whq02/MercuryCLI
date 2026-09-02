@@ -1469,7 +1469,7 @@ export async function callIdeRpc(
   const result = await client.client.request(
     { method: 'tools/call', params: { name: toolName, arguments: args } },
     CallToolResultSchema,
-    { signal: controller.signal },
+    { signal: controller.signal, timeout: 10 * 60_000 },
   )
   return processMCPResult(result, toolName, client.name)
 }

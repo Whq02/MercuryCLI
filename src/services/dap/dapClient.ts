@@ -145,6 +145,39 @@ export function _resetGdbProbeForTesting(): void {
 }
 
 
+const NATIVE_ADAPTER_KEYS = new Set(['lldb', 'gdb'])
+let darwinDebuggerAuthMemo: string | null | undefined
+
+export function _resetDarwinDebuggerAuthForTesting(): void {
+  darwinDebuggerAuthMemo = undefined
+}
+
+export function darwinDebuggerAuthorisationHint(): string | null {
+  if (process.platform !== 'darwin') return null
+  if (darwinDebuggerAuthMemo !== undefined) return darwinDebuggerAuthMemo
+  try {
+    const status = spawnSync('DevToolsSecurity', ['-status'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+      timeout: 3_000,
+      env: subprocessEnv(),
+    })
+    const text = `${status.stdout ?? ''}${status.stderr ?? ''}`
+    darwinDebuggerAuthMemo = /disabled/i.test(text)
+      ? 'macOS debugger authorisation is off (DevToolsSecurity -status: disabled) — a native debugger blocks in task_for_pid until it is granted, and the grant lasts one boot; enable it durably with: sudo DevToolsSecurity -enable'
+      : null
+  } catch {
+    darwinDebuggerAuthMemo = null
+  }
+  return darwinDebuggerAuthMemo
+}
+
+export function adapterSilenceMessage(base: string, adapterKey: string): string {
+  if (!NATIVE_ADAPTER_KEYS.has(adapterKey)) return base
+  const hint = darwinDebuggerAuthorisationHint()
+  return hint === null ? base : `${base} — ${hint}`
+}
+
 export interface LldbDapResolution {
   path: string
   source: 'path' | 'xcrun'
@@ -1052,7 +1085,9 @@ export class DapSession {
       this.#initializedEvent.then(() => true),
       new Promise<boolean>(res => setTimeout(() => res(false), 10_000)),
     ])
-    if (!sawInitialized) throw new Error('child adapter never sent initialized (10s)')
+    if (!sawInitialized) {
+      throw new Error(adapterSilenceMessage('child adapter never sent initialized (10s)', this.adapterKey))
+    }
     const requested = this.root().#requestedBreakpoints
     if (requested) {
       for (const [path, lines] of requested) {
@@ -1204,7 +1239,7 @@ export class DapSession {
       new Promise<boolean>(res => setTimeout(() => res(false), initializedTimeoutMs)),
     ])
     if (!sawInitialized && !options.noDebug) {
-      throw new Error('adapter never sent initialized (10s)')
+      throw new Error(adapterSilenceMessage('adapter never sent initialized (10s)', this.adapterKey))
     }
     if (sawInitialized) {
       if (options.breakpoints && !options.noDebug) {
