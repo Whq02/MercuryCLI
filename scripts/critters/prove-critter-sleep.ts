@@ -729,7 +729,7 @@ t.section('§9 — the mood WORD rides the SAME verdict as the art')
   signals.resetCompanionSignals()
 }
 
-t.section('§10 — THE WAKE EDGES (the operator's word): a turn wakes, a view never does')
+t.section('§10 — THE WAKE EDGES (the operator\'s word): a turn wakes, a view never does')
 {
   const signals = await import('../../src/utils/cockpit/companionSignals.js')
   const aged = (): number => Date.now() - sleep.SLEEP_AFTER_MS * 3
