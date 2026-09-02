@@ -67,6 +67,14 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/api/prove-client-contract-door.ts",
+      "line": 127,
+      "mechanism": "execSync-string",
+      "excerpt": "const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/apollo/render-apollo-faces.ts",
       "line": 113,
       "mechanism": "hardcoded-tmp",
@@ -291,6 +299,14 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/compact/prove-preserved-reads-reregistered.ts",
+      "line": 32,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `preserved-reads-${process.pid}`)",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/compositor/prove-hold-takeover.ts",
       "line": 136,
       "mechanism": "hardcoded-interpreter",
@@ -356,7 +372,7 @@
     },
     {
       "file": "scripts/default-provider/prove-defaultprovider-restart-drive.ts",
-      "line": 54,
+      "line": 57,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -540,7 +556,7 @@
     },
     {
       "file": "scripts/identity/gen-descriptor-stock-hashes.ts",
-      "line": 36,
+      "line": 41,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync(`git ls-tree -r --name-only ${BASE} src/commands src/tools`, { cwd: ROOT, encoding: 'utf8' })",
       "cls": "intentional-shell",
@@ -548,7 +564,7 @@
     },
     {
       "file": "scripts/identity/gen-descriptor-stock-hashes.ts",
-      "line": 42,
+      "line": 47,
       "mechanism": "execSync-string",
       "excerpt": "const src = execSync(`git show ${BASE}:${JSON.stringify(f).slice(1, -1)}`, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 })",
       "cls": "intentional-shell",
@@ -556,7 +572,7 @@
     },
     {
       "file": "scripts/identity/prove-no-lineage-vocabulary.ts",
-      "line": 430,
+      "line": 474,
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT })",
       "cls": "intentional-shell",
@@ -788,7 +804,7 @@
     },
     {
       "file": "scripts/journey/prove-steer-echo-single.ts",
-      "line": 165,
+      "line": 166,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -796,7 +812,7 @@
     },
     {
       "file": "scripts/journey/prove-steer-echo-single.ts",
-      "line": 227,
+      "line": 228,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const census = spawnSync('/usr/bin/python3', ['-c', CENSUS], { encoding: 'utf-8', timeout: vshotBudgetMs(120_000) })",
       "cls": "platform-owner",
@@ -940,7 +956,7 @@
     },
     {
       "file": "scripts/navigation/arena.ts",
-      "line": 134,
+      "line": 161,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -948,7 +964,7 @@
     },
     {
       "file": "scripts/navigation/arena.ts",
-      "line": 257,
+      "line": 284,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -964,17 +980,25 @@
     },
     {
       "file": "scripts/notifications/baseline-capture.ts",
-      "line": 45,
+      "line": 46,
       "mechanism": "execSync-string",
-      "excerpt": "const HEAD = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()",
+      "excerpt": "const SRC_TREE = execSync('git rev-parse HEAD:src', { encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/notifications/baseline-capture.ts",
-      "line": 46,
+      "line": 47,
       "mechanism": "execSync-string",
       "excerpt": "const DIRTY = execSync('git status --porcelain', { encoding: 'utf8' }).trim().length > 0",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/origin/prove-public-cut.ts",
+      "line": 38,
+      "mechanism": "execSync-string",
+      "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
@@ -1148,7 +1172,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 262,
+      "line": 250,
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1156,7 +1180,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 483,
+      "line": 471,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + launched + '\"', ...args].join(' '), {",
       "cls": "intentional-shell",
@@ -1164,7 +1188,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 553,
+      "line": 589,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + shim + '\"', '--version'].join(' '), { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })",
       "cls": "intentional-shell",
@@ -1180,7 +1204,7 @@
     },
     {
       "file": "scripts/render-continuity/prove-agent-resume-visibility.ts",
-      "line": 122,
+      "line": 119,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1188,7 +1212,7 @@
     },
     {
       "file": "scripts/render-continuity/prove-agent-resume-visibility.ts",
-      "line": 239,
+      "line": 236,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1196,7 +1220,7 @@
     },
     {
       "file": "scripts/render-continuity/prove-command-intent-routing.ts",
-      "line": 215,
+      "line": 222,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1220,7 +1244,7 @@
     },
     {
       "file": "scripts/render-continuity/prove-stream-row-continuity.ts",
-      "line": 199,
+      "line": 198,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1260,7 +1284,7 @@
     },
     {
       "file": "scripts/render-continuity/prove-view-target-parity.ts",
-      "line": 212,
+      "line": 209,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1268,7 +1292,7 @@
     },
     {
       "file": "scripts/render-continuity/prove-view-target-parity.ts",
-      "line": 429,
+      "line": 426,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1404,7 +1428,7 @@
     },
     {
       "file": "scripts/scribe/render-chatroom.ts",
-      "line": 139,
+      "line": 140,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1420,7 +1444,7 @@
     },
     {
       "file": "scripts/scroll/prove-scroll-reflow.ts",
-      "line": 210,
+      "line": 203,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1507,8 +1531,16 @@
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
+      "file": "scripts/skills/prove-skill-tool-failure-reason.ts",
+      "line": 30,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `skill-failure-${process.pid}`)",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/streaming/artifactArena.ts",
-      "line": 210,
+      "line": 219,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1516,7 +1548,7 @@
     },
     {
       "file": "scripts/streaming/artifactArena.ts",
-      "line": 364,
+      "line": 383,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1596,7 +1628,7 @@
     },
     {
       "file": "scripts/streaming/prove-viewport-continuity.ts",
-      "line": 56,
+      "line": 65,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1707,28 +1739,20 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
-      "file": "scripts/switchboard/prove-letter-verb-yield.ts",
-      "line": 123,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
-      "file": "scripts/switchboard/prove-letter-verb-yield.ts",
-      "line": 180,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(5) + 400), Str",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
       "file": "scripts/switchboard/prove-manager-self-managed-drive.ts",
       "line": 116,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(300_000), env })",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/switchboard/prove-model-verb-turn-open.ts",
+      "line": 30,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "process.env.MERCURY_CONFIG_DIR = join(process.env.TMPDIR ?? '/tmp', `model-verb-turn-open-${process.pid}`)",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
       "file": "scripts/switchboard/prove-plain-world-command-honesty.ts",
@@ -1884,9 +1908,9 @@
     },
     {
       "file": "scripts/ui/generate-visual-baseline.ts",
-      "line": 230,
+      "line": 232,
       "mechanism": "execSync-string",
-      "excerpt": "const sourceSha = execSync('git rev-parse HEAD', { cwd: REPO, encoding: 'utf8' }).trim()",
+      "excerpt": "const sourceSha = execSync('git rev-parse HEAD:src', { cwd: REPO, encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
@@ -2158,7 +2182,7 @@
       "file": "scripts/ui/prove-visual-manifest.ts",
       "line": 49,
       "mechanism": "execSync-string",
-      "excerpt": "execSync(`git cat-file -e ${manifest.sourceSha}^{commit}`, {",
+      "excerpt": "execSync(`git cat-file -e ${manifest.sourceSha}^{tree}`, {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
