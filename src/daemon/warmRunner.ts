@@ -45,7 +45,19 @@ const pool = new Map<string, WarmRunnerEntry>()
 
 const claimWaiters = new Map<string, (outcome: { ok: boolean; error?: string }) => void>()
 
-const ensureFlights = new Map<string, Promise<WarmEnsureOutcome>>()
+interface TrailingEnsure {
+  kit: SessionKitV1 | undefined
+  deps: WarmRunnerDeps
+  waiters: Array<{ resolve: (outcome: WarmEnsureOutcome) => void; reject: (err: unknown) => void }>
+}
+
+interface EnsureFlight {
+  kit: SessionKitV1 | undefined
+  run: Promise<WarmEnsureOutcome>
+  trailing: TrailingEnsure | null
+}
+
+const ensureFlights = new Map<string, EnsureFlight>()
 
 export function resetWarmRunnersForTesting(): void {
   pool.clear()
@@ -143,14 +155,52 @@ export async function ensureWarmRunner(
     }
   }
   const inFlight = ensureFlights.get(workspaceId)
-  if (inFlight !== undefined) return inFlight
-  const flight = ensureWarmRunnerFlight(workspaceId, args.kit, deps)
+  if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, deps)
+  const flight: EnsureFlight = { kit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
   ensureFlights.set(workspaceId, flight)
-  try {
-    return await flight
-  } finally {
-    if (ensureFlights.get(workspaceId) === flight) ensureFlights.delete(workspaceId)
+  settleEnsureFlight(workspaceId, flight)
+  return flight.run
+}
+
+function sameRequestedKit(a: SessionKitV1 | undefined, b: SessionKitV1 | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b
+  return sameKit(a, b)
+}
+
+function awaitBehindFlight(
+  flight: EnsureFlight,
+  kit: SessionKitV1 | undefined,
+  deps: WarmRunnerDeps,
+): Promise<WarmEnsureOutcome> {
+  if (flight.trailing === null && sameRequestedKit(flight.kit, kit)) return flight.run
+  return new Promise<WarmEnsureOutcome>((resolve, reject) => {
+    const waiters = flight.trailing?.waiters ?? []
+    waiters.push({ resolve, reject })
+    flight.trailing = { kit, deps, waiters }
+  })
+}
+
+function settleEnsureFlight(workspaceId: string, flight: EnsureFlight): void {
+  const onSettled = (): void => {
+    const next = flight.trailing
+    if (next === null) {
+      if (ensureFlights.get(workspaceId) === flight) ensureFlights.delete(workspaceId)
+      return
+    }
+    flight.trailing = null
+    flight.kit = next.kit
+    flight.run = ensureWarmRunnerFlight(workspaceId, next.kit, next.deps)
+    void flight.run.then(
+      outcome => {
+        for (const waiter of next.waiters) waiter.resolve(outcome)
+      },
+      (err: unknown) => {
+        for (const waiter of next.waiters) waiter.reject(err)
+      },
+    )
+    void flight.run.then(onSettled, onSettled)
   }
+  void flight.run.then(onSettled, onSettled)
 }
 
 async function ensureWarmRunnerFlight(
