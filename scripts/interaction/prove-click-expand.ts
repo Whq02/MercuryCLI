@@ -15,17 +15,30 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Cell = { c: string; bg?: string }
 type Grid = { grid: Cell[][] }
 
+function dumpFrame(label: string, lines: string[]): void {
+  console.log(`      ┌ ${label}`)
+  lines.forEach((line, index) => {
+    const row = line.trimEnd()
+    if (row !== '') console.log(`      │ ${String(index).padStart(2, ' ')} ${row}`)
+  })
+  console.log('      └')
+}
+
+type Click = { x: number; y: number; atTick: number } & Record<string, unknown>
+
 function capture(
   tag: string,
-  clicks: Array<{ x: number; y: number; atTick: number }>,
+  clicks: Click[],
   total: number,
+  extra: Record<string, unknown> = {},
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('click-expand', 80, 40)
-  cfg.sends = clicks.map(k => ({
-    atTick: k.atTick,
-    data: `\x1b[<0;${k.x};${k.y}M\x1b[<0;${k.x};${k.y}m`,
+  const cfg = scenario('click-expand', 80, 40) as Record<string, unknown>
+  cfg['sends'] = clicks.map(({ x, y, ...schedule }) => ({
+    ...schedule,
+    data: `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`,
   }))
-  cfg.total = total
+  cfg['total'] = total
+  Object.assign(cfg, extra)
   const gridPath = `/tmp/click-expand-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/click-expand-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -90,6 +103,7 @@ if (base) {
   globY = rowOf('Searched for 1 pattern')
   errY = rowOf('The target file could not be read')
   check('baseline: agent Done row present', agentY >= 0)
+  if (agentY < 0) dumpFrame('baseline frame — the agent Done row is absent', base.lines)
   check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1)
   check(
     'baseline: agent row carries the ⌄ cue',
@@ -102,14 +116,16 @@ if (base) {
   )
 }
 
+const SETTLED = { minTick: 10, awaitStableTicks: 10, requireAwait: true } as const
 if (base && agentY >= 0) {
   const t = capture(
     'toggle',
     [
-      { x: 10, y: agentY + 1, atTick: 40 },
-      { x: 10, y: agentY + 1, atTick: 56 },
+      { x: 10, y: agentY + 1, atTick: 110, awaitText: 'Done (3 tool uses', ...SETTLED },
+      { x: 10, y: agentY + 1, atTick: 150, awaitText: 'REPORT-LINE', ...SETTLED },
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (t) {
     const rowOf = (needle: string): number => t.lines.findIndex(l => l.includes(needle))
@@ -129,10 +145,11 @@ if (base && globY >= 0 && errY >= 0) {
   const e = capture(
     'grow',
     [
-      { x: 10, y: globY + 1, atTick: 40 },
-      { x: 12, y: errY + 1, atTick: 56 },
+      { x: 10, y: globY + 1, atTick: 110, awaitText: 'Searched for 1 pattern', ...SETTLED },
+      { x: 12, y: errY + 1, atTick: 150, awaitText: 'GlobTool/prompt.ts', ...SETTLED },
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (e) {
     const rowOf = (needle: string): number => e.lines.findIndex(l => l.includes(needle))
@@ -177,6 +194,7 @@ cleanupScenario('click-expand')
     check('lifecycle: ONE visible card for the resolved Edit id', editRows.length >= 1 && new Set(editRows.map(l => l.trim())).size <= 2, `rows=${editRows.length}`)
     const metaRows = lines.filter(l => l.includes('· +1/-1'))
     check('lifecycle: the settled ± meta rides the header EXACTLY once', metaRows.length === 1, `rows=${metaRows.length}: ${metaRows.map(l => l.trim()).join(' | ')}`)
+    if (editRows.length === 0 || metaRows.length !== 1) dumpFrame('lifecycle frame — the Edit header is absent', lines)
     check(
       'lifecycle: the ± lane did NOT suppress the diff card (hunks still paint)',
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
