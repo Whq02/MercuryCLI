@@ -42,7 +42,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { paneSigs, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
+import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -256,7 +256,10 @@ function runCell(cell: Cell): void {
   // commanded step is the region's, not a frozen number).
   const postGrids = [marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid]
   const postRuler = positionRuler(postGrids)
-  const region = postGrids.reduce((best, g) => Math.max(best, viewportRows(g)), 0)
+  // The region of the settled PRESS frames (their mode): the final frame's
+  // chrome can differ (a notification block that cleared) and must not set
+  // the bounds the presses are judged by.
+  const region = regionOf([marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid])
   const bounds = stepBounds(region)
   const pQ1 = postRuler(marks.get('q01')!.grid)
   const pQ2 = postRuler(marks.get('q02')!.grid)

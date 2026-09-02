@@ -89,6 +89,18 @@ export function viewportRows(grid: Grid): number {
   return paneRows(grid).length
 }
 
+/** The transcript region the PRESSES were measured in: the most common
+ *  region across the press frames (a final frame whose notification block
+ *  has cleared reads taller and must not widen the bounds; ties break low). */
+export function regionOf(grids: Grid[]): number {
+  const counts = new Map<number, number>()
+  for (const g of grids) {
+    const n = viewportRows(g)
+    counts.set(n, (counts.get(n) ?? 0) + 1)
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
+}
+
 /** The bounds a settled page step must sit in for a region of `rows`:
  *  the scroller's viewport is the region less the sticky-prompt header and
  *  the jump pill's row when scrolled, and a page keeps two overlap rows. */
