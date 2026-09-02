@@ -14,10 +14,10 @@ import { useMercuryTokens } from '../useMercuryTokens.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { getCwd } from '../../../utils/cwd.js'
 import {
-  CREW_MODEL_CHOICES,
   crewEnabled,
+  crewModelChoices,
   isValidCrewName,
-  type CrewModelKey,
+  type CrewModelChoice,
 } from '../../../daemon/crewSpawn.js'
 import {
   crewRosterStatus,
@@ -35,7 +35,6 @@ import {
 
 const HUES = [TERRA, AMBER, TEAL, SECOND] as const
 const hueFor = (i: number): string => HUES[i % HUES.length]!
-const MODEL_KEYS = Object.keys(CREW_MODEL_CHOICES) as CrewModelKey[]
 
 type Mode = 'browse' | 'compose' | 'spawn-name' | 'spawn-model' | 'kill-confirm'
 
@@ -62,6 +61,10 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
+  const [choices, setChoices] = useState<CrewModelChoice[]>([])
+  useEffect(() => {
+    setChoices(crewModelChoices())
+  }, [tick])
   const { columns, rows: termRows } = useTerminalSize()
   const W = Math.max(48, Math.min((columns || 80) - 6, 120))
   const [chatSel, setChatSel] = useState<number | null>(null)
@@ -132,9 +135,9 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
   }, [draft, cur, bump])
 
   const doSpawn = useCallback(
-    async (name: string, modelKey: CrewModelKey) => {
+    async (name: string, modelKey: string, modelWords: string) => {
       setBusy(true)
-      setNote(`spawning @${name} (${CREW_MODEL_CHOICES[modelKey].model})…`)
+      setNote(`spawning @${name} (${modelWords})…`)
       const r = await spawnCrewTeammate(name, modelKey, cwd)
       setBusy(false)
       if (r.ok) {
@@ -176,8 +179,12 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
       const a = decodeNavKey(input, key, { orientation: 'horizontal' })
       if (a === 'cancel') { setMode('spawn-name'); setNote('') }
       else if (a === 'moveLeft') setModelSel(s => Math.max(0, s - 1))
-      else if (a === 'moveRight') setModelSel(s => Math.min(MODEL_KEYS.length - 1, s + 1))
-      else if (a === 'activate') { const mk = MODEL_KEYS[modelSel]!; const nm = nameDraft.trim(); setMode('browse'); void doSpawn(nm, mk) }
+      else if (a === 'moveRight') setModelSel(s => Math.min(Math.max(0, choices.length - 1), s + 1))
+      else if (a === 'activate') {
+        const choice = choices[modelSel]
+        if (choice === undefined) { setNote('no provider is signed in — /logins signs one in, and its newest row becomes a choice'); return }
+        const nm = nameDraft.trim(); setMode('browse'); void doSpawn(nm, choice.key, choice.model)
+      }
       return
     }
     if (mode === 'kill-confirm') {
@@ -209,7 +216,11 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
     else if (input === 'n') { setMode('spawn-name'); setNameDraft(''); setNote('') }
     else if (input === 'i' && cur) { setMode('compose'); setNote('') }
     else if (key.return && cur) { setMode('compose'); setNote('') }
-    else if (input === 'r' && cur && !cur.online) { const mk0 = MODEL_KEYS[0]!; void doSpawn(cur.member.name, (cur.member.model?.includes('fable-5-1') ? 'fable51' : cur.member.model?.includes('sonnet') ? 'sonnet' : cur.member.model?.includes('fable') ? 'fable' : mk0) as CrewModelKey) }
+    else if (input === 'r' && cur && !cur.online) {
+      const again = cur.member.model !== undefined && cur.member.model !== '' ? cur.member.model : choices[0]?.key
+      if (again === undefined) setNote('no provider is signed in — /logins signs one in before a respawn')
+      else void doSpawn(cur.member.name, again, again)
+    }
     else if (input === 'k' && cur && cur.online) { setMode('kill-confirm'); setNote('') }
   })
 
@@ -351,12 +362,15 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
         <Box marginTop={1} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} flexDirection="column">
           <Text bold color={accent}>@{nameDraft.trim()} · pick a model</Text>
           <Box flexDirection="row" marginTop={1}>
-            {MODEL_KEYS.map((mk, i) => {
+            {choices.length === 0 ? (
+              <Text color={FAINT}>no provider is signed in — /logins signs one in, and its newest row becomes a choice</Text>
+            ) : null}
+            {choices.map((c, i) => {
               const on = i === modelSel
               return (
-                <Box key={mk} borderStyle="round" borderColor={on ? accent : DUNE} paddingX={1} marginRight={1}>
-                  <Text bold={on} color={on ? IVORY : FAINT}>{mk}</Text>
-                  <Text color={FAINT}> {CREW_MODEL_CHOICES[mk].model.replace('claude-', '').replace('[1m]', '')}</Text>
+                <Box key={c.key} borderStyle="round" borderColor={on ? accent : DUNE} paddingX={1} marginRight={1}>
+                  <Text bold={on} color={on ? IVORY : FAINT}>{c.key}</Text>
+                  <Text color={FAINT}> {c.label.replace('[1m]', '')}</Text>
                 </Box>
               )
             })}

@@ -5,7 +5,7 @@
 # loud red in this runner.
 prove-command-table.ts
 prove-coordinator-strip-plain.ts
-prove-letter-verb-yield.ts
+prove-board-focus-owns-keys.ts
 prove-mirror-grammar.ts
 prove-one-door-drive.ts
 prove-reactivate-drive.ts
