@@ -166,6 +166,14 @@ section('(2b) client robustness + the follow-along wire (structural)')
   check('thoughts cross to the chat', ext.includes("'agent_thought_chunk'"))
   const child = readFileSync('src/services/acp/childSession.ts', 'utf8')
   check('the ACP child pipe is crash-isolated', child.includes("this.child.on('error'") && child.includes('private writeFrame'))
+  // The terminal bridge's consumer: an openDiff waits on a person, so the
+  // IDE RPC carries its own timeout instead of the SDK's 60 s default.
+  const mcpClient = readFileSync('src/services/mcp/client.ts', 'utf8')
+  const rpcAt = mcpClient.indexOf('export async function callIdeRpc(')
+  check(
+    'callIdeRpc carries a ten-minute timeout beside its signal',
+    rpcAt !== -1 && mcpClient.slice(rpcAt, rpcAt + 900).includes('{ signal: controller.signal, timeout: 10 * 60_000 }'),
+  )
 }
 
 section('(2c) the terminal bridge — a real MCP client over SSE')
