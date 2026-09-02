@@ -146,6 +146,11 @@ function spendLine(spend: ProviderSessionSpend, withCost: boolean): string {
   return `This session: ${spend.inputTokens.toLocaleString()} input · ${spend.outputTokens.toLocaleString()} output tokens${withCost ? ` · ${formatLaneSpend(spend)}` : ''}`
 }
 
+export function absentSlotLine(route: string): string {
+  return `none — ${route} · n/a`
+}
+export const INACTIVE_SLOT_LINE = 'not the active billing source this session'
+
 function ApiKeySlot({
   presentLabel,
   isActive,
@@ -161,12 +166,12 @@ function ApiKeySlot({
     <Box flexDirection="column" marginTop={1}>
       <SlotHeading text="API key" />
       {presentLabel === undefined ? (
-        <Text dimColor>none attached — n/a · 0 this session</Text>
+        <Text dimColor>{absentSlotLine('a pasted key attaches one')}</Text>
       ) : (
         <Box flexDirection="column">
           <Text dimColor>{presentLabel}</Text>
           <Text dimColor>
-            {isActive ? spendLine(spend, true) : 'attached — not the active billing source this session'}
+            {isActive ? spendLine(spend, true) : INACTIVE_SLOT_LINE}
           </Text>
           {isActive && note !== undefined ? <Text dimColor>{note}</Text> : null}
         </Box>
@@ -339,7 +344,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
         {sub === undefined ? (
-          <Text dimColor>none connected — /logins adds a ChatGPT account · n/a</Text>
+          <Text dimColor>{absentSlotLine('/logins openai adds a ChatGPT account')}</Text>
         ) : (
           <Box flexDirection="column">
             <Text dimColor>{sub.label}</Text>
@@ -362,7 +367,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
             <Text dimColor>
               {active?.kind === 'subscription-oauth'
                 ? spendLine(spend, false)
-                : 'not the active billing source this session'}
+                : INACTIVE_SLOT_LINE}
             </Text>
           </Box>
         )}
@@ -402,14 +407,14 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="OAuth-minted key" />
         {oauth === undefined ? (
-          <Text dimColor>none — /logins mints a scoped key via the OpenRouter OAuth flow · n/a</Text>
+          <Text dimColor>{absentSlotLine('/logins openrouter mints a scoped key through the OpenRouter OAuth flow')}</Text>
         ) : (
           <Box flexDirection="column">
             <Text dimColor>{oauth.label}</Text>
             <Text dimColor>
               {active?.id === oauth.id
                 ? spendLine(spend, true)
-                : 'attached — not the active billing source this session'}
+                : INACTIVE_SLOT_LINE}
             </Text>
           </Box>
         )}
@@ -438,14 +443,14 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Google account" />
         {oauth === undefined ? (
-          <Text dimColor>none connected — /logins connects Google OAuth (needs your own OAuth client) · n/a</Text>
+          <Text dimColor>{absentSlotLine('/logins gemini connects Google OAuth (needs your own OAuth client)')}</Text>
         ) : (
           <Box flexDirection="column">
             <Text dimColor>{oauth.label}</Text>
             <Text dimColor>
               {active?.kind === 'oauth'
                 ? spendLine(spend, true)
-                : 'connected — not the active billing source this session'}
+                : INACTIVE_SLOT_LINE}
             </Text>
           </Box>
         )}
@@ -474,7 +479,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
             <Text dimColor>{spendLine(spend, false)}</Text>
           </Box>
         ) : (
-          <Text dimColor>none — /logins signs in with the Hub's device-code flow · n/a</Text>
+          <Text dimColor>{absentSlotLine("/logins huggingface signs in with the Hub's device-code flow")}</Text>
         )}
       </Box>
       <ApiKeySlot
@@ -526,7 +531,7 @@ function LocalUsageSection(): React.ReactNode {
             <Text dimColor>{spendLine(spend, false)}</Text>
           </Box>
         ) : (
-          <Text dimColor>none discovered — {ENGINE_USAGE_PRESENTATION.local!.connect} · n/a</Text>
+          <Text dimColor>{absentSlotLine(ENGINE_USAGE_PRESENTATION.local!.connect)}</Text>
         )}
       </Box>
       <Text dimColor>
@@ -560,7 +565,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
       <Text bold>{section.title}</Text>
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Subscription" />
-        <Text dimColor>none on this lane — this provider connects by API key · n/a</Text>
+        <Text dimColor>{absentSlotLine('this family connects by API key')}</Text>
       </Box>
       <ApiKeySlot
         presentLabel={section.family.credentialLabel}
@@ -678,7 +683,7 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
 
   const anthropicSection = ((): React.ReactNode => {
     if (!subscriber) {
-      return <Text dimColor>none connected — /logins connects one · n/a</Text>
+      return <Text dimColor>{absentSlotLine('/logins anthropic connects a subscription account')}</Text>
     }
     if (state.loading) {
       return <Text dimColor>loading usage…</Text>

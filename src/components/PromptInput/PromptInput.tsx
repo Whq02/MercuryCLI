@@ -2290,6 +2290,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const composerViewportStartRef = useRef<number | undefined>(undefined)
 
+  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
+    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    const live = voiceSnapshot()
+    if (live.phase === 'recording' || (live.phase === 'transcribing' && live.enabled)) {
+      void toggleVoiceCapture()
+      return ''
+    }
+    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    return rawInput
+  }, [])
   if (externalEditorActive) {
     return (
       <Box
@@ -2543,20 +2556,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const showCursor =
     footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
   const vimEnabled = isVimModeEnabled()
-
-  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
-    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
-    const live = voiceSnapshot()
-    if (live.phase === 'recording' || live.phase === 'transcribing') {
-      void toggleVoiceCapture()
-      return ''
-    }
-    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
-      void toggleVoiceCapture()
-      return ''
-    }
-    return rawInput
-  }, [])
 
   const textInputProps = {
     viewportStartRef: composerViewportStartRef,

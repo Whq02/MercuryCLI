@@ -2,13 +2,33 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE } from './voicePack.js'
+import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
 
+export function captureBoundMs(): number {
+  const raw = (flagEnv('MERCURY_VOICE_BOUND_MS') ?? '').trim()
+  if (!/^\d+$/.test(raw)) return CAPTURE_BOUND_MS
+  const ms = Number(raw)
+  return ms > 0 && ms <= CAPTURE_BOUND_MS ? ms : CAPTURE_BOUND_MS
+}
+
 export const NO_BACKEND_RECEIPT =
   'no microphone backend — the voice pack is absent on this install; run `bun run setup` (needs cargo) or put sox/ffmpeg on PATH'
+
+export function recorderInstallHint(platform: string = process.platform): string {
+  if (platform === 'darwin') return 'brew install ffmpeg'
+  if (platform === 'win32') return 'winget install ffmpeg'
+  return 'apt install ffmpeg, or your package manager'
+}
+
+export const NO_BACKEND_RECEIPT_RELEASE =
+  'no microphone backend — this install carries no voice pack; put ffmpeg or sox on PATH'
+
+export function noBackendReceipt(checkoutRoot: string | null = voiceCheckoutRoot(), platform: string = process.platform): string {
+  return checkoutRoot !== null ? NO_BACKEND_RECEIPT : `${NO_BACKEND_RECEIPT_RELEASE} (${recorderInstallHint(platform)})`
+}
 
 export type CaptureBackendKind = 'vendored' | 'sox' | 'arecord' | 'ffmpeg' | 'fixture'
 
@@ -82,7 +102,7 @@ export function resolveCaptureBackend(env: NodeJS.ProcessEnv = process.env): Cap
     tried.push(kind)
     notes.push(`${kind}: ${resolved.note}`)
   }
-  return { state: 'none', note: `${NO_BACKEND_RECEIPT} (${notes.join('; ')})`, tried }
+  return { state: 'none', note: `${noBackendReceipt()} (${notes.join('; ')})`, tried }
 }
 
 export class CaptureError extends Error {
@@ -126,6 +146,9 @@ interface RawCapture {
 export function microphonePermissionHint(platform: string = process.platform): string {
   if (platform === 'darwin') {
     return 'if macOS never asked, allow your terminal under System Settings → Privacy & Security → Microphone'
+  }
+  if (platform === 'win32') {
+    return 'if Windows never asked, allow desktop apps under Settings → Privacy & security → Microphone'
   }
   return 'check the operating system microphone permission for your terminal'
 }
@@ -269,8 +292,7 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
 }
 
 
-function debugDumpDir(env: NodeJS.ProcessEnv): string | null {
-  void env
+export function voiceDebugWavDir(): string | null {
   const dir = (flagEnv('MERCURY_VOICE_DEBUG_WAV_DIR') ?? '').trim()
   return dir === '' ? null : dir
 }
@@ -287,7 +309,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
   let cancelled = false
   let autoStopped = false
   let result: Promise<CaptureResult> | null = null
-  const boundMs = opts.boundMs ?? CAPTURE_BOUND_MS
+  const boundMs = opts.boundMs ?? captureBoundMs()
   const bound = setTimeout(() => {
     if (settled) return
     autoStopped = true
@@ -308,7 +330,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
       result = (async (): Promise<CaptureResult> => {
         const pcm = await raw.stop()
         const wav = encodeWav(pcm)
-        const dump = debugDumpDir(env)
+        const dump = voiceDebugWavDir()
         if (dump !== null) {
           try {
             mkdirSync(dump, { recursive: true })
