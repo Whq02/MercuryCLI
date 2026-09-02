@@ -53,14 +53,18 @@ console.log('§1 SL-1 — every resume failure lands as a refusal on the picker'
 // still loading, and never claims emptiness while they are.
 console.log('§2 SL-2 — the manager walks the whole stat listing')
 {
+  // The load lives in the ONE picker core (sessionPickerModel) both skins
+  // present; the in-chat view keeps the header and the empty state.
   const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
-  check('POISON: the capped one-shot load is gone', !view.includes('const all = await loadAllProjectsMessageLogs()'))
-  check('the first paint comes from the progressive loader and keeps its cursor + listing', view.includes('const first = await loadAllProjectsMessageLogsProgressive()') && view.includes('let next = first.nextIndex'))
-  check('the rest of the listing is enriched batch by batch until the cursor reaches the end', view.includes('while (alive && next < first.allStatLogs.length) {') && view.includes('const batch = await enrichLogs(first.allStatLogs, next, ENRICH_BATCH)') && view.includes('next = batch.nextIndex'))
-  check('every batch republishes the resumable, substantive, newest-first list', view.includes('const publish = (all: LogOption[]): void => {') && view.includes('acc = [...acc, ...batch.logs]\n          publish(acc)'))
+  const core = read('src/components/mercury-ui/screens/sessionPickerModel.ts')
+  check('POISON: the capped one-shot load is gone', !view.includes('const all = await loadAllProjectsMessageLogs()') && !core.includes('const all = await loadAllProjectsMessageLogs()'))
+  check('the view never loads on its own (one picker core)', !view.includes('loadAllProjectsMessageLogs') && view.includes('useSessionPickerModel(scope)'))
+  check('the first paint comes from the progressive loader and keeps its cursor + listing', core.includes('const first = await loadAllProjectsMessageLogsProgressive()') && core.includes('let next = first.nextIndex'))
+  check('the rest of the listing is enriched batch by batch until the cursor reaches the end', core.includes('while (alive && next < first.allStatLogs.length) {') && core.includes('const batch = await enrichLogs(first.allStatLogs, next, ENRICH_BATCH)') && core.includes('next = batch.nextIndex'))
+  check('every batch republishes the resumable, substantive, newest-first list', core.includes('const publish = (all: LogOption[]): void => {') && core.includes('acc = [...acc, ...batch.logs]\n          publish(acc)'))
   check('the header says how many are still loading', view.includes('pendingMore > 0 ? ` · loading ${pendingMore} more…` : \'\''))
   check('the empty state waits while sessions are still loading (no "No other sessions" over a half-read store)', view.includes('{logs === null || (flat.length === 0 && pendingMore > 0) ? ('))
-  check('an unmount stops the walk (alive gate on the loop)', view.includes('while (alive && next < first.allStatLogs.length)'))
+  check('an unmount stops the walk (alive gate on the loop)', core.includes('while (alive && next < first.allStatLogs.length)'))
   const logs = read('src/utils/sessionStorage/logs.ts')
   check('the loader exposes the listing and cursor the manager now consumes', logs.includes('return { logs, allStatLogs: sorted, nextIndex }') && logs.includes('export async function enrichLogs('))
 }

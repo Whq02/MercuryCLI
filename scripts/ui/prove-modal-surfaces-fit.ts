@@ -165,7 +165,10 @@ if (driver.kind !== 'posix-pty') {
     const open = r.marks.open ?? ''
     const rows = open.split('\n')
     check('/help at 100x30: "$EDITOR" reads whole (no clipped column)', open.includes('to edit in $EDITOR'))
-    check('/help at 100x30: two columns — the palette row shares a line with "! for bash mode"', rows.some(row => row.includes('! for bash mode') && row.includes('for command palette')))
+    const twoColumns = rows.some(row => row.includes('! for bash mode') && row.includes('for command palette'))
+    check('/help at 100x30: two columns — the palette row shares a line with "! for bash mode"', twoColumns)
+    // The frame is the diagnosis when the column verdict reds: print it.
+    if (!twoColumns) console.log(rows.map(row => `      │${row.trimEnd()}`).join('\n'))
     check('/help at 100x30: the footer close hint is on screen', open.includes('esc close'))
   }
 }

@@ -213,10 +213,13 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
     own.type === 'match' && own.action === exit.action,
     JSON.stringify(own),
   )
+  // The oracle names the action's DISPLAY chord (its last-declared row —
+  // 'q' for the transcript viewer, tab for history search); what matters
+  // here is the verdict: bound, never disabled or unbound.
   const afford = actionAffordance(exit.action, ctx, bindings, 'linux')
   check(
-    `${ctx}: the affordance oracle calls ${exit.action} bound on esc (nothing later unbinds it)`,
-    afford.kind === 'bound' && /esc/i.test(afford.chord),
+    `${ctx}: the affordance oracle calls ${exit.action} bound (nothing later unbinds it) — via ${afford.kind === 'unbound' ? '—' : afford.chord}`,
+    afford.kind === 'bound',
     JSON.stringify(afford),
   )
   check(`${ctx}: ${exit.action} exists in the action graph under this context`, ctx in EXIT_TABLE && (graph[exit.action]?.contexts ?? []).includes(ctx), JSON.stringify(graph[exit.action]?.contexts))
