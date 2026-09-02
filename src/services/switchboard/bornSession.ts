@@ -75,9 +75,13 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   // doors can never both wear it; a refused birth spends it, visibly —
   // re-arming is one keystroke on the kit screen).
   const worn = takeWornPresetKit()
-  // The screen arm is NOTHING on a keyless home (screenBirthModel): a
-  // keyless birth carries no model — the daemon admits it modelless.
-  const model = birthModelOf(facts, req.model ?? null, screenBirthModel())
+  // A KEYLESS home births on NO model whatever a door inherited (/clear
+  // passes the cleared chat's, the vacate road its own) or the menu chose:
+  // the placeholder a keyless session shows is not a choice, and the runner
+  // resolves its own model at the first send (the neutral-default ruling).
+  // With a sign-in: the record's choice, else the door's, else the screen's.
+  const screen = screenBirthModel()
+  const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')

@@ -102,8 +102,13 @@ export function composeTimeoutReceipt(exp: Pick<ReslotExpectation, 'role' | 'mod
 const expectations: ReslotExpectation[] = []
 const queue: SeatReceipt[] = []
 const listeners = new Set<(r: SeatReceipt) => void>()
+/** The latest WARNING minted, with its time — for a screen that mounts
+ *  AFTER the mint (the boot face taking the frame back from a refused
+ *  birth while a chat's subscription drained the row). */
+let latestWarning: { receipt: SeatReceipt; at: number } | null = null
 
 function emit(r: SeatReceipt): void {
+  if (r.level === 'warning') latestWarning = { receipt: r, at: Date.now() }
   if (listeners.size === 0) {
     queue.push(r)
     if (queue.length > RECEIPT_QUEUE_CAP) queue.shift()
@@ -123,6 +128,14 @@ export function subscribeSeatReceipts(cb: (r: SeatReceipt) => void): () => void 
   return () => {
     listeners.delete(cb)
   }
+}
+
+/** The most recent WARNING receipt minted within `withinMs` (null when none
+ *  or older): a screen mounting after the mint reads the row it was handed
+ *  back with — the live subscription carries everything later. */
+export function recentWarningReceipt(withinMs = 10_000): SeatReceipt | null {
+  if (latestWarning === null || Date.now() - latestWarning.at > withinMs) return null
+  return latestWarning.receipt
 }
 
 /** Mint a receipt for a SYNCHRONOUS apply (local foreground seats, or a
@@ -211,6 +224,7 @@ export function __resetSeatReceiptsForTests(): void {
   expectations.length = 0
   queue.length = 0
   listeners.clear()
+  latestWarning = null
   rearmObservers()
 }
 

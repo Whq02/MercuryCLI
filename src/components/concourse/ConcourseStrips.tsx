@@ -204,12 +204,12 @@ export function ConcourseComposer({
             </Text>
           </Box>
         ) : composerNote !== undefined ? (
-          {/* THE META-ROW SLOT LAW: one slot, three claimants — the broadcast
-              arm (contextLine) on top, a card's SELF-EXPIRING receipt next,
-              the derived composer hint last. The hint stands on every door
-              row ('a door — ↵ opens it'), so a receipt painted beneath it
-              was never seen — the card's own answer ('✗ refused — …') is
-              the one line the operator must read. */}
+          // THE META-ROW SLOT LAW: one slot, three claimants — the broadcast
+          // arm (contextLine) on top, a card's SELF-EXPIRING receipt next,
+          // the derived composer hint last. The hint stands on every door
+          // row ('a door — ↵ opens it'), so a receipt painted beneath it
+          // was never seen — the card's own answer ('✗ refused — …') is
+          // the one line the operator must read.
           (() => {
             const n = controlNoteOf(composerNote)
             const why = n.reason !== undefined ? ` — ${n.reason.slice(0, 64)}` : ''

@@ -543,9 +543,15 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
   // painted "…ask the operator to run /logins anthropic — the anthropic
   // family holds no credential on this account (got "claude-…")". A launch
   // is unnamed when the operator chose nothing: no id at all, OR exactly
-  // the id this same registry resolves as its default. An operator's own
-  // pick (any other id) keeps its own family's refusal.
-  const unnamed = idOrKey === undefined || id === defaultId
+  // the id this same registry resolves as its default WHILE that default
+  // dispatches. On a keyless home the seed is the operator's own refused
+  // row (defaultWorkerModelId) and no snapshot spells it — every door
+  // sends NOTHING there (bornSession drops the model) — so a spelled-out
+  // Claude id is the operator's own pick and keeps its family's door; only
+  // a launch with no id at all admits keyless. An operator's own pick (any
+  // other id) keeps its own family's refusal.
+  const defaultDispatches = registry.entries.find(e => e.modelId === defaultId)?.[arm].availability === 'available'
+  const unnamed = idOrKey === undefined || (id === defaultId && defaultDispatches)
   let entry = registry.entries.find(e => e.modelId === id)
   if (!entry) {
     // Operator fix 3: spoken names resolve — "opus 5",
@@ -648,7 +654,7 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
     if (unnamed) {
       const noAccount = await unnamedLaunchNoAccount(verdict.refusal)
       if (noAccount !== undefined) {
-        if (arm === 'session') return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
+        if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
         return { ok: false, ...noAccount }
       }
     }
