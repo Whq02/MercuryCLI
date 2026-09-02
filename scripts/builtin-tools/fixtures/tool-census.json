@@ -1557,7 +1557,10 @@
         ],
         "class": "coordination",
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "conditions": [
+          "a remote-environment delivery channel (none exists in this build, so the tool hides itself)"
+        ]
       }
     },
     {
@@ -1580,7 +1583,11 @@
         ],
         "class": "coordination",
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "gate": "MERCURY_BRIEF",
+        "conditions": [
+          "an away session or the operator’s brief opt-in (MERCURY_BRIEF=1 forces it on)"
+        ]
       }
     },
     {
@@ -1788,7 +1795,11 @@
           "task"
         ],
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "gate": "MERCURY_TASKS",
+        "conditions": [
+          "an interactive session (a headless run needs MERCURY_TASKS=1)"
+        ]
       }
     },
     {
@@ -1814,7 +1825,11 @@
           "task"
         ],
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "gate": "MERCURY_TASKS",
+        "conditions": [
+          "an interactive session (a headless run needs MERCURY_TASKS=1)"
+        ]
       }
     },
     {
@@ -1840,7 +1855,11 @@
           "task"
         ],
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "gate": "MERCURY_TASKS",
+        "conditions": [
+          "an interactive session (a headless run needs MERCURY_TASKS=1)"
+        ]
       }
     },
     {
@@ -1919,7 +1938,11 @@
           "task"
         ],
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "gate": "MERCURY_TASKS",
+        "conditions": [
+          "an interactive session (a headless run needs MERCURY_TASKS=1)"
+        ]
       }
     },
     {
