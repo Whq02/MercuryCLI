@@ -177,7 +177,7 @@ interface DriveResult {
 function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
     env: childEnv(home, netlog, extraEnv),
