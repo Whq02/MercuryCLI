@@ -22,7 +22,8 @@
 //
 //  Run:  ~/.bun/bin/bun run scripts/operator-identity/prove-coordination-modes-retired.ts
 // ============================================================================
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { execSync } from 'node:child_process'
+import { readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -48,27 +49,21 @@ const exists = (rel: string): boolean => {
 const TEXT_EXT = /\.(ts|tsx|js|mjs|cjs|sh|json|md|py|tsv|txt|yml|yaml|ps1|cmd)$/
 const SKIP_DIRS = new Set(['node_modules', 'vendor', 'dist', '.git', J('clean', 'room')])
 
-function* walk(dir: string): Generator<string> {
-  for (const name of readdirSync(dir)) {
-    if (SKIP_DIRS.has(name)) continue
-    const full = join(dir, name)
-    const st = statSync(full)
-    if (st.isDirectory()) yield* walk(full)
-    else if (TEXT_EXT.test(name)) yield full
-  }
-}
-
-/** Every text file the ratchet reads: src, scripts, docs and the README. */
+/** Every TRACKED text file the ratchet reads: src, scripts, docs and the README —
+ *  from git's index, never a directory walk: an untracked local document (the
+ *  capability matrix lives beside the clone, ignored) is not the tree, and the
+ *  seal reads the same way. */
 function* censusFiles(): Generator<[string, string]> {
-  for (const top of ['src', 'scripts', 'docs']) {
-    if (!exists(top)) continue
-    for (const abs of walk(join(ROOT, top))) {
-      const rel = relative(ROOT, abs)
-      if (rel === SELF) continue
-      yield [rel, readFileSync(abs, 'utf8')]
-    }
+  const tracked = execSync('git ls-files -z', { cwd: ROOT }).toString('utf8').split('\0').filter(Boolean)
+  for (const rel of tracked) {
+    const top = rel.split('/')[0]
+    if (!(top === 'src' || top === 'scripts' || top === 'docs' || rel === 'README.md')) continue
+    if (rel === SELF) continue
+    const name = rel.slice(rel.lastIndexOf('/') + 1)
+    if (rel !== 'README.md' && !TEXT_EXT.test(name)) continue
+    if (rel.split('/').some(seg => SKIP_DIRS.has(seg))) continue
+    yield [rel, readFileSync(join(ROOT, rel), 'utf8')]
   }
-  if (exists('README.md')) yield ['README.md', readFileSync(join(ROOT, 'README.md'), 'utf8')]
 }
 const CENSUS: Array<[string, string]> = [...censusFiles()]
 
