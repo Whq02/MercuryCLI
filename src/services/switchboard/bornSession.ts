@@ -65,6 +65,21 @@ export function bornSession(req: BirthRequest): Promise<BirthOutcome> {
   return withLanding(birth(req))
 }
 
+/** THE OPERATOR'S OWN DOOR reads the daemon's refusal as its reader. The
+ *  daemon addresses its way-out to whoever relays it ("ask the operator to
+ *  run /logins anthropic" — the coordinator's tool result reads that and
+ *  relays; "leave the model out … or name 'openai'" — the launch arg the
+ *  coordinator holds). A birth through THIS door is the operator's own
+ *  chat, so the sentence is spoken TO the operator: the relay preamble
+ *  goes and the imperative stays; the launch-arg way-out becomes the
+ *  operator's own — /model picks the signed-in family's newest row. Pure;
+ *  the proof drives it. */
+export function operatorFacingBirthReason(reason: string): string {
+  return reason
+    .replace(/\bask the operator to /g, '')
+    .replace(/leave the model out for its newest row \(([^)]+)\), or name '[a-z-]+' to pick that family/g, '/model $1 picks its newest row')
+}
+
 async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
   if (!(await ensureOwnedDaemon())) return { ok: false, reason: DAEMON_DID_NOT_START }
@@ -116,7 +131,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   }
   const sessionId = typeof reply.sessionId === 'string' ? reply.sessionId : undefined
   if (reply.ok !== true || sessionId === undefined) {
-    return { ok: false, reason: String(reply.error ?? 'the session could not start') }
+    return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
   // THE FIRST-CHAT STAMP (the folder-as-project law): the record is on the
   // board — a chat was born in this folder — so the catalog owner
@@ -129,7 +144,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const hop = await hopIntoBoardSession(sessionId, req.firstPaintMs !== undefined ? { firstPaintMs: req.firstPaintMs } : undefined)
   if (!hop.ok) {
     logForDebugging(`[switchboard] born session ${sessionId} could not be entered: ${hop.reason}`)
-    return { ok: false, reason: hop.reason }
+    return { ok: false, reason: operatorFacingBirthReason(hop.reason) }
   }
   return { ok: true, sessionId, title: hop.title }
 }
