@@ -266,6 +266,22 @@ const init = await h1.agentCtx.request('initialize', {
 check('protocol v1 negotiated', init.protocolVersion === acp.PROTOCOL_VERSION, String(init.protocolVersion))
 check('loadSession capability advertised', init.agentCapabilities?.loadSession === true)
 check('no auth methods demanded', (init.authMethods ?? []).length === 0)
+// The identity a client shows and the skew check an editor bridge runs.
+check(
+  'agentInfo names mercury with a version',
+  init.agentInfo?.name === 'mercury' && typeof init.agentInfo?.version === 'string' && init.agentInfo.version !== '',
+  JSON.stringify(init.agentInfo ?? null),
+)
+check(
+  'mcpCapabilities http + sse advertised (the shapes session/new may carry)',
+  init.agentCapabilities?.mcpCapabilities?.http === true && init.agentCapabilities?.mcpCapabilities?.sse === true,
+  JSON.stringify(init.agentCapabilities?.mcpCapabilities ?? null),
+)
+check(
+  'sessionCapabilities.list advertised (session/list is implemented)',
+  init.agentCapabilities?.sessionCapabilities?.list !== undefined && init.agentCapabilities?.sessionCapabilities?.list !== null,
+  JSON.stringify(init.agentCapabilities?.sessionCapabilities ?? null),
+)
 
 section('(2) session/new — 1:1 Mercury session')
 const created = await h1.agentCtx.request('session/new', { cwd: projDir, mcpServers: [] })
@@ -337,6 +353,34 @@ section('(4) tool + permission loop')
   check('tool_call streamed', toolCalls.length >= 1)
   check('tool_call_update settled it', toolDone.some(u => u.update.status === 'completed'))
   check('the follow-up text landed', textUpdates(h1, sid1).includes('tool leg settled'))
+  // The follow-along wire: the Write crosses with its verb kind, the file it
+  // names, and the diff an editor previews BEFORE the permission gate; the
+  // settlement carries the tool's own output text.
+  const write = toolCalls.find(u => u.update.title === 'Write')?.update as
+    | { kind?: string; locations?: Array<{ path: string }>; content?: Array<Record<string, unknown>> }
+    | undefined
+  check('the Write tool_call carries kind edit', write?.kind === 'edit', JSON.stringify(write?.kind))
+  check(
+    'the Write tool_call names its file as a location',
+    (write?.locations ?? []).some(l => l.path.endsWith('acp-tool-leg.txt')),
+    JSON.stringify(write?.locations ?? null),
+  )
+  const diff = (write?.content ?? []).find(c => c.type === 'diff') as
+    | { path?: string; oldText?: unknown; newText?: string }
+    | undefined
+  check(
+    'the Write tool_call carries a diff (new file: oldText null, newText the content)',
+    diff !== undefined && diff.oldText === null && diff.newText === 'written by the tool leg\n' && String(diff.path).endsWith('acp-tool-leg.txt'),
+    JSON.stringify(diff ?? null),
+  )
+  const writeDone = toolDone.find(u => u.update.toolCallId === (toolCalls.find(c => c.update.title === 'Write')?.update.toolCallId))?.update as
+    | { content?: Array<{ type: string; content?: { type: string; text?: string } }> }
+    | undefined
+  check(
+    'the tool_call_update carries the tool output as a text content block',
+    (writeDone?.content ?? []).some(c => c.type === 'content' && c.content?.type === 'text' && typeof c.content.text === 'string' && c.content.text !== ''),
+    JSON.stringify(writeDone?.content ?? null).slice(0, 200),
+  )
 }
 
 section('(4b) rendezvous C2 — plan · usage updates cross from the child')
@@ -767,7 +811,7 @@ section('(7) close reaps ONLY its own child')
   check('the sibling session still works', sibling.stopReason === 'end_turn')
 }
 
-section('(8) reconnect — session/load never replays')
+section('(8) reconnect — session/load replays the transcript, never the model')
 {
   const requestsBefore = api.messageRequests().length
   h1.close()
@@ -780,6 +824,28 @@ section('(8) reconnect — session/load never replays')
   const load1 = await h2.agentCtx.request('session/load', { sessionId: sid1, cwd: projDir, mcpServers: [] })
   const requestsAfterLoad = api.messageRequests().length
   check('load made ZERO model requests (no replay)', requestsAfterLoad === requestsBefore, `${requestsBefore} → ${requestsAfterLoad}`)
+  // The conversation the session already holds crossed as session updates
+  // BEFORE the load response (the protocol's replay rule): the client's own
+  // prompt, the fixture's reply, and the Write call it made — read from the
+  // transcript, in order.
+  const replayed = h2.updates.filter(u => u.sessionId === sid1).map(u => u.update)
+  const firstUser = replayed.findIndex(u => u.sessionUpdate === 'user_message_chunk')
+  const firstAgent = replayed.findIndex(u => u.sessionUpdate === 'agent_message_chunk')
+  check(
+    'the replay carried the client\'s first prompt as user_message_chunk',
+    replayed.some(u => u.sessionUpdate === 'user_message_chunk' && String((u.content as { text?: string })?.text).includes('hello from the conformance client')),
+    String(replayed.length),
+  )
+  check(
+    'the replay carried the fixture\'s reply as agent_message_chunk',
+    replayed.some(u => u.sessionUpdate === 'agent_message_chunk' && String((u.content as { text?: string })?.text).includes('fixture says hi')),
+  )
+  check('the user prompt precedes the reply (transcript order)', firstUser !== -1 && firstAgent !== -1 && firstUser < firstAgent, `${firstUser} < ${firstAgent}`)
+  check(
+    'the replay carried the Write tool_call with kind edit and its settlement',
+    replayed.some(u => u.sessionUpdate === 'tool_call' && u.title === 'Write' && u.kind === 'edit') &&
+      replayed.some(u => u.sessionUpdate === 'tool_call_update' && u.status === 'completed'),
+  )
   // loading is IDEMPOTENT — a second load answers the same
   // truth without any model call.
   const load2 = await h2.agentCtx.request('session/load', { sessionId: sid1, cwd: projDir, mcpServers: [] })

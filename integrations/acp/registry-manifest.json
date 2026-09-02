@@ -1,11 +1,11 @@
 {
-  "$comment": "Future-ready ACP registry manifest — NOT published (private).",
+  "$comment": "The ACP agent manifest for `mercury acp --stdio` — the same command every ACP client is configured with. Not submitted to a registry (publish: false); the fields describe the live entry point.",
   "name": "mercury",
   "displayName": "Mercury",
-  "description": "Private multi-purpose software-development harness — full session machinery over ACP v1",
+  "description": "Mercury — a terminal harness for software development, exposing its full session machinery over the Agent Client Protocol (v1)",
   "command": "mercury",
   "args": ["acp", "--stdio"],
   "protocolVersion": 1,
-  "sdk": { "package": "@agentclientprotocol/sdk", "version": "1.2.1", "license": "Apache-2.0" },
+  "sdk": { "package": "@agentclientprotocol/sdk", "version": "1.4.0", "license": "Apache-2.0" },
   "publish": false
 }
