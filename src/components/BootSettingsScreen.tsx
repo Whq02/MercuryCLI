@@ -13,6 +13,7 @@ import {
   evaluateExplicitApply,
   menuRowChoices,
   readBootDefaultsProfile,
+  bootAdmissionSnapshot,
   resolveEffectiveSettingsSnapshot,
   saveBootDefaultsProfile,
   type BootDefaultsProfileV1,
@@ -131,7 +132,9 @@ export function BootSettingsScreen({
   const profile = useMemo(() => readBootDefaultsProfile(path), [path, saveTick]);
   const saved = useMemo(() => savedChoicesByRow(profile), [profile]);
   const snapshot = useMemo(
-    () => resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path }),
+    // THIS process's admission values (recorded at boot) — a fresh
+    // resolution only when no boot recorded one.
+    () => bootAdmissionSnapshot() ?? resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path }),
     [path, saveTick],
   );
   const effectiveByEnv = useMemo(

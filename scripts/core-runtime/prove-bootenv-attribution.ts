@@ -323,6 +323,28 @@ let parentEnv: NodeJS.ProcessEnv = {}
   )
 }
 
+// ── the admission snapshot: this process's boot values, recorded once ─────
+console.log('admission snapshot: the boot records once; the menu reads it, never a later profile')
+{
+  menu.__resetBootAdmissionSnapshotForTests()
+  check('no boot recorded ⇒ no admission snapshot (a fresh resolution stands in)', menu.bootAdmissionSnapshot() === null)
+  const admitPath = join(HERMETIC, 'admission-boot-env.json')
+  menu.saveBootDefaultsProfile({ [A]: a1 }, admitPath)
+  const admitted = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'admit-1', path: admitPath, env: {} })
+  menu.recordBootAdmissionSnapshot(admitted)
+  const rowA = (s: { rows: Array<{ env: string; value: string | null }> } | null): string | null | undefined => s?.rows.find(r => r.env === A)?.value
+  check('the admission holds the boot value', rowA(menu.bootAdmissionSnapshot()) === a1)
+  menu.saveBootDefaultsProfile({ [A]: a2 }, admitPath)
+  const fresh = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'admit-1', path: admitPath, env: {} })
+  check('a later save moves a fresh resolution', rowA(fresh) === a2)
+  check('the admission snapshot keeps the boot value across the save (the menu\'s this-session line reads THIS)', rowA(menu.bootAdmissionSnapshot()) === a1 && menu.bootAdmissionSnapshot()?.snapshotId === admitted.snapshotId)
+  menu.__resetBootAdmissionSnapshotForTests()
+  const mainSrc = read('src/main.tsx')
+  check('main records the admission right after the apply, once', /applyBootMenuEnv\(\);[\s\S]{0,400}recordBootAdmissionSnapshot\(resolveEffectiveSettingsSnapshot\(\{ sessionId: getSessionId\(\) \}\)\);/.test(mainSrc) && (mainSrc.match(/recordBootAdmissionSnapshot\(/g) ?? []).length === 1)
+  const screenSrc = read('src/components/BootSettingsScreen.tsx')
+  check("the boot menu's this-session line reads the admission first", screenSrc.includes('bootAdmissionSnapshot() ?? resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path })'))
+}
+
 rmSync(HERMETIC, { recursive: true, force: true })
 
 if (failures > 0) {
