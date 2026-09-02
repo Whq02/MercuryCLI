@@ -230,12 +230,22 @@ export function initSession(
  *  it is the OPERATOR's pocket, not the session's page — stash, go look
  *  (often at another session), come back. `staged` settles through its own
  *  ms-scale clearStaged and is left alone. */
-export async function rekeyToSession(sessionId: string | null): Promise<void> {
+export async function rekeyToSession(sessionId: string | null, opts?: { landing?: boolean }): Promise<void> {
   const fence = editSeq
+  // A LANDING is not a hop: the slot filling from NO session (a birth, a
+  // resume from the face) carries the words typed while it landed — they
+  // were typed for the chat that is arriving, and the born session has no
+  // saved page of its own to restore over them. A session that does own a
+  // saved page keeps it (the page wins, as on any hop). The caller names
+  // the landing: the store's owner at boot is the bootstrap identity, which
+  // is also a live session's own id in the plain world, so the owner alone
+  // cannot tell a landing from a hop.
+  const typedWhileLanding = opts?.landing === true ? draft.text : ''
   await flushDraftSaves()
   owningSessionId = sessionId
   const saved = readDraftSync(sessionId)
   if (editSeq !== fence) return // the operator typed into the new view — typing wins
+  if (typedWhileLanding !== '' && (!saved || saved.text === '')) return // the landing keeps the live draft
   const text = saved?.text ?? ''
   draft = {
     text,
