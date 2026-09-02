@@ -1,6 +1,6 @@
 import type { UUID } from 'crypto'
 import * as React from 'react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { getSessionId } from '../../../bootstrap/state.js'
 import type { ResumeEntrypoint } from '../../../commands.js'
 import { Box, Text, useInput } from '../../../ink.js'
@@ -119,7 +119,8 @@ function LiveSessionManager({
   const accent = useSessionAccent().accent
   const { columns } = useTerminalSize()
   const W = shellInteriorWidth(columns)
-  const [switching, setSwitching] = useState(false)
+  const [switching, setSwitching] = useState<'loading' | 'swapping' | null>(null)
+  const switchGenRef = useRef(0)
   const [scope, setScope] = useState<SessionScope>(initialScope)
   const { logs, pendingMore, flat, crew, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
   const [confirmingKey, setConfirmingKey] = useState<string | null>(null)
@@ -191,19 +192,34 @@ function LiveSessionManager({
     if (!log) return
     const sessionId = getSessionIdFromLog(log)
     if (!sessionId) return
-    setSwitching(true)
+    const gen = ++switchGenRef.current
+    setSwitching('loading')
     try {
       const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
+      if (gen !== switchGenRef.current) return
+      setSwitching('swapping')
       await onResume(sessionId, fullLog, 'slash_command_picker')
+      if (gen !== switchGenRef.current) return
       onCloseAll()
     } catch {
-      setSwitching(false)
+      if (gen === switchGenRef.current) setSwitching(null)
     }
+  }
+
+  const leaveSwitch = (): void => {
+    const phase = switching
+    switchGenRef.current++
+    setSwitching(null)
+    setConfirmingKey(null)
+    if (phase === 'swapping') onCloseAll()
   }
 
   useInput(
     (input, key) => {
-      if (switching) return
+      if (switching !== null) {
+        if (key.escape) leaveSwitch()
+        return
+      }
       if (prune !== null) {
         if (prune.stage === 'deleting') return
         if (prune.stage === 'receipt') {
@@ -286,7 +302,7 @@ function LiveSessionManager({
         return
       }
     },
-    { isActive: !switching },
+    { isActive: true },
   )
 
   const scopeHint = scope === 'project' ? 'a all history' : 'a this project'
@@ -297,12 +313,23 @@ function LiveSessionManager({
         ? `↑↓ / click browse · ↵ switch · n new · d prune · ${scopeHint} · esc / ← close`
         : `n new · d prune · ${scopeHint} · esc / ← close`
 
-  if (switching) {
+  if (switching !== null) {
     return (
-      <CommandCenter view="sessions" onClose={onClose} captureInput={false}>
+      <CommandCenter
+        view="sessions"
+        onClose={leaveSwitch}
+        captureInput={false}
+        footer={
+          switching === 'loading'
+            ? 'reading the transcript… · esc cancel'
+            : 'switching — the swap keeps going · esc back to the chat'
+        }
+      >
         <Box marginTop={1}>
           <Spinner />
-          <Text color={SECOND}> Switching session…</Text>
+          <Text color={SECOND}>
+            {switching === 'loading' ? ' Reading the transcript…' : ' Switching session…'}
+          </Text>
         </Box>
       </CommandCenter>
     )
@@ -316,12 +343,13 @@ function LiveSessionManager({
           : '↵ / esc close'
         : prune.stage === 'receipt'
           ? '↵ / esc back to the list'
-          : ''
+          : 'deleting the named set…'
     return (
       <CommandCenter
         view="sessions"
         onClose={() => setPrune(null)}
         captureInput={false}
+        closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}
         footer={pruneFooter}
       >
         {prune.stage === 'card' ? (
