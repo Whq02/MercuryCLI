@@ -360,13 +360,16 @@ export default class App extends PureComponent<Props, State> {
 
   handleReadable = (): void => {
     const now = Date.now()
-    if (now - this.lastStdinTime > STDIN_GAP_REASSERT_MS) {
-      this.props.onStdinResume()
-    }
-    this.lastStdinTime = now
+    const quietSpell = now - this.lastStdinTime > STDIN_GAP_REASSERT_MS
+    let sawInput = false
     try {
       let chunk: string | Buffer | null
       while ((chunk = this.props.stdin.read() as string | Buffer | null) !== null) {
+        if (!sawInput) {
+          sawInput = true
+          this.lastStdinTime = now
+          if (quietSpell) this.props.onStdinResume()
+        }
         this.handleInput(chunk)
       }
     } catch (error) {
