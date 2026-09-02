@@ -55,17 +55,24 @@ def run_splash(cols, rows, hold_s=2.2, resize=None, send=None, send_after=1.2):
     pid, fd = pty.fork()
     if pid == 0:
         env = dict(os.environ)
-        # ALL FOUR home spellings pin to the empty home (proof-hygiene: the
-        # splash resolves MERCURY_CONFIG_DIR || MERCURY_CONFIG_DIR before
-        # MERCURY_HOME || MERCURY_HOME, and the gate wrapper exports the
-        # operator's LIVE ~/.claude — pinning only MERCURY_HOME let real
-        # recents grow the composed block one row and break the 100x50
-        # knife-edge leg POOLED-ONLY; the "load flake" was this).
-        env['MERCURY_HOME'] = EMPTY_HOME
+        # BOTH home spellings pin to the empty home (proof-hygiene: the
+        # splash resolves MERCURY_CONFIG_DIR before MERCURY_HOME, and the
+        # gate wrapper exports the operator's LIVE home — pinning only
+        # MERCURY_HOME let real recents grow the composed block one row and
+        # break the 100x50 knife-edge leg POOLED-ONLY; the "load flake" was
+        # this).
         env['MERCURY_HOME'] = EMPTY_HOME
         env['MERCURY_CONFIG_DIR'] = EMPTY_HOME
         env['TERM'] = 'xterm-256color'
         env['COLORTERM'] = 'truecolor'
+        # The display animations every capture pins still (the critter's
+        # sway and blink, its gaze and sleep, the live seconds, the live
+        # glyphs): a captured frame never lands on an arbitrary phase.
+        env['MERCURY_CRITTER_IDLE'] = '0'
+        env['MERCURY_CRITTER_GAZE'] = '0'
+        env['MERCURY_CRITTER_SLEEP'] = '0'
+        env['MERCURY_LIVE_CLOCK'] = '0'
+        env['MERCURY_LIVE_GLYPHS'] = '0'
         # the WAITING deck (the composed lockup these placement
         # laws grade) is the INLINE world now — a fullscreen boot auto-runs
         # the trace out from under the hold_s capture window. The inline deck
