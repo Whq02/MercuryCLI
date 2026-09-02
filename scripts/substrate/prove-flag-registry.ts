@@ -111,7 +111,7 @@ check(
 )
 
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
-const optOutSample = ['MERCURY_SCRIBE_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
+const optOutSample = ['MERCURY_DAEMON_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
 for (const env of optOutSample) {
   delete process.env[env]
   const on = flagEnabled(env)
@@ -154,11 +154,11 @@ for (const env of optInSample) {
 }
 let threw = false
 try {
-  flagEnabled('MERCURY_SCRIBE_OWNER_PID')
+  flagEnabled('MERCURY_DAEMON_OWNER_PID')
 } catch {
   threw = true
 }
-check("value flags refuse flagEnabled (MERCURY_SCRIBE_OWNER_PID throws)", threw)
+check("value flags refuse flagEnabled (MERCURY_DAEMON_OWNER_PID throws)", threw)
 
 section('§3c the registry reader honours the MERCURY_* spelling only')
 {

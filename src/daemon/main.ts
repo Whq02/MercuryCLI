@@ -1068,7 +1068,7 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 
     const ownerPid = parseOwnerPid()
-    const persist = isEnvTruthy(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))
+    const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
     if (ownerPid !== null && !persist) {
       let deadStreak = 0
       const ownerStartToken = getProcessStartToken(ownerPid)
