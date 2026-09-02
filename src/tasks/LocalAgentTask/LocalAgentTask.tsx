@@ -132,7 +132,18 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
   const rawModel = (assistant.message as { model?: unknown }).model
   const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
   const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
-  const cost = priced ? calculateUSDCost(model, usage) : 0
+  // The wire's nullable cache fields become the pricing owner's optional ones.
+  const cost = priced
+    ? calculateUSDCost(model, {
+        input_tokens: usage.input_tokens ?? 0,
+        output_tokens: usage.output_tokens ?? 0,
+        ...(usage.cache_read_input_tokens != null ? { cache_read_input_tokens: usage.cache_read_input_tokens } : {}),
+        ...(usage.cache_creation_input_tokens != null
+          ? { cache_creation_input_tokens: usage.cache_creation_input_tokens }
+          : {}),
+        ...(usage.cache_creation ? { cache_creation: usage.cache_creation } : {}),
+      })
+    : 0
   const next = { input, output, cost, unpriced: priced ? 0 : 1 }
   const id = typeof assistant.message.id === 'string' ? assistant.message.id : undefined
   if (id !== undefined && ledger.lastResponseId === id && ledger.lastResponse !== undefined) {
