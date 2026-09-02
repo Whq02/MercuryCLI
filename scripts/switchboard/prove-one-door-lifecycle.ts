@@ -117,7 +117,7 @@ console.log('C — close all chats ⇒ the boot menu (rule 5)')
   // Doctor and Resume open face-native layers; New Session, Projects and
   // now Continue enter the chat they birthed or resumed through the plain
   // form — the armed form is GONE from the face entirely.
-  check('C2 no face row arms a root command; Doctor/Resume open face layers; New Session, Projects and Continue enter the chat they birthed or resumed', (face.match(/enterRootRepl\(\{ armedRootCommand: true \}\)/g) ?? []).length === 0 && (face.match(/enterRootRepl\(\)/g) ?? []).length === 4 && face.includes('setHealthOpen(true)') && face.includes('setResumeOpen(true)') && !face.includes('armRootCommand'))
+  check('C2 no face row arms a root command; Doctor/Resume open face layers; New Session, Projects and Continue enter the chat they birthed or resumed', (face.match(/enterRootRepl\(\{ armedRootCommand: true \}\)/g) ?? []).length === 0 && (face.match(/enterRootRepl\(\)/g) ?? []).length === 5 && face.includes('setHealthOpen(true)') && face.includes('setResumeOpen(true)') && !face.includes('armRootCommand'))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
   const clearAt = hop.indexOf('export async function clearFocusedSession(')
   const clearBody = hop.slice(clearAt)
