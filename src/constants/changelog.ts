@@ -19,4 +19,5 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - The first build published from this repository; README.md says what is inside
 - Release notes ship inside the build: this bundled changelog is the only source
 - The scribe and router party modes are retired; the concourse is the multi-agent path
+- Release archives carry their own Node runtime; a release install needs git only
 `
