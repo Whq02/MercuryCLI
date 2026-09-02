@@ -2704,6 +2704,27 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   // for — prove-composer-hook-order pins it).
   const composerViewportStartRef = useRef<number | undefined>(undefined)
 
+  // Voice input rides the text input's own filter — the one place a
+  // keystroke can be swallowed before it types (the text input subscribes
+  // ahead of the raw-key ladder). A terminal sees no key-up, so `v` is
+  // press-to-start / press-to-stop: with /speak on, `v` in an empty plain
+  // composer starts a take; while one runs (or its transcription is in
+  // flight) `v` stops it — neither types. Read LIVE, never the render's
+  // snapshot: the second press must see the first press's phase. With
+  // /speak off, v is the letter v.
+  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
+    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    const live = voiceSnapshot()
+    if (live.phase === 'recording' || live.phase === 'transcribing') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    return rawInput
+  }, [])
   // ── composer-scoped overlays (after every hook) ──────────────────
   if (externalEditorActive) {
     return (
@@ -3008,28 +3029,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const showCursor =
     footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
   const vimEnabled = isVimModeEnabled()
-
-  // Voice input rides the text input's own filter — the one place a
-  // keystroke can be swallowed before it types (the text input subscribes
-  // ahead of the raw-key ladder). A terminal sees no key-up, so `v` is
-  // press-to-start / press-to-stop: with /speak on, `v` in an empty plain
-  // composer starts a take; while one runs (or its transcription is in
-  // flight) `v` stops it — neither types. Read LIVE, never the render's
-  // snapshot: the second press must see the first press's phase. With
-  // /speak off, v is the letter v.
-  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
-    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
-    const live = voiceSnapshot()
-    if (live.phase === 'recording' || live.phase === 'transcribing') {
-      void toggleVoiceCapture()
-      return ''
-    }
-    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
-      void toggleVoiceCapture()
-      return ''
-    }
-    return rawInput
-  }, [])
 
   const textInputProps = {
     viewportStartRef: composerViewportStartRef,
