@@ -453,7 +453,11 @@ function census(frames: TeeFrame[], window: string, fromTick: number, toTick: nu
 
 // ── the laws ────────────────────────────────────────────────────────────────
 
-const text = (rows: string[]): string => rows.join('\n')
+/** The frame's text with the ONE live cell the display pins do not cover
+ *  blanked: a focused composer's caret block (the glyph right after its
+ *  pointer) blinks on its own clock. Named by its cell, never a whole row. */
+const CARET_BLOCK = /❯ ▌/g
+const text = (rows: string[]): string => rows.join('\n').replace(CARET_BLOCK, '❯  ')
 const BOX_ONLY = /^[\s─│╭╮╰╯├┤┬┴┼━▔▁═┌┐└┘]*$/
 /** Rows that appear twice in a frame (real text, not rules or borders). */
 function doubledRows(rows: string[]): Map<string, number[]> {
@@ -468,12 +472,19 @@ function doubledRows(rows: string[]): Map<string, number[]> {
   for (const [k, v] of seen) if (v.length < 2) seen.delete(k)
   return seen
 }
-/** The board's selected row: the '▸ ' caret followed by a state glyph — the
- *  coordinator pane's suggestion rows carry the caret too, without one. */
-const BOARD_CARET = /▸ [●◐○□◆✓✕]/
-function selectedRow(rows: string[]): string | null {
-  const row = rows.find(r => BOARD_CARET.test(r))
-  return row === undefined ? null : row.trim()
+/** The board's armed row, by the head of its TITLE: the '▸ ' caret, a state
+ *  glyph, the state word, then the title — read as its first ten characters
+ *  so a column that truncates ("Audit billing…") and one that does not read
+ *  the same. The coordinator pane's suggestion rows carry the caret without
+ *  a glyph, and a screen row can hold both panes side by side, so the whole
+ *  row is never the identity. */
+const BOARD_ARMED = /▸ [●◐○□◆✓✕]\s+\S+\s+(.+?)(?:…|\s{2,}|│|$)/
+function armedTitle(rows: string[]): string | null {
+  for (const r of rows) {
+    const m = BOARD_ARMED.exec(r)
+    if (m) return m[1]!.trim().slice(0, 10)
+  }
+  return null
 }
 
 function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag: string): Result {
@@ -598,9 +609,9 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
     }
     if (scene.keepPattern && !f.rows.some(r => scene.keepPattern!.test(r))) findings.push({ kind: 'anchor-lost', detail: `${f.label}: no row matches ${scene.keepPattern}` })
     if (scene.armed) {
-      const before = selectedRow(readyRows)
-      const after = selectedRow(f.rows)
-      if (before !== null && after !== before) findings.push({ kind: 'armed-lost', detail: `${f.label}: the armed row was "${before.slice(0, 50)}", now ${after === null ? 'none' : `"${after.slice(0, 50)}"`}` })
+      const before = armedTitle(readyRows)
+      const after = armedTitle(f.rows)
+      if (before !== null && after !== before) findings.push({ kind: 'armed-lost', detail: `${f.label}: the armed row was "${before}…", now ${after === null ? 'none' : `"${after}…"`}` })
     }
     // (e) every border closed at the new size.
     for (const x of inspect(f.rows, f.cols, scene.root)) findings.push({ kind: x.kind, detail: `${f.label}: ${x.detail}` })
@@ -645,7 +656,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
       break
     }
     case 'selection-moves': {
-      if (selectedRow(afterKey.rows) === selectedRow(beforeKey.rows)) findings.push({ kind: 'key-dead', detail: 'the selection did not move on ↓' })
+      if (armedTitle(afterKey.rows) === armedTitle(beforeKey.rows)) findings.push({ kind: 'key-dead', detail: 'the selection did not move on ↓' })
       break
     }
     case 'closes': {
