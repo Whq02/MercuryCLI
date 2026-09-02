@@ -193,10 +193,11 @@ function transcriberWords(transcriber: TranscriberResolution): string {
 
 export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): string {
   const on = voiceInputEnabled()
+  const transcriber = resolveTranscriber(env)
   return [
     `voice input ${on ? 'ON — v in an empty composer starts a capture, v or esc stops it' : 'OFF — /speak on turns it on'}`,
+    `transcriber: ${transcriber.state === 'ok' ? `${providerDisplayName(transcriber.choice.family)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
-    `transcriber: ${transcriberWords(resolveTranscriber(env))}`,
   ].join('\n')
 }
 

@@ -397,7 +397,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     addNotification({
       key: 'voice-receipt',
       text: receipt.text,
-      priority: receipt.tone === 'error' ? 'high' : 'medium',
+      priority: 'immediate',
       ...(receipt.tone === 'error' ? { color: 'error' as const } : {}),
       timeoutMs: 8000,
     })
@@ -1980,15 +1980,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         input === '' && cursorOffset === 0 && mode === 'prompt' &&
         footerSelection === null && !helpOpen && !isSearchingHistory
 
-      if (voice.phase === 'recording' && !key.ctrl && !key.meta && (key.escape || rawInput === 'v')) {
+      if (voice.phase === 'recording' && key.escape) {
         event.stopImmediatePropagation()
-        if (key.escape) cancelVoiceCapture()
-        else void toggleVoiceCapture()
-        return
-      }
-      if (voice.enabled && voice.phase === 'idle' && emptyPlainPrompt && rawInput === 'v' && !key.ctrl && !key.meta) {
-        event.stopImmediatePropagation()
-        void toggleVoiceCapture()
+        cancelVoiceCapture()
         return
       }
 
@@ -2079,7 +2073,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.enabled, voice.phase],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
@@ -2550,6 +2544,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
   const vimEnabled = isVimModeEnabled()
 
+  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
+    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    const live = voiceSnapshot()
+    if (live.phase === 'recording' || live.phase === 'transcribing') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    return rawInput
+  }, [])
+
   const textInputProps = {
     viewportStartRef: composerViewportStartRef,
     value: input,
@@ -2557,6 +2565,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     cursorOffset,
     onChangeCursorOffset: setCursorOffset,
     columns: columns - 3,
+    inputFilter: voiceInputFilter,
     onSubmit: (value: string) => {
       void submit(value, {})
     },
