@@ -23,7 +23,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const ROW = /✳︎? thinking…/
 const ROW_WITH_CUE = /✳︎? thinking…\s*⌄/
 
-for (const cols of [120, 80]) {
+for (const cols of [120, 100]) {
   console.log(`\n── thinking-row @ ${cols} cols ──`)
   execFileSync('sleep', ['2'])
   const cfgPath = `/tmp/vs-thinking-${cols}.json`
