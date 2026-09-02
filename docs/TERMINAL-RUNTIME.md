@@ -59,6 +59,18 @@ exit-code contract, so the boot that follows is the same on both roads. A
 start with any argument boots straight, and a launcher-started boot is never
 splashed twice.
 
+The handover is the splash's exit code, and nothing else: `0` hands over
+inside a held alternate screen (the runtime takes the buffer over without
+re-entering it), `20` hands over with the screen restored, `130` is a cancel
+(the boot stands down), and any other code is an abnormal death — the
+launcher heals the terminal in one bounded write (synchronized output closed,
+alternate scroll off, the alternate screen left, the cursor shown, the
+background handed back) and boots plain. A handover arms the one-shot marker
+`MERCURY_SPLASH_HANDOFF`; the runtime then reads the enter-screen choice
+(`splash-action.json` under the config home, matched to the launch's own id)
+and deletes both, so no child ever inherits them. The launchers parse nothing
+the splash writes.
+
 ## The release install (the versioned layout)
 
 Release archives use a user-local, versioned layout instead — understandable without
