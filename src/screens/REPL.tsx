@@ -2077,8 +2077,10 @@ export function REPL({
 
   const viewInProgressToolUseIDs = seatLive.inProgressToolUseIDs;
   const viewStreamMode: SpinnerMode =
-    seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' ? 'requesting' : 'responding';
+    seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
+  const viewAgentWait =
+    seatLive.phase === 'waiting' ? `waiting on ${seatLive.agentsWaiting} agent${seatLive.agentsWaiting === 1 ? '' : 's'} · esc stops them` : null;
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
@@ -2120,7 +2122,7 @@ export function REPL({
         responseLengthRef={responseLengthRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={viewCompacting ? 'compacting context…' : null}
+        overrideMessage={viewCompacting ? 'compacting context…' : viewAgentWait}
         spinnerSuffix={spinnerSuffix ?? null}
         verbose={verbose}
         hasActiveTools={viewInProgressToolUseIDs.size > 0}
