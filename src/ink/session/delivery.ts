@@ -119,6 +119,16 @@ function serializePatches(diff: Diff): string {
   return out
 }
 
+/** Whether a stream can still take a write: not destroyed, not ended, and
+ *  not reporting itself unwritable. A terminal that hung up, or a stream
+ *  torn down at exit, answers a write with an error instead of taking it —
+ *  the mode reassert asks here before it writes. */
+export function streamTakesWrites(
+  stream: { destroyed?: boolean; writable?: boolean; writableEnded?: boolean },
+): boolean {
+  return stream.destroyed !== true && stream.writableEnded !== true && stream.writable !== false
+}
+
 /** Deliver one frame's patches. BSU/ESU wrap unless the caller skips them
  *  (per-frame capability read — never frozen). Returns false when the fd
  *  path gave up on a wedged reader. */
