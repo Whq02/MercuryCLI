@@ -13,6 +13,17 @@
 //  catch INSIDE fn — the session-discovery scans all do.
 // ============================================================================
 
+import { availableCores } from './availableCores.js'
+
+/** The pool width for disk-METADATA fan-outs — per-file stats, project-dir
+ *  walks, the session-discovery scans, Grep's mtime sort: SMALL on purpose.
+ *  libuv serves fs work from a four-thread pool by default, so a wider pool
+ *  only queues, and the quota-aware core count (law 6) bounds it below four
+ *  on constrained hosts. One owner: every stat walk sizes from here. */
+export function discoveryPoolWidth(): number {
+  return Math.max(1, Math.min(4, availableCores()))
+}
+
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,

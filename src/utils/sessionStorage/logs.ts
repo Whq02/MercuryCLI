@@ -34,8 +34,7 @@ import {
   TRANSCRIPT_FORMAT_REFUSAL,
 } from '../../fabric/transcriptDecode.js'
 import { uniq } from '../array.js'
-import { availableCores } from '../availableCores.js'
-import { mapWithConcurrency } from '../concurrency.js'
+import { discoveryPoolWidth, mapWithConcurrency } from '../concurrency.js'
 import { updateSessionName } from '../concurrentSessions.js'
 import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
@@ -83,14 +82,6 @@ const SKIP_FIRST_PROMPT_PATTERN =
  * misreport a real problem; a file outside the record format throws the
  * one honest refusal line.
  */
-/** The discovery scans' pool width (project-dir walks and per-transcript
- *  stats): SMALL on purpose — the work is disk metadata, libuv serves fs
- *  from a four-thread pool by default, and the quota-aware core count (law
- *  6) bounds it below that on constrained hosts. */
-function discoveryPoolWidth(): number {
-  return Math.max(1, Math.min(4, availableCores()))
-}
-
 export async function loadTranscriptFromFile(
   filePath: string,
 ): Promise<LogOption> {
