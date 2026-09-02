@@ -14,15 +14,13 @@
 //
 //  The daemon is the OWNED, SELF-REAPING kind (ensureCrewDaemon → the shared
 //  spawnOwnedDaemon seam): engaged by an explicit operator act on the board,
-//  reaped when this session exits — the same sanction shape as the Scribe and
-//  party engages. Chat identity is DURABLE (team-file members persist across
+//  reaped when this session exits. Chat identity is DURABLE (team-file members persist across
 //  daemon restarts; a roster-absent member renders offline with its transcript
 //  intact, and respawning the same name re-attaches to the same chat).
 // ============================================================================
 import { flagPair } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { daemonSnapshot } from '../cockpit/daemonSnapshot.js'
-import { decideScribeDaemonAction } from '../scribe/ensureScribeDaemon.js'
 import {
   clearDeadSupervisorRecords,
   daemonControlRpc,
@@ -63,12 +61,9 @@ export function isRetryableSpawnReplyCode(code: string | undefined): boolean {
 // ── the owned crew daemon ────────────────────────────────────────────────────
 
 /**
- * Ensure a daemon is up to host crew teammates — the crew analog of
- * ensureScribeDaemon (same probe → spawn → ping-confirm shape, same
- * self-reaping ownedDaemon seam). Gated on crewEnabled(); marks the daemon
- * MERCURY_DAEMON_CREW=1 and stamps MERCURY_PARTY='0' (a crew engage is not a
- * party engage — combined use stays a deliberate operator act, exactly the
- * scribe-engage rule).
+ * Ensure a daemon is up to host crew teammates (probe → spawn → ping-confirm,
+ * on the self-reaping ownedDaemon seam). Gated on crewEnabled(); marks the
+ * daemon MERCURY_DAEMON_CREW=1.
  */
 export function ensureCrewDaemon(projectDir: string): void {
   // An explicit crew engage lifts a /halt stand-down.
@@ -81,7 +76,9 @@ export function ensureCrewDaemon(projectDir: string): void {
     logForDebugging(`[crew] ensureCrewDaemon: probe failed: ${e}`)
     return
   }
-  if (decideScribeDaemonAction(state) === 'spawn') {
+  // Only a LIVE daemon is left alone: 'unavailable' (a stale record, a dead
+  // pid) and 'off' both mean "no live daemon" ⇒ spawn (idempotent).
+  if (state !== 'live') {
     spawnCrewDaemon(projectDir)
     return
   }

@@ -59,7 +59,7 @@ console.log('§1 daemon roster — outcome first')
   check('POISON: the busy-only lead is gone', !view.includes("<Text color={w.stalled ? AMBER : w.busy ? TEAL : SECOND}>\n                      {w.busy ? GLYPH.inProgress : GLYPH.done}"))
   check('the roster still withholds the busy bit from a settled entry (the wire truth the row now reads)', read('src/daemon/roster.ts').includes('if (!h.entry.outcome) {\n          e.busy = !this.seatIsIdle(h.longLived)'))
 }
-// NEEDS-REAL-BOX: /daemon against a supervisor whose Implementer exhausted
+// NEEDS-REAL-BOX: /daemon against a supervisor whose long-lived seat exhausted
 // its respawn budget — the row leads ✕ in crimson and reads the outcome.
 
 // ── §2 · deck-estarting — the deck's daemon words are true ──────

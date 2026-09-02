@@ -86,6 +86,7 @@ __t=$SECONDS; "$bun" run "$here/prove-live-e2e-hermetic.ts" || fail=1; prover_ma
 __t=$SECONDS; "$bun" run "$here/prove-friction-stopwatch.ts" || fail=1; prover_mark "$here/prove-friction-stopwatch.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-health-self-recognition.ts" || fail=1; prover_mark "$here/prove-health-self-recognition.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-headless-one-shot-roster.ts" || fail=1; prover_mark "$here/prove-headless-one-shot-roster.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-bus-envelopes.ts" || fail=1; prover_mark "$here/prove-bus-envelopes.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL SUBSTRATE PROOFS PASS"; else echo "# ❌ SOME SUBSTRATE PROOFS FAILED"; fi
 echo "############################################################"

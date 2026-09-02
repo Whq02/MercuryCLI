@@ -94,7 +94,7 @@ export function resolveDeepseekModel(
 
 export function buildDeepseekLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider deepseek has no SEAT runtime — party/roster seats stay Anthropic; DeepSeek specialists dispatch through the AgentTool engine path',
+    'router: provider deepseek has no SEAT runtime — roster seats stay Anthropic; DeepSeek specialists dispatch through the AgentTool engine path',
   )
 }
 

@@ -22,9 +22,8 @@
 // Scope law:
 //   · Only the final built-in-default rung moves. Explicit selections
 //     (session /model, --model, ANTHROPIC_MODEL, settings.model), resumed
-//     conversations, and every deliberately tuned supporting role (
-//     seats, Scribe/Implementer, party, crew, workflow executors) keep their
-//     own resolvers byte-for-byte.
+//     conversations, and every deliberately tuned supporting role (crew
+//     seats, workflow executors) keep their own resolvers byte-for-byte.
 //   · A later frontier model becomes preferred when the OPERATOR names it
 //     (the env pin, the settings model, an allowlist naming the family) or
 //     when a ratified default owner changes by hand — never by an

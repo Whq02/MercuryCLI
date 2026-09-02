@@ -3,11 +3,11 @@
 //  event echoes) on the FileStore kernel (locked RMW · atomic publish ·
 //  validate-on-read · subscribe).
 //
-//  TWO writers by design — the planning process (the Scribe route fabric via
-//  the RouteWork seam) commits plans; the DAEMON settles nodes from CAPTURED bus
-//  signals; the foreground settles scribe-stream reports (the daemon never
-//  sees the Implementer's outbound progress — the partyStateMirror HONEST
-//  LIMIT). The FileStore's locked cross-process RMW is what makes that safe.
+//  TWO writers by design — the planning process commits plans; the DAEMON
+//  settles nodes from CAPTURED bus signals; the foreground settles the
+//  reports a worker sends back (the daemon never sees a worker's outbound
+//  progress). The FileStore's locked cross-process RMW is what makes that
+//  safe.
 //
 //  Lifecycle law lives HERE (not in callers):
 //    - transitions ride the ALLOWED table below; an illegal transition is a
@@ -29,6 +29,7 @@ import {
   decodeTaskRoutePlan,
   type RouteNode,
   type RouteNodeState,
+  type RoutePlannerRole,
   type TaskRoutePlan,
 } from '../utils/router/contracts.js'
 import { NODE_MAX_ATTEMPTS, derivePlanState, promotableNodes } from '../utils/router/scheduler.js'
@@ -291,9 +292,9 @@ export const routerStoreWriters = {
     return applied
   },
 
-  /** Router/Maintainer acceptance keyed by the bus request id (what the party
-   *  observer sees on a control ack). */
-  async acceptByRequest(busRequestId: string, by: 'scribe' | 'router' | 'maintainer', now: number): Promise<void> {
+  /** Planner acceptance keyed by the bus request id (what the daemon sees on
+   *  a control ack). */
+  async acceptByRequest(busRequestId: string, by: RoutePlannerRole, now: number): Promise<void> {
     const state = await routerRunStore().read().catch(() => null)
     if (!state) return
     for (const plan of state.plans) {
@@ -357,7 +358,7 @@ export const routerStoreWriters = {
   /** The reviewing role ACCEPTS a reported node against its acceptance contract.
    *  A successful acceptance also feeds the bounded outcome memory (firstPass =
    *  accepted on attempt 1) — the ONLY seam that records calibration rows. */
-  async acceptNode(planId: string, nodeId: string, by: 'scribe' | 'router' | 'maintainer', now: number): Promise<void> {
+  async acceptNode(planId: string, nodeId: string, by: RoutePlannerRole, now: number): Promise<void> {
     let observed: Parameters<typeof recordRouteOutcome>[0] | null = null
     await safeMutate(s => {
       const plan = s.plans.find(p => p.id === planId)
@@ -469,7 +470,7 @@ export const routerStoreWriters = {
 
   /** Final mission acceptance (synthesis owner). Requires every required node
    *  accepted — refused otherwise (the synthesis gate is mechanical). */
-  acceptPlan(planId: string, by: 'scribe' | 'router' | 'maintainer', now: number): Promise<void> {
+  acceptPlan(planId: string, by: RoutePlannerRole, now: number): Promise<void> {
     return safeMutate(s => {
       const plan = s.plans.find(p => p.id === planId)
       if (!plan) return s

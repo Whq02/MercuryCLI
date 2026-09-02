@@ -3,7 +3,7 @@
  * The evolution-ledger substrate WRITES per-program JSONL files into two homes
  * (the repo's `.mercury/evolution/` and the memdir's `<autoMem>/evolution/`),
  * and the pure rollups (summarizeEvolution / computeEvolutionFrontier /
- * computeSubjectDrift) were reader-less beyond /party→History's single
+ * computeSubjectDrift) were reader-less beyond one retired board's single
  * program. This module is the general reader: scan the ledger dirs, parse
  * every program file, aggregate — read-only, gate-independent (past ledgers
  * stay inspectable after an opt-out), never throws.

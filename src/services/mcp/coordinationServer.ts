@@ -319,9 +319,8 @@ export async function createCoordinationServer(): Promise<{
         'TEAM-ONLY — no-op when solo. ' +
         'A consolidated read of the team state: open tasks, your unread ' +
         'messages and open questions, the roster, current file leases, ' +
-        'derived agent health, tree conflicts, handoffs to you, and (on the ' +
-        "router party) the party's live lanes. The same brief the TeamBrief " +
-        'tool produces — read-only.',
+        'derived agent health, tree conflicts, and handoffs to you. The same ' +
+        'brief the TeamBrief tool produces — read-only.',
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },

@@ -36,7 +36,6 @@ export function initBundledSkills(): void {
   registerDebugSkill()
   registerSkillifySkill()
   registerSimplifySkill()
-  // /batch is the scribe brake command; no bundled skill may take that name.
   // /verify is the red-team command and /remember the memory-card writer;
   // bundled skills win name collisions, so none is registered under those
   // names either.

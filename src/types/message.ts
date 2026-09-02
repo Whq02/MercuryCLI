@@ -348,40 +348,6 @@ export type SystemInformationalMessage = {
   preventContinuation?: boolean
 }
 
-/** HISTORICAL (the retired multiplayer estate): the verbs a party-room event
- *  row carried. Old transcripts still render these rows; nothing mints them
- *  anew. */
-export type PartyEventVerb =
-  | 'chat'
-  | 'presence'
-  | 'helm'
-  | 'steer'
-  | 'ticket'
-  | 'claim'
-
-/** HISTORICAL: a room event as a LOUD attributed transcript row (the [party]
- *  lane): peer chat, joins/leaves, helm moves, tickets, claim conflicts.
- *  UI-only, like every system message — never enters the API conversation.
- *  Recognition-only since the multiplayer retirement: stored rows render;
- *  no live emitter constructs one. */
-export type SystemPartyEventMessage = {
-  type: 'system'
-  subtype: 'party_event'
-  /** Plain-text fallback (transcript export, non-party renderers). */
-  content: string
-  verb: PartyEventVerb
-  /** Stable principal id — the per-principal accent hashes off this. */
-  whoId: string
-  /** Display name for the row. */
-  who: string
-  /** The row body (already humanized by the intake mapping). */
-  text: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
-
 /** one VISIBLE row per applied (or honestly timed-out)
  *  operator seat reslot. Its own subtype on purpose: info-level informational
  *  rows are quiet-by-design in the default transcript, and a receipt must
@@ -673,7 +639,6 @@ export type SystemThinkingMessage = {
 /** The full discriminated union of in-transcript system messages. */
 export type SystemMessage =
   | SystemInformationalMessage
-  | SystemPartyEventMessage
   | SystemSeatReceiptMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage

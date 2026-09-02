@@ -15,7 +15,7 @@
 //  warmth only while the focused records are still empty, and settles the
 //  hint the moment they land — the entry road disarms at landing-settled
 //  either way). Nothing here is exported, persisted, or fed to history,
-//  search, selectors, the scribe mirror, or the model.
+//  search, selectors, or the model.
 //
 //  BOUNDED BY CONSTRUCTION: per session only the TAIL SLICE the mirror
 //  painted (WARMTH_TAIL_ROWS newest folded rows), at most WARMTH_SESSIONS

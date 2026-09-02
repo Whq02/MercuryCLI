@@ -39,7 +39,7 @@ const CLASSES: Record<string, GateClass> = {
   flux: 'pty',
   pulse: 'pty',
   smoke: 'cpu',
-  scribe: 'pure',
+  bus: 'pure',
   mission: 'pure',
   memory: 'pure',
   bench: 'exclusive',
@@ -49,7 +49,7 @@ const DURATIONS: Record<string, number> = {
   flux: 600,
   pulse: 600,
   smoke: 200,
-  scribe: 40,
+  bus: 40,
   mission: 30,
   memory: 20,
   bench: 100,
@@ -62,7 +62,7 @@ const MANIFEST: ImpactManifest = {
     ui: ['src/components/**'],
     flux: ['src/components/**'],
     pulse: ['src/components/**'],
-    scribe: ['src/utils/scribe/**'],
+    bus: ['src/utils/swarm/**'],
     mission: ['src/utils/hooks/**'],
     smoke: ['src/**'],
   },
@@ -108,7 +108,7 @@ check(
 )
 check(
   'pure suites ride the wide lane beside pty (no added wall)',
-  estimatePooledWallS(['ui', 'scribe', 'mission', 'memory'], EST) === 600,
+  estimatePooledWallS(['ui', 'bus', 'mission', 'memory'], EST) === 600,
 )
 check(
   'an exclusive suite runs ALONE after the pool drains (additive wall)',
@@ -126,8 +126,8 @@ check(
   estimatePooledWallS(['ui', 'flux', 'smoke'], { ...EST, cores: 2 }) > 0,
 )
 {
-  const small = estimatePooledWallS(['scribe', 'mission'], EST)
-  const bigger = estimatePooledWallS(['scribe', 'mission', 'ui'], EST)
+  const small = estimatePooledWallS(['bus', 'mission'], EST)
+  const bigger = estimatePooledWallS(['bus', 'mission', 'ui'], EST)
   check('adding a suite never shrinks the estimate', bigger >= small, `${small} → ${bigger}`)
 }
 check('an unknown-duration suite defaults to the scheduler fallback (30s)',
@@ -163,10 +163,10 @@ section('§2 the NOT-FASTER refusal law (both directions)')
   // pool: ui,flux ‖ (600) → pulse (1200); smoke+pures beside; bench alone → 1300.
   const pool = estimatePooledWallS(MANIFEST.suites, EST)
   check('the fixture pool estimate is the pty tail + the exclusive (1300s)', pool === 1300, `${pool}`)
-  const p = planSlice(input({ changedPaths: ['src/utils/scribe/bus.ts'] }))
+  const p = planSlice(input({ changedPaths: ['src/utils/swarm/bus.ts'] }))
   check(
-    `a small slice (scribe+smoke ≈ 200s vs pool ≈ ${pool}s) RUNS`,
-    p.kind === 'run' && p.suites.join(',') === 'scribe,smoke'.split(',').sort().join(','),
+    `a small slice (bus+smoke ≈ 200s vs pool ≈ ${pool}s) RUNS`,
+    p.kind === 'run' && p.suites.join(',') === 'bus,smoke'.split(',').sort().join(','),
     JSON.stringify(p),
   )
 }
@@ -174,7 +174,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
   // Select the WHOLE pty tail (ui+flux+pulse ⇒ 1200s pooled) + smoke:
   // 1200/1300 = 92% — nowhere near clearly-under ⇒ refuse.
   const p = planSlice(
-    input({ changedPaths: ['src/components/x.tsx', 'src/utils/scribe/bus.ts', 'src/utils/hooks/h.ts'] }),
+    input({ changedPaths: ['src/components/x.tsx', 'src/utils/swarm/bus.ts', 'src/utils/hooks/h.ts'] }),
   )
   check('a near-pool-wall slice REFUSES (not-faster)', p.kind === 'refuse' && p.reason === 'not-faster', p.kind)
   check(
@@ -192,7 +192,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
   // not the suite count.
   const p = planSlice(
     input({
-      changedPaths: ['src/components/x.tsx', 'src/utils/scribe/bus.ts', 'src/utils/hooks/h.ts'],
+      changedPaths: ['src/components/x.tsx', 'src/utils/swarm/bus.ts', 'src/utils/hooks/h.ts'],
       clearlyUnderRatio: 0.999,
     }),
   )
@@ -259,7 +259,7 @@ section('§4 fail-closed: UNCLASSIFIED escalates (and outranks the hub)')
 // ── §5 the anchor law ────────────────────────────────────────────────────────
 section('§5 anchor absent ⇒ refuse naming the pool')
 {
-  const p = planSlice(input({ anchor: null, changedPaths: ['src/utils/scribe/bus.ts'] }))
+  const p = planSlice(input({ anchor: null, changedPaths: ['src/utils/swarm/bus.ts'] }))
   check('no anchor refuses', p.kind === 'refuse' && p.reason === 'anchor-absent', p.kind)
   check(
     'the anchor refusal names "run the full pool"',
@@ -270,12 +270,12 @@ section('§5 anchor absent ⇒ refuse naming the pool')
 // ── §6 selection ≡ lanes ─────────────────────────────────────────────────────
 section('§6 the plan hands the selector set (sorted) to the lanes')
 {
-  const p = planSlice(input({ changedPaths: ['src/utils/scribe/bus.ts', 'src/utils/hooks/h.ts'] }))
+  const p = planSlice(input({ changedPaths: ['src/utils/swarm/bus.ts', 'src/utils/hooks/h.ts'] }))
   check(
     'plan.suites is exactly the sorted selection set',
     p.kind === 'run' &&
       p.suites.join('|') === [...(p.ledger.selection?.suites ?? [])].sort().join('|') &&
-      p.suites.join(',') === 'mission,scribe,smoke',
+      p.suites.join(',') === 'bus,mission,smoke',
     JSON.stringify(p.kind === 'run' ? p.suites : p.kind),
   )
 }

@@ -248,7 +248,7 @@ function HelmTelemetryRailImpl({
   // panel follows the FOCUSED chat's model — the CONNECTOR's model facts,
   // the same source MercuryFrame's usage meter reads. The first cut read
   // AppState's mainLoopModelForSession, which only LOCAL roads write (the
-  // /model transition, the scribe reslot) — a daemon-hosted chat entered by
+  // /model transition) — a daemon-hosted chat entered by
   // hop never fed it, so a focused GPT session still painted the
   // cockpit-local default's Anthropic windows (the overnight re-sighting).
   // Beside the focused source, every other logged-in window-metered account

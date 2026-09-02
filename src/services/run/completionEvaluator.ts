@@ -2,9 +2,9 @@
 //  completionEvaluator — the ONE pure stop/continue decision (Sol 5.6
 //  frontier sprint). Replaces wording-first stopping.
 //
-//  Every keep-working Stop hook (default Mercury run hook, fable,
-//  Scribe/Implementer, dungeon seats) delegates here through a small role
-//  adapter. The decision is EVIDENCE-BASED: deliverable/task state, real tool
+//  Every keep-working Stop hook (default Mercury run hook, fable) delegates
+//  here through a small role adapter. The decision is EVIDENCE-BASED:
+//  deliverable/task state, real tool
 //  effects, mutation-after-evidence, failed/indeterminate mutating effects,
 //  pending IDE stabilization, blocker ownership, abort signal, and the
 //  continuation budget. The last paragraph's WORDING is only a compatibility

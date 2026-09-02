@@ -8,7 +8,6 @@ import { readdir } from 'node:fs/promises'
 import { join, sep } from 'node:path'
 import { readCardMeta } from './experienceCards.js'
 import { parseFrontmatter } from '../utils/frontmatterParser.js'
-import { scribeScopeEnabled } from '../utils/scribe/scribeGates.js'
 import { open as openFile } from 'node:fs/promises'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -50,7 +49,7 @@ export async function scanMemoryFiles(
   signal: AbortSignal,
   excludeScopes?: readonly string[],
 ): Promise<MemoryHeader[]> {
-  const excluded = excludeScopes ?? (scribeScopeEnabled() ? ['scribe'] : [])
+  const excluded = excludeScopes ?? []
   let entries: string[]
   try {
     const found = await readdir(memoryDir, { recursive: true, withFileTypes: false })

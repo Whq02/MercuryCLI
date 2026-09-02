@@ -89,20 +89,6 @@ function check(name: string, ok: boolean, detail?: string): void {
   const s = read('src/constants/subagentDoctrine.ts')
   check('subagentDoctrine: getLspDoctrineLine spliced', s.includes('getLspDoctrineLine()'))
 }
-{
-  const mode = read('src/utils/implementerMode.ts')
-  const pack = read('src/utils/scribe/implementerPack.ts')
-  check(
-    'implementerMode: LSP evidence resolved at consumption + cache-keyed; the pack splices it',
-    mode.includes('getLspPackEvidenceText()') &&
-      mode.includes("lspEvidence ? 'lsp' : 'nolsp'") &&
-      pack.includes('if (opts.lspEvidence)') &&
-      pack.includes("id: 'implementer-ide-evidence'"),
-  )
-}
-// (The executor-seat exec-ide-evidence legs retired with the party role
-//  packs — the multiplayer estate's C10 residue; the scribe/implementer
-//  evidence legs above are the surviving law.)
 
 // 7. Tool prompt: fork ops section appended only when the bridge is on.
 {

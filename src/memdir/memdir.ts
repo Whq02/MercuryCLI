@@ -7,7 +7,6 @@ import { readFileSync } from 'node:fs'
 import { mkdir, readdir } from 'node:fs/promises'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { experienceCardDoctrineLines } from './experienceCards.js'
-import { scribeScopeDoctrineLines } from './scribeScopeDoctrine.js'
 import { hasEmbeddedSearchTools } from '../utils/embeddedTools.js'
 import { isReplModeEnabled } from '../tools/REPLTool/constants.js'
 import { formatFileSize } from '../utils/format.js'
@@ -206,7 +205,6 @@ export function buildMemoryLines(
     ...WHEN_TO_ACCESS_SECTION,
     ...TRUSTING_RECALL_SECTION,
     ...experienceCardDoctrineLines(),
-    ...scribeScopeDoctrineLines(),
     ...PERSISTENCE_COMPARISON,
     ...(extraGuidelines ?? []),
     ...searchSection,

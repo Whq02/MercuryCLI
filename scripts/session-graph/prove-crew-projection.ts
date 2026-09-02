@@ -27,9 +27,7 @@ const t = checker()
 
 const scratch = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'crew-projection-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-process.env.MERCURY_PARTY_STATE_DIR = join(scratch, 'party')
 mkdirSync(join(scratch, 'home'), { recursive: true })
-mkdirSync(join(scratch, 'party'), { recursive: true })
 
 const identity = await import('../../src/services/crew/identity.ts')
 const projection = await import('../../src/services/crew/projection.ts')

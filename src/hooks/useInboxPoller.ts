@@ -58,8 +58,7 @@ import {
   type TeammateMessage,
 } from '../utils/teammateMailbox.js'
 import { processMailboxPermissionResponse, processSandboxPermissionResponse } from './useSwarmPermissionPoller.js'
-import { scribeBusEnabled } from '../utils/scribe/scribeGates.js'
-import { isScribeProtocolMessage } from '../utils/scribe/scribeBus.js'
+import { busEnvelopesEnabled, isBusProtocolMessage } from '../utils/swarm/busEnvelopes.js'
 
 /** The safety tick: insurance against a lost watcher notification only —
  *  ordinary delivery is event-driven off the store subscription. */
@@ -311,7 +310,7 @@ export function useInboxPoller({
       else if (isTeamPermissionUpdate(m.text)) teamPermissionUpdates.push(m)
       else if (isModeSetRequest(m.text)) modeSetRequests.push(m)
       else if (isPlanApprovalRequest(m.text)) planApprovalRequests.push(m)
-      else if (scribeBusEnabled() && isScribeProtocolMessage(m.text)) busEnvelopes.push(m)
+      else if (busEnvelopesEnabled() && isBusProtocolMessage(m.text)) busEnvelopes.push(m)
       else regular.push(m)
     }
     // Bus envelopes are delivered as turns; the separate bucket only gives

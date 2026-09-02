@@ -11,11 +11,9 @@
 //  list; the old static alias list (getAgentModelOptions) retired from the
 //  picker road with it.
 //
-//  Three principled exclusions, each the catalogue's own grammar:
+//  Two principled exclusions, each the catalogue's own grammar:
 //    · the null Default pseudo-row — 'Inherit' is the agent grammar's own
 //      default (an agent follows its parent, not the account default);
-//    · the router MODES group — a mode is a session posture, not a
-//      dispatchable model id an agent's frontmatter can carry;
 //    · Anthropic haiku-tier rows — the subagent floor (modelFloor) would
 //      silently rewrite the pick, and offering a row the floor rewrites is
 //      dishonest (non-Anthropic ids with 'haiku' in the slug stay, by the
@@ -33,7 +31,6 @@ import {
   ANTHROPIC_MODEL_GROUP,
   getModelOptions,
   isProviderActionRow,
-  MODES_MODEL_GROUP,
   type ModelOption,
 } from './modelOptions.js'
 import { isHaikuTier } from './modelFloor.js'
@@ -69,7 +66,6 @@ export function getAgentModelPickerRows(
   ]
   for (const opt of catalogue) {
     if (opt.value === null) continue
-    if (opt.group === MODES_MODEL_GROUP) continue
     if (isHaikuTier(opt.value)) continue
     const group = opt.group ?? ANTHROPIC_MODEL_GROUP
     if (isProviderActionRow(opt.value)) {

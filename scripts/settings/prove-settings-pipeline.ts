@@ -11,7 +11,7 @@
 //  Pins:
 //    · precedence user < project < local < flag(file+inline) < policy
 //    · array concat+dedup vs object deep-merge vs scalar override
-//    · Mercury value acceptance (effortLevel max · defaultMode flow/scribe ·
+//    · Mercury value acceptance (effortLevel max · defaultMode flow ·
 //      mode autopilot round-trip) — the R1c widening class
 //    · invalid-file taxonomy: JSON syntax (null+silent) · schema violation
 //      (file/path/expected/suggestion; the file SURVIVES minus the bad key —
@@ -188,11 +188,11 @@ section('(3) Mercury value acceptance (the R1c widening class)')
   check('effortLevel max validates', settings.effortLevel === 'max', j({ e: settings.effortLevel, errors }))
 
   // REGRESSION FIXTURE: the settings
-  // schema accepts the full user-addressable mode set — 'flow'/'scribe'/
+  // schema accepts the full user-addressable mode set — 'flow'/
   // 'autopilot' validate (shape-only; mode ENTRY stays guarded downstream:
   // canEnterAuto, autopilot's bypass-posture guard, the CCR restriction).
   // Before the correction these values nuked the entire settings file.
-  for (const mode of ['flow', 'scribe', 'autopilot'] as const) {
+  for (const mode of ['flow', 'autopilot'] as const) {
     writeAll({ user: { permissions: { defaultMode: mode } } })
     const r = getSettingsWithErrors()
     check(

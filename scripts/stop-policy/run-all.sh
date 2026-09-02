@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/run/** src/utils/hooks/missionHook* src/utils/hooks/unfinishedTail*
+# gate-watch: src/services/run/** src/utils/hooks/missionHook*
 # gate-watch: src/utils/hooks/runStopAdapter* src/utils/hooks/runStopHook* src/utils/hooks/supervisorGate* src/query/stopHooks*
 # gate-watch: src/utils/verification/verificationState* src/substrate/pidLock* src/QueryEngine*
 # gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/openaiCallModel*

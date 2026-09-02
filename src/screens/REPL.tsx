@@ -184,11 +184,6 @@ import { isEnvTruthy } from '../utils/envUtils.js';
 import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../utils/fileStateCache.js';
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
-import { isScribeModeOn } from '../utils/scribeMode.js';
-import { engageScribeSession } from '../utils/scribe/engageScribeSession.js';
-import { engageScribeTeam } from '../utils/scribe/engageScribeTeam.js';
-import { ensureScribeDaemon } from '../utils/scribe/ensureScribeDaemon.js';
-import { scribeChatroomEnabled } from '../utils/scribe/scribeGates.js';
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
 import { addToHistory } from '../history.js';
@@ -793,19 +788,6 @@ export function REPL({
   // `messages` is the transcript AS RENDERED — the focused chat's records
   // through its connector (echo rows and display rows included).
   const messages = useFocusedTranscript();
-  // The scribe mirror (Law 9 restore): the deck and chat-tab screens read
-  // AppState.scribeTranscript; the face no longer writes the transcript, so
-  // the mirror follows the focused records as they change. Identity-guarded:
-  // an unchanged transcript value writes nothing.
-  const scribeMirrorRef = useRef<Message[] | null>(null);
-  useEffect(() => {
-    if (!isScribeModeOn()) return;
-    const next = messages;
-    const prev = scribeMirrorRef.current;
-    if (next === prev) return;
-    scribeMirrorRef.current = next;
-    setAppState(state => ({ ...state, scribeTranscript: next }));
-  }, [messages, setAppState]);
   const [conversationId, setConversationId] = useState<string>(() => focusedConnector.sessionId());
   const [toolJSX, setToolJSXState] = useState<ToolJSXState>(null);
   const setToolJSX: SetToolJSXFn = useCallback(next => {
@@ -1055,9 +1037,9 @@ export function REPL({
   });
   useIdeLogging(mcpState.clients);
   useIDEStatusIndicator({ ideInstallationStatus, ideSelection, mcpClients: mcpState.clients });
-  // Seat receipts (Law 9 restore): operator-reslot and scribe receipts mint
-  // into a bounded buffer with no other drain — each paints as ONE display
-  // row on the focused chat (the screen's rows, never a session record).
+  // Screen receipts (Law 9 restore): receipts mint into a bounded buffer with
+  // no other drain — each paints as ONE display row on the focused chat
+  // (the screen's rows, never a session record).
   useSeatReceipts({
     setMessages: next => {
       const rows = typeof next === 'function' ? next([]) : next;
@@ -1669,22 +1651,6 @@ export function REPL({
         })
         .catch(() => {});
     }, 0);
-    // Scribe engagement (Law 9 restore — the fold dropped it with the old
-    // mount estate and no other owner picked it up): the session pin, the
-    // team wiring and the daemon ensure ride the interactive face's boot
-    // exactly as before, scribe-gated.
-    if (isScribeModeOn()) {
-      try {
-        engageScribeSession(store);
-        engageScribeTeam(store);
-        // The daemon and its Implementer key their identity on the
-        // PROJECT ROOT — a session started in a subdirectory must reach the
-        // same daemon.
-        ensureScribeDaemon(getProjectRoot());
-      } catch (error) {
-        logForDebugging(`scribe engagement failed: ${String(error)}`);
-      }
-    }
     // The context-window sources — local model discovery (bounded loopback
     // probes, in parallel) and one bounded catalogue GET per family whose
     // credential exists — deferred one macrotask past this mount so the
@@ -2438,8 +2404,8 @@ export function REPL({
   // paint-from-warmth (the never-blank law): while an entry's fold is still
   // landing — the focused records EMPTY with an entry armed — the live view
   // paints the warmth the viewer already held (the mirror's tail slice) or
-  // the honest loading row. RENDER-ONLY: `messages` (the exports, the
-  // scribe mirror, search, the selectors, the unseen divider) keeps reading
+  // the honest loading row. RENDER-ONLY: `messages` (the exports, search,
+  // the selectors, the unseen divider) keeps reading
   // the connector's own records, and the truth replaces the hint the moment
   // it lands (identical row uuids — both sides fold the same transcript —
   // so the swap reconciles seamlessly).

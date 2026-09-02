@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "architectural-design-task",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Design the next-generation router kernel's state model",
     "title": "Design the routing kernel's owner-scoped state model",

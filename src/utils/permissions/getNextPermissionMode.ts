@@ -64,7 +64,7 @@ export function getNextPermissionMode(
     case 'dontAsk':
       return 'default'
     default:
-      // Any other mode (including bubble and scribe) returns to default.
+      // Any other mode (including bubble) returns to default.
       return 'default'
   }
 }

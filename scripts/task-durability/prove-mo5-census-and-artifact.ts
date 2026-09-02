@@ -62,7 +62,6 @@ console.log('── mo5 census ratchet + artifact survival')
     // retired-home arm; the file is the adoptive-path resolver alone.)
     ['src/services/vulcan/addonInstaller.ts', 'renameWithWin32RetrySync', /renameSync\(tmp, file\)/],
     ['src/memdir/mnemeConsolidate.ts', 'renameWithWin32RetrySync', /renameSync\(current, consuming\)/],
-    ['src/memdir/scribePromote.ts', 'renameWithWin32Retry', /await rename\(src, dest\)/],
     ['src/tools/LSPTool/mercuryOps.ts', 'renameWithWin32Retry', /await rename\(absolutePath, newAbs\)/],
     ['src/utils/file.ts', 'renameWithWin32RetrySync', /fs\.renameSync\(tempPath, targetPath\)/],
     // the updater imports the law back from the owner

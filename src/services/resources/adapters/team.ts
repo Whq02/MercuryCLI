@@ -1,7 +1,6 @@
 // resources/adapters/team — chartered teams + their members
-// (mercury://team/<name>). Scribe dispatch teams are teams too, so the
-// scribe lane is addressable through this kind (recorded mapping — the
-// prompt's 'scribe dispatch' adapter).
+// (mercury://team/<name>). Daemon-hosted crews are teams too, so a crew
+// lane is addressable through this kind.
 
 import { readdirSync } from 'node:fs'
 import * as path from 'node:path'
@@ -15,7 +14,7 @@ import {
 
 export const teamAdapter: ResourceAdapter = {
   kind: 'team',
-  describe: 'chartered teams, members, charters — incl. scribe teams (mercury://team/<name>)',
+  describe: 'chartered teams, members, charters — incl. daemon crews (mercury://team/<name>)',
   async resolve(ref: ParsedRef): Promise<ResourceResult> {
     if (ref.id === '') {
       // Listing: the teams home directory (sibling of any team's dir).

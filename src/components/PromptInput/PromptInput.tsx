@@ -185,8 +185,6 @@ import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/replFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
-import { isScribeModeOn, SCRIBE_ROUTER_OPTION_VALUE } from '../../utils/scribeMode.js'
-import { scribeChatroomEnabled } from '../../utils/scribe/scribeGates.js'
 import { getPlatform } from '../../utils/platform.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type TransitionPlan } from '../../utils/model/modelTransition.js'
 import {
@@ -196,13 +194,11 @@ import {
 } from '../../services/providers/transitionPreview.js'
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
 import { declaredRouteOf, type CallModelRoute } from '../../services/providers/callModelRouter.js'
-import { classifyScribeRouterModel, handleScribeRouterSelect } from '../../utils/scribe/scribeRouterSelect.js'
 import { ANTHROPIC_CONNECT_OPTION_VALUE, GPT_CONNECT_OPTION_VALUE, parseKeyConnectValue } from '../../utils/model/modelOptions.js'
 import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { resolveSeatSlot } from '../../utils/model/seatSlots.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
   capHandoffState,
@@ -668,13 +664,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   } | null>(null)
   const limits = useClaudeAiLimits()
 
-  /** The apply tail: the mode exit first (a REAL pick while the scribe
-   *  router is engaged is the exit — settled HERE, after the needs-choice
-   *  gate, so a cancelled loss preview never half-exits a mode), then the
-   *  verdict from the settlement owner → patch + toast. */
+  /** The apply tail: the verdict from the settlement owner → patch + toast. */
   const applyModelSelection = (value: string | null): void => {
-    const routerOutcome = handleScribeRouterSelect(value, { setAppState, store: appStateStore })
-    const left = routerOutcome === 'disengaged' ? ' · left Scribe Mode' : ''
     // A daemon-hosted focused chat switches through its connector's model
     // door — the session's OWN settlement owner applies now (idle) or parks
     // the switch for the turn's end (busy) — exactly as the two /model
@@ -699,11 +690,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       // for it, so a refusal is spoken and never painted as a switch.
       void focused.setModel(value).then(receipt => {
         if (receipt.state === 'no-op') {
-          addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change${left}`, priority: 'high', timeoutMs: 3000 })
+          addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
           return
         }
         if (receipt.state === 'refused') {
-          addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}${left}`, priority: 'high', timeoutMs: 5000 })
+          addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}`, priority: 'high', timeoutMs: 5000 })
           return
         }
         const doorCross = providerFamilyOfSetting(effectiveBefore) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
@@ -714,13 +705,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             ? {
                 key: 'model-switched',
                 invalidates: ['model-transition-applied'],
-                text: `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}${left}`,
+                text: `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 5000,
               }
             : {
                 key: 'model-switched',
-                text: `Set model to ${label} — this session's next message runs it${doorCross}${doorLossNote}${left}`,
+                text: `Set model to ${label} — this session's next message runs it${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 3000,
               },
@@ -735,18 +726,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
     const label = value === null ? 'Default' : renderModelName(value)
     setOverlay(null)
-    if ((settled.kind === 'no-op' || settled.kind === 'cancelled-pending') && left) {
-      // Mode exit (scribe/party disengage) re-applies the underlying model
-      // even when it equals the current one — bookkeeping, not a transition.
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: value,
-        mainLoopModelForSession: null,
-        pendingModelSwitch: null,
-      }))
-      addNotification({ key: 'model-switched', text: `Set model to ${label}${left}`, priority: 'high', timeoutMs: 3000 })
-      return
-    }
     if (settled.kind === 'no-op') {
       addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
       return
@@ -769,7 +748,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         // notice re-queues this one and the settled screen shows a stale
         // "switch queued" after the receipt expires.
         invalidates: ['model-transition-applied'],
-        text: `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}${left}`,
+        text: `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
         priority: 'high',
         timeoutMs: 5000,
       })
@@ -778,14 +757,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setAppState(prev => ({ ...prev, ...settled.patch }))
     addNotification({
       key: 'model-switched',
-      text: `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}${left}`,
+      text: `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
       priority: 'high',
       timeoutMs: 3000,
     })
   }
 
-  /** The full pick path: sentinels, router handlers, the needs-choice gate,
-   *  then the apply tail. */
+  /** The full pick path: the action rows, the needs-choice gate, then the
+   *  apply tail. */
   const handleModelSelect = (value: string | null): void => {
     // The provider sign-in action rows: dispatch the connect flow instead of
     // writing a model (contract data: the /logins sign-in home). The /model
@@ -827,53 +806,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         return
       }
     }
-    // Router sentinels ENGAGE here; a REAL model while a mode is engaged is
-    // the EXIT, which settles in the apply tail AFTER the needs-choice gate
-    // (cancelling the loss preview would otherwise leave the mode already exited —
-    // "Kept model as …" over a half-torn-down engagement).
-    if (classifyScribeRouterModel(value) !== 'model') {
-      // Scribe-router selection — engage via the SHARED handler.
-      const routerOutcome = handleScribeRouterSelect(value, { setAppState, store: appStateStore })
-      if (routerOutcome === 'engaged') {
-        // Live seat truth, never a pinned label — the seats are switchable.
-        const sc = resolveSeatSlot('scribe')
-        const im = resolveSeatSlot('implementer')
-        setOverlay(null)
-        addNotification({
-          key: 'scribe-router',
-          text: `Scribe Mode engaged — two-stream router (scribe ${sc.model} · implementer ${im.model}) · ~2× usage · /all shares with the Implementer · /batch approve|deny (auto) · /model exits or reslots`,
-          priority: 'high',
-          timeoutMs: 5000,
-        })
-        return
-      }
-      if (routerOutcome === 'workflows-engaged') {
-        setOverlay(null)
-        addNotification({
-          key: 'scribe-router',
-          text: `Scribe Mode engaged — workflow-capable Implementer armed · ~2× usage · /all shares with the Implementer · /batch approve|deny (auto) · /model exits or reslots`,
-          priority: 'high',
-          timeoutMs: 5000,
-        })
-        return
-      }
-      if (routerOutcome === 'workflows-pending-restart') {
-        setOverlay(null)
-        addNotification({
-          key: 'scribe-router',
-          text: 'Workflows posture armed — two-stream already up without it; exit Scribe (pick a real model) and re-select Scribe + workflows to apply',
-          priority: 'high',
-          timeoutMs: 5000,
-        })
-        return
-      }
-      return // every sentinel outcome is handled above — never falls to a model write
-    }
     // The needs-choice gate: the settlement probe is pure — it writes
     // nothing. A pick that would actually change the model and whose frozen
-    // plan carries meaningful loss parks at the preview card first; the mode
-    // exits run in the apply tail, so the preview's from-model is the still-
-    // engaged seat (the honest current wire).
+    // plan carries meaningful loss parks at the preview card first.
     const probeState = appStateStore.getState()
     const probe = settleModelSelection(probeState, value, {
       turnActive:
@@ -2889,22 +2824,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   if (overlay === 'model-picker') {
     return (
       <ModelPicker
-        // Engagement truth (the /model picker's rule, extended here
-        // while a router mode owns the session the focus belongs
-        // to that mode's row, and otherwise to the EFFECTIVE model (session
-        // pin first — the Drive-12 channel) — `mainLoopModel` alone focused a
-        // stale base while the session ran something else.
-        initial={
-          isScribeModeOn()
-            ? SCRIBE_ROUTER_OPTION_VALUE
-            : (mainLoopModelForSession ?? mainLoopModel)
-        }
+        // The focus belongs to the EFFECTIVE model (session pin first — the
+        // Drive-12 channel) — `mainLoopModel` alone focused a stale base
+        // while the session ran something else.
+        initial={mainLoopModelForSession ?? mainLoopModel}
         // The strategy-mode banner keys on the SESSION OVERRIDE — passing the
         // base model here claimed "set by strategy mode" for any plainly
-        // configured model (a false provenance line). While a router mode owns
-        // the override the banner stays quiet too: that pin is the MODE's, and
-        // the focused "(active)" row already names it.
-        sessionModel={isScribeModeOn() ? null : mainLoopModelForSession}
+        // configured model (a false provenance line).
+        sessionModel={mainLoopModelForSession}
         onSelect={value => handleModelSelect(value)}
         onCancel={() => setOverlay(null)}
       />
@@ -2959,8 +2886,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             const stateNow = appStateStore.getState()
             noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
           }
-          // Accept re-enters the FULL selection path — router sentinels and
-          // the preview gate included.
+          // Accept re-enters the FULL selection path — the preview gate
+          // included.
           handleModelSelect(offer.targetModel)
         }}
         onDismiss={() => {

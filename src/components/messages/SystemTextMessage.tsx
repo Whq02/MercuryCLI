@@ -1,9 +1,7 @@
-// The system-row dispatcher: every system-message subtype. Party events and
-// seat receipts are ALWAYS rendered (another person acting in the session
-// must be visible regardless of verbosity); everything else at info level
-// is suppressed unless verbose. The party row is ONE text run with nested
-// colour spans — sibling boxes shrink-drop space-only segments on overflow
-// where a single run simply wraps.
+// The system-row dispatcher: every system-message subtype. Seat receipts
+// are ALWAYS rendered (an applied change to the session must be visible
+// regardless of verbosity); everything else at info level is suppressed
+// unless verbose.
 
 import figures from 'figures'
 import React, { useState } from 'react'
@@ -23,7 +21,6 @@ import { plural } from '../../utils/stringUtils.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppStateStore } from '../../state/AppState.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { accentForPrincipal } from '../mercury-ui/sessionAccent.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
@@ -32,16 +29,6 @@ import { MessageResponse } from '../MessageResponse.js'
 import { ResumeRecapCard } from './ResumeRecapCard.js'
 import { SystemAPIErrorMessage } from './SystemAPIErrorMessage.js'
 import { useSelectedMessageBg } from '../messageActions.js'
-
-/** Party verb → glyph (stable mapping). */
-const PARTY_VERB_GLYPHS: Record<string, string> = {
-  chat: GLYPH.typing,
-  presence: GLYPH.handoff,
-  helm: GLYPH.mission,
-  steer: GLYPH.mission,
-  ticket: '#',
-  claim: GLYPH.warn,
-}
 
 function TurnDurationRow({
   message,
@@ -330,32 +317,6 @@ export function SystemTextMessage({
           <Text bold>{message.commands.join(', ')}</Text>
         </Text>
       )
-
-    case 'party_event': {
-      // ONE text run with nested colour spans (never sibling boxes).
-      const glyph = PARTY_VERB_GLYPHS[message.verb] ?? GLYPH.dot
-      const accent = accentForPrincipal(message.whoId)
-      const warning = message.level === 'warning' || message.level === 'error'
-      const isChat = message.verb === 'chat'
-      return (
-        <Text wrap="wrap">
-          <Text dimColor>[party] </Text>
-          <Text color={warning ? 'warning' : undefined} dimColor={!warning && !isChat}>
-            {glyph}{' '}
-          </Text>
-          <Text bold={isChat} color={warning ? 'warning' : accent}>
-            {message.who}
-          </Text>
-          {isChat ? <Text>: </Text> : <Text> </Text>}
-          <Text
-            color={warning ? 'warning' : undefined}
-            dimColor={!warning && !isChat}
-          >
-            {message.text}
-          </Text>
-        </Text>
-      )
-    }
 
     case 'seat_receipt':
       return (

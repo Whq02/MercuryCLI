@@ -204,21 +204,6 @@ console.log('== source pins: the kernel derives from the vocabulary ==')
   check('InteractiveRow strips pointer interactivity on dead rows', irow.includes('const interactive = !unavailable && (!!onSelect || !!onActivate)'))
   check('the hint face is availability-derived (no hint on dead rows)', irow.includes('row.unavailable ? undefined : row.actionLabel'))
 
-  // ── MINI-TEMPER item 1: the Scribe effort target chooser ─────────────────
-  // A VERTICAL two-row chooser: ↑↓ move through the vocabulary, ←→ decode
-  // null and DECLINE (the old any-arrow toggle is DEAD), mouse parity rides
-  // InteractiveRow's select-then-activate.
-  // The chooser rides the shared interactive list: the vocabulary decode and
-  // the clamped motion live in the list (pinned there), the chooser names its
-  // rows, its namespace and its close.
-  const effort = readFileSync(join(root, 'src/commands/effort/effort.tsx'), 'utf8')
-  const sharedList = readFileSync(join(root, 'src/components/mercury-ui/useInteractiveList.ts'), 'utf8')
-  check('effort chooser rides the shared interactive list (vertical by default)', effort.includes('useInteractiveList<ChooserRow>({') && effort.includes("idNamespace: 'effort-target'") && effort.includes('onClose: onCancel'))
-  check('the shared list decodes through the vocabulary', sharedList.includes('decodeNavKey(input, key, { orientation })'))
-  check('effort chooser: the any-arrow toggle is DEAD', !/key\.upArrow \|\| key\.downArrow \|\| key\.leftArrow \|\| key\.rightArrow/.test(effort))
-  check('the shared list applies motion through applyNavMotion', sharedList.includes('applyNavMotion(action, liveIndexRef.current, rows.length, { orientation })'))
-  check('effort chooser rows ride InteractiveRow (mouse parity)', effort.includes('<InteractiveRow key={row.id} {...list.rowProps(row, i)}>'))
-  check('effort chooser: the visible hint stays ↑/↓', effort.includes('↑/↓ select · ↵ choose · esc cancel'))
 }
 
 console.log('')

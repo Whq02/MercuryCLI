@@ -1,6 +1,6 @@
 /**
  * The permission-mode enum, per-mode presentation config, and the
- * bypass-semantics predicate. Mercury adds the flow/autopilot/scribe modes
+ * bypass-semantics predicate. Mercury adds the flow/autopilot modes
  * and `modeBypassesPermissions`.
  *
  * Mode tokens: the per-station symbols are the
@@ -72,7 +72,6 @@ const MODE_CONFIG: Partial<Record<PermissionMode, ModeConfig>> = {
   dontAsk: { title: "Don't Ask", symbol: GLYPH.modeDontAsk, color: 'error', external: 'dontAsk' },
   flow: { title: 'Flow', symbol: GLYPH.modeFlow, color: 'success', external: 'default' },
   autopilot: { title: 'Autopilot', symbol: GLYPH.modeAutopilot, color: 'error', external: 'sovereign' },
-  scribe: { title: 'Scribe Mode', symbol: GLYPH.modeScribe, color: 'warning', external: 'default' },
 }
 
 function configFor(mode: PermissionMode): ModeConfig {
@@ -81,7 +80,7 @@ function configFor(mode: PermissionMode): ModeConfig {
 
 /**
  * Lazy zod enum over the runtime internal mode list (external +
- * flow/scribe/autopilot). Retired spellings decode through the bounded alias
+ * flow/autopilot). Retired spellings decode through the bounded alias
  * BEFORE validation, so a record written by an old build (or the `.claude/`
  * compat estate) still parses — to the new id.
  */

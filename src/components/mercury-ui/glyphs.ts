@@ -73,7 +73,7 @@ export const GLYPH = {
   // peer WRITING activity (a typing peer, an advisory claim.acquire edit) —
   // U+270E lower-right pencil, text-presentation, width-1 under the canonical
   // model. Promoted from four shipped literals (the chip,
-  // the PARTY rail, JoinScreen ×2) so the mark is vocabulary, not folklore.
+  // the crew rail, JoinScreen ×2) so the mark is vocabulary, not folklore.
   typing: '✎',
   circledBullet: '◉', // blocked / single-target fisheye-filled (= STATE_STYLE.blocked)
   fisheye: '⦿', // gated marker (= STATE_STYLE.gated)

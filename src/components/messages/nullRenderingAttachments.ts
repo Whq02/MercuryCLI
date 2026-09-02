@@ -19,8 +19,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'agent_mention',
   'budget_usd',
   'critical_system_reminder',
-  'scribe_awareness',
-  'implementer_awareness',
   'taste_recall',
   'edited_image_file',
   'edited_text_file',

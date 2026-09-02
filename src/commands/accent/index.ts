@@ -2,7 +2,7 @@ import type { Command } from '../../commands.js'
 
 // /accent — live session-only identity-accent override ("colour the REPL",
 // QoL program). Named token swatches or #hex; reset restores the
-// derived critter/scribe/fable chain. Rides the same live observable /critter
+// derived critter/fable chain. Rides the same live observable /critter
 // uses, so the whole chrome re-tints synchronously.
 const accent = {
   type: 'local',

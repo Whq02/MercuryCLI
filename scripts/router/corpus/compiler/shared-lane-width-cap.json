@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "shared-lane-width-cap",
-  "mode": "party",
+  "mode": "fanout",
   "mission": {
     "objective": "Three disjoint write-heavy nodes confined to one shared lane",
     "title": "Three heavy rewrites, one worktree lane",

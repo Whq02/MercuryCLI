@@ -39,12 +39,9 @@ import {
   NO_RESPONSE_REQUESTED,
 } from '../../utils/messages.js'
 import { isMacOsKeychainLocked } from '../../utils/secureStorage/macOsKeychainStorage.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
-import { scribeChatroomEnabled } from '../../utils/scribe/scribeGates.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { Markdown } from '../Markdown.js'
-import { ChatLine } from './ChatLine.js'
 import { RateLimitMessage } from './RateLimitMessage.js'
 import { TranscriptNameplate } from './TranscriptNameplate.js'
 
@@ -286,12 +283,7 @@ export function AssistantTextMessage({
     )
   }
 
-  // Prose. In scribe chatroom mode a first-of-turn block renders as a chat
-  // line attributed to the scribe.
-  if (isScribeModeOn() && scribeChatroomEnabled() && shouldShowDot) {
-    return <ChatLine author="scribe" body={text} addMargin={addMargin} />
-  }
-
+  // Prose.
   return (
     <Box
       flexDirection="column"

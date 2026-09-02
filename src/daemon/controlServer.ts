@@ -46,8 +46,7 @@ import {
 import { isProcessAlive } from './ownerWatch.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
-import { parseScribeEnvelope } from '../utils/scribe/scribeBus.js'
-import { canonicalizeBusTarget, isManagedBusTeam, knownBusTargets } from '../utils/scribe/busIdentity.js'
+import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
@@ -660,7 +659,7 @@ async function routeControlRequest(
     case 'envelope': {
       // Bus ingress over the keyed socket. Holding the control key proves
       // same-uid (that is all a 0600 file can prove) — it does NOT prove
-      // dispatcher ROLE. Role is guarded solely by the from!=='implementer'
+      // dispatcher ROLE. Role is guarded solely by the from!==recipient
       // test further down, and a same-uid process forging any other `from`
       // clears both hurdles. In trust terms the socket therefore equals the
       // file bus it fronts (that journal was same-uid-writable all along);
@@ -668,39 +667,29 @@ async function routeControlRequest(
       // single envelope schema.
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const rawTo = String(raw.to ?? '')
-      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'scribe'
-      // Canonicalize the address at the ingress (layered with the
-      // sender-side resolve): journaling to an alias mints a dead-letter
-      // inbox that no drain will ever read. Aliases resolve; a name a
-      // managed team has never heard of is bounced, and the caller learns
-      // loudly rather than having its work stranded.
-      const resolvedTo = canonicalizeBusTarget(team, rawTo)
-      if (rawTo && !resolvedTo.known && isManagedBusTeam(team)) {
-        return answer(sock, {
-          ok: false,
-          code: 'EUNKNOWN',
-          error: `unknown bus address '${rawTo}' for team '${team}' — valid: ${knownBusTargets(team).join(', ')}`,
-        })
-      }
-      const to = resolvedTo.name
-      let env: ReturnType<typeof parseScribeEnvelope> = null
+      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'default'
+      // The address is the roster name verbatim: journaling to an unknown
+      // name mints an inbox no drain reads, so the sender's roster guard is
+      // the only place a name is checked.
+      const to = rawTo.trim()
+      let env: ReturnType<typeof parseBusEnvelope> = null
       try {
-        env = parseScribeEnvelope(JSON.stringify(raw.env))
+        env = parseBusEnvelope(JSON.stringify(raw.env))
       } catch {
         env = null
       }
       if (!to || !env) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope requires { to, env: <scribe_protocol> }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope requires { to, env: <bus envelope> }' })
       }
       // Role invariant at the door: work and directives are by definition
-      // dispatcher-authored — even a key-holder may not sign them
-      // 'implementer' (that is role confusion, or a compromised child
+      // dispatcher-authored — even a key-holder may not sign them as the
+      // recipient itself (that is role confusion, or a compromised child
       // replaying the key it can read).
       if (
         (env.kind === 'dispatch' || env.kind === 'control' || env.kind === 'note') &&
-        (!env.from || env.from === 'implementer')
+        (!env.from || env.from === to)
       ) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `a ${env.kind} envelope must carry a dispatcher 'from', never 'implementer'` })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `a ${env.kind} envelope must carry a dispatcher 'from', never the recipient itself` })
       }
       // Journal before anything else: the mailbox is the at-least-once
       // replay source, so a daemon that dies right after this write still
@@ -740,7 +729,7 @@ async function routeControlRequest(
           ok: false,
           code: 'ENOJOB',
           error:
-            'not a long-lived worker — reconfigure only retargets the Scribe/Implementer',
+            'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
       const r = deps.roster.reconfigureLongLived(short, { model, effort })
@@ -748,7 +737,7 @@ async function routeControlRequest(
         return answer(sock, {
           ok: false,
           code: 'ENOJOB',
-          error: r.error ?? 'not a long-lived worker — reconfigure only retargets the Scribe/Implementer',
+          error: r.error ?? 'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
       // `note` is optional-additive: the seat validator's honest refusal or

@@ -561,7 +561,7 @@ t.section("§5 — THE ROW, BOTH HOSTS (under kit, over doctor — the ruled pos
 t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly provider-neutral · sign-in routing)')
 {
   const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
-  const { ANTHROPIC_MODEL_GROUP, MODES_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
+  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
   const { isHaikuTier } = await import('../../src/utils/model/modelFloor.js')
   // The injected fixture catalogue: every row class the owner can emit, in
   // an order the derivation must PRESERVE (the neutrality law is
@@ -579,8 +579,6 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
     { value: 'haiku', label: 'Haiku', description: '' },
     { value: 'claude-haiku-4-5-20251001', label: 'Haiku 4.5', description: '' },
     { value: 'my-custom-model', label: 'Custom', description: 'operator copy (ANTHROPIC_CUSTOM_MODEL_OPTION passthrough, no group)' },
-    { value: '__scribe_router__', label: 'Scribe', description: 'two-stream router', group: MODES_MODEL_GROUP },
-    { value: '__scribe_router_workflows__', label: 'Scribe router (workflows)', description: 'workflow seats', group: MODES_MODEL_GROUP },
     { value: 'gpt-6.2', label: 'GPT-6.2', description: '', group: 'Mercury — OpenAI models', unavailable: 'no OpenAI account connected' },
     { value: '__mercury_connect__:zai', label: 'Z.AI — attach a key', description: '↵ opens /logins zai', group: 'Mercury — Z.AI models' },
     { value: 'glm-5.3', label: 'GLM-5.3', description: '', group: 'Mercury — Z.AI models', unavailable: 'no API key attached' },
@@ -590,16 +588,16 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   const rows = getAgentModelPickerRows(fixture)
   t.check('inherit leads — the agent grammar\'s own default row', rows[0]?.kind === 'inherit' && rows[0]?.value === 'inherit')
   // THE SET-DIFFERENCE TOTALITY LAW (AGENTVERIFY A1): the expected list is
-  // COMPUTED from the exclusion OWNERS (the null pseudo-row · the MODES
-  // group constant · the floor's own predicate), never hand-enumerated —
-  // so the pin red-lines if the derivation ever grows a fourth exclusion,
-  // drops one, or re-spells a class by literal. Order = the catalogue's own.
+  // COMPUTED from the exclusion OWNERS (the null pseudo-row · the floor's
+  // own predicate), never hand-enumerated — so the pin red-lines if the
+  // derivation ever grows a third exclusion, drops one, or re-spells a
+  // class by literal. Order = the catalogue's own.
   const expected = fixture.filter(
     (opt): opt is typeof opt & { value: string } =>
-      opt.value !== null && opt.group !== MODES_MODEL_GROUP && !isHaikuTier(opt.value),
+      opt.value !== null && !isHaikuTier(opt.value),
   )
   t.check(
-    'TOTALITY: picker rows ≡ catalogue minus EXACTLY {null · MODES · haiku-tier}, order preserved',
+    'TOTALITY: picker rows ≡ catalogue minus EXACTLY {null · haiku-tier}, order preserved',
     JSON.stringify(rows.slice(1).map(r => r.value)) === JSON.stringify(expected.map(o => o.value)),
     rows.map(r => r.value).join(' · '),
   )
@@ -679,7 +677,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
     )
     t.check(
       'a hand-saved sentinel never lands a family silently (unrecognised, refused at admission)',
-      ['__scribe_router__', '__mercury_connect__:zai'].every(
+      ['__mercury_test_sentinel__', '__mercury_connect__:zai'].every(
         v => classifyModelRoute(getAgentModelWithFloorNote(v, PARENT).model).kind === 'unrecognised',
       ),
     )

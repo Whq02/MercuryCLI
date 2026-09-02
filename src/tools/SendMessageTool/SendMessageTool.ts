@@ -17,35 +17,19 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { parseAddress } from '../../utils/peerAddress.js'
 import { routerEnabled } from '../../utils/router/routerGates.js'
 import {
-  canonicalizeBusTarget,
-  isManagedBusTeam,
-  IMPLEMENTER_AGENT_NAME,
-  knownBusTargets,
-  PARTY_EXECUTOR_AGENT_NAMES,
-  PARTY_ROUTER_AGENT_NAME,
-  PARTY_TEAM_NAME,
-} from '../../utils/scribe/busIdentity.js'
-import {
   buildControl,
   buildDispatch,
   buildEscalate,
   buildProgress,
+  busEnvelopesEnabled,
   looksLikeHandSerializedBusPayload,
-  serializeScribeEnvelope,
+  serializeBusEnvelope,
+  type BusEnvelope,
   type ControlEnvelope,
   type DispatchEnvelope,
   type ProgressEnvelope,
-  type ScribeEnvelope,
-} from '../../utils/scribe/scribeBus.js'
-import {
-  isCrewRole,
-  isImplementerRole,
-  isScribeRole,
-  scribeBusEnabled,
-  scribeModeEnabled,
-  scribeTaskRouterEnabled,
-} from '../../utils/scribe/scribeGates.js'
-import { composeDispatchAckHealth, getImplementerTelemetry } from '../../utils/scribe/implementerTelemetry.js'
+} from '../../utils/swarm/busEnvelopes.js'
+import { isCrewRole } from '../../utils/workerRole.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { routerStoreWriters } from '../../substrate/routerRunStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -77,7 +61,6 @@ import {
   createShutdownRequestMessage,
   writeToMailbox,
 } from '../../utils/teammateMailbox.js'
-import { handleRoutePlan, type RoutePlanMessage } from './routePlanOps.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
@@ -146,7 +129,6 @@ export type StructuredMessageInput =
       title?: string
       priority?: 'normal' | 'high'
       refRequestId?: string
-      route?: { effort?: string; lane?: string }
     }
   | { type: 'escalate'; reason: string; refRequestId?: string; needsOperator?: boolean }
   | {
@@ -161,7 +143,6 @@ export type StructuredMessageInput =
       detail?: string
       refRequestId?: string
     }
-  | (RoutePlanMessage & { type: 'route_plan' })
 
 export type Input = {
   to: string
@@ -226,7 +207,7 @@ const inputSchema = lazySchema(() => {
     handoffVariant,
   ]
 
-  if (scribeBusEnabled()) {
+  if (busEnvelopesEnabled()) {
     variants.push(
       z.object({
         type: z.literal('dispatch'),
@@ -234,14 +215,6 @@ const inputSchema = lazySchema(() => {
         title: z.string().optional(),
         priority: z.enum(['normal', 'high']).optional(),
         refRequestId: z.string().optional().describe('An earlier dispatch this one supersedes'),
-        ...(scribeTaskRouterEnabled()
-          ? {
-              route: z
-                .object({ effort: z.string().optional(), lane: z.string().optional() })
-                .optional()
-                .describe('Per-task routing hint'),
-            }
-          : {}),
       }),
       z.object({
         type: z.literal('escalate'),
@@ -264,51 +237,6 @@ const inputSchema = lazySchema(() => {
         refRequestId: z.string().optional(),
       }),
     )
-    // Nested inside the bus branch: route_plan needs BOTH gates at
-    // schema-build time (and re-checks the planner gate at call time).
-    if (routerEnabled()) {
-      variants.push(
-        z.object({
-          type: z.literal('route_plan'),
-          op: z.enum(['plan', 'accept', 'revise', 'cancel', 'synthesize', 'accept-plan', 'explain']),
-          objective: z.string().optional(),
-          title: z.string().optional(),
-          task: z.string().optional(),
-          taskShape: z
-            .enum(['mechanical', 'bounded', 'cross-cutting', 'diagnostic', 'architectural', 'research'])
-            .optional(),
-          ambiguity: z.number().int().min(0).max(3).optional(),
-          coupling: z.number().int().min(0).max(3).optional(),
-          parallelism: z.number().int().min(0).max(3).optional(),
-          requiresSynthesis: semanticBoolean(z.boolean().optional()),
-          modelHint: z
-            .enum(['opus', 'sonnet', 'fable', 'gpt', 'glm'])
-            .optional()
-            .describe('A model CLASS preference — never a raw model id'),
-          exactPin: z
-            .string()
-            .optional()
-            .describe('An operator model pin that must resolve exactly or the plan is refused'),
-          nodes: z
-            .array(
-              z.object({
-                id: z.string(),
-                title: z.string(),
-                task: z.string(),
-                dependsOn: z.array(z.string()).optional(),
-                ownsPaths: z.array(z.string()).optional(),
-                acceptance: z.array(z.string()).optional(),
-                requestedModelClass: z.enum(['opus', 'sonnet', 'fable']).optional(),
-                expectedResult: z.string().optional(),
-              }),
-            )
-            .optional(),
-          planId: z.string().optional(),
-          nodeId: z.string().optional(),
-          note: z.string().optional(),
-        }),
-      )
-    }
   }
 
   return z.object({
@@ -469,19 +397,18 @@ async function resolveDeliverableRecipient(
 }
 
 /** A worker's outbound report is routed to the seat that actually reads it. */
-function implementerReplyTarget(addressed: string): string {
-  if (isImplementerRole()) return TEAM_LEAD_NAME
+function workerReplyTarget(addressed: string): string {
   if (isCrewRole()) return TEAM_LEAD_NAME
   return addressed
 }
 
 /**
  * The CALL-time coordination-context gate: the schema is built once per
- * process, so this is the honest gate for the bus kinds.
+ * process, so this is the honest gate for the bus kinds. A crew child is
+ * always on the bus; every other session rides the envelope-format gate.
  */
-function scribeBusContextActive(): boolean {
-  if (isScribeRole() || isImplementerRole() || isCrewRole()) return true
-  return scribeBusEnabled() && scribeModeEnabled()
+function busContextActive(): boolean {
+  return isCrewRole() || busEnvelopesEnabled()
 }
 
 function busContextRefusal(kind: string, target: string): RequestOutput {
@@ -495,45 +422,26 @@ function busContextRefusal(kind: string, target: string): RequestOutput {
   }
 }
 
-// ── the scribe-bus send path ────────────────────────────────────────────────
+// ── the bus send path ───────────────────────────────────────────────────
 
 /**
- * The one send path for every envelope kind: address canonicalisation,
- * fail-closed unknown directive targets on managed teams, directive
- * authority, socket-first transport for dispatcher-side kinds with a
- * byte-equivalent journal fallback, and delivery honesty.
+ * The one send path for every envelope kind: directive authority,
+ * socket-first transport for dispatcher-side kinds with a byte-equivalent
+ * journal fallback, and delivery honesty. The address is the roster name
+ * verbatim — the mailbox writer creates the inbox file the drain reads.
  */
-async function sendScribeEnvelope(
+async function sendBusEnvelope(
   targetName: string,
-  envelope: ScribeEnvelope,
+  envelope: BusEnvelope,
   context: ToolUseContext,
 ): Promise<{ data: RequestOutput }> {
   const teamName = getTeamName(teamContextOf(context))
-  // 1. Address canonicalisation — display nameplates are render-only; the
-  //    mailbox writer creates an inbox file verbatim while the drain only
-  //    reads the canonical one.
-  const resolvedTarget = canonicalizeBusTarget(teamName, targetName)
+  const resolvedTarget = { name: targetName.trim() }
   const isDirective =
     envelope.kind === 'dispatch' || envelope.kind === 'control' || envelope.kind === 'note'
 
-  // 2. Fail closed for unknown directive targets on managed teams.
-  if (isDirective && !resolvedTarget.known && isManagedBusTeam(teamName)) {
-    const busName = teamName === PARTY_TEAM_NAME ? PARTY_ROUTER_AGENT_NAME : IMPLEMENTER_AGENT_NAME
-    return {
-      data: {
-        success: false,
-        message:
-          `Unknown bus address "${targetName}" — the ${envelope.kind} envelope was NOT sent. ` +
-          `Valid targets for team "${teamName}": ${knownBusTargets(teamName).join(', ')}. ` +
-          `Nameplates are display-only; the bus name to use here is "${busName}".`,
-        request_id: '',
-        target: targetName,
-      },
-    }
-  }
-
-  // 3. Directive authority, between the envelope's declared sender and the
-  //    RESOLVED target.
+  // 1. Directive authority, between the envelope's declared sender and the
+  //    target.
   if (isDirective) {
     const roster = await readRoster(teamName)
     const leadAgentId = teamContextOf(context)?.leadAgentId
@@ -550,12 +458,12 @@ async function sendScribeEnvelope(
 
   const color = senderColor(envelope.from)
 
-  // 4. Socket-first transport for dispatcher-side kinds; any refusal or
+  // 2. Socket-first transport for dispatcher-side kinds; any refusal or
   //    connection failure falls back to the journal write, which is
   //    byte-equivalent in durability. Worker-origin kinds (progress /
   //    escalate) never take the socket.
   let deliveredViaRpc = false
-  if (isDirective && !isImplementerRole()) {
+  if (isDirective) {
     try {
       const reply = await daemonControlRpc({
         op: 'envelope',
@@ -566,19 +474,19 @@ async function sendScribeEnvelope(
       } as never)
       if ((reply as { ok?: boolean }).ok) deliveredViaRpc = true
     } catch (error) {
-      logForDebugging(`sendScribeEnvelope: socket path failed, journaling directly: ${String(error)}`)
+      logForDebugging(`sendBusEnvelope: socket path failed, journaling directly: ${String(error)}`)
     }
   }
 
-  // 5+6. Mailbox write (fallback or primary), delivery-honest: the mailbox
-  //      writer swallows IO errors, and the dispatcher must never believe
-  //      work is in flight when nothing was written.
+  // 3. Mailbox write (fallback or primary), delivery-honest: the mailbox
+  //    writer swallows IO errors, and the dispatcher must never believe
+  //    work is in flight when nothing was written.
   if (!deliveredViaRpc) {
     const delivered = await writeToMailbox(
       resolvedTarget.name,
       {
         from: envelope.from,
-        text: serializeScribeEnvelope(envelope),
+        text: serializeBusEnvelope(envelope),
         timestamp: nowIso(),
         ...(color ? { color } : {}),
       },
@@ -596,19 +504,8 @@ async function sendScribeEnvelope(
     }
   }
 
-  // 7. Success text: kind, resolved target, the original address when it
-  //    differed, the request id — plus at most one pacing clause, selected
-  //    on the team name.
-  const renamed = resolvedTarget.name !== targetName.trim() ? ` (addressed "${targetName.trim()}")` : ''
-  let message = `Sent ${envelope.kind} envelope to ${resolvedTarget.name}${renamed} [request_id: ${envelope.request_id}]`
-  if (teamName === PARTY_TEAM_NAME && envelope.kind === 'dispatch') {
-    message +=
-      `. Pacing: each seat is a model turn taking minutes — first bus activity typically lands within a few minutes, ` +
-      `and a consolidated multi-lane outcome within a longer window. Wait on inbound progress (the team brief's ` +
-      `turn/age fields) before re-asking, and do not disengage while a seat is mid-turn.`
-  } else if (teamName === 'scribe' && envelope.kind === 'dispatch' && !isImplementerRole()) {
-    message += ` ${composeDispatchAckHealth(getImplementerTelemetry(), { rpcConfirmed: deliveredViaRpc })}`
-  }
+  // 4. Success text: kind, target, the request id.
+  const message = `Sent ${envelope.kind} envelope to ${resolvedTarget.name} [request_id: ${envelope.request_id}]`
   return {
     data: { success: true, message, request_id: envelope.request_id, target: resolvedTarget.name },
   }
@@ -713,11 +610,9 @@ async function sendDirectedPlainMessage(
   // Mechanically enforce the rule the prompt packs state: a bus-role sender
   // must never hand-serialise an envelope into a plain string — the retry
   // must land on the structured path instead of delivering as a context
-  // frame.
-  if (
-    (isScribeRole() || isImplementerRole() || isCrewRole()) &&
-    looksLikeHandSerializedBusPayload(content)
-  ) {
+  // frame. The guard keys on the crew role (the one bus role left).
+  const busRoleSender = Boolean(isCrewRole())
+  if (busRoleSender && looksLikeHandSerializedBusPayload(content)) {
     return {
       success: false,
       message:
@@ -1319,7 +1214,7 @@ export const SendMessageTool = buildTool({
       case 'handoff':
         return `handoff to ${input.to} [${input.message.status}]: ${input.message.summary}`
     }
-    // The bus kinds (dispatch/escalate/progress/control/route_plan) fall off
+    // The bus kinds (dispatch/escalate/progress/control) fall off
     // the end and project undefined — shipped behaviour; adding a projection
     // changes what the auto-mode classifier sees for bus traffic.
     return undefined
@@ -1376,27 +1271,26 @@ export const SendMessageTool = buildTool({
       case 'handoff':
         return { data: await sendHandoff(rawTo, message, context) }
       case 'dispatch': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('dispatch', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('dispatch', rawTo) }
         const from = senderName()
         const envelope: DispatchEnvelope = buildDispatch(from, message.task, {
           ...(message.title !== undefined ? { title: message.title } : {}),
           ...(message.priority !== undefined ? { priority: message.priority } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
-          ...(message.route !== undefined ? { route: message.route } : {}),
         })
-        return await sendScribeEnvelope(rawTo, envelope, context)
+        return await sendBusEnvelope(rawTo, envelope, context)
       }
       case 'escalate': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('escalate', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('escalate', rawTo) }
         const from = senderName()
         const envelope = buildEscalate(from, message.reason, {
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
           ...(message.needsOperator !== undefined ? { needsOperator: message.needsOperator } : {}),
         })
-        return await sendScribeEnvelope(implementerReplyTarget(rawTo), envelope, context)
+        return await sendBusEnvelope(workerReplyTarget(rawTo), envelope, context)
       }
       case 'progress': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('progress', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('progress', rawTo) }
         const from = senderName()
         // Router side-effects fire BEFORE the send, fire-and-forget: this is
         // the one seam both streams share (the daemon never observes a
@@ -1416,47 +1310,21 @@ export const SendMessageTool = buildTool({
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
-        return await sendScribeEnvelope(implementerReplyTarget(rawTo), envelope, context)
+        return await sendBusEnvelope(workerReplyTarget(rawTo), envelope, context)
       }
       case 'control': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('control', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('control', rawTo) }
         const from = senderName()
         // An ack with a referenced request id records that node's acceptance,
         // attributed by the sender's role; idempotent on duplicates.
         if (message.command === 'ack' && message.refRequestId && routerEnabled()) {
-          void routerStoreWriters.acceptByRequest(message.refRequestId, 'scribe', Date.now()).catch(() => {})
+          void routerStoreWriters.acceptByRequest(message.refRequestId, 'planner', Date.now()).catch(() => {})
         }
         const envelope: ControlEnvelope = buildControl(from, message.command, {
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
-        return await sendScribeEnvelope(rawTo, envelope, context)
-      }
-      case 'route_plan': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('route_plan', rawTo) }
-        // Planner-only: the planner gate is re-checked at call time, and its
-        // refusal is the SAME "no coordinator engaged" refusal.
-        if (!routerEnabled()) return { data: busContextRefusal('route_plan', rawTo) }
-        if (isImplementerRole()) {
-          return {
-            data: {
-              success: false,
-              message:
-                'Route planning is the planner contract (Scribe, Router, or Maintainer). An executor reports with a progress envelope instead.',
-              request_id: '',
-              target: rawTo,
-            },
-          }
-        }
-        const senderRole = 'scribe' as const
-        return await handleRoutePlan(rawTo, message as RoutePlanMessage, {
-          // Route-plan dispatches are DIRECTIVES emitted through the same
-          // envelope path.
-          send: (to, env) => sendScribeEnvelope(to, env, context),
-          senderRole,
-          senderName: senderName(),
-          executors: PARTY_EXECUTOR_AGENT_NAMES,
-        })
+        return await sendBusEnvelope(rawTo, envelope, context)
       }
     }
   },

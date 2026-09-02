@@ -75,7 +75,7 @@ const vocab = await import('../../src/types/permissions.js')
   check('no retired spelling in any advertised mode list', advertised.every(m => !(m in RETIRED)))
   check('the external set is the five new external ids (alphabetical)', JSON.stringify(vocab.EXTERNAL_PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy']))
   // apollo joined (the pre-flight interview station).
-  check("the runtime set adds flow/scribe/autopilot/apollo (not bubble)", JSON.stringify(vocab.PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'scribe', 'autopilot', 'apollo']))
+  check("the runtime set adds flow/autopilot/apollo (not bubble)", JSON.stringify(vocab.PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'autopilot', 'apollo']))
 }
 
 // ── §2 permissionModeFromString — the string funnel ──────────────────────────
@@ -228,6 +228,36 @@ section('§10 conversation recovery: persisted per-message modes adopt the new i
   const rec = srcText('utils', 'conversationRecovery.ts')
   check('scrubPermissionMode consults the bounded alias before clearing', /scrubPermissionMode[\s\S]{0,700}decodePermissionModeSpelling/.test(rec))
   check('the adopt arm rewrites to the decoded id (not undefined)', /permissionMode: decoded/.test(rec))
+}
+
+// ── §11 a RETIRED mode id (no alias row) degrades to the default with ONE notice
+section('§11 a retired mode id (no alias row) degrades to the default with ONE notice, never a crash')
+{
+  // The two-seat coordination mode left the roster whole; its spelling has
+  // no alias row (it was retired, not renamed), so every read boundary
+  // treats it as an unknown string: the pure funnels answer the default, the
+  // schema refuses without throwing, and the persisted-session arm clears
+  // the mode with one screen-receipt row saying so.
+  const retiredMode = 'scri' + 'be'
+  check('the alias table carries no row for it', !(retiredMode in (vocab.RETIRED_PERMISSION_MODE_SPELLINGS as Record<string, string>)))
+  check('decode passes it through untouched', vocab.decodePermissionModeSpelling(retiredMode) === retiredMode)
+  check('it is in no vocabulary list', !([...vocab.PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES] as readonly string[]).includes(retiredMode))
+  check("fromString → 'default'", pm.permissionModeFromString(retiredMode) === 'default')
+  check('the mode schema REJECTS it (safeParse, no throw)', pm.permissionModeSchema().safeParse(retiredMode).success === false)
+  check('the external schema REJECTS it too (safeParse, no throw)', pm.externalPermissionModeSchema().safeParse(retiredMode).success === false)
+  // The persisted-session arm (conversationRecovery.scrubPermissionMode) —
+  // structural pins, the module drags cwd/session deps under bun-run (§10).
+  const rec = srcText('utils', 'conversationRecovery.ts')
+  check('an unknown persisted mode is CLEARED (the session resumes in its default mode)', /return \{ \.\.\.message, permissionMode: undefined \} as Message/.test(rec))
+  check(
+    '…and the operator hears it as ONE warning screen-receipt naming the spelling',
+    /mintImmediateReceipt\(\s*`▲ the saved permission mode '\$\{mode\}' is not one this build knows — resuming in the default mode`,\s*'warning',?\s*\)/.test(rec),
+  )
+  check('…once per spelling (a latch, never a row per message)', /noticedPermissionModes\.has\(mode\)/.test(rec) && /noticedPermissionModes\.add\(mode\)/.test(rec))
+  // The settings arm: the preprocess decodes, the enum refuses, and the
+  // validation tip advertises the live modes only.
+  const tips = srcText('utils', 'settings', 'validationTips.ts')
+  check('the defaultMode validation tip names no retired mode', !tips.includes(`"${retiredMode}"`))
 }
 
 console.log('\n' + '═'.repeat(76))

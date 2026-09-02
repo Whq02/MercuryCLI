@@ -62,7 +62,6 @@ import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { formatQuietAge, workflowPulse } from '../tools/WorkflowTool/livePulse.js'
 import type { WorkflowProgressEvent } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { getScribeModeVersion, isScribeModeOn, subscribeScribeMode } from '../utils/scribeMode.js'
 // Shared mercury-ui kit: the session mark/Sep + the auto-toned gauge, so the
 // frame, /deck, and every command surface render from one definition.
 import { SessionMark } from './mercury-ui/assets.js'
@@ -81,7 +80,7 @@ import { fluxMark } from '../utils/flux/fluxProbe.js'
 //  the REPL's bottom slot (always on screen, never scrolls). The layout
 //  and warm-ink palette:
 //    ▖▟▆▙▗ Mercury │ <model> │ <dir> ⌥<branch> │ ⤳N │ $0.04 │ 5h ██░░
-//  The context fill (computed + published for the deck's ctx bar + the Scribe ctx%, NOT
+//  The context fill (computed + published for the deck's ctx bar, NOT
 //  rendered as a frame gauge) reuses the session's own usage math (getCurrentUsage →
 //  getContextWindowForModel → calculateContextPercentages) — never a
 //  status-hook side channel. The crab is the Mercury mascot
@@ -124,7 +123,7 @@ function readBranchSync(cwd: string): string | null {
 // React.memo boundary (perf audit): the frame is ALWAYS-mounted
 // chrome — without this, every REPL commit (keystrokes, streaming deltas)
 // re-ran its ~10 store reads + row build. Internal subscriptions
-// (transcript store, app state, session accent, scribe) still drive their own
+// (transcript store, app state, session accent) still drive their own
 // re-renders; the memo only blocks PARENT-driven ones. Shallow-compare is
 // exact: `model` is the sole prop (the DeckPane no-props idiom, one prop in).
 export const MercuryFrame = React.memo(MercuryFrameImpl)
@@ -180,10 +179,9 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const cols = tier.columns
 
   const dir = cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || cwd
-  // Compact chip form (task #11): "Fable 5 [1m]", never the raw id.
-  // Scribe-aware chip: the strip names the foreground scribe
-  // stream while the router is engaged; the model PROP keeps owning the
-  // context-window math below (wire-side accounting, not display).
+  // Compact chip form (task #11): "Fable 5 [1m]", never the raw id. The
+  // model PROP keeps owning the context-window math below (wire-side
+  // accounting, not display).
   const modelName = useDisplayedSessionModel().compact
   // The static behavior chips (wrapper/fable/substrate) are the most expendable
   // segment — they read true/false and rarely change, and they render LAST in
@@ -199,13 +197,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   // re-tints the instant a /critter pick lands — the Crab already subscribes
   // via assets.tsx; this covers the rest.
   useSessionAccent()
-  // Subscribe to the scribe store (module state, not React state) so the
-  // scribe band/glow repaints the instant the mode flips.
-  useSyncExternalStore(subscribeScribeMode, getScribeModeVersion, getScribeModeVersion)
   // Vital ownership across the three homes (deck strip / Helm cockpit / inline):
   //  - The Helm cockpit (default >=100 cols) REPLACES the deck strip, so the deck is
   //    NOT rendered there even though isDeckPaneActive() is still true. Its rails own
-  //    only usage + ctx; model/cost/branch/scribe have NO other owner → the frame must
+  //    only usage + ctx; model/cost/branch have NO other owner → the frame must
   //    KEEP them (else pure data loss vs the deck-strip home — the A2.2 audit M1 bug).
   //  - The deck strip (narrow + substrate) owns ALL the vitals → shed them all.
   //  - Inline (no deck, no cockpit) keeps everything.
@@ -305,7 +300,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   // Context-fill gauge — the session's own usage math (same source as the API request).
   // The window DENOMINATOR follows the session-effective model: the API
   // resolves mainLoopModelForSession FIRST (the /model wrapper's own note),
-  // so a scribe/session pin with a different window must drive the published
+  // so a session pin with a different window must drive the published
   // gauge — labels keep the useDisplayedSessionModel law untouched. A route
   // surface renders a WORKER's model prop; the foreground pin never leaks there.
   const sessionPinnedModel = useSyncExternalStore(
@@ -335,7 +330,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   }, [used, windowSize, fill.compactAtPct, fill.usedTokens, fill.fillSource, fill.windowSource])
 
   // Context fill is still COMPUTED + PUBLISHED above (publishContextUsage) for the
-  // DECK's ctx bar + the Amanuensis Scribe ctx% — the frame stays gaugeless
+  // DECK's ctx bar — the frame stays gaugeless
   // while a WIDER surface (rail/deck) is actually painting the vital. Below
   // those widths the band keeps a compact live pulse: narrow terminals never
   // lose ctx% (spend rides costNode to its right, so truncate-end drops
@@ -435,23 +430,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         </Text>
       ) : null
   }
-
-  // Behavioral MODES you flip per session — Scribe Mode.
-  // Restraint: show a chip ONLY when its mode is ON (●) — an off mode is the
-  // default and doesn't need persistent announcing (the same "non-default only"
-  // rule the permission modeBand above uses). This declutters the common both-off
-  // frame AND fixes the 100–120-col overflow: the two always-on ○ chips used to
-  // push the row past the width (truncating `fable-he…` / `scri…`) once the 7d
-  // meter + turn counter were also present. fable-on also has its own band above;
-  // the more set-and-forget profile flags (wrapper/substrate) live on the deck.
-  const scribeOn = isScribeModeOn()
-  const behaviorNode = scribeOn ? (
-    <Text>
-      <Sep />
-      <Text color={tok.textMuted}>scribe </Text>
-      <Text color={tok.success}>●</Text>
-    </Text>
-  ) : null
 
   // Inline-chrome HEALTH glyph (trust-cockpit): the /health verdict
   // for the frames the cockpit rail doesn't cover (<100 cols, fullscreen off).
@@ -673,14 +651,13 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         ) : null}
         {turnsNode}
         {needsNode}
-        {/* When the deck is present it OWNS the vitals (model/cost/usage/branch/scribe);
+        {/* When the deck is present it OWNS the vitals (model/cost/usage/branch);
             the frame sheds them here to one owner. Inline (no deck) keeps them. The 2×
             route badge stays — it's frame-only, not a deck dup. */}
         {wfNode}
         {ctxNode}
         {!deckOwnsVitals ? costNode : null}
         {!usageOwnedElsewhere ? usageNode : null}
-        {!deckOwnsVitals && showBehavior ? behaviorNode : null}
         {/* The mouse-consequence hint rides AFTER the vitals:
             truncate-end eats from the RIGHT, and at 120 the full sentence was
             starving the 5h/7d meters out of the row — a HINT must never

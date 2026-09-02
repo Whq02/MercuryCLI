@@ -725,7 +725,7 @@ function LiveSessionManager({
         <Text color={FAINT}>  +{elsewhereCount} in other projects — a shows all history</Text>
       ) : null}
 
-      {/* ROUTER CREWS — daemon-seat transcripts (party/scribe children),
+      {/* CREWS — daemon-seat transcripts (crew children),
           distinct from the operator's sessions. Navigable (↑↓ walks past the
           cards into these rows; ↵ arms the same confirm) but visually
           subdued: reading a crew transcript is inspection, not switching

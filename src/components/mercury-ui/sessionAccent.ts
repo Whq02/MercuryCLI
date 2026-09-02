@@ -32,72 +32,8 @@ import {
   DEFAULT_CRITTER_KEY,
   LEGACY_CRITTER_KEYS,
 } from '../../utils/cockpit/critterData.js'
-import { scribeModeEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn, subscribeScribeMode } from '../../utils/scribeMode.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 
-// ── Scribe Mode "Amanuensis" glow (Phase 7) ─────────────────────────────────
-// When the foreground session IS the Scribe, its identity chrome (frame /
-// wordmark / panel borders / prompt caret — the same surfaces a critter accent
-// tints) glows a hotter, brighter, incandescent version of the ACTIVE critter's
-// accent — so scribe mode FOLLOWS the critter theme (clam → glowing teal,
-// octopus → glowing violet …) instead of a fixed red that ignored the critter.
-// The crab keeps its hand-tuned SCRIBE_GLOW ember (byte-identical); every
-// other critter gets a per-channel brightened version of its OWN accent (glowOf).
-// The status spine (TEAL/AMBER/CRIMSON) is NOT touched — only the identity accent.
-// Opt out with MERCURY_SCRIBE_GLOW=0 (then the accent is byte-identical to today).
-export const SCRIBE_GLOW = '#FF5A3A'
-/** A deeper ember for the accentDeep slot (claws / deep accent), still red. */
-export const SCRIBE_GLOW_DEEP = '#D2401F'
-
-/**
- * Brighten a hex accent into a luminous "glow" that PRESERVES the critter's hue:
- * per-channel multiply (×1.18) + clamp to 255 — raises brightness while keeping
- * saturation/hue, so a teal critter glows teal, a violet one violet. Deterministic,
- * no color lib. Falls through unchanged on a non-#rrggbb input.
- */
-export function glowOf(hex: string): string {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
-  if (!m) return hex
-  const up = (h: string): string =>
-    Math.min(255, Math.round(parseInt(h, 16) * 1.18))
-      .toString(16)
-      .padStart(2, '0')
-  return `#${up(m[1]!)}${up(m[2]!)}${up(m[3]!)}`
-}
-
-/** True iff the Scribe glow should re-tint the identity accent right now.
- *  The engage bit is read FIRST: it is a module boolean, while the two flag
- *  reads walk the registry and the environment — a session with the Scribe
- *  disengaged (the common one) answers without either. Every subscriber's
- *  snapshot read passes through here. */
-export function scribeGlowEnabled(): boolean {
-  if (!isScribeModeOn()) return false
-  if (flagEnv('MERCURY_SCRIBE_GLOW') === '0') return false
-  return scribeModeEnabled()
-}
-
-/** The glowed variant per base critter, built once: the glow is a pure
- *  function of the base's accent pair, and a subscriber that reads the
- *  accent on every render sees the SAME object while nothing changed (the
- *  useSyncExternalStore-primitive law, kept for the object the hook returns). */
-const GLOWED_BY_KEY = new Map<string, Critter>()
-
-/** Overlay the glow onto a base critter when scribe mode is engaged; else identity. */
-function applyScribeGlow(base: Critter): Critter {
-  if (!scribeGlowEnabled()) return base
-  const known = GLOWED_BY_KEY.get(base.key)
-  if (known !== undefined) return known
-  // Crab keeps its hand-tuned ember (the canonical scribe red); every other
-  // critter glows a brightened version of its OWN accent so scribe FOLLOWS the
-  // critter theme rather than overriding it with a fixed red.
-  const glowed: Critter =
-    base.key === 'crab'
-      ? { ...base, accent: SCRIBE_GLOW, accentDeep: SCRIBE_GLOW_DEEP }
-      : { ...base, accent: glowOf(base.accent), accentDeep: glowOf(base.accentDeep) }
-  GLOWED_BY_KEY.set(base.key, glowed)
-  return glowed
-}
 
 export type Critter = {
   key: string
@@ -224,8 +160,7 @@ const listeners = new Set<() => void>()
 // RESOLVED color goes stale (operator bug: the prompt box kept the old critter
 // hue until an unrelated repaint like ctrl+o). The resolvers subscribe to THIS
 // integer via useSyncExternalStore (allocation-free snapshot); it bumps on
-// every accent-affecting store change: /critter picks, /accent overrides, and
-// scribe toggles (bridged below — getSessionAccent reads the glow live).
+// every accent-affecting store change: /critter picks and /accent overrides.
 let accentEpoch = 0
 function bumpAccentEpoch(): void {
   accentEpoch++
@@ -233,20 +168,9 @@ function bumpAccentEpoch(): void {
 export function getAccentEpoch(): number {
   return accentEpoch
 }
-// Scribe engage/disengage re-tints the accent without touching this store —
-// bridge its observable once at module init so the epoch (and every resolver
-// subscribed to it) covers the glow too (a glow that
-// relies on incidental re-renders goes stale: epoch subscribers like ThemedBox resolve
-// keys at their own render and could stay stale until an unrelated repaint —
-// the exact class the epoch exists to kill).
-subscribeScribeMode(() => {
-  bumpAccentEpoch()
-  for (const l of listeners) l()
-})
-
 // ── Operator accent OVERRIDE (/accent — "colour the REPL", QoL program) ─────
-// An EXPLICIT operator pick outranks every DERIVED tint (critter hue, scribe
-// glow, fable recolor) — the explicit-beats-default rule (the auto-mode lesson:
+// An EXPLICIT operator pick outranks every DERIVED tint (critter hue, fable
+// recolor) — the explicit-beats-default rule (the auto-mode lesson:
 // an operator's explicit choice is never silently displaced by a mode default).
 // Process-lifetime (this screen's own, never persisted, never a session's);
 // null = no override (the derivation chain below applies unchanged ⇒
@@ -254,7 +178,7 @@ subscribeScribeMode(() => {
 let accentOverride: Critter | null = null
 
 /** Derive the deep companion (claws / deep borders) from one accent hex — the
- *  inverse of glowOf: same per-channel math, darkened toward the night canvas. */
+ *  per-channel math, darkened toward the night canvas. */
 export function deepOf(hex: string): string {
   const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
   if (!m) return hex
@@ -312,7 +236,7 @@ export function getSessionAccent(): Critter {
   // shape via critterDefForKey) stays live, so /critter keeps cycling under an
   // override (operator bug: the old 'custom'-keyed return made every
   // art site fall back to the crab shape — critter switching looked dead).
-  // Glow/fable recolor are skipped byte-equivalently: they only touch the two
+  // The fable recolor is skipped byte-equivalently: it only touches the two
   // accent axes the override replaces.
   if (accentOverride) {
     const memo = overrideTint
@@ -321,7 +245,7 @@ export function getSessionAccent(): Critter {
     overrideTint = { base, override: accentOverride, value }
     return value
   }
-  return applyScribeGlow(base)
+  return base
 }
 
 // The raw active key (normalized), for shape lookups (critterDefForKey).
@@ -361,13 +285,6 @@ export function cycleSessionCritter(): void {
   persistSessionCritter(next.key)
 }
 
-// there is no dedicated "poke" to recolor identity surfaces for an accent
-// change that rides alongside the critter (the Scribe glow, applyScribeGlow). None is
-// needed — engaging/disengaging Scribe Mode already re-renders the subscribed surfaces,
-// so they re-read getSessionAccent()/applyScribeGlow and recolor on that incidental
-// render (no key delta or manual listener notify). A prior pokeSessionAccent() export
-// claimed scribeRouterSelect called it, but it had zero callers — removed as dead code.
-
 // Persist the chosen critter as the cross-relaunch default (GlobalConfig.
 // defaultCritter), so /critter outlives this screen. Flag-gated: a bare stamp never
 // writes this key (byte-identical). Unknown keys are ignored. saveGlobalConfig is
@@ -400,27 +317,24 @@ export function subscribeSessionCritter(onChange: () => void): () => void {
   }
 }
 
-/** The snapshot memo: the last snapshot and the three inputs it was built
+/** The snapshot memo: the last snapshot and the two inputs it was built
  *  from. useSyncExternalStore reads the snapshot on every subscriber's render
  *  and on every notification and compares with Object.is — a string rebuilt
  *  per read costs a string per read and leaves every subscribing hook holding
  *  its own copy; built only when an input moves, every subscriber holds the
  *  one string. */
-let snapshotMemo: { key: string; override: Critter | null; glow: string; value: string } | null = null
+let snapshotMemo: { key: string; override: Critter | null; value: string } | null = null
 let snapshotBuilds = 0
 
-/** The hook snapshot: changes on a /critter pick, an /accent set/clear, AND a
- *  scribe-glow flip (the glow changes what the derivation returns, so the
- *  snapshot must cover it or useSyncExternalStore skips the re-render). The
- *  same string object while none of the three moved. */
+/** The hook snapshot: changes on a /critter pick and an /accent set/clear.
+ *  The same string object while neither moved. */
 export function getSessionAccentSnapshotKey(): string {
   const key = currentKey()
-  const glow = scribeGlowEnabled() ? 'glow' : ''
   const memo = snapshotMemo
-  if (memo !== null && memo.key === key && memo.override === accentOverride && memo.glow === glow) return memo.value
+  if (memo !== null && memo.key === key && memo.override === accentOverride) return memo.value
   snapshotBuilds++
-  const value = `${key}:${accentOverride ? accentOverride.accent : ''}:${glow}`
-  snapshotMemo = { key, override: accentOverride, glow, value }
+  const value = `${key}:${accentOverride ? accentOverride.accent : ''}`
+  snapshotMemo = { key, override: accentOverride, value }
   return value
 }
 
@@ -431,17 +345,17 @@ export function accentStoreStatsForProofs(): { listeners: number; snapshotBuilds
 }
 
 // Subscribe a component to the screen's live critter. Re-renders on every
-// setSessionCritter(), setSessionAccentOverride(), AND scribe flips — the
-// live-morph plumbing. The /accent override is the FINAL word here exactly as
-// in getSessionAccent() (explicit beats derived — critter hue, scribe glow,
-// and fable recolor included).
+// setSessionCritter() and setSessionAccentOverride() — the live-morph
+// plumbing. The /accent override is the FINAL word here exactly as in
+// getSessionAccent() (explicit beats derived — critter hue and fable recolor
+// included).
 //
 // UNIFIED: a hook applying a DIFFERENT recolor rule
 // than getSessionAccent() is the classic two-read-paths split (ledgered under
 // one-surface-per-turn): the hero sprite hand-rolled one hue while
 // hook-driven chrome kept the critter hue, so the home showed a mismatched
 // sprite over the accents. Both paths now share ONE derivation:
-// override → scribe glow. The /critter picker previews are unaffected (they
+// override → critter hue. The /critter picker previews are unaffected (they
 // read per-critter catalog colors, never this hook).
 export function useSessionAccent(): Critter {
   useSyncExternalStore(

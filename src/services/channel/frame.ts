@@ -1,7 +1,7 @@
 /**
  * Caduceus frame — the ONE wire-and-storage envelope of Mercury's session fabric.
  *
- * A room (a session, a party lane, a crew chat) is an append-only log of FRAMES.
+ * A room (a session, a crew chat) is an append-only log of FRAMES.
  * Everything that happens in a collaborative context — a human chat line, an
  * assistant turn, a bus dispatch, a presence heartbeat, a work claim — is a frame
  * with the same envelope, so ordering, attribution, replay, and integrity are
@@ -53,9 +53,9 @@ export type { Principal }
  *   usage.*    — metered spend (multi-operator budgets): the harness writes a
  *                usage.turn per delegated batch, attributing the turn's cost
  *                delta to the initiating principal (budgets.ts folds them)
- *   bus.*      — the scribe/party/crew adapter envelopes (semantics preserved
- *                verbatim from the legacy buses, incl. the party's literal
- *                `[request_id: …]` trailer contract)
+ *   bus.*      — the crew adapter envelopes (semantics preserved verbatim
+ *                from the mailbox bus, incl. the literal `[request_id: …]`
+ *                trailer contract)
  *   sys.*      — fabric bookkeeping (snapshot markers, redaction tombstones)
  */
 export type FrameKind =
@@ -78,8 +78,6 @@ export type FrameKind =
   | 'work.status'
   | 'work.compact'
   | 'usage.turn'
-  | 'bus.scribe'
-  | 'bus.party'
   | 'bus.crew'
   | 'sys.snapshot'
   | 'sys.redact'
@@ -105,8 +103,6 @@ const FRAME_KINDS: ReadonlySet<string> = new Set<FrameKind>([
   'work.status',
   'work.compact',
   'usage.turn',
-  'bus.scribe',
-  'bus.party',
   'bus.crew',
   'sys.snapshot',
   'sys.redact',
@@ -208,7 +204,7 @@ export interface Frame {
   /** Kind-specific payload — opaque to the fabric core (invariant 5). */
   body: unknown
   /** Lineage refs to prior frame ids (cross-seat refs are LINEAGE, never
-   *  supersession — the router-party doctrine, carried into the fabric). */
+   *  supersession). */
   refs?: string[]
   /** HMAC-SHA256 (hex) over the canonical bytes, for remote-originated frames.
    *  Local unix-socket writers omit it; the remote listener REQUIRES it. */

@@ -105,8 +105,8 @@ section('1 · parity — composeSystemPrompt ≡ the frozen legacy expression')
       'mode packs + anti-syc + reconcile tail',
       parts({
         modeSections: [
-          { name: 'mode-implementer', text: 'implementer pack' },
-          { name: 'mode-scribe', text: 'scribe pack' },
+          { name: 'mode-apollo', text: 'apollo pack' },
+          { name: 'mode-autopilot', text: 'autopilot pack' },
         ],
         antiSycSections: ['anti-syc arm'],
         reconcileTailSections: ['reconcile tail'],
@@ -236,7 +236,7 @@ section('6 · section metadata — semantic names, owner, cacheClass')
 {
   const contract = buildBehaviourContract(
     parts({
-      modeSections: [{ name: 'mode-scribe', text: 'scribe pack' }],
+      modeSections: [{ name: 'mode-autopilot', text: 'autopilot pack' }],
       antiSycSections: ['arm'],
       reconcileTailSections: ['tail'],
       dynamicBoundary: ['boundary'],
@@ -245,8 +245,8 @@ section('6 · section metadata — semantic names, owner, cacheClass')
   check('no positional wrapper-N/mode-N names', contract.sections.every(s => !/^wrapper-\d+$|^mode-\d+$/.test(s.name)))
   check('every section carries an owner', contract.sections.every(s => typeof s.owner === 'string' && s.owner.length > 0))
   check('every section carries a cacheClass', contract.sections.every(s => ['stable', 'session', 'turn'].includes(s.cacheClass)))
-  const scribe = contract.sections.find(s => s.name === 'mode-scribe')
-  check('mode-scribe owner is the scribe pack', scribe?.owner === 'src/utils/scribe/scribePack.ts')
+  const autopilot = contract.sections.find(s => s.name === 'mode-autopilot')
+  check('mode-autopilot owner is the autopilot pack', autopilot?.owner === 'src/utils/autopilot/autopilotPrompt.ts')
   const staticIntro = contract.sections.find(s => s.name === 'intro')
   check('static sections are cache-stable', staticIntro?.cacheClass === 'stable')
 }

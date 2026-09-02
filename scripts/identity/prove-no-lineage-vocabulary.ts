@@ -641,8 +641,8 @@ const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line.
 // The retired multiplayer estate and its session-room fabric are absent from
 // the tree (the channel, identity and attention homes stand on their own).
 // Three laws keep it absent without banning the living vocabulary (the
-// router's seat "party", the channel bus's "room", the typed-retirement
-// sentences):
+// retired-door stub's "party" row, the channel bus's "room", the
+// typed-retirement sentences):
 //   (a) DEAD PATHS — the deleted namespaces may not be spelled as paths;
 //   (b) DEAD IDENTIFIERS — the deleted export names may not return;
 //   (c) the caduceus word survives only where a reasoned allowlist row says
@@ -652,8 +652,8 @@ const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line.
 //       module may declare them under src/commands/ (a successor takes a
 //       name back by editing the stub AND this law, deliberately).
 // Needles are composed so this file never matches itself. (The residue class
-// — dungeon/party role vocabulary — is the router fabric's living estate and
-// deliberately NOT a law here; see the boundary ratchet for what is.)
+// — the crew identity's recognition rows and the retired-door stub — is
+// deliberate and NOT a law here; see the boundary ratchet for what is.)
 const ESTATE_DEADPATHS: string[] = [
   J('src/', 'cadu', 'ceus/'),
   J('scripts/', 'cadu', 'ceus/'),
@@ -721,7 +721,7 @@ const RETIRED_STUB_OWNER = 'src/commands/retired.ts'
 // door that answers only the retirement sentence. The roster derives from
 // the stub module's OWN rows (names + aliases; never a retyped list) plus
 // the two verbs. NOT copy, never a hit (pinned by the self-tests): a regex
-// literal (/prompt is too long/), a path-joined spelling ('scribe/party/crew'),
+// literal (/prompt is too long/), a path-joined spelling ('daemon/party/crew'),
 // a regex-joined spelling (/party_(dps\d)/), a comment line. The two allow
 // rows are the two real owners of the spellings: the released-version
 // history and the verbs' typed-answer entry.
@@ -787,7 +787,7 @@ const retiredDoorCopyHits = (path: string, content: string): string[] => {
     ['a bare JSX text line (.tsx)', '        run /' + 'invite' + ' to add a peer', true],
     ['a retired verb in a literal', "['daemon', 'join', '" + 'join-' + "kit', 'acp']", true],
     ['a regex literal', 'const re = /' + 'prompt' + ' is too long/i', false],
-    ['a path-joined spelling', "const p = 'Scheduler/scribe/" + 'party' + "/crew workers'", false],
+    ['a path-joined spelling', "const p = 'Scheduler/daemon/" + 'party' + "/crew workers'", false],
     ['a regex-joined spelling', 'const lane = /' + 'party' + '_(dps\\d|tank|healer)/', false],
     ['a comment line', '// the /' + 'tickets' + ' door is retired', false],
     ['a block comment', '/* the /' + 'party' + ' door */ const x = 1', false],

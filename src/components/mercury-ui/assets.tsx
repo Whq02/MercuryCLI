@@ -70,7 +70,7 @@ export const CRAB_GLYPHS = '▖▟▆▙▗'
 // The Mercury wordmark: `Mercury` is the product word — TERRA bold — the visible
 // brand identity. An optional faint version tail. A terminal
 // can't shrink type, so hierarchy reads as the bold-accent weight. Uses the
-// live session accent so the wordmark follows the critter / scribe glow.
+// live session accent so the wordmark follows the critter.
 export function Wordmark({
   version,
 }: {

@@ -354,7 +354,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['team'],
     cancellation: 'not-applicable',
     latency: 'fast',
-    proof: 'scripts/scribe/run-all.sh',
+    proof: 'scripts/crew/run-all.sh',
   },
   SendUserFile: {
     intents: ['send a file to the operator'],

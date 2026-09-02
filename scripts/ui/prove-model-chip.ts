@@ -41,12 +41,12 @@ check('chip form never emits the long parenthetical', !renderModelChip(ms.fable5
 const read = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
 const deck = read('src/components/DeckPane.tsx')
 const frame = read('src/components/MercuryFrame.tsx')
-// the chip resolves through the scribe-aware display resolver
+// the chip resolves through the ONE display resolver
 // (useDisplayedSessionModel.compact — renderModelChip inside), so the raw-id
 // class stays impossible AND the label follows the engaged router.
-check('DeckPane renders the chip form (scribe-aware resolver)', deck.includes('useDisplayedSessionModel().compact'))
+check('DeckPane renders the chip form (the ONE display resolver)', deck.includes('useDisplayedSessionModel().compact'))
 check('DeckPane mounts the EffortChip beside the model', (deck.match(/<EffortChip model=\{rawModel\} \/>/g) ?? []).length >= 2)
-check('MercuryFrame renders the chip form (scribe-aware resolver)', frame.includes('useDisplayedSessionModel().compact'))
+check('MercuryFrame renders the chip form (the ONE display resolver)', frame.includes('useDisplayedSessionModel().compact'))
 check('MercuryFrame mounts the EffortChip beside the model', frame.includes('<EffortChip model={model} />'))
 
 // EffortChip itself: the honest live resolve + the mode word.

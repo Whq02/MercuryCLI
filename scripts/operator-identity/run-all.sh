@@ -18,6 +18,7 @@ echo "############################################################"
 __t=$SECONDS; "$bun" run "$here/prove-estate-boundary.ts" || fail=1; prover_mark "$here/prove-estate-boundary.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-operator-identity.ts" || fail=1; prover_mark "$here/prove-operator-identity.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-identity-migration.ts" || fail=1; prover_mark "$here/prove-identity-migration.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-coordination-modes-retired.ts" || fail=1; prover_mark "$here/prove-coordination-modes-retired.ts" "$__t"
 
 if [ "$fail" -ne 0 ]; then
   echo "❌ operator-identity suite RED"

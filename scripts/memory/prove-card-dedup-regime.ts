@@ -28,9 +28,9 @@ function section(t: string): void {
 }
 
 const PROSE = 'Use flock for the cross-process lock.'
-const cardA = `---\nslug: a\n---\n**Status:** fresh · 2026-06-19\n${PROSE}\n**Applies when:** scribe mode\n**Green-gate:** 8 suites green`
+const cardA = `---\nslug: a\n---\n**Status:** fresh · 2026-06-19\n${PROSE}\n**Applies when:** flow mode\n**Green-gate:** 8 suites green`
 const cardB = `---\nslug: b\n---\n**Status:** stale\n${PROSE}\n**Applies when:** normal mode\n**Green-gate:** build only`
-const cardC = `---\nslug: c\n---\n**Status:** whatever\n${PROSE}\n**Applies when:** scribe mode\n**Source refs:** xyz`
+const cardC = `---\nslug: c\n---\n**Status:** whatever\n${PROSE}\n**Applies when:** flow mode\n**Source refs:** xyz`
 
 console.log('============================================================')
 console.log(' experience-card dedup — regime cues are load-bearing')
@@ -38,7 +38,7 @@ console.log('============================================================')
 
 section('regime-distinct cards do NOT collapse (the fix)')
 check('same prose, DIFFERENT Applies-when ⇒ distinct dedup keys (2nd no longer refused)', normalizedLesson(cardA) !== normalizedLesson(cardB))
-check('the Applies-when cue content survives the normalizer', /applies when: scribe mode/.test(normalizedLesson(cardA)) && /applies when: normal mode/.test(normalizedLesson(cardB)))
+check('the Applies-when cue content survives the normalizer', /applies when: flow mode/.test(normalizedLesson(cardA)) && /applies when: normal mode/.test(normalizedLesson(cardB)))
 
 section('real duplicates STILL dedup (banners excluded — no over-distinguish)')
 check('same prose + same Applies-when, DIFFERENT Status/Source/Green-gate banners ⇒ SAME key', normalizedLesson(cardA) === normalizedLesson(cardC))

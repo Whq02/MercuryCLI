@@ -12,8 +12,8 @@ import { useSessionAccent } from './sessionAccent.js'
 //  createSplashCore to THIS value, so the composed boot chrome wears exactly
 //  the identity the session wears — the same selection truth, the same
 //  effective-accent ramp law the Wordmark rides (R5: resolveMercuryTokens at
-//  the live accent — /accent overrides, the scribe glow, and fable recolors
-//  all derive their own ramp instead of collapsing to a family default).
+//  the live accent — /accent overrides and fable recolors
+//  both derive their own ramp instead of collapsing to a family default).
 //
 //  Families that cannot host the derived ramp (single-stop / unparseable —
 //  the reduced-colour collapse law) fall back to the critter KEY, which the

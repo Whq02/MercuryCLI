@@ -75,7 +75,7 @@ export function resolveGeminiModel(
 
 export function buildGeminiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider gemini has no SEAT runtime — party/roster seats stay Anthropic; Gemini dispatch lands with the provider-wire fold',
+    'router: provider gemini has no SEAT runtime — roster seats stay Anthropic; Gemini dispatch lands with the provider-wire fold',
   )
 }
 

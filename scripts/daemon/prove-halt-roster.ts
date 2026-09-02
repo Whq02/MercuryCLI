@@ -13,10 +13,10 @@
 //        ('retiring' rows are excluded from the reapable roster);
 //    §3 summarizeHalt spells the names on the /halt line (bounded), with
 //        honest fallbacks for count-only daemons and nothing-to-reap;
-//    §4 the stand-down latch: /halt marks it, the SILENT heal paths
-//        (scribe ensure, switchboard ensure) consult it, and only the
-//        EXPLICIT engage gestures (scribe /model pick, crew, party) clear
-//        it — the fix for halt-then-respawn.
+//    §4 the stand-down latch: /halt marks it, the SILENT heal path (the
+//        switchboard ensure) consults it, and only the EXPLICIT engage
+//        gesture (the crew engage) clears it — the fix for
+//        halt-then-respawn.
 //
 //  Fixture API only — no paid calls.
 //  Run:  ~/.bun/bin/bun run scripts/daemon/prove-halt-roster.ts
@@ -107,10 +107,9 @@ const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPat
     ANTHROPIC_API_KEY: 'fixture-key',
     ANTHROPIC_BASE_URL: api.url,
     MERCURY_CACHE_CLOCK: '0',
-    // The scribe-engage stamp: this daemon hosts the Implementer seat — the
-    // named long-lived worker the reap must spell out.
-    MERCURY_DAEMON_SCRIBE_ENGAGE: '1',
-    MERCURY_PARTY: '0',
+    // The crew-engage stamp: this daemon hosts crew teammates — the named
+    // long-lived worker the reap must spell out is spawned below.
+    MERCURY_DAEMON_CREW: '1',
   },
   stdio: ['ignore', logFd, logFd],
 })
@@ -125,9 +124,15 @@ const liveShorts = async (): Promise<string[]> => {
   const r = (await daemonControlRpc({ op: 'list', proto: 0 } as never)) as ListReply
   return (r.jobs ?? []).filter(j => !j.outcome).map(j => j.short)
 }
+const spawned = (await daemonControlRpc({ op: 'crewSpawn', name: 'scout', model: 'sonnet' } as never)) as {
+  ok: boolean
+  pid?: number
+  error?: string
+}
+check('a crew teammate spawn is accepted', spawned.ok === true, JSON.stringify(spawned))
 check(
-  'the implementer seat comes up on the roster',
-  await untilAsync(async () => (await liveShorts()).includes('implementer'), 90_000),
+  'the crew seat comes up on the roster',
+  await untilAsync(async () => (await liveShorts()).includes('scout'), 90_000),
   JSON.stringify(await liveShorts()),
 )
 const dispatched = (await daemonControlRpc({
@@ -153,8 +158,8 @@ check('shutdown acknowledged', bye.ok === true, JSON.stringify(bye))
 const workers = bye.workers ?? []
 check('the reply CARRIES the reaped workers', Array.isArray(bye.workers), JSON.stringify(bye))
 check('reaped count equals the named list', bye.reaped === workers.length, `reaped=${bye.reaped} named=${workers.length}`)
-const seatRow = workers.find(w => w.short === 'implementer')
-check('the implementer seat is named with its purpose', !!seatRow && seatRow.kind === 'long-lived' && /implementer seat/.test(seatRow.purpose), JSON.stringify(workers))
+const seatRow = workers.find(w => w.short === 'scout')
+check('the crew seat is named with its purpose', !!seatRow && seatRow.kind === 'long-lived' && /crew seat/.test(seatRow.purpose), JSON.stringify(workers))
 const oneShotRow = workers.find(w => w.short === dispatched.short)
 check(
   "the one-shot is named with the run's prompt clip",
@@ -190,14 +195,14 @@ section('§3 summarizeHalt spells the names (pure)')
       ok: true,
       reaped: 2,
       workers: [
-        { short: 'implementer', kind: 'long-lived', purpose: 'implementer seat' },
+        { short: 'scout', kind: 'long-lived', purpose: 'crew seat' },
         { short: 'a1b2c3', kind: 'one-shot', purpose: 'dispatch run: audit the tree' },
       ],
     },
   })
   check(
     'names + purposes on the /halt line',
-    named.includes('reaped 2: implementer — implementer seat, a1b2c3 — dispatch run: audit the tree'),
+    named.includes('reaped 2: scout — crew seat, a1b2c3 — dispatch run: audit the tree'),
     named,
   )
   const many = summarizeHalt({
@@ -236,16 +241,8 @@ section('§4 the stand-down latch: /halt sticks until an explicit engage')
   const read = (p: string): string => readFileSync(join(root, p), 'utf8')
   check('/halt marks the latch (haltAll)', /markDaemonHaltStanddown\(\)/.test(read('src/utils/haltAll.ts')))
   check(
-    'the scribe liveness ensure consults it (silent path stands down)',
-    /daemonHaltStanddownActive\(\)/.test(read('src/utils/scribe/ensureScribeDaemon.ts')),
-  )
-  check(
     'the switchboard silent heal consults it',
     /daemonHaltStanddownActive\(\)/.test(read('src/services/switchboard/ensureDaemon.ts')),
-  )
-  check(
-    'the scribe ENGAGE gesture clears it',
-    /clearDaemonHaltStanddown\(\)/.test(read('src/utils/scribe/scribeRouterSelect.ts')),
   )
   check('the crew engage clears it', /clearDaemonHaltStanddown\(\)/.test(read('src/utils/crew/crewClient.ts')))
 }

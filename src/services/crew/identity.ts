@@ -74,6 +74,8 @@ export const AGENT_ROLES = [
   // carry it still read as their kind (recognition, never minted again).
   'party-seat',
   'workflow',
+  // Written by the retired two-seat coordination estate; kept on the same
+  // terms as 'party-seat' — old records still read, nothing mints them.
   'scribe',
   'implementer',
   'worker',

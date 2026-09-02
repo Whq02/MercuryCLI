@@ -99,14 +99,13 @@ function resolvePin(): TtlChoice | null {
 }
 
 /**
- * Daemon-spawned workers (Implementer, crew teammates) idle by
+ * Daemon-spawned workers (crew teammates) idle by
  * design between dispatches — decision-table row 4. Role markers are stamped
  * by the daemon spawn paths (crewSpawn/longLivedSupervisor).
  */
 function resolveClass(): CacheClockClass {
   const e = process.env
   const worker =
-    e.MERCURY_IMPLEMENTER === '1' ||
     (e.MERCURY_CREW_AGENT ?? '') !== '' ||
     (e.MERCURY_DAEMON_PERMISSION_MODE ?? '') !== ''
   if (worker) return 'worker'

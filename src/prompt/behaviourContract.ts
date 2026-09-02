@@ -95,8 +95,6 @@ const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
   ['dynamic:brief', 'src/tools/BriefTool/prompt.ts'],
   ['wrapper:identity-floor', 'src/prompt/mercuryContract.ts'],
   ['wrapper:mercury-doctrine', 'src/prompt/mercuryContract.ts'],
-  ['mode:mode-scribe', 'src/utils/scribe/scribePack.ts'],
-  ['mode:mode-implementer', 'src/utils/scribe/implementerPack.ts'],
   ['mode:mode-autopilot', 'src/utils/autopilot/autopilotPrompt.ts'],
   ['mode:mode-apollo', 'src/prompt/apolloMode.ts'],
   ['mode:mode-vulcan', 'src/utils/vulcan/vulcanGates.ts'],
@@ -331,7 +329,7 @@ export function __resetBehaviourContractRegistryForTest(): void {
 }
 
 // ── Mode-pack sections (the wrapper-pack machinery's surviving mechanics) ───
-//  A mode pack (Scribe/Implementer/party seat) is authored prose in FINAL
+//  A mode pack (autopilot, apollo, vulcan) is authored prose in FINAL
 //  render order — no validator, no compiler, no kind-sort, no governance
 //  records (the wrapper-pack estate is retired;
 //  apolloMode.ts is the pattern). What survives here is the render shape the

@@ -1,9 +1,7 @@
 // The model picker: catalogue options, a
 // "no preference" sentinel reporting null, an effort row cycling only the
 // focused model's own selectable stops, and the extended-context toggle.
-// Router sentinels are handed straight to the caller — no effort value, no
-// settings write; the scribe router alone carries the extended-context
-// rider. Selection persistence: an explicit effort toggle unpins every
+// Selection persistence: an explicit effort toggle unpins every
 // launch default, the persistable value is resolved from the toggle, the
 // selected option's default and the stored setting, and user settings are
 // written only when that resolution is persistable while app state mirrors
@@ -25,11 +23,6 @@ import {
   withContext1m,
 } from '../utils/model/modelOptions.js'
 import { getPublicModelDisplayName } from '../utils/model/model.js'
-import { resolveScribeSeat } from '../utils/model/seatSlots.js'
-import {
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-} from '../utils/scribeMode.js'
 import {
   type EffortLevel,
   type EffortValue,
@@ -47,11 +40,6 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 
 const VISIBLE_OPTIONS = 10
 
-const ROUTER_SENTINELS = new Set<string>([
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-])
-
 export type Props = {
   initial: string | null
   sessionModel?: string | null
@@ -63,13 +51,9 @@ export type Props = {
 }
 
 /** The toggle's per-focus baseline: an extended-context variant starts on,
- *  a plain option starts off, the scribe router starts on because its
- *  pinned model carries the suffix. */
+ *  a plain option starts off. */
 function initialContextToggle(value: string | null): boolean {
   if (value === null) return false
-  if (value === SCRIBE_ROUTER_OPTION_VALUE) {
-    return stripContext1m(resolveScribeSeat().model) !== resolveScribeSeat().model
-  }
   return stripContext1m(value) !== value
 }
 
@@ -128,12 +112,8 @@ export function ModelPicker({
     initialContextToggle(focusDefault),
   )
 
-  const focusedIsRouter =
-    focusedValue !== null && ROUTER_SENTINELS.has(focusedValue)
   const focusedModel =
-    focusedValue !== null && !focusedIsRouter
-      ? stripContext1m(focusedValue)
-      : null
+    focusedValue !== null ? stripContext1m(focusedValue) : null
   const focusedSupportsEffort =
     focusedModel !== null && modelSupportsEffort(focusedModel)
   const focusedSupports1m = focusedOptionSupports1m(focusedValue)
@@ -144,7 +124,7 @@ export function ModelPicker({
       setContextToggle(initialContextToggle(value))
       if (!effortToggled && toPersistableEffort(appStateEffort) === undefined) {
         setEffortLevel(
-          value !== null && !ROUTER_SENTINELS.has(value)
+          value !== null
             ? toPersistableEffort(
                 getDefaultEffortForModel(stripContext1m(value)),
               )
@@ -181,21 +161,6 @@ export function ModelPicker({
 
   const handleSelect = useCallback(
     (value_0: string | null) => {
-      // Router sentinels: handed straight to the caller — no effort, no
-      // settings write. The scribe router alone carries the context rider.
-      if (value_0 === SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE) {
-        onSelect(value_0, undefined)
-        return
-      }
-      if (value_0 === SCRIBE_ROUTER_OPTION_VALUE) {
-        const withRider =
-          contextToggle && focusedOptionSupports1m(value_0)
-            ? withContext1m(value_0)
-            : value_0
-        onSelect(withRider, undefined)
-        return
-      }
-
       const chosen =
         value_0 !== null &&
         contextToggle &&
@@ -251,7 +216,7 @@ export function ModelPicker({
   // The effort row: the label is what the focused model would ACTUALLY run
   // at, per the effort owner (which can adjust an unsupported request).
   const effortRow = ((): React.ReactNode => {
-    if (focusedIsRouter || focusedModel === null) return null
+    if (focusedModel === null) return null
     if (!focusedSupportsEffort) {
       return (
         <Text dimColor>

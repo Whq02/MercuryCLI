@@ -2,7 +2,7 @@
 // ============================================================================
 //  scripts/ui/prove-accent-override.ts — /accent.
 //  The session accent OVERRIDE seam: an explicit operator pick outranks every
-//  derived tint (critter / scribe glow / fable recolor), clears cleanly, rejects
+//  derived tint (critter / fable recolor), clears cleanly, rejects
 //  junk, and is byte-identical when unused. Pure module — exercised LIVE.
 //  Run: ~/.bun/bin/bun run scripts/ui/prove-accent-override.ts
 // ============================================================================
@@ -65,13 +65,13 @@ check('snapshot key reverts on clear', !sa.getSessionAccentSnapshotKey().include
   // unify, tightened (tint-only override): ONE
   // derivation lives in getSessionAccent() — the override merges the TINT
   // AXES onto the live critter (identity stays, so /critter keeps morphing),
-  // the plain reader folds scribe glow + fable recolor, and the hook
+  // the plain reader folds the fable recolor, and the hook
   // DELEGATES to it (subscriptions provide the reactivity). The alias still
   // delegates to the hook.
   const overrideMerges = (srcText.match(/accent: accentOverride\.accent, accentDeep: accentOverride\.accentDeep/g) ?? []).length
   check('the ONE derivation honors the override (tint axes only, identity live)', overrideMerges === 1, `merges found: ${overrideMerges}`)
   check('the unified hook snapshots on the override-aware key', (srcText.match(/getSessionAccentSnapshotKey,\n\s*getSessionAccentSnapshotKey,/g) ?? []).length >= 1)
-  check('the ONE derivation folds the scribe glow (no second read path)', /export function getSessionAccent\(\): Critter \{[\s\S]*?return applyScribeGlow\(base\)/.test(srcText))
+  check('the ONE derivation returns the live critter (no second read path)', /export function getSessionAccent\(\): Critter \{[\s\S]*?return base\n\}/.test(srcText))
   check('the unified hook DELEGATES to the one derivation', /export function useSessionAccent\(\): Critter \{[\s\S]*?return getSessionAccent\(\)/.test(srcText))
 }
 

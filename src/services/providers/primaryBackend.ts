@@ -21,8 +21,8 @@
 //      backend identity — the phase-2 neutrality ruling).
 //
 //  Anthropic adapts with ZERO behavioural churn (the record wraps
-//  queryModelWithStreaming untouched); Scribe/Party keep their dispatch
-// owners and resolve refs at their own seams (last sentence).
+//  queryModelWithStreaming untouched); the daemon's crews keep their dispatch
+//  owners and resolve refs at their own seams.
 // ============================================================================
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
 import { normalizeModelStringForAPI } from '../../utils/model/model.js'

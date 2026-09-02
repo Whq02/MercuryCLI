@@ -235,7 +235,6 @@ reg(
     'src/components/mercury-ui/SpecimenGallery.tsx',
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',
     'src/components/mercury-ui/parity/DaemonSupervisorView.tsx',
-    'src/components/mercury-ui/screens/ChatTranscriptView.tsx',
     'src/components/mercury-ui/screens/TeammateChatsView.tsx',
     'src/components/RouterKeyEntry.tsx', // the hidden Z.AI key entry (masked TextInput; esc cancels)
     'src/components/RouterOpenaiConnect.tsx', // the /router connect surface (paste-fallback TextInput; esc cancels/stops watching) — the RouterKeyEntry class

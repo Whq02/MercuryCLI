@@ -99,38 +99,6 @@ const outputSchema = lazySchema(() =>
         }),
       )
       .default([]),
-    // Team-'party' only: the router party's live lanes (the service's facet).
-    party: z
-      .object({
-        stale: z.boolean().optional(),
-        staleNote: z.string().optional(),
-        seats: z.array(
-          z.object({
-            seat: z.string(),
-            state: z.string(),
-            model: z.string(),
-            turnSec: z.number().optional(),
-            dispatch: z.string().optional(),
-            reason: z.string().optional(),
-            isolation: z.string().optional(),
-          }),
-        ),
-        dispatches: z.array(
-          z.object({
-            id: z.string(),
-            seat: z.string(),
-            state: z.string(),
-            title: z.string(),
-            ageSec: z.number(),
-            outcome: z.string().optional(),
-            nudged: z.boolean().optional(),
-          }),
-        ),
-        recentEnvelopes: z.array(
-          z.object({ from: z.string(), to: z.string(), kind: z.string(), preview: z.string() }),
-        ),
-      })
-      .optional(),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -186,7 +154,6 @@ export const TeamBriefTool = buildTool({
       health,
       conflicts,
       handoffs,
-      party,
     } = content as Output
 
     if (!teamName) {
@@ -301,19 +268,6 @@ export const TeamBriefTool = buildTool({
       sections.push(
         `## Handoffs to me (${handoffs.length})\n${lines.join('\n')}`,
       )
-    }
-
-    // The router party's lanes (team 'party' only): seats with their pacing
-    // signals, so the lead can tell "working, turns take minutes" from
-    // "stalled" — and the staleness verdict when the daemon is gone.
-    if (party) {
-      const seatLines = party.seats.map(s => {
-        const turn = s.turnSec !== undefined ? ` · ${s.turnSec}s into its turn` : ''
-        const reason = s.reason ? ` — ${s.reason}` : ''
-        return `- ${s.seat} [${s.state}] ${s.model}${turn}${reason}`
-      })
-      const head = party.stale ? `## Party lanes (${party.seats.length}) ${GLYPH.warn} ${party.staleNote ?? 'stale'}` : `## Party lanes (${party.seats.length})`
-      sections.push(`${head}\n${seatLines.join('\n') || '(no seats)'}`)
     }
 
     return {

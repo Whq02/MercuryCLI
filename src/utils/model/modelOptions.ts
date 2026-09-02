@@ -47,13 +47,6 @@ import {
   getHuggingfaceModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
-import { resolveImplementerSeat, resolveScribeSeat } from './seatSlots.js'
-import {
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-  isScribeModeOn,
-} from '../scribeMode.js'
-import { scribeModeEnabled } from '../scribe/scribeGates.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
   NO_SIGN_IN_REASON,
@@ -135,12 +128,6 @@ export function anthropicNotSignedInReason(): string {
     require('./subModelSlots.js') as typeof import('./subModelSlots.js')
   const home = subModelConnectHome('anthropic')
   return `not signed in — ${home.command ?? home.note}`
-}
-
-const TRUTHY_FLAG = new Set(['1', 'true', 'yes', 'on'])
-function flagTruthy(name: string): boolean {
-  const value = flagEnv(name)
-  return value !== undefined && TRUTHY_FLAG.has(value.trim().toLowerCase())
 }
 
 export { getGptSeatAvailability }
@@ -355,7 +342,7 @@ function resolveWithSuffix(value: string): string {
 
 /**
  * Does `candidate` (a literal model setting) resolve to the same model as one
- * of the existing option rows? Router sentinels are never resolved. Drives
+ * of the existing option rows? Sentinel values are never resolved. Drives
  * the picker's resolved-identity dedup and step-3 "one model, one row".
  */
 export function resolvesToExistingOption(options: ModelOption[], candidate: string): boolean {
@@ -390,14 +377,8 @@ function pushIfAbsent(options: ModelOption[], row: ModelOption): void {
   options.push(row)
 }
 
-/** The two router sentinels always preserved past the allowlist filter. */
-const ROUTER_SENTINELS = new Set([
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-])
-
 /** The picker group headings (operator ruling: provider sections
- *  first, then the composite/routed MODES; provider-08-21 adds the
+ *  first; provider-08-21 adds the
  *  four engine groups — a provider with ANY state is VISIBLE, never hidden).
  *  Rows without a group land in the Anthropic section (the default lane);
  *  ANTHROPIC_MODEL_GROUP is that section's one heading spelling for the
@@ -408,7 +389,6 @@ export const ZAI_MODEL_GROUP = 'Mercury — Z.AI models'
 export const MOONSHOT_MODEL_GROUP = 'Mercury — Moonshot models'
 export const DEEPSEEK_MODEL_GROUP = 'Mercury — DeepSeek models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
-export const MODES_MODEL_GROUP = 'Mercury — modes'
 
 /** The key-lane connect sentinels (picker ACTIONS, never models): ↵ routes
  *  to the lane's /logins row (/logins <provider>) — the GPT
@@ -785,28 +765,6 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   // 3. One model, one row.
   options = dedupOneModelOneRow(options)
 
-  // 4. Router rows. The scribe row is behind the scribe gate; its
-  //    workflow-capable sibling additionally behind a flag. The label names
-  //    the MODE; the models derive LIVE from the seat-slot resolver.
-  if (scribeModeEnabled()) {
-    const scribe = resolveScribeSeat()
-    const implementer = resolveImplementerSeat()
-    const active = isScribeModeOn()
-    pushIfAbsent(options, {
-      value: SCRIBE_ROUTER_OPTION_VALUE,
-      label: `Scribe — two-stream router${active ? ' (active)' : ''}`,
-      description: `scribe ${renderModelName(scribe.model)} · implementer ${renderModelName(implementer.model)} · ~2× usage`,
-      group: MODES_MODEL_GROUP,
-    })
-    if (flagTruthy('MERCURY_SCRIBE_WORKFLOWS')) {
-      pushIfAbsent(options, {
-        value: SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-        label: 'Scribe router (workflows)',
-        description: 'Scribe routing with workflow seats',
-        group: MODES_MODEL_GROUP,
-      })
-    }
-  }
   // 6. A custom model row from the env option. The description is the
   //    OPERATOR's own copy (env passthrough) — Mercury authors none.
   const custom = process.env.ANTHROPIC_CUSTOM_MODEL_OPTION
@@ -854,20 +812,17 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
 
-  // 9. Allowlist filter — Default row, the two router sentinels, and the
-  //    provider connect/attach action rows exempt (sentinels are actions,
-  //    not models).
+  // 9. Allowlist filter — the Default row and the provider connect/attach
+  //    action rows exempt (action rows are actions, not models).
   if (getSettings_DEPRECATED().availableModels !== undefined) {
     options = options.filter(opt => {
       if (opt.value === null) return true
       if (
-        opt.value === SCRIBE_ROUTER_OPTION_VALUE ||
         opt.value === GPT_CONNECT_OPTION_VALUE ||
         opt.value === OPENROUTER_CONNECT_OPTION_VALUE ||
         opt.value === GEMINI_CONNECT_OPTION_VALUE ||
         opt.value === HUGGINGFACE_CONNECT_OPTION_VALUE ||
-        opt.value.startsWith(KEY_CONNECT_PREFIX) ||
-        ROUTER_SENTINELS.has(opt.value)
+        opt.value.startsWith(KEY_CONNECT_PREFIX)
       ) {
         return true
       }
@@ -924,7 +879,6 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     DEEPSEEK_MODEL_GROUP,
     COMPAT_MODEL_GROUP,
     LOCAL_MODEL_GROUP,
-    MODES_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     if (opt.group === undefined) return 0
@@ -978,10 +932,6 @@ export function getMaxOpus46_1MOption(): ModelOption {
 /** Whether the focused option offers an in-place context toggle. */
 export function focusedOptionSupports1m(value: string | null): boolean {
   if (value === null) return false
-  if (value === SCRIBE_ROUTER_OPTION_VALUE) {
-    return focusedOptionSupports1m(stripContext1m(resolveScribeSeat().model))
-  }
-  if (value === SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE) return false
   // Carrier-shaped rows (openrouter/… · compat/… · huggingface/… ·
   // local/… · any bare vendor slug) never offer Mercury's context toggle:
   // the vendor's slug is the whole identity, and a [1m] pressed onto it

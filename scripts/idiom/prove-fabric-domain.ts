@@ -184,7 +184,7 @@ section('§B codec exhaustiveness — every entry variant round-trips')
     ...base, type: 'attachment', attachment: { type: 'system_reminder', text: 'remember', files: ['a.ts'] },
   })
   for (const sub of [
-    'informational', 'party_event', 'seat_receipt', 'permission_retry', 'bridge_status',
+    'informational', 'seat_receipt', 'permission_retry', 'bridge_status',
     'scheduled_task_fire', 'stop_hook_summary', 'turn_duration', 'away_summary', 'memory_saved',
     'agents_killed', 'api_metrics', 'local_command', 'api_error', 'file_snapshot', 'thinking',
     'model_transition',

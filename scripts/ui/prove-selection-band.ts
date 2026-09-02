@@ -50,15 +50,13 @@ const OCTOPUS = '#7A5FBE' // a plausible non-crab critter accent (test-local inp
 section('§1 — the central contrast law, EVERY real accent × every derivable family')
 {
   // The REAL accent space (verify-wave refutation: the crab-only sweep shipped
-  // green while scribe-glow clam/jellyfish slipped under the muted floor via
-  // the old unchecked fallback): every critter, its scribe-glow form, and the
-  // fixed reds — live-imported so a critter retune re-tests automatically.
+  // green while other critters slipped under the muted floor via the old
+  // unchecked fallback): every critter — live-imported so a critter retune
+  // re-tests automatically.
   const accents = new Map<string, string>()
   for (const c of Object.values(accentMod.CRITTERS)) {
     accents.set(c.key, c.accent)
-    accents.set(`glow(${c.key})`, accentMod.glowOf(c.accent))
   }
-  accents.set('scribe', accentMod.SCRIBE_GLOW)
   for (const family of themeMod.THEME_NAMES) {
     const theme = themeMod.getTheme(family)
     let worstMuted = Infinity

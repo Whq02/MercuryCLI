@@ -49,7 +49,7 @@ type Props = PropsWithChildren<{
  */
 // REENTRANCY DEPTH (fable scroll investigation — THE primary
 // viewport-lock break): the fullscreen REPL wraps the whole session in a root
-// <AlternateScreen>, and NavigablePanes + five detail panes (/party /workflows
+// <AlternateScreen>, and NavigablePanes + the detail panes (/workflows
 // board drill-downs, the ctrl+o overlay lineage) each mount their OWN nested
 // instance. Every instance would otherwise write the FULL teardown on unmount —
 // DISABLE_ALTERNATE_SCROLL + DISABLE_MOUSE_TRACKING + EXIT_ALT_SCREEN — so one

@@ -2,7 +2,7 @@
  * The channel — Mercury's connection primitive, in its own home.
  *
  * Four leaf modules with no imports from the rest of the estate and no
- * room/party vocabulary in their APIs (the Frame envelope's `room` FIELD is the one
+ * room vocabulary in their APIs (the Frame envelope's `room` FIELD is the one
  * deliberate carry-over: it is the on-disk/wire field name, and renaming it
  * re-keys every stored CRC — the next builder re-cuts the envelope by
  * decision, not by drift):

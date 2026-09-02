@@ -79,44 +79,6 @@ check(
     connectorSrc.includes('pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null'),
 )
 
-// §F — scribe-engaged queued grammar: the duo label already uses
-// `→` for the scribe→implementer CHAIN, so the plain `→ next (queued)` suffix
-// minted a three-arrow chain that read as an implementer retarget. The queued
-// switch now names itself (`· queued switch → next`) in BOTH scribe forms.
-{
-  const { setScribeMode } = await import('../../src/utils/scribeMode.ts')
-  const { resolveScribeSeat } = await import('../../src/utils/model/seatSlots.ts')
-  setScribeMode(true)
-  try {
-    const seatModel = resolveScribeSeat().model
-    const onSeat = resolveDisplayedSessionModel(seatModel, { setting: 'claude-sonnet-5' })
-    check(
-      '§F scribe queued: the label names the queued switch (never a third arrow)',
-      onSeat.label.includes('· queued switch → ') && !onSeat.label.includes('(queued)'),
-      onSeat.label,
-    )
-    check(
-      '§F scribe queued: the compact form carries the same self-naming grammar',
-      onSeat.compact.includes('· queued switch → '),
-      onSeat.compact,
-    )
-    const offSeat = resolveDisplayedSessionModel('claude-opus-5', { setting: 'claude-sonnet-5' })
-    check(
-      '§F scribe queued (seat-not-applied arm): same grammar, wire truth kept',
-      offSeat.label.includes('not applied') && offSeat.label.includes('· queued switch → '),
-      offSeat.label,
-    )
-    const scribeSettled = resolveDisplayedSessionModel(seatModel, null)
-    check(
-      '§F scribe settled: no queued residue in either form',
-      !scribeSettled.label.includes('queued') && !scribeSettled.compact.includes('queued'),
-      scribeSettled.label,
-    )
-  } finally {
-    setScribeMode(false)
-  }
-}
-
 console.log(
   failures === 0
     ? '\n ✅ PENDING PROJECTION AT THE ONE DISPLAY OWNER (capture leg rides the preview journey)'

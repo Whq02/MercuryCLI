@@ -3,8 +3,7 @@
 // base-derived. The tool is away-scoped by design: a normal interactive
 // desktop session replies as ordinary streaming text.
 //
-// GATE ORDER IS LOAD-BEARING: implementer denial precedes the
-// scribe check, which precedes the stamp-flag branch.
+// GATE ORDER IS LOAD-BEARING: the hard kill precedes the stamp-flag branch.
 
 import {
   getIsNonInteractiveSession,
@@ -16,8 +15,6 @@ import { getFeatureValue_CACHED_WITH_REFRESH } from '../../services/analytics/fe
 import { buildTool } from '../../Tool.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { isImplementerRole, scribeChatroomEnabled, scribeModeEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import { z } from 'zod'
 import {
   resolveAttachments,
@@ -41,19 +38,10 @@ const BRIEF_GATE_REFRESH_MS = 5 * 60_000
  * Re-read per turn — a mid-session change takes effect on the next turn.
  */
 export function isBriefEntitled(): boolean {
-  // 1. A daemon-spawned implementer has no human channel: granting the
-  //    tool would give it a surface it must never use AND trigger the
-  //    stop-hook nag every turn.
-  if (isImplementerRole()) return false
-  // 2. Default (non-chatroom) scribe MODE is denied — typed prose is
-  //    already its operator surface; a second surface double-messages.
-  //    Keys off the MODE (module state), not the role env: the in-session
-  //    engage path flips only the mode.
-  if (scribeModeEnabled() && isScribeModeOn() && !scribeChatroomEnabled()) return false
-  // 3. The hard-kill fires on the EXACT kill value only — `MERCURY_BRIEF=true`
+  // 1. The hard-kill fires on the EXACT kill value only — `MERCURY_BRIEF=true`
   //    neither kills nor opts in.
   if (flagEnv('MERCURY_BRIEF') === '0') return false
-  // 4. Non-interactive sessions: stdout is the channel — the tool's
+  // 2. Non-interactive sessions: stdout is the channel — the tool's
   //    contract would blank the result and burn a turn. Suppressed unless
   //    an explicit opt-in exists (the opt-in fork-flag term is the EXACT
   //    value '1' only).
@@ -64,7 +52,7 @@ export function isBriefEntitled(): boolean {
   if (getIsNonInteractiveSession() && !explicitBriefOptIn) {
     return false
   }
-  // 5. Otherwise: the assistant family, the env force-on, or the gate.
+  // 3. Otherwise: the assistant family, the env force-on, or the gate.
   return (
     isAssistantFamilyAvailable() ||
     isEnvTruthy(flagEnv('MERCURY_BRIEF')) ||
@@ -78,16 +66,15 @@ export function isBriefEntitled(): boolean {
 
 /**
  * Activation: entitled AND an away-or-opt-in marker — an explicit
- * away-session flip, a recorded session opt-in, the env force-on, the fork
- * flag on, or chatroom scribe mode.
+ * away-session flip, a recorded session opt-in, the env force-on, or the
+ * fork flag on.
  */
 export function isBriefEnabled(): boolean {
   if (!isBriefEntitled()) return false
   const awayOrOptIn =
     isAssistantSessionActive() ||
     getUserMsgOptIn() ||
-    isEnvTruthy(flagEnv('MERCURY_BRIEF')) ||
-    (scribeModeEnabled() && isScribeModeOn() && scribeChatroomEnabled())
+    isEnvTruthy(flagEnv('MERCURY_BRIEF'))
   return awayOrOptIn
 }
 

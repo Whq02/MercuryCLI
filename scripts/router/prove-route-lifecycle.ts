@@ -46,8 +46,7 @@ const snapshot = buildRouterModelSnapshot()
 
 function compileGraphPlan(planId: string) {
   const r = compileRoute({
-    mode: 'party',
-    intentSource: 'structured',
+    mode: 'fanout',
     mission: {
       objective: 'ship the three-stage migration',
       title: 'migration',
@@ -93,14 +92,14 @@ const nodeOf = async (id: string, nid: string) => (await planOf(id)).nodes.find(
   await routerStoreWriters.requestReported('req-1', '{"summary":"schema migrated","checks":["schema compiles: PASS"],"changedAreas":["src/schema.ts"],"unresolved":[]} done', NOW + 4)
   p = await planOf('rp-t1')
   check(p.nodes.find(n => n.id === 'n2')!.state === 'blocked', 'reported (unaccepted) does NOT promote dependents')
-  await routerStoreWriters.acceptNode('rp-t1', 'n1', 'router', NOW + 5)
+  await routerStoreWriters.acceptNode('rp-t1', 'n1', 'planner', NOW + 5)
   p = await planOf('rp-t1')
   check(
     p.nodes.find(n => n.id === 'n2')!.state === 'ready' && p.nodes.find(n => n.id === 'n3')!.state === 'ready',
     'acceptance promotes BOTH dependents in the same mutation',
   )
   const n1 = p.nodes.find(n => n.id === 'n1')!
-  check(n1.completion?.acceptedBy === 'router' && n1.completion.checksReported.length === 1, 'typed completion + acceptor recorded')
+  check(n1.completion?.acceptedBy === 'planner' && n1.completion.checksReported.length === 1, 'typed completion + acceptor recorded')
 }
 
 // ── 2. assignments: ownership-disjoint, capacity-capped, affinity-first ─────
@@ -158,18 +157,18 @@ const nodeOf = async (id: string, nid: string) => (await planOf(id)).nodes.find(
 {
   const plan = compileGraphPlan('rp-t2')
   await routerStoreWriters.commitPlan(plan, NOW + 30)
-  await routerStoreWriters.acceptPlan('rp-t2', 'router', NOW + 31)
+  await routerStoreWriters.acceptPlan('rp-t2', 'planner', NOW + 31)
   let p = await planOf('rp-t2')
   check(p.state !== 'accepted', 'final acceptance REFUSED while nodes are unaccepted')
   for (const [nid, req] of [['n1', 'r1'], ['n2', 'r2'], ['n3', 'r3']] as const) {
     await routerStoreWriters.nodeDispatched('rp-t2', nid, req, 'dps1', 1, NOW + 32)
     await routerStoreWriters.requestDelivered(req, NOW + 33)
     await routerStoreWriters.requestReported(req, `{"summary":"${nid} done","checks":["PASS"],"changedAreas":[],"unresolved":[]}`, NOW + 34)
-    await routerStoreWriters.acceptNode('rp-t2', nid, 'router', NOW + 35)
+    await routerStoreWriters.acceptNode('rp-t2', nid, 'planner', NOW + 35)
   }
   p = await planOf('rp-t2')
   check(p.state === 'synthesizing', 'all nodes accepted + synthesis required ⇒ synthesizing (not auto-accepted)')
-  await routerStoreWriters.acceptPlan('rp-t2', 'maintainer', NOW + 36)
+  await routerStoreWriters.acceptPlan('rp-t2', 'planner', NOW + 36)
   p = await planOf('rp-t2')
   check(p.state === 'accepted', 'synthesis owner acceptance closes the plan')
 }

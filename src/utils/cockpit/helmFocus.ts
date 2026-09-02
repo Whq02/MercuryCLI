@@ -142,7 +142,7 @@ let focus: HelmPane = 'prompt'
 const cursor: Record<RailPane, number> = { lanes: 0, telemetry: 0 }
 // STABLE INTERACTION IDENTITY: the cursor's true anchor is the
 // ROW (its helmRowSig), not its position. The rails' row models rebuild from
-// live stores (runs, workflows, party presence, TABULA bumps) — rows
+// live stores (runs, workflows, presence, TABULA bumps) — rows
 // appearing or vanishing ABOVE a raw index silently retargeted the cursor,
 // and ↵ then activated whatever now sat at that position (a RUNS row carries
 // a per-task command — a retarget opens the WRONG task). publish re-anchors

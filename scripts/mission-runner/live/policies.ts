@@ -95,12 +95,12 @@ export const HELIX_POLICIES: HelixPolicy[] = [
   {
     id: 'router',
     description:
-      'router-current — adaptive routing (the Scribe/party routing brain)',
+      'router-current — adaptive routing (the route fabric)',
     model: 'claude-opus-4-8',
     effort: 'high',
     env: {},
     headlessUnavailableReason:
-      'Route compilation engages via the operator-engaged Scribe/party surfaces (RouteWork over the seat bus); a headless -p run has no routing seat — no current product path',
+      'Route compilation engages via the operator-engaged routing surfaces (RouteWork over the coordination bus); a headless -p run has no routing seat — no current product path',
   },
   {
     id: 'collaboration',

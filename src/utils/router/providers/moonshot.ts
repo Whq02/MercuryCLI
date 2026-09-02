@@ -98,7 +98,7 @@ export function resolveMoonshotModel(
 
 export function buildMoonshotLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider moonshot has no SEAT runtime — party/roster seats stay Anthropic; Kimi specialists dispatch through the AgentTool engine path',
+    'router: provider moonshot has no SEAT runtime — roster seats stay Anthropic; Kimi specialists dispatch through the AgentTool engine path',
   )
 }
 

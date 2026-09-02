@@ -4,11 +4,10 @@
 //  input is injected (model snapshot, worker snapshot, outcome stats, clock).
 // ----------------------------------------------------------------------------
 //  Doctrine (the product rules, enforced here as code — not prompt prose):
-//    - ONE semantic decision: the Opus role (Scribe / party Router) supplies
-//      intent in its existing turn; this compiler validates, enriches, and
-//      schedules. A legacy dispatch with no intent still compiles via the
-//      LOCAL FALLBACK (decideDispatchRoute — the effort-only fallback
-//      compiler), so absent metadata never blocks work.
+//    - ONE semantic decision: the planner supplies intent in its existing
+//      turn; this compiler validates, enriches, and schedules. Intent that
+//      omits a task shape still compiles from bounded text signals, so
+//      absent metadata never blocks work.
 //    - Opus thinks wide, Sonnet executes narrow; exceptions are RECORDED in
 //      the decision (reason codes), never silent.
 //    - Width follows SEPARABILITY (disjoint ownership / dependency order),
@@ -19,7 +18,6 @@
 //  Policy constants are NAMED + exported (no magic numbers); boundary cases
 //  are covered by scripts/router/ (corpus + invariants).
 // ============================================================================
-import { decideDispatchRoute, normalizeRouteEffort } from '../scribe/dispatchRouter.js'
 import {
   ROUTER_POLICY_VERSION,
   ROUTE_PLAN_VERSION,
@@ -32,6 +30,7 @@ import {
   type RouteProfile,
   type RouteReasonCode,
   type RouteTaskShape,
+  type RouteTopology,
   type TaskRoutePlan,
 } from './contracts.js'
 import type {
@@ -52,8 +51,8 @@ export const QUALITY_BAND_SHIFT = 1
 export const REVISION_ESCALATION_ATTEMPTS = 2
 /** Context fill (pct) at/above which renewal-at-idle is advised. */
 export const CONTEXT_RENEWAL_PCT = 85
-/** Party executor lanes (the ratified seat table). */
-export const PARTY_MAX_WIDTH = 3
+/** Executor lanes a fan-out topology may use at once. */
+export const FANOUT_MAX_WIDTH = 3
 /** Minimum outcome samples before history may influence a route. */
 export const OUTCOME_MIN_SAMPLES = 5
 /** History influence cap — semantic intent stays primary. */
@@ -89,8 +88,6 @@ export interface RouteMissionIntent {
   exactPin?: string
   requiresSynthesis?: boolean
   preferWorkflow?: boolean
-  /** Legacy envelope route ({effort, lane}) — a fallback HINT, not a contract. */
-  legacyRoute?: { effort?: string; lane?: string }
   revisionOf?: { nodeId: string; failedAttempts: number }
 }
 
@@ -101,7 +98,7 @@ export interface RouteModelPort {
 }
 
 export interface RouteWorkerSnapshot {
-  /** Concurrent execution lanes actually available (scribe: 1, party: ≤3). */
+  /** Concurrent execution lanes actually available (sequential: 1, fanout: ≤FANOUT_MAX_WIDTH). */
   maxWidth: number
   /** Non-git fallback topology: write-heavy width is capped at 1. */
   sharedLane: boolean
@@ -118,14 +115,12 @@ export interface RouteOutcomeSnapshot {
 }
 
 export interface RouteCompilerInput {
-  mode: 'scribe' | 'party'
-  intentSource: 'structured' | 'legacy'
+  mode: RouteTopology
   mission: RouteMissionIntent
   posture: RouterPosture
   models: RouteModelPort
   worker: RouteWorkerSnapshot
   outcome?: RouteOutcomeSnapshot
-  workflowPostureActive?: boolean
   now: number
   planId: string
 }
@@ -140,7 +135,6 @@ export const ROUTE_REASON_DISPLAY: Readonly<Partial<Record<RouteReasonCode, stri
   architectural: 'architectural decision — planner-class judgment required',
   'separable-disjoint-ownership': 'nodes own disjoint changes — safe to run in parallel',
   'ordered-dependencies': 'nodes are separable but ordered — dependency graph',
-  'workflow-posture-active': 'the workflow posture is live — delegated to the workflow engine',
   'revision-escalation': 'repeated focused revisions failed — escalated to the planner class',
   'affinity-kept-model': 'the current worker already runs this profile — changeover not worth it',
   'changeover-worth-it': 'expected quality gain exceeds the changeover cost',
@@ -156,7 +150,6 @@ export const ROUTE_REASON_DISPLAY: Readonly<Partial<Record<RouteReasonCode, stri
   'width-capped-workers': 'width reduced to the available worker lanes',
   'width-capped-shared-lane': 'shared-directory topology — write-heavy width is 1',
   'provider-unavailable': 'requested provider is not integrated — class fallback applied',
-  'workflow-posture-absent': 'workflow posture not active — routed without delegation',
   'empty-acceptance-repaired': 'empty acceptance contract — evidence-report floor injected',
   'context-pressure-renewal': 'context fill is high — renewal advised at the next idle boundary',
   'held-for-idle': 'a turn is in flight — the route applies at the idle boundary',
@@ -174,6 +167,30 @@ function bandFromCount(n: number, one: number, two: number, three: number): Rout
   return 0
 }
 
+/** Deep-work signals: substantial, multi-step, or risk-bearing work. */
+const DEEP_KW =
+  /\b(refactor|refactoring|migrat\w*|architect\w*|rewrite|re-?write|redesign|debug\w*|root[- ]?cause|investigat\w*|overhaul|concurren\w*|race[- ]?condition|deadlock|security|vulnerab\w*|audit|optimiz\w*|performance|design\b|algorithm|end[- ]?to[- ]?end)\b/
+
+/** Mechanical signals: a small, well-bounded edit. */
+const QUICK_KW =
+  /\b(rename|typo|comment|docstring|format\w*|lint|prettier|bump|version|whitespace|reorder imports?|one[- ]?liner|trivial|tweak|nit|rename the|fix the comment|update the comment)\b/
+
+/**
+ * The bounded text-signal shape classifier, consulted only when structured
+ * intent omits a task shape. Deterministic and cheap: deep keywords, three or
+ * more file mentions, or a long spec read as cross-cutting; a quick keyword
+ * on a short single-file task reads as mechanical; everything else is
+ * bounded. Exported for the corpus proofs.
+ */
+export function shapeFromTextSignals(task: string, title?: string): RouteTaskShape {
+  const text = `${title ?? ''}\n${task ?? ''}`.toLowerCase()
+  const len = (task ?? '').length
+  const files = new Set((text.match(PATH_RE) ?? []).map(s => s.toLowerCase())).size
+  if (DEEP_KW.test(text) || files >= 3 || len >= 600) return 'cross-cutting'
+  if (QUICK_KW.test(text) && files <= 1 && len < 220) return 'mechanical'
+  return 'bounded'
+}
+
 /** Derive the feature vector from intent bands where given, else from bounded
  *  text signals (the fallback path). Missing optional context reduces
  *  confidence and widens conservatively — it never blocks. */
@@ -182,10 +199,7 @@ export function deriveFeatureVector(i: RouteCompilerInput): RouteFeatureVector {
   const text = `${m.title}\n${m.task}`
   const paths = [...new Set((text.match(PATH_RE) ?? []).map(s => s.toLowerCase()))]
   const nodeCount = m.candidateNodes?.length ?? 0
-  const fallback = decideDispatchRoute(m.task, { title: m.title })
-  const shape: RouteTaskShape =
-    m.taskShape ??
-    (fallback.lane === 'quick' ? 'mechanical' : fallback.lane === 'deep' ? 'cross-cutting' : 'bounded')
+  const shape: RouteTaskShape = m.taskShape ?? shapeFromTextSignals(m.task, m.title)
   return {
     taskShape: shape,
     ambiguity: m.ambiguity ?? (shape === 'diagnostic' ? 2 : 0),
@@ -296,12 +310,12 @@ function toAcceptance(list: string[] | undefined, nodeId: string): RouteAcceptan
   return list.map((d, ix) => ({ id: `${nodeId}-a${ix + 1}`, description: d, kind: 'report' as const }))
 }
 
-function effortFor(modelClass: RouterModelClass, mode: 'scribe' | 'party', profile: RouteProfile): RouteEffortLevel {
+function effortFor(modelClass: RouterModelClass, mode: RouteTopology, profile: RouteProfile): RouteEffortLevel {
   if (modelClass === 'opus') {
-    // Effort-payoff doctrine: execution earns max in the scribe stream
-    // (the Implementer pin); a party lane retarget stays xhigh (the tank's
+    // Effort-payoff doctrine: the one deep lane of a sequential plan earns
+    // max on opus-direct work; a fan-out lane stays xhigh (the planner's
     // review absorbs the tail).
-    return mode === 'scribe' && profile === 'opus-direct' ? 'max' : 'xhigh'
+    return mode === 'sequential' && profile === 'opus-direct' ? 'max' : 'xhigh'
   }
   // Sonnet-5 / fable executor lanes run the ratified seat effort.
   return 'high'
@@ -396,13 +410,6 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     profile = 'opus-direct'
     decisive.push('high-coupling')
     if (qualityShift > 0) decisive.push('posture-quality')
-  } else if (
-    m.preferWorkflow === true &&
-    i.mode === 'scribe' &&
-    i.workflowPostureActive === true
-  ) {
-    profile = 'workflow-delegated'
-    decisive.push('workflow-posture-active')
   } else if (multi && hasDeps) {
     profile = 'dependency-graph'
     decisive.push('ordered-dependencies')
@@ -417,7 +424,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
       adjustments.push('width-capped-shared-lane')
     } else {
       profile = 'parallel-sonnet'
-      if (width < Math.min(rawNodes.length, PARTY_MAX_WIDTH)) adjustments.push('width-capped-workers')
+      if (width < Math.min(rawNodes.length, FANOUT_MAX_WIDTH)) adjustments.push('width-capped-workers')
     }
   } else if (features.taskShape === 'mechanical') {
     profile = 'sonnet-direct'
@@ -428,19 +435,6 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
   } else {
     profile = 'sonnet-opus-review'
     decisive.push('bounded-implementation')
-  }
-  if (m.preferWorkflow === true && profile !== 'workflow-delegated') {
-    adjustments.push('workflow-posture-absent')
-  }
-
-  // ── Legacy fallback source (no structured intent) ──────────────────────────
-  if (i.intentSource === 'legacy') {
-    decisive.push('fallback-local')
-    const legacyEffort = normalizeRouteEffort(m.legacyRoute?.effort)
-    if (legacyEffort === 'max' && profile !== 'opus-direct' && i.posture !== 'fixed') {
-      // The dispatcher judged this deep — honor the strongest legacy signal.
-      profile = 'opus-direct'
-    }
   }
 
   // ── Outcome history (bounded, capped, never primary) ──────────────────────
@@ -521,8 +515,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
       // a merely-preferable candidate keeps the current worker (hysteresis).
       const strong =
         profile === 'opus-direct' ||
-        compiledNodes.some(n => n.requestedModelClass !== undefined) ||
-        i.intentSource === 'legacy'
+        compiledNodes.some(n => n.requestedModelClass !== undefined)
       if (strong) {
         decisive.push('changeover-worth-it')
         workerAffinity = {
@@ -558,7 +551,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     features.requiresSynthesis || profile === 'parallel-sonnet' || profile === 'dependency-graph'
   const decision: RouteDecisionRecord = {
     policyVersion: ROUTER_POLICY_VERSION,
-    source: m.exactPin ? 'operator-pin' : i.intentSource === 'legacy' ? 'local-fallback' : 'structured-intent',
+    source: m.exactPin ? 'operator-pin' : 'structured-intent',
     posture: i.posture,
     selectedProfile: profile,
     selectedModels,
@@ -581,7 +574,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     nodes: compiledNodes,
     synthesis: {
       required: synthesisRequired,
-      owner: i.mode === 'scribe' ? 'scribe' : 'router',
+      owner: 'planner',
       acceptance: synthesisRequired
         ? [
             {

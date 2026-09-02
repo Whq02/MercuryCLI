@@ -1,12 +1,10 @@
 // ============================================================================
 //  routerGates — the route-fabric master gate.
 //
-//  Default-ON: routing inside the two opt-in router MODES is loud + carded,
-//  so the mode engagement is the consent; nothing routes in a plain session
-//  because nothing DISPATCHES in a plain session. `MERCURY_ROUTER=0` yields
-//  the un-routed surface exactly: no RouteWork seam, no /router, no
-//  route-store writes, and the dispatch bridge falls back to the
-//  MERCURY_SCRIBE_TASK_ROUTER effort-only path.
+//  Default-ON: every route decision is loud + carded, and nothing routes in
+//  a plain session because nothing DISPATCHES in a plain session.
+//  `MERCURY_ROUTER=0` yields the un-routed surface exactly: no /router, no
+//  route-store writes, no route-kernel health probe.
 // ============================================================================
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 

@@ -72,9 +72,6 @@ import {
   LEGACY_BRIEF_TOOL_NAME,
 } from '../tools/BriefTool/prompt.js'
 import { SEND_USER_FILE_TOOL_NAME } from '../tools/SendUserFileTool/prompt.js'
-import { scribeChatroomEnabled, scribeModeEnabled } from '../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
-import { classifyAuthor } from './mercury-ui/scribeChatTabs.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { termWrite } from '../render-engine/cockpit/terminalOut.js'
 import { isFullscreenActive, isFullscreenEnvEnabled } from '../utils/fullscreen.js'
@@ -163,7 +160,6 @@ export { shouldRenderStatically } from './MessageRow.js'
 export function isAssistantContinuationRow(
   messages: RenderableMessage[],
   index: number,
-  chatroomActive: boolean,
 ): boolean {
   if (index <= 0) return false
   const current = messages[index]!
@@ -187,14 +183,7 @@ export function isAssistantContinuationRow(
     return first.type !== 'thinking' && first.type !== 'redacted_thinking'
   }
 
-  if (!chatroomActive) {
-    return agentSide(current) && agentSide(previous) && stamps(previous)
-  }
-  if (!stamps(previous)) return false
-  return (
-    classifyAuthor(previous as Parameters<typeof classifyAuthor>[0]) ===
-    classifyAuthor(current as Parameters<typeof classifyAuthor>[0])
-  )
+  return agentSide(current) && agentSide(previous) && stamps(previous)
 }
 
 type MessagesProps = {
@@ -421,14 +410,10 @@ function MessagesInner({
           briefToolNames,
         ) as typeof working
       } else {
-        // All three: the scribe-mode flag, the mode actually on, the chat-room flag.
-        const chatroomEngaged = scribeModeEnabled() && isScribeModeOn() && scribeChatroomEnabled()
-        if (!chatroomEngaged) {
-          working = dropTextInBriefTurns(
-            working as Parameters<typeof dropTextInBriefTurns>[0],
-            briefToolNames,
-          ) as typeof working
-        }
+        working = dropTextInBriefTurns(
+          working as Parameters<typeof dropTextInBriefTurns>[0],
+          briefToolNames,
+        ) as typeof working
       }
     }
 
@@ -817,7 +802,6 @@ function MessagesInner({
   )
 
   // ── header (memoised on its REAL inputs) ─────────────────────────────────
-  const chatroomActive = isScribeModeOn() && scribeChatroomEnabled()
   const header = useMemo(() => {
     if (suppressLogo || renderRange) return null
     return (
@@ -886,7 +870,7 @@ function MessagesInner({
       const key = expansionKeyOf(msg_8)
       return (
         <NameplateContinuationContext.Provider
-          value={isAssistantContinuationRow(visible, index, chatroomActive)}
+          value={isAssistantContinuationRow(visible, index)}
         >
           {/* One row's render throw degrades to that row's fallback line
               (crash report retained) while the rest of the transcript and
@@ -935,7 +919,6 @@ function MessagesInner({
     },
     [
       visible,
-      chatroomActive,
       tools,
       commands,
       verbose,

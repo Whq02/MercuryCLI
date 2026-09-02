@@ -22,7 +22,7 @@ import { packHints } from './geometry.js'
 // An `esc`/`←` token followed (within the same `·`-delimited segment) by a
 // close-action word. Scoped with [^·]* so a later segment's word can't match a
 // stray earlier `esc`. `later` is the close synonym for DEFER-shaped surfaces
-// (the party consent card: esc parks the asks — its footer must speak the
+// (the consent card: esc parks the asks — its footer must speak the
 // same word as its [later] verb, not a contradictory 'close'). `clear(s)` is
 // the synonym for FILTER-shaped surfaces (the memory centre, the /manager
 // search: the first esc clears the query, the next one closes — the footer

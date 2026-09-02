@@ -118,14 +118,13 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
   {
     name: 'no-force-push-protected',
     teach:
-      'Never force-push a SHARED ref — main/master and party/* lane branches ' +
-      'are append-only here (the push-green-to-main directive + the federation ' +
-      'git doctrine assume it). Push normally after pull --rebase, or use ' +
+      'Never force-push a SHARED ref — main/master is append-only here (the ' +
+      'push-green-to-main directive assumes it). Push normally after pull --rebase, or use ' +
       '--force-with-lease on a topic branch only you own.',
     scope: 'bash',
     patterns: [
-      'git\\s+push[^\\n;|&]*(?:--force(?!-with-lease)|\\s-f\\b)[^\\n;|&]*\\s(?:origin\\s+)?(?:main|master|party\\/[^\\s;|&]+)\\b',
-      'git\\s+push[^\\n;|&]*\\s(?:origin\\s+)?(?:main|master|party\\/[^\\s;|&]+)\\b[^\\n;|&]*(?:--force(?!-with-lease)|\\s-f\\b)',
+      'git\\s+push[^\\n;|&]*(?:--force(?!-with-lease)|\\s-f\\b)[^\\n;|&]*\\s(?:origin\\s+)?(?:main|master)\\b',
+      'git\\s+push[^\\n;|&]*\\s(?:origin\\s+)?(?:main|master)\\b[^\\n;|&]*(?:--force(?!-with-lease)|\\s-f\\b)',
     ],
     skipCommentLines: false,
   },

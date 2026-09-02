@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // ============================================================================
 //  scripts/model-floor/prove-model-floor.ts
-//  PROOF (router-party P0): the mechanical never-Haiku floor. Enumerates the
+//  PROOF: the mechanical never-Haiku floor. Enumerates the
 //  INPUT SPACE (fable-audit lesson: on a gate primitive, table the inputs) —
 //  every haiku spelling × every resolution path ⇒ claude-sonnet-5 on the fork;
 //  every non-haiku input byte-identical; bare-stamp passes haiku through
@@ -134,10 +134,10 @@ const spec = {
   model: 'claude-haiku-4-5-20251001',
   effort: 'high',
   appendSystemPrompt: '',
-  role: 'MERCURY_IMPLEMENTER' as const,
-  agentName: 'implementer',
-  agentId: 'implementer@scribe',
-  teamName: 'scribe',
+  role: 'MERCURY_CREW' as const,
+  agentName: 'scout',
+  agentId: 'scout@default',
+  teamName: 'default',
 }
 const inv = hr.buildStreamJsonInvocation(spec)
 const modelFlagIdx = inv.argv.indexOf('--model')
