@@ -74,9 +74,11 @@ const READ_MARK: Record<string, string> = { 'keys-escape': 'atlas-open', 'boot-f
 /** ROOT screens own no exit — nothing stands beneath them to return to —
  *  so they owe their key-map row instead: the moves they do have, printed.
  *  A root that prints nothing is the fault; a root without 'esc' is not. */
+// The face's ready line pads its separators ("↵ start  ·  m menu"): the
+// needles read the words, never a spacing.
 const ROOT_KEYMAP: Record<string, RegExp> = {
-  'boot-face': /↵ start · m menu/,
-  'boot-settings': /↵ start · m menu|esc back/,
+  'boot-face': /↵ start\s+·\s+m menu/,
+  'boot-settings': /↵ start\s+·\s+m menu|esc back/,
   'cockpit-wide': /\? for shortcuts|shift\+tab to cycle|to cycle\)/,
   'resume-picker': /ctrl\+c to exit|esc/i,
 }
@@ -169,6 +171,14 @@ function inspect(rows: string[], cols: number, root?: RegExp): Finding[] {
           break
         }
         lastInner = yy
+        // Cut by a scroll viewport: a card inside a modal's scroll body ends
+        // where the body's cap ends — the next row is the shell's blank
+        // margin (only the enclosing borders on it), not a broken edge.
+        const marginRow = rows[yy]!.replace(/^\s*│/, '').replace(/│\s*$/, '').trim() === ''
+        if (l === ' ' && r === ' ' && marginRow) {
+          cut = true
+          break
+        }
         if (!(l === '│' || l === '├')) {
           out.push({ kind: 'broken-border', detail: `row ${yy}: left edge at ${x0} reads ${JSON.stringify(l)}` })
           break
