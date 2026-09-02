@@ -207,7 +207,7 @@ src/utils/aseprite/gates.ts :: contextCache :: ttl-bounded
 src/utils/aseprite/gates.ts :: locatedCache :: ttl-bounded
 src/utils/auth.ts :: getApiKeyFromConfigOrMacOSKeychain :: invalidator=removeApiKey
 src/utils/auth.ts :: getClaudeAIOAuthTokens :: invalidator=clearOAuthTokenCache
-src/utils/auth.ts :: scopedAccountIdentityCache :: ttl-bounded
+src/utils/auth.ts :: scopedAccountIdentityCache :: keyed-by-truth
 src/utils/auth.ts :: signedOutKeyMemoStamp :: invalidator=invalidateOnDiskChange
 src/utils/auth.ts :: signedOutOAuthMemoStamp :: invalidator=invalidateOnDiskChange
 src/utils/availableCores.ts :: memo :: static-for-process
