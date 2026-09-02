@@ -27,6 +27,8 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { formatLaneSpend } from '../cost-tracker.js'
+import { crewAgentsOf, crewUsageLine } from '../services/engine-connector/crewFacts.js'
+import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { pidAlive } from '../utils/pidAlive.js'
@@ -177,6 +179,7 @@ function HelmTelemetryRailImpl({
   )
   const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
   const liveWindows = usage.windows.filter(w => w.state === 'live')
+  const workRoster = useFocusedWorkRoster()
   useSyncExternalStore(subscribeConsole, getConsoleVersion, getConsoleVersion)
   const consoleOn = consoleEnabled()
   const consoleComposing = consoleOn && isConsoleComposing()
@@ -263,6 +266,16 @@ function HelmTelemetryRailImpl({
         })(),
       )
     }
+  }
+  const crewLine = crewUsageLine(crewAgentsOf(workRoster.rows, focusedSessionIdOrNull()))
+  if (crewLine !== null) {
+    usageNodes.push(
+      <Box key="usage:crew" width={rowW}>
+        <Text wrap="truncate-end">
+          <Text color={tok.textMuted}>{`  ${crewLine}`}</Text>
+        </Text>
+      </Box>,
+    )
   }
   if (usage.limited !== undefined) {
     usageNodes.push(
