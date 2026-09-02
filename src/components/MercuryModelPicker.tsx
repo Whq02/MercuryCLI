@@ -21,7 +21,8 @@ import { ProductLockup } from './mercury-ui/components.js'
 import { GLYPH, padTo } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { gaugeColor } from './mercury-ui/theme.js'
-import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
+import { modelPickerFooter, type ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
+import { catalogueDoorFocus, catalogueDoorHeaderParts, composeCatalogueRows, type CatalogueDoorFacet } from '../utils/model/catalogueDoor.js'
 import {
   parseGptModelId,
   gptDisplayPin,
@@ -41,7 +42,7 @@ function bar(pct: number, width = 10): string {
   return '█'.repeat(f) + '░'.repeat(width - f)
 }
 
-export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string;  action?: boolean }
+export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string;  action?: boolean; expand?: CatalogueDoorFacet }
 
 type Props = {
   models: ModelChoice[]
@@ -56,16 +57,30 @@ type Props = {
   pendingNext?: string
   groupDetails?: Record<string, string>
   onSlotSwitch?: (group: string) => string | null
+  expandRows?: (group: string) => ModelChoice[]
 }
 
 
-export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch, expandRows }: Props): React.ReactNode {
   React.useEffect(() => {
     markTransitionEnd('picker-open')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [filter, setFilter] = useState('')
+  const expandRowsRef = React.useRef(expandRows)
+  expandRowsRef.current = expandRows
+  const fullRows = React.useMemo(
+    () => (expanded === null ? [] : (expandRowsRef.current?.(expanded) ?? [])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [expanded, listed],
+  )
+  const models = React.useMemo(
+    () => composeCatalogueRows(listed, expanded, filter, fullRows),
+    [listed, expanded, filter, fullRows],
+  )
   const { columns: cols, rows: termRows } = useTerminalSize()
   const panelWidth = panelWidthFor(cols, { cap: 62, reserve: 2, min: 20 })
   const nameW = Math.max(15, Math.min(30, panelWidth - 32))
@@ -75,7 +90,8 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   const shedMeters = availRows < 13
   const currentRow = stripGptServedWindowSuffix(current)
   const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
-  const [i, setI] = useState(startI)
+  const [cursor, setI] = useState(startI)
+  const i = Math.min(cursor, Math.max(0, totalRows - 1))
   const focusedModel = i < models.length ? models[i] : undefined
   const hasEffort = !!(efforts && efforts.length)
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
@@ -118,8 +134,35 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
     setCtxNotice(null)
     if (n < models.length) setContext1m(ctxStateOf(probe(models[n])))
   }
+  const openDoor = (group: string): void => {
+    const rows = composeCatalogueRows(listed, group, '', expandRowsRef.current?.(group) ?? [])
+    setExpanded(group)
+    setFilter('')
+    setCtxNotice(null)
+    setI(Math.max(0, catalogueDoorFocus(rows, group)))
+  }
+  const closeDoor = (): void => {
+    if (expanded === null) return
+    const group = expanded
+    setExpanded(null)
+    setFilter('')
+    setCtxNotice(null)
+    setI(Math.max(0, listed.findIndex(m => m.expand?.group === group)))
+  }
+  const setDoorFilter = (text: string): void => {
+    if (expanded === null) return
+    const rows = composeCatalogueRows(listed, expanded, text, fullRows)
+    setFilter(text)
+    setI(Math.max(0, catalogueDoorFocus(rows, expanded)))
+  }
   const commitCurrent = (): void => {
-    const m = models[i]; if (!m || !onSelect) return
+    const m = models[i]; if (!m) return
+    if (m.expand) {
+      if (m.expand.open) closeDoor()
+      else openDoor(m.expand.group)
+      return
+    }
+    if (!onSelect) return
     if (m.gated) {
       if (m.gatedReason) setCtxNotice(`${m.gatedReason} — not selectable`)
       return
@@ -139,6 +182,25 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   useInput((input, key, event) => {
     const rowAxis = decodeNavKey(input, key, { orientation: 'vertical' })
     const effortAxis = decodeNavKey(input, key, { orientation: 'horizontal' })
+    if (expanded !== null) {
+      if (key.backspace || key.delete) {
+        event.stopImmediatePropagation()
+        if (filter.length > 0) setDoorFilter(filter.slice(0, -1))
+        return
+      }
+      if (rowAxis === 'cancel') {
+        if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+        event.stopImmediatePropagation()
+        if (filter.length > 0) setDoorFilter('')
+        else closeDoor()
+        return
+      }
+      if (rowAxis === null && effortAxis === null && input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
+        event.stopImmediatePropagation()
+        setDoorFilter(filter + input)
+        return
+      }
+    }
     if (rowAxis === 'moveNext') { event.stopImmediatePropagation(); selectRow(Math.min(totalRows - 1, i + 1)) }
     else if (rowAxis === 'movePrevious') { event.stopImmediatePropagation(); selectRow(Math.max(0, i - 1)) }
     else if (rowAxis === 'first') { event.stopImmediatePropagation(); selectRow(0) }
@@ -196,6 +258,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   })
   const rowPaint = (idx: number): number => {
     if (compact) return 1
+    if (models[idx]?.expand?.open) return 1
     return idx === i ? (models[idx]?.tag ? 4 : 3) : 1
   }
   const detailLines = new Map<string, string[]>()
@@ -230,6 +293,12 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
     },
   )
   let lastGroup: string | null = null
+  const footerDoor: ModelPickerFooterDoor | undefined =
+    expanded !== null
+      ? { open: true, onHeader: focusedModel?.expand?.open === true, filtering: filter.length > 0 }
+      : focusedModel?.expand
+        ? { open: false }
+        : undefined
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
       {
@@ -253,17 +322,33 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
         const head = m.group !== lastGroup; lastGroup = m.group
         const on = idx === i; const cur = m.id === currentRow
         const isNext = pendingNext !== undefined && m.id === pendingNext
-        const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
+        const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.expand ? [GLYPH.pending, 'expand', FAINT] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
+        const heading = head && !compact ? <Box marginTop={1} flexDirection="column">
+          <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>
+          {detailLines.get(m.group)?.map((line, k) => (
+            <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
+          ))}
+        </Box> : null
+        if (m.expand?.open) {
+          const parts = catalogueDoorHeaderParts(m.expand)
+          return (
+            <React.Fragment key={m.id}>
+              {heading}
+              <InteractiveRow id={`model:row:${m.id}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
+                <Text wrap="truncate-end">
+                  <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
+                  <Text color={tokens.info}>{parts.lead}</Text>
+                  <Text bold color={IVORY}>{filter}</Text>
+                  <Text color={on ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
+                  <Text color={FAINT}>{parts.tail}</Text>
+                </Text>
+              </InteractiveRow>
+            </React.Fragment>
+          )
+        }
         return (
           <React.Fragment key={m.id}>
-            {
-}
-            {head && !compact ? <Box marginTop={1} flexDirection="column">
-              <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>
-              {detailLines.get(m.group)?.map((line, k) => (
-                <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
-              ))}
-            </Box> : null}
+            {heading}
             <InteractiveRow
               id={`model:row:${m.id}`}
               selected={on}
@@ -333,7 +418,11 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
         <Text color={FAINT} wrap="truncate-end">
           {
 }
-          {isProviderActionRow(focusedModel!.id)
+          {focusedModel!.expand
+            ? focusedModel!.expand.open
+              ? `${models.filter(m => m.group === expanded && !m.action).length} of ${focusedModel!.expand.total} live rows${filter.length > 0 ? ` match "${filter}"` : ''} · ↵ here collapses; not a model`
+              : `catalogue door — ↵ expands the group to all ${focusedModel!.expand.total} live rows; not a model`
+            : isProviderActionRow(focusedModel!.id)
             ? 'connect action — ↵ starts the sign-in; not a model'
             : focusedModel!.gated
               ? focusedModel!.gatedReason
@@ -344,7 +433,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
       </Box>
       {
 }
-      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag }, panelWidth - 4)}</Text>
+      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag, ...(footerDoor !== undefined ? { door: footerDoor } : {}) }, panelWidth - 4)}</Text>
     </Box>
   )
 }
