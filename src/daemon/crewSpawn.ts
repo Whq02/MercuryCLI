@@ -1,4 +1,5 @@
 import { logForDebugging } from '../utils/debug.js'
+import { isHaikuTier } from '../utils/model/modelFloor.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
   appendTeamMember,
@@ -9,6 +10,7 @@ import {
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
   return require('../services/concourse/workerModels.js') as typeof import('../services/concourse/workerModels.js')
@@ -58,8 +60,22 @@ export async function resolveCrewSeatModel(
   key: string | undefined,
 ): Promise<{ ok: true; model: string; effort: 'high'; label: string } | { ok: false; error: string }> {
   const named = key === undefined || key.trim() === '' ? undefined : key.trim()
+  if (named !== undefined && isHaikuTier(named)) {
+    return {
+      ok: false,
+      error: `model refused (worker-policy:frontier-only) · pick a frontier row — opus, sonnet, fable or fable51, or a signed-in family's word — a crew seat never runs Haiku (got ${JSON.stringify(named)})`,
+    }
+  }
   const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
-  const validated = await validateWorkerModelChoice(named, 'crew')
+  let validated: WorkerModelValidation
+  try {
+    validated = await validateWorkerModelChoice(named, 'crew')
+  } catch (e) {
+    return {
+      ok: false,
+      error: `model refused (registry-unavailable) · the worker registry could not be read here — ${e instanceof Error ? e.message : String(e)} (got ${JSON.stringify(named ?? '(unset → the neutral default)')})`,
+    }
+  }
   if (!validated.ok) {
     return {
       ok: false,
@@ -164,8 +180,6 @@ export function makeCrewSpawnHandler(
     if (!isValidCrewName(name)) {
       return { ok: false, error: `invalid teammate name ${JSON.stringify(name)} — [a-z][a-z0-9-]{1,15}, reserved names refused` }
     }
-    const seat = await resolveCrewSeatModel(modelKey)
-    if (!seat.ok) return { ok: false, error: seat.error }
     const r = deps.roster()
     if (!r) return { ok: false, error: 'daemon roster not ready' }
     if (r.has(name).present) {
@@ -175,6 +189,8 @@ export function makeCrewSpawnHandler(
     if (liveCrew >= MAX_CREW_TEAMMATES) {
       return { ok: false, error: `crew cap reached (${MAX_CREW_TEAMMATES} live teammates) — kill an idle teammate before spawning another` }
     }
+    const seat = await resolveCrewSeatModel(modelKey)
+    if (!seat.ok) return { ok: false, error: seat.error }
     try {
       await ensureCrewTeamMember(name, seat.model, deps.dir)
     } catch (e) {
