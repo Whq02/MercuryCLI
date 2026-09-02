@@ -392,8 +392,11 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
     'the band is the cockpit chrome latch’s band (one number, two latches agree)',
     read('src/hooks/useLayoutTier.ts').includes('const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND'),
   )
+  const { VIEWPORT_FLOOR_ROWS } = await import('../../src/ink/viewportFloor.ts')
+  check('the row floor is the deck strip’s floor (22 rows, one number)', VIEWPORT_FLOOR_ROWS === 22 && read('src/hooks/useLayoutTier.ts').includes('deckMinRows: VIEWPORT_FLOOR_ROWS'))
+  check('a window under the row floor is under, at it fits (no band on rows)', !viewportFloorVerdict(120, 21, true).fits && viewportFloorVerdict(120, 22, true).fits && !viewportFloorVerdict(120, 21, false).fits)
   const under = viewportFloorVerdict(80, 20, true)
-  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('100 columns') && under.line.includes('80×20') && /resize/.test(under.line))
+  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('100 columns') && under.line.includes('22 rows') && under.line.includes('80×20') && /resize/.test(under.line))
   const shortest = viewportFloorLine(20, 10)
   check('the shortest form still names the minimum and the way', shortest.includes('100') && /resize/.test(shortest))
   check(
@@ -404,6 +407,13 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
   check(
     'the host reads the verdict at the OUTERMOST instance only',
     alt.includes('nested || size === null ? { fits: true } : viewportFloorVerdict(size.columns, size.rows, surfaceUp)'),
+  )
+  // The outermost fact is DECIDED at the lifecycle claim and kept in a ref:
+  // the depth record alone reads the outermost instance's own claim as
+  // nesting on every later render, and the floor never fired after mount.
+  check(
+    'outermost is decided once at the depth claim and read from the ref on every later render',
+    alt.includes('outermostRef.current = outermost') && alt.includes('const nested = outermostRef.current !== null\n    ? !outermostRef.current'),
   )
   check(
     'the surface stays mounted, out of layout, frozen at the last fitting size',

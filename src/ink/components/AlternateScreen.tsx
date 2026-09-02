@@ -88,6 +88,10 @@ export function AlternateScreen({
   // is read once per mount" contract — the deps would otherwise contradict it).
   const mouseTrackingRef = useRef(mouseTracking);
   mouseTrackingRef.current = mouseTracking;
+  // Whether THIS instance is the outermost mount — decided once, when the
+  // lifecycle effect claims the depth. The depth record alone cannot say so
+  // on a later render: the outermost instance's own claim leaves it at 1.
+  const outermostRef = useRef<boolean | null>(null);
 
   // useInsertionEffect (not useLayoutEffect): react-reconciler calls
   // resetAfterCommit between the mutation and layout commit phases, and
@@ -113,6 +117,7 @@ export function AlternateScreen({
     const effectiveMouse = mouseTrackingRef.current && (ink?.isMouseTrackingPreferred?.() ?? true);
 
     const outermost = depth.n === 0
+    outermostRef.current = outermost
     depth.n++
     if (outermost) {
       // LAUNCHER HOLD TAKEOVER (the boot black-beat fix): when
@@ -212,8 +217,12 @@ export function AlternateScreen({
   // the hard height — the root surface must fill the screen. Depth is read
   // at render from the same per-instance record the lifecycle effect keys;
   // the outer instance's effect has always run by the time a drill-in pane
-  // renders (panes mount on later commits).
-  const nested = (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
+  // renders (panes mount on later commits). Once the effect has claimed the
+  // depth the ref is the fact — the record alone reads the outermost
+  // instance's own claim as nesting.
+  const nested = outermostRef.current !== null
+    ? !outermostRef.current
+    : (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
   const rows = size?.rows ?? 24;
 
   // THE VIEWPORT FLOOR (the outermost instance only — a nested pane lives
