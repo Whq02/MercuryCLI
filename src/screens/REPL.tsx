@@ -60,6 +60,7 @@ import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import { useIdeSelection, type IDESelection } from '../hooks/useIdeSelection.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
 import { useIDEStatusIndicator } from '../hooks/notifs/useIDEStatusIndicator.js';
+import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentStateClassifier } from '../hooks/useAgentStateClassifier.js';
 import { IdeOnboardingDialog } from '../components/IdeOnboardingDialog.js';
 import { type IDEExtensionInstallationStatus, type IdeType } from '../utils/ide.js';
@@ -856,6 +857,12 @@ export function REPL({
   });
   useIdeLogging(mcpState.clients);
   useIDEStatusIndicator({ ideInstallationStatus, ideSelection, mcpClients: mcpState.clients });
+  useSeatReceipts({
+    setMessages: next => {
+      const rows = typeof next === 'function' ? next([]) : next;
+      for (const row of rows) paintScreenRow(row, '');
+    },
+  });
   useAgentStateClassifier(messages, isLoading);
   const elicitationQueue = useAppState(state => state.elicitation.queue);
   const respondToElicitation = useCallback(
