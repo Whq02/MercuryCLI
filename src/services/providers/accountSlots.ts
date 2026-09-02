@@ -40,6 +40,7 @@
 // ============================================================================
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
 import type { ScopeIdentityState } from '../../utils/accounts/accountIdentity.js'
+import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
 import {
   clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
@@ -1241,6 +1242,78 @@ export function executeSlotRemoval(
   slot: AccountSlot,
   owners: SlotRemovalOwners = {},
 ): { note: string; mutated: boolean } {
+  const outcome = routeSlotRemoval(slot, owners)
+  if (outcome.mutated) afterCredentialLeft(slot)
+  return outcome
+}
+
+/**
+ * What every removal that MUTATED a store owes the rest of the process:
+ * the observations made under the departed credential leave with it (the
+ * usage-limit latches are keyed on the family or the source kind, never
+ * the credential — a departed account's wall refused work on its
+ * successor and its bands painted the successor's meters); a failover
+ * handoff whose home was this family has no home left; and the sign-in
+ * epoch moves, so every epoch-keyed memo re-reads and every subscribed
+ * surface re-derives now — the chip, the composer's account row, the
+ * computed default — with no new session. The anthropic window feeders
+ * reset on their own sign-out road (resetLimitsForCredentialSwitch).
+ */
+function afterCredentialLeft(slot: AccountSlot): void {
+  forgetFamilyObservations(slot.family, slot.kind)
+  try {
+    const { clearCapHandoffForFamily } = require('../capFailover.js') as typeof import('../capFailover.js')
+    clearCapHandoffForFamily(slot.family)
+  } catch {
+    /* the decision core is optional here — the removal itself already landed */
+  }
+  noteCredentialRemoval()
+}
+
+/** Forget one family's observed limit state (lazy requires: the latch
+ *  modules sit beside the runtimes, above this seam). A store that cannot
+ *  answer holds nothing to forget — never a throw. */
+function forgetFamilyObservations(family: string, kind: AccountSlotKind): void {
+  try {
+    switch (family) {
+      case 'openai': {
+        const { forgetOpenaiLimitSource } =
+          require('./openai/openaiLimitState.js') as typeof import('./openai/openaiLimitState.js')
+        forgetOpenaiLimitSource(kind === 'api-key' ? 'api-key' : 'chatgpt-subscription')
+        return
+      }
+      case 'openrouter': {
+        const { forgetOpenrouterObservedLimit } =
+          require('./openrouter/openrouterUsageState.js') as typeof import('./openrouter/openrouterUsageState.js')
+        forgetOpenrouterObservedLimit()
+        return
+      }
+      case 'gemini': {
+        const { forgetGeminiObservedLimit } =
+          require('./gemini/geminiUsageState.js') as typeof import('./gemini/geminiUsageState.js')
+        forgetGeminiObservedLimit()
+        return
+      }
+      case 'huggingface': {
+        const { forgetHuggingfaceObservedLimits } =
+          require('./huggingface/huggingfaceUsageState.js') as typeof import('./huggingface/huggingfaceUsageState.js')
+        forgetHuggingfaceObservedLimits()
+        return
+      }
+      default:
+        return
+    }
+  } catch {
+    /* an observation store that cannot answer holds nothing to forget */
+  }
+}
+
+/** The per-route removal itself — the switch every engine route has a row
+ *  in (the everything-verb below mirrors it row for row). */
+function routeSlotRemoval(
+  slot: AccountSlot,
+  owners: SlotRemovalOwners,
+): { note: string; mutated: boolean } {
   const removal = slot.removal
   switch (removal.route) {
     case 'excluded':
@@ -1367,5 +1440,18 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     } catch (error) {
       logError(error)
     }
+  }
+  // The observations made under every departed engine credential leave
+  // with it (the per-slot road's own law, applied family-wide). The caller
+  // (performLogout) announces the estate's move once, after its own
+  // Anthropic teardown.
+  for (const [family, kind] of [
+    ['openai', 'subscription'],
+    ['openai', 'api-key'],
+    ['openrouter', 'api-key'],
+    ['gemini', 'oauth'],
+    ['huggingface', 'oauth'],
+  ] as const) {
+    forgetFamilyObservations(family, kind)
   }
 }

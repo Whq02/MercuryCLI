@@ -14,6 +14,7 @@ import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
 import { signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
+import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
@@ -73,6 +74,10 @@ export async function performLogout({
   }
 
   await clearAuthRelatedCaches()
+  // The estate moved (every family): the epoch-keyed memos re-read and
+  // every subscribed surface re-derives — the chip, the composer's account
+  // row, the computed default — in this process, now.
+  noteCredentialRemoval()
 
   saveGlobalConfig(current => {
     const next = { ...current, oauthAccount: undefined }

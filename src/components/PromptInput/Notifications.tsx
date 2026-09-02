@@ -41,6 +41,7 @@ import {
 } from '../../utils/auth.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
+import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
@@ -160,6 +161,11 @@ function NotificationsColumn({
   // (/model uses the connected provider, /logins adds the missing one);
   // connected ⇒ no row at all. Memoized: the wallet enumeration reads the
   // filesystem, and it only matters while the Anthropic state is broken.
+  // Keyed on the sign-in epoch too: a credential landing or leaving in this
+  // process (a chat's /logins, a board sign-out) re-derives the row at once
+  // — before it, the "No <family> account" steering stood until a NEW
+  // session re-mounted the composer.
+  const signInEpoch = useSignInEpoch()
   const walletGate = useMemo((): NotLoggedInGate => {
     if (!notAuthenticated) return { state: 'ok' }
     try {
@@ -174,7 +180,9 @@ function NotificationsColumn({
       // Anthropic-state refusal (never a silently-suppressed warning).
       return { state: 'not-logged-in' }
     }
-  }, [notAuthenticated, mainLoopModel])
+    // signInEpoch is the re-derive key (the reads inside are live owners).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notAuthenticated, mainLoopModel, signInEpoch])
   // The session is BLOCKED only when its model's provider has no account —
   // the cosmetic rows (token count, editor hint) key on this, not on the
   // Anthropic-only state (an OpenAI session runs fine without Claude).

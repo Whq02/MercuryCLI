@@ -62,6 +62,7 @@ import {
 } from '../../oauth/crypto.js'
 import { readStoredOpenaiApiKey } from '../../../utils/router/providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 
 // ── The wire constants ─────────
 
@@ -680,6 +681,9 @@ export function disconnectOpenaiSubscription(): void {
     if (next.preferredSource === 'chatgpt-subscription') delete next.preferredSource
     return next
   })
+  // The departed sign-in's observations (its wall, its usage bands) leave
+  // with it — a successor account never inherits them.
+  forgetOpenaiLimitSource('chatgpt-subscription')
 }
 
 // ── The browser connect flow (Mercury-native; PKCE; fixed loopback port) ────
@@ -810,6 +814,9 @@ export function beginOpenaiBrowserConnect(opts?: {
         lastRefreshMs: Date.now(),
         preferredSource: 'chatgpt-subscription',
       }))
+      // A fresh sign-in: whatever the previous sign-in's window stated is
+      // not this account's (the latch is keyed on the source kind).
+      forgetOpenaiLimitSource('chatgpt-subscription')
       // The grant landed from a sign-in (a refresh writes above and never
       // records): the ledger the computed default orders by.
       recordSignIn('openai', 'subscription')
@@ -1059,6 +1066,9 @@ export async function beginOpenaiDeviceConnect(opts?: {
         lastRefreshMs: Date.now(),
         preferredSource: 'chatgpt-subscription',
       }))
+      // A fresh sign-in: the previous sign-in's observed window is not
+      // this account's (the latch is keyed on the source kind).
+      forgetOpenaiLimitSource('chatgpt-subscription')
       recordSignIn('openai', 'subscription')
       const ref = resolveOpenaiAccount(env)
       if (ref?.kind === 'chatgpt-subscription') return ref
