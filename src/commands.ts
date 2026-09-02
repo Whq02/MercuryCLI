@@ -125,6 +125,8 @@ import orient from './commands/orient/index.js'
 import { retiredMultiplayerCommands } from './commands/retired.js'
 import live from './commands/live/index.js'
 import sovereign from './commands/sovereign/index.js'
+import speak from './commands/speak/index.js'
+import voice from './commands/voice/index.js'
 import { getBundledSkills } from './skills/bundledSkills.js'
 import { isKitGovernedSkillCommand, kitDropsCommand, noteBootSkillRoster, withKitSkillMark } from './skills/kitGovernance.js'
 import { sessionKitOf } from './services/mcp/sessionKitPin.js'
@@ -341,6 +343,9 @@ const COMMANDS = memoize((): Command[] => [
   orient,
   live,
   sovereign,
+  // Voice input: the master toggle and the capture action behind `v`.
+  speak,
+  voice,
   // The old multiplayer's doors stay registered, retired: a typed name
   // answers its reason, never "Unknown skill"; none is enabled or listed.
   ...retiredMultiplayerCommands,

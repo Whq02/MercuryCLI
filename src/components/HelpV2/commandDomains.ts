@@ -97,6 +97,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'terminal-setup', 'keybindings', 'keys',
       'statusline', 'vim', 'mouse', 'pings', 'ide', 'chrome', 'browser',
       'web-setup', 'init', 'init-verifiers', 'install',
+      'speak', 'voice',
     ],
   },
   {
