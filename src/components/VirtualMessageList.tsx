@@ -10,6 +10,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -373,9 +374,13 @@ export function VirtualMessageList({
   // ── keep the cursor on screen ─────────────────────────────────────────
   // Offsets are read through the hook's accessors (refs underneath), never
   // dependencies — the effect must not re-pin on every mousewheel tick.
+  // A LAYOUT effect: the scroll request lands in the same commit as the
+  // highlight, so the frame that paints the cursor is the frame that
+  // brings it on screen (a passive effect asked for the scroll after the
+  // first frame had already gone out — two frames a key, measured).
   const vsRef = useRef(vs)
   vsRef.current = vs
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedIndex === undefined) return
     const el = vsRef.current.getItemElement(selectedIndex)
     if (el) scrollRef.current?.scrollToElement(el, 1)
