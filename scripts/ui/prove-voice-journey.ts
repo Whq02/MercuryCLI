@@ -15,6 +15,16 @@
 //       receipt.
 //    §D the zero-network law: v starts a take, esc cancels it — the
 //       transcriber sees NO request, and nothing left loopback.
+//    §E the other family: a Gemini API key alone transcribes through the
+//       generateContent wire (the WAV inline, the verbatim instruction).
+//    §F the roads between the keys: /speak on twice is one receipt; v in a
+//       NON-empty composer types the letter; a resize mid-capture keeps the
+//       footer's recording line; two takes back to back both land; a quit
+//       mid-capture exits cleanly.
+//    §G the bound: with the proof seam at 1.5 s the take stops by itself,
+//       the receipt names the bound, the words land — no key pressed.
+//    §H the concourse: with voice input on, v on the Session Concourse is
+//       nothing — no take, no crash, shift+← still walks home.
 // ============================================================================
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -22,6 +32,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { synthesizeToneWav } from '../../src/services/voice/wav.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -146,8 +157,11 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     'DEEPSEEK_API_KEY',
     'MERCURY_VOICE_PACK_DIR',
     'MERCURY_VOICE_DEBUG_WAV_DIR',
+    'MERCURY_VOICE_BOUND_MS',
     'MERCURY_OPENAI_API_BASE',
     'MERCURY_GEMINI_API_BASE',
+    'MERCURY_CONCOURSE',
+    'MERCURY_CONCOURSE_FIXTURE',
     'NODE_ENV',
     'CI',
   ]) {
@@ -193,8 +207,16 @@ interface DriveResult {
   gridText: string
   marks: Record<string, string>
   stderr: string
+  /** Why the capture ended: 'eof' = the child exited. */
+  endReason: string
 }
-function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>): DriveResult {
+interface DriveOptions {
+  /** Mid-flight PTY resizes (the vshot `resizes` schedule). */
+  resizes?: unknown[]
+  /** The bundle's argv after `node dist/mercury.mjs` (default: the plain world). */
+  args?: string[]
+}
+function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>, opts: DriveOptions = {}): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
   // The PLAIN WORLD (--chat): the Boot face and a chat with no Session
@@ -202,7 +224,10 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
   // session moments after New Session, and a command typed across that
   // handover lands in the session being replaced. The voice keys are the
   // composer's; the world they are proved in is the one without the race.
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
+  writeFileSync(
+    cfgPath,
+    JSON.stringify({ argv: ['node', DIST, ...(opts.args ?? ['--chat'])], sends, ...(opts.resizes ? { resizes: opts.resizes } : {}), total, cols: 120, rows: 40, out: grid, title: tag }),
+  )
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
     env: childEnv(home, netlog, extraEnv),
@@ -210,17 +235,20 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
     timeout: vshotBudgetMs(150_000),
   })
   let gridText = ''
+  let endReason = ''
   const marks: Record<string, string> = {}
   if (existsSync(grid)) {
     const payload = JSON.parse(readFileSync(grid, 'utf8')) as {
       grid?: Array<Array<{ c: string }>>
       marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }>
+      endReason?: string
     }
     const text = (g: Array<Array<{ c: string }>>): string => g.map(row => row.map(c => c.c).join('')).join('\n')
     for (const m of payload.marks ?? []) marks[m.label] = text(m.grid)
     gridText = [...Object.values(marks), payload.grid ? text(payload.grid) : ''].join('\n')
+    endReason = payload.endReason ?? ''
   }
-  return { status: res.status, gridText, marks, stderr: (res.stderr ?? '').trim() }
+  return { status: res.status, gridText, marks, stderr: (res.stderr ?? '').trim(), endReason }
 }
 const seededHome = (name: string): string => {
   const home = join(scratch, name)
@@ -228,12 +256,19 @@ const seededHome = (name: string): string => {
   return home
 }
 
+// THE ADMISSION GATE: after ↵ New Session the chat paints its composer at
+// once, but the switchboard admits the session moments later and the REPL
+// re-initialises the draft at that admission — a command typed across it
+// is dropped (the tag bar's stage-1 line "new session · <project> · ready"
+// marks the admission). Every first keystroke waits for that line.
+const ADMITTED = 'new session ·'
+
 /** The boot to the composer, then /speak on — the shared opening. */
 const OPENING: unknown[] = [
   // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session
   // enters the chat first.
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-  { atTick: 60, data: '/speak on', awaitText: 'Type a prompt', minTick: 5 },
+  { atTick: 110, data: '/speak on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
   { afterPrevTicks: 3, data: '\r' },
 ]
 
@@ -265,7 +300,7 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
     netlog,
     [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/speak', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 110, data: '/speak', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'voice input OFF — /speak on turns it on', awaitStableTicks: 2, mark: 'status-off', data: '/speak on' },
       { afterPrevTicks: 3, data: '\r' },
@@ -383,6 +418,165 @@ console.log('[D] v then esc — the take is cancelled and NO request is made')
   check('the transcriber saw ZERO requests', served.length === 0, served.join(' | '))
   const audio = netlines(netlog).filter(l => l.includes('/audio/') || l.includes(':generateContent'))
   check('no transcription request left the child at all (loopback included)', audio.length === 0, audio.join(' · '))
+  const stray = nonLoopback(netlines(netlog))
+  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+}
+
+// ── §E the other family: Gemini ────────────────────────────────────────────
+console.log('[E] a Gemini API key alone — the take rides generateContent with the WAV inline')
+{
+  const netlog = join(scratch, 'gemini-net.log')
+  const fx = await startFixture('gemini', 1500)
+  const res = drive(
+    'gemini',
+    seededHome('home-e'),
+    netlog,
+    [
+      // ↵ New Session once the Boot face's Model cell carries the row the
+      // loopback catalogue answered (a Gemini-only home has no built-in
+      // row; the chat refuses to start without one).
+      { atTick: 70, awaitText: '2.5 Flash', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 140, data: '/speak on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
+      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
+      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: 'v' },
+      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
+      { afterPrevTicks: 3, data: '' },
+    ],
+    140,
+    // The Gemini family's rows come from its catalogue wire alone, and the
+    // essential-traffic posture refuses every catalogue fetch — so this leg
+    // stands one rung down (telemetry off) and the catalogue GET reaches
+    // the loopback. Whatever else that rung lets the boot attempt is
+    // refused by the tripwire and censused below.
+    { GOOGLE_API_KEY: 'fixture-gemini-key-000000', MERCURY_GEMINI_API_BASE: `http://127.0.0.1:${fx.port}/v1beta`, MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: undefined, DISABLE_TELEMETRY: '1' },
+  )
+  fx.child.kill('SIGTERM')
+  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('/speak on names Gemini as the transcriber (the one signed-in family)', (res.marks.on ?? '').includes('transcriber: Gemini'), (res.marks.on ?? '').split('\n').filter(l => l.includes('transcriber')).join(' · '))
+  check('the canned words land in the composer through Gemini', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by Gemini ('), (res.marks.landed ?? '').split('\n').filter(l => l.includes('transcribed') || l.includes('❯')).join(' · '))
+  const served = ledgerPosts(fx.ledger)
+  check('the loopback saw exactly ONE generateContent POST with the WAV inline and the verbatim instruction', served.length === 1 && served[0]!.includes(':generateContent') && served[0]!.includes('wav=yes') && served[0]!.includes('verbatim=yes'), served.join(' | '))
+  const stray = nonLoopback(netlines(netlog))
+  check('no voice wire left loopback (the take rode the loopback catalogue family only)', !stray.some(l => l.includes('/audio/') || l.includes(':generateContent')), stray.join(' · '))
+  if (stray.length > 0) console.log(`  · the telemetry-off rung let the boot attempt ${stray.length} non-loopback request(s), every one refused by the tripwire: ${stray.slice(0, 4).join(' · ')}`)
+}
+
+// ── §F the roads between the keys ──────────────────────────────────────────
+console.log('[F] /speak on twice · v in a non-empty composer · a resize mid-capture · two takes · a quit mid-capture')
+{
+  const netlog = join(scratch, 'roads-net.log')
+  const fx = await startFixture('roads', 800)
+  const res = drive(
+    'roads',
+    seededHome('home-f'),
+    netlog,
+    [
+      ...OPENING,
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '/speak on' },
+      { afterPrevTicks: 3, data: '\r' },
+      // A non-empty composer: the letter x, then v — v must type.
+      { requireAwait: true, awaitText: 'voice input already on', awaitStableTicks: 2, mark: 'again', data: 'x' },
+      { afterPrevTicks: 2, data: 'v' },
+      { afterPrevTicks: 3, mark: 'typed-xv', data: '\x15' },
+      // Take 1: the resize lands while recording (see `resizes` below).
+      { afterPrevTicks: 2, data: 'v' },
+      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording-1', data: '' },
+      { afterPrevTicks: 8, mark: 'resized-recording', data: 'v' },
+      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-1', data: '\x15' },
+      // Take 2, back to back.
+      { afterPrevTicks: 2, data: 'v' },
+      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording-2', data: 'v' },
+      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-2', data: '\x15' },
+      // Take 3: quit while it records — the LAST sends; the child exits.
+      { afterPrevTicks: 2, data: 'v' },
+      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording-3', data: '/exit' },
+      { afterPrevTicks: 3, data: '\r' },
+    ],
+    220,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
+    { resizes: [{ afterMark: 'recording-1', afterMs: 500, cols: 110, rows: 36 }] },
+  )
+  fx.child.kill('SIGTERM')
+  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('/speak on again is one receipt: already on', (res.marks.again ?? '').includes('voice input already on'), (res.marks.again ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
+  const typed = res.marks['typed-xv'] ?? ''
+  check('v in a NON-empty composer types the letter (no take)', /❯ xv\b/.test(typed) && !typed.includes('recording ·'), typed.split('\n').filter(l => l.includes('❯')).join(' · '))
+  const resized = res.marks['resized-recording'] ?? ''
+  const resizedCols = resized.split('\n')[0]?.length ?? 0
+  check('a resize mid-capture keeps the footer recording line (the take survives)', resizedCols === 110 && resized.includes('● recording · v or esc to stop'), `${resizedCols} cols · ${resized.split('\n').filter(l => l.includes('recording')).join(' · ')}`)
+  check('the first take lands after the resize', (res.marks['landed-1'] ?? '').includes(TRANSCRIPT))
+  check('the second take, back to back, lands too', (res.marks['landed-2'] ?? '').includes(TRANSCRIPT) && (res.marks['recording-2'] ?? '').includes('● recording'))
+  check('the third take was recording when /exit was typed', (res.marks['recording-3'] ?? '').includes('● recording'))
+  const finalScreen = res.gridText.split('\n').slice(-40).join('\n')
+  check('a quit mid-capture exits (the child ended) without a crash on screen', res.endReason === 'eof' && !/TypeError|ReferenceError|Unhandled|at .*\.mjs:\d+/.test(finalScreen), `ended: ${res.endReason}`)
+  const served = ledgerPosts(fx.ledger)
+  check('the loopback served exactly TWO takes — the quit take was dropped, never sent', served.length === 2 && served.every(l => l.includes('wav=yes')), served.join(' | '))
+  const stray = nonLoopback(netlines(netlog))
+  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+}
+
+// ── §G the bound ───────────────────────────────────────────────────────────
+console.log('[G] the bound — with the proof seam at 1.5 s the take stops by itself, named, and lands')
+{
+  const netlog = join(scratch, 'bound-net.log')
+  const fx = await startFixture('bound', 2500)
+  const res = drive(
+    'bound',
+    seededHome('home-g'),
+    netlog,
+    [
+      ...OPENING,
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
+      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '' },
+      // No key from here on: the owner stops the take at the bound.
+      { requireAwait: true, awaitText: 'bound — transcribing', mark: 'bound', data: '' },
+      { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
+      { afterPrevTicks: 2, data: '' },
+    ],
+    120,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, MERCURY_VOICE_BOUND_MS: '1500' },
+  )
+  fx.child.kill('SIGTERM')
+  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the bound receipt names the bound and the transcribing footer follows', (res.marks.bound ?? '').includes('capture stopped at the 1.5-second bound — transcribing') && (res.marks.bound ?? '').includes('transcribing…'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('bound') || l.includes('transcribing')).join(' · '))
+  check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
+  const served = ledgerPosts(fx.ledger)
+  check('exactly ONE take reached the transcriber', served.length === 1, served.join(' | '))
+  const stray = nonLoopback(netlines(netlog))
+  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+}
+
+// ── §H the concourse ───────────────────────────────────────────────────────
+console.log('[H] voice input on, v on the Session Concourse — nothing; shift+← walks home')
+{
+  const netlog = join(scratch, 'concourse-net.log')
+  const home = seededHome('home-h')
+  // /speak on persisted BEFORE the boot: the seeded config gains the toggle.
+  const cfgPath = join(home, '.mercury.json')
+  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
+  writeFileSync(cfgPath, JSON.stringify({ ...cfg, voiceInputEnabled: true }, null, 2) + '\n')
+  const fixture = referenceFixtureSnapshot() as { groups: Array<{ rows: Array<Record<string, unknown>> }> }
+  for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = home
+  const fixturePath = join(scratch, 'concourse-fixture.json')
+  writeFileSync(fixturePath, JSON.stringify(fixture))
+  const res = drive(
+    'concourse',
+    home,
+    netlog,
+    [
+      { atTick: 30, data: 'v' },
+      { afterPrevTicks: 6, mark: 'after-v', data: '\x1b[1;2D' },
+      { afterPrevTicks: 10, mark: 'home', data: '' },
+    ],
+    60,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: DEAD, MERCURY_CONCOURSE: 'always', MERCURY_CONCOURSE_FIXTURE: fixturePath, MERCURY_CREW_DIR: join(scratch, 'crew') },
+    { args: [] },
+  )
+  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  const afterV = res.marks['after-v'] ?? ''
+  check('v on the concourse starts nothing (no recording line, no receipt, the board still painted)', !afterV.includes('recording ·') && !afterV.includes('transcrib') && afterV.includes('╭'), afterV.split('\n').slice(0, 3).join(' · '))
+  check('shift+← walks home to the Boot face', (res.marks.home ?? '').includes('↑↓ choose'), (res.marks.home ?? '').split('\n').filter(l => l.includes('choose')).join(' · '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
