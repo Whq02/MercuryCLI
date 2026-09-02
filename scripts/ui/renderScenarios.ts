@@ -2152,8 +2152,8 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 32, data: '/bootmenu\r', mark: 'open' },
-        { atTick: 52, awaitText: 'BOOT SETTINGS', minTick: 36, awaitSettleTicks: 2, data: '' },
+        { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, data: 'm', mark: 'open' },
+        { atTick: 60, awaitText: 'boot menu', minTick: 30, awaitSettleTicks: 2, data: '' },
       ],
       total: 85,
       cols,
@@ -2169,11 +2169,9 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 32, data: '/bootmenu\r', mark: 'open' },
-        { atTick: 52, awaitText: 'BOOT SETTINGS', minTick: 36, awaitSettleTicks: 2, data: '\u001b' },
-        { atTick: 72, awaitText: 'Doctor / Health Check', minTick: 40, awaitSettleTicks: 2, mark: 'face', data: '' },
+        { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '' },
       ],
-      total: 95,
+      total: 60,
       cols,
       rows,
     }
@@ -2181,19 +2179,17 @@ function scenarioInner(name: string, cols: number, rows: number) {
   if (name === 'boot-kit-menu') {
     const scratch = join(tmpdir(), `hermes-render-bootkit-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
-    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 32, data: '/bootmenu\r', mark: 'open' },
-        { atTick: 52, awaitText: 'BOOT SETTINGS', minTick: 36, awaitSettleTicks: 2, data: '\x1b' },
-        { atTick: 72, awaitText: 'MCPs & Skills', minTick: 40, awaitSettleTicks: 2, mark: 'face', data: '\u001b[B\u001b[B' },
+        { atTick: 40, awaitText: 'MCPs & Skills', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '\u001b[B\u001b[B' },
         { afterPrevTicks: 4, data: '\r' },
-        { atTick: 100, awaitText: 'mcps & skills', minTick: 80, awaitSettleTicks: 2, mark: 'kit', data: '' },
+        { atTick: 80, awaitText: 'mcps & skills', minTick: 50, awaitSettleTicks: 2, mark: 'kit', data: '' },
       ],
-      total: 120,
+      total: 100,
       cols,
       rows,
     }
@@ -2704,11 +2700,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
           refreshToken: 'fixture-refresh',
           accountId: 'acct_fixture',
           planType: 'plus',
-    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
         },
       }),
     )
     process.env.MERCURY_CONFIG_DIR = scratch
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return { argv: ['node', BIN], sends: [{ atTick: 32, data: 'x' }], total: 70, cols, rows }
   }
   if (name === 'gpt-turn-render') {
@@ -2769,11 +2765,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_ZAI_API_BASE = dead
     process.env.MERCURY_DEEPSEEK_API_BASE = dead
     process.env.MERCURY_HUGGINGFACE_HUB_BASE = dead
-    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.MERCURY_HUGGINGFACE_API_BASE = `${dead}/v1`
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_CONFIG_DIR = scratch
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.BROWSER = 'true'
     if (name === 'login-kimi-device') {
       const port = 47734
@@ -3555,11 +3551,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_OPENAI_AUTH_BASE = dead
     process.env.MERCURY_OPENROUTER_API_BASE = dead
     process.env.MERCURY_OPENROUTER_AUTH_BASE = dead
-    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.MERCURY_GEMINI_API_BASE = dead
     process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = dead
     process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = dead
     process.env.MERCURY_CONFIG_DIR = scratch
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
@@ -3596,11 +3592,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_MOONSHOT_API_BASE = dead
     process.env.MERCURY_DEEPSEEK_API_BASE = dead
     process.env.MERCURY_HUGGINGFACE_HUB_BASE = dead
-    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.MERCURY_HUGGINGFACE_API_BASE = `${dead}/v1`
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_CONFIG_DIR = scratch
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     const startFixture = (pidName: string, port: number, serverJs: string, readyPath: string): void => {
       try {
         const stale = Number(readFileSync(join(tmpdir(), pidName), 'utf8').trim())
@@ -3798,11 +3794,11 @@ function scenarioInner(name: string, cols: number, rows: number) {
       const fixtureOverride = process.env.MERCURY_RENDER_FIXTURE
       const fixtureJson =
         fixtureOverride !== undefined && fixtureOverride.trim().startsWith('{')
-      process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
           ? fixtureOverride
           : JSON.stringify(fixture)
       writeFileSync(fixturePath, fixtureJson)
       process.env.MERCURY_CONFIG_DIR = scratch
+      process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
       if (policy === null) delete process.env.MERCURY_CONCOURSE
       else process.env.MERCURY_CONCOURSE = policy
       process.env.MERCURY_CONCOURSE_FIXTURE = fixturePath
