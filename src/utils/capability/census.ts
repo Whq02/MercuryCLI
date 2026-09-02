@@ -1,6 +1,7 @@
 
 import { getAllBaseTools } from '../../tools.js'
 import { toolMatchesName, type Tool } from '../../Tool.js'
+import { getFlagSpec } from '../../substrate/flagRegistry.js'
 import {
   deriveCapabilityDescriptor,
   type CapabilityCategory,
@@ -259,6 +260,39 @@ export function buildToolCensus(): ToolCensus {
       withProof,
     },
   }
+}
+
+export const CENSUS_NO_REASON = 'no reason declared — declare gate/conditions in the tool’s capability contract'
+
+export interface CensusGapLine {
+  support: 'conditional' | 'unavailable'
+  tools: string[]
+  reason: string
+}
+
+export function censusGapLines(
+  census: ToolCensus,
+  flagKind: (env: string) => string | undefined = env => getFlagSpec(env)?.kind,
+): CensusGapLine[] {
+  const groups = new Map<string, CensusGapLine>()
+  for (const row of census.rows) {
+    if (row.support !== 'conditional' && row.support !== 'unavailable') continue
+    const conditions = row.declared?.conditions ?? []
+    const gate = row.declared?.gate
+    const parts: string[] = []
+    if (row.support === 'unavailable' && gate !== undefined) {
+      const kind = flagKind(gate)
+      const state = kind === 'opt-in' ? 'unset (an opt-in flag)' : kind === 'default-on' ? 'turned off' : 'off'
+      parts.push(`${gate} ${state}`)
+    }
+    if (conditions.length > 0) parts.push(`needs ${conditions.join(' · ')}`)
+    const reason = parts.length > 0 ? parts.join(' · ') : CENSUS_NO_REASON
+    const key = `${row.support}|${reason}`
+    const line = groups.get(key) ?? { support: row.support, tools: [], reason }
+    line.tools.push(row.support === 'conditional' && !row.enabledNow ? `${row.name} (off right now)` : row.name)
+    groups.set(key, line)
+  }
+  return [...groups.values()]
 }
 
 export interface StableCensusRow {

@@ -78,7 +78,7 @@ import type {
   ScopedMcpServerConfig,
   ServerResource,
 } from './types.js'
-import { getLoggingSafeMcpBaseUrl } from './utils.js'
+import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 
 
 export class McpAuthError extends Error {
@@ -625,7 +625,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       reject(
         new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
           `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp`,
-          'MCP connection timeout',
+          MCP_CONNECT_TIMEOUT_TELEMETRY,
         ),
       )
       void endStdioTree().finally(() => {
@@ -653,12 +653,15 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
-    if (type === 'stdio') {
+    if (type === 'stdio' || type === 'sse' || type === 'http') {
       const stderrTail = stderrBuffer.trim().split('\n').slice(-3).join(' · ').slice(0, 300)
       throw new Error(
-        stderrTail.length > 0
-          ? `${errorMessage(err)} — server stderr: ${stderrTail}`
-          : `${errorMessage(err)} — the server wrote nothing to stderr before closing (run the command by hand to see why it exits)`,
+        describeMcpConnectFailure(err, {
+          transport: type,
+          command: type === 'stdio' ? (config as { command?: string }).command : undefined,
+          url: typeof config.url === 'string' ? config.url : undefined,
+          stderrTail,
+        }),
         { cause: err },
       )
     }

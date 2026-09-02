@@ -19,7 +19,7 @@ import {
   formatDirectoryList,
   type FileOperationType,
 } from '../../utils/permissions/pathValidation.js'
-import { allWorkingDirectories, pathInWorkingPath } from '../../utils/permissions/filesystem.js'
+import { allWorkingDirectories, pathInAllowedWorkingPath, pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getDirectoryForPath } from '../../utils/path.js'
@@ -579,6 +579,12 @@ function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: strin
         `which grants reads only. Approve the write on its permission card, or add a session allow rule such as Edit(${dir}/**).`
       )
     }
+  }
+  if (pathInAllowedWorkingPath(resolvedPath, context)) {
+    return (
+      `Mercury needs approval to ${action} ${resolvedPath}: this permission mode does not ${action} files on its own ` +
+      `and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes.`
+    )
   }
   return `Mercury may only ${action} inside the working directory (${formatDirectoryList([getCwd()])}); ${resolvedPath} is outside it.`
 }
