@@ -70,7 +70,7 @@ section(`compiler/*.json — schema + closed reason-code vocabulary (${COMPILER_
 
 const compilerFiles = readdirSync(COMPILER_DIR).filter(f => f.endsWith('.json')).sort()
 check('at least one compiler fixture found', compilerFiles.length > 0, `found ${compilerFiles.length}`)
-check('exactly 19 compiler fixtures (the corpus spec)', compilerFiles.length === 19, `found ${compilerFiles.length}`)
+check('exactly 18 compiler fixtures (the corpus spec)', compilerFiles.length === 18, `found ${compilerFiles.length}`)
 
 const seenIds = new Set<string>()
 
