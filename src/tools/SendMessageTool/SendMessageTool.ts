@@ -21,9 +21,6 @@ import {
   isManagedBusTeam,
   IMPLEMENTER_AGENT_NAME,
   knownBusTargets,
-  PARTY_EXECUTOR_AGENT_NAMES,
-  PARTY_ROUTER_AGENT_NAME,
-  PARTY_TEAM_NAME,
 } from '../../utils/scribe/busIdentity.js'
 import {
   buildControl,
@@ -462,7 +459,7 @@ async function sendScribeEnvelope(
     envelope.kind === 'dispatch' || envelope.kind === 'control' || envelope.kind === 'note'
 
   if (isDirective && !resolvedTarget.known && isManagedBusTeam(teamName)) {
-    const busName = teamName === PARTY_TEAM_NAME ? PARTY_ROUTER_AGENT_NAME : IMPLEMENTER_AGENT_NAME
+    const busName = IMPLEMENTER_AGENT_NAME
     return {
       data: {
         success: false,
@@ -533,12 +530,7 @@ async function sendScribeEnvelope(
 
   const renamed = resolvedTarget.name !== targetName.trim() ? ` (addressed "${targetName.trim()}")` : ''
   let message = `Sent ${envelope.kind} envelope to ${resolvedTarget.name}${renamed} [request_id: ${envelope.request_id}]`
-  if (teamName === PARTY_TEAM_NAME && envelope.kind === 'dispatch') {
-    message +=
-      `. Pacing: each seat is a model turn taking minutes — first bus activity typically lands within a few minutes, ` +
-      `and a consolidated multi-lane outcome within a longer window. Wait on inbound progress (the team brief's ` +
-      `turn/age fields) before re-asking, and do not disengage while a seat is mid-turn.`
-  } else if (teamName === 'scribe' && envelope.kind === 'dispatch' && !isImplementerRole()) {
+  if (teamName === 'scribe' && envelope.kind === 'dispatch' && !isImplementerRole()) {
     message += ` ${composeDispatchAckHealth(getImplementerTelemetry(), { rpcConfirmed: deliveredViaRpc })}`
   }
   return {
@@ -1338,7 +1330,7 @@ export const SendMessageTool = buildTool({
           send: (to, env) => sendScribeEnvelope(to, env, context),
           senderRole,
           senderName: senderName(),
-          executors: PARTY_EXECUTOR_AGENT_NAMES,
+          executors: [],
         })
       }
     }

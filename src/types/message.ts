@@ -170,28 +170,6 @@ export type SystemInformationalMessage = {
   preventContinuation?: boolean
 }
 
-export type PartyEventVerb =
-  | 'chat'
-  | 'presence'
-  | 'helm'
-  | 'steer'
-  | 'ticket'
-  | 'claim'
-
-export type SystemPartyEventMessage = {
-  type: 'system'
-  subtype: 'party_event'
-  content: string
-  verb: PartyEventVerb
-  whoId: string
-  who: string
-  text: string
-  level: SystemMessageLevel
-  isMeta?: boolean
-  uuid: UUID
-  timestamp: string
-}
-
 export type SystemSeatReceiptMessage = {
   type: 'system'
   subtype: 'seat_receipt'
@@ -433,7 +411,6 @@ export type SystemThinkingMessage = {
 
 export type SystemMessage =
   | SystemInformationalMessage
-  | SystemPartyEventMessage
   | SystemSeatReceiptMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage
