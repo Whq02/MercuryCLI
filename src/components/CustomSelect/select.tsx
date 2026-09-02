@@ -65,6 +65,11 @@ export type SelectProps<T = string> = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
+  /** ↵ on an input row whose field is EMPTY (no attachment, no
+   *  allowEmptySubmitToCancel): reported here instead of cancelling, so a
+   *  caller can keep the field focused with a hint — an empty ↵ on a
+   *  free-text row must never close the whole dialog under the operator. */
+  onEmptyInputSubmit?: (value: T) => void
 }
 
 /** 1-based index prefix: positions 1–9 carry `N.`, positions 10 and above
@@ -176,6 +181,7 @@ export function Select<T = string>({
   onImagePaste,
   pastedContents,
   onRemoveImage,
+  onEmptyInputSubmit,
 }: SelectProps<T>): React.ReactNode {
   const state = useSelectState({
     visibleOptionCount,
@@ -249,15 +255,20 @@ export function Select<T = string>({
 
   // Submitting an input option: non-blank trimmed text, existing image
   // attachments, or an allowed empty submit fire the change callback;
-  // anything else cancels.
-  const submitInputOption = (option: OptionWithDescription<T>): void => {
-    const text = inputValues.get(optionValueOf(option)) ?? ''
+  // anything else reports the empty field to a caller that listens, else
+  // cancels. `submitted` is the field's text at its own submit — a
+  // coalesced keystroke lands text and ↵ in one event, ahead of the render
+  // that would refresh the value map.
+  const submitInputOption = (option: OptionWithDescription<T>, submitted?: string): void => {
+    const text = submitted ?? inputValues.get(optionValueOf(option)) ?? ''
     if (
       text.trim() !== '' ||
       images.length > 0 ||
       (isInputOption(option) && option.allowEmptySubmitToCancel)
     ) {
       onChange?.(optionValueOf(option))
+    } else if (onEmptyInputSubmit) {
+      onEmptyInputSubmit(optionValueOf(option))
     } else {
       onCancel?.()
     }
@@ -325,37 +336,60 @@ export function Select<T = string>({
       option,
       position,
     )
+    // The input row is a live door in the layouts whose text rows take a
+    // click: a click puts the caret in its field, and with text (or an
+    // attachment) already there it submits the row — the typed answer is
+    // chosen by the same gesture that chooses any other row. An empty field
+    // only takes the focus; it never submits nothing.
+    const clickable =
+      layout !== 'compact' &&
+      !isDisabled &&
+      !option.disabled &&
+      disableSelection !== true
     return (
-      <SelectInputOption
+      <Box
         key={String(option.value)}
-        option={option}
-        isFocused={isFocused}
-        isSelected={isSelected}
-        value={inputValues.get(optionValueOf(option)) ?? ''}
-        onChange={text => {
-          setInputValue(optionValueOf(option), text)
-          option.onChange?.(text)
-        }}
-        onSubmit={() => {
-          submitInputOption(option)
-        }}
-        reservedIndexWidth={inputRowReserved}
-        index={option.index + 1}
-        showLabelWithValue={inlineDescriptions}
-        layout={layout}
-        shouldShowDownArrow={showDown}
-        shouldShowUpArrow={showUp}
-        onOpenEditor={onOpenEditor}
-        onImagePaste={onImagePaste}
-        pastedContents={pastedContents}
-        onRemoveImage={onRemoveImage}
-        isImageSelectionMode={isImageSelectionMode}
-        selectedImageIndex={selectedImageIndex}
-        onSelectImage={setSelectedImageIndex}
-        onExitImageSelection={() => {
-          setImageSelectionMode(false)
-        }}
-      />
+        flexDirection="column"
+        onClick={
+          clickable
+            ? () => {
+                state.focusValue(optionValueOf(option))
+                const text = inputValues.get(optionValueOf(option)) ?? ''
+                if (text.trim() !== '' || images.length > 0) submitInputOption(option)
+              }
+            : undefined
+        }
+      >
+        <SelectInputOption
+          option={option}
+          isFocused={isFocused}
+          isSelected={isSelected}
+          value={inputValues.get(optionValueOf(option)) ?? ''}
+          onChange={text => {
+            setInputValue(optionValueOf(option), text)
+            option.onChange?.(text)
+          }}
+          onSubmit={text => {
+            submitInputOption(option, text)
+          }}
+          reservedIndexWidth={inputRowReserved}
+          index={option.index + 1}
+          showLabelWithValue={inlineDescriptions}
+          layout={layout}
+          shouldShowDownArrow={showDown}
+          shouldShowUpArrow={showUp}
+          onOpenEditor={onOpenEditor}
+          onImagePaste={onImagePaste}
+          pastedContents={pastedContents}
+          onRemoveImage={onRemoveImage}
+          isImageSelectionMode={isImageSelectionMode}
+          selectedImageIndex={selectedImageIndex}
+          onSelectImage={setSelectedImageIndex}
+          onExitImageSelection={() => {
+            setImageSelectionMode(false)
+          }}
+        />
+      </Box>
     )
   }
 
