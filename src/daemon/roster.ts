@@ -58,9 +58,12 @@ import {
   buildCarryForwardNote,
   carryForwardEnabled,
   lastSeenDispatchId,
-} from '../utils/scribe/carryForward.js'
-import { REGULATION_CONTEXT_CLEAR_PCT } from '../utils/scribe/scribeRegulation.js'
+} from './carryForward.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
+
+/** Context usage (%) at/above which the auto-clear governor respawns an
+ *  idle long-lived worker with a fresh transcript. */
+export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
 import type { DispatchBody, DispatchSource, WireRosterEntry } from './protocol.js'
 
@@ -583,10 +586,10 @@ export class TaskRoster {
     // duplicating the note and the respawn.
     if (ll.clearInFlight) return false
     if (!this.seatIsIdle(ll)) return false
-    if ((ll.contextPct ?? 0) < REGULATION_CONTEXT_CLEAR_PCT) return false
+    if ((ll.contextPct ?? 0) < AUTO_CLEAR_CONTEXT_PCT) return false
     ll.clearInFlight = true
     logForDebugging(
-      `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${REGULATION_CONTEXT_CLEAR_PCT}% + idle — respawning (fresh transcript)`,
+      `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
     // Continuity handoff: one note goes into the worker's inbox BEFORE the
     // bounce. The fresh child drains it as its first input (the mailbox

@@ -61,7 +61,7 @@ import { ensureExtensionsLoaded } from './extensions/boot.js'
 import { handleOrphanedPermission, isResultSuccessful, normalizeMessage } from './utils/queryHelpers.js'
 import { fetchSystemPromptParts } from './utils/queryContext.js'
 import { armImplementerTelemetryPoll } from './utils/scribe/implementerTelemetry.js'
-import { assertSingleRole } from './utils/scribe/scribeGates.js'
+import { assertSingleRole } from './utils/workerRole.js'
 import {
   scribePinIsApplicable,
   scribeSeatEffort,

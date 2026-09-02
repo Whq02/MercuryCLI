@@ -12,7 +12,7 @@
 //  ring/count exclude crew).
 // ============================================================================
 import { isCrewSession, crewTagOf } from '../../src/utils/sessionClass.ts'
-import { DISPATCH_REPORT_BACK_FRAMING } from '../../src/daemon/scribeDispatchBridge.ts'
+import { DISPATCH_REPORT_BACK_FRAMING } from '../../src/daemon/dispatchDrain.ts'
 import type { LogOption } from '../../src/types/logs.ts'
 
 let failures = 0

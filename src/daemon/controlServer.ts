@@ -46,7 +46,7 @@ import {
 import { isProcessAlive } from './ownerWatch.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
-import { parseScribeEnvelope } from '../utils/scribe/scribeBus.js'
+import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
 import { canonicalizeBusTarget, isManagedBusTeam, knownBusTargets } from '../utils/scribe/busIdentity.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
@@ -683,24 +683,24 @@ async function routeControlRequest(
         })
       }
       const to = resolvedTo.name
-      let env: ReturnType<typeof parseScribeEnvelope> = null
+      let env: ReturnType<typeof parseBusEnvelope> = null
       try {
-        env = parseScribeEnvelope(JSON.stringify(raw.env))
+        env = parseBusEnvelope(JSON.stringify(raw.env))
       } catch {
         env = null
       }
       if (!to || !env) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope requires { to, env: <scribe_protocol> }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope requires { to, env: <bus envelope> }' })
       }
       // Role invariant at the door: work and directives are by definition
-      // dispatcher-authored — even a key-holder may not sign them
-      // 'implementer' (that is role confusion, or a compromised child
+      // dispatcher-authored — even a key-holder may not sign them as the
+      // recipient itself (that is role confusion, or a compromised child
       // replaying the key it can read).
       if (
         (env.kind === 'dispatch' || env.kind === 'control' || env.kind === 'note') &&
-        (!env.from || env.from === 'implementer')
+        (!env.from || env.from === to)
       ) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `a ${env.kind} envelope must carry a dispatcher 'from', never 'implementer'` })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `a ${env.kind} envelope must carry a dispatcher 'from', never the recipient itself` })
       }
       // Journal before anything else: the mailbox is the at-least-once
       // replay source, so a daemon that dies right after this write still

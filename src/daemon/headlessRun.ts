@@ -26,32 +26,18 @@ import {
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { decodePermissionModeSpelling } from '../types/permissions.js'
+import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
 /**
  * Every role env var a worker may carry — a process runs as AT MOST one
- * (assertSingleRole). The Scribe/Implementer pair + the concourse worker,
- * plus the RETIRED party-seat markers: nothing in the tree sets those any
- * more, but an operator shell (or a stale supervisor env) still can, so the
+ * (assertSingleRole). The roster lives in utils/workerRole.ts (the one
+ * owner every role-hygiene seam reads): the live concourse-worker marker
+ * plus the RETIRED seat markers — nothing in the tree sets those any more,
+ * but an operator shell (or a stale supervisor env) still can, so the
  * spawn-time strip and the supervisor scrub keep sweeping the spellings —
  * a retired marker must never ride into a child and resurrect a persona.
- * Single source for both sweeps so they never drift.
  */
-const RETIRED_SEAT_ENV_VARS: readonly string[] = [
-  'MERCURY_TANK',
-  'MERCURY_HEALER',
-  'MERCURY_DPS1',
-  'MERCURY_DPS2',
-  'MERCURY_DPS3',
-]
-const LIVE_ROLE_ENV_VARS: readonly string[] = [
-  'MERCURY_SCRIBE',
-  'MERCURY_IMPLEMENTER',
-  'MERCURY_CONCOURSE_WORKER',
-]
-export const ALL_ROLE_ENV_VARS: readonly string[] = [
-  ...LIVE_ROLE_ENV_VARS,
-  ...RETIRED_SEAT_ENV_VARS,
-]
+export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
 /** The swept role SPELLINGS: the live roles resolve through the registry
  *  (flagSpellings — the registration check for free); the retired five sweep
  *  by their literal canonical spellings — their registry rows died with the

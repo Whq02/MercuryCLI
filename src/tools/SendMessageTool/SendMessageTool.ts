@@ -27,18 +27,18 @@ import {
   buildDispatch,
   buildEscalate,
   buildProgress,
+  busEnvelopesEnabled,
   looksLikeHandSerializedBusPayload,
-  serializeScribeEnvelope,
+  serializeBusEnvelope,
+  type BusEnvelope,
   type ControlEnvelope,
   type DispatchEnvelope,
   type ProgressEnvelope,
-  type ScribeEnvelope,
-} from '../../utils/scribe/scribeBus.js'
+} from '../../utils/swarm/busEnvelopes.js'
+import { isCrewRole } from '../../utils/workerRole.js'
 import {
-  isCrewRole,
   isImplementerRole,
   isScribeRole,
-  scribeBusEnabled,
   scribeModeEnabled,
   scribeTaskRouterEnabled,
 } from '../../utils/scribe/scribeGates.js'
@@ -221,7 +221,7 @@ const inputSchema = lazySchema(() => {
     handoffVariant,
   ]
 
-  if (scribeBusEnabled()) {
+  if (busEnvelopesEnabled()) {
     variants.push(
       z.object({
         type: z.literal('dispatch'),
@@ -419,7 +419,7 @@ async function resolveDeliverableRecipient(
 }
 
 /** A worker's outbound report is routed to the seat that actually reads it. */
-function implementerReplyTarget(addressed: string): string {
+function workerReplyTarget(addressed: string): string {
   if (isImplementerRole()) return TEAM_LEAD_NAME
   if (isCrewRole()) return TEAM_LEAD_NAME
   return addressed
@@ -429,9 +429,9 @@ function implementerReplyTarget(addressed: string): string {
  * The CALL-time coordination-context gate: the schema is built once per
  * process, so this is the honest gate for the bus kinds.
  */
-function scribeBusContextActive(): boolean {
+function busContextActive(): boolean {
   if (isScribeRole() || isImplementerRole() || isCrewRole()) return true
-  return scribeBusEnabled() && scribeModeEnabled()
+  return busEnvelopesEnabled() && scribeModeEnabled()
 }
 
 function busContextRefusal(kind: string, target: string): RequestOutput {
@@ -445,7 +445,7 @@ function busContextRefusal(kind: string, target: string): RequestOutput {
   }
 }
 
-// ── the scribe-bus send path ────────────────────────────────────────────────
+// ── the bus send path ───────────────────────────────────────────────────
 
 /**
  * The one send path for every envelope kind: address canonicalisation,
@@ -453,9 +453,9 @@ function busContextRefusal(kind: string, target: string): RequestOutput {
  * authority, socket-first transport for dispatcher-side kinds with a
  * byte-equivalent journal fallback, and delivery honesty.
  */
-async function sendScribeEnvelope(
+async function sendBusEnvelope(
   targetName: string,
-  envelope: ScribeEnvelope,
+  envelope: BusEnvelope,
   context: ToolUseContext,
 ): Promise<{ data: RequestOutput }> {
   const teamName = getTeamName(teamContextOf(context))
@@ -516,7 +516,7 @@ async function sendScribeEnvelope(
       } as never)
       if ((reply as { ok?: boolean }).ok) deliveredViaRpc = true
     } catch (error) {
-      logForDebugging(`sendScribeEnvelope: socket path failed, journaling directly: ${String(error)}`)
+      logForDebugging(`sendBusEnvelope: socket path failed, journaling directly: ${String(error)}`)
     }
   }
 
@@ -528,7 +528,7 @@ async function sendScribeEnvelope(
       resolvedTarget.name,
       {
         from: envelope.from,
-        text: serializeScribeEnvelope(envelope),
+        text: serializeBusEnvelope(envelope),
         timestamp: nowIso(),
         ...(color ? { color } : {}),
       },
@@ -1321,7 +1321,7 @@ export const SendMessageTool = buildTool({
       case 'handoff':
         return { data: await sendHandoff(rawTo, message, context) }
       case 'dispatch': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('dispatch', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('dispatch', rawTo) }
         const from = senderName()
         const envelope: DispatchEnvelope = buildDispatch(from, message.task, {
           ...(message.title !== undefined ? { title: message.title } : {}),
@@ -1329,19 +1329,19 @@ export const SendMessageTool = buildTool({
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
           ...(message.route !== undefined ? { route: message.route } : {}),
         })
-        return await sendScribeEnvelope(rawTo, envelope, context)
+        return await sendBusEnvelope(rawTo, envelope, context)
       }
       case 'escalate': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('escalate', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('escalate', rawTo) }
         const from = senderName()
         const envelope = buildEscalate(from, message.reason, {
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
           ...(message.needsOperator !== undefined ? { needsOperator: message.needsOperator } : {}),
         })
-        return await sendScribeEnvelope(implementerReplyTarget(rawTo), envelope, context)
+        return await sendBusEnvelope(workerReplyTarget(rawTo), envelope, context)
       }
       case 'progress': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('progress', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('progress', rawTo) }
         const from = senderName()
         // Router side-effects fire BEFORE the send, fire-and-forget: this is
         // the one seam both streams share (the daemon never observes a
@@ -1361,10 +1361,10 @@ export const SendMessageTool = buildTool({
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
-        return await sendScribeEnvelope(implementerReplyTarget(rawTo), envelope, context)
+        return await sendBusEnvelope(workerReplyTarget(rawTo), envelope, context)
       }
       case 'control': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('control', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('control', rawTo) }
         const from = senderName()
         // An ack with a referenced request id records that node's acceptance,
         // attributed by the sender's role; idempotent on duplicates.
@@ -1375,7 +1375,7 @@ export const SendMessageTool = buildTool({
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
-        return await sendScribeEnvelope(rawTo, envelope, context)
+        return await sendBusEnvelope(rawTo, envelope, context)
       }
     }
   },

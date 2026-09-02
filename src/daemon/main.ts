@@ -106,7 +106,7 @@ import {
   OWNER_WATCH_INTERVAL_MS,
   OWNER_WATCH_GRACE_CHECKS,
 } from './ownerWatch.js'
-import { armDispatchDrain, type DispatchDrainHandle } from './scribeDispatchBridge.js'
+import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { scribeBusLiveEnabled, scribeBackPressureEnabled, scribeAutoClearEnabled, scribeTaskRouterEnabled } from '../utils/scribe/scribeGates.js'
 import { resolveDispatchEffort } from '../utils/scribe/dispatchRouter.js'
 import { routerEnabled } from '../utils/router/routerGates.js'

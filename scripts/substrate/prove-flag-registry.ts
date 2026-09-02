@@ -376,8 +376,9 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
     .split('\n')
     .filter(Boolean)
   check('no registry reader takes a retired-swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
-  // (b) the two guard homes hold the healthy RAW shapes, at full breadth.
-  const gates = readFileSync(join(root, 'src/utils/scribe/scribeGates.ts'), 'utf8')
+  // (b) the ONE roster owner holds the healthy RAW shapes, at full breadth,
+  //     and the spawn seam reads the roster from it.
+  const gates = readFileSync(join(root, 'src/utils/workerRole.ts'), 'utf8')
   const spawn = readFileSync(join(root, 'src/daemon/headlessRun.ts'), 'utf8')
   const membersOf = (src: string): Set<string> => {
     const m = src.match(/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[([^\]]*)\]/)
@@ -385,8 +386,12 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
   }
   const sameFive = (s: Set<string>): boolean =>
     s.size === RETIRED_SWEPT_SPELLINGS.size && [...s].every(v => RETIRED_SWEPT_SPELLINGS.has(v))
-  check('scribeGates sweeps exactly the five retired spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
-  check('headlessRun sweeps exactly the five retired spellings', sameFive(membersOf(spawn)))
+  check('workerRole sweeps exactly the five retired spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
+  check(
+    'headlessRun imports the roster from workerRole (one owner, never a second literal)',
+    /import \{ LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS \} from '\.\.\/utils\/workerRole\.js'/.test(spawn) &&
+      !/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[/.test(spawn),
+  )
   check(
     'assertSingleRole reads the retired list RAW (process.env), the live roles through flagEnv',
     /RETIRED_SEAT_ENV_VARS\.filter\(v => process\.env\[v\] === '1'\)/.test(gates) &&

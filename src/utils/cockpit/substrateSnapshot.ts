@@ -19,7 +19,7 @@ import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
 import { NEVER_HAIKU_FALLBACK, recentFloorEvents } from '../model/modelFloor.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
-import { carryForwardEnabled } from '../scribe/carryForward.js'
+import { carryForwardEnabled } from '../../daemon/carryForward.js'
 import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
 import { type Snapshot } from './types.js'
 

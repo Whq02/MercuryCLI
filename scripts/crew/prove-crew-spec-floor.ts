@@ -30,7 +30,7 @@ setStamp(true)
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
 const hr = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
 const wr = (await import('../../src/daemon/workerRecon.js')) as typeof import('../../src/daemon/workerRecon.js')
-const gates = (await import('../../src/utils/scribe/scribeGates.js')) as typeof import('../../src/utils/scribe/scribeGates.js')
+const gates = (await import('../../src/utils/workerRole.js')) as typeof import('../../src/utils/workerRole.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -118,9 +118,9 @@ check('argv: identity triplet flags', inv.argv.includes('atlas') && inv.argv.inc
 section('role-pair hygiene — the three scrub seams (dual-polarity safe)')
 // (1) supervisor scrub: role form + name stripped; the operator kill survives.
 {
-  const env: NodeJS.ProcessEnv = { MERCURY_CREW: '1', MERCURY_CREW_AGENT: 'zombie', MERCURY_SCRIBE: '1', OTHER: 'x' }
+  const env: NodeJS.ProcessEnv = { MERCURY_CREW: '1', MERCURY_CREW_AGENT: 'zombie', MERCURY_CONCOURSE_WORKER: '1', OTHER: 'x' }
   const removed = hr.scrubSupervisorRoleEnv(env)
-  check('scrub removes the crew ROLE form + name (+ scribe)', env.MERCURY_CREW === undefined && env.MERCURY_CREW_AGENT === undefined && env.MERCURY_SCRIBE === undefined)
+  check('scrub removes the crew ROLE form + name (+ the live worker role)', env.MERCURY_CREW === undefined && env.MERCURY_CREW_AGENT === undefined && env.MERCURY_CONCOURSE_WORKER === undefined)
   check('scrub reports what it removed', removed.includes('MERCURY_CREW') && removed.includes('MERCURY_CREW_AGENT'))
   check('unrelated env untouched', env.OTHER === 'x')
 }
@@ -131,16 +131,16 @@ section('role-pair hygiene — the three scrub seams (dual-polarity safe)')
 }
 // (2) long-lived child sanitize: a NON-crew child never inherits crew identity
 // (a leaked crew role would hijack its replies to team-lead — the
-// implementerReplyTarget crew branch wins). The non-crew shape here is the
-// implementer's (the one long-lived daemon worker besides the crew).
+// workerReplyTarget crew branch wins). The non-crew shape here is the
+// concourse session worker's (the other long-lived daemon worker).
 const nonCrewSpec = () => ({
   model: 'claude-sonnet-5',
   effort: 'high',
   appendSystemPrompt: '',
-  role: 'MERCURY_IMPLEMENTER' as const,
-  agentName: 'implementer',
-  agentId: 'implementer@scribe',
-  teamName: 'scribe',
+  role: 'MERCURY_CONCOURSE_WORKER' as const,
+  agentName: 'runner',
+  agentId: 'runner@sessions',
+  teamName: 'sessions',
   cwd: '/proj',
 })
 {
@@ -183,13 +183,13 @@ section('assertSingleRole — crew counts as a role; the kill value never does')
   try { gates.assertSingleRole() } catch { threw = true }
   check('crew + dps1 double-tag fails LOUD', threw)
   process.env.MERCURY_CREW = '0'
-  process.env.MERCURY_IMPLEMENTER = '1'
+  process.env.MERCURY_CONCOURSE_WORKER = '1'
   delete process.env.MERCURY_DPS1
   let threw2 = false
   try { gates.assertSingleRole() } catch { threw2 = true }
-  check("MERCURY_CREW='0' + implementer is NOT a double role (dual-polarity safe)", threw2 === false)
+  check("MERCURY_CREW='0' + a live worker role is NOT a double role (dual-polarity safe)", threw2 === false)
   delete process.env.MERCURY_CREW
-  delete process.env.MERCURY_IMPLEMENTER
+  delete process.env.MERCURY_CONCOURSE_WORKER
 }
 
 rmSync(scratch, { recursive: true, force: true })
