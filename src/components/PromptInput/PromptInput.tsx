@@ -206,16 +206,17 @@ import {
   noteCapReturn,
   noteOfferAutoDone,
   noteOfferDismissal,
+  observedFamilyWindow,
   offerAutoDone,
   offerDismissed,
   resolveCapPosture,
 } from '../../services/capFailover.js'
+import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { openaiLimitWindow } from '../../services/providers/openai/openaiLimitState.js'
 import { SlotOfferCard } from '../SlotOfferCard.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
-import { getRateLimitDisplayName } from '../../services/claudeAiLimits.js'
 import { formatResetTime } from '../../utils/format.js'
 import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
@@ -548,6 +549,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     resetText: string | null
     targetModel: string
     targetRoute: CallModelRoute
+    homeRoute: CallModelRoute
     awayRoute: CallModelRoute
   } | null>(null)
   const [slotOffer, setSlotOffer] = useState<{
@@ -800,22 +802,30 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       modelFactsNow.sessionPin ?? modelFactsNow.setting ?? modelFactsNow.main
     const liveRoute = declaredRouteOf(effective)
     const noted = capHandoffState()
-    if (noted !== null && liveRoute === 'anthropic') {
+    if (noted !== null && liveRoute === noted.homeFamily) {
       noteCapReturn()
       return
     }
-    const onFailoverLane = noted !== null && liveRoute !== 'anthropic'
-    const action = onFailoverLane
-      ? decideCapReturn(posture, limits.status, true)
-      : decideCapAction(posture, limits.status)
+    const onFailoverLane = noted !== null && liveRoute !== noted.homeFamily
+    const homeFamily: string | null = noted !== null && onFailoverLane ? noted.homeFamily : liveRoute
+    if (homeFamily === null) return
+    const homeUsability = onFailoverLane ? usabilityForRoute(homeFamily as CallModelRoute) : null
+    if (homeUsability !== null && homeUsability.credential === 'none') {
+      noteCapReturn()
+      return
+    }
+    const window = observedFamilyWindow(homeFamily)
+    const action =
+      onFailoverLane && homeUsability !== null
+        ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
+        : decideCapAction(posture, window.state)
     if (action.kind === 'none') return
     const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
-    const decisionKey = `${direction}|${limits.status}|${limits.resetsAt ?? ''}`
-    const windowName =
-      limits.rateLimitType !== undefined
-        ? getRateLimitDisplayName(limits.rateLimitType)
-        : null
-    const resetText = formatResetTime(limits.resetsAt) ?? null
+    const decisionKey = `${direction}|${homeFamily}|${window.state}|${window.resetsAtMs ?? ''}`
+    const windowName = window.windowName ?? null
+    const resetText =
+      window.resetsAtMs !== undefined ? (formatResetTime(window.resetsAtMs / 1000) ?? null) : null
+    const homeName = providerDisplayName(homeFamily)
     if (action.kind === 'offer') {
       if (offerDismissed(decisionKey)) return
       if (modalOverlayUp) return
@@ -823,7 +833,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (direction === 'return') {
         target = noted?.homeModel ?? getFocusedSessionConnector().modelFacts().main
       } else {
-        target = liveCapFailoverTarget()?.model ?? null
+        target = liveCapFailoverTarget(homeFamily)?.model ?? null
       }
       if (target === null) return
       const targetRoute = declaredRouteOf(target)
@@ -838,6 +848,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         resetText,
         targetModel: target,
         targetRoute,
+        homeRoute: homeFamily as CallModelRoute,
         awayRoute: awayRouteResolved,
       })
       setOverlay('cap-offer')
@@ -846,13 +857,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (offerAutoDone(decisionKey)) return
     noteOfferAutoDone(decisionKey)
     if (direction === 'handoff') {
-      const target = liveCapFailoverTarget()?.model
+      const target = liveCapFailoverTarget(homeFamily)?.model
       if (target === undefined) return
-      noteCapHandoff(effective)
+      noteCapHandoff(effective, homeFamily)
       applyModelSelection(target)
       addNotification({
         key: 'cap-failover',
-        text: `Usage handoff: ${renderModelName(target)} — the Claude ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}`,
+        text: `Usage handoff: ${renderModelName(target)} — the ${homeName} ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}`,
         priority: 'high',
         timeoutMs: 8000,
       })
@@ -863,7 +874,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     applyModelSelection(home)
     addNotification({
       key: 'cap-failover',
-      text: `Returned home: ${home === null ? 'Default' : renderModelName(home)} — the Claude subscription lane`,
+      text: `Returned home: ${home === null ? 'Default' : renderModelName(home)} — the ${homeName} lane`,
       priority: 'high',
       timeoutMs: 8000,
     })
@@ -2493,14 +2504,17 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         windowName={offer.windowName}
         resetText={offer.resetText}
         targetModel={offer.targetModel}
+        homeRoute={offer.homeRoute}
         awayRoute={offer.awayRoute}
-        targetUsability={usabilityForRoute(offer.targetRoute)}
+        homeUsability={usabilityForRoute(offer.homeRoute)}
+        awayUsability={usabilityForRoute(offer.awayRoute)}
         onAccept={() => {
           setCapOffer(null)
           setOverlay(null)
+          noteOfferDismissal(offer.key)
           if (offer.direction === 'handoff') {
             const stateNow = appStateStore.getState()
-            noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel)
+            noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
           }
           handleModelSelect(offer.targetModel)
         }}
@@ -2675,10 +2689,15 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const capEffectiveModel = mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel
   const capRoute = declaredRouteOf(capEffectiveModel)
-  const capResetText = formatResetTime(limits.resetsAt)
+  const capNote = capHandoffState()
+  const capHomeWindow = capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
+  const capResetText =
+    capHomeWindow !== null && capHomeWindow.resetsAtMs !== undefined
+      ? formatResetTime(capHomeWindow.resetsAtMs / 1000)
+      : undefined
   const capLaneLine =
-    capHandoffState() !== null && capRoute !== null && capRoute !== 'anthropic'
-      ? `on the ${capRoute} failover lane · ${renderModelName(capEffectiveModel)}${limits.status !== 'allowed' && capResetText !== undefined ? ` · Claude window resets ${capResetText}` : ''} · /model to return`
+    capNote !== null && capRoute !== null && capRoute !== capNote.homeFamily
+      ? `on the ${capRoute} failover lane · ${renderModelName(capEffectiveModel)}${capHomeWindow !== null && (capHomeWindow.state === 'rejected' || capHomeWindow.state === 'warning') && capResetText !== undefined ? ` · ${providerDisplayName(capNote.homeFamily)} window resets ${capResetText}` : ''} · /model to return`
       : null
 
   return (

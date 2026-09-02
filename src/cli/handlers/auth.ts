@@ -271,9 +271,21 @@ export async function authStatus(opts: {
       } catch {
       }
     }
+    const others = routed.rows.filter(row => row.id !== 'anthropic' && row.present)
+    for (const row of others) {
+      try {
+        writeSync(1, `${row.id}: ${row.identity ?? row.source}\n`)
+      } catch {
+      }
+    }
     if (!loggedIn) {
       try {
-        writeSync(1, `Not signed in — run: ${binaryName()} auth login\n`)
+        writeSync(
+          1,
+          others.length > 0
+            ? `No Anthropic credential — ${others.map(row => row.id).join(', ')} signed in; run: ${binaryName()} auth login to add Anthropic\n`
+            : `Not signed in — run: ${binaryName()} auth login\n`,
+        )
       } catch {
       }
     }
@@ -309,17 +321,34 @@ export async function authStatus(opts: {
 function routedProviderRows(anthropicPresent: boolean): {
   family: string
   present: boolean
-  rows: Array<{ id: string; kind: string; source: string; present: boolean }>
+  rows: Array<{ id: string; kind: string; source: string; present: boolean; identity?: string }>
 } {
   try {
     const { declaredRouteOf } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
     const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
     const { buildRouterModelSnapshot } = require('../../utils/router/modelRegistry.js') as typeof import('../../utils/router/modelRegistry.js')
+    const { providerFamilyPresences } =
+      require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
     const family = declaredRouteOf(getMainLoopModel()) ?? 'anthropic'
-    const rows = buildRouterModelSnapshot().providers.map(provider => {
+    const snapshot = buildRouterModelSnapshot()
+    const presences = ((): ReturnType<typeof providerFamilyPresences> => {
+      try {
+        return providerFamilyPresences(snapshot.providers)
+      } catch {
+        return []
+      }
+    })()
+    const rows = snapshot.providers.map(provider => {
       const account = provider.description.account
       const present = provider.id === 'anthropic' ? anthropicPresent : account.kind !== 'none'
-      return { id: provider.id, kind: account.kind, source: account.label, present }
+      const identity = presences.find(presence => presence.id === provider.id)?.identity
+      return {
+        id: provider.id,
+        kind: account.kind,
+        source: account.label,
+        present,
+        ...(identity !== undefined ? { identity } : {}),
+      }
     })
     const routedRow = rows.find(row => row.id === family)
     return { family, present: routedRow?.present ?? false, rows }

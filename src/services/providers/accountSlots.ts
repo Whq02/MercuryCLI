@@ -1,5 +1,6 @@
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
 import type { ScopeIdentityState } from '../../utils/accounts/accountIdentity.js'
+import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
 import {
   clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
@@ -75,6 +76,7 @@ import {
   type OpenaiAccountRef,
 } from './openai/openaiAccounts.js'
 import {
+  presenceIdentityWords,
   providerFamilyPresences,
   type ProviderFamilyPresence,
   type ProviderFamilyReads,
@@ -318,9 +320,10 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
   if (presence === undefined || !presence.credentialed) return notSignedIn()
   const label = presence.credentialLabel ?? 'credential present'
   if (route !== 'anthropic') {
+    const words = presenceIdentityWords(presence) ?? label
     return route === 'local'
-      ? { route, family, text: `${label} · discovered live`, basis: 'discovered-live' }
-      : { route, family, text: `${label} · credential present`, basis: 'credential-present' }
+      ? { route, family, text: `${words} · discovered live`, basis: 'discovered-live' }
+      : { route, family, text: `${words} · credential present`, basis: 'credential-present' }
   }
   if (!label.startsWith('Claude subscription')) {
     return { route, family, text: `${label} · credential present`, basis: 'credential-present' }
@@ -1042,6 +1045,59 @@ export function executeSlotRemoval(
   slot: AccountSlot,
   owners: SlotRemovalOwners = {},
 ): { note: string; mutated: boolean } {
+  const outcome = routeSlotRemoval(slot, owners)
+  if (outcome.mutated) afterCredentialLeft(slot)
+  return outcome
+}
+
+function afterCredentialLeft(slot: AccountSlot): void {
+  forgetFamilyObservations(slot.family, slot.kind)
+  try {
+    const { clearCapHandoffForFamily } = require('../capFailover.js') as typeof import('../capFailover.js')
+    clearCapHandoffForFamily(slot.family)
+  } catch {
+  }
+  noteCredentialRemoval()
+}
+
+function forgetFamilyObservations(family: string, kind: AccountSlotKind): void {
+  try {
+    switch (family) {
+      case 'openai': {
+        const { forgetOpenaiLimitSource } =
+          require('./openai/openaiLimitState.js') as typeof import('./openai/openaiLimitState.js')
+        forgetOpenaiLimitSource(kind === 'api-key' ? 'api-key' : 'chatgpt-subscription')
+        return
+      }
+      case 'openrouter': {
+        const { forgetOpenrouterObservedLimit } =
+          require('./openrouter/openrouterUsageState.js') as typeof import('./openrouter/openrouterUsageState.js')
+        forgetOpenrouterObservedLimit()
+        return
+      }
+      case 'gemini': {
+        const { forgetGeminiObservedLimit } =
+          require('./gemini/geminiUsageState.js') as typeof import('./gemini/geminiUsageState.js')
+        forgetGeminiObservedLimit()
+        return
+      }
+      case 'huggingface': {
+        const { forgetHuggingfaceObservedLimits } =
+          require('./huggingface/huggingfaceUsageState.js') as typeof import('./huggingface/huggingfaceUsageState.js')
+        forgetHuggingfaceObservedLimits()
+        return
+      }
+      default:
+        return
+    }
+  } catch {
+  }
+}
+
+function routeSlotRemoval(
+  slot: AccountSlot,
+  owners: SlotRemovalOwners,
+): { note: string; mutated: boolean } {
   const removal = slot.removal
   switch (removal.route) {
     case 'excluded':
@@ -1152,5 +1208,14 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     } catch (error) {
       logError(error)
     }
+  }
+  for (const [family, kind] of [
+    ['openai', 'subscription'],
+    ['openai', 'api-key'],
+    ['openrouter', 'api-key'],
+    ['gemini', 'oauth'],
+    ['huggingface', 'oauth'],
+  ] as const) {
+    forgetFamilyObservations(family, kind)
   }
 }

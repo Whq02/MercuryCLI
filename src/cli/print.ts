@@ -37,7 +37,7 @@ import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessio
 import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
-import { is1PApiCustomer } from '../utils/auth.js'
+import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
@@ -1687,6 +1687,7 @@ export async function runHeadless(
             respondError(requestId, `claim refused — effort '${claimedEffort}' is not on the shared ladder`)
             return
           }
+          dropCredentialMemos()
           const claimedHome = consumeSessionHomePin()
           if (request.resume === true) {
             const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
