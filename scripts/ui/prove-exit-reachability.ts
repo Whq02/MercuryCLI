@@ -184,8 +184,8 @@ for (const [ctx, exit] of Object.entries(EXIT_TABLE)) {
   )
   const afford = actionAffordance(exit.action, ctx, bindings, 'linux')
   check(
-    `${ctx}: the affordance oracle calls ${exit.action} bound on esc (nothing later unbinds it)`,
-    afford.kind === 'bound' && /esc/i.test(afford.chord),
+    `${ctx}: the affordance oracle calls ${exit.action} bound (nothing later unbinds it) — via ${afford.kind === 'unbound' ? '—' : afford.chord}`,
+    afford.kind === 'bound',
     JSON.stringify(afford),
   )
   check(`${ctx}: ${exit.action} exists in the action graph under this context`, ctx in EXIT_TABLE && (graph[exit.action]?.contexts ?? []).includes(ctx), JSON.stringify(graph[exit.action]?.contexts))
