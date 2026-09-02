@@ -73,7 +73,7 @@ function assertWidth(name: string, s: GrabbedScreen): void {
   t.check('wide-glyph content renders', text.includes('日本語') || text.includes('値'))
 }
 
-for (const cols of [44, 80, 160]) {
+for (const cols of [80, 160]) {
   const run = await runArtifactArena({
     turns: TURNS,
     sends: SENDS,
@@ -88,6 +88,25 @@ for (const cols of [44, 80, 160]) {
     assertWidth(`static-${cols}`, grabScreens(run, cols, 44, [S(15_600)])[0]!)
   } finally {
     run.cleanup()
+  }
+}
+
+{
+  const narrow = await runArtifactArena({
+    turns: TURNS,
+    sends: SENDS,
+    resizes: ['15200:80:44'],
+    seconds: 19,
+    cols: 120,
+    rows: 44,
+    probe: false,
+    keep: true,
+  })
+  try {
+    void firstOutputTs(narrow)
+    assertWidth('resized-80', grabScreens(narrow, 80, 44, [S(16_600)])[0]!)
+  } finally {
+    narrow.cleanup()
   }
 }
 

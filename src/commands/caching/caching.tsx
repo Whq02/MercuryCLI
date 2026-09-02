@@ -4,10 +4,10 @@ import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import {
   COMMAND_SETTINGS_ROWS,
-  bootEnvAppliedKeys,
   menuRowChoices,
   readBootDefaultsProfile,
   readBootEnvChoices,
+  realEnvPin,
   writeBootEnvChoice,
   type MenuChoice,
 } from '../../substrate/startupMenu.js'
@@ -27,16 +27,7 @@ function readDialState(): {
 } {
   const saved = readBootEnvChoices() ?? {}
   const savedSpelling = flagSpellings(TTL_ROW.env).find(sp => saved[sp] !== undefined)
-  const applied = bootEnvAppliedKeys()
-  let envPin: { spelling: string; value: string } | null = null
-  for (const sp of flagSpellings(TTL_ROW.env)) {
-    const v = process.env[sp]
-    if (v !== undefined && !applied.has(TTL_ROW.env)) {
-      envPin = { spelling: sp, value: v }
-      break
-    }
-  }
-  return { saved: savedSpelling !== undefined ? (saved[savedSpelling] ?? null) : null, envPin }
+  return { saved: savedSpelling !== undefined ? (saved[savedSpelling] ?? null) : null, envPin: realEnvPin(TTL_ROW.env) }
 }
 
 interface FamilyCachingRow {

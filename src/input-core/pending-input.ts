@@ -141,12 +141,14 @@ export function initSession(
   })
 }
 
-export async function rekeyToSession(sessionId: string | null): Promise<void> {
+export async function rekeyToSession(sessionId: string | null, opts?: { landing?: boolean }): Promise<void> {
   const fence = editSeq
+  const typedWhileLanding = opts?.landing === true ? draft.text : ''
   await flushDraftSaves()
   owningSessionId = sessionId
   const saved = readDraftSync(sessionId)
   if (editSeq !== fence) return
+  if (typedWhileLanding !== '' && (!saved || saved.text === '')) return
   const text = saved?.text ?? ''
   draft = {
     text,
