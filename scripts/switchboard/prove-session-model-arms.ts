@@ -5,11 +5,12 @@
 //  The incident this closes: a boot chat whose saved default was a GPT id
 //  could not start at all — the admission validated every session against
 //  the bounded-crew vocabulary, so a sovereign (non-Anthropic) session was
-//  refused 'not-integrated:worker-engine' at its own front door. The law
+//  refused at its own front door by the bounded-crew vocabulary. The law
 //  (operator-ratified): the SESSION arm is PURE PRODUCT CAPABILITY — every
 //  credentialed family dispatches, the economy tier included; the CREW arm
-//  keeps its narrower vocabulary (frontier-only, engines not integrated).
-//  Refusals are typed with the ONE action riding the error.
+//  is the same capability minus the economy tier (the never-Haiku law) —
+//  no family is favoured for a crew seat either. Refusals are typed with
+//  the ONE action riding the error.
 //
 //    §1 THE SESSION ARM — capability: frontier, engine AND haiku ids all
 //       validate ok when credentialed; a keyless family refuses
@@ -17,9 +18,9 @@
 //       namespace id outside the picker still dispatches (the wire
 //       adjudicates); an unknown Anthropic-space id refuses
 //       'unknown-model'.
-//    §2 THE CREW ARM — the bounded vocabulary: engines typed-refused even
-//       credentialed; haiku refused by the standing law (THE pin that
-//       separates the arms); frontier ok.
+//    §2 THE CREW ARM — credentialed engines ok (no favoured family); haiku
+//       refused by the standing law (THE pin that separates the arms);
+//       frontier ok.
 //    §3 DISPLAY ≡ DISPATCH per arm — an arm's painted availability and its
 //       validation verdict can never disagree, row by row.
 //    §4 THE SEED NAMES ITS ARM — an engine operator-default seeds the
@@ -148,9 +149,13 @@ section('§2 — the crew arm: the bounded vocabulary (THE arm separator)')
   const fable = await wm.validateWorkerModelChoice('claude-fable-5', 'crew')
   check('an Anthropic frontier id validates ok for a crew seat', fable.ok, text(fable))
 
+  // The operator's law (no family is favoured): a credentialed engine row
+  // runs a crew seat exactly as it runs a session — the crew teammate is
+  // the same product child; the old 'not-integrated:worker-engine' refusal
+  // was the favoured-family remnant.
   const glm = await wm.validateWorkerModelChoice('glm-5.3', 'crew')
-  check('the SAME credentialed engine id refuses on the crew arm, typed',
-    !glm.ok && glm.reason === 'not-integrated:worker-engine', text(glm))
+  check('the SAME credentialed engine id validates ok on the crew arm (no family is favoured)',
+    glm.ok, text(glm))
 
   const haiku = await wm.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'crew')
   check('haiku refuses on the CREW arm — the never-Haiku law binds autonomous crew',

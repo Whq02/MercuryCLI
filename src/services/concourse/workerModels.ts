@@ -16,13 +16,22 @@
 //      admission; the engine speaks the provider's own truth per call).
 //      A family with NO credential refuses typed ('no-credential:<family>')
 //      with the one action that fixes it riding the refusal;
-//    · the CREW arm — the bounded crew's narrower vocabulary: Anthropic
-//      frontier rows run full crew seats today; economy-tier rows are
-//      REFUSED typed ('worker-policy:frontier-only' — the standing
-//      never-Haiku law for autonomous crew, spoken as a visible refusal);
-//      engine rows are REFUSED typed ('not-integrated:worker-engine')
-//      until the crew runtimes take them — each row flips available the
-//      moment they do, with no Concourse source change.
+//    · the CREW arm — the same capability minus the economy tier: every
+//      credentialed family's frontier rows run crew seats (a crew teammate
+//      is the same product child a session runs — no family is favoured);
+//      economy-tier rows are REFUSED typed ('worker-policy:frontier-only'
+//      — the standing never-Haiku law for autonomous crew, spoken as a
+//      visible refusal).
+//
+//  THE NEUTRAL SEAT (the operator's law — no family is favoured): a seat
+//  nobody named a model for lands on the operator's own default, else on
+//  the NEUTRAL default — the most recent sign-in's provider, its newest
+//  usable row (computedDefault, the one owner of that decision) — never on
+//  a family the account does not hold; a family WORD ('openai',
+//  'anthropic', …) names that family's newest signed-in row; and a
+//  credential refusal names the family that IS signed in as the way out,
+//  never only the one refused. The coordinator's launches, the crew spawn
+//  and the workflow executor all resolve through here.
 //
 //  REFUSALS ARE TYPED AND CARRY THEIR ACTION: every refusal names its true
 //  class ('no-credential:<family>' · 'unknown-model' · the reserved
@@ -39,11 +48,11 @@
 // ============================================================================
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import type { LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
   | 'worker-policy:frontier-only'
-  | 'not-integrated:worker-engine'
   | `no-credential:${string}`
   /** The account-less family's miss (local): the backing server is gone —
    *  a credential class would borrow a family this one never had. */
@@ -79,6 +88,12 @@ export interface WorkerModelEntryV1 {
    *  launch nobody named a model for lands where the operator already
    *  chose, never on a pricier or tighter-pool family. */
   isOperatorDefault?: true
+  /** THE NEUTRAL DEFAULT — the most recent sign-in's provider, its newest
+   *  usable row (computedDefault). The seed falls to THIS row when the
+   *  operator's own pick is refused (a /model pin on a family that lost
+   *  its credential), never to the catalogue's first listed row of some
+   *  family the operator never chose. */
+  isNeutralDefault?: true
 }
 
 export interface WorkerModelRegistryV1 {
@@ -106,6 +121,85 @@ export function loginsActionFor(family: string): string {
   if (family === 'openai-compat') return 'ask the operator to set MERCURY_COMPAT_BASE_URL (and MERCURY_COMPAT_API_KEY, or /router key compat)'
   if (family === 'local') return 'ask the operator to start a local server, or set MERCURY_LOCAL_BASE_URL'
   return 'ask the operator to run /logins'
+}
+
+/** The family words a seat may name instead of a model id: every family
+ *  the presence owner enumerates (the ids /logins pre-focuses, plus the
+ *  two connect-only families). A word resolves to that family's newest
+ *  usable row for THIS account; a family with no usable sign-in keeps its
+ *  own credential refusal, naming its door and the way out. */
+const SEAT_FAMILY_WORDS = new Set([...LOGINS_FAMILY_WORDS, 'openai-compat', 'local'])
+export function isSeatFamilyWord(word: string): boolean {
+  return SEAT_FAMILY_WORDS.has(word)
+}
+
+/** One signed-in family's seat choice: its newest usable row. */
+export interface SeatFamilyChoiceV1 {
+  family: string
+  /** The model-setting string the row resolves to (what a seat runs). */
+  setting: string
+  /** The row's display words. */
+  row: string
+}
+
+/** THE NEUTRAL SEAT DEFAULT — the most recent sign-in's provider, its
+ *  newest usable row (computedDefault: the ONE owner of that decision);
+ *  null with no usable sign-in anywhere. Sync (the deferred require — the
+ *  model.ts idiom) so the workflow executor and the daemon's crew spawn
+ *  ask it without a composition of their own. */
+export function neutralSeatDefault(): SeatFamilyChoiceV1 | null {
+  try {
+    const { computedDefault } =
+      require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+    const decision = computedDefault()
+    if (decision.source === 'keyless' || decision.provider === null) return null
+    return { family: decision.provider, setting: decision.setting, row: decision.row }
+  } catch {
+    return null
+  }
+}
+
+/** Every signed-in family with a usable row, most recent sign-in first —
+ *  the roster a crew spawn or a workflow offers: one choice per family,
+ *  never a favoured table. */
+export function seatFamilyChoices(): SeatFamilyChoiceV1[] {
+  try {
+    const { computedDefault } =
+      require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+    const out: SeatFamilyChoiceV1[] = []
+    for (const considered of computedDefault().considered) {
+      if (!considered.verdict.usable) continue
+      const verdict = considered.verdict as Extract<LaneRowVerdict, { usable: true }>
+      out.push({ family: considered.family, setting: verdict.setting, row: verdict.row })
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+/** A family word's seat: its newest usable row, or undefined when the
+ *  family holds no usable sign-in. */
+export function familySeatSetting(family: string): string | undefined {
+  return seatFamilyChoices().find(c => c.family === family)?.setting
+}
+
+/** The credential refusal's action: the refused family's own door AND the
+ *  way out through a family that IS signed in — never only the one refused
+ *  (a refusal that names only /logins anthropic on an account signed in
+ *  elsewhere sends the operator to a family they never chose). */
+export function noCredentialAction(family: string): string {
+  const door = loginsActionFor(family)
+  const other = seatFamilyChoices().find(c => c.family !== family)
+  if (other === undefined) return door
+  let name = other.family
+  try {
+    const { providerDisplayName } = require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
+    name = providerDisplayName(other.family)
+  } catch {
+    /* the family id stands */
+  }
+  return `${door} — or ${name} is signed in: leave the model out for its newest row (${other.row}), or name '${other.family}' to pick that family`
 }
 
 /**
@@ -236,7 +330,7 @@ function composeArms(
           availability: 'refused',
           refusal: `no-credential:${route}`,
           detail: `the ${route} family holds no credential on this account`,
-          action: loginsActionFor(route),
+          action: noCredentialAction(route),
         }
   if (ECONOMY_FAMILY.test(modelId)) {
     // The standing never-Haiku law holds for the AUTONOMOUS crew only — a
@@ -246,30 +340,25 @@ function composeArms(
       crew: {
         availability: 'refused',
         refusal: 'worker-policy:frontier-only',
-        detail: 'crew seats run the frontier families',
-        action: 'pick opus, sonnet or fable for a crew seat',
+        detail: 'crew seats run the frontier rows',
+        action: "pick a frontier row for the crew seat — a family word ('anthropic', 'openai', …) picks that family's newest signed-in row",
       },
     }
   }
-  if (FRONTIER_FAMILY.test(modelId)) {
-    return { session, crew: session }
-  }
-  // Engine rows (GPT/Z.AI/OpenRouter/…): the product runs them, so a
-  // session dispatches every credentialed one; the bounded crew refuses
-  // the family typed until its runtimes take them.
-  return {
-    session,
-    crew: {
-      availability: 'refused',
-      refusal: 'not-integrated:worker-engine',
-      detail: 'the crew runtimes run Anthropic frontier seats today',
-      action: 'pick opus, sonnet or fable for a crew seat',
-    },
-  }
+  // Every other row — the first-party frontier AND the engine families
+  // (GPT / Z.AI / OpenRouter / …) — runs a crew seat exactly as it runs a
+  // session: a crew teammate is the same product child, so the family's
+  // credential is the whole verdict and no family is favoured.
+  return { session, crew: session }
 }
 
 export function foldLegacyWorkerModelKey(idOrKey: string): string {
-  return WORKER_MODEL_LEGACY_KEY_NAMES.has(idOrKey) ? parseUserSpecifiedModel(idOrKey) : idOrKey
+  if (WORKER_MODEL_LEGACY_KEY_NAMES.has(idOrKey)) return parseUserSpecifiedModel(idOrKey)
+  // A FAMILY WORD names that family's newest signed-in row (the neutral
+  // seat law); a family with no usable sign-in keeps the word, and the
+  // validator answers that family's own credential refusal.
+  if (SEAT_FAMILY_WORDS.has(idOrKey)) return familySeatSetting(idOrKey) ?? idOrKey
+  return idOrKey
 }
 
 export async function canonicalWorkerModelId(idOrKey: string): Promise<string> {
@@ -299,6 +388,19 @@ export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV
     /* an unreadable setting leaves the rows unmarked — the first available
        row is then the seed, visible on the chip like any other choice */
   }
+  // THE NEUTRAL DEFAULT's row is marked the same way, read ONCE here: the
+  // seed falls to it when the operator's own pick is refused, so an
+  // unnamed launch lands on the most recent sign-in's newest usable row
+  // and never on the first listed row of a family nobody chose.
+  let neutralDefaultId: string | undefined
+  const neutral = neutralSeatDefault()
+  if (neutral !== null) {
+    try {
+      neutralDefaultId = await canonicalWorkerModelId(neutral.setting)
+    } catch {
+      /* unmarked — the first available row seeds, visibly */
+    }
+  }
   for (const o of getModelOptions()) {
     const v = typeof o.value === 'string' ? o.value : null
     // The same exclusions as the coordinator side: the Default row
@@ -311,6 +413,7 @@ export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV
     seen.add(modelId)
     const displayName = typeof o.label === 'string' && o.label.length > 0 ? o.label : modelId
     const operatorMark = modelId === operatorDefaultId ? ({ isOperatorDefault: true } as const) : {}
+    const neutralMark = modelId === neutralDefaultId ? ({ isNeutralDefault: true } as const) : {}
     const arms = composeArms(modelId, credentials, declaredRouteOf(modelId) ?? 'unrecognised')
     entries.push({
       modelId,
@@ -319,7 +422,23 @@ export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV
       // The effort convention rides every row the session arm dispatches.
       ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
       ...operatorMark,
+      ...neutralMark,
     })
+  }
+  // The neutral default's row is a picker row by construction; should a
+  // composition ever miss it, it joins as an explicit entry through the
+  // same classifier (the operator-default seam below is the precedent).
+  if (neutralDefaultId !== undefined && !seen.has(neutralDefaultId)) {
+    const arms = composeArms(neutralDefaultId, credentials, declaredRouteOf(neutralDefaultId) ?? 'unrecognised')
+    entries.unshift({
+      modelId: neutralDefaultId,
+      displayName: neutral?.row ?? neutralDefaultId,
+      ...arms,
+      ...(arms.session.availability === 'available' ? ({ effort: 'high' } as const) : {}),
+      isNeutralDefault: true,
+      ...(neutralDefaultId === operatorDefaultId ? ({ isOperatorDefault: true } as const) : {}),
+    })
+    seen.add(neutralDefaultId)
   }
   // Operator finding: on profiles where the operator's default exists ONLY
   // as the picker's null Default row, workers could never name it — the
@@ -355,6 +474,11 @@ export async function composeWorkerModelRegistry(): Promise<WorkerModelRegistryV
 export function defaultWorkerModelId(registry: WorkerModelRegistryV1, arm: WorkerDispatchArm): string {
   const operatorDefault = registry.entries.find(e => e.isOperatorDefault === true && e[arm].availability === 'available')
   if (operatorDefault !== undefined) return operatorDefault.modelId
+  // THE NEUTRAL RUNG (the operator's law — no family is favoured): the most
+  // recent sign-in's newest usable row, before any first-listed row of a
+  // family the operator never chose.
+  const neutralDefault = registry.entries.find(e => e.isNeutralDefault === true && e[arm].availability === 'available')
+  if (neutralDefault !== undefined) return neutralDefault.modelId
   const firstAvailable = registry.entries.find(e => e[arm].availability === 'available')
   if (firstAvailable !== undefined) return firstAvailable.modelId
   return registry.entries[0]?.modelId ?? foldLegacyWorkerModelKey('fable')
@@ -376,6 +500,20 @@ export type WorkerModelValidation =
  *  kind, so a session is admitted by the product's own reach and a crew
  *  seat by the crew vocabulary, never each other's. */
 export async function validateWorkerModelChoice(idOrKey: string | undefined, arm: WorkerDispatchArm): Promise<WorkerModelValidation> {
+  // A FAMILY WORD with no usable sign-in answers that family's own
+  // credential refusal (its door, and the way out through a family that
+  // is signed in) — never an 'unrecognised' about the word itself.
+  if (idOrKey !== undefined && SEAT_FAMILY_WORDS.has(idOrKey) && familySeatSetting(idOrKey) === undefined) {
+    if (idOrKey === 'local') {
+      return { ok: false, reason: 'unreachable:local', detail: 'no local server is discovered on this box', action: loginsActionFor(idOrKey) }
+    }
+    return {
+      ok: false,
+      reason: `no-credential:${idOrKey}`,
+      detail: `the ${idOrKey} family holds no usable sign-in on this account`,
+      action: noCredentialAction(idOrKey),
+    }
+  }
   const registry = await composeWorkerModelRegistry()
   const defaultId = await canonicalWorkerModelId(defaultWorkerModelId(registry, arm))
   const id = idOrKey === undefined ? defaultId : await canonicalWorkerModelId(idOrKey)
@@ -457,7 +595,7 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
           ok: false,
           reason: `no-credential:${route}`,
           detail: `the ${route} family holds no credential on this account`,
-          action: loginsActionFor(route),
+          action: noCredentialAction(route),
         }
       }
       const dispatchable = registry.entries
