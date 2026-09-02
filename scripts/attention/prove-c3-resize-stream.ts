@@ -11,7 +11,7 @@
 //  byte log via pyte):
 //
 //    140×40 boot → prompt → ~5 s paced stream; resizes at 6.5 s (140→120),
-//    8 s (120→80×30), 9.5 s (80→120×40) — all inside the stream — then the
+//    8 s (120→80×30, the viewport floor), 9.5 s (80→120×40) — all inside the stream — then the
 //    stream finishes and settles.
 //
 //  Evidence screens are written to docs/benchmarks/rendezvous/c3/ by the
@@ -125,11 +125,11 @@ t.section('§2 no blank frame in any resize phase (screens sampled mid-log)')
 
 run.cleanup()
 
-t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30)')
+t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30, the viewport floor)')
 {
   // The faithful stale-mascot instrument: the journey's narrow leg gets its
   // own run that streams THROUGH the shrink and settles there — the final
-  // screen is a true 80×30 frame, not a replay collage.
+  // screen is a true 80×30 frame (the viewport floor), not a replay collage.
   const run80 = await runArtifactArena({
     turns: [{ kind: 'paced', deltas, gapMs: 50, settleDelayMs: 1200 }],
     sends: ['4500:stream the rendezvous journey', '5300:\\r'],
