@@ -16,6 +16,7 @@ import { getProjectPathForConfig } from '../../utils/config.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getGlobalMercuryFile } from '../../utils/env.js'
+import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
 import { getEnterpriseMcpFilePath, getMcpConfigByName } from './config.js'
@@ -273,26 +274,172 @@ export function getScopeLabel(scope: ConfigScope | string): string {
   }
 }
 
-const ALL_SCOPES: ConfigScope[] = [
-  'local',
-  'user',
-  'project',
-  'dynamic',
-  'enterprise',
-  'claudeai',
-  'managed',
-]
+/** The scopes an operator's add/remove may name — the three writable
+ *  stores. The estates the runner merges beside them (enterprise · managed ·
+ *  dynamic · claudeai) are never a CLI write target, so the refusal lists
+ *  only what the verb can actually do (the add verb once advertised all
+ *  seven and then refused four of them one step later). */
+export const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'project']
 
 /**
  * Coerce a CLI scope argument. Absent ⇒ `local`; an unrecognised value
- * throws naming the value and listing every valid scope (the whole
- * vocabulary — `managed` is accepted here even though nothing in this slice
- * mints it).
+ * throws naming the value and the three scopes the verb can write.
  */
 export function ensureConfigScope(scope?: string): ConfigScope {
   if (scope === undefined || scope === '') return 'local'
-  if ((ALL_SCOPES as string[]).includes(scope)) return scope as ConfigScope
-  throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${ALL_SCOPES.join(', ')}`)
+  if ((OPERATOR_CONFIG_SCOPES as readonly string[]).includes(scope)) return scope as ConfigScope
+  throw new Error(`Invalid scope: ${scope}. Valid scopes are: ${OPERATOR_CONFIG_SCOPES.join(', ')}`)
+}
+
+// ---------------------------------------------------------------------------
+// Connect-failure reasons — the roster row, `mcp list`/`get`, /mcp
+// ---------------------------------------------------------------------------
+
+/** The telemetry key the connect deadline's error carries — the one mark
+ *  the reason composer reads to leave the deadline's own sentence alone. */
+export const MCP_CONNECT_TIMEOUT_TELEMETRY = 'MCP connection timeout'
+
+export interface McpConnectFailureContext {
+  /** The transport that failed (`stdio` · `sse` · `http` · …). */
+  transport: string
+  /** A stdio server's command, for the spawn-failure sentences. */
+  command?: string
+  /** A remote server's URL, for the host:port in the network sentences. */
+  url?: string
+  /** A stdio server's last stderr words (already bounded), or empty. */
+  stderrTail?: string
+}
+
+/** The first errno-style string code on the error or its cause chain —
+ *  node's fetch wraps every pre-HTTP fault as `TypeError: fetch failed`
+ *  with the real code on `cause`. */
+function errnoCodeInChain(error: unknown, maxDepth = 4): string | undefined {
+  let cursor: unknown = error
+  for (let depth = 0; depth <= maxDepth && cursor !== undefined && cursor !== null; depth++) {
+    const code = getErrnoCode(cursor)
+    if (code !== undefined) return code
+    cursor = cursor instanceof Error ? cursor.cause : undefined
+  }
+  return undefined
+}
+
+function urlTarget(url: string | undefined): { host: string; target: string; port: string } {
+  if (url === undefined) return { host: 'the server', target: 'the server', port: '' }
+  try {
+    const parsed = new URL(url)
+    const port = parsed.port !== '' ? parsed.port : parsed.protocol === 'https:' ? '443' : '80'
+    return { host: parsed.hostname, target: `${parsed.hostname}:${port}`, port }
+  } catch {
+    return { host: url, target: url, port: '' }
+  }
+}
+
+/** JavaScript class prefixes are noise on an operator's row. */
+function stripErrorClassPrefixes(text: string): string {
+  return text.replace(/\b(?:TypeError|RangeError|Error|SseError|StreamableHTTPError|AggregateError):\s*/g, '')
+}
+
+/**
+ * The operator-facing reason for a connect that failed — the sentence the
+ * roster row, `mcp list`/`get` and /mcp all print. One owner, so every
+ * surface says the same true thing:
+ *   · the connect DEADLINE keeps its own sentence (it already names the
+ *     transport, the seconds and the retry door) — it is never dressed with
+ *     the "closed" tail (the server did not close; the deadline ended it);
+ *   · a stdio spawn that never started names the command and the fix
+ *     (ENOENT ⇒ command not found; EACCES/EPERM ⇒ not executable) — "run the
+ *     command by hand to see why it exits" is the wrong step for a command
+ *     that never ran;
+ *   · a stdio server that exited carries its last stderr words, or says it
+ *     wrote nothing and names the next step;
+ *   · a remote fault unwraps fetch's wrapper to the real cause — refused,
+ *     unresolved, reset, timed out, an untrusted certificate, a blocked
+ *     port — each with the host and the next step; anything else keeps the
+ *     cause chain with the class prefixes stripped.
+ */
+export function describeMcpConnectFailure(error: unknown, context: McpConnectFailureContext): string {
+  const message = errorMessage(error)
+  if ((error as { telemetryMessage?: unknown } | null)?.telemetryMessage === MCP_CONNECT_TIMEOUT_TELEMETRY) return message
+  const code = errnoCodeInChain(error)
+  if (context.transport === 'stdio') {
+    const command = context.command ?? 'the command'
+    if (code === 'ENOENT') return `command not found: ${command} — check the path (or install it), then retry from /mcp`
+    if (code === 'EACCES' || code === 'EPERM') return `command not executable: ${command} (${code}) — check its permissions, then retry from /mcp`
+    const tail = (context.stderrTail ?? '').trim()
+    return tail.length > 0
+      ? `${message} — server stderr: ${tail}`
+      : `${message} — the server wrote nothing to stderr before closing (run the command by hand to see why it exits)`
+  }
+  const { host, target, port } = urlTarget(context.url)
+  const chain = errorMessageWithCause(error)
+  // Node spells a refused connect as `fetch failed` with ECONNREFUSED on the
+  // cause; Bun spells it "Unable to connect. Is the computer able to access
+  // the url?" with code ConnectionRefused — one sentence for both.
+  if (code === 'ECONNREFUSED' || code === 'ConnectionRefused' || chain.includes('ECONNREFUSED') || chain.includes('Unable to connect')) {
+    return `connection refused at ${target} — nothing is listening there; start the server, then retry from /mcp`
+  }
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN' || /ENOTFOUND|EAI_AGAIN/.test(chain)) return `host not found: ${host} (DNS) — check the URL, then retry from /mcp`
+  if (code === 'ECONNRESET' || chain.includes('ECONNRESET')) return `the connection to ${target} was reset — the server dropped it; retry from /mcp`
+  if (code === 'ETIMEDOUT' || chain.includes('ETIMEDOUT')) return `connecting to ${target} timed out — check the network and the URL, then retry from /mcp`
+  if (/certificate|CERT_|SELF_SIGNED|UNABLE_TO_VERIFY|DEPTH_ZERO/i.test(chain)) return `TLS certificate for ${host} not trusted (${stripErrorClassPrefixes(chain)}) — add its CA with NODE_EXTRA_CA_CERTS, then retry from /mcp`
+  if (/bad port/i.test(chain)) return `port ${port || '(unset)'} is on fetch's blocked-port list — serve on another port, then retry from /mcp`
+  return stripErrorClassPrefixes(chain)
+}
+
+/** Clip `text` to `max` characters at a word boundary, marking the cut with
+ *  an ellipsis — a one-row surface sheds the tail honestly instead of ending
+ *  mid-word with nothing to say it was cut. */
+export function clipToWord(text: string, max: number): string {
+  if (max <= 1) return text.length <= max ? text : '…'
+  if (text.length <= max) return text
+  const head = text.slice(0, max - 1)
+  const cut = head.lastIndexOf(' ')
+  return `${(cut > max / 2 ? head.slice(0, cut) : head).trimEnd()}…`
+}
+
+/** The server types an operator writes by hand (the ide, sdk and proxy
+ *  members are minted by the product, never typed into a config). */
+const OPERATOR_SERVER_TYPES = ['stdio', 'sse', 'http', 'ws'] as const
+
+type SchemaIssue = {
+  code?: string
+  path: ReadonlyArray<PropertyKey>
+  message: string
+  errors?: ReadonlyArray<ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>>
+}
+
+/**
+ * The schema's refusal in the operator's words. The server config is a
+ * union over the transports, so a plain issue walk reads `(root): Invalid
+ * input` for every shape — the one line that names nothing. This picks the
+ * branch whose `type` matched (its issues never complain about `type`) and
+ * prints THAT branch's field problems; a `type` no branch knows names the
+ * valid types instead.
+ */
+export function describeMcpConfigIssues(issues: ReadonlyArray<SchemaIssue>, parsed: unknown): string {
+  const typed = parsed !== null && typeof parsed === 'object' ? (parsed as { type?: unknown }).type : undefined
+  const typeWord = typeof typed === 'string' ? typed : undefined
+  const flatten = (list: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>): string[] =>
+    list.map(issue => `${issue.path.map(String).join('.') || '(root)'}: ${issue.message}`)
+  const lines: string[] = []
+  for (const issue of issues) {
+    if (issue.code === 'invalid_union' && issue.errors !== undefined) {
+      const matched = issue.errors.filter(branch => !branch.some(field => field.path.length === 1 && field.path[0] === 'type'))
+      if (matched.length > 0) {
+        const prefix = typeWord !== undefined ? `for a ${typeWord} server — ` : ''
+        lines.push(`${prefix}${[...new Set(matched.flatMap(flatten))].join(' · ')}`)
+        continue
+      }
+      lines.push(
+        typeWord === undefined
+          ? `type: missing — one of ${OPERATOR_SERVER_TYPES.join(', ')}`
+          : `type: "${typeWord}" is not a server type — one of ${OPERATOR_SERVER_TYPES.join(', ')}`,
+      )
+      continue
+    }
+    lines.push(...flatten([issue]))
+  }
+  return [...new Set(lines)].join(' · ')
 }
 
 /**

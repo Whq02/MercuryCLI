@@ -19,6 +19,11 @@ import { join } from 'node:path'
 // not skew the spec).
 const scratch = mkdtempSync(join(tmpdir(), 'crew-specfloor-'))
 process.env.MERCURY_CONFIG_DIR = scratch
+// THE PROOF'S HERMETICITY: the credential store is pinned to the FILE
+// backend under the scratch home — on darwin the keychain chain ignores
+// MERCURY_CONFIG_DIR, so a presence check would otherwise read this
+// machine's OS keychain (a prover never touches the operator's keychain).
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_WORKER_RECON_ALLOW
 delete process.env.MERCURY_CREW
@@ -31,6 +36,15 @@ const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../
 const hr = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
 const wr = (await import('../../src/daemon/workerRecon.js')) as typeof import('../../src/daemon/workerRecon.js')
 const gates = (await import('../../src/utils/workerRole.js')) as typeof import('../../src/utils/workerRole.js')
+// THE SEAT LAW (no family favoured): a crew key resolves through the ONE
+// seat resolver — the Anthropic generation keys (opus · sonnet · fable ·
+// fable51) stand while anthropic is signed in, the family words per
+// signed-in family, nothing named ⇒ the neutral default. Seed the sign-in
+// (a fixture key + the ledger row) so the keys below resolve.
+process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
+;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
+;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -86,8 +100,13 @@ for (const reserved of ['team-lead', 'crew', 'daemon']) {
 }
 
 section('buildCrewSpec — the server-side floor (everything security-relevant)')
-const spec = cs.buildCrewSpec('atlas', 'sonnet', '/proj')
-check('model/effort from the table', spec.model === 'claude-sonnet-5' && spec.effort === 'high')
+// The spec takes a RESOLVED seat (the seat law): the key resolves through
+// the one resolver first — the closed table is the Anthropic keys' row
+// set, not the spec's input.
+const sonnetSeat = await cs.resolveCrewSeatModel('sonnet')
+check('the sonnet key resolves through the seat while anthropic is signed in', sonnetSeat.ok, JSON.stringify(sonnetSeat))
+const spec = cs.buildCrewSpec('atlas', { model: sonnetSeat.ok ? sonnetSeat.model : 'sonnet', effort: 'high' }, '/proj')
+check('model/effort from the resolved seat (sonnet → claude-sonnet-5 @ high)', spec.model === 'claude-sonnet-5' && spec.effort === 'high', `${spec.model} @ ${spec.effort}`)
 check("permissionMode 'flow' (run-#2 lesson: default-mode -p terminal-denies)", spec.permissionMode === 'flow')
 check('allowedTools = the worker recon set (classifier-fault immunity)', JSON.stringify(spec.allowedTools) === JSON.stringify(wr.resolveWorkerReconAllow()))
 check('recon set is non-empty', (spec.allowedTools?.length ?? 0) > 0)
@@ -101,15 +120,16 @@ check('pack names @atlas', pack.includes('@atlas'))
 check('pack carries the SendMessage→team-lead reply contract', pack.includes('SendMessage') && pack.includes('team-lead'))
 check('pack forbids gate bypass', /Never bypass a permission/.test(pack))
 check('pack forbids daemons/fan-out', pack.includes('no daemons, no agent fan-out'))
-const opusSpec = cs.buildCrewSpec('atlas', 'opus', '/proj')
-check('opus key resolves the current Opus (natively 1M, bare id)', opusSpec.model === 'claude-opus-5')
+const opusSeat = await cs.resolveCrewSeatModel('opus')
+const opusSpec = cs.buildCrewSpec('atlas', { model: opusSeat.ok ? opusSeat.model : 'opus', effort: 'high' }, '/proj')
+check('opus key resolves the current Opus through the seat (natively 1M, bare id)', opusSpec.model === 'claude-opus-5', opusSpec.model)
 
 section('buildStreamJsonInvocation(crew) — what the child actually boots with')
 const inv = hr.buildStreamJsonInvocation(spec)
 check("child env MERCURY_CREW='1' (role stamp)", inv.env.MERCURY_CREW === '1')
 check('child env MERCURY_CREW_AGENT SURVIVES the sanitize (crew spec)', inv.env.MERCURY_CREW_AGENT === 'atlas')
 check("child env MERCURY_WORKFLOWS='0'", inv.env.MERCURY_WORKFLOWS === '0')
-check('child ANTHROPIC_MODEL = table model', inv.env.ANTHROPIC_MODEL === 'claude-sonnet-5')
+check('child ANTHROPIC_MODEL = the resolved seat model', inv.env.ANTHROPIC_MODEL === 'claude-sonnet-5', String(inv.env.ANTHROPIC_MODEL))
 const argvStr = inv.argv.join(' ')
 check('argv: --permission-mode flow', /--permission-mode(=| )flow/.test(argvStr))
 check('argv: --allowedTools with the recon rules', inv.argv.includes('--allowedTools'))

@@ -450,7 +450,7 @@ section("§7 the surfaces name the session's family — never the first-party on
 }
 
 // ── §8 THE OPERATOR'S SIGHTING — the unnamed launch on a fresh box ──────────
-section("§8 the operator's sighting: a fresh box's New Session refuses with BOTH doors and no family")
+section("§8 the operator's sighting: a fresh box's New Session is born keyless; a spelled-out id keeps its family's door, spoken to the operator")
 {
   const wm = await import('../../src/services/concourse/workerModels.js')
   // Pure: the ruled sentence fires exactly for no-default + no-credential-anywhere.
@@ -462,31 +462,47 @@ section("§8 the operator's sighting: a fresh box's New Session refuses with BOT
   check('a non-credential refusal is untouched', wm.noAccountRefusal('worker-policy:frontier-only', undefined, false) === undefined)
 
   // LIVE, the sighting itself: this home holds no credential in any family
-  // and no recorded default (the legs above cleared both).
+  // and no recorded default (the legs above cleared both). THE LANDED LAW
+  // (the neutral-default ruling): an unnamed SESSION launch on a keyless
+  // home is BORN — admitted keyless on the neutral placeholder, the row
+  // wearing the keyless words and no family — never a refusal; the cockpit
+  // paints, its composer's own gate names the logins door, and the first
+  // send is what a credential gates. The two-door sentence above stays the
+  // crew seat's (a crew seat cannot run keyless).
   rmSync(join(home, 'settings.json'), { force: true })
   resetSettingsCache()
   const fresh = await wm.validateWorkerModelChoice(undefined, 'session')
-  const freshLine = fresh.ok ? 'ok' : `${fresh.reason} · ${fresh.action ?? ''} — ${fresh.detail ?? ''}`
-  check("LIVE: the fresh box's unnamed launch refuses with the ruled sentence (base: '…run /logins anthropic — the anthropic family holds no credential on this account')",
-    !fresh.ok && fresh.reason === 'no-credential:any' && (fresh.action ?? '') === '/logins to choose an account, or /router key <provider> to connect an API key', freshLine)
-  check('…naming no family anywhere on the line', !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(freshLine), freshLine)
+  const freshLine = fresh.ok ? `ok · keyless=${String(fresh.keyless)} · ${fresh.entry.displayName}` : `${fresh.reason} · ${fresh.action ?? ''} — ${fresh.detail ?? ''}`
+  check("LIVE: the fresh box's unnamed launch is BORN keyless (base: '…run /logins anthropic — the anthropic family holds no credential on this account', then the two-door refusal)",
+    fresh.ok && fresh.keyless === true && fresh.entry.displayName === 'no sign-in yet', freshLine)
+  check('…naming no family anywhere on the row', !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(freshLine), freshLine)
+  const freshCrew = await wm.validateWorkerModelChoice(undefined, 'crew')
+  check('…while the keyless CREW seat keeps the ruled two-door sentence (naming no family)', !freshCrew.ok && freshCrew.reason === 'no-credential:any' && !/anthropic|claude|openai/i.test(`${freshCrew.detail} ${freshCrew.action}`), JSON.stringify(freshCrew))
 
-  // LIVE, THE FACE'S ROAD (FC-097 — the Windows field's TASK-018 wave 5):
-  // the boot face's New Session never sends an UNDEFINED model. The
-  // snapshot resolves the registry default and the dispatch op carries it
-  // (display ≡ dispatch across processes), so the daemon validates a NAMED
-  // id — on the fresh box, exactly the id this same registry resolves as
-  // its default. That launch must speak the ruled sentence too (base: the
-  // family refusal, "…ask the operator to run /logins anthropic — the
-  // anthropic family holds no credential on this account (got "claude-…")",
-  // painted on the operator's own first frame).
+  // LIVE, THE FACE'S ROAD (FC-097's sighting, re-trued to the landed law):
+  // the boot face's New Session sends NO model on a keyless home — the
+  // door's screen arm is the neutral owner's word (screenBirthModel:
+  // nothing while computedDefault reads keyless), so the daemon sees the
+  // unnamed launch above and births it. The registry's keyless seed is the
+  // operator's own row (the id the old face named): spelled out as a NAMED
+  // id it is the operator's own pick and keeps its family's door — and on
+  // the operator's own road that door is spoken TO the operator (the
+  // daemon addresses its way-out to a relay; bornSession rewrites it).
+  const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
+  // The neutral owner memoises on the ledger epoch; the legs above put keys
+  // on and off the process — read the fresh box afresh.
+  ;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
+  check("LIVE: the face's road sends NO model on the fresh box (screenBirthModel is nothing while the default reads keyless)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
   const facedRegistry = await wm.composeWorkerModelRegistry()
   const facedId = wm.defaultWorkerModelId(facedRegistry, 'session')
   const faced = await wm.validateWorkerModelChoice(facedId, 'session')
   const facedLine = faced.ok ? 'ok' : `${faced.reason} · ${faced.action ?? ''} — ${faced.detail ?? ''}`
-  check("LIVE: the face's launch — the registry default sent as a NAMED id — refuses with the ruled sentence (base: that family's own refusal, addressed to somebody else)",
-    !faced.ok && faced.reason === 'no-credential:any' && (faced.action ?? '') === '/logins to choose an account, or /router key <provider> to connect an API key', facedLine)
-  check('…naming no family anywhere on that line either', !/anthropic|claude|openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
+  check("LIVE: the registry's keyless seed spelled out as a NAMED id is the operator's own pick — its family's own door (base: the two-door sentence)",
+    !faced.ok && faced.reason === 'no-credential:anthropic' && /\/logins anthropic/.test(faced.action ?? ''), facedLine)
+  check('…naming ITS family and no other on that line', /anthropic/i.test(facedLine) && !/openai|openrouter|gemini|zai|moonshot|deepseek|huggingface/i.test(facedLine), facedLine)
+  const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.js')
+  const spoken = operatorFacingBirthReason(`model refused (${faced.ok ? '' : faced.reason}) · ${faced.ok ? '' : faced.action ?? ''} — ${faced.ok ? '' : faced.detail ?? ''} (got "${facedId}")`)
+  check("…and on the operator's own road the sentence is spoken TO the operator — no 'ask the operator', the imperative kept", !/ask the operator/.test(spoken) && /run \/logins anthropic/.test(spoken), spoken)
   // The operator's OWN pick keeps its family: a named id that is NOT the
   // default speaks that family's refusal, never the two-door sentence.
   const otherEntry = facedRegistry.entries.find(e => e.modelId !== facedId && e.session.availability !== 'available')

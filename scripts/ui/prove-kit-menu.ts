@@ -394,6 +394,38 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
   t.check('sectionRows keeps members first and the note last, both sections titled', listed[listed.length - 1]?.kind === 'note' && listed[0]?.section === 'mcp' && listed.some(r => r.section === 'skill'))
   const { LOADING_KIT_CATALOGUE } = await import('../../src/services/kitMenu/kitTypes.js')
   t.check('the loading catalogue paints "reading…" lines, never the none-configured words', sectionRows(LOADING_KIT_CATALOGUE).every(r => r.kind === 'empty' && r.text.startsWith('reading')))
+  // NAME COLLISIONS AND REFUSALS SKIP LOUDLY: three files claiming one name
+  // painted three identical `good` rows under one toggle key, and a file
+  // the loader refused (a YAML typo, an uninvocable name, an empty file)
+  // was simply absent — indistinguishable from never created. One row per
+  // name (the loader's winner: user settings before project, SKILL.md before
+  // a legacy command), then a note per shadowed copy and per refusal, each
+  // naming the file and the reason, before the ruled MCP note.
+  {
+    const { refusedSkillNote, shadowedSkillNote } = await import('../../src/services/kitMenu/kitCatalogue.js')
+    const colliding = {
+      ...doors,
+      dirSkills: async () => [
+        prompt('good', { source: 'userSettings', loadedFrom: 'skills' }),
+        prompt('good', { source: 'projectSettings', loadedFrom: 'skills' }),
+        prompt('good', { source: 'projectSettings', loadedFrom: 'legacy-commands' }),
+        prompt('deploy', { source: 'projectSettings', loadedFrom: 'skills' }),
+      ],
+      skillRefusals: () => [
+        { path: '/proof/cwd/.mercury/skills/broken/SKILL.md', error: 'frontmatter did not parse: Nested mappings are not allowed in compact mappings at line 2, column 14:\n\ndescription: bad yaml\n             ^', source: 'project' },
+        { path: '/elsewhere/skills/with space/SKILL.md', error: "uninvocable name: contains whitespace ('/with space' can never be one command token)", source: 'user' },
+      ],
+    }
+    const cat2 = await enumerateKitCatalogue('/proof/cwd', colliding as never)
+    const goodRows = cat2.rows.filter(r => r.kind === 'skill' && r.name === 'good')
+    t.check('a name three files claim paints ONE row — the loader’s winner (user settings)', goodRows.length === 1 && goodRows[0]?.kind === 'skill' && goodRows[0].source === 'user settings', JSON.stringify(goodRows))
+    const skillNotes = cat2.rows.filter(r => r.kind === 'note' && r.section === 'skill').map(r => r.text)
+    t.check('the shadowed copies are ONE note naming the winner and every loser', skillNotes[0] === shadowedSkillNote('good', 'user settings skill', ['project settings skill', 'project settings legacy command']) && skillNotes[0] === 'shadowed: good — the user settings skill loads; the project settings skill and the project settings legacy command stay on disk unused (rename one)', skillNotes[0])
+    t.check('a refused file is a note naming the file (cwd-relative) and the reason’s first line', skillNotes[1] === 'refused: .mercury/skills/broken/SKILL.md (project) — frontmatter did not parse: Nested mappings are not allowed in compact mappings at line 2, column 14:' && refusedSkillNote({ path: '/proof/cwd/.mercury/skills/broken/SKILL.md', error: 'x\ny', source: 'project' }, '/proof/cwd') === 'refused: .mercury/skills/broken/SKILL.md (project) — x', skillNotes[1])
+    t.check('a refusal outside the cwd keeps its full path', skillNotes[2] === "refused: /elsewhere/skills/with space/SKILL.md (user) — uninvocable name: contains whitespace ('/with space' can never be one command token)", skillNotes[2])
+    t.check('the ruled MCP note stays LAST; the section list keeps members before notes', skillNotes[skillNotes.length - 1] === MCP_SKILLS_NOTE && sectionRows(cat2).filter(r => r.section === 'skill').findIndex(r => r.kind === 'note') > sectionRows(cat2).filter(r => r.section === 'skill').findLastIndex(r => r.kind === 'skill'))
+    t.check('the toggle key space has one `good` (no duplicate row ids)', new Set(sectionRows(cat2).map(kitRowId)).size === sectionRows(cat2).length)
+  }
   // A REAL-door smoke under a scratch config home + scratch cwd: no throw,
   // no server, no skill, the note present (never a spawn: the doors read
   // files; the connector fetch is opt-in and unarmed here).
@@ -470,7 +502,7 @@ t.section("§8 — THE STORE WRITE: write-through per toggle onto the REAL recor
     store.write(WS, master, 'off')
     const deltas = kitDeltasForWorkspace(WS)
     t.check("the record's deltas after three writes are the record's exact shape", JSON.stringify(deltas) === JSON.stringify({ mcpOff: ['postgres'], skillStates: { deploy: 'invocable' }, extensionsOff: ['orchard-tools'] }), JSON.stringify(deltas))
-    t.check("statesFromDeltas renders the record's deltas to the screen's keys; deltasFromStates renders them back; the empty record is their emptyKitDeltas", JSON.stringify([...statesFromDeltas(deltas)]) === JSON.stringify([['mcp:postgres', 'off'], ['skill:deploy', 'invocable'], ['extension:orchard-tools', 'off']]) && JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(kitDeltasOf({ allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0 } as never)) === JSON.stringify(emptyKitDeltas))
+    t.check("statesFromDeltas renders the record's deltas to the screen's keys; deltasFromStates renders them back; the empty record is their emptyKitDeltas", JSON.stringify([...statesFromDeltas(deltas)]) === JSON.stringify([['mcp:postgres', 'off'], ['skill:deploy', 'invocable'], ['extension:orchard-tools', 'off']]) && JSON.stringify(deltasFromStates(statesFromDeltas(deltas))) === JSON.stringify(deltas) && JSON.stringify(kitDeltasOf({ allowedTools: [], mcpContextUris: [], projectOnboardingSeenCount: 0 } as never)) === JSON.stringify(emptyKitDeltas()))
     t.check('receipts name the row and its word; a master row names itself as an extension', receiptFor(master, 'off', true) === 'orchard-tools (extension) → off' && receiptFor(postgres, 'off', false) === 'postgres already off')
   } finally {
     if (savedHome === undefined) delete process.env.MERCURY_CONFIG_DIR

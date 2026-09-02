@@ -36,6 +36,10 @@ export interface ProofHomeOptions {
 
 /** The proof's config home: the inherited pin, or a fresh seeded scratch. */
 export function resolveProofHome(trustedCwds: readonly string[], options: ProofHomeOptions = {}): string {
+  // A proof never touches the operator's OS keychain: the file-backed
+  // credential store rides beside the proof home, inherited or made here
+  // (the one rule every keychain spawn honours). Absent-only.
+  process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
   const pinned = process.env.MERCURY_CONFIG_DIR
   if (pinned) {
     const home = pinned.normalize('NFC')

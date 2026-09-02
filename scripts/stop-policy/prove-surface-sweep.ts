@@ -153,7 +153,7 @@ section('§3 3.3 · SC-1..5 class censuses')
   // SC-5: win32-inert signal registrations — the censused class:
   // SIGCONT/SIGPIPE registrations are functional POSIX handlers, inert-but-
   // harmless on win32; intentional. The full class stays SC-5's record here.
-  console.log('  [CENSUS] SC-5: win32-inert signal registrations adjudicated INTENTIONAL at (SIGCONT resume · SIGPIPE EPIPE contracts; the only SIGSTOP route is win32-gated) — all-clear')
+  console.log('  [CENSUS] SC-5: win32-inert signal registrations adjudicated INTENTIONAL at (SIGCONT resume · SIGPIPE EPIPE contracts; the only self-stop route (SIGTSTP into the stop owner) is win32-gated) — all-clear')
 }
 
 if (failures > 0) {

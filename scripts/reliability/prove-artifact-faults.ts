@@ -88,10 +88,24 @@ const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
 const nodeArgs = (args: string[]) => [DIST, ...args]
 
 function runDoctor(deep: boolean): { status: number | null; cert: unknown } {
+  // The credential verdict follows the routed family (the auth-routed
+  // verdict proof owns that law): a home with no sign-in anywhere is a FAULT
+  // and the doctor exits 3 — no turn can run. This harness is about the
+  // DURABILITY rows and the deep transaction probe, so the doctor child
+  // carries a placeholder key (presence only — the credential check never
+  // probes the network, at any depth) and the certificate is read whole
+  // under a verdict that is not the credential's. The placeholder also
+  // overrides any real key in the parent shell: the verdict is the
+  // harness's, never the box's.
   const res = spawnSync(
     'node',
     nodeArgs(['doctor', '--json', ...(deep ? ['--deep'] : [])]),
-    { cwd: project, env: childEnv(), encoding: 'utf8', timeout: deep ? 180_000 : 60_000 },
+    {
+      cwd: project,
+      env: childEnv({ ANTHROPIC_API_KEY: 'fixture-anthropic-key' }),
+      encoding: 'utf8',
+      timeout: deep ? 180_000 : 60_000,
+    },
   )
   let cert: unknown = null
   try {
@@ -198,7 +212,7 @@ const terminal = (s: string | null) => s === 'aborted' || s === 'committed'
 console.log('— A. doctor --json --deep on the artifact —')
 {
   const { status, cert } = runDoctor(true)
-  ok(status === 0 && cert !== null, `deep doctor emitted a certificate (exit ${status})`)
+  ok(status === 0 && cert !== null, `deep doctor emitted a certificate with a credential present (exit ${status})`)
   const durability = checksOf(cert, 'durability')
   const txn = durability.find(c => c.id === 'durable-transaction')
   ok(txn?.status === 'ok', `durable-transaction probe ok in the bundle (${txn?.evidence?.slice(0, 80) ?? 'MISSING'})`)

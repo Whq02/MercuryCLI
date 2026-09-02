@@ -1,4 +1,4 @@
-import React, { useState, useSyncExternalStore } from 'react';
+import React, { useContext, useState, useSyncExternalStore } from 'react';
 import { Box, MotionParkContext, Text } from '../ink.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
@@ -28,6 +28,8 @@ import { RouteSurfaceScopeContext } from '../keybindings/RouteSurfaceScope.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { estateGroundBg } from '../utils/mercuryTokens.js';
+import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
+import { useViewportFloor } from '../ink/hooks/use-viewport-floor.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { BootSplashScreen } from './BootSplashScreen.js';
 import { MercuryFrame } from './MercuryFrame.js';
@@ -217,6 +219,16 @@ function RouteSurfaceHost({
   // chat route mounts no host, so the REPL composer's chord stays the only
   // one there.
   const [exitChordArmed, setExitChordArmed] = useState(false);
+  // THE VIEWPORT FLOOR: this host paints OVER the alternate screen's own
+  // host (the REPL beneath owns the buffer), so under the minimum it yields
+  // the frame — the surface stays mounted, out of layout, frozen at the
+  // last size that fit — and the one line the alternate-screen host paints
+  // shows through. Both hosts read the floor's one latch, so they agree on
+  // every column of a drag. The display is named in both states: a style
+  // key left absent is never re-applied. The context's own size object is
+  // what the hook freezes and re-provides, so consumers keep its identity
+  // while the window fits.
+  const floor = useViewportFloor(useContext(TerminalSizeContext), true);
   return (
     <Box
       ref={elevatedRef}
@@ -228,15 +240,18 @@ function RouteSurfaceHost({
       flexDirection="column"
       overflow="hidden"
       opaque={true}
+      display={floor.fits ? 'flex' : 'none'}
       {...(ground !== undefined ? { backgroundColor: ground } : {})}
     >
-      <SurfaceOverlayClaim kind={kind} />
-      <SurfaceExitChord onPendingChange={setExitChordArmed} />
-      <Box flexDirection="column" flexGrow={1} overflow="hidden">
-        {children}
-      </Box>
-      {frame === 'inherit' ? <MercuryFrame model={model} routeSurface /> : null}
-      <SurfaceExitChordNotice pending={exitChordArmed} />
+      <TerminalSizeContext.Provider value={floor.surfaceSize}>
+        <SurfaceOverlayClaim kind={kind} />
+        <SurfaceExitChord onPendingChange={setExitChordArmed} />
+        <Box flexDirection="column" flexGrow={1} overflow="hidden">
+          {children}
+        </Box>
+        {frame === 'inherit' ? <MercuryFrame model={model} routeSurface /> : null}
+        <SurfaceExitChordNotice pending={exitChordArmed} />
+      </TerminalSizeContext.Provider>
     </Box>
   );
 }

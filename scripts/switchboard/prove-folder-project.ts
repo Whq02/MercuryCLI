@@ -9,7 +9,8 @@
 //   F1  THE FOLDER IS NAMED FROM BOOT: a folder with no history is the
 //       current project by its basename (currentProject / projectIdentity);
 //       the Boot face's card and Dir chip and the concourse's project label
-//       ride the ONE naming seam;
+//       ride the ONE naming seam, on the ONE ground (getCwd — the harness
+//       cwd the catalog owner reads; never the raw process cwd);
 //   F2  NOTHING IS WRITTEN BEFORE THE FIRST CHAT: every read door of the
 //       catalog (identity, current, the scan, the face facts) leaves a fresh
 //       folder and a fresh store byte-identical; the one birth door is the
@@ -117,8 +118,12 @@ try {
     check('F1 the identity key is the folder\'s own session-store dir', current.key === portable.getProjectDir(FOO))
     check('F1 the same ground answers the same identity within the window', facts.currentProject() === current)
     const face = read('src/components/BootSplashScreen.tsx')
-    check('F1 the Boot face\'s card names the cwd through the ONE naming seam', face.includes('cwdBase: projectDisplayName(process.cwd())'))
-    check('F1 the Boot face\'s Dir chip names the cwd through the ONE naming seam', face.includes('dir: projectDisplayName(process.cwd())') && !face.includes('basename(process.cwd())'))
+    // The face names the ground through the ONE cwd accessor (getCwd — the
+    // async-context door over the bootstrap slot setCwdState moves, the
+    // same ground currentProject() reads above), never the raw process cwd.
+    check('F1 the Boot face\'s card names the cwd through the ONE naming seam on the ONE ground', face.includes('cwdBase: projectDisplayName(getCwd())'))
+    check('F1 the Boot face\'s Dir chip names the cwd through the ONE naming seam on the ONE ground', face.includes('dir: projectDisplayName(getCwd())') && !/basename\((getCwd|process\.cwd)\(\)\)/.test(face))
+    check('F1 the face reads the ground through the cwd owner alone (no raw process cwd anywhere on it)', face.includes("import { getCwd } from '../utils/cwd.js'") && !face.includes('process.cwd()'))
     const snapshot = read('src/services/concourse/concourseSnapshot.ts')
     // The board is per-project (the control plane shows the
     // CURRENT project's chats): the label derives per projectDir through the
@@ -189,7 +194,7 @@ try {
     check('F3 the stamp emitted the beat with the catalogued identity', beats.includes('foo:true'), beats.join(' '))
     const picker = read('src/components/concourse/GroundPicker.tsx')
     const face = read('src/components/BootSplashScreen.tsx')
-    check('F3 both listing surfaces render the ONE list (the picker rides workedInProjects, the face rides scanBootCardFacts)', picker.includes('m.workedInProjects()') && face.includes('scanBootCardFacts(process.cwd()'))
+    check('F3 both listing surfaces render the ONE list (the picker rides workedInProjects, the face rides scanBootCardFacts on the ONE ground)', picker.includes('m.workedInProjects()') && face.includes('scanBootCardFacts(getCwd()'))
     // Idempotent: a second birth in the same folder changes nothing.
     const estateBefore = treeHash(estate)
     const cardBefore = read(cardPath)

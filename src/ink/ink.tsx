@@ -97,8 +97,15 @@ import {
 import { cockpitEngine, mountCockpitEngine, type CockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { flushDoorSync, termWrite } from '../render-engine/cockpit/terminalOut.js'
 import { RESIZE_SETTLE_MS } from './constants.js'
-import { runTeardownSuite } from './root/teardown.js'
-import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js'
+import { runTeardownSuite, type TeardownHost } from './root/teardown.js'
+import {
+  continueRearmBytes,
+  isStopSignal,
+  POSIX_STOP_SIGNALS,
+  restoreTerminalForStop,
+  stopSignalsSupported,
+} from './root/stop-continue.js'
+import { noteModeAcquired, noteModeReleased, shutdownReleaseObligations } from './root/terminalModeLedger.js'
 import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputSupportedNow } from './session/capabilities.js'
 import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
 import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
@@ -106,6 +113,7 @@ import {
   DISABLE_MOUSE_TRACKING,
   ENABLE_MOUSE_TRACKING,
   ENTER_ALT_SCREEN,
+  HIDE_CURSOR,
 } from './termio/dec.js'
 import { setClipboard, supportsTabStatus } from './termio/osc.js'
 import { TerminalWriteProvider } from './useTerminalNotification.js'
@@ -297,6 +305,10 @@ export default class Ink {
   // Stdin suspend/resume bookkeeping.
   private storedReadableListeners: Array<(...args: unknown[]) => void> | null = null
   private wasRawMode = false
+  // Job-control stop bookkeeping (stop-continue.ts): the stop restore turned
+  // raw mode off, so the continue turns it back on.
+  private rawModeOffForStop = false
+  private stopListenersAttached = false
 
   // Forensics.
   private treeDumpBudget = TREE_DUMP_PATH ? TREE_DUMP_BUDGET : 0
@@ -358,6 +370,9 @@ export default class Ink {
     if (this.isTTY) {
       options.stdout.on('resize', this.handleResize)
       process.on('SIGCONT', this.resumeAfterContinue)
+      // The stop half of the same seam: a job-control stop restores the
+      // terminal before the process stops (stop-continue.ts).
+      this.attachStopListeners()
       // Only raw mode keeps the runtime's cached console size current on
       // Windows; unchanged sizes return immediately from the handler.
       const win32SizeTimer: ReturnType<typeof setInterval> | null =
@@ -368,6 +383,7 @@ export default class Ink {
       this.removeTtySubscriptions = () => {
         options.stdout.off('resize', this.handleResize)
         process.off('SIGCONT', this.resumeAfterContinue)
+        this.detachStopListeners()
         if (win32SizeTimer !== null) clearInterval(win32SizeTimer)
       }
     }
@@ -530,11 +546,17 @@ export default class Ink {
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
       this.scheduler.holdForSettle()
+      // ONE holding paint per storm, on entry — the same discipline the
+      // engine's gate keeps. Every later WINCH inside the window only
+      // re-arms the timer: the terminal already clips the held frame to
+      // each intermediate size, so a paint per event re-emitted the whole
+      // clipped screen for nothing (a drag delivers dozens) and a slow
+      // terminal fell behind the very storm the settle exists to absorb.
+      this.paintResizeHold(columns, rows)
     } else {
       clearTimeout(this.resizeSettleTimer)
     }
     this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
-    this.paintResizeHold(columns, rows)
   }
 
   /** The storm's cheap holding paint: last frame clipped, no clear, no
@@ -1232,11 +1254,103 @@ export default class Ink {
     this.resetFramesForAltScreen()
   }
 
+  /** The stop signals ride one owner (stop-continue.ts); Windows has none. */
+  private attachStopListeners(): void {
+    if (this.stopListenersAttached || !stopSignalsSupported()) return
+    for (const signal of POSIX_STOP_SIGNALS) process.on(signal, this.stopForSignal)
+    this.stopListenersAttached = true
+  }
+
+  private detachStopListeners(): void {
+    if (!this.stopListenersAttached) return
+    for (const signal of POSIX_STOP_SIGNALS) process.off(signal, this.stopForSignal)
+    this.stopListenersAttached = false
+  }
+
+  /** The exit-time and stop-time disarm share ONE host: the loss-proof
+   *  synchronous fd-1 writer, the instance's stdin drain, the pointer reset. */
+  private teardownHost(): TeardownHost {
+    return {
+      altScreenActive: this.altScreenActive,
+      tabStatusSupported: supportsTabStatus(),
+      // The loss-proof synchronous fd-1 writer: bounded retry on
+      // would-block, tolerant of a broken pipe at exit.
+      write: bytes => {
+        writeAllSync(1, Buffer.from(bytes, 'utf8'))
+      },
+      drainStdin: () => drainStdin(this.options.stdin),
+      resetPointer: resetPointerShape,
+    }
+  }
+
+  /** A job-control stop (SIGTSTP · SIGTTIN · SIGTTOU): restore the terminal
+   *  FIRST — the exit disarm suite, then raw mode off for a foreground stop
+   *  — and only then really stop: the listeners come off so the re-raised
+   *  signal takes its default disposition and the shell sees a normally
+   *  stopped job. Execution continues past the re-raise on SIGCONT; the
+   *  listeners re-attach here and resumeAfterContinue re-arms the modes. */
+  private stopForSignal = (signal: NodeJS.Signals): void => {
+    if (!isStopSignal(signal)) return
+    this.detachStopListeners()
+    if (this.isTTY && !this.isUnmounted) {
+      // Door discipline (the exit path's own): pending units drain first so
+      // the restore is the LAST thing the terminal receives before the stop.
+      flushDoorSync()
+      const receipt = restoreTerminalForStop(signal, this.teardownHost(), this.options.stdin)
+      this.rawModeOffForStop = receipt.rawModeOff
+    }
+    try {
+      process.kill(process.pid, signal)
+    } catch {
+      // The signal is not deliverable here: nothing to stop for.
+    }
+    // Reached after SIGCONT (or at once when the kill was refused).
+    if (!this.isUnmounted) this.attachStopListeners()
+  }
+
   private resumeAfterContinue = (): void => {
-    if (!this.isTTY) return
+    if (!this.isTTY || this.isUnmounted) return
+    // Raw mode back before any paint: input must be live when the repaint
+    // lands (a stop that never turned it off leaves this a no-op).
+    if (this.rawModeOffForStop) {
+      this.rawModeOffForStop = false
+      try {
+        this.options.stdin.setRawMode(true)
+      } catch {
+        // A terminal that refuses the mode change is left as it is.
+      }
+    }
+    // A stop that bypassed the handler (an external SIGSTOP) left the
+    // listeners attached; one that rode it re-attaches after the re-raise.
+    this.attachStopListeners()
+    // Re-arm what the stop released — extended keys, bracketed paste, focus
+    // reporting, and on alt the mouse family + scroll — through the one
+    // arming owner; a stream that is gone takes no modes.
+    if (streamTakesWrites(this.options.stdout)) {
+      termWrite(
+        this.options.stdout,
+        continueRearmBytes({
+          extendedKeys: extendedKeysSupportedNow(),
+          altActive: this.altScreenActive,
+          mouseTracking: this.mouseTracking,
+        }),
+        'mode',
+      )
+      // The stop showed the hardware cursor (the exit suite's last step);
+      // the owner that hid it still holds the obligation in the ledger, and
+      // no paint re-hides it (the frames only park it), so the continue
+      // does — never under the accessibility experience, which keeps it.
+      if (shutdownReleaseObligations().includes('cursor-hidden')) {
+        termWrite(this.options.stdout, HIDE_CURSOR, 'mode')
+      }
+    }
     if (this.altScreenActive) {
       this.reenterAltScreen();
       this.armScreenWatchdog();
+      // The erased screen earns a SCHEDULED full repaint through the normal
+      // atomic path (the fresh frames diff everything back on).
+      this.needsEraseBeforePaint = true
+      this.scheduleRender()
       return
     }
     this.frontFrame = emptyFrame(
@@ -1258,6 +1372,8 @@ export default class Ink {
     this.displayCursor = null
     // A zero-height front frame must never be blitted from.
     this.ledger.contaminate('blank-reset')
+    // The main screen repaints from the fresh frames the same way.
+    this.scheduleRender()
   }
 
   reassertTerminalModes(includeAltScreen = false): void {
@@ -1840,17 +1956,7 @@ export default class Ink {
       // within the teardown budget, so the restore below is the LAST unit
       // and nothing interleaves into it. Flag off ⇒ no door, no-op.
       flushDoorSync()
-      runTeardownSuite({
-        altScreenActive: this.altScreenActive,
-        tabStatusSupported: supportsTabStatus(),
-        // The loss-proof synchronous fd-1 writer: bounded retry on
-        // would-block, tolerant of a broken pipe at exit.
-        write: bytes => {
-          writeAllSync(1, Buffer.from(bytes, 'utf8'))
-        },
-        drainStdin: () => drainStdin(this.options.stdin),
-        resetPointer: resetPointerShape,
-      })
+      runTeardownSuite(this.teardownHost())
     }
 
     this.isUnmounted = true

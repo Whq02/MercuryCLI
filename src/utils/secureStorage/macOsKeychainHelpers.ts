@@ -3,8 +3,27 @@ import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 
 import { fileSuffixForOauthConfig } from '../../constants/oauth.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir, getAuthScope, rawConfigHomePinSpelling } from '../envUtils.js'
 import type { SecureStorageData } from './types.js'
+
+/**
+ * THE ONE RULE every `security` spawn honours — the store factory, the boot
+ * prefetch, the backend's own reads, writes and deletes, the legacy API-key
+ * read/write/delete and the lock probe all ask this before touching the
+ * tool. The OS keychain is reachable only on darwin and only while the
+ * credential store is not pinned to the file backend
+ * (MERCURY_CREDENTIAL_STORE=file — the capture/proof hermeticity seam):
+ * under the pin no `security` process is ever spawned, so a scratch-home
+ * proof can never read, write or delete an entry in the machine's keychain.
+ * The seam is the rule, not the config home: a non-default home keeps its
+ * own keychain identity by design (the service name is keyed to the
+ * resolved auth home), so a custom-home operator is never moved to a file.
+ */
+export function keychainReachable(): boolean {
+  if (process.platform !== 'darwin') return false
+  return flagEnv('MERCURY_CREDENTIAL_STORE') !== 'file'
+}
 
 /**
  * Keychain service-name derivation and the shared read cache.

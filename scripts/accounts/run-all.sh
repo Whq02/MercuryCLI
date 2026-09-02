@@ -16,6 +16,11 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 cd "$(dirname "$0")/../.."
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
+# A proof never touches the operator's OS keychain: every prover and every
+# child it boots runs on the file-backed credential store (the one rule
+# every keychain spawn honours). The pooled gate pins the same; this covers
+# a suite run by hand.
+export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
 for f in scripts/accounts/prove-*.ts; do
   [ -e "$f" ] || continue
   echo "▶ $f"
