@@ -13,6 +13,11 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
+# A proof never touches the operator's OS keychain: every certificate boot
+# below runs on the file-backed credential store (the one rule every
+# keychain spawn honours). The pooled gate pins the same; this covers a
+# suite run by hand.
+export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
 echo "############################################################"
 echo "# /health certificate — proof harness"
 echo "############################################################"

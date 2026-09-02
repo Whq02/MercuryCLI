@@ -10,6 +10,10 @@
 //  routes BEFORE the resume cache key.
 //  Run:  ~/.bun/bin/bun run scripts/workflows/prove-workflow-routing.ts
 // ============================================================================
+// The one prover preamble FIRST: the neutral seat default below resolves
+// credentials, so this proof runs in its own scratch home on the
+// file-backed credential store — never the operator's home or keychain.
+import '../lib/hermetic.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 let failures = 0
