@@ -2789,6 +2789,19 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-voice',
+          label: 'Voice input',
+          // The capture backend, the transcribing sign-in and the microphone
+          // permission words — read from the SAME owners a capture uses.
+          // Diagnostic: voice input is optional, so an absent backend or a
+          // keyless home is info with its remedy, never a fault.
+          run: async () => {
+            const { describeVoiceReadiness } = await import('../services/voice/voiceSession.js')
+            const readiness = describeVoiceReadiness()
+            return { status: readiness.ready ? ('ok' as const) : ('info' as const), evidence: readiness.line, detail: readiness.detail }
+          },
+        },
+        {
           id: 'iface-inventory',
           label: 'Interaction inventory',
           run: () => {
