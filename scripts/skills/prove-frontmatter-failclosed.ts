@@ -186,6 +186,29 @@ console.log('[8] agents: a file with no name stays a silent reference doc')
   check('the valid agent loads', result.activeAgents.some(a => a.agentType === 'valid-agent'))
 }
 
+console.log('[9] skills-dir: an EMPTY SKILL.md is refused, named, and never offered as a blank skill')
+{
+  const cwd = freshProject()
+  const file = writeProjectSkill(cwd, '')
+  const commands = await loadProjectSkills(cwd)
+  check('no skill is built from an empty file', !commands.some(c => c.name === 'probe'))
+  const row = skillsMod.getSkillLoadRefusals().find(r => r.path === file)
+  check('the refusal names the file and says it is empty', row !== undefined && row.error === skillsMod.EMPTY_SKILL_FILE_REASON, row?.error ?? 'no refusal')
+}
+
+console.log('[10] skills-dir: an opt-out key with a spelling no parser reads as a boolean fails CLOSED')
+{
+  const cwd = freshProject()
+  const file = writeProjectSkill(cwd, '---\nname: probe\ndescription: Author meant to forbid model invocation.\ndisable-model-invocation: maybe\n---\n\nBody.\n')
+  const commands = await loadProjectSkills(cwd)
+  check('the skill is NOT offered on the permissive reading of "maybe"', !commands.some(c => c.name === 'probe'))
+  const row = skillsMod.getSkillLoadRefusals().find(r => r.path === file)
+  check('the refusal names the key and the value', row !== undefined && row.error === 'frontmatter key disable-model-invocation: "maybe" is not true or false', row?.error ?? 'no refusal')
+  check('the pure owner answers the same for user-invocable', skillsMod.skillFrontmatterProblem({ 'user-invocable': 'yes' }) === 'frontmatter key user-invocable: "yes" is not true or false')
+  check('true/false spellings and absent keys pass', skillsMod.skillFrontmatterProblem({ 'disable-model-invocation': 'true', 'user-invocable': false }) === null && skillsMod.skillFrontmatterProblem({}) === null)
+  check('an unknown key is not a refusal (a skill from another harness keeps loading)', skillsMod.skillFrontmatterProblem({ 'bogus-key': 1, effort: 'enormous' }) === null)
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\n ✅ FRONTMATTER FAIL-CLOSED — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
