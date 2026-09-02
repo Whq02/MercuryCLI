@@ -1,5 +1,6 @@
 
 import { isDeckPaneEnabled, isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js'
+import { VIEWPORT_FLOOR_EXIT_BAND } from '../ink/viewportFloor.js'
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
 import { useTerminalSize } from './useTerminalSize.js'
 
@@ -33,7 +34,7 @@ export function computeChromeMode(
   return isDeckPaneEnabled() ? 'deck-strip' : 'inline'
 }
 
-const COCKPIT_EXIT_HYST_COLS = 3
+const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND
 let cockpitLatched = false
 
 export function resetChromeModeLatchForTests(): void {
