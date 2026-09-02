@@ -48,7 +48,7 @@
 // ============================================================================
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import type { LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { NO_SIGN_IN_ROW, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
@@ -481,11 +481,27 @@ export function defaultWorkerModelId(registry: WorkerModelRegistryV1, arm: Worke
   if (neutralDefault !== undefined) return neutralDefault.modelId
   const firstAvailable = registry.entries.find(e => e[arm].availability === 'available')
   if (firstAvailable !== undefined) return firstAvailable.modelId
+  // Nothing dispatches (a keyless home): the default is the operator's own
+  // row all the same — the harness's keyless placeholder, the very id the
+  // boot face's birth names — so the daemon recognises that launch as
+  // UNNAMED (the default-choice law) and admits it keyless instead of
+  // refusing a family nobody chose.
+  const operatorRow = registry.entries.find(e => e.isOperatorDefault === true)
+  if (operatorRow !== undefined) return operatorRow.modelId
   return registry.entries[0]?.modelId ?? foldLegacyWorkerModelKey('fable')
 }
 
 export type WorkerModelValidation =
-  | { ok: true; entry: WorkerModelEntryV1 }
+  | {
+      ok: true
+      entry: WorkerModelEntryV1
+      /** THE KEYLESS ADMISSION (the neutral-default ruling): an UNNAMED
+       *  session launch on a home with no credential anywhere is born on
+       *  the neutral placeholder with no family named — the cockpit paints
+       *  and its composer's own not-logged-in gate names the logins door.
+       *  Never a refusal that names one family. */
+      keyless?: true
+    }
   | {
       ok: false
       reason: 'unknown-model' | WorkerModelRefusal
@@ -624,11 +640,17 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
   const verdict = entry[arm]
   if (verdict.availability !== 'available') {
     // An UNNAMED launch on a home with no default provider and no credential
-    // anywhere speaks the operator's ruled two-door sentence — no family
-    // named, because none was chosen and none is signed in.
+    // anywhere: a SESSION is born keyless on the neutral placeholder — the
+    // operator's own (or the door's) unnamed launch never refuses naming a
+    // family nobody chose; the chat paints, and its composer's not-logged-in
+    // gate names the logins door. A CREW seat, which cannot run keyless,
+    // speaks the ruled two-door sentence instead — no family named.
     if (unnamed) {
       const noAccount = await unnamedLaunchNoAccount(verdict.refusal)
-      if (noAccount !== undefined) return { ok: false, ...noAccount }
+      if (noAccount !== undefined) {
+        if (arm === 'session') return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
+        return { ok: false, ...noAccount }
+      }
     }
     // An UNNAMED launch that fell through a dead default provider names the
     // family the operator chose, not only the frontier lane it fell to.

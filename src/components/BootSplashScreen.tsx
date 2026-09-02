@@ -34,6 +34,9 @@ import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
 import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink } from '../substrate/splashHandover.js';
 import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
+import { settleAbsentChat } from '../context/surfaceRoute.js';
+import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
+import { mintImmediateReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
 import { BootAgentsScreen } from './BootAgentsScreen.js';
 import { BootHealthScreen } from './BootHealthScreen.js';
 import { BootLoginsScreen } from './BootLoginsScreen.js';
@@ -207,6 +210,21 @@ export function BootSplashScreen(): React.ReactNode {
   const keyMapHint = stripKeyMapHint();
   // The canonical menu fit floor (the launcher's computeMenuAvailable law).
   const menuAvailable = columns >= 64 && rows >= 13;
+
+  // THE BIRTH RECEIPT: a birth the daemon refused after the chat route had
+  // flipped lands its reason here through the screen-receipt seam (the
+  // chat-forward boot's own carrier) — this face subscribes for the
+  // warning it is handed back with, and paints it on the last row where
+  // the row note would have stood. A receipt minted while no screen
+  // listens queues until this subscription lands.
+  const [birthReceipt, setBirthReceipt] = useState<string | null>(null);
+  useEffect(
+    () =>
+      subscribeSeatReceipts(r => {
+        if (r.level === 'warning') setBirthReceipt(r.text);
+      }),
+    [],
+  );
 
   // Live board count for the concourse ctx (bounded records read — dynamic
   // import keeps the Concourse subsystem off the face's static boot graph).
@@ -452,17 +470,39 @@ export function BootSplashScreen(): React.ReactNode {
         // session runs the operator's posture, never the seat's default.
         // Every ↵ births anew: whatever session held the slot keeps running
         // and shows on the board (the line-7d law); nothing is stopped by
-        // asking for a fresh chat. A birth the daemon refuses paints its
-        // reason on the row and enters nothing.
+        // asking for a fresh chat.
+        //
+        // FLIP FIRST, BIRTH BEHIND (the chat-forward boot's own shape): the
+        // birth arms the landing gate on this tick (bornSession routes
+        // through withLanding), so the chat route is enterable at once —
+        // the cockpit paints held while the daemon answers, and the first
+        // chat on a fresh install never waits on the handshake ladder. The
+        // model still resolves inside the door (birthModelOf). A birth the
+        // daemon refuses hands the frame back to this face at once (never a
+        // settle-long flash of the empty chat) and its reason rides the
+        // screen-receipt seam — minted on the next macrotask, after the
+        // chat's own subscription has left, so it reaches this face (or
+        // queues until it mounts). No ghost session: a refused admission
+        // consumed no worker and wrote no record.
         return {
           pending: 'starting a session…',
           result: (async (): Promise<string | null> => {
             const { bornSession } = await import('../services/switchboard/bornSession.js');
             // The birth reads the next-session facts (L18) — no explicit
             // model here: the record's choice, else the screen's main model.
-            const born = await bornSession({ workspaceDir: getCwd() });
-            if (!born.ok) return born.reason;
-            enterRootRepl();
+            const birth = bornSession({ workspaceDir: getCwd() });
+            const flipped = enterRootRepl().ok;
+            if (flipped) recordLaunchMilestone('chat-flipped');
+            const born = await birth;
+            if (!born.ok) {
+              recordLaunchMilestone('birth-refused');
+              if (!flipped) return born.reason;
+              settleAbsentChat();
+              setTimeout(() => mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning'), 0);
+              return null;
+            }
+            recordLaunchMilestone('birth-landed');
+            if (!flipped) enterRootRepl();
             return null;
           })(),
         };
@@ -856,11 +896,13 @@ export function BootSplashScreen(): React.ReactNode {
     <Box flexDirection="column" width={columns} height={rows}>
       {Array.from({ length: rows }, (_, i) => {
         const line = composition.placed[i] ?? '';
-        if (i === rows - 1 && list.note !== null) {
+        if (i === rows - 1 && (list.note !== null || birthReceipt !== null)) {
           // The note rides the canvas (the bottom-left break fix): a styled
           // faint line through the scene renderer, never a bare unvignetted
-          // strip across the last row.
-          const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + list.note + core.R;
+          // strip across the last row. A refused birth's receipt takes the
+          // same row when no row note stands — the reason the flipped chat
+          // came back with.
+          const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + (list.note ?? birthReceipt ?? '') + core.R;
           return (
             <Box key="boot-note" height={1} flexShrink={0}>
               {renderSceneLine(noteLine)}
