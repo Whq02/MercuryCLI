@@ -1102,6 +1102,7 @@ export async function runHeadless(
           prompt: command.value,
           promptUuid: command.uuid,
           isMeta: command.isMeta,
+          ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
           verbose: options.verbose,
