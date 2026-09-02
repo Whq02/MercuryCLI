@@ -13,6 +13,17 @@
 //  overshoot at the cap, trailing newlines, empty lines, single huge
 //  lines, unicode — asserting identical {text, truncated}.
 //
+//  P3/P4 — the fence carry. The cut's fence state used to be re-folded
+//  over the WHOLE discarded prefix on every publish (a slice, a split, a
+//  regex per line — O(reply length) per tick, quadratic over a long
+//  stream); the fold is now carried between publishes and only the lines
+//  the cut advanced over are folded. The whole-prefix split shape is
+//  carried here verbatim as the fence oracle: a long multi-tick stream
+//  agrees at every publish, the fold's own operation census stays near the
+//  line count (O(delta), never ticks × lines), and every non-extension —
+//  a new reply, a rewrite inside the prefix, a resize that retreats the
+//  cut, two tails alternating — drops the carry and still agrees.
+//
 //  Pure string math, no PTY, no render: safe beside the pooled gate.
 //
 //  Run: ~/.bun/bin/bun run scripts/streaming/prove-tail-bound-parity.ts
@@ -127,6 +138,103 @@ section('P2 · pinned edge classes')
     const ref = oracleBound(text, rows, columns)
     check(label, live.text === ref.text && live.truncated === ref.truncated, `live=${JSON.stringify(live).slice(0, 100)} ref=${JSON.stringify(ref).slice(0, 100)}`)
   }
+}
+
+// ── the previous fence shape, verbatim, as the oracle ──────────────────────
+function oracleOpenFence(prefix: string): string | null {
+  let open: { char: string; len: number; line: string } | null = null
+  for (const line of prefix.split('\n')) {
+    const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line)
+    if (!m) continue
+    const marker = m[1]!
+    const char = marker[0]!
+    const rest = m[2]!
+    if (open === null) {
+      if (char === '`' && rest.includes('`')) continue
+      open = { char, len: marker.length, line: line.trimStart() }
+    } else if (char === open.char && marker.length >= open.len && rest.trim() === '') {
+      open = null
+    }
+  }
+  return open ? open.line : null
+}
+
+type Bound = { text: string; truncated: boolean; openFence: string | null }
+/** Live vs the two oracles for one publish; empty string = agreement. */
+function disagreement(text: string, rows: number, columns: number): string {
+  const live = boundTailForInline(text, rows, columns) as Bound
+  const ref = oracleBound(text, rows, columns)
+  const refFence = ref.truncated ? oracleOpenFence(text.slice(0, text.length - ref.text.length)) : null
+  if (live.text === ref.text && live.truncated === ref.truncated && live.openFence === refFence) return ''
+  return `live=${JSON.stringify({ t: live.text.slice(0, 40), tr: live.truncated, f: live.openFence })} ref=${JSON.stringify({ t: ref.text.slice(0, 40), tr: ref.truncated, f: refFence })}`
+}
+
+const { fenceFoldCensus } = await import('../../src/components/LiveStreamingTail.tsx')
+
+section('P3 · a long multi-tick stream: the carried fold agrees at every publish, at O(delta)')
+{
+  const rand = lcg(0x5eed3)
+  const CHUNKS = ['prose ', 'more words ', '\n', '\n```ts\n', '\n```\n', '\n~~~\n', '# heading\n', '- item\n', 'x'.repeat(200), '\n   ```rb\n', '``` a`b\n', '`````\n', '\n\n', '終 é⚡ ']
+  const TICKS = 1500
+  let text = ''
+  let mismatches = 0
+  let firstDetail = ''
+  let truncatedTicks = 0
+  let fencedTicks = 0
+  const before = { ...fenceFoldCensus }
+  for (let tick = 0; tick < TICKS; tick++) {
+    text += CHUNKS[Math.floor(rand() * CHUNKS.length)]!
+    const detail = disagreement(text, 24, 80)
+    const live = boundTailForInline(text, 24, 80) as Bound
+    if (live.truncated) truncatedTicks++
+    if (live.openFence !== null) fencedTicks++
+    if (detail !== '') {
+      mismatches++
+      if (!firstDetail) firstDetail = `tick ${tick} ${detail}`
+    }
+  }
+  const after = { ...fenceFoldCensus }
+  check(`zero mismatches over ${TICKS} publishes (text, truncated, openFence)`, mismatches === 0, firstDetail)
+  check('the stream truncated for most of its life (the carried arm was exercised)', truncatedTicks > TICKS / 2, String(truncatedTicks))
+  check('cuts landed inside open fences along the way (the carry carried real state)', fencedTicks > 20, String(fencedTicks))
+  const lineCount = text.split('\n').length
+  const visited = after.lines - before.lines
+  // Two bounds per publish above (disagreement + the census tick) ⇒ at most
+  // two visits per line plus one per tick; the whole-prefix fold would have
+  // visited roughly ticks × lines.
+  check(
+    `O(delta): the fold visited ${visited} lines over a ${lineCount}-line stream — near the line count, never ticks × lines`,
+    visited <= 2 * lineCount + 2 * TICKS && visited * 8 < TICKS * lineCount,
+    `visited=${visited} lines=${lineCount} ticks=${TICKS}`,
+  )
+  check('the carry was taken on the extension ticks', after.carries - before.carries >= truncatedTicks, `carries=${after.carries - before.carries} truncated=${truncatedTicks}`)
+}
+
+section('P4 · every non-extension drops the carry and still agrees')
+{
+  const grow = (n: number, fence: string): string =>
+    Array.from({ length: n }, (_v, i) => (i % 7 === 0 ? fence : `line ${i} ${'y'.repeat(i % 50)}`)).join('\n')
+  const A = grow(60, '```')
+  const B = grow(45, '~~~')
+  const agree = (label: string, text: string, rows: number, columns: number): void => {
+    const detail = disagreement(text, rows, columns)
+    check(label, detail === '', detail)
+  }
+  const resetsBefore = fenceFoldCensus.resets
+  for (const len of [200, 400, 600, A.length]) agree(`stream A grows to ${len}`, A.slice(0, len), 24, 80)
+  agree('a NEW reply (B) after A', B, 24, 80)
+  check('the new reply dropped the carry', fenceFoldCensus.resets > resetsBefore)
+  agree('a rewrite inside the prefix of A', `${A.slice(0, 10)}X${A.slice(11)}`, 24, 80)
+  agree('A at a narrower width (the cut moves forward)', A, 24, 40)
+  agree('A at a wider width (the cut retreats)', A, 24, 200)
+  agree('A at fewer rows', A, 10, 80)
+  for (let i = 0; i < 4; i++) {
+    agree(`two tails alternating — A (${i})`, A, 24, 80)
+    agree(`two tails alternating — B (${i})`, B, 24, 80)
+  }
+  agree('A shrunk (a retraction)', A.slice(0, 300), 24, 80)
+  agree('an untruncated tail after a truncated one', 'short\ntext', 24, 80)
+  agree('the empty text', '', 24, 80)
 }
 
 console.log('\n' + '='.repeat(60))
