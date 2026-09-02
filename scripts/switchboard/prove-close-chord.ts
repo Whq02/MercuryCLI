@@ -208,7 +208,7 @@ const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
 check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-300)}` : ''}`)
 if (sendRecs.length === sends.length) {
-  const times = [at(9) + 1800, at(18) + 500, at(19) + 600, at(21) + 3000, at(22) + 400, at(23) + 2500]
+  const times = [at(10) + 1800, at(19) + 500, at(20) + 600, at(22) + 3000, at(23) + 400, at(24) + 2500]
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
