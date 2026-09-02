@@ -212,7 +212,7 @@
     },
     {
       "file": "src/components/messages/ChatLine.tsx",
-      "line": 126,
+      "line": 37,
       "kind": "accent-mercury-text",
       "excerpt": "<Text color={critter.accent}>Mercury</Text>",
       "role": "session-identity",

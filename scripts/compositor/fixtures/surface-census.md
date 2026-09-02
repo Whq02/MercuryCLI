@@ -95,7 +95,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /run | irow | `src/commands/run` |
 | /sandbox | — | `src/commands/sandbox-toggle` |
 | /saturn | irow | `src/commands/saturn` |
-| /scribe-promote | — | `src/commands/scribe-promote` |
 | /session | irow | `src/commands/session` |
 | /sessions | irow | `src/commands/sessions` |
 | /sessiontab | — | `src/commands/sessiontab` |

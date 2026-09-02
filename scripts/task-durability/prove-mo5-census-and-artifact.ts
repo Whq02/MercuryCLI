@@ -45,7 +45,6 @@ console.log('── mo5 census ratchet + artifact survival')
     ['src/daemon/ownedDaemon.ts', 'renameWithWin32RetrySync', /renameSync\(logPath/],
     ['src/services/vulcan/addonInstaller.ts', 'renameWithWin32RetrySync', /renameSync\(tmp, file\)/],
     ['src/memdir/mnemeConsolidate.ts', 'renameWithWin32RetrySync', /renameSync\(current, consuming\)/],
-    ['src/memdir/scribePromote.ts', 'renameWithWin32Retry', /await rename\(src, dest\)/],
     ['src/tools/LSPTool/mercuryOps.ts', 'renameWithWin32Retry', /await rename\(absolutePath, newAbs\)/],
     ['src/utils/file.ts', 'renameWithWin32RetrySync', /fs\.renameSync\(tempPath, targetPath\)/],
     ['src/services/privateChannel/installLayout.ts', 'WIN32_RENAME_RETRY_DELAYS_MS', /RENAME_RETRY_DELAYS_MS = \[50, 100, 200\]/],

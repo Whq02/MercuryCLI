@@ -50,17 +50,6 @@ const makeStore = () => {
   }
 }
 
-section('SCRIBE engage — registers "scribe", disengage RESTORES the prior (live)')
-const scribeTeam = await import('../../src/utils/scribe/engageScribeTeam.js')
-scribeTeam.__resetScribeTeamStash()
-setLeadTeamFallback('prior-team')
-const scribeStore = makeStore()
-scribeTeam.engageScribeTeam(scribeStore)
-check('fallback registered as "scribe"', getLeadTeamFallback() === 'scribe')
-scribeTeam.disengageScribeTeam(scribeStore)
-check('disengage restores the PRIOR registration', getLeadTeamFallback() === 'prior-team')
-setLeadTeamFallback(null)
-
 section('DRIFT-LOCK — consumers + the TeamCreate seams stay wired')
 const mcpSrc = readFileSync(join(REPO, 'src/services/mcp/coordinationServer.ts'), 'utf8')
 check(

@@ -44,7 +44,7 @@ if (process.env.MERCURY_UI_BILLED !== '1') {
 }
 
 console.log('============================================================')
-console.log(' HB-0215 LIVE render-verify: fork non-scribe streaming nameplate')
+console.log(' HB-0215 LIVE render-verify: the streaming nameplate')
 console.log('============================================================')
 
 const STREAM_PROMPT =

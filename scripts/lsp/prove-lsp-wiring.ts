@@ -78,17 +78,6 @@ function check(name: string, ok: boolean, detail?: string): void {
   const s = read('src/constants/subagentDoctrine.ts')
   check('subagentDoctrine: getLspDoctrineLine spliced', s.includes('getLspDoctrineLine()'))
 }
-{
-  const mode = read('src/utils/implementerMode.ts')
-  const pack = read('src/utils/scribe/implementerPack.ts')
-  check(
-    'implementerMode: LSP evidence resolved at consumption + cache-keyed; the pack splices it',
-    mode.includes('getLspPackEvidenceText()') &&
-      mode.includes("lspEvidence ? 'lsp' : 'nolsp'") &&
-      pack.includes('if (opts.lspEvidence)') &&
-      pack.includes("id: 'implementer-ide-evidence'"),
-  )
-}
 
 {
   const s = read('src/tools/LSPTool/prompt.ts')
