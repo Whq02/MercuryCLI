@@ -18,7 +18,7 @@ import { InteractiveRow } from './InteractiveRow.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useIsInsideModal, useModalOrTerminalSize, useModalScrollRef } from '../../context/modalContext.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
-import { composeFooterHint, packFooter } from './footerHint.js'
+import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
 
 
@@ -83,7 +83,7 @@ export function CommandCenter({
   footer?: string
   onClose: () => void
   captureInput?: boolean
-  closeKeys?: 'esc-arrow' | 'esc'
+  closeKeys?: FooterCloseKeys
   embedded?: boolean
   specimen?: boolean
   elevated?: boolean
@@ -96,7 +96,8 @@ export function CommandCenter({
     if (!embedded) markTransitionEnd('screen-switch')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded)
+  const closable = closeKeys !== 'none'
+  const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded && closable)
   useInput(
     (_i, key) => {
       if (key.escape || key.leftArrow) {
@@ -104,7 +105,7 @@ export function CommandCenter({
         onClose()
       }
     },
-    { isActive: captureInput && !embedded },
+    { isActive: captureInput && !embedded && closable },
   )
   const groundCwd = useCwdState()
   const dir = groundCwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || groundCwd
@@ -171,7 +172,7 @@ export function CommandCenter({
       )}
       {
 }
-      <InteractiveRow id={`center:${view}:close`} directActivate onActivate={onClose} flexDirection="column">
+      <InteractiveRow id={`center:${view}:close`} directActivate onActivate={closable ? onClose : undefined} flexDirection="column">
         {
 }
         {hover => (

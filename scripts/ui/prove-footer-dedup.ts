@@ -70,6 +70,17 @@ eq('memory-centre query footer → no doubled tail (the pre-fix contradiction)',
   composeFooterHint('↑↓ move · ↵ inspect · esc clear', { closeKeys: 'esc', captureInput: false }),
   '↑↓ move · ↵ inspect · esc clear')
 
+console.log("\n── closeKeys 'none' — a phase that owns no exit advertises none ──")
+eq("'none' leaves a phase footer untouched",
+  composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }),
+  'deleting the named set…')
+eq("'none' appends nothing even to the bare dir fallback",
+  composeFooterHint('orchard-src', { closeKeys: 'none', captureInput: true }),
+  'orchard-src')
+eq("'none' never strips a close verb the footer itself carries",
+  composeFooterHint('↵ retry · esc close', { closeKeys: 'none', captureInput: false }),
+  '↵ retry · esc close')
+
 console.log('\n── no false-positive ──')
 is("'close the deck' (no esc/← token) does NOT advertise close", footerAdvertisesClose('close the deck'), false)
 is("'esc' alone (no synonym) does NOT advertise close", footerAdvertisesClose('press esc'), false)
