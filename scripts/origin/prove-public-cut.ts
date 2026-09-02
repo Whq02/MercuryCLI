@@ -2,14 +2,14 @@
 // ============================================================================
 //  scripts/origin/prove-public-cut.ts — the public-cut gate.
 //
-//  Runs against a COPY of the tree prepared for the public home and proves
-//  the cut held: the private-records directory and the field channel are
-//  absent, no filed packet or sealed receipt survives under scripts/, the
-//  vocabulary ratchet carries no allow row for a path that left, the
-//  package origin names the public repository, and no operator disk path
-//  rides in hand-written text. On the private tree it is RED by design
-//  (the cut has not happened there) — it has no run-all.sh and never joins
-//  the pool. Needles are composed so this file never matches itself.
+//  Proves the tree that ships is the public cut and stays it: the private-
+//  records directory and the field channel are absent, no filed packet or
+//  sealed receipt survives under scripts/, the vocabulary ratchet carries no
+//  allow row for a path that left, the package origin names no private
+//  repository (and, given --public-repo, names the public one), and no
+//  operator disk path rides in hand-written text. Runs in the pool through
+//  scripts/origin/run-all.sh; a red is residue that came back, never a pin
+//  to re-cut. Needles are composed so this file never matches itself.
 //
 //  Run:  ~/.bun/bin/bun run scripts/origin/prove-public-cut.ts [--public-repo owner/name]
 // ============================================================================
@@ -83,7 +83,7 @@ check("§4 no hand-written file spells the operator's home path", hits.length ==
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
-  console.log(`❌ public-cut gate: ${failures} FAILED (expected on the private tree; the cut has not happened here)`)
+  console.log(`❌ public-cut gate: ${failures} FAILED — private residue is back on the tree`)
   process.exit(1)
 }
 console.log('✅ public-cut gate: the cut held')

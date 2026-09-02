@@ -1,7 +1,10 @@
 # scripts/gate/impact-ignore.txt — DECLARED no-runtime-surface paths for the
 # impact manifest. A changed path matching one of these globs
-# selects no suite and does NOT escalate to the full gate: nothing in the
-# gate estate tests it, so escalation would prove nothing more than a slice.
+# selects no suite and does NOT escalate to the full gate: no runtime suite
+# tests it, so escalation would prove nothing more than a slice. A declared
+# gate-watch outranks a row here — the origin suite watches the doc and
+# workflow estates for the public-cut ratchet, so those changes run it — and
+# the rows stay so a path the watch globs miss still never escalates.
 # Everything else unmatched stays FAIL-CLOSED (unclassified ⇒ FULL gate).
 # Validated by scripts/verify/prove-impact-manifest.ts (dead glob ⇒ RED).
 docs/**
