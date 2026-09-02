@@ -4,8 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
-import type { TranscriptFoldState } from './loading.js'
-import { emptyFoldState } from './loading.js'
+import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 
 const SNAPSHOT_SCHEMA = 1
 const DIGEST_TAIL_BYTES = 4096
