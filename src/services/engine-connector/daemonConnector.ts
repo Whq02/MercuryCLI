@@ -61,7 +61,8 @@ import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import { createAssistantMessage, createUserMessage } from '../../utils/messages/factories.js'
 import { createModelTransitionMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
-import { deserializeLiveMessages, liveTurnStateOf } from '../../utils/conversationRecovery.js'
+import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../utils/conversationRecovery.js'
+import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcriptReader.js'
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
 import { getAllBaseTools } from '../../tools.js'
 import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
@@ -473,6 +474,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private interrupting = false
   private lastSize = -1
   private lastLen = -1
+  /** The transcript reader's cursor over the conversation chain: the rows
+   *  this connector last took, so the next tick receives only what moved. */
+  private chainCursor: TranscriptChainCursor | null = null
+  /** The live-turn fold over rawRecords, settled up to the cursor's
+   *  unchanged prefix — a tick refolds only the rows that moved. */
+  private readonly liveFold: LiveTurnFold = createLiveTurnFold()
+  /** Hands the transcript reader's pinned state back at detach. */
+  private releaseTranscript: (() => void) | null = null
   private transcriptWatcher: FSWatcher | null = null
   private transcriptTimer: ReturnType<typeof setInterval> | null = null
   /** The one running tick pass (see tick()); triggers landing mid-pass set
@@ -614,6 +623,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       /* already closed */
     }
     this.transcriptWatcher = null
+    // The reader's state for this path goes back to its recent list: a hop
+    // back finds it warm if nothing else displaced it, and the process
+    // never pins a transcript no slot is following.
+    this.releaseTranscript?.()
+    this.releaseTranscript = null
     this.factsFeed.stop()
     this.asksFeed.stop()
     this.tailFeed.stop()
@@ -898,12 +912,18 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
           /* the heartbeat carries it */
         }
       }
-      const { loadFullLog } = await import('../../utils/sessionStorage/logs.js')
-      const log = (await loadFullLog({ sessionId: this.record.sessionId, messages: [], fullPath: this.transcriptPath } as never)) as unknown as {
-        messages?: unknown[]
-      }
+      // THE TRANSCRIPT READER (one per path, in process) folds only the
+      // bytes appended since this connector's last read and hands back the
+      // conversation chain since the cursor — an unchanged record keeps its
+      // row object, a moved file costs its appended bytes plus one chain
+      // walk, never a whole-file parse. The path stays pinned while the
+      // slot holds the session (detach hands it back).
+      const reader = await import('../../utils/sessionStorage/transcriptReader.js')
+      if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
+      const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
       if (!this.attached) return
-      const raw = Array.isArray(log?.messages) ? (log.messages as Message[]) : []
+      this.chainCursor = chain.cursor
+      const raw = chain.rows as unknown as Message[]
       // The size is the tick's stat gate alone — never a liveness clock:
       // the runner's own frames (the seat's stamp on the tail projection)
       // say when the session last spoke.
@@ -912,23 +932,28 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       // Content-keyed merge (recordIdentity — the pure seam the pool pin
       // drives in BOTH directions): deserializeLiveMessages is a 1:1
       // index-aligned map (migrate + scrub, no split), so a record whose
-      // serialized bytes match the last parse at the same index KEEPS the
+      // signature matches the last parse at the same index KEEPS the
       // object identity the previous tick handed React — the row memo bails
-      // and only moved rows reconcile — while changed bytes always take the
-      // fresh object (never a stale paint). A byte-identical re-read (a
-      // size-blind stat, a torn-read retry) keeps the ARRAY identity too
-      // and wakes no listener at all.
+      // and only moved rows reconcile — while a changed record always takes
+      // the fresh object (never a stale paint). The signature is the
+      // reader's row token (minted once per record's bytes; content by
+      // construction, no re-serialization per tick). A byte-identical
+      // re-read (a size-blind stat, a torn-read retry) keeps the ARRAY
+      // identity too and wakes no listener at all.
       const merge = mergeRecordsContentKeyed(
         this.rawRecords,
         this.recordSigs,
         raw,
         deserializeLiveMessages(raw),
+        reader.chainRowSigner(),
       )
       this.recordSigs = merge.sigs
-      connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length })
+      connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
       if (merge.reusedAll) return
       this.rawRecords = merge.records
-      this.liveState = liveTurnStateOf(this.rawRecords)
+      // The rows before `since` are the ones the previous tick folded (the
+      // reader's cursor law); only the moved tail refolds.
+      this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
       this.reconcileSends()
       this.paint()
       this.recomputeLive()
