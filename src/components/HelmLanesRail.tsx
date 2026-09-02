@@ -3,6 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
 import { Box, Text } from '../ink.js'
@@ -13,6 +14,7 @@ import { useAppState } from '../state/AppState.js'
 import { getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
 import { isLocalAgentTask, isPanelAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { useFocusedWorkRoster } from '../tasks/useFocusedWork.js'
 import { MAIN_CONVERSATION_ID } from '../services/crew/conversations.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import type { TaskState } from '../tasks/types.js'
@@ -132,7 +134,9 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 
 // A CREW row sourced from the app-store tasks (NOT fleetGauge — that yields
 // no drill-in id). `.id` is the drill-in key (enterTeammateView).
-type CrewRow = { id: string; label: string; status: TaskStatus }
+// `hosted`: a row of the focused session's runner (its roster over the
+// connector) — it opens its work card; its transcript lives with the runner.
+type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean }
 
 // A CREW lane entry is an app-store task (drill-in teammate) or a DAEMON-CREW
 // teammate (/teammates' named long-lived workers, ↵ → /teammates). The union
@@ -727,6 +731,12 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   // center — set by the EXISTING agent-nav (enterTeammateView → viewingAgentTaskId,
   // Shift+↑/↓ + Enter). The cockpit reuses that tested nav; this just marks the row.
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
+  // The focused session's OWN agents — its runner's roster over the
+  // connector, the same rows the /tasks board and the concourse chip count
+  // (workCounts). A hosted session runs the model's tools in its runner, so
+  // an agent it spawns never enters this screen's task store; the roster is
+  // how it reaches the rail. One owner: useFocusedWorkRoster.
+  const roster = useFocusedWorkRoster()
 
   const ipRows: CrewRow[] = getAllInProcessTeammateTasks(tasks).map(t => ({
     id: t.id,
@@ -739,8 +749,13 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const laRows: CrewRow[] = Object.values(tasks)
     .filter(isPanelAgentTask)
     .map(t => ({ id: t.id, label: t.description || t.agentType, status: t.status }))
+  // The runner's running/pending agent + teammate rows; a row this screen
+  // also holds locally keeps its local (drillable) identity.
+  const hostedRows: CrewRow[] = roster.rows
+    .filter(r => (r.kind === 'agent' || r.kind === 'teammate') && workRowRuns(r))
+    .map(r => ({ id: r.id, label: r.name, status: r.status === 'pending' ? 'pending' : 'running', hosted: true }))
   const crewById = new Map<string, CrewRow>()
-  for (const r of [...ipRows, ...laRows]) {
+  for (const r of [...ipRows, ...laRows, ...hostedRows]) {
     if (!crewById.has(r.id)) crewById.set(r.id, r)
   }
   // Order so the cap keeps the most relevant rows: running first, then the one you're
@@ -776,6 +791,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     workShape,
     scribeInboxes,
     tasks,
+    roster,
     viewingAgentTaskId,
     telemetry,
   }))
@@ -1261,7 +1277,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     const isViewing = viewingAgentTaskId != null && c.id === viewingAgentTaskId
     const base = statusTone(c.status, tok)
     // When this agent's transcript is the one drilled into the center, mark it
-    // (accent verb) so the cockpit shows what you're viewing.
+    // (accent verb) so the cockpit shows what you're viewing. A hosted row
+    // opens its work card on the /tasks board instead (the RUNS rows' door).
     const verbLabel = isViewing ? 'viewing' : base.label
     const tone = isViewing ? accent : base.tone
     const g = c.status === 'running' ? GLYPH.busy : GLYPH.idle
@@ -1277,7 +1294,13 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         nameColor={isViewing ? accent : tok.textPrimary}
         verb={verbLabel}
         verbColor={tone}
-        {...railRowProps(isOn, sel, { kind: 'teammate', id: c.id, label: c.label })}
+        {...railRowProps(
+          isOn,
+          sel,
+          c.hosted
+            ? { kind: 'command', command: `/tasks ${c.id}`, label: `crew:h:${c.id}` }
+            : { kind: 'teammate', id: c.id, label: c.label },
+        )}
       />
     )
   })
