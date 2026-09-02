@@ -70,7 +70,7 @@ t.section('§2 — the snapshot names the trigger generation it observed')
 t.section('§3 — one owner: the inline-copy ratchet')
 {
   const PINNED = [
-    'src/daemon/scribeDispatchBridge.ts',
+    'src/daemon/dispatchDrain.ts',
   ]
 
   const found: string[] = []
