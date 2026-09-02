@@ -21,6 +21,7 @@ import { configHomeExplicitlySet, getMercuryHome } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getAncestorCommandsAsync, getAncestorPidsAsync, isProcessRunning } from './genericProcessUtils.js'
 import { checkWSLDistroMatch, WindowsToWSLConverter } from './idePathConversion.js'
+import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from './editorExtensionPackage.js'
 import { isJetBrainsPluginInstalledCached } from './jetbrains.js'
 import { logError } from './log.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
@@ -35,9 +36,7 @@ const LOCKFILE_SUFFIX = '.lock'
 
 const IDE_BRIDGE_DIR = 'ide'
 
-export const MERCURY_IDE_EXTENSION_ID = 'mercury.mercury-vscode'
-
-const MERCURY_EXTENSION_ARTIFACT_PUBLISHED = false
+export { MERCURY_IDE_EXTENSION_ID } from './editorExtensionPackage.js'
 
 const CLOSE_ALL_DIFF_TABS_OP = 'closeAllDiffTabs'
 
@@ -971,14 +970,6 @@ function semverOlder(candidate: string, reference: string): boolean {
   return false
 }
 
-function noPublishedArtifactError(displayName: string): string {
-  return (
-    `No published Mercury extension artifact yet — the ${displayName} extension ` +
-    `(${MERCURY_IDE_EXTENSION_ID}) cannot be auto-installed until Mercury ships one. ` +
-    'In-editor features stay off until then.'
-  )
-}
-
 async function runVSCodeFamilyInstall(
   kind: IdeType,
 ): Promise<{ status: IDEExtensionInstallationStatus; freshInstall: boolean }> {
@@ -1007,11 +998,15 @@ async function runVSCodeFamilyInstall(
     }
   }
 
-  if (!MERCURY_EXTENSION_ARTIFACT_PUBLISHED) {
+  const vsix = locateBridgeVsix()
+  if (vsix === null) {
     return {
       status: {
         installed: before.installed,
-        error: noPublishedArtifactError(displayName),
+        error:
+          `No Mercury extension package (mercury-vscode.vsix) beside this build — ` +
+          `\`mercury editor status\` shows where one is looked for; a source checkout builds it with ` +
+          `bash scripts/vscode/build-vsix.sh. In-editor features stay off until it is installed.`,
         installedVersion: before.version,
         ideType: kind,
       },
@@ -1020,7 +1015,7 @@ async function runVSCodeFamilyInstall(
   }
 
   await delay(CLI_INVOCATION_DELAY_MS)
-  const outcome = await execFileNoThrow(cli, ['--force', '--install-extension', MERCURY_IDE_EXTENSION_ID], {
+  const outcome = await execFileNoThrow(cli, ['--force', '--install-extension', vsix], {
     timeout: 120_000,
     ...vsCodeCliEnvSpread(),
   })
