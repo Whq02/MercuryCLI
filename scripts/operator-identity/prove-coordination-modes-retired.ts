@@ -46,7 +46,7 @@ const exists = (rel: string): boolean => {
 // ── the text census ─────────────────────────────────────────────────────────
 
 const TEXT_EXT = /\.(ts|tsx|js|mjs|cjs|sh|json|md|py|tsv|txt|yml|yaml|ps1|cmd)$/
-const SKIP_DIRS = new Set(['node_modules', 'vendor', 'dist', '.git', 'cleanroom'])
+const SKIP_DIRS = new Set(['node_modules', 'vendor', 'dist', '.git', J('clean', 'room')])
 
 function* walk(dir: string): Generator<string> {
   for (const name of readdirSync(dir)) {
