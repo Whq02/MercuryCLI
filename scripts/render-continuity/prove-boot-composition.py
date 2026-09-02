@@ -113,10 +113,11 @@ for label, cols, rows, resize, balanced_only in [
     if balanced_only:
         check(f'{label}: balanced (|imb| <= 1)', abs(imb) <= 1, f'{above} above / {below} below')
     else:
+        pad = above + below
         check(
-            f'{label}: optical distribution (|imb| <= 5, >= 4 above)',
-            abs(imb) <= 5 and above >= 4,
-            f'{above} above / {below} below',
+            f'{label}: optical distribution (|imb| <= 5, >= 4 above; or naturally full)',
+            (pad <= 6 and abs(imb) <= 1) or (abs(imb) <= 5 and above >= 4),
+            f'{above} above / {below} below (pad {pad})',
         )
 
 print('── §2 the menu is placed by the same owner ──')
