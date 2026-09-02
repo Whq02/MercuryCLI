@@ -210,6 +210,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
     'src/services/acp/childSession.ts': 'the ACP child inherits stderr only',
     'src/memdir/promoteRungate.ts': 'the promote gate runs at the headless CLI',
     'src/utils/worktree.ts': 'the --worktree --tmux attach: a multiplexer client never takes the foreground group, and it runs before the renderer mounts',
+    'src/substrate/directSplash.ts': 'the pre-boot launch splash — it runs before the renderer mounts, its child shares this process group (no tcsetpgrp, so no foreground-group hand-off), and an abnormal splash death is healed by its own ABNORMAL_HEAL (terminal modes), never the reclaim',
   }
   const offenders: string[] = []
   const walk = (dir: string, visit: (rel: string, text: string) => void): void => {
@@ -304,8 +305,12 @@ const RECLAIM_BUDGET_MS = 200
 const withStat = (samples: HostSample[]): HostSample[] => samples.filter(s => s.stat !== null)
 const neverStopped = (samples: HostSample[]): boolean => withStat(samples).every(s => !s.stat!.startsWith('T'))
 const reclaimLatency = (r: HostReport, killMs: number, untilMs: number): { first: HostSample | undefined; ms: number } => {
-  const first = withStat(samplesBetween(r, killMs, untilMs))[0]
+  const first = withStat(samplesBetween(r, killMs, untilMs)).find(s => s.foreground === true)
   return { first, ms: first ? first.ms - killMs : Number.POSITIVE_INFINITY }
+}
+const staysForegroundAfter = (r: HostReport, fromMs: number, toMs: number | null): boolean => {
+  const s = withStat(samplesBetween(r, fromMs, toMs))
+  return s.length > 0 && s.every(x => x.foreground === true)
 }
 const childHeldTerminal = (s: HostSample | undefined): boolean =>
   s !== undefined && s.foreground === false && s.tree.some(row => row.pid !== s.pid && row.pgid === s.tpgid)
@@ -364,7 +369,7 @@ if (!packPresent) {
     check(`B: the foreground group is the driver’s again within ${RECLAIM_BUDGET_MS} ms (pgid == tpgid)`, latency.first?.foreground === true && latency.ms <= RECLAIM_BUDGET_MS, `first sample at +${latency.ms} ms: ${JSON.stringify({ stat: latency.first?.stat, pgid: latency.first?.pgid, tpgid: latency.first?.tpgid })}`)
     console.log(`      reclaim observed at +${latency.ms} ms after the kill (${withStat(after).length} samples)`)
     check('B: the read that would have stopped a background job returned (the job is the foreground group)', readMark.grid.includes('reclaim-driver: read ok'), readMark.grid.split('\n').filter(l => l.includes('reclaim-driver:')).join(' | '))
-    check('B: every sample after the kill keeps the foreground group', withStat(after).every(s => s.foreground === true), withStat(after).map(s => `${s.pgid}/${s.tpgid}`).join(','))
+    check('B: once reclaimed, every later sample keeps the foreground group', staysForegroundAfter(r, latency.first?.ms ?? kill.ms, readMark.ms + 1), withStat(after).map(s => `${s.pgid}/${s.tpgid}`).join(','))
   }
 }
 
@@ -453,6 +458,7 @@ if (!packPresent) {
   if (crashed) {
     skip('A/C the killed and the normal editor return', COMPOSER_CRASH_POINTER)
   } else {
+    rmSync(join(scratch, 'takes'), { force: true })
     const run2 = runJobControlHost({
       tag: 'handback-editor-full',
       argv: base.argv,
@@ -541,4 +547,5 @@ if (failures > 0) {
   console.log(` ❌ prove-terminal-handback: ${failures} failure(s)${skips ? `, ${skips} skipped` : ''}`)
   process.exit(1)
 }
-console.log(` ✅ terminal-handback — one owner in every hand-off finally · a killed terminal-thief ⇒ the foreground group reclaimed natively (≤200 ms), the next read returns · the pack absent ⇒ no reclaim, the job stays background and stops on its next read (the stop owner’s road) · the editor legs gated on the composer fix${skips ? ` (${skips} leg(s) skipped)` : ''}`)
+const editorNote = skips > 0 ? 'the editor legs gated on the composer fix' : 'the external editor killed mid-edit ⇒ reclaimed, a normal return untouched'
+console.log(` ✅ terminal-handback — one owner in every hand-off finally · a killed terminal-thief ⇒ the foreground group reclaimed natively (≤200 ms), the next read returns · the pack absent ⇒ no reclaim, the job stays background and stops on its next read (the stop owner’s road) · ${editorNote}${skips ? ` (${skips} leg(s) skipped)` : ''}`)
