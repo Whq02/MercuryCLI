@@ -147,7 +147,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   )
   check(
     'B4 i fires only in the list region with the door wired; p toggles by the paused state; m keeps its queued meaning first',
-    screen.includes("if (input === 'i' && !key.ctrl && !key.meta && !verbsYield && callbacks.interruptSession !== undefined && pastGate())") &&
+    screen.includes("if (input === 'i' && !key.ctrl && !key.meta && callbacks.interruptSession !== undefined && pastGate())") &&
       screen.includes("if (target.row.state === 'paused') callbacks.resumeSession(target.row.sessionId)") &&
       screen.indexOf("sel?.sessionId.startsWith('dispatch:') === true") !== -1 && screen.indexOf("sel?.sessionId.startsWith('dispatch:') === true") < screen.indexOf("setRowPick({ kind: 'model', sessionId: target.row.sessionId"),
   )
@@ -168,7 +168,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   )
   check(
     'B4 e fires only in the list region with the door wired, through the same live-row guard as i/p/m',
-    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && !verbsYield && callbacks.setSessionEffort !== undefined && pastGate())"),
+    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate())"),
   )
   const manifest2 = manifest.regionKeysFor('list', { newSession: true, selection: 'live' })
   check('B2 a LIVE selection prints e effort beside m model (the WARMRUN rider’s key-map row)', manifest2.some(k => k.keys === 'e' && k.label === 'effort'))

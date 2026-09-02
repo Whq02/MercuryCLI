@@ -128,7 +128,7 @@ section("§5 — the session rows' e keeps its job")
   const screen = readFileSync(join(import.meta.dir, '../../src/components/concourse/ConcourseScreen.tsx'), 'utf8')
   check(
     'the board e still opens the session effort door through the daemon verb',
-    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && !verbsYield && callbacks.setSessionEffort !== undefined && pastGate())") &&
+    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate())") &&
       screen.includes("setRowPick({ kind: 'effort', sessionId: target.row.sessionId, title: target.row.title })"),
   )
   check('…mounting the SAME moved component', screen.includes("import { RowPickModal } from './RowPickModal.js'") && !screen.includes('function RowPickModal('))
