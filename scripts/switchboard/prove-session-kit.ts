@@ -551,7 +551,10 @@ console.log("H — the membership handoff: kitMembership consulted BY the one ow
   check("H5 POISON armed (the lead-ruled law): an UNRESOLVED kit's lists are NEVER read as membership — its provisional list names 'a' yet the delta says off ⇒ not a member; an empty provisional list is not 'nothing' ⇒ a member", membership.kitMembership(unresolvedOff, 'a') === false && membership.kitMembership(unresolvedEmpty, 'zeta') === true)
   check("H6 an unresolved kit reads its OWN deltas, never the live record ('srv-here' is off on the record, absent from the deltas ⇒ a member)", membership.kitMembership(unresolvedEmpty, 'srv-here') === true)
   const src = read('src/services/mcp/membership.ts')
-  check("H7 THE SWAP LANDED (this pin flipped deliberately with that lane): the owner consults the process latch — kit absent ⇒ today's record predicate verbatim; kit present ⇒ organs, then kitMembership", src.includes('THE SWAP POINT (landed') && src.includes('const kit = sessionKitOf') && src.includes('if (kit === undefined) return recordMembership(name)') && src.includes('return isMcpOrgan(name) || kitMembership(kit, name)') && src.includes('return !isMcpServerDisabled(name)') && src.includes('export function kitMembership('))
+  // The swap is pinned by its MECHANISM (the latch read, the two arms, the
+  // record arm's one spelling) — never by a comment phrase: comments explain
+  // the mechanism and carry no history, so a prose needle pins narration.
+  check("H7 THE SWAP: the owner consults the process latch — kit absent ⇒ today's record predicate verbatim; kit present ⇒ organs, then kitMembership", src.includes('const kit = sessionKitOf') && src.includes('if (kit === undefined) return recordMembership(name)') && src.includes('return isMcpOrgan(name) || kitMembership(kit, name)') && src.includes('return !isMcpServerDisabled(name)') && src.includes('export function kitMembership('))
   const callers = spawnSync('grep', ['-rln', 'kitMembership(', join(SRC_ROOT, 'src')], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean).map(p => p.slice(SRC_ROOT.length + 1)).sort()
   // H8 re-amended: the dial's reconcile delta (kitDial.ts) is
   // the THIRD lawful speaker — the live connect/disconnect delta must speak
