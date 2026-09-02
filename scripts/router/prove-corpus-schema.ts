@@ -50,6 +50,9 @@ const ALLOWED_PROFILES = new Set([
   'opus-direct',
   'parallel-sonnet',
   'dependency-graph',
+  // READ-tolerant: a legacy profile the compiler no longer produces (it
+  // belonged to a retired seat's workflow posture) — a pre-retirement
+  // fixture may still spell it; the replay prover pins that none EXPECTS it.
   'workflow-delegated',
   'REFUSAL',
 ])

@@ -75,9 +75,15 @@ export const ROUTE_PROFILES = [
   'opus-direct',
   'parallel-sonnet',
   'dependency-graph',
-  'workflow-delegated',
 ] as const
 export type RouteProfile = (typeof ROUTE_PROFILES)[number]
+
+/** Profiles the compiler no longer produces (the workflow-delegated one
+ *  belonged to a retired seat's workflow posture). READ-tolerant only — a
+ *  plan persisted before the retirement still decodes and paints; nothing
+ *  selects them (the corpus replay prover pins both halves). */
+export const LEGACY_ROUTE_PROFILES = ['workflow-delegated'] as const
+export type LegacyRouteProfile = (typeof LEGACY_ROUTE_PROFILES)[number]
 
 export const ROUTE_TASK_SHAPES = [
   'mechanical',
@@ -219,7 +225,7 @@ export interface TaskRoutePlan {
   title: string
   objective: string
   features: RouteFeatureVector
-  profile: RouteProfile
+  profile: RouteProfile | LegacyRouteProfile
   nodes: RouteNode[]
   synthesis: {
     required: boolean

@@ -36,7 +36,6 @@ const PROFILE_CHIP: Record<string, string> = {
   'opus-direct': 'OPUS DIRECT',
   'parallel-sonnet': 'PARALLEL',
   'dependency-graph': 'DEP GRAPH',
-  'workflow-delegated': 'WORKFLOW',
 }
 
 function modelPath(plan: TaskRoutePlan): string {
