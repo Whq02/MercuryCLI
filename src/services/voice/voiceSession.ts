@@ -16,14 +16,16 @@
 //  Mercury never speaks: this module has no output road but the composer.
 // ============================================================================
 import * as pendingInput from '../../input-core/pending-input.js'
+import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 import {
-  CAPTURE_BOUND_MS,
+  captureBoundMs,
   microphonePermissionHint,
   resolveCaptureBackend,
   startCapture,
+  voiceDebugWavDir,
   type CaptureBackendKind,
   type CaptureBackendResolution,
   type CaptureHandle,
@@ -109,6 +111,13 @@ export function setVoiceInputEnabled(on: boolean): void {
 
 const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
 
+/** The bound's words for the receipt: whole minutes as minutes, anything
+ *  shorter (a proof's bound) as seconds. */
+export function boundLabel(ms: number): string {
+  if (ms % 60_000 === 0) return `${ms / 60_000}-minute`
+  return `${Math.round(ms / 100) / 10}-second`
+}
+
 /** The transcript lands at the end of the draft, one space from any words
  *  already there; the composer's external-edit law puts the cursor after it. */
 export function landTranscript(text: string): void {
@@ -122,7 +131,7 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
   if (handle === null || handle.settled) return
   active = null
   publish({ phase: 'transcribing' })
-  if (reason === 'bound') receipt(`capture stopped at the ${Math.round(CAPTURE_BOUND_MS / 60_000)}-minute bound — transcribing`, 'info')
+  if (reason === 'bound') receipt(`capture stopped at the ${boundLabel(captureBoundMs())} bound — transcribing`, 'info')
   try {
     let result
     try {
@@ -214,6 +223,28 @@ export function cancelVoiceCapture(): boolean {
   return true
 }
 
+/** The exit road: a take still open when Mercury quits is dropped so the
+ *  microphone (and a PATH recorder child) is released — no receipt, nobody
+ *  is left to paint one. Answers whether a take was open. */
+export function releaseVoiceCaptureOnExit(): boolean {
+  const handle = active
+  if (handle === null) return false
+  active = null
+  try {
+    handle.cancel()
+  } catch {
+    /* a dropped take owes nothing */
+  }
+  publish({ phase: 'idle', startedAt: null, backend: null })
+  return true
+}
+
+// The graceful-shutdown road runs every registered cleanup; the registry is
+// a bare set, so this import pulls no shutdown module in.
+registerCleanup(async () => {
+  releaseVoiceCaptureOnExit()
+})
+
 function backendWords(backend: CaptureBackendResolution): string {
   return backend.state === 'ok' ? backend.detail : `none — ${backend.note}`
 }
@@ -257,13 +288,19 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
       ? 'microphone permission: macOS asks for the terminal on the first capture — not knowable before it'
       : 'microphone permission: the operating system decides at the first capture'
   const line = `backend: ${backendWords(backend)} · transcriber: ${transcriberWords(transcriber)} · /speak ${on ? 'on' : 'off'}`
+  // Anthropic is named once: with the family signed in it is already among
+  // the families passed over, with its reason.
+  const anthropicNamed = transcriber.skipped.some(s => s.startsWith('Anthropic'))
+  const debugDir = voiceDebugWavDir()
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
     transcriber.state === 'ok' ? `transcriber: ${transcriber.choice.label}` : `transcriber: ${transcriber.note}`,
     ...(transcriber.skipped.length > 0 ? [`families passed over: ${transcriber.skipped.join('; ')}`] : []),
-    'Anthropic: no speech-to-text endpoint',
+    ...(anthropicNamed ? [] : ['Anthropic: no speech-to-text endpoint']),
     permission,
-    'audio leaves the box only to the transcribing family, only after a take stops; nothing is written to disk',
+    `audio leaves the box only to the transcribing family, only after a take stops; ${
+      debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
+    }`,
   ].join('\n')
   return { ready: backend.state === 'ok' && transcriber.state === 'ok', line, detail }
 }
