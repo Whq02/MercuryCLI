@@ -25,6 +25,7 @@ import {
   type SignatureVerdict,
 } from './artifactSigning.js'
 import { trustedSigningKeys, type TrustedSigningKey } from './signingTrust.js'
+import { checkVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 
 export type VerifyDepth = 'fast' | 'deep'
 
@@ -84,6 +85,20 @@ export function verifyPayloadDir(
     }
   }
   const manifestVersion = typeof manifest.version === 'string' ? manifest.version : null
+
+  // The vendored runtime bind: a payload that declares a runtime record must
+  // carry the binary the record digests — signed or not, a manifest that
+  // disagrees with its own bytes is not intact. Presence is bound at every
+  // depth; the digest (a large binary) at deep, stated as unevaluated at
+  // fast — the same honesty the whole-payload digest keeps.
+  const runtime = readRuntimeRecord(manifest)
+  if (runtime?.vendored) {
+    const carried = checkVendoredRuntime(dir, runtime, { digest: depth === 'deep' })
+    if (carried.state !== 'ok') {
+      return { verdict: { state: 'tampered', note: carried.note }, depth, unevaluated, manifestVersion }
+    }
+    if (depth === 'fast') unevaluated.push('vendored runtime binary digest (deep verification evaluates it)')
+  }
 
   if (manifest.signing === undefined || manifest.signing === null) {
     return { verdict: { state: 'unsigned' }, depth, unevaluated, manifestVersion }

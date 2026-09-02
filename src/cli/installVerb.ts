@@ -54,6 +54,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
           `would install version: ${described.version ?? '(cannot determine — see note)'}`,
           `would install to:      ${described.wouldInstallTo}`,
           `stable command:        ${described.shimPath}`,
+          `runtime:               ${described.runtime}`,
           `note: ${described.note}`,
         ].join('\n'),
       )

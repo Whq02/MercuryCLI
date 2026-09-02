@@ -50,6 +50,7 @@ import {
   resolveBundleMember,
   type PayloadDescriptor,
 } from './channelCore.js'
+import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 
 export interface LayoutRoots {
   /** <config-home>/versions unless MERCURY_VERSIONS_DIR pins it (hermetic seam). */
@@ -391,6 +392,14 @@ export function validatePayloadDir(dir: string): PayloadCheck {
     return { state: 'invalid', note: `declared primary ${descriptor.primary} is absent from ${dir}` }
   }
   if (!existsSync(join(dir, 'vendor', 'ripgrep'))) return { state: 'invalid', note: 'vendor/ripgrep missing from the payload' }
+  // The vendored runtime the manifest declares must be carried (presence
+  // here — the smoke below runs it, deep verification digests it). A payload
+  // without a record (an older release) stays valid: rollback keeps working.
+  const runtime = readRuntimeRecord(manifest)
+  if (runtime?.vendored) {
+    const carried = checkVendoredRuntime(dir, runtime)
+    if (carried.state !== 'ok') return { state: 'invalid', note: `vendored runtime missing from the payload: ${carried.note}` }
+  }
   const posixLauncher = join(dir, 'mercury')
   const winLauncher = join(dir, 'mercury.cmd')
   const launcher = existsSync(posixLauncher) ? posixLauncher : existsSync(winLauncher) ? winLauncher : null
@@ -475,6 +484,11 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
     if (!roots.isWindows) {
       chmodSync(join(staging, 'mercury'), 0o755)
       if (existsSync(join(staging, 'install.sh'))) chmodSync(join(staging, 'install.sh'), 0o755)
+      // The vendored runtime must stay executable through every copy — a
+      // launcher that finds a non-executable vendor/node/bin/node falls to
+      // the next rung silently, and the machine may have none.
+      const carried = payloadVendoredRuntime(staging)
+      if (carried !== null) chmodSync(carried.binaryPath, 0o755)
     }
     if (existsSync(versionDir)) {
       displaced = join(roots.versionsDir, `.replaced-${version}-${process.pid}`)
@@ -818,18 +832,22 @@ export function reconcileManagedShims(
 
 export type SmokeOutcome = { state: 'ok'; printed: string } | { state: 'failed'; note: string }
 
-/** Run `node <dir>/<bundle> --version` and require the expected version.
+/** Run `<node> <dir>/<bundle> --version` and require the expected version.
  *  The bundle is the caller's descriptor-resolved primary; when omitted it is
  *  re-minted from the same ONE contract (validatePayloadDir), with the
- *  installed-dir member census only as the fallback. */
+ *  installed-dir member census only as the fallback. The node is the
+ *  payload's OWN vendored runtime when it carries one — the smoke then
+ *  proves the runtime the release ships actually runs on this machine — and
+ *  the running process's node otherwise. */
 export function smokeVersion(dir: string, expectedVersion: string, primaryBundle?: string): SmokeOutcome {
   const validated = primaryBundle ? null : validatePayloadDir(dir)
   const bundle = primaryBundle ?? (validated?.state === 'ok' ? validated.bundle : resolveBundleMember(dirMembers(dir)))
   if (!bundle) {
     return { state: 'failed', note: `no runtime bundle (${BUNDLE_MEMBER_NAMES.join(' | ')}) in ${dir}` }
   }
+  const node = payloadVendoredRuntime(dir)?.binaryPath ?? process.execPath
   try {
-    const printed = execFileSync(process.execPath, [join(dir, bundle), '--version'], {
+    const printed = execFileSync(node, [join(dir, bundle), '--version'], {
       windowsHide: true,
       encoding: 'utf8',
       timeout: 60_000,

@@ -15,6 +15,7 @@ import {
   checkForUpdate,
   performRollback,
   performUpdate,
+  statusRuntimeLine,
   type Progress,
 } from 'src/services/privateChannel/updateService.js'
 import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/bootBeacon.js'
@@ -87,6 +88,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       `versions present:  ${status.versionsPresent.join(', ') || '(none)'}`,
       `versions dir:      ${status.versionsDir}`,
       `stable command:    ${status.shimPath} (${status.shim})`,
+      `runtime:           ${statusRuntimeLine(status)}`,
       `channel:           ${status.channelRepo} (private GitHub releases via your own gh sign-in)`,
       `channel access:    ${status.access.state === 'ok' ? 'ok' : `${status.access.state} — ${status.access.note}`}`,
     ]

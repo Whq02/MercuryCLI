@@ -2878,16 +2878,25 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'runtime',
           label: 'Node & ripgrep',
-          run: () => {
+          run: async () => {
             // The Node facts come from the ONE policy owner:
             // observed version · support label · full range · pure verdict. On
             // an unsupported runtime the entry gate refuses before the health report can
             // run, so the negative branch here is defensive honesty.
             const rt = nodeRuntimeProjection(process.versions.node)
+            // WHICH node: the runtime owner classifies the running process —
+            // the vendored runtime beside the bundle (a release install needs
+            // no Node on the machine), an explicit MERCURY_NODE, or a PATH
+            // node — and names a vendored runtime that is present but not
+            // in use. The floor verdict below applies to every rung; the
+            // vendored one sits inside the range by construction.
+            const { runningRuntime } = await import('../services/privateChannel/updateService.js')
+            const { runtimeLine } = await import('../services/privateChannel/vendoredRuntime.js')
+            const which = runningRuntime()
             const nodePart =
               rt.verdict === 'supported'
-                ? `node v${rt.observed} supported — ${rt.label} (${rt.range})`
-                : `node ${rt.observed ? `v${rt.observed}` : 'UNREADABLE'} ${rt.verdict.toUpperCase()} — supported: ${rt.label} (${rt.range})`
+                ? `${runtimeLine(which)}${which.source === 'vendored' ? '' : ` · supported — ${rt.label} (${rt.range})`}`
+                : `${runtimeLine(which)} ${rt.verdict.toUpperCase()} — supported: ${rt.label} (${rt.range})`
             // Presence comes from the ripgrep OWNER (FC-151): the local
             // existsSync on a bare 'rg' answered for a cwd file — the
             // verdict flipped on the working directory alone.
