@@ -15,6 +15,18 @@ export function viewportFloorVerdict(columns: number, rows: number, surfaceUp: b
   return { fits: false, line: viewportFloorLine(columns, rows) }
 }
 
+let surfaceUp = false
+
+export function viewportFloorLive(columns: number, rows: number): ViewportFloorVerdict {
+  const verdict = viewportFloorVerdict(columns, rows, surfaceUp)
+  surfaceUp = verdict.fits
+  return verdict
+}
+
+export function resetViewportFloorForTests(): void {
+  surfaceUp = false
+}
+
 export function viewportFloorLine(columns: number, rows: number): string {
   const forms = [
     `Mercury needs ${VIEWPORT_FLOOR_COLS} columns and ${VIEWPORT_FLOOR_ROWS} rows · this window is ${columns}×${rows} · resize the terminal to continue`,
