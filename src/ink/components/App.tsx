@@ -63,13 +63,7 @@ import { cockpitEngine } from '../../render-engine/cockpit/engineMount.js'
 import { termWrite } from '../../render-engine/cockpit/terminalOut.js'
 import { resolveAlternateScrollIntent } from '../termio/alternateScrollPolicy.js'
 import { FOCUS_IN, FOCUS_OUT } from '../termio/csi.js'
-import {
-  DFE,
-  DISABLE_MOUSE_TRACKING,
-  EFE,
-  HIDE_CURSOR,
-  SHOW_CURSOR,
-} from '../termio/dec.js'
+import { HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
 import AppContext from './AppContext.js'
 import { ClockProvider } from './ClockContext.js'
 import CursorDeclarationContext, {
@@ -557,26 +551,13 @@ export default class App extends PureComponent<Props, State> {
 
   private handleSuspend(): void {
     if (!this.isRawModeSupported) return
-    const savedCount = this.rawModeEnabledCount
-    while (this.rawModeEnabledCount > 0) this.handleSetRawMode(false)
-    if (this.props.stdout.isTTY) {
-      termWrite(this.props.stdout, SHOW_CURSOR + DFE + DISABLE_MOUSE_TRACKING, 'mode')
-    }
     this.internal_eventEmitter.emit('suspend')
     const onContinue = (): void => {
-      for (let i = 0; i < savedCount; i++) this.handleSetRawMode(true)
-      if (
-        this.props.stdout.isTTY &&
-        !resolveTerminalExperience().accessibility.effective
-      ) {
-        termWrite(this.props.stdout, HIDE_CURSOR, 'mode')
-      }
-      termWrite(this.props.stdout, EFE, 'mode')
       this.internal_eventEmitter.emit('resume')
       process.removeListener('SIGCONT', onContinue)
     }
     process.on('SIGCONT', onContinue)
-    process.kill(process.pid, 'SIGSTOP')
+    process.kill(process.pid, 'SIGTSTP')
   }
 
 }

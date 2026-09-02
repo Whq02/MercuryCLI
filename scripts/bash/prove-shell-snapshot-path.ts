@@ -156,8 +156,9 @@ check('UI-074: SUPPORTS_SUSPEND is the platform gate',
   appTsx.includes("const SUPPORTS_SUSPEND = process.platform !== 'win32'"))
 check('UI-074: the ONLY ctrl+z suspend dispatch requires the gate',
   /item\.name === 'z' && item\.ctrl && SUPPORTS_SUSPEND/.test(appTsx))
-check('UI-074: exactly one SIGSTOP call site, inside the suspend handler',
-  (appTsx.match(/process\.kill\(process\.pid, 'SIGSTOP'\)/g) || []).length === 1)
+check('UI-074: exactly one self-stop call site (SIGTSTP into the stop owner), inside the suspend handler',
+  (appTsx.match(/process\.kill\(process\.pid, 'SIGTSTP'\)/g) || []).length === 1 &&
+    !appTsx.includes("'SIGSTOP'"))
 
 console.log('— §3 resilient rg function —')
 {
