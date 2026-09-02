@@ -154,6 +154,13 @@ function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40)
 }
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes('⇧← back'))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
+/** The board, by its own furniture: the SESSIONS pane and its column
+ *  header. The Boot face, by its card row and ready line ('New Session' is
+ *  the face's row — the board's tab says 'new session'). A face needle
+ *  alone is not a board-negative: the coordinator composer's placeholder
+ *  ("describe a task — ↵ starts a session…") carries '↵ start' too. */
+const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
+const isFace = (lines: string[]): boolean => has(lines, 'New Session') && has(lines, '↵ start')
 
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
@@ -314,10 +321,10 @@ try {
   )
   const r2Landing = markOf('reap-last', 'landing')
   const r2AfterRight = markOf('reap-last', 'after-right')
-  check('R2 the last release keeps the BOARD as the frame — no ghost chat, no root composer, no bounce to the menu', has(r2Landing, 'SESSIONS') && tagLine(r2Landing) === undefined && !has(r2Landing, '↵ start'), r2Landing.filter(l => l.trim()).slice(0, 8).join(' | '))
+  check('R2 the last release keeps the BOARD as the frame — no ghost chat, no root composer, no bounce to the menu', isBoard(r2Landing) && tagLine(r2Landing) === undefined && !isFace(r2Landing), r2Landing.filter(l => l.trim()).slice(0, 8).join(' | '))
   check('R2 no session tag bar on the landing (no chat is open)', tagLine(r2Landing) === undefined, tagLine(r2Landing) ?? '')
-  check('R2 ⇧→ from the board is NO MOVEMENT (no chat stop exists after the last reap): still the board', has(r2AfterRight, 'SESSIONS') && tagLine(r2AfterRight) === undefined && !has(r2AfterRight, '↵ start'), r2AfterRight.filter(l => l.trim()).slice(0, 3).join(' | '))
-  check('R2 …and again: the final frame is still the board — never the dead chat, never a bounce back to the menu', has(r2, 'SESSIONS') && tagLine(r2) === undefined && !has(r2, '↵ start'), r2.filter(l => l.trim()).slice(0, 3).join(' | '))
+  check('R2 ⇧→ from the board is NO MOVEMENT (no chat stop exists after the last reap): still the board', isBoard(r2AfterRight) && tagLine(r2AfterRight) === undefined && !isFace(r2AfterRight), r2AfterRight.filter(l => l.trim()).slice(0, 3).join(' | '))
+  check('R2 …and again: the final frame is still the board — never the dead chat, never a bounce back to the menu', isBoard(r2) && tagLine(r2) === undefined && !isFace(r2), r2.filter(l => l.trim()).slice(0, 3).join(' | '))
   check('R2 …and no dead session title anywhere on it', !has(r2, otherTitle) || has(r2, 'SESSIONS'), r2.filter(l => l.includes(otherTitle)).join(' | '))
   check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','))
 
