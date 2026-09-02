@@ -164,12 +164,18 @@ try {
   if (!distFresh) {
     console.log('· doctor --json leg SKIPPED (dist not built from this tree — the gate prebuilds)')
   } else {
+    // The credential verdict follows the routed family (the auth-routed
+    // verdict proof owns that law): a home with no sign-in anywhere is a
+    // FAULT and the doctor exits 3 — no turn can run. This leg is about the
+    // readiness RECORDS, so the child carries a placeholder key (presence
+    // only; the doctor never probes the network) and the certificate is
+    // read whole under a verdict that is not the credential's.
     const d = spawnSync('node', [dist, 'doctor', '--json'], {
       encoding: 'utf8',
       timeout: 90_000,
-      env: { ...process.env, MERCURY_CONFIG_DIR: home },
+      env: { ...process.env, MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: 'fixture-anthropic-key' },
     })
-    check(d.status === 0, `doctor --json exits 0 (${d.status})`)
+    check(d.status === 0, `doctor --json exits 0 with a credential present (${d.status})`)
     try {
       const cert = JSON.parse(d.stdout) as { verdict?: string; readiness?: Rec[] }
       check(Array.isArray(cert.readiness), 'certificate embeds readiness records')
