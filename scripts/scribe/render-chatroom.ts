@@ -3,17 +3,12 @@ import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { serializeScribeEnvelope, buildProgress, buildDispatch } from '../../src/utils/scribe/scribeBus.js'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 const REPO = join(import.meta.dir, '..', '..')
-const PROJECTS = join(
-  process.env.HOME!,
-  '.claude',
-  'projects',
-  sanitizePath(RUNTIME_CWD),
-)
+const PROJECTS = getProjectDir(RUNTIME_CWD)
 const VSHOT = new URL('../ui/vshot.py', import.meta.url).pathname
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 
@@ -102,6 +97,7 @@ function shoot(cell: string, cols: number, env: Record<string, string>): string 
   const out = `/tmp/chatroom-${cell}-${cols}.html`
   const cfg = {
     argv: ['node', BIN, '--resume', SID],
+    cwd: RUNTIME_CWD,
     sends: [],
     total: 16,
     cols,

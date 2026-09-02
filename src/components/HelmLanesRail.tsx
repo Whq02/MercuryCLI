@@ -3,6 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
 import { Box, Text } from '../ink.js'
@@ -13,6 +14,7 @@ import { useAppState } from '../state/AppState.js'
 import { getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
 import { isLocalAgentTask, isPanelAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { MAIN_CONVERSATION_ID } from '../services/crew/conversations.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import type { TaskState } from '../tasks/types.js'
@@ -95,7 +97,7 @@ import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
 
-type CrewRow = { id: string; label: string; status: TaskStatus }
+type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean }
 
 type CrewEntry =
   | { kind: 'task'; row: CrewRow }
@@ -550,6 +552,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
 
   const tasks = useAppState(s => s.tasks)
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
+  const roster = useFocusedWorkRoster()
 
   const ipRows: CrewRow[] = getAllInProcessTeammateTasks(tasks).map(t => ({
     id: t.id,
@@ -559,8 +562,11 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const laRows: CrewRow[] = Object.values(tasks)
     .filter(isPanelAgentTask)
     .map(t => ({ id: t.id, label: t.description || t.agentType, status: t.status }))
+  const hostedRows: CrewRow[] = roster.rows
+    .filter(r => (r.kind === 'agent' || r.kind === 'teammate') && workRowRuns(r))
+    .map(r => ({ id: r.id, label: r.name, status: r.status === 'pending' ? 'pending' : 'running', hosted: true }))
   const crewById = new Map<string, CrewRow>()
-  for (const r of [...ipRows, ...laRows]) {
+  for (const r of [...ipRows, ...laRows, ...hostedRows]) {
     if (!crewById.has(r.id)) crewById.set(r.id, r)
   }
   const crewAll = [...crewById.values()].sort((a, b) => {
@@ -587,6 +593,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     workShape,
     scribeInboxes,
     tasks,
+    roster,
     viewingAgentTaskId,
     telemetry,
   }))
@@ -942,7 +949,13 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         nameColor={isViewing ? accent : tok.textPrimary}
         verb={verbLabel}
         verbColor={tone}
-        {...railRowProps(isOn, sel, { kind: 'teammate', id: c.id, label: c.label })}
+        {...railRowProps(
+          isOn,
+          sel,
+          c.hosted
+            ? { kind: 'command', command: `/tasks ${c.id}`, label: `crew:h:${c.id}` }
+            : { kind: 'teammate', id: c.id, label: c.label },
+        )}
       />
     )
   })
