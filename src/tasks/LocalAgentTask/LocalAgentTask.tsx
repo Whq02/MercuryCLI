@@ -18,6 +18,7 @@ import { createAbortController, createChildAbortController } from '../../utils/a
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
+import { calculateUSDCost, modelPricingBasis } from '../../utils/modelCost.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import type { AgentId } from '../../types/ids.js'
@@ -54,6 +55,21 @@ export type AgentProgress = {
   totalToolUseCount?: number
   lastActivity?: ToolActivity
   recentActivities: ToolActivity[]
+  inputTokens?: number
+  outputTokens?: number
+  costUSD?: number
+  unpricedTurns?: number
+  model?: string
+}
+
+export type AgentLedger = {
+  inputTokens: number
+  outputTokens: number
+  costUSD: number
+  unpricedTurns: number
+  servedModel?: string
+  lastResponseId?: string
+  lastResponse?: { input: number; output: number; cost: number; unpriced: number }
 }
 
 export type ProgressTracker = {
@@ -61,6 +77,42 @@ export type ProgressTracker = {
   totalOutputTokens: number
   toolUseCount: number
   recentActivities: ToolActivity[]
+  ledger: AgentLedger
+}
+
+export function createAgentLedger(): AgentLedger {
+  return { inputTokens: 0, outputTokens: 0, costUSD: 0, unpricedTurns: 0 }
+}
+
+export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
+  const usage = assistant.message.usage
+  if (!usage) return
+  const input =
+    (usage.input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0)
+  const output = usage.output_tokens ?? 0
+  if (input <= 0 && output <= 0) return
+  const rawModel = (assistant.message as { model?: unknown }).model
+  const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
+  const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
+  const cost = priced ? calculateUSDCost(model, usage) : 0
+  const next = { input, output, cost, unpriced: priced ? 0 : 1 }
+  const id = typeof assistant.message.id === 'string' ? assistant.message.id : undefined
+  if (id !== undefined && ledger.lastResponseId === id && ledger.lastResponse !== undefined) {
+    const prev = ledger.lastResponse
+    ledger.inputTokens -= prev.input
+    ledger.outputTokens -= prev.output
+    ledger.costUSD -= prev.cost
+    ledger.unpricedTurns -= prev.unpriced
+  }
+  ledger.inputTokens += next.input
+  ledger.outputTokens += next.output
+  ledger.costUSD += next.cost
+  ledger.unpricedTurns += next.unpriced
+  ledger.lastResponseId = id
+  ledger.lastResponse = next
+  if (model !== undefined) ledger.servedModel = model
 }
 
 export type ActivityDescriptionResolver = (
@@ -74,6 +126,7 @@ export function createProgressTracker(): ProgressTracker {
     totalOutputTokens: 0,
     toolUseCount: 0,
     recentActivities: [],
+    ledger: createAgentLedger(),
   }
 }
 
@@ -112,6 +165,7 @@ export function updateProgressFromMessage(
     if (latest > 0) tracker.latestInputTokens = latest
     tracker.totalOutputTokens += usage.output_tokens ?? 0
   }
+  foldResponseIntoLedger(tracker.ledger, assistant)
   const content = assistant.message.content
   if (!Array.isArray(content)) return
   for (const block of content) {
@@ -136,6 +190,8 @@ export function updateProgressFromMessage(
 }
 
 export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
+  const ledger = tracker.ledger
+  const settled = ledger.inputTokens + ledger.outputTokens > 0
   return {
     toolUseCount: tracker.toolUseCount,
     tokenCount: getTokenCountFromTracker(tracker),
@@ -143,6 +199,15 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
     totalToolUseCount: tracker.toolUseCount,
     lastActivity: tracker.recentActivities[tracker.recentActivities.length - 1],
     recentActivities: [...tracker.recentActivities],
+    ...(settled
+      ? {
+          inputTokens: ledger.inputTokens,
+          outputTokens: ledger.outputTokens,
+          costUSD: ledger.costUSD,
+          unpricedTurns: ledger.unpricedTurns,
+        }
+      : {}),
+    ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
   }
 }
 
