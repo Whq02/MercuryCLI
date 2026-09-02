@@ -31,7 +31,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { runArtifactArena, grabScreens, firstOutputTs } = await import('../streaming/artifactArena.ts')
+const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -73,11 +73,12 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
   const run = await runArtifactArena({
     turns: [],
     sends: [
-      // The board row wears the dispatch PROMPT's words now, not the title
-      // ('Quiet seat' rotted when rows re-labeled) — anchor the hop on the
-      // words the row actually paints.
-      'after:say something settled:2500:\t',
-      'after:say something settled:4000:\r',
+      // The board row wears the dispatch's TITLE: the supervisor keeps
+      // req.title on the worker record, the list row prints it, and the
+      // title mint fills empty titles only — anchor the hop on the words
+      // the row actually paints.
+      'after:Quiet seat:2500:\t',
+      'after:Quiet seat:4000:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
       `after:Type a prompt:${escAt + gapMs}:\x1b`,
@@ -112,12 +113,12 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
   })
   try {
     // The sends are OBSERVED-READY (needle-anchored), so the assert clock is
-    // the SEND LOG's actual fire times, child-relative — a fixed-offset read
-    // against a shifted journey adjudicates the wrong frames.
-    const t0 = firstOutputTs(run)
+    // the SEND LOG's fire times in the grab's own stamp base (sendStamp) —
+    // a raw first-output offset against a re-based journey adjudicates the
+    // wrong frames by the whole anchor shift.
     const escSends = run.sendLog
       .filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b')
-      .map(s => s.sent - t0)
+      .map(s => sendStamp(run, s))
       .sort((a, b) => a - b)
     const draftSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8') === DRAFT)
     check(`${tag}: the journey ran whole (draft + two escs sent)`, escSends.length === 2 && draftSend !== undefined, `escs at ${escSends.join(',')}`)
