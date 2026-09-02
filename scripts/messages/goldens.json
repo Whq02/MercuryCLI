@@ -24708,21 +24708,8 @@
   "type": "system",
   "uuid": "«u1»"
  },
- "createPartyEventMessage/basic": {
-  "content": "[party] user1: hello there",
-  "isMeta": false,
-  "level": "info",
-  "subtype": "party_event",
-  "text": "hello there",
-  "timestamp": "«ts»",
-  "type": "system",
-  "uuid": "«u1»",
-  "verb": "chat",
-  "who": "user1",
-  "whoId": "guest-abc123"
- },
  "createSeatReceiptMessage/basic": {
-  "content": "⇄ reslot applied — dps1 → claude-fable-5 @max",
+  "content": "⇄ reslot applied — worker → claude-fable-5 @max",
   "isMeta": false,
   "level": "info",
   "subtype": "seat_receipt",
@@ -24731,7 +24718,7 @@
   "uuid": "«u1»"
  },
  "createSeatReceiptMessage/timeout-warning": {
-  "content": "▲ reslot pending — tank → claude-fable-5 not observed applied after 10m",
+  "content": "▲ reslot pending — worker → claude-fable-5 not observed applied after 10m",
   "isMeta": false,
   "level": "warning",
   "subtype": "seat_receipt",

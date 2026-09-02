@@ -1,9 +1,9 @@
 
 import { join } from 'node:path'
-import { defineStore } from '../../substrate/fileStore.js'
-import { getTeamsDir } from '../envUtils.js'
-import { sanitizePathComponent } from '../tasks.js'
-import { getTeamName } from '../teammate.js'
+import { defineStore } from '../substrate/fileStore.js'
+import { getTeamsDir } from '../utils/envUtils.js'
+import { sanitizePathComponent } from '../utils/tasks.js'
+import { getTeamName } from '../utils/teammate.js'
 
 export type DispatchConsumptionState = 'delivering' | 'delivered'
 

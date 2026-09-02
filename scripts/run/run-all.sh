@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/run/**
-# gate-watch: src/utils/hooks/unfinishedTail* src/utils/cockpit/contextUsageLive*
+# gate-watch: src/utils/cockpit/contextUsageLive*
 # gate-watch: src/utils/cockpit/ctxForecast* src/utils/verification/verificationState*
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }

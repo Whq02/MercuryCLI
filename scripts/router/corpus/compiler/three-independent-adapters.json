@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "three-independent-adapters",
-  "mode": "party",
+  "mode": "fanout",
   "mission": {
     "objective": "Add three independent provider adapters",
     "title": "Ship the S3, GCS, and Azure blob adapters",

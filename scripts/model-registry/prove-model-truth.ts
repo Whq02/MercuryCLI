@@ -8,17 +8,9 @@ import {
   parseUserSpecifiedModel,
   renderDefaultModelSetting,
 } from '../../src/utils/model/model.js'
-import {
-  getModelKnowledgeCutoff,
-  modelSupportsEffort,
-} from '../../src/utils/model/capabilities.js'
-import {
-  IMPLEMENTER_SEAT_DEFAULTS,
-  SCRIBE_SEAT_DEFAULT_MODEL,
-  SEAT_ALLOWED_FAMILIES,
-  SEAT_MODEL_CYCLE,
-} from '../../src/utils/model/seatSlots.js'
-import { gatherFrontierFacts, frontierOperatorDecision } from '../../src/utils/model/frontierPolicy.js'
+import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
+import { SEAT_ALLOWED_FAMILIES } from '../../src/utils/model/seatSlots.js'
+import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
 import { classOfModel } from '../../src/utils/router/modelRegistry.js'
 
 for (const k of [
@@ -27,9 +19,6 @@ for (const k of [
   'ANTHROPIC_DEFAULT_FABLE_MODEL',
   'ANTHROPIC_MODEL',
   'MERCURY_DISABLE_1M_CONTEXT',
-  'MERCURY_SCRIBE_MODEL',
-  'MERCURY_IMPLEMENTER_MODEL',
-  'MERCURY_PARTY_SLOTS',
 ]) {
   delete process.env[k]
 }
@@ -46,40 +35,6 @@ function section(title: string): void {
 
 const repoRoot = join(import.meta.dir, '..', '..')
 const src = (rel: string): string => readFileSync(join(repoRoot, rel), 'utf-8')
-
-section('1. seat-pin currency — the D-02a pins alarm instead of silently aging')
-{
-  const expectedFrontierBase = frontierOperatorDecision().candidates[0]!.id.replace(/\[1m\]$/i, '')
-  const base = (m: string): string => m.replace(/\[1m\]$/i, '')
-  check(
-    `the orchestration pin (scribe) base = the frontier winner (${expectedFrontierBase})`,
-    base(SCRIBE_SEAT_DEFAULT_MODEL) === expectedFrontierBase,
-    `scribe=${SCRIBE_SEAT_DEFAULT_MODEL} — a newer frontier registration landed; re-raise the D-02a seat decision`,
-  )
-  const executor = IMPLEMENTER_SEAT_DEFAULTS.model
-  check(
-    `executor pin (${executor}) resolves live with effort support`,
-    getMarketingNameForModel(executor) !== undefined && modelSupportsEffort(executor),
-  )
-  check(
-    'every seat default is an allowed seat family',
-    [
-      IMPLEMENTER_SEAT_DEFAULTS.model,
-      SCRIBE_SEAT_DEFAULT_MODEL,
-    ].every(m => {
-      const resolved = parseUserSpecifiedModel(m)
-      return SEAT_ALLOWED_FAMILIES.some(f =>
-        resolved.toLowerCase().includes(f.replace('claude-', '')),
-      )
-    }),
-  )
-  check(
-    'the seat cycle offers only live-resolvable models',
-    SEAT_MODEL_CYCLE.every(
-      m => getMarketingNameForModel(parseUserSpecifiedModel(m)) !== undefined,
-    ),
-  )
-}
 
 section("2. the 'opus' alias tracks the current Opus through the ratified owners")
 {
@@ -143,15 +98,6 @@ section('6. router class mirrors — every seat family classifies to a router cl
     classOfModel(getDefaultOpusModel()) === 'opus',
     String(classOfModel(getDefaultOpusModel())),
   )
-  const seatModels = [
-    IMPLEMENTER_SEAT_DEFAULTS.model,
-    SCRIBE_SEAT_DEFAULT_MODEL,
-  ]
-  check(
-    'every seat default classifies to a router class',
-    seatModels.every(m => classOfModel(m) !== undefined),
-    seatModels.map(m => `${m}=${classOfModel(m)}`).join(' '),
-  )
 }
 
 section('7. code-side model default census — literals resolve live, tiers track owners')
@@ -160,9 +106,9 @@ section('7. code-side model default census — literals resolve live, tiers trac
     'src/tools/WorkflowTool/workflowRouting.ts',
     'src/daemon/crewSpawn.ts',
   ]
-  for (const rel of ['src/utils/scribe/scribePack.ts', 'src/utils/scribe/implementerPack.ts', 'src/components/agents/studio/StudioEditor.tsx']) {
+  for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
     check(
-      `${rel} — carries NO model literal (the seat resolves live)`,
+      `${rel} — carries NO model literal (the catalogue resolves live)`,
       !/[=:]\s*'claude-[a-z0-9-]+(?:\[1m\])?'/.test(src(rel)),
     )
   }
@@ -183,23 +129,13 @@ section('7. code-side model default census — literals resolve live, tiers trac
     src('src/tools/WorkflowTool/workflowRouting.ts'),
   )?.[1]
   check(
-    `WORKFLOW_EXECUTOR_MODEL (${wf}) = the implementer executor tier`,
-    wf === IMPLEMENTER_SEAT_DEFAULTS.model,
+    `WORKFLOW_EXECUTOR_MODEL (${wf}) = the current Opus (the executor tier)`,
+    wf === getDefaultOpusModel(),
   )
   const crewOpus = /opus:\s*\{\s*model:\s*'([^']+)'/.exec(src('src/daemon/crewSpawn.ts'))?.[1]
   check(
     `CREW_MODEL_CHOICES.opus (${crewOpus}) = getDefaultOpusModel()`,
     crewOpus === getDefaultOpusModel(),
-  )
-  check(
-    'the implementer seat default is a live registry model',
-    getMarketingNameForModel(parseUserSpecifiedModel(IMPLEMENTER_SEAT_DEFAULTS.model)) !== undefined,
-    IMPLEMENTER_SEAT_DEFAULTS.model,
-  )
-  check(
-    'the scribe seat base is a live registry model',
-    getMarketingNameForModel(parseUserSpecifiedModel(SCRIBE_SEAT_DEFAULT_MODEL.replace(/\[1m\]$/i, ''))) !== undefined,
-    SCRIBE_SEAT_DEFAULT_MODEL,
   )
 }
 

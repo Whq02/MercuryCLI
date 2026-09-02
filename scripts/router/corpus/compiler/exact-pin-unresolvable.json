@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "exact-pin-unresolvable",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "A dispatch pinned to a raw model string the fleet cannot resolve",
     "title": "Run this on gpt-5-turbo specifically",

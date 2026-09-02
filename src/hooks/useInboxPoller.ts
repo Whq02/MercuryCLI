@@ -50,8 +50,7 @@ import {
   type TeammateMessage,
 } from '../utils/teammateMailbox.js'
 import { processMailboxPermissionResponse, processSandboxPermissionResponse } from './useSwarmPermissionPoller.js'
-import { scribeBusEnabled } from '../utils/scribe/scribeGates.js'
-import { isScribeProtocolMessage } from '../utils/scribe/scribeBus.js'
+import { busEnvelopesEnabled, isBusProtocolMessage } from '../utils/swarm/busEnvelopes.js'
 
 const SAFETY_TICK_MS = 5000
 const PENDING_INBOX_CAP = 500
@@ -246,7 +245,7 @@ export function useInboxPoller({
       else if (isTeamPermissionUpdate(m.text)) teamPermissionUpdates.push(m)
       else if (isModeSetRequest(m.text)) modeSetRequests.push(m)
       else if (isPlanApprovalRequest(m.text)) planApprovalRequests.push(m)
-      else if (scribeBusEnabled() && isScribeProtocolMessage(m.text)) busEnvelopes.push(m)
+      else if (busEnvelopesEnabled() && isBusProtocolMessage(m.text)) busEnvelopes.push(m)
       else regular.push(m)
     }
     regular.push(...busEnvelopes)

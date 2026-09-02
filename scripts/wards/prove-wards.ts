@@ -133,14 +133,6 @@ async function main(): Promise<void> {
       !denies(evaluateWards(rules, bash('git push -f origin feature/wards'))),
     )
     check(
-      'force-push a party/* lane branch ⇒ denied (federation FC4)',
-      denies(evaluateWards(rules, bash('git push --force origin party/user1/recon'))),
-    )
-    check(
-      'plain push a party/* lane ⇒ passes',
-      !denies(evaluateWards(rules, bash('git push origin party/user1/recon'))),
-    )
-    check(
       'plain push main ⇒ passes',
       !denies(evaluateWards(rules, bash('git push origin main'))),
     )
@@ -339,7 +331,7 @@ async function main(): Promise<void> {
     check('re-register is a no-op (one hook)', hookCount === 1)
   }
 
-  section('5. wiring — the registration chokepoints, NOT scribe-skipped')
+  section('5. wiring — the registration chokepoints, never mode-skipped')
   {
     const { readFileSync } = await import('node:fs')
     const { join } = await import('node:path')
@@ -348,12 +340,6 @@ async function main(): Promise<void> {
     const engine = src('QueryEngine.ts')
     const print = src('cli', 'print.ts')
     check('QueryEngine registers for EVERY session kind (the one chokepoint)', engine.includes('registerWardsHook(config.setAppState, sessionId)'))
-    check(
-      'engine registration is OUTSIDE the scribe self-gate (wards guard every session)',
-      engine.indexOf('registerWardsHook(config.setAppState, sessionId)') !== -1 &&
-        engine.indexOf('registerWardsHook(config.setAppState, sessionId)') <
-          engine.indexOf('if (!isScribeModeOn()) {'),
-    )
     check('print path registers too (wards.registerWardsHook)', print.includes('wards.registerWardsHook('))
     check('flag registry carries the MERCURY_WARDS row', src('substrate', 'flagRegistry.ts').includes("env: 'MERCURY_WARDS'"))
   }

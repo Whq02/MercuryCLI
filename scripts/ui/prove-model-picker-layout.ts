@@ -84,11 +84,6 @@ check(
         /^\s*(\/?\*|\/\/|\{\/\*)/.test(l),
     ),
 )
-const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
-check('wrapper resolves rows via resolveSeatSlot (the ONE resolver)', /const res = resolveSeatSlot\(role\)/.test(wrapper))
-check('wrapper edits ride applyOperatorReslot + nextSeatModel (no local tables)', /applyOperatorReslot\(role, \{ model: nextSeatModel\(role, row\.model\) \}/.test(wrapper) && !/nextModelOf/.test(wrapper))
-check('locked axes refuse with the origin named (env-pin origin law)', /locked by \$\{row\.modelLockedBy\} this session/.test(wrapper))
-
 section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
 check("picker accepts pendingNext + renders the 'next' AMBER row state", /pendingNext\?: string/.test(src) && /'next', AMBER/.test(src))
 check('picker renders the current→next header with the turn-settle note', /applies when the turn settles/.test(src))

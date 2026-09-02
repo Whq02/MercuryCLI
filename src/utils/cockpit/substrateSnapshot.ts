@@ -1,6 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
-import { isImplementerSpawnEnabled } from '../../daemon/daemonFeatureGates.js'
 import { isCoordinationServerEnabled } from '../../services/mcp/coordinationServer.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
@@ -14,7 +13,7 @@ import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
 import { NEVER_HAIKU_FALLBACK, recentFloorEvents } from '../model/modelFloor.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
-import { carryForwardEnabled } from '../scribe/carryForward.js'
+import { carryForwardEnabled } from '../../daemon/carryForward.js'
 import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
 import { type Snapshot } from './types.js'
 
@@ -104,7 +103,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
   }
 
   const cronOn = isSaturnSchedulingEnabled()
-  const implementerSpawnOn = isImplementerSpawnEnabled()
   const breakerFails = (flagEnv('MERCURY_DAEMON_BREAKER_FAILS') ?? '').trim() || '5'
   const daemon = daemonSnapshot()
   const daemonLive = daemon.state === 'live'
@@ -114,7 +112,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       { name: 'Saturn scheduling', on: cronOn, hint: cronOn ? 'enabled' : 'MERCURY_SATURN_DISABLE set' },
       { name: 'Scheduler daemon', on: daemonLive, hint: daemonLive ? (daemon.reason ?? 'live') : 'opt-in: mercury daemon' },
       { name: 'Daemon circuit-breaker', on: cronOn, hint: `daemon · trips at ${breakerFails} fails` },
-      { name: 'Amanuensis Implementer-spawn', on: implementerSpawnOn, hint: implementerSpawnOn ? (daemonLive ? 'daemon · live (opt out =0)' : 'enabled · daemon off (opt out =0)') : 'MERCURY_AMANUENSIS=0 set' },
       {
         name: 'Carry-forward handoff',
         on: carryForwardEnabled(),

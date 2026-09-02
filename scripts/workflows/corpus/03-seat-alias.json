@@ -1,13 +1,13 @@
 {
   "id": "seat-alias",
-  "title": "Add an 'exec' fan-out alias to the party-slots parser (with regression guard)",
-  "prompt": "In src/utils/model/seatSlots.ts, extend parsePartySlots so the seat key 'exec' behaves exactly like the existing 'dps' fan-out key (fans the entry to dps1/dps2/dps3; an explicit dpsN entry still wins). Extend the parser section of scripts/seat-slots/prove-seat-slots.ts with asserts covering: 'exec=sonnet5@xhigh' fans to all three executor seats, and 'exec=sonnet5,dps2=fable' keeps dps2=fable. The whole seat-slots suite must stay green.",
+  "title": "Add a 'frontier' alias to the seat model validator (with regression guard)",
+  "prompt": "In src/utils/model/seatSlots.ts, extend validateSeatModel so the raw spelling 'frontier' resolves exactly like the existing 'fable' alias (the frontier family default; an exact id still wins). Extend scripts/crew/prove-crew-spec-floor.ts with asserts covering: validateSeatModel('frontier', 'claude-opus-5') resolves into the fable family, and validateSeatModel('claude-sonnet-5', 'claude-opus-5') is unchanged. The whole crew suite must stay green.",
   "baseRef": "bench-corpus-v1",
   "timeboxMs": 1200000,
   "successChecks": [
-    { "kind": "cmd", "cmd": "bash scripts/seat-slots/run-all.sh" },
-    { "kind": "grep", "file": "src/utils/model/seatSlots.ts", "pattern": "'exec'" },
-    { "kind": "grep", "file": "scripts/seat-slots/prove-seat-slots.ts", "pattern": "exec=sonnet5" }
+    { "kind": "cmd", "cmd": "bash scripts/crew/run-all.sh" },
+    { "kind": "grep", "file": "src/utils/model/seatSlots.ts", "pattern": "'frontier'" },
+    { "kind": "grep", "file": "scripts/crew/prove-crew-spec-floor.ts", "pattern": "frontier" }
   ],
   "tags": ["feature", "parser"]
 }

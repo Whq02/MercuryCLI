@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "repeated-revision-escalation",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Re-attempt a bounded fix that has already failed twice",
     "title": "Third attempt: fix the flaky retry backoff",

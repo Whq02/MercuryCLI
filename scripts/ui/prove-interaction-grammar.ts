@@ -30,7 +30,6 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
 
 for (const [file, verb] of [
   ['src/components/CardsView.tsx', 'promote'],
-  ['src/components/ScribeCandidatesView.tsx', 'ratify'],
 ] as const) {
   const src = read(file)
   t(`${path.basename(file)}: rides useFlatList`, src.includes('useFlatList'))

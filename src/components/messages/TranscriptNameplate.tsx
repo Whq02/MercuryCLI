@@ -2,16 +2,10 @@ import os from 'node:os'
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import { FAINT, TEAL } from '../mercuryPalette.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import {
-  classifyAuthor,
-  scribeStreamName,
-  type ScribeAuthor,
-} from '../mercury-ui/scribeChatTabs.js'
 
 
 export type MessageRole = 'user' | 'assistant'
@@ -31,7 +25,6 @@ export const NameplateAccentContext = React.createContext<string | null>(null)
 type MessageMeta = {
   timestamp?: string
   role: MessageRole
-  scribeAuthor?: ScribeAuthor
   attachedAuthor?: AttachedAuthor
 }
 
@@ -57,17 +50,12 @@ export function MessageMetaProvider({
       ? 'assistant'
       : 'user'
   const timestamp = message?.timestamp
-  let scribeAuthor: ScribeAuthor | undefined
-  if (isScribeModeOn()) {
-    scribeAuthor = classifyAuthor(message as Parameters<typeof classifyAuthor>[0])
-    if (role === 'assistant' && scribeAuthor === 'operator') scribeAuthor = 'scribe'
-  }
   const attachedClassify = React.useContext(AttachedAttributionContext)
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
   const value = React.useMemo<MessageMeta>(
-    () => ({ timestamp, role, scribeAuthor, attachedAuthor }),
-    [timestamp, role, scribeAuthor, attachedAuthor],
+    () => ({ timestamp, role, attachedAuthor }),
+    [timestamp, role, attachedAuthor],
   )
   return (
     <MessageMetaContext.Provider value={value}>
@@ -112,7 +100,7 @@ export function TranscriptNameplate(): React.ReactNode {
   if (!meta) return null
   if (isContinuation) return null
   const clock = formatClock(meta.timestamp)
-  if (!clock && !meta.scribeAuthor && !meta.attachedAuthor) return null
+  if (!clock && !meta.attachedAuthor) return null
   const isAgent = meta.role === 'assistant'
   let name: string
   let nameColor: string
@@ -122,14 +110,6 @@ export function TranscriptNameplate(): React.ReactNode {
       meta.attachedAuthor === 'agent'
         ? (paneAccent ?? critter.accent)
         : meta.attachedAuthor === 'coordinator'
-          ? TEAL
-          : userBloom
-  } else if (meta.scribeAuthor) {
-    name = scribeStreamName(meta.scribeAuthor, userHandle())
-    nameColor =
-      meta.scribeAuthor === 'scribe'
-        ? critter.accent
-        : meta.scribeAuthor === 'implement'
           ? TEAL
           : userBloom
   } else {

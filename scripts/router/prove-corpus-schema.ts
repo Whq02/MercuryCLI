@@ -15,7 +15,7 @@ const ROOT = join(import.meta.dir, 'corpus')
 const COMPILER_DIR = join(ROOT, 'compiler')
 const LIFECYCLE_DIR = join(ROOT, 'lifecycle')
 
-const ALLOWED_MODES = new Set(['scribe', 'party'])
+const ALLOWED_MODES = new Set(['sequential', 'fanout'])
 const ALLOWED_PROFILES = new Set([
   'sonnet-direct',
   'sonnet-opus-review',
@@ -70,7 +70,7 @@ section(`compiler/*.json — schema + closed reason-code vocabulary (${COMPILER_
 
 const compilerFiles = readdirSync(COMPILER_DIR).filter(f => f.endsWith('.json')).sort()
 check('at least one compiler fixture found', compilerFiles.length > 0, `found ${compilerFiles.length}`)
-check('exactly 19 compiler fixtures (the corpus spec)', compilerFiles.length === 19, `found ${compilerFiles.length}`)
+check('exactly 18 compiler fixtures (the corpus spec)', compilerFiles.length === 18, `found ${compilerFiles.length}`)
 
 const seenIds = new Set<string>()
 
@@ -94,7 +94,7 @@ for (const file of compilerFiles) {
   check(`${file}: id is unique across the corpus`, typeof parsed.id === 'string' && !seenIds.has(parsed.id as string))
   if (typeof parsed.id === 'string') seenIds.add(parsed.id)
 
-  check(`${file}: mode ∈ {scribe, party}`, typeof parsed.mode === 'string' && ALLOWED_MODES.has(parsed.mode as string), `got ${JSON.stringify(parsed.mode)}`)
+  check(`${file}: mode ∈ {sequential, fanout}`, typeof parsed.mode === 'string' && ALLOWED_MODES.has(parsed.mode as string), `got ${JSON.stringify(parsed.mode)}`)
 
   const mission = parsed.mission as Record<string, unknown> | undefined
   check(`${file}: mission is an object`, typeof mission === 'object' && mission !== null)

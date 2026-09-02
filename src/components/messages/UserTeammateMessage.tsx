@@ -8,20 +8,7 @@ import {
   isIdleNotification,
   isShutdownApproved,
 } from '../../utils/teammateMailbox.js'
-import {
-  BUS_TEAM_LEAD_NAME,
-  IMPLEMENTER_AGENT_NAME,
-  IMPLEMENTER_DISPLAY_NAME,
-  SCRIBE_DISPLAY_NAME,
-} from '../../utils/scribe/busIdentity.js'
-import { scribeChatroomEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
-import {
-  classifyAuthor,
-  scribeEnvelopeOf,
-} from '../mercury-ui/scribeChatTabs.js'
-import { ChatLine } from './ChatLine.js'
-import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
+import { parseBusEnvelope } from '../../utils/swarm/busEnvelopes.js'
 import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderShutdownMessage } from './ShutdownMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
@@ -52,14 +39,6 @@ function parseTeammateMessages(text: string): RelayedMessage[] {
     })
   }
   return out
-}
-
-export function scribeRelayName(teammateId: string): string {
-  if (teammateId === 'scribe' || teammateId === BUS_TEAM_LEAD_NAME) {
-    return SCRIBE_DISPLAY_NAME
-  }
-  if (teammateId === IMPLEMENTER_AGENT_NAME) return IMPLEMENTER_DISPLAY_NAME
-  return teammateId
 }
 
 function isTerminated(content: string): boolean {
@@ -96,8 +75,7 @@ export function TeammateMessageContent({
   message: RelayedMessage
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  const meta = useMessageMeta()
-  const senderName = scribeRelayName(message.teammateId)
+  const senderName = message.teammateId
 
   const planCard = tryRenderPlanApprovalMessage(message.content, senderName)
   if (planCard) return planCard
@@ -111,20 +89,7 @@ export function TeammateMessageContent({
 
   if (isIdleNotification(message.content)) return null
 
-  const envelope = scribeEnvelopeOf({ content: message.content })
-  if (envelope) {
-    if (scribeChatroomEnabled()) {
-      const author = classifyAuthor({ content: message.content })
-      const body =
-        (envelope as { body?: string; summary?: string }).body ??
-        (envelope as { summary?: string }).summary ??
-        message.summary ??
-        ''
-      if (body === '') return null
-      return <ChatLine author={author} body={body} />
-    }
-    return null
-  }
+  if (parseBusEnvelope(message.content) !== null) return null
 
   const completed = taskCompletedOf(message.content)
   if (completed) {
@@ -137,34 +102,6 @@ export function TeammateMessageContent({
         {completed.taskId}
         {completed.subject ? <Text dimColor> {completed.subject}</Text> : null}
       </Text>
-    )
-  }
-
-  if (isScribeModeOn()) {
-    if (scribeChatroomEnabled()) {
-      return (
-        <ChatLine
-          author={classifyAuthor({ content: message.content })}
-          body={message.content || message.summary || ''}
-        />
-      )
-    }
-    const clock = formatClock(meta?.timestamp)
-    return (
-      <Box flexDirection="column">
-        <Text>
-          {clock ? <Text dimColor>{clock} </Text> : null}
-          <Text dimColor>[</Text>
-          <Text color={toInkColor(message.color)}>{senderName}</Text>
-          <Text dimColor>] </Text>
-          {message.summary ?? ''}
-        </Text>
-        {isTranscriptMode && message.content ? (
-          <Box paddingLeft={2}>
-            <Ansi>{message.content}</Ansi>
-          </Box>
-        ) : null}
-      </Box>
     )
   }
 

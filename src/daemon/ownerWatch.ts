@@ -4,7 +4,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
-export const OWNER_PID_ENV = 'MERCURY_SCRIBE_OWNER_PID'
+export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
 let win32PsExeCached: string | null = null
 function win32PsExe(): string {
@@ -148,7 +148,7 @@ export const OWNER_WATCH_INTERVAL_MS = 4000
 export const OWNER_WATCH_GRACE_CHECKS = 2
 
 export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = (env[OWNER_PID_ENV] ?? env.MERCURY_SCRIBE_OWNER_PID)?.trim()
+  const raw = (env[OWNER_PID_ENV] ?? env.MERCURY_DAEMON_OWNER_PID)?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null

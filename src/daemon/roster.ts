@@ -38,9 +38,10 @@ import {
   buildCarryForwardNote,
   carryForwardEnabled,
   lastSeenDispatchId,
-} from '../utils/scribe/carryForward.js'
-import { REGULATION_CONTEXT_CLEAR_PCT } from '../utils/scribe/scribeRegulation.js'
+} from './carryForward.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
+
+export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
 import type { DispatchBody, DispatchSource, WireRosterEntry } from './protocol.js'
 
@@ -310,7 +311,7 @@ export class TaskRoster {
   }
 
   private idleWindowMs(): number {
-    const n = Number(flagEnv('MERCURY_IMPLEMENTER_IDLE_MS'))
+    const n = Number(flagEnv('MERCURY_WORKER_IDLE_MS'))
     return Number.isFinite(n) && n > 0 ? n : 15_000
   }
 
@@ -321,7 +322,7 @@ export class TaskRoster {
       now: Date.now(),
       lastDeliveredAt: ll.lastDeliveredAt,
       idleMs: this.idleWindowMs(),
-      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_IMPLEMENTER_MAX_TURN_MS')),
+      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')),
     }).busy
   }
 
@@ -352,12 +353,12 @@ export class TaskRoster {
     if (!ll) return false
     if (ll.clearInFlight) return false
     if (!this.seatIsIdle(ll)) return false
-    if ((ll.contextPct ?? 0) < REGULATION_CONTEXT_CLEAR_PCT) return false
+    if ((ll.contextPct ?? 0) < AUTO_CLEAR_CONTEXT_PCT) return false
     ll.clearInFlight = true
     logForDebugging(
-      `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${REGULATION_CONTEXT_CLEAR_PCT}% + idle — respawning (fresh transcript)`,
+      `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
-    const team = ll.spec.teamName ?? 'scribe'
+    const team = ll.spec.teamName ?? 'default'
     if (carryForwardEnabled()) {
       const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
       void writeToMailbox(
@@ -680,7 +681,7 @@ export class TaskRoster {
         void writeToMailbox(
           'team-lead',
           { from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() },
-          ll.spec.teamName ?? 'scribe',
+          ll.spec.teamName ?? 'default',
         ).catch(() => {})
       }
       const stampCrash = (respawning: boolean, detail?: string): void => {

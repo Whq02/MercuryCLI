@@ -9,6 +9,7 @@ import { suppressNextSkillListing } from './attachments/skillListing.js'
 import { getCwd } from './cwd.js'
 import { copyFileHistoryForResume } from './fileHistory.js'
 import { logError } from './log.js'
+import { mintImmediateReceipt } from './model/seatReceipts.js'
 import {
   createAssistantMessage,
   createUserMessage,
@@ -79,6 +80,7 @@ function migrateLegacyAttachment(message: Message): Message {
   return { ...message, attachment: migrated as unknown as AttachmentMessage['attachment'] }
 }
 
+const noticedPermissionModes = new Set<string>()
 function scrubPermissionMode(message: Message): Message {
   if (message.type !== 'user') return message
   const mode = (message as UserMessage).permissionMode
@@ -87,6 +89,13 @@ function scrubPermissionMode(message: Message): Message {
   const decoded = decodePermissionModeSpelling(mode)
   if (decoded !== mode && (PERMISSION_MODES as readonly string[]).includes(decoded)) {
     return { ...message, permissionMode: decoded } as Message
+  }
+  if (!noticedPermissionModes.has(mode)) {
+    noticedPermissionModes.add(mode)
+    mintImmediateReceipt(
+      `▲ the saved permission mode '${mode}' is not one this build knows — resuming in the default mode`,
+      'warning',
+    )
   }
   return { ...message, permissionMode: undefined } as Message
 }

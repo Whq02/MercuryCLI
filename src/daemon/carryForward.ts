@@ -1,6 +1,6 @@
 
-import { buildNote, type NoteEnvelope } from './scribeBus.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+import { buildNote, type NoteEnvelope } from '../utils/swarm/busEnvelopes.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 export function carryForwardEnabled(): boolean {
   if (flagEnv('MERCURY_CARRY_FORWARD') === '0') return false
@@ -16,7 +16,7 @@ export function buildCarryForwardNote(
   return buildNote(
     'daemon',
     `carry-forward: your context hit ${pct}, so you were respawned with a fresh transcript (auto-clear).` +
-      `${anchor} re-read the recent chatroom before continuing, finish or restate any in-flight work, ` +
+      `${anchor} re-read the recent conversation before continuing, finish or restate any in-flight work, ` +
       `and report your current task state to the team-lead so nothing is silently dropped.`,
     lastDispatchId ? { refRequestId: lastDispatchId } : undefined,
   )

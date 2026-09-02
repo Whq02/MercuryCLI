@@ -13,23 +13,9 @@ import {
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { decodePermissionModeSpelling } from '../types/permissions.js'
+import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
-const RETIRED_SEAT_ENV_VARS: readonly string[] = [
-  'MERCURY_TANK',
-  'MERCURY_HEALER',
-  'MERCURY_DPS1',
-  'MERCURY_DPS2',
-  'MERCURY_DPS3',
-]
-const LIVE_ROLE_ENV_VARS: readonly string[] = [
-  'MERCURY_SCRIBE',
-  'MERCURY_IMPLEMENTER',
-  'MERCURY_CONCOURSE_WORKER',
-]
-export const ALL_ROLE_ENV_VARS: readonly string[] = [
-  ...LIVE_ROLE_ENV_VARS,
-  ...RETIRED_SEAT_ENV_VARS,
-]
+export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
 function sweptRoleSpellings(): string[] {
   return [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
 }
@@ -179,8 +165,6 @@ export interface StreamJsonChildSpec {
   effort: string
   appendSystemPrompt: string
   role:
-    | 'MERCURY_SCRIBE'
-    | 'MERCURY_IMPLEMENTER'
     | 'MERCURY_CREW'
     | 'MERCURY_CONCOURSE_WORKER'
   agentName: string
@@ -210,7 +194,7 @@ export function buildStreamJsonInvocation(
     spec.role === 'MERCURY_CONCOURSE_WORKER'
       ? spec.model
       : enforceSubagentModelFloor(spec.model, `daemon:${spec.agentName}`)
-  const teamName = spec.teamName ?? 'scribe'
+  const teamName = spec.teamName ?? 'default'
   const argv = [
     script,
     '-p',

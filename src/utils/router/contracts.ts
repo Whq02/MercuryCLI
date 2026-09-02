@@ -9,6 +9,11 @@ import type {
 export const ROUTER_POLICY_VERSION = 'router-1'
 export const ROUTE_PLAN_VERSION = 1 as const
 
+export type RouteTopology = 'sequential' | 'fanout'
+export const ROUTE_TOPOLOGIES: readonly RouteTopology[] = ['sequential', 'fanout']
+
+export type RoutePlannerRole = 'planner'
+
 export const ROUTE_REASON_CODES = [
   'mechanical-bounded',
   'bounded-implementation',
@@ -18,7 +23,6 @@ export const ROUTE_REASON_CODES = [
   'architectural',
   'separable-disjoint-ownership',
   'ordered-dependencies',
-  'workflow-posture-active',
   'revision-escalation',
   'affinity-kept-model',
   'changeover-worth-it',
@@ -34,7 +38,6 @@ export const ROUTE_REASON_CODES = [
   'width-capped-workers',
   'width-capped-shared-lane',
   'provider-unavailable',
-  'workflow-posture-absent',
   'empty-acceptance-repaired',
   'context-pressure-renewal',
   'held-for-idle',
@@ -44,15 +47,22 @@ export type RouteReasonCode = (typeof ROUTE_REASON_CODES)[number]
 export const isRouteReasonCode = (v: unknown): v is RouteReasonCode =>
   typeof v === 'string' && (ROUTE_REASON_CODES as readonly string[]).includes(v)
 
+export const LEGACY_ROUTE_REASON_CODES = ['workflow-posture-active', 'workflow-posture-absent'] as const
+export type LegacyRouteReasonCode = (typeof LEGACY_ROUTE_REASON_CODES)[number]
+
 export const ROUTE_PROFILES = [
   'sonnet-direct',
   'sonnet-opus-review',
   'opus-direct',
   'parallel-sonnet',
   'dependency-graph',
-  'workflow-delegated',
 ] as const
 export type RouteProfile = (typeof ROUTE_PROFILES)[number]
+
+export const LEGACY_ROUTE_PROFILES = ['workflow-delegated'] as const
+export type LegacyRouteProfile = (typeof LEGACY_ROUTE_PROFILES)[number]
+const isReadableRouteProfile = (v: string): v is RouteProfile | LegacyRouteProfile =>
+  (ROUTE_PROFILES as readonly string[]).includes(v) || (LEGACY_ROUTE_PROFILES as readonly string[]).includes(v)
 
 export const ROUTE_TASK_SHAPES = [
   'mechanical',
@@ -134,7 +144,7 @@ export interface RouteNodeCompletion {
   changedAreas: string[]
   unresolved: string[]
   reportedAt: number
-  acceptedBy?: 'scribe' | 'router' | 'maintainer'
+  acceptedBy?: RoutePlannerRole
   acceptedAt?: number
 }
 
@@ -154,7 +164,7 @@ export interface RouteDecisionRecord {
   policyVersion: string
   source: 'structured-intent' | 'local-fallback' | 'operator-pin'
   posture: RouterPosture
-  selectedProfile: RouteProfile
+  selectedProfile: RouteProfile | LegacyRouteProfile
   selectedModels: RouteModelRef[]
   decisiveReasons: RouteReasonCode[]
   displayReasons: string[]
@@ -178,15 +188,15 @@ export interface TaskRoutePlan {
   version: typeof ROUTE_PLAN_VERSION
   id: string
   revision: number
-  mode: 'scribe' | 'party'
+  mode: RouteTopology
   title: string
   objective: string
   features: RouteFeatureVector
-  profile: RouteProfile
+  profile: RouteProfile | LegacyRouteProfile
   nodes: RouteNode[]
   synthesis: {
     required: boolean
-    owner: 'scribe' | 'router' | 'maintainer'
+    owner: RoutePlannerRole
     acceptance: RouteAcceptanceCheck[]
   }
   decision: RouteDecisionRecord
@@ -287,9 +297,7 @@ function decodeCompletion(raw: unknown): RouteNodeCompletion | undefined {
     changedAreas: strArr(r.changedAreas) ?? [],
     unresolved: strArr(r.unresolved) ?? [],
     reportedAt: r.reportedAt,
-    ...(r.acceptedBy === 'scribe' || r.acceptedBy === 'router' || r.acceptedBy === 'maintainer'
-      ? { acceptedBy: r.acceptedBy }
-      : {}),
+    ...(r.acceptedBy === 'planner' ? { acceptedBy: r.acceptedBy } : {}),
     ...(num(r.acceptedAt) ? { acceptedAt: r.acceptedAt } : {}),
   }
 }
@@ -372,7 +380,7 @@ function decodeDecision(raw: unknown): RouteDecisionRecord | null {
     r.posture !== 'fixed'
   )
     return null
-  if (!str(r.selectedProfile) || !(ROUTE_PROFILES as readonly string[]).includes(r.selectedProfile)) return null
+  if (!str(r.selectedProfile) || !isReadableRouteProfile(r.selectedProfile)) return null
   const models: RouteModelRef[] = []
   if (!Array.isArray(r.selectedModels)) return null
   for (const m of r.selectedModels) {
@@ -402,7 +410,7 @@ function decodeDecision(raw: unknown): RouteDecisionRecord | null {
     policyVersion: r.policyVersion,
     source: r.source,
     posture: r.posture,
-    selectedProfile: r.selectedProfile as RouteProfile,
+    selectedProfile: r.selectedProfile as RouteProfile | LegacyRouteProfile,
     selectedModels: models,
     decisiveReasons: decisive,
     displayReasons: display,
@@ -417,9 +425,9 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
   const r = raw as Record<string, unknown>
   if (r.version !== ROUTE_PLAN_VERSION) return null
   if (!str(r.id) || !num(r.revision) || !str(r.title) || !str(r.objective)) return null
-  if (r.mode !== 'scribe' && r.mode !== 'party') return null
+  if (!str(r.mode) || !(ROUTE_TOPOLOGIES as readonly string[]).includes(r.mode)) return null
   if (!str(r.state) || !(ROUTE_PLAN_STATES as readonly string[]).includes(r.state)) return null
-  if (!str(r.profile) || !(ROUTE_PROFILES as readonly string[]).includes(r.profile)) return null
+  if (!str(r.profile) || !isReadableRouteProfile(r.profile)) return null
   if (!num(r.createdAt) || !num(r.updatedAt)) return null
   const features = decodeFeatures(r.features)
   const decision = decodeDecision(r.decision)
@@ -433,18 +441,18 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
   }
   const s = r.synthesis as Record<string, unknown> | null
   if (s === null || typeof s !== 'object') return null
-  if (s.owner !== 'scribe' && s.owner !== 'router' && s.owner !== 'maintainer') return null
+  if (s.owner !== 'planner') return null
   const synthAcceptance = decodeAcceptance(s.acceptance)
   if (synthAcceptance === null) return null
   return {
     version: ROUTE_PLAN_VERSION,
     id: r.id,
     revision: r.revision,
-    mode: r.mode,
+    mode: r.mode as RouteTopology,
     title: r.title,
     objective: r.objective,
     features,
-    profile: r.profile as RouteProfile,
+    profile: r.profile as RouteProfile | LegacyRouteProfile,
     nodes,
     synthesis: { required: s.required === true, owner: s.owner, acceptance: synthAcceptance },
     decision,

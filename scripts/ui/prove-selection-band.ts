@@ -31,9 +31,7 @@ section('§1 — the central contrast law, EVERY real accent × every derivable 
   const accents = new Map<string, string>()
   for (const c of Object.values(accentMod.CRITTERS)) {
     accents.set(c.key, c.accent)
-    accents.set(`glow(${c.key})`, accentMod.glowOf(c.accent))
   }
-  accents.set('scribe', accentMod.SCRIBE_GLOW)
   for (const family of themeMod.THEME_NAMES) {
     const theme = themeMod.getTheme(family)
     let worstMuted = Infinity

@@ -10,8 +10,6 @@ import {
   getTasteRecallContent,
   tasteLoopEnabled,
 } from '../../memdir/tasteLoop.js'
-import { buildImplementerAwarenessReminder } from '../scribe/implementerAwareness.js'
-import { buildScribeAwarenessReminder } from '../scribe/scribeAwareness.js'
 import type { Attachment } from './types.js'
 
 export function getCriticalSystemReminderAttachment(
@@ -36,10 +34,7 @@ export function getCriticalSystemReminderAttachment(
 
 function awarenessAlreadyEmittedThisTurn(
   messages: readonly unknown[],
-  type:
-    | 'scribe_awareness'
-    | 'implementer_awareness'
-    | 'critical_system_reminder',
+  type: 'critical_system_reminder',
   content: string,
 ): boolean {
   const arr = messages as ReadonlyArray<{
@@ -62,20 +57,6 @@ function awarenessAlreadyEmittedThisTurn(
     }
   }
   return false
-}
-
-export function getScribeAwarenessAttachment(messages: readonly unknown[]): Attachment[] {
-  const content = buildScribeAwarenessReminder(messages)
-  if (!content) return []
-  if (awarenessAlreadyEmittedThisTurn(messages, 'scribe_awareness', content)) return []
-  return [{ type: 'scribe_awareness', content }]
-}
-
-export function getImplementerAwarenessAttachment(messages: readonly unknown[]): Attachment[] {
-  const content = buildImplementerAwarenessReminder(messages)
-  if (!content) return []
-  if (awarenessAlreadyEmittedThisTurn(messages, 'implementer_awareness', content)) return []
-  return [{ type: 'implementer_awareness', content }]
 }
 
 export async function getTasteRecallAttachment(

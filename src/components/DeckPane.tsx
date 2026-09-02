@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { contextWindowLabel } from '../utils/contextFill.js'
 import {
   formatSessionCost,
@@ -25,9 +25,6 @@ import {
   modelSupportsEffort,
   type EffortValue,
 } from '../utils/effort.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
-import { buildScribeLedger, buildScribeBatchLedger, isDispatchUnacked, scribeReasoningFeed } from './mercury-ui/scribeChatTabs.js'
-import { scribeBusQueueDepth } from '../utils/scribe/scribeBus.js'
 import {
   agentStateSnapshot,
   daemonSnapshot,
@@ -56,8 +53,6 @@ import { AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'
-
-const EMPTY_QUEUED: readonly { value: unknown }[] = Object.freeze([])
 
 
 const MAX_TASKS = 4
@@ -94,23 +89,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           killed: vitals.trace.data.killed,
         }
       : { state: (vitals.trace?.state ?? 'off') as SnapshotState, total: 0, highRisk: 0, killed: 0 }
-  const implRoster = vitals.implRoster
-
-  const [busQueue, setBusQueue] = React.useState<{
-    queued: number
-    oldestMs: number | null
-  } | null>(null)
-  React.useEffect(() => {
-    if (!isScribeModeOn()) return
-    let alive = true
-    void scribeBusQueueDepth().then(q => {
-      if (alive) setBusQueue(q)
-    })
-    return () => {
-      alive = false
-    }
-  }, [vitals.version])
-
   const daemon = daemonSnapshot()
   const daemonUpSec = daemon.state === 'live' ? Number(daemon.reason?.match(/up (\d+)s/)?.[1]) : NaN
   const effortValue = useAppStateMaybeOutsideOfProvider(
@@ -119,25 +97,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const effortLevel = modelSupportsEffort(rawModel)
     ? getDisplayedEffortLabel(rawModel, effortValue)
     : null
-  const chatMessages = (useAppStateMaybeOutsideOfProvider(
-    (s: { scribeTranscript?: unknown[] } | undefined) => s?.scribeTranscript,
-  ) ?? []) as readonly unknown[]
-  const scribeFeed = isScribeModeOn() ? scribeReasoningFeed(chatMessages, 3) : []
-  const queuedCommands = EMPTY_QUEUED
-  const feedKey = scribeFeed.join('\x01')
-  const [feedFlash, setFeedFlash] = useState(false)
-  const lastFeedKey = useRef<string | null>(null)
-  useEffect(() => {
-    if (lastFeedKey.current === null) {
-      lastFeedKey.current = feedKey
-      return
-    }
-    if (feedKey === lastFeedKey.current) return
-    lastFeedKey.current = feedKey
-    setFeedFlash(true)
-    const t = setTimeout(() => setFeedFlash(false), 1400)
-    return () => clearTimeout(t)
-  }, [feedKey])
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
   const sourceUsage = activeSourceUsage()
   const now = useNowTick(30_000)
@@ -475,177 +434,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
 }
       {compact && companionOn ? null : opsRow}
 
-      {
-}
-      {isScribeModeOn()
-        ? (() => {
-            const impl = implRoster?.entry ?? null
-            const scribeCtx = getLiveContextUsage().usedPct
-            const ledger = buildScribeLedger(chatMessages)
-            const ledgerColor = (s: string): string =>
-              s === 'done'
-                ? tok.success
-                : s === 'failed' || s === 'blocked' || s === 'escalated'
-                  ? tok.failure
-                  : tok.textSecondary
-            return (
-              <Box flexDirection="column" marginTop={1}>
-                <Text bold color={tok.info}>
-                  Amanuensis
-                </Text>
-                {}
-                <Text wrap="truncate-end">
-                  <Text color={tok.success}>{GLYPH.busy} </Text>
-                  <Text color={tok.textPrimary}>Scribe</Text>
-                  <Text color={tok.textMuted}>{` · ${model}${effortLevel ? ` @${effortLevel}` : ''} · `}</Text>
-                  {scribeCtx != null ? (
-                    <ProgressBar value={scribeCtx} max={100} width={6} showPct />
-                  ) : (
-                    <Text color={tok.textMuted}>—</Text>
-                  )}
-                </Text>
-                <Text wrap="truncate-end">
-                  {
-}
-                  {impl?.outcome ? (
-                    <Text color={impl.outcome === 'degraded' ? tok.failure : tok.textMuted}>{GLYPH.fail}</Text>
-                  ) : impl?.busy ? (
-                    <WorkingGlyph color={tok.success} />
-                  ) : (
-                    <Text color={impl ? tok.textSecondary : tok.textMuted}>{GLYPH.idle}</Text>
-                  )}
-                  <Text> </Text>
-                  <Text color={tok.textPrimary}>Implementer</Text>
-                  {impl ? (
-                    <Text>
-                      <Text color={tok.textMuted}>{` · ${renderModelName(impl.model ?? '?')}${impl.effort ? ` @${impl.effort}` : ''}`}</Text>
-                      {impl.outcome === 'degraded' ? (
-                        <Text color={tok.failure}> · DEGRADED — not coming back (see /daemon)</Text>
-                      ) : impl.outcome ? (
-                        <Text color={tok.textMuted}>{` · dead (${impl.outcome})`}</Text>
-                      ) : impl.busy === true ? (
-                        <Text color={tok.success}> · working</Text>
-                      ) : impl.busy === false ? (
-                        <Text color={tok.textSecondary}> · idle</Text>
-                      ) : null}
-                      <Text color={tok.textMuted}>{' · '}</Text>
-                      {impl.contextPct != null ? (
-                        <ProgressBar value={impl.contextPct} max={100} width={6} showPct />
-                      ) : (
-                        <Text color={tok.textMuted}>—</Text>
-                      )}
-                      {impl.respawns ? <Text color={tok.textMuted}>{` · ↻${impl.respawns}`}</Text> : null}
-                    </Text>
-                  ) : (
-                    <Text color={tok.textMuted}>{` · ${implRoster ? (implRoster.reason === 'ESTARTING' ? 'daemon starting…' : implRoster.reason === 'ENOCONN' || implRoster.reason === 'ETIMEOUT' ? 'offline (no daemon)' : implRoster.reason === 'not in roster' ? 'not spawned' : `unreachable (${implRoster.reason})`) : 'probing…'}`}</Text>
-                  )}
-                  {
-}
-                  {busQueue && busQueue.queued > 0 ? (
-                    <Text
-                      color={
-                        busQueue.oldestMs !== null && busQueue.oldestMs > 30_000 ? tok.warning : tok.textMuted
-                      }
-                    >
-                      {` · ${busQueue.queued} queued${
-                        busQueue.oldestMs !== null
-                          ? ` ${Math.round(busQueue.oldestMs / 1000)}s`
-                          : ''
-                      }`}
-                    </Text>
-                  ) : null}
-                </Text>
-                {
-}
-                {(() => {
-                  const inFlight = ledger.filter(e => e.status !== 'done')
-                  const completed = ledger.filter(e => e.status === 'done')
-                  const batches = buildScribeBatchLedger(queuedCommands)
-                  return (
-                    <>
-                      {inFlight.length > 0 ? (
-                        <Box flexDirection="column">
-                          <Text>
-                            <Text color={tok.success}>{GLYPH.busy} </Text>
-                            <Text color={tok.textMuted}>in flight</Text>
-                          </Text>
-                          {inFlight.slice(-4).map((e, i) => {
-                            const now = Date.now()
-                            const unacked = isDispatchUnacked(e, now)
-                            const ageBase = e.lastUpdateTs ?? e.dispatchedTs
-                            const ageS =
-                              ageBase !== undefined
-                                ? Math.max(0, Math.round((now - ageBase) / 1000))
-                                : null
-                            return (
-                              <Text key={i} wrap="truncate-end">
-                                <Text color={unacked ? tok.warning : ledgerColor(e.status)}>{` ${e.status}`}</Text>
-                                {unacked ? (
-                                  <AttentionPulse> undelivered?</AttentionPulse>
-                                ) : null}
-                                {ageS !== null ? (
-                                  <Text color={unacked ? tok.warning : tok.textMuted}>
-                                    {` ${ageS < 60 ? `${ageS}s` : `${Math.round(ageS / 60)}m`}`}
-                                  </Text>
-                                ) : null}
-                                <Text color={tok.textMuted}>{` · ${e.title}`}</Text>
-                              </Text>
-                            )
-                          })}
-                        </Box>
-                      ) : null}
-                      {completed.length > 0 ? (
-                        <Box flexDirection="column">
-                          <Text color={tok.textMuted}>{`${GLYPH.done} completed (${completed.length})`}</Text>
-                          {completed.slice(-3).map((e, i) => (
-                            <Text key={i} wrap="truncate-end" color={tok.textMuted}>
-                              <Text color={tok.success}>{` ${GLYPH.done}`}</Text>
-                              <Text>{` ${e.title}`}</Text>
-                            </Text>
-                          ))}
-                        </Box>
-                      ) : null}
-                      {batches.length > 0 ? (
-                        <Box flexDirection="column">
-                          <Text>
-                            <Text color={tok.textMuted}>{GLYPH.idle} </Text>
-                            <Text color={tok.textMuted}>{`batches (${batches.reduce((n, b) => n + b.items.length, 0)} queued)`}</Text>
-                          </Text>
-                          {batches.slice(0, 4).map((b, i) => (
-                            <Text key={i} wrap="truncate-end">
-                              <Text color={tok.textSecondary}>{` ${b.category}`}</Text>
-                              <Text color={tok.textMuted}>{` ·${b.items.length}· ${b.items[0]}`}</Text>
-                            </Text>
-                          ))}
-                        </Box>
-                      ) : null}
-                    </>
-                  )
-                })()}
-                {
-}
-                {scribeFeed.length > 0 ? (
-                  <Box flexDirection="column">
-                    <Text bold={feedFlash} color={feedFlash ? tok.success : tok.textMuted}>
-                      {'feed'}
-                      {feedFlash ? (
-                        <>
-                          {' '}
-                          <WorkingGlyph color={tok.success} />
-                        </>
-                      ) : null}
-                    </Text>
-                    {scribeFeed.map((line, i) => (
-                      <Text key={i} wrap="truncate-end" color={tok.textMuted}>
-                        {` ${line}`}
-                      </Text>
-                    ))}
-                  </Box>
-                ) : null}
-              </Box>
-            )
-          })()
-        : null}
     </Box>
   )
 })

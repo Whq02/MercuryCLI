@@ -177,8 +177,6 @@ import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import { composerBorderRole, composerBorderStyle, COMPOSER_BORDER_SHED_ROWS } from '../mercury-ui/replFloor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
-import { isScribeModeOn, SCRIBE_ROUTER_OPTION_VALUE } from '../../utils/scribeMode.js'
-import { scribeChatroomEnabled } from '../../utils/scribe/scribeGates.js'
 import { getPlatform } from '../../utils/platform.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type TransitionPlan } from '../../utils/model/modelTransition.js'
 import {
@@ -188,13 +186,11 @@ import {
 } from '../../services/providers/transitionPreview.js'
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
 import { declaredRouteOf, type CallModelRoute } from '../../services/providers/callModelRouter.js'
-import { classifyScribeRouterModel, handleScribeRouterSelect } from '../../utils/scribe/scribeRouterSelect.js'
 import { ANTHROPIC_CONNECT_OPTION_VALUE, GPT_CONNECT_OPTION_VALUE, parseKeyConnectValue } from '../../utils/model/modelOptions.js'
 import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { resolveSeatSlot } from '../../utils/model/seatSlots.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
   capHandoffState,
@@ -563,8 +559,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const limits = useClaudeAiLimits()
 
   const applyModelSelection = (value: string | null): void => {
-    const routerOutcome = handleScribeRouterSelect(value, { setAppState, store: appStateStore })
-    const left = routerOutcome === 'disengaged' ? ' · left Scribe Mode' : ''
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const label = value === null ? 'Default' : renderModelName(value)
@@ -572,11 +566,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       const effectiveBefore = focused.modelFacts().effective
       void focused.setModel(value).then(receipt => {
         if (receipt.state === 'no-op') {
-          addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change${left}`, priority: 'high', timeoutMs: 3000 })
+          addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
           return
         }
         if (receipt.state === 'refused') {
-          addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}${left}`, priority: 'high', timeoutMs: 5000 })
+          addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}`, priority: 'high', timeoutMs: 5000 })
           return
         }
         const doorCross = providerFamilyOfSetting(effectiveBefore) !== providerFamilyOfSetting(value) ? crossProviderNote(value) : ''
@@ -587,13 +581,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             ? {
                 key: 'model-switched',
                 invalidates: ['model-transition-applied'],
-                text: `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}${left}`,
+                text: `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 5000,
               }
             : {
                 key: 'model-switched',
-                text: `Set model to ${label} — this session's next message runs it${doorCross}${doorLossNote}${left}`,
+                text: `Set model to ${label} — this session's next message runs it${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 3000,
               },
@@ -608,16 +602,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
     const label = value === null ? 'Default' : renderModelName(value)
     setOverlay(null)
-    if ((settled.kind === 'no-op' || settled.kind === 'cancelled-pending') && left) {
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: value,
-        mainLoopModelForSession: null,
-        pendingModelSwitch: null,
-      }))
-      addNotification({ key: 'model-switched', text: `Set model to ${label}${left}`, priority: 'high', timeoutMs: 3000 })
-      return
-    }
     if (settled.kind === 'no-op') {
       addNotification({ key: 'model-switched', text: `Already on ${label} — nothing to change`, priority: 'high', timeoutMs: 3000 })
       return
@@ -634,7 +618,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       addNotification({
         key: 'model-switched',
         invalidates: ['model-transition-applied'],
-        text: `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}${left}`,
+        text: `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
         priority: 'high',
         timeoutMs: 5000,
       })
@@ -643,7 +627,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     setAppState(prev => ({ ...prev, ...settled.patch }))
     addNotification({
       key: 'model-switched',
-      text: `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}${left}`,
+      text: `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
       priority: 'high',
       timeoutMs: 3000,
     })
@@ -681,42 +665,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         requestCommandDispatch(`/logins ${keyLane}`)
         return
       }
-    }
-    if (classifyScribeRouterModel(value) !== 'model') {
-      const routerOutcome = handleScribeRouterSelect(value, { setAppState, store: appStateStore })
-      if (routerOutcome === 'engaged') {
-        const sc = resolveSeatSlot('scribe')
-        const im = resolveSeatSlot('implementer')
-        setOverlay(null)
-        addNotification({
-          key: 'scribe-router',
-          text: `Scribe Mode engaged — two-stream router (scribe ${sc.model} · implementer ${im.model}) · ~2× usage · /all shares with the Implementer · /batch approve|deny (auto) · /model exits or reslots`,
-          priority: 'high',
-          timeoutMs: 5000,
-        })
-        return
-      }
-      if (routerOutcome === 'workflows-engaged') {
-        setOverlay(null)
-        addNotification({
-          key: 'scribe-router',
-          text: `Scribe Mode engaged — workflow-capable Implementer armed · ~2× usage · /all shares with the Implementer · /batch approve|deny (auto) · /model exits or reslots`,
-          priority: 'high',
-          timeoutMs: 5000,
-        })
-        return
-      }
-      if (routerOutcome === 'workflows-pending-restart') {
-        setOverlay(null)
-        addNotification({
-          key: 'scribe-router',
-          text: 'Workflows posture armed — two-stream already up without it; exit Scribe (pick a real model) and re-select Scribe + workflows to apply',
-          priority: 'high',
-          timeoutMs: 5000,
-        })
-        return
-      }
-      return
     }
     const probeState = appStateStore.getState()
     const probe = settleModelSelection(probeState, value, {
@@ -2465,12 +2413,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   if (overlay === 'model-picker') {
     return (
       <ModelPicker
-        initial={
-          isScribeModeOn()
-            ? SCRIBE_ROUTER_OPTION_VALUE
-            : (mainLoopModelForSession ?? mainLoopModel)
-        }
-        sessionModel={isScribeModeOn() ? null : mainLoopModelForSession}
+        initial={mainLoopModelForSession ?? mainLoopModel}
+        sessionModel={mainLoopModelForSession}
         onSelect={value => handleModelSelect(value)}
         onCancel={() => setOverlay(null)}
       />
