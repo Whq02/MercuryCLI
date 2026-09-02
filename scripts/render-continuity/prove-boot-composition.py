@@ -36,10 +36,14 @@ def run_splash(cols, rows, hold_s=2.2, resize=None, send=None, send_after=1.2):
     if pid == 0:
         env = dict(os.environ)
         env['MERCURY_HOME'] = EMPTY_HOME
-        env['MERCURY_HOME'] = EMPTY_HOME
         env['MERCURY_CONFIG_DIR'] = EMPTY_HOME
         env['TERM'] = 'xterm-256color'
         env['COLORTERM'] = 'truecolor'
+        env['MERCURY_CRITTER_IDLE'] = '0'
+        env['MERCURY_CRITTER_GAZE'] = '0'
+        env['MERCURY_CRITTER_SLEEP'] = '0'
+        env['MERCURY_LIVE_CLOCK'] = '0'
+        env['MERCURY_LIVE_GLYPHS'] = '0'
         env['MERCURY_FULLSCREEN'] = '0'
         env.pop('MERCURY_SPLASH', None)
         env.pop('NO_COLOR', None)
