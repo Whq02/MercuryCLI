@@ -280,18 +280,19 @@ cleanupScenario('click-expand')
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
     )
     // The fixture ALSO persists an unresolved trailing Bash tool_use
-    // (toolu_lc_bash1, no tool_result). The resume loader FILTERS incomplete
-    // trailing turns — honesty means it paints NOTHING, never a fabricated
-    // settled card. (Live queued/running motion is billed-leg territory:
-    // the render-live-motion pattern, not a fixture resume.)
+    // (toolu_lc_bash1, no tool_result). The resumed chain keeps the row, and
+    // a use with no result is UNRESOLVED: it paints as the QUEUED card — the
+    // dim dot, its command, `waiting…` — never a settled card. (Live
+    // queued/running motion is billed-leg territory: the render-live-motion
+    // pattern, not a fixture resume.)
     check(
-      'lifecycle: the filtered unresolved Bash paints NO ghost card',
-      !lines.some(l => l.includes('sleep 999') || l.includes('Long-running fixture command')),
+      'lifecycle: the unresolved Bash paints as the queued card (its command + waiting…)',
+      lines.some(l => l.includes('sleep 999')) && lines.some(l => l.includes('waiting…')),
+      lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | ') || '(neither row painted)',
     )
-    // The trailing Bash tool_use has NO result. Whatever a resume paints for
-    // it, it never RAN: a collapsed `Ran 1 bash command ⌄` row is a settled
-    // claim the record does not hold (the collapse walk absorbs a use whose
-    // result never landed as if it had settled).
+    // The trailing Bash tool_use has NO result, so it never RAN: a collapsed
+    // `Ran 1 bash command ⌄` row is a settled claim the record does not hold
+    // (the collapse walk keeps a result-less use out of the settled row).
     check(
       'lifecycle: the unresolved Bash is never a settled "Ran" row',
       !lines.some(l => /Ran \d+ bash command/.test(l)),
@@ -301,11 +302,11 @@ cleanupScenario('click-expand')
 }
 
 // ---- lifecycle source contracts: the queued/unresolved branch --------------
-// A fixture resume cannot paint the queued state (the loader drops trailing
-// unresolved tool_use), so the queued card's honesty is pinned at SOURCE: the
-// queued branch derives from the REAL id sets (never a stored flag), renders
-// the dim queued dot, and only ever renders the tool's own queued message —
-// no outcome text exists on that path to fabricate.
+// The capture above paints the queued card for the resumed result-less use;
+// these pins keep its derivation honest at SOURCE: the queued branch derives
+// from the REAL id sets (never a stored flag), renders the dim queued dot,
+// and only ever renders the tool's own queued message — no outcome text
+// exists on that path to fabricate.
 {
   const atum = src('src/components/messages/AssistantToolUseMessage.tsx')
   check(
