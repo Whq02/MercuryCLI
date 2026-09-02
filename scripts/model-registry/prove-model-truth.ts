@@ -103,7 +103,6 @@ section('6. router class mirrors — every seat family classifies to a router cl
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
   const censusFiles = [
-    'src/tools/WorkflowTool/workflowRouting.ts',
     'src/daemon/crewSpawn.ts',
   ]
   for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
