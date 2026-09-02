@@ -123,6 +123,9 @@ export interface ControlServerDeps {
         /** The effort the session started at — the receipt fact beside the
          *  model (the chain-of-custody law). */
         effort?: string
+        /** THE RETAINED MODEL'S RECEIPT — a resume admitted without the
+         *  model it ran on names the dropped model and its door. */
+        note?: string
         /** Twins under ONE truth, never both: kitSource ⟺ a kit stamp ran;
          *  liveHop ⟺ a pure hop onto a LIVE record — nothing
          *  re-stamped (the worn one-shot is not spent). */
