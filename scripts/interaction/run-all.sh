@@ -4,6 +4,7 @@
 # gate-watch: src/components/mercury-ui/InteractiveRow* src/components/mercury-ui/NavigablePanes*
 # gate-watch: src/ink/** src/state/AppState* src/utils/inputRange* src/utils/mercuryTokens*
 # gate-watch: src/components/MessageSelector* src/keybindings/**
+# gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
 # ============================================================================
 #  scripts/interaction/run-all.sh — split from the ui suite (interaction-finish
 # the interaction-grammar PTY proofs (InteractiveRow · boards · composer)
