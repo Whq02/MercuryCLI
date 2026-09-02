@@ -55,7 +55,10 @@ check('setup-node v7 (SHA-pinned) in verify + package + bridge-gate (3 uses)', c
 check('every third-party action is pinned to an immutable SHA', floatingRefs(rel).length === 0, floatingRefs(rel).join(', '))
 check('all three select the calibration pin via node-version-file', count(rel, 'node-version-file: .node-version') === 3)
 check('verify + package print the selected node', count(rel, 'run: node --version') === 2)
-check('release notes say Node 24 LTS with the range', rel.includes('Node 24 LTS required') && rel.includes('>=24.11.0 <25'))
+// The fallback notes promise the vendored runtime (a release install needs
+// only git) and read the supported range from the ONE version root — a
+// hand-copied range literal went stale once (24.11.0 against a 24.20.0 floor).
+check('release notes say the archive carries its own Node 24 LTS runtime, the range read from package.json engines (no literal)', rel.includes('carries its own Node 24 LTS runtime') && rel.includes('["engines"]["node"]') && !/>=24\.\d+\.\d+ <25/.test(rel))
 check('publish job records its deliberate no-node decision', rel.includes('release runs sha256sum + gh only'))
 check('no stale Node 20 claim anywhere in the workflow', !rel.includes('Node.js 20'))
 

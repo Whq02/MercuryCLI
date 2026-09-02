@@ -1,8 +1,9 @@
 # private-release — the collaborator download kit.
 #
-# Builds Mercury natively per OS (so the vendored ripgrep matches the
-# platform), packages the friend-ready archive, SMOKES the friend path on
-# every runner (spaced-path unpack, --version, --help, no node_modules,
+# Builds Mercury natively per OS (so the vendored ripgrep and the vendored
+# Node runtime match the platform), packages the friend-ready archive, SMOKES
+# the friend path on every runner (spaced-path unpack, --version — once with
+# no node on PATH, on the vendored runtime alone — --help, no node_modules,
 # manifest check — scripts/release/package.mjs), and publishes the assets +
 # SHA256SUMS to this PRIVATE repository's Releases page only. Never npm,
 # never a public bucket.
@@ -120,10 +121,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # node_pack: the vendored Node runtime's platform (nodejs.org's
+          # spelling — vendor/node.lock.json pins every archive by sha256);
+          # each row fetches only the pack it ships.
           - os: ubuntu-latest
             target: linux-x64
+            node_pack: linux-x64
           - os: macos-14
             target: macos-arm64
+            node_pack: darwin-arm64
           # macos-x64 (Intel) DROPPED: GitHub retired the macos-13
           # Intel runners (the label queues forever — run 29173728481 sat
           # unscheduled >45 min while every other target built), and free
@@ -134,6 +140,7 @@ jobs:
           # only with a paid Intel runner or per-target rg fetching.
           - os: windows-latest
             target: windows-x64
+            node_pack: win-x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -161,16 +168,20 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'vendor/grammars.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json') }}
       # Without these, the built manifest is DEGRADED (no debugpy/pyright/
-      # grammar-pack) and the packager refuses — a hosted release must ship
-      # the same full payload set a local build does (fix; the gap
-      # predates the vendored IDE payloads and no release had run since).
+      # js-debug/grammar-pack/runtime) and the packager refuses — a hosted
+      # release must ship the same full payload set a local build does. The
+      # Node runtime pack is fetched for THIS row's platform only: the
+      # archive carries the runtime beside the bundle, so a fresh machine
+      # needs only git.
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
           bun run scripts/vendor/fetch-debugpy.ts
+          bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
+          bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}
       - name: native build
         run: bun run build.ts
       - name: package + friend-path smoke
@@ -303,7 +314,10 @@ jobs:
               --notes-file release-notes.md \
               assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
           else
-            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). Node 24 LTS required (>=24.11.0 <25 — the label + range are prover-pinned to the Node policy owner). See README-FIRST.md inside the archive.' "$GITHUB_SHA")
+            # The supported range rides from the ONE version root
+            # (package.json engines.node) — never a hand-copied literal.
+            RANGE="$(python3 -c 'import json;print(json.load(open("package.json"))["engines"]["node"])')"
+            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$GITHUB_SHA" "$RANGE")
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
               --notes "$NOTES" \

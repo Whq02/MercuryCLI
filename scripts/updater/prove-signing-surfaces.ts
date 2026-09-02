@@ -92,17 +92,19 @@ try {
   check('POSIX launcher invokes the shipped verifier in --launcher mode', posix.includes('verify-artifact.mjs" --launcher'))
   check('POSIX verify is crash-harmless (`|| true`) — warn-dont-block is mechanical', posix.includes('verify-artifact.mjs" --launcher || true'))
   check('POSIX verify is interactive-gated (TTY test) + presence-guarded', /\[ -t 0 \] && \[ -t 2 \] && \[ -f "\$dir\/verify-artifact\.mjs" \]/.test(posix))
-  check('POSIX verify runs BEFORE the runtime boot line', posix.indexOf('verify-artifact.mjs" --launcher') < posix.indexOf('node "$dir/mercury.mjs" "$@"'))
+  // The boot line runs on the RESOLVED runtime ("$node_bin" — the three-rung
+  // resolution), never a bare PATH node.
+  check('POSIX verify runs BEFORE the runtime boot line', posix.indexOf('verify-artifact.mjs" --launcher') !== -1 && posix.indexOf('"$node_bin" "$dir/mercury.mjs" "$@"') !== -1 && posix.indexOf('verify-artifact.mjs" --launcher') < posix.indexOf('"$node_bin" "$dir/mercury.mjs" "$@"'))
 
   check('cmd launcher invokes the shipped verifier in --launcher mode', cmd.includes('verify-artifact.mjs" --launcher'))
-  check('cmd verify is TTY-gated on the probe verdict + presence-guarded', cmd.includes('if "%NODETTY%"=="1" if exist "%DIR%verify-artifact.mjs" node "%DIR%verify-artifact.mjs" --launcher'))
+  check('cmd verify is TTY-gated on the probe verdict + presence-guarded, on the resolved runtime', cmd.includes('if "%NODETTY%"=="1" if exist "%DIR%verify-artifact.mjs" "%NODEBIN%" "%DIR%verify-artifact.mjs" --launcher'))
   check(
     'cmd never consults errorlevel after the verify (no gate exists to fail)',
     !/verify-artifact\.mjs" --launcher\r\n(if errorlevel|if %errorlevel%)/i.test(cmd),
   )
 
   check('PS1 launcher invokes the shipped verifier in --launcher mode', ps1.includes("'verify-artifact.mjs')) --launcher") || /verify-artifact\.mjs'\) --launcher/.test(ps1))
-  check('PS1 verify is interactive-gated, presence-guarded, crash-swallowed', /if \(\$interactive -and \(Test-Path \(Join-Path \$dir 'verify-artifact\.mjs'\)\)\) \{\s*\n\s*try \{ & node \(Join-Path \$dir 'verify-artifact\.mjs'\) --launcher \} catch \{ \}/.test(ps1))
+  check('PS1 verify is interactive-gated, presence-guarded, crash-swallowed, on the resolved runtime', /if \(\$interactive -and \(Test-Path \(Join-Path \$dir 'verify-artifact\.mjs'\)\)\) \{\s*\n\s*try \{ & \$nodeBin \(Join-Path \$dir 'verify-artifact\.mjs'\) --launcher \} catch \{ \}/.test(ps1))
 
   check('the payload contract ships verify-artifact.mjs on every target', (topAllowlist('macos-arm64', readCompatFloor()) as string[]).includes('verify-artifact.mjs') && (topAllowlist('windows-x64', readCompatFloor()) as string[]).includes('verify-artifact.mjs'))
 
