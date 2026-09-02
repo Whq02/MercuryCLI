@@ -273,7 +273,7 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
     netlog,
     [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
@@ -311,7 +311,7 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
     netlog,
     [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
@@ -355,7 +355,7 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
     netlog,
     [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
