@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                       ⌁ presets
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ saved presets                                                  │  │ ❯ review kit                               │
+   │ ❯ review kit                                                 — │  │                                            │
+   │   writing                                                armed │  │ What it controls                           │
+   │   broken                                                     — │  │ 4 deltas from all-on · ↵ wears it for the  │
+   ╰────────────────────────────────────────────────────────────────╯  │ NEXT session (one-shot: the menu's         │
+                                                                       │ default resumes after) · ⌫ deletes it      │
+                                                                       │                                            │
+                                                                       │ Current value                              │
+                                                                       │ —                                          │
+                                                                       │ ↵ — the next session wears it, one-shot    │
+                                                                       │ ⌫ — delete the preset                      │
+                                                                       │                                            │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ NEXT SESSION                               │
+                                                                       │ Saved      3 presets                       │
+                                                                       │ Armed      ● 'writing' — one session       │
+                                                                       │ Applies    ● the next session              │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  preset 'writing' armed — the next session wears it, then the menu's default resumes         │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                  ↑↓ move · ↵ wear next session · ⌫ delete · esc back

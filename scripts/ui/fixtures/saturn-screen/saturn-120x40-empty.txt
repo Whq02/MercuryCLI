@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                   ⌁ saturn scheduler
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   ╰────────────────────────────────────────────────────────────────╯  │ ❯                                          │
+                                                                       │                                            │
+                                                                       │ no schedules stand.                        │
+                                                                       │                                            │
+                                                                       │ press a to schedule a session birth —      │
+                                                                       │ a fresh session born on the clock.         │
+                                                                       │                                            │
+                                                                       │ a session schedules itself too (its        │
+                                                                       │ own tools, the set-schedule door);         │
+                                                                       │ every schedule and its fire decisions      │
+                                                                       │ land here.                                 │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ SATURN                                     │
+                                                                       │ Schedules  0                               │
+                                                                       │ Next fire  —                               │
+                                                                       │ Held       0                               │
+                                                                       │ Sessions   2 live                          │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  no schedules on 2 live sessions                                                             │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+               ↑↓ move · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back

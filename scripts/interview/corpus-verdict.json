@@ -1,0 +1,103 @@
+{
+ "schema": 1,
+ "ranAt": "2026-07-31T16:12:35.972Z",
+ "method": "candidate dist/mercury.mjs headless (-p, plan mode, stream-json, max 3 turns) with the operator config home — the assembled prompt and model are the product’s own; AskUserQuestion tool_use calls judged per scenario",
+ "scenarios": [
+  {
+   "name": "resolved-test-framework",
+   "kind": "resolved",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.7885995000000001,
+   "model": "claude-opus-5",
+   "turns": 13
+  },
+  {
+   "name": "resolved-module-system",
+   "kind": "resolved",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.30646375000000003,
+   "model": "claude-opus-5",
+   "turns": 11
+  },
+  {
+   "name": "resolved-formatter",
+   "kind": "resolved",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.30238875,
+   "model": "claude-opus-5",
+   "turns": 11
+  },
+  {
+   "name": "resolved-ui-kit-convention",
+   "kind": "resolved",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.3083935,
+   "model": "claude-opus-5",
+   "turns": 10
+  },
+  {
+   "name": "trivial-helper-placement",
+   "kind": "trivial",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.29482125,
+   "model": "claude-opus-5",
+   "turns": 6
+  },
+  {
+   "name": "resolved-strictness",
+   "kind": "resolved",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.296829,
+   "model": "claude-opus-5",
+   "turns": 11
+  },
+  {
+   "name": "open-cache-engine",
+   "kind": "open",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.30792225,
+   "model": "claude-opus-5",
+   "turns": 10
+  },
+  {
+   "name": "open-http-surface",
+   "kind": "open",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.320624,
+   "model": "claude-opus-5",
+   "turns": 11
+  },
+  {
+   "name": "resolved-node-version",
+   "kind": "resolved",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.31003074999999997,
+   "model": "claude-opus-5",
+   "turns": 11
+  },
+  {
+   "name": "dependent-store-then-schema",
+   "kind": "dependent",
+   "askedQuestions": [],
+   "violations": [],
+   "costUsd": 0.31640599999999997,
+   "model": "claude-opus-5",
+   "turns": 11
+  }
+ ],
+ "totals": {
+  "scenarios": 10,
+  "violations": 0,
+  "openScenariosThatAsked": 0,
+  "approxCostUsd": 3.5525
+ }
+}

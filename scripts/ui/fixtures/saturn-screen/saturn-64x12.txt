@@ -1,0 +1,11 @@
+
+(>_) MERCURY · saturn scheduler
+
+
+journey session
+❯ aaaa1111  in 2h            in 2h
+  bbbb2222  tomorrow 07:30   in 1d
+↓ 5 more
+
+saturn scheduler wants at least 64×13 · this window is 64×12
+↑↓ move · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back

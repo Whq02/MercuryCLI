@@ -1,0 +1,182 @@
+{
+ "schema": 1,
+ "note": "Typed orphan exemptions. Every row names its reachability class and a concrete reason. The gate REFUSES: a fresh orphan not listed here, a listed file that became reachable or was deleted (cured => RED until pruned via --regen), and a row with an invalid class or a thin reason. --regen PRUNES cured rows only \u2014 adding a row is a deliberate hand edit with a class and a reason, never a mechanical relock.",
+ "classes": [
+  "production-live",
+  "operator-opt-in-live",
+  "sdk-or-external-contract",
+  "metadata-or-generated",
+  "living-specimen",
+  "proof-or-fixture-only",
+  "archive",
+  "broken-path",
+  "superseded-unreachable"
+ ],
+ "rows": [
+  {
+   "file": "src/components/mercury-ui/index.ts",
+   "class": "superseded-unreachable",
+   "reason": "The UI kit's intended one-import surface with ZERO consumers anywhere (src and scripts import component files directly). Retire-or-adopt decision at; nothing in the product promises the barrel itself."
+  },
+  {
+   "file": "src/constants/legalNotice.ts",
+   "class": "metadata-or-generated",
+   "reason": "The notice-slot owner: build.ts imports it dynamically at stamp time (stampNoticeOnSource/hasCurrentNoticeStamp) and the notices generator + prove-notice-stamp.ts consume CURRENT_NOTICE_SLOTS. A build-time owner is correctly outside the runtime import graph."
+  },
+  {
+   "file": "src/services/privateChannel/verifyArtifactStandalone.ts",
+   "class": "sdk-or-external-contract",
+   "reason": "The shipped verify-artifact entrypoint: packaged as its own standalone file by the release packager and executed offline by installers (`verify-artifact.mjs --deep`); reached from the packaged artifact, not the runtime graph."
+  },
+  {
+   "file": "src/substrate/durableOperationMatrix.ts",
+   "class": "metadata-or-generated",
+   "reason": "The durable-operation machine registry: consumed by scripts/reliability/gen-durable-matrix.ts + prove-durable-matrix.ts (and the fulcrum suite) to render the durable-operation matrix on demand. A generator-consumed metadata owner is correctly outside the runtime import graph."
+  },
+  {
+   "file": "src/utils/deepLink/parseDeepLink.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The mercury:// ONE-scheme grammar owner. Its deliberate consumer is scripts/substrate/prove-identity-constants.ts (substrate suite), which live-imports it to pin that the mercury scheme parses and the legacy claude-cli scheme is REFUSED \u2014 the fork-identity law. The OS handler machinery is deliberately not built in this tree (deepLink/registerProtocol.ts's own note)."
+  },
+  {
+   "file": "src/utils/terminalPanel.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The built-in terminal panel (tmux + direct-shell fallback behind the alternate screen), deliberately rewritten as one of S32's 22 manifest files; its current consumer is scripts/ui/prove-s32-acceptance.ts (checks 63-64 pin fallback + cleanup discipline on this source). The awaited consumer is the panel's keybinding/command mount, which no rewrite lane has landed yet \u2014 mounting is a product-surface decision, not a remount."
+  },
+  {
+   "file": "src/utils/undercover.ts",
+   "class": "archive",
+   "reason": "Attribution-suppression mode, inert by in-file ruling: 'Documented intent, kept for a future re-enablement' \u2014 every entry point returns its constant, and constants/prompts.ts records the fold to always-emit. The file IS the documented intent; deleting it erases the recorded re-enablement contract."
+  },
+  {
+   "file": "src/services/workbench/folio.ts",
+   "class": "superseded-unreachable",
+   "reason": "The evidence-folio assembler of the WORK/workbench board, retired in place: the board's REVIEW verbs were its only surface. Engine kept for the retire-or-adopt decision on the retire-or-adopt line; its provers (cockpit-interaction/prove-evidence-folios) still lock it."
+  },
+  {
+   "file": "src/services/workbench/folioActions.ts",
+   "class": "superseded-unreachable",
+   "reason": "The folio verb applier (adopt/dismiss/reply) of the WORK/workbench board, retired in place: only the board's folio section reached it. Kept beside folio.ts for the same retire-or-adopt decision on the retire-or-adopt line."
+  },
+  {
+   "file": "src/services/workbench/returnState.ts",
+   "class": "superseded-unreachable",
+   "reason": "The attach/detach return-state seam of the WORK/workbench board (deep-link out, carry the row back), retired in place: the prompts panel has no deep-links. Kept for the retire-or-adopt decision on the retire-or-adopt line; attention/prove-attach-return still locks the seam."
+  },
+  {
+   "file": "src/services/workContexts/workContexts.ts",
+   "class": "superseded-unreachable",
+   "reason": "The work-context bind/park/cleanup owner behind the WORK/workbench board's LANES verbs, retired in place; the MERCURY_WORK_CONTEXTS_DIR registry row names it as consumer, so the flag is PARKED with it (the reachability manifest records the parking, not a severed flag). Kept for the retire-or-adopt decision on the retire-or-adopt line."
+  },
+  {
+   "file": "src/render-engine/index.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core's one-import surface (E1\u2013E11: the settled-row ledger, the flat projection, the inline tail painter, the ANSI row clamp, the capabilities probe), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine, fourteen provers) ahead of the cockpit mount: render-engine/cockpit/engineMount.ts mounts the ledger, the fold and the terminal door today and takes the core when the mount lands. Reached from the proofs alone until then."
+  },
+  {
+   "file": "src/render-engine/engine.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core (the settled-row ledger + the one write door + cost/drain scheduling), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; engineMount.ts takes it when the mount lands. Reached from the proofs alone until then."
+  },
+  {
+   "file": "src/render-engine/compose.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core's tail-block composer, landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
+  },
+  {
+   "file": "src/render-engine/projection.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core's flat projection (the record \u2192 row projection the ledger settles), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the proofs alone until the mount takes the core."
+  },
+  {
+   "file": "src/render-engine/inlinePainter.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core's inline tail painter (the in-place streaming paint the engine's write door drives), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
+  },
+  {
+   "file": "src/render-engine/ansiText.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core's ANSI tokenizer + row clamp (the width law every composed row rides), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."
+  },
+  {
+   "file": "src/render-engine/capabilities.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The render engine core's terminal-capability probe (what the engine's write door may emit), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine's one-import surface and the proofs alone until the mount takes the core."
+  },
+  {
+   "file": "src/services/visual/spriteToAnsi.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The sprite \u2192 ANSI painter whose one product consumer was the /forge estate, deleted by operator ruling. Its painter laws stay locked by scripts/language-sidecars/prove-sprite-painter.ts + prove-sprite-white-spots.ts and the isolated-artifact proof; kept for the retire-or-adopt decision on the retire-or-adopt line."
+  },
+  {
+   "file": "src/hooks/useInboxPoller.ts",
+   "class": "superseded-unreachable",
+   "reason": "The old screen's teammate/lead mailbox engine \u2014 arrivals ride the daemon dispatch road now (concourseDispatch delivers into the runner's own transcript). Kept UNMOUNTED because the parity tiers exercise its extracted pure cores (classifyInboundDelivery, absorbWithinPendingCap); the unit-extraction walk is a named deferral \u2014 extract the cores to a live owner, then delete."
+  },
+  {
+   "file": "src/hooks/useLogMessages.ts",
+   "class": "superseded-unreachable",
+   "reason": "The old screen's transcript recorder \u2014 the session RUNNER owns the transcript writer now (the w0 law pins the screen holds none). Kept unmounted: hotpath-cadence and w0-laws exercise its pure units (isTurnBoundaryRow, the engine-lane law); unit extraction owed, then delete (a named deferral)."
+  },
+  {
+   "file": "src/utils/messages/appendRow.ts",
+   "class": "superseded-unreachable",
+   "reason": "The one-uuid-one-row append law's reference implementation \u2014 the runner's one-writer architecture closes the doubled-turn class live; transcript-rows/prove-append-identity and render-migration/prove-doubles-growth-curve drive this unit as the law's spec; re-point or move with the law named, then delete (a named deferral)."
+  },
+  {
+   "file": "src/utils/messages/fullscreenScrollback.ts",
+   "class": "superseded-unreachable",
+   "reason": "Fullscreen compaction scrollback retention for the in-process transcript \u2014 the connector paints from records now; parity tier4 drives the unit; class-note + re-point owed, then delete (a named deferral)."
+  },
+  {
+   "file": "src/utils/messages/streamBatcher.ts",
+   "class": "superseded-unreachable",
+   "reason": "The frame-cadence stream batcher \u2014 the connector's file-tail projection (400ms heartbeat + deduped watch reads) bounds repaint cadence by construction; five cadence pins (stream-commit-throttle, hotpath-cadence, stream-contract, doubles-growth-curve, tui-weight) drive this unit as the cadence spec; per-prover re-point owed, then delete (a named deferral)."
+  },
+  {
+   "file": "src/services/channel/frame.ts",
+   "class": "living-specimen",
+   "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+  },
+  {
+   "file": "src/services/channel/hlc.ts",
+   "class": "living-specimen",
+   "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+  },
+  {
+   "file": "src/services/channel/index.ts",
+   "class": "living-specimen",
+   "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+  },
+  {
+   "file": "src/services/channel/sealedChannel.ts",
+   "class": "living-specimen",
+   "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+  },
+  {
+   "file": "src/services/channel/signing.ts",
+   "class": "living-specimen",
+   "reason": "The multiplayer wire kept deliberately at the /say retirement (operator-ruled: \"Retire /say but keep the wire so that it stays for the agents\"); the extracted channel home is maintained estate awaiting the post-release multiplayer consumer."
+  },
+  {
+   "file": "src/substrate/identity/accountFacts.ts",
+   "class": "living-specimen",
+   "reason": "The MPEXTRACT account-facts surface (hardening 3): a neutral read-only view of credentialed provider families, landed contract-first for the multi-auth agents' \"usage stays on my account\" fact; consumers arrive with the multiplayer estate post-release. The poison pin (live key unreachable through the serialized view) keeps it honest while dormant."
+  },
+  {
+   "file": "src/substrate/identity/index.ts",
+   "class": "living-specimen",
+   "reason": "The MPEXTRACT account-facts surface (hardening 3): a neutral read-only view of credentialed provider families, landed contract-first for the multi-auth agents' \"usage stays on my account\" fact; consumers arrive with the multiplayer estate post-release. The poison pin (live key unreachable through the serialized view) keeps it honest while dormant. index.ts is its one-import barrel."
+  },
+  {
+   "file": "src/utils/swarm/handoffSummary.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "Consumed only by scripts/substrate/prove-handoff-summary.ts \u2014 the summary shape is pinned there while no product surface renders it yet."
+  },
+  {
+   "file": "src/utils/accounts/scopedReauth.ts",
+   "class": "proof-or-fixture-only",
+   "reason": "The scoped reauth machinery whose board consumer was retired by the operator-sighted inventory-only ruling (/accounts hosts no flow; the login gesture reroutes to Logins). That ruling keeps the module, covered by scripts/accounts/prove-scoped-reauth.ts \u2014 the auth-scope bracket and snapshot-heal laws stay pinned while no board hosts the flow."
+  }
+ ]
+}

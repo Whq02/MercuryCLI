@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "id": "affinity-keeps-sonnet",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Continue a bounded implementation on the worker already carrying context",
+    "title": "Add a second field to the same form validator",
+    "task": "The same bounded form-validator change from the previous dispatch needs one more field added, in the same file, in the same style already established. The worker that did the first field is still warm with the file's context loaded.",
+    "ambiguity": 1,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "workerAffinity": {
+      "currentModelClass": "sonnet",
+      "currentEffort": "high"
+    }
+  },
+  "expected": {
+    "profile": "sonnet-opus-review",
+    "width": 1,
+    "modelClasses": ["sonnet"],
+    "reasonCodes": ["bounded-implementation", "affinity-kept-model"],
+    "adjustments": []
+  }
+}

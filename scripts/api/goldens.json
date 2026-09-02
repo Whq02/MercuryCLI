@@ -1,0 +1,142 @@
+{
+ "MAX_NON_STREAMING_TOKENS/value": 64000,
+ "getMaxOutputTokensForModel/families": [
+  64000,
+  64000,
+  32000,
+  8192,
+  64000
+ ],
+ "getPromptCachingEnabled/probe": true,
+ "getCacheControl/shape": {
+  "type": "ephemeral"
+ },
+ "userMessageToMessageParam/plain": {
+  "content": [
+   {
+    "text": "hello",
+    "type": "text"
+   }
+  ],
+  "role": "user"
+ },
+ "userMessageToMessageParam/with-caching": {
+  "content": [
+   {
+    "text": "hello",
+    "type": "text"
+   }
+  ],
+  "role": "user"
+ },
+ "assistantMessageToMessageParam/plain": {
+  "content": [
+   {
+    "citations": [],
+    "text": "hi",
+    "type": "text"
+   }
+  ],
+  "role": "assistant"
+ },
+ "assistantMessageToMessageParam/with-caching": {
+  "content": [
+   {
+    "citations": [],
+    "text": "hi",
+    "type": "text"
+   }
+  ],
+  "role": "assistant"
+ },
+ "addCacheBreakpoints/placement-caching-on": [
+  {
+   "content": [
+    {
+     "text": "hello",
+     "type": "text"
+    }
+   ],
+   "role": "user"
+  },
+  {
+   "content": [
+    {
+     "citations": [],
+     "text": "hi",
+     "type": "text"
+    }
+   ],
+   "role": "assistant"
+  },
+  {
+   "content": [
+    {
+     "cache_control": {
+      "type": "ephemeral"
+     },
+     "text": "second turn",
+     "type": "text"
+    }
+   ],
+   "role": "user"
+  }
+ ],
+ "addCacheBreakpoints/caching-off": [
+  {
+   "content": [
+    {
+     "text": "hello",
+     "type": "text"
+    }
+   ],
+   "role": "user"
+  },
+  {
+   "content": [
+    {
+     "citations": [],
+     "text": "hi",
+     "type": "text"
+    }
+   ],
+   "role": "assistant"
+  }
+ ],
+ "buildSystemPromptBlocks/split-and-cache": [
+  {
+   "cache_control": {
+    "type": "ephemeral"
+   },
+   "text": "first block\n\nsecond block",
+   "type": "text"
+  }
+ ],
+ "buildSystemPromptBlocks/no-cache": [
+  {
+   "text": "only block",
+   "type": "text"
+  }
+ ],
+ "adjustParamsForNonStreaming/caps-tokens": {
+  "max_tokens": null,
+  "messages": [],
+  "model": "claude-sonnet-5"
+ },
+ "configureTaskBudgetParams/passthrough": {
+  "«throws»": "outputConfig is not an Object. (evaluating '\"task_budget\" in outputConfig')"
+ },
+ "accumulateUsage/sums": {
+  "«throws»": "undefined is not an object (evaluating 'totalUsage.server_tool_use.web_search_requests')"
+ },
+ "updateUsage/shape": {
+  "«throws»": "undefined is not an object (evaluating 'usage.server_tool_use.web_search_requests')"
+ },
+ "stripExcessMediaItems/over-limit": {
+  "«throws»": "undefined is not an object (evaluating 'msg.message.content')"
+ },
+ "getAPIMetadata/shape": {
+  "user_id": "{\"device_id\":\"«hash»\",\"account_uuid\":\"\",\"session_id\":\"«u1»\"}"
+ },
+ "getExtraBodyParams/probe": {}
+}

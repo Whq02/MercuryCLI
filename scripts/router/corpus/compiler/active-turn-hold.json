@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "active-turn-hold",
+  "mode": "scribe",
+  "mission": {
+    "objective": "A bounded implementation queued while the worker is mid-turn",
+    "title": "Add a --dry-run flag to the migrate script",
+    "task": "Add a `--dry-run` flag to scripts/migrate/run.ts that prints the planned changes without applying them, reusing the existing plan-building function.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "activeTurn": true
+  },
+  "expected": {
+    "profile": "sonnet-opus-review",
+    "width": 1,
+    "modelClasses": ["sonnet"],
+    "reasonCodes": ["bounded-implementation"],
+    "adjustments": ["held-for-idle"]
+  }
+}

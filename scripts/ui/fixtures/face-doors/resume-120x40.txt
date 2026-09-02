@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                    ⌁ resume session
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ orchard-src                                                    │  │ ❯ concourse polish                         │
+   │   the tool-loop fold                             2 minutes ago │  │                                            │
+   │ ❯ concourse polish                       3 hours ago · cleared │  │ project: orchard-src                       │
+   │                                                                │  │ last seen: 3 hours ago                     │
+   │ moodle                                                         │  │ cleared — deliberately closed; resuming r… │
+   │   moodle groundwork                                  1 day ago │  │                                            │
+   │                                                                │  │ ↵ opens this session as the real chat —    │
+   │ orchard-src                                                    │  │ the chat stop appears on the strip;        │
+   │   splash ripple study                               2 days ago │  │ this screen and the face stay beneath.     │
+   │                                                                │  │                                            │
+   │ router crews                                                   │  │ esc — back to the face, nothing opened     │
+   │   party · dps1 — dps1                           40 minutes ago │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ SESSIONS                                   │
+                                                                       │ Scope      all history — every project     │
+                                                                       │ Sessions   4 · 1 crew                      │
+                                                                       │ Opens      ● a real chat, in place         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  4 sessions in the full history · 1 crew · ↵ opens the real chat                             │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                         ↑↓ move · ↵ open · n new session · d prune · a this project · esc back

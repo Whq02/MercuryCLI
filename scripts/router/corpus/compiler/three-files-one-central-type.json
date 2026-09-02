@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "id": "three-files-one-central-type",
+  "mode": "party",
+  "mission": {
+    "objective": "Add a shared Widget type and two consumers",
+    "title": "Widget type + two adapters",
+    "task": "Define a new shared `Widget` type in src/types/widget.ts, then build two adapters that consume and extend it: a render adapter and a persistence adapter. Both adapters need to add fields to the shared type as they go, so the type file stays a moving target until both land.",
+    "ambiguity": 1,
+    "coupling": 2,
+    "parallelism": 1,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Widget shared type",
+        "task": "Define the initial Widget type in src/types/widget.ts.",
+        "dependsOn": [],
+        "ownsPaths": ["src/types/widget.ts"],
+        "acceptance": ["Widget type compiles and exports cleanly", "no consumer imports break"]
+      },
+      {
+        "id": "n2",
+        "title": "Render adapter",
+        "task": "Implement the render adapter in src/adapters/widgetRenderAdapter.ts, extending Widget with render-only fields.",
+        "dependsOn": ["n1"],
+        "ownsPaths": ["src/adapters/widgetRenderAdapter.ts", "src/types/widget.ts"],
+        "acceptance": ["render adapter renders a Widget end to end", "added fields are additive, never break n1's shape"]
+      },
+      {
+        "id": "n3",
+        "title": "Persistence adapter",
+        "task": "Implement the persistence adapter in src/adapters/widgetPersistAdapter.ts, extending Widget with storage-only fields.",
+        "dependsOn": ["n1"],
+        "ownsPaths": ["src/adapters/widgetPersistAdapter.ts", "src/types/widget.ts"],
+        "acceptance": ["persistence adapter round-trips a Widget", "added fields are additive, never break n1's shape"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "dependency-graph",
+    "width": 1,
+    "modelClasses": ["sonnet", "sonnet", "sonnet"],
+    "reasonCodes": ["ordered-dependencies"],
+    "adjustments": ["overlap-serialized"]
+  }
+}

@@ -1,0 +1,301 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
+import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
+import { getGlobalConfig, saveGlobalConfig } from '../config.js'
+import {
+  providerDisplayName,
+  declaredRouteOf,
+  type CallModelRoute,
+} from '../../services/providers/routeLaw.js'
+import {
+  providerFamilyPresences,
+  type ProviderFamilyPresence,
+} from '../../services/providers/providerUsage.js'
+import {
+  buildRouterModelSnapshot,
+  type RouterModelSnapshot,
+} from '../router/modelRegistry.js'
+import {
+  getModelOptions,
+  isProviderActionRow,
+  stripContext1m,
+  type ModelOption,
+} from './modelOptions.js'
+import { parseUserSpecifiedModel } from './model.js'
+
+export type SubModelContainer = 'minerva' | 'console'
+
+export const SUB_MODEL_CONTAINERS: readonly SubModelContainer[] = ['minerva', 'console']
+
+export const SUB_MODEL_UNSET_HINT = 'use /submodels to pin one of the available model catalogues'
+
+export function subModelEnvVar(container: SubModelContainer): string {
+  return container === 'minerva' ? 'MERCURY_MINERVA_MODEL' : 'MERCURY_CONSOLE_MODEL'
+}
+
+export function canonicalSubModelId(value: string): string {
+  return stripContext1m(parseUserSpecifiedModel(stripContext1m(value.trim())))
+}
+
+export type SubModelOrigin = 'env' | 'saved' | 'unset'
+
+export interface SubModelPin {
+  origin: 'env' | 'saved'
+  model: string
+  route: CallModelRoute | 'unrecognised'
+  envVar?: string
+}
+
+export interface SubModelUnset {
+  origin: 'unset'
+  hint: string
+}
+
+export type SubModelResolution = SubModelPin | SubModelUnset
+
+export function resolveSubModel(container: SubModelContainer): SubModelResolution {
+  const envVar = subModelEnvVar(container)
+  const envRaw = flagEnv(envVar)
+  if (envRaw !== undefined && envRaw.trim() !== '') {
+    const model = canonicalSubModelId(envRaw)
+    return { origin: 'env', model, route: declaredRouteOf(model) ?? 'unrecognised', envVar }
+  }
+  const saved = getGlobalConfig().subModels?.[container]
+  if (saved !== undefined && saved.trim() !== '') {
+    const model = canonicalSubModelId(saved)
+    return { origin: 'saved', model, route: declaredRouteOf(model) ?? 'unrecognised' }
+  }
+  return { origin: 'unset', hint: SUB_MODEL_UNSET_HINT }
+}
+
+export function consoleModelOverride(sessionModel: string): string | undefined {
+  const resolved = resolveSubModel('console')
+  if (resolved.origin === 'unset') return undefined
+  return canonicalSubModelId(sessionModel) === canonicalSubModelId(resolved.model)
+    ? undefined
+    : resolved.model
+}
+
+export function subModelIdentityLine(container: SubModelContainer, pin: SubModelPin): string {
+  const name =
+    container === 'minerva' ? 'Minerva, the notepad curator' : 'the Console, the side-question assistant'
+  return (
+    `Engine identity — a fact stamped by the Mercury harness (you cannot know it on your own): ` +
+    `you are ${name}, running on model id "${pin.model}" via the ${providerDisplayName(pin.route)} wire. ` +
+    `When asked what model you are, answer with exactly that id and wire; never guess another name.`
+  )
+}
+
+
+export type SubModelRowState = 'selectable' | 'signed-out' | 'refused'
+
+export interface SubModelEntry {
+  kind: 'model' | 'connect'
+  modelId: string
+  displayName: string
+  source: CallModelRoute | 'unrecognised'
+  state: SubModelRowState
+  reason?: string
+  connect?: { command?: string; note: string }
+  description?: string
+}
+
+export interface SubModelFamily {
+  source: CallModelRoute | 'unrecognised'
+  label: string
+  credentialed: boolean
+  credentialLabel?: string
+}
+
+export interface SubModelRegistry {
+  entries: SubModelEntry[]
+  families: SubModelFamily[]
+}
+
+export function subModelConnectHome(route: CallModelRoute | string): {
+  command?: string
+  note: string
+} {
+  switch (route) {
+    case 'anthropic':
+      return { command: '/logins anthropic', note: 'sign in — /logins' }
+    case 'openai':
+      return { command: '/logins openai', note: 'sign in — /logins' }
+    case 'openrouter':
+      return { command: '/logins openrouter', note: 'connect — /logins' }
+    case 'gemini':
+      return { command: '/logins gemini', note: 'connect — /logins' }
+    case 'zai':
+      return { command: '/logins zai', note: 'connect — /logins (API key)' }
+    case 'moonshot':
+      return { command: '/logins moonshot', note: 'sign in — /logins' }
+    case 'deepseek':
+      return { command: '/logins deepseek', note: 'connect — /logins (API key)' }
+    case 'openai-compat':
+      return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)' }
+    case 'huggingface':
+      return { command: '/logins huggingface', note: 'sign in — /logins' }
+    case 'local':
+      return {
+        note: 'no sign-in — start a local server (Ollama · LM Studio · vLLM · llama.cpp) or set MERCURY_LOCAL_BASE_URL',
+      }
+    default:
+      return { command: '/logins', note: 'sign in — /logins' }
+  }
+}
+
+export interface SubModelRegistryReads {
+  options?: () => ModelOption[]
+  presences?: () => ProviderFamilyPresence[]
+  providers?: () => RouterModelSnapshot['providers']
+}
+
+export function composeSubModelRegistry(reads: SubModelRegistryReads = {}): SubModelRegistry {
+  const providers = (reads.providers ?? (() => buildRouterModelSnapshot().providers))()
+  const presences = (reads.presences ?? (() => providerFamilyPresences(providers)))()
+  const presenceOf = new Map(presences.map(presence => [presence.id as string, presence]))
+  const credentialed = (route: CallModelRoute | 'unrecognised'): boolean =>
+    presenceOf.get(route)?.credentialed ?? false
+
+  const entries: SubModelEntry[] = []
+  const seen = new Set<string>()
+  const options = (
+    reads.options ??
+    (() => getModelOptions({ anthropicCredentialed: () => credentialed('anthropic') }))
+  )()
+  for (const option of options) {
+    const value = typeof option.value === 'string' ? option.value : null
+    if (!value || value.startsWith('__')) continue
+    if (isProviderActionRow(value)) continue
+    const modelId = canonicalSubModelId(value)
+    if (seen.has(modelId)) continue
+    seen.add(modelId)
+    const route = declaredRouteOf(modelId) ?? 'unrecognised'
+    const description = option.description.length > 0 ? { description: option.description } : {}
+    if (!credentialed(route)) {
+      const home = subModelConnectHome(route)
+      entries.push({
+        kind: 'model',
+        modelId,
+        displayName: option.label,
+        source: route,
+        state: 'signed-out',
+        reason: option.unavailable ?? 'not signed in',
+        connect: home,
+        ...description,
+      })
+      continue
+    }
+    if (option.unavailable !== undefined) {
+      entries.push({
+        kind: 'model',
+        modelId,
+        displayName: option.label,
+        source: route,
+        state: 'refused',
+        reason: option.unavailable,
+        ...description,
+      })
+      continue
+    }
+    entries.push({
+      kind: 'model',
+      modelId,
+      displayName: option.label,
+      source: route,
+      state: 'selectable',
+      ...description,
+    })
+  }
+
+  const catalogueGated = new Set<CallModelRoute>(['huggingface', 'openrouter', 'gemini', 'openai'])
+  for (const presence of presences) {
+    const route = presence.id as CallModelRoute
+    if (entries.some(entry => entry.source === route)) continue
+    const home = subModelConnectHome(route)
+    entries.push({
+      kind: 'connect',
+      modelId: `connect:${presence.id}`,
+      displayName: presence.credentialed
+        ? `${providerDisplayName(presence.id)} — no models listed`
+        : `${providerDisplayName(presence.id)} — ${home.command !== undefined ? 'sign in' : 'configure'}`,
+      source: route,
+      state: presence.credentialed ? 'refused' : 'signed-out',
+      ...(presence.credentialed
+        ? { reason: presence.reason ?? 'no models in the live catalogue' }
+        : {
+            reason: catalogueGated.has(route)
+              ? connectToBrowseReason(route as Exclude<CatalogueFamily, 'local'>)
+              : 'not signed in',
+            connect: home,
+          }),
+      description: home.note,
+    })
+  }
+
+  const families: SubModelFamily[] = []
+  for (const entry of entries) {
+    if (families.some(family => family.source === entry.source)) continue
+    const presence = presenceOf.get(entry.source)
+    families.push({
+      source: entry.source,
+      label: providerDisplayName(entry.source),
+      credentialed: presence?.credentialed ?? false,
+      ...(presence?.credentialLabel !== undefined
+        ? { credentialLabel: presence.credentialLabel }
+        : {}),
+    })
+  }
+  return { entries, families }
+}
+
+
+export type SubModelSetResult =
+  | { ok: true; receipt: string }
+  | { ok: false; reason: string }
+
+export function setSubModel(
+  container: SubModelContainer,
+  modelId: string | null,
+  reads: SubModelRegistryReads = {},
+): SubModelSetResult {
+  const envVar = subModelEnvVar(container)
+  const envRaw = flagEnv(envVar)
+  if (envRaw !== undefined && envRaw.trim() !== '') {
+    return {
+      ok: false,
+      reason: `${container} is pinned by ${envVar} this session — unset it to pick here`,
+    }
+  }
+  const label = container === 'minerva' ? 'Minerva' : 'Console'
+  if (modelId === null) {
+    const had = getGlobalConfig().subModels?.[container] !== undefined
+    if (had) {
+      saveGlobalConfig(config => {
+        const next = { ...config.subModels }
+        delete next[container]
+        return { ...config, subModels: Object.keys(next).length > 0 ? next : undefined }
+      })
+    }
+    return {
+      ok: true,
+      receipt: `${label} model unset — ${SUB_MODEL_UNSET_HINT}`,
+    }
+  }
+  const wanted = canonicalSubModelId(modelId)
+  const entry = composeSubModelRegistry(reads).entries.find(
+    candidate => candidate.kind === 'model' && candidate.modelId === wanted,
+  )
+  if (!entry) return { ok: false, reason: `${wanted} is not in the live catalogue` }
+  if (entry.state !== 'selectable') {
+    const route = entry.connect !== undefined ? ` · ${entry.connect.note}` : ''
+    return { ok: false, reason: `${entry.displayName}: ${entry.reason ?? 'not selectable'}${route}` }
+  }
+  saveGlobalConfig(config => ({
+    ...config,
+    subModels: { ...config.subModels, [container]: wanted },
+  }))
+  return {
+    ok: true,
+    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — live on the next ${container === 'minerva' ? 'curator pass' : 'side question'}`,
+  }
+}

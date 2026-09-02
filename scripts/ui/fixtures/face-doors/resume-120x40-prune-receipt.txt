@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                    ⌁ resume session
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ orchard-src                                                    │  │ ❯ the tool-loop fold                       │
+   │ ❯ the tool-loop fold                             2 minutes ago │  │                                            │
+   │   concourse polish                       3 hours ago · cleared │  │ pruned · the operator's own act            │
+   │                                                                │  │                                            │
+   │ moodle                                                         │  │ deleted 2 transcripts                      │
+   │   moodle groundwork                                  1 day ago │  │ freed 164.1KB · 1 minute ago · by the ope… │
+   │                                                                │  │                                            │
+   │ orchard-src                                                    │  │                                            │
+   │   splash ripple study                               2 days ago │  │                                            │
+   │   forty-day spike                                  1 month ago │  │                                            │
+   │   ninety-day archive                              3 months ago │  │                                            │
+   │                                                                │  │                                            │
+   │ router crews                                                   │  ╰────────────────────────────────────────────╯
+   │   party · dps1 — dps1                           40 minutes ago │  ╭────────────────────────────────────────────╮
+   ╰────────────────────────────────────────────────────────────────╯  │ SESSIONS                                   │
+                                                                       │ Scope      all history — every project     │
+                                                                       │ Sessions   6 · 1 crew                      │
+                                                                       │ Opens      ● a real chat, in place         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  6 sessions in the full history · 1 crew · ↵ opens the real chat                             │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                ↵ / esc back to the list

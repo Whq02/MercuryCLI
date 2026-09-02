@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ signed in                                                      │  │ ❯ Usage-based billing — Anthropic Console… │
+   │   Claude subscription account                   op@example.com │  │                                            │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ GLM Coding Plan key                        │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ Stored auth-scoped (mode 600), never       │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ logged; ZAI_API_KEY wins over the          │
+   │                                                                │  │ store.                                     │
+   │ available                                                      │  │ key: •••••••••▌                            │
+   │ ❯ Usage-based billing — Anthropic Console…       not signed in │  │                                            │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ That is an Anthropic API key               │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │ (sk-ant-…) — this step stores a GLM        │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ Coding Plan key.                           │
+   │   DeepSeek — API key                             not signed in │  │ ↵ stores it · esc back                     │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   8                               │
+                                                                       │ Signed in  4 of 8                          │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  paste GLM Coding Plan key                                                                   │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                 ↵ store key · esc back

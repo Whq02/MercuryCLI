@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "ambiguous-defect-report",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Triage a vaguely reported defect",
+    "title": "Users report 'sync feels off'",
+    "task": "A handful of users say sync 'feels off sometimes' after the last release, but nobody can reproduce it reliably and there's no error in the logs they attached. The report doesn't name a screen, an action, or a timeframe. Figure out what's actually broken (if anything) and fix it.",
+    "ambiguity": 3,
+    "coupling": 1,
+    "parallelism": 0,
+    "taskShape": "bounded"
+  },
+  "expected": {
+    "profile": "opus-direct",
+    "width": 1,
+    "modelClasses": ["opus"],
+    "reasonCodes": ["high-ambiguity"],
+    "adjustments": []
+  }
+}

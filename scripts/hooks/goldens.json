@@ -1,0 +1,120 @@
+{
+ "getPreToolHookBlockingMessage/shape": "MyHook hook error: nope, blocked",
+ "getStopHookMessage/shape": "Stop hook feedback:\nnope, blocked",
+ "getTeammateIdleHookMessage/shape": "TeammateIdle hook feedback:\nnope, blocked",
+ "getTaskCreatedHookMessage/shape": "TaskCreated hook feedback:\nnope, blocked",
+ "getTaskCompletedHookMessage/shape": "TaskCompleted hook feedback:\nnope, blocked",
+ "getUserPromptSubmitHookBlockingMessage/shape": "UserPromptSubmit operation blocked by hook:\nundefined",
+ "hasBlockingResult/mixed": true,
+ "hasBlockingResult/none": false,
+ "shouldSkipHookDueToTrust/probe-process": false,
+ "getSessionEndHookTimeoutMs/default": 1500,
+ "createBaseHookInput/pinned-session": {
+  "agent_id": "agent-1",
+  "agent_type": "general-purpose",
+  "cwd": "«parity-cwd-abs»",
+  "permission_mode": "default",
+  "session_id": "fixture-session-1",
+  "transcript_path": "/tmp/mercury-parity-home/projects/«parity-cwd»/fixture-session-1.jsonl"
+ },
+ "createBaseHookInput/no-agent": {
+  "cwd": "«parity-cwd-abs»",
+  "session_id": "fixture-session-2",
+  "transcript_path": "/tmp/mercury-parity-home/projects/«parity-cwd»/fixture-session-2.jsonl"
+ },
+ "hasInstructionsLoadedHook/probe": false,
+ "hasWorktreeCreateHook/probe": false,
+ "processHookJSONOutput/legacy-approve-with-reason": {
+  "hookPermissionDecisionReason": "fine by policy",
+  "permissionBehavior": "allow"
+ },
+ "processHookJSONOutput/legacy-block-with-reason": {
+  "blockingError": {
+   "blockingError": "nope, blocked",
+   "command": "echo fixture"
+  },
+  "hookPermissionDecisionReason": "nope, blocked",
+  "permissionBehavior": "deny"
+ },
+ "processHookJSONOutput/pretooluse-specific-reason-wins": {
+  "blockingError": {
+   "blockingError": "specific why",
+   "command": "echo fixture"
+  },
+  "hookPermissionDecisionReason": "specific why",
+  "permissionBehavior": "deny"
+ },
+ "processHookJSONOutput/pretooluse-toplevel-reason-preserved": {
+  "blockingError": {
+   "blockingError": "top-level why",
+   "command": "echo fixture"
+  },
+  "hookPermissionDecisionReason": "top-level why",
+  "permissionBehavior": "deny"
+ },
+ "processHookJSONOutput/pretooluse-ask-updatedinput": {
+  "permissionBehavior": "ask",
+  "updatedInput": {
+   "file_path": "/rewritten"
+  }
+ },
+ "processHookJSONOutput/continue-false-stop-reason": {
+  "preventContinuation": true,
+  "stopReason": "fixture stop"
+ },
+ "parseHookOutput/plain-text-lane": {
+  "plainText": "just words, not JSON"
+ },
+ "parseHttpHookOutput/non-json-body-rejected": {
+  "validationError": "HTTP hook must return JSON, but got non-JSON response body: <html>nope</html>"
+ },
+ "parseElicitationHookOutput/decline-carries-block": {
+  "blockingError": {
+   "blockingError": "declined why",
+   "command": "echo fixture"
+  },
+  "response": {
+   "action": "decline"
+  }
+ },
+ "getMatchingHooks/subagentstop-matcher-semantics": [
+  {
+   "hook": {
+    "command": "echo exact",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  },
+  {
+   "hook": {
+    "command": "echo regex",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  },
+  {
+   "hook": {
+    "command": "echo star",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  },
+  {
+   "hook": {
+    "command": "echo always",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  }
+ ],
+ "getMatchingHooks/pretooluse-tool-name": [
+  {
+   "hook": {
+    "command": "echo bash-hook",
+    "type": "command"
+   },
+   "hookSource": "settings"
+  }
+ ],
+ "getMatchingHooks/no-session-store": []
+}

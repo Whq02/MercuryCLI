@@ -1,0 +1,24 @@
+{
+  "requests": [
+    "HEAD /",
+    "POST /v1/messages?beta=true"
+  ],
+  "deltasEmitted": 200,
+  "sentinels": {
+    "n": 13,
+    "of": 13,
+    "misses": 0,
+    "p50": 8,
+    "p95": 29,
+    "max": 29
+  },
+  "echoDuringStream": {
+    "n": 8,
+    "misses": 0,
+    "p50": 8,
+    "p95": 16,
+    "max": 16
+  },
+  "firstOutputMs": 9,
+  "writes": 266
+}

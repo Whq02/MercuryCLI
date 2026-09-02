@@ -1,0 +1,196 @@
+# scripts/gate/duration-seed.tsv — longest-first scheduling seed.
+# WALL-CLOCK ONLY: a stale row can never change a verdict, only cost seconds;
+# it also sets each suite's watchdog budget (max(floor, 2 × last)) when no
+# verdict row exists, so a row far below a suite's real wall is a kill.
+# The scheduler prefers the last full verdict's duration rows (the project
+# store's gate/verdict.json "durations"); this file is the cold-start seed
+# and the CI shard-bucketing input (scripts/gate/ci-shard.sh — CI has no
+# verdict.json). Rows are bare `suite<TAB>seconds` — the scheduler's sed
+# accepts nothing else — one per live suite, carrying that suite's last
+# POOLED seconds; a suite with no verdict row yet carries its class median
+# (listed under the estimate marker below). Unlisted (new) suites default
+# to 30 s. Refresh idiom: after a full pool, re-seed every row from
+# verdict.json "durations"; a suite rename carries its row to the new name.
+# RE-BASELINED from a hosted gate run: measured
+# hosted first-attempt walls, with the drive-heavy PTY estates inflated for
+# the movie-scaled capture profile (fixed-schedule drives run ~scale× their
+# authored seconds on the hosted runner — the local pool at scale 1 is
+# unchanged, and a stale row still only costs balance, never a verdict).
+
+ui	900
+ui-2	200
+ui-3	850
+ui-4	850
+ui-5	1500
+render-continuity	900
+streaming	850
+pulse	850
+core-runtime	500
+interview	800
+golden-journeys	700
+interaction	580
+cockpit-interaction	700
+diffws	1100
+prompts-panel	460
+render-migration	450
+journey	2100
+notifications	500
+transcript-rows	500
+prompt-input	700
+mission-runner	150
+session-graph	100
+typecheck	45
+attention	350
+usage-warning	165
+splash	170
+motion	300
+build	40
+ide	190
+gate	135
+agent-dispatch	110
+terminal-boundary	60
+agent-experience	105
+harness-compare	10
+run-recovery	45
+verify	15
+navigation	200
+visual-finish	200
+compositor	250
+project-services	250
+critters	250
+orphans	56
+switchboard	850
+switchboard-2	850
+switchboard-3	950
+switchboard-4	800
+switchboard-5	700
+switchboard-6	800
+builtin-tools	54
+visual-contract	53
+channel	0
+operator-identity	0
+changesets	110
+substrate	70
+reliability	50
+updater	50
+command-catalogue	44
+ownership	35
+memory	50
+primitives-kernel	30
+scribe	20
+eval	50
+editor-bridge	40
+render-engine	35
+default-provider	90
+default-model	6
+language-sidecars	12
+agent-definitions	20
+engine-durability	28
+longrun-invariants	28
+mcp	120
+capabilities	12
+idiom	18
+project-intel	25
+node-runtime	35
+edit-tools	23
+harness-profiles	23
+repetition-guard	130
+run-continuity	23
+workbench-board	23
+tools	40
+agents	12
+structure-tools	21
+health	130
+helm-console	20
+model-transition	28
+lsp	19
+daemon	17
+self-hosting	36
+bash	15
+identity	25
+tabula	16
+workflows	50
+crew	12
+formal-models	12
+model-routing	11
+permissions	20
+consistency-census	15
+realms	10
+smoke	10
+tree-ownership	5
+ink-runtime	8
+stop-policy	8
+accounts	7
+ast-tools	7
+headless	7
+memory-lifecycle	7
+ops	7
+turnEngine	7
+build-identity	6
+compact	6
+extensions	6
+providers	55
+repo-generation	6
+settings	6
+api	15
+context	5
+decisions	5
+model-policy	5
+vulcan	5
+behaviour-laws	4
+channels	4
+dap	33
+run	4
+task-durability	4
+engine-connector	105
+messages	3
+router	3
+taste	3
+autopilot	2
+cache	2
+deepthink	2
+dev-context	2
+model-registry	2
+prompt	2
+seat-slots	2
+sessionStorage	2
+subagent-doctrine	2
+themis	2
+topic-memory	2
+wrapper	2
+attachments	1
+audit-fixes	1
+bench	1
+hooks	1
+mission	1
+onboarding	1
+projectdirs	2
+skills	1
+wards	1
+distribution	0
+field-tasks	0
+fleet	0
+forge	0
+integrity	2
+model-floor	0
+swarm	0
+update-reliability	0
+winreg	0
+
+# class-median ESTIMATES — no pooled row yet (pure 4 · cpu 26 · pty 144)
+scroll	220
+apollo	4
+commit-gate	4
+pings	4
+provauth	4
+provider-compat	4
+wallet	4
+blender-bridge	4
+exit-handle	16
+search	2
+staleness	2
+unity-bridge	5
+aseprite	4
+browser	76
+rewind	30
+tool-economy	20

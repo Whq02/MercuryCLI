@@ -1,0 +1,9 @@
+{
+  "name": "bundle-probe",
+  "version": "1.0.0",
+  "description": "the proof suite's bundled extension — a skill and a hook under one switch",
+  "contributes": {
+    "skills": ["./skills"],
+    "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "true" } ] } ] }
+  }
+}

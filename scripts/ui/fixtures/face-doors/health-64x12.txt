@@ -1,0 +1,11 @@
+
+    (>_) MERCURY · health check
+
+    ↑ 5 more
+      Bundle integrity                              ✓ ok
+    ❯ Keybindings file                              ▲ warn
+    PROVIDERS
+    ↓ 5 more
+
+    health check wants at least 64×13 · this window is 64×12
+    ↑↓ move · ↵ evidence · d deep · r re-run · esc back

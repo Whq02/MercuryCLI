@@ -1,0 +1,11 @@
+{
+  "name": "js-debug-dap",
+  "version": "1.117.0",
+  "tarball": "js-debug-dap-v1.117.0.tar.gz",
+  "url": "https://github.com/microsoft/vscode-js-debug/releases/download/v1.117.0/js-debug-dap-v1.117.0.tar.gz",
+  "sha512": "294ca98ec0328f83e8ec53cc70b2d590603eb247b7eef7a57199e314ce2bda1801a9f53a70133d681c3293b4219441b3bb41e9374c72de960247089962dfac1e",
+  "license": "MIT",
+  "licenseFiles": ["LICENSE"],
+  "serverEntry": "src/dapDebugServer.js",
+  "notes": "Pinned 2026-08-29 (NODEDEBUG G2; the latest vscode-js-debug release at pin time). js-debug (Microsoft, MIT) — the standalone DAP server for Node/TypeScript debugging; a MULTI-SESSION adapter (per-target children via startDebugging — dapClient's child-session road drives it). Pure JS under Mercury's node prerequisite. Invocation: `node <vendor-root>/src/dapDebugServer.js <port> 127.0.0.1`. The GitHub release tarball roots everything under js-debug/ (stripped on extraction — the npm package/ idiom). Update procedure: bump version/url from the vscode-js-debug releases page, recompute sha512 from the downloaded asset (shasum -a 512), run `bun run scripts/vendor/fetch-js-debug.ts`, rebuild, re-run `bash scripts/dap/run-all.sh`."
+}

@@ -1,0 +1,85 @@
+{
+  "input": "bdd047",
+  "output": [
+    {
+      "message": {
+        "id": "openai_ec7653b5-64bb-4a1c-9866-ae49db8d4add",
+        "type": "message",
+        "role": "assistant",
+        "model": "gpt-5.6-sol",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "weighing the ops",
+            "signature": ""
+          },
+          {
+            "type": "text",
+            "text": "I would rather discuss this in plain words.",
+            "citations": []
+          }
+        ],
+        "stop_reason": "end_turn",
+        "stop_sequence": null,
+        "usage": {
+          "input_tokens": 50,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "output_tokens": 20,
+          "server_tool_use": {
+            "web_search_requests": 0,
+            "web_fetch_requests": 0
+          },
+          "service_tier": "standard",
+          "cache_creation": {
+            "ephemeral_1h_input_tokens": 0,
+            "ephemeral_5m_input_tokens": 0
+          },
+          "inference_geo": "",
+          "iterations": null,
+          "speed": "standard",
+          "output_tokens_details": null
+        },
+        "container": null,
+        "context_management": null
+      },
+      "requestId": "[REQUEST_ID]",
+      "type": "assistant",
+      "uuid": "00000000-0000-0000-0000-000000000000",
+      "timestamp": "2026-08-24T12:37:23.892Z",
+      "apexProviderTurn": {
+        "provider": "openai",
+        "items": [
+          {
+            "type": "reasoning",
+            "id": "rs_1",
+            "summary": [
+              {
+                "type": "summary_text",
+                "text": "weighing the ops"
+              }
+            ],
+            "encrypted_content": "ENC"
+          },
+          {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+              {
+                "type": "output_text",
+                "text": "I would rather discuss this in plain words."
+              }
+            ]
+          }
+        ],
+        "responseId": "resp_md",
+        "contractDigest": "bc1-2e2088c42d70d6603b8c32d6",
+        "providerUsage": {
+          "inputTokensTotal": 50,
+          "cachedInputTokens": 0,
+          "outputTokens": 20
+        }
+      }
+    }
+  ]
+}

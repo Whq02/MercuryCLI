@@ -1,0 +1,110 @@
+{
+ "hello-padded-box": {
+  "lines": [
+   "┌──────────────────────┐",
+   "│                      │",
+   "│ Hello, Mercury       │",
+   "│                      │",
+   "└──────────────────────┘",
+   ""
+  ],
+  "cursor": {
+   "x": 0,
+   "y": 5,
+   "visible": false
+  },
+  "viewport": {
+   "width": 40,
+   "height": 7
+  }
+ },
+ "two-columns-gap": {
+  "lines": [
+   "left lane   right lane",
+   "",
+   "",
+   ""
+  ],
+  "cursor": {
+   "x": 0,
+   "y": 3,
+   "visible": false
+  },
+  "viewport": {
+   "width": 40,
+   "height": 5
+  }
+ },
+ "wrap-narrow": {
+  "lines": [
+   "the quick",
+   "brown fox",
+   "jumps",
+   "",
+   "",
+   ""
+  ],
+  "cursor": {
+   "x": 0,
+   "y": 5,
+   "visible": false
+  },
+  "viewport": {
+   "width": 12,
+   "height": 7
+  }
+ },
+ "wide-glyphs": {
+  "lines": [
+   "あ い  mixed 漢 字",
+   "crab and anchor",
+   ""
+  ],
+  "cursor": {
+   "x": 0,
+   "y": 2,
+   "visible": false
+  },
+  "viewport": {
+   "width": 24,
+   "height": 4
+  }
+ },
+ "styled-runs": {
+  "lines": [
+   "alert text",
+   "inverted",
+   ""
+  ],
+  "cursor": {
+   "x": 0,
+   "y": 2,
+   "visible": false
+  },
+  "viewport": {
+   "width": 30,
+   "height": 4
+  }
+ },
+ "nested-borders-grow": {
+  "lines": [
+   "╭────────────╮┌────────────────────────────┐",
+   "│rail        ││                            │",
+   "│            ││ center content that wraps  │",
+   "│            ││ within the padded frame    │",
+   "│            ││                            │",
+   "│            ││                            │",
+   "│            ││                            │",
+   "╰────────────╯└────────────────────────────┘"
+  ],
+  "cursor": {
+   "x": 0,
+   "y": 7,
+   "visible": false
+  },
+  "viewport": {
+   "width": 44,
+   "height": 9
+  }
+ }
+}

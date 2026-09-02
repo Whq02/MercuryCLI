@@ -1,0 +1,48 @@
+name: Feature request
+description: Something Mercury should do and does not.
+title: "[feature] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: task
+    attributes:
+      label: What you are trying to do
+      description: The task in your own words, not the feature; the task is what a design answers.
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: What happens today
+      description: What Mercury does now when you try, and any workaround you use.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you would like
+      description: The behaviour you want, and where in the product it belongs (a screen, a command, a flag).
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The line `node dist/mercury.mjs --version` prints (`mercury --version` for a release install).
+      placeholder: "Mercury <version>"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and terminal
+      placeholder: "macOS 15 · Terminal, or Windows 11 · Windows Terminal (PowerShell 7)"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reach the gap
+      description: How you get to the place where the feature is missing, one step per line.
+    validations:
+      required: true

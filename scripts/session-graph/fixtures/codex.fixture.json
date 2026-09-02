@@ -1,0 +1,42 @@
+{
+ "adapter": "codex",
+ "tier": "handshake-captured-live",
+ "sourceRevision": "codex-cli 0.144.5",
+ "capturedAt": "2026-08-01",
+ "protocol": "codex-app-server@jsonrpc-initialize",
+ "handshake": {
+  "send": {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "method": "initialize",
+   "params": {
+    "clientInfo": {
+     "name": "mercury",
+     "title": "Mercury",
+     "version": "1.0"
+    }
+   }
+  },
+  "receive": {
+   "id": 1,
+   "result": {
+    "userAgent": "mercury/0.144.5 (Mac OS; arm64) (mercury; 1.0)",
+    "codexHome": "/home/user/.codex",
+    "platformFamily": "unix",
+    "platformOs": "macos"
+   }
+  }
+ },
+ "events": [
+  {
+   "method": "remoteControl/status/changed",
+   "params": {
+    "status": "disabled",
+    "serverName": "fixture-host",
+    "installationId": "fx-install-0000",
+    "environmentId": null
+   }
+  }
+ ],
+ "_sanitized": "userAgent/codexHome/serverName/installationId anonymized; shape unchanged"
+}

@@ -1,0 +1,21 @@
+
+
+                    (>_) MERCURY · health check
+
+                    Keybindings file
+                      ▲ warn
+
+                      evidence:
+                      ~/.mercury/keybindings.json holds 2
+                      unknown actions
+
+                      Unknown actions are ignored at load;
+                      the file keeps working.
+
+                      → remove the unknown rows, or re-run
+                      the keybindings doctor
+
+                      f — apply the safe remedy
+
+
+                    ↑↓ move · ↵ back · esc back

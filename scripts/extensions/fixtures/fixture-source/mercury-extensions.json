@@ -1,0 +1,9 @@
+{
+  "name": "fixture-source",
+  "description": "the proof-suite source: one extension of every kind, one partial, one with needs",
+  "extensions": [
+    { "name": "kitchen-sink", "version": "1.0.0", "description": "every contribution kind, for the provers", "path": "./kitchen-sink" },
+    { "name": "partial-one", "version": "0.1.0", "description": "declares a skills folder that is missing and a binary that is not on PATH", "path": "./partial-one" },
+    { "name": "needs-node", "version": "2.0.0", "description": "a server that needs node and an env var", "path": "./needs-node" }
+  ]
+}

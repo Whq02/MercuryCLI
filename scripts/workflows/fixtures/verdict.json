@@ -1,0 +1,28 @@
+{
+  "green": true,
+  "date": "2026-07-05T02:17:54.387Z",
+  "flag": "MERCURY_WORKFLOW_ROUTING",
+  "claim": "executor-tier stages routed to claude-sonnet-5 complete the same mechanical corpus at equal quality for less cost",
+  "evidenceSha256": "600d69f739e35e2adda3c43596e8d5eb01ce0273f236355eb7c58193cdf67fb5",
+  "corpusTag": "bench-corpus-v1",
+  "corpusCommit": "7901eb241f265055a8ac7c31bee340c7c58751fa",
+  "tasks": [
+    "flag-registry-row",
+    "util-function",
+    "cli-hidden-flag"
+  ],
+  "unrouted": {
+    "wallMs": 224693,
+    "costUsd": 5.7882255,
+    "checksOk": 3
+  },
+  "routed": {
+    "wallMs": 155711,
+    "costUsd": 3.36299865,
+    "checksOk": 3
+  },
+  "evidenceRefs": [
+    "scripts/party/corpus/",
+    "scripts/workflows/bench-workflow-routing.ts"
+  ]
+}

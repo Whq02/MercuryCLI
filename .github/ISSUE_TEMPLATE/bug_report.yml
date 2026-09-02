@@ -1,0 +1,67 @@
+name: Bug report
+description: Something behaves wrongly.
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. The version line, the platform and the exact steps let it be reproduced; the doctor certificate says what the install looks like. A security problem goes through the repository's Security tab instead of an issue.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The line `node dist/mercury.mjs --version` prints (`mercury --version` for a release install).
+      placeholder: "Mercury <version>"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and terminal
+      description: The operating system and the terminal host, with versions.
+      placeholder: "macOS 15 · Terminal, or Windows 11 · Windows Terminal (PowerShell 7)"
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How Mercury was installed
+      options:
+        - Built from source (node dist/mercury.mjs)
+        - The mercury launcher over a deployed runtime
+        - A release archive (mercury install)
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Exactly what you did, from boot to the failure, one step per line.
+      placeholder: |
+        1. node dist/mercury.mjs
+        2. New Session, Enter
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+      description: A pasted transcript of the failing screen helps; paste text rather than an image where you can.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: doctor --json
+      description: The output of `node dist/mercury.mjs doctor --json` (`mercury doctor --json` for a release install). It carries no credentials.
+      render: json
+    validations:
+      required: true

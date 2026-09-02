@@ -1,0 +1,10 @@
+{
+  "name": "com.mercury.unity-bridge",
+  "version": "0.1.0",
+  "displayName": "Mercury Unity Bridge",
+  "description": "Mercury's in-editor control bridge: a token-authed loopback NDJSON listener exposing play mode, scenes, hierarchy, console, and test runs to the Mercury terminal harness. Installed and updated by Mercury (op:\"unity_bridge_install\"); protocol version 1.",
+  "unity": "2021.3",
+  "dependencies": {
+    "com.unity.test-framework": "1.4.6"
+  }
+}

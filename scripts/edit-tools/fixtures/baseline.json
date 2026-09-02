@@ -1,0 +1,283 @@
+{
+  "program": "anvil",
+  "section": "\u00a73 frozen missions",
+  "mode": "baseline",
+  "fixtures": "disposable (mkdtemp, outside the repo tree); gh = deterministic shim; cargo/node/python = machine toolchain",
+  "missions": [
+    {
+      "id": "m1-ts-defect",
+      "title": "TypeScript defect: locate \u2192 two-hunk edit \u2192 targeted check",
+      "done": true,
+      "toolCalls": {
+        "Grep": 1,
+        "Read": 1,
+        "Edit": 2,
+        "Bash": 1
+      },
+      "totalToolCalls": 5,
+      "fallbackShellCalls": 1,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 36,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": 5,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": [
+        "fallback shell: node --test (no typed JS/TS runner today)"
+      ]
+    },
+    {
+      "id": "m2-py-defect",
+      "title": "Python defect: failing test \u2192 patch \u2192 targeted rerun",
+      "done": true,
+      "toolCalls": {
+        "Test": 4,
+        "Read": 1,
+        "Edit": 1
+      },
+      "totalToolCalls": 6,
+      "fallbackShellCalls": 0,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 12,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": 6,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": []
+    },
+    {
+      "id": "m3-rust-defect",
+      "title": "Rust defect: locate \u2192 edit \u2192 targeted cargo check",
+      "done": true,
+      "toolCalls": {
+        "Bash": 2,
+        "Read": 1,
+        "Edit": 1
+      },
+      "totalToolCalls": 4,
+      "fallbackShellCalls": 2,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 19,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": 4,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": [
+        "fallback shell: cargo test (no typed Rust runner today)",
+        "fallback shell: cargo test rerun (no typed Rust runner today)"
+      ]
+    },
+    {
+      "id": "m4-rename",
+      "title": "Rename journey: symbol + file across references",
+      "done": true,
+      "toolCalls": {
+        "Grep": 1,
+        "Read": 3,
+        "Edit": 5,
+        "Bash": 2
+      },
+      "totalToolCalls": 11,
+      "fallbackShellCalls": 2,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 205,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": 11,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": [
+        "fallback shell: mv src/calc.ts src/calculator.ts (no typed pathRename in this journey)",
+        "fallback shell: node --test (no typed JS/TS runner today)"
+      ]
+    },
+    {
+      "id": "m5-drift",
+      "title": "Drift journey: stale edit refused exactly, recovery without damage",
+      "done": true,
+      "toolCalls": {
+        "Read": 2,
+        "Edit": 2
+      },
+      "totalToolCalls": 4,
+      "fallbackShellCalls": 0,
+      "failedEditAttempts": 1,
+      "editFormatRereads": 1,
+      "repeatedEditBytes": 48,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": null,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": []
+    },
+    {
+      "id": "m6-mixed-targets",
+      "title": "Mixed-target reading: file \u00b7 directory \u00b7 notebook \u00b7 resource \u00b7 HTTP doc",
+      "done": true,
+      "toolCalls": {
+        "Read": 2,
+        "Bash": 1,
+        "Inspect": 1,
+        "WebFetch": 1
+      },
+      "totalToolCalls": 5,
+      "fallbackShellCalls": 1,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 0,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": null,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": [
+        "fallback shell: ls (Read refuses directories; prompt says use Bash ls)",
+        "notebook counted at the Read surface (parser exercised by its own suite)",
+        "mercury://doctor/latest \u2192 typed state 'absent' (absent-vs-ok both exact)",
+        "surfaces used: Read + Bash + Inspect + WebFetch (4 distinct for 5 targets)"
+      ]
+    },
+    {
+      "id": "m7-repository",
+      "title": "Repository journey: branch/commit \u2192 PR + checks \u2192 located review",
+      "done": true,
+      "toolCalls": {
+        "Git": 2,
+        "Bash": 2
+      },
+      "totalToolCalls": 4,
+      "fallbackShellCalls": 2,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 0,
+      "explicitTxCalls": 0,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": 4,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": [
+        "fallback shell: gh pr view (no repository-host resource kind today)",
+        "fallback shell: gh pr checks (no repository-host resource kind today)",
+        "review = hand-composed prose; no typed findings/severity/range surface today"
+      ]
+    },
+    {
+      "id": "m8-closed-loop",
+      "title": "Closed loop: transaction \u2192 edit \u2192 stabilize \u2192 test \u2192 resume \u2192 truthful finish",
+      "done": true,
+      "toolCalls": {
+        "Transaction": 6,
+        "Read": 1,
+        "Edit": 1,
+        "Test": 1
+      },
+      "totalToolCalls": 9,
+      "fallbackShellCalls": 0,
+      "failedEditAttempts": 0,
+      "editFormatRereads": 0,
+      "repeatedEditBytes": 12,
+      "explicitTxCalls": 6,
+      "invalidOrUnavailableCalls": 0,
+      "stepsToFirstGreenCheck": 9,
+      "falseSuccess": false,
+      "unresolvedRefs": 0,
+      "duplicateEvidenceRows": 0,
+      "operatorInterventions": 0,
+      "notes": []
+    }
+  ],
+  "intents": [
+    {
+      "id": "intent-read-file",
+      "want": "Read",
+      "rank": 1,
+      "top": [
+        "Read",
+        "ReadMcpResourceTool",
+        "TaskOutput"
+      ]
+    },
+    {
+      "id": "intent-open-directory",
+      "want": "Bash",
+      "rank": null,
+      "top": [
+        "ArtifactsList",
+        "CronList",
+        "ListMcpResourcesTool"
+      ]
+    },
+    {
+      "id": "intent-read-resource",
+      "want": "Inspect",
+      "rank": 3,
+      "top": [
+        "ReadMcpResourceTool",
+        "Read",
+        "Inspect"
+      ]
+    },
+    {
+      "id": "intent-fetch-document",
+      "want": "WebFetch",
+      "rank": 1,
+      "top": [
+        "WebFetch",
+        "Read",
+        "ReadMcpResourceTool"
+      ]
+    },
+    {
+      "id": "intent-run-js-tests",
+      "want": "Test",
+      "rank": 1,
+      "top": [
+        "Test",
+        "Launch",
+        "Journey"
+      ]
+    },
+    {
+      "id": "intent-run-cargo-test",
+      "want": "Test",
+      "rank": 1,
+      "top": [
+        "Test",
+        "Launch",
+        "Transaction"
+      ]
+    },
+    {
+      "id": "intent-pr-context",
+      "want": "Git",
+      "rank": null,
+      "top": [
+        "forge",
+        "ExitWorktree",
+        "Structure"
+      ]
+    }
+  ]
+}

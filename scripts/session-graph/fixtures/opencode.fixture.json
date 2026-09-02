@@ -1,0 +1,86 @@
+{
+ "adapter": "opencode",
+ "tier": "protocol-fixture",
+ "sourceRevision": "ACP v1 (agentclientprotocol.com, stable surface) \u2014 opencode 0.x not installed on the capture host 2026-08-01",
+ "protocol": "acp@1",
+ "handshake": {
+  "send": {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "method": "initialize",
+   "params": {
+    "protocolVersion": 1,
+    "clientCapabilities": {
+     "fs": {
+      "readTextFile": false,
+      "writeTextFile": false
+     }
+    },
+    "clientInfo": {
+     "name": "mercury",
+     "version": "1.0"
+    }
+   }
+  },
+  "receive": {
+   "jsonrpc": "2.0",
+   "id": 1,
+   "result": {
+    "protocolVersion": 1,
+    "agentInfo": {
+     "name": "opencode",
+     "version": "0.x"
+    },
+    "agentCapabilities": {
+     "loadSession": true,
+     "promptCapabilities": {
+      "image": true,
+      "embeddedContext": true
+     }
+    }
+   }
+  }
+ },
+ "events": [
+  {
+   "jsonrpc": "2.0",
+   "method": "session/update",
+   "params": {
+    "sessionId": "fx-opencode-1",
+    "update": {
+     "sessionUpdate": "tool_call",
+     "toolCallId": "tc-opencode-1",
+     "title": "read file",
+     "status": "in_progress",
+     "kind": "read"
+    }
+   }
+  },
+  {
+   "jsonrpc": "2.0",
+   "method": "session/update",
+   "params": {
+    "sessionId": "fx-opencode-1",
+    "update": {
+     "sessionUpdate": "tool_call_update",
+     "toolCallId": "tc-opencode-1",
+     "status": "completed"
+    }
+   }
+  },
+  {
+   "jsonrpc": "2.0",
+   "method": "session/update",
+   "params": {
+    "sessionId": "fx-opencode-1",
+    "update": {
+     "sessionUpdate": "agent_message_chunk",
+     "content": {
+      "type": "text",
+      "text": "done"
+     }
+    }
+   }
+  }
+ ]
+}

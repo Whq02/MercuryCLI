@@ -1,0 +1,249 @@
+{
+ "journey": "j11-cancel-esc",
+ "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
+ "cols": 120,
+ "rows": 40,
+ "capturedAt": "2026-09-02T03:26:05.313Z",
+ "screens": [
+  {
+   "atMs": 12500,
+   "rows": [
+    "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "SEAT · 0 peers          │ ✶ SESSION                                                                           04:25:36 │",
+    "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
+    "                        ││   ▄▄▀▀▀▀▀▀▀▄▄                                                                              ││",
+    "MINERVA · 0             ││ ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▄                                                                            ││",
+    "  ✧ no notes — /note    ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                                                            ││",
+    "  ❯ ask minerva         ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                                                            ││",
+    "                        ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  session · 1 tool                                                          ││",
+    "NEXT                    ││  ▀  ▀  ▀  ▀  ▀                                                                             ││",
+    "  · /workflows — agent …││    ▀ ▀▄ ▀ ▄▀ ▀                                                                             ││",
+    "                        ││       ▀ ▀                                                                                  ││",
+    "TELEMETRY               ││       ▀ ▄                                                                                  ││",
+    "  · spend $0.00         │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
+    "  · ctx 0% · 1000k      │                                                                                              │",
+    "  · health — run /health│                                                                                              │",
+    "  more: /workbench      │ 04:25:33 [sam] ❯ design the cache layer                                                      │",
+    "                        │                                                                                              │",
+    "                        │ 04:25:33 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
+    " ☐ Cache",
+    "",
+    "⦿ Which storage engine should the cache use?",
+    "",
+    "❯ 1.Redis",
+    "      A shared network cache; adds an infra dependency.",
+    "  2.In-memory",
+    "      Process-local; zero infra but not shared.",
+    "  3.File-based",
+    "      Durable and shared on one host; slowest.",
+    "  4.  Type something.",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
+    "  5. Chat about this",
+    "",
+    "Enter to select · ↑/↓ to navigate · Esc to cancel",
+    "",
+    "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "│ ⊞ SESSIONS › │  ▣ this session  │   /sessions                                                                        │",
+    "│ ▚▛▀▜▞ │ Opus 5 · ● high │ flux-arena-cwd-PsmLJX │ ⤳1 │ ⚑ 1 needs you · ctrl+x c board                                │",
+    "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "◐ design the cache layer · flux-arena-cwd-PsmLJX · running a tool                              esc interrupts · ⇧← back"
+   ]
+  },
+  {
+   "atMs": 14500,
+   "rows": [
+    "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "SEAT · 0 peers          │ ✶ SESSION                                                                           04:25:38 │",
+    "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
+    "                        ││   ▄▄▀▀▀▀▀▀▀▄▄                                                                              ││",
+    "MINERVA · 0             ││ ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▄                                                                            ││",
+    "  ✧ no notes — /note    ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                                                            ││",
+    "  ❯ ask minerva         ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                                                            ││",
+    "                        ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  session · 1 tool                                                          ││",
+    "WORKBENCH               ││ ▀  ▀  ▀  ▀  ▀                                                                              ││",
+    "  design the cache layer││  ▀ ▀▄ ▀ ▄▀ ▀                                                                               ││",
+    "                        ││      ▀ ▀                                                                                   ││",
+    "NEXT                    ││       ▀ ▄                                                                                  ││",
+    "  · /workflows — agent …│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
+    "  · /health — health ce…│                                                                                              │",
+    "  · /cards — memory     │                                                                                              │",
+    "  · /mission — set a mi…│ 04:25:33 [sam] ❯ design the cache layer                                                      │",
+    "                        │                                                                                              │",
+    "TELEMETRY               │ 04:25:33 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ │   └ ✕ Error: The user doesn't want to proceed with this tool use. The tool use was rejecte │",
+    "  · ctx 0% · 1000k      │ │     (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you │",
+    "  · health — run /health│ │     are doing and wait for the user to tell you how to proceed.                            │",
+    "                        │ │                                                                                            │",
+    "                        │                                                                                              │",
+    "                        │ 04:25:38 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "│ ⊞ SESSIONS › │  ▣ this session  │   /sessions                                                                        │",
+    "│ ▚▛▀▜▞ │ Opus 5 · ● high │ flux-arena-cwd-PsmLJX │ ⤳1                                                                 │",
+    "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "◐ design the cache layer · flux-arena-cwd-PsmLJX · ready                                                        ⇧← back",
+    "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
+    "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "? for shortcuts · ctrl+x p for commands + files",
+    "backslash (\\) + ↵ for a new line · ⇧← concourse"
+   ]
+  },
+  {
+   "atMs": -1,
+   "rows": [
+    "  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "SEAT · 0 peers          │ ✶ SESSION                                                                           04:25:42 │",
+    "  ● sam (you) · active  │╭────────────────────────────────────────────────────────────────────────────────────────────╮│",
+    "                        ││   ▄▄▀▀▀▀▀▀▀▄▄                                                                              ││",
+    "MINERVA · 0             ││ ▄▀▀▀▀▀▀▀▀▀▀▀▀▀▄                                                                            ││",
+    "  ✧ no notes — /note    ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                                                            ││",
+    "  ❯ ask minerva         ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀                                                                            ││",
+    "                        ││ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀  session · 1 tool                                                          ││",
+    "WORKBENCH               ││  ▀  ▀  ▀  ▀  ▀                                                                             ││",
+    "  design the cache layer││    ▀ ▀▄ ▀ ▄▀ ▀                                                                             ││",
+    "                        ││       ▀ ▀                                                                                  ││",
+    "NEXT                    ││       ▀ ▄                                                                                  ││",
+    "  · /workflows — agent …│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
+    "  · /health — health ce…│                                                                                              │",
+    "  · /cards — memory     │                                                                                              │",
+    "  · /mission — set a mi…│ 04:25:33 [sam] ❯ design the cache layer                                                      │",
+    "                        │                                                                                              │",
+    "TELEMETRY               │ 04:25:33 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ │   └ ✕ Error: The user doesn't want to proceed with this tool use. The tool use was rejecte │",
+    "  · ctx 0% · 1000k      │ │     (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you │",
+    "  · health — run /health│ │     are doing and wait for the user to tell you how to proceed.                            │",
+    "                        │ │                                                                                            │",
+    "                        │                                                                                              │",
+    "                        │ 04:25:38 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        │                                                                                              │",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "│ ⊞ SESSIONS › │  ▣ this session  │   /sessions                                                                        │",
+    "│ ▚▛▀▜▞ │ Opus 5 · ● high │ flux-arena-cwd-PsmLJX │ ⤳1                                                                 │",
+    "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "◐ design the cache layer · flux-arena-cwd-PsmLJX · ready                                                        ⇧← back",
+    "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
+    "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
+    "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "? for shortcuts · ctrl+x p for commands + files",
+    "backslash (\\) + ↵ for a new line · ⇧← concourse"
+   ]
+  }
+ ],
+ "probe": {
+  "counters": {
+   "patches": 34559
+  },
+  "frames": {
+   "total": 117,
+   "window": 117,
+   "p50": 10.817542000000685,
+   "p95": 19.153666999999587,
+   "p99": 46.797416,
+   "maxMs": 79.00133300000016
+  }
+ },
+ "requests": [
+  {
+   "path": "/"
+  },
+  {
+   "path": "/"
+  },
+  {
+   "path": "/"
+  },
+  {
+   "path": "/v1/messages?beta=true",
+   "model": "claude-opus-5",
+   "lastMessage": {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "<system-reminder>\nThe following deferred tools are now available via ToolSearch:\nApolloReview\nAskUserQuestion\nBrowser\nChangeSet\nCronCreate\nCronDelete\nCronList\nDebug\nEnterPlanMode\nEnterWorktree\nExitPlanMode\nExitWorktree\nGit\nJourney\nLaunch\nLaunchFleet\nMonitor\nNotebookEdit\nProviderSearch\nRecordConvention\nRememberLesson\nSendMessage\nStructure\nTaskOutput\nTaskStop\nTeamCreate\nTeamDelete\nTest\nTodoWrite\nTransaction\nWebFetch\nWebSearch\nWorkflow\nmcp__mercury__brief\nmcp__mercury__coord_say\nmcp__mercury__lease_claim\nmcp__mercury__lease_list\nmcp__mercury__lease_release\nmcp__mercury__render_tui\n</system-reminder>"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- aesthetic-direction: Give a web interface a deliberate visual identity — choose one direction, then derive type, colour, spacing, layout, and motion from it so the result does not read as a framework default. Use when designing or restyling pages, landing sites, dashboa…\n- app-proof: Prove a web application works by driving it — start the server under Mercury's Service tool, wait until it is genuinely ready, drive real pages with Mercury's Browser tool (open, click, type, waitFor, extract, screenshot), and record the verdict. Us…\n- drafting-partner: Co-write a substantial document with the user — a proposal, spec, report, policy, or long memo — by agreeing the brief, building the outline together, drafting section by section, and running review passes that the user steers. Use when the user wan…\n- extension-maker: Make or publish a Mercury extension — a folder with one mercury-extension.json manifest contributing skills, commands, agents, hooks, MCP servers, language servers, channels or keybindings — or a source (a git repo, folder or archive carrying mercur…\n- mcp-smithy: Build, test, and register a Model Context Protocol server that gives Mercury (or any MCP host) new tools, resources, or prompts — scaffold with the current TypeScript or Python SDK, pick stdio or Streamable HTTP, return structured results, probe the…\n- pdf-documents: Work with PDF files — extract text and tables, read metadata, merge, split, rotate, and watermark pages, fill forms, and generate new PDFs from data or HTML. Use when the request names a .pdf or asks to produce one; not for Word, Excel, or PowerPoin…\n- provider-apis: Use when the user is building against a model-provider API or asks which models, endpoints, or request shapes to use. The reference for every provider API Mercury itself speaks — the Anthropic Messages dialect, the OpenAI Responses dialect, and the …\n- skill-forge: Author or revise a Mercury skill (a SKILL.md with optional helper files) — the frontmatter contract, a discovery description that triggers only when it should, a body that loads only on invocation, and where the skill lives so Mercury finds it. Use …\n- slide-decks: Build, read, and revise PowerPoint decks (.pptx) — outline an existing deck, generate slides from a template's layouts with python-pptx, place text, tables, charts, and images on a consistent grid, and render to images or PDF for a visual check. Use…\n- spreadsheets: Read, build, and repair Excel workbooks (.xlsx) — inspect sheets and headers, load data with openpyxl or pandas, write formulas that recalculate, apply number formats and conditional styles, and verify the result opens cleanly. Use when the request …\n- word-documents: Create, read, edit, and review Word (.docx) files — generate documents with python-docx, inspect or restructure the underlying OOXML, fill templates, add tables and images, work with tracked changes and comments, and convert to PDF. Use when the req…\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# currentDate\nToday's date is 2026-09-02.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "design the cache layer",
+      "cache_control": {
+       "type": "ephemeral"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "path": "/v1/messages?beta=true",
+   "model": "claude-opus-5",
+   "lastMessage": {
+    "role": "user",
+    "content": [
+     {
+      "type": "tool_result",
+      "tool_use_id": "auq_1",
+      "content": "<tool_use_error>The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing and wait for the user to tell you how to proceed.</tool_use_error>",
+      "is_error": true,
+      "cache_control": {
+       "type": "ephemeral"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "path": "/v1/messages?beta=true",
+   "model": "claude-haiku-4-5-20251001",
+   "lastMessage": {
+    "role": "user",
+    "content": [
+     {
+      "type": "text",
+      "text": "design the cache layer\nLet me confirm the open decisions before proceeding.\nUnderstood — proceeding with the decisions."
+     }
+    ]
+   }
+  }
+ ],
+ "sends": [
+  {
+   "atMs": 1860.4,
+   "b64": "DQ=="
+  },
+  {
+   "atMs": 6666.149139404297,
+   "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
+  },
+  {
+   "atMs": 7466.149139404297,
+   "b64": "DQ=="
+  },
+  {
+   "atMs": 11666.149139404297,
+   "b64": "Gw=="
+  }
+ ]
+}

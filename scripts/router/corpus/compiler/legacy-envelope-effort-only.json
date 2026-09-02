@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "legacy-envelope-effort-only",
+  "mode": "scribe",
+  "mission": {
+    "objective": "A legacy dispatch envelope carrying only an effort hint",
+    "title": "Legacy dispatch: effort-only route",
+    "task": "Investigate and fix the reported memory growth in the long-lived Implementer process; the dispatching Scribe only set a legacy effort hint on the envelope, with no candidate-node graph and no route-plan fields at all.",
+    "ambiguity": 2,
+    "coupling": 1,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "legacyRoute": { "effort": "max" }
+  },
+  "expected": {
+    "profile": "opus-direct",
+    "width": 1,
+    "modelClasses": ["opus"],
+    "reasonCodes": ["fallback-local"],
+    "adjustments": []
+  }
+}

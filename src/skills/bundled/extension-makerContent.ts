@@ -1,0 +1,10 @@
+import skillMd from './extension-maker/SKILL.md'
+import ref_references_CONTRACT_md from './extension-maker/references/CONTRACT.md'
+import ref_references_README_template_md from './extension-maker/references/README-template.md'
+
+export const SKILL_MD: string = skillMd
+
+export const SKILL_FILES: Record<string, string> = {
+  "references/CONTRACT.md": ref_references_CONTRACT_md,
+  "references/README-template.md": ref_references_README_template_md,
+}

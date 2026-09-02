@@ -1,0 +1,13 @@
+# scripts/switchboard-4/members.txt — this sub-suite's provers, one
+# basename per line (the files live in scripts/switchboard/). The parent
+# suite runs every prover NOT named by a sibling list, so a NEW prover
+# lands there automatically; a name listed here but missing on disk is a
+# loud red in this runner.
+prove-command-table.ts
+prove-coordinator-strip-plain.ts
+prove-letter-verb-yield.ts
+prove-mirror-grammar.ts
+prove-one-door-drive.ts
+prove-reactivate-drive.ts
+prove-spec-ledger-docs.ts
+prove-w0-laws.ts

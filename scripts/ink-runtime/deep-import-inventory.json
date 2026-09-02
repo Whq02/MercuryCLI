@@ -1,0 +1,113 @@
+{
+  "comment": "Grouped contracts — every sanctioned deep-import module carries a group justification. A module joining ungrouped fails the gate until placed deliberately (--record parks it in 'unclassified').",
+  "groups": {
+    "design-system-base": {
+      "why": "the facade's Box/Text ARE the themed wrappers — the design system + theming layer reaches the raw primitives and styling truth directly (re-routing would cycle through the facade)",
+      "modules": [
+        "colorize",
+        "components/Box",
+        "components/Text",
+        "events/click-event",
+        "events/focus-event",
+        "styles"
+      ]
+    },
+    "escape-vocabulary": {
+      "why": "shared protocol constants — public escape vocabulary, no decision bodies",
+      "modules": [
+        "termio/ansi",
+        "termio/csi",
+        "termio/dec",
+        "termio/osc"
+      ]
+    },
+    "held-alt-release": {
+      "why": "the launcher-held alt-buffer one-shot — main.tsx's commander output writer must release the hold BEFORE any usage error prints and before any screen mounts; a pre-facade boot seam by design (the facade itself is not loaded yet on those paths)",
+      "modules": [
+        "launcherAltHold"
+      ]
+    },
+    "width-oracle": {
+      "why": "the ONE width oracle and its pinned wrap dispatcher (prove-width-oracle-sot)",
+      "modules": [
+        "stringWidth",
+        "wrapAnsi"
+      ]
+    },
+    "event-and-geometry-types": {
+      "why": "type vocabulary consumed app-wide (KeyboardEvent/InputEvent/selection geometry/instance + render types) plus the currentInputEventSeq read; dom and frame contribute only their DOMElement / FlickerReason types",
+      "modules": [
+        "dom",
+        "events/input-event",
+        "events/keyboard-event",
+        "frame",
+        "geometry/selection",
+        "render-to-screen"
+      ]
+    },
+    "session-truth": {
+      "why": "terminal capability + focus state — read-side truth the app consults directly",
+      "modules": [
+        "session/capabilities",
+        "session/focus-store",
+        "session/terminalExperience",
+        "session/terminalProfile",
+        "session/windowsHostSetup"
+      ]
+    },
+    "runtime-seams": {
+      "why": "deliberate cross-plane seams: live instance registries, the node cache, the flush-probe registry, and the instance/size contexts, the frame-trace ring (app land feeds keystroke resolutions + reads /trace), and the terminal notification ping writer (the switchboard's needs-you bell rings through the termio owner — a facade route would cycle)",
+      "modules": [
+        "components/TerminalSizeContext",
+        "instances",
+        "node-cache",
+        "root/flush-registry",
+        "root/frame-trace",
+        "termio/notifyPing"
+      ]
+    },
+    "package-scoped-components-and-hooks": {
+      "why": "module-level component/hook API the facade deliberately keeps package-scoped (single-purpose surfaces with few, named consumers); the hooks and components the facade also re-exports count here when a consumer reaches them by module path — the same API either way",
+      "modules": [
+        "Ansi",
+        "components/AlternateScreen",
+        "components/Link",
+        "components/NoSelect",
+        "components/ScrollBox",
+        "hooks/use-animation-frame",
+        "hooks/use-animation-value",
+        "hooks/use-app",
+        "hooks/use-declared-cursor",
+        "hooks/use-input",
+        "hooks/use-interval",
+        "hooks/use-search-highlight",
+        "hooks/use-selection",
+        "hooks/use-tab-status",
+        "hooks/use-terminal-focus",
+        "hooks/use-terminal-title",
+        "hooks/use-terminal-viewport",
+        "measure-element",
+        "useTerminalNotification"
+      ]
+    },
+    "lustre-recess-layer": {
+      "why": "the focused-layer backdrop: the policy owner (utils/cockpit/recessBackdrop) and the elevated-surface hosts (FullscreenLayout, mercury-ui CommandCenter) reach the compositor's recess store + color math directly; the recess is a COMPOSITOR law (post-compose styleId remap), so its registration/target seams live beside the cell grid by design",
+      "modules": [
+        "cell-grid",
+        "recessLayer"
+      ]
+    },
+    "terminal-mode-ledger": {
+      "why": "the terminal-mode obligation ledger: arm-site owners (ink App raw-mode/cursor, AlternateScreen session trio, the /mouse live toggle, launcherAltHold imports) note acquisitions beside their byte writes, and gracefulShutdown's cleanup derives its EXACT close set from the open obligations (settle-exactly-once; no broad unconditional reset). The ledger is pure per-process state living beside the root owners it records — a facade re-route would put bookkeeping on the far side of the writes it must mirror.",
+      "modules": [
+        "root/terminalModeLedger"
+      ]
+    },
+    "transitional-seams": {
+      "why": "truncate.ts keeps a compiling alias for the format.ts barrel's wrapText re-export until the barrel drops it and the alias is removed, at which point 'wrap-text' leaves this set (a shrink never fails the gate). Nothing outside the barrel imports it.",
+      "modules": [
+        "wrap-text"
+      ]
+    }
+  }
+}

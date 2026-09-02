@@ -1,0 +1,23 @@
+{
+  "query": "terminal harness for software development",
+  "follow_up_questions": null,
+  "answer": null,
+  "images": [],
+  "results": [
+    {
+      "title": "Harness Developer Hub",
+      "url": "https://developer.harness.io/",
+      "content": "Documentation, tutorials, and reference material for the Harness software delivery platform.",
+      "score": 0.97231,
+      "raw_content": null
+    },
+    {
+      "title": "Best of Agent Harnesses and Harness Techniques - GitHub",
+      "url": "https://github.com/RyanAlberts/best-of-Agent-Harnesses",
+      "content": "A curated list of agent harnesses and harness techniques with comparisons.",
+      "score": 0.61458,
+      "raw_content": null
+    }
+  ],
+  "response_time": 0.42
+}

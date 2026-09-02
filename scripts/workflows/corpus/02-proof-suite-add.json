@@ -1,0 +1,12 @@
+{
+  "id": "proof-suite-add",
+  "title": "Add a new auto-joining proof suite with one green proof",
+  "prompt": "Create a new proof suite scripts/benchcanary/ following this repo's suite convention exactly: (1) scripts/benchcanary/run-all.sh — copy the glob template used by scripts/party/run-all.sh (shopt nullglob loop over prove-*.ts via ~/.bun/bin/bun, non-zero exit on failure), executable; (2) scripts/benchcanary/prove-canary.ts — a bun proof asserting that src/utils/model/seatSlots.ts exports PARTY_SEAT_DEFAULTS with tank model 'claude-opus-4-8[1m]' (import the module and check, using the check/section helper style of the sibling proofs). The suite must exit 0.",
+  "baseRef": "bench-corpus-v1",
+  "timeboxMs": 1200000,
+  "successChecks": [
+    { "kind": "cmd", "cmd": "bash scripts/benchcanary/run-all.sh" },
+    { "kind": "grep", "file": "scripts/benchcanary/prove-canary.ts", "pattern": "PARTY_SEAT_DEFAULTS" }
+  ],
+  "tags": ["feature", "proofs"]
+}

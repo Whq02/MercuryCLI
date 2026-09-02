@@ -1,0 +1,13 @@
+{
+  "id": "flag-registry-row",
+  "title": "Register a new env flag end-to-end (registry row + generated doc)",
+  "prompt": "Register a new env flag MERCURY_BENCH_CANARY in this repo's flag registry. Requirements: (1) add a row to FLAG_REGISTRY in src/substrate/flagRegistry.ts with kind 'opt-in', summary 'benchmark canary (inert)', off 'byte-identical', consumer 'src/substrate/flagRegistry.ts', keeping the array alphabetized; (2) regenerate scripts/substrate/.out/FLAG-REGISTRY.md via `~/.bun/bin/bun run scripts/substrate/gen-flag-table.ts`; (3) the registry gate `~/.bun/bin/bun run scripts/substrate/prove-flag-registry.ts` must stay green. Do not change any other behavior.",
+  "baseRef": "bench-corpus-v1",
+  "timeboxMs": 1200000,
+  "successChecks": [
+    { "kind": "grep", "file": "src/substrate/flagRegistry.ts", "pattern": "MERCURY_BENCH_CANARY" },
+    { "kind": "grep", "file": "scripts/substrate/.out/FLAG-REGISTRY.md", "pattern": "MERCURY_BENCH_CANARY" },
+    { "kind": "cmd", "cmd": "~/.bun/bin/bun run scripts/substrate/prove-flag-registry.ts" }
+  ],
+  "tags": ["mechanical", "registry"]
+}

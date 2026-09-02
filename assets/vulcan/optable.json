@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "note": "VULCAN op-table contract — ONE source of truth for the Godot tool schema, the lite subset, read/mutate/exec permission classes, the addon handler-coverage proof, and the docs. Per-category counts sum to 163; the frontier category sits above it. class: read = never mutates project/editor state; mutate = UndoRedo-wrapped editor edit; exec = runs code / drives input / launches (ask-always). lite marks the 76-op core subset.",
+  "categories": [
+    { "key": "project", "label": "Project", "ops": [
+      { "name": "project_info", "class": "read", "lite": true, "summary": "Engine version, project name, main scene, feature tags", "args": {} },
+      { "name": "project_file_search", "class": "read", "lite": true, "summary": "Find project files by glob/substring, optionally by kind", "args": { "pattern": "glob or substring", "type": "optional: scenes|scripts|resources|all" } },
+      { "name": "project_settings_get", "class": "read", "lite": true, "summary": "Read one ProjectSettings value", "args": { "setting": "settings path, e.g. application/config/name" } },
+      { "name": "project_settings_set", "class": "mutate", "lite": false, "summary": "Set a ProjectSettings value (saved; smart-parsed)", "args": { "setting": "settings path", "value": "smart-parsed value" } },
+      { "name": "project_settings_list", "class": "read", "lite": true, "summary": "List ProjectSettings, optionally by section prefix", "args": { "prefix": "optional section filter" } },
+      { "name": "project_uid_to_path", "class": "read", "lite": true, "summary": "Resolve uid:// to res:// path", "args": { "uid": "uid://…" } },
+      { "name": "project_path_to_uid", "class": "read", "lite": true, "summary": "Resolve res:// path to its uid://", "args": { "path": "res://…" } }
+    ] },
+    { "key": "scene", "label": "Scene", "ops": [
+      { "name": "scene_tree", "class": "read", "lite": true, "summary": "Node tree of the edited (or a named) scene", "args": { "path": "optional res://…tscn (default: edited scene)", "depth": "optional int" } },
+      { "name": "scene_current", "class": "read", "lite": true, "summary": "Which scene is open/edited, dirty state, open scene list", "args": {} },
+      { "name": "scene_create", "class": "mutate", "lite": true, "summary": "Create + open a new scene with a chosen root", "args": { "path": "res://…tscn", "root_type": "root class, e.g. Node2D", "root_name": "optional" } },
+      { "name": "scene_open", "class": "mutate", "lite": true, "summary": "Open a scene for editing", "args": { "path": "res://…tscn" } },
+      { "name": "scene_save", "class": "mutate", "lite": true, "summary": "Save the edited scene (optionally save-as)", "args": { "path": "optional res://… save-as target" } },
+      { "name": "scene_delete", "class": "mutate", "lite": false, "summary": "Delete a scene file (refuses the open scene)", "args": { "path": "res://…tscn" } },
+      { "name": "scene_instance", "class": "mutate", "lite": true, "summary": "Instance a PackedScene under a parent node", "args": { "scene": "res://…tscn", "parent": "NodePath", "name": "optional" } },
+      { "name": "scene_play", "class": "exec", "lite": true, "summary": "Play the project/current/named scene from the editor", "args": { "scene": "optional: main|current|res://…tscn" } },
+      { "name": "scene_stop", "class": "exec", "lite": true, "summary": "Stop the running play session", "args": {} }
+    ] },
+    { "key": "node", "label": "Node", "ops": [
+      { "name": "node_get", "class": "read", "lite": true, "summary": "One node: type, path, script, groups, children summary", "args": { "node": "NodePath in the edited scene" } },
+      { "name": "node_get_properties", "class": "read", "lite": true, "summary": "Property values of a node (optionally filtered)", "args": { "node": "NodePath", "filter": "optional name substring" } },
+      { "name": "node_add", "class": "mutate", "lite": true, "summary": "Add a node under a parent (undoable)", "args": { "parent": "NodePath", "type": "node class, e.g. Sprite2D", "name": "optional", "properties": "optional dict (smart-parsed)" } },
+      { "name": "node_delete", "class": "mutate", "lite": true, "summary": "Delete a node (undoable)", "args": { "node": "NodePath" } },
+      { "name": "node_duplicate", "class": "mutate", "lite": true, "summary": "Duplicate a node under the same parent", "args": { "node": "NodePath", "name": "optional" } },
+      { "name": "node_move", "class": "mutate", "lite": true, "summary": "Reparent/reorder a node", "args": { "node": "NodePath", "new_parent": "NodePath", "index": "optional int" } },
+      { "name": "node_rename", "class": "mutate", "lite": true, "summary": "Rename a node", "args": { "node": "NodePath", "name": "new name" } },
+      { "name": "node_set_property", "class": "mutate", "lite": true, "summary": "Set one property (smart-parsed; undoable; optional expect anchor)", "args": { "node": "NodePath", "property": "property name", "value": "smart-parsed value", "expect": "optional: smart-parsed anchor — ANCHOR_MISMATCH with the live value unless the property currently equals it (batch_transaction steps carry it too)" } },
+      { "name": "node_call_method", "class": "exec", "lite": false, "summary": "Call a method on an edited-scene node (tool context)", "args": { "node": "NodePath", "method": "method name", "args": "optional array" } },
+      { "name": "node_signal_list", "class": "read", "lite": true, "summary": "Signals of a node + current connections", "args": { "node": "NodePath" } },
+      { "name": "node_signal_connect", "class": "mutate", "lite": true, "summary": "Connect a signal to a target method (undoable)", "args": { "node": "NodePath", "signal": "signal name", "target": "NodePath", "method": "target method" } },
+      { "name": "node_signal_disconnect", "class": "mutate", "lite": false, "summary": "Disconnect a signal connection (undoable)", "args": { "node": "NodePath", "signal": "signal name", "target": "NodePath", "method": "target method" } },
+      { "name": "node_group_add", "class": "mutate", "lite": true, "summary": "Add a node to a group (persistent; undoable)", "args": { "node": "NodePath", "group": "group name" } },
+      { "name": "node_group_remove", "class": "mutate", "lite": false, "summary": "Remove a node from a group (undoable)", "args": { "node": "NodePath", "group": "group name" } }
+    ] },
+    { "key": "script", "label": "Script", "ops": [
+      { "name": "script_read", "class": "read", "lite": true, "summary": "Read a script by path or by the node it is attached to", "args": { "path": "res://….gd, or a NodePath" } },
+      { "name": "script_list", "class": "read", "lite": true, "summary": "List project scripts (path + attached-to summary)", "args": {} },
+      { "name": "script_search", "class": "read", "lite": true, "summary": "Search script sources for a string/regex", "args": { "query": "text or regex", "path": "optional dir scope" } },
+      { "name": "script_create", "class": "mutate", "lite": true, "summary": "Create a script (template when no content), optionally attach", "args": { "path": "res://….gd", "content": "optional source", "extends": "optional base class", "attach_to": "optional NodePath" } },
+      { "name": "script_edit", "class": "mutate", "lite": true, "summary": "Replace a script's source (full content or find/replace)", "args": { "path": "res://….gd", "content": "optional full replacement", "find": "optional exact text", "replace": "optional replacement" } },
+      { "name": "script_attach", "class": "mutate", "lite": true, "summary": "Attach an existing script to a node (undoable)", "args": { "node": "NodePath", "path": "res://….gd" } },
+      { "name": "script_detach", "class": "mutate", "lite": false, "summary": "Detach the script from a node (undoable)", "args": { "node": "NodePath" } },
+      { "name": "script_validate", "class": "read", "lite": true, "summary": "Syntax-validate a script (by path or raw content)", "args": { "path": "optional res://….gd", "content": "optional raw source" } }
+    ] },
+    { "key": "editor", "label": "Editor", "ops": [
+      { "name": "editor_state", "class": "read", "lite": true, "summary": "Editor snapshot: version, edited scene, selection, play state", "args": {} },
+      { "name": "editor_errors", "class": "read", "lite": true, "summary": "Recent editor log errors/warnings", "args": { "limit": "optional int" } },
+      { "name": "editor_screenshot", "class": "read", "lite": true, "summary": "Screenshot the editor viewport to a project-private file", "args": { "out": "optional res:// target (default .godot/mercury-vulcan-shots/)" } },
+      { "name": "editor_select", "class": "mutate", "lite": true, "summary": "Select a node in the editor (inspector follows)", "args": { "node": "NodePath" } },
+      { "name": "editor_open_scene", "class": "mutate", "lite": true, "summary": "Reveal + focus a scene/script/resource in the editor", "args": { "path": "res://…" } },
+      { "name": "editor_reload", "class": "mutate", "lite": false, "summary": "Reload scripts / the edited scene / rescan the filesystem", "args": { "what": "scripts|scene|filesystem" } },
+      { "name": "editor_undo", "class": "mutate", "lite": true, "summary": "Editor undo (one step)", "args": {} },
+      { "name": "editor_redo", "class": "mutate", "lite": true, "summary": "Editor redo (one step)", "args": {} },
+      { "name": "editor_execute_script", "class": "exec", "lite": false, "summary": "Run a one-shot @tool GDScript with a run() func in the editor", "args": { "code": "GDScript source defining run()", "timeout_ms": "optional" } }
+    ] },
+    { "key": "input", "label": "Input", "ops": [
+      { "name": "input_map_list", "class": "read", "lite": true, "summary": "InputMap actions + bound events", "args": {} },
+      { "name": "input_map_add", "class": "mutate", "lite": false, "summary": "Add/extend an InputMap action (saved to project settings)", "args": { "action": "action name", "events": "array, e.g. [{key:'Space'},{button:'left'}]" } },
+      { "name": "input_key", "class": "exec", "lite": false, "summary": "Simulate a key tap/press/release in the running game", "args": { "key": "key name, e.g. Space", "pressed": "optional bool (tap when omitted)" } },
+      { "name": "input_mouse_button", "class": "exec", "lite": false, "summary": "Simulate a mouse button at a position", "args": { "button": "left|right|middle|wheel_up|wheel_down", "position": "Vector2", "pressed": "optional bool (click when omitted)" } },
+      { "name": "input_mouse_move", "class": "exec", "lite": false, "summary": "Simulate mouse motion", "args": { "position": "Vector2", "relative": "optional Vector2" } },
+      { "name": "input_action", "class": "exec", "lite": false, "summary": "Press/release a mapped input action", "args": { "action": "action name", "pressed": "optional bool", "strength": "optional 0..1" } },
+      { "name": "input_sequence", "class": "exec", "lite": false, "summary": "Run a timed input sequence", "args": { "steps": "array of {key|button|action|wait_ms, …}" } }
+    ] },
+    { "key": "runtime", "label": "Runtime", "ops": [
+      { "name": "runtime_status", "class": "read", "lite": true, "summary": "Is a play session live; scene, uptime, bridge state", "args": {} },
+      { "name": "runtime_tree", "class": "read", "lite": true, "summary": "Live scene tree of the running game", "args": { "root": "optional NodePath", "depth": "optional int" } },
+      { "name": "runtime_node_get", "class": "read", "lite": true, "summary": "Live node properties in the running game", "args": { "node": "NodePath", "properties": "optional array (all common when omitted)" } },
+      { "name": "runtime_log", "class": "read", "lite": true, "summary": "Buffered print/log output of the running game", "args": { "limit": "optional int" } },
+      { "name": "runtime_errors", "class": "read", "lite": true, "summary": "Runtime errors/warnings since play started", "args": { "limit": "optional int" } },
+      { "name": "runtime_ui_list", "class": "read", "lite": true, "summary": "Visible Control nodes (buttons, fields) with rects", "args": { "interactable_only": "optional bool" } },
+      { "name": "runtime_ui_text", "class": "read", "lite": false, "summary": "Visible UI text (one node or all)", "args": { "node": "optional NodePath" } },
+      { "name": "runtime_watch", "class": "read", "lite": false, "summary": "Sample a property over a window, return the series", "args": { "node": "NodePath", "property": "property name", "duration_ms": "optional" } },
+      { "name": "runtime_record_list", "class": "read", "lite": false, "summary": "List saved input recordings", "args": {} },
+      { "name": "runtime_screenshot", "class": "read", "lite": true, "summary": "Screenshot the running game viewport", "args": { "out": "optional res:// target" } },
+      { "name": "runtime_node_set", "class": "exec", "lite": false, "summary": "Set a live property in the running game", "args": { "node": "NodePath", "property": "property name", "value": "smart-parsed value" } },
+      { "name": "runtime_call", "class": "exec", "lite": false, "summary": "Call a method on a live node", "args": { "node": "NodePath", "method": "method name", "args": "optional array" } },
+      { "name": "runtime_eval", "class": "exec", "lite": false, "summary": "Evaluate an expression in the running game", "args": { "expression": "GDScript expression", "node": "optional context NodePath" } },
+      { "name": "runtime_click", "class": "exec", "lite": false, "summary": "Click a UI control or a screen position in the running game", "args": { "target": "NodePath or Vector2 position" } },
+      { "name": "runtime_navigate", "class": "exec", "lite": false, "summary": "Activate a UI path (press button, focus field) to navigate", "args": { "to": "NodePath to activate" } },
+      { "name": "runtime_scene_change", "class": "exec", "lite": false, "summary": "Change the running game's scene", "args": { "scene": "res://…tscn" } },
+      { "name": "runtime_record_start", "class": "exec", "lite": false, "summary": "Start recording input + frame events", "args": { "name": "optional recording name" } },
+      { "name": "runtime_record_stop", "class": "exec", "lite": false, "summary": "Stop recording, persist under .godot/mercury-vulcan-recordings/", "args": {} },
+      { "name": "runtime_replay", "class": "exec", "lite": false, "summary": "Replay a saved recording into the running game", "args": { "name": "recording name", "speed": "optional multiplier" } }
+    ] },
+    { "key": "animation", "label": "Animation", "ops": [
+      { "name": "animation_list", "class": "read", "lite": true, "summary": "Animations of an AnimationPlayer (tracks, lengths)", "args": { "player": "optional NodePath (first AnimationPlayer when omitted)" } },
+      { "name": "animation_create", "class": "mutate", "lite": false, "summary": "Create an animation on a player (undoable)", "args": { "player": "NodePath", "name": "animation name", "length": "optional seconds" } },
+      { "name": "animation_remove", "class": "mutate", "lite": false, "summary": "Remove an animation (undoable)", "args": { "player": "NodePath", "name": "animation name" } },
+      { "name": "animation_track_add", "class": "mutate", "lite": false, "summary": "Add a track targeting node:property", "args": { "player": "NodePath", "animation": "name", "node": "target NodePath", "property": "property", "type": "optional: value|method|bezier" } },
+      { "name": "animation_key_add", "class": "mutate", "lite": false, "summary": "Insert a keyframe (easing supported)", "args": { "player": "NodePath", "animation": "name", "track": "index or node:property", "time": "seconds", "value": "smart-parsed", "easing": "optional float or ease name" } },
+      { "name": "animation_play", "class": "exec", "lite": false, "summary": "Preview-play an animation in the editor", "args": { "player": "NodePath", "name": "animation name" } }
+    ] },
+    { "key": "animtree", "label": "AnimationTree", "ops": [
+      { "name": "animtree_create", "class": "mutate", "lite": false, "summary": "Create an AnimationTree (state machine or blend tree root)", "args": { "parent": "NodePath", "player": "AnimationPlayer NodePath", "name": "optional", "type": "statemachine|blendtree" } },
+      { "name": "animtree_state_add", "class": "mutate", "lite": false, "summary": "Add a state machine state bound to an animation", "args": { "tree": "NodePath", "state": "state name", "animation": "animation name" } },
+      { "name": "animtree_state_remove", "class": "mutate", "lite": false, "summary": "Remove a state", "args": { "tree": "NodePath", "state": "state name" } },
+      { "name": "animtree_transition_add", "class": "mutate", "lite": false, "summary": "Add a transition between states", "args": { "tree": "NodePath", "from": "state", "to": "state" } },
+      { "name": "animtree_transition_set", "class": "mutate", "lite": false, "summary": "Tune a transition (xfade, switch mode, advance condition)", "args": { "tree": "NodePath", "from": "state", "to": "state", "property": "xfade_time|switch_mode|advance_condition|advance_mode", "value": "smart-parsed" } },
+      { "name": "animtree_blend_add", "class": "mutate", "lite": false, "summary": "Add a blend node to a blend tree", "args": { "tree": "NodePath", "name": "node name", "type": "blend2|blend3|add2|oneshot|timescale", "inputs": "optional array of animation names" } },
+      { "name": "animtree_param_set", "class": "mutate", "lite": false, "summary": "Set a tree parameter (blend amount, condition)", "args": { "tree": "NodePath", "parameter": "parameters/… path", "value": "smart-parsed" } },
+      { "name": "animtree_travel", "class": "exec", "lite": false, "summary": "Travel the state machine to a state (preview)", "args": { "tree": "NodePath", "to_state": "state name" } }
+    ] },
+    { "key": "three_d", "label": "3D Scene", "ops": [
+      { "name": "mesh_create", "class": "mutate", "lite": false, "summary": "Add a MeshInstance3D with a primitive mesh", "args": { "parent": "NodePath", "shape": "box|sphere|cylinder|capsule|plane|torus|quad", "name": "optional", "size": "optional Vector3/float", "material": "optional res://" } },
+      { "name": "camera_create", "class": "mutate", "lite": false, "summary": "Add a Camera3D (optionally current, aimed)", "args": { "parent": "NodePath", "name": "optional", "position": "optional Vector3", "look_at": "optional Vector3", "current": "optional bool", "fov": "optional degrees" } },
+      { "name": "light_create", "class": "mutate", "lite": false, "summary": "Add a light (directional/omni/spot)", "args": { "parent": "NodePath", "type": "directional|omni|spot", "name": "optional", "color": "optional color", "energy": "optional float", "position": "optional Vector3" } },
+      { "name": "environment_set", "class": "mutate", "lite": false, "summary": "Create/edit WorldEnvironment settings (sky, ambient, fog, glow)", "args": { "settings": "dict of Environment properties (smart-parsed)", "node": "optional WorldEnvironment NodePath" } },
+      { "name": "gridmap_set_cell", "class": "mutate", "lite": false, "summary": "Place a MeshLibrary item in a GridMap cell", "args": { "gridmap": "NodePath", "cell": "Vector3i", "item": "item index or name", "orientation": "optional int" } },
+      { "name": "gridmap_query", "class": "read", "lite": true, "summary": "GridMap used cells / one cell's item", "args": { "gridmap": "NodePath", "cell": "optional Vector3i" } }
+    ] },
+    { "key": "physics", "label": "Physics", "ops": [
+      { "name": "physics_body_create", "class": "mutate", "lite": false, "summary": "Add a physics body node", "args": { "parent": "NodePath", "type": "StaticBody2D|RigidBody2D|CharacterBody2D|StaticBody3D|RigidBody3D|CharacterBody3D", "name": "optional" } },
+      { "name": "physics_shape_add", "class": "mutate", "lite": false, "summary": "Add a CollisionShape with a sized shape resource", "args": { "body": "NodePath", "shape": "rectangle|circle|capsule|box|sphere|cylinder", "size": "smart-parsed extents/radius", "name": "optional" } },
+      { "name": "physics_area_create", "class": "mutate", "lite": false, "summary": "Add an Area2D/Area3D", "args": { "parent": "NodePath", "type": "Area2D|Area3D", "name": "optional" } },
+      { "name": "physics_layers_set", "class": "mutate", "lite": false, "summary": "Set collision layers/masks on a body", "args": { "node": "NodePath", "layers": "array of layer numbers", "masks": "array of mask numbers" } },
+      { "name": "physics_raycast", "class": "read", "lite": true, "summary": "Cast a ray in the edited scene's space, report hits", "args": { "from": "Vector2/Vector3", "to": "Vector2/Vector3", "space": "2d|3d", "collide_with_areas": "optional bool" } },
+      { "name": "physics_query", "class": "read", "lite": true, "summary": "Shape query (overlaps) in the edited scene's space", "args": { "space": "2d|3d", "shape": "circle|box|sphere", "position": "Vector2/Vector3", "size": "extents/radius", "collision_mask": "optional" } }
+    ] },
+    { "key": "particles", "label": "Particle", "ops": [
+      { "name": "particles_create", "class": "mutate", "lite": false, "summary": "Add a GPU/CPU particles node", "args": { "parent": "NodePath", "type": "gpu2d|gpu3d|cpu2d|cpu3d", "name": "optional", "amount": "optional int" } },
+      { "name": "particles_material_set", "class": "mutate", "lite": false, "summary": "Set ParticleProcessMaterial properties", "args": { "node": "NodePath", "properties": "dict (smart-parsed: gravity, spread, velocity, …)" } },
+      { "name": "particles_gradient_set", "class": "mutate", "lite": false, "summary": "Set the color ramp gradient", "args": { "node": "NodePath", "points": "array of {offset, color}" } },
+      { "name": "particles_preset_apply", "class": "mutate", "lite": false, "summary": "Apply an authored preset", "args": { "node": "NodePath", "preset": "fire|smoke|sparks|rain|snow|explosion|magic|trail" } },
+      { "name": "particles_emit", "class": "exec", "lite": false, "summary": "Toggle emission (editor preview)", "args": { "node": "NodePath", "emitting": "bool", "one_shot": "optional bool" } }
+    ] },
+    { "key": "navigation", "label": "Navigation", "ops": [
+      { "name": "nav_region_create", "class": "mutate", "lite": false, "summary": "Add a NavigationRegion2D/3D", "args": { "parent": "NodePath", "dimensions": "2d|3d", "name": "optional" } },
+      { "name": "nav_agent_create", "class": "mutate", "lite": false, "summary": "Add a NavigationAgent2D/3D to a body", "args": { "parent": "NodePath", "dimensions": "2d|3d", "name": "optional", "radius": "optional float" } },
+      { "name": "nav_link_create", "class": "mutate", "lite": false, "summary": "Add a NavigationLink (jump/teleport edge)", "args": { "parent": "NodePath", "dimensions": "2d|3d", "start": "Vector", "end": "Vector", "bidirectional": "optional bool" } },
+      { "name": "nav_layers_set", "class": "mutate", "lite": false, "summary": "Set navigation layers on a region/agent/link", "args": { "node": "NodePath", "layers": "array of layer numbers" } },
+      { "name": "nav_bake", "class": "exec", "lite": false, "summary": "Bake the navigation mesh for a region", "args": { "region": "NodePath", "on_thread": "optional bool" } },
+      { "name": "nav_query_path", "class": "read", "lite": true, "summary": "Query a path between two points on the nav map", "args": { "from": "Vector", "to": "Vector", "map": "optional 2d|3d" } }
+    ] },
+    { "key": "audio", "label": "Audio", "ops": [
+      { "name": "audio_bus_list", "class": "read", "lite": true, "summary": "Bus layout: buses, volumes, sends, effects", "args": {} },
+      { "name": "audio_player_create", "class": "mutate", "lite": false, "summary": "Add an AudioStreamPlayer(/2D/3D) with a stream", "args": { "parent": "NodePath", "stream": "res:// audio", "type": "AudioStreamPlayer|AudioStreamPlayer2D|AudioStreamPlayer3D", "name": "optional", "bus": "optional bus name", "autoplay": "optional bool" } },
+      { "name": "audio_bus_add", "class": "mutate", "lite": false, "summary": "Add a bus to the layout (saved)", "args": { "name": "bus name", "send": "optional target bus (default Master)" } },
+      { "name": "audio_bus_set", "class": "mutate", "lite": false, "summary": "Set a bus property", "args": { "bus": "bus name", "property": "volume_db|mute|solo|send", "value": "smart-parsed" } },
+      { "name": "audio_effect_add", "class": "mutate", "lite": false, "summary": "Add an effect to a bus", "args": { "bus": "bus name", "effect": "reverb|delay|chorus|compressor|distortion|eq|limiter|pitch_shift", "properties": "optional dict" } },
+      { "name": "audio_play", "class": "exec", "lite": false, "summary": "Preview-play a player (editor)", "args": { "player": "NodePath", "from": "optional seconds" } }
+    ] },
+    { "key": "tilemap", "label": "TileMap", "ops": [
+      { "name": "tilemap_used_cells", "class": "read", "lite": true, "summary": "Used cells of a TileMapLayer (bounds + count + sample)", "args": { "tilemap": "NodePath", "layer": "optional layer" } },
+      { "name": "tilemap_query_cell", "class": "read", "lite": true, "summary": "Source/atlas/alternative at one cell", "args": { "tilemap": "NodePath", "cell": "Vector2i", "layer": "optional" } },
+      { "name": "tilemap_tileset_info", "class": "read", "lite": true, "summary": "TileSet sources, atlas sizes, tile ids", "args": { "tilemap": "NodePath" } },
+      { "name": "tilemap_set_cell", "class": "mutate", "lite": true, "summary": "Set one cell (undoable)", "args": { "tilemap": "NodePath", "cell": "Vector2i", "source": "source id", "atlas": "Vector2i atlas coords", "alternative": "optional", "layer": "optional" } },
+      { "name": "tilemap_fill", "class": "mutate", "lite": false, "summary": "Fill a rect of cells (undoable)", "args": { "tilemap": "NodePath", "from": "Vector2i", "to": "Vector2i", "source": "source id", "atlas": "Vector2i", "layer": "optional" } },
+      { "name": "tilemap_clear", "class": "mutate", "lite": false, "summary": "Clear cells (one layer or all)", "args": { "tilemap": "NodePath", "layer": "optional (all when omitted)" } }
+    ] },
+    { "key": "theme", "label": "Theme/UI", "ops": [
+      { "name": "theme_create", "class": "mutate", "lite": false, "summary": "Create a Theme resource", "args": { "path": "res://….tres", "base": "optional res:// base theme" } },
+      { "name": "theme_color_set", "class": "mutate", "lite": false, "summary": "Set a theme color entry", "args": { "theme": "res:// theme or NodePath", "name": "e.g. font_color", "type": "e.g. Button", "color": "smart-parsed color" } },
+      { "name": "theme_font_set", "class": "mutate", "lite": false, "summary": "Set a theme font/size entry", "args": { "theme": "res:// or NodePath", "name": "e.g. font", "type": "e.g. Label", "font": "res:// font", "size": "optional int" } },
+      { "name": "theme_constant_set", "class": "mutate", "lite": false, "summary": "Set a theme constant (margins, separation)", "args": { "theme": "res:// or NodePath", "name": "constant name", "type": "control type", "value": "int" } },
+      { "name": "theme_stylebox_set", "class": "mutate", "lite": false, "summary": "Set a StyleBox entry (flat/texture/line + props)", "args": { "theme": "res:// or NodePath", "name": "e.g. normal", "type": "e.g. Button", "stylebox": "flat|texture|line", "properties": "dict (bg_color, corners, borders, …)" } },
+      { "name": "theme_apply", "class": "mutate", "lite": false, "summary": "Assign a theme to a Control subtree", "args": { "node": "NodePath", "theme": "res://….tres" } }
+    ] },
+    { "key": "shader", "label": "Shader", "ops": [
+      { "name": "shader_read", "class": "read", "lite": true, "summary": "Read shader source (by path or a node's material)", "args": { "path": "res://….gdshader, or a NodePath" } },
+      { "name": "shader_param_list", "class": "read", "lite": true, "summary": "Uniforms of a ShaderMaterial with current values", "args": { "material": "res:// material or NodePath" } },
+      { "name": "shader_create", "class": "mutate", "lite": false, "summary": "Create a shader (mode template or given code)", "args": { "path": "res://….gdshader", "mode": "canvas_item|spatial|particles|sky|fog", "code": "optional source" } },
+      { "name": "shader_edit", "class": "mutate", "lite": false, "summary": "Replace shader source (compile-checked)", "args": { "path": "res://….gdshader", "code": "new source" } },
+      { "name": "shader_assign", "class": "mutate", "lite": false, "summary": "Assign a shader to a node via a ShaderMaterial", "args": { "node": "NodePath", "shader": "res://….gdshader" } },
+      { "name": "shader_param_set", "class": "mutate", "lite": false, "summary": "Set a shader uniform (smart-parsed)", "args": { "material": "res:// or NodePath", "parameter": "uniform name", "value": "smart-parsed" } }
+    ] },
+    { "key": "resource", "label": "Resource", "ops": [
+      { "name": "resource_read", "class": "read", "lite": true, "summary": "Read a .tres/.res resource (type + properties)", "args": { "path": "res://….tres" } },
+      { "name": "resource_create", "class": "mutate", "lite": true, "summary": "Create a resource of a type with properties", "args": { "path": "res://….tres", "type": "Resource class", "properties": "optional dict (smart-parsed)" } },
+      { "name": "resource_edit", "class": "mutate", "lite": true, "summary": "Edit resource properties (undoable where loaded)", "args": { "path": "res://….tres", "properties": "dict of property → smart-parsed value" } },
+      { "name": "resource_duplicate", "class": "mutate", "lite": false, "summary": "Duplicate a resource file", "args": { "path": "res:// source", "out": "res:// target" } },
+      { "name": "autoload_add", "class": "mutate", "lite": true, "summary": "Register an autoload singleton (saved)", "args": { "name": "singleton name", "path": "res:// script or scene" } },
+      { "name": "autoload_remove", "class": "mutate", "lite": false, "summary": "Unregister an autoload (saved)", "args": { "name": "singleton name" } }
+    ] },
+    { "key": "batch", "label": "Batch/Refactor", "ops": [
+      { "name": "batch_find_by_type", "class": "read", "lite": true, "summary": "Find nodes by class across scenes", "args": { "type": "node class", "scenes": "optional glob (default all .tscn)" } },
+      { "name": "batch_find_by_property", "class": "read", "lite": true, "summary": "Find nodes by property (optionally value) across scenes", "args": { "property": "property name", "value": "optional match value", "scenes": "optional glob" } },
+      { "name": "batch_dependencies", "class": "read", "lite": true, "summary": "What a scene/resource depends on", "args": { "path": "res://…" } },
+      { "name": "batch_reverse_dependencies", "class": "read", "lite": false, "summary": "What depends ON a scene/resource", "args": { "path": "res://…" } },
+      { "name": "batch_set_property", "class": "mutate", "lite": false, "summary": "Set a property on every match across scenes (one undo step per scene)", "args": { "type": "node class filter", "property": "property name", "value": "smart-parsed", "scenes": "optional glob" } },
+      { "name": "batch_replace_type", "class": "mutate", "lite": false, "summary": "Replace node class across scenes (properties preserved where compatible)", "args": { "from_type": "class", "to_type": "class", "scenes": "optional glob" } },
+      { "name": "batch_rename_resource", "class": "mutate", "lite": false, "summary": "Move/rename a resource and update every reference", "args": { "from": "res:// current", "to": "res:// new" } },
+      { "name": "batch_cross_scene_update", "class": "mutate", "lite": false, "summary": "Apply a property update to matching nodes in named scenes", "args": { "scenes": "glob", "type": "optional class filter", "property": "property", "value": "smart-parsed" } }
+    ] },
+    { "key": "analysis", "label": "Analysis", "ops": [
+      { "name": "analysis_complexity", "class": "read", "lite": true, "summary": "Scene complexity: node counts by class, depth, instancing", "args": { "scene": "optional res://… (default edited)" } },
+      { "name": "analysis_signal_flow", "class": "read", "lite": true, "summary": "Signal connection graph of a scene", "args": { "scene": "optional res://…" } },
+      { "name": "analysis_unused_resources", "class": "read", "lite": true, "summary": "Resources no scene/script references", "args": {} },
+      { "name": "analysis_orphans", "class": "read", "lite": true, "summary": "Orphaned nodes/subresources (unreachable, unreferenced)", "args": {} }
+    ] },
+    { "key": "testing", "label": "Testing/QA", "ops": [
+      { "name": "test_list", "class": "read", "lite": true, "summary": "Discover test scripts (mercury-vulcan test convention + GUT/gdUnit if present)", "args": {} },
+      { "name": "test_report", "class": "read", "lite": true, "summary": "Last test run's results", "args": { "run": "optional run id" } },
+      { "name": "test_run", "class": "exec", "lite": false, "summary": "Run tests headlessly, capture results", "args": { "path": "optional test script/dir", "filter": "optional name filter" } },
+      { "name": "test_assert", "class": "exec", "lite": false, "summary": "Evaluate an assertion in the running game", "args": { "expression": "GDScript expression expected true", "message": "optional failure label" } },
+      { "name": "test_screenshot_baseline", "class": "exec", "lite": false, "summary": "Capture a named screenshot baseline", "args": { "name": "baseline name", "target": "optional node/viewport" } },
+      { "name": "test_screenshot_compare", "class": "exec", "lite": false, "summary": "Screenshot now and diff against a baseline", "args": { "name": "baseline name", "tolerance": "optional 0..1 (default 0.02)" } }
+    ] },
+    { "key": "profiling", "label": "Profiling", "ops": [
+      { "name": "profile_monitors", "class": "read", "lite": true, "summary": "Performance monitors now (fps, memory, draw calls, objects, physics)", "args": { "monitors": "optional array of monitor names" } },
+      { "name": "profile_snapshot", "class": "read", "lite": true, "summary": "Sample monitors over a window, return min/avg/max series", "args": { "duration_ms": "optional window (default 2000)" } }
+    ] },
+    { "key": "export", "label": "Export", "ops": [
+      { "name": "export_presets", "class": "read", "lite": true, "summary": "Export presets (platform, options, paths)", "args": {} },
+      { "name": "export_templates", "class": "read", "lite": true, "summary": "Installed export template versions", "args": {} },
+      { "name": "export_run", "class": "exec", "lite": false, "summary": "Validate preset/templates and return the exact godot --headless export CLI (Godot 4.x exposes no scriptable in-editor export API — the CLI runs outside this tool)", "args": { "preset": "preset name", "out": "output path (project-relative)", "debug": "optional bool" } }
+    ] },
+    { "key": "frontier", "label": "Frontier (above the 1:1 contract)", "ops": [
+      { "name": "vulcan_status", "class": "read", "lite": false, "summary": "Mercury-side: flag/project/addon/editor reachability + install digest drift", "args": {} },
+      { "name": "vulcan_install", "class": "mutate", "lite": false, "summary": "Mercury-side: materialize the addon into the project + enable the plugin", "args": {} },
+      { "name": "vulcan_uninstall", "class": "mutate", "lite": false, "summary": "Mercury-side: remove the addon + disable the plugin", "args": {} },
+      { "name": "editor_doctor", "class": "read", "lite": false, "summary": "Editor health snapshot: version, plugins, open scene, dirty state, ports", "args": {} },
+      { "name": "project_capsule", "class": "read", "lite": false, "summary": "One-call project picture: engine/project, main scene, autoloads, input actions, global classes, scene/script census, plugins, export presets (answers from project files when the editor is closed)", "args": { "budget": "optional: max listed entries per slice (default 40)" } },
+      { "name": "scene_diff", "class": "read", "lite": false, "summary": "Structural diff: scene file on disk vs its edited (unsaved) state", "args": { "path": "res://…tscn" } },
+      { "name": "batch_transaction", "class": "mutate", "lite": false, "summary": "Apply N mutate ops as ONE editor undo step (atomic refactor)", "args": { "ops": "array of {op, args} mutate ops" } },
+      { "name": "broken_refs", "class": "read", "lite": false, "summary": "Project-wide reference triage: unresolvable scene/resource dependencies, stale uid:// mappings that only resolve by fallback path, dead res:// literals in scripts", "args": { "budget": "optional: max findings listed (default 40, max 200)" } },
+      { "name": "import_get", "class": "read", "lite": false, "summary": "Read an imported asset's .import sidecar: importer, type, uid, source/dest files, the [params] table", "args": { "path": "res:// path of the ASSET (its .import sidecar is read)" } },
+      { "name": "import_set", "class": "mutate", "lite": false, "summary": "Set .import [params] keys (smart-parsed) and reimport the asset; the receipt carries each key's previous value (not an editor undo step)", "args": { "path": "res:// path of the ASSET", "params": "object of param key -> new value", "reimport": "optional: run the reimport after writing (default true)" } },
+      { "name": "refactor_rename_signal", "class": "mutate", "lite": false, "summary": "Rename a script's signal ONCE: every inspector-wired [connection] in every scene (engine-read, text-applied, reload-verified) + the declaring script's declaration/emits/self-connects; dynamic sites elsewhere are findings. Writes files (not an editor undo step); dry_run plans without writing", "args": { "script": "res://….gd declaring the signal", "from": "current signal name", "to": "new signal name", "dry_run": "optional: plan + findings only, write nothing (default false)" } },
+      { "name": "refactor_rename_export", "class": "mutate", "lite": false, "summary": "Rename an @export var ONCE: every stored scene/resource override (engine-read, text-applied, reload-verified) + every identifier in the declaring script; other scripts' member accesses are findings. Writes files (not an editor undo step); dry_run plans without writing", "args": { "script": "res://….gd declaring the @export", "from": "current property name", "to": "new property name", "dry_run": "optional: plan + findings only, write nothing (default false)" } },
+      { "name": "runtime_frames", "class": "read", "lite": false, "summary": "Frame-time evidence over a window of the running game: fps, frame_ms min/avg/p95/max, hitches over a threshold, render CPU/GPU ms", "args": { "duration_ms": "optional: sampling window ms (default 4000, max 30000)", "hitch_ms": "optional: hitch threshold ms (default 50)" } },
+      { "name": "playtest_run", "class": "exec", "lite": false, "summary": "One evidence-backed playtest: play, await the bridge, settle, sample frames + monitor deltas, drain errors/log, screenshot, optionally stop — one bundle, one ask", "args": { "scene": "optional: current|main|res://…tscn (default current)", "duration_ms": "optional: sampling window ms (default 5000, max 30000)", "settle_ms": "optional: pre-sample settle ms (default 1500)", "attach_timeout_ms": "optional: bridge-attach ceiling ms (default 45000)", "hitch_ms": "optional: hitch threshold ms (default 50)", "screenshot": "optional: capture the game viewport at window end (default true)", "stop": "optional: stop the session afterwards (default true)" } },
+      { "name": "runtime_wait_signal", "class": "exec", "lite": false, "summary": "Await a signal on a live node with a timeout (deterministic sequencing)", "args": { "node": "NodePath", "signal": "signal name", "timeout_ms": "optional (default 5000)" } }
+    ] }
+  ]
+}

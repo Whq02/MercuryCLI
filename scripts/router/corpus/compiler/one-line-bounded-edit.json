@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "one-line-bounded-edit",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Rename a stale local variable",
+    "title": "Rename foo to bar",
+    "task": "Rename the `foo` local variable to `bar` in src/utils/example.ts and update its single call site in the same file.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "mechanical"
+  },
+  "expected": {
+    "profile": "sonnet-direct",
+    "width": 1,
+    "modelClasses": ["sonnet"],
+    "reasonCodes": ["mechanical-bounded"],
+    "adjustments": []
+  }
+}
