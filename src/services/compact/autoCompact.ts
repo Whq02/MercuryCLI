@@ -51,7 +51,6 @@ void notifyCompaction
 
 export const MIN_AUTOCOMPACT_WINDOW = 100_000
 export const MAX_AUTOCOMPACT_WINDOW = 1_000_000
-export const AUTOCOMPACT_BUFFER_TOKENS = 13_000
 export const WARNING_THRESHOLD_BUFFER_TOKENS = 20_000
 export const ERROR_THRESHOLD_BUFFER_TOKENS = 20_000
 export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
@@ -71,7 +70,6 @@ const RAPID_REFILL_LIMIT = 3
 // exceeds the proportional floor resolves byte-identically to the flat
 // law (all ≥100k windows do).
 const SUMMARY_RESERVE_MAX_WINDOW_DIVISOR = 4 // reserve ≤ window/4
-const COMPACT_THRESHOLD_MIN_EFFECTIVE_DIVISOR = 2 // threshold ≥ effective/2
 const WARNING_MIN_CEILING_NUMERATOR = 4 // warn floor = ceiling×4/5
 const WARNING_MIN_CEILING_DENOMINATOR = 5
 
@@ -135,27 +133,33 @@ export function getEffectiveContextWindowSize(model: string, settingsWindow?: nu
 }
 
 /**
+ * THE AUTO-COMPACT THRESHOLD — where the fold fires, in tokens of the
+ * model's window. The default is the FULL usable window: the last count a
+ * call still fits at (the blocking limit — the summary's output reserve and
+ * the manual-compact headroom are the mechanism's own, never an early-fold
+ * preference). Nothing compacts sooner unless the operator says so: the
+ * percent override (a share of the usable window, honoured to the token,
+ * never above the usable edge) or the settings window (folded into the
+ * usable window itself). The early buffer that used to sit under the edge
+ * made "compact at full context" false by 13k tokens and left the gauge
+ * counting down to a point the operator never set.
+ *
  * Takes ONLY a model: it recomputes the effective window with no settings
  * argument, so an explicitly supplied window never reaches this rung — the
  * global-config value applies. That asymmetry is load-bearing in the warning
  * level and is reproduced, not smoothed away.
  */
 export function getAutoCompactThreshold(model: string): number {
-  const effective = getEffectiveContextWindowSize(model)
-  // On a window small enough that the flat buffer would leave a negative or
-  // near-zero threshold, half the effective window is the honest floor.
-  const bufferThreshold = Math.max(
-    effective - AUTOCOMPACT_BUFFER_TOKENS,
-    Math.ceil(effective / COMPACT_THRESHOLD_MIN_EFFECTIVE_DIVISOR),
-  )
+  const full = getBlockingLimit(model)
   const pctRaw = flagEnv('MERCURY_AUTOCOMPACT_PCT_OVERRIDE')
   if (pctRaw !== undefined && pctRaw !== '') {
     const pct = Number.parseFloat(pctRaw)
     if (Number.isFinite(pct) && pct > 0 && pct <= 100) {
-      return Math.min(Math.floor((effective * pct) / 100), bufferThreshold)
+      const effective = getEffectiveContextWindowSize(model)
+      return Math.min(Math.max(1, Math.floor((effective * pct) / 100)), full)
     }
   }
-  return bufferThreshold
+  return full
 }
 
 export function isAutoCompactEnabled(): boolean {
@@ -196,7 +200,14 @@ export function calculateTokenWarningState(
     Math.ceil((ceiling * WARNING_MIN_CEILING_NUMERATOR) / WARNING_MIN_CEILING_DENOMINATOR),
   )
   const blockingLimit = getBlockingLimit(model, settingsWindow)
-  const pctLeft = Math.max(0, Math.round(((ceiling - tokenUsage) / ceiling) * 100))
+  // THE ONE SCALE: the room left to the ceiling is a share of the model's
+  // own window — the denominator every fill surface reads (contextFill's
+  // usedPct) — so "N% used" beside "M% left until auto-compact" always
+  // sums to the ceiling's own percent of the window. Measured against the
+  // ceiling itself, the two numbers contradicted each other on every
+  // screen (the 0%-left-at-22%-used class).
+  const window = modelMaxWindow(model)
+  const pctLeft = window > 0 ? Math.max(0, Math.round(((ceiling - tokenUsage) / window) * 100)) : 0
   let level: TokenWarningLevel = 'ok'
   if (tokenUsage >= blockingLimit) level = 'blocked'
   else if (autoCompact && tokenUsage >= ceiling) level = 'compact'
@@ -286,7 +297,7 @@ export async function shouldAutoCompact(
   // resumed transcript must not compact against that fallback because the
   // boot warm-up is still in flight. Instant once cached; bounded otherwise.
   await awaitContextWindowSource(model)
-  const tokenCount = tokenCountWithEstimation(messages) - snipTokensFreed
+  const tokenCount = tokenCountWithEstimation(messages, model) - snipTokensFreed
   onMeasured?.(tokenCount + snipTokensFreed)
   const threshold = getAutoCompactThreshold(model)
   const effective = getEffectiveContextWindowSize(model)
@@ -397,7 +408,7 @@ export async function autoCompactIfNeeded(
       try {
         // Reuse the count the decision just measured over these same
         // messages; count only if the decision's early returns skipped it.
-        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation(messages)) - snipTokensFreed
+        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed
         const { pctLeft } = calculateTokenWarningState(tokenCount, model)
         const owner = ownerFromToolUseContext(toolUseContext)
         const slot = advanceState.get(owner)

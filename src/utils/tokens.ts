@@ -3,6 +3,29 @@ import type { AssistantMessage, Message } from '../types/message.js'
 import type { ApiUsage } from '../types/wire.js'
 import { SYNTHETIC_MESSAGES, SYNTHETIC_MODEL } from './messages.js'
 
+/** The family a model id's usage speaks for: its declared route, or the
+ *  home lane for an id no family declares. Two ids of one family count
+ *  tokens alike; across families the numbers are a different tokenizer's.
+ *  The route law loads at call time: this module is a leaf every surface
+ *  imports, and the law's own graph reaches back into the model owners. */
+function usageFamilyOf(model: string): string {
+  const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+  return declaredRouteOf(model) ?? 'anthropic'
+}
+
+/** THE SWITCH FENCE on a usage anchor: a usage stamped by a model of
+ *  another family than the one now seated is dead — its count is another
+ *  tokenizer's and its window another model's, so a gauge anchored on it
+ *  after a cross-family switch read a previous model's world. A same-family
+ *  switch keeps the anchor (comparable counts; the window re-anchors from
+ *  the seated model regardless). */
+function usageAnchorForeign(anchor: Message, model: string | undefined): boolean {
+  if (model === undefined || anchor.type !== 'assistant') return false
+  const stamped = (anchor as AssistantMessage).message?.model
+  if (typeof stamped !== 'string' || stamped === '' || stamped === SYNTHETIC_MODEL) return false
+  return usageFamilyOf(stamped) !== usageFamilyOf(model)
+}
+
 /**
  * Context-window and usage accounting over the message history.
  */
@@ -223,8 +246,12 @@ function compactUsageFence(
  * siblings are skipped by the estimate; an unsettled record (a
  * message_start snapshot mid-stream, output_tokens not yet final) keeps
  * them estimated so the in-flight output is never dropped.
+ *
+ * `model` — the model now seated — arms the switch fence: a usage anchor
+ * stamped by another family is dead (usageAnchorForeign), and the
+ * projection estimates until the seated model answers.
  */
-export function contextFill(messages: readonly Message[]): ContextFill {
+export function contextFill(messages: readonly Message[], model?: string): ContextFill {
   const fence = compactUsageFence(messages)
   let usageIndex = -1
   let usageTotal = 0
@@ -240,6 +267,9 @@ export function contextFill(messages: readonly Message[]): ContextFill {
     }
     const usage = getTokenUsage(messages[index])
     if (usage) {
+      // A usage from before a cross-family switch anchors nothing: every
+      // older usage is that family's too, so the walk ends here.
+      if (usageAnchorForeign(messages[index]!, model)) break
       usageIndex = index
       usageTotal = getTokenCountFromUsage(usage)
       break
@@ -275,7 +305,8 @@ export function contextFill(messages: readonly Message[]): ContextFill {
   return { tokens: usageTotal + roughTokenCountEstimationForMessages(tail as never), source: 'usage' }
 }
 
-/** The canonical context size (contextFill's token figure). */
-export function tokenCountWithEstimation(messages: readonly Message[]): number {
-  return contextFill(messages).tokens
+/** The canonical context size (contextFill's token figure); `model` arms
+ *  the switch fence exactly as it does for every fill surface. */
+export function tokenCountWithEstimation(messages: readonly Message[], model?: string): number {
+  return contextFill(messages, model).tokens
 }
