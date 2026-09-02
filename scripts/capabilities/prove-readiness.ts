@@ -136,9 +136,9 @@ try {
     const d = spawnSync('node', [dist, 'doctor', '--json'], {
       encoding: 'utf8',
       timeout: 90_000,
-      env: { ...process.env, MERCURY_CONFIG_DIR: home },
+      env: { ...process.env, MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: 'fixture-anthropic-key' },
     })
-    check(d.status === 0, `doctor --json exits 0 (${d.status})`)
+    check(d.status === 0, `doctor --json exits 0 with a credential present (${d.status})`)
     try {
       const cert = JSON.parse(d.stdout) as { verdict?: string; readiness?: Rec[] }
       check(Array.isArray(cert.readiness), 'certificate embeds readiness records')
