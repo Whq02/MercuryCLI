@@ -1,6 +1,6 @@
 
 import { useCallback, useRef } from 'react'
-import { loadHistoryCorpus, makeHistoryReaderOver, type HistoryCorpus } from '../history.js'
+import { loadHistoryCorpus, makeHistoryReaderOver, type HistoryCorpus, type HistoryRecord } from '../history.js'
 import type { HistoryEntry, PastedContent } from '../utils/config.js'
 import {
   getModeFromInput,
@@ -37,65 +37,31 @@ export function disarmHistoryScanTimer(
   liveScanTimers.delete(timer)
 }
 
-export type HistoryScanGate = {
-  arm(run: () => void, delayMs: number): void
-  disarm(): void
-  pending(): boolean
-  scanStarted(): number
-  scanLanded(token: number): void
-  settle(action: () => void, flush: () => void): void
+export function findHistoryMatchSync(
+  corpus: HistoryCorpus,
+  query: string,
+  seen: ReadonlySet<string>,
+): HistoryRecord | undefined {
+  for (const record of corpus) {
+    if (!record.display.includes(query)) continue
+    if (seen.has(record.display)) continue
+    return record
+  }
+  return undefined
 }
 
-export function createHistoryScanGate(): HistoryScanGate {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let epoch = 0
-  let inFlight = false
-  let queued: (() => void) | null = null
-  const landQueued = (): void => {
-    const action = queued
-    queued = null
-    action?.()
+export function resolveFixedMatch(
+  record: HistoryRecord,
+  settle: (entry: HistoryEntry | undefined) => void,
+): void {
+  if (Object.keys(record.pastedContents ?? {}).length === 0) {
+    settle({ display: record.display, pastedContents: {} })
+    return
   }
-  return {
-    arm(run, delayMs) {
-      queued = null
-      disarmHistoryScanTimer(timer)
-      timer = armHistoryScanTimer(() => {
-        timer = null
-        run()
-      }, delayMs)
-    },
-    disarm() {
-      queued = null
-      disarmHistoryScanTimer(timer)
-      timer = null
-    },
-    pending: () => timer !== null,
-    scanStarted() {
-      inFlight = true
-      return ++epoch
-    },
-    scanLanded(token) {
-      if (token !== epoch) return
-      inFlight = false
-      landQueued()
-    },
-    settle(action, flush) {
-      if (timer !== null) {
-        disarmHistoryScanTimer(timer)
-        timer = null
-        queued = action
-        flush()
-        if (!inFlight) landQueued()
-        return
-      }
-      if (inFlight) {
-        queued = action
-        return
-      }
-      action()
-    },
-  }
+  void (async () => {
+    const next = await makeHistoryReaderOver([record]).next()
+    return next.done ? undefined : next.value
+  })().then(settle, () => settle(undefined))
 }
 
 export function useHistorySearch(
@@ -131,8 +97,10 @@ export function useHistorySearch(
     pastedContents: Record<number, PastedContent>
   } | null>(null)
   const scanAbortRef = useRef<AbortController | null>(null)
-  const gateRef = useRef<HistoryScanGate | null>(null)
-  const gate = (gateRef.current ??= createHistoryScanGate())
+  const scanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const corpusValueRef = useRef<HistoryCorpus | null>(null)
+  const scanInFlightRef = useRef(false)
+  const scanEpochRef = useRef(0)
   const [, force] = useReducerLike()
 
   const searchingRef = useRef(isSearching)
@@ -175,10 +143,12 @@ export function useHistorySearch(
         closeReader()
         seenRef.current.clear()
       }
-      const token = gate.scanStarted()
+      scanInFlightRef.current = true
+      const token = ++scanEpochRef.current
       void (async () => {
         try {
           const corpus = await (corpusRef.current ??= loadHistoryCorpus())
+          corpusValueRef.current = corpus
           if (abort.signal.aborted) return
           if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
           const reader = readerRef.current
@@ -202,11 +172,11 @@ export function useHistorySearch(
             return
           }
         } finally {
-          gate.scanLanded(token)
+          if (token === scanEpochRef.current) scanInFlightRef.current = false
         }
       })()
     },
-    [applyMatch, closeReader, force, gate],
+    [applyMatch, closeReader, force],
   )
 
   const restoreOriginal = useCallback((): void => {
@@ -218,10 +188,13 @@ export function useHistorySearch(
   }, [onInputChange, onCursorChange, setPastedContents])
 
   const reset = useCallback((): void => {
-    gate.disarm()
+    disarmHistoryScanTimer(scanDebounceRef.current)
+    scanDebounceRef.current = null
     scanAbortRef.current?.abort()
     closeReader()
     corpusRef.current = null
+    corpusValueRef.current = null
+    scanInFlightRef.current = false
     seenRef.current.clear()
     queryRef.current = ''
     matchRef.current = undefined
@@ -229,7 +202,7 @@ export function useHistorySearch(
     originalRef.current = null
     setIsSearching(false)
     force()
-  }, [closeReader, setIsSearching, force, gate])
+  }, [closeReader, setIsSearching, force])
 
   const handleStartSearch = useCallback((): void => {
     originalRef.current = {
@@ -238,24 +211,36 @@ export function useHistorySearch(
       mode: modeRef.current,
       pastedContents: pastesRef.current,
     }
-    gate.disarm()
+    disarmHistoryScanTimer(scanDebounceRef.current)
+    scanDebounceRef.current = null
     closeReader()
-    corpusRef.current = loadHistoryCorpus()
+    const load = loadHistoryCorpus()
+    corpusRef.current = load
+    corpusValueRef.current = null
+    scanInFlightRef.current = false
+    void load.then(
+      corpus => {
+        if (corpusRef.current === load) corpusValueRef.current = corpus
+      },
+      () => {},
+    )
     seenRef.current.clear()
     queryRef.current = ''
     matchRef.current = undefined
     failedRef.current = false
     setIsSearching(true)
     force()
-  }, [closeReader, setIsSearching, force, gate])
+  }, [closeReader, setIsSearching, force])
 
   const setHistoryQuery = useCallback(
     (query: string): void => {
       if (!searchingRef.current) return
       queryRef.current = query
       if (query === '') {
-        gate.disarm()
+        disarmHistoryScanTimer(scanDebounceRef.current)
+        scanDebounceRef.current = null
         scanAbortRef.current?.abort()
+        scanInFlightRef.current = false
         closeReader()
         seenRef.current.clear()
         matchRef.current = undefined
@@ -270,28 +255,52 @@ export function useHistorySearch(
         force()
         return
       }
-      gate.arm(() => scan(queryRef.current, false), HISTORY_SCAN_DEBOUNCE_MS)
+      disarmHistoryScanTimer(scanDebounceRef.current)
+      scanDebounceRef.current = armHistoryScanTimer(() => {
+        scanDebounceRef.current = null
+        scan(queryRef.current, false)
+      }, HISTORY_SCAN_DEBOUNCE_MS)
     },
-    [scan, closeReader, onInputChange, onCursorChange, onModeChange, setPastedContents, force, gate],
+    [scan, closeReader, onInputChange, onCursorChange, onModeChange, setPastedContents, force],
   )
 
   const nextMatch = useCallback((): void => {
     if (!searchingRef.current || queryRef.current === '') return
-    if (gate.pending()) {
-      gate.disarm()
+    if (scanDebounceRef.current !== null) {
+      disarmHistoryScanTimer(scanDebounceRef.current)
+      scanDebounceRef.current = null
       scan(queryRef.current, false)
       return
     }
     scan(queryRef.current, true)
-  }, [scan, gate])
-
-  const flushScan = useCallback((): void => {
-    scan(queryRef.current, false)
   }, [scan])
 
+  const withFixedMatch = useCallback(
+    (settle: (match: HistoryEntry | undefined) => void): void => {
+      const pending = scanDebounceRef.current !== null
+      if (queryRef.current === '' || (!pending && !scanInFlightRef.current)) {
+        settle(matchRef.current)
+        return
+      }
+      disarmHistoryScanTimer(scanDebounceRef.current)
+      scanDebounceRef.current = null
+      scanAbortRef.current?.abort()
+      scanInFlightRef.current = false
+      if (pending) seenRef.current.clear()
+      const corpus = corpusValueRef.current
+      const record =
+        corpus === null ? undefined : findHistoryMatchSync(corpus, queryRef.current, seenRef.current)
+      if (record === undefined) {
+        settle(undefined)
+        return
+      }
+      resolveFixedMatch(record, settle)
+    },
+    [],
+  )
+
   const accept = useCallback((): void => {
-    gate.settle(() => {
-      const match = matchRef.current
+    withFixedMatch(match => {
       if (match !== undefined) {
         const mode = getModeFromInput(match.display)
         onModeChange(mode)
@@ -302,8 +311,8 @@ export function useHistorySearch(
         if (original !== null) setPastedContents(original.pastedContents)
       }
       reset()
-    }, flushScan)
-  }, [onModeChange, onInputChange, setPastedContents, reset, gate, flushScan])
+    })
+  }, [withFixedMatch, onModeChange, onInputChange, setPastedContents, reset])
 
   const cancel = useCallback((): void => {
     restoreOriginal()
@@ -311,9 +320,8 @@ export function useHistorySearch(
   }, [restoreOriginal, reset])
 
   const execute = useCallback((): void => {
-    gate.settle(() => {
+    withFixedMatch(match => {
       const query = queryRef.current
-      const match = matchRef.current
       if (query === '') {
         const original = originalRef.current
         if (original !== null) {
@@ -336,8 +344,8 @@ export function useHistorySearch(
         pastedContents: match.pastedContents,
       })
       reset()
-    }, flushScan)
-  }, [onAcceptHistory, onModeChange, reset, gate, flushScan])
+    })
+  }, [withFixedMatch, onAcceptHistory, onModeChange, reset])
 
   useKeybinding(
     'history:search',
