@@ -1,5 +1,5 @@
 
-import { randomUUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
 import {
   agent,
@@ -22,6 +22,8 @@ import { isOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { getCwd } from '../../utils/cwd.js'
 import { listSessionsImpl } from '../../utils/listSessionsImpl.js'
 import { sessionIdExists } from '../../utils/sessionStorage.js'
+import { loadSessionFile } from '../../utils/sessionStorage/loading.js'
+import { MERCURY_VERSION } from '../../constants/product.js'
 import { resolveWorkbenchSnapshot } from '../workbench/projection.js'
 import { workbenchFactsOf } from '../workbench/attentionBridge.js'
 import {
@@ -39,9 +41,9 @@ import type { AttentionItem, AttentionState } from '../../services/attention/con
 import { foldRelations, emptyRelationState } from '../../services/attention/relations.js'
 import type { RelationState } from '../../services/attention/relations.js'
 import { listTasks, getTasksDir, type TaskStatus } from '../../utils/tasks.js'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { MercuryChildSession } from './childSession.js'
+import { MercuryChildSession, toolResultText, type TurnEndDetail } from './childSession.js'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
 
 const PERMISSION_MODES = [
@@ -85,6 +87,356 @@ export function permissionAskWire(
 export function permissionAllowedOf(result: unknown): boolean {
   const o = (result as { outcome?: { outcome?: unknown; optionId?: unknown } } | null)?.outcome
   return o?.outcome === 'selected' && o?.optionId === 'allow'
+}
+
+
+export type AcpToolKind =
+  | 'read'
+  | 'edit'
+  | 'delete'
+  | 'move'
+  | 'search'
+  | 'execute'
+  | 'think'
+  | 'fetch'
+  | 'switch_mode'
+  | 'other'
+
+const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
+  Read: 'read',
+  NotebookRead: 'read',
+  ReadMcpResourceTool: 'read',
+  ListMcpResourcesTool: 'read',
+  Inspect: 'read',
+  Edit: 'edit',
+  Write: 'edit',
+  NotebookEdit: 'edit',
+  AstEdit: 'edit',
+  ChangeSet: 'edit',
+  Glob: 'search',
+  Grep: 'search',
+  AstSearch: 'search',
+  LSP: 'search',
+  WebSearch: 'search',
+  WebFetch: 'fetch',
+  Bash: 'execute',
+  PowerShell: 'execute',
+  REPL: 'execute',
+  Debug: 'execute',
+  Launch: 'execute',
+  Test: 'execute',
+  Eval: 'execute',
+  Agent: 'think',
+  Task: 'think',
+  TaskCreate: 'think',
+  TaskUpdate: 'think',
+  TaskGet: 'think',
+  TaskList: 'think',
+  EnterPlanMode: 'switch_mode',
+  ExitPlanMode: 'switch_mode',
+  SetTier: 'switch_mode',
+}
+
+export function toolKindOf(name: string): AcpToolKind {
+  return TOOL_KINDS[name] ?? 'other'
+}
+
+export function toolLocationsOf(
+  name: string,
+  input: unknown,
+): Array<{ path: string; line?: number }> {
+  const i = (input ?? {}) as Record<string, unknown>
+  const out: Array<{ path: string; line?: number }> = []
+  const push = (path: unknown, line?: unknown): void => {
+    if (typeof path !== 'string' || path === '') return
+    if (out.some(l => l.path === path)) return
+    out.push({ path, ...(typeof line === 'number' && line > 0 ? { line } : {}) })
+  }
+  push(i.file_path, name === 'Read' ? i.offset : undefined)
+  push(i.notebook_path)
+  if (name === 'AstEdit' || name === 'AstSearch') push(i.path)
+  if (name === 'ChangeSet' && Array.isArray(i.changes)) {
+    for (const change of i.changes as Array<Record<string, unknown>>) push(change.file_path)
+  }
+  return out
+}
+
+export interface AcpDiff {
+  path: string
+  oldText?: string | null
+  newText: string
+}
+
+export function toolDiffsOf(
+  name: string,
+  input: unknown,
+  readFile: (path: string) => string | null = readFileOrNull,
+): AcpDiff[] {
+  const i = (input ?? {}) as Record<string, unknown>
+  if (name === 'Edit' && typeof i.file_path === 'string' && typeof i.new_string === 'string') {
+    return [
+      {
+        path: i.file_path,
+        oldText: typeof i.old_string === 'string' ? i.old_string : null,
+        newText: i.new_string,
+      },
+    ]
+  }
+  if (name === 'Write' && typeof i.file_path === 'string' && typeof i.content === 'string') {
+    const before = readFile(i.file_path)
+    if (before === i.content) return []
+    return [{ path: i.file_path, oldText: before, newText: i.content }]
+  }
+  return []
+}
+
+function readFileOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch {
+    return null
+  }
+}
+
+export const TOOL_OUTPUT_WIRE_LIMIT = 16_000
+
+export function boundedToolText(text: string, limit = TOOL_OUTPUT_WIRE_LIMIT): string {
+  if (text.length <= limit) return text
+  return `${text.slice(0, limit)}\n… (${text.length - limit} more characters not shown)`
+}
+
+export function toolOutputContentOf(
+  text: string | undefined,
+): Array<{ type: 'content'; content: { type: 'text'; text: string } }> | undefined {
+  if (text === undefined || text === '') return undefined
+  return [{ type: 'content', content: { type: 'text', text: boundedToolText(text) } }]
+}
+
+
+export type AcpStopReason = 'end_turn' | 'max_tokens' | 'max_turn_requests' | 'refusal' | 'cancelled'
+
+export function stopReasonOf(
+  outcome: 'success' | 'error' | 'cancelled',
+  detail: TurnEndDetail | undefined,
+): { stopReason: AcpStopReason } | { error: string } {
+  if (outcome === 'cancelled') return { stopReason: 'cancelled' }
+  if (outcome === 'success') {
+    if (detail?.stopReason === 'max_tokens') return { stopReason: 'max_tokens' }
+    if (detail?.stopReason === 'refusal') return { stopReason: 'refusal' }
+    return { stopReason: 'end_turn' }
+  }
+  if (detail?.subtype === 'error_max_turns') return { stopReason: 'max_turn_requests' }
+  const why = detail?.errors.filter(e => e.trim() !== '').join('; ')
+  return {
+    error: `the session turn failed${detail ? ` (${detail.subtype})` : ''}${why ? `: ${why}` : ''}`,
+  }
+}
+
+
+export function acpMcpServersToConfig(
+  servers: unknown,
+): { json: string; names: string[]; skipped: string[] } | null {
+  if (!Array.isArray(servers) || servers.length === 0) return null
+  const mcpServers: Record<string, Record<string, unknown>> = {}
+  const skipped: string[] = []
+  const headersOf = (raw: unknown): Record<string, string> => {
+    const out: Record<string, string> = {}
+    if (!Array.isArray(raw)) return out
+    for (const h of raw as Array<Record<string, unknown>>) {
+      if (typeof h?.name === 'string' && typeof h.value === 'string') out[h.name] = h.value
+    }
+    return out
+  }
+  for (const raw of servers as Array<Record<string, unknown>>) {
+    const name = typeof raw?.name === 'string' ? raw.name : ''
+    if (name === '') {
+      skipped.push('(unnamed)')
+      continue
+    }
+    const type = typeof raw.type === 'string' ? raw.type : 'stdio'
+    if ((type === 'http' || type === 'sse') && typeof raw.url === 'string') {
+      mcpServers[name] = { type, url: raw.url, headers: headersOf(raw.headers) }
+    } else if (type === 'stdio' && typeof raw.command === 'string') {
+      const env: Record<string, string> = {}
+      if (Array.isArray(raw.env)) {
+        for (const e of raw.env as Array<Record<string, unknown>>) {
+          if (typeof e?.name === 'string' && typeof e.value === 'string') env[e.name] = e.value
+        }
+      }
+      mcpServers[name] = {
+        command: raw.command,
+        args: Array.isArray(raw.args) ? raw.args.filter((a): a is string => typeof a === 'string') : [],
+        env,
+      }
+    } else {
+      skipped.push(`${name} (${type})`)
+    }
+  }
+  const names = Object.keys(mcpServers)
+  if (names.length === 0) return null
+  return { json: JSON.stringify({ mcpServers }), names, skipped }
+}
+
+
+export interface EditorContextWire {
+  v: 1
+  sessionId: string
+  workspaceFolders?: string[]
+  activeFile?: {
+    path: string
+    languageId?: string
+    selection?: { startLine: number; endLine: number; text?: string }
+  }
+  openFiles?: string[]
+  diagnostics?: Array<{ path: string; line: number; severity: string; message: string }>
+}
+
+const EDITOR_CONTEXT_URI = 'mercury://editor-context'
+const EDITOR_CONTEXT_SELECTION_LIMIT = 8_000
+const EDITOR_CONTEXT_LIST_LIMIT = 30
+const EDITOR_CONTEXT_DIAGNOSTIC_LIMIT = 25
+
+export function editorContextOf(raw: unknown): EditorContextWire | null {
+  const r = raw as Record<string, unknown> | null
+  if (r === null || typeof r !== 'object' || typeof r.sessionId !== 'string') return null
+  const strings = (v: unknown): string[] | undefined =>
+    Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : undefined
+  const active = r.activeFile as Record<string, unknown> | undefined
+  const sel = active?.selection as Record<string, unknown> | undefined
+  const diags = Array.isArray(r.diagnostics)
+    ? (r.diagnostics as Array<Record<string, unknown>>)
+        .filter(d => typeof d?.path === 'string' && typeof d.message === 'string')
+        .map(d => ({
+          path: d.path as string,
+          line: typeof d.line === 'number' ? d.line : 0,
+          severity: typeof d.severity === 'string' ? d.severity : 'Info',
+          message: d.message as string,
+        }))
+    : undefined
+  const folders = strings(r.workspaceFolders)
+  const open = strings(r.openFiles)
+  return {
+    v: 1,
+    sessionId: r.sessionId,
+    ...(folders !== undefined ? { workspaceFolders: folders } : {}),
+    ...(active && typeof active.path === 'string'
+      ? {
+          activeFile: {
+            path: active.path,
+            ...(typeof active.languageId === 'string' ? { languageId: active.languageId } : {}),
+            ...(sel && typeof sel.startLine === 'number' && typeof sel.endLine === 'number'
+              ? {
+                  selection: {
+                    startLine: sel.startLine,
+                    endLine: sel.endLine,
+                    ...(typeof sel.text === 'string' ? { text: sel.text } : {}),
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
+    ...(open !== undefined ? { openFiles: open } : {}),
+    ...(diags !== undefined ? { diagnostics: diags } : {}),
+  }
+}
+
+export function editorContextResource(
+  ctx: EditorContextWire | null,
+): { type: 'resource'; resource: { uri: string; text: string; mimeType: string } } | null {
+  if (ctx === null) return null
+  const lines: string[] = []
+  if (ctx.workspaceFolders && ctx.workspaceFolders.length > 0) {
+    lines.push(`workspace: ${ctx.workspaceFolders.slice(0, 10).join(', ')}`)
+  }
+  if (ctx.activeFile) {
+    const lang = ctx.activeFile.languageId ? ` (${ctx.activeFile.languageId})` : ''
+    const sel = ctx.activeFile.selection
+    if (sel) {
+      lines.push(`active file: ${ctx.activeFile.path}${lang} · selection lines ${sel.startLine}-${sel.endLine}`)
+      if (sel.text !== undefined && sel.text !== '') {
+        lines.push(
+          sel.text.length > EDITOR_CONTEXT_SELECTION_LIMIT
+            ? `${sel.text.slice(0, EDITOR_CONTEXT_SELECTION_LIMIT)}\n… (selection truncated)`
+            : sel.text,
+        )
+      }
+    } else {
+      lines.push(`active file: ${ctx.activeFile.path}${lang}`)
+    }
+  }
+  if (ctx.openFiles && ctx.openFiles.length > 0) {
+    const shown = ctx.openFiles.slice(0, EDITOR_CONTEXT_LIST_LIMIT)
+    const more = ctx.openFiles.length - shown.length
+    lines.push(`open files: ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`)
+  }
+  if (ctx.diagnostics && ctx.diagnostics.length > 0) {
+    const shown = ctx.diagnostics.slice(0, EDITOR_CONTEXT_DIAGNOSTIC_LIMIT)
+    lines.push('diagnostics:')
+    for (const d of shown) lines.push(`  ${d.path}:${d.line} ${d.severity}: ${d.message}`)
+    if (ctx.diagnostics.length > shown.length) lines.push(`  … (+${ctx.diagnostics.length - shown.length} more)`)
+  }
+  if (lines.length === 0) return null
+  return {
+    type: 'resource',
+    resource: { uri: EDITOR_CONTEXT_URI, text: lines.join('\n'), mimeType: 'text/plain' },
+  }
+}
+
+
+export function replayUpdatesOf(
+  messages: Iterable<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const updates: Array<Record<string, unknown>> = []
+  for (const m of messages) {
+    if (m.isMeta === true || m.isSidechain === true) continue
+    const message = m.message as { content?: unknown } | undefined
+    const content = message?.content
+    if (m.type === 'user') {
+      if (typeof content === 'string') {
+        if (content !== '') updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: content } })
+        continue
+      }
+      if (!Array.isArray(content)) continue
+      for (const block of content as Array<Record<string, unknown>>) {
+        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
+          updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: block.text } })
+        } else if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+          const text = toolResultText(block.content)
+          const output = toolOutputContentOf(text)
+          updates.push({
+            sessionUpdate: 'tool_call_update',
+            toolCallId: block.tool_use_id,
+            status: block.is_error === true ? 'failed' : 'completed',
+            ...(output !== undefined ? { content: output } : {}),
+          })
+        }
+      }
+      continue
+    }
+    if (m.type === 'assistant') {
+      if (!Array.isArray(content)) continue
+      for (const block of content as Array<Record<string, unknown>>) {
+        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
+          updates.push({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: block.text } })
+        } else if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking !== '') {
+          updates.push({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: block.thinking } })
+        } else if (block.type === 'tool_use' && typeof block.id === 'string') {
+          const name = String(block.name ?? 'tool')
+          updates.push({
+            sessionUpdate: 'tool_call',
+            toolCallId: block.id,
+            title: name,
+            kind: toolKindOf(name),
+            status: 'in_progress',
+            rawInput: (block.input as Record<string, unknown>) ?? {},
+            locations: toolLocationsOf(name, block.input),
+          })
+        }
+      }
+    }
+  }
+  return updates
 }
 
 export interface AcpPromptMaterial {
@@ -298,8 +650,9 @@ interface AcpSessionState {
   child: MercuryChildSession
   cwd: string
   modeId: string
-  turnResolve: ((outcome: 'success' | 'error' | 'cancelled') => void) | null
+  turnResolve: ((outcome: 'success' | 'error' | 'cancelled', detail?: TurnEndDetail) => void) | null
   cancelled: boolean
+  editorContext: EditorContextWire | null
   toolNames: Map<string, string>
   planChain: Promise<void>
   planEverSent: boolean
@@ -317,7 +670,13 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
 
   const attachSession = (
     ctx: AgentContext,
-    args: { cwd: string; acpSessionId: string; resumeSessionId?: string; modeId?: string },
+    args: {
+      cwd: string
+      acpSessionId: string
+      resumeSessionId?: string
+      modeId?: string
+      mcpServers?: unknown
+    },
   ): AcpSessionState => {
     const acpSessionId = args.acpSessionId
     const state: AcpSessionState = {
@@ -326,6 +685,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       modeId: args.modeId ?? 'default',
       turnResolve: null,
       cancelled: false,
+      editorContext: null,
       toolNames: new Map(),
       planChain: Promise.resolve(),
       planEverSent: false,
@@ -347,6 +707,10 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         .catch(() => {
         })
     }
+    const mcp = acpMcpServersToConfig(args.mcpServers)
+    if (mcp && mcp.skipped.length > 0) {
+      process.stderr.write(`[acp] mcpServers not carried (unsupported shape): ${mcp.skipped.join(', ')}\n`)
+    }
     const child = new MercuryChildSession(
       {
         cwd: args.cwd,
@@ -355,6 +719,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           : { sessionId: acpSessionId }),
         permissionMode: args.modeId !== undefined ? decodeAcpModeId(args.modeId) : 'default',
         ...(opts.entry !== undefined && { entry: opts.entry }),
+        ...(mcp !== null && { mcpConfig: mcp.json }),
       },
       {
         onInit: sessionId => {
@@ -371,26 +736,41 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             },
           })
         },
+        onAssistantThought: text => {
+          void ctx.notify(methods.client.session.update, {
+            sessionId: acpSessionId,
+            update: {
+              sessionUpdate: 'agent_thought_chunk',
+              content: { type: 'text', text },
+            },
+          })
+        },
         onToolUse: (toolUseId, name, input) => {
           state.toolNames.set(toolUseId, name)
+          const diffs = toolDiffsOf(name, input)
           void ctx.notify(methods.client.session.update, {
             sessionId: acpSessionId,
             update: {
               sessionUpdate: 'tool_call',
               toolCallId: toolUseId,
               title: name,
+              kind: toolKindOf(name),
               status: 'in_progress',
               rawInput: (input as Record<string, unknown>) ?? {},
+              locations: toolLocationsOf(name, input),
+              ...(diffs.length > 0 && { content: diffs.map(d => ({ type: 'diff' as const, ...d })) }),
             },
           })
         },
-        onToolResult: (toolUseId, isError) => {
+        onToolResult: (toolUseId, isError, output) => {
+          const content = toolOutputContentOf(output)
           void ctx.notify(methods.client.session.update, {
             sessionId: acpSessionId,
             update: {
               sessionUpdate: 'tool_call_update',
               toolCallId: toolUseId,
               status: isError ? 'failed' : 'completed',
+              ...(content !== undefined && { content }),
             },
           })
           const name = state.toolNames.get(toolUseId)
@@ -410,11 +790,11 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             },
           })
         },
-        onTurnEnd: outcome => {
+        onTurnEnd: (outcome, detail) => {
           if (state.turnResolve) {
             const resolveTurn = state.turnResolve
             state.turnResolve = null
-            resolveTurn(state.cancelled ? 'cancelled' : outcome)
+            resolveTurn(state.cancelled ? 'cancelled' : outcome, detail)
             state.cancelled = false
           }
         },
@@ -432,11 +812,14 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             }
           })()
         },
-        onExit: () => {
+        onExit: code => {
           if (state.turnResolve) {
             const resolveTurn = state.turnResolve
             state.turnResolve = null
-            resolveTurn('error')
+            resolveTurn('error', {
+              subtype: 'child_exited',
+              errors: [`the session process exited${code === null ? '' : ` (${code})`} mid-turn`],
+            })
           }
           for (const [key, value] of sessions) {
             if (value === state) sessions.delete(key)
@@ -491,19 +874,26 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       agentCapabilities: {
         loadSession: true,
         promptCapabilities: { image: true, audio: false, embeddedContext: true },
+        mcpCapabilities: { http: true, sse: true },
+        sessionCapabilities: { list: {} },
       },
       authMethods: [],
+      agentInfo: { name: 'mercury', title: 'Mercury', version: MERCURY_VERSION },
     }))
     .onRequest('session/new', ctx => {
       const sessionId = randomUUID()
-      attachSession(ctx.client, { cwd: ctx.params.cwd, acpSessionId: sessionId })
+      attachSession(ctx.client, {
+        cwd: ctx.params.cwd,
+        acpSessionId: sessionId,
+        mcpServers: ctx.params.mcpServers,
+      })
       return {
         sessionId,
         modes: modesFor('default'),
         configOptions: configOptionsFor('default'),
       }
     })
-    .onRequest('session/load', ctx => {
+    .onRequest('session/load', async ctx => {
       const requested = ctx.params.sessionId
       if (sessions.has(requested)) {
         const modeId = sessions.get(requested)!.modeId
@@ -516,7 +906,19 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         cwd: ctx.params.cwd,
         acpSessionId: requested,
         resumeSessionId: requested,
+        mcpServers: ctx.params.mcpServers,
       })
+      try {
+        const { messages } = await loadSessionFile(requested as UUID)
+        for (const update of replayUpdatesOf(messages.values() as unknown as Iterable<Record<string, unknown>>)) {
+          await ctx.client.notify(methods.client.session.update, {
+            sessionId: requested,
+            update: update as never,
+          })
+        }
+      } catch (e) {
+        process.stderr.write(`[acp] session/load replay skipped: ${e instanceof Error ? e.message : String(e)}\n`)
+      }
       const modeId = sessions.get(requested)?.modeId ?? 'default'
       return { modes: modesFor(modeId), configOptions: configOptionsFor(modeId) }
     })
@@ -547,26 +949,31 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       if (state.turnResolve) {
         throw new Error('a prompt turn is already in flight for this session')
       }
+      const editorResource = editorContextResource(state.editorContext)
       const blocks = composerDocumentBlocks(
-        acpPromptToComposerDocument(
-          ctx.params.prompt as unknown as Array<Record<string, unknown>>,
-        ),
+        acpPromptToComposerDocument([
+          ...(editorResource !== null ? [editorResource as unknown as Record<string, unknown>] : []),
+          ...(ctx.params.prompt as unknown as Array<Record<string, unknown>>),
+        ]),
       )
       state.cancelled = false
-      const outcome = await new Promise<'success' | 'error' | 'cancelled'>(resolve => {
-        state.turnResolve = resolve
+      const settled = await new Promise<{
+        outcome: 'success' | 'error' | 'cancelled'
+        detail: TurnEndDetail | undefined
+      }>(resolve => {
+        state.turnResolve = (outcome, detail) => resolve({ outcome, detail })
         try {
           state.child.writeUserPrompt(blocks)
         } catch (e) {
-          process.stderr.write(`[acp] session/prompt failed to reach the child: ${e instanceof Error ? e.message : String(e)}\n`)
+          const why = e instanceof Error ? e.message : String(e)
+          process.stderr.write(`[acp] session/prompt failed to reach the child: ${why}\n`)
           state.turnResolve = null
-          resolve('error')
+          resolve({ outcome: 'error', detail: { subtype: 'prompt_undelivered', errors: [why] } })
         }
       })
-      return {
-        stopReason:
-          outcome === 'cancelled' ? 'cancelled' : outcome === 'error' ? 'refusal' : 'end_turn',
-      }
+      const verdict = stopReasonOf(settled.outcome, settled.detail)
+      if ('error' in verdict) throw new Error(verdict.error)
+      return { stopReason: verdict.stopReason }
     })
     .onRequest('session/set_mode', async ctx => {
       const state = sessions.get(ctx.params.sessionId)
@@ -622,6 +1029,12 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         state.cancelled = true
         state.child.interrupt()
       }
+    })
+    .onNotification('_mercury/editor_context', (v: unknown) => editorContextOf(v), ctx => {
+      const wire = ctx.params
+      if (wire === null) return
+      const state = sessions.get(wire.sessionId)
+      if (state) state.editorContext = wire
     })
     .onRequest('_mercury/workbench', (v: unknown) => (v ?? {}), async () => {
       const snap = await resolveWorkbenchSnapshot()
