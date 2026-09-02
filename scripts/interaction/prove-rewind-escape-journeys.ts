@@ -155,7 +155,7 @@ if (process.env.REWESC_CHILD) {
   const PICK_TITLE = 'Rewind'
   const PICK_FOOTER = 'esc close'
   const CONFIRM_MARKER = 'Restore conversation'
-  const CONFIRM_SETTLED = 'The code is unchanged.'
+  const CONFIRM_SETTLED = 'The files are unchanged.'
   const SETTLE = { requireAwait: true, awaitStableTicks: 2 } as const
 
   section('R1 · esc-esc opens the rewind list; ONE esc closes it (the incident journey)')
