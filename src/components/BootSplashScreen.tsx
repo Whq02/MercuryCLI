@@ -20,7 +20,7 @@ import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
-import { NO_SIGN_IN_ROW, computedDefault } from '../utils/model/computedDefault.js';
+import { computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { providerFamilyPresences } from '../services/providers/providerUsage.js';
 import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
@@ -398,14 +398,15 @@ export function BootSplashScreen(): React.ReactNode {
     }
     const cert = healthCertSnapshot();
     const critterKey = getSessionCritterKey();
-    let noSignIn = false;
+    let keylessRow: string | null = null;
     try {
-      noSignIn = getUserSpecifiedModelSetting() === null && computedDefault().source === 'keyless';
+      const decision = computedDefault();
+      keylessRow = getUserSpecifiedModelSetting() === null && decision.source === 'keyless' ? decision.row : null;
     } catch {
-      noSignIn = false;
+      keylessRow = null;
     }
     return {
-      model: noSignIn ? NO_SIGN_IN_ROW : renderModelChip(mainModel),
+      model: keylessRow ?? renderModelChip(mainModel),
       critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
       critterHue: getSessionAccent().accent,
       dir: projectDisplayName(getCwd()),
@@ -416,7 +417,7 @@ export function BootSplashScreen(): React.ReactNode {
           : null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainModel, presenceEpoch, signInEpoch, catalogueEpoch]);
+  }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
