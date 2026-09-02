@@ -11,7 +11,7 @@
 //  Poison = the pre-fix 800 ms blink: an operator-paced esc·esc (≈2 s
 //  apart) read as a no-op.
 // ============================================================================
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -52,8 +52,7 @@ const DRAFT = 'hello draft mercury'
 const leg = async (tag: string, cols: number, rows: number, gapMs: number): Promise<void> => {
   const SCRATCH = mkdtempSync(join(tmpdir(), `escdraft-${tag}-`))
   const daemonDir = join(SCRATCH, 'daemon')
-  const work = join(SCRATCH, 'work')
-  for (const d of [daemonDir, work]) mkdirSync(d, { recursive: true })
+  mkdirSync(daemonDir, { recursive: true })
   process.env.MERCURY_DAEMON_DIR = daemonDir
   delete process.env.MERCURY_HOME
   process.env.MERCURY_CONCOURSE = 'always'
@@ -91,11 +90,17 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     cols,
     rows,
     keep: true,
-    seedHome: async (configDir, _cwd) => {
-      seedFirstRun(configDir, [_cwd, work])
+    seedHome: async (configDir, ground) => {
+      // The board is project-scoped: its rows are the ground's own sessions,
+      // and the ground is the cwd the chat boots in. The daemon runs there
+      // and the seat is dispatched there, so the row is the board's own; a
+      // git ground keeps the folder's git-init card off the board.
+      spawnSync('git', ['init', '-q', '-b', 'main'], { cwd: ground })
+      spawnSync('git', ['-c', 'user.name=probe', '-c', 'user.email=probe@x', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: ground })
+      seedFirstRun(configDir, [ground])
       process.env.MERCURY_CONFIG_DIR = configDir
-      daemon = spawn('node', [DIST, 'daemon', 'run', work], {
-        cwd: work,
+      daemon = spawn('node', [DIST, 'daemon', 'run', ground], {
+        cwd: ground,
         env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0' },
         stdio: ['ignore', logFd, logFd],
       })
@@ -104,13 +109,13 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
         op: 'concourseDispatch',
         clientMessageId: `escdraft-${tag}`,
         prompt: 'say something settled',
-        workspaceDir: work,
+        workspaceDir: ground,
         title: 'Quiet seat',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))
-      const t = join(paths.getProjectDir(work), `${a.sessionId ?? ''}.jsonl`)
+      const t = join(paths.getProjectDir(ground), `${a.sessionId ?? ''}.jsonl`)
       check(`${tag}: transcript born`, await untilAsync(() => existsSync(t) && statSync(t).size > 100, 30_000))
     },
     extraEnv: { MERCURY_CONCOURSE: 'always', MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_CACHE_CLOCK: '0' },
