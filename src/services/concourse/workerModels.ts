@@ -1,6 +1,6 @@
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { NO_SIGN_IN_ROW, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { NO_SIGN_IN_ROW, NO_USABLE_ROW, keylessReason, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
@@ -291,6 +291,7 @@ export type WorkerModelValidation =
       ok: true
       entry: WorkerModelEntryV1
       keyless?: true
+      note?: string
     }
   | {
       ok: false
@@ -402,6 +403,13 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
       if (noAccount !== undefined) {
         if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
         return { ok: false, ...noAccount }
+      }
+      if (arm === 'session' && idOrKey === undefined) {
+        const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+        const decision = computedDefault()
+        if (decision.source === 'keyless' && decision.considered.length > 0) {
+          return { ok: true, entry: { ...entry, displayName: NO_USABLE_ROW }, keyless: true, note: `${NO_USABLE_ROW} — ${keylessReason(decision)}` }
+        }
       }
     }
     const drift = unnamed ? await unnamedLaunchDrift(verdict.refusal) : undefined

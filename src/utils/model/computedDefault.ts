@@ -109,7 +109,7 @@ export function evaluateComputedDefault(facts: ComputedDefaultFacts): ComputedDe
         ? facts.keyless.why
         : `no sign-in offers a usable row (${considered
             .map(c => `${name(c.family)}: ${c.verdict.why}`)
-            .join('; ')}) — /logins signs another provider in`
+            .join('; ')}) — /model names a row by id, or /logins signs another provider in`
     return {
       setting: facts.keyless.setting,
       row: considered.length === 0 ? NO_SIGN_IN_ROW : NO_USABLE_ROW,
