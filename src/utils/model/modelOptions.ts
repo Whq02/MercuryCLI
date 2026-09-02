@@ -10,19 +10,16 @@ import {
   type GptSeatAvailability,
 } from '../../services/providers/openai/openaiCatalogue.js'
 import {
-  GEMINI_CONNECT_OPTION_VALUE,
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
 } from '../../services/providers/gemini/geminiCatalogue.js'
 import {
-  OPENROUTER_CONNECT_OPTION_VALUE,
   OPENROUTER_MODEL_GROUP,
   getOpenrouterModelOptions,
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { connectToBrowseReason } from '../../services/providers/catalogueGate.js'
 import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
 import {
-  HUGGINGFACE_CONNECT_OPTION_VALUE,
   HUGGINGFACE_MODEL_GROUP,
   getHuggingfaceModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
@@ -58,6 +55,7 @@ export type ModelOption = {
   group?: string
   unavailable?: string
   statedContextWindow?: number
+  catalogueDoor?: { family: string; total: number }
 }
 
 export const GPT_CONNECT_OPTION_VALUE = '__hermes_gpt_connect__'
@@ -282,12 +280,26 @@ export function parseKeyConnectValue(
     : undefined
 }
 
+export function isCatalogueDoorRow(value: string): boolean {
+  return /^__mercury_[a-z0-9-]+_expand__$/.test(value)
+}
+
 export function isProviderActionRow(value: string): boolean {
   return (
     value === GPT_CONNECT_OPTION_VALUE ||
     value.startsWith(KEY_CONNECT_PREFIX) ||
-    /^__mercury_[a-z0-9-]+_connect__$/.test(value)
+    /^__mercury_[a-z0-9-]+_connect__$/.test(value) ||
+    isCatalogueDoorRow(value)
   )
+}
+
+export function applyModelAllowlist(options: ModelOption[]): ModelOption[] {
+  if (getSettings_DEPRECATED().availableModels === undefined) return options
+  return options.filter(opt => {
+    if (opt.value === null) return true
+    if (isProviderActionRow(opt.value)) return true
+    return isModelAllowed(opt.value)
+  })
 }
 
 function gptDisqualificationCopy(
@@ -611,21 +623,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
 
-  if (getSettings_DEPRECATED().availableModels !== undefined) {
-    options = options.filter(opt => {
-      if (opt.value === null) return true
-      if (
-        opt.value === GPT_CONNECT_OPTION_VALUE ||
-        opt.value === OPENROUTER_CONNECT_OPTION_VALUE ||
-        opt.value === GEMINI_CONNECT_OPTION_VALUE ||
-        opt.value === HUGGINGFACE_CONNECT_OPTION_VALUE ||
-        opt.value.startsWith(KEY_CONNECT_PREFIX)
-      ) {
-        return true
-      }
-      return isModelAllowed(opt.value)
-    })
-  }
+  options = applyModelAllowlist(options)
 
   if (!(reads.anthropicCredentialed ?? liveAnthropicCredentialed)()) {
     const reason = anthropicNotSignedInReason()
