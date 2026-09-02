@@ -4,13 +4,9 @@ import { useFluxMountMark } from '../hooks/useFluxMountMark.js'
 import { Box, Text, flushPendingSyncWork } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { isFullscreenActive } from '../utils/fullscreen.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
 import type { StreamingTailStore } from '../utils/messages/streamingTailStore.js'
 import { StreamingMarkdown } from './Markdown.js'
-import {
-  MercuryStreamingNameplate,
-  ScribeStreamingNameplate,
-} from './messages/ChatLine.js'
+import { MercuryStreamingNameplate } from './messages/ChatLine.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
 import { useAppState, type AppState } from '../state/AppState.js'
@@ -192,15 +188,9 @@ export function LiveStreamingTail({
       {bounded.truncated ? (
         <Text dimColor>… the reply continues above-fold at settle</Text>
       ) : null}
-      {isScribeModeOn() ? (
-        <StreamingMarkdown leadingInline={<ScribeStreamingNameplate />}>
-          {text}
-        </StreamingMarkdown>
-      ) : (
-        <StreamingMarkdown leadingInline={<MercuryStreamingNameplate />}>
-          {text}
-        </StreamingMarkdown>
-      )}
+      <StreamingMarkdown leadingInline={<MercuryStreamingNameplate />}>
+        {text}
+      </StreamingMarkdown>
     </Box>
   )
 }

@@ -29,7 +29,6 @@ import { isProcessAlive } from './ownerWatch.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
 import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
-import { canonicalizeBusTarget, isManagedBusTeam, knownBusTargets } from '../utils/scribe/busIdentity.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
@@ -493,15 +492,7 @@ async function routeControlRequest(
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const rawTo = String(raw.to ?? '')
       const team = typeof raw.team === 'string' && raw.team ? raw.team : 'default'
-      const resolvedTo = canonicalizeBusTarget(team, rawTo)
-      if (rawTo && !resolvedTo.known && isManagedBusTeam(team)) {
-        return answer(sock, {
-          ok: false,
-          code: 'EUNKNOWN',
-          error: `unknown bus address '${rawTo}' for team '${team}' — valid: ${knownBusTargets(team).join(', ')}`,
-        })
-      }
-      const to = resolvedTo.name
+      const to = rawTo.trim()
       let env: ReturnType<typeof parseBusEnvelope> = null
       try {
         env = parseBusEnvelope(JSON.stringify(raw.env))

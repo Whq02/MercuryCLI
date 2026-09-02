@@ -332,14 +332,6 @@ export type Attachment =
       content: string
     }
   | {
-      type: 'scribe_awareness'
-      content: string
-    }
-  | {
-      type: 'implementer_awareness'
-      content: string
-    }
-  | {
       type: 'taste_recall'
       content: string
     }

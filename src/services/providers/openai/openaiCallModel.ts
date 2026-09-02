@@ -216,8 +216,6 @@ const reconstructionNoted = new Set<string>()
 
 function activeApexRole(options: Options): ApexGptRole {
   if (options.querySource === 'concourse_coordinator') return 'coordinator'
-  if (flagEnv('MERCURY_IMPLEMENTER') === '1') return 'scribe-implementer'
-  if (flagEnv('MERCURY_SCRIBE') === '1') return 'scribe-router'
   if (options.agentId || String(options.querySource ?? '').startsWith('agent')) {
     return 'specialist'
   }

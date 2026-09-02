@@ -13,7 +13,6 @@ export type InternalPermissionMode =
   | ExternalPermissionMode
   | 'flow'
   | 'bubble'
-  | 'scribe'
   | 'autopilot'
   | 'apollo'
 
@@ -21,7 +20,6 @@ export const INTERNAL_PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
   'bubble',
-  'scribe',
   'autopilot',
   'apollo',
 ] as const satisfies readonly InternalPermissionMode[]
@@ -31,7 +29,6 @@ export type PermissionMode = InternalPermissionMode
 export const PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
-  'scribe',
   'autopilot',
   'apollo',
 ] as const
@@ -43,6 +40,7 @@ export const RETIRED_PERMISSION_MODE_SPELLINGS: Readonly<Record<string, Permissi
   auto: 'flow',
   bypassPermissions: 'sovereign',
   plan: 'strategy',
+  scribe: 'default',
 }
 
 export function decodePermissionModeSpelling(raw: string): string {

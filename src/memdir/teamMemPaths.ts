@@ -20,14 +20,6 @@ export function getTeamMemEntrypoint(): string {
   return `${getTeamMemPath()}MEMORY.md`
 }
 
-export function getScribeMemPath(): string {
-  return `${join(getAutoMemPath(), 'scribe')}${sep}`.normalize('NFC')
-}
-
-export function getScribeMemEntrypoint(): string {
-  return `${getScribeMemPath()}MEMORY.md`
-}
-
 export function isTeamMemFile(filePath: string): boolean {
   if (!isTeamMemoryEnabled()) return false
   return resolve(filePath).startsWith(getTeamMemPath())

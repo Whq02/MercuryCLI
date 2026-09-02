@@ -42,7 +42,6 @@ const MODE_CONFIG: Partial<Record<PermissionMode, ModeConfig>> = {
   dontAsk: { title: "Don't Ask", symbol: GLYPH.modeDontAsk, color: 'error', external: 'dontAsk' },
   flow: { title: 'Flow', symbol: GLYPH.modeFlow, color: 'success', external: 'default' },
   autopilot: { title: 'Autopilot', symbol: GLYPH.modeAutopilot, color: 'error', external: 'sovereign' },
-  scribe: { title: 'Scribe Mode', symbol: GLYPH.modeScribe, color: 'warning', external: 'default' },
 }
 
 function configFor(mode: PermissionMode): ModeConfig {

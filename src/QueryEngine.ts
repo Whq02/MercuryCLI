@@ -36,10 +36,6 @@ import { registerForcedReadHook } from './utils/hooks/forcedReadHook.js'
 import { registerStructuredOutputEnforcement } from './utils/hooks/hookHelpers.js'
 import { registerRunStopHook } from './utils/hooks/runStopHook.js'
 import { registerWardsHook } from './utils/hooks/wardsHook.js'
-import {
-  engageImplementerHooks,
-  engageScribeHooks,
-} from './utils/hooks/scribeImplementerHooks.js'
 import { getInMemoryErrors, logError } from './utils/log.js'
 import {
   localCommandOutputToSDKAssistantMessage,
@@ -54,20 +50,10 @@ import { getSlashCommandToolSkills } from './commands.js'
 import { ensureExtensionsLoaded } from './extensions/boot.js'
 import { handleOrphanedPermission, isResultSuccessful, normalizeMessage } from './utils/queryHelpers.js'
 import { fetchSystemPromptParts } from './utils/queryContext.js'
-import { armImplementerTelemetryPoll } from './utils/scribe/implementerTelemetry.js'
 import { assertSingleRole } from './utils/workerRole.js'
-import {
-  scribePinIsApplicable,
-  scribeSeatEffort,
-  scribeSeatModel,
-} from './utils/scribe/scribeModelPin.js'
-import { isScribeModeOn } from './utils/scribeMode.js'
 import { flushSessionStorage, recordTranscript } from './utils/sessionStorage.js'
 import { setCwd } from './utils/Shell.js'
 import { flagEnv } from './substrate/flagRegistry.js'
-import { getAgentName, getTeamName, isTeammate } from './utils/teammate.js'
-import { isImplementerModeOn } from './utils/implementerMode.js'
-import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import type { ThinkingConfig } from './utils/thinking.js'
 import { shouldEnableThinkingByDefault } from './utils/thinking.js'
 import { asSystemPrompt } from './utils/systemPromptType.js'
@@ -127,25 +113,6 @@ type SdkPermissionDenial = {
 const asSdk = (value: Record<string, unknown>): SDKMessage =>
   value as unknown as SDKMessage
 
-let seatBootSelfCheckEmitted = false
-let implementerBootChecked = false
-
-function emitSeatBootSelfCheck(seatRole: string, expectedTeam: string): void {
-  if (seatBootSelfCheckEmitted) return
-  seatBootSelfCheckEmitted = true
-  const teamName = getTeamName()
-  const teammate = isTeammate()
-  const swarmsOn = isAgentSwarmsEnabled()
-  const model = getMainLoopModel()
-  const facts = `role=${seatRole} team=${teamName ?? 'none'} agent=${getAgentName() ?? 'unset'} model=${model} teammate=${teammate} swarms=${swarmsOn}`
-  if (teamName === expectedTeam && teammate && swarmsOn) {
-    process.stderr.write(`[${seatRole}] boot self-check OK: ${facts}\n`)
-  } else {
-    process.stderr.write(
-      `[${seatRole}] boot self-check FAILED (expected team '${expectedTeam}'): ${facts} — the bus will NOT deliver; check the --agent-id/--agent-name/--team-name triple and the swarms env\n`,
-    )
-  }
-}
 
 function messageTextContent(message: Message): string | null {
   const content = (message as { message?: { content?: unknown } }).message?.content
@@ -263,10 +230,7 @@ export class QueryEngine {
 
     const appStateSnapshot = config.getAppState()
 
-    const resolvedModel =
-      isScribeModeOn() && scribePinIsApplicable()
-        ? scribeSeatModel()
-        : (this.#userSpecifiedModel ?? getMainLoopModel())
+    const resolvedModel = this.#userSpecifiedModel ?? getMainLoopModel()
 
     const thinkingConfig: ThinkingConfig =
       config.thinkingConfig ??
@@ -317,37 +281,9 @@ export class QueryEngine {
     }
     registerWardsHook(config.setAppState, sessionId)
     registerRunStopHook(config.setAppState, sessionId)
-    {
-      const setAppState = config.setAppState
-      if (!isScribeModeOn()) {
-        engageCommitGate(setAppState, getSessionId())
-      }
-    }
+    engageCommitGate(config.setAppState, getSessionId())
     assertSingleRole()
     armWorkerParentWatch()
-    if (isScribeModeOn()) {
-      engageScribeHooks(config.setAppState, sessionId)
-      armImplementerTelemetryPoll()
-      if (scribePinIsApplicable() && process.env.MERCURY_EFFORT_LEVEL === undefined) {
-        const seatEffort = scribeSeatEffort()
-        config.setAppState(prev => ({ ...prev, effort: seatEffort }))
-      }
-    }
-    if (isImplementerModeOn()) {
-      engageImplementerHooks(config.setAppState, sessionId)
-      if (!implementerBootChecked) {
-        implementerBootChecked = true
-        const bootTeam = getTeamName()
-        const bootFacts = `team=${bootTeam ?? 'none'} agent=${getAgentName() ?? 'unset'} model=${getMainLoopModel()} teammate=${isTeammate()} swarms=${isAgentSwarmsEnabled()}`
-        if (bootTeam === 'scribe' && isTeammate() && isAgentSwarmsEnabled()) {
-          process.stderr.write(`[implementer] boot OK — ${bootFacts}\n`)
-        } else {
-          process.stderr.write(
-            `[implementer] BOOT SELF-CHECK FAILED (expected team 'scribe'): ${bootFacts} — the bus will NOT deliver; check the --agent-id/--agent-name/--team-name triple and the swarms env\n`,
-          )
-        }
-      }
-    }
 
     const buildContext = (messages: Message[], model: string): ToolUseContext => ({
       options: {

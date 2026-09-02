@@ -139,8 +139,6 @@ export function refreshOpenaiCatalogue(
 
 export const APEX_GPT_ROLES = [
   'primary',
-  'scribe-router',
-  'scribe-implementer',
   'specialist',
   'coordinator',
 ] as const
