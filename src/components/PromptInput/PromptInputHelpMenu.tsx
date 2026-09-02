@@ -1,13 +1,12 @@
 import * as React from 'react'
-import { Box, Text } from 'src/ink.js'
+import { Box, Text, elementScreenTop } from 'src/ink.js'
+import type { DOMElement } from '../../ink/dom.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { computeChromeMode } from '../../hooks/useLayoutTier.js'
 import { getPlatform } from 'src/utils/platform.js'
 import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBindings.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
-import { getNotificationRows, subscribeNotificationRows } from './notificationRowsMirror.js'
 import { isDeckPaneActive } from '../../utils/fullscreen.js'
 import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
@@ -188,20 +187,32 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   // columns the single-column grid runs ~21 rows and a 24-row terminal
   // shed eight entries with no trace. Cap every column to the rows the
   // terminal can afford and SAY what was cut; /help carries the full list.
-  const chrome = computeChromeMode(columns, termRows)
-  // The notice column sits between the composer and this grid and paints a
-  // variable number of rows (the sign-in state, a steering split at its
-  // seams, the transient). The chrome allowance was calibrated with ONE such
-  // row; the column publishes its measured height after every paint, and
-  // every row beyond that one comes out of the grid's budget — with a fixed
-  // allowance the extra rows pushed the remainder row itself below the
-  // screen, the silent clip this cap exists to prevent.
-  const noticeRows = React.useSyncExternalStore(subscribeNotificationRows, getNotificationRows, getNotificationRows)
-  const NOTICE_ROWS_IN_ALLOWANCE = 1
-  const availableRows = Math.max(
-    3,
-    termRows - (chrome === 'deck-strip' ? 14 : 6) - Math.max(0, noticeRows - NOTICE_ROWS_IN_ALLOWANCE),
-  )
+  // The rows the screen still holds beneath this grid are not a constant:
+  // the notice column above it paints a variable number of rows (the
+  // sign-in state, a steering split at its seams, a refusal of several
+  // rows), and a fixed chrome allowance pushed the grid's own remainder row
+  // below the screen — the silent clip this cap exists to prevent. So the
+  // grid measures itself: for each geometry (rows · columns · the row count
+  // it would paint) it paints once UNCAPPED, reads its own screen top after
+  // that paint — the bottom stack cannot shrink, so an overflowing grid
+  // sits at the squeezed transcript's floor and a fitting one at the rows
+  // it needs — and caps to the rows from there to the bottom edge. A fitting
+  // grid measures exactly its own height (no cut); an overflowing one the
+  // real room. Until the first measurement lands the grid paints uncapped
+  // (one frame; the bottom edge clips it), never capped by a guess that
+  // would then measure as the truth.
+  const gridRef = React.useRef<DOMElement | null>(null)
+  const totalRows = columnGroups.reduce((most, group) => Math.max(most, group.length), 0)
+  const geometryKey = `${termRows}:${columns}:${totalRows}`
+  const [measured, setMeasured] = React.useState<{ key: string; rows: number } | null>(null)
+  React.useEffect(() => {
+    if (measured !== null && measured.key === geometryKey) return
+    const element = gridRef.current
+    if (!element) return
+    const top = elementScreenTop(element)
+    setMeasured({ key: geometryKey, rows: Math.max(3, termRows - top) })
+  })
+  const availableRows = measured !== null && measured.key === geometryKey ? measured.rows : Number.MAX_SAFE_INTEGER
   let hiddenRows = 0
   const shownGroups = columnGroups.map(group => {
     if (group.length <= availableRows) return group
@@ -210,7 +221,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   })
 
   return (
-    <Box paddingX={paddingX} flexDirection="column">
+    <Box paddingX={paddingX} flexDirection="column" ref={gridRef}>
       {/* The shortcut columns. gap floors at 2 — the `?` overlay mounted with
           no gap at all, so a squeezed column BUTTED into its neighbor
           (`…for commanddeck chips`, 120-col capture). */}

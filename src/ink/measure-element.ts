@@ -30,3 +30,19 @@ export function elementScreenLeft(node: DOMElement): number {
   }
   return left
 }
+
+/** The element's absolute screen row: computed tops summed up the parent
+ *  chain (the row twin of elementScreenLeft). A bottom-anchored surface that
+ *  budgets its own rows — the shortcut grid caps itself to the rows the
+ *  screen still holds beneath it — reads the rows above it from this, not
+ *  from a chrome constant. */
+export function elementScreenTop(node: DOMElement): number {
+  let top = 0
+  let cur: DOMElement | undefined = node
+  while (cur) {
+    const layout = cur.layoutNode
+    if (layout) top += layout.getComputedTop()
+    cur = cur.parentNode
+  }
+  return top
+}
