@@ -1,7 +1,7 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { Browser as DriverBrowser, Page } from 'puppeteer-core'
+import type { Browser as DriverBrowser, LaunchOptions, Page } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -39,16 +39,31 @@ interface OwnerBrowserState {
   session: Session | null
   launching: boolean
   launchFlight: Promise<Session | EnsureSessionRefusal> | null
+  disposed: boolean
   approvedOrigins: Set<string>
   approvedSecretPairings: Set<string>
   checkedActOrigin: { op: string; origin: string } | null
 }
 
-function killChild(session: Session): void {
+function killChild(browser: DriverBrowser): void {
   try {
-    session.browser.process()?.kill()
+    browser.process()?.kill()
   } catch {
   }
+}
+
+async function closeChild(browser: DriverBrowser): Promise<void> {
+  try {
+    await browser.close()
+  } catch {
+    killChild(browser)
+  }
+}
+
+type LaunchDriver = (options: LaunchOptions) => Promise<DriverBrowser>
+let launchDriverForProof: LaunchDriver | null = null
+export function setBrowserLaunchDriverForProof(driver: LaunchDriver | null): void {
+  launchDriverForProof = driver
 }
 
 const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
@@ -57,22 +72,21 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     session: null,
     launching: false,
     launchFlight: null,
+    disposed: false,
     approvedOrigins: new Set(),
     approvedSecretPairings: new Set(),
     checkedActOrigin: null,
   }),
   dispose: async state => {
+    state.disposed = true
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
     state.checkedActOrigin = null
+    if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
     const session = state.session
     state.session = null
     if (!session) return
-    try {
-      await session.browser.close()
-    } catch {
-      killChild(session)
-    }
+    await closeChild(session.browser)
   },
   retain: state => state.session !== null || state.launching,
 })
@@ -162,19 +176,51 @@ export function driverVersion(): string {
   return (puppeteerPkg as { version?: string }).version ?? 'bundled'
 }
 
-export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity'; note: string }
+export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
 
-export async function ensureBrowserSession(owner: OwnerKey): Promise<Session | EnsureSessionRefusal> {
+export async function ensureBrowserSession(
+  owner: OwnerKey,
+  opts: { signal?: AbortSignal | undefined } = {},
+): Promise<Session | EnsureSessionRefusal> {
   const state = ownerStates.get(owner)
   if (state.session && state.session.browser.connected) return state.session
-  if (state.launchFlight !== null) return state.launchFlight
+  if (state.launchFlight !== null) return awaitLaunch(state.launchFlight, opts.signal)
   const flight = launchOwnerSession(owner, state)
   state.launchFlight = flight
-  try {
-    return await flight
-  } finally {
+  const clear = (): void => {
     if (state.launchFlight === flight) state.launchFlight = null
   }
+  void flight.then(clear, clear)
+  return awaitLaunch(flight, opts.signal)
+}
+
+function awaitLaunch(
+  flight: Promise<Session | EnsureSessionRefusal>,
+  signal: AbortSignal | undefined,
+): Promise<Session | EnsureSessionRefusal> {
+  if (signal === undefined) return flight
+  if (signal.aborted) return Promise.reject(abortReason(signal))
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => reject(abortReason(signal))
+    signal.addEventListener('abort', onAbort, { once: true })
+    flight.then(
+      value => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (err: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(err)
+      },
+    )
+  })
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  if (signal.reason !== undefined) return signal.reason
+  const err = new Error('the launch wait was interrupted')
+  err.name = 'AbortError'
+  return err
 }
 
 async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Promise<Session | EnsureSessionRefusal> {
@@ -199,9 +245,10 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     return { state: 'unavailable', note: `${resolution.note} — ${resolution.remedies.join('; ')}` }
   }
   state.launching = true
-  let browser: DriverBrowser
+  let unhanded: DriverBrowser | null = null
   try {
-    const puppeteer = (await import('puppeteer-core')).default
+    const launch: LaunchDriver =
+      launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
     const launchArgs = [
       '--no-first-run',
       '--no-default-browser-check',
@@ -211,7 +258,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     const sandboxDowngraded =
       process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0
     if (sandboxDowngraded) launchArgs.push('--no-sandbox')
-    browser = await puppeteer.launch({
+    const browser = await launch({
       executablePath: resolution.executablePath,
       headless: true,
       env: subprocessEnv(),
@@ -219,6 +266,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       downloadBehavior: { policy: 'deny' },
       args: launchArgs,
     })
+    unhanded = browser
     const pages = await browser.pages()
     const page = pages[0] ?? (await browser.newPage())
     const consoleRing: ConsoleEntry[] = []
@@ -301,6 +349,12 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(() => {
       })
     })
+    if (state.disposed) {
+      return {
+        state: 'torn-down',
+        note: 'the owner was torn down while its browser launch was in flight — the child was closed, nothing is open',
+      }
+    }
     state.session = {
       browser,
       page,
@@ -311,15 +365,17 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       sandboxDowngraded,
       popups,
     }
+    unhanded = null
   } finally {
     state.launching = false
+    if (unhanded !== null) await closeChild(unhanded)
   }
   if (!exitHookInstalled) {
     exitHookInstalled = true
     process.on('exit', () => {
       for (const key of ownerStates.owners()) {
         const st = ownerStates.peek(key)
-        if (st?.session) killChild(st.session)
+        if (st?.session) killChild(st.session.browser)
       }
     })
   }
@@ -328,13 +384,11 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
 
 export async function closeBrowserSession(owner: OwnerKey): Promise<boolean> {
   const state = ownerStates.peek(owner)
-  if (!state || !state.session) return false
+  if (!state) return false
+  if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
+  if (!state.session) return false
   const session = state.session
-  try {
-    await session.browser.close()
-  } catch {
-    killChild(session)
-  }
+  await closeChild(session.browser)
   state.session = null
   state.approvedOrigins.clear()
   state.approvedSecretPairings.clear()
