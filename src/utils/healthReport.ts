@@ -1701,12 +1701,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const a = getHeadlessActivity()
             const startups = getGlobalConfig().numStartups ?? 0
             const last = a.lastAt > 0 ? `last headless ${new Date(a.lastAt).toISOString()} (${a.lastKind})` : 'no headless activity recorded'
-            // No 'verbs N' term: nothing ever mints a verb: kind (the one
-            // recorder passes 'sdk'|'print'), so the counter read a
-            // perpetual fabricated zero over real verb traffic.
+            // The verbs total folds every subcommand stamp the dispatch-seam
+            // producer mints (verb:<name>, nested as verb:parent:child) into
+            // one number beside print and sdk; a ledger row written before
+            // the verbs map existed reads 0, never a crash.
+            const verbs = Object.values(a.verbs ?? {}).reduce((sum, n) => sum + n, 0)
             return {
               status: 'ok',
-              evidence: `interactive boots ${startups} · print ${a.print} · sdk ${a.sdk} · ${last}`,
+              evidence: `interactive boots ${startups} · print ${a.print} · sdk ${a.sdk} · verbs ${verbs} · ${last}`,
             }
           },
         },

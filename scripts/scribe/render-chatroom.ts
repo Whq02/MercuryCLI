@@ -20,18 +20,17 @@ import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { serializeScribeEnvelope, buildProgress, buildDispatch } from '../../src/utils/scribe/scribeBus.js'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
+import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 // CI-portability: derive the checkout root — never a machine literal.
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
 const REPO = join(import.meta.dir, '..', '..')
-const PROJECTS = join(
-  process.env.HOME!,
-  '.claude',
-  'projects',
-  sanitizePath(RUNTIME_CWD),
-)
+// The session store the product reads for this cwd: the config home's
+// projects tree keyed by the ONE project-dir owner (`--resume <id>` loads
+// `<project dir>/<id>.jsonl` for the process cwd), so the fixture lands
+// exactly where the resumed child looks — never a foreign home.
+const PROJECTS = getProjectDir(RUNTIME_CWD)
 const VSHOT = new URL('../ui/vshot.py', import.meta.url).pathname
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 
@@ -126,6 +125,8 @@ function shoot(cell: string, cols: number, env: Record<string, string>): string 
   const out = `/tmp/chatroom-${cell}-${cols}.html`
   const cfg = {
     argv: ['node', BIN, '--resume', SID],
+    // The child resolves the session file under ITS cwd's project dir.
+    cwd: RUNTIME_CWD,
     sends: [],
     total: 16, // boot + resume-render headroom (7s caught the screen mid-boot; 10s still
     //          flaked under heavy concurrent load — 16s keeps the render-verify reliable)

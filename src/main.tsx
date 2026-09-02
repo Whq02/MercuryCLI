@@ -320,7 +320,9 @@ function failCli(message: string): never {
         uuid: randomUUID(),
         errors: [message],
       }
-      process.stdout.write(`${JSON.stringify(envelope)}\n`)
+      // writeSync: an async stdout write can be discarded by the exit on
+      // win32 — the envelope must land before the process ends.
+      writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(1)
     } catch {
       /* the envelope door failed — the prose fallback below still refuses */

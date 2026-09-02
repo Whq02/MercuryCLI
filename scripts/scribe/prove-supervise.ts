@@ -169,7 +169,16 @@ const proto = src('daemon', 'protocol.ts')
 const ctrl = src('daemon', 'controlServer.ts')
 const statusSrc = src('daemon', 'status.ts')
 check('#1 WireStatus carries the degraded field', /degraded\?: boolean/.test(proto))
-check('#1 status handler populates degraded from getSupervisorState', /getSupervisorState\(\)[\s\S]{0,600}degraded:\s*sup\.degraded/.test(ctrl))
+// Scoped to the `status` op's own case block (the ONE handler answering the
+// status RPC), never a character budget: the block binds `sup` from
+// getSupervisorState() and the payload reads the flag off that binding.
+const statusCaseStart = ctrl.indexOf("case 'status': {")
+const statusCaseEnd = ctrl.indexOf("\n    case '", statusCaseStart + 1)
+const statusCase = statusCaseStart >= 0 ? ctrl.slice(statusCaseStart, statusCaseEnd === -1 ? undefined : statusCaseEnd) : ''
+check(
+  '#1 status handler populates degraded from getSupervisorState',
+  /const sup = deps\.roster\.getSupervisorState\(\)/.test(statusCase) && /degraded:\s*sup\.degraded/.test(statusCase),
+)
 check('#1 formatter emits a loud DEGRADED line', /DEGRADED — \$\{status\.degradedReason/.test(statusSrc))
 
 // ── RESPAWN-STORM HONESTY ────────────

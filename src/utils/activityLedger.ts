@@ -42,9 +42,11 @@ export function noteHeadlessActivity(kind: HeadlessActivityKind): void {
       const next: HeadlessActivity = {
         print: prev.print + (kind === 'print' ? 1 : 0),
         sdk: prev.sdk + (kind === 'sdk' ? 1 : 0),
+        // A row persisted before the verbs map existed carries none: the
+        // stamp starts the map instead of throwing into the fail-soft catch.
         verbs: kind.startsWith('verb:')
-          ? { ...prev.verbs, [kind.slice(5)]: (prev.verbs[kind.slice(5)] ?? 0) + 1 }
-          : prev.verbs,
+          ? { ...(prev.verbs ?? {}), [kind.slice(5)]: (prev.verbs?.[kind.slice(5)] ?? 0) + 1 }
+          : (prev.verbs ?? {}),
         lastKind: kind,
         lastAt: Date.now(),
       }

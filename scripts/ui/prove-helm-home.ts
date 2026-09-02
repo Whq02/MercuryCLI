@@ -121,6 +121,14 @@ check('drill-in REUSES the existing nav state (viewingAgentTaskId), not a reinve
   /viewingAgentTaskId/.test(lanes) && !/setAppState\(\{ viewingAgentTaskId/.test(lanes))
 // S8: CREW excludes the backgrounded main session (isPanelAgentTask, not isLocalAgentTask).
 check('S8: CREW sources panel agents (excludes main-session leak)', /\.filter\(isPanelAgentTask\)/.test(lanes))
+// The hosted world: a session's runner owns the agents it spawns, so CREW
+// also lists the focused work roster's running agent/teammate rows (the
+// /tasks board's owner, filtered by the counting law's own predicate), and
+// a hosted row opens its work card — its transcript lives with the runner.
+check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate)",
+  /useFocusedWorkRoster\(\)/.test(lanes) && /roster\.rows/.test(lanes) && /workRowRuns\(r\)/.test(lanes) && /r\.kind === 'agent' \|\| r\.kind === 'teammate'/.test(lanes))
+check('a hosted CREW row opens its work card (/tasks <id>), never a local agent view',
+  /c\.hosted\s*\?\s*\{ kind: 'command', command: `\/tasks \$\{c\.id\}`/.test(lanes))
 // M4/S2: CREW and peers are CAPPED so they cannot clip TASKS off the rail.
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
