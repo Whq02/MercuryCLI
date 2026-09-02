@@ -168,6 +168,13 @@ export type Output =
         numLines: number
         startLine: number
         totalLines: number
+        /** The staleness anchor the rendered result carries as its
+         *  "(anchor: …)" tail — a field, so a persisted result re-renders
+         *  byte-identical (an @-mentioned file rides every later request). */
+        anchor?: string
+        /** An auto-memory file's modification time, rendered as the
+         *  "(memory file — last updated …)" prefix; a field for the same reason. */
+        memoryUpdatedAt?: number
       }
     }
   | {
@@ -188,8 +195,13 @@ export type Output =
   | { type: 'file_unchanged'; file: { filePath: string } }
 
 // Resumed transcripts guard persisted results through this schema before
-// rendering; presentation-only data rides the weak-map side channels, never
-// schema fields (the schema flows into published SDK types).
+// rendering. Everything the rendered result's BYTES depend on is a schema
+// field (the anchor tail, the memory-freshness prefix): a persisted
+// @-mention result is re-rendered on every later request, and a value held
+// only on the live object's identity would vanish on a resume and rewrite a
+// sent turn — the preserved-thinking check then drops every thinking block
+// after it. Paint-only options stay off the schema (it flows into
+// published SDK types).
 const outputSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('text'),
@@ -199,6 +211,8 @@ const outputSchema = z.discriminatedUnion('type', [
       numLines: z.number(),
       startLine: z.number(),
       totalLines: z.number(),
+      anchor: z.string().optional(),
+      memoryUpdatedAt: z.number().optional(),
     }),
   }),
   z.object({
@@ -237,13 +251,7 @@ const outputSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('file_unchanged'), file: z.object({ filePath: z.string() }) }),
 ])
 
-// ── side channels (never fields on the output schema) ───────────────────────
-
-/** Auto-memory modification times, keyed on result identity. */
-const memoryFreshnessTimes = new WeakMap<object, number>()
-
-/** Staleness anchors, keyed on result identity. */
-const resultAnchors = new WeakMap<object, string>()
+// ── side channels (paint-only options, never fields on the output schema) ──
 
 /** Results whose text rows carry per-line anchors (the opt-in read mode). */
 const resultLineAnchors = new WeakSet<object>()
@@ -709,6 +717,20 @@ async function readTextLane(
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
+  // The values the rendered result's bytes depend on are minted BEFORE the
+  // result and ride it as fields (the Output doc): a persisted result must
+  // re-render byte-identical on every later request.
+  const memoryUpdatedAt = isAutoMemFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
+  let anchor: string | undefined
+  if (changeTransactionEnabled() && range.content.length > 0) {
+    const wholeFile =
+      lineOffset === 0 &&
+      range.lineCount === range.totalLines &&
+      range.readBytes === range.totalBytes
+    anchor = wholeFile
+      ? mintFileAnchor(range.content)
+      : mintRangeAnchor(range.content, lineOffset + 1, range.lineCount)
+  }
   const data: Output = {
     type: 'text',
     file: {
@@ -717,26 +739,17 @@ async function readTextLane(
       numLines: range.lineCount,
       startLine: input.offset ?? 1,
       totalLines: range.totalLines,
+      ...(anchor !== undefined ? { anchor } : {}),
+      ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),
     },
   }
 
-  if (isAutoMemFile(resolvedPath)) {
-    memoryFreshnessTimes.set(data, Math.floor(range.mtimeMs))
-  }
   // The opt-in anchored presentation: a paint decision only — the recorded
   // read state, the anchor tail, and every other seam are the plain read's.
   if (lineAnchorsEnabled() && input.line_anchors === true && range.content.length > 0) {
     resultLineAnchors.add(data)
   }
-  if (changeTransactionEnabled() && range.content.length > 0) {
-    const wholeFile =
-      lineOffset === 0 &&
-      range.lineCount === range.totalLines &&
-      range.readBytes === range.totalBytes
-    const anchor = wholeFile
-      ? mintFileAnchor(range.content)
-      : mintRangeAnchor(range.content, lineOffset + 1, range.lineCount)
-    resultAnchors.set(data, anchor)
+  if (anchor !== undefined) {
     if (anchorPatchEnabled() || staleEditRecoveryEnabled()) {
       // The session evidence BOTH recovery lanes feed on: the snapshot ring
       // feeds stale-anchor recovery (the opt-in patch dialect AND, since
@@ -767,10 +780,9 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
     }
     return '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>'
   }
-  const freshness = memoryFreshnessTimes.get(data)
   const prefix =
-    freshness !== undefined
-      ? `(memory file — last updated ${new Date(freshness).toISOString()})\n`
+    file.memoryUpdatedAt !== undefined
+      ? `(memory file — last updated ${new Date(file.memoryUpdatedAt).toISOString()})\n`
       : ''
   const numbered = resultLineAnchors.has(data)
     ? addAnchoredLineNumbers({
@@ -779,8 +791,7 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
         compact: isCompactLinePrefixEnabled(),
       })
     : addLineNumbers({ content: file.content, startLine: file.startLine })
-  const anchor = resultAnchors.get(data)
-  const anchorSuffix = anchor !== undefined ? `\n(anchor: ${anchor})` : ''
+  const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
   return `${prefix}${numbered}${anchorSuffix}`
 }
 
