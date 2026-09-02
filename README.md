@@ -189,7 +189,7 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
   ([docs/EXTENSIONS.md](docs/EXTENSIONS.md)).
 - **MCPs & Skills**: what a session loads, as a per-repository record with
   named presets and in-session dials ([docs/KIT.md](docs/KIT.md)).
-- **Agents and teams**: named teammates, an agent studio, workflow runs and
+- **Agents and teams**: named agents, an agent studio, workflow runs and
   the boards that watch them ([docs/TEAMS.md](docs/TEAMS.md)).
 - **Saturn**: wake a session with a prompt at a time or on a recurrence, or
   schedule a fresh session's birth ([docs/SATURN.md](docs/SATURN.md)).
