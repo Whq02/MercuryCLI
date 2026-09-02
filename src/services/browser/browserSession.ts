@@ -12,7 +12,7 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { Browser as DriverBrowser, Page } from 'puppeteer-core'
+import type { Browser as DriverBrowser, LaunchOptions, Page } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -72,6 +72,13 @@ interface OwnerBrowserState {
    *  — without this, the loser's child was overwritten OUT of the store:
    *  invisible to the census, unkillable by the exit sweep, a leaked Chrome. */
   launchFlight: Promise<Session | EnsureSessionRefusal> | null
+  /** Set by the disposer, for the rest of this state's life: the owner is
+   *  torn down. The store forgets the state the moment dispose is called, so
+   *  a launch still in the air is the LAST thing that can reach it — a child
+   *  written into a forgotten state is invisible to the census and the exit
+   *  sweep and no repeat dispose can find it, a stranded Chrome. A launch
+   *  landing on a disposed state closes the child it spawned instead. */
+  disposed: boolean
   approvedOrigins: Set<string>
   /** Approved secret-fill pairings, keyed "<ref>@<origin>" — the pairing
    *  consent class: an origin grant never covers a secret fill, and a
@@ -80,12 +87,33 @@ interface OwnerBrowserState {
   checkedActOrigin: { op: string; origin: string } | null
 }
 
-function killChild(session: Session): void {
+function killChild(browser: DriverBrowser): void {
   try {
-    session.browser.process()?.kill()
+    browser.process()?.kill()
   } catch {
     /* already gone */
   }
+}
+
+/** Close a child politely; a close that throws (protocol down, child already
+ *  gone) falls back to the kill. The ONE road every child leaves by. */
+async function closeChild(browser: DriverBrowser): Promise<void> {
+  try {
+    await browser.close()
+  } catch {
+    killChild(browser)
+  }
+}
+
+/** The driver launch call. Proofs stand a fixture driver in for puppeteer-core
+ *  here, so the launch lifecycle (a teardown mid-launch, a setup failure after
+ *  the spawn, a relaunch behind a teardown) is provable with no real Chrome;
+ *  everything around the call — the gate, the cap census, the slot reserve,
+ *  the handoff — stays the real code. */
+type LaunchDriver = (options: LaunchOptions) => Promise<DriverBrowser>
+let launchDriverForProof: LaunchDriver | null = null
+export function setBrowserLaunchDriverForProof(driver: LaunchDriver | null): void {
+  launchDriverForProof = driver
 }
 
 // ── the per-owner store ─────────────────────────────────────────────────────
@@ -100,22 +128,26 @@ const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     session: null,
     launching: false,
     launchFlight: null,
+    disposed: false,
     approvedOrigins: new Set(),
     approvedSecretPairings: new Set(),
     checkedActOrigin: null,
   }),
   dispose: async state => {
+    state.disposed = true
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
     state.checkedActOrigin = null
+    // A launch in the air: wait for it to land. The launch body reads
+    // `disposed` at its handoff and closes its own child before its flight
+    // settles, so this await returns only once no child of this owner's
+    // exists — the awaiting callers (the agent teardown, the shutdown sweep's
+    // drain) get "the child is gone", never "the child will be gone".
+    if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
     const session = state.session
     state.session = null
     if (!session) return
-    try {
-      await session.browser.close()
-    } catch {
-      killChild(session)
-    }
+    await closeChild(session.browser)
   },
   retain: state => state.session !== null || state.launching,
 })
@@ -237,7 +269,10 @@ export function driverVersion(): string {
   return (puppeteerPkg as { version?: string }).version ?? 'bundled'
 }
 
-export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity'; note: string }
+/** Why no session came back: no drivable engine ('unavailable'), the cap
+ *  ('at-capacity'), or the owner torn down while its launch was in the air
+ *  ('torn-down' — the child that landed was closed, nothing is open). */
+export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
 
 export async function ensureBrowserSession(owner: OwnerKey): Promise<Session | EnsureSessionRefusal> {
   const state = ownerStates.get(owner)
@@ -287,9 +322,14 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     return { state: 'unavailable', note: `${resolution.note} — ${resolution.remedies.join('; ')}` }
   }
   state.launching = true
-  let browser: DriverBrowser
+  /** The child this body spawned and has not yet handed to the state. Closed
+   *  on EVERY exit before the handoff — a setup throw after the spawn, an
+   *  owner torn down while the launch was in the air — because the body owns
+   *  what it spawned until the state does. */
+  let unhanded: DriverBrowser | null = null
   try {
-    const puppeteer = (await import('puppeteer-core')).default
+    const launch: LaunchDriver =
+      launchDriverForProof ?? (async options => (await import('puppeteer-core')).default.launch(options))
     const launchArgs = [
       '--no-first-run',
       '--no-default-browser-check',
@@ -305,7 +345,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     const sandboxDowngraded =
       process.platform === 'linux' && typeof process.getuid === 'function' && process.getuid() === 0
     if (sandboxDowngraded) launchArgs.push('--no-sandbox')
-    browser = await puppeteer.launch({
+    const browser = await launch({
       executablePath: resolution.executablePath,
       headless: true,
       // The child inherits the SCRUBBED environment (the driver's default is
@@ -323,6 +363,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       downloadBehavior: { policy: 'deny' },
       args: launchArgs,
     })
+    unhanded = browser
     const pages = await browser.pages()
     const page = pages[0] ?? (await browser.newPage())
     const consoleRing: ConsoleEntry[] = []
@@ -428,6 +469,16 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
         /* already handled or target gone */
       })
     })
+    // The owner was torn down while this launch was in the air: the state is
+    // already out of the store, so a session written into it would be a
+    // stranded child. The finally closes what was spawned; the joined callers
+    // get the refusal.
+    if (state.disposed) {
+      return {
+        state: 'torn-down',
+        note: 'the owner was torn down while its browser launch was in flight — the child was closed, nothing is open',
+      }
+    }
     state.session = {
       browser,
       page,
@@ -441,8 +492,13 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       sandboxDowngraded,
       popups,
     }
+    unhanded = null
   } finally {
     state.launching = false
+    // Every exit before the handoff closes the child — a disposer awaiting
+    // this flight then finds no session, and the census never counted a
+    // child that nothing could reach.
+    if (unhanded !== null) await closeChild(unhanded)
   }
   if (!exitHookInstalled) {
     exitHookInstalled = true
@@ -452,7 +508,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     process.on('exit', () => {
       for (const key of ownerStates.owners()) {
         const st = ownerStates.peek(key)
-        if (st?.session) killChild(st.session)
+        if (st?.session) killChild(st.session.browser)
       }
     })
   }
@@ -461,13 +517,13 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
 
 export async function closeBrowserSession(owner: OwnerKey): Promise<boolean> {
   const state = ownerStates.peek(owner)
-  if (!state || !state.session) return false
+  if (!state) return false
+  // "closed" means no child of this owner's when this returns: a launch in
+  // the air lands into this very state, so wait for it and close what landed.
+  if (state.launchFlight !== null) await state.launchFlight.catch(() => undefined)
+  if (!state.session) return false
   const session = state.session
-  try {
-    await session.browser.close()
-  } catch {
-    killChild(session)
-  }
+  await closeChild(session.browser)
   state.session = null
   state.approvedOrigins.clear() // origin grants are session-scoped — close wipes them
   state.approvedSecretPairings.clear()
