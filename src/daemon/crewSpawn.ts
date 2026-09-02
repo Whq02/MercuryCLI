@@ -10,6 +10,10 @@ import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 
+function seatOwner(): typeof import('../services/concourse/workerModels.js') {
+  return require('../services/concourse/workerModels.js') as typeof import('../services/concourse/workerModels.js')
+}
+
 export const CREW_TEAM = 'crew' as const
 export const CREW_LEAD_AGENT_ID = 'team-lead@crew' as const
 
@@ -30,6 +34,39 @@ export type CrewModelKey = keyof typeof CREW_MODEL_CHOICES
 
 export function isCrewModelKey(k: string): k is CrewModelKey {
   return Object.prototype.hasOwnProperty.call(CREW_MODEL_CHOICES, k)
+}
+
+export interface CrewModelChoice {
+  key: string
+  model: string
+  effort: 'high'
+  label: string
+}
+
+export function crewModelChoices(): CrewModelChoice[] {
+  const families = seatOwner().seatFamilyChoices()
+  const out: CrewModelChoice[] = families.map(f => ({ key: f.family, model: f.setting, effort: 'high', label: f.row }))
+  if (families.some(f => f.family === 'anthropic')) {
+    for (const [key, choice] of Object.entries(CREW_MODEL_CHOICES)) {
+      out.push({ key, model: choice.model, effort: choice.effort, label: choice.model.replace('claude-', '') })
+    }
+  }
+  return out
+}
+
+export async function resolveCrewSeatModel(
+  key: string | undefined,
+): Promise<{ ok: true; model: string; effort: 'high'; label: string } | { ok: false; error: string }> {
+  const named = key === undefined || key.trim() === '' ? undefined : key.trim()
+  const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
+  const validated = await validateWorkerModelChoice(named, 'crew')
+  if (!validated.ok) {
+    return {
+      ok: false,
+      error: `model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''} (got ${JSON.stringify(named ?? '(unset → the neutral default)')})`,
+    }
+  }
+  return { ok: true, model: validated.entry.modelId, effort: 'high', label: validated.entry.displayName }
 }
 
 const CREW_NAME_RE = /^[a-z][a-z0-9-]{1,15}$/
@@ -54,13 +91,13 @@ export function buildCrewPack(name: string, dir?: string): string {
 
 export async function ensureCrewTeamMember(
   name: string,
-  modelKey: CrewModelKey,
+  model: string,
   projectDir: string,
 ): Promise<void> {
   const member = {
     agentId: `${name}@${CREW_TEAM}`,
     name,
-    model: CREW_MODEL_CHOICES[modelKey].model,
+    model,
     role: 'teammate',
     joinedAt: Date.now(),
     tmuxPaneId: '',
@@ -127,9 +164,8 @@ export function makeCrewSpawnHandler(
     if (!isValidCrewName(name)) {
       return { ok: false, error: `invalid teammate name ${JSON.stringify(name)} — [a-z][a-z0-9-]{1,15}, reserved names refused` }
     }
-    if (!isCrewModelKey(modelKey)) {
-      return { ok: false, error: `model must be 'opus' | 'sonnet' | 'fable' | 'fable51' (got ${JSON.stringify(modelKey)}) — the operator picks per spawn, never a raw model id` }
-    }
+    const seat = await resolveCrewSeatModel(modelKey)
+    if (!seat.ok) return { ok: false, error: seat.error }
     const r = deps.roster()
     if (!r) return { ok: false, error: 'daemon roster not ready' }
     if (r.has(name).present) {
@@ -140,11 +176,11 @@ export function makeCrewSpawnHandler(
       return { ok: false, error: `crew cap reached (${MAX_CREW_TEAMMATES} live teammates) — kill an idle teammate before spawning another` }
     }
     try {
-      await ensureCrewTeamMember(name, modelKey, deps.dir)
+      await ensureCrewTeamMember(name, seat.model, deps.dir)
     } catch (e) {
       return { ok: false, error: `team-file update failed: ${e}` }
     }
-    const spec = buildCrewSpec(name, modelKey, deps.dir)
+    const spec = buildCrewSpec(name, seat, deps.dir)
     const reg = r.registerLongLived(name, spec)
     if (!reg.ok) return { ok: false, error: reg.error ?? 'registerLongLived refused' }
     crewShorts.add(name)
@@ -155,13 +191,12 @@ export function makeCrewSpawnHandler(
 
 export function buildCrewSpec(
   name: string,
-  modelKey: CrewModelKey,
+  seat: { model: string; effort: 'high' },
   dir: string,
 ): StreamJsonChildSpec {
-  const choice = CREW_MODEL_CHOICES[modelKey]
   return {
-    model: choice.model,
-    effort: choice.effort,
+    model: seat.model,
+    effort: seat.effort,
     appendSystemPrompt: buildCrewPack(name, dir),
     role: 'MERCURY_CREW',
     agentName: name,

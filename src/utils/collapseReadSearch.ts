@@ -472,6 +472,11 @@ export function collapseReadSearchGroups(
   const out: RenderableMessage[] = []
   const fullscreen = isFullscreenEnvEnabled()
   let group = emptyGroup()
+  const settledToolUseIds = new Set<string>()
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    for (const block of toolResultBlocks(message)) settledToolUseIds.add(block.tool_use_id)
+  }
 
   const groupOpen = (): boolean => group.messages.length > 0
 
@@ -492,7 +497,8 @@ export function collapseReadSearchGroups(
       if (described) {
         const info = getToolSearchOrReadInfo(described.toolName, described.firstInput, tools)
         const running = described.members.some(m => inProgressToolUseIDs.has(m.toolUseId))
-        if (info.isCollapsible && running) {
+        const unresolved = described.members.some(m => !settledToolUseIds.has(m.toolUseId))
+        if (info.isCollapsible && (running || unresolved)) {
           flush()
           out.push(message)
         } else if (info.isCollapsible) {
