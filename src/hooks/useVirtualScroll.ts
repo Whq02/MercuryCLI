@@ -365,6 +365,9 @@ export function useVirtualScroll(
   let end: number
   const frozen = freezeRendersRef.current > 0
   const prevRange = prevRangeRef.current
+  /** The committed viewport moved DOWN since the last render — a page key
+   *  or a jump writes the position outright and carries no pending delta. */
+  let movedDown = false
 
   if (frozen && prevRange) {
     // Column change settling: both frozen renders reuse the pre-resize range
@@ -477,6 +480,7 @@ export function useVirtualScroll(
     const velocity =
       Math.abs(committed - prevScrollAtCommitRef.current) +
       Math.abs(pendingDelta)
+    movedDown = committed > prevScrollAtCommitRef.current
     if (prevRange && velocity > 2 * viewportHeight) {
       const slide = clampNumber(
         Math.round(SLIDE_BUDGET_MS / msPerItemEmaRef.current),
@@ -516,12 +520,15 @@ export function useVirtualScroll(
   // keeps the deferred clamp); a large jump or a jump-to-bottom mounts the
   // fresh edge NOW; a downward scroll bypasses the deferral of the range END
   // only — the start stays deferred (time-slicing retained while scrolling
-  // down).
+  // down). "Downward" is any move: a wheel carries a pending delta, a page
+  // key or a jump writes the position outright — keyed on the delta alone,
+  // a page-down's new end waited a render behind the viewport it had already
+  // moved under (the spacer where the next page should be).
   const inverted = effectiveStart > effectiveEnd
   if (inverted || sticky) {
     effectiveStart = immediateRange[0]
     effectiveEnd = immediateRange[1]
-  } else if (pendingDelta > 0) {
+  } else if (pendingDelta > 0 || movedDown) {
     effectiveEnd = immediateRange[1]
   }
 

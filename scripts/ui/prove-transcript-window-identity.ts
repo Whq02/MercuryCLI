@@ -20,7 +20,8 @@
 //  Run: bun scripts/ui/prove-transcript-window-identity.ts
 // ============================================================================
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, RUNTIME_CWD, cleanupScenario, encodeFixtureTranscript, scenario } from './renderScenarios.ts'
 import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
@@ -144,8 +145,15 @@ if (driver.kind !== 'posix-pty') {
 
   console.log('\n— the screen —')
   // Rows inside the transcript pane (between the SESSION header and the
-  // composer): the frame minus the rails is the pane at every width here.
-  const paneRowsOf = (rows: string[]): number => rows.slice(2, 36).filter(r => /│\s*\S/.test(r.replace(/^[^│]*│/, ''))).length
+  // composer): the frame minus the lanes rail is the pane at every width
+  // here — a row counts when the pane's OWN cells (after the rail's border,
+  // before the pane's closing border) carry a glyph. An earlier cut counted
+  // only rows holding a nested box and called eleven card rows "painted".
+  const paneRowsOf = (rows: string[]): number =>
+    rows.slice(2, 36).filter(r => {
+      const inner = r.replace(/^[^│]*│/, '').replace(/│\s*$/, '')
+      return /\S/.test(inner)
+    }).length
   const paneRows = (label: string): number => paneRowsOf((marks.get(label) ?? '').split('\n'))
   // The transcript rows at each mark — the diagnosis when a leg below reds
   // (the first nameplated row on screen names where the viewport sits; a
@@ -238,8 +246,21 @@ if (driver.kind !== 'posix-pty') {
   check('the key cache never outran the rows', renders.every(r => r.keys === r.messages), renders.filter(r => r.keys !== r.messages).slice(0, 2).map(r => `${r.keys}/${r.messages}`).join(' '))
 
   rmSync(staged, { force: true })
-  if (failures === 0) rmSync(scratch, { recursive: true, force: true })
-  else console.log(`  kept for diagnosis: ${scratch} (grid.json · connector-trace.jsonl)`)
+  if (failures === 0) {
+    rmSync(scratch, { recursive: true, force: true })
+  } else {
+    // The proof home is swept at exit: the diagnosis moves to a stable
+    // path that outlives the run (the marks' text beside the raw grid).
+    const keep = join(tmpdir(), 'mercury-window-identity-diagnosis')
+    rmSync(keep, { recursive: true, force: true })
+    mkdirSync(keep, { recursive: true })
+    for (const name of ['grid.json', 'connector-trace.jsonl', 'vshot.json']) {
+      if (existsSync(join(scratch, name))) copyFileSync(join(scratch, name), join(keep, name))
+    }
+    writeFileSync(join(keep, 'marks.txt'), [...marks.entries(), ['final', final]].map(([label, frame]) => `──── ${label} ────\n${frame}`).join('\n\n'))
+    rmSync(scratch, { recursive: true, force: true })
+    console.log(`  kept for diagnosis: ${keep} (grid.json · connector-trace.jsonl · marks.txt)`)
+  }
   cleanupScenario('resume-2turn')
 }
 
