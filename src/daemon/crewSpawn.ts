@@ -125,7 +125,7 @@ export async function ensureCrewTeamMember(
     const teamFile: TeamFile = {
       name: CREW_TEAM,
       description:
-        'Mercury crew teammates — /teammates instanced chats (daemon-bridged, no tmux panes; members are durable chat identities)',
+        'Mercury named agents — /teammates chats (daemon-bridged; members are durable chat identities)',
       createdAt: Date.now(),
       leadAgentId: CREW_LEAD_AGENT_ID,
       governance: { broadcastEnabled: false },
@@ -175,10 +175,10 @@ export function makeCrewSpawnHandler(
   const crewShorts = new Set<string>()
   return async (name, modelKey) => {
     if (!crewEnabled()) {
-      return { ok: false, error: 'crew teammates are disabled on this daemon (MERCURY_CREW=0)' }
+      return { ok: false, error: 'named agents are disabled on this daemon (MERCURY_CREW=0)' }
     }
     if (!isValidCrewName(name)) {
-      return { ok: false, error: `invalid teammate name ${JSON.stringify(name)} — [a-z][a-z0-9-]{1,15}, reserved names refused` }
+      return { ok: false, error: `invalid agent name ${JSON.stringify(name)} — [a-z][a-z0-9-]{1,15}, reserved names refused` }
     }
     const r = deps.roster()
     if (!r) return { ok: false, error: 'daemon roster not ready' }
@@ -187,7 +187,7 @@ export function makeCrewSpawnHandler(
     }
     const liveCrew = r.list().filter(j => !j.outcome && crewShorts.has(j.short)).length
     if (liveCrew >= MAX_CREW_TEAMMATES) {
-      return { ok: false, error: `crew cap reached (${MAX_CREW_TEAMMATES} live teammates) — kill an idle teammate before spawning another` }
+      return { ok: false, error: `crew cap reached (${MAX_CREW_TEAMMATES} live named agents) — stop an idle one before spawning another` }
     }
     const seat = await resolveCrewSeatModel(modelKey)
     if (!seat.ok) return { ok: false, error: seat.error }
