@@ -41,6 +41,7 @@ import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
+import { cancelVoiceCapture, subscribeVoice, toggleVoiceCapture, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
   enterTeammateView,
@@ -387,6 +388,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerMainModel,
   )
   void editGen
+  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
+  const voiceReceiptSeqRef = useRef(0)
+  useEffect(() => {
+    const receipt = voice.receipt
+    if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
+    voiceReceiptSeqRef.current = receipt.seq
+    addNotification({
+      key: 'voice-receipt',
+      text: receipt.text,
+      priority: receipt.tone === 'error' ? 'high' : 'medium',
+      ...(receipt.tone === 'error' ? { color: 'error' as const } : {}),
+      timeoutMs: 8000,
+    })
+  }, [voice.receipt, addNotification])
   const composerWhyRef = useRef<Record<string, unknown> | null>(null)
   fluxWhy('composer', composerWhyRef, () => ({
     ...props,
@@ -1965,6 +1980,18 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         input === '' && cursorOffset === 0 && mode === 'prompt' &&
         footerSelection === null && !helpOpen && !isSearchingHistory
 
+      if (voice.phase === 'recording' && !key.ctrl && !key.meta && (key.escape || rawInput === 'v')) {
+        event.stopImmediatePropagation()
+        if (key.escape) cancelVoiceCapture()
+        else void toggleVoiceCapture()
+        return
+      }
+      if (voice.enabled && voice.phase === 'idle' && emptyPlainPrompt && rawInput === 'v' && !key.ctrl && !key.meta) {
+        event.stopImmediatePropagation()
+        void toggleVoiceCapture()
+        return
+      }
+
       if (
         key.tab &&
         !key.shift &&
@@ -2052,7 +2079,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.enabled, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
