@@ -1,7 +1,8 @@
-import { appendFileSync, closeSync, existsSync, openSync, readFileSync, readSync, statSync } from 'node:fs'
+import { appendFileSync, existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import { MAX_TRANSCRIPT_READ_BYTES } from '../../utils/sessionStorage/paths.js'
+import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
@@ -104,19 +105,11 @@ interface WalkedTranscript {
 
 function readTranscriptWindow(path: string): { text: string; tailBytesSkipped: number } {
   const size = statSync(path).size
-  if (size <= MAX_TRANSCRIPT_READ_BYTES) {
-    return { text: readFileSync(path, 'utf8'), tailBytesSkipped: 0 }
-  }
-  const from = size - MAX_TRANSCRIPT_READ_BYTES
-  const fd = openSync(path, 'r')
-  let raw: string
-  try {
-    const buf = Buffer.alloc(MAX_TRANSCRIPT_READ_BYTES)
-    const n = readSync(fd, buf, 0, buf.length, from)
-    raw = buf.subarray(0, n).toString('utf8')
-  } finally {
-    closeSync(fd)
-  }
+  const from = size <= MAX_TRANSCRIPT_READ_BYTES ? 0 : size - MAX_TRANSCRIPT_READ_BYTES
+  const read = readTranscriptBytesAfter(path, { offset: from, carry: '' })
+  const raw =
+    read.cursor.carry === '' ? read.text : read.text === '' ? read.cursor.carry : `${read.text}\n${read.cursor.carry}`
+  if (from === 0) return { text: raw, tailBytesSkipped: 0 }
   const nl = raw.indexOf('\n')
   const dropped = nl === -1 ? raw.length : nl + 1
   return { text: raw.slice(dropped), tailBytesSkipped: from + dropped }
