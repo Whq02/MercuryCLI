@@ -21,13 +21,30 @@
 //         [--runs 3] [--json out.json]
 //  Re-runnable by design: the same command before and after a change.
 // ============================================================================
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { runCompassArena, requireDist, pct, firstOutAfter, type CompassRun } from '../navigation/arena.ts'
 import { buildCompass1k } from '../navigation/fixture1k.ts'
 
 requireDist()
+
+// The arena execs `node` from a curated PATH built off NODE_BIN (else `which
+// node` from bun's frozen PATH snapshot). A silent '' there execs nothing and
+// every run ends in a heartbeat with zero samples — resolve it here, loudly.
+if (!process.env.NODE_BIN) {
+  const bunWhich = (globalThis as { Bun?: { which?: (bin: string) => string | null } }).Bun?.which?.('node') ?? null
+  const shellWhich = spawnSync('which', ['node'], { encoding: 'utf8', env: process.env }).stdout?.trim() || null
+  const candidates = [bunWhich, shellWhich, '/opt/homebrew/bin/node', '/usr/local/bin/node', '/usr/bin/node'].filter((c): c is string => !!c)
+  const found = candidates.find(c => existsSync(c))
+  if (!found) {
+    console.error('selection-latency: no `node` found (NODE_BIN unset, none on PATH, none at the usual homes) — set NODE_BIN=<path>')
+    process.exit(2)
+  }
+  process.env.NODE_BIN = found
+}
+process.stderr.write(`[selection-latency] node: ${process.env.NODE_BIN} (${dirname(process.env.NODE_BIN)})\n`)
 
 const SETTLE = 9000 // ms after spawn before the first interaction (the 1k resume load)
 const GAP = 350 // ms between selection keys — each key an isolated experiment
@@ -69,6 +86,34 @@ function keyStats(run: CompassRun, match: (b64: string) => boolean, ceilingMs = 
   return { lat, frames, noPaint }
 }
 
+/** A run that painted nothing or fired no send is the silent-zero class:
+ *  say what the driver and the child said, then refuse. */
+let silentRuns = 0
+function diagnoseRun(label: string, run: CompassRun): void {
+  if (run.outs.length > 0 && run.sends.length > 0) return
+  silentRuns++
+  console.error(`[selection-latency] ${label}: ${run.outs.length} output chunks · ${run.sends.length} sends fired — the child produced no journey`)
+  const driver = run.driverOut.trim()
+  if (driver) console.error(`  driver: ${driver.slice(-600).replace(/\n/g, '\n          ')}`)
+  // The child's own words, from the drive log (the arena keeps byte counts
+  // only): decode the first chunks so a refusal or a stack trace is read.
+  if (existsSync(run.paths.drive)) {
+    const said: string[] = []
+    for (const line of readFileSync(run.paths.drive, 'utf8').split('\n')) {
+      if (said.join('').length > 1500) break
+      try {
+        const r = JSON.parse(line) as { b64?: string; ts?: number }
+        if (typeof r.ts === 'number' && typeof r.b64 === 'string') said.push(Buffer.from(r.b64, 'base64').toString('utf8'))
+      } catch {
+        /* skip */
+      }
+    }
+    const text = said.join('').replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').trim()
+    if (text) console.error(`  child: ${text.slice(0, 1500).replace(/\n/g, '\n         ')}`)
+    else console.error('  child: (no output at all — the exec itself failed, or the process died before its first write)')
+  }
+}
+
 type ListRender = { ev?: string; range: [number, number]; messages: number; keys: number; stale: number; dupKeys: string[] }
 function readTrace(path: string): ListRender[] {
   if (!existsSync(path)) return []
@@ -105,6 +150,7 @@ async function legCursor(runs: number): Promise<Record<string, unknown>> {
     const trace = join(scratch, 'connector-trace.jsonl')
     const run = await runCompassArena({ sends, seconds: Math.ceil((t + 2500) / 1000), extraEnv: { MERCURY_CONNECTOR_TRACE: trace } })
     try {
+      diagnoseRun(`cursor run ${r + 1}`, run)
       const e = keyStats(run, s => s === B64_SHIFT_UP, 1500)
       const u = keyStats(run, s => s === B64_UP)
       const d = keyStats(run, s => s === B64_DOWN)
@@ -168,6 +214,7 @@ async function legManager(runs: number): Promise<Record<string, unknown>> {
   for (let r = 0; r < runs; r++) {
     const run = await runCompassArena({ sends, seconds: Math.ceil((t + 2500) / 1000), extraSessions })
     try {
+      diagnoseRun(`manager run ${r + 1}`, run)
       const d = keyStats(run, s => s === B64_DOWN)
       down.push(...d.lat)
       frames.push(...d.frames)
@@ -190,6 +237,7 @@ async function legPicker(runs: number): Promise<Record<string, unknown>> {
   for (let r = 0; r < runs; r++) {
     const run = await runCompassArena({ sends, seconds: Math.ceil((t + 2500) / 1000) })
     try {
+      diagnoseRun(`picker run ${r + 1}`, run)
       const d = keyStats(run, s => s === B64_DOWN)
       down.push(...d.lat)
       frames.push(...d.frames)
@@ -227,6 +275,18 @@ for (const leg of legs) {
   }
   process.stderr.write(`[selection-latency] leg ${leg} done in ${((Date.now() - t0) / 1000).toFixed(1)}s\n`)
 }
+// Zero samples is a refusal, never a receipt: every leg must have measured.
+const empty = legs.filter(leg => {
+  const r = results[leg] as Record<string, { n?: number } | unknown> | undefined
+  if (!r || 'failed' in r) return true
+  const pooled = (r.pooled ?? r.down) as { n?: number } | undefined
+  return (pooled?.n ?? 0) === 0
+})
+results.verdict = empty.length === 0 ? 'measured' : `NO SAMPLES on ${empty.join(', ')} (${silentRuns} silent run(s) — see stderr)`
 const payload = JSON.stringify(results, null, 2)
 console.log(payload)
 if (jsonOut) writeFileSync(jsonOut, payload + '\n')
+if (empty.length > 0) {
+  console.error(`[selection-latency] REFUSED: no samples on ${empty.join(', ')} — a silent zero is not a measurement`)
+  process.exit(1)
+}

@@ -20,11 +20,14 @@
 //  breaks a border).
 //
 //  A probe, not a gate leg: minutes of PTY boots. Shard it with --scenarios
-//  and --sizes; --parallel N runs captures concurrently (vshot serialises
-//  machine-wide at VSHOT_SLOTS).
+//  and --sizes. Captures run one at a time by default: the scenarios stage
+//  their sessions under ONE per-process id and pin process.env for their
+//  child, so two in flight in one process would swap each other's
+//  transcript and home (--parallel N is there for a box that can afford the
+//  races on layout-only scenes; never for a verdict).
 //
 //  Usage: bun scripts/ui/probe-overflow-matrix.ts [--scenarios a,b] \
-//           [--sizes 100x30,100x40,120x30,120x40] [--out dir] [--parallel 2]
+//           [--sizes 100x30,100x40,120x30,120x40] [--out dir] [--parallel 1]
 // ============================================================================
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -68,6 +71,15 @@ const DEFAULT_SCENARIOS = [
 ]
 /** Marks that hold the OPEN surface where the final frame has closed it. */
 const READ_MARK: Record<string, string> = { 'keys-escape': 'atlas-open', 'boot-face': 'face' }
+/** ROOT screens own no exit — nothing stands beneath them to return to —
+ *  so they owe their key-map row instead: the moves they do have, printed.
+ *  A root that prints nothing is the fault; a root without 'esc' is not. */
+const ROOT_KEYMAP: Record<string, RegExp> = {
+  'boot-face': /↵ start · m menu/,
+  'boot-settings': /↵ start · m menu|esc back/,
+  'cockpit-wide': /\? for shortcuts|shift\+tab to cycle|to cycle\)/,
+  'resume-picker': /ctrl\+c to exit|esc/i,
+}
 
 const scenarios = arg('--scenarios', DEFAULT_SCENARIOS.join(',')).split(',').map(s => s.trim()).filter(Boolean)
 const sizes = arg('--sizes', '100x30,100x40,120x30,120x40')
@@ -79,7 +91,7 @@ const sizes = arg('--sizes', '100x30,100x40,120x30,120x40')
     return { cols: c!, rows: r! }
   })
 const outDir = arg('--out', join(tmpdir(), `mercury-overflow-${process.pid}`))
-const parallel = Math.max(1, Number(arg('--parallel', '2')) || 1)
+const parallel = Math.max(1, Number(arg('--parallel', '1')) || 1)
 mkdirSync(outDir, { recursive: true })
 
 const driver = resolveCaptureDriver()
@@ -104,19 +116,33 @@ const PYTE_PATH = (() => {
 type Cell = { c?: string }
 type Grid = Cell[][]
 type Payload = { grid?: Grid; marks?: Array<{ label: string; grid: Grid }>; endReason?: string }
-const rowsOf = (g: Grid | undefined): string[] => (Array.isArray(g) ? g.map(row => row.map(cell => cell.c ?? ' ').join('')) : [])
+// A wide glyph (CJK) owns two cells: pyte hands the second back EMPTY, and
+// dropping it would shorten the row by one column per glyph and shift every
+// border reading to its right. An empty cell paints as a space.
+const rowsOf = (g: Grid | undefined): string[] =>
+  Array.isArray(g) ? g.map(row => row.map(cell => (cell.c === undefined || cell.c === '' ? ' ' : cell.c)).join('')) : []
 
 const BOX = new Set(['╭', '╮', '╰', '╯', '│', '─', '├', '┤', '┬', '┴', '┼', '┌', '┐', '└', '┘'])
-const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+d\b/i
+/** A horizontal border or rule glyph AT a box's edge column: the box is cut
+ *  by an enclosing border or a slot divider (a scroll viewport clipping its
+ *  content, the modal slot's rule) — a container's law, never a bleed. */
+const CUT = new Set(['─', '╰', '╯', '┴', '┬', '┼', '━', '▔', '▁', '═'])
+const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+[cd]\b/i
+/** A row that reads like key hints (the footer grammar). */
+const KEY_HINT_ROW = /(^|· )(↑↓|↵|←→|esc|⌫|tab|space|⇧|⌃)/
+/** A full-width rule (one glyph across the whole frame): a slot divider. */
+const isRule = (line: string): boolean => line.length > 0 && /^(.)\1*$/.test(line) && CUT.has(line[0]!)
 
 type Finding = { kind: 'broken-border' | 'bleed' | 'clip' | 'no-exit' | 'footer-wrapped'; detail: string }
 
-/** Read one frame for the overflow class. */
-function inspect(rows: string[], cols: number): Finding[] {
+/** Read one frame for the overflow class. `root` names the key-map row a
+ *  root screen owes instead of an exit hint. */
+function inspect(rows: string[], cols: number, root?: RegExp): Finding[] {
   const out: Finding[] = []
   const cell = (y: number, x: number): string => rows[y]?.[x] ?? ' '
   for (let y = 0; y < rows.length; y++) {
     const line = rows[y]!
+    if (isRule(line)) continue
     for (let x0 = line.indexOf('╭'); x0 >= 0; x0 = line.indexOf('╭', x0 + 1)) {
       const x1 = line.indexOf('╮', x0 + 1)
       if (x1 < 0) {
@@ -125,6 +151,7 @@ function inspect(rows: string[], cols: number): Finding[] {
       }
       // Walk down to the bottom edge.
       let closed = false
+      let cut = false
       let lastInner = y
       for (let yy = y + 1; yy < rows.length; yy++) {
         const l = cell(yy, x0)
@@ -132,6 +159,13 @@ function inspect(rows: string[], cols: number): Finding[] {
         if (l === '╰') {
           closed = true
           if (r !== '╯') out.push({ kind: 'broken-border', detail: `row ${yy}: bottom edge ╰ at ${x0} but ${JSON.stringify(r)} at ${x1}` })
+          break
+        }
+        // Cut by a container: an enclosing box's bottom border or a slot
+        // divider runs through this row — the box ends here by the
+        // container's law (a scroll viewport clips), not by overflow.
+        if (isRule(rows[yy]!) || (CUT.has(l) && l !== '│') || (CUT.has(r) && r !== '│')) {
+          cut = true
           break
         }
         lastInner = yy
@@ -149,6 +183,7 @@ function inspect(rows: string[], cols: number): Finding[] {
           out.push({ kind: 'bleed', detail: `row ${yy}: ${JSON.stringify(after)} painted right of the border at ${x1 + 1}` })
         }
       }
+      if (cut) continue
       if (!closed) {
         // The frame's bottom cut the shell: only a shell that STARTS above
         // the last few rows is a clip (a card at the very bottom is a
@@ -164,34 +199,51 @@ function inspect(rows: string[], cols: number): Finding[] {
         const inner = (yy: number): string => rows[yy]!.slice(x0 + 1, x1).trim()
         const footer = inner(lastInner)
         const above = inner(lastInner - 1)
-        if (EXIT_HINT.test(footer) && above !== '' && !EXIT_HINT.test(above)) {
-          // A one-row surface body directly above the footer is legal
-          // (short cards); flag only when the row above reads like the
-          // footer's own continuation (starts lowercase, no glyph lead).
-          if (/^[a-z]/.test(above) && above.includes('·')) {
-            out.push({ kind: 'footer-wrapped', detail: `rows ${lastInner - 1}-${lastInner}: "${above}" / "${footer}"` })
-          }
+        // A footer that wrapped leaves a row of KEY HINTS above its last
+        // row; a status line above the footer (an id, a note) is the
+        // surface's own body and stays legal.
+        if (EXIT_HINT.test(footer) && above !== '' && KEY_HINT_ROW.test(above) && !above.includes('…')) {
+          out.push({ kind: 'footer-wrapped', detail: `rows ${lastInner - 1}-${lastInner}: "${above}" / "${footer}"` })
         }
       }
     }
   }
   const whole = rows.join('\n')
-  if (!EXIT_HINT.test(whole)) out.push({ kind: 'no-exit', detail: 'no esc / ← / q / ⇧← hint anywhere on the frame' })
+  if (root !== undefined) {
+    if (!root.test(whole) && !EXIT_HINT.test(whole)) out.push({ kind: 'no-exit', detail: `a root screen with no key-map row (${root}) and no exit hint` })
+  } else if (!EXIT_HINT.test(whole)) {
+    out.push({ kind: 'no-exit', detail: 'no esc / ← / q / ⇧← / ctrl+c hint anywhere on the frame' })
+  }
   return out
 }
 
 type Job = { name: string; cols: number; rows: number }
 type Result = { job: Job; ok: boolean; findings: Finding[]; note: string }
 
+function restoreEnv(saved: Record<string, string | undefined>): void {
+  for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]
+  for (const [key, value] of Object.entries(saved)) {
+    if (value === undefined) delete process.env[key]
+    else process.env[key] = value
+  }
+}
+
 async function capture(job: Job): Promise<Result> {
   const { name, cols, rows } = job
   const tag = `${name}-${cols}x${rows}`
   const gridPath = join(outDir, `${tag}.json`)
   const cfgPath = join(outDir, `${tag}.cfg.json`)
+  // A scenario pins process.env for its child (some swap MERCURY_CONFIG_DIR
+  // to a scratch home) and never restores it — one capture per process in
+  // the render harness, so it never mattered there. Here every capture
+  // snapshots the env, lets the scenario pin, takes the child's env, and
+  // restores — synchronously, so no other capture can see the pins.
+  const saved: Record<string, string | undefined> = { ...process.env }
   let cfg: Record<string, unknown>
   try {
     cfg = { ...scenario(name, cols, rows), out: gridPath }
   } catch (e) {
+    restoreEnv(saved)
     return { job, ok: false, findings: [], note: `scenario refused: ${String(e).slice(0, 200)}` }
   }
   writeFileSync(cfgPath, JSON.stringify(cfg))
@@ -201,6 +253,7 @@ async function capture(job: Job): Promise<Result> {
     MERCURY_FULLSCREEN: '1',
     MERCURY_CONFIG_DIR: process.env.MERCURY_CONFIG_DIR || CONFIG_HOME,
   }
+  restoreEnv(saved)
   const status = await new Promise<number | null>(resolve => {
     const child = spawn(driver.python, [join(import.meta.dir, 'vshot.py'), cfgPath], { cwd: RUNTIME_CWD, env, stdio: ['ignore', 'ignore', 'pipe'] })
     let stderr = ''
@@ -227,7 +280,7 @@ async function capture(job: Job): Promise<Result> {
     dump.push(`──── ${tag} · ${label} ────`, ...rows, '')
     // The open surface is read on its mark where the final frame has closed it.
     if (mark !== undefined && label !== `mark:${mark}`) continue
-    for (const f of inspect(rows, cols)) findings.push({ kind: f.kind, detail: `${label}: ${f.detail}` })
+    for (const f of inspect(rows, cols, ROOT_KEYMAP[name])) findings.push({ kind: f.kind, detail: `${label}: ${f.detail}` })
   }
   writeFileSync(join(outDir, `${tag}.txt`), dump.join('\n'))
   return { job, ok: findings.length === 0, findings, note: payload.endReason ?? '' }
