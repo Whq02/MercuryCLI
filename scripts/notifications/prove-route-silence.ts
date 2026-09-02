@@ -244,10 +244,14 @@ const crun: ArenaRun = await runArtifactArena({
   cols: 142,
   rows: 38,
   keep: true,
+  // A concourse boot never paints the chat composer's placeholder, so the
+  // arena's default state anchor would HOLD every fixed-ms send from the
+  // nominal onward — nothing typed, every station the concourse. Null runs
+  // the schedule as authored; the face's observed-ready ↵ is unaffected.
+  anchor: null,
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
     MERCURY_CONCOURSE_FIXTURE: fixturePath,
-    MERCURY_DAEMON_DIR: join(fixtureDir, 'daemon'),
     MERCURY_DAEMON_DIR: join(fixtureDir, 'daemon'),
     MERCURY_CREW_DIR: join(fixtureDir, 'crew'),
   },
