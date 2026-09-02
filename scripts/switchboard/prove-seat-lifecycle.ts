@@ -211,7 +211,7 @@ function walk(root: string): string[] {
   // The owner grew a precedence (L18, birthModelOf): the menu's explicit
   // choice > the door's inheritance > the screen's main — still read at
   // birth inside the door, never a render sample.
-  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())'))
+  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const screen = screenBirthModel()') && birthSrc.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   check("P6 the session's words carry no model of the screen's (the envelope names the target and the words)", !/op: 'sessionDispatch'[\s\S]{0,400}model:/.test(seatSrc))
 }
 

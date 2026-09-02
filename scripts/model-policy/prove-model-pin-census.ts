@@ -103,7 +103,6 @@ const DEBT: ReadonlyArray<{ path: string; carries: string; owner: string }> = [
   // default rides sessionSmallFastModel (providerFrontier) — the
   // family-following fact, proven in prove-small-fast-family §4.
   { path: 'daemon/crewSpawn.ts', carries: "model: 'claude-…' class table", owner: 'crew estate — the opus/sonnet/fable class aliases resolve to Anthropic ids' },
-  { path: 'tools/WorkflowTool/workflowRouting.ts', carries: "WORKFLOW_EXECUTOR_MODEL = 'claude-opus-5'", owner: 'workflows estate — the executor pin' },
   { path: 'utils/permissions/yoloClassifier.ts', carries: 'CLASSIFIER_FALLBACK_MODELS (sonnet-5/opus-5)', owner: 'permissions estate — the classifier fallback chain' },
 ]
 

@@ -174,12 +174,16 @@ section('7. code-side model default census — literals resolve live, tiers trac
       dead.length ? `dead: ${dead.join(', ')}` : 'no literals matched — census regex aged',
     )
   }
-  const wf = /WORKFLOW_EXECUTOR_MODEL = '([^']+)'/.exec(
-    src('src/tools/WorkflowTool/workflowRouting.ts'),
-  )?.[1]
+  // Re-trued (the neutral seat law): the executor route carries NO pinned
+  // id — it is the neutral seat default's setting (the most recent
+  // sign-in's newest usable row), undefined with no usable sign-in. A
+  // pinned first-party id here was the favoured family.
+  const routing = src('src/tools/WorkflowTool/workflowRouting.ts')
   check(
-    `WORKFLOW_EXECUTOR_MODEL (${wf}) = the current Opus (the executor tier)`,
-    wf === getDefaultOpusModel(),
+    'the workflow executor route is the neutral seat default (no pinned first-party id)',
+    routing.includes('export function workflowExecutorModel(): string | undefined') &&
+      routing.includes('neutralSeatDefault()?.setting') &&
+      !/WORKFLOW_EXECUTOR_MODEL = '/.test(routing),
   )
   const crewOpus = /opus:\s*\{\s*model:\s*'([^']+)'/.exec(src('src/daemon/crewSpawn.ts'))?.[1]
   check(
