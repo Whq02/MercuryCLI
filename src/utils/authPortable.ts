@@ -2,10 +2,11 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import {
   getMacOsKeychainStorageServiceName,
   getUsername,
+  keychainReachable,
 } from './secureStorage/index.js'
 
 export async function maybeRemoveApiKeyFromMacOSKeychainThrows(): Promise<void> {
-  if (process.platform !== 'darwin') return
+  if (!keychainReachable()) return
   const result = await execFileNoThrow('security', [
     'delete-generic-password',
     '-a',

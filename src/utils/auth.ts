@@ -37,6 +37,7 @@ import {
   getSecureStorage,
   getUsername,
 } from './secureStorage/index.js'
+import { keychainReachable } from './secureStorage/macOsKeychainHelpers.js'
 import { getApiKeyHelperFromOutsideCheckoutSources, getSettingsForSource, getSettings_DEPRECATED } from './settings/settings.js'
 import { clearToolSchemaCache } from './toolSchemaCache.js'
 import {
@@ -405,7 +406,7 @@ export const getApiKeyFromConfigOrMacOSKeychain = memoize((): string | null => {
 
 function readManagedKey(): string | null {
   if (isBareMode()) return null
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     const prefetch = getLegacyApiKeyPrefetchResult()
     if (prefetch !== null) {
       if (prefetch.stdout) return prefetch.stdout.trim()
@@ -437,7 +438,7 @@ export async function saveApiKey(key: string): Promise<void> {
   if (!API_KEY_FORMAT_RE.test(key)) {
     throw new Error('Invalid API key format: only letters, digits, dashes and underscores are allowed')
   }
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     try {
       const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
       await maybeRemoveApiKeyFromMacOSKeychainThrows()
@@ -446,7 +447,7 @@ export async function saveApiKey(key: string): Promise<void> {
     }
   }
   let keychainWritten = false
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     keychainWritten = writeKeychainHexStdin(key)
   }
   saveGlobalConfig(current => {
@@ -478,7 +479,7 @@ function writeKeychainHexStdin(key: string): boolean {
 }
 
 export async function removeApiKey(): Promise<void> {
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     try {
       const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
       await maybeRemoveApiKeyFromMacOSKeychainThrows()
