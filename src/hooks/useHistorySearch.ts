@@ -37,6 +37,67 @@ export function disarmHistoryScanTimer(
   liveScanTimers.delete(timer)
 }
 
+export type HistoryScanGate = {
+  arm(run: () => void, delayMs: number): void
+  disarm(): void
+  pending(): boolean
+  scanStarted(): number
+  scanLanded(token: number): void
+  settle(action: () => void, flush: () => void): void
+}
+
+export function createHistoryScanGate(): HistoryScanGate {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let epoch = 0
+  let inFlight = false
+  let queued: (() => void) | null = null
+  const landQueued = (): void => {
+    const action = queued
+    queued = null
+    action?.()
+  }
+  return {
+    arm(run, delayMs) {
+      queued = null
+      disarmHistoryScanTimer(timer)
+      timer = armHistoryScanTimer(() => {
+        timer = null
+        run()
+      }, delayMs)
+    },
+    disarm() {
+      queued = null
+      disarmHistoryScanTimer(timer)
+      timer = null
+    },
+    pending: () => timer !== null,
+    scanStarted() {
+      inFlight = true
+      return ++epoch
+    },
+    scanLanded(token) {
+      if (token !== epoch) return
+      inFlight = false
+      landQueued()
+    },
+    settle(action, flush) {
+      if (timer !== null) {
+        disarmHistoryScanTimer(timer)
+        timer = null
+        queued = action
+        flush()
+        if (!inFlight) landQueued()
+        return
+      }
+      if (inFlight) {
+        queued = action
+        return
+      }
+      action()
+    },
+  }
+}
+
 export function useHistorySearch(
   onAcceptHistory: (entry: HistoryEntry) => void,
   currentInput: string,
@@ -70,7 +131,8 @@ export function useHistorySearch(
     pastedContents: Record<number, PastedContent>
   } | null>(null)
   const scanAbortRef = useRef<AbortController | null>(null)
-  const scanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const gateRef = useRef<HistoryScanGate | null>(null)
+  const gate = (gateRef.current ??= createHistoryScanGate())
   const [, force] = useReducerLike()
 
   const searchingRef = useRef(isSearching)
@@ -113,33 +175,38 @@ export function useHistorySearch(
         closeReader()
         seenRef.current.clear()
       }
+      const token = gate.scanStarted()
       void (async () => {
-        const corpus = await (corpusRef.current ??= loadHistoryCorpus())
-        if (abort.signal.aborted) return
-        if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
-        const reader = readerRef.current
-        for (;;) {
+        try {
+          const corpus = await (corpusRef.current ??= loadHistoryCorpus())
           if (abort.signal.aborted) return
-          const next = await reader.next()
-          if (abort.signal.aborted) return
-          if (next.done) {
-            failedRef.current = true
+          if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
+          const reader = readerRef.current
+          for (;;) {
+            if (abort.signal.aborted) return
+            const next = await reader.next()
+            if (abort.signal.aborted) return
+            if (next.done) {
+              failedRef.current = true
+              force()
+              return
+            }
+            const entry = next.value
+            if (!entry.display.includes(query)) continue
+            if (seenRef.current.has(entry.display)) continue
+            seenRef.current.add(entry.display)
+            matchRef.current = entry
+            failedRef.current = false
+            applyMatch(entry, query)
             force()
             return
           }
-          const entry = next.value
-          if (!entry.display.includes(query)) continue
-          if (seenRef.current.has(entry.display)) continue
-          seenRef.current.add(entry.display)
-          matchRef.current = entry
-          failedRef.current = false
-          applyMatch(entry, query)
-          force()
-          return
+        } finally {
+          gate.scanLanded(token)
         }
       })()
     },
-    [applyMatch, closeReader, force],
+    [applyMatch, closeReader, force, gate],
   )
 
   const restoreOriginal = useCallback((): void => {
@@ -151,8 +218,7 @@ export function useHistorySearch(
   }, [onInputChange, onCursorChange, setPastedContents])
 
   const reset = useCallback((): void => {
-    disarmHistoryScanTimer(scanDebounceRef.current)
-    scanDebounceRef.current = null
+    gate.disarm()
     scanAbortRef.current?.abort()
     closeReader()
     corpusRef.current = null
@@ -163,7 +229,7 @@ export function useHistorySearch(
     originalRef.current = null
     setIsSearching(false)
     force()
-  }, [closeReader, setIsSearching, force])
+  }, [closeReader, setIsSearching, force, gate])
 
   const handleStartSearch = useCallback((): void => {
     originalRef.current = {
@@ -172,8 +238,7 @@ export function useHistorySearch(
       mode: modeRef.current,
       pastedContents: pastesRef.current,
     }
-    disarmHistoryScanTimer(scanDebounceRef.current)
-    scanDebounceRef.current = null
+    gate.disarm()
     closeReader()
     corpusRef.current = loadHistoryCorpus()
     seenRef.current.clear()
@@ -182,15 +247,14 @@ export function useHistorySearch(
     failedRef.current = false
     setIsSearching(true)
     force()
-  }, [closeReader, setIsSearching, force])
+  }, [closeReader, setIsSearching, force, gate])
 
   const setHistoryQuery = useCallback(
     (query: string): void => {
       if (!searchingRef.current) return
       queryRef.current = query
       if (query === '') {
-        disarmHistoryScanTimer(scanDebounceRef.current)
-        scanDebounceRef.current = null
+        gate.disarm()
         scanAbortRef.current?.abort()
         closeReader()
         seenRef.current.clear()
@@ -206,39 +270,40 @@ export function useHistorySearch(
         force()
         return
       }
-      disarmHistoryScanTimer(scanDebounceRef.current)
-      scanDebounceRef.current = armHistoryScanTimer(() => {
-        scanDebounceRef.current = null
-        scan(queryRef.current, false)
-      }, HISTORY_SCAN_DEBOUNCE_MS)
+      gate.arm(() => scan(queryRef.current, false), HISTORY_SCAN_DEBOUNCE_MS)
     },
-    [scan, closeReader, onInputChange, onCursorChange, onModeChange, setPastedContents, force],
+    [scan, closeReader, onInputChange, onCursorChange, onModeChange, setPastedContents, force, gate],
   )
 
   const nextMatch = useCallback((): void => {
     if (!searchingRef.current || queryRef.current === '') return
-    if (scanDebounceRef.current !== null) {
-      disarmHistoryScanTimer(scanDebounceRef.current)
-      scanDebounceRef.current = null
+    if (gate.pending()) {
+      gate.disarm()
       scan(queryRef.current, false)
       return
     }
     scan(queryRef.current, true)
+  }, [scan, gate])
+
+  const flushScan = useCallback((): void => {
+    scan(queryRef.current, false)
   }, [scan])
 
   const accept = useCallback((): void => {
-    const match = matchRef.current
-    if (match !== undefined) {
-      const mode = getModeFromInput(match.display)
-      onModeChange(mode)
-      onInputChange(getValueFromInput(match.display))
-      setPastedContents(match.pastedContents)
-    } else {
-      const original = originalRef.current
-      if (original !== null) setPastedContents(original.pastedContents)
-    }
-    reset()
-  }, [onModeChange, onInputChange, setPastedContents, reset])
+    gate.settle(() => {
+      const match = matchRef.current
+      if (match !== undefined) {
+        const mode = getModeFromInput(match.display)
+        onModeChange(mode)
+        onInputChange(getValueFromInput(match.display))
+        setPastedContents(match.pastedContents)
+      } else {
+        const original = originalRef.current
+        if (original !== null) setPastedContents(original.pastedContents)
+      }
+      reset()
+    }, flushScan)
+  }, [onModeChange, onInputChange, setPastedContents, reset, gate, flushScan])
 
   const cancel = useCallback((): void => {
     restoreOriginal()
@@ -246,31 +311,33 @@ export function useHistorySearch(
   }, [restoreOriginal, reset])
 
   const execute = useCallback((): void => {
-    const query = queryRef.current
-    const match = matchRef.current
-    if (query === '') {
-      const original = originalRef.current
-      if (original !== null) {
-        onAcceptHistory({
-          display: original.input,
-          pastedContents: original.pastedContents,
-        })
+    gate.settle(() => {
+      const query = queryRef.current
+      const match = matchRef.current
+      if (query === '') {
+        const original = originalRef.current
+        if (original !== null) {
+          onAcceptHistory({
+            display: original.input,
+            pastedContents: original.pastedContents,
+          })
+        }
+        reset()
+        return
       }
+      if (match === undefined) {
+        reset()
+        return
+      }
+      const mode = getModeFromInput(match.display)
+      onModeChange(mode)
+      onAcceptHistory({
+        display: getValueFromInput(match.display),
+        pastedContents: match.pastedContents,
+      })
       reset()
-      return
-    }
-    if (match === undefined) {
-      reset()
-      return
-    }
-    const mode = getModeFromInput(match.display)
-    onModeChange(mode)
-    onAcceptHistory({
-      display: getValueFromInput(match.display),
-      pastedContents: match.pastedContents,
-    })
-    reset()
-  }, [onAcceptHistory, onModeChange, reset])
+    }, flushScan)
+  }, [onAcceptHistory, onModeChange, reset, gate, flushScan])
 
   useKeybinding(
     'history:search',
