@@ -136,7 +136,14 @@ if (driver.kind !== 'posix-pty') {
     const open = r.marks.open ?? ''
     const rows = open.split('\n')
     check('/help at 100x30: "$EDITOR" reads whole (no clipped column)', open.includes('to edit in $EDITOR'))
-    check('/help at 100x30: two columns — the palette row shares a line with "! for bash mode"', rows.some(row => row.includes('! for bash mode') && row.includes('for command palette')))
+    const bashRow = rows.find(row => row.includes('! for bash mode'))
+    const cmdRow = rows.find(row => row.includes('/ for commands'))
+    const secondColumn = (row: string | undefined): string => (row ?? '').split(/\s{2,}/).map(s => s.trim()).filter(Boolean)[1] ?? ''
+    const twoColumns = /(⇧← |shift\+← |for command palette)/.test(secondColumn(bashRow)) && /(for command palette|to open a file)/.test(secondColumn(cmdRow))
+    check('/help at 100x30: two columns — the global column stands beside the prefix rows (the strip row or the palette row heads it)', twoColumns, `bash row: ${JSON.stringify(secondColumn(bashRow))} · commands row: ${JSON.stringify(secondColumn(cmdRow))}`)
+    const strays = rows.filter(row => /^\s*│\s{34,}[^\s│]/.test(row) && !/for |to |\/keybindings/.test(row))
+    check('/help at 100x30: no row wrapped into a third column line (every global row sits beside a left row or below the last one)', strays.length === 0, strays.map(r => JSON.stringify(r.trim())).join(' · '))
+    if (!twoColumns) console.log(rows.map(row => `      │${row.trimEnd()}`).join('\n'))
     check('/help at 100x30: the footer close hint is on screen', open.includes('esc close'))
   }
 }
