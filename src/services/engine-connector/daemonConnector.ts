@@ -17,7 +17,8 @@ import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import { createAssistantMessage, createUserMessage } from '../../utils/messages/factories.js'
 import { createModelTransitionMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
-import { deserializeLiveMessages, liveTurnStateOf } from '../../utils/conversationRecovery.js'
+import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../utils/conversationRecovery.js'
+import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcriptReader.js'
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '../../utils/fileStateCache.js'
 import { getAllBaseTools } from '../../tools.js'
 import { MCPTool } from '../../tools/MCPTool/MCPTool.js'
@@ -329,6 +330,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private interrupting = false
   private lastSize = -1
   private lastLen = -1
+  private chainCursor: TranscriptChainCursor | null = null
+  private readonly liveFold: LiveTurnFold = createLiveTurnFold()
+  private releaseTranscript: (() => void) | null = null
   private transcriptWatcher: FSWatcher | null = null
   private transcriptTimer: ReturnType<typeof setInterval> | null = null
   private tickInFlight: Promise<void> | null = null
@@ -429,6 +433,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     } catch {
     }
     this.transcriptWatcher = null
+    this.releaseTranscript?.()
+    this.releaseTranscript = null
     this.factsFeed.stop()
     this.asksFeed.stop()
     this.tailFeed.stop()
@@ -623,12 +629,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         } catch {
         }
       }
-      const { loadFullLog } = await import('../../utils/sessionStorage/logs.js')
-      const log = (await loadFullLog({ sessionId: this.record.sessionId, messages: [], fullPath: this.transcriptPath } as never)) as unknown as {
-        messages?: unknown[]
-      }
+      const reader = await import('../../utils/sessionStorage/transcriptReader.js')
+      if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
+      const chain = await reader.readTranscriptChainSince(this.transcriptPath, this.chainCursor)
       if (!this.attached) return
-      const raw = Array.isArray(log?.messages) ? (log.messages as Message[]) : []
+      this.chainCursor = chain.cursor
+      const raw = chain.rows as unknown as Message[]
       if (sizeNow !== -1 && sizeNow !== this.lastSize) this.lastSize = sizeNow
       this.lastLen = raw.length
       const merge = mergeRecordsContentKeyed(
@@ -636,12 +642,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.recordSigs,
         raw,
         deserializeLiveMessages(raw),
+        reader.chainRowSigner(),
       )
       this.recordSigs = merge.sigs
-      connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length })
+      connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
       if (merge.reusedAll) return
       this.rawRecords = merge.records
-      this.liveState = liveTurnStateOf(this.rawRecords)
+      this.liveState = this.liveFold.fold(this.rawRecords, chain.since)
       this.reconcileSends()
       this.paint()
       this.recomputeLive()
