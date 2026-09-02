@@ -41,7 +41,6 @@ import {
   getPlanModeV2ExploreAgentCount,
   isPlanModeInterviewPhaseEnabled,
 } from '../planModeV2.js'
-import { frameInboundForImplementer } from '../scribe/implementerFraming.js'
 import { jsonStringify } from '../slowOperations.js'
 import { isTodoV2Enabled } from '../tasks.js'
 import {
@@ -404,9 +403,7 @@ export function normalizeAttachmentForAPI(
       }))
       return [
         createUserMessage({
-          content: frameInboundForImplementer(
-            getTeammateMailbox().formatTeammateMessages(boundedMessages),
-          ),
+          content: getTeammateMailbox().formatTeammateMessages(boundedMessages),
           isMeta: true,
         }),
       ]
@@ -832,16 +829,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       ])
     }
     case 'critical_system_reminder': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: attachment.content, isMeta: true }),
-      ])
-    }
-    case 'scribe_awareness': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: attachment.content, isMeta: true }),
-      ])
-    }
-    case 'implementer_awareness': {
       return wrapMessagesInSystemReminder([
         createUserMessage({ content: attachment.content, isMeta: true }),
       ])

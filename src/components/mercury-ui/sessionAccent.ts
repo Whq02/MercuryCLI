@@ -12,42 +12,8 @@ import {
   DEFAULT_CRITTER_KEY,
   LEGACY_CRITTER_KEYS,
 } from '../../utils/cockpit/critterData.js'
-import { scribeModeEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn, subscribeScribeMode } from '../../utils/scribeMode.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 
-export const SCRIBE_GLOW = '#FF5A3A'
-export const SCRIBE_GLOW_DEEP = '#D2401F'
-
-export function glowOf(hex: string): string {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim())
-  if (!m) return hex
-  const up = (h: string): string =>
-    Math.min(255, Math.round(parseInt(h, 16) * 1.18))
-      .toString(16)
-      .padStart(2, '0')
-  return `#${up(m[1]!)}${up(m[2]!)}${up(m[3]!)}`
-}
-
-export function scribeGlowEnabled(): boolean {
-  if (!isScribeModeOn()) return false
-  if (flagEnv('MERCURY_SCRIBE_GLOW') === '0') return false
-  return scribeModeEnabled()
-}
-
-const GLOWED_BY_KEY = new Map<string, Critter>()
-
-function applyScribeGlow(base: Critter): Critter {
-  if (!scribeGlowEnabled()) return base
-  const known = GLOWED_BY_KEY.get(base.key)
-  if (known !== undefined) return known
-  const glowed: Critter =
-    base.key === 'crab'
-      ? { ...base, accent: SCRIBE_GLOW, accentDeep: SCRIBE_GLOW_DEEP }
-      : { ...base, accent: glowOf(base.accent), accentDeep: glowOf(base.accentDeep) }
-  GLOWED_BY_KEY.set(base.key, glowed)
-  return glowed
-}
 
 export type Critter = {
   key: string
@@ -117,11 +83,6 @@ function bumpAccentEpoch(): void {
 export function getAccentEpoch(): number {
   return accentEpoch
 }
-subscribeScribeMode(() => {
-  bumpAccentEpoch()
-  for (const l of listeners) l()
-})
-
 let accentOverride: Critter | null = null
 
 export function deepOf(hex: string): string {
@@ -173,7 +134,7 @@ export function getSessionAccent(): Critter {
     overrideTint = { base, override: accentOverride, value }
     return value
   }
-  return applyScribeGlow(base)
+  return base
 }
 
 export function getSessionCritterKey(): string {
@@ -200,7 +161,6 @@ export function cycleSessionCritter(): void {
   persistSessionCritter(next.key)
 }
 
-
 export function persistSessionCritter(key: string): void {
   
   const k = (key ?? '').trim().toLowerCase()
@@ -218,17 +178,16 @@ export function subscribeSessionCritter(onChange: () => void): () => void {
   }
 }
 
-let snapshotMemo: { key: string; override: Critter | null; glow: string; value: string } | null = null
+let snapshotMemo: { key: string; override: Critter | null; value: string } | null = null
 let snapshotBuilds = 0
 
 export function getSessionAccentSnapshotKey(): string {
   const key = currentKey()
-  const glow = scribeGlowEnabled() ? 'glow' : ''
   const memo = snapshotMemo
-  if (memo !== null && memo.key === key && memo.override === accentOverride && memo.glow === glow) return memo.value
+  if (memo !== null && memo.key === key && memo.override === accentOverride) return memo.value
   snapshotBuilds++
-  const value = `${key}:${accentOverride ? accentOverride.accent : ''}:${glow}`
-  snapshotMemo = { key, override: accentOverride, glow, value }
+  const value = `${key}:${accentOverride ? accentOverride.accent : ''}`
+  snapshotMemo = { key, override: accentOverride, value }
   return value
 }
 

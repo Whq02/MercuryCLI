@@ -3,7 +3,6 @@
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/utils/sessionStoragePortable*
 # gate-watch: src/utils/hooks/missionHook* src/services/mission/missionCard* src/utils/sessionRestore*
-# gate-watch: src/utils/model/seatSlots* src/utils/model/seatSlotStore* src/utils/model/seatReceipts* src/utils/model/operatorReslot* src/hooks/useSeatReceipts* src/utils/scribe/reconfigureImplementer*
 set -uo pipefail
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 

@@ -27,18 +27,11 @@ import {
   getHuggingfaceModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
-import { resolveImplementerSeat, resolveScribeSeat } from './seatSlots.js'
-import {
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-  isScribeModeOn,
-} from '../scribeMode.js'
-import { scribeModeEnabled } from '../scribe/scribeGates.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
-  NO_SIGN_IN_REASON,
   computedDefault,
   describeComputedDefaultRow,
+  keylessReason,
 } from './computedDefault.js'
 import {
   getBestModel,
@@ -85,12 +78,6 @@ export function anthropicNotSignedInReason(): string {
     require('./subModelSlots.js') as typeof import('./subModelSlots.js')
   const home = subModelConnectHome('anthropic')
   return `not signed in — ${home.command ?? home.note}`
-}
-
-const TRUTHY_FLAG = new Set(['1', 'true', 'yes', 'on'])
-function flagTruthy(name: string): boolean {
-  const value = flagEnv(name)
-  return value !== undefined && TRUTHY_FLAG.has(value.trim().toLowerCase())
 }
 
 export { getGptSeatAvailability }
@@ -274,18 +261,12 @@ function pushIfAbsent(options: ModelOption[], row: ModelOption): void {
   options.push(row)
 }
 
-const ROUTER_SENTINELS = new Set([
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-])
-
 export const ANTHROPIC_MODEL_GROUP = 'Mercury — Anthropic models'
 export const OPENAI_MODEL_GROUP = 'Mercury — OpenAI models'
 export const ZAI_MODEL_GROUP = 'Mercury — Z.AI models'
 export const MOONSHOT_MODEL_GROUP = 'Mercury — Moonshot models'
 export const DEEPSEEK_MODEL_GROUP = 'Mercury — DeepSeek models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
-export const MODES_MODEL_GROUP = 'Mercury — modes'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
 export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'compat'): string {
@@ -597,25 +578,6 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
   options = dedupOneModelOneRow(options)
 
-  if (scribeModeEnabled()) {
-    const scribe = resolveScribeSeat()
-    const implementer = resolveImplementerSeat()
-    const active = isScribeModeOn()
-    pushIfAbsent(options, {
-      value: SCRIBE_ROUTER_OPTION_VALUE,
-      label: `Scribe — two-stream router${active ? ' (active)' : ''}`,
-      description: `scribe ${renderModelName(scribe.model)} · implementer ${renderModelName(implementer.model)} · ~2× usage`,
-      group: MODES_MODEL_GROUP,
-    })
-    if (flagTruthy('MERCURY_SCRIBE_WORKFLOWS')) {
-      pushIfAbsent(options, {
-        value: SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-        label: 'Scribe router (workflows)',
-        description: 'Scribe routing with workflow seats',
-        group: MODES_MODEL_GROUP,
-      })
-    }
-  }
   const custom = process.env.ANTHROPIC_CUSTOM_MODEL_OPTION
   if (custom) {
     pushIfAbsent(options, {
@@ -653,13 +615,11 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     options = options.filter(opt => {
       if (opt.value === null) return true
       if (
-        opt.value === SCRIBE_ROUTER_OPTION_VALUE ||
         opt.value === GPT_CONNECT_OPTION_VALUE ||
         opt.value === OPENROUTER_CONNECT_OPTION_VALUE ||
         opt.value === GEMINI_CONNECT_OPTION_VALUE ||
         opt.value === HUGGINGFACE_CONNECT_OPTION_VALUE ||
-        opt.value.startsWith(KEY_CONNECT_PREFIX) ||
-        ROUTER_SENTINELS.has(opt.value)
+        opt.value.startsWith(KEY_CONNECT_PREFIX)
       ) {
         return true
       }
@@ -673,7 +633,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     options = options.map(opt =>
       opt.group === undefined && opt.value === null
         ? decision.source === 'keyless'
-          ? { ...opt, unavailable: NO_SIGN_IN_REASON }
+          ? { ...opt, unavailable: keylessReason(decision) }
           : opt
         : opt.group === undefined && typeof opt.value === 'string' && !isSentinelValue(opt.value)
           ? { ...opt, unavailable: reason }
@@ -698,7 +658,6 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     DEEPSEEK_MODEL_GROUP,
     COMPAT_MODEL_GROUP,
     LOCAL_MODEL_GROUP,
-    MODES_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     if (opt.group === undefined) return 0
@@ -745,10 +704,6 @@ export function getMaxOpus46_1MOption(): ModelOption {
 
 export function focusedOptionSupports1m(value: string | null): boolean {
   if (value === null) return false
-  if (value === SCRIBE_ROUTER_OPTION_VALUE) {
-    return focusedOptionSupports1m(stripContext1m(resolveScribeSeat().model))
-  }
-  if (value === SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE) return false
   if (isCarrierShapedId(value)) return false
 
   const resolved = parseUserSpecifiedModel(stripContext1m(value))

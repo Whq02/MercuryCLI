@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "active-turn-hold",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "A bounded implementation queued while the worker is mid-turn",
     "title": "Add a --dry-run flag to the migrate script",

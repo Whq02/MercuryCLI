@@ -1502,18 +1502,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
-  if (name === 'model-picker-scribe-active') {
-    process.env.MERCURY_SCRIBE = '1'
-    process.env.MERCURY_SCRIBE_BUS_LIVE = '0'
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/model\r' }],
-      total: 60,
-      cols,
-      rows,
-    }
-  }
   if (
     name === 'model-picker-gpt' ||
     name === 'model-picker-gpt-signin' ||
@@ -3313,7 +3301,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 170, cols, rows,
     }
   }
-  if (['critter', 'workflows', 'teammates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'scribe-promote', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
+  if (['critter', 'workflows', 'teammates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
     writeSyntheticSession('short')
     const sends = [{ atTick: 30, data: `/${name}` }, { atTick: 36, data: '\r' }]
     const settled = name === 'sessions'
@@ -4083,21 +4071,21 @@ function writeRouterFixtures(): void {
   const model = (cls: 'opus' | 'sonnet', m: string, effort: string) => ({
     provider: 'anthropic', model: m, modelClass: cls, effort, contextWindow: 1_000_000,
   })
-  const partyPlan = {
+  const fanoutPlan = {
     version: 1,
-    id: 'rp-fx-party',
+    id: 'rp-fx-fanout',
     revision: 1,
-    mode: 'party',
+    mode: 'fanout',
     title: 'ship the three-stage migration',
     objective: 'schema, then implementation and docs',
     features: { taskShape: 'bounded', ambiguity: 0, coupling: 1, parallelism: 2, contextDemand: 1, verificationDemand: 1, estimatedFiles: 3, explicitPaths: [], requiresSynthesis: true },
     profile: 'dependency-graph',
     nodes: [
-      { id: 'n1', title: 'schema', task: 'migrate the schema', dependsOn: [], ownsPaths: ['src/schema.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'dps1', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r1', expectedResult: 'typed completion', completion: { summary: 'schema migrated, both checks green', checksReported: ['schema compiles: PASS'], changedAreas: ['src/schema.ts'], unresolved: [], reportedAt: now - 200_000, acceptedBy: 'router', acceptedAt: now - 190_000 } },
-      { id: 'n2', title: 'implementation', task: 'implement against the new schema', dependsOn: ['n1'], ownsPaths: ['src/impl.ts'], acceptance: accept('n2'), state: 'working', attempt: 2, assignedWorker: 'dps2', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r2', workerGeneration: 2, expectedResult: 'typed completion' },
-      { id: 'n3', title: 'docs', task: 'update the docs', dependsOn: ['n1'], ownsPaths: ['docs/m.md'], acceptance: accept('n3'), state: 'held', attempt: 1, assignedWorker: 'dps3', assignedModel: model('opus', 'claude-opus-4-8[1m]', 'xhigh'), busRequestId: 'fx-r3', expectedResult: 'typed completion' },
+      { id: 'n1', title: 'schema', task: 'migrate the schema', dependsOn: [], ownsPaths: ['src/schema.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'w1', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r1', expectedResult: 'typed completion', completion: { summary: 'schema migrated, both checks green', checksReported: ['schema compiles: PASS'], changedAreas: ['src/schema.ts'], unresolved: [], reportedAt: now - 200_000, acceptedBy: 'planner', acceptedAt: now - 190_000 } },
+      { id: 'n2', title: 'implementation', task: 'implement against the new schema', dependsOn: ['n1'], ownsPaths: ['src/impl.ts'], acceptance: accept('n2'), state: 'working', attempt: 2, assignedWorker: 'w2', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r2', workerGeneration: 2, expectedResult: 'typed completion' },
+      { id: 'n3', title: 'docs', task: 'update the docs', dependsOn: ['n1'], ownsPaths: ['docs/m.md'], acceptance: accept('n3'), state: 'held', attempt: 1, assignedWorker: 'w3', assignedModel: model('opus', 'claude-opus-4-8[1m]', 'xhigh'), busRequestId: 'fx-r3', expectedResult: 'typed completion' },
     ],
-    synthesis: { required: true, owner: 'router', acceptance: [{ id: 'synthesis-integrated', description: 'all required nodes accepted', kind: 'report' }] },
+    synthesis: { required: true, owner: 'planner', acceptance: [{ id: 'synthesis-integrated', description: 'all required nodes accepted', kind: 'report' }] },
     decision: {
       policyVersion: 'router-1', source: 'structured-intent', posture: 'adaptive',
       selectedProfile: 'dependency-graph',
@@ -4108,11 +4096,11 @@ function writeRouterFixtures(): void {
     },
     state: 'running', createdAt: now - 300_000, updatedAt: now - 20_000,
   }
-  const scribePlan = {
+  const sequentialPlan = {
     version: 1,
-    id: 'rp-fx-scribe',
+    id: 'rp-fx-sequential',
     revision: 1,
-    mode: 'scribe',
+    mode: 'sequential',
     title: 'status --json flag',
     objective: 'add the missing --json output mode',
     features: { taskShape: 'bounded', ambiguity: 0, coupling: 0, parallelism: 0, contextDemand: 1, verificationDemand: 1, estimatedFiles: 1, explicitPaths: ['src/commands/status.ts'], requiresSynthesis: false },
@@ -4120,7 +4108,7 @@ function writeRouterFixtures(): void {
     nodes: [
       { id: 'n1', title: 'status --json', task: 'add the flag + one test', dependsOn: [], ownsPaths: ['src/commands/status.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'implementer', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-s1', expectedResult: 'typed completion', completion: { summary: 'flag added, test green', checksReported: ['new test: PASS'], changedAreas: ['src/commands/status.ts'], unresolved: [], reportedAt: now - 500_000, acceptedBy: 'scribe', acceptedAt: now - 490_000 } },
     ],
-    synthesis: { required: false, owner: 'scribe', acceptance: [] },
+    synthesis: { required: false, owner: 'planner', acceptance: [] },
     decision: {
       policyVersion: 'router-1', source: 'structured-intent', posture: 'adaptive',
       selectedProfile: 'sonnet-opus-review',
@@ -4133,14 +4121,14 @@ function writeRouterFixtures(): void {
     state: 'accepted', createdAt: now - 600_000, updatedAt: now - 480_000,
   }
   const events = [
-    { ts: now - 200_000, planId: 'rp-fx-party', nodeId: 'n1', from: 'working', to: 'reported' },
-    { ts: now - 190_000, planId: 'rp-fx-party', nodeId: 'n1', from: 'reported', to: 'accepted', reason: 'accepted by router' },
-    { ts: now - 180_000, planId: 'rp-fx-party', nodeId: 'n3', from: 'dispatched', to: 'held', reason: 'reconfiguring dps3 → claude-opus-4-8[1m]@xhigh' },
-    { ts: now - 20_000, planId: 'rp-fx-party', nodeId: 'n2', from: 'delivered', to: 'working' },
+    { ts: now - 200_000, planId: 'rp-fx-fanout', nodeId: 'n1', from: 'working', to: 'reported' },
+    { ts: now - 190_000, planId: 'rp-fx-fanout', nodeId: 'n1', from: 'reported', to: 'accepted', reason: 'accepted by planner' },
+    { ts: now - 180_000, planId: 'rp-fx-fanout', nodeId: 'n3', from: 'dispatched', to: 'held', reason: 'reconfiguring w3 → claude-opus-4-8[1m]@xhigh' },
+    { ts: now - 20_000, planId: 'rp-fx-fanout', nodeId: 'n2', from: 'delivered', to: 'working' },
   ]
   writeFileSync(
     join(dir, 'plans.json'),
-    JSON.stringify({ _v: 1, plans: [scribePlan, partyPlan], events, updatedAt: now - 20_000 }),
+    JSON.stringify({ _v: 1, plans: [sequentialPlan, fanoutPlan], events, updatedAt: now - 20_000 }),
   )
 }
 const MISSION_FIXTURE_LIST = `render_fixture_${process.pid}`

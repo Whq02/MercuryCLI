@@ -1,19 +1,8 @@
 import * as React from 'react'
 import type { CommandResultDisplay } from '../../commands.js'
-import { MercuryModelPicker, fmtCtx as fmtCtxWindow, type ModelChoice, type RoleAction, type RoleChoice } from '../../components/MercuryModelPicker.js'
+import { MercuryModelPicker, fmtCtx as fmtCtxWindow, type ModelChoice } from '../../components/MercuryModelPicker.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import { useAppState, useSetAppState, useAppStateStore } from '../../state/AppState.js'
-import { classifyScribeRouterModel, handleScribeRouterSelect } from '../../utils/scribe/scribeRouterSelect.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
-import { scribeModeEnabled } from '../../utils/scribe/scribeGates.js'
-import { parseSeatTargetArg, reconfigureSeat, type ReconfigurableSeat } from '../../utils/scribe/reconfigureImplementer.js'
-import {
-  nextSeatModel,
-  resolveSeatSlot,
-  type SlotRole,
-} from '../../utils/model/seatSlots.js'
-import { applyOperatorReslot, type ReslotSessionStore } from '../../utils/model/operatorReslot.js'
-import { getImplementerTelemetry } from '../../utils/scribe/implementerTelemetry.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { getContextWindowForModel } from '../../utils/context.js'
@@ -29,7 +18,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isProviderActionRow, MODES_MODEL_GROUP, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isProviderActionRow, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { providerFrontierLine } from '../../utils/model/providerFrontier.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -56,8 +45,6 @@ import { anthropicCredentialPresence } from '../../services/providers/providerUs
 import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { has1mContext } from '../../utils/context.js'
-import { SCRIBE_ROUTER_OPTION_VALUE } from '../../utils/scribeMode.js'
-import { resolvedScribeModel } from '../../utils/scribe/scribeModelPin.js'
 import {
   type EffortValue,
   getDisplayedEffortLabel,
@@ -164,19 +151,15 @@ function MercuryModelWrapper({
     try {
       const v = (opt.value ?? getMainLoopModel()) as string
       const shown =
-        v === SCRIBE_ROUTER_OPTION_VALUE
-          ? resolvedScribeModel()
-          : focusedOptionSupports1m(v) && !has1mContext(v)
-            ? withContext1m(v)
-            : v
+        focusedOptionSupports1m(v) && !has1mContext(v)
+          ? withContext1m(v)
+          : v
       const windowProbe = has1mContext(shown)
         ? withContext1m(parseUserSpecifiedModel(stripContext1m(shown)))
         : parseUserSpecifiedModel(shown)
       ctx = fmtCtx(getContextWindowForModel(windowProbe as never, betas))
       if (focusedOptionSupports1m(v)) {
-        const pairBase = parseUserSpecifiedModel(
-          stripContext1m(v === SCRIBE_ROUTER_OPTION_VALUE ? resolvedScribeModel() : v),
-        )
+        const pairBase = parseUserSpecifiedModel(stripContext1m(v))
         ctxBase = fmtCtx(getContextWindowForModel(pairBase as never, betas))
         ctx1m = fmtCtx(getContextWindowForModel(withContext1m(pairBase) as never, betas))
       }
@@ -203,9 +186,7 @@ function MercuryModelWrapper({
   const current =
     focusedSeat !== null
       ? focusedSeat.effective
-      : isScribeModeOn()
-        ? SCRIBE_ROUTER_OPTION_VALUE
-        : (mainLoopModelForSession ?? mainLoopModel ?? 'default')
+      : (mainLoopModelForSession ?? mainLoopModel ?? 'default')
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
   const pendingNext =
     focusedSeat !== null
@@ -225,19 +206,13 @@ function MercuryModelWrapper({
     ctxPct = null
   }
 
-  const [roleNotice, setRoleNotice] = React.useState<string | undefined>(undefined)
+  const [notice, setNotice] = React.useState<string | undefined>(undefined)
   const [transitionConfirm, setTransitionConfirm] = React.useState<{
     value: string | null
     id: string
     plan: TransitionPlan
     refreshed: boolean
   } | null>(null)
-  const scribeOn = isScribeModeOn()
-  const ROLE_LABEL: Record<string, string> = {
-    scribe: 'scribe · front',
-    implementer: 'implementer',
-  }
-  const visibleRoles: SlotRole[] = ['scribe', 'implementer']
   const gptAvailability = getGptSeatAvailability()
   const withFrontier = (detail: string, route: Parameters<typeof providerFrontierLine>[0]): string => {
     const line = providerFrontierLine(route)
@@ -321,117 +296,7 @@ function MercuryModelWrapper({
         ? `${summary.labels.join(' · ')} · ${summary.models} model${summary.models === 1 ? '' : 's'} · keyless`
         : 'no local server answered'
     })(),
-    [MODES_MODEL_GROUP]: scribeOn
-      ? 'Scribe active — a real model exits'
-      : 'composite crews — a real model exits the active one',
   }
-  const GPT_SEAT_ROLES: readonly SlotRole[] = ['scribe', 'implementer']
-  const gptDetailFor = (role: SlotRole, model: string): { gptDetail?: string; gptEligible?: boolean } => {
-    if (!GPT_SEAT_ROLES.includes(role)) return {}
-    if (gptAvailability.state === 'disabled') {
-      return { gptDetail: `gpt: disabled — ${gptAvailability.reason}`, gptEligible: false }
-    }
-    const activeGpt = parseGptModelId(model) !== undefined
-    return {
-      gptDetail: activeGpt
-        ? `gpt: active — ${model} · ${gptAvailability.source} · g cycles · m back to Claude`
-        : `gpt: ${gptAvailability.ids.join(' · ')} · g slots · ${gptAvailability.source}`,
-      gptEligible: true,
-    }
-  }
-  const roles: RoleChoice[] = visibleRoles.map(role => {
-    const res = resolveSeatSlot(role)
-    let model = res.model
-    let effortStr = String(res.effort)
-    let live = false
-    let pendingModel: string | undefined
-    let pendingEffort: string | undefined
-    if (role === 'scribe' && scribeOn) {
-      model = mainLoopModelForSession ?? model
-      if (effortValue !== undefined) effortStr = String(effortValue)
-      live = true
-    } else if (role === 'implementer' && scribeOn) {
-      const t = getImplementerTelemetry()
-      if (t.daemonUp && t.present) {
-        model = t.model ?? model
-        effortStr = t.effort ?? effortStr
-        pendingModel = t.pendingModel
-        pendingEffort = t.pendingEffort
-        live = !t.settled
-      }
-    }
-    return {
-      role,
-      label: ROLE_LABEL[role] ?? role,
-      model,
-      effort: effortStr,
-      efforts: [...selectableEffortLevels(model)],
-      ...(pendingModel !== undefined ? { pendingModel } : {}),
-      ...(pendingEffort !== undefined ? { pendingEffort } : {}),
-      ...(res.modelEnvVar ? { modelLockedBy: res.modelEnvVar } : {}),
-      ...(res.effortEnvVar ? { effortLockedBy: res.effortEnvVar } : {}),
-      live,
-      originDetail: `model: ${res.modelOrigin}${res.modelEnvVar ? ` (${res.modelEnvVar})` : ''} · effort: ${res.effortOrigin}${res.effortEnvVar ? ` (${res.effortEnvVar})` : ''}`,
-      ...gptDetailFor(role, model),
-    }
-  })
-
-  function handleRoleAction(roleStr: string, action: RoleAction): void {
-    const role = roleStr as SlotRole
-    const row = roles.find(r => r.role === roleStr)
-    if (action === 'hint') {
-      const hasDial = row === undefined || (row.efforts?.length ?? 0) > 0
-      setRoleNotice(
-        `m cycles model${hasDial ? ' · +/- steps effort' : ''}${gptAvailability.state === 'ready' && GPT_SEAT_ROLES.includes(role) ? ' · g slots gpt' : ''} · saved slots persist across sessions`,
-      )
-      return
-    }
-    if (!row) return
-    if (action === 'gpt') {
-      if (gptAvailability.state === 'disabled') {
-        setRoleNotice(`gpt: disabled — ${gptAvailability.reason}`)
-        return
-      }
-      if (row.modelLockedBy) {
-        setRoleNotice(`model locked by ${row.modelLockedBy} this session — unset it to reslot from the picker`)
-        return
-      }
-      const ids = gptAvailability.ids
-      const currentIdx = ids.indexOf(row.model)
-      const next = ids[(currentIdx + 1) % ids.length]!
-      void applyOperatorReslot(role, { model: next }, store as unknown as ReslotSessionStore).then(setRoleNotice)
-      return
-    }
-    if (action === 'model') {
-      if (row.modelLockedBy) {
-        setRoleNotice(`model locked by ${row.modelLockedBy} this session — unset it to reslot from the picker`)
-        return
-      }
-      void applyOperatorReslot(role, { model: nextSeatModel(role, row.model) }, store as unknown as ReslotSessionStore).then(setRoleNotice)
-      return
-    }
-    if (row.effortLockedBy) {
-      setRoleNotice(`effort locked by ${row.effortLockedBy} this session — unset it to reslot from the picker`)
-      return
-    }
-    const ladder = row.efforts ?? []
-    if (ladder.length === 0) {
-      setRoleNotice(`${roleStr} — ${row.model} has no effort dial`)
-      return
-    }
-    const cur = ladder.indexOf(row.effort)
-    const base = cur < 0 ? Math.max(0, ladder.indexOf('high')) : cur
-    const next =
-      action === 'effort-up'
-        ? ladder[Math.min(ladder.length - 1, base + 1)]
-        : ladder[Math.max(0, base - 1)]
-    if (next === row.effort) {
-      setRoleNotice(`${roleStr} already at ${row.effort} effort`)
-      return
-    }
-    void applyOperatorReslot(role, { effort: next }, store as unknown as ReslotSessionStore).then(setRoleNotice)
-  }
-
   function handleSelect(id: string): void {
     const value = id === 'default' ? null : id
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
@@ -460,9 +325,9 @@ function MercuryModelWrapper({
             })
             return
           }
-          setRoleNotice(`GPT — refreshing the live catalogue from the ${account.label}…`)
+          setNotice(`GPT — refreshing the live catalogue from the ${account.label}…`)
           const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch(() => null)
-          setRoleNotice(
+          setNotice(
             snapshot && snapshot.models.length > 0 && !snapshot.lastError
               ? `GPT catalogue landed: ${snapshot.models.length} model(s) from the ${account.label} — pick one above`
               : `GPT catalogue unavailable — ↵ retries · /router engines shows readiness${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
@@ -492,9 +357,9 @@ function MercuryModelWrapper({
           )
           const auth = resolveOpenrouterRequestAuth()
           if (auth) {
-            setRoleNotice('OpenRouter — refreshing the live catalogue…')
+            setNotice('OpenRouter — refreshing the live catalogue…')
             const snapshot = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true }).catch(() => null)
-            setRoleNotice(
+            setNotice(
               snapshot && snapshot.models.length > 0 && !snapshot.lastError
                 ? `OpenRouter catalogue landed: ${snapshot.models.length} model(s) — pick one above`
                 : `OpenRouter catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
@@ -526,9 +391,9 @@ function MercuryModelWrapper({
           const account = resolveGeminiAccount()
           if (account) {
             const sourceKind = account.kind === 'oauth' ? ('oauth' as const) : ('api-key' as const)
-            setRoleNotice('Gemini — refreshing the live catalogue…')
+            setNotice('Gemini — refreshing the live catalogue…')
             const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch(() => null)
-            setRoleNotice(
+            setNotice(
               snapshot && snapshot.models.length > 0 && !snapshot.lastError
                 ? `Gemini catalogue landed: ${snapshot.models.length} model(s) — pick one above`
                 : `Gemini catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
@@ -550,9 +415,9 @@ function MercuryModelWrapper({
         )
         const availability = getHuggingfaceAvailability()
         if (availability.state === 'ready') {
-          setRoleNotice('Hugging Face — refreshing the live catalogue…')
+          setNotice('Hugging Face — refreshing the live catalogue…')
           const snapshot = await refreshHuggingfaceCatalogue({ force: true }).catch(() => null)
-          setRoleNotice(
+          setNotice(
             snapshot && snapshot.models.length > 0 && !snapshot.lastError
               ? `Hugging Face catalogue landed: ${snapshot.models.length} model(s) — pick one above (any listed id types as huggingface/<org>/<model>)`
               : `Hugging Face catalogue unavailable — ↵ retries; the dated pins dispatch directly${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
@@ -579,25 +444,6 @@ function MercuryModelWrapper({
         )
         return
       }
-    }
-    if (classifyScribeRouterModel(value) !== 'model') {
-      const routerOutcome = handleScribeRouterSelect(value, { setAppState, store })
-      if (routerOutcome === 'engaged') {
-        const sc = resolveSeatSlot('scribe')
-        const im = resolveSeatSlot('implementer')
-        onDone(`Scribe Mode engaged — two-stream router (scribe ${sc.model} · implementer ${im.model}) · ~2× usage`)
-        return
-      }
-      if (routerOutcome === 'workflows-engaged') {
-        onDone('Scribe Mode engaged — workflow-capable Implementer armed (~2× usage)')
-        return
-      }
-      if (routerOutcome === 'workflows-pending-restart') {
-        onDone('Workflows posture armed — two-stream already up without it; exit Scribe (pick a real model) and re-select Scribe + workflows to apply')
-        return
-      }
-      onDone('Scribe Mode already engaged')
-      return
     }
     const probeState = store.getState()
     const probe = settleModelSelection(probeState, value, {
@@ -643,23 +489,11 @@ function MercuryModelWrapper({
       })
       return
     }
-    const routerOutcome = handleScribeRouterSelect(value, { setAppState, store })
-    const left = routerOutcome === 'disengaged' ? ' · left Scribe Mode' : ''
     const opt = options.find(o => (o.value ?? 'default') === id)
     const stateNow = store.getState()
     const settled = settleModelSelection(stateNow, value, {
       turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
-    if ((settled.kind === 'no-op' || settled.kind === 'cancelled-pending') && left) {
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: value,
-        mainLoopModelForSession: null,
-        pendingModelSwitch: null,
-      }))
-      onDone(`Set model to ${opt?.label ?? id}${left}`)
-      return
-    }
     if (settled.kind === 'no-op') {
       onDone(`Already on ${opt?.label ?? id} — nothing to change`)
       return
@@ -675,13 +509,13 @@ function MercuryModelWrapper({
     if (settled.kind === 'queued') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
       onDone(
-        `Model switch queued: ${opt?.label ?? id} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}${left}`,
+        `Model switch queued: ${opt?.label ?? id} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
       )
       return
     }
     setAppState(prev => ({ ...prev, ...settled.patch }))
     onDone(
-      `Set model to ${opt?.label ?? id}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}${left}`,
+      `Set model to ${opt?.label ?? id}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
     )
   }
 
@@ -721,9 +555,7 @@ function MercuryModelWrapper({
       efforts={efforts}
       effort={effort}
       onEffort={handleEffort}
-      roles={roles}
-      onRoleAction={handleRoleAction}
-      roleNotice={roleNotice}
+      notice={notice}
       groupDetails={groupDetails}
       onSlotSwitch={handleSlotSwitch}
       {...(pendingNext !== undefined ? { pendingNext } : {})}
@@ -740,74 +572,10 @@ function MercuryModelWrapper({
   )
 }
 
-function ApplySeatModelReconfigure({
-  short,
-  model,
-  onDone,
-}: {
-  short: ReconfigurableSeat
-  model: string
-  onDone: (result?: string, options?: { display?: CommandResultDisplay }) => void
-}): React.ReactNode {
-  React.useEffect(() => {
-    let alive = true
-    void reconfigureSeat(short, { model }).then(msg => {
-      if (alive) onDone(msg)
-    })
-    return () => {
-      alive = false
-    }
-  }, [short, model, onDone])
-  return null
-}
-
-function ApplyLocalSeatReslot({
-  role,
-  model,
-  onDone,
-}: {
-  role: SlotRole
-  model: string
-  onDone: (result?: string, options?: { display?: CommandResultDisplay }) => void
-}): React.ReactNode {
-  const store = useAppStateStore()
-  React.useEffect(() => {
-    let alive = true
-    void applyOperatorReslot(role, { model }, store as unknown as ReslotSessionStore).then(msg => {
-      if (alive) onDone(msg)
-    })
-    return () => {
-      alive = false
-    }
-  }, [role, model, onDone, store])
-  return null
-}
-
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {
-  let effectiveArgs = args
-  const trimmed = args?.trim() || ''
-  if (trimmed) {
-    const { seat, rest } = parseSeatTargetArg(trimmed, {
-      scribeOn: isScribeModeOn(),
-      scribeFeatureOn: scribeModeEnabled(),
-    })
-    if (seat && seat.kind === 'daemon') {
-      if (!rest) {
-        onDone(`Specify a model: /model ${seat.target} <model>`)
-        return
-      }
-      return <ApplySeatModelReconfigure short={seat.target as ReconfigurableSeat} model={rest} onDone={onDone} />
-    }
-    if (seat && seat.kind === 'local') {
-      if (rest.trim()) {
-        return <ApplyLocalSeatReslot role={seat.target as SlotRole} model={rest.trim()} onDone={onDone} />
-      }
-      effectiveArgs = rest
-    }
-  }
-  if (effectiveArgs?.trim()) {
+  if (args?.trim()) {
     const base = await import('./model.js')
-    return base.call(onDone, context, effectiveArgs)
+    return base.call(onDone, context, args)
   }
   return <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} />
 }

@@ -148,7 +148,7 @@ section('(3) Mercury value acceptance (the R1c widening class)')
   const { settings, errors } = getSettingsWithErrors()
   check('effortLevel max validates', settings.effortLevel === 'max', j({ e: settings.effortLevel, errors }))
 
-  for (const mode of ['flow', 'scribe', 'autopilot'] as const) {
+  for (const mode of ['flow', 'autopilot'] as const) {
     writeAll({ user: { permissions: { defaultMode: mode } } })
     const r = getSettingsWithErrors()
     check(

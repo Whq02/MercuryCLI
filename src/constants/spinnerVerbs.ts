@@ -1,7 +1,6 @@
 import { randomInt } from 'node:crypto'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
 
 export type QuicksilverMode = 'off' | 'mixed' | 'only'
 
@@ -124,8 +123,6 @@ export function getSpinnerVerbs(): string[] {
     pool = [...desert]
   } else if (mode === 'only') {
     pool = [...quicksilver]
-  } else if (isScribeModeOn()) {
-    pool = [...desert, ...quicksilver, ...quicksilver]
   } else {
     pool = [...desert, ...quicksilver]
   }

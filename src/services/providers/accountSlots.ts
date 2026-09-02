@@ -1,16 +1,20 @@
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
-import type { ScopeIdentityState } from '../../utils/accounts/accountIdentity.js'
+import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
+import {
+  clearScopeIdentitySnapshot,
+  forgetScopeIdentity,
+  type ScopeIdentityState,
+} from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
 import {
-  clearOAuthTokenCache,
+  dropCredentialMemos,
   getAnthropicApiKeyWithSource,
-  getClaudeAIOAuthTokens,
   isClaudeAISubscriber,
   removeApiKey,
   type ApiKeySource,
 } from '../../utils/auth.js'
 import { revokeOAuthToken } from '../oauth/client.js'
-import { removeSecureStorageField } from '../../utils/secureStorage/index.js'
+import { getSecureStorage, removeSecureStorageField } from '../../utils/secureStorage/index.js'
 import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { resetUserCache } from '../../utils/user.js'
 import { logError } from '../../utils/log.js'
@@ -211,6 +215,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       : { signedIn: false, basis: 'absent' }
   }
   if (slot.scope.claudeFamily) return { signedIn: false, basis: 'excluded' }
+  if (!slot.signedIn) return { signedIn: false, basis: 'signed-out' }
   const identity = identities[slot.id]
   switch (identity?.state) {
     case 'verified':
@@ -224,6 +229,52 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
     default:
       return { signedIn: false, basis: 'checking' }
   }
+}
+
+export function scopeSlotTail(
+  state: SlotSigninState,
+  read: SlotIdentityRead | undefined,
+  slot: Pick<AccountSlot, 'scope' | 'family'>,
+): string {
+  const snapshot = slot.scope?.email
+  switch (state.basis) {
+    case 'excluded':
+      return "another tool's credential scope — never billable from Mercury"
+    case 'checking':
+      return `${snapshot !== undefined ? `snapshot ${snapshot} · ` : ''}verifying identity…`
+    case 'verified-live':
+      return `${read?.state === 'verified' ? read.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
+    case 'expired':
+      return `expired${read?.state === 'expired' && read.snapshotEmail ? ` (snapshot ${read.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
+    case 'signed-out':
+      return snapshot !== undefined
+        ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
+        : familyAbsentWords(slot.family)
+    case 'absent':
+      return familyAbsentWords(slot.family)
+    case 'unverified':
+      return read?.state === 'unverified'
+        ? `unverified — ${read.note}${read.email ? ` · snapshot ${read.email}` : ''} · not counted as signed in`
+        : 'unverified · not counted as signed in'
+    case 'credential-present':
+      return 'credential present'
+  }
+}
+
+
+export function familyRouteWords(family: string): string {
+  if (family === 'local') return 'Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL'
+  const { subModelConnectHome } =
+    require('../../utils/model/subModelSlots.js') as typeof import('../../utils/model/subModelSlots.js')
+  const home = subModelConnectHome(family)
+  if (home.command === undefined) return home.note
+  const envKey = (PROVIDER_CREDENTIAL_ENV_VARS as Partial<Record<string, readonly string[]>>)[family]?.[0]
+  return envKey !== undefined ? `${home.command} or ${envKey}` : home.command
+}
+
+export function familyAbsentWords(family: string): string {
+  const state = family === 'local' ? 'no server discovered' : 'not signed in'
+  return `${state} · ↵ names the route — ${familyRouteWords(family)}`
 }
 
 export interface FamilySigninSummary {
@@ -356,8 +407,15 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
         text: `${label} · unverified — ${identity.note}${identity.email ? ` · snapshot ${identity.email}` : ''}`,
         basis: 'unverified',
       }
-    default:
-      return { route, family, text: `${label} · verifying identity…`, basis: 'checking' }
+    default: {
+      const snapshot = presence.identity
+      return {
+        route,
+        family,
+        text: `${label}${snapshot !== undefined ? ` · snapshot ${snapshot}` : ''} · verifying identity…`,
+        basis: 'checking',
+      }
+    }
   }
 }
 
@@ -396,26 +454,28 @@ function readAnthropicApiKey(): { key: string | null; source: ApiKeySource } {
 function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const scopes = (reads.scanScopes ?? scanAccountScopes)()
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
-  const slots: AccountSlot[] = scopes.map(scope => ({
-    family: 'anthropic',
-    id: scope.dir,
-    name: scope.name,
-    kind: 'oauth' as const,
-    kindLabel: 'OAuth',
-    identity: scope.claudeFamily
-      ? "another tool's credential scope"
-      : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
-    active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
-    envPinned: false,
-    signedIn: scope.authed,
-    scope,
-    removal: scope.claudeFamily
-      ? {
-          route: 'excluded' as const,
-          note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
-        }
-      : { route: 'anthropic-oauth' as const, dir: scope.dir },
-  }))
+  const slots: AccountSlot[] = scopes
+    .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.claudeFamily)
+    .map(scope => ({
+      family: 'anthropic',
+      id: scope.dir,
+      name: 'claude',
+      kind: 'oauth' as const,
+      kindLabel: 'OAuth',
+      identity: scope.claudeFamily
+        ? "another tool's credential scope"
+        : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
+      active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
+      envPinned: false,
+      signedIn: scope.authed,
+      scope,
+      removal: scope.claudeFamily
+        ? {
+            route: 'excluded' as const,
+            note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
+          }
+        : { route: 'anthropic-oauth' as const, dir: scope.dir },
+    }))
   const apiKey = reads.anthropicApiKey ? reads.anthropicApiKey() : readAnthropicApiKey()
   if (apiKey.key !== null || apiKey.source === 'apiKeyHelper') {
     const subscriber = subscriberSeat
@@ -1011,26 +1071,43 @@ export interface SlotRemovalOwners {
   clearStoredLocalKey?: () => void
   clearManagedAnthropicKey?: () => void
   signOutAnthropicOauth?: () => void
+  revokeAnthropicToken?: (refreshToken: string) => Promise<void>
   openaiApiKeyAfter?: () => { key: string; source: 'env' | 'stored' } | undefined
 }
 
-async function signOutAnthropicOauthDefault(): Promise<void> {
+export interface AnthropicSlotSignOutIo {
+  revoke?: (refreshToken: string) => Promise<void>
+}
+
+export function signOutAnthropicSlot(
+  dir: string,
+  io: AnthropicSlotSignOutIo = {},
+): { loginLeft: boolean } {
+  let refreshToken: string | null = null
   try {
-    const tokens = getClaudeAIOAuthTokens()
-    if (tokens?.refreshToken) await revokeOAuthToken(tokens.refreshToken)
+    const stored = getSecureStorage().read()?.claudeAiOauth?.refreshToken
+    refreshToken = typeof stored === 'string' && stored.length > 0 ? stored : null
+  } catch (error) {
+    logError(error)
+  }
+  let loginLeft = false
+  try {
+    const removal = removeSecureStorageField('claudeAiOauth')
+    loginLeft = removal.removed
+    if (!removal.success) {
+      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
+    }
   } catch (error) {
     logError(error)
   }
   try {
-    const removal = removeSecureStorageField('claudeAiOauth')
-    if (!removal.success) {
-      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
-    }
     saveGlobalConfig(current => ({ ...current, oauthAccount: undefined }))
   } catch (error) {
     logError(error)
   }
-  clearOAuthTokenCache()
+  clearScopeIdentitySnapshot(dir)
+  forgetScopeIdentity(dir)
+  dropCredentialMemos()
   resetUserCache()
   try {
     const { resetLimitsForCredentialSwitch } =
@@ -1039,6 +1116,10 @@ async function signOutAnthropicOauthDefault(): Promise<void> {
   } catch (error) {
     logError(error)
   }
+  if (refreshToken !== null) {
+    void (io.revoke ?? revokeOAuthToken)(refreshToken).catch(logError)
+  }
+  return { loginLeft }
 }
 
 export function executeSlotRemoval(
@@ -1110,14 +1191,28 @@ function routeSlotRemoval(
         mutated: false,
       }
     case 'anthropic-oauth': {
-      if (!slot.signedIn) {
+      const snapshot =
+        slot.scope !== undefined && (slot.scope.uuid !== undefined || slot.scope.email !== undefined)
+      if (!slot.signedIn && !snapshot) {
+        forgetScopeIdentity(removal.dir)
         return { note: 'not signed in — nothing to sign out (↵ signs in)', mutated: false }
       }
-      ;(owners.signOutAnthropicOauth ?? (() => void signOutAnthropicOauthDefault()))()
-      return {
-        note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
-        mutated: true,
+      let loginLeft = slot.signedIn
+      if (owners.signOutAnthropicOauth) owners.signOutAnthropicOauth()
+      else {
+        loginLeft = signOutAnthropicSlot(removal.dir, {
+          ...(owners.revokeAnthropicToken ? { revoke: owners.revokeAnthropicToken } : {}),
+        }).loginLeft
       }
+      return loginLeft
+        ? {
+            note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
+            mutated: true,
+          }
+        : {
+            note: 'no Claude login was stored here — the stale identity snapshot cleared; the home, transcripts, and config stay (↵ signs in)',
+            mutated: true,
+          }
     }
     case 'anthropic-managed-key':
       ;(owners.clearManagedAnthropicKey ?? (() => void removeApiKey()))()

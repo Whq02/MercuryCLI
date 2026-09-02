@@ -47,7 +47,7 @@ check('snapshot key reverts on clear', !sa.getSessionAccentSnapshotKey().include
   const overrideMerges = (srcText.match(/accent: accentOverride\.accent, accentDeep: accentOverride\.accentDeep/g) ?? []).length
   check('the ONE derivation honors the override (tint axes only, identity live)', overrideMerges === 1, `merges found: ${overrideMerges}`)
   check('the unified hook snapshots on the override-aware key', (srcText.match(/getSessionAccentSnapshotKey,\n\s*getSessionAccentSnapshotKey,/g) ?? []).length >= 1)
-  check('the ONE derivation folds the scribe glow (no second read path)', /export function getSessionAccent\(\): Critter \{[\s\S]*?return applyScribeGlow\(base\)/.test(srcText))
+  check('the ONE derivation returns the live critter (no second read path)', /export function getSessionAccent\(\): Critter \{[\s\S]*?return base\n\}/.test(srcText))
   check('the unified hook DELEGATES to the one derivation', /export function useSessionAccent\(\): Critter \{[\s\S]*?return getSessionAccent\(\)/.test(srcText))
 }
 

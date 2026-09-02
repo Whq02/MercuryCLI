@@ -119,7 +119,7 @@ function reapDaemonOnSessionExit(pid: number): void {
 }
 
 export function adoptOwnedDaemonPid(pid: number): void {
-  if (!shouldReapAutoStartedDaemon(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))) return
+  if (!shouldReapAutoStartedDaemon(flagEnv('MERCURY_DAEMON_PERSIST'))) return
   reapDaemonOnSessionExit(pid)
 }
 
@@ -235,7 +235,7 @@ export function spawnOwnedDaemon(
     child.unref()
     logForDebugging(`[${label}] spawnOwnedDaemon: spawned detached daemon (pid ${child.pid}) for ${projectDir}`)
     ownedSpawnLabelThisProcess = label
-    if (child.pid && !opts?.persist && shouldReapAutoStartedDaemon(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))) {
+    if (child.pid && !opts?.persist && shouldReapAutoStartedDaemon(flagEnv('MERCURY_DAEMON_PERSIST'))) {
       reapDaemonOnSessionExit(child.pid)
     }
     return child.pid

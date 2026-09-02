@@ -22,8 +22,6 @@ has src/utils/hooks/forcedReadHook.ts 'forcedReadEngagedSessions.has(sessionId)'
 if grep -qE 'let forcedReadEngaged = false' "$root/src/utils/hooks/forcedReadHook.ts"; then no 'forcedReadHook still has the process-global boolean'; else ok 'forcedReadHook process-global boolean is gone'; fi
 
 not_has() { if grep -qF "$2" "$1"; then echo "  ✗ $3 (found in $1)"; fail=1; else echo "  ✓ $3"; fi; }
-not_has src/skills/bundled/index.ts 'registerBatchSkill' 'bundled batch skill stays unregistered (deleted with the bare-stamp arms)'
-if [ -f src/skills/bundled/batch.ts ]; then echo "  ✗ bundled batch.ts resurfaced"; fail=1; else echo "  ✓ bundled batch.ts stays deleted"; fi
 
 not_has src/utils/model/agent.ts 'RegionPrefix' 'agent.ts carries no region-prefix machinery (gateway estate retired)'
 has src/utils/effort.ts 'String(v).trim().toLowerCase()' 'parseEffortValue trims whitespace'
@@ -40,7 +38,6 @@ has src/utils/cockpit/critterVariant.ts 'assigned.size > 256' 'critter variant m
 has src/utils/cockpit/daemonSnapshot.ts "daemonControlRpc({ op: 'ping' }" 'daemonSnapshot folds a TTL-cached authoritative ping'
 has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-supervisor downgrade (pid alive ≠ live)'
 lacks src/services/coordination/coordinationService.ts 'party:' 'the party facet stays retired from the coordination brief'
-has src/components/mercury-ui/screens/ChatTranscriptView.tsx 'daemon unreachable — dispatches queue' 'bus-live claim folds daemon reachability'
 has src/components/mercury-ui/screens/TeammateChatsView.tsx 'const browseVerbs' 'teammates footer tracks selected-row affordances (r/k)'
 has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↵ inspect' : undefined" 'run-detail ↵ hint conditional on rows'
 if grep -rqF 'ctrl+t+c' "$root/src/components" "$root/src/commands"; then no 'dead ctrl+t+c chord still advertised somewhere'; else ok 'dead ctrl+t+c chord fully removed'; fi

@@ -64,7 +64,7 @@ const fs120 = shoot('/fullscreen', 120)
 console.log('\n── /model (responsive: stack < 110 cols · footer + rows intact, not shrink-wrapped) ──')
 expect('@80  footer tail intact on one line (stacked, no wrap)', /↵ switch · esc close/.test(model80))
 expect('@120 footer tail intact on one line (side-by-side, no wrap)', /↵ switch · esc close/.test(model120))
-expect('@80  longest rail row intact (not shrink-wrapped)', /Scribe — 2× op… ○ switch\s+1M ctx/.test(model80))
+expect('@80  longest rail row intact (not shrink-wrapped)', /○ switch\s+\S+ ctx/.test(model80))
 expect('@80  the model rail header renders', /\d+ AVAILABLE/.test(model80))
 
 console.log('\n── /fullscreen (WI3: drop right rail <100 · WI2: no duplicate fleet) ──')

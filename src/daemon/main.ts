@@ -13,13 +13,9 @@ import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
-import { resolveImplementerSeat } from '../utils/model/seatSlots.js'
-import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
-import {
-  isCrewDaemon, isImplementerSpawnEnabled, isScribeEngageDaemon, isScribeWorkflowsDaemon,
-} from './daemonFeatureGates.js'
+import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
+import { isCrewDaemon } from './daemonFeatureGates.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
-import { resolveWorkerReconAllow } from './workerRecon.js'
 import { CREW_TEAM, makeCrewSpawnHandler } from './crewSpawn.js'
 import {
   listConcourseWorkers,
@@ -85,12 +81,7 @@ import {
   OWNER_WATCH_INTERVAL_MS,
   OWNER_WATCH_GRACE_CHECKS,
 } from './ownerWatch.js'
-import { armDispatchDrain, type DispatchDrainHandle } from './scribeDispatchBridge.js'
-import { scribeBusLiveEnabled, scribeBackPressureEnabled, scribeAutoClearEnabled, scribeTaskRouterEnabled } from '../utils/scribe/scribeGates.js'
-import { resolveDispatchEffort } from '../utils/scribe/dispatchRouter.js'
-import { routerEnabled } from '../utils/router/routerGates.js'
-import { resolveScribeDispatchRoute } from '../utils/router/adapters/scribe.js'
-import { routerStoreWriters } from '../substrate/routerRunStore.js'
+import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
 import {
@@ -948,97 +939,6 @@ async function daemonRun(args: string[]): Promise<void> {
         }, 60_000)
         reconcileTick.unref?.()
       }
-
-      if (roster && isImplementerSpawnEnabled() && isScribeEngageDaemon()) {
-        try {
-          const seat = resolveImplementerSeat()
-          if (seat.note) {
-            // eslint-disable-next-line no-console
-            console.error(`[daemon] Implementer seat override adjusted: ${seat.note}`)
-          }
-          const reg = roster.registerLongLived('implementer', {
-            model: seat.model,
-            effort: String(seat.effort),
-            appendSystemPrompt: '',
-            role: 'MERCURY_IMPLEMENTER',
-            agentName: 'implementer',
-            agentId: 'implementer@scribe',
-            teamName: 'scribe',
-            cwd: dir,
-            ...(isScribeWorkflowsDaemon()
-              ? { extraEnv: flagPair('MERCURY_IMPLEMENTER_WORKFLOWS', '1') }
-              : {}),
-            // global implement-mode default of the day its first non-edit bash would
-            permissionMode: 'flow',
-            allowedTools: resolveWorkerReconAllow(),
-            stripEnv: flagSpellings('MERCURY_SESSION_KIT'),
-          })
-          // eslint-disable-next-line no-console
-          console.error(
-            reg.ok
-              ? `[daemon] Amanuensis Implementer spawned (pid ${reg.pid}) — ${seat.model}@${String(seat.effort)}, long-lived, supervised`
-              : `[daemon] Amanuensis Implementer NOT spawned: ${reg.error}`,
-          )
-          if (reg.ok && scribeBusLiveEnabled()) {
-            const r = roster
-            const backPressure = scribeBackPressureEnabled()
-            const autoClear = scribeAutoClearEnabled()
-            const routerOn = routerEnabled()
-            const taskRouter = scribeTaskRouterEnabled()
-            const implementerRoute = () => ({
-              model: r.currentLongLivedModel('implementer'),
-              effort: r.currentLongLivedEffort('implementer'),
-            })
-            const handle = armDispatchDrain(r, {
-              short: 'implementer',
-              agentName: 'implementer',
-              teamName: 'scribe',
-              isBusy: backPressure ? () => r.isWorkerBusy('implementer') : undefined,
-              onClear: () => { r.reconfigureLongLived('implementer', {}) },
-              hasSeen: id => r.hasSeenDispatch('implementer', id),
-              markSeen: id => r.markSeenDispatch('implementer', id),
-              resolveRoute: routerOn
-                ? env => resolveScribeDispatchRoute(env, implementerRoute())
-                : taskRouter
-                  ? env => ({ effort: resolveDispatchEffort(env.task, env.route?.effort, { title: env.title }).effort })
-                  : undefined,
-              currentRoute: routerOn || taskRouter ? implementerRoute : undefined,
-              reconfigureRoute:
-                routerOn || taskRouter
-                  ? patch => { r.reconfigureLongLived('implementer', patch) }
-                  : undefined,
-              onRouteHeld: routerOn
-                ? (env, patch) => {
-                    if (env.routePlan) {
-                      void routerStoreWriters.nodeHeld(
-                        env.routePlan.planId,
-                        env.routePlan.nodeId,
-                        `reconfiguring worker${patch.model ? ` → ${patch.model}` : ''}${patch.effort ? `@${patch.effort}` : ''}`,
-                        Date.now(),
-                      )
-                    }
-                  }
-                : undefined,
-              onDelivered: routerOn
-                ? env => { void routerStoreWriters.requestDelivered(env.request_id, Date.now()) }
-                : undefined,
-              onDrained: delivered => {
-                r.onDispatchTick('implementer', delivered)
-                if (autoClear) r.autoClearIfContextFull('implementer')
-              },
-            })
-            dispatchDrains.push(handle)
-            idleNudges.set('implementer', () => {
-              if (autoClear) r.autoClearIfContextFull('implementer')
-              handle.drain()
-            })
-            logForDebugging('[daemon] scribe dispatch bridge armed (MERCURY_SCRIBE_BUS_LIVE, subscription-driven)')
-          }
-        } catch (e) {
-          logForDebugging(`[daemon] Implementer spawn failed: ${e}`)
-        }
-      }
-
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(
@@ -1168,7 +1068,7 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 
     const ownerPid = parseOwnerPid()
-    const persist = isEnvTruthy(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))
+    const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
     if (ownerPid !== null && !persist) {
       let deadStreak = 0
       const ownerStartToken = getProcessStartToken(ownerPid)

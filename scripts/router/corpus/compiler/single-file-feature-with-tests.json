@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "single-file-feature-with-tests",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Add a bounded CLI flag with test coverage",
     "title": "Add --json to status command",

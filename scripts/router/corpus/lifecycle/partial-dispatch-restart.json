@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "partial-dispatch-restart",
-  "scenario": "A party mission plans 3 candidate nodes and dispatches all 3. Only 1 node's dispatch is confirmed delivered before the daemon process restarts (crash or planned redeploy). On boot, the kernel must reconcile the persisted plan against delivery state and requeue only the undelivered nodes — the already-delivered node must never be re-dispatched (no duplicate work, no lost work).",
+  "scenario": "A fanout mission plans 3 candidate nodes and dispatches all 3. Only 1 node's dispatch is confirmed delivered before the daemon process restarts (crash or planned redeploy). On boot, the kernel must reconcile the persisted plan against delivery state and requeue only the undelivered nodes — the already-delivered node must never be re-dispatched (no duplicate work, no lost work).",
   "steps": [
     { "event": "plan created with 3 candidate nodes (n1, n2, n3), all disjoint ownership", "expect": "plan persisted with all 3 nodes in a not-yet-dispatched state" },
     { "event": "dispatch envelopes sent for n1, n2, n3", "expect": "all 3 nodes transition to dispatched-pending-delivery" },

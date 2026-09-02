@@ -67,14 +67,14 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       leases: null,
       fireLine: null,
       recentLine: null,
-      empty: 'run `mercury daemon` to start the supervisor + Implementer',
+      empty: 'run `mercury daemon` to start the supervisor',
       version: null,
     }
   }
 
   const s = status.supervisor
   const reachable = status.controlReachable
-  const stallMs = Math.round(getMaxTurnMs(flagEnv('MERCURY_IMPLEMENTER_MAX_TURN_MS')) * 0.5)
+  const stallMs = Math.round(getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')) * 0.5)
   const workers: SupervisorWorkerRow[] = (status.workers ?? []).map(w => {
     const busy = w.busy === true
     const turnMs = w.turnElapsedMs
