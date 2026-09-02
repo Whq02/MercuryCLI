@@ -667,15 +667,27 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'build-identity',
           label: 'Mercury build',
-          run: () => {
+          run: async () => {
  // F (UN-55): the ONE artifact-identity projection —
             // two same-semver builds distinguish by buildTree/buildTime/
             // distribution here, never by mangling the version.
             const identity = describeArtifactIdentity(version)
             const profile = isMercurySubstrateProfileOn()
+            // The enter screen a direct start would paint: the rung carrying
+            // the asset pair, or that none does (a build without it boots
+            // plain — the one reason a tester sees no splash).
+            const [{ resolveSplashAsset }, { runningBundlePayloadDir }] = await Promise.all([
+              import('../substrate/directSplash.js'),
+              import('../services/privateChannel/vendoredRuntime.js'),
+            ])
+            const splash = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: getMercuryHome() })
+            const splashWords =
+              splash === null
+                ? 'splash asset absent (a direct start boots plain)'
+                : `splash asset ${splash.rung === 'payload' ? 'beside the bundle' : splash.rung === 'home' ? 'in the config home' : 'in the source tree'}`
             return {
               status: 'ok',
-              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'}`,
+              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'} · ${splashWords}`,
             }
           },
         },
