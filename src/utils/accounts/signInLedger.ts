@@ -32,6 +32,29 @@ export function signInLedgerEpoch(): number {
   return epoch
 }
 
+const epochListeners = new Set<() => void>()
+
+export function subscribeSignInEpoch(listener: () => void): () => void {
+  epochListeners.add(listener)
+  return () => {
+    epochListeners.delete(listener)
+  }
+}
+
+function bumpEpoch(): void {
+  epoch += 1
+  for (const listener of [...epochListeners]) {
+    try {
+      listener()
+    } catch {
+    }
+  }
+}
+
+export function noteCredentialRemoval(): void {
+  bumpEpoch()
+}
+
 function normaliseFamily(family: string): string | undefined {
   const trimmed = family.trim().toLowerCase()
   return FAMILY_RE.test(trimmed) ? trimmed : undefined
@@ -86,7 +109,7 @@ export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedger
     const signIns: Record<string, unknown> = { ...kept, [name]: { at: io?.now?.() ?? Date.now(), kind } }
     const next: SignInLedgerFile = { ...(existing ?? {}), version: SIGN_IN_LEDGER_VERSION, signIns }
     durableAtomicPublishSync(ledgerPath(io), JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
-    epoch += 1
+    bumpEpoch()
     return true
   } catch {
     return false

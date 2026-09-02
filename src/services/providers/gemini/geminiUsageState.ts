@@ -35,6 +35,14 @@ export function geminiLimitWindow(now: () => number = Date.now): GeminiLimitWind
   return { state: 'limited', resetsAtMs: observed.resetsAtMs, observedAtMs: observed.observedAtMs }
 }
 
+export function geminiObservedWall(): { resetsAtMs: number; observedAtMs: number } | null {
+  return observed
+}
+
+export function forgetGeminiObservedLimit(): void {
+  observed = null
+}
+
 export function __resetGeminiUsageStateForTest(): void {
   observed = null
 }

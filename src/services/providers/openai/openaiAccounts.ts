@@ -25,6 +25,7 @@ import {
 } from '../../oauth/crypto.js'
 import { readStoredOpenaiApiKey } from '../../../utils/router/providerSecrets.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 
 
 const OPENAI_AUTH_ISSUER = 'https://auth.openai.com'
@@ -488,6 +489,7 @@ export function disconnectOpenaiSubscription(): void {
     if (next.preferredSource === 'chatgpt-subscription') delete next.preferredSource
     return next
   })
+  forgetOpenaiLimitSource('chatgpt-subscription')
 }
 
 
@@ -582,6 +584,7 @@ export function beginOpenaiBrowserConnect(opts?: {
         lastRefreshMs: Date.now(),
         preferredSource: 'chatgpt-subscription',
       }))
+      forgetOpenaiLimitSource('chatgpt-subscription')
       recordSignIn('openai', 'subscription')
       const resolved = resolveOpenaiAccount(env)
       const ref: OpenaiAccountRef =
@@ -791,6 +794,7 @@ export async function beginOpenaiDeviceConnect(opts?: {
         lastRefreshMs: Date.now(),
         preferredSource: 'chatgpt-subscription',
       }))
+      forgetOpenaiLimitSource('chatgpt-subscription')
       recordSignIn('openai', 'subscription')
       const ref = resolveOpenaiAccount(env)
       if (ref?.kind === 'chatgpt-subscription') return ref

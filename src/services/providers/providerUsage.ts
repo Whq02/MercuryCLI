@@ -1,5 +1,12 @@
 import { getModelUsage, getUnpricedTurns } from '../../bootstrap/state.js'
-import { getAnthropicApiKey, getAuthTokenSource, getSubscriptionType, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../../utils/auth.js'
+import {
+  getAnthropicApiKey,
+  getAuthTokenSource,
+  getOauthAccountInfo,
+  getSubscriptionType,
+  isAnthropicOAuthSignInExpired,
+  isClaudeAISubscriber,
+} from '../../utils/auth.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { modelPricingBasis } from '../../utils/modelCost.js'
 import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
@@ -69,6 +76,7 @@ export interface ProviderFamilyPresence {
   reason?: string
   credentialed: boolean
   credentialLabel?: string
+  identity?: string
 }
 
 export interface ProviderFamilyReads {
@@ -76,11 +84,33 @@ export interface ProviderFamilyReads {
   subscriptionType?: () => string | null
   anthropicApiKeyPresent?: () => boolean
   bearerTokenSource?: () => { source: string; hasToken: boolean }
+  anthropicEmail?: () => string | undefined
+  engineIdentity?: (id: RouterProviderId) => string | undefined
+}
+
+export function presenceIdentityWords(
+  presence: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'>,
+): string | undefined {
+  if (!presence.credentialed) return undefined
+  return presence.identity ?? presence.credentialLabel
+}
+
+function engineIdentityLive(id: RouterProviderId): string | undefined {
+  try {
+    if (id === 'openai') {
+      const { resolveOpenaiAccount } =
+        require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
+      return resolveOpenaiAccount()?.email
+    }
+    if (id === 'huggingface') return resolveHuggingfaceAccount()?.username
+  } catch {
+  }
+  return undefined
 }
 
 export function anthropicCredentialPresence(
   reads?: ProviderFamilyReads,
-): { credentialed: boolean; credentialLabel?: string; expired?: boolean } {
+): { credentialed: boolean; credentialLabel?: string; identity?: string; expired?: boolean } {
   const subscriber = reads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
   const plan = reads?.subscriptionType?.() ?? getSubscriptionType()
   const keyPresent =
@@ -109,10 +139,21 @@ export function anthropicCredentialPresence(
       return false
     }
   })()
+  const identity = subscriber ? readAnthropicEmail(reads) : undefined
   return {
     credentialed: credentialLabel !== undefined,
     ...(credentialLabel !== undefined ? { credentialLabel } : {}),
+    ...(identity !== undefined ? { identity } : {}),
     ...(expired ? { expired: true } : {}),
+  }
+}
+
+function readAnthropicEmail(reads?: ProviderFamilyReads): string | undefined {
+  try {
+    const email = reads?.anthropicEmail ? reads.anthropicEmail() : getOauthAccountInfo()?.emailAddress
+    return typeof email === 'string' && email.trim() !== '' ? email.trim() : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -138,12 +179,14 @@ export function providerFamilyPresences(
       }
     }
     const account = provider.description.account
+    const identity = account.kind !== 'none' ? (reads?.engineIdentity ?? engineIdentityLive)(provider.id) : undefined
     return {
       id: provider.id,
       available: provider.available,
       ...(provider.reason !== undefined ? { reason: provider.reason } : {}),
       credentialed: account.kind !== 'none',
       ...(account.kind !== 'none' ? { credentialLabel: account.label } : {}),
+      ...(identity !== undefined && identity !== '' ? { identity } : {}),
     }
   })
 }

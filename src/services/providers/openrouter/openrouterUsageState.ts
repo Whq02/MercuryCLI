@@ -172,6 +172,14 @@ export function openrouterLimitWindow(now: () => number = Date.now): OpenrouterL
   }
 }
 
+export function openrouterObservedWall(): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedLimit
+}
+
+export function forgetOpenrouterObservedLimit(): void {
+  observedLimit = null
+}
+
 export function __resetOpenrouterUsageStateForTest(): void {
   observedKeyUsage = null
   lastError = undefined
