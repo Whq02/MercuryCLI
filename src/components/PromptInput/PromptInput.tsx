@@ -3016,11 +3016,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   // composer starts a take; while one runs (or its transcription is in
   // flight) `v` stops it — neither types. Read LIVE, never the render's
   // snapshot: the second press must see the first press's phase. With
-  // /speak off, v is the letter v.
+  // /speak off, v is the letter v — even while the last take's
+  // transcription is still in flight (a running take is always stoppable,
+  // and /speak off drops it).
   const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
     if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
     const live = voiceSnapshot()
-    if (live.phase === 'recording' || live.phase === 'transcribing') {
+    if (live.phase === 'recording' || (live.phase === 'transcribing' && live.enabled)) {
       void toggleVoiceCapture()
       return ''
     }

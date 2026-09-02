@@ -19,10 +19,13 @@
 //  §5 the session: /speak off refuses; the no-backend and no-transcriber
 //     refusals come BEFORE a take; v starts, v stops, the words land in the
 //     composer with a space from any draft; esc cancels with ZERO requests;
-//     nothing leaves the box before the stop (a fetch spy counts).
+//     nothing leaves the box before the stop (a fetch spy counts); the
+//     bound (through the proof seam) stops a take by itself and names
+//     itself; a take open at the quit is released without a request.
 //  §6 the doctor row and the commands: iface-voice in INTERFACE, info in a
-//     keyless home, ok with a backend and a transcriber; /speak · /voice
-//     are screen-seat, curated, and answer their words.
+//     keyless home, ok with a backend and a transcriber; the privacy line
+//     tells the truth about the debug seam; Anthropic is named once;
+//     /speak · /voice are screen-seat, curated, and answer their words.
 //
 //  Run: ~/.bun/bin/bun run scripts/voice/prove-voice-owners.ts
 // ============================================================================
@@ -171,6 +174,18 @@ section('§2 ONE capture owner — the ladder, the fixture, the bound, the cance
   check('no pack, no recorder ⇒ the no-backend receipt, every rung named', r.state === 'none' && r.note.startsWith(capture.NO_BACKEND_RECEIPT) && r.note.includes('MERCURY_VOICE_PACK_DIR') && r.tried.join(',') === 'vendored,sox,arecord,ffmpeg', r.state === 'none' ? r.note : r.detail)
   delete process.env.MERCURY_VOICE_PACK_DIR
   check('the bound is five minutes', capture.CAPTURE_BOUND_MS === 300_000)
+  process.env.MERCURY_VOICE_BOUND_MS = '80'
+  check('the bound seam shortens the bound for a proof', capture.captureBoundMs() === 80, String(capture.captureBoundMs()))
+  process.env.MERCURY_VOICE_BOUND_MS = String(capture.CAPTURE_BOUND_MS + 1)
+  check('…never lengthens it: above the product bound ⇒ the product bound', capture.captureBoundMs() === capture.CAPTURE_BOUND_MS)
+  process.env.MERCURY_VOICE_BOUND_MS = 'soon'
+  check('…and a value that is not milliseconds ⇒ the product bound', capture.captureBoundMs() === capture.CAPTURE_BOUND_MS)
+  delete process.env.MERCURY_VOICE_BOUND_MS
+  check(
+    'the bound label: whole minutes as minutes, a proof bound as seconds',
+    session.boundLabel(capture.CAPTURE_BOUND_MS) === '5-minute' && session.boundLabel(1500) === '1.5-second' && session.boundLabel(120_000) === '2-minute',
+    `${session.boundLabel(capture.CAPTURE_BOUND_MS)} · ${session.boundLabel(1500)} · ${session.boundLabel(120_000)}`,
+  )
 
   process.env.MERCURY_VOICE_BACKEND = 'fixture'
   const dump = join(SCRATCH, 'dump')
@@ -193,6 +208,12 @@ section('§2 ONE capture owner — the ladder, the fixture, the bound, the cance
   check('the owner fires the auto-stop at the bound, once', autoStops === 1, String(autoStops))
   const boundedTake = await bounded.stop()
   check('the bounded take says it was auto-stopped', boundedTake.autoStopped)
+  process.env.MERCURY_VOICE_BOUND_MS = '60'
+  let seamStops = 0
+  const seamBounded = await capture.startCapture({ env: noTools(), onAutoStop: () => seamStops++ })
+  await sleep(200)
+  delete process.env.MERCURY_VOICE_BOUND_MS
+  check('a take opened without an explicit bound reads the seam', seamStops === 1 && (await seamBounded.stop()).autoStopped, String(seamStops))
 
   const cancelled = await capture.startCapture({ env: noTools() })
   cancelled.cancel()
@@ -369,6 +390,33 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
   check('a silent take is refused with the permission words, no request', (session.voiceSnapshot().receipt?.text ?? '').startsWith('only silence reached the microphone') && (session.voiceSnapshot().receipt?.text ?? '').includes('Microphone') && fetchCalls.length === 1, session.voiceSnapshot().receipt?.text ?? '')
   process.env.MERCURY_VOICE_FIXTURE_WAV = TONE
 
+  // The bound through the session: the owner stops the take by itself, the
+  // receipt names the bound, and the take is transcribed like a key-stopped one.
+  process.env.MERCURY_VOICE_BOUND_MS = '120'
+  pendingInput.edit('')
+  const seen: string[] = []
+  const unsubscribe = session.subscribeVoice(() => {
+    const text = session.voiceSnapshot().receipt?.text
+    if (text !== undefined && !seen.includes(text)) seen.push(text)
+  })
+  outcome = await session.toggleVoiceCapture({ env: noTools() })
+  check('a take opens under the seam bound', outcome.kind === 'started' && session.voiceSnapshot().phase === 'recording', JSON.stringify(outcome))
+  await until(() => session.voiceSnapshot().phase === 'idle', 5000)
+  unsubscribe()
+  delete process.env.MERCURY_VOICE_BOUND_MS
+  check('the bound stops the take by itself: the bound receipt, then the words land', seen.includes('capture stopped at the 0.1-second bound — transcribing') && pendingInput.text() === 'the quick brown fox jumps over the lazy dog', `${seen.join(' | ')} · draft=${pendingInput.text()}`)
+  check('…one more request, after the bound — never before', fetchCalls.length === 2 && posts(fx.lines()).length === 2, fetchCalls.join(','))
+
+  // The exit road: a take still open when Mercury quits is dropped —
+  // the microphone released, nothing sent, nobody left to paint a receipt.
+  pendingInput.edit('')
+  outcome = await session.toggleVoiceCapture({ env: noTools() })
+  check('a take is open before the quit', outcome.kind === 'started' && session.voiceSnapshot().phase === 'recording')
+  const released = session.releaseVoiceCaptureOnExit()
+  await sleep(150)
+  check('the exit release drops the open take: idle, no request, no receipt', released && session.voiceSnapshot().phase === 'idle' && !session.releaseVoiceCaptureOnExit() && fetchCalls.length === 2 && session.voiceSnapshot().receipt?.text !== session.CANCELLED_RECEIPT, `${session.voiceSnapshot().phase} · ${session.voiceSnapshot().receipt?.text ?? ''}`)
+  check('the release is registered with the shutdown cleanups (the one exit owner)', readFileSync(join(ROOT, 'src', 'services', 'voice', 'voiceSession.ts'), 'utf8').includes('registerCleanup(async () => {\n  releaseVoiceCaptureOnExit()'))
+
   session.setVoiceInputEnabled(false)
   check('/speak off persists', !session.voiceInputEnabled() && getGlobalConfig().voiceInputEnabled === false)
   globalThis.fetch = realFetch
@@ -403,6 +451,21 @@ section('§6 the doctor row and the commands')
   resetComputedDefaultMemo()
   r = await row()
   check('a backend and a transcriber ⇒ ok, both named', r.status === 'ok' && r.evidence.includes('backend: fixture WAV') && r.evidence.includes('transcriber: OpenAI — OpenAI API key (env)'), `${r.status}: ${r.evidence}`)
+  check('the privacy line: nothing is written to disk without the debug seam', r.detail.includes('nothing is written to disk'), r.detail)
+  const dumpDir = join(SCRATCH, 'debug-dump')
+  process.env.MERCURY_VOICE_DEBUG_WAV_DIR = dumpDir
+  r = await row()
+  check('…and names the debug directory while the seam is set, never the reassurance', r.detail.includes(`a debug copy of every take is written to ${dumpDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`) && !r.detail.includes('nothing is written to disk'), r.detail)
+  delete process.env.MERCURY_VOICE_DEBUG_WAV_DIR
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-000000000000000000000000'
+  process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
+  resetComputedDefaultMemo()
+  r = await row()
+  const anthropicLines = r.detail.split('\n').filter(l => l.includes('Anthropic: no speech-to-text endpoint'))
+  check('with Anthropic signed in it is named ONCE — among the families passed over, with its reason, without blame', anthropicLines.length === 1 && anthropicLines[0]!.startsWith('families passed over:'), r.detail)
+  delete process.env.ANTHROPIC_API_KEY
+  delete process.env.ANTHROPIC_BASE_URL
+  resetComputedDefaultMemo()
 
   const { builtinCommands, commandSeat } = await import('../../src/commands.js')
   const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.js')
