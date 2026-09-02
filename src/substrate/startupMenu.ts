@@ -366,6 +366,41 @@ export function bootEnvAppliedKeys(): ReadonlySet<string> {
   return new Set((lastApplyResult?.applied ?? []).map(a => a.env))
 }
 
+const BOOT_ENV_APPLIED_MARKER = 'MERCURY_BOOT_ENV_APPLIED'
+
+export function bootEnvSelfApplied(env: NodeJS.ProcessEnv = process.env): ReadonlyMap<string, string> {
+  const out = new Map<string, string>()
+  const raw = flagSpellings(BOOT_ENV_APPLIED_MARKER)
+    .map(sp => env[sp])
+    .find(v => v !== undefined)
+  if (raw === undefined) return out
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    return out
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return out
+  for (const [spelling, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof value === 'string') out.set(spelling, value)
+  }
+  return out
+}
+
+export function realEnvPin(
+  rowEnv: string,
+  env: NodeJS.ProcessEnv = process.env,
+): { spelling: string; value: string } | null {
+  const stamped = bootEnvSelfApplied(env)
+  for (const spelling of flagSpellings(rowEnv)) {
+    const value = env[spelling]
+    if (value === undefined) continue
+    if (stamped.get(spelling) === value) continue
+    return { spelling, value }
+  }
+  return null
+}
+
 export function applyBootMenuEnv(
   path: string = bootEnvPath(),
   env: NodeJS.ProcessEnv = process.env,
@@ -394,6 +429,10 @@ export function applyBootMenuEnv(
   for (const r of allSettingRows()) {
     for (const spelling of flagSpellings(r.env)) byEnv.set(spelling, r)
   }
+  for (const [spelling, value] of bootEnvSelfApplied(env)) {
+    if (env[spelling] === value) delete env[spelling]
+  }
+  for (const spelling of flagSpellings(BOOT_ENV_APPLIED_MARKER)) delete env[spelling]
   const appliedRows = new Set<string>()
   for (const [key, value] of Object.entries(o.env as Record<string, unknown>)) {
     const row = byEnv.get(key)
@@ -417,6 +456,13 @@ export function applyBootMenuEnv(
     }
     stampFlagOnEnv(env, row.env, value)
     result.applied.push({ env: row.env, value })
+  }
+  if (result.applied.length > 0) {
+    const receipt: Record<string, string> = {}
+    for (const a of result.applied) {
+      for (const spelling of flagSpellings(a.env)) receipt[spelling] = a.value
+    }
+    stampFlagOnEnv(env, BOOT_ENV_APPLIED_MARKER, JSON.stringify(receipt))
   }
   if (result.applied.length > 0 && themisActive()) {
     void import('./themis/auditChain.js')
@@ -606,11 +652,11 @@ export function resolveEffectiveSettingsSnapshot(args: {
   const processEnv = args.env ?? process.env
   const profile = readBootDefaultsProfile(args.path ?? bootEnvPath())
   const rows: EffectiveSettingRow[] = STARTUP_MENU.map(row => {
-    const spellings = flagSpellings(row.env)
-    const envSpelling = spellings.find(sp => processEnv[sp] !== undefined)
-    if (envSpelling !== undefined) {
-      return { env: row.env, value: processEnv[envSpelling] ?? null, source: 'process-env', applicationClass: 'new-session' }
+    const pin = realEnvPin(row.env, processEnv)
+    if (pin !== null) {
+      return { env: row.env, value: pin.value, source: 'process-env', applicationClass: 'new-session' }
     }
+    const spellings = flagSpellings(row.env)
     const profSpelling = profile ? spellings.find(sp => profile.env[sp] !== undefined) : undefined
     if (profile && profSpelling !== undefined) {
       return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: 'new-session' }
