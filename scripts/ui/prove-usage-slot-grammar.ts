@@ -38,7 +38,7 @@ console.log('§2 every family section rides the one grammar')
   ]
   for (const [name, needle] of sections) check(`${name}: the absent slot rides absentSlotLine`, needle.test(src))
   check('every inactive present slot rides INACTIVE_SLOT_LINE (four slots)', (src.match(/: INACTIVE_SLOT_LINE/g) ?? []).length === 4, String((src.match(/: INACTIVE_SLOT_LINE/g) ?? []).length))
-  const bodies = src.split('\n').filter(l => !l.trim().startsWith('*') && !l.trim().startsWith('//')).join('\n')
+  const bodies = src.split('\n').filter(l => !l.trim().startsWith('*') && !l.trim().startsWith('//') && !l.includes('INACTIVE_SLOT_LINE =')).join('\n')
   for (const stale of ['none connected —', 'none on this lane', 'none discovered —', 'none attached —', "'attached — not the active", "'connected — not the active", "'not the active billing source this session'"]) {
     check(`no section spells "${stale}" on its own`, !bodies.includes(stale))
   }
