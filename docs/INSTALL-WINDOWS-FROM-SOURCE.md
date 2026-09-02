@@ -53,7 +53,7 @@ profile (Windows Terminal lists it in its new-tab menu once installed — the
 Start-menu "PowerShell 7" entry opens a standalone console, which works but
 meets the terminal-check card first). Run the check again.
 
-Give the window at least **80 columns and 24 rows** — the Session Concourse
+Give the window at least **80 columns and 22 rows** — the Session Concourse
 says so on screen below that (the boot menu itself fits from 64×13) — and
 100 or more columns so the wide layouts have room. Maximised is fine.
 
@@ -368,6 +368,6 @@ Common cases:
 | `'bun' is not recognized` | terminal opened before bun was installed | close the terminal, open a new one |
 | `The engine "node" is incompatible` or a Node version error | wrong Node major | step 3 — must be 24.x |
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
-| the interface says the window is too small | fewer than 80 columns or 24 rows | widen or maximise the window |
+| the interface says the window is too small | fewer than 80 columns or 22 rows | widen or maximise the window |
 | an immediate exit that mentions `--print` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
 | `git pull` asks you to sign in again | the GitHub token expired | sign in in the browser window it opens |

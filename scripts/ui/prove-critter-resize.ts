@@ -83,6 +83,9 @@ writeFileSync(
     readyText: '❯ first task',
     readySettleTicks: 3,
     resizes: [
+      // The minimize goes UNDER the viewport floor (80×22): the fullscreen
+      // host paints the floor's one line there, and the return is what this
+      // proof reads — the critter repaints whole when the world comes back.
       { atTick: 25, cols: 60, rows: 18 }, // minimize
       { atTick: 38, cols: 120, rows: 40 }, // maximize back
     ],
