@@ -155,10 +155,13 @@ try {
   // is the turn continuing; a bare user turn is a side call on this model.
   const roundShape = (r: { body: unknown }): string => {
     const last = (r.body as { messages?: { role?: string; content?: unknown }[] }).messages?.at(-1)
-    const kinds = Array.isArray(last?.content)
-      ? last.content.map(c => (c as { type?: string }).type ?? '?').join('+')
-      : typeof last?.content
-    return `${last?.role ?? '?'}:${kinds}`
+    const blocks = Array.isArray(last?.content) ? (last.content as { type?: string; content?: unknown }[]) : []
+    const kinds = blocks.length > 0 ? blocks.map(c => c.type ?? '?').join('+') : typeof last?.content
+    // A tool_result names its head: an interruption reads differently from
+    // a rejection fed back, and the two mean different product paths.
+    const result = blocks.find(c => c.type === 'tool_result')
+    const head = result === undefined ? '' : ` "${JSON.stringify(result.content ?? '').slice(0, 90)}"`
+    return `${last?.role ?? '?'}:${kinds}${head}`
   }
   t.check(
     'no extra model round fired — the rejection ends the turn',
