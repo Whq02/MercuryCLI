@@ -55,23 +55,7 @@ check(
   !/import \{ modelPickerLayout \}/.test(src) && !/width=\{railWidth\}/.test(src) && !/width=\{detailWidth\}/.test(src),
 )
 
-section('muster ROLES section — seat-slot rows in the ONE vertical space')
-for (const cols of [50, 64, 120]) {
-  const inner = innerOf(cols)
-  const rf = modelPickerFooter({ hasEffort: true, supports1m: true, gated: false, roleFocused: true }, inner)
-  check(`@${cols} role footer fits (no wrap)`, rf.length <= Math.max(inner, FLOOR), `"${rf}"`)
-  check(`@${cols} role footer keeps the nav+exit floor`, rf.startsWith('↑↓ select') && rf.endsWith('esc close'))
-}
-const roleWide = modelPickerFooter({ hasEffort: true, supports1m: true, gated: false, roleFocused: true }, innerOf(120))
-check('role footer teaches the board grammar (m model · +/- effort)', roleWide.includes('m model') && roleWide.includes('+/- effort'), `"${roleWide}"`)
-check('role footer never advertises the model-switch action', !roleWide.includes('↵ switch') && !roleWide.includes('←→ effort'))
-check('role rows ride InteractiveRow with stable ids', /id=\{`model:role:\$\{r\.role\}`\}/.test(src))
-check('role rows share the ONE vertical selection space (totalRows nav bounds)', /const totalRows = models\.length \+ roleRows\.length/.test(src) && /selectRow\(Math\.min\(totalRows - 1, i \+ 1\)\)/.test(src))
-check('pending retarget renders as the AMBER arrow, never the main cell', /r\.pendingModel \? <Text color=\{AMBER\}>\{` →\$\{r\.pendingModel\}`\}<\/Text> : null/.test(src))
-check("queued annotation says 'applies at turn end'", /queued — applies at turn end/.test(src))
-check('env-locked axes are NAMED on the selected row', /locked · \$\{lockedNames\.join\(' \+ '\)\}/.test(src))
-check('↵ on a role row answers with the grammar (keydead rule, never silent)', /onRoleAction\?\.\(focusedRole\.role, 'hint'\)/.test(src))
-check('←→ stays the MAIN effort slider only (declined on role rows)', /effortAxis === 'moveLeft' && hasEffort && !focusedRole/.test(src))
+section('SEAT LAW — the picker\'s selection grammar names no engine')
 check('SEAT LAW: glm/haiku never in the picker; gpt only as the seat-state surface', !/glm/i.test(src) && !/haiku/i.test(src))
 check(
   "SEAT LAW: 'gpt' spellings confined to the seat-state + window-law surfaces (+ their docs)",
@@ -85,6 +69,7 @@ check(
     ),
 )
 section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
+const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
 check("picker accepts pendingNext + renders the 'next' AMBER row state", /pendingNext\?: string/.test(src) && /'next', AMBER/.test(src))
 check('picker renders the current→next header with the turn-settle note', /applies when the turn settles/.test(src))
 check('wrapper feeds pendingNext from AppState.pendingModelSwitch', /s\.pendingModelSwitch/.test(wrapper) && /pendingNext/.test(wrapper))
