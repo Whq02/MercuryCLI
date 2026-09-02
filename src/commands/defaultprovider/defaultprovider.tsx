@@ -9,7 +9,6 @@ import {
   switchDefaultProvider,
 } from '../../utils/model/defaultProviderRung.js'
 import {
-  NO_SIGN_IN_ROW,
   computedDefault,
   describeComputedDefault,
   type ComputedDefault,
@@ -64,7 +63,7 @@ function loginsWord(family: string): string {
 
 function standing(decision: ComputedDefault): string {
   return decision.provider === null
-    ? NO_SIGN_IN_ROW
+    ? decision.row
     : `${decision.row} (${decision.setting}) on ${providerDisplayName(decision.provider)}`
 }
 
