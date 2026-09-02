@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import useInput from '../../ink/hooks/use-input.js'
+import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import {
   AuthenticationCancelledError,
@@ -263,11 +264,17 @@ export function MCPRemoteServerMenu({
     setPhase({ id: 'menu' })
   }
 
-  // `c` copies the authorisation URL; the confirmation is transient and the
-  // late-resolving write checks the unmounted marker before touching state.
+  // `c` copies the authorisation URL — on an EMPTY paste draft only, and
+  // consumed here so the paste field never receives the letter (the field
+  // mounts after this listener, so this handler runs first); once the
+  // operator is typing the redirect URL, c is a letter of it and the hint
+  // below stops advertising the copy. The confirmation is transient and
+  // the late-resolving write checks the unmounted marker before touching
+  // state.
   useInput(
-    (input, key) => {
-      if (input === 'c' && !key.ctrl && !key.meta && authUrl) {
+    (input, key, event) => {
+      if (input === 'c' && !key.ctrl && !key.meta && authUrl && pasteText === '') {
+        event.stopImmediatePropagation()
         void copyAnsiToClipboard(authUrl).then(() => {
           if (unmountedRef.current) return
           setCopied(true)
@@ -280,6 +287,18 @@ export function MCPRemoteServerMenu({
     },
     { isActive: phase.id === 'auth' },
   )
+
+  // THE AUTH CANCEL — one door, two contexts. While no paste field shows,
+  // the Dialog's own cancel (the Confirmation context: esc, and the bare n)
+  // owns it. While the field shows, that cancel stands down (a typed n is a
+  // letter of the URL — it used to cancel the sign-in mid-word) and esc
+  // keeps cancelling through this Settings-context hook, where no printable
+  // is bound.
+  const cancelAuth = (): void => {
+    abortRef.current?.abort()
+    setPhase({ id: 'menu' })
+  }
+  useKeybinding('confirm:no', cancelAuth, { context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null })
 
   // Enter drives the two claude.ai browser walks.
   useInput(
@@ -308,12 +327,13 @@ export function MCPRemoteServerMenu({
 
   if (phase.id === 'auth') {
     return (
+      // The Dialog's Confirmation-context cancel stands down while the paste
+      // field shows (its bare n would cancel the sign-in mid-URL); esc keeps
+      // cancelling through the Settings-context hook above.
       <Dialog
         title={capitalise(server.name)}
-        onCancel={() => {
-          abortRef.current?.abort()
-          setPhase({ id: 'menu' })
-        }}
+        onCancel={cancelAuth}
+        isCancelActive={pasteSubmit === null}
       >
         <Box flexDirection="column">
           <Box>
@@ -334,7 +354,10 @@ export function MCPRemoteServerMenu({
                 </Link>
               </Text>
               <Text dimColor>
-                {copied ? 'Copied.' : 'Press c to copy the URL.'}
+                {/* The copy verb is advertised exactly where it fires: on an
+                    empty paste draft (or no field at all); once the URL is
+                    being typed, c is a letter and the line names the submit. */}
+                {copied ? 'Copied.' : pasteText === '' ? 'Press c to copy the URL.' : '↵ submits the pasted URL.'}
               </Text>
             </Box>
           ) : null}

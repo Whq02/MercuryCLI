@@ -97,6 +97,10 @@ const CAPTURE_RULES: Record<string, Rule> = {
       { file: 'src/components/permissions/rules/AddWorkspaceDirectory.tsx', needles: ['isCancelActive={false}'] },
       { file: 'src/components/ExportDialog.tsx', needles: ["context: 'Settings',", "isActive: screen === 'filename',"] },
       { file: 'src/components/LogSelector.tsx', needles: ["context: 'Settings',", 'isActive: inRename,'] },
+      // The remote-server auth phase: its redirect-URL paste field turns the
+      // Dialog's cancel off while it shows (a typed n used to cancel the
+      // sign-in mid-URL) and re-homes esc under Settings.
+      { file: 'src/components/mcp/MCPRemoteServerMenu.tsx', needles: ['isCancelActive={pasteSubmit === null}', "{ context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null }"] },
     ],
   },
   Transcript: {
@@ -172,10 +176,11 @@ section('§1b a design-system Dialog that hosts a text field turns its cancel of
   // Confirmation context, the text input never consumes a printable, so a
   // typed n reaches the hook and cancels the dialog unless the host gates
   // it (isCancelActive) or re-homes its esc under Settings.
-  const DIALOG_FIELD_NOTES: Record<string, string> = {
-    'src/components/mcp/MCPRemoteServerMenu.tsx':
-      "the auth phase's redirect-URL paste field sits in a Dialog whose confirm:no stays active — a typed n cancels the sign-in, and c re-copies the URL mid-paste (no empty-draft guard); the fix is the ExportDialog idiom (isCancelActive={!pasteSubmit}, the esc re-registered under Settings while the field shows, c gated on an empty draft) — another owner's file, recorded, not failed",
-  }
+  // Rows another owner holds are noted here with their verdict; a host that
+  // gains its gate leaves the roster (the closure check below reds a stale
+  // row). Empty today: the last open host (the remote-server auth paste
+  // field) gates its cancel.
+  const DIALOG_FIELD_NOTES: Record<string, string> = {}
   const dialogHosts = files.filter(rel => hostsTextField(read(rel)) && /<Dialog\b/.test(read(rel)))
   check('the census is populated (≥ 3 Dialog text hosts)', dialogHosts.length >= 3, dialogHosts.join(' · '))
   for (const rel of dialogHosts) {
@@ -308,6 +313,11 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
       legend: [/composerSlot\?\.active\s*\n\s*\? 'esc composer'/],
       reason: 'a adds only while no editor is open; the panes engine swaps the footer to the slot while the editor captures',
     },
+    'src/components/mcp/MCPRemoteServerMenu.tsx': {
+      gate: ["if (input === 'c' && !key.ctrl && !key.meta && authUrl && pasteText === '') {", 'event.stopImmediatePropagation()'],
+      legend: ["pasteText === '' ? 'Press c to copy the URL.' : '↵ submits the pasted URL.'"],
+      reason: 'c copies the authorisation URL only on an empty paste draft and is consumed ahead of the field (mounted later, so it listens after); once the URL is being typed, c is a letter and the hint names the submit instead',
+    },
   }
   /** Accounts surfaces — another owner's files: the guard line is printed as the verdict. */
   const ACCOUNTS_HOSTS = new Set([
@@ -317,7 +327,6 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
     'src/components/GeminiConnect.tsx',
     'src/components/RouterOpenaiConnect.tsx',
     'src/components/ConsoleOAuthFlow.tsx',
-    'src/components/mcp/MCPRemoteServerMenu.tsx',
   ])
   const letterHosts = files.filter(rel => {
     const src = read(rel)
