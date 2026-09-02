@@ -69,6 +69,7 @@ check(
     ),
 )
 section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
+const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
 check("picker accepts pendingNext + renders the 'next' AMBER row state", /pendingNext\?: string/.test(src) && /'next', AMBER/.test(src))
 check('picker renders the current→next header with the turn-settle note', /applies when the turn settles/.test(src))
 check('wrapper feeds pendingNext from AppState.pendingModelSwitch', /s\.pendingModelSwitch/.test(wrapper) && /pendingNext/.test(wrapper))
