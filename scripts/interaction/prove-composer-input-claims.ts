@@ -149,16 +149,18 @@ console.log('\n── §2 wiring pinned in source ──────────
     suggestions.includes('tokens.selectionBand') &&
       !suggestions.includes("selected ? 'selectionBand'"),
   )
-  const notices = read('src/components/PromptInput/Notifications.tsx')
   const helpMenu = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
+  const measurer = read('src/ink/measure-element.ts')
   check(
-    'the notice column publishes its measured height after every paint',
-    notices.includes('publishNotificationRows(measureElement(element).height)') && notices.includes('ref={columnRef}'),
+    'the fork owns the screen-row measurement beside its column twin',
+    measurer.includes('export function elementScreenTop(node: DOMElement): number') &&
+      measurer.includes('export function elementScreenLeft(node: DOMElement): number'),
   )
   check(
-    'the help grid budgets against the published notice rows, not a guess',
-    helpMenu.includes('useSyncExternalStore(subscribeNotificationRows, getNotificationRows, getNotificationRows)') &&
-      /termRows - \(chrome === 'deck-strip' \? 14 : 6\) - Math\.max\(0, noticeRows - NOTICE_ROWS_IN_ALLOWANCE\)/.test(helpMenu),
+    'the help grid caps to the rows beneath its measured screen top, not a chrome guess',
+    helpMenu.includes('const top = elementScreenTop(element)') &&
+      helpMenu.includes('rows: Math.max(3, termRows - top)') &&
+      helpMenu.includes('ref={gridRef}'),
   )
 }
 
