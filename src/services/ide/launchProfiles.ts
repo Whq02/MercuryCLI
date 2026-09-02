@@ -279,7 +279,7 @@ function vscodeProfiles(root: string): {
     }
     const isPy = VSCODE_PY_TYPES.has(type)
     if (isPy && config.module !== undefined) {
-      skipped.push({ name, reason: 'module launches are not yet representable (use a program path)' })
+      skipped.push({ name, reason: 'module launches (python -m) are not representable — the Launch tool starts a program path' })
       continue
     }
     if (typeof config.program !== 'string' || config.program === '') {

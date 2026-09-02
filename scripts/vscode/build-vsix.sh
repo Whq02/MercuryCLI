@@ -10,10 +10,20 @@ OUT=dist/mercury-vscode.vsix
 STAGE=$(mktemp -d "${TMPDIR:-/tmp}/mercury-vsix.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT
 
-VERSION=$(node -p "require('./$SRC/package.json').version")
+# The extension ships with ONE Mercury build and carries its version: the
+# harness version is stamped into the staged manifest, so `mercury editor
+# status`, the /ide install arm's up-to-date check and the bridge's own
+# version-skew check all read the same number.
+VERSION=$(node -p "require('./package.json').version")
 
 mkdir -p "$STAGE/extension"
-cp "$SRC/package.json" "$SRC/extension.js" "$SRC/README.md" "$SRC/LICENSE.txt" "$STAGE/extension/"
+cp "$SRC/extension.js" "$SRC/README.md" "$SRC/LICENSE.txt" "$STAGE/extension/"
+node -e '
+const fs = require("node:fs")
+const manifest = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
+manifest.version = process.argv[2]
+fs.writeFileSync(process.argv[3], JSON.stringify(manifest, null, 2) + "\n")
+' "$SRC/package.json" "$VERSION" "$STAGE/extension/package.json"
 mkdir -p "$STAGE/extension/media"
 cp "$SRC/media/mercury.svg" "$STAGE/extension/media/"
 

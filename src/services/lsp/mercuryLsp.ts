@@ -38,8 +38,8 @@ export function isLspToolCatalogEnabled(): boolean {
 
 /**
  * Write-capable fork ops (rename apply / codeActions apply) ride the same
- * master gate. Split out so a future operator kill of JUST the write path
- * has one seam to land on.
+ * master gate. Split out so that turning off JUST the write path has one
+ * seam to land on.
  */
 export function mercuryLspWriteOpsEnabled(): boolean {
   return mercuryLspEnabled()

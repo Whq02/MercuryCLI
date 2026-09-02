@@ -2,7 +2,7 @@
 //  acp/acpServer — `mercury acp --stdio`.
 //
 //  A thin ADAPTER exposing Mercury through the stable Agent Client Protocol
-//  (v1; SDK @agentclientprotocol/sdk 1.2.1, stable surface only — no
+//  (v1; the @agentclientprotocol/sdk stable surface only — no
 //  experimental/* imports). Sessions map 1:1 onto Mercury sessions: each
 //  ACP session drives one stream-json print-mode child (the daemon's own
 //  self-invocation precedent), so prompts, interrupts, permission asks,
@@ -15,7 +15,7 @@
 //  contract) — diagnostics go to stderr.
 // ============================================================================
 
-import { randomUUID } from 'node:crypto'
+import { randomUUID, type UUID } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
 import {
   agent,
@@ -38,6 +38,8 @@ import { isOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { getCwd } from '../../utils/cwd.js'
 import { listSessionsImpl } from '../../utils/listSessionsImpl.js'
 import { sessionIdExists } from '../../utils/sessionStorage.js'
+import { loadSessionFile } from '../../utils/sessionStorage/loading.js'
+import { MERCURY_VERSION } from '../../constants/product.js'
 import { resolveWorkbenchSnapshot } from '../workbench/projection.js'
 // the editor bridge's attention
 // truth is the PURE workbench translation folded over the snapshot THIS
@@ -61,9 +63,9 @@ import type { AttentionItem, AttentionState } from '../../services/attention/con
 import { foldRelations, emptyRelationState } from '../../services/attention/relations.js'
 import type { RelationState } from '../../services/attention/relations.js'
 import { listTasks, getTasksDir, type TaskStatus } from '../../utils/tasks.js'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { MercuryChildSession } from './childSession.js'
+import { MercuryChildSession, toolResultText, type TurnEndDetail } from './childSession.js'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
 
 const PERMISSION_MODES = [
@@ -124,6 +126,418 @@ export function permissionAskWire(
 export function permissionAllowedOf(result: unknown): boolean {
   const o = (result as { outcome?: { outcome?: unknown; optionId?: unknown } } | null)?.outcome
   return o?.outcome === 'selected' && o?.optionId === 'allow'
+}
+
+// ═══ the tool-call wire — kind · locations · diffs · output ═══════════════
+// The ACP tool_call vocabulary an editor follows along with: the verb kind
+// drives its icon and grouping, the locations let it open the file the
+// agent is on, the diff content renders natively before and after the
+// permission gate, the output rides the settlement. All pure over the
+// tool's own name and input — the prover pins the shapes.
+
+export type AcpToolKind =
+  | 'read'
+  | 'edit'
+  | 'delete'
+  | 'move'
+  | 'search'
+  | 'execute'
+  | 'think'
+  | 'fetch'
+  | 'switch_mode'
+  | 'other'
+
+const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
+  Read: 'read',
+  NotebookRead: 'read',
+  ReadMcpResourceTool: 'read',
+  ListMcpResourcesTool: 'read',
+  Inspect: 'read',
+  Edit: 'edit',
+  Write: 'edit',
+  NotebookEdit: 'edit',
+  AstEdit: 'edit',
+  ChangeSet: 'edit',
+  Glob: 'search',
+  Grep: 'search',
+  AstSearch: 'search',
+  LSP: 'search',
+  WebSearch: 'search',
+  WebFetch: 'fetch',
+  Bash: 'execute',
+  PowerShell: 'execute',
+  REPL: 'execute',
+  Debug: 'execute',
+  Launch: 'execute',
+  Test: 'execute',
+  Eval: 'execute',
+  Agent: 'think',
+  Task: 'think',
+  TaskCreate: 'think',
+  TaskUpdate: 'think',
+  TaskGet: 'think',
+  TaskList: 'think',
+  EnterPlanMode: 'switch_mode',
+  ExitPlanMode: 'switch_mode',
+  SetTier: 'switch_mode',
+}
+
+/** The ACP tool kind for a Mercury tool name; unknown names (MCP tools
+ *  included) are 'other' — never a guessed verb. */
+export function toolKindOf(name: string): AcpToolKind {
+  return TOOL_KINDS[name] ?? 'other'
+}
+
+/** The file locations a tool input names — the editor's follow-along
+ *  targets. Only keys that carry a path by contract; nothing is inferred
+ *  from free text. */
+export function toolLocationsOf(
+  name: string,
+  input: unknown,
+): Array<{ path: string; line?: number }> {
+  const i = (input ?? {}) as Record<string, unknown>
+  const out: Array<{ path: string; line?: number }> = []
+  const push = (path: unknown, line?: unknown): void => {
+    if (typeof path !== 'string' || path === '') return
+    if (out.some(l => l.path === path)) return
+    out.push({ path, ...(typeof line === 'number' && line > 0 ? { line } : {}) })
+  }
+  push(i.file_path, name === 'Read' ? i.offset : undefined)
+  push(i.notebook_path)
+  if (name === 'AstEdit' || name === 'AstSearch') push(i.path)
+  if (name === 'ChangeSet' && Array.isArray(i.changes)) {
+    for (const change of i.changes as Array<Record<string, unknown>>) push(change.file_path)
+  }
+  return out
+}
+
+export interface AcpDiff {
+  path: string
+  oldText?: string | null
+  newText: string
+}
+
+/**
+ * The diff content a mutating tool call carries BEFORE it runs. Edit's
+ * old/new strings are the exact change; Write's old text is the file as it
+ * stands when the call is announced (the announcement precedes the write,
+ * the permission gate sits between) — a file already holding the new text
+ * has no diff to show and none is invented.
+ */
+export function toolDiffsOf(
+  name: string,
+  input: unknown,
+  readFile: (path: string) => string | null = readFileOrNull,
+): AcpDiff[] {
+  const i = (input ?? {}) as Record<string, unknown>
+  if (name === 'Edit' && typeof i.file_path === 'string' && typeof i.new_string === 'string') {
+    return [
+      {
+        path: i.file_path,
+        oldText: typeof i.old_string === 'string' ? i.old_string : null,
+        newText: i.new_string,
+      },
+    ]
+  }
+  if (name === 'Write' && typeof i.file_path === 'string' && typeof i.content === 'string') {
+    const before = readFile(i.file_path)
+    if (before === i.content) return []
+    return [{ path: i.file_path, oldText: before, newText: i.content }]
+  }
+  return []
+}
+
+function readFileOrNull(path: string): string | null {
+  try {
+    return readFileSync(path, 'utf8')
+  } catch {
+    return null
+  }
+}
+
+/** Tool output crosses bounded: an editor renders it collapsed, and a
+ *  multi-megabyte result must not stall the protocol channel. The cut is
+ *  named in the text itself. */
+export const TOOL_OUTPUT_WIRE_LIMIT = 16_000
+
+export function boundedToolText(text: string, limit = TOOL_OUTPUT_WIRE_LIMIT): string {
+  if (text.length <= limit) return text
+  return `${text.slice(0, limit)}\n… (${text.length - limit} more characters not shown)`
+}
+
+/** The tool_call_update content for a settled call: its text output as one
+ *  content block; absent when the result carried no text. */
+export function toolOutputContentOf(
+  text: string | undefined,
+): Array<{ type: 'content'; content: { type: 'text'; text: string } }> | undefined {
+  if (text === undefined || text === '') return undefined
+  return [{ type: 'content', content: { type: 'text', text: boundedToolText(text) } }]
+}
+
+// ═══ turn settlement — the ACP stop reason ═══════════════════════════════
+
+export type AcpStopReason = 'end_turn' | 'max_tokens' | 'max_turn_requests' | 'refusal' | 'cancelled'
+
+/**
+ * The ACP stop reason for a settled turn, or the error the client must see:
+ * a cancelled turn is 'cancelled'; a successful one carries the model's own
+ * stop reason (a token cap, a refusal, else end_turn); a turn-cap error is
+ * 'max_turn_requests'; every other error is an ERROR — a crashed child is
+ * not a model refusal, and the message names what happened.
+ */
+export function stopReasonOf(
+  outcome: 'success' | 'error' | 'cancelled',
+  detail: TurnEndDetail | undefined,
+): { stopReason: AcpStopReason } | { error: string } {
+  if (outcome === 'cancelled') return { stopReason: 'cancelled' }
+  if (outcome === 'success') {
+    if (detail?.stopReason === 'max_tokens') return { stopReason: 'max_tokens' }
+    if (detail?.stopReason === 'refusal') return { stopReason: 'refusal' }
+    return { stopReason: 'end_turn' }
+  }
+  if (detail?.subtype === 'error_max_turns') return { stopReason: 'max_turn_requests' }
+  const why = detail?.errors.filter(e => e.trim() !== '').join('; ')
+  return {
+    error: `the session turn failed${detail ? ` (${detail.subtype})` : ''}${why ? `: ${why}` : ''}`,
+  }
+}
+
+// ═══ client MCP servers → the child's --mcp-config ═══════════════════════
+
+/**
+ * The MCP servers an ACP client attaches to a session, as the inline
+ * `--mcp-config` document the child session carries. stdio · http · sse
+ * cross (the capabilities initialize advertises); anything else is named
+ * in `skipped` rather than dropped in silence. Null when nothing crosses.
+ */
+export function acpMcpServersToConfig(
+  servers: unknown,
+): { json: string; names: string[]; skipped: string[] } | null {
+  if (!Array.isArray(servers) || servers.length === 0) return null
+  const mcpServers: Record<string, Record<string, unknown>> = {}
+  const skipped: string[] = []
+  const headersOf = (raw: unknown): Record<string, string> => {
+    const out: Record<string, string> = {}
+    if (!Array.isArray(raw)) return out
+    for (const h of raw as Array<Record<string, unknown>>) {
+      if (typeof h?.name === 'string' && typeof h.value === 'string') out[h.name] = h.value
+    }
+    return out
+  }
+  for (const raw of servers as Array<Record<string, unknown>>) {
+    const name = typeof raw?.name === 'string' ? raw.name : ''
+    if (name === '') {
+      skipped.push('(unnamed)')
+      continue
+    }
+    const type = typeof raw.type === 'string' ? raw.type : 'stdio'
+    if ((type === 'http' || type === 'sse') && typeof raw.url === 'string') {
+      mcpServers[name] = { type, url: raw.url, headers: headersOf(raw.headers) }
+    } else if (type === 'stdio' && typeof raw.command === 'string') {
+      const env: Record<string, string> = {}
+      if (Array.isArray(raw.env)) {
+        for (const e of raw.env as Array<Record<string, unknown>>) {
+          if (typeof e?.name === 'string' && typeof e.value === 'string') env[e.name] = e.value
+        }
+      }
+      mcpServers[name] = {
+        command: raw.command,
+        args: Array.isArray(raw.args) ? raw.args.filter((a): a is string => typeof a === 'string') : [],
+        env,
+      }
+    } else {
+      skipped.push(`${name} (${type})`)
+    }
+  }
+  const names = Object.keys(mcpServers)
+  if (names.length === 0) return null
+  return { json: JSON.stringify({ mcpServers }), names, skipped }
+}
+
+// ═══ the editor context — pushed by the client, read at the prompt ═══════
+
+/** What the editor pushes as its state changes (`_mercury/editor_context`,
+ *  a client → agent notification): the active file and selection, the open
+ *  files, the workspace roots and the active file's diagnostics. Absent
+ *  fields are absent; the wire never invents an empty editor. */
+export interface EditorContextWire {
+  v: 1
+  sessionId: string
+  workspaceFolders?: string[]
+  activeFile?: {
+    path: string
+    languageId?: string
+    selection?: { startLine: number; endLine: number; text?: string }
+  }
+  openFiles?: string[]
+  diagnostics?: Array<{ path: string; line: number; severity: string; message: string }>
+}
+
+const EDITOR_CONTEXT_URI = 'mercury://editor-context'
+const EDITOR_CONTEXT_SELECTION_LIMIT = 8_000
+const EDITOR_CONTEXT_LIST_LIMIT = 30
+const EDITOR_CONTEXT_DIAGNOSTIC_LIMIT = 25
+
+/** Narrow a raw notification into the wire shape; null when it names no
+ *  session or is not an object — the handler ignores those. */
+export function editorContextOf(raw: unknown): EditorContextWire | null {
+  const r = raw as Record<string, unknown> | null
+  if (r === null || typeof r !== 'object' || typeof r.sessionId !== 'string') return null
+  const strings = (v: unknown): string[] | undefined =>
+    Array.isArray(v) ? v.filter((s): s is string => typeof s === 'string') : undefined
+  const active = r.activeFile as Record<string, unknown> | undefined
+  const sel = active?.selection as Record<string, unknown> | undefined
+  const diags = Array.isArray(r.diagnostics)
+    ? (r.diagnostics as Array<Record<string, unknown>>)
+        .filter(d => typeof d?.path === 'string' && typeof d.message === 'string')
+        .map(d => ({
+          path: d.path as string,
+          line: typeof d.line === 'number' ? d.line : 0,
+          severity: typeof d.severity === 'string' ? d.severity : 'Info',
+          message: d.message as string,
+        }))
+    : undefined
+  const folders = strings(r.workspaceFolders)
+  const open = strings(r.openFiles)
+  return {
+    v: 1,
+    sessionId: r.sessionId,
+    ...(folders !== undefined ? { workspaceFolders: folders } : {}),
+    ...(active && typeof active.path === 'string'
+      ? {
+          activeFile: {
+            path: active.path,
+            ...(typeof active.languageId === 'string' ? { languageId: active.languageId } : {}),
+            ...(sel && typeof sel.startLine === 'number' && typeof sel.endLine === 'number'
+              ? {
+                  selection: {
+                    startLine: sel.startLine,
+                    endLine: sel.endLine,
+                    ...(typeof sel.text === 'string' ? { text: sel.text } : {}),
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
+    ...(open !== undefined ? { openFiles: open } : {}),
+    ...(diags !== undefined ? { diagnostics: diags } : {}),
+  }
+}
+
+/**
+ * The editor context as the ACP `resource` block that rides the next
+ * prompt — the same attached-resource vocabulary an explicit selection
+ * uses, so the model reads one kind of context. Bounded (selection text,
+ * list lengths, diagnostic rows), null when the editor reported nothing.
+ */
+export function editorContextResource(
+  ctx: EditorContextWire | null,
+): { type: 'resource'; resource: { uri: string; text: string; mimeType: string } } | null {
+  if (ctx === null) return null
+  const lines: string[] = []
+  if (ctx.workspaceFolders && ctx.workspaceFolders.length > 0) {
+    lines.push(`workspace: ${ctx.workspaceFolders.slice(0, 10).join(', ')}`)
+  }
+  if (ctx.activeFile) {
+    const lang = ctx.activeFile.languageId ? ` (${ctx.activeFile.languageId})` : ''
+    const sel = ctx.activeFile.selection
+    if (sel) {
+      lines.push(`active file: ${ctx.activeFile.path}${lang} · selection lines ${sel.startLine}-${sel.endLine}`)
+      if (sel.text !== undefined && sel.text !== '') {
+        lines.push(
+          sel.text.length > EDITOR_CONTEXT_SELECTION_LIMIT
+            ? `${sel.text.slice(0, EDITOR_CONTEXT_SELECTION_LIMIT)}\n… (selection truncated)`
+            : sel.text,
+        )
+      }
+    } else {
+      lines.push(`active file: ${ctx.activeFile.path}${lang}`)
+    }
+  }
+  if (ctx.openFiles && ctx.openFiles.length > 0) {
+    const shown = ctx.openFiles.slice(0, EDITOR_CONTEXT_LIST_LIMIT)
+    const more = ctx.openFiles.length - shown.length
+    lines.push(`open files: ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`)
+  }
+  if (ctx.diagnostics && ctx.diagnostics.length > 0) {
+    const shown = ctx.diagnostics.slice(0, EDITOR_CONTEXT_DIAGNOSTIC_LIMIT)
+    lines.push('diagnostics:')
+    for (const d of shown) lines.push(`  ${d.path}:${d.line} ${d.severity}: ${d.message}`)
+    if (ctx.diagnostics.length > shown.length) lines.push(`  … (+${ctx.diagnostics.length - shown.length} more)`)
+  }
+  if (lines.length === 0) return null
+  return {
+    type: 'resource',
+    resource: { uri: EDITOR_CONTEXT_URI, text: lines.join('\n'), mimeType: 'text/plain' },
+  }
+}
+
+// ═══ session/load replay — the transcript crosses as session updates ═════
+
+/**
+ * The conversation a resumed session already holds, as the ACP updates a
+ * client renders it from (user_message_chunk · agent_message_chunk ·
+ * agent_thought_chunk · tool_call · tool_call_update) — the protocol's own
+ * replay rule for session/load. Read from the transcript; nothing re-runs.
+ * Meta rows, sidechains and image payloads stay out; tool output is bounded.
+ */
+export function replayUpdatesOf(
+  messages: Iterable<Record<string, unknown>>,
+): Array<Record<string, unknown>> {
+  const updates: Array<Record<string, unknown>> = []
+  for (const m of messages) {
+    if (m.isMeta === true || m.isSidechain === true) continue
+    const message = m.message as { content?: unknown } | undefined
+    const content = message?.content
+    if (m.type === 'user') {
+      if (typeof content === 'string') {
+        if (content !== '') updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: content } })
+        continue
+      }
+      if (!Array.isArray(content)) continue
+      for (const block of content as Array<Record<string, unknown>>) {
+        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
+          updates.push({ sessionUpdate: 'user_message_chunk', content: { type: 'text', text: block.text } })
+        } else if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
+          const text = toolResultText(block.content)
+          const output = toolOutputContentOf(text)
+          updates.push({
+            sessionUpdate: 'tool_call_update',
+            toolCallId: block.tool_use_id,
+            status: block.is_error === true ? 'failed' : 'completed',
+            ...(output !== undefined ? { content: output } : {}),
+          })
+        }
+      }
+      continue
+    }
+    if (m.type === 'assistant') {
+      if (!Array.isArray(content)) continue
+      for (const block of content as Array<Record<string, unknown>>) {
+        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
+          updates.push({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: block.text } })
+        } else if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking !== '') {
+          updates.push({ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: block.thinking } })
+        } else if (block.type === 'tool_use' && typeof block.id === 'string') {
+          const name = String(block.name ?? 'tool')
+          // The status the live stream announced; the tool_result row that
+          // follows settles it — a call the transcript never settled stays
+          // in progress, which is the truth of an interrupted turn.
+          updates.push({
+            sessionUpdate: 'tool_call',
+            toolCallId: block.id,
+            title: name,
+            kind: toolKindOf(name),
+            status: 'in_progress',
+            rawInput: (block.input as Record<string, unknown>) ?? {},
+            locations: toolLocationsOf(name, block.input),
+          })
+        }
+      }
+    }
+  }
+  return updates
 }
 
 export interface AcpPromptMaterial {
@@ -375,9 +789,11 @@ interface AcpSessionState {
   child: MercuryChildSession
   cwd: string
   modeId: string
-  /** Resolves the in-flight prompt turn. */
-  turnResolve: ((outcome: 'success' | 'error' | 'cancelled') => void) | null
+  /** Resolves the in-flight prompt turn with how it ended. */
+  turnResolve: ((outcome: 'success' | 'error' | 'cancelled', detail?: TurnEndDetail) => void) | null
   cancelled: boolean
+  /** The editor's latest pushed state — read at the next prompt. */
+  editorContext: EditorContextWire | null
   /** tool_use id → tool name (the plan trigger reads settlements by name). */
   toolNames: Map<string, string>
   /** Serializes plan reads so updates never reorder. */
@@ -406,7 +822,14 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
    */
   const attachSession = (
     ctx: AgentContext,
-    args: { cwd: string; acpSessionId: string; resumeSessionId?: string; modeId?: string },
+    args: {
+      cwd: string
+      acpSessionId: string
+      resumeSessionId?: string
+      modeId?: string
+      /** The client's MCP servers for this session (the ACP request field). */
+      mcpServers?: unknown
+    },
   ): AcpSessionState => {
     const acpSessionId = args.acpSessionId
     const state: AcpSessionState = {
@@ -415,6 +838,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       modeId: args.modeId ?? 'default',
       turnResolve: null,
       cancelled: false,
+      editorContext: null,
       toolNames: new Map(),
       planChain: Promise.resolve(),
       planEverSent: false,
@@ -442,6 +866,13 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           /* a torn task read never breaks the session */
         })
     }
+    // The client's MCP servers ride into the child as its own --mcp-config;
+    // a shape the child cannot carry is named on stderr, never dropped in
+    // silence (the stdio law: diagnostics go there).
+    const mcp = acpMcpServersToConfig(args.mcpServers)
+    if (mcp && mcp.skipped.length > 0) {
+      process.stderr.write(`[acp] mcpServers not carried (unsupported shape): ${mcp.skipped.join(', ')}\n`)
+    }
     const child = new MercuryChildSession(
       {
         cwd: args.cwd,
@@ -450,6 +881,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           : { sessionId: acpSessionId }),
         permissionMode: args.modeId !== undefined ? decodeAcpModeId(args.modeId) : 'default',
         ...(opts.entry !== undefined && { entry: opts.entry }),
+        ...(mcp !== null && { mcpConfig: mcp.json }),
       },
       {
         onInit: sessionId => {
@@ -468,26 +900,44 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             },
           })
         },
+        onAssistantThought: text => {
+          void ctx.notify(methods.client.session.update, {
+            sessionId: acpSessionId,
+            update: {
+              sessionUpdate: 'agent_thought_chunk',
+              content: { type: 'text', text },
+            },
+          })
+        },
         onToolUse: (toolUseId, name, input) => {
           state.toolNames.set(toolUseId, name)
+          // The follow-along wire: the verb kind, the files the call names,
+          // and — for a file mutation — the diff itself, announced BEFORE
+          // the permission gate so the editor previews it natively.
+          const diffs = toolDiffsOf(name, input)
           void ctx.notify(methods.client.session.update, {
             sessionId: acpSessionId,
             update: {
               sessionUpdate: 'tool_call',
               toolCallId: toolUseId,
               title: name,
+              kind: toolKindOf(name),
               status: 'in_progress',
               rawInput: (input as Record<string, unknown>) ?? {},
+              locations: toolLocationsOf(name, input),
+              ...(diffs.length > 0 && { content: diffs.map(d => ({ type: 'diff' as const, ...d })) }),
             },
           })
         },
-        onToolResult: (toolUseId, isError) => {
+        onToolResult: (toolUseId, isError, output) => {
+          const content = toolOutputContentOf(output)
           void ctx.notify(methods.client.session.update, {
             sessionId: acpSessionId,
             update: {
               sessionUpdate: 'tool_call_update',
               toolCallId: toolUseId,
               status: isError ? 'failed' : 'completed',
+              ...(content !== undefined && { content }),
             },
           })
           // A settled task tool re-reads the task OWNER into a plan update —
@@ -511,11 +961,11 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             },
           })
         },
-        onTurnEnd: outcome => {
+        onTurnEnd: (outcome, detail) => {
           if (state.turnResolve) {
             const resolveTurn = state.turnResolve
             state.turnResolve = null
-            resolveTurn(state.cancelled ? 'cancelled' : outcome)
+            resolveTurn(state.cancelled ? 'cancelled' : outcome, detail)
             state.cancelled = false
           }
         },
@@ -534,11 +984,14 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             }
           })()
         },
-        onExit: () => {
+        onExit: code => {
           if (state.turnResolve) {
             const resolveTurn = state.turnResolve
             state.turnResolve = null
-            resolveTurn('error')
+            resolveTurn('error', {
+              subtype: 'child_exited',
+              errors: [`the session process exited${code === null ? '' : ` (${code})`} mid-turn`],
+            })
           }
           for (const [key, value] of sessions) {
             if (value === state) sessions.delete(key)
@@ -597,19 +1050,29 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       agentCapabilities: {
         loadSession: true,
         promptCapabilities: { image: true, audio: false, embeddedContext: true },
+        // The MCP server shapes session/new may carry (acpMcpServersToConfig).
+        mcpCapabilities: { http: true, sse: true },
+        sessionCapabilities: { list: {} },
       },
       authMethods: [],
+      // The name and version a client shows — and the version-skew check
+      // an editor bridge runs against its own build.
+      agentInfo: { name: 'mercury', title: 'Mercury', version: MERCURY_VERSION },
     }))
     .onRequest('session/new', ctx => {
       const sessionId = randomUUID()
-      attachSession(ctx.client, { cwd: ctx.params.cwd, acpSessionId: sessionId })
+      attachSession(ctx.client, {
+        cwd: ctx.params.cwd,
+        acpSessionId: sessionId,
+        mcpServers: ctx.params.mcpServers,
+      })
       return {
         sessionId,
         modes: modesFor('default'),
         configOptions: configOptionsFor('default'),
       }
     })
-    .onRequest('session/load', ctx => {
+    .onRequest('session/load', async ctx => {
       const requested = ctx.params.sessionId
       if (sessions.has(requested)) {
         // Already attached in THIS server — loading is idempotent, never a replay.
@@ -621,12 +1084,26 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       if (!sessionIdExists(requested)) {
         throw new Error(`unknown session '${requested}' — no transcript exists for it here`)
       }
-      // Resume reads the transcript — nothing re-runs, nothing replays.
+      // Resume reads the transcript — nothing re-runs. The conversation it
+      // holds crosses as session updates BEFORE the response (the protocol's
+      // replay rule), so the client renders what the session already said.
       attachSession(ctx.client, {
         cwd: ctx.params.cwd,
         acpSessionId: requested,
         resumeSessionId: requested,
+        mcpServers: ctx.params.mcpServers,
       })
+      try {
+        const { messages } = await loadSessionFile(requested as UUID)
+        for (const update of replayUpdatesOf(messages.values() as unknown as Iterable<Record<string, unknown>>)) {
+          await ctx.client.notify(methods.client.session.update, {
+            sessionId: requested,
+            update: update as never,
+          })
+        }
+      } catch (e) {
+        process.stderr.write(`[acp] session/load replay skipped: ${e instanceof Error ? e.message : String(e)}\n`)
+      }
       const modeId = sessions.get(requested)?.modeId ?? 'default'
       return { modes: modesFor(modeId), configOptions: configOptionsFor(modeId) }
     })
@@ -659,15 +1136,21 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       }
       // the editor's content lands in ComposerDocumentV2 — the ONE
       // input vocabulary — then expands to blocks (legacy-byte-equal for
-      // text/selection/link; images cross as base64 blocks).
+      // text/selection/link; images cross as base64 blocks). The editor's
+      // pushed state, when it exists, leads as one more attached resource.
+      const editorResource = editorContextResource(state.editorContext)
       const blocks = composerDocumentBlocks(
-        acpPromptToComposerDocument(
-          ctx.params.prompt as unknown as Array<Record<string, unknown>>,
-        ),
+        acpPromptToComposerDocument([
+          ...(editorResource !== null ? [editorResource as unknown as Record<string, unknown>] : []),
+          ...(ctx.params.prompt as unknown as Array<Record<string, unknown>>),
+        ]),
       )
       state.cancelled = false // a fresh turn never inherits a stale cancel
-      const outcome = await new Promise<'success' | 'error' | 'cancelled'>(resolve => {
-        state.turnResolve = resolve
+      const settled = await new Promise<{
+        outcome: 'success' | 'error' | 'cancelled'
+        detail: TurnEndDetail | undefined
+      }>(resolve => {
+        state.turnResolve = (outcome, detail) => resolve({ outcome, detail })
         try {
           state.child.writeUserPrompt(blocks)
         } catch (e) {
@@ -676,15 +1159,15 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           // undelivered-prompt throw (dead child) lands here too — the turn
           // settles as an error instead of parking (LANE ACP settlement fix);
           // stderr is the diagnostics channel per the server's stdio law.
-          process.stderr.write(`[acp] session/prompt failed to reach the child: ${e instanceof Error ? e.message : String(e)}\n`)
+          const why = e instanceof Error ? e.message : String(e)
+          process.stderr.write(`[acp] session/prompt failed to reach the child: ${why}\n`)
           state.turnResolve = null
-          resolve('error')
+          resolve({ outcome: 'error', detail: { subtype: 'prompt_undelivered', errors: [why] } })
         }
       })
-      return {
-        stopReason:
-          outcome === 'cancelled' ? 'cancelled' : outcome === 'error' ? 'refusal' : 'end_turn',
-      }
+      const verdict = stopReasonOf(settled.outcome, settled.detail)
+      if ('error' in verdict) throw new Error(verdict.error)
+      return { stopReason: verdict.stopReason }
     })
     .onRequest('session/set_mode', async ctx => {
       const state = sessions.get(ctx.params.sessionId)
@@ -752,6 +1235,16 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         state.cancelled = true
         state.child.interrupt()
       }
+    })
+    // `_mercury/editor_context` (client → agent, additive): the editor pushes
+    // its state as it changes — active file, selection, open files,
+    // diagnostics — and the latest push rides the next prompt as an attached
+    // resource. Push, never poll: the agent asks the editor for nothing.
+    .onNotification('_mercury/editor_context', (v: unknown) => editorContextOf(v), ctx => {
+      const wire = ctx.params
+      if (wire === null) return
+      const state = sessions.get(wire.sessionId)
+      if (state) state.editorContext = wire
     })
     // ── Mercury extension methods (ACP extensibility: _-prefixed, additive;
     //    the VS Code bridge's read surface — same truth as the TUI) ─────────

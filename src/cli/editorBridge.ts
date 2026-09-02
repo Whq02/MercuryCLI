@@ -1,34 +1,53 @@
 // ============================================================================
 //  cli/editorBridge — `mercury editor install|status|uninstall`.
 //
-//  Thin management of the VS Code bridge .vsix: prefer the installed `code`
-//  CLI; without it, print EXACT manual steps (never guess, never modify
-//  editor settings). The .vsix ships beside the bundle in the collaborator
-//  package and is built to dist/ in source checkouts.
+//  Thin management of the VS Code bridge .vsix: prefer an installed
+//  VS Code-family CLI (`code` first, then the forks that carry the same
+//  extension host); without one, print EXACT manual steps (never guess,
+//  never modify editor settings). The .vsix ships beside the bundle in the
+//  release layout and is built to dist/ in source checkouts — the ONE
+//  package owner is utils/editorExtensionPackage, shared with the /ide
+//  install arm.
 // ============================================================================
 
 import { execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from '../utils/editorExtensionPackage.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 
-const EXTENSION_ID = 'mercury.mercury-vscode'
+/** The VS Code-family CLIs, in preference order: VS Code itself, then the
+ *  forks whose extension host runs the same .vsix. */
+const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
 
-function findCodeCli(): string | null {
-  // On Windows the npm-style CLI is `code.cmd` — a bare `code` probe threw
-  // ENOENT and the bridge reported VS Code absent while `code --version`
-  // worked in every shell (FC-046). A .cmd cannot spawn without a shell
-  // (the runtime refuses batch files shell-less), so the win32 probes ride
-  // shell:true; the argument list is the fixed literal --version.
+/** macOS app bundles keep their CLI off PATH until the operator installs
+ *  the shell command; the bundle path is the honest second look. */
+const DARWIN_BUNDLE_CLIS: Record<(typeof EDITOR_CLIS)[number], string> = {
+  code: '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+  'code-insiders': '/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code-insiders',
+  cursor: '/Applications/Cursor.app/Contents/Resources/app/bin/cursor',
+  codium: '/Applications/VSCodium.app/Contents/Resources/app/bin/codium',
+  windsurf: '/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf',
+}
+
+/** On Windows the npm-style CLI is `code.cmd` — a bare `code` probe threw
+ *  ENOENT and the bridge reported VS Code absent while `code --version`
+ *  worked in every shell (FC-046); the .cmd spelling leads, the forks
+ *  follow in preference order. */
+const WIN32_CANDIDATES = ['code.cmd', 'code', 'code.exe', 'code-insiders.cmd', 'cursor.cmd', 'codium.cmd', 'windsurf.cmd']
+
+function findEditorCli(): string | null {
+  // A .cmd cannot spawn without a shell (the runtime refuses batch files
+  // shell-less), so the win32 probes ride shell:true; the argument list is
+  // the fixed literal --version.
   const isWindows = process.platform === 'win32'
-  const candidates = isWindows
-    ? ['code.cmd', 'code', 'code.exe']
-    : [
-        'code',
-        '/usr/local/bin/code',
-        '/opt/homebrew/bin/code',
-        '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
-      ]
+  const candidates: string[] = []
+  if (isWindows) {
+    candidates.push(...WIN32_CANDIDATES)
+  } else {
+    for (const cli of EDITOR_CLIS) {
+      candidates.push(cli, `/usr/local/bin/${cli}`, `/opt/homebrew/bin/${cli}`)
+      if (process.platform === 'darwin') candidates.push(DARWIN_BUNDLE_CLIS[cli])
+    }
+  }
   for (const candidate of candidates) {
     try {
       execFileSync(candidate, ['--version'], {
@@ -46,17 +65,7 @@ function findCodeCli(): string | null {
   return null
 }
 
-function findVsix(): string | null {
-  // Beside the running bundle (the collaborator package layout), then the
-  // source checkout's dist/.
-  const bundleDir = process.argv[1] ? dirname(process.argv[1]) : null
-  const candidates = [
-    ...(bundleDir ? [join(bundleDir, 'mercury-vscode.vsix')] : []),
-    join(process.cwd(), 'dist', 'mercury-vscode.vsix'),
-  ]
-  for (const c of candidates) if (existsSync(c)) return c
-  return null
-}
+const CLI_ROSTER = EDITOR_CLIS.join(' · ')
 
 export async function editorBridgeMain(action: string): Promise<number> {
   const out = (s: string): void => void process.stdout.write(s + '\n')
@@ -67,29 +76,29 @@ export async function editorBridgeMain(action: string): Promise<number> {
     return 2
   }
 
-  const code = findCodeCli()
-  const vsix = findVsix()
+  const cli = findEditorCli()
+  const vsix = locateBridgeVsix()
 
   if (action === 'status') {
     out(`vsix: ${vsix ?? 'NOT FOUND (source checkout: bash scripts/vscode/build-vsix.sh)'}`)
-    if (!code) {
-      out('code CLI: not found — VS Code is not installed or `code` is not on PATH')
+    if (!cli) {
+      out(`editor CLI: not found — no VS Code-family CLI on PATH (${CLI_ROSTER})`)
       out('manual install: VS Code → Extensions → “…” menu → Install from VSIX → pick the file above')
       return 0
     }
     try {
-      const list = execFileSync(code, ['--list-extensions', '--show-versions'], {
+      const list = execFileSync(cli, ['--list-extensions', '--show-versions'], {
         windowsHide: true,
         encoding: 'utf8',
         timeout: 20_000,
         env: subprocessEnv(),
         ...(process.platform === 'win32' ? { shell: true } : {}),
       })
-      const line = list.split('\n').find(l => l.startsWith(EXTENSION_ID))
-      out(`code CLI: ${code}`)
-      out(line ? `installed: ${line}` : 'installed: no')
+      const line = list.split('\n').find(l => l.toLowerCase().startsWith(MERCURY_IDE_EXTENSION_ID))
+      out(`editor CLI: ${cli}`)
+      out(line ? `installed: ${line.trim()}` : 'installed: no')
     } catch (e) {
-      err(`editor: code CLI failed: ${(e as Error).message}`)
+      err(`editor: ${cli} failed: ${(e as Error).message}`)
       return 1
     }
     return 0
@@ -100,18 +109,18 @@ export async function editorBridgeMain(action: string): Promise<number> {
       err('editor: mercury-vscode.vsix not found — in a source checkout run: bash scripts/vscode/build-vsix.sh')
       return 1
     }
-    if (!code) {
+    if (!cli) {
       // An action verb that performed no action exits 1 with the guidance
       // on stderr — `editor install && next` must not proceed as though the
       // install happened (FC-013).
-      err('editor: nothing installed — the `code` CLI is not available. Manual install:')
+      err(`editor: nothing installed — no VS Code-family CLI is available (${CLI_ROSTER}). Manual install:`)
       err('  1. Open VS Code → Extensions panel')
       err('  2. “…” menu → Install from VSIX…')
       err(`  3. Pick: ${vsix}`)
       return 1
     }
     try {
-      execFileSync(code, ['--install-extension', vsix, '--force'], {
+      execFileSync(cli, ['--install-extension', vsix, '--force'], {
         windowsHide: true,
         stdio: 'inherit',
         timeout: 120_000,
@@ -119,7 +128,7 @@ export async function editorBridgeMain(action: string): Promise<number> {
         // The vsix path is quoted for the win32 shell ride (spaces).
         ...(process.platform === 'win32' ? { shell: true } : {}),
       })
-      out(`installed ${EXTENSION_ID} from ${vsix}`)
+      out(`installed ${MERCURY_IDE_EXTENSION_ID} from ${vsix} via ${cli} — reload the editor window to activate it`)
       return 0
     } catch (e) {
       err(`editor: install failed: ${(e as Error).message}`)
@@ -128,20 +137,20 @@ export async function editorBridgeMain(action: string): Promise<number> {
   }
 
   // uninstall
-  if (!code) {
+  if (!cli) {
     // Same honest-exit law as install above (FC-013).
-    err('editor: nothing uninstalled — the `code` CLI is not available. Manual uninstall: VS Code → Extensions → Mercury → Uninstall.')
+    err(`editor: nothing uninstalled — no VS Code-family CLI is available (${CLI_ROSTER}). Manual uninstall: VS Code → Extensions → Mercury → Uninstall.`)
     return 1
   }
   try {
-    execFileSync(code, ['--uninstall-extension', EXTENSION_ID], {
+    execFileSync(cli, ['--uninstall-extension', MERCURY_IDE_EXTENSION_ID], {
       windowsHide: true,
       stdio: 'inherit',
       timeout: 60_000,
       env: subprocessEnv(),
       ...(process.platform === 'win32' ? { shell: true } : {}),
     })
-    out(`uninstalled ${EXTENSION_ID}`)
+    out(`uninstalled ${MERCURY_IDE_EXTENSION_ID} via ${cli}`)
     return 0
   } catch (e) {
     err(`editor: uninstall failed (was it installed?): ${(e as Error).message}`)

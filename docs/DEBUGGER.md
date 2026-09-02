@@ -27,6 +27,14 @@ go, dotnet, ruby, and godot. Custom adapters are one JSON row each —
 command, transport, file types, launch defaults — via `MERCURY_DAP_ADAPTERS`
 or the `dap-adapters.json` file in the config home.
 
+On macOS, a native adapter (lldb, gdb) that starts and then never answers
+is usually the operating system, not the adapter: without Developer Mode,
+`task_for_pid` waits for an interactive authorisation a debug adapter
+cannot give, and the grant lasts one boot. The debugger's timeout message
+and the doctor's IDE plane row read the setting live
+(`DevToolsSecurity -status`) and name the durable fix:
+`sudo DevToolsSecurity -enable`.
+
 ## Child-session trees
 
 Modern adapters debug real programs as families of sessions: js-debug

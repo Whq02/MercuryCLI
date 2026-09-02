@@ -247,6 +247,54 @@ export function _resetGdbProbeForTesting(): void {
 // now matches it). Memoized per process: a toolchain path does not move
 // mid-session, and every status surface re-reads this one owner.
 
+// ── macOS debugger authorisation ────────────────────────────────────────────
+// A native adapter (lldb-dap · gdb) that starts and then never answers is,
+// on macOS, usually the operating system: without Developer Mode,
+// task_for_pid waits for an interactive authorisation a debug adapter
+// cannot give, and the grant lasts one boot — so the first native launch
+// after a restart blocks silently and the initialized deadline fires
+// honestly. The setting is read LIVE (`DevToolsSecurity -status`) and the
+// silence message names it with the one durable fix. Memoised per process.
+
+const NATIVE_ADAPTER_KEYS = new Set(['lldb', 'gdb'])
+let darwinDebuggerAuthMemo: string | null | undefined
+
+/** TEST-ONLY: drop the authorisation memo. */
+export function _resetDarwinDebuggerAuthForTesting(): void {
+  darwinDebuggerAuthMemo = undefined
+}
+
+/** The macOS debugger-authorisation hint when the OS setting is off; null
+ *  elsewhere, when it is on, or when the setting cannot be read. */
+export function darwinDebuggerAuthorisationHint(): string | null {
+  if (process.platform !== 'darwin') return null
+  if (darwinDebuggerAuthMemo !== undefined) return darwinDebuggerAuthMemo
+  try {
+    const status = spawnSync('DevToolsSecurity', ['-status'], {
+      encoding: 'utf8',
+      stdio: 'pipe',
+      timeout: 3_000,
+      env: subprocessEnv(),
+    })
+    const text = `${status.stdout ?? ''}${status.stderr ?? ''}`
+    darwinDebuggerAuthMemo = /disabled/i.test(text)
+      ? 'macOS debugger authorisation is off (DevToolsSecurity -status: disabled) — a native debugger blocks in task_for_pid until it is granted, and the grant lasts one boot; enable it durably with: sudo DevToolsSecurity -enable'
+      : null
+  } catch {
+    darwinDebuggerAuthMemo = null
+  }
+  return darwinDebuggerAuthMemo
+}
+
+/** The message for an adapter that never answered: for a native adapter on
+ *  macOS the authorisation state is read live and named beside the deadline;
+ *  every other adapter keeps the bare deadline. */
+export function adapterSilenceMessage(base: string, adapterKey: string): string {
+  if (!NATIVE_ADAPTER_KEYS.has(adapterKey)) return base
+  const hint = darwinDebuggerAuthorisationHint()
+  return hint === null ? base : `${base} — ${hint}`
+}
+
 export interface LldbDapResolution {
   path: string
   source: 'path' | 'xcrun'
@@ -1395,7 +1443,9 @@ export class DapSession {
       this.#initializedEvent.then(() => true),
       new Promise<boolean>(res => setTimeout(() => res(false), 10_000)),
     ])
-    if (!sawInitialized) throw new Error('child adapter never sent initialized (10s)')
+    if (!sawInitialized) {
+      throw new Error(adapterSilenceMessage('child adapter never sent initialized (10s)', this.adapterKey))
+    }
     const requested = this.root().#requestedBreakpoints
     if (requested) {
       for (const [path, lines] of requested) {
@@ -1601,7 +1651,7 @@ export class DapSession {
       new Promise<boolean>(res => setTimeout(() => res(false), initializedTimeoutMs)),
     ])
     if (!sawInitialized && !options.noDebug) {
-      throw new Error('adapter never sent initialized (10s)')
+      throw new Error(adapterSilenceMessage('adapter never sent initialized (10s)', this.adapterKey))
     }
     if (sawInitialized) {
       if (options.breakpoints && !options.noDebug) {

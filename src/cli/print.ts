@@ -105,6 +105,7 @@ import {
   fetchToolsForClient,
   setupSdkMcpClients,
 } from '../services/mcp/client.js'
+import { registerEditorCompanion } from '../services/mcp/vscodeSdkMcp.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
@@ -1094,6 +1095,9 @@ export async function runHeadless(
         io.sendMcpMessage.bind(io),
       )
       sdkMcp.clients = freshClients
+      // The editor companion (an SDK host's injected client) binds out of
+      // every fresh list: a list without one clears the binding.
+      registerEditorCompanion(freshClients)
       sdkMcp.tools = freshTools
       // Remove stale tools for BOTH the old and the new name sets, matched
       // by the MCP tool-name prefix, then write the fresh SDK tools in.

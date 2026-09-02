@@ -1671,7 +1671,9 @@ export async function callIdeRpc(
   const result = await client.client.request(
     { method: 'tools/call', params: { name: toolName, arguments: args } },
     CallToolResultSchema,
-    { signal: controller.signal },
+    // An in-editor diff waits on a person: the SDK's 60 s default would time
+    // out an openDiff the operator is still reading.
+    { signal: controller.signal, timeout: 10 * 60_000 },
   )
   return processMCPResult(result, toolName, client.name)
 }

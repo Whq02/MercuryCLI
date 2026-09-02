@@ -10,10 +10,13 @@
 //  Mercury's own resolvers and unknown values are OMITTED so the editor fails
 //  closed.
 //
-//  HONESTY: no live caller invokes `registerEditorCompanion` today, so the
-//  stored reference is always absent and `notifyVscodeFileUpdated` silently
-//  no-ops. That observable inertness is a spec requirement — do not add a
-//  registration call site here; the future Mercury extension work owns it.
+//  Binding: `registerEditorCompanion` is called with the SDK client list
+//  each time the SDK MCP clients are (re)connected; a list without a
+//  connected companion clears the binding, and `notifyVscodeFileUpdated`
+//  is then a silent no-op by design — an editor that injected no companion
+//  has nothing to refresh. The ACP bridge (services/acp) is a different
+//  door: it does not embed Mercury through the SDK and reads file changes
+//  from the tool-call wire instead.
 // ============================================================================
 import { z } from 'zod'
 
@@ -28,9 +31,9 @@ import { setMcpNotificationHandler } from './zodInstanceSeam.js'
 
 /**
  * The reserved name of the SDK-injected editor-companion client. Mercury-own
- * (identity mandate): exported so the future Mercury extension and the
- * harness agree on one spelling. The enterprise-MCP carve-out in config.ts
- * still names the foreign SDK entry and is a separately-owned survivor.
+ * (identity mandate): exported so an embedding editor and the harness agree
+ * on one spelling. The enterprise-MCP carve-out in config.ts still names
+ * the foreign SDK entry and is a separately-owned survivor.
  */
 export const EDITOR_COMPANION_CLIENT_NAME = 'mercury-editor-companion'
 

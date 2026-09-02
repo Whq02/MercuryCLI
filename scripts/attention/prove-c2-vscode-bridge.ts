@@ -297,11 +297,21 @@ t.section('§5 VS Code extension: no webview-only truth (RV-28)')
 {
   const src = readFileSync('integrations/vscode/extension.js', 'utf8')
   const requires = [...src.matchAll(/require\(['"]([^'"]+)['"]\)/g)].map(m => m[1]!)
-  const foreign = requires.filter(r => r !== 'vscode' && r !== 'node:child_process')
+  // No second truth: the editor-side surfaces read Mercury's state through
+  // the ACP client only. The node modules the extension carries serve the
+  // OTHER direction — the terminal bridge, where the editor is the owner of
+  // the facts it serves (its documents, selection, diagnostics) and of its
+  // own advertisement file — never a store of Mercury's facts.
+  const allowed = new Set(['vscode', 'node:child_process', 'node:http', 'node:fs', 'node:os', 'node:path', 'node:crypto'])
+  const foreign = requires.filter(r => !allowed.has(r))
   t.check(
-    'the ONLY requires are vscode + node:child_process (no fs/net second truth)',
+    'the requires are vscode + the ACP child pipe + the terminal bridge\'s node modules (no fs/net read of Mercury state)',
     foreign.length === 0,
     foreign.join(', '),
+  )
+  t.check(
+    'the ACP side never reads Mercury state from disk (no fs read outside the terminal bridge + preview)',
+    !/readFileSync\([^)]*(session|transcript|artifact|workbench)/i.test(src),
   )
   const trees = [...src.matchAll(/new SimpleTree\(async \(\) => \{([\s\S]*?)\n  \}\)/g)]
   t.check('the tree views exist (sessions · workbench · artifacts · attention)', trees.length >= 4, String(trees.length))
