@@ -226,9 +226,14 @@ export type NotLoggedInGate =
 
 export function notLoggedInGateDecision(
   entries: readonly WalletEntry[],
-  /** null = no family declares the session model — no wallet custodian
-   *  claims it, so the gate answers 'ok' exactly like the key lanes. */
-  route: import('../providers/routeLaw.js').CallModelRoute | null,
+  /** The family whose account the SESSION bills (utils/accounts/
+   *  sessionAccount's composer: the main model's declared route, or — on
+   *  the computed default — the family the default landed on or is being
+   *  composed for). null = no family — no wallet custodian claims it, so
+   *  the gate answers 'ok' exactly like the key lanes. A caller that read
+   *  the main model's route alone kept naming Anthropic after the default
+   *  had moved to another family's key. */
+  route: string | null,
 ): NotLoggedInGate {
   // Key-lane routes (zai and the other key-lane families) have no wallet
   // custodian — their credentials live in the provider-secret store and the
@@ -243,10 +248,14 @@ export function notLoggedInGateDecision(
   // The missing family by its one-owner display name (the wallet lanes are
   // two today; the spelling never hand-picks between them).
   const missingProvider = providerDisplayName(route)
+  // The way in rides the one route grammar every family speaks
+  // ('/logins <family> or <ENV_KEY>' — the accounts board's owner).
+  const { familyRouteWords } =
+    require('../providers/accountSlots.js') as typeof import('../providers/accountSlots.js')
   return {
     state: 'provider-missing',
     missingProvider,
-    steering: `No ${missingProvider} account for the current model · /model switches to a connected provider · /logins adds ${missingProvider}`,
+    steering: `No ${missingProvider} account for the current model · /model switches to a connected provider · ${familyRouteWords(route)} adds one`,
   }
 }
 
