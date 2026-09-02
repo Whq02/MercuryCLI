@@ -204,7 +204,7 @@
     },
     {
       "file": "scripts/cockpit-interaction/prove-frame-trace.ts",
-      "line": 146,
+      "line": 147,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const r = spawnSync('/usr/bin/python3', ['scripts/ui/vshot.py', cfgPath], {",
       "cls": "platform-owner",
@@ -308,7 +308,7 @@
     },
     {
       "file": "scripts/compositor/prove-hold-takeover.ts",
-      "line": 136,
+      "line": 149,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(120_000), stdio: 'pipe' })",
       "cls": "platform-owner",
@@ -628,7 +628,7 @@
     },
     {
       "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 56,
+      "line": 94,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -636,7 +636,7 @@
     },
     {
       "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 213,
+      "line": 257,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -644,15 +644,7 @@
     },
     {
       "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 311,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
-      "file": "scripts/interaction/prove-click-expand.ts",
-      "line": 365,
+      "line": 356,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -660,7 +652,7 @@
     },
     {
       "file": "scripts/interaction/prove-composer-editing.ts",
-      "line": 110,
+      "line": 132,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -1652,7 +1644,7 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 191,
+      "line": 200,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1660,7 +1652,7 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 249,
+      "line": 261,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-",
       "cls": "platform-owner",
@@ -1711,22 +1703,6 @@
       "line": 101,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(60_000), env: { ...process.env, ESC_T",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
-      "file": "scripts/switchboard/prove-letter-verb-yield.ts",
-      "line": 123,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "'/usr/bin/python3',",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
-      "file": "scripts/switchboard/prove-letter-verb-yield.ts",
-      "line": 180,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(5) + 400), Str",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
