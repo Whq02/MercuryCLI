@@ -22,13 +22,10 @@ import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
 import { NO_SIGN_IN_ROW, computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
-import { declaredRouteOf } from '../services/providers/routeLaw.js';
-import {
-  anthropicCredentialPresence,
-  presenceIdentityWords,
-  providerFamilyPresences,
-} from '../services/providers/providerUsage.js';
+import { providerFamilyPresences } from '../services/providers/providerUsage.js';
+import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
+import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
@@ -92,6 +89,7 @@ export function BootSplashScreen(): React.ReactNode {
   const [agentsOpen, setAgentsOpen] = useState(faceDoor === 'agents');
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
   const [presenceEpoch, setPresenceEpoch] = useState(0);
+  const signInEpoch = useSignInEpoch();
 
   const [facts] = useState(() => scanBootCardFacts(getCwd(), getSessionId()));
 
@@ -187,7 +185,7 @@ export function BootSplashScreen(): React.ReactNode {
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presenceEpoch]);
+  }, [presenceEpoch, signInEpoch]);
 
   const repoCount = facts.pickerProjects.length + (facts.cwdProject !== null ? 1 : 0);
   const sessionsCtx = repoCount > 0 ? `${repoCount} repo${repoCount === 1 ? '' : 's'} · pick a session` : null;
@@ -388,18 +386,13 @@ export function BootSplashScreen(): React.ReactNode {
   );
   const mainModel = useMainLoopModel();
 
-  const signInEpoch = useSignInEpoch();
+  const catalogueEpoch = useCatalogueEpoch();
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
     try {
-      const route = declaredRouteOf(mainModel);
       const fit = (text: string): string => (text.length > 26 ? text.slice(0, 25) + '…' : text);
-      const presence =
-        route === 'anthropic'
-          ? anthropicCredentialPresence()
-          : providerFamilyPresences().find(family => (family.id as string) === route);
-      const words = presence === undefined ? undefined : presenceIdentityWords(presence);
-      acct = words !== undefined ? { state: 'email', text: fit(words) } : { state: 'none' };
+      const words = sessionAccountWords(mainModel);
+      acct = words.state === 'email' ? { state: 'email', text: fit(words.text) } : { state: 'none' };
     } catch {
       acct = { state: 'unreadable' };
     }
@@ -423,7 +416,7 @@ export function BootSplashScreen(): React.ReactNode {
           : null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainModel, presenceEpoch, signInEpoch]);
+  }, [mainModel, presenceEpoch, signInEpoch, catalogueEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
