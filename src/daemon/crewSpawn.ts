@@ -36,6 +36,7 @@ import {
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
 /** The seat owner, required at call time: the enable flag above is read by
  *  low-level owners (the telemetry bus, the fleet gauge), and a static
@@ -135,7 +136,19 @@ export async function resolveCrewSeatModel(
     }
   }
   const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
-  const validated = await validateWorkerModelChoice(named, 'crew')
+  // THE LADDER NEVER THROWS (failure ≠ silence): the registry is
+  // config-backed — read before this process allows configs (a proof's
+  // bare handler; a boot that has not enabled them yet) it answers a TYPED
+  // refusal naming the fault, never a crash up the control socket.
+  let validated: WorkerModelValidation
+  try {
+    validated = await validateWorkerModelChoice(named, 'crew')
+  } catch (e) {
+    return {
+      ok: false,
+      error: `model refused (registry-unavailable) · the worker registry could not be read here — ${e instanceof Error ? e.message : String(e)} (got ${JSON.stringify(named ?? '(unset → the neutral default)')})`,
+    }
+  }
   if (!validated.ok) {
     return {
       ok: false,

@@ -21,15 +21,15 @@ delete process.env.MERCURY_CREW
 // MERCURY_CONFIG_DIR, so a presence check would otherwise read this
 // machine's OS keychain (a prover never touches the operator's keychain).
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-// THE SEAT LAW reads the worker registry (config-backed) for a NAMED key,
-// so the valid spawns below enable configs and seed anthropic signed in (a
-// fixture key + the ledger row, the memo reset); the ladder's policy floors
-// — disabled, name, roster, duplicate, cap, never-Haiku — answer BEFORE
-// the seat and need none of it (the prover's law: failure ≠ silence).
+// THE SEAT LAW reads the worker registry (config-backed) for a NAMED key.
+// The ladder's policy floors — disabled, name, roster, duplicate, cap,
+// never-Haiku — answer BEFORE the seat and need no config (the prover's
+// law: failure ≠ silence); the probe below shows the seat itself answering
+// TYPED while configs are not yet allowed; the valid spawns then enable
+// configs and seed anthropic signed in (a fixture key + the ledger row).
 process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
-;(await import('../../src/utils/config.js')).enableConfigs()
-;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
-;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
+// The config guard must be LIVE for that probe (a 'test' NODE_ENV silences it).
+delete process.env.NODE_ENV
 const MK = 'MACRO' as const
 const setStamp = (on: boolean) => { if (on) (globalThis as Record<string, unknown>)[MK] = { VERSION: '1.0.0' }; else delete (globalThis as Record<string, unknown>)[MK] }
 setStamp(true)
@@ -48,6 +48,19 @@ function section(t: string): void { console.log('\n' + '─'.repeat(76) + '\n' +
 console.log('============================================================')
 console.log(' Crew spawn handler (policy floor) — proof')
 console.log('============================================================')
+
+section('the ladder never throws — before configs are allowed, a NAMED key answers a typed refusal')
+{
+  const early = await cs.resolveCrewSeatModel('sonnet')
+  check('a named key with configs not yet allowed ⇒ a typed refusal naming the fault (never a throw up the control socket)', !early.ok && /registry-unavailable/.test(early.error ?? '') && /Config accessed before allowed/.test(early.error ?? ''), early.ok ? 'ok' : early.error)
+  const earlyHaiku = await cs.resolveCrewSeatModel('haiku')
+  check('…and the never-Haiku floor answers pure ahead of the registry, configs or not', !earlyHaiku.ok && /worker-policy:frontier-only/.test(earlyHaiku.error ?? ''), earlyHaiku.ok ? 'ok' : earlyHaiku.error)
+}
+// The valid spawns below need the registry: enable configs and seed the
+// sign-in (the memo reset re-reads the ledger).
+;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
+;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
 
 // ── the fake roster port (structural — the real TaskRoster satisfies it) ────
 function makePort() {
