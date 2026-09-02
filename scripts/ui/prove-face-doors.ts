@@ -272,7 +272,11 @@ t.section('§10 — THE WIRING + THE RETIREMENT (C4: the rows open the layers; t
   t.check('Continue rides the one resume door directly, posture aboard, refusal on the row', face.includes('focusResumedSession(sid, target.transcriptPath ?? undefined') && face.includes('permissionMode: permissionModeRef.current') && face.includes('if (!outcome.ok) return outcome.reason;'))
   const route = read('src/context/surfaceRoute.ts')
   t.check('the route owner carries NO armed exception (enterRootRepl refuses without a chat, full stop)', !route.includes('armedRootCommand') && route.includes('export function enterRootRepl(): ChatEntry {'))
-  t.check('THE BRIDGE names the retirement and the surviving argv-prompt road', route.includes('The armed-root-command state RETIRED WHOLE') && route.includes('mounts the chat route through the resolver\'s explicit-journey\n// landing (initializeSurfaceRoute), never this verb'))
+  t.check(
+    'THE BRIDGE names the retirement and the surviving argv-prompt road',
+    route.includes('The armed-root-command state RETIRED WHOLE') &&
+      /mounts the chat route through the resolver's explicit-journey\n\/\/\s*landing \(initializeSurfaceRoute\), never this verb/.test(route),
+  )
 }
 
 t.section('§11 — ROUTE SILENCE around the real layers (no transition, no settle, the strip unmoved)')

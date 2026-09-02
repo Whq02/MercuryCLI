@@ -82,6 +82,10 @@ check('CREW rows keep .id (the drill-in key)', /id: t\.id/.test(lanes))
 check('drill-in REUSES the existing nav state (viewingAgentTaskId), not a reinvented swap',
   /viewingAgentTaskId/.test(lanes) && !/setAppState\(\{ viewingAgentTaskId/.test(lanes))
 check('S8: CREW sources panel agents (excludes main-session leak)', /\.filter\(isPanelAgentTask\)/.test(lanes))
+check("CREW joins the focused session's hosted agents from the work roster (one owner; the counting law's predicate)",
+  /useFocusedWorkRoster\(\)/.test(lanes) && /roster\.rows/.test(lanes) && /workRowRuns\(r\)/.test(lanes) && /r\.kind === 'agent' \|\| r\.kind === 'teammate'/.test(lanes))
+check('a hosted CREW row opens its work card (/tasks <id>), never a local agent view',
+  /c\.hosted\s*\?\s*\{ kind: 'command', command: `\/tasks \$\{c\.id\}`/.test(lanes))
 check('M4: CREW is capped (slice CREW_ROWS) with a +N more overflow',
   /slice\(0, CREW_ROWS\)/.test(lanes) && /MoreRow/.test(lanes))
 check('S2: SEAT peers are capped (slice PEER_ROWS)', /slice\(0, PEER_ROWS\)/.test(lanes))

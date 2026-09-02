@@ -107,7 +107,6 @@ t.section('§2 unknown / literal / guidance laws')
 t.section('§3 journey: agent view routes commands locally, guidance to the agent')
 {
   const ESC = String.fromCharCode(27)
-  const BACKSPACES = String.fromCharCode(127).repeat(11)
   const sgrClick = (col: number, row: number): string =>
     `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
 
@@ -142,17 +141,14 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       '7400:spawn the probe\\r',
       `11000:${sgrClick(10, 7)}`,
       `11700:${sgrClick(10, 7)}`,
-      '14200:/frobnicate\\r',
-      `16800:${BACKSPACES}`,
+      `14200:${ESC}`,
+      `15000:${ESC}`,
+      '16800:/frobnicate\\r',
       `19200:${ESC}[D`,
       `21800:${ESC}`,
       `23200:x`,
       `23700:${String.fromCharCode(127)}`,
-      '24600://echo hi',
-      '25600:\\r',
-      '27400:/cost\\r',
-      `29800:${ESC}`,
-      `32000:${ESC}[D`,
+      '24600:/cost\\r',
     ],
     seconds: 40,
     cols: 120,
@@ -197,83 +193,50 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       return -1
     }
 
-    const iDrill = idxOf(0, f => has(f, 'viewing'))
-    t.check('the two-click drill entered the agent view', iDrill >= 0)
-    const iNotify = idxOf(iDrill + 1, f => has(f, /Unknown command: \/frobnicate/))
-    t.check(
-      'unknown command notifies honestly in the agent view',
-      iDrill >= 0 && iNotify > iDrill,
-    )
-    const iDraft = idxOf(iNotify, f => composerOf(f).includes('/frobnicate'))
-    t.check(
-      'the unknown-command draft is PRESERVED in the composer',
-      iNotify >= 0 && iDraft >= iNotify,
-    )
-    t.check(
-      'the unknown command NEVER paints as an agent transcript row',
-      frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/frobnicate/.test(r))),
-    )
-    const iCleared = idxOf(iDraft + 1, f => !composerOf(f).includes('/frobnicate'))
-    t.check(
-      'the backspaces clear the preserved draft before the arrow',
-      iDraft >= 0 && iCleared > iDraft,
-    )
-    const iManager = idxOf(iCleared + 1, f => has(f, 'Mercury — surfaces'))
-    t.check(
-      'agent-view ← opens the manager panel (not agent text)',
-      iCleared >= 0 && iManager > iCleared,
-    )
-    const iClosed = idxOf(iManager + 1, f => !has(f, 'Mercury — surfaces'))
-    t.check(
-      'esc closes the agent-view manager before the literal-send',
-      iManager >= 0 && iClosed > iManager,
-    )
-    const literalIdx = frames
-      .map((f, i) => ({ f, i }))
-      .filter(({ f, i }) => i > iClosed && f.rows.some(r => /\[[^\]]+\] ❯ \/echo hi(\s|$)/.test(r)))
-    const literalForensics = (): string =>
+    const forensics = (from: number): string =>
       frames
-        .map((f, i) => ({ f, i }))
-        .filter(({ i }) => i > iClosed)
-        .slice(0, 24)
+        .slice(Math.max(0, from), Math.max(0, from) + 20)
         .map(
-          ({ f }) =>
-            `@${f.atMs} composer=${JSON.stringify(composerOf(f).slice(0, 40))}` +
+          f =>
+            `@${f.atMs} rail=${JSON.stringify(f.rows.slice(1, 8).map(r => r.slice(0, 24).trim()).filter(Boolean).join(' | '))}` +
+            ` composer=${JSON.stringify(composerOf(f).slice(0, 32))}` +
             `${has(f, 'Mercury — surfaces') ? ' MGR' : ''}` +
-            `${has(f, /Main ‹ @poise probe/) ? ' CRUMB' : ''}` +
-            `${f.rows.some(r => /echo hi/.test(r)) ? ' ECHOROW' : ''}`,
+            `${has(f, /agent › poise probe/) ? ' CARD' : ''}`,
         )
         .join(' ↵ ')
+    const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const iCrew = idxOf(0, crewRow)
     t.check(
-      "the literal-send '//echo hi' paints as a '/echo hi' agent row",
-      iClosed >= 0 && literalIdx.length > 0,
-      literalIdx.length ? undefined : literalForensics(),
+      "the hosted agent lists in the CREW lane (the runner's roster over the connector)",
+      iCrew >= 0,
+      iCrew >= 0 ? undefined : forensics(frames.findIndex(f => f.rows.some(r => r.includes('poise probe')))),
     )
+    const iCard = idxOf(iCrew + 1, f => has(f, /agent › poise probe/))
     t.check(
-      'the literal row lives in the agent view (breadcrumb present in the same frame)',
-      literalIdx.some(({ f }) => has(f, /Main ‹ @poise probe/)),
-      literalIdx.length ? undefined : '(no literal frames — see the previous check)',
+      "the two-click drill opened the agent's work card (the roster card — its transcript lives with the runner)",
+      iCrew >= 0 && iCard > iCrew,
+      iCard > iCrew ? undefined : forensics(iCrew),
     )
+    const iClosed = idxOf(iCard + 1, f => !has(f, /agent › poise probe/) && !has(f, /Mercury — tasks/) && crewRow(f))
     t.check(
-      "no transcript row ever shows the raw '//echo hi'",
-      frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/\/echo hi/.test(r))),
+      'esc steps back to the board, a second esc closes it, and the agent keeps running (return ≠ stop)',
+      iCard >= 0 && iClosed > iCard,
+      iClosed > iCard ? undefined : forensics(iCard),
     )
+    const iNotify = idxOf(iClosed + 1, f => has(f, /Unknown command: \/frobnicate/))
     t.check(
-      'the session command (/cost) never paints as an agent row',
-      frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/cost/.test(r))),
+      "an unknown /name answers the screen's own sentence (never the runner's)",
+      iClosed >= 0 && iNotify > iClosed,
+      iNotify > iClosed ? undefined : forensics(iClosed),
     )
-    const iLastLiteral = literalIdx.length ? literalIdx[literalIdx.length - 1]!.i : -1
-    const iReturn = idxOf(iLastLiteral + 1, f =>
-      !has(f, /Main ‹/) && f.rows.some(r => r.includes('poise pro') && r.includes('running')),
-    )
+    const iManager = idxOf(iNotify + 1, f => has(f, 'Mercury — surfaces'))
     t.check(
-      'esc returns to main while the agent keeps running (return ≠ stop)',
-      iLastLiteral >= 0 && iReturn > iLastLiteral,
+      'main-view ← opens the surface index (the classified funnel, never words)',
+      iNotify >= 0 && iManager > iNotify,
+      iManager > iNotify ? undefined : forensics(iNotify),
     )
-    t.check(
-      'main-view ← opens the manager (same classified funnel)',
-      iReturn >= 0 && idxOf(iReturn + 1, f => has(f, 'Mercury — surfaces')) > iReturn,
-    )
+    const iMgrClosed = idxOf(iManager + 1, f => !has(f, 'Mercury — surfaces'))
+    t.check('esc closes the surface index', iManager >= 0 && iMgrClosed > iManager)
 
     type Msg = { role: string; content: unknown }
     const bodies = run.fixture.requests

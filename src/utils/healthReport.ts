@@ -1389,9 +1389,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const a = getHeadlessActivity()
             const startups = getGlobalConfig().numStartups ?? 0
             const last = a.lastAt > 0 ? `last headless ${new Date(a.lastAt).toISOString()} (${a.lastKind})` : 'no headless activity recorded'
+            const verbs = Object.values(a.verbs ?? {}).reduce((sum, n) => sum + n, 0)
             return {
               status: 'ok',
-              evidence: `interactive boots ${startups} · print ${a.print} · sdk ${a.sdk} · ${last}`,
+              evidence: `interactive boots ${startups} · print ${a.print} · sdk ${a.sdk} · verbs ${verbs} · ${last}`,
             }
           },
         },

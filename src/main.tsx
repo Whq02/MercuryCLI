@@ -277,7 +277,7 @@ function failCli(message: string): never {
         uuid: randomUUID(),
         errors: [message],
       }
-      process.stdout.write(`${JSON.stringify(envelope)}\n`)
+      writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(1)
     } catch {
     }

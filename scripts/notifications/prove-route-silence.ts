@@ -142,10 +142,10 @@ const crun: ArenaRun = await runArtifactArena({
   cols: 142,
   rows: 38,
   keep: true,
+  anchor: null,
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
     MERCURY_CONCOURSE_FIXTURE: fixturePath,
-    MERCURY_DAEMON_DIR: join(fixtureDir, 'daemon'),
     MERCURY_DAEMON_DIR: join(fixtureDir, 'daemon'),
     MERCURY_CREW_DIR: join(fixtureDir, 'crew'),
   },
