@@ -90,8 +90,10 @@ try {
     slotsSrc.includes('The home dir itself is') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
   check('identity is live-verified (credential-derived, not snapshot-only); the board paints the seam\'s ONE row composer',
     src.includes('resolveLiveScopeIdentity') && src.includes('scopeSlotTail(state, id, slot)') && slotsSrc.includes('verified live'))
-  check("'this session' is gated on isCurrent",
-    src.includes("s.isCurrent ? 'this session' : ''"))
+  check('the scope row carries no scope facts; the This-session grid does',
+    !src.includes("'this session'") && src.includes("{ k: 'scope'") && src.includes('tail = scopeSlotTail(state, id, slot)'))
+  check('the absent row paints the one template (no per-family prose survives on the board)',
+    src.includes('tail = familyAbsentWords(row.family.id)') && !src.includes('FAMILY_CONNECT_ROUTES') && !src.includes('not connected · ↵ opens Logins'))
   const loginSrc = readFileSync(join(import.meta.dir, '../../src/commands/login/login.tsx'), 'utf8')
   const flowSrc = readFileSync(join(import.meta.dir, '../../src/components/ConsoleOAuthFlow.tsx'), 'utf8')
   check('/logins huggingface (and hf) pre-focus the Hugging Face row',
