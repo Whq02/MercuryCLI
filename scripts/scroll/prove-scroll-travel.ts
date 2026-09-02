@@ -6,7 +6,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler.ts'
+import { paneSigs, regionOf, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -217,10 +217,11 @@ function runCell(cell: Cell): void {
   }
   const undelivered = /UNDELIVERED-SENDS/.test(res.stdout ?? '')
   const payload = JSON.parse(readFileSync(out, 'utf-8'))
+  type Req = { ev: string; delta?: number; top?: number; max?: number; viewport?: number; sticky?: boolean; range?: [number, number]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
+  let reqs: Req[] = []
   try {
-    type Req = { ev: string; delta?: number; top?: number; max?: number; viewport?: number; sticky?: boolean; range?: [number, number]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
     const lines = readFileSync(trace, 'utf-8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l) as Req } catch { return null } }).filter((r): r is Req => r !== null)
-    const reqs = lines.filter(r => r.ev === 'scroll-request')
+    reqs = lines.filter(r => r.ev === 'scroll-request' && typeof r.delta === 'number' && r.delta < 0)
     const rends = lines.filter(r => r.ev === 'list-render' && r.scroll)
     console.log(`  scroll requests (delta@top/viewport, span): ${reqs.map(r => `${r.delta}@${r.top}/${r.viewport}${r.sticky ? 's' : ''}·${r.max}`).join(' ')}`)
     console.log(`  list renders (range@top/viewport/height): ${rends.slice(-40).map(r => `[${r.range![0]},${r.range![1]})@${r.scroll!.top}${r.scroll!.sticky ? 's' : ''}/${r.scroll!.viewport}/${r.scroll!.height}`).join(' ')}`)
@@ -229,21 +230,27 @@ function runCell(cell: Cell): void {
   }
   const a = analyze(cell, payload)
   const shown = a.deltas.map(d => String(d)).join(',')
-  const settled = a.deltas.map(d => -d)
-  const stepCounts = new Map<number, number>()
-  for (const s of settled) stepCounts.set(s, (stepCounts.get(s) ?? 0) + 1)
-  const step = [...stepCounts.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0])[0]?.[0] ?? 0
   const bounds = stepBounds(a.viewport)
-  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · step mode ${step} · transcript region ${a.viewport} rows ⇒ step bounds [${bounds.floor}, ${bounds.ceiling}]`)
+  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · transcript region ${a.viewport} rows (press frames' mode) · viewports asked ${reqs.map(r => r.viewport).join(',')} · step bounds if the region were the viewport [${bounds.floor}, ${bounds.ceiling}]`)
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
     `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
   check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
-  check(`${cell.tag}: page step ≥ region − 4`, step >= bounds.floor, `step ${step} vs floor ${bounds.floor}`)
-  check(`${cell.tag}: page step ≤ region + 1`, step <= bounds.ceiling, `step ${step} vs ceiling ${bounds.ceiling}`)
+  check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses`)
+  const pressFrames = (payload.marks ?? []).filter((m: { label: string }) => /^p\d+$/.test(m.label)).map((m: { grid: Grid }) => m.grid)
   for (let i = 0; i < a.deltas.length; i++) {
     const d = a.deltas[i]!
-    check(`${cell.tag}: press ${i + 1} row-exact`, Math.abs(-d - step) <= 1,
-      `settled ${-d} rows vs the mode step ${step}`)
+    const r = reqs[i]
+    if (r === undefined || typeof r.delta !== 'number' || typeof r.viewport !== 'number') {
+      check(`${cell.tag}: press ${i + 1} has its request`, false, 'no scroll request recorded for this press')
+      continue
+    }
+    check(`${cell.tag}: press ${i + 1} asked a page of its own viewport (${r.viewport} − ${OVERLAP_ROWS})`, -r.delta === r.viewport - OVERLAP_ROWS,
+      `asked ${-r.delta} rows at viewport ${r.viewport}`)
+    const frame = pressFrames[i + 1] ?? pressFrames[pressFrames.length - 1]
+    const paneNow = frame ? viewportRows(frame) : a.viewport
+    check(`${cell.tag}: press ${i + 1} viewport never exceeds the pane on screen`, r.viewport <= paneNow + 1, `viewport ${r.viewport} vs pane ${paneNow}`)
+    check(`${cell.tag}: press ${i + 1} row-exact (settled what it asked)`, Math.abs(-d - -r.delta) <= 1,
+      `settled ${-d} rows vs asked ${-r.delta}`)
     check(`${cell.tag}: press ${i + 1} monotone up`, d < 0, `delta ${d}`)
   }
   check(`${cell.tag}: no post-settle drift`, a.endDrift === 0, `endDrift ${a.endDrift}`)
