@@ -173,6 +173,12 @@ section('§2 ONE capture owner — the ladder, the fixture, the bound, the cance
   r = capture.resolveCaptureBackend(noTools())
   check('no pack, no recorder ⇒ the no-backend receipt, every rung named', r.state === 'none' && r.note.startsWith(capture.NO_BACKEND_RECEIPT) && r.note.includes('MERCURY_VOICE_PACK_DIR') && r.tried.join(',') === 'vendored,sox,arecord,ffmpeg', r.state === 'none' ? r.note : r.detail)
   delete process.env.MERCURY_VOICE_PACK_DIR
+  // THE REMEDY FITS THE INSTALL: a release install has no checkout, so its
+  // receipt names the recorder road and never the checkout's setup.
+  check('a checkout ⇒ the setup line', capture.noBackendReceipt('/somewhere/checkout') === capture.NO_BACKEND_RECEIPT)
+  check('a release install ⇒ the recorder road with the platform\'s install command, never `bun run setup`', capture.noBackendReceipt(null, 'darwin') === `${capture.NO_BACKEND_RECEIPT_RELEASE} (brew install ffmpeg)` && !capture.noBackendReceipt(null, 'win32').includes('bun run setup') && capture.noBackendReceipt(null, 'win32').includes('winget install ffmpeg') && capture.noBackendReceipt(null, 'linux').includes('apt install ffmpeg'))
+  const pack = await import('../../src/services/voice/voicePack.js')
+  check('this checkout resolves (the proof runs from one), so the live receipt is the setup line', pack.voiceCheckoutRoot() !== null && capture.noBackendReceipt() === capture.NO_BACKEND_RECEIPT)
   check('the bound is five minutes', capture.CAPTURE_BOUND_MS === 300_000)
   process.env.MERCURY_VOICE_BOUND_MS = '80'
   check('the bound seam shortens the bound for a proof', capture.captureBoundMs() === 80, String(capture.captureBoundMs()))

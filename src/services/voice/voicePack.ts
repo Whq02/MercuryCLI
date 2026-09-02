@@ -169,6 +169,22 @@ export type VoicePackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: VoicePackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
+/** The checkout this module runs from, when it runs from one: the first
+ *  project boundary (package.json or .git) walking up from the module, the
+ *  same bounded walk the pack resolution takes. A release install (the
+ *  deployed runtime, the versioned layout) has none — so no remedy may
+ *  tell its operator to run the checkout's setup. */
+export function voiceCheckoutRoot(moduleDir: string = path.dirname(fileURLToPath(import.meta.url))): string | null {
+  let dir = moduleDir
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(path.join(dir, 'package.json')) || existsSync(path.join(dir, '.git'))) return dir
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
 /** Resolve the pack directory through the ladder (no loading). */
 export function resolveVoicePackDir(): VoicePackResolution {
   const override = flagEnv('MERCURY_VOICE_PACK_DIR')

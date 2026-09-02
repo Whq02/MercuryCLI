@@ -92,29 +92,12 @@ check(
 )
 
 // ───────────────────────────────────────────────────────────────────────────
-section('muster ROLES section — seat-slot rows in the ONE vertical space')
-// Footer variant: a focused role row swaps the action vocabulary for the
-// seat grammar (m model · +/- effort) and still keeps the floor.
-for (const cols of [50, 64, 120]) {
-  const inner = innerOf(cols)
-  const rf = modelPickerFooter({ hasEffort: true, supports1m: true, gated: false, roleFocused: true }, inner)
-  check(`@${cols} role footer fits (no wrap)`, rf.length <= Math.max(inner, FLOOR), `"${rf}"`)
-  check(`@${cols} role footer keeps the nav+exit floor`, rf.startsWith('↑↓ select') && rf.endsWith('esc close'))
-}
-const roleWide = modelPickerFooter({ hasEffort: true, supports1m: true, gated: false, roleFocused: true }, innerOf(120))
-check('role footer teaches the board grammar (m model · +/- effort)', roleWide.includes('m model') && roleWide.includes('+/- effort'), `"${roleWide}"`)
-check('role footer never advertises the model-switch action', !roleWide.includes('↵ switch') && !roleWide.includes('←→ effort'))
-// Source wiring: role rows ride InteractiveRow in the same selection space;
-// display truth carries the pending arrow + env-locked naming; the SEAT LAW
-// holds structurally (the picker's role vocabulary comes ONLY from the ONE
-// cycle — no gpt/glm/haiku spelling anywhere in the component).
-check('role rows ride InteractiveRow with stable ids', /id=\{`model:role:\$\{r\.role\}`\}/.test(src))
-check('role rows share the ONE vertical selection space (totalRows nav bounds)', /const totalRows = models\.length \+ roleRows\.length/.test(src) && /selectRow\(Math\.min\(totalRows - 1, i \+ 1\)\)/.test(src))
-check('pending retarget renders as the AMBER arrow, never the main cell', /r\.pendingModel \? <Text color=\{AMBER\}>\{` →\$\{r\.pendingModel\}`\}<\/Text> : null/.test(src))
-check("queued annotation says 'applies at turn end'", /queued — applies at turn end/.test(src))
-check('env-locked axes are NAMED on the selected row', /locked · \$\{lockedNames\.join\(' \+ '\)\}/.test(src))
-check('↵ on a role row answers with the grammar (keydead rule, never silent)', /onRoleAction\?\.\(focusedRole\.role, 'hint'\)/.test(src))
-check('←→ stays the MAIN effort slider only (declined on role rows)', /effortAxis === 'moveLeft' && hasEffort && !focusedRole/.test(src))
+section('SEAT LAW — the picker\'s selection grammar names no engine')
+// The seat-role rows (the party's role slots — a role footer variant,
+// pending retargets, env-locked axes, ↵ on a role row) left the picker with
+// the retired party estate; the footer has no role variant and the picker
+// composes no role rows, so their pins are retired with them. The SEAT LAW
+// they stood beside is the picker's own and stays below.
 // SEAT LAW re-anchored (the operator-confirmed GPT seat rows) +
 // (the GPT window-law line) + (source-honesty: the row
 // states the ACTIVE source's served window and only a ceiling THAT source
@@ -143,6 +126,10 @@ check(
 )
 // ───────────────────────────────────────────────────────────────────────────
 section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
+// The wrapper is the /model command's own source (the picker's host on the
+// command road): its read had gone missing from this proof, so every run
+// ended in a reference error here after the counts were printed.
+const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
 // The picker renders the queued foreground switch (current→next header +
 // AMBER 'next' row state); the /model command's select routes through the
 // SAME ModelTransition machine the inline picker uses (one boundary-aware

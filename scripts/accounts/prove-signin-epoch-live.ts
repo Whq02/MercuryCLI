@@ -182,7 +182,7 @@ section('E4 the readers re-derive on the epoch; the warm claim reads the disk')
 {
   const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
   const gate = read('src/components/PromptInput/Notifications.tsx')
-  check('the composer\'s not-logged-in gate keys on the sign-in epoch through the ONE hook', gate.includes("import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'") && /\[notAuthenticated, mainLoopModel, signInEpoch\]/.test(gate))
+  check('the composer\'s not-logged-in gate keys on the sign-in epoch through the ONE hook (the catalogue epoch beside it: a default landing when a catalogue settles moves the family)', gate.includes("import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'") && /\[notAuthenticated, mainLoopModel, signInEpoch, catalogueEpoch\]/.test(gate))
   const chip = read('src/components/BootSplashScreen.tsx')
   check('the boot chip keys on the same hook', chip.includes('useSignInEpoch()') && chip.includes('signInEpoch]'))
   const hook = read('src/utils/accounts/useSignInEpoch.ts')
