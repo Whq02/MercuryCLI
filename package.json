@@ -12,7 +12,7 @@
     "node": ">=24.20.0 <25"
   },
   "scripts": {
-    "setup": "bun install && bun run scripts/vendor/fetch-pyright.ts && bun run scripts/vendor/fetch-debugpy.ts && bun run scripts/vendor/fetch-js-debug.ts && bun run scripts/vendor/fetch-grammars.ts",
+    "setup": "bun install && bun run scripts/vendor/fetch-pyright.ts && bun run scripts/vendor/fetch-debugpy.ts && bun run scripts/vendor/fetch-js-debug.ts && bun run scripts/vendor/fetch-grammars.ts && bun run scripts/vendor/fetch-node.ts",
     "build": "bun run build.ts",
     "start": "node dist/mercury.mjs",
     "typecheck": "bash scripts/typecheck/run-all.sh",
