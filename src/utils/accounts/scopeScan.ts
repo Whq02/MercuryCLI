@@ -1,7 +1,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { getMercuryHome } from '../envUtils.js'
+import { getAuthConfigHomeDir, getMercuryHome } from '../envUtils.js'
 
 export type ScopeIdentity = { uuid?: string; email?: string }
 
@@ -40,18 +40,40 @@ export function readScopeIdentity(configFile: string): ScopeIdentity {
   return {}
 }
 
-export function probeScopeAuth(
-  dir: string,
-): { authed: boolean; email?: string; uuid?: string } {
-  const id = readScopeIdentity(join(dir, '.claude.json'))
-  if (id.uuid) {
-    return { authed: true, uuid: id.uuid, ...(id.email ? { email: id.email } : {}) }
-  }
-  const credFile = existsSync(join(dir, '.credentials.json'))
-  return { authed: credFile }
+export interface ScopeAuthReads {
+  storedLogin?: (dir: string) => boolean
 }
 
-export function scanAccountScopes(): AccountScope[] {
+export function probeScopeAuth(
+  dir: string,
+  reads: ScopeAuthReads = {},
+): { authed: boolean; email?: string; uuid?: string } {
+  const id = readScopeIdentity(join(dir, '.claude.json'))
+  const authed = (reads.storedLogin ?? storedLoginLive)(dir)
+  return {
+    authed,
+    ...(id.uuid ? { uuid: id.uuid } : {}),
+    ...(id.email ? { email: id.email } : {}),
+  }
+}
+
+function storedLoginLive(dir: string): boolean {
+  try {
+    if (resolve(dir) === resolve(getAuthConfigHomeDir())) {
+      const { getSecureStorage } =
+        require('../secureStorage/index.js') as typeof import('../secureStorage/index.js')
+      const token = getSecureStorage().read()?.claudeAiOauth?.accessToken
+      return typeof token === 'string' && token.length > 0
+    }
+    const { readAccountOAuthCreds } =
+      require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
+    return readAccountOAuthCreds(dir) !== undefined
+  } catch {
+    return false
+  }
+}
+
+export function scanAccountScopes(reads: ScopeAuthReads = {}): AccountScope[] {
   const dir = resolve(getMercuryHome())
   return [
     {
@@ -60,7 +82,7 @@ export function scanAccountScopes(): AccountScope[] {
       isCurrent: true,
       hasConfig: existsSync(join(dir, '.claude.json')),
       claudeFamily: isClaudeFamilyDir(dir),
-      ...probeScopeAuth(dir),
+      ...probeScopeAuth(dir, reads),
     },
   ]
 }
