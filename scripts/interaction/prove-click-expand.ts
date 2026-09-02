@@ -39,17 +39,35 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Cell = { c: string; bg?: string }
 type Grid = { grid: Cell[][] }
 
+/** The frame, row-numbered, for a red that needs its evidence in the log
+ *  (a row that is simply absent has no other witness). */
+function dumpFrame(label: string, lines: string[]): void {
+  console.log(`      ┌ ${label}`)
+  lines.forEach((line, index) => {
+    const row = line.trimEnd()
+    if (row !== '') console.log(`      │ ${String(index).padStart(2, ' ')} ${row}`)
+  })
+  console.log('      └')
+}
+
+/** One SGR press+release per click; every other field (atTick, minTick,
+ *  awaitText, awaitStableTicks, requireAwait) rides through to vshot's send
+ *  schema — the observed-settled schedule the two-bash leg proved out. */
+type Click = { x: number; y: number; atTick: number } & Record<string, unknown>
+
 function capture(
   tag: string,
-  clicks: Array<{ x: number; y: number; atTick: number }>,
+  clicks: Click[],
   total: number,
+  extra: Record<string, unknown> = {},
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('click-expand', 80, 40)
-  cfg.sends = clicks.map(k => ({
-    atTick: k.atTick,
-    data: `\x1b[<0;${k.x};${k.y}M\x1b[<0;${k.x};${k.y}m`,
+  const cfg = scenario('click-expand', 80, 40) as Record<string, unknown>
+  cfg['sends'] = clicks.map(({ x, y, ...schedule }) => ({
+    ...schedule,
+    data: `\x1b[<0;${x};${y}M\x1b[<0;${x};${y}m`,
   }))
-  cfg.total = total
+  cfg['total'] = total
+  Object.assign(cfg, extra)
   const gridPath = `/tmp/click-expand-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/click-expand-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -124,6 +142,7 @@ if (base) {
   globY = rowOf('Searched for 1 pattern')
   errY = rowOf('The target file could not be read')
   check('baseline: agent Done row present', agentY >= 0)
+  if (agentY < 0) dumpFrame('baseline frame — the agent Done row is absent', base.lines)
   check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1)
   check(
     'baseline: agent row carries the ⌄ cue',
@@ -140,15 +159,26 @@ if (base) {
 // Expanding scrolls earlier rows off the bottom-anchored viewport, but a full
 // expand+collapse returns the layout to the baseline — so the same coords hit
 // the same row twice, and the collapsed state must be back on screen.
+//
+// Every click below is OBSERVED-SETTLED (the two-bash leg's schedule): it
+// fires only once the row it aims at is on screen and the whole grid has
+// held byte-identical for ten ticks — a fixed tick raced slow boots, and a
+// resume still streaming rows moved the aimed row out from under the click.
+// requireAwait refuses a journey whose row never painted (exit 4) rather
+// than clicking blind at the deadline; atTick stays the hard deadline. The
+// second click waits for the FIRST expansion's own needle, so it lands on
+// the expanded block, never on a frame that had not repainted yet.
+const SETTLED = { minTick: 10, awaitStableTicks: 10, requireAwait: true } as const
 if (base && agentY >= 0) {
   // 1-based SGR coords; col 10 sits inside the row text (non-blank cells).
   const t = capture(
     'toggle',
     [
-      { x: 10, y: agentY + 1, atTick: 40 }, // expand agent
-      { x: 10, y: agentY + 1, atTick: 56 }, // collapse agent
+      { x: 10, y: agentY + 1, atTick: 110, awaitText: 'Done (3 tool uses', ...SETTLED }, // expand agent
+      { x: 10, y: agentY + 1, atTick: 150, awaitText: 'REPORT-LINE', ...SETTLED }, // collapse agent
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (t) {
     const rowOf = (needle: string): number => t.lines.findIndex(l => l.includes(needle))
@@ -172,10 +202,11 @@ if (base && globY >= 0 && errY >= 0) {
   const e = capture(
     'grow',
     [
-      { x: 10, y: globY + 1, atTick: 40 }, // expand glob group
-      { x: 12, y: errY + 1, atTick: 56 }, // expand lone error card
+      { x: 10, y: globY + 1, atTick: 110, awaitText: 'Searched for 1 pattern', ...SETTLED }, // expand glob group
+      { x: 12, y: errY + 1, atTick: 150, awaitText: 'GlobTool/prompt.ts', ...SETTLED }, // expand lone error card
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (e) {
     const rowOf = (needle: string): number => e.lines.findIndex(l => l.includes(needle))
@@ -230,6 +261,7 @@ cleanupScenario('click-expand')
     check('lifecycle: ONE visible card for the resolved Edit id', editRows.length >= 1 && new Set(editRows.map(l => l.trim())).size <= 2, `rows=${editRows.length}`)
     const metaRows = lines.filter(l => l.includes('· +1/-1'))
     check('lifecycle: the settled ± meta rides the header EXACTLY once', metaRows.length === 1, `rows=${metaRows.length}: ${metaRows.map(l => l.trim()).join(' | ')}`)
+    if (editRows.length === 0 || metaRows.length !== 1) dumpFrame('lifecycle frame — the Edit header is absent', lines)
     check(
       'lifecycle: the ± lane did NOT suppress the diff card (hunks still paint)',
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
