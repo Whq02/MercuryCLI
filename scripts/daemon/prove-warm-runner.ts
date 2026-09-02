@@ -340,6 +340,75 @@ console.log('\n── W14: overlapping ensures, one child ──')
   warm.resetWarmRunnersForTesting()
 }
 
+console.log('\n── W15: the newest kit trails the running warm-up ──')
+{
+  const kit = (skill: string) => ({ schema: 1 as const, mcp: [] as string[], skills: [skill], invocable: [] as string[] })
+  type Kit = ReturnType<typeof kit>
+  const J = (k: Kit): string => JSON.stringify(k)
+  const K1 = kit('alpha')
+  const K2 = kit('beta')
+  const K3 = kit('gamma')
+  const fresh = () => {
+    warm.resetWarmRunnersForTesting()
+    const roster15 = new FakeRoster()
+    const deps15 = { roster: () => roster15, dir: mkdtempSync(join(tmpdir(), 'warm-runner-daemon-15-')) }
+    const ws = mkdtempSync(join(tmpdir(), 'warm-ws-g-'))
+    const booted = (): string[] => roster15.registered.map(r => String(r.spec.extraEnv?.MERCURY_SESSION_KIT ?? ''))
+    const ensure = (k: Kit) => warm.ensureWarmRunner({ workspaceDir: ws, kit: k }, deps15)
+    return { roster15, booted, ensure }
+  }
+  {
+    const { roster15, booted, ensure } = fresh()
+    const [r1, r2] = await Promise.all([ensure(K1), ensure(K2)])
+    check('W15 the running warm-up lands its own kit', r1.state === 'warmed' && booted()[0] === J(K1), `${r1.state}; booted=${booted().join(' | ')}`)
+    check(
+      'W15 a different kit is not joined: it reruns after the run and boots the newest kit',
+      r2.state === 'warmed' && r2.short !== r1.short && booted().length === 2 && booted()[1] === J(K2),
+      `${r2.state}/${String(r2.short)} vs ${String(r1.short)}; booted=${booted().length}`,
+    )
+    check('W15 the older runner retired at the rerun (kit drift)', roster15.killed.length === 1 && roster15.killed[0] === r1.short, roster15.killed.join(','))
+    const kept = await ensure(K2)
+    check('W15 one runner lives, wearing the newest kit (a same-kit ensure keeps it)', warm.warmRunnerCount() === 1 && kept.state === 'kept' && kept.short === r2.short, `${kept.state}/${String(kept.short)}`)
+  }
+  {
+    const { roster15, booted, ensure } = fresh()
+    const [a, b, c] = await Promise.all([ensure(K1), ensure(K2), ensure(K3)])
+    check('W15 three overlapping kits boot exactly TWO: the running one and the newest', booted().length === 2 && booted()[0] === J(K1) && booted()[1] === J(K3), booted().join(' | '))
+    check('W15 the superseded middle kit never boots (no stale queue)', !booted().includes(J(K2)))
+    check(
+      'W15 the superseded caller is answered with the rerun outcome (the newest kit)',
+      b.state === 'warmed' && c.state === 'warmed' && b.short === c.short && a.short !== c.short,
+      `${a.state}/${String(a.short)} ${b.state}/${String(b.short)} ${c.state}/${String(c.short)}`,
+    )
+    check('W15 one runner lives after the chain, one retired', warm.warmRunnerCount() === 1 && roster15.killed.length === 1)
+  }
+  {
+    const { roster15, ensure } = fresh()
+    const [s1, s2] = await Promise.all([ensure(K1), ensure(K1)])
+    check('W15 an equal carried kit joins the run (one child, same short)', roster15.registered.length === 1 && s1.state === 'warmed' && s2.state === 'warmed' && s1.short === s2.short)
+  }
+  {
+    const { roster15, booted, ensure } = fresh()
+    const mid: { run: ReturnType<typeof ensure> | null } = { run: null }
+    const plain = roster15.registerLongLived.bind(roster15)
+    roster15.registerLongLived = (short, spec) => {
+      const out = plain(short, spec)
+      if (spec.extraEnv?.MERCURY_SESSION_KIT === J(K2) && mid.run === null) mid.run = ensure(K3)
+      return out
+    }
+    const [r1, r2] = await Promise.all([ensure(K1), ensure(K2)])
+    const r3 = mid.run === null ? null : await mid.run
+    check('W15 a request landing mid-rerun trails it: kits boot in order, one at a time', booted().length === 3 && booted().join(',') === [J(K1), J(K2), J(K3)].join(','), booted().join(' | '))
+    check('W15 each superseded runner retired in turn', roster15.killed.length === 2 && roster15.killed[0] === r1.short && roster15.killed[1] === r2.short, roster15.killed.join(','))
+    check(
+      'W15 the mid-rerun caller lands the newest kit; one runner lives',
+      r3 !== null && r3.state === 'warmed' && r3.short !== r2.short && warm.warmRunnerCount() === 1,
+      r3 === null ? 'never fired' : `${r3.state}/${String(r3.short)}`,
+    )
+  }
+  warm.resetWarmRunnersForTesting()
+}
+
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('✅ ALL WARM-RUNNER PROOFS PASS')
 else console.log(`❌ ${failures} WARM-RUNNER PROOF(S) FAILED`)
