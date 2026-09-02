@@ -1,12 +1,12 @@
 {
   "id": "doc-destale",
   "title": "De-stale a doc section against source (evidence-only edits)",
-  "prompt": "docs/wiki/scribe-amanuensis.md may contain file:line anchors for src/utils/scribe/scribeModelPin.ts that have drifted. Verify EVERY anchor in that page that points at scribeModelPin.ts against the actual source, correct any stale line numbers, and add (or refresh) a one-line note in the page's SCRIBE_MODEL discussion stating that MERCURY_SCRIBE_MODEL is seat-slot VALIDATED (fail-closed, never Haiku) since the router-party program. Claims must match source; do not invent anchors.",
+  "prompt": "docs/SESSIONS.md may contain file:line anchors for src/daemon/concourseSupervisor.ts that have drifted. Verify EVERY anchor in that page that points at concourseSupervisor.ts against the actual source, correct any stale line numbers, and add (or refresh) a one-line note in the page's worker-seat discussion stating that MERCURY_DAEMON_PERMISSION_MODE, when set, overrides every daemon-spawned worker's permission posture (unset means flow). Claims must match source; do not invent anchors.",
   "baseRef": "bench-corpus-v1",
   "timeboxMs": 1200000,
   "successChecks": [
-    { "kind": "grep", "file": "docs/wiki/scribe-amanuensis.md", "pattern": "seat-slot" },
-    { "kind": "grep", "file": "docs/wiki/scribe-amanuensis.md", "pattern": "never[ -]?haiku|fails?[ -]?closed", "flags": "i" }
+    { "kind": "grep", "file": "docs/SESSIONS.md", "pattern": "MERCURY_DAEMON_PERMISSION_MODE" },
+    { "kind": "grep", "file": "docs/SESSIONS.md", "pattern": "unset|flow", "flags": "i" }
   ],
   "tags": ["docs", "de-stale"]
 }

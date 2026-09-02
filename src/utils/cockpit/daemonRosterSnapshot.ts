@@ -9,9 +9,7 @@ export type RosterSnapshot = {
   reason: string
 }
 
-export async function daemonRosterSnapshot(
-  short = 'implementer',
-): Promise<RosterSnapshot> {
+export async function daemonRosterSnapshot(short: string): Promise<RosterSnapshot> {
   try {
     const reply = await daemonControlRpc({ op: 'list' } as DaemonRequest)
     if (!reply.ok) {

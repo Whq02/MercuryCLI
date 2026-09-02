@@ -35,7 +35,7 @@ section('§5 — composition order: identity → operator/dynamic → mode → t
     dynamicSpecs: [{ name: 'memory', cacheBreak: false }],
     dynamicResolved: ['OPERATOR-CONTEXT'],
     wrapperSections: [{ name: 'mercury-doctrine', text: 'WRAPPER-DOCTRINE' }],
-    modeSections: [{ name: 'mode-scribe', text: 'MODE-PACK' }],
+    modeSections: [{ name: 'mode-autopilot', text: 'MODE-PACK' }],
     antiSycSections: [],
     reconcileTailSections: ['RECONCILE-TAIL'],
   })

@@ -11,7 +11,7 @@ import {
 
 export const teamAdapter: ResourceAdapter = {
   kind: 'team',
-  describe: 'chartered teams, members, charters — incl. scribe teams (mercury://team/<name>)',
+  describe: 'chartered teams, members, charters — incl. daemon crews (mercury://team/<name>)',
   async resolve(ref: ParsedRef): Promise<ResourceResult> {
     if (ref.id === '') {
       const home = path.dirname(getTeamDir('probe'))

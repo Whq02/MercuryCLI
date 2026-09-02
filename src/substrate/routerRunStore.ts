@@ -3,6 +3,7 @@ import {
   decodeTaskRoutePlan,
   type RouteNode,
   type RouteNodeState,
+  type RoutePlannerRole,
   type TaskRoutePlan,
 } from '../utils/router/contracts.js'
 import { NODE_MAX_ATTEMPTS, derivePlanState, promotableNodes } from '../utils/router/scheduler.js'
@@ -234,7 +235,7 @@ export const routerStoreWriters = {
     return applied
   },
 
-  async acceptByRequest(busRequestId: string, by: 'scribe' | 'router' | 'maintainer', now: number): Promise<void> {
+  async acceptByRequest(busRequestId: string, by: RoutePlannerRole, now: number): Promise<void> {
     const state = await routerRunStore().read().catch(() => null)
     if (!state) return
     for (const plan of state.plans) {
@@ -288,7 +289,7 @@ export const routerStoreWriters = {
     )
   },
 
-  async acceptNode(planId: string, nodeId: string, by: 'scribe' | 'router' | 'maintainer', now: number): Promise<void> {
+  async acceptNode(planId: string, nodeId: string, by: RoutePlannerRole, now: number): Promise<void> {
     let observed: Parameters<typeof recordRouteOutcome>[0] | null = null
     await safeMutate(s => {
       const plan = s.plans.find(p => p.id === planId)
@@ -392,7 +393,7 @@ export const routerStoreWriters = {
     )
   },
 
-  acceptPlan(planId: string, by: 'scribe' | 'router' | 'maintainer', now: number): Promise<void> {
+  acceptPlan(planId: string, by: RoutePlannerRole, now: number): Promise<void> {
     return safeMutate(s => {
       const plan = s.plans.find(p => p.id === planId)
       if (!plan) return s

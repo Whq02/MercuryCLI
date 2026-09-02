@@ -108,18 +108,8 @@ async function* briefModeSentinel(
     const questionTool = require('../tools/AskUserQuestionTool/prompt.js') as {
       ASK_USER_QUESTION_TOOL_NAME: string
     }
-    const scribeGates = require('../utils/scribe/scribeGates.js') as {
-      scribeModeEnabled: () => boolean
-      isImplementerRole: () => boolean
-    }
-    const engage = require('../utils/scribe/engageScribeSession.js') as {
-      isScribeSessionPinned: () => boolean
-    }
     const briefFilters = require('../utils/messages/briefFilters.js') as {
       hasTrailingTextAfterBrief: (messages: Message[]) => boolean
-    }
-    const sendMessage = require('../tools/SendMessageTool/constants.js') as {
-      SEND_MESSAGE_TOOL_NAME: string
     }
     /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -130,7 +120,6 @@ async function* briefModeSentinel(
     ) {
       return
     }
-    if (scribeGates.isImplementerRole()) return
 
     const history = [...messagesForQuery, ...assistantMessages]
     const window = windowAfterLastRealUserTurn(history)
@@ -139,17 +128,8 @@ async function* briefModeSentinel(
       briefPrompt.LEGACY_BRIEF_TOOL_NAME,
       questionTool.ASK_USER_QUESTION_TOOL_NAME,
     ]
-    let addressed =
+    const addressed =
       usesAnyTool(window, addressedTools) || usesAnyTool(assistantMessages, addressedTools)
-
-    if (
-      !addressed &&
-      scribeGates.scribeModeEnabled() &&
-      engage.isScribeSessionPinned()
-    ) {
-      const busTools = [sendMessage.SEND_MESSAGE_TOOL_NAME]
-      addressed = usesAnyTool(window, busTools) || usesAnyTool(assistantMessages, busTools)
-    }
 
     if (!addressed) {
       if (!hasMetaMessageContaining(window, briefPrompt.BRIEF_ENFORCE_SENTINEL)) {

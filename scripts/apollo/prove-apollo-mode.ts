@@ -84,7 +84,7 @@ try {
     'the pack teaches the three review answers and the only-door law',
     /yes-but-ask-first/.test(text) && /Ask me more questions/.test(text) && /only door to the build/.test(text),
   )
-  for (const off of [undefined, 'default', 'strategy', 'implement', 'flow', 'sovereign', 'autopilot', 'scribe'] as const) {
+  for (const off of [undefined, 'default', 'strategy', 'implement', 'flow', 'sovereign', 'autopilot'] as const) {
     check(`${String(off)} ⇒ [] (byte-identical prompt off-mode)`, pack.getApolloModeSections(off as never).length === 0)
   }
 } catch (e) {

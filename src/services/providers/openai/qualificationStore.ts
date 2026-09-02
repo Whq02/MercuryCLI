@@ -28,8 +28,6 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
     'switch-transition-receipts',
     'no-lost-input+no-duplicate-events',
   ],
-  'scribe-router': ['typed-route-envelope-production', 'decomposition', 'effort-model-targeting', 'carry-forward', 'dedup', 'halt-stop', 'burst-handling', 'deterministic-dispatch-settlement'],
-  'scribe-implementer': ['routed-envelope-consumption', 'repository-work', 'verification-output', 'evidence-return', 'cancellation', 'exactly-once-bus-completion'],
   specialist: ['bounded-job-execution', 'structured-result-return', 'worktree-law', 'role-tool-denials'],
   coordinator: [
     'bounded-snapshot+delta-consumption',

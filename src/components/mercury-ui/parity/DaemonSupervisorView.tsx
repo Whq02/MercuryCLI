@@ -174,7 +174,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
       ) : v.empty ? (
         <Box marginTop={1} flexDirection="column">
           <EmptyState glyph="○" title="no daemon running" hint={v.empty} />
-          <Text color={FAINT}>  the supervisor + Implementer start headless; nothing is fabricated here</Text>
+          <Text color={FAINT}>  the supervisor starts headless; nothing is fabricated here</Text>
         </Box>
       ) : (
         <Box flexDirection="column">
@@ -212,7 +212,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
           {}
           <SectionHeader count={v.workers.length}>Workers</SectionHeader>
           {visible.length === 0 ? (
-            <Text color={FAINT}>  no long-lived workers rostered (the Implementer spawns on first dispatch)</Text>
+            <Text color={FAINT}>  no long-lived workers rostered (a crew or session seat spawns on its engage)</Text>
           ) : (
             <>
             {winStart > 0 ? <Text color={FAINT}>{`  ↑ +${winStart} above`}</Text> : null}

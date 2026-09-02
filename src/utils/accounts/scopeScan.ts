@@ -40,18 +40,38 @@ export function readScopeIdentity(configFile: string): ScopeIdentity {
   return {}
 }
 
-export function probeScopeAuth(
-  dir: string,
-): { authed: boolean; email?: string; uuid?: string } {
-  const id = readScopeIdentity(join(dir, '.claude.json'))
-  if (id.uuid) {
-    return { authed: true, uuid: id.uuid, ...(id.email ? { email: id.email } : {}) }
-  }
-  const credFile = existsSync(join(dir, '.credentials.json'))
-  return { authed: credFile }
+export interface ScopeAuthReads {
+  storedLogin?: (dir: string) => boolean
 }
 
-export function scanAccountScopes(): AccountScope[] {
+export function probeScopeAuth(
+  dir: string,
+  reads: ScopeAuthReads = {},
+): { authed: boolean; email?: string; uuid?: string } {
+  const id = readScopeIdentity(join(dir, '.claude.json'))
+  const authed = (reads.storedLogin ?? storedLoginLive)(dir)
+  return {
+    authed,
+    ...(id.uuid ? { uuid: id.uuid } : {}),
+    ...(id.email ? { email: id.email } : {}),
+  }
+}
+
+function storedLoginLive(dir: string): boolean {
+  try {
+    if (resolve(dir) === resolve(getMercuryHome())) {
+      const { hasStoredOAuthToken } = require('../auth.js') as typeof import('../auth.js')
+      return hasStoredOAuthToken()
+    }
+    const { readAccountOAuthCreds } =
+      require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
+    return readAccountOAuthCreds(dir) !== undefined
+  } catch {
+    return false
+  }
+}
+
+export function scanAccountScopes(reads: ScopeAuthReads = {}): AccountScope[] {
   const dir = resolve(getMercuryHome())
   return [
     {
@@ -60,7 +80,7 @@ export function scanAccountScopes(): AccountScope[] {
       isCurrent: true,
       hasConfig: existsSync(join(dir, '.claude.json')),
       claudeFamily: isClaudeFamilyDir(dir),
-      ...probeScopeAuth(dir),
+      ...probeScopeAuth(dir, reads),
     },
   ]
 }

@@ -46,7 +46,7 @@ export const call = async (
     return {
       type: 'text',
       value: changed
-        ? `accent override cleared — back to the derived chain (critter/scribe/fable): now ${getSessionAccent().accent}`
+        ? `accent override cleared — back to the derived chain (critter/fable): now ${getSessionAccent().accent}`
         : 'no accent override was active',
     }
   }

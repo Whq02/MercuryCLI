@@ -49,7 +49,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     const state = await routerRunStore().read().catch(() => null)
     const plan = state?.plans[state.plans.length - 1]
     if (!plan) {
-      onDone('no route decision recorded yet — a Scribe/Router dispatch mints the first plan')
+      onDone('no route decision recorded yet — a planner dispatch mints the first plan')
       return null
     }
     const d = plan.decision
@@ -74,7 +74,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     await Promise.all([refreshProviderDiscovery('openai'), refreshProviderDiscovery('zai')])
     const { buildRouterModelSnapshot } = await import('../../utils/router/modelRegistry.js')
     const snapshot = buildRouterModelSnapshot()
-    const lines: string[] = ['engines — every provider lane beside the home lane; party seats stay Anthropic (the ruled crew fence)']
+    const lines: string[] = ['engines — every provider lane beside the home lane; roster seats stay Anthropic (the ruled crew fence)']
     for (const p of snapshot.providers.filter(x => x.id !== 'anthropic')) {
       const d = p.description
       const models = d.catalogue.map(c => c.id).join(', ') || '—'

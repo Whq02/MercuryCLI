@@ -5,7 +5,7 @@ import { Box, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
-import { resolveLiveScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
+import { forgetScopeIdentity, resolveLiveScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
 import { AMBER, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import {
   CommandCenter,
@@ -27,15 +27,17 @@ function usabilityFor(familyId: string): ProviderUsability | undefined {
 import {
   deriveFamilySlotGroups,
   executeSlotRemoval,
+  familyAbsentWords,
   familyDisplayName,
+  familyRouteWords,
   familySigninCeiling,
   familySigninHeaderNote,
   familySigninSummary,
   mainLoopIdentity,
+  scopeSlotTail,
   slotSigninState,
   type AccountSlot,
   type SlotIdentities,
-  type SlotSigninState,
 } from '../../../services/providers/accountSlots.js'
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -52,21 +54,8 @@ type BoardRow =
 const rowKey = (row: BoardRow): string =>
   row.type === 'slot' ? row.slot.id : `absent:${row.family.id}`
 
-const FAMILY_CONNECT_ROUTES: Record<string, string> = {
-  zai: 'GLM connects at /logins zai (a Z.AI API key — general or GLM Coding Plan); ZAI_API_KEY in your shell wins',
-  moonshot:
-    'Kimi signs in at /logins moonshot (device code in the browser, or a Moonshot API key); MOONSHOT_API_KEY in your shell wins',
-  deepseek:
-    'DeepSeek connects at /logins deepseek (an API key from platform.deepseek.com); DEEPSEEK_API_KEY in your shell wins',
-  'openai-compat':
-    'The custom endpoint configures via MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',
-  huggingface:
-    'Hugging Face signs in at /logins (device-code OAuth or a pasted token); HF_TOKEN in your shell wins',
-  local:
-    'Local models need no sign-in — start Ollama (:11434), LM Studio (:1234), vLLM (:8000) or llama.cpp-server (:8080), or set MERCURY_LOCAL_BASE_URL; /model re-probes on open',
-}
-function familyConnectRoute(id: string): string {
-  return FAMILY_CONNECT_ROUTES[id] ?? `${familyDisplayName(id)} sign-in lives at /logins`
+function familyRouteNote(id: string): string {
+  return `${familyDisplayName(id)} — ${familyRouteWords(id)}`
 }
 
 const MAX_ROWS_SHOWN = 8
@@ -78,28 +67,6 @@ function tildify(p: string, home: string): string {
 }
 
 type Identities = SlotIdentities
-
-function identityTail(state: SlotSigninState, id: Identities[string] | undefined): string {
-  switch (state.basis) {
-    case 'excluded':
-      return "another tool's credential scope — never billable from Mercury"
-    case 'checking':
-      return 'verifying identity…'
-    case 'verified-live':
-      return `${id?.state === 'verified' ? id.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
-    case 'expired':
-      return `expired${id?.state === 'expired' && id.snapshotEmail ? ` (snapshot ${id.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
-    case 'signed-out':
-    case 'absent':
-      return 'not signed in · ↵ opens Logins to sign in'
-    case 'unverified':
-      return id?.state === 'unverified'
-        ? `unverified — ${id.note}${id.email ? ` · snapshot ${id.email}` : ''} · not counted as signed in`
-        : 'unverified · not counted as signed in'
-    case 'credential-present':
-      return 'credential present'
-  }
-}
 
 export function AccountView({
   onClose,
@@ -144,7 +111,7 @@ export function AccountView({
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeDirsKey])
+  }, [scopeDirsKey, version])
 
   const acct = getGlobalConfig().oauthAccount
   const sessionModel = useAppState(state => state.mainLoopModelForSession ?? state.mainLoopModel)
@@ -185,7 +152,7 @@ export function AccountView({
       case 'owner':
         return slot.removal.note
       default:
-        return familyConnectRoute(slot.family)
+        return familyRouteNote(slot.family)
     }
   }
 
@@ -201,10 +168,7 @@ export function AccountView({
         hint: 'opens Logins to sign in / re-login',
         run: row => {
           if (!row) return 'no accounts found — r rescans'
-          if (row.type === 'absent') {
-            if (row.family.id === 'openai') return rerouteToLogins('openai', 'opening Logins for the OpenAI sign-in')
-            return familyConnectRoute(row.family.id)
-          }
+          if (row.type === 'absent') return familyRouteNote(row.family.id)
           return activateSlot(row.slot)
         },
       },
@@ -212,6 +176,7 @@ export function AccountView({
         key: 'r',
         hint: 'rescan',
         run: () => {
+          forgetScopeIdentity()
           setVersion(v => v + 1)
           setIdentities({})
           return 'rescanned accounts (identities re-verify live)'
@@ -223,7 +188,7 @@ export function AccountView({
         run: row => {
           if (!row) return 'no accounts found — r rescans'
           if (row.type === 'absent') {
-            return `nothing to remove — ${row.family.id} has no login. ${familyConnectRoute(row.family.id)}`
+            return `nothing to remove — ${familyDisplayName(row.family.id)} has no login · ${familyRouteWords(row.family.id)}`
           }
           const removable =
             row.slot.removal.route !== 'excluded' &&
@@ -240,7 +205,14 @@ export function AccountView({
           }
           armedRemovalRef.current = null
           const outcome = executeSlotRemoval(row.slot)
-          if (outcome.mutated) setVersion(v => v + 1)
+          if (outcome.mutated) {
+            setIdentities(prev => {
+              const next = { ...prev }
+              delete next[row.slot.id]
+              return next
+            })
+            setVersion(v => v + 1)
+          }
           return outcome.note
         },
       },
@@ -272,37 +244,17 @@ export function AccountView({
       color = AMBER
       name = row.family.id
       kindLabel = 'absent'
-      tail =
-        row.family.id === 'openai'
-          ? 'not connected · ↵ opens Logins to sign in'
-          : row.family.id === 'local'
-            ? 'no server discovered · ↵ names the route — Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL'
-            : `not signed in · ↵ names the route — ${
-                row.family.id === 'zai'
-                  ? '/logins zai or ZAI_API_KEY'
-                  : row.family.id === 'moonshot'
-                    ? '/logins moonshot or MOONSHOT_API_KEY'
-                    : row.family.id === 'deepseek'
-                      ? '/logins deepseek or DEEPSEEK_API_KEY'
-                      : row.family.id === 'openai-compat'
-                        ? 'MERCURY_COMPAT_BASE_URL'
-                        : row.family.id === 'huggingface'
-                          ? '/logins or HF_TOKEN'
-                          : '/logins'
-              }`
+      tail = familyAbsentWords(row.family.id)
     } else {
       const slot = row.slot
       name = slot.name
       kindLabel = slot.kindLabel
       if (slot.scope) {
-        const s = slot.scope
         const id = identities[slot.id]
         const state = slotSigninState(slot, identities)
         glyph = state.basis === 'excluded' ? '⊘' : state.signedIn ? '●' : '⦿'
         color = state.basis === 'excluded' ? FAINT : state.signedIn ? TEAL : AMBER
-        tail = [tildify(s.dir, home), s.isCurrent ? 'this session' : '', identityTail(state, id)]
-          .filter(Boolean)
-          .join(' · ')
+        tail = scopeSlotTail(state, id, slot)
       } else {
         glyph = slot.active ? '●' : '○'
         color = slot.active ? TEAL : slot.envPinned ? SECOND : AMBER

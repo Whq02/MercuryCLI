@@ -1,11 +1,13 @@
 import type { CallModelRoute } from '../../services/providers/routeLaw.js'
 import type { ModelOption } from './modelOptions.js'
+import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../accounts/signInLedger.js'
 
 export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
 
 export const NO_SIGN_IN_ROW = 'no sign-in yet'
 export const NO_SIGN_IN_REASON = 'no sign-in yet — /logins signs a provider in'
+export const NO_USABLE_ROW = 'no usable row yet'
 
 export interface CredentialFact {
   family: string
@@ -110,7 +112,7 @@ export function evaluateComputedDefault(facts: ComputedDefaultFacts): ComputedDe
             .join('; ')}) — /logins signs another provider in`
     return {
       setting: facts.keyless.setting,
-      row: NO_SIGN_IN_ROW,
+      row: considered.length === 0 ? NO_SIGN_IN_ROW : NO_USABLE_ROW,
       provider: null,
       source: 'keyless',
       chosen: null,
@@ -154,11 +156,15 @@ function sourceWords(decision: ComputedDefault): string {
 
 const identity = (family: string): string => family
 
+export function keylessReason(decision: Pick<ComputedDefault, 'considered' | 'why'>): string {
+  return decision.considered.length === 0 ? NO_SIGN_IN_REASON : decision.why
+}
+
 export function describeComputedDefaultRow(
   decision: ComputedDefault,
   providerName: (family: string) => string = identity,
 ): string {
-  if (decision.source === 'keyless' || decision.provider === null) return `Default (${NO_SIGN_IN_REASON})`
+  if (decision.source === 'keyless' || decision.provider === null) return `Default (${keylessReason(decision)})`
   return `Default (${decision.row} — ${providerName(decision.provider)}, ${sourceWords(decision)})`
 }
 
@@ -167,7 +173,9 @@ export function describeComputedDefaultLabel(
   providerName: (family: string) => string = identity,
 ): string {
   if (decision.source === 'keyless' || decision.provider === null) {
-    return `${NO_SIGN_IN_ROW} (default — /logins signs a provider in)`
+    return decision.considered.length === 0
+      ? `${NO_SIGN_IN_ROW} (default — /logins signs a provider in)`
+      : `${NO_USABLE_ROW} (default — ${decision.why})`
   }
   return `${decision.row} (default — ${providerName(decision.provider)}, ${sourceWords(decision)})`
 }
@@ -177,7 +185,7 @@ export function describeComputedDefault(
   providerName: (family: string) => string = identity,
 ): string {
   if (decision.chosen === null || decision.provider === null) {
-    return `${NO_SIGN_IN_ROW} · ${decision.why}`
+    return `${decision.row} · ${decision.why}`
   }
   return `${decision.row} · ${providerName(decision.provider)} · ${decision.chosen.recency} · ${decision.chosen.verdict.why}`
 }
@@ -385,7 +393,7 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
 }
 
 const MEMO_TTL_MS = 2_000
-let memo: { at: number; epoch: number; decision: ComputedDefault } | null = null
+let memo: { at: number; epoch: number; catalogue: number; decision: ComputedDefault } | null = null
 
 export function resetComputedDefaultMemo(): void {
   memo = null
@@ -393,8 +401,11 @@ export function resetComputedDefaultMemo(): void {
 
 export function computedDefault(): ComputedDefault {
   const epoch = signInLedgerEpoch()
+  const catalogue = catalogueEpoch()
   const now = Date.now()
-  if (memo !== null && memo.epoch === epoch && now - memo.at < MEMO_TTL_MS) return memo.decision
+  if (memo !== null && memo.epoch === epoch && memo.catalogue === catalogue && now - memo.at < MEMO_TTL_MS) {
+    return memo.decision
+  }
   if (walkingPicker) {
     return evaluateComputedDefault({
       credentials: [],
@@ -405,6 +416,6 @@ export function computedDefault(): ComputedDefault {
   }
   const facts = gatherComputedDefaultFacts()
   const decision = evaluateComputedDefault(facts)
-  if (!facts.degraded) memo = { at: now, epoch, decision }
+  if (!facts.degraded) memo = { at: now, epoch, catalogue, decision }
   return decision
 }

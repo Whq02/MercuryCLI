@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "high-context-fill-renewal",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "A bounded implementation dispatched from a nearly-full context",
     "title": "Add input validation to the upload endpoint",

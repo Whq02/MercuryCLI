@@ -29,7 +29,7 @@
 | REPL cockpit (direct boot / --continue / --resume <id>) | `src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (-p · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 80)
+## Slash routes — modal-slot views (local-jsx: 78)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -48,7 +48,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /capabilities | — | `src/commands/capabilities` |
 | /capabilities-detail | — | `src/commands/capabilities-detail` |
 | /cards | — | `src/commands/cards` |
-| /chat | — | `src/commands/chat` |
 | /cockpit | irow | `src/commands/cockpit` |
 | /color | — | `src/commands/color` |
 | /config | — | `src/commands/config` |
@@ -60,7 +59,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /daemon | — | `src/commands/daemon` |
 | /defaultprovider | — | `src/commands/defaultprovider` |
 | /diff | — | `src/commands/diff` |
-| /effort | irow | `src/commands/effort` |
+| /effort | — | `src/commands/effort` |
 | /exit | — | `src/commands/exit` |
 | /export | — | `src/commands/export` |
 | /extensions | panes | `src/commands/extensions` |
@@ -95,7 +94,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /run | irow | `src/commands/run` |
 | /sandbox | — | `src/commands/sandbox-toggle` |
 | /saturn | irow | `src/commands/saturn` |
-| /scribe-promote | — | `src/commands/scribe-promote` |
 | /session | irow | `src/commands/session` |
 | /sessions | irow | `src/commands/sessions` |
 | /sessiontab | — | `src/commands/sessiontab` |
@@ -126,6 +124,6 @@ the interaction primitives the view actually mounts (1-hop join).
 
 `/init` · `/review` · `/verify`
 
-## Other route types (7)
+## Other route types (5)
 
-`/all` (text) · `/batch` (text) · `/crew` (text) · `/party` (text) · `/pr-comments` (text) · `/project_areas` (asyncAgent) · `/security-review` (addRules)
+`/crew` (text) · `/party` (text) · `/pr-comments` (text) · `/project_areas` (asyncAgent) · `/security-review` (addRules)

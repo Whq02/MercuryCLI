@@ -1,5 +1,5 @@
 import { appendFileSync } from 'node:fs'
-import { drainScribeDispatches } from '../../../src/daemon/scribeDispatchBridge.ts'
+import { drainDispatches } from '../../../src/daemon/dispatchDrain.ts'
 
 const teamName = process.env.RELIA_TEAMNAME
 const actLog = process.env.RELIA_ACT_LOG
@@ -17,9 +17,9 @@ const roster = {
     return true
   },
 }
-await drainScribeDispatches(roster as never, {
-  short: 'implementer',
-  agentName: 'implementer',
+await drainDispatches(roster as never, {
+  short: 'worker',
+  agentName: 'worker',
   teamName,
   hasSeen: id => seen.has(id),
   markSeen: id => seen.add(id),

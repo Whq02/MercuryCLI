@@ -57,12 +57,10 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'SendMessage governance', symbol: 'canDirect' },
   { cap: 'Honesty-gated handoff', symbol: 'recordHandoff' },
   { cap: 'Skill discovery (getSkillToolCommands)', symbol: 'getSkillToolCommands' },
-  { cap: 'Scribe candidate ratify (the fixed BROKEN loop)', symbol: 'promoteScribeCandidate' },
-  { cap: 'List scribe candidates', symbol: 'listScribeCandidates' },
   { cap: 'render_tui MCP render-verify tool', symbol: 'renderTui' },
 ]
 
-const COMMANDS = ['cockpit', 'help', 'verify', 'workflows', 'scribe-promote']
+const COMMANDS = ['cockpit', 'help', 'verify', 'workflows']
 
 let fail = 0
 const commandsTs = readFileSync(resolve(REPO, 'src/commands.ts'), 'utf8')
@@ -95,7 +93,6 @@ const commandFiles = [
   'src/commands/help/index.ts',
   'src/commands/verify.ts',
   'src/commands/workflows/index.ts',
-  'src/commands/scribe-promote/index.ts',
 ]
 for (const f of commandFiles) {
   if (existsSync(resolve(REPO, f))) console.log(`  ✓ ${f} exists`)

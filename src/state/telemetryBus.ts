@@ -16,13 +16,10 @@ import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getGitState, type GitRepoState } from '../utils/git.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
 import { getTaskListId, listTasks, onTasksUpdated, type Task } from '../utils/tasks.js'
 import {
-  daemonRosterSnapshot,
   fleetGauge,
   traceSnapshot,
-  type RosterSnapshot,
 } from '../utils/cockpit/index.js'
 import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
@@ -46,7 +43,6 @@ export interface TelemetrySnapshots {
   fleet: { state: string; team?: string | null; conflicts: number; drifting: number }
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
-  implRoster: RosterSnapshot | null
   workflowsDisk: Array<WorkflowRunManifest & { mtimeMs: number }>
   crew: CrewGlanceMember[] | null
   refreshedAt: number
@@ -59,7 +55,6 @@ let snapshots: TelemetrySnapshots = {
   fleet: { state: 'off', conflicts: 0, drifting: 0 },
   fleetFull: null,
   trace: null,
-  implRoster: null,
   workflowsDisk: [],
   crew: null,
   refreshedAt: 0,
@@ -87,7 +82,6 @@ function emit(): void {
 
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
-  next.implRoster = null
   next.crew = null
   await Promise.all([
     getGitState()
@@ -125,13 +119,6 @@ async function refreshOnce(): Promise<void> {
         next.trace = s
       })
       .catch(() => {}),
-    isScribeModeOn()
-      ? daemonRosterSnapshot()
-          .then(s => {
-            next.implRoster = s
-          })
-          .catch(() => {})
-      : Promise.resolve(),
     crewEnabled()
       ? (async () => {
           const members = await listCrewMembers()

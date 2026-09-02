@@ -176,11 +176,6 @@ import { isEnvTruthy } from '../utils/envUtils.js';
 import { renderMessagesToPlainText } from '../utils/exportRenderer.js';
 import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE, type FileStateCache } from '../utils/fileStateCache.js';
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled, maybeGetTmuxMouseHint } from '../utils/fullscreen.js';
-import { isScribeModeOn } from '../utils/scribeMode.js';
-import { engageScribeSession } from '../utils/scribe/engageScribeSession.js';
-import { engageScribeTeam } from '../utils/scribe/engageScribeTeam.js';
-import { ensureScribeDaemon } from '../utils/scribe/ensureScribeDaemon.js';
-import { scribeChatroomEnabled } from '../utils/scribe/scribeGates.js';
 import type { PromptInputHelpers } from '../types/promptInputHelpers.js';
 import { formatCommandLoadingMetadata, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } from '../utils/processUserInput/processSlashCommand.js';
 import { addToHistory } from '../history.js';
@@ -680,15 +675,6 @@ export function REPL({
   }, [isLoading, pendingModelSwitch, setAppState, addNotification]);
 
   const messages = useFocusedTranscript();
-  const scribeMirrorRef = useRef<Message[] | null>(null);
-  useEffect(() => {
-    if (!isScribeModeOn()) return;
-    const next = messages;
-    const prev = scribeMirrorRef.current;
-    if (next === prev) return;
-    scribeMirrorRef.current = next;
-    setAppState(state => ({ ...state, scribeTranscript: next }));
-  }, [messages, setAppState]);
   const [conversationId, setConversationId] = useState<string>(() => focusedConnector.sessionId());
   const [toolJSX, setToolJSXState] = useState<ToolJSXState>(null);
   const setToolJSX: SetToolJSXFn = useCallback(next => {
@@ -1355,15 +1341,6 @@ export function REPL({
         })
         .catch(() => {});
     }, 0);
-    if (isScribeModeOn()) {
-      try {
-        engageScribeSession(store);
-        engageScribeTeam(store);
-        ensureScribeDaemon(getProjectRoot());
-      } catch (error) {
-        logForDebugging(`scribe engagement failed: ${String(error)}`);
-      }
-    }
     setTimeout(() => {
       void import('../utils/model/contextWindowWarmup.js')
         .then(m => m.warmContextWindowSources())

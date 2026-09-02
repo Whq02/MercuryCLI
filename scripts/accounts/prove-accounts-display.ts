@@ -7,6 +7,10 @@ import {
   readScopeIdentity,
 } from '../../src/utils/accounts/scopeScan.js'
 
+process.env.NODE_ENV = 'test'
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+
 let fail = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
@@ -18,32 +22,55 @@ const id = (uuid: string, email: string): string =>
 console.log('prove-accounts-display — available accounts, deduped, honestly resolved')
 
 const home = mkdtempSync(join(tmpdir(), 'accounts-display-'))
+process.env.MERCURY_CONFIG_DIR = home
 try {
   mkdirSync(join(home, '.claude'), { recursive: true })
   mkdirSync(join(home, '.claude-account-b'), { recursive: true })
   writeFileSync(join(home, '.claude', '.claude.json'), id('uuid-user-a', 'user-a@example.com'))
   writeFileSync(join(home, '.claude.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
   writeFileSync(join(home, '.claude-account-b', '.claude.json'), id('uuid-raverner', 'raverner.gaming@gmail.com'))
+  const stored = { storedLogin: () => true }
+  const absent = { storedLogin: () => false }
 
-  console.log('\n── probeScopeAuth: the dir-scoped snapshot is the ONE identity source')
-  const foreign = probeScopeAuth(join(home, '.claude'))
-  check('the scope dir resolves its DIR-SCOPED login', foreign.authed && foreign.uuid === 'uuid-user-a', JSON.stringify(foreign))
+  console.log('\n── probeScopeAuth: the dir-scoped snapshot is the identity source; the STORE is the sign-in')
+  const foreign = probeScopeAuth(join(home, '.claude'), stored)
+  check("a stored login + its DIR-SCOPED snapshot ⇒ signed in, the snapshot's identity", foreign.authed && foreign.uuid === 'uuid-user-a', JSON.stringify(foreign))
   check('email carried', foreign.email === 'user-a@example.com')
+  const outlived = probeScopeAuth(join(home, '.claude'), absent)
+  check('a snapshot with NO stored login ⇒ SIGNED OUT, the identity still labelled (never a login)',
+    !outlived.authed && outlived.uuid === 'uuid-user-a' && outlived.email === 'user-a@example.com', JSON.stringify(outlived))
 
   console.log('\n── no top-level fallback: another harness\'s rewritable file never answers')
   rmSync(join(home, '.claude', '.claude.json'))
-  const fell = probeScopeAuth(join(home, '.claude'))
-  check('snapshot missing ⇒ signed-out (the top-level file is never consulted)', !fell.authed && fell.uuid === undefined, JSON.stringify(fell))
+  const fell = probeScopeAuth(join(home, '.claude'), absent)
+  check('snapshot missing ⇒ no identity, signed out (the top-level file is never consulted)', !fell.authed && fell.uuid === undefined && fell.email === undefined, JSON.stringify(fell))
+  const loginOnly = probeScopeAuth(join(home, '.claude'), stored)
+  check('a stored login with no snapshot ⇒ signed in, identity unknown (never the top-level file)', loginOnly.authed && loginOnly.uuid === undefined && loginOnly.email === undefined, JSON.stringify(loginOnly))
   writeFileSync(join(home, '.claude', '.claude.json'), '{not json')
-  const malformed = probeScopeAuth(join(home, '.claude'))
-  check('malformed snapshot ⇒ signed-out (a state, not a crash; never the top-level file)', !malformed.authed && malformed.uuid === undefined)
+  const malformed = probeScopeAuth(join(home, '.claude'), absent)
+  check('malformed snapshot ⇒ no identity (a state, not a crash; never the top-level file)', !malformed.authed && malformed.uuid === undefined)
   writeFileSync(join(home, '.claude', '.claude.json'), id('uuid-user-a', 'user-a@example.com'))
 
-  console.log('\n── credential-file arm (non-keychain platforms)')
+  console.log("\n── the default store read: the scope's OWN credential store, in isolation")
   mkdirSync(join(home, '.claude-account-c'), { recursive: true })
   writeFileSync(join(home, '.claude-account-c', '.credentials.json'), '{}')
-  const credOnly = probeScopeAuth(join(home, '.claude-account-c'))
-  check('credfile-only scope reads authed (no uuid)', credOnly.authed && credOnly.uuid === undefined)
+  const emptyStore = probeScopeAuth(join(home, '.claude-account-c'))
+  check('a credential file holding no claude.ai login is NOT a sign-in (the file-presence heuristic is dead)', !emptyStore.authed && emptyStore.uuid === undefined, JSON.stringify(emptyStore))
+  writeFileSync(
+    join(home, '.claude-account-c', '.credentials.json'),
+    JSON.stringify({
+      claudeAiOauth: {
+        accessToken: 'fixture-access-token-000000000001',
+        refreshToken: 'fixture-refresh-token-00000000001',
+        expiresAt: Date.now() + 3_600_000,
+        scopes: ['user:inference', 'user:profile'],
+        subscriptionType: 'max',
+        rateLimitTier: null,
+      },
+    }),
+  )
+  const storedOnly = probeScopeAuth(join(home, '.claude-account-c'))
+  check('a stored claude.ai login reads signed in through the audited scoped reader (no uuid without a snapshot)', storedOnly.authed && storedOnly.uuid === undefined, JSON.stringify(storedOnly))
 
   check('readScopeIdentity: absent file ⇒ {}', readScopeIdentity(join(home, 'nope.json')).uuid === undefined)
 
@@ -61,10 +88,12 @@ try {
   const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
   check('backspace signs out — the home dir is never deleted',
     slotsSrc.includes('The home dir itself is') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
-  check('identity is live-verified (credential-derived, not snapshot-only)',
-    src.includes('resolveLiveScopeIdentity') && src.includes('verified live'))
-  check("'this session' is gated on isCurrent",
-    src.includes("s.isCurrent ? 'this session' : ''"))
+  check('identity is live-verified (credential-derived, not snapshot-only); the board paints the seam\'s ONE row composer',
+    src.includes('resolveLiveScopeIdentity') && src.includes('scopeSlotTail(state, id, slot)') && slotsSrc.includes('verified live'))
+  check('the scope row carries no scope facts; the This-session grid does',
+    !src.includes("'this session'") && src.includes("{ k: 'scope'") && src.includes('tail = scopeSlotTail(state, id, slot)'))
+  check('the absent row paints the one template (no per-family prose survives on the board)',
+    src.includes('tail = familyAbsentWords(row.family.id)') && !src.includes('FAMILY_CONNECT_ROUTES') && !src.includes('not connected · ↵ opens Logins'))
   const loginSrc = readFileSync(join(import.meta.dir, '../../src/commands/login/login.tsx'), 'utf8')
   const flowSrc = readFileSync(join(import.meta.dir, '../../src/components/ConsoleOAuthFlow.tsx'), 'utf8')
   check('/logins huggingface (and hf) pre-focus the Hugging Face row',

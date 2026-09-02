@@ -49,8 +49,6 @@ const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
   ['dynamic:brief', 'src/tools/BriefTool/prompt.ts'],
   ['wrapper:identity-floor', 'src/prompt/mercuryContract.ts'],
   ['wrapper:mercury-doctrine', 'src/prompt/mercuryContract.ts'],
-  ['mode:mode-scribe', 'src/utils/scribe/scribePack.ts'],
-  ['mode:mode-implementer', 'src/utils/scribe/implementerPack.ts'],
   ['mode:mode-autopilot', 'src/utils/autopilot/autopilotPrompt.ts'],
   ['mode:mode-apollo', 'src/prompt/apolloMode.ts'],
   ['mode:mode-vulcan', 'src/utils/vulcan/vulcanGates.ts'],

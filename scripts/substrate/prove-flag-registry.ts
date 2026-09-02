@@ -111,7 +111,7 @@ check(
 )
 
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
-const optOutSample = ['MERCURY_SCRIBE_BUS_LIVE', 'MERCURY_SCRIBE_MODE', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_SCRIBE_CHATROOM']
+const optOutSample = ['MERCURY_DAEMON_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER']
 for (const env of optOutSample) {
   delete process.env[env]
   const on = flagEnabled(env)
@@ -138,7 +138,7 @@ section('§3b default-on OFF vocabulary (falsy spellings all close the door)')
   check(`${env}: re-unset ⇒ ON`, flagEnabled(env))
 }
 
-const optInSample = ['MERCURY_SCRIBE_TASK_ROUTER', 'MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_CLASSIFIER_LLM', 'MERCURY_CLAUDEAI_MCP', 'MERCURY_RELEVANT_RECALL']
+const optInSample = ['MERCURY_AUTOPILOT', 'MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_CLASSIFIER_LLM', 'MERCURY_CLAUDEAI_MCP', 'MERCURY_RELEVANT_RECALL']
 for (const env of optInSample) {
   const spec = FLAG_REGISTRY.find(f => f.env === env)
   if (spec?.kind !== 'opt-in') {
@@ -154,11 +154,11 @@ for (const env of optInSample) {
 }
 let threw = false
 try {
-  flagEnabled('MERCURY_SCRIBE_MODEL')
+  flagEnabled('MERCURY_DAEMON_OWNER_PID')
 } catch {
   threw = true
 }
-check("value flags refuse flagEnabled (MERCURY_SCRIBE_MODEL throws)", threw)
+check("value flags refuse flagEnabled (MERCURY_DAEMON_OWNER_PID throws)", threw)
 
 section('§3c the registry reader honours the MERCURY_* spelling only')
 {
@@ -294,7 +294,7 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
     .split('\n')
     .filter(Boolean)
   check('no registry reader takes a retired-swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
-  const gates = readFileSync(join(root, 'src/utils/scribe/scribeGates.ts'), 'utf8')
+  const gates = readFileSync(join(root, 'src/utils/workerRole.ts'), 'utf8')
   const spawn = readFileSync(join(root, 'src/daemon/headlessRun.ts'), 'utf8')
   const membersOf = (src: string): Set<string> => {
     const m = src.match(/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[([^\]]*)\]/)
@@ -302,8 +302,12 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
   }
   const sameFive = (s: Set<string>): boolean =>
     s.size === RETIRED_SWEPT_SPELLINGS.size && [...s].every(v => RETIRED_SWEPT_SPELLINGS.has(v))
-  check('scribeGates sweeps exactly the five retired spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
-  check('headlessRun sweeps exactly the five retired spellings', sameFive(membersOf(spawn)))
+  check('workerRole sweeps exactly the five retired spellings (breadth never silently shrinks)', sameFive(membersOf(gates)))
+  check(
+    'headlessRun imports the roster from workerRole (one owner, never a second literal)',
+    /import \{ LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS \} from '\.\.\/utils\/workerRole\.js'/.test(spawn) &&
+      !/RETIRED_SEAT_ENV_VARS[^=]*=\s*\[/.test(spawn),
+  )
   check(
     'assertSingleRole reads the retired list RAW (process.env), the live roles through flagEnv',
     /RETIRED_SEAT_ENV_VARS\.filter\(v => process\.env\[v\] === '1'\)/.test(gates) &&
@@ -371,7 +375,7 @@ section('§7 swept-spelling totality — retired spellings never ride a registry
     ['point-free map', `const BAD = [${retiredLiteral}]\nconst vals = BAD.map(flagEnv)`, true],
     ['for-of, reader on the loop variable', `const BAD = [${retiredLiteral}]\nfor (const v of BAD) if (flagEnv(v) === '1') n++`, true],
     ['for-of, the name as a LATER argument', `const BAD = [${retiredLiteral}]\nfor (const v of BAD) {\n  stampFlagOnEnv(env, v, '1')\n}`, true],
-    ['spread into a fed array (transitive)', `const RET = [${retiredLiteral}]\nconst LIVE = ['MERCURY_SCRIBE']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
+    ['spread into a fed array (transitive)', `const RET = [${retiredLiteral}]\nconst LIVE = ['MERCURY_CREW']\nconst ALL = [...LIVE, ...RET]\nconst sp = ALL.flatMap(flagSpellings)`, true],
     ['clean: a RAW process.env sweep', `const RET = [${retiredLiteral}]\nconst set = RET.filter(v => process.env[v] === '1')\nfor (const v of RET) delete env[v]`, false],
   ]
   for (const [label, text, expectFed] of shapes) {

@@ -15,11 +15,6 @@ import {
   withContext1m,
 } from '../utils/model/modelOptions.js'
 import { getPublicModelDisplayName } from '../utils/model/model.js'
-import { resolveScribeSeat } from '../utils/model/seatSlots.js'
-import {
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-} from '../utils/scribeMode.js'
 import {
   type EffortLevel,
   type EffortValue,
@@ -37,11 +32,6 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 
 const VISIBLE_OPTIONS = 10
 
-const ROUTER_SENTINELS = new Set<string>([
-  SCRIBE_ROUTER_OPTION_VALUE,
-  SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE,
-])
-
 export type Props = {
   initial: string | null
   sessionModel?: string | null
@@ -54,9 +44,6 @@ export type Props = {
 
 function initialContextToggle(value: string | null): boolean {
   if (value === null) return false
-  if (value === SCRIBE_ROUTER_OPTION_VALUE) {
-    return stripContext1m(resolveScribeSeat().model) !== resolveScribeSeat().model
-  }
   return stripContext1m(value) !== value
 }
 
@@ -107,12 +94,8 @@ export function ModelPicker({
     initialContextToggle(focusDefault),
   )
 
-  const focusedIsRouter =
-    focusedValue !== null && ROUTER_SENTINELS.has(focusedValue)
   const focusedModel =
-    focusedValue !== null && !focusedIsRouter
-      ? stripContext1m(focusedValue)
-      : null
+    focusedValue !== null ? stripContext1m(focusedValue) : null
   const focusedSupportsEffort =
     focusedModel !== null && modelSupportsEffort(focusedModel)
   const focusedSupports1m = focusedOptionSupports1m(focusedValue)
@@ -123,7 +106,7 @@ export function ModelPicker({
       setContextToggle(initialContextToggle(value))
       if (!effortToggled && toPersistableEffort(appStateEffort) === undefined) {
         setEffortLevel(
-          value !== null && !ROUTER_SENTINELS.has(value)
+          value !== null
             ? toPersistableEffort(
                 getDefaultEffortForModel(stripContext1m(value)),
               )
@@ -155,19 +138,6 @@ export function ModelPicker({
 
   const handleSelect = useCallback(
     (value_0: string | null) => {
-      if (value_0 === SCRIBE_ROUTER_WORKFLOWS_OPTION_VALUE) {
-        onSelect(value_0, undefined)
-        return
-      }
-      if (value_0 === SCRIBE_ROUTER_OPTION_VALUE) {
-        const withRider =
-          contextToggle && focusedOptionSupports1m(value_0)
-            ? withContext1m(value_0)
-            : value_0
-        onSelect(withRider, undefined)
-        return
-      }
-
       const chosen =
         value_0 !== null &&
         contextToggle &&
@@ -218,7 +188,7 @@ export function ModelPicker({
   const exitState = useExitOnCtrlCDWithKeybindings(() => onCancel?.())
 
   const effortRow = ((): React.ReactNode => {
-    if (focusedIsRouter || focusedModel === null) return null
+    if (focusedModel === null) return null
     if (!focusedSupportsEffort) {
       return (
         <Text dimColor>

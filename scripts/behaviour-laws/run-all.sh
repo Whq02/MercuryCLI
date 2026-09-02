@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/prompt/** src/constants/prompts.ts src/utils/scribe/** scripts/behaviour-laws/**
+# gate-watch: src/prompt/** src/constants/prompts.ts scripts/behaviour-laws/**
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 

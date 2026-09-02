@@ -329,7 +329,7 @@ export function SessionMirror({
               {derived.collapsed.map((m, i) => (
                 <NameplateContinuationContext.Provider
                   key={m.uuid}
-                  value={isAssistantContinuationRow(derived.collapsed, i, false)}
+                  value={isAssistantContinuationRow(derived.collapsed, i)}
                 >
                   {
 }
