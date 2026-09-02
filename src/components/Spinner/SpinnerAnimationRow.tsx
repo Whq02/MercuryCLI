@@ -26,6 +26,7 @@ import {
   nextThinkingSpan,
   thinkingPostscript,
 } from './pulseByline.js'
+import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
 import { teammateRole } from '../tasks/taskStatusUtils.js'
@@ -248,7 +249,7 @@ export function SpinnerAnimationRow(
   const inThinking = pulseOpen
     ? displayedPhase === 'thinking'
     : mode === 'thinking'
-  const thinkingLabelFull = `thinking${effortSuffix ?? ''}`
+  const thinkingLabelFull = `${THINKING_WORD}${effortSuffix ?? ''}`
   const message = phaseByline ?? messageProp
   const messageWidth = stringWidth(message) + 2
   const separatorWidth = 3
@@ -340,7 +341,7 @@ export function SpinnerAnimationRow(
   }
   if (wantsThinking && thinkingText !== null) {
     if (!admit({ key: 'thinking', text: thinkingText, kind: 'thinking' })) {
-      admit({ key: 'thinking', text: 'thinking', kind: 'thinking' })
+      admit({ key: 'thinking', text: THINKING_WORD, kind: 'thinking' })
     }
   }
   if (metaGate && effectiveElapsedMs >= 1000) {
@@ -401,7 +402,8 @@ export function SpinnerAnimationRow(
     (Math.sin((time / THINKING_SHIMMER_PERIOD_MS) * Math.PI * 2) + 1) / 2
   const metaColor = (segment: Segment): string | undefined => {
     if (segment.kind === 'waiting') return theme.warning
-    if (segment.kind === 'thinking' && shimmerActive) {
+    if (segment.kind === 'thinking') {
+      if (!shimmerActive) return THINKING_COLOR
       const grey = Math.round(120 + shimmerPhase * 60)
       return `rgb(${grey},${grey},${grey})`
     }
@@ -456,7 +458,7 @@ export function SpinnerAnimationRow(
     )
   }
   const metaGroup = !metaVisible ? null : onlyThinking && !gaugesVisible ? (
-    <Text dimColor={!shimmerActive} color={metaColor(ordered[0]!)}>
+    <Text color={metaColor(ordered[0]!)}>
       ({ordered[0]!.text})
     </Text>
   ) : (
