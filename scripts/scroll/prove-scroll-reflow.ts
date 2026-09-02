@@ -6,7 +6,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { paneSigs, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
+import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -201,7 +201,7 @@ function runCell(cell: Cell): void {
     `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}`)
   const postGrids = [marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid]
   const postRuler = positionRuler(postGrids)
-  const region = postGrids.reduce((best, g) => Math.max(best, viewportRows(g)), 0)
+  const region = regionOf([marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid])
   const bounds = stepBounds(region)
   const pQ1 = postRuler(marks.get('q01')!.grid)
   const pQ2 = postRuler(marks.get('q02')!.grid)
