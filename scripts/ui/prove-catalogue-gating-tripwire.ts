@@ -235,6 +235,11 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
     const text = (g: Array<Array<{ c: string }>>): string => g.map(row => row.map(c => c.c).join('')).join('\n')
     gridText = [...(payload.marks ?? []).map(m => text(m.grid)), payload.grid ? text(payload.grid) : ''].join('\n')
   }
+  if (res.status !== 0 && gridText !== '') {
+    const rows = gridText.split('\n').map(r => r.trimEnd()).filter(r => r.length > 0)
+    console.log(`  the frame the drive ended on (last ${Math.min(14, rows.length)} non-empty rows):`)
+    for (const row of rows.slice(-14)) console.log(`    ${row.slice(0, 116)}`)
+  }
   return { status: res.status, gridText, stderr: (res.stderr ?? '').trim() }
 }
 const seededHome = (name: string): string => {
@@ -275,14 +280,14 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { afterPrevTicks: 15, mark: 'settled', data: '' },
     ],
     70,
     {},
   )
-  check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('CHOOSE A MODEL'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
+  check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('Mercury — model'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
   check('ZERO catalogue requests from the signed-out picker (count 0)', catalogue.length === 0, catalogue.join(' · '))
@@ -313,7 +318,7 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { requireAwait: true, awaitText: 'catgate', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
@@ -358,7 +363,7 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { afterPrevTicks: 15, mark: 'settled', data: '' },
     ],
