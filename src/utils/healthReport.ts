@@ -1893,7 +1893,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'team-rosters',
-          label: 'Team roster cwds',
+          label: 'Agent group roster cwds',
           run: async () => {
             // Post-incident: a roster member whose cwd no longer
             // exists is the stray respawn loop waiting to happen — the spawn
