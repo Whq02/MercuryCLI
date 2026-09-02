@@ -10,10 +10,12 @@
 //      non-POSIX shells (incl. powershell — its name contains "sh") never
 //      get probed; probe failures fall back to the real process PATH.
 //   §2 UI-074 (already-correct, pinned): win32 ctrl+z never reaches a
-//      SIGSTOP route — SUPPORTS_SUSPEND gates the ONLY suspend dispatch and
-//      the ONLY SIGSTOP call site lives in the suspend handler. The
-//      SIGCONT/SIGPIPE registrations elsewhere are functional POSIX
-//      handlers, inert-but-harmless on win32 (census: intentional).
+//      self-stop route — SUPPORTS_SUSPEND gates the ONLY suspend dispatch and
+//      the ONLY self-stop call site (SIGTSTP, raised into the terminal
+//      host's stop owner) lives in the suspend handler. The SIGCONT/SIGPIPE
+//      registrations elsewhere are functional POSIX handlers, inert-but-
+//      harmless on win32 (census: intentional); the stop-signal listeners
+//      themselves are platform-gated at their owner.
 // ============================================================================
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -191,8 +193,9 @@ check('UI-074: SUPPORTS_SUSPEND is the platform gate',
   appTsx.includes("const SUPPORTS_SUSPEND = process.platform !== 'win32'"))
 check('UI-074: the ONLY ctrl+z suspend dispatch requires the gate',
   /item\.name === 'z' && item\.ctrl && SUPPORTS_SUSPEND/.test(appTsx))
-check('UI-074: exactly one SIGSTOP call site, inside the suspend handler',
-  (appTsx.match(/process\.kill\(process\.pid, 'SIGSTOP'\)/g) || []).length === 1)
+check('UI-074: exactly one self-stop call site (SIGTSTP into the stop owner), inside the suspend handler',
+  (appTsx.match(/process\.kill\(process\.pid, 'SIGTSTP'\)/g) || []).length === 1 &&
+    !appTsx.includes("'SIGSTOP'"))
 
 // §3: the rg integration re-resolves the CURRENT version at call time —
 // The old snapshot baked ONE absolute vendored path as a plain alias; a
