@@ -47,6 +47,7 @@ import {
   getSecureStorage,
   getUsername,
 } from './secureStorage/index.js'
+import { keychainReachable } from './secureStorage/macOsKeychainHelpers.js'
 import { getApiKeyHelperFromOutsideCheckoutSources, getSettingsForSource, getSettings_DEPRECATED } from './settings/settings.js'
 import { clearToolSchemaCache } from './toolSchemaCache.js'
 import {
@@ -528,7 +529,10 @@ export const getApiKeyFromConfigOrMacOSKeychain = memoize((): string | null => {
 
 function readManagedKey(): string | null {
   if (isBareMode()) return null
-  if (process.platform === 'darwin') {
+  // The one rule (keychainReachable): off darwin, or with the credential
+  // store pinned to the file backend, the managed key lives in the config
+  // estate alone and the keychain tool is never spawned.
+  if (keychainReachable()) {
     const prefetch = getLegacyApiKeyPrefetchResult()
     if (prefetch !== null) {
       // A completed prefetch with no key falls through to config, NOT to a
@@ -566,7 +570,7 @@ export async function saveApiKey(key: string): Promise<void> {
     throw new Error('Invalid API key format: only letters, digits, dashes and underscores are allowed')
   }
   // Remove any existing keychain entry (swallow + log its failure).
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     try {
       const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
       await maybeRemoveApiKeyFromMacOSKeychainThrows()
@@ -574,8 +578,11 @@ export async function saveApiKey(key: string): Promise<void> {
       logError(error)
     }
   }
+  // Under the file pin the write is never attempted, so the key lands in
+  // the config estate below — a scratch-home proof saving a fixture key
+  // leaves no entry in the machine's keychain.
   let keychainWritten = false
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     keychainWritten = writeKeychainHexStdin(key)
   }
   saveGlobalConfig(current => {
@@ -617,7 +624,7 @@ function writeKeychainHexStdin(key: string): boolean {
 }
 
 export async function removeApiKey(): Promise<void> {
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     try {
       const { maybeRemoveApiKeyFromMacOSKeychainThrows } = await import('./authPortable.js')
       await maybeRemoveApiKeyFromMacOSKeychainThrows()
