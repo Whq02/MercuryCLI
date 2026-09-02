@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useEffect, useRef } from 'react'
+import { McpRosterCard } from '../../components/mcp/McpRosterCard.js'
 import { MCPReconnect } from '../../components/mcp/MCPReconnect.js'
 import { MCPSettings } from '../../components/mcp/MCPSettings.js'
 import type {
@@ -77,8 +78,11 @@ export async function call(
   const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
   const roster = getFocusedSessionConnector().mcpRoster()
   if (mcpRouteArm(roster, context.getAppState().mcp.clients.length) === 'facts') {
-    onDone(mcpRosterLine(roster))
-    return null
+    if (roster.clients.length === 0) {
+      onDone(mcpRosterLine(roster))
+      return null
+    }
+    return <McpRosterCard roster={roster} onDone={onDone} />
   }
   return <MCPSettings onComplete={onDone} />
 }

@@ -133,11 +133,22 @@ export function markDraining(commands: readonly QueuedCommand[]): void {
 let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
-export function rekeyCommandQueueToSession(sessionId: string | null): void {
+export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { landing?: boolean }): void {
   const prevKey = owningSessionId ?? getSessionId()
   const nextKey = sessionId ?? getSessionId()
   owningSessionId = sessionId
   if (nextKey === prevKey) return
+  if (opts?.landing === true) {
+    const returning = parkedQueues.get(nextKey)
+    if (returning !== undefined) {
+      parkedQueues.delete(nextKey)
+      if (returning.length > 0) {
+        queue.push(...returning)
+        commit()
+      }
+    }
+    return
+  }
   let moved = false
   const parked: QueuedCommand[] = []
   for (let i = queue.length - 1; i >= 0; i--) {
