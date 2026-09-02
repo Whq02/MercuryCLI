@@ -18,6 +18,7 @@ import {
   type ModelOption,
   focusedOptionSupports1m,
   getModelOptions,
+  isCatalogueDoorRow,
   resolvesToExistingOption,
   stripContext1m,
   withContext1m,
@@ -74,7 +75,9 @@ export function ModelPicker({
     // /model catalogue-surface feature; this inline quick-switcher lists only
     // selectable rows — listing a row ↵ would refuse breaks the never-
     // selectable law here (this select has no disabled-row state).
-    const catalogue = getModelOptions().filter(o => o.unavailable === undefined)
+    // The catalogue doors live on the /model surface (they expand a group
+    // in place with a filter line); this popover keeps its bounded view.
+    const catalogue = getModelOptions().filter(o => o.unavailable === undefined && !(typeof o.value === 'string' && isCatalogueDoorRow(o.value)))
     if (
       initial !== null &&
       !resolvesToExistingOption(catalogue, initial) &&
