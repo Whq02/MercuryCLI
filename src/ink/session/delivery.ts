@@ -94,6 +94,12 @@ function serializePatches(diff: Diff): string {
   return out
 }
 
+export function streamTakesWrites(
+  stream: { destroyed?: boolean; writable?: boolean; writableEnded?: boolean },
+): boolean {
+  return stream.destroyed !== true && stream.writableEnded !== true && stream.writable !== false
+}
+
 export function writeDiffToTerminal(
   terminal: Terminal,
   diff: Diff,
