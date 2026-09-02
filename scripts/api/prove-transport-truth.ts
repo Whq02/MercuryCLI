@@ -90,16 +90,23 @@ const PROBE_PRELUDE = `
     }
   `)
   check('node child ran the paired live probe', paired.status === 0 && !paired.ok, paired.stderr)
-  check(
-    'our connect budget governs under Node (≪ the 10s default)',
-    typeof paired.ms === 'number' && paired.ms < 5_000,
-    `${paired.ms}ms`,
-  )
-  check(
-    'deepest code names the transport class',
-    paired.code === 'UND_ERR_CONNECT_TIMEOUT',
-    String(paired.code),
-  )
+  const NO_ROUTE = new Set(['ENETUNREACH', 'EHOSTUNREACH', 'ENETDOWN'])
+  if (NO_ROUTE.has(String(paired.code))) {
+    console.log(
+      `  – [SKIP] connect-budget + transport-class legs — no route to TEST-NET-1 from this box (${paired.code}); both pins need an outbound route`,
+    )
+  } else {
+    check(
+      'our connect budget governs under Node (≪ the 10s default)',
+      typeof paired.ms === 'number' && paired.ms < 5_000,
+      `${paired.ms}ms`,
+    )
+    check(
+      'deepest code names the transport class',
+      paired.code === 'UND_ERR_CONNECT_TIMEOUT',
+      String(paired.code),
+    )
+  }
 
   const crossed = runNodeProbe(`${PROBE_PRELUDE}
     try {

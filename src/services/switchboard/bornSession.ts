@@ -1,8 +1,7 @@
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
-import { birthModelOf, bootBirthFacts, carriedKitOf, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 
 export type BirthOutcome =
@@ -30,7 +29,8 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const facts = bootBirthFacts()
   const title = req.title !== undefined ? (req.title === null || req.title.trim() === '' ? null : req.title.trim()) : takeBootTitle()
   const worn = takeWornPresetKit()
-  const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())
+  const screen = screenBirthModel()
+  const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -39,7 +39,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         op: 'sessionAdmit',
         workspaceDir: req.workspaceDir,
         isolation: 'shared',
-        model,
+        ...(model !== undefined ? { model } : {}),
         bornBlank: true,
         ...(title !== null ? { title } : {}),
         ...(facts.effort !== null ? { effort: facts.effort } : {}),

@@ -8,6 +8,9 @@ export type LaunchMilestone =
   | 'route-ready'
   | 'first-frame'
   | 'input-live'
+  | 'chat-flipped'
+  | 'birth-landed'
+  | 'birth-refused'
 
 export interface LaunchMilestoneRowV1 {
   schema: 1

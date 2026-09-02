@@ -80,8 +80,10 @@ function runCapture(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
-    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
-    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_CRITTER_IDLE: '0',
+    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',
+    MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
   }
   delete env.VSHOT_ACTIVE
@@ -91,7 +93,16 @@ function runCapture(
   else delete env.VSHOT_TEE
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(120_000), stdio: 'pipe' })
   if (res.status !== 0) {
-    throw new Error(`vshot failed for ${leg}: ${res.stderr?.toString().slice(-400)}`)
+    let frame = ''
+    try {
+      if (existsSync(gridPath)) {
+        const ended = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid
+        const rows = ended.grid.map(row => row.map(c => c.c).join('').trimEnd()).filter(row => row.length > 0)
+        frame = `\n  the frame it ended on (last ${Math.min(12, rows.length)} non-empty rows):\n${rows.slice(-12).map(row => `    ${row.slice(0, 116)}`).join('\n')}`
+      }
+    } catch {
+    }
+    throw new Error(`vshot failed for ${leg}: ${res.stderr?.toString().slice(-400)}${frame}`)
   }
   const grid = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid
   const text = grid.grid.map(row => row.map(c => c.c).join(''))
