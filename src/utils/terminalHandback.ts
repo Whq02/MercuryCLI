@@ -73,6 +73,15 @@ export function setTerminalHandbackAddonForTest(addon: TtyAddon | null | undefin
   addonForTest = addon
 }
 
+// Proof seam: the descriptor the reclaim goes through — a number to force it,
+// 'none' to force the no-terminal branch, undefined for the real resolution.
+// A prover under a pipe has no controlling terminal of its own.
+let descriptorForTest: number | 'none' | undefined = undefined
+
+export function setTerminalHandbackDescriptorForTest(fd: number | 'none' | undefined): void {
+  descriptorForTest = fd
+}
+
 type AddonLookup = { addon: TtyAddon } | { addon: null; note: string }
 
 /** The native surface, lazily: the vendored pack through the one loader. */
@@ -88,6 +97,7 @@ function ttyAddon(): AddonLookup {
 /** The descriptor the reclaim goes through: stdout, else stdin, else
  *  /dev/tty opened for the call and closed after. */
 function terminalDescriptor(): { fd: number; release: () => void } | null {
+  if (descriptorForTest !== undefined) return descriptorForTest === 'none' ? null : { fd: descriptorForTest, release: () => {} }
   if (process.stdout.isTTY) return { fd: 1, release: () => {} }
   if (process.stdin.isTTY) return { fd: 0, release: () => {} }
   try {
