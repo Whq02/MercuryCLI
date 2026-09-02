@@ -16,7 +16,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { getAuthConfigHomeDir, getMercuryHome } from '../envUtils.js'
+import { getMercuryHome } from '../envUtils.js'
 
 export type ScopeIdentity = { uuid?: string; email?: string }
 
@@ -101,19 +101,19 @@ export function probeScopeAuth(
   }
 }
 
-/** The stored-login read: the resolved auth home reads through the ONE
- *  credential store the wire reads (its keychain cache keeps a render-path
- *  read cheap); any other dir reads in isolation through the audited scoped
- *  reader. A refusing store (a locked keychain, an unreadable file) reads as
- *  signed out — a state, never a throw. Call-time requires keep the module's
+/** The stored-login read: the resolved home (the one scope this session
+ *  bills) asks the credential owner's own presence predicate — the store the
+ *  wire reads, through its door (its keychain cache keeps a render-path read
+ *  cheap; the auth-scope seam stays the stores' own, never read here); any
+ *  other dir reads in isolation through the audited scoped reader. A
+ *  refusing store (a locked keychain, an unreadable file) reads as signed
+ *  out — a state, never a throw. Call-time requires keep the module's
  *  import graph the pure one the proof loads. */
 function storedLoginLive(dir: string): boolean {
   try {
-    if (resolve(dir) === resolve(getAuthConfigHomeDir())) {
-      const { getSecureStorage } =
-        require('../secureStorage/index.js') as typeof import('../secureStorage/index.js')
-      const token = getSecureStorage().read()?.claudeAiOauth?.accessToken
-      return typeof token === 'string' && token.length > 0
+    if (resolve(dir) === resolve(getMercuryHome())) {
+      const { hasStoredOAuthToken } = require('../auth.js') as typeof import('../auth.js')
+      return hasStoredOAuthToken()
     }
     const { readAccountOAuthCreds } =
       require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
