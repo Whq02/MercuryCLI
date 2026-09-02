@@ -148,10 +148,10 @@ section('§E the full journey, both postures — warning → offer/auto → cont
     check(`[${posture}] the anthropic resolver reads the cap as an OBSERVED rejected window`, capped.state === 'rejected' && capped.basis === 'observed', JSON.stringify(capped))
     const stay = decideCapReturn(posture, { window: capped.state, credentialUsable: true }, true)
     check(`[${posture}] home still capped ⇒ stay on the lane`, stay.kind === 'none')
-    const reset = ingest('clear')
-    check(`[${posture}] reset clears to allowed`, reset.status === 'allowed')
+    const reset = ingest('normal')
+    check(`[${posture}] the reset ingests as an allowed observation`, reset.status === 'allowed')
     const cleared = observedFamilyWindow('anthropic')
-    check(`[${posture}] the resolver reads the fresh clear as an OBSERVED allowed window`, cleared.state === 'allowed' && cleared.basis === 'observed', JSON.stringify(cleared))
+    check(`[${posture}] the resolver reads the fresh allowed reply as an OBSERVED allowed window`, cleared.state === 'allowed' && cleared.basis === 'observed', JSON.stringify(cleared))
     const back = decideCapReturn(posture, { window: cleared.state, credentialUsable: true }, true)
     check(
       `[${posture}] reset ⇒ posture-symmetric return (trigger 'reset')`,
@@ -161,6 +161,10 @@ section('§E the full journey, both postures — warning → offer/auto → cont
     )
     noteCapReturn()
     check(`[${posture}] the way home clears the note`, capHandoffState() === null)
+    const wiped = ingest('clear')
+    const afterWipe = observedFamilyWindow('anthropic')
+    check(`[${posture}] a wiped record (the gate closed) settles to allowed but reads 'unknown' — never a reset`, wiped.status === 'allowed' && afterWipe.state === 'unknown' && afterWipe.basis === 'none', JSON.stringify(afterWipe))
+    check(`[${posture}] …and no return fires on a wipe`, decideCapReturn(posture, { window: afterWipe.state, credentialUsable: true }, true).kind === 'none')
   }
 
   const rejOff = ingest('weekly-limit-reached')
@@ -179,8 +183,9 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   check("a sign-out of ANOTHER family leaves the note standing", capHandoffState()?.homeFamily === 'anthropic')
   clearCapHandoffForFamily('anthropic')
   check('a sign-out of the HOME family clears the handoff note', capHandoffState() === null)
+  ingest('normal')
+  check('the next wire observation re-arms the record', limits.claudeWindowObserved() === true && observedFamilyWindow('anthropic').basis === 'observed')
   ingest('clear')
-  check('the next observation re-arms the record', limits.claudeWindowObserved() === true)
   delete process.env.MERCURY_MOCK_LIMITS
 }
 
