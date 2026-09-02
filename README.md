@@ -190,9 +190,12 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
   [docs/THEMIS-CONTROL-PLANE.md](docs/THEMIS-CONTROL-PLANE.md)).
 - **Apollo Mode**: the pre-flight interview that writes the missing spec and
   builds a prototype from it ([docs/APOLLO-MODE.md](docs/APOLLO-MODE.md)).
-- **Editor bridges**: `/ide` and `mercury acp` for editors, in-editor
-  bridges into a running Unity, Blender or Godot editor, and a batch door
-  into Aseprite, each behind its own opt-in switch
+- **Editor bridges**: `mercury acp` for any Agent Client Protocol editor,
+  the VS Code extension (`mercury editor install`) that runs Mercury in
+  the editor and attaches a terminal session to it (`/ide`: selection,
+  diagnostics, native diffs), in-editor bridges into a running Unity,
+  Blender or Godot editor, and a batch door into Aseprite, each behind its
+  own opt-in switch
   ([docs/UNITY-BRIDGE.md](docs/UNITY-BRIDGE.md),
   [docs/BLENDER-BRIDGE.md](docs/BLENDER-BRIDGE.md),
   [docs/ASEPRITE-BRIDGE.md](docs/ASEPRITE-BRIDGE.md)).

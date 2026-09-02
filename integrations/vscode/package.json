@@ -1,11 +1,20 @@
 {
   "name": "mercury-vscode",
   "displayName": "Mercury",
-  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp --stdio). A thin bridge: no second agent runtime.",
+  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp --stdio), plus the bridge a Mercury session in the integrated terminal attaches to (selection, diagnostics, native diffs). A thin bridge: no second agent runtime.",
   "version": "0.1.0",
   "publisher": "mercury",
   "license": "SEE LICENSE IN LICENSE.txt",
   "private": true,
+  "homepage": "https://github.com/Whq02/PreRelease",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Whq02/PreRelease.git",
+    "directory": "integrations/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/Whq02/PreRelease/issues"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -13,7 +22,19 @@
     "AI",
     "Other"
   ],
-  "activationEvents": [],
+  "keywords": [
+    "mercury",
+    "agent",
+    "acp",
+    "agent client protocol",
+    "terminal"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
   "main": "./extension.js",
   "contributes": {
     "viewsContainers": {
@@ -45,6 +66,12 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "mercurySessions",
+        "contents": "No Mercury session in this window yet.\n[New Session](command:mercury.newSession)\n[Open in Mercury Terminal](command:mercury.openTerminal)\nThe bridge runs `mercury acp --stdio` from the `mercury.path` setting."
+      }
+    ],
     "commands": [
       { "command": "mercury.openChat", "title": "Mercury: Open Chat" },
       { "command": "mercury.newSession", "title": "Mercury: New Session" },
@@ -56,16 +83,87 @@
       { "command": "mercury.openArtifact", "title": "Mercury: Open Artifact" },
       { "command": "mercury.showReviewComments", "title": "Mercury: Show Review Comments" },
       { "command": "mercury.openTerminal", "title": "Mercury: Open in Mercury Terminal" },
+      { "command": "mercury.mentionInTerminal", "title": "Mercury: Send Selection to the Terminal Session" },
       { "command": "mercury.setMode", "title": "Mercury: Set Session Mode" },
+      { "command": "mercury.showLog", "title": "Mercury: Show Log" },
       { "command": "mercury.refreshViews", "title": "Mercury: Refresh Views" }
     ],
+    "keybindings": [
+      {
+        "command": "mercury.openChat",
+        "key": "ctrl+alt+m",
+        "mac": "cmd+alt+m"
+      },
+      {
+        "command": "mercury.askSelection",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "mercury.editSelection",
+        "key": "ctrl+alt+e",
+        "mac": "cmd+alt+e",
+        "when": "editorTextFocus && editorHasSelection"
+      },
+      {
+        "command": "mercury.mentionInTerminal",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "mercury.cancelTurn",
+        "key": "ctrl+alt+escape",
+        "mac": "cmd+alt+escape"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "mercury.askSelection",
+          "group": "mercury@1"
+        },
+        {
+          "command": "mercury.editSelection",
+          "when": "editorHasSelection",
+          "group": "mercury@2"
+        },
+        {
+          "command": "mercury.mentionInTerminal",
+          "group": "mercury@3"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "mercury.newSession",
+          "when": "view == mercurySessions",
+          "group": "navigation@1"
+        },
+        {
+          "command": "mercury.refreshViews",
+          "when": "view =~ /^mercury/",
+          "group": "navigation@2"
+        }
+      ]
+    },
     "configuration": {
       "title": "Mercury",
       "properties": {
         "mercury.path": {
           "type": "string",
           "default": "mercury",
-          "description": "The Mercury launcher (or `node /path/to/mercury.mjs`). The bridge runs `<path> acp --stdio`."
+          "description": "The Mercury launcher (or `node /path/to/mercury.mjs`). The bridge runs `<path> acp --stdio`; Open in Mercury Terminal runs `<path>`."
+        },
+        "mercury.liveContext": {
+          "type": "boolean",
+          "default": true,
+          "description": "Push the editor's state (active file, selection, open files, diagnostics, workspace folders) to the chat session as it changes, so the next prompt carries it. Off: only Ask/Edit Selection send editor context."
+        },
+        "mercury.terminalBridge": {
+          "type": "boolean",
+          "default": true,
+          "description": "Serve the terminal bridge: a Mercury session started in this window's integrated terminal attaches to the editor (its selection and diagnostics reach the session; its edits open as native diffs you accept or reject; /ide lists this window). Off: no advertisement file, no MERCURY_IDE_PORT in terminals."
         }
       }
     }
