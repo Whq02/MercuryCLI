@@ -58,7 +58,8 @@ console.log('§2 every family section rides the one grammar')
   check('every inactive present slot rides INACTIVE_SLOT_LINE (four slots)', (src.match(/: INACTIVE_SLOT_LINE/g) ?? []).length === 4, String((src.match(/: INACTIVE_SLOT_LINE/g) ?? []).length))
   // The retired spellings — the JSX bodies carry none of them (the
   // composer's own doc line names them as history).
-  const bodies = src.split('\n').filter(l => !l.trim().startsWith('*') && !l.trim().startsWith('//')).join('\n')
+  // The composer's own definition and doc lines are the one place the words may stand.
+  const bodies = src.split('\n').filter(l => !l.trim().startsWith('*') && !l.trim().startsWith('//') && !l.includes('INACTIVE_SLOT_LINE =')).join('\n')
   for (const stale of ['none connected —', 'none on this lane', 'none discovered —', 'none attached —', "'attached — not the active", "'connected — not the active", "'not the active billing source this session'"]) {
     check(`no section spells "${stale}" on its own`, !bodies.includes(stale))
   }
