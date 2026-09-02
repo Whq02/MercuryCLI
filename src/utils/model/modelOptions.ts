@@ -36,9 +36,9 @@ import {
 import { scribeModeEnabled } from '../scribe/scribeGates.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
-  NO_SIGN_IN_REASON,
   computedDefault,
   describeComputedDefaultRow,
+  keylessReason,
 } from './computedDefault.js'
 import {
   getBestModel,
@@ -673,7 +673,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     options = options.map(opt =>
       opt.group === undefined && opt.value === null
         ? decision.source === 'keyless'
-          ? { ...opt, unavailable: NO_SIGN_IN_REASON }
+          ? { ...opt, unavailable: keylessReason(decision) }
           : opt
         : opt.group === undefined && typeof opt.value === 'string' && !isSentinelValue(opt.value)
           ? { ...opt, unavailable: reason }
