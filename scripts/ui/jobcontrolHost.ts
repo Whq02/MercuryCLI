@@ -58,6 +58,11 @@ export function runJobControlHost(opts: {
   steps: HostStep[]
   env: NodeJS.ProcessEnv
   budgetSeconds?: number
+  /** The job's command line carries this (default: the bundle's file name)
+   *  — a proof may host another script under the job-control shell. */
+  bundleMarker?: string
+  /** The job's process title once it renames itself (default: mercury). */
+  bundleTitle?: string
 }): HostRun {
   const base = join(tmpdir(), `jobcontrol-${opts.tag}-${process.pid}`)
   const cfgPath = `${base}.cfg.json`
@@ -75,6 +80,8 @@ export function runJobControlHost(opts: {
       steps: opts.steps,
       tee: teePath,
       budgetSeconds: opts.budgetSeconds ?? 150,
+      ...(opts.bundleMarker ? { bundleMarker: opts.bundleMarker } : {}),
+      ...(opts.bundleTitle ? { bundleTitle: opts.bundleTitle } : {}),
     }),
   )
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'jobcontrol-host.py'), cfgPath, reportPath], {
