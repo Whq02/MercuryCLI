@@ -115,7 +115,10 @@ if (!only || only === 'splash') {
   const base: Record<string, string> = {
     MERCURY_SPLASH_ONESHOT: '1',
     TERM: 'xterm-256color',
-    MERCURY_LIVE_GLYPHS: '0',
+    MERCURY_CRITTER_IDLE: '0',
+    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',
+    MERCURY_LIVE_CLOCK: '0',
     MERCURY_LIVE_GLYPHS: '0',
   }
   for (const s of HOME_SPELLINGS) base[s] = home
