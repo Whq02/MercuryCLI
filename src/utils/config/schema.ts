@@ -631,6 +631,10 @@ export type GlobalConfig = {
   // PR review status in the footer (default on; feature-gate can override).
   prStatusFooterEnabled?: boolean
 
+  // Voice input (/speak on|off): v in an empty composer captures the
+  // microphone and the transcript lands in the composer. Default off.
+  voiceInputEnabled?: boolean
+
   // Epoch ms of the last background refresh pass (quota, passes, client
   // data). Throttled via mercury_cicada_nap_ms.
   startupPrefetchedAt?: number
