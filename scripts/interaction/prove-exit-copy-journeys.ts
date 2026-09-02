@@ -18,24 +18,29 @@
 //      the footer-truth pin, and the old `ctrl+c interrupt` spelling must
 //      be absent); ONE ctrl+c interrupts AND arms (the notice is the next
 //      await-gate), a second press inside the window closes Mercury. The
-//      busy legs (C, C2) drive a FRESH session born on the keyless proof
-//      home: a shell line needs no credential — the runner executes it in
-//      its own process without a model call — and a keyless birth admits a
-//      live runner. (A RESUMED session keeps the model it ran on; when the
-//      home holds no credential for it, re-admission refuses that model by
-//      name, so the session has no runner for its shell lines either — an
-//      admission road for a refused model is a design question outside
-//      this proof, which pins the live world.)
+//      busy legs (C, C2) drive a FRESH session born on a home seeded with
+//      a presence-only fixture key: a shell line needs no credential — the
+//      runner executes it in its own process without a model call — but a
+//      RUNNER is admitted only on a model whose family holds a credential,
+//      so the keyless shared home admits none (a resumed session keeps the
+//      model it ran on and is refused by name; a fresh birth is refused the
+//      same way). NAMED DEFERRAL: a keyless operator therefore has no seat
+//      for `!ls` today — an admission road that seats a runner without a
+//      credential and refuses only the first MODEL send by name is a design
+//      question for the operator, outside this proof, which pins the live
+//      world.
 //   D  the copy receipt on both trigger paths, via the standing scenarios:
 //      copy-receipt-select (drag-release copy-on-select) and
 //      copy-receipt-ctrlc (copy-on-select seeded OFF — the receipt can only
 //      come from plain ctrl+c with a selection); the ctrl+c leg also proves
 //      the press was CONSUMED by the copy (no exit notice on the grid).
 // ============================================================================
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from '../ui/renderScenarios.ts'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const CTRL_C = String.fromCharCode(3)
@@ -70,6 +75,7 @@ function drive(
   sends: Send[],
   total: number,
   readyText?: string,
+  envExtra: Record<string, string> = {},
 ): Payload | null {
   const cfg = { ...base, sends, total } as Record<string, unknown>
   if (readyText !== undefined) cfg['readyText'] = readyText
@@ -85,10 +91,19 @@ function drive(
       ...process.env,
       MERCURY_FULLSCREEN: '1',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
+      ...envExtra,
     },
   })
   if (res.status !== 0) {
     check(`${tag}: PTY journey completed`, false, (res.stderr ?? '').slice(-300))
+    // vshot prints the screen it ended on before a never-ready or
+    // undelivered refusal: the bottom of that screen is the evidence.
+    const printed = (res.stdout ?? '').split('\n').filter(line => line.trimEnd() !== '')
+    if (printed.length > 0) {
+      console.log(`      ┌ ${tag}: the screen vshot ended on`)
+      for (const line of printed.slice(-16)) console.log(`      │ ${line.trimEnd()}`)
+      console.log('      └')
+    }
     return null
   }
   check(`${tag}: PTY journey completed`, true)
@@ -111,6 +126,9 @@ const dumpBottom = (label: string, grid: Array<Array<{ c: string }>>, count = 12
 }
 
 const NOTICE = 'twice to close Mercury'
+/** The interrupt row's painted spelling (the rejection grammar over the
+ *  '[Request interrupted by user]' record the runner lands). */
+const INTERRUPTED_ROW = '⨯ Interrupted'
 
 section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
 {
@@ -166,21 +184,41 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
   cleanupScenario('resume-2turn')
 }
 
-// The busy legs need a session with a LIVE runner. The resumed fixture
-// (resume-2turn) has none: its transcript names a model the keyless proof
-// home holds no credential for, and a resumed session keeps the model it
-// ran on, so its re-admission is refused by name (the ruled honesty — never
-// a silent substitute) and a `!` line dispatched into it comes back to the
-// composer with the refusal. A shell line itself needs no credential: the
-// runner executes it in its own process without a model call, so the legs
-// drive a FRESH session born on the same keyless home — the Boot face's New
-// Session admits on the keyless default and paints the cockpit with a live
-// runner — and that keyless world is the pin that a `!` line runs, shows the
-// hint and interrupts with no account signed in.
-const freshSession = (): ScenarioCfg => {
+// The busy legs need a session with a LIVE runner, and a runner is admitted
+// only on a model whose family holds a credential. The shared proof home is
+// keyless by law: the resumed fixture (resume-2turn) keeps the model it ran
+// on and its re-admission is refused by name (never a silent substitute),
+// and a fresh birth on that home is refused the same way (`model refused
+// (no-credential:…)` on the face). The shell line itself needs no
+// credential — the runner executes it in its own process without a model
+// call — so the legs seed their OWN home with a presence-only fixture key
+// (the seed and the capture carry the same key, the way the frame-trace and
+// profile-card proofs do; no wire is ever reached) and drive a FRESH session
+// born there: the Boot face's New Session admits a live runner, and the
+// legs pin that a `!` line runs, shows the hint and interrupts.
+const BUSY_KEY = 'sk-ant-fixture-exit-copy'
+type BusyWorld = { cfg: ScenarioCfg; env: Record<string, string>; home: string }
+const busyWorld = (): BusyWorld => {
+  // The scenario call pins the display flags and the boot cwd in this
+  // process's env (and strips any ambient key — captures are keyless by
+  // default); the busy home is seeded after it, with its own key.
   const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
-  return { ...base, argv: argv.slice(0, 2) }
+  const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
+  process.env.ANTHROPIC_API_KEY = BUSY_KEY
+  try {
+    seedFirstRun(home, [String(base['cwd'])])
+  } finally {
+    delete process.env.ANTHROPIC_API_KEY
+  }
+  return { cfg: { ...base, argv: argv.slice(0, 2) }, env: { MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: BUSY_KEY }, home }
+}
+const closeBusyWorld = (world: BusyWorld): void => {
+  try {
+    rmSync(world.home, { recursive: true, force: true })
+  } catch {
+    /* temp-dir clutter only */
+  }
 }
 // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session
 // enters the chat first; the composer's footer hint is the cockpit's own
@@ -191,9 +229,10 @@ const ENTER_FRESH_CHAT: Send[] = [
 
 section('C · busy: one press interrupts AND arms; a second press closes')
 {
+  const world = busyWorld()
   const p = drive(
     'busy',
-    freshSession(),
+    world.cfg,
     [
       ...ENTER_FRESH_CHAT,
       // '!' rides ALONE: a grouped '!sleep 30' chunk is one text atom, which
@@ -212,7 +251,10 @@ section('C · busy: one press interrupts AND arms; a second press closes')
       { atTick: 240, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
     ],
     260,
+    undefined,
+    world.env,
   )
+  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
@@ -236,9 +278,10 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
   // records. The grammar legs above pin the footer NAMING esc as the
   // interrupt; this leg makes esc DO it: a bare ESC during a busy turn must
   // settle the interrupt marker, and Mercury must stay open.
+  const world = busyWorld()
   const p = drive(
     'busy-esc',
-    freshSession(),
+    world.cfg,
     [
       ...ENTER_FRESH_CHAT,
       { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
@@ -248,17 +291,22 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
     ],
     250,
-    // The settled interrupt row spells '[Request interrupted by user]'
-    // (rejectionText) — the old capital-I marker died with its surface.
-    'interrupted by user',
+    // The settled interrupt row as the cockpit PAINTS it: the runner lands
+    // the '[Request interrupted by user]' record and the chat renders that
+    // record through its rejection grammar — `⨯ Interrupted · What should
+    // Mercury do instead?` under the echoed command (the frame's own
+    // words); the raw record text never reaches the screen.
+    INTERRUPTED_ROW,
+    world.env,
   )
+  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
     check('the busy hint was up when ESC landed', hintUp)
     if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid)
-    const settled = textOf(p.grid).includes('interrupted by user')
-    check('ESC interrupted the turn (the interrupt marker settled)', settled)
+    const settled = textOf(p.grid).includes(INTERRUPTED_ROW)
+    check('ESC interrupted the turn (the interrupt row settled under the command)', settled)
     if (!settled) dumpBottom('the final frame — no interrupt marker', p.grid, 16)
     check('…and Mercury stayed open (no exit)', p.endReason !== 'eof', `endReason=${p.endReason}`)
   }
