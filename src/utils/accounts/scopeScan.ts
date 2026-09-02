@@ -1,7 +1,7 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { getAuthConfigHomeDir, getMercuryHome } from '../envUtils.js'
+import { getMercuryHome } from '../envUtils.js'
 
 export type ScopeIdentity = { uuid?: string; email?: string }
 
@@ -59,11 +59,9 @@ export function probeScopeAuth(
 
 function storedLoginLive(dir: string): boolean {
   try {
-    if (resolve(dir) === resolve(getAuthConfigHomeDir())) {
-      const { getSecureStorage } =
-        require('../secureStorage/index.js') as typeof import('../secureStorage/index.js')
-      const token = getSecureStorage().read()?.claudeAiOauth?.accessToken
-      return typeof token === 'string' && token.length > 0
+    if (resolve(dir) === resolve(getMercuryHome())) {
+      const { hasStoredOAuthToken } = require('../auth.js') as typeof import('../auth.js')
+      return hasStoredOAuthToken()
     }
     const { readAccountOAuthCreds } =
       require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
