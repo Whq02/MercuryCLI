@@ -291,6 +291,14 @@ if (sendRecs.length === sends.length) {
 
 section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')
 {
+  // The wire: the control socket's admit answer picks its fields, so the
+  // note must be picked too — an omitted field is a silent drop of the
+  // receipt (the find: the cockpit painted with no row at all).
+  const socket = read('src/daemon/controlServer.ts')
+  check('the admit answer carries the retained-model note across the control socket', socket.includes('...(r.note !== undefined ? { note: r.note } : {}),'))
+  const supervisor6 = read('src/daemon/concourseSupervisor.ts')
+  check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', supervisor6.includes("validated.reason.startsWith('no-credential:')") && supervisor6.split('retainedNote !== undefined').length >= 4)
+  check('the resume door paints the note on the screen-receipt seam', read('src/services/switchboard/hopIntoSession.ts').includes("if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"))
   // The seed: a durable session of this folder that RAN on claude-opus-5
   // (its record and its transcript both say so), resumed on a keyless home.
   // The old law refused it by name and the revived session had no runner —
