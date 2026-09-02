@@ -26,7 +26,8 @@ import { ProductLockup } from './mercury-ui/components.js'
 import { GLYPH, padTo } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { gaugeColor } from './mercury-ui/theme.js'
-import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
+import { modelPickerFooter, type ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
+import { catalogueDoorFocus, catalogueDoorHeaderParts, composeCatalogueRows, type CatalogueDoorFacet } from '../utils/model/catalogueDoor.js'
 import {
   parseGptModelId,
   gptDisplayPin,
@@ -57,8 +58,11 @@ function bar(pct: number, width = 10): string {
  *  `c` toggle — the column is the ONE per-row context display (an Anthropic
  *  1M pair AND a GPT served↔declared pair both ride it). `gatedReason` marks
  *  a visible-but-unavailable row (the owning resolver's answer): ↵ is
- *  refused and the reason rides the row copy instead of a flag hint. */
-export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string; /** A connect/attach ACTION row — never a model, never counted as one. */ action?: boolean }
+ *  refused and the reason rides the row copy instead of a flag hint.
+ *  `expand` marks a CATALOGUE DOOR (an action row too): ↵ expands its
+ *  group in place to the full live list behind a filter line; the open
+ *  group's header row carries the same facet with `open` set. */
+export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string; /** A connect/attach ACTION row — never a model, never counted as one. */ action?: boolean; expand?: CatalogueDoorFacet }
 
 type Props = {
   models: ModelChoice[]
@@ -87,6 +91,11 @@ type Props = {
    *  for the notice line, or null where the move does not exist (the group
    *  detail only advertises `s` where it does — no dead-key answer owed). */
   onSlotSwitch?: (group: string) => string | null
+  /** The catalogue door's full list: every live row of `group` as picker
+   *  rows (the wrapper maps the owning catalogue's unbounded accessor
+   *  through the same row mapping as the listed rows). Read once per
+   *  expansion and per catalogue re-hand — never per keystroke. */
+  expandRows?: (group: string) => ModelChoice[]
 }
 
 // (: the illustrative DEFAULT_MODELS fallback is DELETED —
@@ -94,7 +103,7 @@ type Props = {
 // mount away from rendering. The one live mount (/model) passes the REAL
 // model list from getModelOptions.)
 
-export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch, expandRows }: Props): React.ReactNode {
   // Friction stopwatch: the picker mounting lands the picker-open
   // transition (the /model dispatch marked the start).
   React.useEffect(() => {
@@ -106,6 +115,26 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // border itself is structure.)
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
+  // ── THE CATALOGUE DOOR: two facts (which group is open, the filter text);
+  // the visible rows DERIVE (catalogueDoor.ts): the listed rows with the
+  // open group's top-N and door swapped for a header row + the filtered
+  // full list. The full list is read from the wrapper once per expansion
+  // (and again only when the catalogue re-hands the rows); a keystroke
+  // re-filters that array — the snapshot is the source, nothing re-fetches.
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [filter, setFilter] = useState('')
+  const expandRowsRef = React.useRef(expandRows)
+  expandRowsRef.current = expandRows
+  const fullRows = React.useMemo(
+    () => (expanded === null ? [] : (expandRowsRef.current?.(expanded) ?? [])),
+    // `listed` is the re-hand signal: a catalogue epoch re-maps the rows.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [expanded, listed],
+  )
+  const models = React.useMemo(
+    () => composeCatalogueRows(listed, expanded, filter, fullRows),
+    [listed, expanded, filter, fullRows],
+  )
   // Single-column panel, width clamped to the terminal (min(cols-2, 62)). The old
   // rail(50)+detail(52) side-by-side layout is retired — a flexDirection="row" pair
   // flex-shrank below its content width and wrapped raggedly on a narrow terminal
@@ -145,7 +174,11 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // CURRENT dot lands on the row and the toggle re-opens showing its truth.
   const currentRow = stripGptServedWindowSuffix(current)
   const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
-  const [i, setI] = useState(startI)
+  const [cursor, setI] = useState(startI)
+  // The cursor clamps to the composed rows: a catalogue re-hand or a filter
+  // change can shrink the list under the remembered index, and every read
+  // below (the focused row, the window, the footer) must land on a row.
+  const i = Math.min(cursor, Math.max(0, totalRows - 1))
   const focusedModel = i < models.length ? models[i] : undefined
   const hasEffort = !!(efforts && efforts.length)
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
@@ -235,10 +268,44 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
     setCtxNotice(null)
     if (n < models.length) setContext1m(ctxStateOf(probe(models[n])))
   }
+  // THE DOOR's three moves. Each recomposes the rows the way the render
+  // will and lands the cursor from that composition (catalogueDoorFocus:
+  // the first matching row, else the header line), so the focus and the
+  // paint never disagree for a frame.
+  const openDoor = (group: string): void => {
+    const rows = composeCatalogueRows(listed, group, '', expandRowsRef.current?.(group) ?? [])
+    setExpanded(group)
+    setFilter('')
+    setCtxNotice(null)
+    setI(Math.max(0, catalogueDoorFocus(rows, group)))
+  }
+  const closeDoor = (): void => {
+    if (expanded === null) return
+    const group = expanded
+    setExpanded(null)
+    setFilter('')
+    setCtxNotice(null)
+    // Back on the door row it came from (the collapsed rows are the listed rows).
+    setI(Math.max(0, listed.findIndex(m => m.expand?.group === group)))
+  }
+  const setDoorFilter = (text: string): void => {
+    if (expanded === null) return
+    const rows = composeCatalogueRows(listed, expanded, text, fullRows)
+    setFilter(text)
+    setI(Math.max(0, catalogueDoorFocus(rows, expanded)))
+  }
   // The ONE ↵ body — keyboard return and a second pointer click both land
   // here (select-then-activate; InteractiveRow routes the activation).
   const commitCurrent = (): void => {
-    const m = models[i]; if (!m || !onSelect) return
+    const m = models[i]; if (!m) return
+    // A catalogue door: ↵ opens it; ↵ on the open header collapses it.
+    // Never a selection — the sentinel is never handed to onSelect.
+    if (m.expand) {
+      if (m.expand.open) closeDoor()
+      else openDoor(m.expand.group)
+      return
+    }
+    if (!onSelect) return
     if (m.gated) {
       // An unavailable row answers ↵ with the resolver's reason
       // and never selects; flag-gated rows keep the footer as their answer.
@@ -274,6 +341,31 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   useInput((input, key, event) => {
     const rowAxis = decodeNavKey(input, key, { orientation: 'vertical' })
     const effortAxis = decodeNavKey(input, key, { orientation: 'horizontal' })
+    // THE FILTER LINE (a catalogue group open): letters narrow the group,
+    // backspace widens it, esc clears a non-empty filter and otherwise
+    // collapses the group — the picker's own close is one esc further, only
+    // once nothing is open. This arm sits ahead of the letter-bound
+    // actions (`c` context, `s` slot): while the door is open, a letter is
+    // filter text (the footer says so). Arrows and ↵ fall through.
+    if (expanded !== null) {
+      if (key.backspace || key.delete) {
+        event.stopImmediatePropagation()
+        if (filter.length > 0) setDoorFilter(filter.slice(0, -1))
+        return
+      }
+      if (rowAxis === 'cancel') {
+        if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
+        event.stopImmediatePropagation()
+        if (filter.length > 0) setDoorFilter('')
+        else closeDoor()
+        return
+      }
+      if (rowAxis === null && effortAxis === null && input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
+        event.stopImmediatePropagation()
+        setDoorFilter(filter + input)
+        return
+      }
+    }
     if (rowAxis === 'moveNext') { event.stopImmediatePropagation(); selectRow(Math.min(totalRows - 1, i + 1)) }
     else if (rowAxis === 'movePrevious') { event.stopImmediatePropagation(); selectRow(Math.max(0, i - 1)) }
     else if (rowAxis === 'first') { event.stopImmediatePropagation(); selectRow(0) }
@@ -355,6 +447,9 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // kept beside it — a row added to the render grows here too.
   const rowPaint = (idx: number): number => {
     if (compact) return 1
+    // The open door's header line paints ONE row at every focus state (a
+    // control line, never a card — the render below keeps that law).
+    if (models[idx]?.expand?.open) return 1
     // Focused model card: border 2 + row 1 (+ tag 1 when the row has one —
     // model rows carry no tag under the neutrality ruling; action/Default
     // rows still do).
@@ -402,6 +497,12 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
     },
   )
   let lastGroup: string | null = null
+  const footerDoor: ModelPickerFooterDoor | undefined =
+    expanded !== null
+      ? { open: true, onHeader: focusedModel?.expand?.open === true, filtering: filter.length > 0 }
+      : focusedModel?.expand
+        ? { open: false }
+        : undefined
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
       {/* the shared product lockup — the same classified
@@ -428,21 +529,44 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
         const on = idx === i; const cur = m.id === currentRow
         const isNext = pendingNext !== undefined && m.id === pendingNext
         // 'unavail' = the resolver refuses this row for THIS account (the
-        // reason rides the row copy); 'gated' keeps its flag-gate meaning.
-        const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
+        // reason rides the row copy); 'gated' keeps its flag-gate meaning;
+        // 'expand' is the catalogue door's own word (↵ opens, never switches).
+        const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.expand ? [GLYPH.pending, 'expand', FAINT] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
+        // Group headings are informational: the info channel — the CURRENT
+        // card + selected row keep the accent/state paint. The provider's
+        // signed-in state (wrapper-resolved) rides a faint detail line under
+        // its heading — one grammar, each provider's account truth visible
+        // in place. Both row shapes below paint it.
+        const heading = head && !compact ? <Box marginTop={1} flexDirection="column">
+          <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>
+          {detailLines.get(m.group)?.map((line, k) => (
+            <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
+          ))}
+        </Box> : null
+        if (m.expand?.open) {
+          // THE OPEN DOOR's header line: family · live count · the filter
+          // text with the caret · the way out. ONE row at every focus state
+          // (rowPaint's law): focus reads as the pointer + accent, never a
+          // card — this is the group's control line, not a choice.
+          const parts = catalogueDoorHeaderParts(m.expand)
+          return (
+            <React.Fragment key={m.id}>
+              {heading}
+              <InteractiveRow id={`model:row:${m.id}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
+                <Text wrap="truncate-end">
+                  <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
+                  <Text color={tokens.info}>{parts.lead}</Text>
+                  <Text bold color={IVORY}>{filter}</Text>
+                  <Text color={on ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
+                  <Text color={FAINT}>{parts.tail}</Text>
+                </Text>
+              </InteractiveRow>
+            </React.Fragment>
+          )
+        }
         return (
           <React.Fragment key={m.id}>
-            {/* Group headings are informational: the info channel —
-                the CURRENT card + selected row keep the accent/state paint.
-                The provider's signed-in state (wrapper-resolved) rides a
-                faint detail line under its heading — one grammar, each
-                provider's account truth visible in place. */}
-            {head && !compact ? <Box marginTop={1} flexDirection="column">
-              <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>
-              {detailLines.get(m.group)?.map((line, k) => (
-                <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
-              ))}
-            </Box> : null}
+            {heading}
             <InteractiveRow
               id={`model:row:${m.id}`}
               selected={on}
@@ -526,8 +650,13 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
           {/* FC-128: connect/attach rows are ACTIONS whose value is an
               internal sentinel — printing it as a model id put
               __mercury_anthropic_connect__ beside the ids-are-real
-              promise. */}
-          {isProviderActionRow(focusedModel!.id)
+              promise. The catalogue door speaks its own action first:
+              closed, what ↵ opens; open, how many rows the filter left. */}
+          {focusedModel!.expand
+            ? focusedModel!.expand.open
+              ? `${models.filter(m => m.group === expanded && !m.action).length} of ${focusedModel!.expand.total} live rows${filter.length > 0 ? ` match "${filter}"` : ''} · ↵ here collapses; not a model`
+              : `catalogue door — ↵ expands the group to all ${focusedModel!.expand.total} live rows; not a model`
+            : isProviderActionRow(focusedModel!.id)
             ? 'connect action — ↵ starts the sign-in; not a model'
             : focusedModel!.gated
               ? focusedModel!.gatedReason
@@ -538,8 +667,10 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
       </Box>
       {/* `supports1m` here means "the focused row has an in-place c context
         * toggle" — the Anthropic 1M pair and the GPT served↔declared pair
-        * share the one affordance word. */}
-      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag }, panelWidth - 4)}</Text>
+        * share the one affordance word. `door` states the catalogue door's
+        * keys: ↵ expand on a closed door; type to filter · esc clear /
+        * collapse while a group is open. */}
+      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag, ...(footerDoor !== undefined ? { door: footerDoor } : {}) }, panelWidth - 4)}</Text>
     </Box>
   )
 }
