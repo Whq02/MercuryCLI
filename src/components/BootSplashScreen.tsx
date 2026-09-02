@@ -22,9 +22,13 @@ import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
 import { NO_SIGN_IN_ROW, computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
-import { getOauthAccountInfo } from '../utils/auth.js';
 import { declaredRouteOf } from '../services/providers/routeLaw.js';
-import { anthropicCredentialPresence, providerFamilyPresences } from '../services/providers/providerUsage.js';
+import {
+  anthropicCredentialPresence,
+  presenceIdentityWords,
+  providerFamilyPresences,
+} from '../services/providers/providerUsage.js';
+import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
@@ -384,25 +388,18 @@ export function BootSplashScreen(): React.ReactNode {
   );
   const mainModel = useMainLoopModel();
 
+  const signInEpoch = useSignInEpoch();
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
     try {
       const route = declaredRouteOf(mainModel);
       const fit = (text: string): string => (text.length > 26 ? text.slice(0, 25) + '…' : text);
-      if (route === 'anthropic') {
-        const presence = anthropicCredentialPresence();
-        const email = presence.credentialed ? (getOauthAccountInfo()?.emailAddress ?? null) : null;
-        const label = presence.credentialLabel ?? null;
-        const subscription = label !== null && label.startsWith('Claude subscription');
-        acct = presence.credentialed
-          ? { state: 'email', text: fit(subscription && email ? email : (label ?? 'signed in')) }
-          : { state: 'none' };
-      } else {
-        const presence = providerFamilyPresences().find(family => (family.id as string) === route);
-        acct = presence?.credentialed
-          ? { state: 'email', text: fit(presence.credentialLabel ?? 'signed in') }
-          : { state: 'none' };
-      }
+      const presence =
+        route === 'anthropic'
+          ? anthropicCredentialPresence()
+          : providerFamilyPresences().find(family => (family.id as string) === route);
+      const words = presence === undefined ? undefined : presenceIdentityWords(presence);
+      acct = words !== undefined ? { state: 'email', text: fit(words) } : { state: 'none' };
     } catch {
       acct = { state: 'unreadable' };
     }
@@ -426,7 +423,7 @@ export function BootSplashScreen(): React.ReactNode {
           : null,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainModel, presenceEpoch]);
+  }, [mainModel, presenceEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {

@@ -17,7 +17,7 @@ import { recordingsUnderSweep, retentionWindowDays } from '../../utils/cleanup.j
 import { formatFileSize, formatRelativeTimeAgo } from '../../utils/format.js'
 import { getCurrentSessionTitle, transcriptCensus } from '../../utils/sessionStorage.js'
 import { familyDisplayName } from '../../services/providers/accountSlots.js'
-import { providerFamilyPresences } from '../../services/providers/providerUsage.js'
+import { presenceIdentityWords, providerFamilyPresences } from '../../services/providers/providerUsage.js'
 import { getAccountInformation } from '../../utils/auth.js'
 import { activeWalletEntry, walletEntries } from '../../services/wallet/wallet.js'
 import { CONTEXT_FRESH_SESSION_REASON, contextGauge } from '../../utils/cockpit/contextGauge.js'
@@ -32,7 +32,7 @@ function providerAccountFacts(): StatusFact[] {
   return providerFamilyPresences().map(family => {
     const entries = allEntries.filter(e => e.provider === family.id)
     const active = entries.length > 0 ? activeWalletEntry(entries[0]!.provider) : undefined
-    const label = family.credentialLabel ?? active?.label
+    const label = (isDemo ? family.credentialLabel : presenceIdentityWords(family)) ?? active?.label
     const orgNote =
       family.id === 'anthropic' && label && !isDemo
         ? getAccountInformation()?.organization
