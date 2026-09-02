@@ -17,7 +17,6 @@ import { useKeybinding } from '../keybindings/useKeybinding.js'
 import type { Tool } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { LogOption } from '../types/logs.js'
-import { loadConversationForResume } from '../utils/conversationRecovery.js'
 import { checkCrossProjectResume } from '../utils/crossProjectResume.js'
 import { logError } from '../utils/log.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js'
@@ -228,28 +227,7 @@ export function ResumeConversation({
         )
         return
       }
-      const loaded = await loadConversationForResume(log, undefined)
-      if (gen !== resumeGenRef.current) return
-      if (!loaded) {
-        setIsResuming(false)
-        setResumeRefusal(
-          `could not resume — the session file could not be loaded: ${
-            log.fullPath ?? log.sessionId ?? 'unknown path'
-          } · the file was left untouched`,
-        )
-        return
-      }
-
-      if (loaded.messages.filter(m => (m as { isMeta?: boolean }).isMeta !== true).length === 0) {
-        setIsResuming(false)
-        setResumeRefusal(
-          `could not resume — the session file's records are unreadable (damaged transcript): ${
-            log.fullPath ?? log.sessionId ?? 'unknown path'
-          } · the file was left untouched`,
-        )
-        return
-      }
-      const sessionId = loaded.sessionId ?? getSessionIdFromLog(log)
+      const sessionId = getSessionIdFromLog(log)
       if (!sessionId) {
         setIsResuming(false)
         setResumeRefusal('could not resume — the session file carries no session id · the file was left untouched')
@@ -264,7 +242,7 @@ export function ResumeConversation({
       initializeSurfaceRoute(ROOT_REPL_ROUTE);
       const { focusResumedSession } = await import('../services/switchboard/hopIntoSession.js')
       const outcome = await focusResumedSession(String(sessionId), log.fullPath, {
-        title: loaded.customTitle ?? loaded.agentName,
+        title: log.customTitle ?? log.agentName,
         permissionMode: store.getState().toolPermissionContext.mode,
       })
       if (gen !== resumeGenRef.current) return

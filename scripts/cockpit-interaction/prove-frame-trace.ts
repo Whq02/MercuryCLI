@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import {
   _resetFrameTraceForTesting,
+  FRAME_TRACE_RING_CAP,
   readFrameTrace,
   recordFrameTrace,
   traceKeyResolved,
@@ -134,7 +135,10 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
     } catch {
     }
     t.check('the journey completed (vshot exit 0)', r.status === 0, `exit=${r.status}`)
-    t.check('the frames section renders with named sample count', /n=\d+ · p50 /.test(text))
+    t.check(
+      'the frames section renders the sample count over the cap and the live span',
+      new RegExp(`n=\\d+/${FRAME_TRACE_RING_CAP} · last \\d+(?:\\.\\d+)?[sm] · p50 `).test(text),
+    )
     t.check('the slowest frame is stage-attributed', text.includes('slowest ') && text.includes('compose '))
     t.check(
       'keystroke attribution rendered (classified label, no content)',
