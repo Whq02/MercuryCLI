@@ -38,6 +38,22 @@ async function main(): Promise<void> {
     return
   }
 
+  if (args.length === 0 && process.stdout.isTTY) {
+    if (
+      process.platform === 'win32' &&
+      process.env.MERCURY_WIN32_UTF8 !== '0' &&
+      process.env.MERCURY_WIN32_UTF8_PRESET !== '1'
+    ) {
+      const { ensureWin32ConsoleUtf8 } = await import('../utils/runtime/win32Console.js')
+      ensureWin32ConsoleUtf8()
+    }
+    const { runDirectSplash } = await import('../substrate/directSplash.js')
+    const splash = runDirectSplash({ home: await resolveCompileCacheHome() })
+    if (splash.verdict === 'cancel') {
+      return
+    }
+  }
+
   if (process.env.MERCURY_SPLASH_HANDOFF === '1') {
     const { consumeSplashHandover } = await import('../substrate/splashHandover.js')
     consumeSplashHandover()

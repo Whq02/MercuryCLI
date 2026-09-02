@@ -91,7 +91,7 @@ section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
 {
   const p = drive(
     'arm-close',
-    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       { atTick: 100, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
@@ -114,7 +114,7 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
 {
   const p = drive(
     'arm-expire',
-    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       { afterPrevTicks: 17, data: CTRL_C, mark: 'preSecond' },
@@ -136,7 +136,7 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
 
 type BusyWorld = { cfg: ScenarioCfg; env: Record<string, string>; home: string }
 const busyWorld = (): BusyWorld => {
-  const base = scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg
+  const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
   const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
   seedFirstRun(home, [String(base['cwd'])])
@@ -182,7 +182,7 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
@@ -217,7 +217,7 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
@@ -249,14 +249,14 @@ section('D · the copy receipt on both trigger paths (the standing scenarios)')
     { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(32) },
     { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(0, true) },
   ]
-  const sel = scenario('copy-receipt-select', 100, 44) as unknown as ScenarioCfg
+  const sel = scenario('copy-receipt-select', 80, 44) as unknown as ScenarioCfg
   const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard')
   if (pSel) {
     check('drag-release raised "Copied to clipboard"', textOf(pSel.grid).includes('Copied to clipboard'))
   }
   cleanupScenario('copy-receipt-select')
 
-  const ctl = scenario('copy-receipt-ctrlc', 100, 44) as unknown as ScenarioCfg
+  const ctl = scenario('copy-receipt-ctrlc', 80, 44) as unknown as ScenarioCfg
   const pCtl = drive('receipt-ctrlc', ctl, [...DRAG, { afterPrevTicks: 4, data: CTRL_C }], ctl.total, 'Copied to clipboard')
   if (pCtl) {
     const text = textOf(pCtl.grid)

@@ -350,6 +350,8 @@ export type GlobalConfig = {
 
   prStatusFooterEnabled?: boolean
 
+  voiceInputEnabled?: boolean
+
   startupPrefetchedAt?: number
 
   remoteControlAtStartup?: boolean
