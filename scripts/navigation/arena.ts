@@ -180,6 +180,10 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
+        // The registered file-store seam: an arena boot reads no machine keychain
+        // (darwin's would sign a keyless capture in; the pool seeds this for every
+        // child, a by-hand run must carry it itself).
+        MERCURY_CREDENTIAL_STORE: 'file',
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -188,8 +192,16 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
         INK_WRITE_TEE: tee,
         INK_WRITE_TEE_FULL: '1',
         MERCURY_TERMINAL_TITLE: '0',
-        // capture pins (repo convention): ambience off, the pipeline is the subject
+        // capture pins (repo convention): ambience off, the pipeline is the
+        // subject. Every display animation holds still — the critter's sway
+        // and blink, its gaze and sleep, the header's live seconds, the live
+        // glyphs — so a settle gate that reads the whole grid sees the screen
+        // hold and no recorded frame lands on an arbitrary animation phase.
+        // A drive that photographs an animation re-enables it through extraEnv.
+        MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',
+        MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_TURN_RECEIPT: '0',
         MERCURY_OASIS_BG: '0',

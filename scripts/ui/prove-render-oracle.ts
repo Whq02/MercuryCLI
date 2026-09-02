@@ -64,7 +64,7 @@ const tmp = mkdtempSync(join(tmpdir(), 'hermes-oracle-'))
 // it prints its own resume id; the assertion reads it from stdout.
 const res = spawnSync(process.execPath, ['-e',
   `const { scenario } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const cfg = scenario('resume-2turn', 80, 44); console.log(cfg.argv[cfg.argv.indexOf('--resume') + 1])`,
-], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp } })
+], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp, MERCURY_DAEMON_DIR: join(tmp, 'daemon') } })
 const stagedSid = (res.stdout ?? '').trim().split('\n').pop() ?? ''
 // The staging segment mirrors renderScenarios' own derivation (RUNTIME_CWD →
 // sanitizePath) — a hardcoded calibration-machine segment is the F6 class.

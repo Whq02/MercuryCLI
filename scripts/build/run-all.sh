@@ -29,7 +29,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
-cd "$root"
+cd "$root" || exit 1
 dist="$root/dist/mercury.mjs"
 fail=0
 ok() { echo "  [PASS] $1"; }

@@ -39,7 +39,7 @@ set -uo pipefail
 # One wall-seconds line per prover — the pool engine reads exactly this shape.
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 # Pure-logic proofs always run; the slow render-verify joins only under UI_RENDER=1.

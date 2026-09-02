@@ -14,12 +14,12 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/.." && pwd)"
 root="$(cd "$root/.." && pwd)"
-cd "$root"
+cd "$root" || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
 echo "── Node 24 LTS runtime-contract proofs ──"
-for prover in prove-node-policy prove-entry-gate prove-launchers prove-compile-cache prove-win32-console prove-windows-seams prove-spawn-window-discipline prove-copy-truth prove-workflow-toolchain prove-field-findings-exit-writes prove-broken-pipe-uniform; do
+for prover in prove-node-policy prove-entry-gate prove-launchers prove-direct-splash prove-compile-cache prove-win32-console prove-windows-seams prove-spawn-window-discipline prove-copy-truth prove-workflow-toolchain prove-field-findings-exit-writes prove-broken-pipe-uniform; do
   echo ""
   echo "▶ $prover"
   __t=$SECONDS; "$BUN" run "$here/$prover.ts" || fail=1; prover_mark "$here/$prover.ts" "$__t"

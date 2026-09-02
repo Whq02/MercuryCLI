@@ -6,7 +6,8 @@
 //  16 kHz mono 16-bit WAV held in memory — never on disk, unless the debug
 //  directory (MERCURY_VOICE_DEBUG_WAV_DIR) asks for a copy. cancel() drops
 //  the take. Every capture is BOUNDED: at CAPTURE_BOUND_MS the owner stops
-//  it by itself and says so.
+//  it by itself and says so (MERCURY_VOICE_BOUND_MS shortens the bound for
+//  a proof, never lengthens it).
 //
 //  Backends, in ladder order (MERCURY_VOICE_BACKEND pins one):
 //    vendored  the voice pack (native/voice — a Node-API addon over the
@@ -27,6 +28,16 @@ import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPL
 
 /** Five minutes: the longest single take the composer accepts. */
 export const CAPTURE_BOUND_MS = 5 * 60_000
+
+/** The bound a capture opens with: CAPTURE_BOUND_MS, unless the proof seam
+ *  MERCURY_VOICE_BOUND_MS names a shorter one (a whole number of
+ *  milliseconds, at most the product bound — anything else is ignored). */
+export function captureBoundMs(): number {
+  const raw = (flagEnv('MERCURY_VOICE_BOUND_MS') ?? '').trim()
+  if (!/^\d+$/.test(raw)) return CAPTURE_BOUND_MS
+  const ms = Number(raw)
+  return ms > 0 && ms <= CAPTURE_BOUND_MS ? ms : CAPTURE_BOUND_MS
+}
 
 export const NO_BACKEND_RECEIPT =
   'no microphone backend — the voice pack is absent on this install; run `bun run setup` (needs cargo) or put sox/ffmpeg on PATH'
@@ -169,6 +180,9 @@ interface RawCapture {
 export function microphonePermissionHint(platform: string = process.platform): string {
   if (platform === 'darwin') {
     return 'if macOS never asked, allow your terminal under System Settings → Privacy & Security → Microphone'
+  }
+  if (platform === 'win32') {
+    return 'if Windows never asked, allow desktop apps under Settings → Privacy & security → Microphone'
   }
   return 'check the operating system microphone permission for your terminal'
 }
@@ -323,8 +337,10 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
 
 // ── the capture ────────────────────────────────────────────────────────────
 
-function debugDumpDir(env: NodeJS.ProcessEnv): string | null {
-  void env
+/** The debug directory that receives a copy of every finished take — the
+ *  ONLY road a take has to disk; null (the default) means none. The doctor
+ *  row reads this to say so honestly. */
+export function voiceDebugWavDir(): string | null {
   const dir = (flagEnv('MERCURY_VOICE_DEBUG_WAV_DIR') ?? '').trim()
   return dir === '' ? null : dir
 }
@@ -346,7 +362,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
   let cancelled = false
   let autoStopped = false
   let result: Promise<CaptureResult> | null = null
-  const boundMs = opts.boundMs ?? CAPTURE_BOUND_MS
+  const boundMs = opts.boundMs ?? captureBoundMs()
   const bound = setTimeout(() => {
     if (settled) return
     autoStopped = true
@@ -367,7 +383,7 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
       result = (async (): Promise<CaptureResult> => {
         const pcm = await raw.stop()
         const wav = encodeWav(pcm)
-        const dump = debugDumpDir(env)
+        const dump = voiceDebugWavDir()
         if (dump !== null) {
           try {
             mkdirSync(dump, { recursive: true })

@@ -39,7 +39,7 @@
 #  seams; the real gate never sets them.
 # ============================================================================
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 
 TSC="node_modules/.bin/tsc"
 CFG="${MERCURY_TYPECHECK_CFG:-tsconfig.json}"

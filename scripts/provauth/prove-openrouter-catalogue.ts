@@ -61,10 +61,14 @@ const {
   getCachedOpenrouterCatalogue,
   getOpenrouterAvailability,
   getOpenrouterModelOptions,
+  getOpenrouterFullModelOptions,
+  OPENROUTER_EXPAND_OPTION_VALUE,
+  OPENROUTER_MODEL_GROUP,
   openrouterDispatchReady,
   openrouterModelsForVendor,
   refreshOpenrouterCatalogue,
 } = catalogue
+const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
 const {
   __resetOpenrouterUsageStateForTest,
   openrouterLimitWindow,
@@ -219,6 +223,48 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
   const unlisted = resolveContextWindow('openrouter/nobody/unlisted-model')
   check('an unlisted openrouter id falls to the LABELLED conservative default', unlisted.effectiveWindow === 200000 && unlisted.source === 'fallback' && /states no context length/.test(unlisted.fallbackReason ?? ''), JSON.stringify({ s: unlisted.source, r: unlisted.fallbackReason }))
   check('the reroute vendor filter answers mechanically', openrouterModelsForVendor('google').length === 1 && openrouterModelsForVendor('google')[0]!.id === 'google/gemini-fixture')
+  check('below the bound there is no door row', !rows.some(r => r.value === OPENROUTER_EXPAND_OPTION_VALUE))
+}
+
+// ── 5c. the DOOR past the bound + the full-rows accessor ────────────────────
+{
+  // 30 live rows in the vendor's order; row 27 is junk-shaped (Mercury's
+  // bracket dressing on a listed twin) so the heal-and-collapse past the
+  // bound is visible in the full list.
+  __resetOpenrouterCatalogueForTest()
+  const many = {
+    data: Array.from({ length: 30 }, (_, i) => ({
+      id: i === 27 ? 'vendor/model-3[1m]' : `vendor/model-${i}`,
+      name: `Model ${i}`,
+      context_length: 1000 + i,
+    })),
+    total_count: 30,
+    links: { next: null },
+  }
+  const manyFetch: typeof fetch = (async () =>
+    new Response(JSON.stringify(many), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+  await refreshOpenrouterCatalogue('env', { force: true, fetchImpl: manyFetch })
+  const availability = getOpenrouterAvailability()
+  check('30 live rows read ready with the availability count 30', availability.state === 'ready' && availability.modelCount === 30)
+  const bounded = getOpenrouterModelOptions()
+  const door = bounded[24]
+  check('the picker bounds the rows to 24 and appends the door row (the count law: 25 rows)', bounded.length === 25 && bounded.slice(0, 24).every(r => String(r.value).startsWith('openrouter/vendor/') && r.unavailable === undefined) && door?.value === OPENROUTER_EXPAND_OPTION_VALUE, JSON.stringify(bounded.map(r => r.value)))
+  check('the door carries the live count and the group, says what ↵ does, and is selectable (never a refused row)', door?.label === 'OpenRouter — 30 models live' && door?.description === '↵ expand · 30 live · type to filter' && door?.catalogueDoor?.total === 30 && door?.catalogueDoor?.family === 'OpenRouter' && door?.group === OPENROUTER_MODEL_GROUP && door?.unavailable === undefined, JSON.stringify(door))
+  check('the door is an ACTION row by the one shape predicate (never a model to any composer)', isCatalogueDoorRow(OPENROUTER_EXPAND_OPTION_VALUE) && isProviderActionRow(OPENROUTER_EXPAND_OPTION_VALUE) && !isCatalogueDoorRow('__mercury_openrouter_connect__') && !isCatalogueDoorRow('openrouter/vendor/model-1'))
+  const full = getOpenrouterFullModelOptions()
+  check(
+    'the full-rows accessor returns every snapshot row healed and deduped like the bounded view (the junk row collapsed onto its listed twin: 29 rows), the vendor\'s order kept, no door',
+    full.length === 29 &&
+      full.every(r => String(r.value).startsWith('openrouter/vendor/') && r.unavailable === undefined && r.description === '') &&
+      full[28]?.value === 'openrouter/vendor/model-29' &&
+      full[27]?.value === 'openrouter/vendor/model-28' &&
+      full.slice(0, 24).map(r => r.value).join() === bounded.slice(0, 24).map(r => r.value).join(),
+    JSON.stringify(full.map(r => r.value)),
+  )
+  check('the full rows carry the stated windows like the bounded rows', full[26]?.statedContextWindow === 1026)
+  delete process.env.OPENROUTER_API_KEY
+  check('signed out, the full-rows accessor answers nothing', getOpenrouterFullModelOptions().length === 0)
+  process.env.OPENROUTER_API_KEY = 'sk-or-v1-PROVERKEY000000000000'
 }
 
 // ── 5b. honest arms: empty catalogue · unknown cursor variant · page bound ──

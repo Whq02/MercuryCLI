@@ -9,8 +9,10 @@
 //      domain, unmapped names land in the trailing "everything else" bucket.
 //   3. Group order follows COMMAND_DOMAINS order; commands sort alphabetically
 //      inside each group; empty groups are dropped.
-//   4. The flagship surfaces the nav audit flagged (party/workflows/health) are
+//   4. The flagship surfaces the nav audit flagged (workflows/health) are
 //      curated into a NON-fallback domain — the whole point of the change.
+//      (/party is a retired door — commands/retired.ts — and no domain
+//      curates a retired name.)
 //   5. Ships in dist: the group-header literal survives bundling.
 //
 //  Run:  ~/.bun/bin/bun run scripts/ui/prove-command-domains.ts
@@ -75,7 +77,7 @@ function check(name: string, ok: boolean, detail = ''): void {
 // 4. Flagships are curated (non-fallback).
 {
   const domainOf = (n: string) => COMMAND_DOMAINS.find(d => d.names.includes(n))?.key
-  for (const flagship of ['party', 'workflows', 'health']) {
+  for (const flagship of ['workflows', 'health']) {
     check(`flagship /${flagship} is curated`, domainOf(flagship) !== undefined, domainOf(flagship) ?? 'UNMAPPED')
   }
 }
@@ -87,4 +89,6 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 console.log(fail === 0 ? '✅ prove-command-domains GREEN' : '❌ prove-command-domains RED')
-process.exit(fail)
+// The verdict is the exit code: set it and let the process drain, so the
+// summary line above always lands and a RED run can never leave as 0.
+process.exitCode = fail

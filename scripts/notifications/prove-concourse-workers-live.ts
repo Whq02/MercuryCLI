@@ -130,9 +130,6 @@ const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPat
     ANTHROPIC_API_KEY: 'fixture-key',
     ANTHROPIC_BASE_URL: api.url,
     MERCURY_CACHE_CLOCK: '0',
-    // A clean world for the battery: no party seats beside the five workers.
-    MERCURY_PARTY: '0',
-    MERCURY_PARTY: '0',
   },
   stdio: ['ignore', logFd, logFd],
 })

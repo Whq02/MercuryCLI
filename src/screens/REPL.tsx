@@ -2458,7 +2458,15 @@ export function REPL({
     unseen.onRepin();
     repinToBottom();
     setConversationId(focusedSessionId);
-    setToolJSX(null);
+    // A LANDING is not a hop: the flip-first birth paints this chat on an
+    // empty slot before the daemon answers, and the born session's re-point
+    // fills that slot from ''. What the operator did in the landing window
+    // is this chat's own — the dialog opened stays up, the words typed stay
+    // in the composer (the re-key below carries them) — where a hop between
+    // sessions drops the dialog and swaps the page. A cold keyless admission
+    // lands late enough for both to matter.
+    const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';
+    if (!landing) setToolJSX(null);
     // W4 (the one-owner draft store): the composer draft is the SESSION's
     // own — a real re-point re-keys the live families to the entered
     // session's saved draft (the mount's initSession seed owns the first
@@ -2468,8 +2476,8 @@ export function REPL({
     // turn start can never fire A's words into B.
     if (rekeyedSessionRef.current !== focusedSessionId) {
       rekeyedSessionRef.current = focusedSessionId;
-      void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId);
-      rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId);
+      void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
+      rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedSessionId]);

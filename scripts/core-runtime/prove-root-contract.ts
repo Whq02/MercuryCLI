@@ -79,8 +79,12 @@ function check(label: string, cond: boolean, detail = ''): void {
   }
 }
 
-const COLS = 40
-const ROWS = 10
+// The rig's geometry sits AT the viewport floor (src/ink/viewportFloor.ts:
+// 80 columns × 22 rows): below it the alternate-screen host paints the
+// floor's one line instead of the composed content, and the alt, resize
+// and self-heal laws read empty frames — a moved premise, not a fault.
+const COLS = 80
+const ROWS = 22
 
 // ── the fake terminal ───────────────────────────────────────────────────────
 class FakeStdout extends EventEmitter {
@@ -429,10 +433,12 @@ process.exit(0)
   // clipped to the live size, NEVER a full clear) and no relayout; the one
   // erase-carrying settled frame lands only after RESIZE_SETTLE_MS of
   // quiet, mode re-assert immediately before it, park at the NEW rows.
-  const NEW_ROWS = 12
+  // The storm's geometries sit above the viewport floor (80×22): under it
+  // the settled frame is the floor's one line, never the composed content.
+  const NEW_ROWS = 24
   const mReal = rig.stdout.markerAt()
-  rig.stdout.columns = 60
-  rig.stdout.rows = 14
+  rig.stdout.columns = 100
+  rig.stdout.rows = 30
   rig.stdout.emit('resize')
   await new Promise(resolve => setTimeout(resolve, 30)) // inside the settle window
   const stormWrites = rig.stdout.writes.slice(mReal)
@@ -440,7 +446,7 @@ process.exit(0)
     stormWrites.some(isFrameWrite) && !stormWrites.some(w => w.includes(`${ESC}[2J`)),
     JSON.stringify(stormWrites.map(w => w.slice(0, 24))))
   // Second WINCH inside the window — the storm continues, still no clear.
-  rig.stdout.columns = 50
+  rig.stdout.columns = 90
   rig.stdout.rows = NEW_ROWS
   rig.stdout.emit('resize')
   await rig.settle() // 130ms > the settle window: the settled frame lands

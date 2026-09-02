@@ -42,6 +42,8 @@ console.log('§1 the predicate covers every sentinel spelling')
   for (const sentinel of [
     '__mercury_anthropic_connect__',
     '__mercury_zai_connect__',
+    '__mercury_openrouter_expand__',
+    '__mercury_huggingface_expand__',
     GPT_CONNECT_OPTION_VALUE,
     keyConnectValue('zai'),
     keyConnectValue('compat'),
@@ -56,7 +58,10 @@ console.log('§1 the predicate covers every sentinel spelling')
 console.log('\n§2 the id line guards before it prints (call-shaped)')
 {
   const src = readFileSync(join(ROOT, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')
-  const ladder = src.slice(src.indexOf('seat slot · precedence'), src.indexOf('model IDs are real') + 60)
+  // The ladder is the id line's ternary: anchored on the FC-128 comment
+  // that heads it (a slice from an absent anchor is empty — the guard
+  // must find its ladder or say so).
+  const ladder = src.slice(src.indexOf('connect/attach rows are ACTIONS'), src.indexOf('model IDs are real') + 60)
   check(
     'the ladder consults isProviderActionRow before the gated/id arms',
     ladder.includes('isProviderActionRow(focusedModel!.id)') &&

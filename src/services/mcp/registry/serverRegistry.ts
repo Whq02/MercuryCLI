@@ -336,7 +336,14 @@ export class McpServerRegistry {
       // Local processes don't support reconnection — terminal failed.
       return this.enqueue(slot, async gen => {
         if (this.stale(slot, gen, 'connection-lost')) return null
-        slot.connection = { name, type: 'failed', config: slot.config }
+        // The failed row carries its reason: the server ended its own
+        // connection, and a local process is not reconnected on its own.
+        slot.connection = {
+          name,
+          type: 'failed',
+          config: slot.config,
+          error: `the server closed its connection — a local server is not restarted on its own; /mcp reconnect ${name} starts it again`,
+        }
         this.emit(slot, 'reconnect-auto', { tools: [], commands: [] })
         return null
       }).then(() => undefined)

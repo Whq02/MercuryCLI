@@ -33,6 +33,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync, statSync, existsSync, copyFileSync, mkdirSync } from 'fs'
+import { createHash } from 'crypto'
 import { spawn, spawnSync } from 'child_process'
 import { builtinModules } from 'module'
 import { tmpdir } from 'os'
@@ -257,6 +258,31 @@ let manifestOk = false
           'degraded[] agrees with the pyright claim',
           pyright.vendored ? !m.degraded.includes('python-intelligence') : m.degraded.includes('python-intelligence'),
         )
+      }
+      // The enter screen beside the bundle: the ordinary build copies the
+      // canonical pair next to mercury.mjs (a direct start resolves it there
+      // first), and the record names the real bytes.
+      const splash = (m as unknown as { splash?: { path: string; core: string; bytes: number; sha256: string } }).splash
+      check('manifest carries the splash record', splash !== undefined)
+      if (splash) {
+        const driverPath = join(root, 'dist', splash.path)
+        const corePath = join(root, 'dist', splash.core)
+        check('splash driver + core sit beside the bundle', existsSync(driverPath) && existsSync(corePath), `${splash.path} · ${splash.core}`)
+        if (existsSync(driverPath)) {
+          const real = readFileSync(driverPath)
+          check('splash record bytes match the real file', splash.bytes === real.length, `manifest ${splash.bytes} vs real ${real.length}`)
+          check('splash record sha256 matches the real file', splash.sha256 === createHash('sha256').update(real).digest('hex'))
+          check(
+            'the shipped driver is the canonical asset byte-for-byte',
+            real.equals(readFileSync(join(root, 'assets', 'splash', 'mercury-splash.mjs'))),
+          )
+        }
+        if (existsSync(corePath)) {
+          check(
+            'the shipped core is the canonical asset byte-for-byte',
+            readFileSync(corePath).equals(readFileSync(join(root, 'assets', 'splash', 'splash-core.mjs'))),
+          )
+        }
       }
     } catch (e) {
       check('manifest parses', false, String(e).slice(0, 200))

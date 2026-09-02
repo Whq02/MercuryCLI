@@ -2111,6 +2111,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
       seedFirstRun(scratch, [RUNTIME_CWD])
       applyRenderTheme(scratch)
       process.env.MERCURY_CONFIG_DIR = scratch
+      // The scratch home owns its daemon dir (the pid-keyed default above is
+      // shared by every capture of a run): a session born here never reaches
+      // another scenario's daemon.
+      process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
       return {
         argv: ['node', BIN],
         sends: [{ atTick: 30, data: name === 'submodels-signedout' ? '/submodels\r' : '/model\r' }],
@@ -2358,6 +2362,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     seedFirstRun(scratch, [project])
     applyRenderTheme(scratch)
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return { argv: ['node', BIN], sends: [], total: 45, cols, rows, cwd: project }
   }
   if (name === 'entry-provider') {
@@ -2944,17 +2952,21 @@ function scenarioInner(name: string, cols: number, rows: number) {
     saveBootDefaultsProfile({ MERCURY_HELM_HOME: '0' }, bootEnv)
     saveBootDefaultsProfile({ MERCURY_HELM_HOME: '0', MERCURY_CACHE_TTL: '1h' }, bootEnv)
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 32, data: '/bootmenu\r', mark: 'open' },
-        // CB-09: /bootmenu NAMES the menu, so it deep-links —
-        // the canonical Boot face mounts with the settings layer already
-        // open (no 's' drill needed); the settled gate waits for the
-        // projection's lockup so the revision-2 profile digest header still
-        // captures as this scenario's evidence. esc from here reveals the
-        // helmet face (the boot-face scenario covers that leg).
-        { atTick: 52, awaitText: 'BOOT SETTINGS', minTick: 36, awaitSettleTicks: 2, data: '' },
+        // The bare boot lands ON the face, and the face's ↵ births a
+        // session at once (the flip-first birth) — a typed slash command
+        // would ride into a cockpit, not the menu. The settings layer opens
+        // from the face's own key (m); the strip names it "boot menu" at
+        // every size, and the settled gate waits for it so the revision-2
+        // profile digest header captures as this scenario's evidence.
+        { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, data: 'm', mark: 'open' },
+        { atTick: 60, awaitText: 'boot menu', minTick: 30, awaitSettleTicks: 2, data: '' },
       ],
       total: 85,
       cols,
@@ -2963,23 +2975,24 @@ function scenarioInner(name: string, cols: number, rows: number) {
   }
   if (name === 'boot-face') {
     // Phase-2 ruling 1: the CANONICAL in-process Boot face (the helmet
-    // composition from the shared splash core). /bootmenu deep-links into
-    // the settings layer (CB-09), so the face capture drives the esc chain:
-    // settings → the helmet face — which doubles as the CB-09 layering
-    // evidence. Hermetic home via the same seeding as boot-settings.
+    // composition from the shared splash core). The bare boot lands ON the
+    // face — nothing to drive (the face's ↵ births a session at once, so
+    // the old typed-slash-command chain would capture a cockpit). Hermetic
+    // home via the same seeding as boot-settings.
     const scratch = join(tmpdir(), `hermes-render-bootface-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 32, data: '/bootmenu\r', mark: 'open' },
-        // esc closes the settings layer to the canonical face beneath (CB-09).
-        { atTick: 52, awaitText: 'BOOT SETTINGS', minTick: 36, awaitSettleTicks: 2, data: '\u001b' },
-        { atTick: 72, awaitText: 'Doctor / Health Check', minTick: 40, awaitSettleTicks: 2, mark: 'face', data: '' },
+        { atTick: 40, awaitText: 'Doctor / Health Check', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '' },
       ],
-      total: 95,
+      total: 60,
       cols,
       rows,
     }
@@ -2988,25 +3001,28 @@ function scenarioInner(name: string, cols: number, rows: number) {
     // L24(5): the MCPs & Skills MANAGER,
     // opened from the Boot face's own row — the operator's real-boot look
     // (the cpu-pure stills live under scripts/ui/fixtures/kit-menu/).
-    // Same hermetic seeding + the CB-09 esc chain as boot-face, then ↓↓ from
-    // the default New Session row (a fresh home composes no Continue row, so
-    // the kit row is the third: New Session · Boot Menu · MCPs & Skills) and
-    // ↵ opens the manager; its caption settles the capture. esc from here
-    // reveals the face beneath (the layer's own topology).
+    // Same hermetic seeding as boot-face; the bare boot lands on the face,
+    // then ↓↓ from the default New Session row (a fresh home composes no
+    // Continue row, so the kit row is the third: New Session · Boot Menu ·
+    // MCPs & Skills) and ↵ opens the manager; its caption settles the
+    // capture. esc from here reveals the face beneath (the layer's own
+    // topology).
     const scratch = join(tmpdir(), `hermes-render-bootkit-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 32, data: '/bootmenu\r', mark: 'open' },
-        { atTick: 52, awaitText: 'BOOT SETTINGS', minTick: 36, awaitSettleTicks: 2, data: '\x1b' },
-        { atTick: 72, awaitText: 'MCPs & Skills', minTick: 40, awaitSettleTicks: 2, mark: 'face', data: '\u001b[B\u001b[B' },
+        { atTick: 40, awaitText: 'MCPs & Skills', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '\u001b[B\u001b[B' },
         { afterPrevTicks: 4, data: '\r' },
-        { atTick: 100, awaitText: 'mcps & skills', minTick: 80, awaitSettleTicks: 2, mark: 'kit', data: '' },
+        { atTick: 80, awaitText: 'mcps & skills', minTick: 50, awaitSettleTicks: 2, mark: 'kit', data: '' },
       ],
-      total: 120,
+      total: 100,
       cols,
       rows,
     }
@@ -3714,6 +3730,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
       }),
     )
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     // A typed character leaves the splash face — the notifications column
     // mounts with the working composer (the operator's repro posture).
     return { argv: ['node', BIN], sends: [{ atTick: 32, data: 'x' }], total: 70, cols, rows }
@@ -3801,6 +3821,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.BROWSER = 'true'
     if (name === 'login-kimi-device') {
       const port = 47734
@@ -4892,6 +4916,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = dead
     process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = dead
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
@@ -4946,6 +4974,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     const startFixture = (pidName: string, port: number, serverJs: string, readyPath: string): void => {
       try {
         const stale = Number(readFileSync(join(tmpdir(), pidName), 'utf8').trim())
@@ -5255,6 +5287,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
           : JSON.stringify(fixture)
       writeFileSync(fixturePath, fixtureJson)
       process.env.MERCURY_CONFIG_DIR = scratch
+      // The scratch home owns its daemon dir (the pid-keyed default above is
+      // shared by every capture of a run): a session born here never reaches
+      // another scenario's daemon.
+      process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
       if (policy === null) delete process.env.MERCURY_CONCOURSE
       else process.env.MERCURY_CONCOURSE = policy
       process.env.MERCURY_CONCOURSE_FIXTURE = fixturePath

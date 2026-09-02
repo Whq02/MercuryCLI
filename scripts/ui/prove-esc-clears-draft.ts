@@ -11,7 +11,7 @@
 //  Poison = the pre-fix 800 ms blink: an operator-paced esc·esc (≈2 s
 //  apart) read as a no-op.
 // ============================================================================
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,7 +31,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { runArtifactArena, grabScreens, firstOutputTs } = await import('../streaming/artifactArena.ts')
+const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -52,8 +52,7 @@ const DRAFT = 'hello draft mercury'
 const leg = async (tag: string, cols: number, rows: number, gapMs: number): Promise<void> => {
   const SCRATCH = mkdtempSync(join(tmpdir(), `escdraft-${tag}-`))
   const daemonDir = join(SCRATCH, 'daemon')
-  const work = join(SCRATCH, 'work')
-  for (const d of [daemonDir, work]) mkdirSync(d, { recursive: true })
+  mkdirSync(daemonDir, { recursive: true })
   process.env.MERCURY_DAEMON_DIR = daemonDir
   delete process.env.MERCURY_HOME
   process.env.MERCURY_CONCOURSE = 'always'
@@ -73,11 +72,16 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
   const run = await runArtifactArena({
     turns: [],
     sends: [
-      // The board row wears the dispatch PROMPT's words now, not the title
-      // ('Quiet seat' rotted when rows re-labeled) — anchor the hop on the
-      // words the row actually paints.
-      'after:say something settled:2500:\t',
-      'after:say something settled:4000:\r',
+      // The board row wears the dispatch's TITLE: the supervisor keeps
+      // req.title on the worker record, the list row prints it, and the
+      // title mint fills empty titles only — anchor the hop on the words
+      // the row actually paints. The board opens on the coordinator: tab
+      // reaches the list, the first ↵ ARMS the row (its line reads
+      // "armed — ↵ again enters") and the second ↵ enters — the second
+      // press rides the arm's own receipt, never a guessed delay.
+      'after:Quiet seat:2500:\t',
+      'after:Quiet seat:4000:\r',
+      'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
       `after:Type a prompt:${escAt + gapMs}:\x1b`,
@@ -86,12 +90,18 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     cols,
     rows,
     keep: true,
-    seedHome: async (configDir, _cwd) => {
-      seedFirstRun(configDir, [_cwd, work])
+    seedHome: async (configDir, ground) => {
+      // The board is project-scoped: its rows are the ground's own sessions,
+      // and the ground is the cwd the chat boots in. The daemon runs there
+      // and the seat is dispatched there, so the row is the board's own; a
+      // git ground keeps the folder's git-init card off the board.
+      spawnSync('git', ['init', '-q', '-b', 'main'], { cwd: ground })
+      spawnSync('git', ['-c', 'user.name=probe', '-c', 'user.email=probe@x', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: ground })
+      seedFirstRun(configDir, [ground])
       process.env.MERCURY_CONFIG_DIR = configDir
-      daemon = spawn('node', [DIST, 'daemon', 'run', work], {
-        cwd: work,
-        env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0', MERCURY_PARTY: '0' },
+      daemon = spawn('node', [DIST, 'daemon', 'run', ground], {
+        cwd: ground,
+        env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0' },
         stdio: ['ignore', logFd, logFd],
       })
       check(`${tag}: the daemon serves`, await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -99,25 +109,25 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
         op: 'concourseDispatch',
         clientMessageId: `escdraft-${tag}`,
         prompt: 'say something settled',
-        workspaceDir: work,
+        workspaceDir: ground,
         title: 'Quiet seat',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))
-      const t = join(paths.getProjectDir(work), `${a.sessionId ?? ''}.jsonl`)
+      const t = join(paths.getProjectDir(ground), `${a.sessionId ?? ''}.jsonl`)
       check(`${tag}: transcript born`, await untilAsync(() => existsSync(t) && statSync(t).size > 100, 30_000))
     },
     extraEnv: { MERCURY_CONCOURSE: 'always', MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_CACHE_CLOCK: '0' },
   })
   try {
     // The sends are OBSERVED-READY (needle-anchored), so the assert clock is
-    // the SEND LOG's actual fire times, child-relative — a fixed-offset read
-    // against a shifted journey adjudicates the wrong frames.
-    const t0 = firstOutputTs(run)
+    // the SEND LOG's fire times in the grab's own stamp base (sendStamp) —
+    // a raw first-output offset against a re-based journey adjudicates the
+    // wrong frames by the whole anchor shift.
     const escSends = run.sendLog
       .filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b')
-      .map(s => s.sent - t0)
+      .map(s => sendStamp(run, s))
       .sort((a, b) => a - b)
     const draftSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8') === DRAFT)
     check(`${tag}: the journey ran whole (draft + two escs sent)`, escSends.length === 2 && draftSend !== undefined, `escs at ${escSends.join(',')}`)

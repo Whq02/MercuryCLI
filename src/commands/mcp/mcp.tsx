@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useEffect, useRef } from 'react'
+import { McpRosterCard } from '../../components/mcp/McpRosterCard.js'
 import { MCPReconnect } from '../../components/mcp/MCPReconnect.js'
 import { MCPSettings } from '../../components/mcp/MCPSettings.js'
 import type {
@@ -96,8 +97,15 @@ export async function call(
   const { getFocusedSessionConnector } = await import('../../services/engine-connector/focusedConnector.js')
   const roster = getFocusedSessionConnector().mcpRoster()
   if (mcpRouteArm(roster, context.getAppState().mcp.clients.length) === 'facts') {
-    onDone(mcpRosterLine(roster))
-    return null
+    // The roster is a CARD on every seat: a hosted seat paints a text
+    // result on the one-row footer notice, where seven servers' failed
+    // reasons clipped past the row. The card lists every row, the failed
+    // first, each reason whole; an empty roster keeps its one honest line.
+    if (roster.clients.length === 0) {
+      onDone(mcpRosterLine(roster))
+      return null
+    }
+    return <McpRosterCard roster={roster} onDone={onDone} />
   }
   return <MCPSettings onComplete={onDone} />
 }

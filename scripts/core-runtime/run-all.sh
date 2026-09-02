@@ -10,12 +10,13 @@
 # gate-watch: src/state/AppStateStore* src/substrate/startupMenu* src/tools/AgentTool/constants*
 # gate-watch: src/tools/BriefTool/prompt* src/tools/SyntheticOutputTool/SyntheticOutputTool*
 # gate-watch: src/types/ids* src/types/textInputTypes* src/utils/**
+# gate-watch: src/commands/caching/**
 # ============================================================================
 #  scripts/core-runtime/run-all.sh — contract suite. In-process provers only —
 #  the perf receipt runner (bench-baseline.ts) is operator-run, not a member.
 # ============================================================================
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 # One wall-seconds line per prover — the pool engine reads exactly this shape.
@@ -71,6 +72,9 @@ __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-field-findings-input-family.
 
 echo "── core-runtime: boot contract (T15)"
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-boot-contract.ts || fail=1; prover_mark scripts/core-runtime/prove-boot-contract.ts "$__t"
+
+echo "── core-runtime: boot-env attribution (a saved default is never a real env pin)"
+__t=$SECONDS; "$BUN" run scripts/core-runtime/prove-bootenv-attribution.ts || fail=1; prover_mark scripts/core-runtime/prove-bootenv-attribution.ts "$__t"
 
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-face-birth-ground.ts || fail=1; prover_mark scripts/core-runtime/prove-face-birth-ground.ts "$__t"
 

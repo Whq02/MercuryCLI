@@ -386,7 +386,7 @@ function staticImports(src: string): {
   // installer's static closure is a conscious act. Everything listed is
   // either already evaluated by stage 1 (bootstrap/state, debug,
   // startupProfiler ride the step-8 profiler import) or import-free
-  // (cleanupRegistry, deadline, diagLogs, log, signal-exit, node builtins).
+  // (cleanupRegistry, deadline, diagLogs, log, process, signal-exit, node builtins).
   const expected = [
     '../bootstrap/state.js',
     './cleanupRegistry.js',
@@ -394,6 +394,7 @@ function staticImports(src: string): {
     './debug.js',
     './diagLogs.js',
     './log.js',
+    './process.js',
     './startupProfiler.js',
     'node:fs',
     'signal-exit',
