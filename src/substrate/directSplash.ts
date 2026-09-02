@@ -11,7 +11,7 @@ export const SPLASH_EXIT = {
   CANCEL: 130,
 } as const
 
-export const SPLASH_ABNORMAL_HEAL = '\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07'
+export const SPLASH_ABNORMAL_HEAL = '\x1b[?2026l\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07'
 
 export const SPLASH_DRIVER = 'splash.mjs'
 export const SPLASH_CORE = 'splash-core.mjs'

@@ -3,6 +3,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
 import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
+import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
 export type BirthOutcome =
   | { ok: true; sessionId: string; title: string }
@@ -63,6 +64,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   if (reply.ok !== true || sessionId === undefined) {
     return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
+  if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
   catalogFirstChat(req.workspaceDir, sessionId)
   const hop = await hopIntoBoardSession(sessionId, req.firstPaintMs !== undefined ? { firstPaintMs: req.firstPaintMs } : undefined)
   if (!hop.ok) {

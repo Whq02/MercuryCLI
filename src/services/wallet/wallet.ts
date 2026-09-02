@@ -160,7 +160,7 @@ export type NotLoggedInGate =
 
 export function notLoggedInGateDecision(
   entries: readonly WalletEntry[],
-  route: import('../providers/routeLaw.js').CallModelRoute | null,
+  route: string | null,
 ): NotLoggedInGate {
   if (route !== 'anthropic' && route !== 'openai') return { state: 'ok' }
   const openaiConnected = entries.some(e => e.provider === 'openai')
@@ -169,10 +169,12 @@ export function notLoggedInGateDecision(
   if (sessionProviderConnected) return { state: 'ok' }
   if (entries.length === 0) return { state: 'not-logged-in' }
   const missingProvider = providerDisplayName(route)
+  const { familyRouteWords } =
+    require('../providers/accountSlots.js') as typeof import('../providers/accountSlots.js')
   return {
     state: 'provider-missing',
     missingProvider,
-    steering: `No ${missingProvider} account for the current model · /model switches to a connected provider · /logins adds ${missingProvider}`,
+    steering: `No ${missingProvider} account for the current model · /model switches to a connected provider · ${familyRouteWords(route)} adds one`,
   }
 }
 

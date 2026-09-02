@@ -544,6 +544,51 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
 
+console.log('[J] the overlays with voice input on, then off — the external editor and the palette open and return')
+{
+  const netlog = join(scratch, 'overlays-net.log')
+  const fx = await startFixture('overlays', 0)
+  const editShim = join(shimDir, 'edit-shim')
+  writeFileSync(editShim, `#!/bin/sh\nprintf ' edited' >> "$1"\n`)
+  chmodSync(editShim, 0o755)
+  const res = drive(
+    'overlays',
+    seededHome('home-j'),
+    netlog,
+    [
+      ...OPENING,
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: 'hello' },
+      { afterPrevTicks: 2, data: '\x18' },
+      { afterPrevTicks: 2, data: '\x05' },
+      { requireAwait: true, awaitText: 'hello edited', awaitStableTicks: 2, mark: 'editor-on', data: '\x18' },
+      { afterPrevTicks: 2, data: 'p' },
+      { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette-on', data: '\x1b' },
+      { afterPrevTicks: 3, data: '\x15' },
+      { afterPrevTicks: 2, data: '/speak off' },
+      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'voice input OFF', awaitStableTicks: 2, data: 'again' },
+      { afterPrevTicks: 2, data: '\x18' },
+      { afterPrevTicks: 2, data: '\x05' },
+      { requireAwait: true, awaitText: 'again edited', awaitStableTicks: 2, mark: 'editor-off', data: '\x18' },
+      { afterPrevTicks: 2, data: 'p' },
+      { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette-off', data: '\x1b' },
+      { afterPrevTicks: 3, mark: 'end', data: '' },
+    ],
+    180,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, VISUAL: editShim, EDITOR: editShim },
+  )
+  fx.child.kill('SIGTERM')
+  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('voice ON: the external editor opened, returned, and the edit landed in the composer', /❯ hello edited/.test(res.marks['editor-on'] ?? ''), (res.marks['editor-on'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('voice ON: the command palette opened', (res.marks['palette-on'] ?? '').includes('fuzzy by name'))
+  check('voice OFF: the external editor opened, returned, and the edit landed', /❯ again edited/.test(res.marks['editor-off'] ?? ''), (res.marks['editor-off'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('voice OFF: the command palette opened', (res.marks['palette-off'] ?? '').includes('fuzzy by name'))
+  check('the session survived every overlay (the child never exited; no crash on screen)', res.endReason !== 'eof' && !res.gridText.includes('Mercury exited on an error') && (res.marks.end ?? '').includes('❯'), `ended: ${res.endReason}`)
+  check('no take was sent', ledgerPosts(fx.ledger).length === 0)
+  const stray = nonLoopback(netlines(netlog))
+  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+}
+
 if (failures > 0) {
   console.log(`\nprove-voice-journey: RED (${failures}) — grids kept under ${scratch}`)
   process.exit(1)
