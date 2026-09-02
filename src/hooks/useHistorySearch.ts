@@ -22,12 +22,11 @@ type Reader = AsyncGenerator<HistoryEntry>
 // Each typed character re-scans the history corpus — loaded ONCE per search
 // session (FN-020 row 9a: the file used to be re-read and re-parsed per
 // keystroke) and matched in memory — and keystrokes inside roughly one frame
-// still coalesce to ONE scan — the LAST query wins. Enter and
-// the next-match cycle stay immediate: accept/execute read the settled
-// match synchronously and never touch the timer; nextMatch FLUSHES a
-// pending scan rather than continuing a reader the query outran. Timers
-// register here so a prover (and the reset discipline) can count live
-// timers — zero after every exit path.
+// still coalesce to ONE scan — the LAST query wins. The next-match cycle
+// FLUSHES a pending scan rather than continuing a reader the query outran;
+// Enter (accept/execute) goes through the scan gate below, so the match it
+// reads is the query's own. Timers register here so a prover (and the reset
+// discipline) can count live timers — zero after every exit path.
 export const HISTORY_SCAN_DEBOUNCE_MS = 33
 const liveScanTimers = new Set<ReturnType<typeof setTimeout>>()
 export function historyScanTimerCensus(): number {
@@ -50,6 +49,89 @@ export function disarmHistoryScanTimer(
   if (timer === null) return
   clearTimeout(timer)
   liveScanTimers.delete(timer)
+}
+
+// ── the scan gate (Enter waits for the query's own scan) ────────────────────
+// The settled match reflects the query only once the query's scan has
+// LANDED. Two states say it does not yet: a debounce timer still pending
+// (the keystroke's scan has not started) and a scan in flight (it started
+// and has not landed). Enter used to read the match straight through both
+// — a keystroke inside the debounce window followed by a fast Enter
+// accepted the PREVIOUS query's match and threw the fresh scan away. The
+// gate is the one owner of both states: a keystroke arms the timer (and
+// drops any queued action — typing wins); accept/execute go through
+// settle(): a pending scan is flushed NOW as a fresh scan and the action
+// rides its landing, an in-flight scan lands the queued action, and
+// otherwise the action runs at once. Scans report their edges with a
+// token, so a scan superseded mid-flight can never land another scan's
+// action. Module-level and pure so a prover drives it without a render.
+export type HistoryScanGate = {
+  /** A keystroke: coalesce to one scan per frame; drops a queued action. */
+  arm(run: () => void, delayMs: number): void
+  /** Drop the pending timer and any queued action (every reset road). */
+  disarm(): void
+  /** A debounce timer is pending — the query's scan has not started. */
+  pending(): boolean
+  /** A scan began: its token, handed back at its landing. */
+  scanStarted(): number
+  /** A scan landed; only the LATEST scan's landing runs the queued action. */
+  scanLanded(token: number): void
+  /** Run `action` once the match reflects the query: flush a pending scan
+   *  through `flush` and ride its landing, wait for an in-flight scan, or
+   *  run at once. */
+  settle(action: () => void, flush: () => void): void
+}
+
+export function createHistoryScanGate(): HistoryScanGate {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let epoch = 0
+  let inFlight = false
+  let queued: (() => void) | null = null
+  const landQueued = (): void => {
+    const action = queued
+    queued = null
+    action?.()
+  }
+  return {
+    arm(run, delayMs) {
+      queued = null
+      disarmHistoryScanTimer(timer)
+      timer = armHistoryScanTimer(() => {
+        timer = null
+        run()
+      }, delayMs)
+    },
+    disarm() {
+      queued = null
+      disarmHistoryScanTimer(timer)
+      timer = null
+    },
+    pending: () => timer !== null,
+    scanStarted() {
+      inFlight = true
+      return ++epoch
+    },
+    scanLanded(token) {
+      if (token !== epoch) return
+      inFlight = false
+      landQueued()
+    },
+    settle(action, flush) {
+      if (timer !== null) {
+        disarmHistoryScanTimer(timer)
+        timer = null
+        queued = action
+        flush()
+        if (!inFlight) landQueued()
+        return
+      }
+      if (inFlight) {
+        queued = action
+        return
+      }
+      action()
+    },
+  }
 }
 
 export function useHistorySearch(
@@ -86,7 +168,9 @@ export function useHistorySearch(
     pastedContents: Record<number, PastedContent>
   } | null>(null)
   const scanAbortRef = useRef<AbortController | null>(null)
-  const scanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // One gate per search instance (stable for the callbacks below).
+  const gateRef = useRef<HistoryScanGate | null>(null)
+  const gate = (gateRef.current ??= createHistoryScanGate())
   const [, force] = useReducerLike()
 
   const searchingRef = useRef(isSearching)
@@ -134,37 +218,44 @@ export function useHistorySearch(
         closeReader()
         seenRef.current.clear()
       }
+      const token = gate.scanStarted()
       void (async () => {
-        // FN-020 row 9a: the corpus loads ONCE per search (handleStartSearch)
-        // and every scan reads it in memory — no disk read and no parse per
-        // keystroke; the reader over it is what a scan continues.
-        const corpus = await (corpusRef.current ??= loadHistoryCorpus())
-        if (abort.signal.aborted) return
-        if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
-        const reader = readerRef.current
-        for (;;) {
+        try {
+          // FN-020 row 9a: the corpus loads ONCE per search (handleStartSearch)
+          // and every scan reads it in memory — no disk read and no parse per
+          // keystroke; the reader over it is what a scan continues.
+          const corpus = await (corpusRef.current ??= loadHistoryCorpus())
           if (abort.signal.aborted) return
-          const next = await reader.next()
-          if (abort.signal.aborted) return
-          if (next.done) {
-            // End of history: the failure flag sets, the last match stays.
-            failedRef.current = true
+          if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
+          const reader = readerRef.current
+          for (;;) {
+            if (abort.signal.aborted) return
+            const next = await reader.next()
+            if (abort.signal.aborted) return
+            if (next.done) {
+              // End of history: the failure flag sets, the last match stays.
+              failedRef.current = true
+              force()
+              return
+            }
+            const entry = next.value
+            if (!entry.display.includes(query)) continue
+            if (seenRef.current.has(entry.display)) continue
+            seenRef.current.add(entry.display)
+            matchRef.current = entry
+            failedRef.current = false
+            applyMatch(entry, query)
             force()
             return
           }
-          const entry = next.value
-          if (!entry.display.includes(query)) continue
-          if (seenRef.current.has(entry.display)) continue
-          seenRef.current.add(entry.display)
-          matchRef.current = entry
-          failedRef.current = false
-          applyMatch(entry, query)
-          force()
-          return
+        } finally {
+          // The landing edge on every road out (a match, the end of history,
+          // superseded, thrown): a queued accept/execute lands here.
+          gate.scanLanded(token)
         }
       })()
     },
-    [applyMatch, closeReader, force],
+    [applyMatch, closeReader, force, gate],
   )
 
   const restoreOriginal = useCallback((): void => {
@@ -177,8 +268,7 @@ export function useHistorySearch(
   }, [onInputChange, onCursorChange, setPastedContents])
 
   const reset = useCallback((): void => {
-    disarmHistoryScanTimer(scanDebounceRef.current)
-    scanDebounceRef.current = null
+    gate.disarm()
     scanAbortRef.current?.abort()
     closeReader()
     corpusRef.current = null
@@ -189,7 +279,7 @@ export function useHistorySearch(
     originalRef.current = null
     setIsSearching(false)
     force()
-  }, [closeReader, setIsSearching, force])
+  }, [closeReader, setIsSearching, force, gate])
 
   const handleStartSearch = useCallback((): void => {
     originalRef.current = {
@@ -198,8 +288,7 @@ export function useHistorySearch(
       mode: modeRef.current,
       pastedContents: pastesRef.current,
     }
-    disarmHistoryScanTimer(scanDebounceRef.current)
-    scanDebounceRef.current = null
+    gate.disarm()
     closeReader()
     // One read, one parse, per search session; the first scan awaits it.
     corpusRef.current = loadHistoryCorpus()
@@ -209,7 +298,7 @@ export function useHistorySearch(
     failedRef.current = false
     setIsSearching(true)
     force()
-  }, [closeReader, setIsSearching, force])
+  }, [closeReader, setIsSearching, force, gate])
 
   const setHistoryQuery = useCallback(
     (query: string): void => {
@@ -219,8 +308,7 @@ export function useHistorySearch(
         // Empty query: pending scan dropped, reader closed, match and
         // failure cleared, the ORIGINAL input/cursor/mode/pastes restored
         // — all IMMEDIATE (restore never waits on a frame).
-        disarmHistoryScanTimer(scanDebounceRef.current)
-        scanDebounceRef.current = null
+        gate.disarm()
         scanAbortRef.current?.abort()
         closeReader()
         seenRef.current.clear()
@@ -236,42 +324,48 @@ export function useHistorySearch(
         force()
         return
       }
-      // One-frame coalescing: a typing burst pays ONE full-history scan.
-      disarmHistoryScanTimer(scanDebounceRef.current)
-      scanDebounceRef.current = armHistoryScanTimer(() => {
-        scanDebounceRef.current = null
-        scan(queryRef.current, false)
-      }, HISTORY_SCAN_DEBOUNCE_MS)
+      // One-frame coalescing: a typing burst pays ONE full-history scan —
+      // and the keystroke drops any queued Enter (typing wins).
+      gate.arm(() => scan(queryRef.current, false), HISTORY_SCAN_DEBOUNCE_MS)
     },
-    [scan, closeReader, onInputChange, onCursorChange, onModeChange, setPastedContents, force],
+    [scan, closeReader, onInputChange, onCursorChange, onModeChange, setPastedContents, force, gate],
   )
 
   const nextMatch = useCallback((): void => {
     if (!searchingRef.current || queryRef.current === '') return
-    if (scanDebounceRef.current !== null) {
+    if (gate.pending()) {
       // A pending re-scan means the reader does not yet reflect the query:
       // flush it NOW as a fresh scan instead of continuing a stale reader.
-      disarmHistoryScanTimer(scanDebounceRef.current)
-      scanDebounceRef.current = null
+      gate.disarm()
       scan(queryRef.current, false)
       return
     }
     scan(queryRef.current, true)
+  }, [scan, gate])
+
+  /** The flush the gate uses for Enter: the query's scan, fresh. */
+  const flushScan = useCallback((): void => {
+    scan(queryRef.current, false)
   }, [scan])
 
   const accept = useCallback((): void => {
-    const match = matchRef.current
-    if (match !== undefined) {
-      const mode = getModeFromInput(match.display)
-      onModeChange(mode)
-      onInputChange(getValueFromInput(match.display))
-      setPastedContents(match.pastedContents)
-    } else {
-      const original = originalRef.current
-      if (original !== null) setPastedContents(original.pastedContents)
-    }
-    reset()
-  }, [onModeChange, onInputChange, setPastedContents, reset])
+    // Through the gate: a keystroke's scan still pending is flushed first
+    // and the accept rides its landing, so the match read here is the
+    // query's own — never the previous query's.
+    gate.settle(() => {
+      const match = matchRef.current
+      if (match !== undefined) {
+        const mode = getModeFromInput(match.display)
+        onModeChange(mode)
+        onInputChange(getValueFromInput(match.display))
+        setPastedContents(match.pastedContents)
+      } else {
+        const original = originalRef.current
+        if (original !== null) setPastedContents(original.pastedContents)
+      }
+      reset()
+    }, flushScan)
+  }, [onModeChange, onInputChange, setPastedContents, reset, gate, flushScan])
 
   const cancel = useCallback((): void => {
     restoreOriginal()
@@ -279,32 +373,35 @@ export function useHistorySearch(
   }, [restoreOriginal, reset])
 
   const execute = useCallback((): void => {
-    const query = queryRef.current
-    const match = matchRef.current
-    if (query === '') {
-      const original = originalRef.current
-      if (original !== null) {
-        onAcceptHistory({
-          display: original.input,
-          pastedContents: original.pastedContents,
-        })
+    // Through the gate, like accept: the submitted match is the query's own.
+    gate.settle(() => {
+      const query = queryRef.current
+      const match = matchRef.current
+      if (query === '') {
+        const original = originalRef.current
+        if (original !== null) {
+          onAcceptHistory({
+            display: original.input,
+            pastedContents: original.pastedContents,
+          })
+        }
+        reset()
+        return
       }
+      if (match === undefined) {
+        // Non-empty query with no match submits nothing.
+        reset()
+        return
+      }
+      const mode = getModeFromInput(match.display)
+      onModeChange(mode)
+      onAcceptHistory({
+        display: getValueFromInput(match.display),
+        pastedContents: match.pastedContents,
+      })
       reset()
-      return
-    }
-    if (match === undefined) {
-      // Non-empty query with no match submits nothing.
-      reset()
-      return
-    }
-    const mode = getModeFromInput(match.display)
-    onModeChange(mode)
-    onAcceptHistory({
-      display: getValueFromInput(match.display),
-      pastedContents: match.pastedContents,
-    })
-    reset()
-  }, [onAcceptHistory, onModeChange, reset])
+    }, flushScan)
+  }, [onAcceptHistory, onModeChange, reset, gate, flushScan])
 
   // Registrations (contract data): start in Global while NOT searching; the
   // four in-search actions in HistorySearch while searching.
