@@ -60,7 +60,7 @@ console.log('A — toggle presence per world/width')
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check(
     'A12 the toggle handler is a list-region letter-verb gated off the reduced stage',
-    screen.includes("if (input === 's' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && pastGate())"),
+    screen.includes("if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate())"),
   )
 }
 
