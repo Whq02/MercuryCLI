@@ -165,7 +165,7 @@ const call: LocalCommandCall = async (args: string) => {
   if (!snap || snap.members.length === 0) {
     return {
       type: 'text',
-      value: 'the crew directory is empty — it fills as this session, party seats and attached agents register',
+      value: 'the crew directory is empty — it fills as this session and attached agents register',
     }
   }
   // M10: the directory rides the ONE target picker (endpoint truth — the

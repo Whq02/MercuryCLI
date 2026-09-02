@@ -53,7 +53,6 @@ import {
   getPlanModeV2ExploreAgentCount,
   isPlanModeInterviewPhaseEnabled,
 } from '../planModeV2.js'
-import { frameInboundForImplementer } from '../scribe/implementerFraming.js'
 import { jsonStringify } from '../slowOperations.js'
 import { isTodoV2Enabled } from '../tasks.js'
 import {
@@ -448,14 +447,7 @@ export function normalizeAttachmentForAPI(
       }))
       return [
         createUserMessage({
-          // Scribe Mode: in the Implementer process, inbound Scribe-bus messages
-          // carry the operator's authority — frame them so. Identity (byte-
-          // identical) for every other process (a normal session, Scribe,
-          // or opt-out). NOT a UserPromptSubmit hook — the
-          // attachment→message seam.
-          content: frameInboundForImplementer(
-            getTeammateMailbox().formatTeammateMessages(boundedMessages),
-          ),
+          content: getTeammateMailbox().formatTeammateMessages(boundedMessages),
           isMeta: true,
         }),
       ]
@@ -925,21 +917,8 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content: attachment.content, isMeta: true }),
       ])
     }
-    case 'scribe_awareness': {
-      // Scribe Mode "Amanuensis" per-turn awareness (W3c) — raw content, wrapped
-      // once here in the single <system-reminder> envelope (mirrors critical_system_reminder).
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: attachment.content, isMeta: true }),
-      ])
-    }
-    case 'implementer_awareness': {
-      // Implementer per-turn awareness — raw content, wrapped once here (mirror scribe_awareness).
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: attachment.content, isMeta: true }),
-      ])
-    }
     case 'taste_recall': {
-      // Taste Loop recall (fork) — raw content, wrapped once here (mirror scribe_awareness).
+      // Taste Loop recall (fork) — raw content, wrapped once here (mirror critical_system_reminder).
       // Model-only (NULL_RENDERING_TYPES); produced only on the main thread when promoted.
       return wrapMessagesInSystemReminder([
         createUserMessage({ content: attachment.content, isMeta: true }),

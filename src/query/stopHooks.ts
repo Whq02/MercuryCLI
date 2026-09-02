@@ -123,18 +123,8 @@ async function* briefModeSentinel(
     const questionTool = require('../tools/AskUserQuestionTool/prompt.js') as {
       ASK_USER_QUESTION_TOOL_NAME: string
     }
-    const scribeGates = require('../utils/scribe/scribeGates.js') as {
-      scribeModeEnabled: () => boolean
-      isImplementerRole: () => boolean
-    }
-    const engage = require('../utils/scribe/engageScribeSession.js') as {
-      isScribeSessionPinned: () => boolean
-    }
     const briefFilters = require('../utils/messages/briefFilters.js') as {
       hasTrailingTextAfterBrief: (messages: Message[]) => boolean
-    }
-    const sendMessage = require('../tools/SendMessageTool/constants.js') as {
-      SEND_MESSAGE_TOOL_NAME: string
     }
     /* eslint-enable @typescript-eslint/no-require-imports */
 
@@ -146,8 +136,6 @@ async function* briefModeSentinel(
     ) {
       return
     }
-    // Never nag the implementer half of the two-stream scribe arrangement.
-    if (scribeGates.isImplementerRole()) return
 
     const history = [...messagesForQuery, ...assistantMessages]
     const window = windowAfterLastRealUserTurn(history)
@@ -158,21 +146,8 @@ async function* briefModeSentinel(
       // question-only turn must not be nagged.
       questionTool.ASK_USER_QUESTION_TOOL_NAME,
     ]
-    let addressed =
+    const addressed =
       usesAnyTool(window, addressedTools) || usesAnyTool(assistantMessages, addressedTools)
-
-    // In scribe mode, a bus dispatch is the correct rest state ("dispatched,
-    // waiting for the reply") — two conditions, both required, and neither
-    // is an environment variable (the env gate was inert on the operator's
-    // real engage path).
-    if (
-      !addressed &&
-      scribeGates.scribeModeEnabled() &&
-      engage.isScribeSessionPinned()
-    ) {
-      const busTools = [sendMessage.SEND_MESSAGE_TOOL_NAME]
-      addressed = usesAnyTool(window, busTools) || usesAnyTool(assistantMessages, busTools)
-    }
 
     if (!addressed) {
       if (!hasMetaMessageContaining(window, briefPrompt.BRIEF_ENFORCE_SENTINEL)) {
@@ -421,8 +396,8 @@ export async function* handleStopHooks(
   }
 
   // Phase 4b — ENGINE-owned turn-settlement effects (settlementEffects.ts):
-  // the product's own settle-time semantics (the scribe/implementer and
-  // dungeon-seat keep-working discipline), typed and evaluated here — the
+  // the product's own settle-time semantics (the keep-working discipline),
+  // typed and evaluated here — the
   // engine settles the turn; the user's hook registry below stays the
   // user's (law 3). A 'continue' decision re-prompts silently: a meta user
   // message the model sees, no error row, no notification — the delivery

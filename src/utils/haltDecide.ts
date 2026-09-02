@@ -33,7 +33,7 @@ export function runningTaskIds(tasks: Record<string, LooseTask> | undefined): st
 const HALT_NAMED_WORKER_CAP = 6
 
 /** Summarize a halt outcome into one honest operator-facing line. Pure.
- *  A reaped daemon names WHAT it reaped ('implementer seat', a dispatched
+ *  A reaped daemon names WHAT it reaped ('crew seat', a dispatched
  *  run's prompt clip) — 'reaped 5 workers' told the operator nothing about
  *  what those five were. */
 export function summarizeHalt(r: HaltResult): string {

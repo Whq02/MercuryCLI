@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { contextWindowLabel } from '../utils/contextFill.js'
 import {
   formatSessionCost,
@@ -25,9 +25,6 @@ import {
   modelSupportsEffort,
   type EffortValue,
 } from '../utils/effort.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
-import { buildScribeLedger, buildScribeBatchLedger, isDispatchUnacked, scribeReasoningFeed } from './mercury-ui/scribeChatTabs.js'
-import { scribeBusQueueDepth } from '../utils/scribe/scribeBus.js'
 import {
   agentStateSnapshot,
   daemonSnapshot,
@@ -56,10 +53,6 @@ import { AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'
-
-/** The retired client queue mirror's stand-in (steer-removal): stable
- *  identity, always empty — nothing is ever held client-side. */
-const EMPTY_QUEUED: readonly { value: unknown }[] = Object.freeze([])
 
 // ============================================================================
 //  DeckPane — the PERSISTENT fullscreen deck pane (Session 3, phase 2).
@@ -90,7 +83,7 @@ const MAX_TASKS = 4
 // MercuryFrame's per-message read (the two pinned surfaces momentarily disagree; they
 // reconcile on the next signal). The ACCENT is the exception: it is SUBSCRIBED
 // (useSessionAccent pierces the memo via useSyncExternalStore) so /critter ·
-// /accent · the Scribe glow repaint this persistent pane in the same commit —
+// /accent repaint this persistent pane in the same commit —
 // a stale identity hue on standing chrome reads as a broken theme.
 export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const tok = useMercuryTokens()
@@ -111,9 +104,8 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   // inline mode and stays pinned in fullscreen.
   const companionOn = useCompanionEnabled()
   const rawModel = useMainLoopModel()
-  // The COMPACT chip form (task #11): "Fable 5 [1m]", never the raw id —
-  // scribe-aware: the chip names the foreground scribe stream
-  // while the router is engaged; rawModel keeps feeding the effort chips.
+  // The COMPACT chip form (task #11): "Fable 5 [1m]", never the raw id;
+  // rawModel keeps feeding the effort chips.
   const model = useDisplayedSessionModel().compact
   const cost = getTotalCost()
   // Unpriced turns ride beside the figure (the usage-neutrality law); the
@@ -145,28 +137,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           killed: vitals.trace.data.killed,
         }
       : { state: (vitals.trace?.state ?? 'off') as SnapshotState, total: 0, highRisk: 0, killed: 0 }
-  const implRoster = vitals.implRoster
-
-  // Delivery-liveness: the Implementer inbox's
-  // UNDELIVERED envelope count — a pure mailbox read that works with NO
-  // daemon, because a deaf bus (dispatches piling up unread while the ledger
-  // says "in flight") is exactly the failure it exposes. Refreshed on the
-  // shared bus cadence; null = unknown (unreadable inbox), never a fake 0.
-  const [busQueue, setBusQueue] = React.useState<{
-    queued: number
-    oldestMs: number | null
-  } | null>(null)
-  React.useEffect(() => {
-    if (!isScribeModeOn()) return
-    let alive = true
-    void scribeBusQueueDepth().then(q => {
-      if (alive) setBusQueue(q)
-    })
-    return () => {
-      alive = false
-    }
-  }, [vitals.version])
-
   // substrate/policy/scheduling posture snapshots: removed —
   // the full /deck snapshot is the single owner of the set-and-forget chips.
   // Daemon LIVENESS (the scheduler PROCESS), not just the scheduling gate — sync,
@@ -183,38 +153,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const effortLevel = modelSupportsEffort(rawModel)
     ? getDisplayedEffortLabel(rawModel, effortValue)
     : null
-  // Scribe Mode "Amanuensis": the live transcript mirror, derived into the deck's
-  // prompt ledger + reasoning feed (only consumed when scribe mode is on, below).
-  const chatMessages = (useAppStateMaybeOutsideOfProvider(
-    (s: { scribeTranscript?: unknown[] } | undefined) => s?.scribeTranscript,
-  ) ?? []) as readonly unknown[]
-  // The Scribe's REASONING FEED — only its operator-facing prose (no raw command
-  // XML, no tool rows, no bus envelopes; the full transcript lives in the REPL).
-  // Computed at TOP level (not inside the scribe IIFE below) so the flash hooks obey
-  // the rules-of-hooks. Empty (and skipped) when scribe mode is off.
-  const scribeFeed = isScribeModeOn() ? scribeReasoningFeed(chatMessages, 3) : []
-  // #47 the deck BATCH ledger fed from the retired client queue mirror: the
-  // steer-removal ruling removed operator-facing holding whole, so the
-  // batch source is the honest empty — a sent message is delivered, never
-  // piled up client-side.
-  const queuedCommands = EMPTY_QUEUED
-  // Flash-green pulse: the feed header glows tok.success for ~1.4s whenever a new Scribe
-  // turn lands ("the feed flashes when chat is happening"). Keyed on the joined feed
-  // text; the initial mount is skipped (no flash on first paint, only on a change).
-  const feedKey = scribeFeed.join('\x01')
-  const [feedFlash, setFeedFlash] = useState(false)
-  const lastFeedKey = useRef<string | null>(null)
-  useEffect(() => {
-    if (lastFeedKey.current === null) {
-      lastFeedKey.current = feedKey
-      return
-    }
-    if (feedKey === lastFeedKey.current) return
-    lastFeedKey.current = feedKey
-    setFeedFlash(true)
-    const t = setTimeout(() => setFeedFlash(false), 1400)
-    return () => clearTimeout(t)
-  }, [feedKey])
   // Capability kills in force (MERCURY_KILL) — a real exposure signal; 0 ⇒ omitted.
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
   // The ACTIVE source's window meters from the ONE usage owner — the shape
@@ -529,9 +467,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       ) : null}
 
       {/* row 4: tasks — progress (done/total); the in-progress task GLOWS the
-          session accent (bold = the terminal glow idiom; under scribe mode the
-          accent itself glows a brightened version of the active critter — the crab
-          ember, or a glowing teal/violet for other critters), completed tasks
+          session accent (bold = the terminal glow idiom), completed tasks
           PERSIST as ticked rows until the whole ledger is done, then collapse to a
           ✓ summary. COMPACT cedes the row (the board/rail own the ledger). */}
       {!compact ? (
@@ -640,199 +576,6 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           the compact companion dock's right column when the dock is up. */}
       {compact && companionOn ? null : opsRow}
 
-      {/* row 7+ (scribe-only): the Scribe's WORKSPACE — honest dual-agent status,
-          the prompt ledger, and a compact reasoning feed (from the live transcript
-          mirror + the W5 daemon roster). The retired 3-way view + WoW chat tabs are
-          gone; the REPL is the conversation now. Omitted when scribe mode is off. */}
-      {isScribeModeOn()
-        ? (() => {
-            const impl = implRoster?.entry ?? null
-            const scribeCtx = getLiveContextUsage().usedPct
-            const ledger = buildScribeLedger(chatMessages)
-            const ledgerColor = (s: string): string =>
-              s === 'done'
-                ? tok.success
-                : s === 'failed' || s === 'blocked' || s === 'escalated'
-                  ? tok.failure
-                  : tok.textSecondary
-            return (
-              <Box flexDirection="column" marginTop={1}>
-                <Text bold color={tok.info}>
-                  Amanuensis
-                </Text>
-                {/* dual-agent status: Scribe (foreground) + Implementer (daemon) */}
-                <Text wrap="truncate-end">
-                  <Text color={tok.success}>{GLYPH.busy} </Text>
-                  <Text color={tok.textPrimary}>Scribe</Text>
-                  <Text color={tok.textMuted}>{` · ${model}${effortLevel ? ` @${effortLevel}` : ''} · `}</Text>
-                  {scribeCtx != null ? (
-                    <ProgressBar value={scribeCtx} max={100} width={6} showPct />
-                  ) : (
-                    <Text color={tok.textMuted}>—</Text>
-                  )}
-                </Text>
-                <Text wrap="truncate-end">
-                  {/* #25 true-idle: busy ⇒ ◐ tok.success ROTATING (mid-task — the honest
-                      work signal from the roster); genuinely idle ⇒ · tok.textSecondary
-                      (drained, nothing in flight); absent ⇒ tok.textMuted offline.
-                      OUTCOME FIRST (product-study r3): a settled worker — DEGRADED
-                      after the respawn budget, killed, crashed — must never wear
-                      the working/idle costume; the roster keeps settled entries
-                      until reap, so this row is the operator's only ambient tell. */}
-                  {impl?.outcome ? (
-                    <Text color={impl.outcome === 'degraded' ? tok.failure : tok.textMuted}>{GLYPH.fail}</Text>
-                  ) : impl?.busy ? (
-                    <WorkingGlyph color={tok.success} />
-                  ) : (
-                    <Text color={impl ? tok.textSecondary : tok.textMuted}>{GLYPH.idle}</Text>
-                  )}
-                  <Text> </Text>
-                  <Text color={tok.textPrimary}>Implementer</Text>
-                  {impl ? (
-                    <Text>
-                      <Text color={tok.textMuted}>{` · ${renderModelName(impl.model ?? '?')}${impl.effort ? ` @${impl.effort}` : ''}`}</Text>
-                      {impl.outcome === 'degraded' ? (
-                        <Text color={tok.failure}> · DEGRADED — not coming back (see /daemon)</Text>
-                      ) : impl.outcome ? (
-                        <Text color={tok.textMuted}>{` · dead (${impl.outcome})`}</Text>
-                      ) : impl.busy === true ? (
-                        <Text color={tok.success}> · working</Text>
-                      ) : impl.busy === false ? (
-                        <Text color={tok.textSecondary}> · idle</Text>
-                      ) : null}
-                      <Text color={tok.textMuted}>{' · '}</Text>
-                      {impl.contextPct != null ? (
-                        <ProgressBar value={impl.contextPct} max={100} width={6} showPct />
-                      ) : (
-                        <Text color={tok.textMuted}>—</Text>
-                      )}
-                      {impl.respawns ? <Text color={tok.textMuted}>{` · ↻${impl.respawns}`}</Text> : null}
-                    </Text>
-                  ) : (
-                    // deck-estarting: a BOOTING daemon
-                    // (ESTARTING — the ~1-2s pipe bind, crewClient's own
-                    // vocabulary) says so instead of reading 'offline'; an
-                    // unrecognised wire code paints a human word with the
-                    // code in parens, never the bare code.
-                    <Text color={tok.textMuted}>{` · ${implRoster ? (implRoster.reason === 'ESTARTING' ? 'daemon starting…' : implRoster.reason === 'ENOCONN' || implRoster.reason === 'ETIMEOUT' ? 'offline (no daemon)' : implRoster.reason === 'not in roster' ? 'not spawned' : `unreachable (${implRoster.reason})`) : 'probing…'}`}</Text>
-                  )}
-                  {/* queued = written to the inbox, not yet drained by the daemon.
-                      tok.warning once the oldest has sat >30s — the deaf-bus signature. */}
-                  {busQueue && busQueue.queued > 0 ? (
-                    <Text
-                      color={
-                        busQueue.oldestMs !== null && busQueue.oldestMs > 30_000 ? tok.warning : tok.textMuted
-                      }
-                    >
-                      {` · ${busQueue.queued} queued${
-                        busQueue.oldestMs !== null
-                          ? ` ${Math.round(busQueue.oldestMs / 1000)}s`
-                          : ''
-                      }`}
-                    </Text>
-                  ) : null}
-                </Text>
-                {/* #47 the operator's THREE ledgers, all from REAL data (never fabricated):
-                    · in flight — dispatched work not yet done (tok.success ●)
-                    · completed — done dispatches persist here (the "completed list")
-                    · batches   — queued prompts grouped into category batches (the phase-out
-                      queue), sourced from the command QUEUE, not the transcript. */}
-                {(() => {
-                  const inFlight = ledger.filter(e => e.status !== 'done')
-                  const completed = ledger.filter(e => e.status === 'done')
-                  const batches = buildScribeBatchLedger(queuedCommands)
-                  return (
-                    <>
-                      {inFlight.length > 0 ? (
-                        <Box flexDirection="column">
-                          <Text>
-                            <Text color={tok.success}>{GLYPH.busy} </Text>
-                            <Text color={tok.textMuted}>in flight</Text>
-                          </Text>
-                          {inFlight.slice(-4).map((e, i) => {
-                            // Age from the envelope stamps (delivery honesty):
-                            // unstamped entries render no age — never fabricated.
-                            // 'dispatched' with no ack past the threshold reads
-                            // tok.warning 'undelivered?' (a long 'working' is fine).
-                            const now = Date.now()
-                            const unacked = isDispatchUnacked(e, now)
-                            const ageBase = e.lastUpdateTs ?? e.dispatchedTs
-                            const ageS =
-                              ageBase !== undefined
-                                ? Math.max(0, Math.round((now - ageBase) / 1000))
-                                : null
-                            return (
-                              <Text key={i} wrap="truncate-end">
-                                <Text color={unacked ? tok.warning : ledgerColor(e.status)}>{` ${e.status}`}</Text>
-                                {unacked ? (
-                                  // waiting-on-attention BREATHES — the deaf-bus
-                                  // signature must catch the eye, not sit flat
-                                  <AttentionPulse> undelivered?</AttentionPulse>
-                                ) : null}
-                                {ageS !== null ? (
-                                  <Text color={unacked ? tok.warning : tok.textMuted}>
-                                    {` ${ageS < 60 ? `${ageS}s` : `${Math.round(ageS / 60)}m`}`}
-                                  </Text>
-                                ) : null}
-                                <Text color={tok.textMuted}>{` · ${e.title}`}</Text>
-                              </Text>
-                            )
-                          })}
-                        </Box>
-                      ) : null}
-                      {completed.length > 0 ? (
-                        <Box flexDirection="column">
-                          <Text color={tok.textMuted}>{`${GLYPH.done} completed (${completed.length})`}</Text>
-                          {completed.slice(-3).map((e, i) => (
-                            <Text key={i} wrap="truncate-end" color={tok.textMuted}>
-                              <Text color={tok.success}>{` ${GLYPH.done}`}</Text>
-                              <Text>{` ${e.title}`}</Text>
-                            </Text>
-                          ))}
-                        </Box>
-                      ) : null}
-                      {batches.length > 0 ? (
-                        <Box flexDirection="column">
-                          <Text>
-                            <Text color={tok.textMuted}>{GLYPH.idle} </Text>
-                            <Text color={tok.textMuted}>{`batches (${batches.reduce((n, b) => n + b.items.length, 0)} queued)`}</Text>
-                          </Text>
-                          {batches.slice(0, 4).map((b, i) => (
-                            <Text key={i} wrap="truncate-end">
-                              <Text color={tok.textSecondary}>{` ${b.category}`}</Text>
-                              <Text color={tok.textMuted}>{` ·${b.items.length}· ${b.items[0]}`}</Text>
-                            </Text>
-                          ))}
-                        </Box>
-                      ) : null}
-                    </>
-                  )
-                })()}
-                {/* reasoning feed: the Scribe's recent operator-facing PROSE only
-                    (no command XML / tool rows / envelopes). The header flashes tok.success
-                    when a new turn lands — "the feed flashes when chat is happening." */}
-                {scribeFeed.length > 0 ? (
-                  <Box flexDirection="column">
-                    <Text bold={feedFlash} color={feedFlash ? tok.success : tok.textMuted}>
-                      {'feed'}
-                      {feedFlash ? (
-                        <>
-                          {' '}
-                          <WorkingGlyph color={tok.success} />
-                        </>
-                      ) : null}
-                    </Text>
-                    {scribeFeed.map((line, i) => (
-                      <Text key={i} wrap="truncate-end" color={tok.textMuted}>
-                        {` ${line}`}
-                      </Text>
-                    ))}
-                  </Box>
-                ) : null}
-              </Box>
-            )
-          })()
-        : null}
     </Box>
   )
 })

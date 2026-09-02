@@ -216,7 +216,7 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     adapter: '—',
     owner: 'the daemon process (separate OS process)',
     notes:
-      'Scheduler/scribe/party/crew workers live in the Mercury daemon with their own roster + ownerWatch reaping; cross-process projection is transport, and transports are out of axiom scope.',
+      'Scheduler/crew/session workers live in the Mercury daemon with their own roster + ownerWatch reaping; cross-process projection is transport, and transports are out of axiom scope.',
   },
   {
     domain: 'remote-listener',

@@ -189,7 +189,7 @@ export async function* executeHooks({
   // Announce the batch: one progress entry per visible hook, before any
   // execution starts, so the operator sees what is about to run.
   for (const { hook } of matchingHooks) {
-    // Silent function hooks (e.g. the scribe/implementer keep-working Stop hook)
+    // Silent function hooks (e.g. a keep-working Stop hook)
     // run invisibly: skip the progress emission so the foreground spinner never
     // shows "running stop hook". The re-prompt still reaches the model via the
     // separate blockingError.silent path — only the UI signal is suppressed.

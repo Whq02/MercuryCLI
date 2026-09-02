@@ -614,8 +614,8 @@ export async function processSlashCommand(
 
   // Enablement is read AGAIN at dispatch: the roster is memoized at load,
   // so a predicate that flipped since (the concourse switch through /config
-  // — the plain world mid-session — or scribe mode) answers its typed line
-  // here instead of running from the stale table.
+  // — the plain world mid-session) answers its typed line here instead of
+  // running from the stale table.
   if (command && !isCommandEnabled(command)) {
     const line = unavailableCommandLine(command)
     return {

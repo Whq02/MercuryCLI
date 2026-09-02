@@ -9,16 +9,10 @@
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import { Markdown } from '../../components/Markdown.js'
-import { ChatLine } from '../../components/messages/ChatLine.js'
 import { formatClock } from '../../components/messages/TranscriptNameplate.js'
 import { FAINT, TERRA } from '../../components/mercuryPalette.js'
 import type { ProgressMessage } from '../../types/message.js'
 import { getDisplayPath } from '../../utils/file.js'
-import {
-  isImplementerRole,
-  scribeChatroomEnabled,
-} from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import type { Output } from './BriefTool.js'
 import type { ResolvedAttachment } from './attachments.js'
 
@@ -108,18 +102,6 @@ export function renderToolResultMessage(
           <Markdown>{message ?? ''}</Markdown>
           <AttachmentList attachments={attachments} />
         </Box>
-      </Box>
-    )
-  }
-
-  // Chatroom scribe mode (message required — attachments-only falls
-  // through to the default): a plain chat line attributed to the scribe,
-  // token-identical to its assistant turns.
-  if (message && isScribeModeOn() && scribeChatroomEnabled() && !isImplementerRole()) {
-    return (
-      <Box flexDirection="column">
-        <ChatLine author="scribe" body={message} />
-        <AttachmentList attachments={attachments} />
       </Box>
     )
   }

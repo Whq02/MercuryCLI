@@ -5,7 +5,7 @@ import type { LocalJSXCommandCall } from '../../types/command.js'
 // Each Mercury view is a self-contained <View onClose> (the /parity pattern).
 // display:'skip' — a surface-mounting command leaves NO transcript ack; the
 // bare onDone form rendered a "(no content)" stdout row (operator
-// screenshot, /daemon in the scribe chatroom).
+// screenshot).
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   // `/daemon restart` — the version handshake's heal by hand: a daemon that
   // speaks the handshake re-executes itself as the deployed build (now when

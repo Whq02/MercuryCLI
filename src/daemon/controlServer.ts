@@ -47,7 +47,6 @@ import { isProcessAlive } from './ownerWatch.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
 import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
-import { canonicalizeBusTarget, isManagedBusTeam, knownBusTargets } from '../utils/scribe/busIdentity.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
@@ -669,20 +668,10 @@ async function routeControlRequest(
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const rawTo = String(raw.to ?? '')
       const team = typeof raw.team === 'string' && raw.team ? raw.team : 'default'
-      // Canonicalize the address at the ingress (layered with the
-      // sender-side resolve): journaling to an alias mints a dead-letter
-      // inbox that no drain will ever read. Aliases resolve; a name a
-      // managed team has never heard of is bounced, and the caller learns
-      // loudly rather than having its work stranded.
-      const resolvedTo = canonicalizeBusTarget(team, rawTo)
-      if (rawTo && !resolvedTo.known && isManagedBusTeam(team)) {
-        return answer(sock, {
-          ok: false,
-          code: 'EUNKNOWN',
-          error: `unknown bus address '${rawTo}' for team '${team}' — valid: ${knownBusTargets(team).join(', ')}`,
-        })
-      }
-      const to = resolvedTo.name
+      // The address is the roster name verbatim: journaling to an unknown
+      // name mints an inbox no drain reads, so the sender's roster guard is
+      // the only place a name is checked.
+      const to = rawTo.trim()
       let env: ReturnType<typeof parseBusEnvelope> = null
       try {
         env = parseBusEnvelope(JSON.stringify(raw.env))

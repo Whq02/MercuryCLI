@@ -1,8 +1,8 @@
-// Teammate relay rows, including the scribe-bus envelope rendering.
-// Shutdown-approved and teammate-terminated payloads are pre-filtered so
-// they cannot leave an empty wrapper producing a blank line between turns.
-// The scribe-protocol projection is attributed from the VERIFIED sender id,
-// never from prose inside the payload — the anti-impersonation anchor.
+// Teammate relay rows. Shutdown-approved and teammate-terminated payloads
+// are pre-filtered so they cannot leave an empty wrapper producing a blank
+// line between turns. A coordination envelope (the bus protocol) is
+// machine-to-machine: the model still receives it, the human transcript
+// never shows the raw JSON.
 
 import figures from 'figures'
 import React from 'react'
@@ -13,20 +13,7 @@ import {
   isIdleNotification,
   isShutdownApproved,
 } from '../../utils/teammateMailbox.js'
-import {
-  BUS_TEAM_LEAD_NAME,
-  IMPLEMENTER_AGENT_NAME,
-  IMPLEMENTER_DISPLAY_NAME,
-  SCRIBE_DISPLAY_NAME,
-} from '../../utils/scribe/busIdentity.js'
-import { scribeChatroomEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
-import {
-  classifyAuthor,
-  scribeEnvelopeOf,
-} from '../mercury-ui/scribeChatTabs.js'
-import { ChatLine } from './ChatLine.js'
-import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
+import { parseBusEnvelope } from '../../utils/swarm/busEnvelopes.js'
 import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderShutdownMessage } from './ShutdownMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
@@ -57,17 +44,6 @@ function parseTeammateMessages(text: string): RelayedMessage[] {
     })
   }
   return out
-}
-
-/** Display name for a relay sender (contract data: the addressing table's
- *  own ids — both `scribe` and `team-lead` map to the scribe display name,
- *  the implementer agent id to the implementer display name). */
-export function scribeRelayName(teammateId: string): string {
-  if (teammateId === 'scribe' || teammateId === BUS_TEAM_LEAD_NAME) {
-    return SCRIBE_DISPLAY_NAME
-  }
-  if (teammateId === IMPLEMENTER_AGENT_NAME) return IMPLEMENTER_DISPLAY_NAME
-  return teammateId
 }
 
 function isTerminated(content: string): boolean {
@@ -104,10 +80,8 @@ export function TeammateMessageContent({
   message: RelayedMessage
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  // The message-metadata hook runs unconditionally, above any chatroom
-  // branch (hook-order rule).
-  const meta = useMessageMeta()
-  const senderName = scribeRelayName(message.teammateId)
+  // The sender is the VERIFIED teammate id, never prose inside the payload.
+  const senderName = message.teammateId
 
   const planCard = tryRenderPlanApprovalMessage(message.content, senderName)
   if (planCard) return planCard
@@ -122,23 +96,9 @@ export function TeammateMessageContent({
   // Processed silently.
   if (isIdleNotification(message.content)) return null
 
-  const envelope = scribeEnvelopeOf({ content: message.content })
-  if (envelope) {
-    // Machine-to-machine coordination: the model still receives it, but the
-    // human transcript never shows the raw JSON. With the chatroom on, a
-    // human-readable projection renders attributed from the VERIFIED sender.
-    if (scribeChatroomEnabled()) {
-      const author = classifyAuthor({ content: message.content })
-      const body =
-        (envelope as { body?: string; summary?: string }).body ??
-        (envelope as { summary?: string }).summary ??
-        message.summary ??
-        ''
-      if (body === '') return null
-      return <ChatLine author={author} body={body} />
-    }
-    return null
-  }
+  // Machine-to-machine coordination: the model still receives it, but the
+  // human transcript never shows the raw JSON.
+  if (parseBusEnvelope(message.content) !== null) return null
 
   const completed = taskCompletedOf(message.content)
   if (completed) {
@@ -151,36 +111,6 @@ export function TeammateMessageContent({
         {completed.taskId}
         {completed.subject ? <Text dimColor> {completed.subject}</Text> : null}
       </Text>
-    )
-  }
-
-  if (isScribeModeOn()) {
-    if (scribeChatroomEnabled()) {
-      return (
-        <ChatLine
-          author={classifyAuthor({ content: message.content })}
-          body={message.content || message.summary || ''}
-        />
-      )
-    }
-    // The nameplate's clock reads the timestamp PERSISTED on the message —
-    // never the wall clock at render time.
-    const clock = formatClock(meta?.timestamp)
-    return (
-      <Box flexDirection="column">
-        <Text>
-          {clock ? <Text dimColor>{clock} </Text> : null}
-          <Text dimColor>[</Text>
-          <Text color={toInkColor(message.color)}>{senderName}</Text>
-          <Text dimColor>] </Text>
-          {message.summary ?? ''}
-        </Text>
-        {isTranscriptMode && message.content ? (
-          <Box paddingLeft={2}>
-            <Ansi>{message.content}</Ansi>
-          </Box>
-        ) : null}
-      </Box>
     )
   }
 

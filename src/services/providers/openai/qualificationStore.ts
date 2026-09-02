@@ -50,8 +50,6 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
     'switch-transition-receipts',
     'no-lost-input+no-duplicate-events',
   ],
-  'scribe-router': ['typed-route-envelope-production', 'decomposition', 'effort-model-targeting', 'carry-forward', 'dedup', 'halt-stop', 'burst-handling', 'deterministic-dispatch-settlement'],
-  'scribe-implementer': ['routed-envelope-consumption', 'repository-work', 'verification-output', 'evidence-return', 'cancellation', 'exactly-once-bus-completion'],
   specialist: ['bounded-job-execution', 'structured-result-return', 'worktree-law', 'role-tool-denials'],
   // the Concourse coordinator's contract —
   // bounded snapshot+delta input, ONLY the enumerated management verbs, one
@@ -69,8 +67,8 @@ const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
 
 export function roleCapabilityDigest(role: ApexGptRole): string {
   // TOTAL over stored strings: an old receipt may carry a RETIRED role id
-  // (the party seats left with the multiplayer estate). A role without a
-  // capability row digests to a retired marker no live digest can equal, so
+  // (a seat role that left with its estate). A role without a capability
+  // row digests to a retired marker no live digest can equal, so
   // receiptCurrency expires such receipts mechanically instead of crashing —
   // the doctrine's own "not in the list ⇒ expires" path.
   const capabilities = (ROLE_CAPABILITIES as Partial<Record<string, readonly string[]>>)[role]

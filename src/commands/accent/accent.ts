@@ -16,8 +16,8 @@ import {
 // "Colour the REPL": a live, session-only override of the identity accent —
 // frame, wordmark, sigil, prompt caret, panel borders all re-tint synchronously
 // via the sessionAccent observable (the same live path /critter uses). An
-// explicit pick outranks the derived tints (critter hue / scribe glow / fable
-// recolor); `/accent reset` restores the derivation chain. Named swatches map
+// explicit pick outranks the derived tints (critter hue / fable recolor);
+// `/accent reset` restores the derivation chain. Named swatches map
 // to EXISTING tokens only (mercuryPalette + the critter hues) — zero new hex in
 // source; an arbitrary #hex is operator runtime input, not a source literal.
 // ============================================================================
@@ -60,7 +60,7 @@ export const call = async (
     return {
       type: 'text',
       value: changed
-        ? `accent override cleared — back to the derived chain (critter/scribe/fable): now ${getSessionAccent().accent}`
+        ? `accent override cleared — back to the derived chain (critter/fable): now ${getSessionAccent().accent}`
         : 'no accent override was active',
     }
   }

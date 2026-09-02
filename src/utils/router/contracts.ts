@@ -149,7 +149,7 @@ export interface RouteNode {
   acceptance: RouteAcceptanceCheck[]
   requestedModelClass?: RouterModelClass
   assignedModel?: RouteModelRef
-  /** Worker short (e.g. 'implementer', 'dps1') once assigned. */
+  /** Worker short (e.g. 'scout') once assigned. */
   assignedWorker?: string
   state: RouteNodeState
   /** 1-based; a focused revision bumps attempt under the SAME logical node. */

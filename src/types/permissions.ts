@@ -31,9 +31,6 @@ export type ExternalPermissionMode = (typeof EXTERNAL_PERMISSION_MODES)[number]
  * Every mode the runtime can hold, internal ones included.
  * - `flow` is functional (its classifier path is live) and user-addressable.
  * - `bubble` projects externally to default.
- * - `scribe` is permission-inert substrate: no longer a carousel station
- *   (engaged through the model selector); the member exists so a stray
- *   scribe mode round-trips and renders. External projection: default.
  * - `autopilot` is a bypass-permission posture with self-serve tier control,
  *   reachable only when sovereign itself is reachable — never a consent
  *   backdoor. External projection: sovereign, so persistence and the SDK
@@ -47,7 +44,6 @@ export type InternalPermissionMode =
   | ExternalPermissionMode
   | 'flow'
   | 'bubble'
-  | 'scribe'
   | 'autopilot'
   | 'apollo'
 
@@ -55,7 +51,6 @@ export const INTERNAL_PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
   'bubble',
-  'scribe',
   'autopilot',
   'apollo',
 ] as const satisfies readonly InternalPermissionMode[]
@@ -65,7 +60,7 @@ export type PermissionMode = InternalPermissionMode
 
 /**
  * Runtime validation list: the USER-ADDRESSABLE modes — the five external
- * ones plus flow, scribe, autopilot and apollo (not bubble). Gates settings
+ * ones plus flow, autopilot and apollo (not bubble). Gates settings
  * default-mode values, the --permission-mode flag, and conversation
  * recovery. Entry to autopilot remains separately guarded; membership here
  * is shape validation only.
@@ -73,7 +68,6 @@ export type PermissionMode = InternalPermissionMode
 export const PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
-  'scribe',
   'autopilot',
   'apollo',
 ] as const
@@ -96,6 +90,9 @@ export const RETIRED_PERMISSION_MODE_SPELLINGS: Readonly<Record<string, Permissi
   auto: 'flow',
   bypassPermissions: 'sovereign',
   plan: 'strategy',
+  // The retired two-seat coordination mode was permission-inert (external
+  // projection: default); a persisted record still reads.
+  scribe: 'default',
 }
 
 /**

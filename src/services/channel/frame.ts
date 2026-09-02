@@ -1,7 +1,7 @@
 /**
  * Caduceus frame — the ONE wire-and-storage envelope of Mercury's session fabric.
  *
- * A room (a session, a party lane, a crew chat) is an append-only log of FRAMES.
+ * A room (a session, a crew chat) is an append-only log of FRAMES.
  * Everything that happens in a collaborative context — a human chat line, an
  * assistant turn, a bus dispatch, a presence heartbeat, a work claim — is a frame
  * with the same envelope, so ordering, attribution, replay, and integrity are
@@ -53,9 +53,9 @@ export type { Principal }
  *   usage.*    — metered spend (multi-operator budgets): the harness writes a
  *                usage.turn per delegated batch, attributing the turn's cost
  *                delta to the initiating principal (budgets.ts folds them)
- *   bus.*      — the scribe/crew adapter envelopes (semantics preserved
- *                verbatim from the legacy buses, incl. the literal
- *                `[request_id: …]` trailer contract)
+ *   bus.*      — the crew adapter envelopes (semantics preserved verbatim
+ *                from the mailbox bus, incl. the literal `[request_id: …]`
+ *                trailer contract)
  *   sys.*      — fabric bookkeeping (snapshot markers, redaction tombstones)
  */
 export type FrameKind =
@@ -78,7 +78,6 @@ export type FrameKind =
   | 'work.status'
   | 'work.compact'
   | 'usage.turn'
-  | 'bus.scribe'
   | 'bus.crew'
   | 'sys.snapshot'
   | 'sys.redact'
@@ -104,7 +103,6 @@ const FRAME_KINDS: ReadonlySet<string> = new Set<FrameKind>([
   'work.status',
   'work.compact',
   'usage.turn',
-  'bus.scribe',
   'bus.crew',
   'sys.snapshot',
   'sys.redact',

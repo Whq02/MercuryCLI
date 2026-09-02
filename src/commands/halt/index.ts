@@ -1,8 +1,8 @@
 import type { Command } from '../../commands.js'
 
-// /halt — a clear manual BREAK: hard-stop every running daemon + subagent (the
-// Implementer, rostered/fleet workers via the daemon shutdown RPC, and in-process
-// agent tasks) when you need everything to stop NOW. Reports what it killed.
+// /halt — a clear manual BREAK: hard-stop every running daemon + subagent
+// (rostered/fleet workers via the daemon shutdown RPC, and in-process agent
+// tasks) when you need everything to stop NOW. Reports what it killed.
 const halt = {
   type: 'local',
   name: 'halt',

@@ -419,18 +419,6 @@ export type Attachment =
       content: string
     }
   | {
-      // Scribe Mode "Amanuensis" per-turn awareness reminder (W3c). Operator-
-      // invisible (NULL_RENDERING_TYPES); only ever produced in the Scribe process.
-      type: 'scribe_awareness'
-      content: string
-    }
-  | {
-      // Implementer-side per-turn awareness reminder (mirror of scribe_awareness).
-      // Operator-invisible (NULL_RENDERING_TYPES); only ever produced in the Implementer process.
-      type: 'implementer_awareness'
-      content: string
-    }
-  | {
       // Taste Loop recall (fork): a short, throttled, precision-biased reminder of
       // promoted operator-friction-derived taste lessons. Model-only / operator-
       // invisible (NULL_RENDERING_TYPES). Gated on tasteLoopEnabled() inside the

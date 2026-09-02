@@ -1,10 +1,10 @@
 // ============================================================================
 //  useFlatList — the shared engine behind the FLAT operator lists (/cards,
-//  /scribe-promote, /tabula): async load + re-load, windowed ▸ cursor, the
+//  /tabula): async load + re-load, windowed ▸ cursor, the
 //  STALE-PAINT input discipline, and the one-interaction-grammar primary
 //  action.
 //
-//  Extracted from the CardsView/ScribeCandidatesView twins (one-grammar
+//  Extracted from the CardsView (one-grammar
 //  program); relanded it on the kit doctrine:
 //   • the EVENT-IDENTITY open gate (useOpenEventGate — the launching
 //     keystroke is inert, the very next key acts; the old wall-clock 150ms

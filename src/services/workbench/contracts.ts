@@ -3,7 +3,7 @@
 //
 //  hard law: the workbench is a PROJECTION — every field here is
 //  derived from an existing owner (execution plane, run kernel, AppState
-//  tasks via the provider seam, context lanes, party state,
+//  tasks via the provider seam, context lanes,
 //  collaboration, telemetryBus, project-intel generation) and none of it is
 //  authoritative. There is no workbench store on disk; a row you see here
 //  always names the owning surface via mercury:// refs.
@@ -55,7 +55,7 @@ export interface WorkbenchThreadRow {
    *  kernel for root, execution-plane state otherwise) — never invented. */
   phase: string
   /** The owning plane's state vocabulary, preserved (execution vocabulary
-   *  for task-mirrored threads; the party store's for seats; crew liveness
+   *  for task-mirrored threads; crew liveness
    *  for crew rows) — never re-mapped into an invented shared enum. */
   state: string
   laneId?: string

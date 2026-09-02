@@ -1,5 +1,5 @@
 // ============================================================================
-//  src/memdir/teamMemPaths.ts — team/scribe scope paths and symlink-safe
+//  src/memdir/teamMemPaths.ts — the team scope path and symlink-safe
 //  write-path validation. The validators return the PATH-RESOLVED absolute
 //  path, not the symlink-resolved one — the real path is computed for the
 //  containment check and then discarded.
@@ -33,20 +33,6 @@ export function getTeamMemPath(): string {
 
 export function getTeamMemEntrypoint(): string {
   return `${getTeamMemPath()}MEMORY.md`
-}
-
-/**
- * The scribe scope: the sibling `<autoMemDir>/scribe/` with the identical
- * trailing-separator and NFC contract. Holds unratified candidate lessons,
- * excluded from normal recall, promoted into root memory only by an
- * explicit ratify step.
- */
-export function getScribeMemPath(): string {
-  return `${join(getAutoMemPath(), 'scribe')}${sep}`.normalize('NFC')
-}
-
-export function getScribeMemEntrypoint(): string {
-  return `${getScribeMemPath()}MEMORY.md`
 }
 
 /** Team memory enabled AND the path is inside the team directory. */

@@ -19,7 +19,7 @@
  * When OFF (flag set to '0'), every helper used at a LIVE
  * call-site degrades to a no-op / identity, so the
  * prompt + recall output are byte-identical to a build without this module
- * (mirrors the getScribeModeSections() ⇒ [] discipline).
+ * (the gated-section ⇒ [] discipline).
  */
 
 import { createHash } from 'node:crypto'
@@ -845,8 +845,8 @@ const indexWriteChains = new Map<string, Promise<void>>()
  *  or null for "no change". The read tolerates a missing file (''); the write
  *  (temp + rename) may throw, mirroring the prior best-effort contract. */
 // R8: a CROSS-PROCESS flock around the index read-modify-write. The in-process
-// promise chain (serializeIndexUpdate) only serializes THIS process; the Scribe and
-// the daemon-hosted Implementer are SEPARATE processes that both write MEMORY.md, so
+// promise chain (serializeIndexUpdate) only serializes THIS process; the foreground and
+// a daemon-hosted worker are SEPARATE processes that both write MEMORY.md, so
 // without an OS-level lock A reads → B reads → both rename → B clobbers A's appended
 // pointer (a silently lost memory). proper-lockfile (the same primitive the teammate
 // mailbox uses) makes read→transform→rename atomic across processes. Fail-OPEN: if the
@@ -898,7 +898,7 @@ async function applyIndexUpdate(
 /** Serialize applyIndexUpdate per path so concurrent index writes can't clobber.
  *  The returned promise carries the result; the chained tail never rejects, so one
  *  failed write can't stall every subsequent index update for that path.
- *  Exported so the scribe ratify-promote path (scribePromote.ts) reuses the SAME
+ *  Exported so every other index writer reuses the SAME
  *  crash-safe, per-path-serialized index writer rather than racing its own. */
 export function serializeIndexUpdate(
   indexPath: string,
@@ -1067,7 +1067,7 @@ async function writeExperienceCardInner(
   // pointing at the (new) card and the superseded copy carries no pointer.
   // Per-card cross-process lock around the read-prior → writeSuperseded → write-
   // canonical read-modify-write. Without it, two processes banking the SAME slug
-  // (foreground RememberLesson/​/remember vs the daemon Implementer's promote) can
+  // (the foreground RememberLesson/​/remember vs a daemon-hosted worker's) can
   // both read prior=V0, both preserve V0, then both write canonical — the loser's
   // update is LOST with no superseded copy (the exact data-loss supersede exists to
   // prevent; its abort-on-preserve-failure guard misses a CONCURRENCY clobber).

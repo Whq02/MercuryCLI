@@ -2,7 +2,7 @@
 //  runtimePosture — init-path self-knowledge (task #62, operator-directed).
 // ----------------------------------------------------------------------------
 //  Every process the harness boots — the interactive REPL, a headless `-p` /
-//  stream-json run, a daemon-spawned Scribe/Implementer/party seat — and every
+//  stream-json run, a daemon-spawned seat — and every
 //  in-process subagent (Agent tool, workflow agents, teammates) should KNOW at
 //  model-wake what it is running inside: whether permission 'ask' prompts can
 //  even be answered, which capability kills are armed, what MCP risk posture

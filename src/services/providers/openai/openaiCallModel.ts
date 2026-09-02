@@ -297,12 +297,9 @@ const reconstructionNoted = new Set<string>()
 
 /** The role THIS turn runs as (the receipt it mints): a call that tags its
  *  own seat (the Concourse coordinator's query source) names it outright;
- *  otherwise role env stamps win (daemon children carry exactly one);
  *  agent-scoped turns are specialists; the foreground is primary. */
 function activeApexRole(options: Options): ApexGptRole {
   if (options.querySource === 'concourse_coordinator') return 'coordinator'
-  if (flagEnv('MERCURY_IMPLEMENTER') === '1') return 'scribe-implementer'
-  if (flagEnv('MERCURY_SCRIBE') === '1') return 'scribe-router'
   if (options.agentId || String(options.querySource ?? '').startsWith('agent')) {
     return 'specialist'
   }

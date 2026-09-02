@@ -65,8 +65,8 @@ const HERO_MIN_ROWS = 30
  * launch, mid-conversation, and the cockpit center column — so the session
  * critter never collapses to a static glyph: LogoHeader mounts it OUTSIDE the
  * hasTurns swap (the swap toggles only the FURNITURE below — wordmark scale,
- * session table, prompt-hint). /critter, click-to-morph, and the scribe glow
- * all land here live via useSessionAccent() → critterDefForKey(sa.key)
+ * session table, prompt-hint). /critter and click-to-morph
+ * both land here live via useSessionAccent() → critterDefForKey(sa.key)
  * (shape) + sa.accent (hue) — a recolor keeps `key`, so the SHAPE morphs
  * identically whatever the hue.
  *
@@ -205,7 +205,7 @@ export function MercuryHero(): React.ReactNode {
   // Epoch-subscribed gate: a /companion flip repaints this header instantly.
   const companionOn = useCompanionEnabled()
   // Shape from the live key, hue from the folded accent derivation (override →
-  // scribe glow) — the unify: sprite, plinth and wordmark re-tint
+  // critter hue) — the unify: sprite, plinth and wordmark re-tint
   // together, and the shape follows /critter whatever the hue. MEMOIZED
   // a
   // fresh def per render made CritterArt's memo miss on every header commit.
@@ -344,8 +344,7 @@ export function MercuryBrandRow(): React.ReactNode {
 
 export function MercuryHome(): React.ReactNode {
   const tok = useMercuryTokens()
-  // Scribe-aware display resolver — under the two-stream router this names
-  // both streams instead of the stale mainLoopModel.
+  // The ONE display resolver (a queued switch projects into the label).
   const model = useDisplayedSessionModel().label
   // The ground beat (Law 9): a concourse repo pick repaints this dir row in
   // the move's own frame window — no first-message heal.
@@ -411,9 +410,9 @@ export function MercuryHome(): React.ReactNode {
   const deckPresent = isDeckPaneActive() && !helmHome
 
   // The ACCENT follows the LIVE session critter (TERRA for crab, violet for
-  // octopus…) via the folded derivation (override → scribe glow) — wordmark,
-  // table accents and the ❯ caret re-tint on /critter and on a scribe flip
-  // together. The MASCOT itself lives
+  // octopus…) via the folded derivation (override → critter hue) — wordmark,
+  // table accents and the ❯ caret re-tint on /critter together. The MASCOT
+  // itself lives
   // in MercuryHero (mounted above this furniture by LogoHeader in every state).
   const sa = useSessionAccent()
   const accent = sa.accent
@@ -572,7 +571,7 @@ export function MercuryHome(): React.ReactNode {
           <Text color={tok.textSecondary}> sends</Text>
           {/* Flagship surfaces FIRST (workflows/health were invisible from
               the landing — the nav audit; the seat board that once
-              led this line retired with the router party); truncate-end sheds
+              led this line is retired); truncate-end sheds
               the tail on narrow columns, so priority order IS the responsive
               behavior. /fleet stays off the landing (hidden unless swarms are
               on — a dead-affordance risk) to hold the width. */}

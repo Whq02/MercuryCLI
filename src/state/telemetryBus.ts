@@ -41,13 +41,10 @@ import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getGitState, type GitRepoState } from '../utils/git.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
 import { getTaskListId, listTasks, onTasksUpdated, type Task } from '../utils/tasks.js'
 import {
-  daemonRosterSnapshot,
   fleetGauge,
   traceSnapshot,
-  type RosterSnapshot,
 } from '../utils/cockpit/index.js'
 import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
@@ -79,8 +76,6 @@ export interface TelemetrySnapshots {
   /** The full fleet gauge (roster/leases/conflicts) — /monitor's live feed. */
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
-  /** Scribe mode only (no daemon RPC traffic otherwise). */
-  implRoster: RosterSnapshot | null
   /**
    * running/paused run.json manifests from disk — this process's runs
    * INCLUDED; consumers dedup vs local AppState and classify external/wedged
@@ -106,7 +101,6 @@ let snapshots: TelemetrySnapshots = {
   fleet: { state: 'off', conflicts: 0, drifting: 0 },
   fleetFull: null,
   trace: null,
-  implRoster: null,
   workflowsDisk: [],
   crew: null,
   refreshedAt: 0,
@@ -138,12 +132,9 @@ function emit(): void {
 
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
-  // Default-clear the roster: it is only fetched while scribe mode is ON, and
-  // the `{...snapshots, ...next}` merge below would otherwise RETAIN the last
-  // snapshot forever (a stale roster shown after scribe turns off mid-session).
-  // The scribe branch overrides this with the live snapshot.
-  next.implRoster = null
-  // Same default-clear contract for the crew glance (off / dissolved ⇒ null).
+  // Default-clear the crew glance (off / dissolved ⇒ null): the
+  // `{...snapshots, ...next}` merge below would otherwise RETAIN the last
+  // snapshot forever.
   next.crew = null
   await Promise.all([
     getGitState()
@@ -185,13 +176,6 @@ async function refreshOnce(): Promise<void> {
         next.trace = s
       })
       .catch(() => {}),
-    isScribeModeOn()
-      ? daemonRosterSnapshot()
-          .then(s => {
-            next.implRoster = s
-          })
-          .catch(() => {})
-      : Promise.resolve(),
     // Crew glance: identity is a team-file read (near-free, [] when absent);
     // liveness is ONE control-socket RPC (fail-fast when no daemon) and the
     // unread scan is a mailbox read — only paid when members exist. Cleared

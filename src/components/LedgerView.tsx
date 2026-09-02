@@ -29,7 +29,7 @@ import {
 //
 //  The evolution-ledger substrate wrote per-program improvement rows into two
 //  homes (repo `.mercury/evolution/` + memdir `<autoMem>/evolution/`) and the
-//  pure rollups were reader-less beyond /party→History's single program. This
+//  pure rollups were reader-less beyond one retired board's single program. This
 //  binds summarizeEvolution / computeEvolutionFrontier / computeSubjectDrift
 //  across ALL programs on the same NavigablePanes grammar as /monitor
 //  (arrows/esc instant, drill = KeyValueGrid detail — the healed nav seam).

@@ -20,7 +20,7 @@ export interface HookBlockingError {
    * surface in the front-end transcript: the consumer (handleStopHooks) still
    * injects the isMeta user message so the model receives the nudge, but skips
    * the visible "Stop hook error" summary line + the error notification. Set by a
-   * FunctionHook carrying `silent: true` (e.g. the Scribe/Implementer + Fable
+   * FunctionHook carrying `silent: true` (e.g. the Fable
    * keep-working hooks). Mercury-only; absent ⇒ a bare stamp behavior is byte-identical.
    */
   silent?: boolean

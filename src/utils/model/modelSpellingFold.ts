@@ -33,7 +33,6 @@
 import {
   getModelOptions,
   isProviderActionRow,
-  MODES_MODEL_GROUP,
   type ModelOption,
 } from './modelOptions.js'
 import { normalizeModelStringForAPI, parseUserSpecifiedModelRaw } from './model.js'
@@ -55,7 +54,6 @@ function foldableRows(catalogue: ModelOption[]): Array<{ value: string; label: s
     if (typeof opt.value !== 'string' || opt.value.length === 0) continue
     if (opt.value.startsWith('__')) continue
     if (isProviderActionRow(opt.value)) continue
-    if (opt.group === MODES_MODEL_GROUP) continue
     rows.push({ value: opt.value, label: opt.label })
   }
   return rows

@@ -170,7 +170,7 @@ function missionTone(done: number, total: number, k: MercuryThemeTokens): string
 function buildColumns(now: number, k: MercuryThemeTokens): ColumnDef<MonRow>[] {
   // The mission-row identity glyph follows the LIVE session critter — the
   // tokens arrive from the component (useMercuryTokens subscribes), so the
-  // marker re-tints under /critter + Scribe glow and every ink role adapts.
+  // marker re-tints under /critter and every ink role adapts.
   const missionColor = k.accent
   return [
     {
@@ -370,8 +370,7 @@ function renderDetail(r: MonRow, now: number, k: MercuryThemeTokens): React.Reac
 
 function HeaderLine(): React.ReactNode {
   const k = useMercuryTokens()
-  // Scribe-aware display resolver: names the
-  // foreground scribe stream while the router is engaged.
+  // The ONE display resolver (a queued switch projects into the chip).
   const model = useDisplayedSessionModel().compact
   const cost = getTotalCost()
   const added = getTotalLinesAdded()

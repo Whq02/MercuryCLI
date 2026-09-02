@@ -7,7 +7,7 @@
 //  acquire, so ceilings stay LIVE across model switches and mid-session
 //  engages: gates re-read env live, the house law).
 //
-// The role partition (the two-seat law):
+// The role partition:
 //  · MERCURY_CONCOURSE_WORKER — a background session: TWO model-bearing
 //    seats total (its own turn + at most one concurrent delegated seat;
 //    the governor's interactive reserve keeps the turn admissible), so
@@ -15,11 +15,6 @@
 //    every in-process spawn surface (workflows, AgentTool, Console…)
 //    reaches the provider through the streamModel backstop, which these
 //    ceilings now bound.
-//  · MERCURY_IMPLEMENTER — ONE seat
-//    (a seat is one model-bearing lane; seats' own fan-out authority is
-//    already stripped at spawn — MERCURY_WORKFLOWS=0 — and the Implementer's
-//    deliberate workflow opt-in serializes inside its single seat, which IS
-//    its two-seat-ledger membership).
 //  · The visible foreground process: machine allowance min(16, max(2,
 //    cpu−2)) — the CPU/process term, the SAME arithmetic the workflow
 //    limiter clamps to (one formula, no duplicate ceiling).
@@ -46,7 +41,7 @@ export function machineLaneAllowance(cpuCount: number): number {
   return Math.min(16, Math.max(2, cpuCount - 2))
 }
 
-export type ComposedRole = 'concourse-worker' | 'single-seat' | 'visible'
+export type ComposedRole = 'concourse-worker' | 'visible'
 
 export interface CeilingFacts {
   cpuCount: number
@@ -68,9 +63,6 @@ export function composedRoleFromEnv(env: NodeJS.ProcessEnv = process.env): Compo
     return env[name] === '1'
   }
   if (on('MERCURY_CONCOURSE_WORKER')) return 'concourse-worker'
-  if (on('MERCURY_IMPLEMENTER')) {
-    return 'single-seat'
-  }
   return 'visible'
 }
 
@@ -83,9 +75,6 @@ export function composeGovernorCeilings(facts: CeilingFacts): GovernorCeilings {
     // ≤2 concurrent model-bearing seats for a background
     // session — the turn plus one delegated seat.
     return { modelLanes: cap(Math.min(2, machine)), delegationLanes: cap(1) }
-  }
-  if (facts.role === 'single-seat') {
-    return { modelLanes: cap(1), delegationLanes: cap(1) }
   }
   const delegation =
     facts.delegationBand === 1 ? 1 : facts.delegationBand === 2 ? 2 : machine

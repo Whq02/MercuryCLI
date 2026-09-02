@@ -4,9 +4,8 @@
 //
 //  The Mercury doctrine *requests* "just keep working — don't end a turn on a
 //  plan, a promise, or a question you can answer yourself". A prompt can only
-//  request it; the keep-working Stop hooks (scribeImplementerStopHook,
-//  the retired seat hooks before them) ENFORCE it, and every one reads THIS one
-//  detector: does the turn's LAST paragraph end on an unfinished tail (a
+//  request it; the keep-working Stop hooks ENFORCE it, and every one reads
+//  THIS one detector: does the turn's LAST paragraph end on an unfinished tail (a
 //  promise "I'll…", a next-steps plan, or a question the model could answer
 //  itself)? The model can always escape cleanly: a turn that ends on a real
 //  status (done / blocked / past-tense evidence) is NOT an unfinished tail.
@@ -78,7 +77,7 @@ const SOFT_PROMISE_PATTERNS: RegExp[] = [
 // STATEMENT — and (b) the QUESTION carve-out in isUnfinishedTail, where an explicit
 // operator-gate question is a legitimate rest even for the autonomous role (the agent
 // literally cannot proceed without the human). NOT the generic "I'll wait for your next
-// message" idle hand-back (the Scribe handles that via SCRIBE_WAIT_IDIOM).
+// message" idle hand-back.
 const AWAITING_OPERATOR_MARKERS: RegExp[] = [
   /\bblocked (?:on|pending|by|until|awaiting)\b/i,
   /\bpermission (?:from|of) (?:you|the operator)\b/i,
@@ -220,24 +219,11 @@ function hasNonPromiseStall(probe: string): boolean {
  * unfinished tail if it matches a NON-promise stall pattern (question/next-steps/plan —
  * clause-scoped, with only the two narrow idiom disarms above) OR carries a LIVE
  * (in-clause non-disarmed) soft promise. A soft promise that is negated or handed off
- * in its own clause is NOT counted. This is the single seam the final return and the
- * Scribe wait-idiom soundness check both ride.
+ * in its own clause is NOT counted. This is the single seam the final return rides.
  */
 function probeIsUnfinished(probe: string): boolean {
   return hasNonPromiseStall(probe) || hasLiveSoftPromise(probe)
 }
-
-/**
- * SHORT, passive "waiting" closers the operator-facing Scribe may legitimately rest on
- * ("I'll wait for your next message.", "I'll be here."). For the Scribe (allowOperatorQuestion)
- * that is a clean hand-back, NOT an unfinished self-promise. The exemption is SOUND: we strip
- * EVERY wait-idiom phrase (global) and only rest if NOTHING unfinished remains — so a tail that
- * ALSO carries a real promise ("I'll wait, but first I'll dispatch the refactor") still trips the
- * full check via the surviving "I'll dispatch". Scribe-role-only (Implementer/fable pass no opts ⇒
- * byte-identical). The doctrine fix should keep such a line from being emitted at all; this just
- * stops the keep-working hook from spending its one block on it if it is.
- */
-const SCRIBE_WAIT_IDIOM = /\bi'?ll (?:wait|be here|be around|be right here|stand by)\b/gi
 
 /**
  * Strip markdown list/quote/heading markers from a line so a fingerprint at the
@@ -266,21 +252,14 @@ function lastParagraph(text: string): string {
  * harness and the ablation. Empty/whitespace text is NOT unfinished (a pure
  * tool-use turn with no prose is fine to stop on — that's peak Fable).
  */
-export function isUnfinishedTail(
-  text: string,
-  opts?: { allowOperatorQuestion?: boolean },
-): boolean {
+export function isUnfinishedTail(text: string): boolean {
   const tail = lastParagraph(text)
   if (!tail) return false
 
   // A trailing question to the user (the last sentence ends with '?'). For the
-  // autonomous/Implementer role this is a stall (no human channel) — UNLESS it is
-  // a structured option-bearing question ("Scope — whole map, or just this room?").
-  // For the operator-FACING Scribe role (allowOperatorQuestion), asking the
-  // operator IS the job: any trailing question — including an open intake
-  // "What are we working on?" — is a VALID resting point, never an unfinished tail.
+  // autonomous role this is a stall (no human channel) — UNLESS it is a
+  // structured option-bearing question ("Scope — whole map, or just this room?").
   if (/\?\s*$/.test(tail)) {
-    if (opts?.allowOperatorQuestion) return false
     // A consent-seeking question about a clearly DESTRUCTIVE / irreversible action — one
     // gated on an explicit operator decision — or a DECLARED capability gap (#52) is a
     // legitimate rest even for the autonomous role: pausing before an irreversible action,
@@ -306,17 +285,6 @@ export function isUnfinishedTail(
   const lines = tail.split('\n').map(stripLineMarkers).filter(Boolean)
   const lastLine = lines.length > 0 ? lines[lines.length - 1]! : tail
   const probe = `${tail}\n${lastLine}`
-  // Scribe defense-in-depth: a SHORT tail whose ONLY unfinished content is a passive
-  // wait-idiom closer is a valid Scribe rest. SOUND: strip every wait phrase, then rest
-  // ONLY if no unfinished pattern survives — so a real promise riding alongside the wait
-  // ("I'll wait, but first I'll dispatch X") still trips the full check below. Reachable
-  // only under allowOperatorQuestion (Scribe-role-only) ⇒ Implementer/fable byte-identical.
-  if (opts?.allowOperatorQuestion && tail.length <= 140) {
-    const withoutWait = probe.replace(SCRIBE_WAIT_IDIOM, ' ')
-    if (withoutWait !== probe && !probeIsUnfinished(withoutWait)) {
-      return false
-    }
-  }
   // Blocked/refusal carve-out: a soft promise that is negated or handed off in the SAME
   // clause ("I'll stop here — this is blocked on your approval") is a legitimate rest, NOT
   // a live promise — so it does not block the stop. Genuine soft-promise tails ("I'll fix

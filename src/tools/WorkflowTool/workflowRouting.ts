@@ -21,8 +21,8 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 export const WORKFLOW_TIERS = ['orchestrator', 'executor'] as const
 export type WorkflowTier = (typeof WORKFLOW_TIERS)[number]
 
-/** The routed execution-tier model — pinned to the party's executor seat
- *  doctrine (seatSlots: executors = claude-opus-5). Operator directive
+/** The routed execution-tier model — the executor-tier doctrine
+ *  (executors = claude-opus-5). Operator directive
  * workflow-launch executors ride Opus 5; the earlier sonnet-5
  *  route was the drifted remnant of the older executor tier. */
 export const WORKFLOW_EXECUTOR_MODEL = 'claude-opus-5'

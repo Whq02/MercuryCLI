@@ -189,8 +189,6 @@ export function refreshOpenaiCatalogue(
 
 export const APEX_GPT_ROLES = [
   'primary',
-  'scribe-router',
-  'scribe-implementer',
   'specialist',
   // the Concourse coordinator seat's role —
   // qualification receipts gate live use exactly like every role.

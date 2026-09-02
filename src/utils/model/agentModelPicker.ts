@@ -33,7 +33,6 @@ import {
   ANTHROPIC_MODEL_GROUP,
   getModelOptions,
   isProviderActionRow,
-  MODES_MODEL_GROUP,
   type ModelOption,
 } from './modelOptions.js'
 import { isHaikuTier } from './modelFloor.js'
@@ -69,7 +68,6 @@ export function getAgentModelPickerRows(
   ]
   for (const opt of catalogue) {
     if (opt.value === null) continue
-    if (opt.group === MODES_MODEL_GROUP) continue
     if (isHaikuTier(opt.value)) continue
     const group = opt.group ?? ANTHROPIC_MODEL_GROUP
     if (isProviderActionRow(opt.value)) {

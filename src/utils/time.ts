@@ -10,7 +10,7 @@
 // ============================================================================
 
 /** ms → a compact human duration ("45s" / "8m" / "1h2m") — no separator, for
- *  tight inline status lines (the Scribe awareness reminder). */
+ *  tight inline status lines */
 export function fmtElapsedMs(ms: number): string {
   const s = Math.floor(ms / 1000)
   if (s < 60) return `${s}s`

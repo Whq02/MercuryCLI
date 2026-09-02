@@ -21,8 +21,8 @@
 //      and 'workflow-worker'. 'background-job' (shells, monitors) is
 //      deliberately excluded — a dev server left running is not an agent
 //      working, and counting it would pin the critter awake forever.
-//    · DAEMON workers: scribe/implementer
-//      teammates and their party spawns COUNT. They live out of process
+//    · DAEMON workers: crew
+//      teammates and session workers COUNT. They live out of process
 //      with no push edge, so their liveness arrives through the roster
 //      owner's SYNC TTL mirror (daemonCrewLivenessSync — the daemonSnapshot
 //      idiom: reads refresh it, nothing polls it), consulted at recompute.
@@ -194,7 +194,7 @@ function ensureSession(): void {
 /** The clock is armed while awake with subscribers — and, since the daemon
  *  ruling, ALSO while asleep with a daemon supervisor ENGAGED: daemon
  *  workers have no in-process push edge, so an asleep critter could never
- *  notice a scribe spawning without the shared elapse. The original drop
+ *  notice a worker spawning without the shared elapse. The original drop
  *  ("once asleep only a push can wake") survives whenever the daemon estate
  *  is off — the common case runs exactly the old discipline. */
 function armClock(): void {
@@ -220,7 +220,7 @@ function recompute(): void {
   else {
     // Agent activity = the execution plane's live records (in-process push)
     // OR a live daemon worker (the TTL roster mirror — operator ruling:
-    // scribe/implementer teammates and party spawns count).
+    // crew teammates and session workers count).
     const agents: AgentActivity = {
       liveNow: agentsActiveNow() || daemonCrewLivenessSync().workersActive,
       lastEventTs: lastAgentEventTs,

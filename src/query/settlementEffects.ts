@@ -7,8 +7,8 @@
 //  registry. Law 3 (the ideology): hooks belong to the user; the product
 //  taxing its own turns through the hooks surface made its keep-working
 //  discipline look like user configuration and coupled it to the hook
-//  executor's delivery shape. What moved: the scribe/implementer and
-//  dungeon-seat keep-working semantics (their bundled Stop hooks retired).
+//  executor's delivery shape. What moved: the retired seats' keep-working
+//  semantics (their bundled Stop hooks retired with them).
 //  What did NOT move: user-authored hooks — handleStopHooks still runs the
 //  full Stop/SubagentStop hook machinery exactly as documented, after these
 //  effects.

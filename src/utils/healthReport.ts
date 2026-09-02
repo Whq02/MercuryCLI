@@ -52,7 +52,6 @@ import {
   MAX_ENTRYPOINT_LINES,
 } from '../memdir/memdir.js'
 import { getAutoMemPath } from '../memdir/paths.js'
-import { listScribeCandidates } from '../memdir/scribePromote.js'
 import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
@@ -1989,24 +1988,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             return { status: 'ok', evidence, link: '/workflows' }
-          },
-        },
-        {
-          id: 'scribe',
-          label: 'Scribe scope',
-          run: async () => {
-            const busOn = flagEnv('MERCURY_SCRIBE_BUS_LIVE') !== '0'
-            const staged = await listScribeCandidates()
-            const evidence = `bus ${busOn ? 'on' : 'off'} · ${staged.length} staged candidate(s) awaiting ratify`
-            if (staged.length > 0) {
-              return {
-                status: 'info',
-                evidence,
-                fix: 'Ratify staged scribe notes into memory with /scribe-promote (p to ratify).',
-                link: '/scribe-promote',
-              }
-            }
-            return { status: 'ok', evidence }
           },
         },
       ],

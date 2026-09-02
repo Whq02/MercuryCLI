@@ -145,7 +145,7 @@ function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
   const next = mutate({ ...existing, version: OPENAI_AUTH_VERSION })
   const path = authFilePath()
   // Durable ATOMIC publication: the
-  // store is SHARED by the foreground, the scribe daemon, and every engine-
+  // store is SHARED by the foreground, the daemon, and every engine-
   // routed child — a bare writeFileSync interleaving with another process's
   // read-modify-write could resurrect an already-rotated refresh token, and a
   // resurrected token presented to the AS reads as reuse ⇒ the whole grant
