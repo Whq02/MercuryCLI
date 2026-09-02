@@ -226,19 +226,17 @@ try {
     const mine = rows.find(r => r.sessionId === sid && r.promptDigest === dispatch.promptDigestOf(WORDS))
     check('N4 the typed words rode the dispatch ledger to the session — the row keyed by the ONE identity (a bare uuid), carrying the words\' digest and the operator\'s attribution', mine !== undefined && UUID_SHAPE.test(mine.clientMessageId) && mine.by === 'operator' && (mine.state === 'working' || mine.state === 'settled' || mine.state === 'starting'), `row=${mine ? `${mine.clientMessageId} ${mine.state} by=${mine.by ?? ''}` : 'none'}; ids=${rows.map(r => `${r.clientMessageId}:${r.state}`).join(' ')}`)
     check("N4 the session's file gained the operator's row", await untilAsync(async () => logText().includes(WORDS), 20_000))
-    const userRowUuids = (): string[] =>
-      logText()
-        .split('\n')
-        .filter(l => l.trim() !== '')
-        .flatMap(l => {
-          try {
-            const row = JSON.parse(l) as { type?: string; uuid?: string }
-            return row.type === 'user' && typeof row.uuid === 'string' ? [row.uuid] : []
-          } catch {
-            return []
-          }
-        })
-    check("N4 …and that row wears the SAME identity: the transcript's user row uuid IS the ledger's clientMessageId", mine !== undefined && userRowUuids().includes(mine.clientMessageId), `user uuids=${userRowUuids().join(',')}`)
+    // The file holds versioned records (the envelope carries the entry;
+    // the uuid rides inside it), so the rows are read the way the focused
+    // chat's connector reads them: through the transcript reader's chain
+    // door, which hands back the conversation rows with the envelope
+    // stripped — a hand-parsed line sees the envelope, never the row.
+    const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+    const userRowUuids = async (): Promise<string[]> => {
+      const chain = await reader.readTranscriptChainSince(log, null)
+      return chain.rows.flatMap(r => (r.type === 'user' && typeof (r as { uuid?: unknown }).uuid === 'string' ? [(r as { uuid: string }).uuid] : []))
+    }
+    check("N4 …and that row wears the SAME identity: the transcript's user row uuid IS the ledger's clientMessageId", mine !== undefined && (await userRowUuids()).includes(mine.clientMessageId), `user uuids=${(await userRowUuids()).join(',')}`)
     check('N4 …and the session answered them', await untilAsync(async () => logText().includes('hi back — the words landed.'), 20_000))
     const echoed = hoppedFrames.filter(g => text(g).includes(WORDS))
     check('N4 the words painted in the focused chat (the echo, then the row)', echoed.length > 0, `frames: ${echoed.map(g => g.atMs).join(',') || 'none'}`)
