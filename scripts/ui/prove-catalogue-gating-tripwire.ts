@@ -219,7 +219,9 @@ interface DriveResult {
 function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
+  const debugFile = process.env.CATGATE_DEBUG_FILE
+  const argv = debugFile ? ['node', DIST, '--debug', `--debug-file=${debugFile}.${tag}.log`] : ['node', DIST]
+  writeFileSync(cfgPath, JSON.stringify({ argv, sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
     env: childEnv(home, netlog, extraEnv),
@@ -291,18 +293,37 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
       { afterPrevTicks: 2, data: '\r' },
       { afterPrevTicks: 3, mark: 'entered', data: '' },
       { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
-      { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
-      { afterPrevTicks: 15, mark: 'settled', data: '' },
+      { afterPrevTicks: 4, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-1', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-2', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-3', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-4', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-5', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-6', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 4, mark: 'settled', data: '' },
     ],
-    70,
+    130,
     {},
   )
   check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('Mercury — model'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
   check('ZERO catalogue requests from the signed-out picker (count 0)', catalogue.length === 0, catalogue.join(' · '))
-  check('the ruled Hugging Face row is on the screen', res.gridText.includes('connect Hugging Face to browse its models'))
-  check('the ruled OpenRouter row is on the screen', res.gridText.includes('connect OpenRouter to browse its models'))
+  const rowsOf = (needle: string): string => [...new Set(res.gridText.split('\n').filter(l => l.toLowerCase().includes(needle)).map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90)))].join(' | ') || '(no row)'
+  const hfOnScreen = res.gridText.includes('connect Hugging Face to browse its models')
+  if (!hfOnScreen) {
+    const seen = [...new Set(res.gridText.split('\n').map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim()).filter(l => l.length > 0))]
+    console.log(`  the walk's rows (${seen.length} distinct):`)
+    for (const row of seen) console.log(`    ${row.slice(0, 110)}`)
+  }
+  check('the ruled Hugging Face row is on the screen', hfOnScreen, `${rowsOf('hugging')} · headings seen: ${rowsOf('mercury —')}`)
+  check('the ruled OpenRouter row is on the screen', res.gridText.includes('connect OpenRouter to browse its models'), rowsOf('openrouter'))
 }
 
 console.log('[C] a fixture HF credential — the catalogue fetch happens against the loopback fixture and renders')
