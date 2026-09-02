@@ -236,6 +236,14 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
     gridText = [...(payload.marks ?? []).map(m => text(m.grid)), payload.grid ? text(payload.grid) : ''].join('\n')
   }
   if (res.status !== 0 && gridText !== '') {
+    if (existsSync(grid)) {
+      const payload = JSON.parse(readFileSync(grid, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
+      for (const m of payload.marks ?? []) {
+        const rows = m.grid.map(row => row.map(c => c.c).join('').trimEnd()).filter(r => r.length > 0)
+        console.log(`  mark '${m.label}' (last ${Math.min(8, rows.length)} non-empty rows):`)
+        for (const row of rows.slice(-8)) console.log(`    ${row.slice(0, 116)}`)
+      }
+    }
     const rows = gridText.split('\n').map(r => r.trimEnd()).filter(r => r.length > 0)
     console.log(`  the frame the drive ended on (last ${Math.min(14, rows.length)} non-empty rows):`)
     for (const row of rows.slice(-14)) console.log(`    ${row.slice(0, 116)}`)
@@ -279,7 +287,9 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
     [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
-      { afterPrevTicks: 4, data: '\r' },
+      { afterPrevTicks: 2, mark: 'typed', data: '' },
+      { afterPrevTicks: 2, data: '\r' },
+      { afterPrevTicks: 3, mark: 'entered', data: '' },
       { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { afterPrevTicks: 15, mark: 'settled', data: '' },
