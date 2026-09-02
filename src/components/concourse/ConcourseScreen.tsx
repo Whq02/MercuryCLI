@@ -1602,6 +1602,9 @@ export function ConcourseScreen({
     if (reducedStage) {
       return
     }
+    if (region === 'chat') {
+      return
+    }
     if (region !== 'coordinator' && region !== 'live') {
       return
     }
