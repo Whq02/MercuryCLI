@@ -132,6 +132,7 @@ src/services/concourse/coordinatorIdentity.ts :: cached :: static-for-process
 src/services/concourse/coordinatorTools.ts :: knownDirsCache :: ttl-bounded
 src/services/contextLanes/lanes.ts :: laneScanMemo :: keyed-by-truth
 src/services/crew/projection.ts :: snapshot :: subscription-fed
+src/services/dap/dapClient.ts :: darwinDebuggerAuthMemo :: static-for-process
 src/services/dap/dapClient.ts :: gdbProbeCache :: ttl-bounded
 src/services/dap/dapClient.ts :: lldbDapMemo :: static-for-process
 src/services/dap/debugpyResolver.ts :: cache :: ttl-bounded
