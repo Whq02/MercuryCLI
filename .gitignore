@@ -18,6 +18,7 @@ vendor/debugpy/
 vendor/pyright/
 vendor/grammars/
 vendor/js-debug/
+vendor/node/
 release-out/
 
 # Gate shard artifacts from local runs.
