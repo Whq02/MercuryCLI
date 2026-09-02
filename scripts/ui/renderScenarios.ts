@@ -2111,6 +2111,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
       seedFirstRun(scratch, [RUNTIME_CWD])
       applyRenderTheme(scratch)
       process.env.MERCURY_CONFIG_DIR = scratch
+      // The scratch home owns its daemon dir (the pid-keyed default above is
+      // shared by every capture of a run): a session born here never reaches
+      // another scenario's daemon.
+      process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
       return {
         argv: ['node', BIN],
         sends: [{ atTick: 30, data: name === 'submodels-signedout' ? '/submodels\r' : '/model\r' }],
@@ -2358,6 +2362,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     seedFirstRun(scratch, [project])
     applyRenderTheme(scratch)
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return { argv: ['node', BIN], sends: [], total: 45, cols, rows, cwd: project }
   }
   if (name === 'entry-provider') {
@@ -2944,6 +2952,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     saveBootDefaultsProfile({ MERCURY_HELM_HOME: '0' }, bootEnv)
     saveBootDefaultsProfile({ MERCURY_HELM_HOME: '0', MERCURY_CACHE_TTL: '1h' }, bootEnv)
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
@@ -2971,6 +2983,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     rmSync(scratch, { recursive: true, force: true })
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     return {
       argv: ['node', BIN],
       sends: [
@@ -2995,6 +3011,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     // reveals the face beneath (the layer's own topology).
     const scratch = join(tmpdir(), `hermes-render-bootkit-${process.pid}`)
     rmSync(scratch, { recursive: true, force: true })
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     seedFirstRun(scratch, [RUNTIME_CWD])
     process.env.MERCURY_CONFIG_DIR = scratch
     return {
@@ -3710,6 +3730,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
           refreshToken: 'fixture-refresh',
           accountId: 'acct_fixture',
           planType: 'plus',
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
         },
       }),
     )
@@ -3797,6 +3821,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_ZAI_API_BASE = dead
     process.env.MERCURY_DEEPSEEK_API_BASE = dead
     process.env.MERCURY_HUGGINGFACE_HUB_BASE = dead
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.MERCURY_HUGGINGFACE_API_BASE = `${dead}/v1`
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -4888,6 +4916,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_OPENAI_AUTH_BASE = dead
     process.env.MERCURY_OPENROUTER_API_BASE = dead
     process.env.MERCURY_OPENROUTER_AUTH_BASE = dead
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.MERCURY_GEMINI_API_BASE = dead
     process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = dead
     process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = dead
@@ -4942,6 +4974,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
     process.env.MERCURY_MOONSHOT_API_BASE = dead
     process.env.MERCURY_DEEPSEEK_API_BASE = dead
     process.env.MERCURY_HUGGINGFACE_HUB_BASE = dead
+    // The scratch home owns its daemon dir (the pid-keyed default above is
+    // shared by every capture of a run): a session born here never reaches
+    // another scenario's daemon.
+    process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
     process.env.MERCURY_HUGGINGFACE_API_BASE = `${dead}/v1`
     process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -5251,6 +5287,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
       const fixtureOverride = process.env.MERCURY_RENDER_FIXTURE
       const fixtureJson =
         fixtureOverride !== undefined && fixtureOverride.trim().startsWith('{')
+      // The scratch home owns its daemon dir (the pid-keyed default above is
+      // shared by every capture of a run): a session born here never reaches
+      // another scenario's daemon.
+      process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
           ? fixtureOverride
           : JSON.stringify(fixture)
       writeFileSync(fixturePath, fixtureJson)
