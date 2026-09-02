@@ -91,7 +91,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
       process.env.MERCURY_CONFIG_DIR = configDir
       daemon = spawn('node', [DIST, 'daemon', 'run', work], {
         cwd: work,
-        env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0', MERCURY_PARTY: '0' },
+        env: { ...process.env, MERCURY_CONFIG_DIR: configDir, MERCURY_DAEMON_DIR: daemonDir, ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url, MERCURY_CACHE_CLOCK: '0' },
         stdio: ['ignore', logFd, logFd],
       })
       check(`${tag}: the daemon serves`, await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))

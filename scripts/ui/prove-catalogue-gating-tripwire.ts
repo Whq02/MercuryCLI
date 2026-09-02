@@ -141,6 +141,13 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
+    // The display animations every capture pins still (the critter's sway
+    // and blink, its gaze and sleep, the header's live seconds, the live
+    // glyphs): a settle gate reads the whole grid, and a recorded frame
+    // must never land on an arbitrary animation phase.
+    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
     ANTHROPIC_BASE_URL: DEAD,
     BROWSER: 'true',
   }
