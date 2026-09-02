@@ -398,14 +398,22 @@ export default class App extends PureComponent<Props, State> {
   // ── stdin ─────────────────────────────────────────────────────────────
 
   handleReadable = (): void => {
+    // The runtime wakes this reader for a HANGUP the way it wakes it for
+    // input: the terminal's EOF arrives as a readable event with nothing
+    // to read. Only INPUT is a resume — the terminal that sent it is there
+    // to take the modes, while the one that hung up answers the reassert's
+    // write with EIO — so the gap check waits for the first byte.
     const now = Date.now()
-    if (now - this.lastStdinTime > STDIN_GAP_REASSERT_MS) {
-      this.props.onStdinResume()
-    }
-    this.lastStdinTime = now
+    const quietSpell = now - this.lastStdinTime > STDIN_GAP_REASSERT_MS
+    let sawInput = false
     try {
       let chunk: string | Buffer | null
       while ((chunk = this.props.stdin.read() as string | Buffer | null) !== null) {
+        if (!sawInput) {
+          sawInput = true
+          this.lastStdinTime = now
+          if (quietSpell) this.props.onStdinResume()
+        }
         this.handleInput(chunk)
       }
     } catch (error) {

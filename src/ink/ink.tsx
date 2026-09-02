@@ -100,7 +100,7 @@ import { RESIZE_SETTLE_MS } from './constants.js'
 import { runTeardownSuite } from './root/teardown.js'
 import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js'
 import { extendedKeysSupportedNow, regionScrollTrustedNow, shouldHoldFirstPaintForSyncProbe, syncOutputSupportedNow } from './session/capabilities.js'
-import { writeAllSync, writeDiffToTerminal } from './session/delivery.js'
+import { streamTakesWrites, writeAllSync, writeDiffToTerminal } from './session/delivery.js'
 import { cursorPosition, ERASE_SCREEN, CURSOR_HOME } from './termio/csi.js'
 import {
   DISABLE_MOUSE_TRACKING,
@@ -1262,7 +1262,13 @@ export default class Ink {
 
   reassertTerminalModes(includeAltScreen = false): void {
     if (!this.isTTY) return
-    if (this.isPaused) return
+    if (this.isPaused || this.isUnmounted) return
+    // A terminal that is gone takes no modes: a stream that was destroyed,
+    // ended or reports itself unwritable answers the write with an error
+    // the process has no seam for. The stall wake and the stdin resume
+    // both arrive here after a quiet spell, and a torn-down PTY is one of
+    // the ways a spell ends.
+    if (!streamTakesWrites(this.options.stdout)) return
     termWrite(
       this.options.stdout,
       reassertModesBytes({
