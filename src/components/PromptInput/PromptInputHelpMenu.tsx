@@ -7,7 +7,7 @@ import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBind
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
-import { useAppState, type AppState } from '../../state/AppState.js'
+import { getNotificationRows, subscribeNotificationRows } from './notificationRowsMirror.js'
 import { isDeckPaneActive } from '../../utils/fullscreen.js'
 import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
@@ -137,9 +137,8 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   ).map(group => group.map(row))
 
   const chrome = computeChromeMode(columns, termRows)
-  const notice = useAppState((state: AppState) => state.notifications.current)
-  const noticeRows = notice === null ? 0 : 'text' in notice ? notice.text.split('\n').length : 1
-  const NOTICE_ROWS_IN_ALLOWANCE = 2
+  const noticeRows = React.useSyncExternalStore(subscribeNotificationRows, getNotificationRows, getNotificationRows)
+  const NOTICE_ROWS_IN_ALLOWANCE = 1
   const availableRows = Math.max(
     3,
     termRows - (chrome === 'deck-strip' ? 14 : 6) - Math.max(0, noticeRows - NOTICE_ROWS_IN_ALLOWANCE),
