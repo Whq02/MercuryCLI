@@ -94,6 +94,14 @@ console.log('§2 the command queue: a hop parks and restores; a landing keeps wh
   check('control: the same re-point without the landing word parks them away', queue.getCommandQueueSnapshot().length === 0)
 }
 
+console.log('§3 the REPL names the landing to both owners')
+{
+  const { readFileSync } = await import('node:fs')
+  const repl = readFileSync(join(process.cwd(), 'src/screens/REPL.tsx'), 'utf8')
+  check('the draft store hears the landing word', repl.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"))
+  check('the command queue hears the same landing word', repl.includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })"))
+}
+
 rmSync(scratch, { recursive: true, force: true })
 if (failures > 0) {
   console.log(`\n ❌ typing-survives-rekey — ${failures} failure(s)`)

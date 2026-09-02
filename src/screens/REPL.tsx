@@ -2477,7 +2477,7 @@ export function REPL({
     if (rekeyedSessionRef.current !== focusedSessionId) {
       rekeyedSessionRef.current = focusedSessionId;
       void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
-      rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId);
+      rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusedSessionId]);
