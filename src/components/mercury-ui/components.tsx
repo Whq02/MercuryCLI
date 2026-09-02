@@ -28,7 +28,7 @@ import { InteractiveRow } from './InteractiveRow.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useIsInsideModal, useModalOrTerminalSize, useModalScrollRef } from '../../context/modalContext.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
-import { composeFooterHint, packFooter } from './footerHint.js'
+import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHint.js'
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
 
 // Identity accent + every ink/surface/state colour now resolve through the
@@ -143,8 +143,10 @@ export function CommandCenter({
    *  pickers), binds esc ONLY and leaves ← unbound (or bound to tab-switch, e.g.
    *  the capability center) — so the footer renders ` · esc close` and never a
    *  dead-or-wrong `← close`. Pass 'esc' to force esc-only even on a captureInput
-   *  surface (rare). */
-  closeKeys?: 'esc-arrow' | 'esc'
+   *  surface (rare). Pass 'none' for a phase where NO key leaves (a deletion in
+   *  flight): the shell appends nothing, binds nothing and the footer row is
+   *  not a close target — the footer's own words carry the phase. */
+  closeKeys?: FooterCloseKeys
   /** Hosted inside the cockpit tower: render ONLY the body — the tower owns the
    *  border, header, footer, and ALL input (esc/tab/←/→). No own useInput. Set
    *  via the prop OR the CockpitEmbeddedContext (the tower uses the context so it
@@ -177,7 +179,10 @@ export function CommandCenter({
   // takes the esc; the pop-stamp keeps this center from ALSO closing on the
   // same keypress), and CancelRequestHandler stands down while the center
   // is open — esc backs out one level, it never doubles as turn-cancel.
-  const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded)
+  // A 'none' phase owns no exit at all: the shell's esc/← listener and the
+  // footer's click target both stand down with the appended hint.
+  const closable = closeKeys !== 'none'
+  const overlayToken = useRegisterOverlay(`center:${view}`, captureInput && !embedded && closable)
   useInput(
     (_i, key) => {
       if (key.escape || key.leftArrow) {
@@ -185,7 +190,7 @@ export function CommandCenter({
         onClose()
       }
     },
-    { isActive: captureInput && !embedded },
+    { isActive: captureInput && !embedded && closable },
   )
   // Rides the ground beat (Law 9): the shell footer's default dir chip
   // repaints on a repo pick, not on the next unrelated re-render.
@@ -304,7 +309,7 @@ export function CommandCenter({
           we never render a dead-or-wrong `← close`. The row is a CLICK
           target through the ONE kernel: a registered direct
           control — one click closes, hover paints, geometry never moves. */}
-      <InteractiveRow id={`center:${view}:close`} directActivate onActivate={onClose} flexDirection="column">
+      <InteractiveRow id={`center:${view}:close`} directActivate onActivate={closable ? onClose : undefined} flexDirection="column">
         {/* Hover-hierarchy: footer chrome hovers through INK (the
             function child keeps the marginTop spacer row — bare Text would
             delete it — and suppresses the body-row surface2 slab). */}

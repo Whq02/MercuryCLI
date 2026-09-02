@@ -94,6 +94,7 @@ import type {
   MessageActionsState,
 } from './messageActions.js'
 import { InVirtualListContext } from './messageActions.js'
+import { setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import { NameplateContinuationContext } from './messages/TranscriptNameplate.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
 import { LiveStreamingTail } from './LiveStreamingTail.js'
@@ -229,8 +230,10 @@ type MessagesProps = {
   scanElement?: (el: DOMElement) => MatchPosition[]
   setPositions?: (state: SearchPositionsState | null) => void
   disableRenderCap?: boolean
-  cursor?: MessageActionsState | null
-  setCursor?: (cursor: MessageActionsState | null) => void
+  /** This transcript hosts the message-actions cursor: it subscribes to
+   *  the cursor store (a move re-renders it, never its host) and hands the
+   *  list the store's setter. Absent, no cursor is painted or moved. */
+  ownsCursor?: boolean
   cursorNavRef?: React.MutableRefObject<MessageActionsNav | null>
   renderRange?: readonly [number, number]
 }
@@ -264,11 +267,14 @@ function MessagesInner({
   scanElement,
   setPositions,
   disableRenderCap = false,
-  cursor,
-  setCursor,
+  ownsCursor = false,
   cursorNavRef,
   renderRange,
 }: MessagesProps): React.ReactNode {
+  // The cursor, read from its store: only the owning transcript paints it.
+  const liveCursor = useMessageCursor()
+  const cursor: MessageActionsState | null = ownsCursor ? liveCursor : null
+  const setCursor = ownsCursor ? setMessageCursor : undefined
   // The transcript's render mark on the FLUX probe ring (MERCURY_FLUX_PROBE
   // only; off ⇒ no-op): the region-invalidation matrix reads the messages
   // region's rhythm from it — a keystroke never re-renders the transcript.
@@ -1108,7 +1114,7 @@ function areMessagesPropsEqual(
   if (prev.conversationId !== next.conversationId) return false
   if (prev.disableRenderCap !== next.disableRenderCap) return false
   if (prev.suppressLogo !== next.suppressLogo) return false
-  if (prev.cursor !== next.cursor) return false
+  if (prev.ownsCursor !== next.ownsCursor) return false
   if (prev.renderRange !== next.renderRange) return false
   if (prev.trackStickyPrompt !== next.trackStickyPrompt) return false
   if (prev.streamingTail !== next.streamingTail) return false

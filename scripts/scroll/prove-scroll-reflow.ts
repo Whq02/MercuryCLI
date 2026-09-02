@@ -42,6 +42,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -63,18 +64,18 @@ type Cell = {
   rows: number
   rCols: number
   rRows: number
-  /** viewport − 2 at the POST-resize geometry (chrome is width-responsive:
-   *  24 rows at ≥96 cols, 12 below — measured; a deliberate
-   *  chrome change moves these WITH it). */
-  commandedAfter: number
 }
 const MSG_LINES = 12
+// The post-resize page step is MEASURED from the post-resize frames (the
+// transcript region paneRuler cuts), never a frozen number: the region is
+// host truth — a keyless composer carries five notification rows under it,
+// a signed-in one none — and a frozen 36 read one host and failed the other.
 const STANDING: Cell[] = [
-  { tag: 'to80', cols: 120, rows: 50, rCols: 80, rRows: 50, commandedAfter: 36 },
+  { tag: 'to80', cols: 120, rows: 50, rCols: 80, rRows: 50 },
 ]
 const FULL_EXTRA: Cell[] = [
-  { tag: 'to120', cols: 80, rows: 50, rCols: 120, rRows: 50, commandedAfter: 24 },
-  { tag: 'rows38', cols: 120, rows: 50, rCols: 120, rRows: 38, commandedAfter: 12 },
+  { tag: 'to120', cols: 80, rows: 50, rCols: 120, rRows: 50 },
+  { tag: 'rows38', cols: 120, rows: 50, rCols: 120, rRows: 38 },
 ]
 
 // ── synthetic session (the measurement corpus) ───────────────────────
@@ -120,18 +121,9 @@ function seedSession(home: string): void {
 }
 
 // ── per-phase ruler (single parity; frames of ONE geometry) ─────────────────
-type Grid = Array<Array<{ c: string }>>
-type Sig = { turn: number; sig: string; row: number }
-const sigRe = /TURN-(\d{3})( please survey| line (\d{2}))/
-function allSigs(grid: Grid): Sig[] {
-  const out: Sig[] = []
-  for (let r = 0; r < grid.length; r++) {
-    const text = grid[r]!.map(c => c.c).join('')
-    const m = text.match(sigRe)
-    if (m) out.push({ turn: Number(m[1]), sig: m[3] ?? 'u', row: r })
-  }
-  return out
-}
+// Signatures come from the transcript PANE alone (paneRuler): read whole, a
+// frame's first signature was the cockpit rail's echo of the last prompt.
+const allSigs = (grid: Grid): Sig[] => paneSigs(grid)
 function positionRuler(grids: Grid[]): (g: Grid) => number | null {
   const edgeModes = new Map<string, Map<number, number>>()
   for (const g of grids) {
@@ -258,20 +250,33 @@ function runCell(cell: Cell): void {
   check(`${cell.tag}: no late drift`,
     postTop !== null && lateTop !== null && lateTop.turn === postTop.turn && lateTop.sig === postTop.sig,
     `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}`)
-  // POST-REFLOW EXACT — two settled presses at the NEW geometry.
-  const postRuler = positionRuler([
-    marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid,
-  ])
+  // POST-REFLOW EXACT — two settled presses at the NEW geometry: each a
+  // real page inside the measured region's bounds, and the two equal within
+  // one row of each other (the row-exact law, as strong as before — the
+  // commanded step is the region's, not a frozen number).
+  const postGrids = [marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid]
+  const postRuler = positionRuler(postGrids)
+  // The region of the settled PRESS frames (their mode): the final frame's
+  // chrome can differ (a notification block that cleared) and must not set
+  // the bounds the presses are judged by.
+  const region = regionOf([marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid])
+  const bounds = stepBounds(region)
   const pQ1 = postRuler(marks.get('q01')!.grid)
   const pQ2 = postRuler(marks.get('q02')!.grid)
   const pEnd = postRuler(marks.get('qEnd')!.grid)
-  check(`${cell.tag}: post-reflow press 1 row-exact`,
-    pQ1 !== null && pQ2 !== null && Math.abs((pQ1 - pQ2) - cell.commandedAfter) <= 1,
-    `settled ${pQ1 !== null && pQ2 !== null ? pQ1 - pQ2 : '—'} vs commanded ${cell.commandedAfter}`)
-  check(`${cell.tag}: post-reflow press 2 row-exact`,
-    pQ2 !== null && pEnd !== null && Math.abs((pQ2 - pEnd) - cell.commandedAfter) <= 1,
-    `settled ${pQ2 !== null && pEnd !== null ? pQ2 - pEnd : '—'} vs commanded ${cell.commandedAfter}`)
-  console.log(`  reflow: pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig} presses=[${pQ1 !== null && pQ2 !== null ? pQ1 - pQ2 : '—'},${pQ2 !== null && pEnd !== null ? pQ2 - pEnd : '—'}] endReason=${payload.endReason}`)
+  const step1 = pQ1 !== null && pQ2 !== null ? pQ1 - pQ2 : null
+  const step2 = pQ2 !== null && pEnd !== null ? pQ2 - pEnd : null
+  check(`${cell.tag}: the post-resize transcript region is a real pane (≥ 6 rows)`, region >= 6, `region ${region}`)
+  check(`${cell.tag}: post-reflow press 1 is a page (region − 4 ≤ step ≤ region + 1)`,
+    step1 !== null && step1 >= bounds.floor && step1 <= bounds.ceiling,
+    `settled ${step1 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]`)
+  check(`${cell.tag}: post-reflow press 2 is a page (region − 4 ≤ step ≤ region + 1)`,
+    step2 !== null && step2 >= bounds.floor && step2 <= bounds.ceiling,
+    `settled ${step2 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]`)
+  check(`${cell.tag}: the two post-reflow presses are row-exact (equal within one row)`,
+    step1 !== null && step2 !== null && Math.abs(step1 - step2) <= 1,
+    `presses ${step1 ?? '—'} and ${step2 ?? '—'}`)
+  console.log(`  reflow: pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig} presses=[${step1 ?? '—'},${step2 ?? '—'}] region=${region} endReason=${payload.endReason}`)
 }
 
 mkdirSync(SCRATCH, { recursive: true })

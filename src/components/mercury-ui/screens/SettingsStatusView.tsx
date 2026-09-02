@@ -107,7 +107,11 @@ export function SettingsStatusView({
         if (i < factWin.start || i >= factWin.end) return null
         return (
           <InteractiveRow key={r.k} {...rowProps(r, i)}>
-            <Text>
+            {/* One fact, one row: a long value truncates with its ellipsis
+                (↵ inspects the whole) — at the minimum width the local-models
+                and moonshot lines used to wrap onto a second, label-less
+                row and the windowed cursor lost its row count. */}
+            <Text wrap="truncate-end">
               <Text color={i === sel ? accent : FAINT}>{i === sel ? '▸ ' : '  '}</Text>
               <Text color={FAINT}>{padTo(r.k, factLabelW)}</Text>
               <Text color={r.tone ?? IVORY}>{r.v}</Text>
@@ -125,7 +129,7 @@ export function SettingsStatusView({
         <>
           <SectionHeader count={retention.length}>Retention</SectionHeader>
           {retention.map(r => (
-            <Text key={r.k}>
+            <Text key={r.k} wrap="truncate-end">
               <Text color={FAINT}>{'  '}{padTo(r.k, retentionLabelW)}</Text>
               <Text color={r.tone ?? IVORY}>{r.v}</Text>
               {r.note ? <Text color={FAINT}> {r.note}</Text> : null}

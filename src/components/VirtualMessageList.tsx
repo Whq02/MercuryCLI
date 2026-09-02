@@ -10,6 +10,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -373,9 +374,13 @@ export function VirtualMessageList({
   // ── keep the cursor on screen ─────────────────────────────────────────
   // Offsets are read through the hook's accessors (refs underneath), never
   // dependencies — the effect must not re-pin on every mousewheel tick.
+  // A LAYOUT effect: the scroll request lands in the same commit as the
+  // highlight, so the frame that paints the cursor is the frame that
+  // brings it on screen (a passive effect asked for the scroll after the
+  // first frame had already gone out — two frames a key, measured).
   const vsRef = useRef(vs)
   vsRef.current = vs
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedIndex === undefined) return
     const el = vsRef.current.getItemElement(selectedIndex)
     if (el) scrollRef.current?.scrollToElement(el, 1)
@@ -721,7 +726,13 @@ export function VirtualMessageList({
         const i = Math.max(rangeStart, rangeEnd - 4) + j
         return `${m.type}:${m.uuid.slice(0, 8)}/${(itemKeys[i] ?? '?').slice(0, 8)}`
       })
-      appendFileSync(tracePath, `${JSON.stringify({ t: Date.now(), ev: 'list-render', range: [rangeStart, rangeEnd], messages: messages.length, keys: itemKeys.length, stale, dupKeys, tail })}\n`)
+      // The viewport facts ride the line too: a window that never leaves
+      // the tail reads differently beside a scrollTop that never moved.
+      const box = scrollRef.current
+      const scroll = box
+        ? { top: box.getScrollTop(), pending: box.getPendingDelta(), sticky: box.isSticky(), viewport: box.getViewportHeight(), height: box.getScrollHeight() }
+        : null
+      appendFileSync(tracePath, `${JSON.stringify({ t: Date.now(), ev: 'list-render', range: [rangeStart, rangeEnd], messages: messages.length, keys: itemKeys.length, stale, dupKeys, tail, scroll })}\n`)
     } catch {
       /* forensics must never break the list */
     }

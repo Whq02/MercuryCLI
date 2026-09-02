@@ -29,6 +29,8 @@ import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { COMPASS_SID, buildCompass1k } from './fixture1k.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { entryToRecord } from '../../src/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/fabric/ordinal.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -71,6 +73,13 @@ export interface CompassArenaOpts {
   /** Scripted fixture-API turns (default none — pure interaction legs). */
   turns?: ScriptedTurn[]
   extraEnv?: Record<string, string>
+  /** Extra session transcripts staged beside the fixture, one <sid>.jsonl
+   *  each — the session-switcher legs need a list to walk. Built against
+   *  the arena's own cwd so they sit in the booted project. */
+  extraSessions?: (cwd: string) => Array<{ sid: string; lines: Record<string, unknown>[] }>
+  /** Chapters in the staged fixture (default the 1k fixture's 53; each
+   *  chapter is 19 records). */
+  chapters?: number
 }
 
 export function requireDist(): void {
@@ -82,6 +91,19 @@ export function requireDist(): void {
 
 function nodeBinPath(): string {
   return process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+}
+
+/** Entry lines → the transcript's record lines, with a deterministic
+ *  per-file ordinal clock (the same codec the writer rides). */
+function encodeTranscript(lines: Record<string, unknown>[], sessionId: string): string {
+  let n = 0
+  const ctx = {
+    sessionId: sessionId as never,
+    nextOrdinal: () => ordinalOf(++n) as never,
+    observedAt: '2026-06-20T08:00:00.000Z',
+    source: { channel: 'sdk' } as const,
+  }
+  return lines.map(l => JSON.stringify(entryToRecord(l, ctx as never))).join('\n') + '\n'
 }
 
 /** Mirror the binary's project-dir slug (sessionStoragePortable sanitizePath).
@@ -117,11 +139,16 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
     }),
   )
 
-  // Stage the 1k fixture where --resume resolves it for THIS cwd.
+  // Stage the 1k fixture where --resume resolves it for THIS cwd — through
+  // the transcript's own record codec (the envelope the writer rides; the
+  // render scenarios stage the same way), never bare entry lines.
   const projDir = join(configDir, 'projects', projectSlug(cwd))
   mkdirSync(projDir, { recursive: true })
-  const { lines } = buildCompass1k(cwd)
-  writeFileSync(join(projDir, `${COMPASS_SID}.jsonl`), lines.map(l => JSON.stringify(l)).join('\n') + '\n')
+  const { lines } = buildCompass1k(cwd, opts.chapters)
+  writeFileSync(join(projDir, `${COMPASS_SID}.jsonl`), encodeTranscript(lines, COMPASS_SID))
+  for (const extra of opts.extraSessions?.(cwd) ?? []) {
+    writeFileSync(join(projDir, `${extra.sid}.jsonl`), encodeTranscript(extra.lines, extra.sid))
+  }
 
   const tee = join(home, 'tee.jsonl')
   const drive = join(home, 'drive.jsonl')

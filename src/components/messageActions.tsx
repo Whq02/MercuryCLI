@@ -1,13 +1,16 @@
 // Transcript cursor mode: the navigability rules, the action table, copy
-// extraction, the stable handler surface, and the action bar. The hook
-// itself cannot register keybindings (it runs outside the keybinding
-// provider); MessageActionsKeybindings is the tiny in-provider component
-// that registers the returned map and renders nothing.
+// extraction, the stable handler surface, and the action bar. The cursor
+// itself lives in messageCursorStore (the transcript and the bar subscribe
+// to it; the REPL only to whether one stands). The hook cannot register
+// keybindings (it runs outside the keybinding provider);
+// MessageActionsKeybindings is the tiny in-provider component that
+// registers the returned map and renders nothing.
 
 import React, { createContext, useContext, useMemo, useRef } from 'react'
 import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useRegisterKeybindingContext } from '../keybindings/KeybindingContext.js'
+import { getMessageCursor, setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import type {
   NormalizedUserMessage,
   RenderableMessage,
@@ -347,8 +350,6 @@ function applicableActions(cursor: MessageActionsState): MessageAction[] {
 // ── the hook ────────────────────────────────────────────────────────────────
 
 export function useMessageActions(
-  cursor: MessageActionsState | null,
-  setCursor: (cursor: MessageActionsState | null) => void,
   navRef: React.RefObject<MessageActionsNav | null>,
   caps: MessageActionCaps,
 ): {
@@ -356,25 +357,22 @@ export function useMessageActions(
   handlers: Record<string, () => void>
 } {
   // Handlers must be stable across renders so appending a message does not
-  // re-register the entire binding set — cursor and capabilities ride refs.
-  const cursorRef = useRef(cursor)
-  cursorRef.current = cursor
+  // re-register the entire binding set — capabilities ride a ref, the
+  // cursor is read live from its store.
   const capsRef = useRef(caps)
   capsRef.current = caps
-  const setCursorRef = useRef(setCursor)
-  setCursorRef.current = setCursor
 
   return useMemo(() => {
     const exit = (): void => {
-      setCursorRef.current(null)
+      setMessageCursor(null)
     }
     const runKey = (key: string): void => {
-      const current = cursorRef.current
+      const current = getMessageCursor()
       if (!current) return
       const action = applicableActions(current).find(a => a.key === key)
       if (!action) return
       if (action.staysInCursorMode) {
-        setCursorRef.current({ ...current, expanded: !current.expanded })
+        setMessageCursor({ ...current, expanded: !current.expanded })
         return
       }
       const selected = navRef.current?.getSelected()
@@ -407,9 +405,9 @@ export function useMessageActions(
         },
         'messageActions:escape': (): void => {
           // Collapse first when expanded; only then exit cursor mode.
-          const current = cursorRef.current
+          const current = getMessageCursor()
           if (current?.expanded) {
-            setCursorRef.current({ ...current, expanded: false })
+            setMessageCursor({ ...current, expanded: false })
             return
           }
           exit()
@@ -450,10 +448,15 @@ export function MessageActionsKeybindings({
 // ── the action bar ──────────────────────────────────────────────────────────
 
 export function MessageActionsBar({
-  cursor,
+  cursor: given,
 }: {
-  cursor: MessageActionsState
-}): React.ReactNode {
+  /** The cursor to paint; absent, the bar reads the store and paints
+   *  nothing while no cursor stands. */
+  cursor?: MessageActionsState
+} = {}): React.ReactNode {
+  const live = useMessageCursor()
+  const cursor = given ?? live
+  if (!cursor) return null
   const actions = applicableActions(cursor)
   return (
     <Box flexDirection="column" flexShrink={0} paddingY={1}>

@@ -34,10 +34,17 @@ export function footerAdvertisesClose(footer: string): boolean {
   return CLOSE_HINT_RE.test(footer)
 }
 
+/** The close keys a shell may advertise: both, esc alone, or NONE — a
+ *  phase where no key leaves (a deletion in flight, a swap committing)
+ *  says so in its own words and advertises no exit; appending 'esc close'
+ *  over such a phase was the dead-key lie this value closes. */
+export type FooterCloseKeys = 'esc-arrow' | 'esc' | 'none'
+
 export function composeFooterHint(
   base: string,
-  opts: { closeKeys: 'esc-arrow' | 'esc'; captureInput: boolean },
+  opts: { closeKeys: FooterCloseKeys; captureInput: boolean },
 ): string {
+  if (opts.closeKeys === 'none') return base
   if (footerAdvertisesClose(base)) return base
   const tail =
     opts.closeKeys !== 'esc' && opts.captureInput

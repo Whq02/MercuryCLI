@@ -165,7 +165,23 @@ if (driver.kind !== 'posix-pty') {
     const open = r.marks.open ?? ''
     const rows = open.split('\n')
     check('/help at 100x30: "$EDITOR" reads whole (no clipped column)', open.includes('to edit in $EDITOR'))
-    check('/help at 100x30: two columns — the palette row shares a line with "! for bash mode"', rows.some(row => row.includes('! for bash mode') && row.includes('for command palette')))
+    // Two columns: the first prefix row and the first global row share a
+    // line, the second pair likewise. The global column's head is whatever
+    // row leads it — the surface-strip teaching row when a strip stop
+    // exists, the palette row otherwise — so the pin reads the STRUCTURE
+    // (a second column beside the prefix rows), never one row's neighbour.
+    const bashRow = rows.find(row => row.includes('! for bash mode'))
+    const cmdRow = rows.find(row => row.includes('/ for commands'))
+    const secondColumn = (row: string | undefined): string => (row ?? '').split(/\s{2,}/).map(s => s.trim()).filter(Boolean)[1] ?? ''
+    const twoColumns = /(⇧← |shift\+← |for command palette)/.test(secondColumn(bashRow)) && /(for command palette|to open a file)/.test(secondColumn(cmdRow))
+    check('/help at 100x30: two columns — the global column stands beside the prefix rows (the strip row or the palette row heads it)', twoColumns, `bash row: ${JSON.stringify(secondColumn(bashRow))} · commands row: ${JSON.stringify(secondColumn(cmdRow))}`)
+    // A global row that wrapped would leave its tail alone on a row after
+    // the left column's indent; the closing border is not a tail (a blank
+    // row is border + spaces + border).
+    const strays = rows.filter(row => /^\s*│\s{34,}[^\s│]/.test(row) && !/for |to |\/keybindings/.test(row))
+    check('/help at 100x30: no row wrapped into a third column line (every global row sits beside a left row or below the last one)', strays.length === 0, strays.map(r => JSON.stringify(r.trim())).join(' · '))
+    // The frame is the diagnosis when the column verdict reds: print it.
+    if (!twoColumns) console.log(rows.map(row => `      │${row.trimEnd()}`).join('\n'))
     check('/help at 100x30: the footer close hint is on screen', open.includes('esc close'))
   }
 }
