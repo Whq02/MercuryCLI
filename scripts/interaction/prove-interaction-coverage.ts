@@ -178,8 +178,7 @@ reg(
     'src/commands/console/console.tsx',
     'src/commands/copy/copy.tsx', // rides useInteractiveList (design-system list owner) — modal picker surface
     'src/commands/health/HealthCertificate.tsx', // specimen keyword is a doctrine COMMENT — a modal key-owner
-    'src/commands/effort/effort.tsx',
-    'src/commands/effort/EffortSlider.tsx', // specimen keyword is a comment — a modal key-owner
+    'src/commands/effort/EffortSlider.tsx', // specimen keyword is a comment — a modal key-owner; effort.tsx itself owns no keys any more (its per-seat picker retired with the two-seat mode — the slider is the one key-owner)
     'src/commands/home/home.tsx',
     'src/commands/run/run.tsx',
  'src/components/BootSettingsScreen.tsx', // Boot Settings route surface: useInteractiveList + InteractiveRow rows (write-through profile saves + explicit-apply receipts view)

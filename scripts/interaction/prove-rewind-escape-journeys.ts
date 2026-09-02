@@ -144,7 +144,7 @@ if (process.env.REWESC_CHILD) {
     total: number,
     readyText?: string,
   ): Payload | null {
-    const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
+    const base = scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg
     const cfg = { ...base, sends, total } as Record<string, unknown>
     if (readyText !== undefined) cfg['readyText'] = readyText
     else delete cfg['readyText']
