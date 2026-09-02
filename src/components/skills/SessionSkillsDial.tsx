@@ -8,9 +8,12 @@ import {
 import type { SkillsRosterEntryV1 } from '../../services/engine-connector/types.js'
 import { kitDialLine } from '../../commands/mcp/route.js'
 import type { CommandResultDisplay } from '../../commands.js'
+import { useModalOrTerminalSize } from '../../context/modalContext.js'
+import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { CommandCenter } from '../mercury-ui/components.js'
 import { FAINT, IVORY } from '../mercury-ui/theme.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
+import { paneWindow } from '../mercury-ui/paneWindow.js'
 import { useInteractiveList, type AsyncListNote } from '../mercury-ui/useInteractiveList.js'
 
 // ============================================================================
@@ -118,6 +121,15 @@ export function SessionSkillsDial({
 
   const subtitle = skills.length === 0 ? 'no skills in this session' : SKILLS_SESSION_SUBTITLE
 
+  // A cursor-following window: the roster lists the bundled skills first,
+  // and a project's own rows sat below the fold with no marker at 40 rows.
+  // The budget is the painted chrome — border 2 + header 1 + subtitle 1 +
+  // top margin 1 + the note row 2 + footer 2 + two overflow counters 2.
+  const { columns, rows: termRows } = useTerminalSize()
+  const availRows = useModalOrTerminalSize({ rows: termRows, columns }).rows
+  const rowCap = Math.max(3, availRows - 11)
+  const win = paneWindow(skills.length, list.selectedIndex, rowCap)
+
   return (
     <CommandCenter
       view="skills"
@@ -132,7 +144,9 @@ export function SessionSkillsDial({
         </Box>
       ) : (
         <Box flexDirection="column" marginTop={1}>
+          {win.above > 0 ? <Text color={FAINT}>{'  '}↑ {win.above} more</Text> : null}
           {skills.map((row, i) => {
+            if (i < win.start || i >= win.end) return null
             const props = list.rowProps(row, i)
             const state = stateOf(row)
             return (
@@ -146,6 +160,7 @@ export function SessionSkillsDial({
               </InteractiveRow>
             )
           })}
+          {win.below > 0 ? <Text color={FAINT}>{'  '}↓ {win.below} more</Text> : null}
           {list.note !== null ? (
             <Box marginTop={1}>
               <Text color={FAINT}>{list.note}</Text>
