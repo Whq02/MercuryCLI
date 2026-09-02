@@ -177,6 +177,18 @@ export function resolveVoicePackDir(): VoicePackResolution {
   }
 }
 
+export interface ProcessGroupAnswer {
+  pgid?: number | null
+  reason?: string | null
+}
+
+export interface TerminalReclaimAnswer {
+  reclaimed: boolean
+  before?: number | null
+  after?: number | null
+  reason?: string | null
+}
+
 export interface VoiceAddon {
   packVersion(): string
   listInputDevices(): string[]
@@ -184,7 +196,22 @@ export interface VoiceAddon {
   startCapture(): number
   stopCapture(handle: number): Buffer
   cancelCapture(handle: number): void
+  ttyForegroundGroup(fd: number): ProcessGroupAnswer
+  ownProcessGroup(): ProcessGroupAnswer
+  reclaimTerminal(fd: number): TerminalReclaimAnswer
 }
+
+export const VOICE_ADDON_EXPORTS = [
+  'packVersion',
+  'listInputDevices',
+  'defaultInputDevice',
+  'startCapture',
+  'stopCapture',
+  'cancelCapture',
+  'ttyForegroundGroup',
+  'ownProcessGroup',
+  'reclaimTerminal',
+] as const
 
 export type VoiceAddonLoad =
   | { state: 'ok'; addon: VoiceAddon; dir: string; manifest: VoicePackManifest; source: 'override' | 'vendored' | 'workspace' }
@@ -202,7 +229,7 @@ export function loadVoiceAddon(): VoiceAddonLoad {
     const req = createRequire(resolution.addonPath)
     const target: string = resolution.addonPath
     const raw = req(target) as Partial<VoiceAddon>
-    for (const fn of ['packVersion', 'listInputDevices', 'defaultInputDevice', 'startCapture', 'stopCapture', 'cancelCapture'] as const) {
+    for (const fn of VOICE_ADDON_EXPORTS) {
       if (typeof raw[fn] !== 'function') {
         loaded = { state: 'unavailable', note: `the voice addon at ${resolution.addonPath} exports no ${fn}() — rebuild it: bun run scripts/vendor/build-voice.ts` }
         return loaded
