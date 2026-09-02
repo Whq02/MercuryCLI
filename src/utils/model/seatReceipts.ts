@@ -59,8 +59,10 @@ export function composeTimeoutReceipt(exp: Pick<ReslotExpectation, 'role' | 'mod
 const expectations: ReslotExpectation[] = []
 const queue: SeatReceipt[] = []
 const listeners = new Set<(r: SeatReceipt) => void>()
+let latestWarning: { receipt: SeatReceipt; at: number } | null = null
 
 function emit(r: SeatReceipt): void {
+  if (r.level === 'warning') latestWarning = { receipt: r, at: Date.now() }
   if (listeners.size === 0) {
     queue.push(r)
     if (queue.length > RECEIPT_QUEUE_CAP) queue.shift()
@@ -78,6 +80,11 @@ export function subscribeSeatReceipts(cb: (r: SeatReceipt) => void): () => void 
   return () => {
     listeners.delete(cb)
   }
+}
+
+export function recentWarningReceipt(withinMs = 10_000): SeatReceipt | null {
+  if (latestWarning === null || Date.now() - latestWarning.at > withinMs) return null
+  return latestWarning.receipt
 }
 
 export function mintImmediateReceipt(text: string, level: SeatReceipt['level'] = 'info'): void {
@@ -154,6 +161,7 @@ export function __resetSeatReceiptsForTests(): void {
   expectations.length = 0
   queue.length = 0
   listeners.clear()
+  latestWarning = null
   rearmObservers()
 }
 
