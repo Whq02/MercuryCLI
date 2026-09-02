@@ -29,6 +29,7 @@ import {
   resolveBundleMember,
   type PayloadDescriptor,
 } from './channelCore.js'
+import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 
 export interface LayoutRoots {
   versionsDir: string
@@ -300,6 +301,11 @@ export function validatePayloadDir(dir: string): PayloadCheck {
     return { state: 'invalid', note: `declared primary ${descriptor.primary} is absent from ${dir}` }
   }
   if (!existsSync(join(dir, 'vendor', 'ripgrep'))) return { state: 'invalid', note: 'vendor/ripgrep missing from the payload' }
+  const runtime = readRuntimeRecord(manifest)
+  if (runtime?.vendored) {
+    const carried = checkVendoredRuntime(dir, runtime)
+    if (carried.state !== 'ok') return { state: 'invalid', note: `vendored runtime missing from the payload: ${carried.note}` }
+  }
   const posixLauncher = join(dir, 'mercury')
   const winLauncher = join(dir, 'mercury.cmd')
   const launcher = existsSync(posixLauncher) ? posixLauncher : existsSync(winLauncher) ? winLauncher : null
@@ -364,6 +370,8 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
     if (!roots.isWindows) {
       chmodSync(join(staging, 'mercury'), 0o755)
       if (existsSync(join(staging, 'install.sh'))) chmodSync(join(staging, 'install.sh'), 0o755)
+      const carried = payloadVendoredRuntime(staging)
+      if (carried !== null) chmodSync(carried.binaryPath, 0o755)
     }
     if (existsSync(versionDir)) {
       displaced = join(roots.versionsDir, `.replaced-${version}-${process.pid}`)
@@ -666,8 +674,9 @@ export function smokeVersion(dir: string, expectedVersion: string, primaryBundle
   if (!bundle) {
     return { state: 'failed', note: `no runtime bundle (${BUNDLE_MEMBER_NAMES.join(' | ')}) in ${dir}` }
   }
+  const node = payloadVendoredRuntime(dir)?.binaryPath ?? process.execPath
   try {
-    const printed = execFileSync(process.execPath, [join(dir, bundle), '--version'], {
+    const printed = execFileSync(node, [join(dir, bundle), '--version'], {
       windowsHide: true,
       encoding: 'utf8',
       timeout: 60_000,

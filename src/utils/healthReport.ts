@@ -2420,12 +2420,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'runtime',
           label: 'Node & ripgrep',
-          run: () => {
+          run: async () => {
             const rt = nodeRuntimeProjection(process.versions.node)
+            const { runningRuntime } = await import('../services/privateChannel/updateService.js')
+            const { runtimeLine } = await import('../services/privateChannel/vendoredRuntime.js')
+            const which = runningRuntime()
             const nodePart =
               rt.verdict === 'supported'
-                ? `node v${rt.observed} supported — ${rt.label} (${rt.range})`
-                : `node ${rt.observed ? `v${rt.observed}` : 'UNREADABLE'} ${rt.verdict.toUpperCase()} — supported: ${rt.label} (${rt.range})`
+                ? `${runtimeLine(which)}${which.source === 'vendored' ? '' : ` · supported — ${rt.label} (${rt.range})`}`
+                : `${runtimeLine(which)} ${rt.verdict.toUpperCase()} — supported: ${rt.label} (${rt.range})`
             const rg = getRipgrepStatus()
             const rgPresent = rg.present
             const evidence = `${nodePart} · ripgrep ${rg.mode} @ ${basename(rg.path)} ${rgPresent ? 'present' : 'MISSING'}${rg.working === false ? ' · probe FAILED' : ''}`

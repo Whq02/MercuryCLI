@@ -30,7 +30,7 @@ the diff pasted in if you have one, and it will be read.
 Build and run first:
 
 ```sh
-bun run setup                      # once; bun install + the four vendored packs
+bun run setup                      # once; bun install + the five vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
