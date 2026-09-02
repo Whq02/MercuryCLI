@@ -126,6 +126,10 @@ check(
 )
 // ───────────────────────────────────────────────────────────────────────────
 section('§8.2 — pending-switch current→next visibility + the ONE apply owner')
+// The wrapper is the /model command's own source (the picker's host on the
+// command road): its read had gone missing from this proof, so every run
+// ended in a reference error here after the counts were printed.
+const wrapper = readFileSync(join(root, 'src', 'commands', 'model', 'mercuryModel.tsx'), 'utf-8')
 // The picker renders the queued foreground switch (current→next header +
 // AMBER 'next' row state); the /model command's select routes through the
 // SAME ModelTransition machine the inline picker uses (one boundary-aware
