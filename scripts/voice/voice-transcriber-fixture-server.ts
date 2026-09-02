@@ -67,6 +67,15 @@ const server = createServer(async (req, res) => {
     answer(200, { candidates: [{ content: { role: 'model', parts: [{ text: transcript }] }, finishReason: 'STOP' }] })
     return
   }
+  if (req.method === 'GET' && /\/v1beta\/models(\?|$)/.test(url)) {
+    record(`${new Date().toISOString()} GET ${url} catalogue`)
+    answer(200, {
+      models: [
+        { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', version: '001', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent'] },
+      ],
+    })
+    return
+  }
   if (req.method === 'GET' && url.endsWith('/models')) {
     record(`${new Date().toISOString()} GET ${url} catalogue`)
     answer(200, { object: 'list', data: [] })
