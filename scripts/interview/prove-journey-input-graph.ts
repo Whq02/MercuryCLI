@@ -15,7 +15,7 @@
 //        footer; ↑ returns — one visible consequence per press;
 //    §2  'n' opens notes; the FIRST Esc leaves notes and NOTHING else;
 //    §3  Esc at the card root is the interview's OWN typed cancel: the card
-//        closes, the turn ends with NO extra model round, the composer
+//        closes, the denial crosses as ONE model round the model reads, the composer
 //        returns, and the durable session log records the cancelled outcome
 //        WITH the drafted note preserved.
 //
@@ -146,7 +146,13 @@ try {
   const final = timeline.at(-1)!
   t.check('the card closed (its help line is gone)', !textOf(final).includes('Enter to select'))
   // The submit also fires the session-title side call on the small model;
-  // the law counts the MAIN model's rounds.
+  // the law counts the MAIN model's rounds. Every chat is a hosted seat:
+  // the card's answer travels the daemon's ask channel, where a bare No is
+  // a DENIAL the model reads (the canon denial text — the action was not
+  // run, stop and wait) and never a turn abort; the card's own abort verb
+  // is the interrupt. The cancel therefore costs exactly one more round:
+  // the denial's tool_result crosses, the model's reply ends the turn, and
+  // nothing fires after it.
   const mainRounds = run.fixture
     .messageRequests()
     .filter(r => String((r.body as { model?: string }).model ?? '').includes('opus'))
@@ -163,9 +169,10 @@ try {
     const head = result === undefined ? '' : ` "${JSON.stringify(result.content ?? '').slice(0, 90)}"`
     return `${last?.role ?? '?'}:${kinds}${head}`
   }
+  const denialRounds = mainRounds.filter(r => roundShape(r).includes('tool_result'))
   t.check(
-    'no extra model round fired — the rejection ends the turn',
-    mainRounds.length === 1,
+    'the cancel crosses as ONE denial round the model reads, then the turn ends',
+    mainRounds.length === 2 && denialRounds.length === 1 && roundShape(denialRounds[0]!).includes('want to proceed'),
     `${mainRounds.length} main-model request(s): ${mainRounds.map(roundShape).join(' · ')}`,
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
