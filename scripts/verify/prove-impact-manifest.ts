@@ -120,9 +120,14 @@ section('§3 verify:fast --plan runs the real selector end-to-end')
     'src/main.tsx',
   ])
   check(
-    'core estate paths classify (lsp source → lsp; components → ui-ish; vshot → capture suites; docs ignored; src/main.tsx claimed by smoke src/**)',
-    s.unclassified.length === 0 && s.suites.has('lsp') && s.suites.has('ui') && s.ignored.length === 1,
-    JSON.stringify({ unclassified: s.unclassified, ignored: s.ignored }),
+    'core estate paths classify (lsp source → lsp; components → ui-ish; vshot → capture suites; docs → the origin ratchet; src/main.tsx claimed by smoke src/**)',
+    s.unclassified.length === 0 &&
+      s.ignored.length === 0 &&
+      s.suites.has('lsp') &&
+      s.suites.has('ui') &&
+      s.perPath['docs/ROADMAP.md']?.includes('origin') === true &&
+      s.perPath['src/main.tsx']?.includes('smoke') === true,
+    JSON.stringify({ unclassified: s.unclassified, ignored: s.ignored, docs: s.perPath['docs/ROADMAP.md'], main: s.perPath['src/main.tsx'] }),
   )
 }
 
