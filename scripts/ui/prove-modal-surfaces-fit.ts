@@ -175,7 +175,11 @@ if (driver.kind !== 'posix-pty') {
     const secondColumn = (row: string | undefined): string => (row ?? '').split(/\s{2,}/).map(s => s.trim()).filter(Boolean)[1] ?? ''
     const twoColumns = /(⇧← |shift\+← |for command palette)/.test(secondColumn(bashRow)) && /(for command palette|to open a file)/.test(secondColumn(cmdRow))
     check('/help at 100x30: two columns — the global column stands beside the prefix rows (the strip row or the palette row heads it)', twoColumns, `bash row: ${JSON.stringify(secondColumn(bashRow))} · commands row: ${JSON.stringify(secondColumn(cmdRow))}`)
-    check('/help at 100x30: no row wrapped into a third column line (every global row sits beside a left row or below the last one)', !rows.some(row => /^\s*│\s{34,}\S/.test(row) && !/for |to |\/keybindings/.test(row)))
+    // A global row that wrapped would leave its tail alone on a row after
+    // the left column's indent; the closing border is not a tail (a blank
+    // row is border + spaces + border).
+    const strays = rows.filter(row => /^\s*│\s{34,}[^\s│]/.test(row) && !/for |to |\/keybindings/.test(row))
+    check('/help at 100x30: no row wrapped into a third column line (every global row sits beside a left row or below the last one)', strays.length === 0, strays.map(r => JSON.stringify(r.trim())).join(' · '))
     // The frame is the diagnosis when the column verdict reds: print it.
     if (!twoColumns) console.log(rows.map(row => `      │${row.trimEnd()}`).join('\n'))
     check('/help at 100x30: the footer close hint is on screen', open.includes('esc close'))
