@@ -59,7 +59,7 @@ section('D2 · census discipline')
   check('distinct windows each run once', windows === 2 && historyScanTimerCensus() === 0, `windows=${windows}`)
 }
 
-section('D3 · source pins — Enter through the gate, flush-on-cycle, disarm on every exit')
+section('D3 · source pins — Enter immediate, flush-on-cycle, disarm on every exit')
 {
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src/hooks/useHistorySearch.ts'), 'utf8')
   const blockOf = (anchor: string): string => {
@@ -68,139 +68,79 @@ section('D3 · source pins — Enter through the gate, flush-on-cycle, disarm on
   }
   const acceptBlock = blockOf('const accept = useCallback')
   const executeBlock = blockOf('const execute = useCallback')
-  check(
-    'accept settles through the gate with the fresh-scan flush — no timer arm, no await of its own',
-    acceptBlock !== '' && /gate\.settle\(\(\) => \{[\s\S]*\}, flushScan\)/.test(acceptBlock) && !/armHistoryScanTimer|await |setTimeout/.test(acceptBlock),
-  )
-  check(
-    'execute settles through the gate with the fresh-scan flush — no timer arm, no await of its own',
-    executeBlock !== '' && /gate\.settle\(\(\) => \{[\s\S]*\}, flushScan\)/.test(executeBlock) && !/armHistoryScanTimer|await |setTimeout/.test(executeBlock),
-  )
-  check("the flush is the query's own scan, fresh", /const flushScan = useCallback\(\(\): void => \{\s*\n\s*scan\(queryRef\.current, false\)\s*\n\s*\}, \[scan\]\)/.test(src))
+  check('accept acts through withFixedMatch — no debounce arm, no await, no setTimeout in its block', acceptBlock !== '' && /withFixedMatch\(match => \{/.test(acceptBlock) && !/armHistoryScanTimer|await |setTimeout/.test(acceptBlock))
+  check('execute acts through withFixedMatch — no debounce arm, no await, no setTimeout in its block', executeBlock !== '' && /withFixedMatch\(match => \{/.test(executeBlock) && !/armHistoryScanTimer|await |setTimeout/.test(executeBlock))
+  const fixBlock = src.slice(src.indexOf('const withFixedMatch = useCallback'), src.indexOf('const accept = useCallback'))
+  check('withFixedMatch: the settled match stands only when nothing is pending or in flight', /if \(queryRef\.current === '' \|\| \(!pending && !scanInFlightRef\.current\)\) \{\s*\n\s*settle\(matchRef\.current\)/.test(fixBlock))
+  check('…else the timer is disarmed, the scan aborted and the identity fixed over the loaded corpus — synchronously (no await in the block)', /disarmHistoryScanTimer\(scanDebounceRef\.current\)[\s\S]{0,200}scanAbortRef\.current\?\.abort\(\)[\s\S]{0,400}findHistoryMatchSync\(corpus, queryRef\.current, seenRef\.current\)/.test(fixBlock) && !/await |setTimeout|armHistoryScanTimer/.test(fixBlock))
+  check('…with a fresh scan\'s semantics when the timer was pending (the previous query\'s seen set dropped)', /if \(pending\) seenRef\.current\.clear\(\)/.test(fixBlock))
+  check('…and the resolution runs only after the record is fixed', /if \(record === undefined\) \{\s*\n\s*settle\(undefined\)\s*\n\s*return\s*\n\s*\}\s*\n\s*resolveFixedMatch\(record, settle\)/.test(fixBlock))
+  const resolveBlock = src.slice(src.indexOf('export function resolveFixedMatch('), src.indexOf('export function useHistorySearch('))
+  check('resolveFixedMatch: a record without pastes settles in place, synchronously', /length === 0\) \{\s*\n\s*settle\(\{ display: record\.display, pastedContents: \{\} \}\)\s*\n\s*return/.test(resolveBlock))
+  check('…and a paste-bearing record resolves through the corpus reader (the one owner), after the fix', /makeHistoryReaderOver\(\[record\]\)\.next\(\)/.test(resolveBlock))
+  const scanBlock = src.slice(src.indexOf('const scan = useCallback'), src.indexOf('const restoreOriginal = useCallback'))
+  check('the scan raises its in-flight flag with an epoch token before its async road', /scanInFlightRef\.current = true\s*\n\s*const token = \+\+scanEpochRef\.current\s*\n\s*void \(async \(\) => \{/.test(scanBlock))
+  check('…and lowers it in a finally, only while it is still the latest scan', /\} finally \{[\s\S]{0,300}if \(token === scanEpochRef\.current\) scanInFlightRef\.current = false/.test(scanBlock))
+  check('the loaded corpus is kept beside its promise for the walk', /corpusValueRef\.current = corpus/.test(scanBlock) && /if \(corpusRef\.current === load\) corpusValueRef\.current = corpus/.test(src))
   const setQueryBlock = blockOf('const setHistoryQuery = useCallback')
   check(
-    'the non-empty keystroke path arms the gate at the named cadence, reading the query at fire time',
-    /gate\.arm\(\(\) => scan\(queryRef\.current, false\), HISTORY_SCAN_DEBOUNCE_MS\)/.test(setQueryBlock),
+    'the non-empty keystroke path arms ONE debounced scan at the named cadence, reading the query at fire time',
+    /disarmHistoryScanTimer\(scanDebounceRef\.current\)\s*\n\s*scanDebounceRef\.current = armHistoryScanTimer\(\(\) => \{\s*\n\s*scanDebounceRef\.current = null\s*\n\s*scan\(queryRef\.current, false\)\s*\n\s*\}, HISTORY_SCAN_DEBOUNCE_MS\)/.test(setQueryBlock),
   )
   check(
-    'the empty-query restore is IMMEDIATE (disarms the gate, then restores in the same call — no arm before the restore)',
-    /if \(query === ''\) \{[\s\S]{0,900}gate\.disarm\(\)[\s\S]{0,900}onModeChange\(original\.mode\)[\s\S]{0,200}return/.test(setQueryBlock) &&
-      !/if \(query === ''\) \{[\s\S]{0,900}gate\.arm\([\s\S]{0,300}onModeChange/.test(setQueryBlock),
+    'the empty-query restore is IMMEDIATE (disarms, then restores in the same call — no arm before the restore)',
+    /if \(query === ''\) \{[\s\S]{0,900}disarmHistoryScanTimer[\s\S]{0,900}onModeChange\(original\.mode\)[\s\S]{0,200}return/.test(setQueryBlock) &&
+      !/if \(query === ''\) \{[\s\S]{0,900}armHistoryScanTimer\(\(\) =>[\s\S]{0,300}onModeChange/.test(setQueryBlock),
   )
   const nextBlock = blockOf('const nextMatch = useCallback')
   check(
     'nextMatch flushes a pending scan as a FRESH scan (never continues a stale reader)',
-    /gate\.pending\(\)[\s\S]{0,400}gate\.disarm\(\)[\s\S]{0,100}scan\(queryRef\.current, false\)[\s\S]{0,60}return/.test(nextBlock),
+    /scanDebounceRef\.current !== null[\s\S]{0,400}scan\(queryRef\.current, false\)[\s\S]{0,60}return/.test(nextBlock),
   )
   const resetBlock = blockOf('const reset = useCallback')
-  check('reset disarms the gate', /gate\.disarm\(\)/.test(resetBlock))
+  check('reset disarms the pending scan', /disarmHistoryScanTimer\(scanDebounceRef\.current\)/.test(resetBlock))
   const startBlock = blockOf('const handleStartSearch = useCallback')
-  check('handleStartSearch disarms the gate', /gate\.disarm\(\)/.test(startBlock))
-  const scanBlock = src.slice(src.indexOf('const scan = useCallback'), src.indexOf('const restoreOriginal = useCallback'))
-  check('the scan reports its start edge to the gate before the async road begins', /const token = gate\.scanStarted\(\)\s*\n\s*void \(async \(\) => \{/.test(scanBlock))
-  check('…and its landing in a finally (every road out)', /\} finally \{[\s\S]{0,300}gate\.scanLanded\(token\)/.test(scanBlock))
-  check('the gate is the one timer owner in the hook (no bare debounce ref remains)', !src.includes('scanDebounceRef'))
+  check('handleStartSearch disarms the pending scan', /disarmHistoryScanTimer\(scanDebounceRef\.current\)/.test(startBlock))
   check('the cadence is roughly one frame (20-50ms)', HISTORY_SCAN_DEBOUNCE_MS >= 20 && HISTORY_SCAN_DEBOUNCE_MS <= 50, String(HISTORY_SCAN_DEBOUNCE_MS))
 }
 
-section("G · the scan gate — Enter waits for the query's own scan")
+section('G · the fast-Enter arm — the identity is fixed synchronously over the loaded corpus')
 {
-  const { createHistoryScanGate } = hooks
+  const { findHistoryMatchSync, resolveFixedMatch } = hooks
+  type Rec = { display: string; pastedContents: Record<number, { id: number; type: 'text' | 'image'; content?: string; contentHash?: string }>; timestamp: number; project: string }
+  const rec = (display: string, pastedContents: Rec['pastedContents'] = {}): Rec => ({ display, pastedContents, timestamp: 1, project: '/p' })
+  const corpus = [rec('foo fighters'), rec('foobar'), rec('foob!'), rec('unrelated')] as never
   {
-    const gate = createHistoryScanGate()
-    let scans = 0
-    let token = -1
-    const startScan = (): void => {
-      scans++
-      token = gate.scanStarted()
-    }
-    gate.arm(startScan, HISTORY_SCAN_DEBOUNCE_MS)
-    let accepted = 0
-    gate.settle(() => {
-      accepted++
-    }, startScan)
-    check('G1 the pending scan is flushed at once — the timer is gone and the fresh scan started', historyScanTimerCensus() === 0 && scans === 1, `census=${historyScanTimerCensus()} scans=${scans}`)
-    check("G1 the accept did NOT run on the previous query's match", accepted === 0)
-    gate.scanLanded(token)
-    check('G1 the accept ran exactly once, after the landing', accepted === 1, String(accepted))
+    const settledForFoo = findHistoryMatchSync(corpus, 'foo', new Set())
+    check('G1 fixture: the settled "foo" match is the first row', settledForFoo?.display === 'foo fighters')
+    let timer: ReturnType<typeof setTimeout> | null = armHistoryScanTimer(() => {}, HISTORY_SCAN_DEBOUNCE_MS)
+    disarmHistoryScanTimer(timer)
+    timer = null
+    const fixed = findHistoryMatchSync(corpus, 'foob', new Set())
+    check("G1 the fixed identity is the NEW query's first match, not the stale settled one", fixed?.display === 'foobar' && fixed?.display !== settledForFoo?.display, String(fixed?.display))
+    check('G1 the pending timer is gone (census 0)', historyScanTimerCensus() === 0, `census=${historyScanTimerCensus()}`)
     await sleep(HISTORY_SCAN_DEBOUNCE_MS * 2)
-    check('G1 the disarmed timer never fires a second scan', scans === 1 && historyScanTimerCensus() === 0, `scans=${scans}`)
+    check('G1 the disarmed scan never fires', historyScanTimerCensus() === 0)
   }
+  check('G2 with the seen set standing, the next not-yet-seen match is fixed', findHistoryMatchSync(corpus, 'foob', new Set(['foobar']))?.display === 'foob!')
+  check('G2 the walk keeps the reader order (newest first)', findHistoryMatchSync(corpus, 'foo', new Set())?.display === 'foo fighters')
+  check('G3 no record matches ⇒ undefined (Enter then acts on no match, never a stale one)', findHistoryMatchSync(corpus, 'zzz', new Set()) === undefined)
+  check('G3 every match seen ⇒ undefined', findHistoryMatchSync(corpus, 'foob', new Set(['foobar', 'foob!'])) === undefined)
   {
-    const gate = createHistoryScanGate()
-    const t = gate.scanStarted()
-    let accepted = 0
-    let flushed = 0
-    gate.settle(() => {
-      accepted++
-    }, () => {
-      flushed++
+    let plain: unknown = 'unset'
+    resolveFixedMatch(rec('plain prompt') as never, entry => {
+      plain = entry
     })
-    check('G2 an in-flight scan queues the Enter (no flush, no run yet)', accepted === 0 && flushed === 0)
-    gate.scanLanded(t)
-    check('G2 …and lands it exactly once', accepted === 1)
-  }
-  {
-    const gate = createHistoryScanGate()
-    let accepted = 0
-    let flushed = 0
-    gate.settle(() => {
-      accepted++
-    }, () => {
-      flushed++
+    const p = plain as { display?: string; pastedContents?: Record<number, unknown> } | 'unset'
+    check('G4 a record without pastes settles before the call returns', p !== 'unset' && p?.display === 'plain prompt' && Object.keys(p?.pastedContents ?? { x: 1 }).length === 0, JSON.stringify(plain))
+    let pasted: unknown = 'unset'
+    resolveFixedMatch(rec('with a paste [Pasted text #1 +2 lines]', { 1: { id: 1, type: 'text', content: 'a\nb\nc' } }) as never, entry => {
+      pasted = entry
     })
-    check('G3 with nothing pending Enter runs at once, no flush', accepted === 1 && flushed === 0)
-  }
-  {
-    const gate = createHistoryScanGate()
-    const t1 = gate.scanStarted()
-    let accepted = 0
-    gate.settle(() => {
-      accepted++
-    }, () => {})
-    const t2 = gate.scanStarted()
-    gate.scanLanded(t1)
-    check("G4 the superseded scan's landing runs nothing", accepted === 0)
-    gate.scanLanded(t2)
-    check("G4 the latest scan's landing runs the Enter once", accepted === 1)
-    gate.scanLanded(t2)
-    check('G4 a repeated landing never re-runs it', accepted === 1)
-  }
-  {
-    const gate = createHistoryScanGate()
-    const t = gate.scanStarted()
-    let accepted = 0
-    let scans = 0
-    gate.settle(() => {
-      accepted++
-    }, () => {})
-    gate.arm(() => {
-      scans++
-    }, 5)
-    gate.scanLanded(t)
-    check('G5 the keystroke dropped the queued Enter', accepted === 0)
-    await sleep(25)
-    check("G5 the keystroke's own scan fired once and the census is zero", scans === 1 && historyScanTimerCensus() === 0, `scans=${scans}`)
-  }
-  {
-    const gate = createHistoryScanGate()
-    let scans = 0
-    let token = -1
-    const startScan = (): void => {
-      scans++
-      token = gate.scanStarted()
-    }
-    gate.arm(startScan, HISTORY_SCAN_DEBOUNCE_MS)
-    check('G6 pending() reports the armed timer', gate.pending())
-    let accepted = 0
-    gate.settle(() => {
-      accepted++
-    }, startScan)
-    gate.disarm()
-    gate.scanLanded(token)
-    check('G6 disarm dropped the queued Enter; the census is zero and nothing is pending', accepted === 0 && historyScanTimerCensus() === 0 && !gate.pending())
-    await sleep(HISTORY_SCAN_DEBOUNCE_MS * 2)
-    check('G6 nothing fires later', scans === 1, `scans=${scans}`)
+    check('G4 a paste-bearing record does not settle synchronously (the identity is already fixed)', pasted === 'unset')
+    await sleep(30)
+    const q = pasted as { display?: string; pastedContents?: Record<number, { content?: string }> } | 'unset'
+    check('G4 …and settles with the paste resolved through the corpus reader', q !== 'unset' && q?.pastedContents?.[1]?.content === 'a\nb\nc', JSON.stringify(pasted))
   }
 }
 
