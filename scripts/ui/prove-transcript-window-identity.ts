@@ -38,11 +38,12 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 type Cell = { c?: string }
 type Grid = Cell[][]
-type Payload = { grid?: Grid; marks?: Array<{ label: string; grid: Grid; cols: number; rows: number }>; endReason?: string }
+type Payload = { grid?: Grid; marks?: Array<{ label: string; grid: Grid; cols: number; rows: number }>; endReason?: string; sendReceipts?: Array<{ atTick: number; ts: number }> }
 const text = (g: Grid | undefined): string => (Array.isArray(g) ? g.map(row => row.map(cell => cell.c ?? ' ').join('')).join('\n') : '')
 const count = (hay: string, needle: string): number => hay.split(needle).length - 1
 
 type ListRender = { range: [number, number]; messages: number; keys: number; stale: number; dupKeys: string[]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
+type ScrollRequest = { t: number; delta: number; top: number; pending: number; max: number; viewport: number; sticky: boolean }
 
 console.log('transcript window identity — the 1k resume, scrolled, walked, resized')
 
@@ -142,19 +143,30 @@ if (driver.kind !== 'posix-pty') {
   const final = text(payload.grid)
 
   console.log('\n— the screen —')
-  // The transcript pane's top rows at each mark — the diagnosis when a leg
-  // below reds (blank rows there are the spacer: the window never followed).
+  // Rows inside the transcript pane (between the SESSION header and the
+  // composer): the frame minus the rails is the pane at every width here.
+  const paneRowsOf = (rows: string[]): number => rows.slice(2, 36).filter(r => /│\s*\S/.test(r.replace(/^[^│]*│/, ''))).length
+  const paneRows = (label: string): number => paneRowsOf((marks.get(label) ?? '').split('\n'))
+  // The transcript rows at each mark — the diagnosis when a leg below reds
+  // (the first nameplated row on screen names where the viewport sits; a
+  // blank pane is the spacer: the window never followed).
   for (const [label, frame] of marks) {
-    const body = frame.split('\n').slice(2, 12).map(r => r.trimEnd()).filter(r => r.trim() !== '')
-    console.log(`  ${label}: ${body.length} painted rows in the pane head · "${(body[0] ?? '').trim().slice(0, 70)}"`)
+    const rows = frame.split('\n')
+    const nameplated = rows.filter(r => /\] ❯ /.test(r))
+    const first = nameplated[0]?.replace(/^.*?\] ❯ /, '').trim().slice(0, 60) ?? '(no prompt row on screen)'
+    console.log(`  ${label}: ${paneRowsOf(rows)} painted transcript rows · first prompt row on screen: "${first}"`)
   }
   check('the 1k tail was on screen at the loaded mark', (marks.get('loaded') ?? '').includes(TAIL_SENTINEL))
   check('six page-ups scrolled the tail off screen (the window left the tail)', marks.has('scrolled') && !(marks.get('scrolled') ?? '').includes(TAIL_SENTINEL))
-  const paneRows = (label: string): number => (marks.get(label) ?? '').split('\n').slice(2, 36).filter(r => r.trim() !== '').length
   check('the scrolled viewport is painted, not the spacer (the window followed the scroll)', paneRows('scrolled') >= 12, `${paneRows('scrolled')} painted rows`)
-  check('ctrl+home reached the head (the first prompt on screen)', (marks.get('home') ?? '').includes('load the compass baseline fixture'))
+  // The first prompt's OWN row carries its nameplate ('[sam] ❯ …'); the
+  // sticky header repeats the prompt's words without it once the row has
+  // scrolled above the viewport — so the row's presence, not the words',
+  // says whether the head is on screen.
+  const HEAD_ROW = '] ❯ load the compass baseline fixture'
+  check('ctrl+home reached the head (the first prompt’s row on screen)', (marks.get('home') ?? '').includes(HEAD_ROW))
   check('the pages down from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows`)
-  check('the pages down left the head behind (the first prompt is off screen)', marks.has('paged') && !(marks.get('paged') ?? '').includes('load the compass baseline fixture'))
+  check('the pages down left the head behind (the first prompt’s row is off screen; its words may ride the sticky header)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW))
   check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'))
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length}`)
   // Every chapter heading occurs exactly once in the fixture: any frame that
@@ -171,22 +183,47 @@ if (driver.kind !== 'posix-pty') {
 
   console.log('\n— the trace (every virtual list render) —')
   let renders: ListRender[] = []
+  let requests: ScrollRequest[] = []
   if (existsSync(trace)) {
-    renders = readFileSync(trace, 'utf8')
+    const lines = readFileSync(trace, 'utf8')
       .split('\n')
       .filter(Boolean)
       .map(line => {
         try {
-          return JSON.parse(line) as { ev?: string } & ListRender
+          return JSON.parse(line) as { ev?: string } & Record<string, unknown>
         } catch {
           return null
         }
       })
-      .filter((r): r is { ev?: string } & ListRender => r !== null && r.ev === 'list-render')
+      .filter((r): r is { ev?: string } & Record<string, unknown> => r !== null)
+    renders = lines.filter(r => r.ev === 'list-render') as unknown as ListRender[]
+    requests = lines.filter(r => r.ev === 'scroll-request') as unknown as ScrollRequest[]
+  }
+  // THE PRESS LEDGER: every page key sent became a scroll request at the
+  // scroller (none lost to a paint), and the requests travelled — the sent
+  // receipts bound the paging phase: from the 'home' mark's send (the first
+  // page-down) to the 'paged' mark's send.
+  const receipts = payload.sendReceipts ?? []
+  const sendIndexOf = (label: string): number => sends.findIndex(x => x.mark === label)
+  const homeAt = receipts[sendIndexOf('home')]?.ts
+  const pagedAt = receipts[sendIndexOf('paged')]?.ts
+  const pagesSent = sends.filter((x, i) => i >= sendIndexOf('home') && i < sendIndexOf('paged') && x.data === PAGE_DOWN).length
+  const pageRequests = homeAt !== undefined && pagedAt !== undefined ? requests.filter(r => r.delta > 0 && r.t >= homeAt - 50 && r.t <= pagedAt + 50) : []
+  console.log(`  page-downs sent ${pagesSent} · scroll requests in the phase ${pageRequests.length} · tops: ${pageRequests.map(r => r.top).join(' ')}`)
+  check('every page-down press reached the scroller (no key lost to a paint)', pageRequests.length === pagesSent, `${pageRequests.length} of ${pagesSent}`)
+  if (pageRequests.length >= 2) {
+    const first = pageRequests[0]!
+    const last = pageRequests[pageRequests.length - 1]!
+    const step = Math.max(1, first.viewport - 2)
+    const travelled = last.top - first.top
+    const asked = (pageRequests.length - 1) * step
+    check(`the presses travelled (${travelled} rows over ${pageRequests.length - 1} gaps of ${step}; the clamp did not swallow them)`, travelled >= Math.floor(asked * 0.75), `${travelled} of ${asked}`)
   }
   check('the list rendered under the trace seam (renders recorded)', renders.length > 0, `${renders.length}`)
   // The walk, compactly — the diagnosis when a leg below reds.
   console.log(`  renders: ${renders.map(r => `[${r.range[0]},${r.range[1]})/${r.messages}${r.scroll ? `@${r.scroll.top}${r.scroll.pending ? `+${r.scroll.pending}` : ''}${r.scroll.sticky ? 's' : ''}/${r.scroll.height}` : ''}`).join(' ')}`)
+  const viewports = [...new Set(renders.map(r => r.scroll?.viewport).filter((v): v is number => typeof v === 'number' && v > 0))]
+  console.log(`  viewport rows seen: ${viewports.join(', ') || '(none)'} — a page step is viewport − 2`)
   const stale = renders.filter(r => r.stale > 0).length
   check('no render carried a stale key (every mounted index exact)', stale === 0, `${stale} of ${renders.length}`)
   const dup = renders.filter(r => r.dupKeys.length > 0)

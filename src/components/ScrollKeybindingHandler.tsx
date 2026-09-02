@@ -20,6 +20,8 @@ import { getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.
 import { logForDebugging } from '../utils/debug.js'
 import { peekInputSelectionRange } from '../utils/cockpit/inputSelectionBridge.js'
 import { isXtermJs } from '../ink/session/capabilities.js'
+import { appendFileSync } from 'node:fs'
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 // ── wheel acceleration (measured constants, treat as data) ──────────
 
@@ -410,6 +412,21 @@ export function ScrollKeybindingHandler({
         0,
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
+      // Forensics (MERCURY_CONNECTOR_TRACE names a file): one line per page
+      // or line request as it reaches the scroller — the viewport before
+      // the move, the delta asked, the span — so a press the paint lost
+      // and a press the clamp swallowed read apart from one another.
+      const tracePath = flagEnv('MERCURY_CONNECTOR_TRACE')
+      if (tracePath) {
+        try {
+          appendFileSync(
+            tracePath,
+            `${JSON.stringify({ t: Date.now(), ev: 'scroll-request', delta, top: handle.getScrollTop(), pending: handle.getPendingDelta(), max, viewport: handle.getViewportHeight(), sticky: handle.isSticky() })}\n`,
+          )
+        } catch {
+          /* forensics must never break the scroller */
+        }
+      }
       if (max <= 0) return false
       translateOrClear(delta)
       // The composed jump is the ONE owner of page/line travel: in the
