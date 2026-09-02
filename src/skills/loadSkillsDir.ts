@@ -82,6 +82,20 @@ export function getSkillLoadRefusals(): SkillLoadRefusal[] {
   return [...skillLoadRefusals.values()]
 }
 
+export const EMPTY_SKILL_FILE_REASON = 'the file is empty — no frontmatter, no body'
+
+const BOOLEAN_OPT_OUT_KEYS = ['disable-model-invocation', 'user-invocable'] as const
+
+export function skillFrontmatterProblem(frontmatter: Record<string, unknown>): string | null {
+  for (const key of BOOLEAN_OPT_OUT_KEYS) {
+    const value = frontmatter[key]
+    if (value === undefined || value === null) continue
+    if (value === true || value === false || value === 'true' || value === 'false') continue
+    return `frontmatter key ${key}: "${String(value)}" is not true or false`
+  }
+  return null
+}
+
 
 export function getProjectSkillsWatchPaths(
   dir: 'skills' | 'commands',
@@ -351,9 +365,18 @@ async function loadSkillsFromDir(
         return null
       }
       try {
+        if (markdown.trim() === '') {
+          recordSkillRefusal(skillFile, EMPTY_SKILL_FILE_REASON, sourceLabel)
+          return null
+        }
         const parsed = parseFrontmatter(markdown, skillFile)
         if (parsed.parseError) {
           recordSkillRefusal(skillFile, `frontmatter did not parse: ${parsed.parseError.message}`, sourceLabel)
+          return null
+        }
+        const fieldProblem = skillFrontmatterProblem(parsed.frontmatter)
+        if (fieldProblem !== null) {
+          recordSkillRefusal(skillFile, fieldProblem, sourceLabel)
           return null
         }
         const nameProblem = slashNameProblem(entry.name)
@@ -431,6 +454,11 @@ export function transformSkillFiles(files: MarkdownFileEntry[]): LoadedSkill[] {
   for (const { file, isSkillForm } of kept) {
     if (file.parseError) {
       recordSkillRefusal(file.filePath, `frontmatter did not parse: ${file.parseError.message}`, 'legacy-commands')
+      continue
+    }
+    const fieldProblem = skillFrontmatterProblem(file.frontmatter)
+    if (fieldProblem !== null) {
+      recordSkillRefusal(file.filePath, fieldProblem, 'legacy-commands')
       continue
     }
     try {
