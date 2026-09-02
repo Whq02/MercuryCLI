@@ -80,6 +80,9 @@ function runCapture(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
+    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
   }
   delete env.VSHOT_ACTIVE
   delete env.MERCURY_FULLSCREEN
