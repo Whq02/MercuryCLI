@@ -39,6 +39,13 @@ export interface OwnerScopedStoreOptions<T> {
   /**
    * Release an owner's state (timers, subscriptions, child processes). May be
    * async: a durable owner drains its outstanding write here.
+   *
+   * The store has ALREADY forgotten the owner when this runs — synchronously,
+   * because callers rely on the owner being gone the moment dispose() returns
+   * — so this call is the state's last reachable moment. An operation the
+   * state still has in flight (a child being spawned, a write being staged)
+   * is the disposer's to await or cancel; left alone, it lands in a state
+   * nothing can reach again.
    */
   dispose?: (state: T, owner: OwnerKey) => void | Promise<void>
   /**

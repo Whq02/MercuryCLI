@@ -38,6 +38,17 @@
 #                            (expired vs absent), pinned no-network plans,
 #                            bad-token refusals, and the structural download-
 #                            deny/deadline/remedy teeth.
+#    prove-browser-lifecycle.ts  cpu — the child's lifecycle seams, hermetic
+#                            (a fixture driver stands in for the engine; the
+#                            store, launch body and disposer are real): a
+#                            teardown during the launch closes the landing
+#                            child and refuses the caller, the relaunch behind
+#                            it leaves ONE child, a setup failure after the
+#                            spawn closes it, a flight holds a cap slot, close
+#                            and the shutdown sweep wait for a landing, the
+#                            open op names the teardown, and an operator
+#                            interrupt releases the waiter but never the
+#                            launch (the slot holds until it lands).
 # ============================================================================
 set -u
 # One wall-seconds line per prover — the pool engine reads exactly this shape.
