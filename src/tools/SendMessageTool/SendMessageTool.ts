@@ -27,18 +27,18 @@ import {
   buildDispatch,
   buildEscalate,
   buildProgress,
+  busEnvelopesEnabled,
   looksLikeHandSerializedBusPayload,
-  serializeScribeEnvelope,
+  serializeBusEnvelope,
+  type BusEnvelope,
   type ControlEnvelope,
   type DispatchEnvelope,
   type ProgressEnvelope,
-  type ScribeEnvelope,
-} from '../../utils/scribe/scribeBus.js'
+} from '../../utils/swarm/busEnvelopes.js'
+import { isCrewRole } from '../../utils/workerRole.js'
 import {
-  isCrewRole,
   isImplementerRole,
   isScribeRole,
-  scribeBusEnabled,
   scribeModeEnabled,
   scribeTaskRouterEnabled,
 } from '../../utils/scribe/scribeGates.js'
@@ -203,7 +203,7 @@ const inputSchema = lazySchema(() => {
     handoffVariant,
   ]
 
-  if (scribeBusEnabled()) {
+  if (busEnvelopesEnabled()) {
     variants.push(
       z.object({
         type: z.literal('dispatch'),
@@ -380,15 +380,15 @@ async function resolveDeliverableRecipient(
   return { ok: true, name: freshMember?.name ?? member.name, teamName }
 }
 
-function implementerReplyTarget(addressed: string): string {
+function workerReplyTarget(addressed: string): string {
   if (isImplementerRole()) return TEAM_LEAD_NAME
   if (isCrewRole()) return TEAM_LEAD_NAME
   return addressed
 }
 
-function scribeBusContextActive(): boolean {
+function busContextActive(): boolean {
   if (isScribeRole() || isImplementerRole() || isCrewRole()) return true
-  return scribeBusEnabled() && scribeModeEnabled()
+  return busEnvelopesEnabled() && scribeModeEnabled()
 }
 
 function busContextRefusal(kind: string, target: string): RequestOutput {
@@ -403,9 +403,9 @@ function busContextRefusal(kind: string, target: string): RequestOutput {
 }
 
 
-async function sendScribeEnvelope(
+async function sendBusEnvelope(
   targetName: string,
-  envelope: ScribeEnvelope,
+  envelope: BusEnvelope,
   context: ToolUseContext,
 ): Promise<{ data: RequestOutput }> {
   const teamName = getTeamName(teamContextOf(context))
@@ -456,7 +456,7 @@ async function sendScribeEnvelope(
       } as never)
       if ((reply as { ok?: boolean }).ok) deliveredViaRpc = true
     } catch (error) {
-      logForDebugging(`sendScribeEnvelope: socket path failed, journaling directly: ${String(error)}`)
+      logForDebugging(`sendBusEnvelope: socket path failed, journaling directly: ${String(error)}`)
     }
   }
 
@@ -465,7 +465,7 @@ async function sendScribeEnvelope(
       resolvedTarget.name,
       {
         from: envelope.from,
-        text: serializeScribeEnvelope(envelope),
+        text: serializeBusEnvelope(envelope),
         timestamp: nowIso(),
         ...(color ? { color } : {}),
       },
@@ -1215,7 +1215,7 @@ export const SendMessageTool = buildTool({
       case 'handoff':
         return { data: await sendHandoff(rawTo, message, context) }
       case 'dispatch': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('dispatch', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('dispatch', rawTo) }
         const from = senderName()
         const envelope: DispatchEnvelope = buildDispatch(from, message.task, {
           ...(message.title !== undefined ? { title: message.title } : {}),
@@ -1223,19 +1223,19 @@ export const SendMessageTool = buildTool({
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
           ...(message.route !== undefined ? { route: message.route } : {}),
         })
-        return await sendScribeEnvelope(rawTo, envelope, context)
+        return await sendBusEnvelope(rawTo, envelope, context)
       }
       case 'escalate': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('escalate', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('escalate', rawTo) }
         const from = senderName()
         const envelope = buildEscalate(from, message.reason, {
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
           ...(message.needsOperator !== undefined ? { needsOperator: message.needsOperator } : {}),
         })
-        return await sendScribeEnvelope(implementerReplyTarget(rawTo), envelope, context)
+        return await sendBusEnvelope(workerReplyTarget(rawTo), envelope, context)
       }
       case 'progress': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('progress', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('progress', rawTo) }
         const from = senderName()
         if (message.refRequestId && routerEnabled()) {
           const now = Date.now()
@@ -1252,10 +1252,10 @@ export const SendMessageTool = buildTool({
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
-        return await sendScribeEnvelope(implementerReplyTarget(rawTo), envelope, context)
+        return await sendBusEnvelope(workerReplyTarget(rawTo), envelope, context)
       }
       case 'control': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('control', rawTo) }
+        if (!busContextActive()) return { data: busContextRefusal('control', rawTo) }
         const from = senderName()
         if (message.command === 'ack' && message.refRequestId && routerEnabled()) {
           void routerStoreWriters.acceptByRequest(message.refRequestId, 'planner', Date.now()).catch(() => {})
@@ -1264,7 +1264,7 @@ export const SendMessageTool = buildTool({
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
-        return await sendScribeEnvelope(rawTo, envelope, context)
+        return await sendBusEnvelope(rawTo, envelope, context)
       }
     }
   },

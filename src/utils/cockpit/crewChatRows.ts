@@ -1,4 +1,4 @@
-import { SCRIBE_PROTOCOL_TYPE, type ScribeEnvelopeKind } from '../scribe/scribeBus.js'
+import { BUS_PROTOCOL_TYPE, type BusEnvelopeKind } from '../swarm/busEnvelopes.js'
 
 export type CrewChatTone = 'ok' | 'work' | 'warn' | 'block' | 'info'
 
@@ -53,15 +53,15 @@ export function crewChatKindView(kind: string, preview: string): KindView {
 const firstLine = (s: string): string => s.split('\n', 1)[0] ?? s
 
 interface ParsedEnvelope {
-  kind: ScribeEnvelopeKind | 'note'
+  kind: BusEnvelopeKind | 'note'
   preview: string
 }
 export function parseEnvelopePreview(text: string): ParsedEnvelope | null {
   if (!text.startsWith('{')) return null
   try {
     const p = JSON.parse(text) as Record<string, unknown>
-    if (p['type'] !== SCRIBE_PROTOCOL_TYPE || typeof p['kind'] !== 'string') return null
-    const kind = p['kind'] as ScribeEnvelopeKind
+    if (p['type'] !== BUS_PROTOCOL_TYPE || typeof p['kind'] !== 'string') return null
+    const kind = p['kind'] as BusEnvelopeKind
     const str = (k: string): string => (typeof p[k] === 'string' ? (p[k] as string) : '')
     switch (kind) {
       case 'dispatch':
