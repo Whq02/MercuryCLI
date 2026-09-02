@@ -97,8 +97,8 @@ section('§2 — the crew arm: the bounded vocabulary (THE arm separator)')
   check('an Anthropic frontier id validates ok for a crew seat', fable.ok, text(fable))
 
   const glm = await wm.validateWorkerModelChoice('glm-5.3', 'crew')
-  check('the SAME credentialed engine id refuses on the crew arm, typed',
-    !glm.ok && glm.reason === 'not-integrated:worker-engine', text(glm))
+  check('the SAME credentialed engine id validates ok on the crew arm (no family is favoured)',
+    glm.ok, text(glm))
 
   const haiku = await wm.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'crew')
   check('haiku refuses on the CREW arm — the never-Haiku law binds autonomous crew',
