@@ -21,28 +21,33 @@ function arg(flag: string, def: string): string {
 
 const SHIFT_UP = '\x1b[1;2A'
 const DOWN = '\x1b[B'
-const PAGE_DOWN = '\x1b[6~'
+const PAGE_UP = '\x1b[5~'
 const ESC = '\x1b'
 const COMPOSER_AT_REST = '? for shortcuts'
+const CHAT_QUIET_TICK = 40
 const STREAM_LINE = /rz-stream-line-\d{3}/g
 const STREAM_LINES = 100
 const streamDeltas = Array.from({ length: STREAM_LINES }, (_, i) => `rz-stream-line-${String(i).padStart(3, '0')}\n`)
 
-type Ready = { text: string; stable?: number } | { atTick: number }
+type Ready = { text: string; stable?: number; minTick?: number } | { atTick: number }
 type KeyExpect = 'composer-echo' | 'selection-moves' | 'closes' | 'changes'
 type Scene = {
   name: string
   base: string
   world: 'chat' | 'card' | 'face' | 'board' | 'surface'
   sends?: Record<string, unknown>[]
+  replaceSends?: boolean
   ready: Ready
   once: string[]
   oncePattern?: RegExp
   keep: string[]
   keepFinal?: string[]
   keepPattern?: RegExp
+  anchorPattern?: RegExp
+  contentPattern?: RegExp
   armed?: boolean
   live?: boolean
+  repetitive?: boolean
   key: { data: string; expect: KeyExpect }
   fixture?: ScriptedTurn[]
   root?: RegExp
@@ -51,6 +56,7 @@ type Scene = {
 const SCENES: Scene[] = [
   {
     name: 'boot-face', base: 'boot-face', world: 'face',
+    replaceSends: true,
     ready: { text: 'Doctor / Health Check', stable: 3 },
     once: ['Doctor / Health Check', 'New Session'], keep: ['Doctor / Health Check'],
     key: { data: DOWN, expect: 'changes' },
@@ -58,14 +64,16 @@ const SCENES: Scene[] = [
   },
   {
     name: 'boot-settings', base: 'boot-settings', world: 'face',
-    ready: { text: 'BOOT SETTINGS', stable: 3 },
-    once: ['BOOT SETTINGS'], keep: ['BOOT SETTINGS'],
+    replaceSends: true,
+    sends: [{ requireAwait: true, awaitText: 'Doctor / Health Check', awaitStableTicks: 2, data: 'm' }],
+    ready: { text: 'boot menu', stable: 3 },
+    once: ['boot menu'], keep: ['boot menu', 'Content-rule wards'],
     key: { data: ESC, expect: 'closes' },
     root: /↵ start\s+·\s+m menu|esc back/,
   },
   {
     name: 'chat-idle', base: 'cockpit-wide', world: 'chat',
-    ready: { text: COMPOSER_AT_REST, stable: 3 },
+    ready: { text: COMPOSER_AT_REST, stable: 3, minTick: CHAT_QUIET_TICK },
     once: [COMPOSER_AT_REST], keep: ['health none — /health'],
     key: { data: 'x', expect: 'composer-echo' },
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)/,
@@ -73,7 +81,7 @@ const SCENES: Scene[] = [
   {
     name: 'chat-stream', base: 'cockpit-wide', world: 'chat',
     sends: [
-      { requireAwait: true, awaitText: COMPOSER_AT_REST, awaitStableTicks: 2, data: 'stream the resize journey' },
+      { requireAwait: true, awaitText: COMPOSER_AT_REST, minTick: CHAT_QUIET_TICK, awaitStableTicks: 2, data: 'stream the resize journey' },
       { afterPrevTicks: 2, data: '\r' },
     ],
     ready: { text: 'rz-stream-line-010' },
@@ -86,23 +94,25 @@ const SCENES: Scene[] = [
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/,
   },
   {
-    name: 'chat-cursor', base: 'cockpit-wide', world: 'chat',
-    sends: [{ requireAwait: true, awaitText: COMPOSER_AT_REST, awaitStableTicks: 2, data: SHIFT_UP }],
+    name: 'chat-cursor', base: 'cockpit-wide', world: 'card',
+    sends: [{ requireAwait: true, awaitText: COMPOSER_AT_REST, minTick: CHAT_QUIET_TICK, awaitStableTicks: 2, data: SHIFT_UP }],
     ready: { text: 'navigate', stable: 2 },
     once: ['navigate'], keep: ['navigate'],
     key: { data: ESC, expect: 'closes' },
   },
   {
     name: 'chat-scrolled', base: 'cockpit-scrolled', world: 'chat',
-    ready: { text: 'turn 1:', stable: 3 },
-    once: ['turn 1:'], keep: ['turn 1:'],
-    key: { data: PAGE_DOWN, expect: 'changes' },
+    ready: { text: '] ❯ turn', stable: 3, minTick: CHAT_QUIET_TICK },
+    once: [], keep: [],
+    anchorPattern: /\] ❯ turn (\d+):/, contentPattern: /\] ❯ turn \d+:|Reply \d+:|fox jumps/,
+    repetitive: true,
+    key: { data: PAGE_UP, expect: 'changes' },
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/,
   },
   {
     name: 'permission-card', base: 'cockpit-wide', world: 'card',
     sends: [
-      { requireAwait: true, awaitText: COMPOSER_AT_REST, awaitStableTicks: 2, data: 'run the resize echo' },
+      { requireAwait: true, awaitText: COMPOSER_AT_REST, minTick: CHAT_QUIET_TICK, awaitStableTicks: 2, data: 'run the resize echo' },
       { afterPrevTicks: 2, data: '\r' },
     ],
     ready: { text: 'Do you want to proceed?', stable: 2 },
@@ -118,9 +128,9 @@ const SCENES: Scene[] = [
   },
   {
     name: 'concourse-armed', base: 'concourse-r0-select-move', world: 'board',
-    ready: { text: 'Fix OAuth callback', stable: 3 },
-    once: [], keep: ['Fix OAuth callback'], armed: true,
-    key: { data: DOWN, expect: 'changes' },
+    ready: { text: 'STATUS & TITLE', stable: 3 },
+    once: ['STATUS & TITLE'], keep: ['SESSIONS', 'STATUS & TITLE'], armed: true,
+    key: { data: '\t', expect: 'changes' },
   },
   {
     name: 'sessions-manager', base: 'sessions-manager', world: 'surface',
@@ -275,11 +285,11 @@ async function capture(scene: Scene, move: Move): Promise<Result> {
     restoreEnv(saved)
     return { scene: scene.name, move: move.name, ok: false, findings: [{ kind: 'capture', detail: `scenario refused: ${String(e).slice(0, 200)}` }], census: [], note: '', frames: [] }
   }
-  const baseSends = (base.sends as Record<string, unknown>[] | undefined) ?? []
+  const baseSends = scene.replaceSends ? [] : ((base.sends as Record<string, unknown>[] | undefined) ?? [])
   const baseTotal = Number(base.total ?? 60)
   const ready: Record<string, unknown> =
     'text' in scene.ready
-      ? { requireAwait: true, awaitText: scene.ready.text, awaitStableTicks: scene.ready.stable ?? 0, awaitSettleTicks: 1, mark: 'ready', data: '' }
+      ? { requireAwait: true, awaitText: scene.ready.text, minTick: scene.ready.minTick ?? 0, awaitStableTicks: scene.ready.stable ?? 0, awaitSettleTicks: 1, mark: 'ready', data: '' }
       : { atTick: scene.ready.atTick, mark: 'ready', data: '' }
   const plan = markPlan(move)
   const chain: Record<string, unknown>[] = []
@@ -290,8 +300,8 @@ async function capture(scene: Scene, move: Move): Promise<Result> {
   }
   const keyTick = prev + 2
   chain.push({ afterPrevTicks: 2, mark: 'key', data: scene.key.data })
-  chain.push({ afterPrevTicks: 3, mark: 'after-key', data: '' })
-  prev = keyTick + 3
+  chain.push({ afterPrevTicks: 5, mark: 'after-key', data: '' })
+  prev = keyTick + 5
   const resizes = move.steps.map((s, i) =>
     i === 0 ? { afterMark: 'ready', afterMs: s.afterMs, cols: s.cols, rows: s.rows } : { afterPrevMs: s.afterMs, cols: s.cols, rows: s.rows },
   )
@@ -500,7 +510,7 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
       })
       for (const [m, hits] of seen) if (hits.length > 1) findings.push({ kind: 'doubled', detail: `${f.label}: "${m}" on rows ${hits.join(',')}` })
     }
-    for (const [row, at] of doubledRows(f.rows)) {
+    for (const [row, at] of scene.repetitive ? [] : doubledRows(f.rows)) {
       if (readyDoubled.has(row)) continue
       findings.push({ kind: 'doubled-row', detail: `${f.label}: rows ${at.join(',')} both read "${row.slice(0, 60)}"` })
     }
@@ -514,6 +524,27 @@ function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag:
       if (needleRows(f.rows, needle).length === 0) findings.push({ kind: 'anchor-lost', detail: `${f.label}: "${needle}" left the screen` })
     }
     if (scene.keepPattern && !f.rows.some(r => scene.keepPattern!.test(r))) findings.push({ kind: 'anchor-lost', detail: `${f.label}: no row matches ${scene.keepPattern}` })
+    if (scene.anchorPattern && scene.contentPattern) {
+      const sameWidth = f.cols === readyMark.cols
+      if (sameWidth) {
+        const inner = (r: string): string => r.replace(/^[^│]*│/, '').replace(/│\s*$/, '').trim()
+        const top = readyRows.find(r => scene.contentPattern!.test(r))
+        if (top !== undefined && !f.rows.some(r => inner(r) === inner(top))) {
+          findings.push({ kind: 'anchor-lost', detail: `${f.label}: the pane's top row at ready ("${inner(top).slice(0, 50)}") is not on screen — the position moved` })
+        }
+      } else {
+        const turnsOf = (rows: string[]): number[] =>
+          rows.flatMap(r => {
+            const m = scene.anchorPattern!.exec(r)
+            return m && m[1] !== undefined ? [Number(m[1])] : []
+          })
+        const before = turnsOf(readyRows)
+        const after = turnsOf(f.rows)
+        if (before.length > 0 && !after.some(n => before.some(b => Math.abs(n - b) <= 3))) {
+          findings.push({ kind: 'anchor-lost', detail: `${f.label}: prompt rows at ready were turn ${before.join('/')}, now ${after.length ? after.join('/') : 'none'} — past the three-turn reflow bound` })
+        }
+      }
+    }
     if (scene.armed) {
       const before = armedTitle(readyRows)
       const after = armedTitle(f.rows)
