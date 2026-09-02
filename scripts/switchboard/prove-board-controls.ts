@@ -421,6 +421,19 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
     stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
       stripsSrc.includes('${seatsCell.text} seats'),
   )
+  // THE META-ROW SLOT LAW: one slot, three claimants — the broadcast arm
+  // (contextLine) on top, a card's self-expiring receipt (composerNote)
+  // next, the derived composer hint (note) last. The hint stands on every
+  // door row, so a receipt beneath it was never seen.
+  check(
+    'E8 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
+    (() => {
+      const ctx = stripsSrc.indexOf('contextLine !== null && contextLine !== undefined ? (')
+      const receipt = stripsSrc.indexOf(') : composerNote !== undefined ? (')
+      const hint = stripsSrc.indexOf(') : note !== null ? (')
+      return ctx !== -1 && receipt > ctx && hint > receipt
+    })(),
+  )
 }
 
 // ── F: item 6 — the isolation-awareness note (both shapes, at dispatch) ─────

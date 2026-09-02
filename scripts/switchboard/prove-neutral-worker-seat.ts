@@ -37,9 +37,13 @@
 //
 //  Run: ~/.bun/bin/bun run scripts/switchboard/prove-neutral-worker-seat.ts
 // ============================================================================
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -148,6 +152,23 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   process.env.MERCURY_WORKFLOW_ROUTING = '1'
   check('the workflow executor routes nothing on a keyless home (never a family the account does not hold)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === undefined)
   check('the bundled workflow offers no model (nothing signed in)', daedalus.daedalusCompatibleModels().size === 0, text([...daedalus.daedalusCompatibleModels()]))
+
+  // THE BIRTH CARRIES NO MODEL (the neutral-default ruling): the door's
+  // screen arm is NOTHING on a keyless home, the admit frame omits the
+  // field, the daemon admits the unnamed session launch keyless and boots
+  // the runner modelless — the cockpit paints, its composer's own gate
+  // names the logins door, and the first send is what a credential gates.
+  const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  check('screenBirthModel() is undefined on a keyless home — the birth door passes no model', facts.screenBirthModel() === undefined, text(facts.screenBirthModel()))
+  check('birthModelOf carries the nothing through (no record model, no door model)', facts.birthModelOf({ model: null }, null, facts.screenBirthModel()) === undefined)
+  const door = read('src/services/switchboard/bornSession.ts')
+  check('the admit frame omits the model field when the door has none', door.includes('...(model !== undefined ? { model } : {}),') && door.includes('screenBirthModel()'))
+  const keylessAdmit = await wm.validateWorkerModelChoice(undefined, 'session')
+  check('the daemon admits the unnamed SESSION launch keyless (never a refusal naming a family)', keylessAdmit.ok && keylessAdmit.keyless === true, text(keylessAdmit))
+  check('a keyless runner boots with NO --model', read('src/daemon/headlessRun.ts').includes("...(spec.keyless ? [] : ['--model', model]),"))
+  const supervisor = read('src/daemon/concourseSupervisor.ts')
+  check('the admission stamps the record keyless, skips the warm claim, and a resume re-validates it unnamed', supervisor.includes('const keyless = validated.keyless === true') && supervisor.includes('!keyless &&') && supervisor.includes('r.keyless !== true'))
+  check('a keyless home warms nothing (no runner pinned to the placeholder)', read('src/daemon/warmRunner.ts').includes('validated.keyless === true'))
 }
 
 //
@@ -205,6 +226,11 @@ try {
   }
   process.env.MERCURY_WORKFLOW_ROUTING = '1'
   check('the workflow executor routes to the same GPT row (one resolver)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === gptRow, text({ routed: wr.resolveWorkflowRoutedModel({ tier: 'executor' }), gptRow }))
+  // With a sign-in the birth door hands the daemon the neutral default —
+  // the modelless birth is the KEYLESS home's shape only, never an
+  // over-correction that strips every birth of its model.
+  const facts3 = await import('../../src/services/switchboard/bootBirthFacts.ts')
+  check('with only OpenAI signed in the birth door hands the daemon the GPT row (screenBirthModel = the neutral default)', facts3.screenBirthModel() === gptRow, text({ screen: facts3.screenBirthModel(), gptRow }))
   const compatible = daedalus.daedalusCompatibleModels()
   check(
     "the bundled workflow's compatible set carries 'openai' and the GPT row, and no Claude id",

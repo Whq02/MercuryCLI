@@ -20,10 +20,9 @@
 //  entered.
 // ============================================================================
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
-import { birthModelOf, bootBirthFacts, carriedKitOf, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 
 export type BirthOutcome =
@@ -76,7 +75,9 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   // doors can never both wear it; a refused birth spends it, visibly —
   // re-arming is one keystroke on the kit screen).
   const worn = takeWornPresetKit()
-  const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())
+  // The screen arm is NOTHING on a keyless home (screenBirthModel): a
+  // keyless birth carries no model — the daemon admits it modelless.
+  const model = birthModelOf(facts, req.model ?? null, screenBirthModel())
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -90,7 +91,8 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         // defaulted fold into a worktree (that estate belongs to
         // coordinator dispatches and explicit opt-ins).
         isolation: 'shared',
-        model,
+        // A KEYLESS birth carries NO model: the field is absent on the wire.
+        ...(model !== undefined ? { model } : {}),
         bornBlank: true,
         ...(title !== null ? { title } : {}),
         ...(facts.effort !== null ? { effort: facts.effort } : {}),

@@ -95,6 +95,8 @@ section('§1 the source law — flip first, birth behind, the refusal on the sea
   check('a refused birth settles the absent chat at once (the face takes the frame, never a settle-long flash)', ordered(face, "recordLaunchMilestone('birth-refused');", 'settleAbsentChat();'))
   check('…and mints the warning receipt with the reason on the NEXT macrotask (after the chat’s own subscription has left)', /setTimeout\(\(\) => mintImmediateReceipt\(`▲ the chat could not start — \$\{born\.reason\}`, 'warning'\), 0\)/.test(face))
   check('the face subscribes to the seam and paints the warning where the row note stands', face.includes('subscribeSeatReceipts(r => {') && face.includes("if (r.level === 'warning') setBirthReceipt(r.text);") && face.includes('(list.note ?? birthReceipt ?? \'\')'))
+  const door = read('src/services/switchboard/bornSession.ts')
+  check('a keyless birth carries NO model: the door’s screen arm is the neutral owner’s word and the frame omits the field', door.includes('screenBirthModel()') && door.includes('...(model !== undefined ? { model } : {}),'))
   const milestones = read('src/substrate/launchMilestones.ts')
   check('the milestone kinds exist', ["'chat-flipped'", "'birth-landed'", "'birth-refused'"].every(k => milestones.includes(k)))
   const picker = read('src/screens/ResumeConversation.tsx')
@@ -258,7 +260,7 @@ if (sendRecs.length === sends.length) {
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
   const [chatFrame, refusedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
-  check('the keyless birth ENTERED the chat: the cockpit painted (no refusal naming a family)', /\? for shortcuts/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
+  check('the keyless birth ENTERED the chat: the cockpit painted with the composer’s gate naming the logins door (no refusal naming a family)', /\? for shortcuts/.test(t(chatFrame)) && /\/logins/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
   check('the second ↵ was refused after the flip and the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && /↑↓ choose|New Session/.test(t(refusedFrame)), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
   check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? '')
   // THE MILESTONES (each kind recorded once per process): the chat route

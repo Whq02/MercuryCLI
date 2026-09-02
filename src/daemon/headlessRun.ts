@@ -389,6 +389,11 @@ export interface StreamJsonChildSpec {
    *  the Scribe @xhigh — the Scribe is env-swappable via MERCURY_SCRIBE_MODEL). Passed
    *  BOTH as --model and ANTHROPIC_MODEL. */
   model: string
+  /** A KEYLESS session (born on a home with no credential anywhere): the
+   *  runner boots with NO --model and resolves its own main-loop model at
+   *  the first send, so a sign-in landing later reaches it without a
+   *  respawn; `model` above stays the record's display placeholder. */
+  keyless?: true
   /** Effort floor, e.g. 'xhigh' (Scribe) / 'max' (Implementer). Set as
    *  MERCURY_EFFORT_LEVEL so resolveAppliedEffort does not downgrade it. */
   effort: string
@@ -494,8 +499,9 @@ export function buildStreamJsonInvocation(
       : []),
     '--input-format=stream-json',
     '--output-format=stream-json',
-    '--model',
-    model,
+    // A keyless session boots modelless (the neutral-default ruling): no
+    // --model, so the runner's own resolution follows the next sign-in.
+    ...(spec.keyless ? [] : ['--model', model]),
     '--append-system-prompt',
     spec.appendSystemPrompt,
     // W0.2: a plain-identity child gets NO mailbox triplet — the teammate

@@ -181,6 +181,12 @@ export interface ConcourseWorkerRecordV1 {
   /** The validated CANONICAL model id from the one callable-model owner
    *  (ruled; legacy crew keys in old records fold at use). */
   modelKey: string
+  /** A KEYLESS birth (no credential anywhere at admission): the runner
+   *  booted with no --model and resolves its own; modelKey above is the
+   *  display placeholder. A resume of this record re-validates UNNAMED
+   *  (resumeModelKeyOf skips it), so a sign-in landing later takes the
+   *  neutral default, never the placeholder's family. */
+  keyless?: true
   /** SR-086: the operator's agent handle for this worker — the board's
    *  OWNER column ('Mercury', '@test', …); sanitized at admission. */
   agentName?: string
@@ -771,6 +777,8 @@ export function buildConcourseWorkerSpec(args: {
   /** Canonical model id (legacy crew keys in durable records fold here —
    *  a live session is never refused a respawn over registry drift). */
   modelKey: string
+  /** The keyless admission: the runner boots with no --model. */
+  keyless?: true
   /** The per-session effort; absent ⇒ 'high'. */
   effort?: string
   title?: string
@@ -809,6 +817,7 @@ export function buildConcourseWorkerSpec(args: {
     // The spawn folds legacy crew keys synchronously (durable records only
     // ever held those three); NEW records store canonical ids already.
     model: foldLegacyWorkerModelKey(args.modelKey),
+    ...(args.keyless ? { keyless: true } : {}),
     // The daemon-worker effort convention ('high') is the DEFAULT; an
     // operator's per-session pick rides the op (the strip's
     // effort seed chip) and resume retains the record's captured value.
@@ -1101,7 +1110,7 @@ export type ConcourseAdmitResult =
  *  serves those, never a refusal on the sentinel spelling). */
 export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: string): string | undefined {
   const fromRecord = Object.values(readSessionWorkers(dir))
-    .filter(r => r.sessionId === sessionId && r.modelKey !== undefined)
+    .filter(r => r.sessionId === sessionId && r.modelKey !== undefined && r.keyless !== true)
     .sort((a, b) => b.spawnedAt - a.spawnedAt)[0]?.modelKey
   if (fromRecord !== undefined) return fromRecord
   let workspaceId = workspaceDir
@@ -1204,6 +1213,10 @@ export function makeConcourseAdmitHandler(
     }
     const modelKey = validated.entry.modelId
     const modelDisplayName = validated.entry.displayName
+    // THE KEYLESS ADMISSION (the neutral-default ruling): an unnamed launch
+    // on a home with no credential anywhere is admitted with NO model — the
+    // record wears the placeholder for display, the runner boots modelless.
+    const keyless = validated.keyless === true
     let stat
     try {
       stat = statSync(req.workspaceDir)
@@ -1268,6 +1281,7 @@ export function makeConcourseAdmitHandler(
           {
             modelKey,
             modelDisplayName,
+            ...(keyless ? { keyless: true } : {}),
             ...(req.effort !== undefined ? { effort: req.effort } : {}),
             ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
             ...(req.kit !== undefined ? { kit: req.kit } : {}),
@@ -1329,6 +1343,9 @@ export function makeConcourseAdmitHandler(
     // booted without those.
     if (
       deps.claimWarm !== undefined &&
+      // A keyless admission never claims: a warm runner booted on a pinned
+      // model, and this session must boot on none.
+      !keyless &&
       req.resumeSessionId === undefined &&
       // A shared (solo in-place) birth is the warm claim's home case — the
       // warm runner boots on the ground, exactly where the session lands.
@@ -1531,6 +1548,7 @@ export function makeConcourseAdmitHandler(
       sessionId,
       workspaceId,
       modelKey,
+      ...(keyless ? { keyless: true } : {}),
       effort,
       cwd: workerCwd,
       kit,
@@ -1550,6 +1568,7 @@ export function makeConcourseAdmitHandler(
         isolation: effectiveIsolation,
         modelKey,
         effort,
+        ...(keyless ? { keyless: true } : {}),
         // SR-086: the operator's agent handle + seat ceiling ride the op
         // into the durable record (the board's OWNER/SEATS truth).
         ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
@@ -2474,6 +2493,9 @@ export async function reactivateConcourseSession(
   args: {
     modelKey: string
     modelDisplayName?: string
+    /** The keyless admission (no credential anywhere): the respawn boots
+     *  modelless; the record carries the fact. */
+    keyless?: true
     effort?: string
     permissionMode?: PermissionMode
     /** The CURRENT menu's kit the reactivation carries: the record RE-STAMPS
@@ -2571,6 +2593,8 @@ export async function reactivateConcourseSession(
         if (!current || current.endedAt !== undefined) return
         if (short !== rec.runnerId) delete workers[rec.runnerId]
         const next: ConcourseWorkerRecordV1 = { ...current, runnerId: short, modelKey: args.modelKey, effort, lastLiveAt: Date.now() }
+        if (args.keyless === true) next.keyless = true
+        else delete next.keyless
         if (claimed.pid !== undefined) next.pid = claimed.pid
         else delete next.pid
         if (isolationDrift) next.isolation = claimIsolation
@@ -2608,12 +2632,15 @@ export async function reactivateConcourseSession(
     }
   }
   // ── THE COLD ROAD: the same record, --resume respawn on its own short ──
-  if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift) {
+  const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
+  if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (!w || w.endedAt !== undefined) return
       w.modelKey = args.modelKey
       w.effort = effort
+      if (args.keyless === true) w.keyless = true
+      else delete w.keyless
       if (isolationDrift) w.isolation = claimIsolation
     }, deps.dir)
   }
@@ -2646,6 +2673,7 @@ export async function reactivateConcourseSession(
       sessionId: rec.sessionId,
       workspaceId: rec.workspaceId,
       modelKey: args.modelKey,
+      ...(args.keyless ? { keyless: true } : {}),
       effort,
       // The notification spec mirrors the revive's own carry.
       kit,

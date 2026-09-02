@@ -203,19 +203,13 @@ export function ConcourseComposer({
               {contextLine.text}
             </Text>
           </Box>
-        ) : note !== null ? (
-          <Box flexGrow={1} overflow="hidden">
-            {/* Truncate the MIDDLE, the house's own
-                actionable-note law (CoordinatorPane's precedent: "the head
-                keeps what · why, the tail keeps THE fix") — end-truncation
-                in a ~38-col pane gave the operator the problem without the
-                "⌃s picks one" tail. The row stays height-1 (the ruled
-                strip band is untouched). */}
-            <Text color={note.tone === 'warning' ? t.warning : t.textMuted} wrap="truncate-middle">
-              {note.text}
-            </Text>
-          </Box>
         ) : composerNote !== undefined ? (
+          {/* THE META-ROW SLOT LAW: one slot, three claimants — the broadcast
+              arm (contextLine) on top, a card's SELF-EXPIRING receipt next,
+              the derived composer hint last. The hint stands on every door
+              row ('a door — ↵ opens it'), so a receipt painted beneath it
+              was never seen — the card's own answer ('✗ refused — …') is
+              the one line the operator must read. */}
           (() => {
             const n = controlNoteOf(composerNote)
             const why = n.reason !== undefined ? ` — ${n.reason.slice(0, 64)}` : ''
@@ -237,6 +231,18 @@ export function ConcourseComposer({
               </Box>
             )
           })()
+        ) : note !== null ? (
+          <Box flexGrow={1} overflow="hidden">
+            {/* Truncate the MIDDLE, the house's own
+                actionable-note law (CoordinatorPane's precedent: "the head
+                keeps what · why, the tail keeps THE fix") — end-truncation
+                in a ~38-col pane gave the operator the problem without the
+                "⌃s picks one" tail. The row stays height-1 (the ruled
+                strip band is untouched). */}
+            <Text color={note.tone === 'warning' ? t.warning : t.textMuted} wrap="truncate-middle">
+              {note.text}
+            </Text>
+          </Box>
         ) : (
           <Box flexGrow={1} overflow="hidden">
             <Text color={t.textMuted} wrap="truncate-end">
