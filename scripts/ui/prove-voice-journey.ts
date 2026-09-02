@@ -197,7 +197,12 @@ interface DriveResult {
 function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
+  // The PLAIN WORLD (--chat): the Boot face and a chat with no Session
+  // Concourse — a concourse boot hands the chat over to a daemon-hosted
+  // session moments after New Session, and a command typed across that
+  // handover lands in the session being replaced. The voice keys are the
+  // composer's; the world they are proved in is the one without the race.
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
     env: childEnv(home, netlog, extraEnv),
