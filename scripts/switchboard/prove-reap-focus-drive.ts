@@ -15,13 +15,10 @@ if (!existsSync(BIN)) {
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'reap-drive-')))
 const home = join(SCRATCH, 'home')
 const daemonDir = join(SCRATCH, 'daemon')
-const workA = join(SCRATCH, 'alpha-repo')
-const workB = join(SCRATCH, 'beta-repo')
-for (const d of [home, daemonDir, workA, workB]) mkdirSync(d, { recursive: true })
-for (const d of [workA, workB]) {
-  spawnSync('git', ['init', '-q'], { cwd: d })
-  spawnSync('git', ['-c', 'user.name=probe', '-c', 'user.email=probe@x', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: d })
-}
+const ground = join(SCRATCH, 'ground')
+for (const d of [home, daemonDir, ground]) mkdirSync(d, { recursive: true })
+spawnSync('git', ['init', '-q', '-b', 'main'], { cwd: ground })
+spawnSync('git', ['-c', 'user.name=probe', '-c', 'user.email=probe@x', 'commit', '-q', '--allow-empty', '-m', 'base'], { cwd: ground })
 process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CONFIG_DIR = home
 delete process.env.MERCURY_HOME
@@ -48,7 +45,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-seedFirstRun(home, [workA, workB, REPO])
+seedFirstRun(home, [ground])
 {
   const cfgPath = join(home, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
@@ -78,7 +75,7 @@ const childEnv = {
   MERCURY_PARTY: '0',
   MERCURY_AWAY_SUMMARY: '0',
 }
-const daemon = spawn('node', [BIN, 'daemon', 'run', workA], { cwd: workA, env: childEnv, stdio: ['ignore', logFd, logFd] })
+const daemon = spawn('node', [BIN, 'daemon', 'run', ground], { cwd: ground, env: childEnv, stdio: ['ignore', logFd, logFd] })
 
 type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
@@ -96,7 +93,7 @@ const markOf = (tag: string, label: string): string[] => markedFrames.get(`${tag
 function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40): string[] {
   const out = join(OUT_DIR, `${tag}-${cols}x${rows}.json`)
   const cfgPath = join(SCRATCH, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total, cols, rows, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: ground, sends, total, cols, rows, out }))
   const env: Record<string, string> = { ...(childEnv as Record<string, string>), MERCURY_CONCOURSE: 'always' }
   delete env.MERCURY_CONCOURSE_FIXTURE
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
@@ -133,8 +130,8 @@ try {
     check(`${title} dispatched`, d.ok === true && d.sessionId !== undefined, JSON.stringify(d))
     return d.sessionId ?? ''
   }
-  const sidA = await admit('alpha probe', workA, 'reap-drive-alpha', 'claude-opus-5')
-  const sidB = await admit('beta probe', workB, 'reap-drive-beta', 'claude-sonnet-5')
+  const sidA = await admit('alpha probe', ground, 'reap-drive-alpha', 'claude-opus-5')
+  const sidB = await admit('beta probe', ground, 'reap-drive-beta', 'claude-sonnet-5')
   const liveIds = (): string[] =>
     Object.values(sup.readSessionWorkers(daemonDir))
       .filter(r => r.endedAt === undefined)
