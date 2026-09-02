@@ -1001,11 +1001,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const homeFamily: string | null = noted !== null && onFailoverLane ? noted.homeFamily : liveRoute
     // An unrecognised id names no family: no window to watch, no card.
     if (homeFamily === null) return
-    const homeUsability = usabilityForRoute(homeFamily as CallModelRoute)
+    // The home credential's verdict is read only while parked away (the
+    // composed usability walks every family's store — not a per-keystroke
+    // cost for the common, at-home case).
+    const homeUsability = onFailoverLane ? usabilityForRoute(homeFamily as CallModelRoute) : null
     // No home to return to: the home credential LEFT while the session was
     // parked away (a board sign-out, /logout) — the handoff is over, and
     // the session simply runs where it is. Never a return card.
-    if (onFailoverLane && homeUsability.credential === 'none') {
+    if (homeUsability !== null && homeUsability.credential === 'none') {
       noteCapReturn()
       return
     }
@@ -1013,9 +1016,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     // credential that just changed) is a state — it never reads as
     // headroom for a handoff, nor as a reset for the way home.
     const window = observedFamilyWindow(homeFamily)
-    const action = onFailoverLane
-      ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
-      : decideCapAction(posture, window.state)
+    const action =
+      onFailoverLane && homeUsability !== null
+        ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
+        : decideCapAction(posture, window.state)
     if (action.kind === 'none') return
     const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
     const decisionKey = `${direction}|${homeFamily}|${window.state}|${window.resetsAtMs ?? ''}`
