@@ -3279,6 +3279,53 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'editor-bridge',
+          label: 'Editor bridge',
+          run: async () => {
+            // Live facts only: the editors' extension directories, the
+            // advertisement files Mercury discovers, this terminal's own
+            // identity and the port an editor stamped into it. One line
+            // names what was found, what is missing, and the one command.
+            const { installedEditorExtensions } = await import('./editorExtensionPackage.js')
+            const { detectIDEs, getTerminalIdeType, isSupportedTerminal, toIDEDisplayName } = await import('./ide.js')
+            const { flagEnv } = await import('../substrate/flagRegistry.js')
+            const installed = installedEditorExtensions()
+            const advertised = await detectIDEs(true)
+            const valid = advertised.filter(ide => ide.isValid)
+            const embedded = isSupportedTerminal()
+            const port = flagEnv('MERCURY_IDE_PORT')
+            const parts = [
+              installed.length > 0
+                ? `extension installed: ${installed.map(i => `${i.editor} ${i.version}`).join(', ')}`
+                : 'extension NOT installed in any VS Code-family editor',
+              advertised.length === 0
+                ? 'no editor advertising a bridge'
+                : `${valid.length} of ${advertised.length} advertising editor(s) match this workspace (${advertised
+                    .slice(0, 3)
+                    .map(i => `${i.name} :${i.port}`)
+                    .join(', ')})`,
+              embedded
+                ? `terminal: ${toIDEDisplayName(getTerminalIdeType())}${port ? ` · port ${port} advertised` : ' · no port advertised (open a new terminal after installing)'}`
+                : 'terminal: not an editor terminal',
+              'acp: mercury acp --stdio',
+            ]
+            const evidence = parts.join(' · ')
+            if (valid.length > 0) return { status: 'ok' as const, evidence }
+            if (installed.length === 0) {
+              return {
+                status: 'info' as const,
+                evidence,
+                fix: 'mercury editor install (installs the extension from this build), then reload the editor window.',
+              }
+            }
+            return {
+              status: 'info' as const,
+              evidence,
+              fix: 'Open this workspace in an editor with the Mercury extension; a terminal opened there carries MERCURY_IDE_PORT and /ide lists it.',
+            }
+          },
+        },
+        {
           id: 'vulcan',
           label: 'Godot control (VULCAN)',
           run: async () => {
@@ -3739,6 +3786,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { vulcanEnabled } = await import('../utils/vulcan/vulcanGates.js')
             const { latestTransaction } = await import('../services/ide/ideTransaction.js')
             const { latestRun } = await import('../services/ide/pythonTests.js')
+            const { darwinDebuggerAuthorisationHint } = await import('../services/dap/dapClient.js')
 
             const py = selectPythonInterpreter()
             const pyright = probeBuiltinPyright()
@@ -3748,23 +3796,31 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const db = probeCompileDb()
             const tx = latestTransaction()
             const test = latestRun()
+            // The native debug lane on macOS: an OS setting, not the repo,
+            // is what blocks it after a reboot — the row says so.
+            const debugAuth = darwinDebuggerAuthorisationHint()
 
             const pyLine =
               py.state === 'ok'
                 ? `python ${py.version} (${py.envKind}) · pyright ${pyright.available ? `${pyright.source}${pyright.version ? ` ${pyright.version}` : ''}` : 'ABSENT'} · ruff ${ruff.available ? (ruff.version ?? 'ok') : 'ABSENT'} · debugpy ${debugpy.adapterSource}`
                 : `python UNAVAILABLE (${py.detail.slice(0, 80)})`
-            const cppLine = clangd.available
-              ? `clangd ${clangd.clangdPath} · compile DB ${db.compileDb ?? 'ABSENT'}`
-              : `clangd ABSENT (${clangd.reason?.slice(0, 60)})`
+            const cppLine =
+              (clangd.available
+                ? `clangd ${clangd.clangdPath} · compile DB ${db.compileDb ?? 'ABSENT'}`
+                : `clangd ABSENT (${clangd.reason?.slice(0, 60)})`) +
+              (debugAuth ? ` · native debug: ${debugAuth}` : '')
             const godotLine = `godot lanes ${mercuryGodotEnabled() ? 'armed' : 'disarmed'} · vulcan ${vulcanEnabled() ? 'armed' : 'disarmed'}`
             const planeLine = `latest transaction ${tx ? `${tx.id} [${tx.verdict}]` : '—'} · latest test run ${test ? `${test.id} (${test.counts.failed === 0 ? 'green' : `${test.counts.failed} failing`})` : '—'}`
+            const healthy = py.state === 'ok' || clangd.available
             return {
-              status: py.state === 'ok' || clangd.available ? ('ok' as const) : ('warn' as const),
-              evidence: pyLine,
+              status: healthy && debugAuth === null ? ('ok' as const) : ('warn' as const),
+              evidence: debugAuth ? `${pyLine} · native debug authorisation OFF` : pyLine,
               detail: [cppLine, godotLine, planeLine].join('\n'),
               ...(py.state !== 'ok'
                 ? { fix: 'Install Python 3, or point MERCURY_PYTHON at one.' }
-                : {}),
+                : debugAuth
+                  ? { fix: 'sudo DevToolsSecurity -enable (macOS debugger authorisation; durable across reboots).' }
+                  : {}),
             }
           },
         },
