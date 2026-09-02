@@ -46,6 +46,7 @@ export interface CompassArenaOpts {
   rows?: number
   turns?: ScriptedTurn[]
   extraEnv?: Record<string, string>
+  extraSessions?: (cwd: string) => Array<{ sid: string; lines: Record<string, unknown>[] }>
 }
 
 export function requireDist(): void {
@@ -89,6 +90,9 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   mkdirSync(projDir, { recursive: true })
   const { lines } = buildCompass1k(cwd)
   writeFileSync(join(projDir, `${COMPASS_SID}.jsonl`), lines.map(l => JSON.stringify(l)).join('\n') + '\n')
+  for (const extra of opts.extraSessions?.(cwd) ?? []) {
+    writeFileSync(join(projDir, `${extra.sid}.jsonl`), extra.lines.map(l => JSON.stringify(l)).join('\n') + '\n')
+  }
 
   const tee = join(home, 'tee.jsonl')
   const drive = join(home, 'drive.jsonl')
