@@ -6,7 +6,7 @@
 // vendored ripgrep.
 
 import { resolve } from 'node:path';
-import { chmodSync, copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -1021,6 +1021,26 @@ let grammarPackMissing: string[] = [];
 }
 
 // ---------------------------------------------------------------------------
+// The enter screen ships beside the bundle from the ORDINARY build: a direct
+// `node dist/mercury.mjs` start resolves the splash asset beside itself first
+// (the release payload's own shape — the packager ships the same pair as
+// splash.mjs + splash-core.mjs), so a source build's dist is as self-contained
+// as an archive. Plain copies of the canonical pair (assets/splash/): the
+// driver imports './splash-core.mjs' beside itself, so both go or neither —
+// a missing canonical file fails the build rather than shipping a torn pair.
+const SPLASH_PAIR = [
+  { src: resolve(ROOT, 'assets', 'splash', 'mercury-splash.mjs'), name: 'splash.mjs' },
+  { src: resolve(ROOT, 'assets', 'splash', 'splash-core.mjs'), name: 'splash-core.mjs' },
+] as const;
+for (const member of SPLASH_PAIR) {
+  if (!existsSync(member.src)) {
+    console.error(`BUILD FAILED: ${member.src} missing — the enter screen ships as a pair beside mercury.mjs`);
+    process.exit(1);
+  }
+  copyFileSync(member.src, resolve(OUT, member.name));
+}
+
+// ---------------------------------------------------------------------------
 // The NOTICE stamp: every built JS
 // artifact carries the composed NOTICE head — product identity, the
 // operator's named text slots (omitted while undrafted; the operator drafts
@@ -1146,6 +1166,15 @@ const manifest = {
         remedy:
           'prepare the pinned Node runtime cache (`bun run scripts/vendor/fetch-node.ts`), then re-run `bun run build.ts` — the launchers run MERCURY_NODE or a PATH node inside the supported range meanwhile',
       },
+  // The enter screen beside the bundle (the pair copied above): a direct
+  // `node dist/mercury.mjs` start resolves it here first, and the isolated
+  // artifact proof holds the record to the real files.
+  splash: {
+    path: 'splash.mjs',
+    core: 'splash-core.mjs',
+    bytes: statSync(resolve(OUT, 'splash.mjs')).size,
+    sha256: createHash('sha256').update(readFileSync(resolve(OUT, 'splash.mjs'))).digest('hex'),
+  },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
