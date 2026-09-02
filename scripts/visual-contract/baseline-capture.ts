@@ -12,6 +12,10 @@
 //  captures at Waves B–D (CN-09's geometry grid-compare, CN-15's matrix).
 //
 //  Size matrix (the brief): 45×12 · 60×18 · 80×24 · 100×30 · 120×40 · 150×45.
+//  The viewport floor (ink/viewportFloor.ts, 80×22) landed after R0: the two
+//  sizes under it now record the floor's one line — the product paints no
+//  surface there — so a re-record at those sizes is a record of the floor,
+//  not of a surface; the degradation-order prover's legs moved to the floor.
 //  Legs where supported: the splash gets reduced-motion (MERCURY_REDUCED_MOTION
 //  =1) and reduced-colour (TERM=linux ⇒ the 256 fallback path) legs at 80×24;
 //  in-app light/reduced legs are NOT env-switchable in this harness (theme
