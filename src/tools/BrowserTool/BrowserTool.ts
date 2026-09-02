@@ -928,7 +928,9 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           break
         }
         case 'open': {
-          const s = await ensureBrowserSession(owner)
+          // The interrupt releases this wait; the launch itself lands and the
+          // child stays the owner's session (a launch cannot be un-spawned).
+          const s = await ensureBrowserSession(owner, { signal: context.abortController?.signal })
           if ('state' in s) {
             // Only a missing engine earns the provision hint; the cap and a
             // teardown mid-launch are refusals of a session that could exist.

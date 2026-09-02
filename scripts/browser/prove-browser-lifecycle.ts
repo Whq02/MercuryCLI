@@ -23,7 +23,11 @@
 //       child is closed (the drain barrier);
 //   L7  dispose is idempotent (a repeat, and a never-seen owner, are no-ops);
 //   L8  the Browser tool's open op names the teardown as a refusal, never
-//       as a missing engine (no provision hint).
+//       as a missing engine (no provision hint);
+//   L9  an operator interrupt releases the waiting caller (AbortError) and
+//       nothing else: the flight still lands, the slot is held until it does
+//       (a later ensure joins, never a second spawn), the child is the
+//       owner's session for every other waiter, the teardown closes it.
 //
 //  Run: ~/.bun/bin/bun run scripts/browser/prove-browser-lifecycle.ts
 // ============================================================================
@@ -316,6 +320,39 @@ console.log('L8 the open op names the teardown')
     data.result,
   )
   check('L8 nothing is live afterwards', live().length === 0 && census(OWNER).length === 0)
+}
+
+// ── L9 an operator interrupt releases the waiter, never the launch ──────────
+console.log('L9 an interrupt releases the waiter, not the launch')
+{
+  reset()
+  const OWNER = processOwnerForLane('fixture-interrupt')
+  const interrupt = new AbortController()
+  const waited = session.ensureBrowserSession(OWNER, { signal: interrupt.signal })
+  const joiner = session.ensureBrowserSession(OWNER)
+  check('L9 the interrupted caller and a plain joiner share ONE flight', spawned.length === 1)
+  interrupt.abort()
+  let released = ''
+  try {
+    await waited
+  } catch (err) {
+    released = (err as Error).name
+  }
+  check('L9 the abort releases the waiting caller at once, as an AbortError', released === 'AbortError', released)
+  check(
+    'L9 the launch is still in the air — the child is not un-spawned and the slot is still held',
+    live().length === 1 && census(OWNER).length === 1 && census(OWNER)[0]!.url === null,
+  )
+  const late = session.ensureBrowserSession(OWNER)
+  check('L9 an ensure after the abort joins the same flight (no second spawn)', spawned.length === 1)
+  spawned[0]!.land()
+  const [j, l] = await Promise.all([joiner, late])
+  check(
+    "L9 the landing child is the owner's live session for every other waiter",
+    !('state' in j) && !('state' in l) && j === l && (session.activeSession(OWNER)?.browser as unknown) === spawned[0],
+  )
+  await session.disposeBrowserOwner(OWNER)
+  check('L9 the teardown closes it', live().length === 0)
 }
 
 session.setBrowserLaunchDriverForProof(null)

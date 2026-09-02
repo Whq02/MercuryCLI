@@ -45,8 +45,10 @@
 #                            child and refuses the caller, the relaunch behind
 #                            it leaves ONE child, a setup failure after the
 #                            spawn closes it, a flight holds a cap slot, close
-#                            and the shutdown sweep wait for a landing, and
-#                            the open op names the teardown.
+#                            and the shutdown sweep wait for a landing, the
+#                            open op names the teardown, and an operator
+#                            interrupt releases the waiter but never the
+#                            launch (the slot holds until it lands).
 # ============================================================================
 set -u
 # One wall-seconds line per prover — the pool engine reads exactly this shape.

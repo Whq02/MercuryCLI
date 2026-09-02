@@ -274,22 +274,62 @@ export function driverVersion(): string {
  *  ('torn-down' — the child that landed was closed, nothing is open). */
 export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
 
-export async function ensureBrowserSession(owner: OwnerKey): Promise<Session | EnsureSessionRefusal> {
+export async function ensureBrowserSession(
+  owner: OwnerKey,
+  opts: { signal?: AbortSignal | undefined } = {},
+): Promise<Session | EnsureSessionRefusal> {
   const state = ownerStates.get(owner)
   if (state.session && state.session.browser.connected) return state.session
   // Single-flight per owner: a call landing while this owner's launch is in
   // flight AWAITS that launch (success and refusal alike — a parallel caller
-  // today would meet the same synchronous refusal state). Only the minter
-  // clears the slot, and only ITS OWN flight — a joiner's late finally must
-  // never wipe a newer flight back open (that crack re-arms the race).
-  if (state.launchFlight !== null) return state.launchFlight
+  // today would meet the same synchronous refusal state). The slot clears
+  // when the FLIGHT settles — never when a waiter stops waiting (an operator
+  // interrupt releases the caller, not the launch) — and only its OWN
+  // flight: a stale clear must never wipe a newer flight back open (that
+  // crack re-arms the race).
+  if (state.launchFlight !== null) return awaitLaunch(state.launchFlight, opts.signal)
   const flight = launchOwnerSession(owner, state)
   state.launchFlight = flight
-  try {
-    return await flight
-  } finally {
+  const clear = (): void => {
     if (state.launchFlight === flight) state.launchFlight = null
   }
+  void flight.then(clear, clear)
+  return awaitLaunch(flight, opts.signal)
+}
+
+/** Wait for a flight on ONE caller's behalf. An abort releases that caller
+ *  (an AbortError — the tool's interrupt wording) and nothing else: a launch
+ *  cannot be un-spawned, so it lands as it would have, the child becomes the
+ *  owner's session — counted, retained, reaped at the owner's teardown — and
+ *  every other waiter still gets it. What an interrupt can do is stop the
+ *  wait. */
+function awaitLaunch(
+  flight: Promise<Session | EnsureSessionRefusal>,
+  signal: AbortSignal | undefined,
+): Promise<Session | EnsureSessionRefusal> {
+  if (signal === undefined) return flight
+  if (signal.aborted) return Promise.reject(abortReason(signal))
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => reject(abortReason(signal))
+    signal.addEventListener('abort', onAbort, { once: true })
+    flight.then(
+      value => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (err: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(err)
+      },
+    )
+  })
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  if (signal.reason !== undefined) return signal.reason
+  const err = new Error('the launch wait was interrupted')
+  err.name = 'AbortError'
+  return err
 }
 
 /** The launch body. The synchronous head (gate, cap census, resolution, the
