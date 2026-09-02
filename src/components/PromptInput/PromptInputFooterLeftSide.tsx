@@ -1,6 +1,7 @@
 
-import React, { useContext } from 'react'
+import React, { useContext, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
+import { RECORDING_FOOTER, subscribeVoice, TRANSCRIBING_FOOTER, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { usePrStatus } from '../../hooks/usePrStatus.js'
@@ -84,12 +85,30 @@ export function PromptInputFooterLeftSide({
     isLoading,
     getGlobalConfig().prStatusFooterEnabled !== false,
   )
+  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
 
   if (exitPending) {
     return <ExitChordNotice keyName={exitKeyName} />
   }
   if (isPasting) {
     return <Text dimColor>pasting text…</Text>
+  }
+  if (voice.phase === 'recording') {
+    return (
+      <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.failure}>●</Text>
+          <Text dimColor> {RECORDING_FOOTER}</Text>
+        </Text>
+      </Box>
+    )
+  }
+  if (voice.phase === 'transcribing') {
+    return (
+      <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
+        <Text dimColor wrap="truncate-end">{TRANSCRIBING_FOOTER}</Text>
+      </Box>
+    )
   }
 
   const taskList = Object.values(tasks)
