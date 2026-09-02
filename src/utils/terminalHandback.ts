@@ -32,6 +32,12 @@ export function setTerminalHandbackAddonForTest(addon: TtyAddon | null | undefin
   addonForTest = addon
 }
 
+let descriptorForTest: number | 'none' | undefined = undefined
+
+export function setTerminalHandbackDescriptorForTest(fd: number | 'none' | undefined): void {
+  descriptorForTest = fd
+}
+
 type AddonLookup = { addon: TtyAddon } | { addon: null; note: string }
 
 function ttyAddon(): AddonLookup {
@@ -44,6 +50,7 @@ function ttyAddon(): AddonLookup {
 }
 
 function terminalDescriptor(): { fd: number; release: () => void } | null {
+  if (descriptorForTest !== undefined) return descriptorForTest === 'none' ? null : { fd: descriptorForTest, release: () => {} }
   if (process.stdout.isTTY) return { fd: 1, release: () => {} }
   if (process.stdin.isTTY) return { fd: 0, release: () => {} }
   try {
