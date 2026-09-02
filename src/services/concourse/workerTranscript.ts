@@ -18,8 +18,11 @@
 // transcripts joins the performance slice against the budgets
 //  (recorded); the cursor contract here is what it composes onto.
 // ============================================================================
-import { openSync, closeSync, readSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+// THE ONE READER: the suffix read, the torn-tail carry and the shrink
+// rewind are the transcript reader's byte-cursor contract; this module
+// keeps the mirror family's record shape over it.
+import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 // THE WRITER'S OWN derivation: the -p worker
 // writes its transcript under sessionStorage/paths.ts getProjectDir — a
 // plain sanitize join. The portable module exports a SAME-NAMED variant
@@ -69,40 +72,13 @@ export function openWorkerTranscript(path: string): TranscriptReadResult {
  * worker may not have written yet — honest, not an error).
  */
 export function readAfterCursor(cursor: TranscriptCursor): TranscriptReadResult {
-  let size: number
-  try {
-    size = statSync(cursor.path).size
-  } catch {
-    return { records: [], cursor: { path: cursor.path, offset: 0, carry: '' }, rewound: cursor.offset > 0, malformed: 0 }
-  }
-  let from = cursor.offset
-  let carry = cursor.carry
-  let rewound = false
-  if (size < cursor.offset) {
-    // The file shrank under us — a replaced transcript. Refold honestly.
-    from = 0
-    carry = ''
-    rewound = true
-  }
-  if (size === from) {
-    return { records: [], cursor: { path: cursor.path, offset: from, carry }, rewound, malformed: 0 }
-  }
-  const fd = openSync(cursor.path, 'r')
-  let text: string
-  try {
-    const buf = Buffer.alloc(size - from)
-    const n = readSync(fd, buf, 0, buf.length, from)
-    text = buf.subarray(0, n).toString('utf8')
-  } finally {
-    closeSync(fd)
-  }
-  const combined = carry + text
-  const lastNewline = combined.lastIndexOf('\n')
-  const complete = lastNewline === -1 ? '' : combined.slice(0, lastNewline)
-  const nextCarry = lastNewline === -1 ? combined : combined.slice(lastNewline + 1)
+  // A missing file answers empty at offset 0; a file that shrank under the
+  // cursor rewinds to a full refold with the flag; an unterminated last
+  // line rides the carry — all the reader's byte-cursor contract.
+  const bytes = readTranscriptBytesAfter(cursor.path, { offset: cursor.offset, carry: cursor.carry })
   const records: unknown[] = []
   let malformed = 0
-  for (const rawLine of complete.split('\n')) {
+  for (const rawLine of bytes.text.split('\n')) {
     // CRLF hardening: a Windows-side writer's
     // \r tail must not turn every record into 'malformed'.
     const line = rawLine.replace(/\r$/, '')
@@ -115,8 +91,8 @@ export function readAfterCursor(cursor: TranscriptCursor): TranscriptReadResult 
   }
   return {
     records,
-    cursor: { path: cursor.path, offset: size, carry: nextCarry },
-    rewound,
+    cursor: { path: cursor.path, offset: bytes.cursor.offset, carry: bytes.cursor.carry },
+    rewound: bytes.rewound,
     malformed,
   }
 }

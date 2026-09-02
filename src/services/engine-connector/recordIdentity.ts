@@ -35,7 +35,10 @@ export interface RecordMergeResult {
  * `raw` is the parsed transcript the fresh records were deserialized from
  * 1:1 (index-aligned — deserializeLiveMessages is a per-record map; the
  * pool pin drives that alignment); each raw record's serialization is its
- * content signature. Mutates `fresh` in place (the caller owns it) and
+ * content signature — or, when the caller hands a signer, whatever that
+ * signer answers (the transcript reader signs a row by the identity token
+ * it minted for the record's bytes, so an unchanged record costs no
+ * re-serialization). Mutates `fresh` in place (the caller owns it) and
  * returns it as `records`.
  */
 export function mergeRecordsContentKeyed(
@@ -43,11 +46,12 @@ export function mergeRecordsContentKeyed(
   prevSigs: readonly string[],
   raw: readonly unknown[],
   fresh: Message[],
+  sigOf: (record: unknown) => string = record => JSON.stringify(record),
 ): RecordMergeResult {
   const sigs = new Array<string>(raw.length)
   let reusedAll = fresh.length === prevRecords.length
   for (let i = 0; i < fresh.length; i++) {
-    const sig = JSON.stringify(raw[i])
+    const sig = sigOf(raw[i])
     sigs[i] = sig
     const prev = prevRecords[i]
     if (prev !== undefined && sig === prevSigs[i]) fresh[i] = prev as Message
