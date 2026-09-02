@@ -1279,6 +1279,11 @@ export async function runHeadless(
           prompt: command.value,
           promptUuid: command.uuid,
           isMeta: command.isMeta,
+          // A bash line runs as a shell command in this process: the mode
+          // rides to the engine's input processing, under the SAME turn
+          // abort the interrupt frame fires — the shell is killed and the
+          // interrupted receipt lands like a model turn's.
+          ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
           tools: assembledTools,
           verbose: options.verbose,
