@@ -177,8 +177,9 @@ function runCell(cell: Cell): void {
   seedSession(home)
   const PAGEUP = '\x1b[5~'
   // Two settled presses put the view mid-session; the resize fires between
-  // the atRest settle and the postResize observation (the settled press
-  // cadence ends ~tick 39; ordering is asserted from the payload below).
+  // the atRest settle and the postResize observation (with the display
+  // pinned still the settled press cadence ends ~tick 39; ordering is
+  // asserted from the payload below).
   const RESIZE_AT = 45
   const sends: Record<string, unknown>[] = [
     { atTick: 999, awaitText: '❯', minTick: 10, awaitSettleTicks: 4, awaitStableTicks: 3, data: PAGEUP, mark: 'p00' },
@@ -205,6 +206,17 @@ function runCell(cell: Cell): void {
       ...process.env,
       MERCURY_FULLSCREEN: '1',      MERCURY_DECK_COMPANION: '0',
       MERCURY_CONFIG_DIR: home,
+      // The settle gates (awaitStableTicks) read the WHOLE grid, so the
+      // display animations every capture pins off (renderScenarios' seed
+      // pins) are pinned here too: the cockpit critter's sway and blink
+      // (SWAY_TICK_MS, BLINK_CYCLE), its gaze and sleep, the header's live
+      // seconds and the live glyphs would otherwise keep the grid from
+      // holding still for the ticks a press needs to count as settled, and a
+      // fixed-tick send would race an unsettled screen. Pinned, the pane is
+      // what must settle — the laws below read nothing else.
+      MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+      MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+      MERCURY_LIVE_GLYPHS: '0',
     },
   })
   check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}`)
