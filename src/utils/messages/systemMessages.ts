@@ -51,28 +51,6 @@ export function createSystemMessage(
   }
 }
 
-export function createPartyEventMessage(args: {
-  verb: import('../../types/message.js').PartyEventVerb
-  whoId: string
-  who: string
-  text: string
-  level?: SystemMessageLevel
-}): import('../../types/message.js').SystemPartyEventMessage {
-  return {
-    type: 'system',
-    subtype: 'party_event',
-    content: `[party] ${args.who}: ${args.text}`,
-    verb: args.verb,
-    whoId: args.whoId,
-    who: args.who,
-    text: args.text,
-    level: args.level ?? 'info',
-    isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
-  }
-}
-
 export function createSeatReceiptMessage(
   content: string,
   level: SystemMessageLevel = 'info',

@@ -57,17 +57,6 @@ import {
   subscribePresence,
   type PresenceSeat,
 } from '../utils/cockpit/presenceLive.js'
-import { getScribeEngagedAtMs, getScribeModeVersion, isScribeModeOn, subscribeScribeMode } from '../utils/scribeMode.js'
-
-const RAIL_BOOT_MS = Date.now()
-import { scribeBusLiveEnabled } from '../utils/scribe/scribeGates.js'
-import { getMailboxStore, type TeammateMessage } from '../utils/teammateMailbox.js'
-import {
-  CREW_CHAT_ROWS,
-  crewChatRowsFromMailbox,
-  type CrewChatRow,
-  type CrewChatTone,
-} from '../utils/cockpit/crewChatRows.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import {
@@ -274,71 +263,6 @@ const lastKnownWorkShape = new Map<string, string>()
 
 const subscribeFocusedRecords = subscribeThroughFocused((c, l) => c.subscribeRecords(l))
 
-function chatTone(tone: CrewChatTone, tok: MercuryThemeTokens): string {
-  switch (tone) {
-    case 'ok':
-    case 'work':
-      return tok.success
-    case 'warn':
-      return tok.warning
-    case 'block':
-      return tok.failure
-    default:
-      return tok.textSecondary
-  }
-}
-
-function ChatRow({
-  width,
-  row,
-  selected = false,
-  rowIndex,
-  rowSig,
-}: {
-  width: number
-  row: CrewChatRow
-  selected?: boolean
-  rowIndex?: number
-  rowSig?: string
-}): React.ReactNode {
-  const { accent } = useSessionAccent()
-  const tok = useMercuryTokens()
-  const routeT = truncateToWidth(row.route, Math.max(6, width - 4))
-  const gistT = truncateToWidth(row.gist, Math.max(3, width - 4))
-  const clickable = rowIndex != null
-  return (
-    <InteractiveRow
-      id={`helm:lanes:chat:${rowSig ?? rowIndex ?? 'static'}`}
-      selected={selected}
-      unavailable={!clickable}
-      onSelect={
-        clickable
-          ? () => (rowSig ? setHelmCursorBySig('lanes', rowSig) : setHelmCursor('lanes', rowIndex))
-          : undefined
-      }
-      onActivate={
-        clickable
-          ? () =>
-              rowSig
-                ? requestHelmRowActivationBySig('lanes', rowSig)
-                : requestHelmRowActivation('lanes', rowIndex)
-          : undefined
-      }
-      width={width}
-      flexDirection="column"
-    >
-      <Text wrap="truncate-end">
-        <Text color={accent}>{selected ? `${GLYPH.prompt} ` : '  '}</Text>
-        <Text color={chatTone(row.tone, tok)}>{row.glyph} </Text>
-        <Text color={tok.textSecondary}>{routeT}</Text>
-      </Text>
-      <Text wrap="truncate-end">
-        <Text color={tok.textPrimary}>{'    '}{gistT}</Text>
-      </Text>
-    </InteractiveRow>
-  )
-}
-
 function WorkbenchCardRow({
   width,
   lines,
@@ -520,36 +444,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const boxed = !mergedTelemetry
   const rowW = boxed ? railPanelInnerWidth(width) : width
 
-  const scribeVersion = useSyncExternalStore(subscribeScribeMode, getScribeModeVersion, getScribeModeVersion)
-  const scribeChatOn = isScribeModeOn() && scribeBusLiveEnabled()
-  const [scribeInboxes, setScribeInboxes] = useState<
-    Array<{ inbox: string; messages: TeammateMessage[] }>
-  >([])
-  useEffect(() => {
-    if (!scribeChatOn) {
-      setScribeInboxes(prev => (prev.length > 0 ? [] : prev))
-      return
-    }
-    const unsubs = ['implementer', 'team-lead'].map(name =>
-      getMailboxStore(name, 'scribe').subscribe(
-        msgs => {
-          setScribeInboxes(prev => {
-            const rest = prev.filter(p => p.inbox !== name)
-            return [...rest, { inbox: name, messages: msgs }]
-          })
-        },
-        { immediate: true },
-      ),
-    )
-    return () => {
-      for (const u of unsubs) u()
-    }
-  }, [scribeChatOn])
-  const chatRows: CrewChatRow[] = scribeChatOn
-    ?
-      crewChatRowsFromMailbox(scribeInboxes, CREW_CHAT_ROWS, getScribeEngagedAtMs() ?? RAIL_BOOT_MS)
-    : []
-
   const tasks = useAppState(s => s.tasks)
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
   const roster = useFocusedWorkRoster()
@@ -586,12 +480,10 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     ctxUsageVersion,
     lanesVersion,
     minervaVersion,
-    scribeVersion,
     accent,
     focusedRecords,
     workRunSnap,
     workShape,
-    scribeInboxes,
     tasks,
     roster,
     viewingAgentTaskId,
@@ -813,7 +705,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const intents: Record<string, number> = {
     seat: 0,
     crew: solo ? 0 : Math.max(1, 1 + crewShown.length + (crewMore > 0 ? 1 : 0)),
-    chat: chatRows.length,
     work: work ? work.rows.length : 0,
     tasks: work ? 0 : solo ? (ledger.length > 0 ? tasksIntent : 0) : Math.max(1, tasksIntent),
     runs: solo ? 0 : runsShown.length + (runsMore > 0 ? 1 : 0),
@@ -829,7 +720,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const cursorLabel = publishedRows[getHelmCursor('lanes')]?.label ?? ''
   const cursorSection =
     cursorLabel.startsWith('crew') ? 'crew'
-    : cursorLabel.startsWith('chat') ? 'chat'
     : cursorLabel.startsWith('recent') ? 'recent'
     : cursorLabel.startsWith('tabula') ? 'tabula'
     : cursorLabel.startsWith('workbench') ? 'workbench'
@@ -841,7 +731,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     if (cursorSection) mustKeep.add(cursorSection)
     let spent =
       1 +
-      (['seat', 'crew', 'chat', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next'] as const)
+      (['seat', 'crew', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next'] as const)
         .reduce((n, k) => n + sectionCost(k), 0) +
       (seatGlanceRows + SECTION_CHROME) +
       (mergedTelemetry ? 4 + SECTION_CHROME : 0) +
@@ -969,23 +859,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         {...railRowProps(isOn, sel, { kind: 'command', command: '/fleet', label: 'crew:more' })}
       />,
     )
-
-  const chatCommand = '/daemon'
-  const chatLabelSeen = new Map<string, number>()
-  const chatNodes: React.ReactNode[] = shedSet.has('chat') ? [] : chatRows.map(r => {
-    const baseLabel = `chat:${r.route}:${r.ts}`
-    const dupes = chatLabelSeen.get(baseLabel) ?? 0
-    chatLabelSeen.set(baseLabel, dupes + 1)
-    const label = dupes === 0 ? baseLabel : `${baseLabel}:${dupes}`
-    return (
-      <ChatRow
-        key={label}
-        width={rowW}
-        row={r}
-        {...railRowProps(isOn, sel, { kind: 'command', command: chatCommand, label })}
-      />
-    )
-  })
 
   const workNodes: React.ReactNode[] = work
     ? work.rows.map((r, i) => (
@@ -1425,12 +1298,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         <>
           {
 }
-          {chatNodes.length > 0
-            ? section('chat', GLYPH.handoff, 'CHAT', String(chatRows.length), chatNodes, { open: chatCommand })
-            : null}
-
-          {
-}
           {work
             ? section(
                 'work',
@@ -1481,12 +1348,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             crewNodes,
             { open: '/teammates' },
           )}
-
-          {
-}
-          {chatNodes.length > 0
-            ? section('chat', GLYPH.handoff, 'CHAT', String(chatRows.length), chatNodes, { open: chatCommand })
-            : null}
 
           {
 }
@@ -1557,7 +1418,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             <Text color={tok.textMuted}>
               {'  more: ' +
                 [...shedSet]
-                  .map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : k === 'chat' ? '/daemon' : `/${k}`))
+                  .map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : `/${k}`))
                   .join(' · ')}
             </Text>
           </Text>

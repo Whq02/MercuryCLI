@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "cyclic-graph-refused",
-  "mode": "party",
+  "mode": "fanout",
   "mission": {
     "objective": "A two-node mission whose dependencies form a cycle",
     "title": "A depends on B, B depends on A",

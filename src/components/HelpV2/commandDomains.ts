@@ -15,10 +15,10 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'crew',
     label: 'crew & delegation',
     names: [
-      'party', 'workflows', 'agents', 'agent-form', 'fleet',
+      'workflows', 'agents', 'agent-form', 'fleet',
       'teammates', 'crew', 'route', 'monitor', 'surfaces',
       'daemon', 'saturn', 'halt', 'kill', 'unkill',
-      'batch', 'all', 'multiplayer', 'say', 'live', 'remote-control',
+      'multiplayer', 'say', 'live', 'remote-control',
       'team', 'router', 'invite', 'handoff',
       'delegate', 'request', 'prompt', 'share',
     ],
@@ -28,7 +28,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'session & context',
     names: [
       'clear', 'compact', 'context', 'auto-compact-window', 'resume',
-      'rewind', 'session', 'sessions', 'sessiontab', 'concourse', 'branches', 'chat',
+      'rewind', 'session', 'sessions', 'sessiontab', 'concourse', 'branches',
       'export', 'cost', 'usage',
       'debrief', 'summary', 'rename', 'title', 'tag', 'contract', 'think-back',
       'thinkback-play', 'copy', 'files',
@@ -39,7 +39,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'memory',
     label: 'memory & goals',
     names: [
-      'cards', 'remember', 'memory', 'meh', 'good', 'scribe-promote',
+      'cards', 'remember', 'memory', 'meh', 'good',
       'brief', 'console', 'tabula', 'note', 'minerva',
       'orient',
     ],

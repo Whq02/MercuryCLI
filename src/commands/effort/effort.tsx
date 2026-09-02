@@ -1,9 +1,4 @@
 import * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
-import { Box, Text } from '../../ink.js'
-import { InteractiveRow } from '../../components/mercury-ui/InteractiveRow.js'
-import { useInteractiveList } from '../../components/mercury-ui/useInteractiveList.js'
-import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { MercurySupercodeDivider } from '../../components/MercurySupercodeDivider.js'
 import type { AppState } from '../../state/AppState.js'
 import type {
@@ -11,7 +6,6 @@ import type {
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
 import {
-  EFFORT_LEVELS,
   effortFamiliesLabel,
   getDisplayedEffortLabel,
   getEffortEnvOverride,
@@ -25,15 +19,6 @@ import {
   type EffortLevel,
   type EffortValue,
 } from '../../utils/effort.js'
-import { applyOperatorReslot } from '../../utils/model/operatorReslot.js'
-import {
-  implementerSeatView,
-  parseSeatTargetArg,
-  reconfigureSeat,
-  type ReconfigurableSeat,
-} from '../../utils/scribe/reconfigureImplementer.js'
-import { scribeModeEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { EffortApplyContext, EffortSlider } from './EffortSlider.js'
 
@@ -241,45 +226,6 @@ function applyEffortResult(result: EffortCommandResult, context: LocalJSXCommand
 }
 
 
-function SeatReconfigure({
-  seat,
-  level,
-  context,
-  onDone,
-}: {
-  seat: ReconfigurableSeat
-  level: string
-  context: LocalJSXCommandContext
-  onDone: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const ranRef = useRef(false)
-  useEffect(() => {
-    if (ranRef.current) return
-    ranRef.current = true
-    onDone(`Reconfigure sent — ${seat} @${level}.`)
-    reconfigureSeat(seat, { effort: level }).then(
-      line => {
-        context.addNotification?.({
-          key: `seat-reconfigure-${seat}`,
-          text: line,
-          priority: 'immediate',
-        })
-      },
-      error => {
-        context.addNotification?.({
-          key: `seat-reconfigure-${seat}`,
-          text: `Reconfigure of ${seat} failed: ${String(error)}`,
-          color: 'error',
-          priority: 'immediate',
-        })
-      },
-    )
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  return null
-}
-
-
 function SessionSlider({
   context,
   onDone,
@@ -304,112 +250,6 @@ function SessionSlider({
   )
 }
 
-function ImplementerSlider({
-  context,
-  onDone,
-}: {
-  context: LocalJSXCommandContext
-  onDone: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const seatView = implementerSeatView()
-  const initialEffort = normalizeEffortLevelString(seatView.effort) ?? 'max'
-  return (
-    <EffortApplyContext.Provider
-      value={value => {
-        const level = value === 'supercode' ? 'max' : String(value)
-        if (implementerSeatView().effort === level) {
-          return `The implementer is already at ${level} — nothing changed or respawned.`
-        }
-        reconfigureSeat('implementer', { effort: level }).then(
-          line => {
-            context.addNotification?.({
-              key: 'seat-reconfigure-implementer',
-              text: line,
-              priority: 'immediate',
-            })
-          },
-          error => {
-            context.addNotification?.({
-              key: 'seat-reconfigure-implementer',
-              text: `Reconfigure of the implementer failed: ${String(error)}`,
-              color: 'error',
-              priority: 'immediate',
-            })
-          },
-        )
-        return `Reconfigure sent — implementer @${level}.`
-      }}
-    >
-      <EffortSlider
-        onDone={message => onDone(message)}
-        modelOverride={seatView.model}
-        initialEffortOverride={initialEffort}
-      />
-    </EffortApplyContext.Provider>
-  )
-}
-
-type ChooserRow = { id: 'session' | 'implementer'; label: string; subtitle: string }
-
-function EffortTargetChooser({
-  onPick,
-  onCancel,
-}: {
-  onPick: (target: 'session' | 'implementer') => void
-  onCancel: () => void
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const rows: ChooserRow[] = [
-    { id: 'session', label: 'This session', subtitle: 'the foreground Scribe session' },
-    { id: 'implementer', label: 'Implementer', subtitle: 'the daemon executor seat' },
-  ]
-  const list = useInteractiveList<ChooserRow>({
-    rows,
-    rowId: row => row.id,
-    onClose: onCancel,
-    actions: [
-      {
-        key: 'return',
-        run: row => {
-          if (row) onPick(row.id)
-          return null
-        },
-        hint: 'choose',
-      },
-    ],
-    idNamespace: 'effort-target',
-  })
-  return (
-    <Box flexDirection="column">
-      <Text bold>Set effort for which agent?</Text>
-      {rows.map((row, i) => (
-        <InteractiveRow key={row.id} {...list.rowProps(row, i)}>
-          <Box flexDirection="row" gap={1}>
-            <Text color={i === list.selectedIndex ? tokens.textPrimary : tokens.textMuted}>
-              {row.label}
-            </Text>
-            <Text color={tokens.textMuted}>{row.subtitle}</Text>
-          </Box>
-        </InteractiveRow>
-      ))}
-      <Text color={tokens.textMuted}>↑/↓ select · ↵ choose · esc cancel</Text>
-    </Box>
-  )
-}
-
-function ScribeEffortFlow({
-  context,
-  onDone,
-}: {
-  context: LocalJSXCommandContext
-  onDone: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const [target, setTarget] = useState<'session' | 'implementer' | null>(null)
-  if (target === 'session') return <SessionSlider context={context} onDone={onDone} />
-  if (target === 'implementer') return <ImplementerSlider context={context} onDone={onDone} />
-  return <EffortTargetChooser onPick={setTarget} onCancel={() => onDone('Effort unchanged.')} />
-}
-
 
 const HELP_TOKENS = new Set(['help', '-h', '--help'])
 
@@ -418,50 +258,12 @@ export async function call(
   context: LocalJSXCommandContext,
   args: string,
 ): Promise<React.ReactNode> {
-  let trimmed = args.trim()
+  const trimmed = args.trim()
   const model = context.options.mainLoopModel
 
   if (HELP_TOKENS.has(trimmed.toLowerCase())) {
     onDone(helpText())
     return null
-  }
-
-  if (trimmed) {
-    const { seat, rest } = parseSeatTargetArg(trimmed, {
-      scribeOn: isScribeModeOn(),
-      scribeFeatureOn: scribeModeEnabled(),
-    })
-    if (seat) {
-      const level = normalizeEffortLevelString(rest.toLowerCase())
-      if (seat.kind === 'daemon') {
-        if (!level) {
-          onDone(`Usage: /effort ${seat.target} <${EFFORT_LEVELS.join('|')}>`)
-          return null
-        }
-        if (seat.target === 'implementer' && implementerSeatView().effort === level) {
-          onDone(`The implementer is already at ${level} — nothing changed or respawned.`)
-          return null
-        }
-        return (
-          <SeatReconfigure
-            seat={seat.target as ReconfigurableSeat}
-            level={level}
-            context={context}
-            onDone={onDone}
-          />
-        )
-      }
-      if (level) {
-        const line = await applyOperatorReslot(
-          seat.target,
-          { effort: level },
-          { getState: () => context.getAppState() as never, setState: context.setAppState as never },
-        )
-        onDone(line)
-        return null
-      }
-      trimmed = rest
-    }
   }
 
   if (trimmed) {
@@ -476,8 +278,5 @@ export async function call(
     return null
   }
 
-  if (isScribeModeOn()) {
-    return <ScribeEffortFlow context={context} onDone={onDone} />
-  }
   return <SessionSlider context={context} onDone={onDone} />
 }

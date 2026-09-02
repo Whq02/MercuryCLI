@@ -1,6 +1,6 @@
 import type { Command } from '../../commands.js'
 
-// global, /party dispatch outcomes, memdir card decisions) but only
+// global, route dispatch outcomes, memdir card decisions) but only one
 
 const command = {
   type: 'local-jsx',

@@ -12,8 +12,6 @@ import { getAutopilotModeSections } from '../utils/autopilot/autopilotPrompt.js'
 import { isForkSubagentEnabled } from '../tools/AgentTool/forkSubagent.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
-import { getImplementerModeSections } from '../utils/implementerMode.js'
-import { getScribeModeSections } from '../utils/scribeMode.js'
 import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
 import { isGitRepo } from '../services/gitGraph/observe.js'
 import { mercuryEngineIdentityLine } from '../prompt/engineIdentity.js'
@@ -527,8 +525,6 @@ export async function getSystemPrompt(
   const pushPack = (name: string, sections: readonly string[]): void => {
     if (sections.length > 0) modeSections.push({ name, text: sections.join('\n\n') })
   }
-  pushPack('mode-scribe', getScribeModeSections())
-  pushPack('mode-implementer', getImplementerModeSections())
   pushPack('mode-autopilot', getAutopilotModeSections(permissionMode))
   pushPack('mode-apollo', getApolloModeSections(permissionMode))
   const vulcan = getVulcanSection()

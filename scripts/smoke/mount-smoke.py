@@ -57,7 +57,6 @@ def run_once(timeout=9.0):
         env = dict(os.environ)
         env.setdefault("TERM", "xterm-256color")
         env.setdefault("COLORTERM", "truecolor")
-        env["MERCURY_SCRIBE_BUS_LIVE"] = "0"
         env["MERCURY_COORDINATION_MCP"] = "0"
         os.execvpe("node", ["node", DIST], env)
         os._exit(127)

@@ -1519,7 +1519,7 @@
       "units": [
         "task-coordination"
       ],
-      "proof": "scripts/scribe/run-all.sh",
+      "proof": "scripts/crew/run-all.sh",
       "declared": {
         "intents": [
           "message a teammate or team",
@@ -1534,7 +1534,7 @@
         ],
         "cancellation": "not-applicable",
         "latency": "fast",
-        "proof": "scripts/scribe/run-all.sh"
+        "proof": "scripts/crew/run-all.sh"
       }
     },
     {

@@ -5,11 +5,6 @@ import {
   evaluateMissionCompletion,
   parseReviewResult,
 } from '../../src/services/mission/completion.js'
-import {
-  classifyReplanNote,
-  isMissionReplanTrigger,
-  MISSION_REPLAN_TRIGGERS,
-} from '../../src/services/mission/replan.js'
 import { composeMissionView } from '../../src/services/mission/projection.js'
 import type { TaskRoutePlan } from '../../src/utils/router/contracts.js'
 
@@ -68,13 +63,6 @@ check('garbage parses to indeterminate', parseReviewResult('all done, looks grea
 check('malformed verdict parses to indeterminate', parseReviewResult('REVIEW: shipit').verdict === 'indeterminate')
 check('the LAST review line wins', parseReviewResult('REVIEW: reject\nmore work\nREVIEW: accept').verdict === 'accept')
 
-check('eight trigger classes', MISSION_REPLAN_TRIGGERS.length === 8)
-check('validation is closed', isMissionReplanTrigger('check-failed') && !isMissionReplanTrigger('vibes'))
-check('tagged notes classify exactly', classifyReplanNote('[trigger: symbol-moved] the helper moved') === 'symbol-moved')
-check('check failures classify', classifyReplanNote('the acceptance test failed with a new stack') === 'check-failed')
-check('shared owners classify', classifyReplanNote('discovered a shared owner in registry.js') === 'undeclared-dependency')
-check('free-form churn classifies to null', classifyReplanNote('try again please') === null)
-
 const scratch = mkdtempSync(join(tmpdir(), 'helix-replan-'))
 process.env.MERCURY_ROUTER_STATE_DIR = scratch
 {
@@ -108,13 +96,13 @@ process.env.MERCURY_ROUTER_STATE_DIR = scratch
     version: 1,
     id: 'rp-ceiling',
     revision: 1,
-    mode: 'scribe',
+    mode: 'sequential',
     title: 'ceiling fixture',
     objective: 'ceiling fixture',
     features,
     profile: 'sonnet-direct',
     nodes: [node('n1', 3, 'failed'), node('n2', 3, 'failed'), node('n3', 3, 'failed'), node('n4', 1, 'failed')],
-    synthesis: { required: false, owner: 'scribe', acceptance: [] },
+    synthesis: { required: false, owner: 'planner', acceptance: [] },
     decision: {
       policyVersion: 'v1',
       source: 'local-fallback',
@@ -147,7 +135,7 @@ rmSync(scratch, { recursive: true, force: true })
     version: 1,
     id: 'rp-iso',
     revision: 1,
-    mode: 'scribe',
+    mode: 'sequential',
     title: 'iso',
     objective: 'iso',
     features: {
@@ -166,7 +154,7 @@ rmSync(scratch, { recursive: true, force: true })
       { id: 'nA', title: 'lane A', task: 'a', dependsOn: [], ownsPaths: [], acceptance: [], state: 'failed', attempt: 3, expectedResult: 'x' },
       { id: 'nB', title: 'lane B', task: 'b', dependsOn: [], ownsPaths: [], acceptance: [], state: 'working', attempt: 1, expectedResult: 'x' },
     ],
-    synthesis: { required: true, owner: 'scribe', acceptance: [] },
+    synthesis: { required: true, owner: 'planner', acceptance: [] },
     decision: {
       policyVersion: 'v1',
       source: 'structured-intent',

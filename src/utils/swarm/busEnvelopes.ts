@@ -1,10 +1,12 @@
 import { generateRequestId } from '../agentId.js'
+import { flagEnabled } from '../../substrate/flagRegistry.js'
 
-export const SCRIBE_PROTOCOL_TYPE = 'scribe_protocol' as const
+export const BUS_PROTOCOL_TYPE = 'bus_protocol' as const
+export const LEGACY_BUS_PROTOCOL_TYPE = 'scribe_protocol' as const
 
-export type ScribeEnvelopeKind = 'dispatch' | 'escalate' | 'progress' | 'control' | 'note'
+export type BusEnvelopeKind = 'dispatch' | 'escalate' | 'progress' | 'control' | 'note'
 
-export const SCRIBE_ENVELOPE_KINDS: readonly ScribeEnvelopeKind[] = [
+export const BUS_ENVELOPE_KINDS: readonly BusEnvelopeKind[] = [
   'dispatch',
   'escalate',
   'progress',
@@ -12,18 +14,22 @@ export const SCRIBE_ENVELOPE_KINDS: readonly ScribeEnvelopeKind[] = [
   'note',
 ]
 
+export function busEnvelopesEnabled(): boolean {
+  return flagEnabled('MERCURY_DAEMON_BUS')
+}
+
 export const OPERATOR_BROADCAST_LABEL = '[operator broadcast]'
 export const OPERATOR_NOTE_LABEL = '[operator note]'
 
-interface ScribeEnvelopeBase {
-  type: typeof SCRIBE_PROTOCOL_TYPE
-  kind: ScribeEnvelopeKind
+interface BusEnvelopeBase {
+  type: typeof BUS_PROTOCOL_TYPE | typeof LEGACY_BUS_PROTOCOL_TYPE
+  kind: BusEnvelopeKind
   request_id: string
   from: string
   timestamp: string
 }
 
-export interface DispatchEnvelope extends ScribeEnvelopeBase {
+export interface DispatchEnvelope extends BusEnvelopeBase {
   kind: 'dispatch'
   task: string
   title?: string
@@ -33,44 +39,44 @@ export interface DispatchEnvelope extends ScribeEnvelopeBase {
   routePlan?: { planId: string; nodeId: string; revision: number; attempt: number }
 }
 
-export interface EscalateEnvelope extends ScribeEnvelopeBase {
+export interface EscalateEnvelope extends BusEnvelopeBase {
   kind: 'escalate'
   reason: string
   refRequestId?: string
   needsOperator?: boolean
 }
 
-export interface ProgressEnvelope extends ScribeEnvelopeBase {
+export interface ProgressEnvelope extends BusEnvelopeBase {
   kind: 'progress'
   status: 'started' | 'working' | 'blocked' | 'done' | 'failed'
   detail?: string
   refRequestId?: string
 }
 
-export interface ControlEnvelope extends ScribeEnvelopeBase {
+export interface ControlEnvelope extends BusEnvelopeBase {
   kind: 'control'
   command: 'pause' | 'resume' | 'stop' | 'clear' | 'ack' | 'cancel'
   detail?: string
   refRequestId?: string
 }
 
-export interface NoteEnvelope extends ScribeEnvelopeBase {
+export interface NoteEnvelope extends BusEnvelopeBase {
   kind: 'note'
   text: string
   broadcast?: boolean
   refRequestId?: string
 }
 
-export type ScribeEnvelope =
+export type BusEnvelope =
   | DispatchEnvelope
   | EscalateEnvelope
   | ProgressEnvelope
   | ControlEnvelope
   | NoteEnvelope
 
-function base(kind: ScribeEnvelopeKind, from: string): ScribeEnvelopeBase {
+function base(kind: BusEnvelopeKind, from: string): BusEnvelopeBase {
   return {
-    type: SCRIBE_PROTOCOL_TYPE,
+    type: BUS_PROTOCOL_TYPE,
     kind,
     request_id: generateRequestId(kind, from),
     from,
@@ -149,8 +155,8 @@ export function buildNote(
   text: string,
   opts?: { refRequestId?: string; broadcast?: boolean },
 ): NoteEnvelope {
-  if (from === 'implementer') {
-    throw new Error("buildNote: a note must be from the operator/team-lead, never 'implementer'")
+  if (!from.trim()) {
+    throw new Error('buildNote: a note must name its sender (the operator, the team-lead or the daemon)')
   }
   return {
     ...base('note', from),
@@ -161,7 +167,7 @@ export function buildNote(
   }
 }
 
-export function serializeScribeEnvelope(env: ScribeEnvelope): string {
+export function serializeBusEnvelope(env: BusEnvelope): string {
   return JSON.stringify(env)
 }
 
@@ -189,7 +195,7 @@ const CONTROL_COMMANDS: readonly ControlEnvelope['command'][] = [
 ]
 
 function hasRequiredKindFields(parsed: Record<string, unknown>): boolean {
-  switch (parsed.kind as ScribeEnvelopeKind) {
+  switch (parsed.kind as BusEnvelopeKind) {
     case 'dispatch':
       return typeof parsed.task === 'string'
     case 'escalate':
@@ -205,36 +211,36 @@ function hasRequiredKindFields(parsed: Record<string, unknown>): boolean {
   }
 }
 
-export function parseScribeEnvelope(messageText: string): ScribeEnvelope | null {
+export function parseBusEnvelope(messageText: string): BusEnvelope | null {
   try {
     const parsed = JSON.parse(messageText) as Record<string, unknown>
     if (
       parsed &&
       typeof parsed === 'object' &&
-      parsed.type === SCRIBE_PROTOCOL_TYPE &&
+      (parsed.type === BUS_PROTOCOL_TYPE || parsed.type === LEGACY_BUS_PROTOCOL_TYPE) &&
       typeof parsed.kind === 'string' &&
-      SCRIBE_ENVELOPE_KINDS.includes(parsed.kind as ScribeEnvelopeKind) &&
+      BUS_ENVELOPE_KINDS.includes(parsed.kind as BusEnvelopeKind) &&
       typeof parsed.request_id === 'string' &&
       typeof parsed.from === 'string' &&
       parsed.from.length > 0 &&
       hasRequiredKindFields(parsed)
     ) {
-      return parsed as unknown as ScribeEnvelope
+      return parsed as unknown as BusEnvelope
     }
   } catch {
   }
   return null
 }
 
-export function isScribeProtocolMessage(messageText: string): boolean {
-  return parseScribeEnvelope(messageText) !== null
+export function isBusProtocolMessage(messageText: string): boolean {
+  return parseBusEnvelope(messageText) !== null
 }
 
-function ofKind<T extends ScribeEnvelope>(
+function ofKind<T extends BusEnvelope>(
   messageText: string,
-  kind: ScribeEnvelopeKind,
+  kind: BusEnvelopeKind,
 ): T | null {
-  const env = parseScribeEnvelope(messageText)
+  const env = parseBusEnvelope(messageText)
   return env && env.kind === kind ? (env as T) : null
 }
 
@@ -266,26 +272,4 @@ export function resolveNoteSender(
   const me = (recipientName ?? '').trim().toLowerCase()
   if (me && verified.toLowerCase() === me) return null
   return verified
-}
-
-export async function scribeBusQueueDepth(
-  nowMs = Date.now(),
-): Promise<{ queued: number; oldestMs: number | null } | null> {
-  try {
-    const { readUnreadMessages } = await import('../teammateMailbox.js')
-    const unread = await readUnreadMessages('implementer', 'scribe')
-    const envelopes = unread.filter(m => parseScribeEnvelope(m.text) !== null)
-    if (envelopes.length === 0) return { queued: 0, oldestMs: null }
-    let oldest: number | null = null
-    for (const m of envelopes) {
-      const t = Date.parse(m.timestamp)
-      if (Number.isFinite(t) && (oldest === null || t < oldest)) oldest = t
-    }
-    return {
-      queued: envelopes.length,
-      oldestMs: oldest !== null ? Math.max(0, nowMs - oldest) : null,
-    }
-  } catch {
-    return null
-  }
 }

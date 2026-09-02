@@ -92,8 +92,6 @@ rmSync(cfg2Path, { force: true })
 
 section('B. re-assert wiring (engage paths + resume/wake/editor seams)')
 const srcOf = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
-const scribeSel = srcOf('utils', 'scribe', 'scribeRouterSelect.ts')
-check('scribe router engage re-asserts', scribeSel.includes('reassertTerminalModes()'))
 const ink = srcOf('ink', 'ink.tsx')
 check('resize re-asserts mouse + 1007', ink.includes("termWrite(this.options.stdout, resizeReassertBytes(this.mouseTracking), 'mode')"))
 const sess = srcOf('ink', 'root', 'screen-session.ts')

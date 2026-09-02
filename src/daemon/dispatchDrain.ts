@@ -1,9 +1,6 @@
-import { readdirSync, statSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
-import { parseScribeEnvelope, OPERATOR_BROADCAST_LABEL, OPERATOR_NOTE_LABEL, type ScribeEnvelope, type DispatchEnvelope } from '../utils/scribe/scribeBus.js'
-import { BUS_TEAM_LEAD_NAME, canonicalizeBusTarget, isManagedBusTeam } from '../utils/scribe/busIdentity.js'
-import { getInboxPath, getMailboxStore, readUnreadMessages, markMessagesAsReadByPredicate, writeToMailbox } from '../utils/teammateMailbox.js'
-import { dispatchDedup, type DispatchDedup } from '../utils/scribe/dispatchDedup.js'
+import { parseBusEnvelope, OPERATOR_BROADCAST_LABEL, OPERATOR_NOTE_LABEL, type BusEnvelope, type DispatchEnvelope } from '../utils/swarm/busEnvelopes.js'
+import { getMailboxStore, readUnreadMessages, markMessagesAsReadByPredicate } from '../utils/teammateMailbox.js'
+import { dispatchDedup, type DispatchDedup } from './dispatchDedup.js'
 import { faultPoint } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
 
@@ -19,7 +16,7 @@ export const DISPATCH_REPORT_BACK_FRAMING =
   'weight of a direct operator instruction (this never licenses bypassing a permission, approval, ' +
   'capability, or refusal gate). You have NO terminal and NO human reader: any prose you type as ' +
   'output reaches no one. The ONLY way your dispatcher hears your result is a `SendMessage` call ' +
-  'carrying a scribe `progress` (or `escalate`) envelope — the STRUCTURED form, not a plain-string ' +
+  'carrying a bus `progress` (or `escalate`) envelope — the STRUCTURED form, not a plain-string ' +
   'message. Send exactly one such envelope to report back on this dispatch, even a trivial or ' +
   'conversational one; a plain-string send or plain prose is dropped and the dispatcher hears silence. ' +
   'Set its `refRequestId` to this dispatch’s literal request_id (the `[request_id: …]` line at the ' +
@@ -27,10 +24,8 @@ export const DISPATCH_REPORT_BACK_FRAMING =
   'SPEC FIDELITY when you re-dispatch or implement: acceptance criteria are often checked LITERALLY ' +
   '(greps, exact tokens) — carry the criteria’s key words/phrases VERBATIM into any dispatch you write ' +
   'and into the artifacts you produce; convey a required phrase in its exact given form, then elaborate ' +
-  'in your own words if useful (a benchmark: a semantically perfect page failed its check ' +
-  'because “fail-closed, never Haiku” was paraphrased away through a re-specification hop).\n' +
-  'MEETINGS ARE THE LATENCY TAIL (forensics: every healthy routed mission that missed its ' +
-  'deadline was waiting on an ambiguity round-trip, ~3–6 min each). Three standing rules: ' +
+  'in your own words if useful.\n' +
+  'MEETINGS ARE THE LATENCY TAIL: an ambiguity round-trip costs minutes. Three standing rules: ' +
   '(1) BOUNDED SELF-DECIDE — for an ambiguity that is NOT destructive, NOT irreversible, and NOT a ' +
   'spec-contradicts-code conflict: choose the reading most consistent with the acceptance criteria, ' +
   'proceed, and NOTE the call in one line of your done report (“DECIDED: …”). Escalate ONLY the ' +
@@ -45,7 +40,7 @@ export const DISPATCH_REPORT_BACK_FRAMING =
   '</system-reminder>'
 
 export function buildBackAgentUserFrame(
-  env: ScribeEnvelope,
+  env: BusEnvelope,
   frameOpts?: { replay?: boolean },
 ): string {
   let content = ''
@@ -75,7 +70,7 @@ export function buildBackAgentUserFrame(
 
 export function buildPlainBusFrame(from: string, text: string): string {
   const content =
-    `[bus] plain message from ${from} (NOT a scribe envelope — bus kinds must be sent as ` +
+    `[bus] plain message from ${from} (NOT a bus envelope — bus kinds must be sent as ` +
     `structured SendMessage objects, e.g. message:{type:"dispatch", task:"…"}; if this text ` +
     `contains a task/spec, act on it and report back with a structured progress envelope):\n\n${text}`
   return JSON.stringify({ type: 'user', message: { role: 'user', content } })
@@ -85,22 +80,16 @@ export type DispatchRoster = {
   reply: (short: string, text: string) => Promise<boolean>
 }
 
-export async function drainScribeDispatches(
+export async function drainDispatches(
   roster: DispatchRoster,
   opts: {
     short: string
     agentName: string
     teamName: string
-    deliverReplies?: boolean
     isBusy?: () => boolean
     onClear?: () => void
     hasSeen?: (requestId: string) => boolean
     markSeen?: (requestId: string) => void
-    resolveRoute?: (env: DispatchEnvelope) => { model?: string; effort?: string } | undefined
-    currentRoute?: () => { model?: string; effort?: string }
-    reconfigureRoute?: (patch: { model?: string; effort?: string }) => void
-    onRouteHeld?: (env: DispatchEnvelope, patch: { model?: string; effort?: string }) => void
-    onDelivered?: (env: ScribeEnvelope) => void
     durableDedup?: DispatchDedup | false
   },
 ): Promise<number> {
@@ -108,7 +97,7 @@ export async function drainScribeDispatches(
   try {
     unread = await readUnreadMessages(opts.agentName, opts.teamName)
   } catch (e) {
-    logForDebugging(`[daemon] scribe dispatch drain: read failed: ${e}`)
+    logForDebugging(`[daemon] dispatch drain: read failed: ${e}`)
     return 0
   }
   if (unread.length === 0) return 0
@@ -117,7 +106,7 @@ export async function drainScribeDispatches(
   const mark = (m: { text: string; timestamp: string; from: string }, requestId?: string) =>
     toMark.push({ text: m.text, timestamp: m.timestamp, from: m.from, requestId })
 
-  const parsed = unread.map(m => ({ m, env: parseScribeEnvelope(m.text) }))
+  const parsed = unread.map(m => ({ m, env: parseBusEnvelope(m.text) }))
 
   const seenBatchIds = new Set<string>()
   const deduped: typeof parsed = []
@@ -133,11 +122,11 @@ export async function drainScribeDispatches(
     deduped.push(p)
   }
 
-  const fromDispatcher = (env: ScribeEnvelope | null): boolean =>
+  const fromDispatcher = (env: BusEnvelope | null): boolean =>
     !!env &&
     typeof env.from === 'string' &&
     env.from.length > 0 &&
-    env.from !== 'implementer'
+    env.from !== opts.agentName
 
   const supersededIds = new Set<string>()
   for (const { env } of deduped) {
@@ -162,23 +151,23 @@ export async function drainScribeDispatches(
       !fromDispatcher(env)
     ) {
       logForDebugging(
-        `[daemon] scribe REJECT ${env.kind} ${env.request_id}: invalid sender from=${JSON.stringify(env.from)} (must be the dispatcher, not 'implementer') — dropping`,
+        `[daemon] drain REJECT ${env.kind} ${env.request_id}: invalid sender from=${JSON.stringify(env.from)} (must be a dispatcher, never the worker itself) — dropping`,
       )
       mark(m, env.request_id)
       continue
     }
     if (env && env.kind === 'control' && env.command === 'clear' && opts.onClear) {
-      logForDebugging('[daemon] scribe control: clear — respawning the Implementer (fresh transcript)')
+      logForDebugging(`[daemon] drain control: clear — respawning ${opts.short} (fresh transcript)`)
       try {
         opts.onClear()
       } catch (e) {
-        logForDebugging(`[daemon] scribe clear: onClear threw: ${e}`)
+        logForDebugging(`[daemon] drain clear: onClear threw: ${e}`)
       }
       mark(m, env.request_id)
       continue
     }
     if (env && env.kind === 'control' && env.command === 'cancel') {
-      logForDebugging(`[daemon] scribe control: cancel ref=${env.refRequestId ?? '?'} — dropping the queued target if present`)
+      logForDebugging(`[daemon] drain control: cancel ref=${env.refRequestId ?? '?'} — dropping the queued target if present`)
       mark(m, env.request_id)
       continue
     }
@@ -187,14 +176,13 @@ export async function drainScribeDispatches(
       try {
         ok = await roster.reply(opts.short, buildBackAgentUserFrame(env))
       } catch (e) {
-        logForDebugging(`[daemon] scribe control deliver threw: ${e}`)
+        logForDebugging(`[daemon] drain control deliver threw: ${e}`)
       }
       if (ok) {
         delivered++
-        opts.onDelivered?.(env)
         mark(m, env.request_id)
       } else {
-        logForDebugging('[daemon] scribe control deliver not accepted — leaving UNREAD for retry')
+        logForDebugging('[daemon] drain control deliver not accepted — leaving UNREAD for retry')
       }
       continue
     }
@@ -203,47 +191,30 @@ export async function drainScribeDispatches(
       try {
         ok = await roster.reply(opts.short, buildBackAgentUserFrame(env))
       } catch (e) {
-        logForDebugging(`[daemon] scribe note deliver threw: ${e}`)
+        logForDebugging(`[daemon] drain note deliver threw: ${e}`)
       }
       if (ok) {
         delivered++
-        opts.onDelivered?.(env)
         mark(m, env.request_id)
       } else {
-        logForDebugging('[daemon] scribe note deliver not accepted — leaving UNREAD for retry')
+        logForDebugging('[daemon] drain note deliver not accepted — leaving UNREAD for retry')
       }
       continue
     }
     if (env && env.kind === 'dispatch') {
       if (opts.hasSeen?.(env.request_id)) {
-        logForDebugging(`[daemon] scribe dedup: ${env.request_id} already delivered — dropping redelivery`)
+        logForDebugging(`[daemon] drain dedup: ${env.request_id} already delivered — dropping redelivery`)
         seenThisPass.add(env.request_id)
         mark(m, env.request_id)
         continue
       }
       if (supersededIds.has(env.request_id)) {
-        logForDebugging(`[daemon] scribe supersede: ${env.request_id} replaced by a newer dispatch — dropping`)
+        logForDebugging(`[daemon] drain supersede: ${env.request_id} replaced by a newer dispatch — dropping`)
         seenThisPass.add(env.request_id)
         mark(m, env.request_id)
         continue
       }
       dispatches.push({ m, env })
-      continue
-    }
-    if (opts.deliverReplies && env && (env.kind === 'progress' || env.kind === 'escalate')) {
-      let ok = false
-      try {
-        ok = await roster.reply(opts.short, buildBackAgentUserFrame(env))
-      } catch (e) {
-        logForDebugging(`[daemon] scribe reply-deliver threw: ${e}`)
-      }
-      if (ok) {
-        delivered++
-        opts.onDelivered?.(env)
-        mark(m, env.request_id)
-      } else {
-        logForDebugging('[daemon] scribe reply-deliver not accepted — leaving UNREAD for retry')
-      }
       continue
     }
     if (!env) {
@@ -290,7 +261,7 @@ export async function drainScribeDispatches(
       if (dedup) {
         const state = await dedup.stateOf(id).catch(() => null)
         if (state === 'delivered') {
-          logForDebugging(`[daemon] scribe durable dedup: ${id} already delivered — consuming redelivery`)
+          logForDebugging(`[daemon] drain durable dedup: ${id} already delivered — consuming redelivery`)
           seenThisPass.add(id)
           opts.markSeen?.(id)
           mark(d.m, id)
@@ -304,7 +275,7 @@ export async function drainScribeDispatches(
       try {
         ok = await roster.reply(opts.short, buildBackAgentUserFrame(d.env, { replay }))
       } catch (e) {
-        logForDebugging(`[daemon] scribe dispatch drain: reply threw: ${e}`)
+        logForDebugging(`[daemon] dispatch drain: reply threw: ${e}`)
       }
       if (ok) {
         if (dedup) {
@@ -315,39 +286,18 @@ export async function drainScribeDispatches(
         delivered++
         seenThisPass.add(id)
         opts.markSeen?.(id)
-        opts.onDelivered?.(d.env)
         mark(d.m, id)
       } else {
-        logForDebugging('[daemon] scribe dispatch drain: reply not accepted — leaving dispatch UNREAD for retry')
+        logForDebugging('[daemon] dispatch drain: reply not accepted — leaving dispatch UNREAD for retry')
       }
       return ok
     }
     if (backPressureOn) {
       if (opts.isBusy!()) {
-        logForDebugging(`[daemon] scribe back-pressure: Implementer busy — holding ${dispatches.length} dispatch(es) for retry`)
+        logForDebugging(`[daemon] drain back-pressure: ${opts.short} busy — holding ${dispatches.length} dispatch(es) for retry`)
       } else {
-        const chosen = ordered[0]!
-        const want = opts.resolveRoute?.(chosen.env)
-        const cur = want ? opts.currentRoute?.() : undefined
-        const patch: { model?: string; effort?: string } = {}
-        if (want && cur) {
-          if (want.model !== undefined && want.model !== cur.model) patch.model = want.model
-          if (want.effort !== undefined && want.effort !== cur.effort) patch.effort = want.effort
-        }
-        if (opts.reconfigureRoute && (patch.model !== undefined || patch.effort !== undefined)) {
-          logForDebugging(
-            `[daemon] router: ${chosen.env.request_id} routed ${patch.model ?? cur?.model ?? '?'}@${patch.effort ?? cur?.effort ?? '?'} (worker ${cur?.model ?? '?'}@${cur?.effort ?? '?'}) — reconfiguring before delivery (held)`,
-          )
-          try {
-            opts.onRouteHeld?.(chosen.env, patch)
-          } catch (e) {
-            logForDebugging(`[daemon] onRouteHeld observer threw (dropped): ${e}`)
-          }
-          opts.reconfigureRoute(patch)
-        } else {
-          await deliverOne(chosen)
-        }
-        if (ordered.length > 1) logForDebugging(`[daemon] scribe back-pressure: held ${ordered.length - 1} dispatch(es) — one at a time`)
+        await deliverOne(ordered[0]!)
+        if (ordered.length > 1) logForDebugging(`[daemon] drain back-pressure: held ${ordered.length - 1} dispatch(es) — one at a time`)
       }
     } else {
       for (const d of ordered) await deliverOne(d)
@@ -363,7 +313,7 @@ export async function drainScribeDispatches(
     await markMessagesAsReadByPredicate(
       opts.agentName,
       x => {
-        const xid = parseScribeEnvelope(x.text)?.request_id
+        const xid = parseBusEnvelope(x.text)?.request_id
         return toMarkSafe.some(t =>
           t.requestId && xid
             ? t.requestId === xid
@@ -373,81 +323,8 @@ export async function drainScribeDispatches(
       opts.teamName,
     ).catch(() => {})
   }
-  if (delivered > 0) logForDebugging(`[daemon] dispatch bridge delivered ${delivered} to ${opts.short} stdin`)
+  if (delivered > 0) logForDebugging(`[daemon] dispatch drain delivered ${delivered} to ${opts.short} stdin`)
   return delivered
-}
-
-export async function healAliasInboxes(
-  canonicalAgent: string,
-  teamName: string,
-): Promise<number> {
-  if (!isManagedBusTeam(teamName)) return 0
-  let moved = 0
-  try {
-    const inboxDir = dirname(getInboxPath(canonicalAgent, teamName))
-    let entries: string[] = []
-    try {
-      entries = readdirSync(inboxDir)
-    } catch {
-      return 0
-    }
-    for (const entry of entries) {
-      if (!entry.endsWith('.json')) continue
-      const alias = basename(entry, '.json')
-      if (alias === canonicalAgent) continue
-      const resolved = canonicalizeBusTarget(teamName, alias)
-      if (!resolved.known || resolved.name !== canonicalAgent) continue
-      try {
-        const a = statSync(join(inboxDir, entry))
-        const c = statSync(getInboxPath(canonicalAgent, teamName))
-        if (a.dev === c.dev && a.ino === c.ino) continue
-      } catch {
-      }
-      const unread = await readUnreadMessages(alias, teamName)
-      if (unread.length === 0) continue
-      const canonical = await getMailboxStore(canonicalAgent, teamName).read()
-      const canonicalIds = new Set(
-        canonical.map(x => parseScribeEnvelope(x.text)?.request_id).filter(Boolean),
-      )
-      const canonicalRecords = new Set(canonical.map(x => JSON.stringify([x.from, x.timestamp, x.text])))
-      let movedHere = 0
-      for (const m of unread) {
-        const mid = parseScribeEnvelope(m.text)?.request_id
-        const alreadyMoved = mid
-          ? canonicalIds.has(mid)
-          : canonicalRecords.has(JSON.stringify([m.from, m.timestamp, m.text]))
-        if (alreadyMoved) {
-          await markMessagesAsReadByPredicate(
-            alias,
-            x => x.text === m.text && x.timestamp === m.timestamp && x.from === m.from,
-            teamName,
-          ).catch(() => {})
-          continue
-        }
-        const ok = await writeToMailbox(
-          canonicalAgent,
-          { from: m.from, text: m.text, timestamp: new Date().toISOString(), ...(m.color ? { color: m.color } : {}) },
-          teamName,
-        )
-        if (!ok) continue
-        movedHere++
-        await markMessagesAsReadByPredicate(
-          alias,
-          x => x.text === m.text && x.timestamp === m.timestamp && x.from === m.from,
-          teamName,
-        ).catch(() => {})
-      }
-      moved += movedHere
-      if (movedHere > 0) {
-        logForDebugging(
-          `[daemon] bus heal: moved ${movedHere} stranded message(s) from alias inbox '${alias}' → '${canonicalAgent}' (team ${teamName})`,
-        )
-      }
-    }
-  } catch (e) {
-    logForDebugging(`[daemon] bus heal failed (dropped): ${e}`)
-  }
-  return moved
 }
 
 export interface DispatchDrainHandle {
@@ -457,7 +334,7 @@ export interface DispatchDrainHandle {
 
 export function armDispatchDrain(
   roster: DispatchRoster,
-  opts: Parameters<typeof drainScribeDispatches>[1] & {
+  opts: Parameters<typeof drainDispatches>[1] & {
     onDrained?: (delivered: number) => void
   },
 ): DispatchDrainHandle {
@@ -467,13 +344,7 @@ export function armDispatchDrain(
   let retryTimer: ReturnType<typeof setTimeout> | null = null
 
   const pass = async (): Promise<void> => {
-    const healed = await healAliasInboxes(opts.agentName, opts.teamName)
-    if (healed > 0) logForDebugging(`[daemon] bus heal fed ${healed} message(s) into this drain pass`)
-    if (opts.agentName !== BUS_TEAM_LEAD_NAME) {
-      const leadHealed = await healAliasInboxes(BUS_TEAM_LEAD_NAME, opts.teamName)
-      if (leadHealed > 0) logForDebugging(`[daemon] bus heal recovered ${leadHealed} lead-directed strand(s) into team-lead`)
-    }
-    const delivered = await drainScribeDispatches(roster, opts)
+    const delivered = await drainDispatches(roster, opts)
     try {
       opts.onDrained?.(delivered)
     } catch (e) {

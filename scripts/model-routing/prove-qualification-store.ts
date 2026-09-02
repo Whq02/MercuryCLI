@@ -86,7 +86,7 @@ section('3 · live-only minting (source wiring)')
 
 section('4 · role digests are distinct')
 {
-  const roles = ['primary', 'scribe-router', 'scribe-implementer', 'specialist', 'coordinator'] as const
+  const roles = ['primary', 'specialist', 'coordinator'] as const
   const digests = roles.map(r => roleCapabilityDigest(r))
   check('every role digest is unique', new Set(digests).size === roles.length)
   check('digests are stable across calls', roleCapabilityDigest('primary') === roleCapabilityDigest('primary'))

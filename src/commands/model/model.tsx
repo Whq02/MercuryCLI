@@ -2,7 +2,6 @@ import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { useAppState, useAppStateStore, useSetAppState } from '../../state/AppState.js'
-import { handleScribeRouterSelect } from '../../utils/scribe/scribeRouterSelect.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
@@ -166,8 +165,6 @@ function ModelSet({
       onDone(`${focusedSwitchSentence(receipt, target)}${doorCross}${lossNote}`)
       return
     }
-    const routerOutcome = handleScribeRouterSelect(target, { setAppState, store })
-    const left = routerOutcome === 'disengaged' ? ' · left Scribe Mode' : ''
     let landed = {
       kind: 'no-op',
       patch: null,
@@ -179,17 +176,7 @@ function ModelSet({
       })
       return landed.patch ? { ...prev, ...landed.patch } : prev
     })
-    if ((landed.kind === 'no-op' || landed.kind === 'cancelled-pending') && left) {
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: target,
-        mainLoopModelForSession: null,
-        pendingModelSwitch: null,
-      }))
-      onDone(`Model set to ${renderModelLabel(target)}${left}`)
-      return
-    }
-    onDone(`${settlementMessage(landed, plan)}${left}`)
+    onDone(settlementMessage(landed, plan))
   }
 
   useEffect(() => {

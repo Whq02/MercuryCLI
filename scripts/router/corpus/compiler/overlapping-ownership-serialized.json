@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "overlapping-ownership-serialized",
-  "mode": "party",
+  "mode": "fanout",
   "mission": {
     "objective": "Two independent nodes that both need to touch the same shared file",
     "title": "Two features, one shared config file",

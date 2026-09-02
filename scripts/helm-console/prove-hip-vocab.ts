@@ -56,11 +56,6 @@ const srcCode = src
   .filter(l => !l.trim().startsWith('//'))
   .join('\n')
 check('no Math.random CALL in the vocab module (comments exempt)', !srcCode.includes('Math.random'))
-check(
-  'identity-forward covers the scribe (the retired party arm left the disjunction)',
-  src.includes('} else if (isScribeModeOn()) {'),
-)
-check('quicksilver-heavy weighting in identity modes', src.includes('[...desert, ...quicksilver, ...quicksilver]'))
 check('mixed default folds quicksilver into the pool', src.includes('[...desert, ...quicksilver]'))
 check('adjacent sets present', src.includes('MERCURY_QUICKSILVER_CODE') && src.includes('MERCURY_QUICKSILVER_FLOW'))
 check(
