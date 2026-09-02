@@ -89,7 +89,7 @@
 #  rides these envs.
 # ============================================================================
 set -uo pipefail
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 . scripts/lib/project-home.sh
 
 SUITES_DIR=${MERCURY_GATE_SUITES_DIR:-scripts}

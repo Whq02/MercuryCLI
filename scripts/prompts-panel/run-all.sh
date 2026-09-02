@@ -33,7 +33,7 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 
 here="$(cd "$(dirname "$0")" && pwd)"
 BUN="${BUN:-$HOME/.bun/bin/bun}"
-cd "$here/../.."
+cd "$here/../.." || exit 1
 fail=0
 echo "############################################################"
 echo "# PROMPTS PANEL — records · saved prompts · Minerva's room"

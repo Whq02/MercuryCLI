@@ -14,7 +14,7 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/.." && pwd)"
 root="$(cd "$root/.." && pwd)"
-cd "$root"
+cd "$root" || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 

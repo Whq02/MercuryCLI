@@ -9,7 +9,7 @@ set -u
 # One wall-seconds line per prover — the pool engine reads exactly this shape.
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 
 failed=0
 shopt -s nullglob
