@@ -1553,7 +1553,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'team-rosters',
-          label: 'Team roster cwds',
+          label: 'Agent group roster cwds',
           run: async () => {
             const { existsSync, readdirSync, readFileSync } = await import('node:fs')
             const { join } = await import('node:path')
