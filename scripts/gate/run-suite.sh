@@ -21,6 +21,8 @@ mkdir -p "$MERCURY_HOME"
 
 export BROWSER="${BROWSER:-/usr/bin/true}"
 
+export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
+
 kill_tree() {
   local p=$1 c
   kill -STOP "$p" 2>/dev/null
