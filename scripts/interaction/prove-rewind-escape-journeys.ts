@@ -214,8 +214,13 @@ if (process.env.REWESC_CHILD) {
   // (the last row) never paints. Option 1 is always on-frame and focused.
   const CONFIRM_MARKER = 'Restore conversation'
   // The confirm card's LAST line in this rig (no code restore ⇒ no trailing
-  // hand-edit caveat): the settled-phase needle for confirm-gated sends.
-  const CONFIRM_SETTLED = 'The code is unchanged.'
+  // hand-edit caveat): the settled-phase needle for confirm-gated sends. It
+  // is the card's own code line for the conversation-only focus
+  // (MessageSelector's codeLine — 'The files are unchanged.'), painted under
+  // the focused option's description, after the Select: the last row the
+  // card commits. The capitalised spelling is unique to that row — the
+  // description's wrapped '…so the files are unchanged.' never carries it.
+  const CONFIRM_SETTLED = 'The files are unchanged.'
   // Round-2 re-cut, from the captured torn frames: a text needle alone
   // cannot tell a NEW frame's row from a STALE row the repaint has not
   // reached yet — the fast boot ran the whole journey inside tick 11, the

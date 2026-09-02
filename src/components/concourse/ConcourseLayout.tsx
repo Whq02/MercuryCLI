@@ -10,7 +10,7 @@ import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { fitGroupedWindow, paneWindow, scrolledWindow, shedToFit } from '../mercury-ui/geometry.js'
 import { controlNoteOf, type ConcourseRowV1, type ConcourseSnapshotV1, type ControlNoteState } from './contracts.js'
-import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, legendPriorityOf, regionKeysFor, withSplitViewTruth } from './controlManifest.js'
+import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, legendPriorityOf, newSessionTabLabel, regionKeysFor, withSplitViewTruth } from './controlManifest.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
 import { useSyncExternalStore } from 'react'
@@ -393,6 +393,7 @@ export function ConcourseLayout({
   focusTall,
   liveDraftRows,
   liveDraftEmpty = true,
+  coordinatorDraftEmpty = true,
   modelPickerOpen = false,
   groundPickerOpen = false,
   rowPeekOpen = false,
@@ -428,6 +429,9 @@ export function ConcourseLayout({
    *  verb on the selected row; with text, its own meta row carries '↵ send'
    *  and the legend stays quiet about ↵. */
   liveDraftEmpty?: boolean
+  /** The coordinator composer's draft truth for the '? keys' row (the atlas
+   *  key fires from a composer only while its draft is empty). */
+  coordinatorDraftEmpty?: boolean
   /** The rail selector's open state (paints the focused pill). */
   modelPickerOpen?: boolean
   /** Drive 6b: the repo selector's open state (same pill grammar). */
@@ -650,7 +654,7 @@ export function ConcourseLayout({
                   const n = newSessionNote !== undefined ? controlNoteOf(newSessionNote) : undefined
                   return n === undefined ? (
                     <Text color={hover ? t.textPrimary : t.info} wrap="truncate-end">
-                      + new session · n
+                      {newSessionTabLabel({ region, filtering })}
                     </Text>
                   ) : n.state === 'refused' || n.state === 'failed' ? (
                     <Text color={t.failureText} wrap="truncate-end">
@@ -1079,13 +1083,16 @@ export function ConcourseLayout({
                         newSession: wiring.newSession !== undefined,
                         olderBrowse,
                         ...(region === 'list'
-                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected }
+                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty }
                           : {}),
                         ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
                         }),
                         { splitOn },
                       ),
-                      CONCOURSE_HELP_KEY,
+                      // THE ATLAS KEY prints exactly where it fires (the one
+                      // resolver the screen's handler decides with): from a
+                      // composer only while its draft is empty.
+                      ...(helpKeyFiresFor(region, region === 'coordinator' ? coordinatorDraftEmpty : liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
                       browseKeys.find(k => k.keys === 'esc')!,
                     ]
                       .map(k =>
@@ -1095,9 +1102,7 @@ export function ConcourseLayout({
                             ? { keys: k.keys, label: 'fold the list' }
                             : armedSelected && k.keys === 'esc'
                               ? { keys: k.keys, label: 'disarm' }
-                              : armedSelected && k.keys === '↵↵'
-                                ? { keys: '↵', label: 'enters (armed)' }
-                                : k,
+                              : k,
                       )
                       // THE PLATFORM SEAM (class 5): the chip's authored
                       // spelling drives the logic above (prio weights, the

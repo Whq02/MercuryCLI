@@ -20,10 +20,9 @@
 //  entered.
 // ============================================================================
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
-import { birthModelOf, bootBirthFacts, carriedKitOf, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 
 export type BirthOutcome =
@@ -76,7 +75,13 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   // doors can never both wear it; a refused birth spends it, visibly —
   // re-arming is one keystroke on the kit screen).
   const worn = takeWornPresetKit()
-  const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())
+  // A KEYLESS home births on NO model whatever a door inherited (/clear
+  // passes the cleared chat's, the vacate road its own) or the menu chose:
+  // the placeholder a keyless session shows is not a choice, and the runner
+  // resolves its own model at the first send (the neutral-default ruling).
+  // With a sign-in: the record's choice, else the door's, else the screen's.
+  const screen = screenBirthModel()
+  const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -90,7 +95,8 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         // defaulted fold into a worktree (that estate belongs to
         // coordinator dispatches and explicit opt-ins).
         isolation: 'shared',
-        model,
+        // A KEYLESS birth carries NO model: the field is absent on the wire.
+        ...(model !== undefined ? { model } : {}),
         bornBlank: true,
         ...(title !== null ? { title } : {}),
         ...(facts.effort !== null ? { effort: facts.effort } : {}),

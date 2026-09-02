@@ -22,7 +22,6 @@ import { useKeybinding } from '../keybindings/useKeybinding.js'
 import type { Tool } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { LogOption } from '../types/logs.js'
-import { loadConversationForResume } from '../utils/conversationRecovery.js'
 import { checkCrossProjectResume } from '../utils/crossProjectResume.js'
 import { logError } from '../utils/log.js'
 import { isFullscreenEnvEnabled, isMouseTrackingEnabled } from '../utils/fullscreen.js'
@@ -274,36 +273,13 @@ export function ResumeConversation({
         )
         return
       }
-      const loaded = await loadConversationForResume(log, undefined)
-      if (gen !== resumeGenRef.current) return
-      if (!loaded) {
-        // A refusal, never a throw: the spinner branch binds no key and
-        // ctrl+c is disarmed on this root, so a thrown load froze the picker
-        // on "Resuming conversation…" for good (SL-1).
-        setIsResuming(false)
-        setResumeRefusal(
-          `could not resume — the session file could not be loaded: ${
-            log.fullPath ?? log.sessionId ?? 'unknown path'
-          } · the file was left untouched`,
-        )
-        return
-      }
-
-      // A listed session whose load yielded NO conversation is a damaged
-      // transcript (every record unreadable), not an empty one — the row
-      // existed because the file has bytes. Mounting the REPL here would
-      // silently present a fresh session as the resumed one; refuse with
-      // the reason and stay in the picker. The file itself is untouched.
-      if (loaded.messages.filter(m => (m as { isMeta?: boolean }).isMeta !== true).length === 0) {
-        setIsResuming(false)
-        setResumeRefusal(
-          `could not resume — the session file's records are unreadable (damaged transcript): ${
-            log.fullPath ?? log.sessionId ?? 'unknown path'
-          } · the file was left untouched`,
-        )
-        return
-      }
-      const sessionId = loaded.sessionId ?? getSessionIdFromLog(log)
+      // NO WHOLE-TRANSCRIPT PARSE BEFORE THE HOP (ruled): the one resume
+      // door takes the log's PATH and TITLE, and the session's connector
+      // paints the words from its own incremental reader — the managed
+      // session's runner loads its conversation itself (its hooks, its plan
+      // copy), so the parse this picker used to await here fed nothing but
+      // the felt lag of every pick.
+      const sessionId = getSessionIdFromLog(log)
       if (!sessionId) {
         setIsResuming(false)
         setResumeRefusal('could not resume — the session file carries no session id · the file was left untouched')
@@ -324,7 +300,7 @@ export function ResumeConversation({
       // daemon admits the same durable session behind the paint.
       const { focusResumedSession } = await import('../services/switchboard/hopIntoSession.js')
       const outcome = await focusResumedSession(String(sessionId), log.fullPath, {
-        title: loaded.customTitle ?? loaded.agentName,
+        title: log.customTitle ?? log.agentName,
         // The screen's resolved posture rides the resume.
         permissionMode: store.getState().toolPermissionContext.mode,
       })

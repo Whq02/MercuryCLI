@@ -551,6 +551,16 @@ export function collapseReadSearchGroups(
   const out: RenderableMessage[] = []
   const fullscreen = isFullscreenEnvEnabled()
   let group = emptyGroup()
+  // The uses whose results are on the canvas at all. A use with no result —
+  // still running, or a resumed transcript cut before its tool answered — is
+  // UNRESOLVED: it never settled, so it can never wear the settled row's
+  // "Ran …" claim. It stays a real row, and the tool-use card paints its
+  // queued or running state by its own law.
+  const settledToolUseIds = new Set<string>()
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    for (const block of toolResultBlocks(message)) settledToolUseIds.add(block.tool_use_id)
+  }
 
   const groupOpen = (): boolean => group.messages.length > 0
 
@@ -571,13 +581,16 @@ export function collapseReadSearchGroups(
       if (described) {
         const info = getToolSearchOrReadInfo(described.toolName, described.firstInput, tools)
         const running = described.members.some(m => inProgressToolUseIDs.has(m.toolUseId))
-        if (info.isCollapsible && running) {
+        const unresolved = described.members.some(m => !settledToolUseIds.has(m.toolUseId))
+        if (info.isCollapsible && (running || unresolved)) {
           // THE ROUND PAINTS (streaming lifecycle C2/C3): a collapse-eligible
           // tool whose use is still IN PROGRESS stays a REAL row — the chat
           // shows streaming tool_use → the RUNNING card → the settled row,
           // and the collapse takes the row only once its result lands. An
           // absorbed running use painted nothing until the settled
-          // "Ran 1 bash command ⌄".
+          // "Ran 1 bash command ⌄". A use whose result NEVER lands (a
+          // resumed transcript cut before the tool answered) takes the same
+          // road: absorbed, it was painted as if it had run.
           flush()
           out.push(message)
         } else if (info.isCollapsible) {

@@ -8,8 +8,11 @@
 //  credential on this account" for a family whose presence is discovery).
 //
 //    §1 discovered: the registry lists the model; the session arm is
-//       available with the keyless presence behind it; the crew arm speaks
-//       the landed engine law (typed 'not-integrated:worker-engine').
+//       available with the keyless presence behind it; the crew arm FOLLOWS
+//       the session arm (the neutral seat law: a crew runner is the product
+//       itself, so every engine row a session runs a crew seat runs too —
+//       the old 'not-integrated:worker-engine' refusal retired with its
+//       reason, the Anthropic-only crew vocabulary).
 //    §2 undiscovered: the exact-id validation refuses 'unreachable:local'
 //       with the no-server truth and the probe-route action.
 //    §3 the arms composer speaks the same class if a listed local row ever
@@ -88,9 +91,14 @@ section('§1 a discovered local model admits (session arm), crew speaks the engi
   const row = registry.entries.find(e => e.modelId === 'local/qwen3:1.7b')
   check('the registry lists the discovered model as its persisted id', row !== undefined, registry.entries.map(e => e.modelId).join(' · '))
   check('the session arm is AVAILABLE (keyless presence — no credential asked)', row?.session.availability === 'available', JSON.stringify(row?.session))
+  // Re-trued (the neutral seat law): the crew arm follows the session arm
+  // on every engine row — the crew runner IS the product, so a discovered
+  // local model a session runs is a crew seat too. The old
+  // 'not-integrated:worker-engine' refusal retired with its reason (the
+  // Anthropic-only crew vocabulary).
   check(
-    "the crew arm speaks the landed engine law, typed ('not-integrated:worker-engine')",
-    row?.crew.availability === 'refused' && row.crew.refusal === 'not-integrated:worker-engine',
+    'the crew arm FOLLOWS the session arm on the discovered engine row (available — no narrower crew vocabulary)',
+    row?.crew.availability === 'available',
     JSON.stringify(row?.crew),
   )
   const admitted = await validateWorkerModelChoice('local/qwen3:1.7b', 'session')

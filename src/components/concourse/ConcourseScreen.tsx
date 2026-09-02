@@ -3,10 +3,9 @@ import { Box, Text, useInput } from '../../ink.js';
 import { chatPresent, concourseWayBack, plainWorldWhy, stripKeyMapHint, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
 import { useRegisterOverlay } from '../../context/overlayContext.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
-import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, regionKeysFor } from './controlManifest.js';
+import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, regionKeysFor } from './controlManifest.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js';
-import { letterVerbsYield } from './letterVerbYield.js';
 import { boardModalOwner, gitOfferOwnsTheKeys, mayArmBoardModal, type BoardModalFactsV1 } from './boardModalOwner.js';
 import { claimConcourseCloseChord } from '../../services/concourse/closeChordSlot.js';
 import { getPendingChordMirror, subscribePendingChordMirror } from '../../keybindings/pendingChordMirror.js';
@@ -1114,8 +1113,8 @@ export function ConcourseScreen({
       return
     }
     // ARM-THEN-ENTER (L17 item 2): a SESSION row's first keyboard ↵ ARMS
-    // it as the live composer's target (the row says so; type to message);
-    // the second ↵ enters. Doors, the older line and held launches keep
+    // it as the live composer's target (the row says so; tab reaches the
+    // composer); the second ↵ enters. Doors, the older line and held launches keep
     // their one-press grammar above; a pointer activate and the reduced
     // stage (no composer to target) enter directly.
     if (!reducedStage && opts.pointer !== true && boardArmedRef.current !== sessionId) {
@@ -1989,15 +1988,12 @@ export function ConcourseScreen({
       }
     }
     if (region === 'list') {
-      // THE LETTER-VERB YIELD (letterVerbYield.ts): an ARMED selection or a
-      // held draft makes the single letters WORDS — the verbs below yield
-      // to the printable type-through at the end of this handler.
-      const verbsYield = letterVerbsYield({
-        armedSessionId: boardArmedRef.current,
-        selectedSessionId: boardSelRef.current,
-        liveDraftLength: liveDraftRef.current.text.length,
-      })
-      if (input === '/' && !key.ctrl && !key.meta && !verbsYield) {
+      // THE ROWS OWN THEIR LETTERS: a printable on the list is a verb or
+      // nothing — words reach a composer only from that composer's own
+      // focus (tab or click, as its hint says), so no declared key ever
+      // yields to typing, armed or not, draft held or not. The legend
+      // prints the same verbs in every list state for exactly this reason.
+      if (input === '/' && !key.ctrl && !key.meta) {
         event.stopImmediatePropagation()
         setFiltering(true)
         setFilter(f => ({ ...f, caret: f.text.length }))
@@ -2053,14 +2049,11 @@ export function ConcourseScreen({
         setRowPeekOpen(v => !v)
         return
       }
-      // x IS TYPING (the close chord): the board's close verb
-      // moved to ⌃x ⌃x (closeChordGesture, dispatched through the one-slot
-      // seam — this handler never sees the raw chord), and the plain letter
-      // falls through to the printable type-through below like any other
-      // word. A bare printable is never a board control while any composer
-      // is live — the letter-verb yield could not save a key that is also
-      // legitimate typing.
-      if (input === 'm' && !key.ctrl && !key.meta && !verbsYield && pastGate()) {
+      // x CARRIES NO VERB (the close chord): the board's close verb moved
+      // to ⌃x ⌃x (closeChordGesture, dispatched through the one-slot seam —
+      // this handler never sees the raw chord). On the rows the plain
+      // letter does nothing; in a focused composer it is a letter.
+      if (input === 'm' && !key.ctrl && !key.meta && pastGate()) {
         // Item 5's explicit door: the deliver-on-start message stack lives
         // behind 'm' on a QUEUED row. On a LIVE row m is MODEL — the
         // session-arm picker (BOARD CONTROLS item 1); the key-map row says
@@ -2086,7 +2079,7 @@ export function ConcourseScreen({
           return
         }
       }
-      if (input === 'e' && !key.ctrl && !key.meta && !verbsYield && callbacks.setSessionEffort !== undefined && pastGate()) {
+      if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate()) {
         // BOARD CONTROLS item 1 (`e`) — the WARMRUN rider: the board
         // effort door, the same picker grammar as m over the shared
         // ladder; written through the set-effort verb.
@@ -2096,7 +2089,7 @@ export function ConcourseScreen({
         else rowControlRefused(target.reason ?? 'no session to set')
         return
       }
-      if (input === 'i' && !key.ctrl && !key.meta && !verbsYield && callbacks.interruptSession !== undefined && pastGate()) {
+      if (input === 'i' && !key.ctrl && !key.meta && callbacks.interruptSession !== undefined && pastGate()) {
         // BOARD CONTROLS item 1 (`i`): interrupt the running turn — the
         // turn ends, the session stays; never a kill, never a park.
         event.stopImmediatePropagation()
@@ -2105,7 +2098,7 @@ export function ConcourseScreen({
         else rowControlRefused(target.reason ?? 'nothing to interrupt')
         return
       }
-      if (input === 'p' && !key.ctrl && !key.meta && !verbsYield && pastGate()) {
+      if (input === 'p' && !key.ctrl && !key.meta && pastGate()) {
         // BOARD CONTROLS item 1 (`p`): the pause/resume toggle — pause
         // closes the delivery valve after the in-flight turn ("paused by
         // you"); on a paused row the same key resumes and clears it.
@@ -2117,7 +2110,7 @@ export function ConcourseScreen({
         } else rowControlRefused(target.reason ?? 'nothing to pause')
         return
       }
-      if (input === 'r' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && callbacks.renameSession !== undefined && pastGate()) {
+      if (input === 'r' && !key.ctrl && !key.meta && !reducedStage && callbacks.renameSession !== undefined && pastGate()) {
         // THE BOARD'S RENAME (L16): r on a session row arms the composer's
         // rename context — never on a door, a held launch or the older
         // line (they are not sessions to name); a record-less parked row
@@ -2129,7 +2122,7 @@ export function ConcourseScreen({
         setRegion('live')
         return
       }
-      if (input === 'n' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && callbacks.newSession !== undefined && pastGate()) {
+      if (input === 'n' && !key.ctrl && !key.meta && !reducedStage && callbacks.newSession !== undefined && pastGate()) {
         // THE NEW SESSION TAB's key (Law 9, rule 4): a blank session born in
         // the current ground through the one birth door, the chat focused.
         // A list-region verb like m and e; the reduced stage has no tab and
@@ -2141,10 +2134,10 @@ export function ConcourseScreen({
         armContractAsk()
         return
       }
-      if (input === 's' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && pastGate()) {
+      if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
         // THE SPLIT TOGGLE: a board letter-verb by
-        // the landed m/e/i/p pattern — the composer's type-through law
-        // holds untouched. The decision measures the WHOLE terminal; a
+        // the landed m/e/i/p pattern — a focused composer keeps s a
+        // letter. The decision measures the WHOLE terminal; a
         // frame under the two-minimum threshold answers the one honest
         // width line and nothing changes.
         event.stopImmediatePropagation()
@@ -2153,26 +2146,23 @@ export function ConcourseScreen({
         else setNote(null)
         return
       }
-      if ((input === '[' || input === ']') && !key.ctrl && !key.meta && !verbsYield && splitActive && pastGate()) {
+      if ((input === '[' || input === ']') && !key.ctrl && !key.meta && splitActive && pastGate()) {
         // `[` / `]` nudge the divider between the named ratios while the
-        // split frame stands; off-split they stay the composer's
-        // printables (the type-through below).
+        // split frame stands; off-split the rows ignore them (a focused
+        // composer keeps them as printables).
         event.stopImmediatePropagation()
         nudgeSplitRatio(input === '[' ? -1 : 1)
         return
       }
-      if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && !verbsYield && pastGate()) {
-        // THE BROADCAST MARK: space toggles
-        // the selected row's mark. SPACE IS A PRINTABLE (ruled):
-        // unlike the bare letter-verbs, it rides IP-6's prose stream — so
-        // the mark verb fires ONLY on an EMPTY live draft (the composer's
-        // own ↵-by-emptiness resolution, the one landed draft-state key),
-        // and while composing the space falls through to the printable
-        // type-through below and lands IN THE DRAFT — a mid-sentence space
-        // must never toggle a mark. ANY row marks: the delivery fan types
-        // each skip at the send (item 3), so the toggle itself never
-        // refuses. Full stage only: the reduced stage has no live composer
-        // to broadcast from — space stays dead and untaught there.
+      if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
+        // THE BROADCAST MARK: space toggles the selected row's mark. On
+        // the rows space is this verb and nothing else — the live composer
+        // keeps space as a printable under its own focus, so a mid-sentence
+        // space can never toggle a mark (typing never reaches the rows'
+        // grammar). ANY row marks: the delivery fan types each skip at the
+        // send (item 3), so the toggle itself never refuses. Full stage
+        // only: the reduced stage has no live composer to broadcast from —
+        // space stays dead and untaught there.
         event.stopImmediatePropagation()
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel !== undefined) toggleMark(sel.sessionId)
@@ -2238,8 +2228,10 @@ export function ConcourseScreen({
       input === '?' &&
       !key.ctrl &&
       !key.meta &&
-      ((region !== 'coordinator' && region !== 'live') ||
-        (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)
+      // The one resolver the legend reads too: '?' opens the atlas from
+      // the rows, the rail and the split pane, and from a composer only
+      // while its draft is empty (with words it is a question mark).
+      helpKeyFiresFor(region, (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)
     ) {
       event.stopImmediatePropagation()
       helpOpenRef.current = true
@@ -2284,11 +2276,19 @@ export function ConcourseScreen({
       // keystroke in the chat pane never lands words in either draft.
       return
     }
-    // ── the editing keys route to the ACTIVE composer side: the
-    //    coordinator panel's own draft while it holds focus; the LIVE
-    //    composer everywhere row-side (IP-6, rerouted by the two-composers
-    //    law). Content-adding keys respect the live gate — a refusing
-    //    target takes no text, only the typed reason. ──────────────────────
+    if (region !== 'coordinator' && region !== 'live') {
+      // TYPING NEEDS THE COMPOSER'S OWN FOCUS: the rows and the rail carry
+      // verbs, never words — a printable, a newline or a backspace reaches
+      // a composer only while that composer holds focus (tab or click, as
+      // its own hint says). So the list's declared letters never yield to
+      // a type-through, and no keystroke moves the focus by itself; a key
+      // a region does not declare does nothing there.
+      return
+    }
+    // ── the editing keys belong to the FOCUSED composer: the coordinator
+    //    panel's own draft, or the live composer (the row-side box whose
+    //    target is the selected row). Content-adding keys respect the live
+    //    gate — a refusing target takes no text, only the typed reason. ──────
     const side =
       region === 'coordinator'
         ? { ref: draftRef, undo: undoRef, edit: editDraft, focus: 'coordinator' as ConcourseRegion }
@@ -2303,8 +2303,8 @@ export function ConcourseScreen({
       const g = liveComposerGate(sessionRows.find(r => r.sessionId === boardSelRef.current))
       return g.ok ? null : g.line
     }
-    // Typing to the LIVE side ARMS the selected row (item 2 — "type to
-    // message"): the target turns explicit, the placeholder names it.
+    // Typing in the LIVE composer ARMS the selected row (item 2): the
+    // target turns explicit, the placeholder names it.
     // Under the broadcast face the MARKED SET is the target, not the
     // selection — the single-row arm would name the wrong addressee.
     const armSelectedForTyping = (): void => {
@@ -2320,12 +2320,10 @@ export function ConcourseScreen({
       event.stopImmediatePropagation()
       const refusal = liveGateRefusal()
       if (refusal !== null) {
-        setRegion('live')
         setLiveNote({ tone: 'muted', text: refusal })
         return
       }
       armSelectedForTyping()
-      if (region !== side.focus) setRegion(side.focus)
       recordDraftEdit(side.undo.current, side.ref.current, 'type')
       side.edit(d => insertAt(d, NL))
       return
@@ -2353,7 +2351,6 @@ export function ConcourseScreen({
     }
     if (key.backspace || key.delete) {
       event.stopImmediatePropagation()
-      if (region !== side.focus) setRegion(side.focus)
       recordDraftEdit(side.undo.current, side.ref.current, 'delete')
       side.edit(key.backspace ? backspaceAt : deleteAt)
       return
@@ -2400,18 +2397,16 @@ export function ConcourseScreen({
       }
     }
     if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {
-      // IP-6: printables type through — into the coordinator's composer
-      // while its panel holds focus, into the LIVE composer from
-      // everywhere else (the row-side box; the gate may refuse in type).
+      // The printables land in the FOCUSED composer (the gate above keeps
+      // every other region out): the coordinator's own draft, or the live
+      // composer whose gate may refuse in type.
       event.stopImmediatePropagation()
       const refusal = liveGateRefusal()
       if (refusal !== null) {
-        setRegion('live')
         setLiveNote({ tone: 'muted', text: refusal })
         return
       }
       armSelectedForTyping()
-      if (region !== side.focus) setRegion(side.focus)
       const payload = editorText(input)
       recordDraftEdit(side.undo.current, side.ref.current, payload.length > 1 ? 'paste' : 'type')
       side.edit(d => insertAt(d, payload))
@@ -2664,18 +2659,21 @@ export function ConcourseScreen({
             )
           })()
           // ARM-THEN-ENTER (item 2): the armed row SHOWS the arm on its
-          // granted line — the staged grammar in one sentence. 'type to
-          // message' prints only when the gate would actually take words
-          // (G4: a parked target must not advertise a queue it refuses).
-          // A standing control receipt still outranks it for its beat.
+          // granted line — the staged grammar in one sentence. The words
+          // road is the live composer's own focus (tab reaches it from the
+          // rows), advertised only when the gate would actually take words
+          // (G4: a parked target must not advertise a queue it refuses). A
+          // held live draft makes the next ↵ a SEND (the draft-aware ↵), so
+          // the line says so instead of promising an enter. A standing
+          // control receipt still outranks it for its beat.
           const armedNode =
             boardArmed === sel.sessionId ? (
               <Box height={1} flexShrink={0} overflow="hidden">
                 <Text color={t.info} wrap="truncate-end">
-                  {GLYPH.handoff} armed — ↵ again enters
+                  {GLYPH.handoff} {liveDraft.text.trim().length > 0 ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}
                   {/* Under the broadcast face typing speaks to the MARKED
                       set, not this row — the tail yields (item 2). */}
-                  {liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · type to message' : ''} · esc disarms
+                  {liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms
                 </Text>
               </Box>
             ) : null
@@ -2806,6 +2804,7 @@ export function ConcourseScreen({
         focusTall={focusTall}
         liveDraftRows={liveDraftDesired}
         liveDraftEmpty={liveDraft.text.length === 0}
+        coordinatorDraftEmpty={draft.text.length === 0}
         modelPickerOpen={settingsOpen}
         groundPickerOpen={groundPickerOpen}
         coordinatorNode={(rows, width) => reducedStage ? (
