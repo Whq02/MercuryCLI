@@ -250,8 +250,16 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         // every machine, never the account that ran it
         MERCURY_OPERATOR: process.env.MERCURY_OPERATOR?.trim() || 'sam',
         ...(opts.probe ? { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: probeTee } : {}),
-        // capture pins (repo convention): ambience off, the pipeline is the subject
+        // capture pins (repo convention): ambience off, the pipeline is the
+        // subject. Every display animation holds still — the critter's sway
+        // and blink, its gaze and sleep, the header's live seconds, the live
+        // glyphs — so a settle gate that reads the whole grid sees the screen
+        // hold and no recorded frame lands on an arbitrary animation phase.
+        // A drive that photographs an animation re-enables it through extraEnv.
+        MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',
+        MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_TURN_RECEIPT: '0',
         MERCURY_OASIS_BG: '0',
