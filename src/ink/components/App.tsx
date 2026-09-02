@@ -72,7 +72,7 @@ import CursorDeclarationContext, {
 import ErrorOverview from './ErrorOverview.js'
 import StdinContext from './StdinContext.js'
 import { TerminalFocusProvider } from './TerminalFocusContext.js'
-import { TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js'
+import { LiveTerminalSizeContext, TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js'
 
 const STDIN_GAP_REASSERT_MS = 5000
 const INCOMPLETE_SEQUENCE_TIMEOUT_MS = 50
@@ -218,6 +218,7 @@ export default class App extends PureComponent<Props, State> {
       this.terminalSize = { columns, rows }
     }
     return (
+      <LiveTerminalSizeContext.Provider value={this.terminalSize}>
       <TerminalSizeContext.Provider value={this.terminalSize}>
         <AppContext.Provider value={{ exit: this.handleExit }}>
           <StdinContext.Provider
@@ -246,6 +247,7 @@ export default class App extends PureComponent<Props, State> {
           </StdinContext.Provider>
         </AppContext.Provider>
       </TerminalSizeContext.Provider>
+      </LiveTerminalSizeContext.Provider>
     )
   }
 

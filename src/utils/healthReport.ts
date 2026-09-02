@@ -2338,6 +2338,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-voice',
+          label: 'Voice input',
+          run: async () => {
+            const { describeVoiceReadiness } = await import('../services/voice/voiceSession.js')
+            const readiness = describeVoiceReadiness()
+            return { status: readiness.ready ? ('ok' as const) : ('info' as const), evidence: readiness.line, detail: readiness.detail }
+          },
+        },
+        {
           id: 'iface-inventory',
           label: 'Interaction inventory',
           run: () => {
