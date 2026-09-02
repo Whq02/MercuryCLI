@@ -8,7 +8,10 @@
 //  the offset and folds them as new rows; a truncation (size < offset), a
 //  replaced file (inode change) or a rewritten window resets to the full
 //  read — the same ladder a cold load takes (snapshot-plus-tail, the
-//  big-file strategies, the plain read). Every consumer asks the reader for
+//  big-file strategies, the plain read). The law: every rewrite the
+//  product's own roads can produce is caught (they shrink the file or
+//  replace its inode); a same-size in-place rewrite deeper than the window
+//  is a documented non-goal. Every consumer asks the reader for
 //  what it needs — the fold, the conversation chain since its cursor, the
 //  complete lines past a byte cursor, the newest lines backward — never
 //  the file.
@@ -377,6 +380,16 @@ function growthRead(state: ReaderState): TranscriptRead | null {
   if (st === null) return reset(state, 'the file is gone')
   if (st.ino !== state.ino) return reset(state, 'the file was replaced')
   if (st.size < state.offset) return reset(state, 'the file was truncated')
+  // Same size, same inode: nothing appended. A same-size in-place rewrite
+  // is not observed here — none of the product's own rewrite roads makes
+  // one: the writer's tombstone fast path rewrites the tail in place and
+  // TRUNCATES (writer.ts, the ftruncateSync after the tail rewrite), its
+  // slow path rewrites the file one line shorter, a branch child is a new
+  // file, and every durable publish is a temp-plus-rename with a fresh
+  // inode. The window is proven on the next growth, which catches a
+  // rewrite that reached the last WINDOW_BYTES of the covered prefix; a
+  // deeper same-size rewrite would need the whole prefix digested per
+  // growth, which is the cost this reader exists to remove.
   if (st.size === state.offset) return none(state, st.size)
   const W = state.window.length
   const buf = io.readRangeSync(state.path, state.offset - W, st.size)

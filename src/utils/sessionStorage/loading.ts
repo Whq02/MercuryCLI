@@ -45,8 +45,11 @@ type TranscriptLoadResult = Omit<TranscriptFoldState, 'progressBridge'> & {
  * The reader keeps the fold per path: a transcript read before in this
  * process folds only what was appended since (the cold ladder — snapshot
  * plus tail, the big-file strategies, the plain read — runs once, and
- * again only when the file was truncated, replaced or rewritten). The maps
- * handed back are the reader's own: read them, never mutate them.
+ * again only when the file was truncated, replaced or rewritten). The
+ * result is a VALUE: the reader's fold keeps growing in place under later
+ * reads, so the maps handed back are copies of it as of this call (the
+ * message objects are shared — the reader never mutates a folded object,
+ * it replaces one).
  */
 export async function loadTranscriptFile(
   filePath: string,
@@ -55,7 +58,7 @@ export async function loadTranscriptFile(
   let fold: TranscriptFoldState = emptyFoldState()
   try {
     const view = await readTranscript(filePath, { policy: opts?.keepAllLeaves ? 'all' : 'resume' })
-    fold = view.fold
+    fold = copyOfFold(view.fold)
   } catch (e) {
     // Missing file = a session that has not written yet: quiet, empty
     // result. Anything else still degrades to an empty fold — resume must
@@ -74,6 +77,33 @@ export async function loadTranscriptFile(
   return {
     ...publicFold,
     leafUuids: computeResumeLeaves(publicFold.messages),
+  }
+}
+
+/** The fold as of now, detached from the reader's growing state: every map
+ *  copied, the replacement arrays copied (the fold pushes into them), the
+ *  message objects shared. */
+function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
+  return {
+    messages: new Map(fold.messages),
+    summaries: new Map(fold.summaries),
+    customTitles: new Map(fold.customTitles),
+    tags: new Map(fold.tags),
+    agentNames: new Map(fold.agentNames),
+    agentColors: new Map(fold.agentColors),
+    agentSettings: new Map(fold.agentSettings),
+    prNumbers: new Map(fold.prNumbers),
+    prUrls: new Map(fold.prUrls),
+    prRepositories: new Map(fold.prRepositories),
+    modes: new Map(fold.modes),
+    worktreeStates: new Map(fold.worktreeStates),
+    fileHistorySnapshots: new Map(fold.fileHistorySnapshots),
+    attributionSnapshots: new Map(fold.attributionSnapshots),
+    contentReplacements: new Map([...fold.contentReplacements].map(([k, v]) => [k, [...v]])),
+    agentContentReplacements: new Map([...fold.agentContentReplacements].map(([k, v]) => [k, [...v]])),
+    contextCollapseCommits: [...fold.contextCollapseCommits],
+    contextCollapseSnapshot: fold.contextCollapseSnapshot,
+    progressBridge: fold.progressBridge,
   }
 }
 

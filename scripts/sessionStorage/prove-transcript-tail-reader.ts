@@ -12,10 +12,13 @@
 //       chain since the cursor is exactly the appended rows, the rows
 //       before it the cursor's own objects; an append still in flight (no
 //       newline yet) folds nothing and folds whole once it completes.
-//    §C a rewrite resets honestly: truncation below the offset, a same-size
-//       byte flip in the covered prefix, a replaced file (new inode), and a
-//       removed middle line whose file still GREW — each is a fresh cold
-//       read, and each equals a full parse of the rewritten file.
+//    §C a rewrite resets honestly: truncation below the offset, a replaced
+//       file (new inode), a byte flip inside the window followed by an
+//       append, and a removed middle line whose file still GREW — each is
+//       a fresh cold read, and each equals a full parse of the rewritten
+//       file. The documented non-goal is pinned too: a same-size in-place
+//       rewrite with no growth is not observed (the product's own rewrite
+//       roads shrink the file or replace its inode).
 //    §D parity: five rounds of growth (messages, titles, tags, summaries,
 //       pr-links, a collapse commit, a preserved-segment boundary) fold to
 //       the same rows and facts as one full parse of the final file —
@@ -244,16 +247,17 @@ section('§B an append of N rows reads only the appended bytes (+ the ≤4 KB wi
 }
 
 // ── §C rewrites reset honestly ──────────────────────────────────────────────
-section('§C a truncation, a byte flip, a replaced file and a grown rewrite each reset to a full read')
+section('§C a truncation, a windowed byte flip, a replaced file and a grown rewrite each reset to a full read')
 {
   const file = join(SCRATCH, 'c.jsonl')
-  const seed = async (): Promise<void> => {
+  const seed = async (): Promise<{ leaf: string; tick: { i: number } }> => {
     resetAll()
     vnext.resetTranscriptFormatCacheForTesting()
     writeFileSync(file, '')
     const tick = { i: 0 }
-    appendTurns(file, null, 60, tick)
+    const leaf = appendTurns(file, null, 60, tick)
     await reader.readTranscript(file)
+    return { leaf, tick }
   }
   const same = async (label: string): Promise<void> => {
     const got = await loading.loadTranscriptFile(file)
@@ -269,13 +273,17 @@ section('§C a truncation, a byte flip, a replaced file and a grown rewrite each
   check('the fold no longer holds the cut rows', truncated.fold.messages.size < before.fold.messages.size && truncated.offset <= statSync(file).size)
   await same('truncation')
 
-  await seed()
+  const seeded = await seed()
   const flipped = readFileSync(file)
+  // Inside the window: the last WINDOW_BYTES before the offset.
   const at = flipped.length - 10
   flipped[at] = flipped[at] === 0x61 ? 0x62 : 0x61
   writeFileSync(file, flipped)
+  const unobserved = await reader.readTranscript(file)
+  check('the documented non-goal: a same-size in-place rewrite with no growth is not observed (the product\'s own rewrite roads shrink the file or replace its inode)', unobserved.read.kind === 'none' && census.resets === 0 && census.coldReads === 1, JSON.stringify({ kind: unobserved.read.kind, census }))
+  appendTurns(file, seeded.leaf, 1, seeded.tick)
   const afterFlip = await reader.readTranscript(file)
-  check('a same-size byte flip inside the covered prefix: the window catches it — reset + cold read', census.resets === 1 && census.coldReads === 2 && afterFlip.read.kind === 'cold', JSON.stringify(census))
+  check('the next growth proves the window and finds the flip — reset + cold read', census.resets === 1 && census.coldReads === 2 && afterFlip.read.kind === 'cold', JSON.stringify(census))
   await same('byte flip')
 
   await seed()
