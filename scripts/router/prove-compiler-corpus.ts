@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { decodeTaskRoutePlan, stableDigest } from '../../src/utils/router/contracts.js'
+import { decodeTaskRoutePlan, LEGACY_ROUTE_PROFILES, ROUTE_PROFILES, stableDigest } from '../../src/utils/router/contracts.js'
 import { buildRouterModelSnapshot } from '../../src/utils/router/modelRegistry.js'
 import {
   compileRoute,
@@ -24,6 +24,10 @@ const pass = (id: string, msg: string): void => {
 
 const snapshot = buildRouterModelSnapshot()
 
+const EXPECTED_PROFILES = new Set<string>()
+const PRODUCED_PROFILES = new Set<string>()
+let SAMPLE_PLAN: unknown = null
+
 for (const file of readdirSync(DIR).sort()) {
   if (!file.endsWith('.json')) continue
   const fx = JSON.parse(readFileSync(join(DIR, file), 'utf8')) as {
@@ -44,6 +48,7 @@ for (const file of readdirSync(DIR).sort()) {
     }
   }
   const m = fx.mission
+  EXPECTED_PROFILES.add(fx.expected.profile)
   const input: RouteCompilerInput = {
     mode: fx.mode,
     mission: m,
@@ -83,6 +88,8 @@ for (const file of readdirSync(DIR).sort()) {
     continue
   }
   const plan = result.plan
+  PRODUCED_PROFILES.add(plan.profile)
+  SAMPLE_PLAN ??= plan
   const problems: string[] = []
   if (plan.profile !== fx.expected.profile) {
     problems.push(`profile '${plan.profile}' != '${fx.expected.profile}'`)
@@ -123,6 +130,16 @@ for (const file of readdirSync(DIR).sort()) {
       `${plan.profile} width=${width} [${plan.decision.decisiveReasons.join(',')}]${plan.decision.adjustments.length ? ` adj[${plan.decision.adjustments.join(',')}]` : ''}`,
     )
   }
+}
+
+{
+  const legacy = new Set<string>(LEGACY_ROUTE_PROFILES)
+  const law = (id: string, ok: boolean, msg: string): void => (ok ? pass(id, msg) : fail(id, msg))
+  law('legacy-profile', !(ROUTE_PROFILES as readonly string[]).some(p => legacy.has(p)), 'the producer-facing vocabulary carries no legacy profile')
+  law('legacy-profile', ![...PRODUCED_PROFILES].some(p => legacy.has(p)), `no compile produced a legacy profile (${[...PRODUCED_PROFILES].sort().join(', ')})`)
+  law('legacy-profile', ![...EXPECTED_PROFILES].some(p => legacy.has(p)), 'no fixture expects a legacy profile')
+  const withLegacy = SAMPLE_PLAN === null ? null : { ...(SAMPLE_PLAN as Record<string, unknown>), profile: LEGACY_ROUTE_PROFILES[0] }
+  law('legacy-profile', withLegacy !== null && decodeTaskRoutePlan(JSON.parse(JSON.stringify(withLegacy))) !== null, 'a persisted plan carrying the legacy profile still decodes (read-tolerant)')
 }
 
 console.log('════════════════════════════════════════════════════════════════════════════')

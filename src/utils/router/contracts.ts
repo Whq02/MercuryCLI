@@ -55,9 +55,11 @@ export const ROUTE_PROFILES = [
   'opus-direct',
   'parallel-sonnet',
   'dependency-graph',
-  'workflow-delegated',
 ] as const
 export type RouteProfile = (typeof ROUTE_PROFILES)[number]
+
+export const LEGACY_ROUTE_PROFILES = ['workflow-delegated'] as const
+export type LegacyRouteProfile = (typeof LEGACY_ROUTE_PROFILES)[number]
 
 export const ROUTE_TASK_SHAPES = [
   'mechanical',
@@ -187,7 +189,7 @@ export interface TaskRoutePlan {
   title: string
   objective: string
   features: RouteFeatureVector
-  profile: RouteProfile
+  profile: RouteProfile | LegacyRouteProfile
   nodes: RouteNode[]
   synthesis: {
     required: boolean
