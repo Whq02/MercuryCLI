@@ -214,6 +214,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       : { signedIn: false, basis: 'absent' }
   }
   if (slot.scope.claudeFamily) return { signedIn: false, basis: 'excluded' }
+  if (!slot.signedIn) return { signedIn: false, basis: 'signed-out' }
   const identity = identities[slot.id]
   switch (identity?.state) {
     case 'verified':
@@ -226,6 +227,36 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       return { signedIn: false, basis: 'unverified' }
     default:
       return { signedIn: false, basis: 'checking' }
+  }
+}
+
+export function scopeSlotTail(
+  state: SlotSigninState,
+  read: SlotIdentityRead | undefined,
+  slot: Pick<AccountSlot, 'scope'>,
+): string {
+  const snapshot = slot.scope?.email
+  switch (state.basis) {
+    case 'excluded':
+      return "another tool's credential scope — never billable from Mercury"
+    case 'checking':
+      return `${snapshot !== undefined ? `snapshot ${snapshot} · ` : ''}verifying identity…`
+    case 'verified-live':
+      return `${read?.state === 'verified' ? read.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
+    case 'expired':
+      return `expired${read?.state === 'expired' && read.snapshotEmail ? ` (snapshot ${read.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
+    case 'signed-out':
+      return snapshot !== undefined
+        ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
+        : 'not signed in · ↵ opens Logins to sign in'
+    case 'absent':
+      return 'not signed in · ↵ opens Logins to sign in'
+    case 'unverified':
+      return read?.state === 'unverified'
+        ? `unverified — ${read.note}${read.email ? ` · snapshot ${read.email}` : ''} · not counted as signed in`
+        : 'unverified · not counted as signed in'
+    case 'credential-present':
+      return 'credential present'
   }
 }
 
@@ -359,8 +390,15 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
         text: `${label} · unverified — ${identity.note}${identity.email ? ` · snapshot ${identity.email}` : ''}`,
         basis: 'unverified',
       }
-    default:
-      return { route, family, text: `${label} · verifying identity…`, basis: 'checking' }
+    default: {
+      const snapshot = presence.identity
+      return {
+        route,
+        family,
+        text: `${label}${snapshot !== undefined ? ` · snapshot ${snapshot}` : ''} · verifying identity…`,
+        basis: 'checking',
+      }
+    }
   }
 }
 

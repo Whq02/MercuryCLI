@@ -5,7 +5,7 @@ import { Box, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
-import { resolveLiveScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
+import { forgetScopeIdentity, resolveLiveScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
 import { AMBER, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import {
   CommandCenter,
@@ -32,10 +32,10 @@ import {
   familySigninHeaderNote,
   familySigninSummary,
   mainLoopIdentity,
+  scopeSlotTail,
   slotSigninState,
   type AccountSlot,
   type SlotIdentities,
-  type SlotSigninState,
 } from '../../../services/providers/accountSlots.js'
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -78,28 +78,6 @@ function tildify(p: string, home: string): string {
 }
 
 type Identities = SlotIdentities
-
-function identityTail(state: SlotSigninState, id: Identities[string] | undefined): string {
-  switch (state.basis) {
-    case 'excluded':
-      return "another tool's credential scope — never billable from Mercury"
-    case 'checking':
-      return 'verifying identity…'
-    case 'verified-live':
-      return `${id?.state === 'verified' ? id.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
-    case 'expired':
-      return `expired${id?.state === 'expired' && id.snapshotEmail ? ` (snapshot ${id.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
-    case 'signed-out':
-    case 'absent':
-      return 'not signed in · ↵ opens Logins to sign in'
-    case 'unverified':
-      return id?.state === 'unverified'
-        ? `unverified — ${id.note}${id.email ? ` · snapshot ${id.email}` : ''} · not counted as signed in`
-        : 'unverified · not counted as signed in'
-    case 'credential-present':
-      return 'credential present'
-  }
-}
 
 export function AccountView({
   onClose,
@@ -144,7 +122,7 @@ export function AccountView({
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeDirsKey])
+  }, [scopeDirsKey, version])
 
   const acct = getGlobalConfig().oauthAccount
   const sessionModel = useAppState(state => state.mainLoopModelForSession ?? state.mainLoopModel)
@@ -212,6 +190,7 @@ export function AccountView({
         key: 'r',
         hint: 'rescan',
         run: () => {
+          forgetScopeIdentity()
           setVersion(v => v + 1)
           setIdentities({})
           return 'rescanned accounts (identities re-verify live)'
@@ -240,7 +219,14 @@ export function AccountView({
           }
           armedRemovalRef.current = null
           const outcome = executeSlotRemoval(row.slot)
-          if (outcome.mutated) setVersion(v => v + 1)
+          if (outcome.mutated) {
+            setIdentities(prev => {
+              const next = { ...prev }
+              delete next[row.slot.id]
+              return next
+            })
+            setVersion(v => v + 1)
+          }
           return outcome.note
         },
       },
@@ -300,7 +286,7 @@ export function AccountView({
         const state = slotSigninState(slot, identities)
         glyph = state.basis === 'excluded' ? '⊘' : state.signedIn ? '●' : '⦿'
         color = state.basis === 'excluded' ? FAINT : state.signedIn ? TEAL : AMBER
-        tail = [tildify(s.dir, home), s.isCurrent ? 'this session' : '', identityTail(state, id)]
+        tail = [tildify(s.dir, home), s.isCurrent ? 'this session' : '', scopeSlotTail(state, id, slot)]
           .filter(Boolean)
           .join(' · ')
       } else {
