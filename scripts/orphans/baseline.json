@@ -177,6 +177,11 @@
    "file": "src/utils/accounts/scopedReauth.ts",
    "class": "proof-or-fixture-only",
    "reason": "The scoped reauth machinery whose board consumer was retired by the operator-sighted inventory-only ruling (/accounts hosts no flow; the login gesture reroutes to Logins). That ruling keeps the module, covered by scripts/accounts/prove-scoped-reauth.ts \u2014 the auth-scope bracket and snapshot-heal laws stay pinned while no board hosts the flow."
+  },
+  {
+   "file": "src/memdir/promoteRungate.ts",
+   "class": "operator-opt-in-live",
+   "reason": "Reached only from the operator-invoked promote path (scripts/memory/distill-card.ts --promote) behind MERCURY_CARD_PROMOTE_RUNGATE: the in-loop tool never runs the green-gate by design (no autonomous self-modification), so no runtime import exists. Its former runtime importer, the memory-promotion flow, retired with the two-seat coordination mode. Covered by scripts/memory/prove-card-outcome-ledger.ts section 6."
   }
  ]
 }
