@@ -45,7 +45,9 @@ node dist/mercury.mjs doctor --json
 `setup` fetches the vendored capability packs (pyright · debugpy · js-debug ·
 extra grammars · this machine's Node runtime); a failed fetch skips its pack,
 and the build and the affected features say so (`bun install` alone ships
-that degraded build).
+that degraded build). With a Rust toolchain on the machine, `setup` also
+builds the voice capture addon from `native/voice` (the one pack that is
+built, not fetched; without cargo it is skipped and the doctor says so).
 The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.
@@ -210,6 +212,9 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
   [docs/ASEPRITE-BRIDGE.md](docs/ASEPRITE-BRIDGE.md)).
 - **Memory**: experience cards, a project notepad, and Minerva's room over
   your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
+- **Voice input**: `/speak on`, then `v` in an empty composer dictates
+  into it through the family you signed into; audio leaves only after you
+  stop, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
   reconciliation pass ([docs/DURABILITY.md](docs/DURABILITY.md)).
 - **Web search for every model**: the provider's own live search beside
@@ -238,7 +243,7 @@ catalogue, grouped the way `/help` groups it:
 | model & effort | `/model` `/effort` `/plan` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
-| config & setup | `/config` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` |
+| config & setup | `/config` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/companion` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/release-notes` `/feedback` `/help` `/exit` |
 
