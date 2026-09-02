@@ -24,6 +24,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
 import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
+import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
 export type BirthOutcome =
   | { ok: true; sessionId: string; title: string }
@@ -133,6 +134,11 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   if (reply.ok !== true || sessionId === undefined) {
     return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
+  // THE KEYLESS ADMISSION'S RECEIPT (the retained-model seam): a birth
+  // admitted keyless because the home's sign-ins offer no usable row yet
+  // names each sign-in's gate and the doors on the screen-receipt seam —
+  // queued until the chat subscribes, so the cockpit paints it.
+  if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
   // THE FIRST-CHAT STAMP (the folder-as-project law): the record is on the
   // board — a chat was born in this folder — so the catalog owner
   // initializes the folder's `.mercury/` estate and its project card here,

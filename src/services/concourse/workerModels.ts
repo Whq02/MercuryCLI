@@ -48,7 +48,7 @@
 // ============================================================================
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { NO_SIGN_IN_ROW, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { NO_SIGN_IN_ROW, NO_USABLE_ROW, keylessReason, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
@@ -501,6 +501,11 @@ export type WorkerModelValidation =
        *  and its composer's own not-logged-in gate names the logins door.
        *  Never a refusal that names one family. */
       keyless?: true
+      /** The keyless admission's receipt when sign-ins EXIST but none
+       *  offers a usable row yet: each sign-in's own gate (the family and
+       *  what keeps its catalogue dark) and the doors — painted at the
+       *  operator's door, never a family nobody chose. */
+      note?: string
     }
   | {
       ok: false
@@ -656,6 +661,20 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
       if (noAccount !== undefined) {
         if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
         return { ok: false, ...noAccount }
+      }
+      // An UNNAMED session launch on a home whose sign-ins offer NO USABLE
+      // ROW yet (a live-only catalogue kept dark by the privacy posture, or
+      // still composing): born keyless all the same. The refusal this fell
+      // to named the placeholder's own family — one nobody chose — while
+      // the operator's only sign-in was another family; the note names each
+      // sign-in's gate (the family, the switch) and the doors instead. A
+      // crew seat, which cannot run keyless, keeps its refusal.
+      if (arm === 'session' && idOrKey === undefined) {
+        const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+        const decision = computedDefault()
+        if (decision.source === 'keyless' && decision.considered.length > 0) {
+          return { ok: true, entry: { ...entry, displayName: NO_USABLE_ROW }, keyless: true, note: `${NO_USABLE_ROW} — ${keylessReason(decision)}` }
+        }
       }
     }
     // An UNNAMED launch that fell through a dead default provider names the

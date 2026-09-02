@@ -1242,6 +1242,10 @@ export function makeConcourseAdmitHandler(
     // on a home with no credential anywhere is admitted with NO model — the
     // record wears the placeholder for display, the runner boots modelless.
     const keyless = admission.keyless === true
+    // A keyless admission with sign-ins present carries its receipt (each
+    // sign-in's gate and the doors) on the same note the retained-model
+    // road uses — the door paints it.
+    if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note
     let stat
     try {
       stat = statSync(req.workspaceDir)
