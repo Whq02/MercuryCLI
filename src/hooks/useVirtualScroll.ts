@@ -261,6 +261,7 @@ export function useVirtualScroll(
   let end: number
   const frozen = freezeRendersRef.current > 0
   const prevRange = prevRangeRef.current
+  let movedDown = false
 
   if (frozen && prevRange) {
     start = Math.min(prevRange[0], itemCount)
@@ -351,6 +352,7 @@ export function useVirtualScroll(
     const velocity =
       Math.abs(committed - prevScrollAtCommitRef.current) +
       Math.abs(pendingDelta)
+    movedDown = committed > prevScrollAtCommitRef.current
     if (prevRange && velocity > 2 * viewportHeight) {
       const slide = clampNumber(
         Math.round(SLIDE_BUDGET_MS / msPerItemEmaRef.current),
@@ -385,7 +387,7 @@ export function useVirtualScroll(
   if (inverted || sticky) {
     effectiveStart = immediateRange[0]
     effectiveEnd = immediateRange[1]
-  } else if (pendingDelta > 0) {
+  } else if (pendingDelta > 0 || movedDown) {
     effectiveEnd = immediateRange[1]
   }
 
