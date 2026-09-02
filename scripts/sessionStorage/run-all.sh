@@ -30,5 +30,8 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-failure-surfac
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-degradation-stated.ts" || fail=1; prover_mark "$here/prove-transcript-degradation-stated.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-tail-reader.ts" || fail=1; prover_mark "$here/prove-transcript-tail-reader.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-consumers-owned.ts" || fail=1; prover_mark "$here/prove-transcript-consumers-owned.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drain-fault-isolation.ts" || fail=1; prover_mark "$here/prove-drain-fault-isolation.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-snapshot-honesty.ts" || fail=1; prover_mark "$here/prove-resume-snapshot-honesty.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-flush-drain-ladder.ts" || fail=1; prover_mark "$here/prove-flush-drain-ladder.ts" "$__t"
 if [[ "$fail" == "0" ]]; then echo "✅ SESSIONSTORAGE SUITE GREEN"; exit 0; else
   echo "❌ SESSIONSTORAGE SUITE RED"; exit 1; fi

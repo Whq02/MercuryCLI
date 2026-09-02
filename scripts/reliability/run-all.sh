@@ -26,6 +26,7 @@ __t=$SECONDS; "$bun" run "$here/prove-artifact-faults.ts" || fail=1; prover_mark
 __t=$SECONDS; "$bun" run "$here/prove-sync-spawn-bounds.ts" || fail=1; prover_mark "$here/prove-sync-spawn-bounds.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-crash-shutdown.ts" || fail=1; prover_mark "$here/prove-crash-shutdown.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-crash-report-identity.ts" || fail=1; prover_mark "$here/prove-crash-report-identity.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-write-keeps-old-bytes.ts" || fail=1; prover_mark "$here/prove-write-keeps-old-bytes.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL RELIABILITY PROOFS PASS"; else echo "# ❌ SOME RELIABILITY PROOFS FAILED"; fi
 exit "$fail"

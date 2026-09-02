@@ -23,6 +23,8 @@ else
   "$bun" run "$here/prove-show-and-polyglot-honest.ts" || fail=1
   "$bun" run "$here/prove-headless-resume-honest.ts" || fail=1
   "$bun" run "$here/prove-config-write-contention.ts" || fail=1
+  "$bun" run "$here/prove-field-w6-concourse-persist.ts" || fail=1
+  "$bun" run "$here/prove-field-w6-flags.ts" || fail=1
 fi
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ MOUNT SMOKE PASS"; else echo "# ❌ MOUNT SMOKE FAILED"; fi

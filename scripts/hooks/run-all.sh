@@ -18,5 +18,6 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-once-hook-retires.ts
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-if-event-honesty.ts" || fail=1; prover_mark "$here/prove-if-event-honesty.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sh-hook-spelling.ts" || fail=1; prover_mark "$here/prove-sh-hook-spelling.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ssrf-v6-spellings.ts" || fail=1; prover_mark "$here/prove-ssrf-v6-spellings.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skill-hooks-deapply.ts" || fail=1; prover_mark "$here/prove-skill-hooks-deapply.ts" "$__t"
 if [[ "$fail" == "0" ]]; then echo "✅ HOOKS SUITE GREEN"; exit 0; else
   echo "❌ HOOKS SUITE RED"; exit 1; fi

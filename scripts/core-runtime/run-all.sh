@@ -103,6 +103,7 @@ __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-fork-usage-fold.ts || fail=1
 
 echo "── core-runtime: the metering S3 rows (FN-018 ranks 16-23)"
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-metering-s3-truth.ts || fail=1; prover_mark scripts/core-runtime/prove-metering-s3-truth.ts "$__t"
+__t=$SECONDS; "$BUN" run scripts/core-runtime/prove-resize-hold-cursor.ts || fail=1; prover_mark scripts/core-runtime/prove-resize-hold-cursor.ts "$__t"
 
 if [ "$fail" = "0" ]; then echo "core-runtime suite: green"; else echo "core-runtime suite: RED"; fi
 exit "$fail"
