@@ -13,6 +13,11 @@
 //       families never do; the sync handles live theme changes both ways
 //    §5 one canonical picker: the duplicate HermesThemePicker is ABSENT; the
 //       /appearance center embeds the live ThemePicker and persists motion
+//    §6 True Black, the second appearance: the black ground family, the
+//       shared expression, the ground round-trip, the labelled rows
+//    §7 the default appearance is True Black (one owner): a fresh home
+//       resolves it, a saved choice wins, the choosers and the doctor row
+//       follow, and the OSC 11 law holds per appearance
 //
 //  Run: ~/.bun/bin/bun run scripts/ui/prove-appearance-system.ts
 // ============================================================================
@@ -271,6 +276,128 @@ section('§6 — True Black: the second appearance')
   check(
     'the first-run fitting offers both appearances',
     onboarding.includes("value: 'dark'") && onboarding.includes("value: 'true-black'"),
+  )
+}
+
+section('§7 — the default appearance: True Black, and a saved choice wins')
+{
+  const { DEFAULT_THEME_SETTING } = await import('../../src/utils/systemTheme.js')
+  const schema = await import('../../src/utils/config/schema.js')
+  const cfg = await import('../../src/utils/config.js')
+  const provider = await import('../../src/components/design-system/ThemeProvider.js')
+  const snapshot = await import('../../src/utils/profile/appearanceSnapshot.js')
+  const appearanceCmd = (await import('../../src/commands/appearance/index.js')).default
+  const reachable = themeMod.REACHABLE_THEME_SETTINGS as readonly string[]
+
+  check('the one owner names True Black', DEFAULT_THEME_SETTING === 'true-black')
+  check(
+    'the default is a reachable appearance, with the oasis row beside it',
+    reachable.includes(DEFAULT_THEME_SETTING) && reachable.includes('dark'),
+  )
+  check(
+    'a fresh config home carries the default (the factory value)',
+    schema.createDefaultGlobalConfig().theme === DEFAULT_THEME_SETTING,
+  )
+
+  // The config under test is the in-memory factory object (no home on
+  // disk); saves assign into it, so every stored state below is exact and
+  // nothing reaches the operator's config home.
+  delete process.env.MERCURY_THEME_PIN
+  const storedAtStart = cfg.getGlobalConfig().theme
+  check(
+    'nothing stored ⇒ the resolution owner answers the default',
+    storedAtStart === DEFAULT_THEME_SETTING && provider.currentStoredThemeSetting() === DEFAULT_THEME_SETTING,
+  )
+  check(
+    "/appearance's marker (the slash-menu current value) reads the default",
+    appearanceCmd.currentValue?.() === DEFAULT_THEME_SETTING,
+  )
+  const freshSnap = snapshot.getMercuryAppearanceSnapshot()
+  check(
+    'the doctor row owner (the appearance snapshot) resolves the default',
+    freshSnap.requestedTheme === DEFAULT_THEME_SETTING && freshSnap.concreteTheme === DEFAULT_THEME_SETTING,
+  )
+
+  cfg.saveGlobalConfig(c => ({ ...c, theme: 'dark' }))
+  check(
+    'a saved oasis choice wins over the default',
+    provider.currentStoredThemeSetting() === 'dark' && appearanceCmd.currentValue?.() === 'dark',
+  )
+  const darkSnap = snapshot.getMercuryAppearanceSnapshot()
+  check('…and the doctor row reports it', darkSnap.requestedTheme === 'dark' && darkSnap.concreteTheme === 'dark')
+  cfg.saveGlobalConfig(c => ({ ...c, theme: 'true-black' }))
+  check('a saved True Black choice stays True Black', provider.currentStoredThemeSetting() === 'true-black')
+  cfg.saveGlobalConfig(c => ({ ...c, theme: 'light' }))
+  check(
+    'a stored dormant family collapses onto the default at the resolution owner',
+    provider.currentStoredThemeSetting() === DEFAULT_THEME_SETTING,
+  )
+  cfg.saveGlobalConfig(c => ({ ...c, theme: 'auto' }))
+  check('a stored auto collapses onto the default too', provider.currentStoredThemeSetting() === DEFAULT_THEME_SETTING)
+  process.env.MERCURY_THEME_PIN = 'dark'
+  check('the pin outranks the stored value (the capture seam)', provider.currentStoredThemeSetting() === 'dark')
+  delete process.env.MERCURY_THEME_PIN
+  cfg.saveGlobalConfig(c => ({ ...c, theme: storedAtStart }))
+  check('the config under test is restored', cfg.getGlobalConfig().theme === storedAtStart)
+
+  // The OSC 11 law per appearance: the default boots onto pure black with
+  // no oasis byte, the oasis appearance paints NIGHT, the opt-out silences
+  // both.
+  const oasis = await import('../../src/utils/cockpit/oasisBg.js')
+  delete process.env.MERCURY_OASIS_BG
+  process.env.TERM = 'xterm-256color'
+  check(
+    'the default ground is pure black (the ground owner’s own default arm agrees)',
+    oasis.oasisBgEnter(DEFAULT_THEME_SETTING) === '\x1b]11;#000000\x07' &&
+      oasis.oasisBgEnter() === oasis.oasisBgEnter(DEFAULT_THEME_SETTING),
+  )
+  check('the oasis ground is NIGHT', oasis.oasisBgEnter('dark') === `\x1b]11;${brand.OASIS_GROUND.NIGHT}\x07`)
+  check(
+    'both appearances enable the ground on a TTY; unasked, the gate reads the resolved default',
+    oasis.oasisBgEnabled(true, DEFAULT_THEME_SETTING) && oasis.oasisBgEnabled(true, 'dark') && oasis.oasisBgEnabled(true),
+  )
+  const realIsTTY = process.stdout.isTTY
+  Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+  oasis._resetGroundForTest()
+  const boot: string[] = []
+  oasis.syncOasisBgToTheme(DEFAULT_THEME_SETTING, s => boot.push(s))
+  check(
+    'a fresh boot paints #000000 once and never an oasis byte',
+    boot.length === 1 && boot[0] === '\x1b]11;#000000\x07' && !boot.some(s => s.includes(brand.OASIS_GROUND.NIGHT)),
+    boot.map(w => w.replace('\x1b', 'ESC').replace('\x07', '')).join(' · '),
+  )
+  process.env.MERCURY_OASIS_BG = '0'
+  oasis._resetGroundForTest()
+  const silent: string[] = []
+  oasis.syncOasisBgToTheme(DEFAULT_THEME_SETTING, s => silent.push(s))
+  check('MERCURY_OASIS_BG=0 keeps the default boot silent', silent.length === 0)
+  delete process.env.MERCURY_OASIS_BG
+  oasis._resetGroundForTest()
+  Object.defineProperty(process.stdout, 'isTTY', { value: realIsTTY, configurable: true })
+
+  // The choosers and the other default sites read the one owner.
+  const picker = src('components', 'ThemePicker.tsx')
+  check(
+    'the picker’s default and focused row ride the saved setting, else the one owner',
+    picker.includes('defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}') &&
+      picker.includes('defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}'),
+  )
+  check(
+    'the first-run fitting opens on the provider’s setting (the default on a fresh home)',
+    onboarding.includes('initialId: themeSetting') && onboarding.includes('? DEFAULT_THEME_SETTING : theme'),
+  )
+  const providerSrc = src('components', 'design-system', 'ThemeProvider.tsx')
+  check(
+    'the provider’s fallback and its no-provider context are the owner',
+    providerSrc.includes(': DEFAULT_THEME_SETTING\n}') &&
+      providerSrc.includes('resolvedTheme: DEFAULT_THEME_SETTING') &&
+      providerSrc.includes('themeSetting: DEFAULT_THEME_SETTING'),
+  )
+  check('the corrupt-config dialog pins the owner', src('components', 'InvalidConfigDialog.tsx').includes('initialState={DEFAULT_THEME_SETTING}'))
+  check('the fresh-config factory reads the owner', src('utils', 'config', 'schema.ts').includes('theme: DEFAULT_THEME_SETTING,'))
+  check(
+    'the ground owner’s unreadable-config arm reads the owner',
+    src('utils', 'cockpit', 'oasisBg.ts').includes('return DEFAULT_THEME_SETTING //'),
   )
 }
 

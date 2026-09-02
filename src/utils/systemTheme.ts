@@ -1,5 +1,16 @@
 import type { ThemeName, ThemeSetting } from './theme.js'
 
+/** The appearance in effect when nothing is stored: True Black — the
+ *  authored palette on the pure-black ground family. The ONE owner of the
+ *  default: the fresh-config factory, the provider's fallback, the picker's
+ *  focused row, the ground owner's unreadable-config arm and the launcher
+ *  splash's hand-mirror all follow it. A stored choice always outranks it,
+ *  and a stored name outside the reachable vocabulary collapses onto it.
+ *  It lives in this leaf module (no runtime imports) because the config
+ *  schema reads it while its own module evaluates — theme.ts pulls the
+ *  palette and accent graph and cannot be imported there. */
+export const DEFAULT_THEME_SETTING = 'true-black' as const
+
 /**
  * Resolves the `auto` theme setting to dark/light from the terminal's own
  * background colour rather than the OS appearance: a terminal configured

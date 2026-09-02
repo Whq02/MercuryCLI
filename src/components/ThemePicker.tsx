@@ -19,6 +19,7 @@ import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { useSetAppState } from '../state/AppState.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
+import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 import { REACHABLE_THEME_SETTINGS, type ThemeSetting } from '../utils/theme.js'
 import { Select, type OptionWithDescription } from './CustomSelect/index.js'
 import Byline from './design-system/Byline.js'
@@ -47,9 +48,11 @@ export type ThemePickerProps = {
 }
 
 /** The user-reachable rows (operator ruling: TWO appearances — the oasis
- *  dark identity and True Black; REACHABLE_THEME_SETTINGS is the
- *  vocabulary; the other families stay dormant behind the
- *  MERCURY_THEME_PIN gate). */
+ *  dark identity and True Black, the default; REACHABLE_THEME_SETTINGS is
+ *  the vocabulary; the other families stay dormant behind the
+ *  MERCURY_THEME_PIN gate). The provider hands this picker the saved
+ *  setting, already collapsed onto the default when nothing is saved, so
+ *  the default row is the focused row on a fresh home. */
 const THEME_LABELS_BY_SETTING: Record<string, string> = {
   dark: 'Oasis dark',
   'true-black': 'True Black',
@@ -193,8 +196,8 @@ export function ThemePicker({
       {helpAbove ? <Text dimColor>{helpText}</Text> : null}
       <Select
         options={THEME_OPTIONS}
-        defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : 'dark'}
-        defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : 'dark'}
+        defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}
+        defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}
         visibleOptionCount={THEME_OPTIONS.length}
         onFocus={value => {
           setPreviewTheme(value)
