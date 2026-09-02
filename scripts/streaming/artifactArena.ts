@@ -427,3 +427,18 @@ export function firstOutputTs(run: ArenaRun): number {
   }
   return 0
 }
+
+/** A send's moment in grabScreens' STAMP base. grabScreens stamps each
+ *  screen with its requested (authored) offset and grabs it at offset + the
+ *  anchor shift, first-output-relative; a send record carries its true
+ *  epoch. The stamp a caller may window against is therefore the send's
+ *  true first-output-relative time minus that same shift — the two bases
+ *  meet, and the anchor's re-base (a fast or a slow world) cancels on both
+ *  sides instead of sliding a window across a press by the whole shift.
+ *  A moment before the nominal composer instant keeps the boot clock, like
+ *  a pre-anchor grab. */
+export function sendStamp(run: ArenaRun, s: SendRecord): number {
+  const shift = run.anchorShiftMs ?? 0
+  const trueMs = s.sent - firstOutputTs(run)
+  return trueMs >= COMPOSER_NOMINAL_MS + shift ? trueMs - shift : trueMs
+}
