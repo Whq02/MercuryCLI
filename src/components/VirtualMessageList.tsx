@@ -721,7 +721,13 @@ export function VirtualMessageList({
         const i = Math.max(rangeStart, rangeEnd - 4) + j
         return `${m.type}:${m.uuid.slice(0, 8)}/${(itemKeys[i] ?? '?').slice(0, 8)}`
       })
-      appendFileSync(tracePath, `${JSON.stringify({ t: Date.now(), ev: 'list-render', range: [rangeStart, rangeEnd], messages: messages.length, keys: itemKeys.length, stale, dupKeys, tail })}\n`)
+      // The viewport facts ride the line too: a window that never leaves
+      // the tail reads differently beside a scrollTop that never moved.
+      const box = scrollRef.current
+      const scroll = box
+        ? { top: box.getScrollTop(), pending: box.getPendingDelta(), sticky: box.isSticky(), viewport: box.getViewportHeight(), height: box.getScrollHeight() }
+        : null
+      appendFileSync(tracePath, `${JSON.stringify({ t: Date.now(), ev: 'list-render', range: [rangeStart, rangeEnd], messages: messages.length, keys: itemKeys.length, stale, dupKeys, tail, scroll })}\n`)
     } catch {
       /* forensics must never break the list */
     }

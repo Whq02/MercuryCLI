@@ -42,7 +42,7 @@ type Payload = { grid?: Grid; marks?: Array<{ label: string; grid: Grid; cols: n
 const text = (g: Grid | undefined): string => (Array.isArray(g) ? g.map(row => row.map(cell => cell.c ?? ' ').join('')).join('\n') : '')
 const count = (hay: string, needle: string): number => hay.split(needle).length - 1
 
-type ListRender = { range: [number, number]; messages: number; keys: number; stale: number; dupKeys: string[] }
+type ListRender = { range: [number, number]; messages: number; keys: number; stale: number; dupKeys: string[]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
 
 console.log('transcript window identity — the 1k resume, scrolled, walked, resized')
 
@@ -69,6 +69,8 @@ if (driver.kind !== 'posix-pty') {
   const cfgPath = join(scratch, 'vshot.json')
 
   const PAGE_UP = '\x1b[5~'
+  const PAGE_DOWN = '\x1b[6~'
+  const CTRL_HOME = '\x1b[1;5H'
   const SHIFT_UP = '\x1b[1;2A'
   const UP = '\x1b[A'
   const ESC = '\x1b'
@@ -83,6 +85,14 @@ if (driver.kind !== 'posix-pty') {
     { afterPrevTicks: 2, data: PAGE_UP },
     { afterPrevTicks: 2, data: PAGE_UP },
     { afterPrevTicks: 4, mark: 'scrolled', data: '' },
+    // The head, then three pages down: the mounted window must now sit off
+    // BOTH ends (the head above it, the tail far below) — the keyed-map path
+    // by construction, whatever the page step measures.
+    { afterPrevTicks: 2, data: CTRL_HOME },
+    { afterPrevTicks: 4, mark: 'home', data: PAGE_DOWN },
+    { afterPrevTicks: 2, data: PAGE_DOWN },
+    { afterPrevTicks: 2, data: PAGE_DOWN },
+    { afterPrevTicks: 4, mark: 'paged', data: '' },
     // Cursor mode from the empty composer; the bar's own words gate the walk.
     { afterPrevTicks: 2, data: SHIFT_UP },
     { requireAwait: true, awaitText: 'navigate', awaitSettleTicks: 1, mark: 'cursor', data: UP },
@@ -130,8 +140,18 @@ if (driver.kind !== 'posix-pty') {
   const final = text(payload.grid)
 
   console.log('\n— the screen —')
+  // The transcript pane's top rows at each mark — the diagnosis when a leg
+  // below reds (blank rows there are the spacer: the window never followed).
+  for (const [label, frame] of marks) {
+    const body = frame.split('\n').slice(2, 12).map(r => r.trimEnd()).filter(r => r.trim() !== '')
+    console.log(`  ${label}: ${body.length} painted rows in the pane head · "${(body[0] ?? '').trim().slice(0, 70)}"`)
+  }
   check('the 1k tail was on screen at the loaded mark', (marks.get('loaded') ?? '').includes(TAIL_SENTINEL))
   check('six page-ups scrolled the tail off screen (the window left the tail)', marks.has('scrolled') && !(marks.get('scrolled') ?? '').includes(TAIL_SENTINEL))
+  const paneRows = (label: string): number => (marks.get(label) ?? '').split('\n').slice(2, 36).filter(r => r.trim() !== '').length
+  check('the scrolled viewport is painted, not the spacer (the window followed the scroll)', paneRows('scrolled') >= 12, `${paneRows('scrolled')} painted rows`)
+  check('ctrl+home reached the head (the first prompt on screen)', (marks.get('home') ?? '').includes('load the compass baseline fixture'))
+  check('three page-downs from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows`)
   check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'))
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length}`)
   // Every chapter heading occurs exactly once in the fixture: any frame that
@@ -163,20 +183,23 @@ if (driver.kind !== 'posix-pty') {
   }
   check('the list rendered under the trace seam (renders recorded)', renders.length > 0, `${renders.length}`)
   // The walk, compactly — the diagnosis when a leg below reds.
-  console.log(`  renders: ${renders.map(r => `[${r.range[0]},${r.range[1]})/${r.messages}`).join(' ')}`)
+  console.log(`  renders: ${renders.map(r => `[${r.range[0]},${r.range[1]})/${r.messages}${r.scroll ? `@${r.scroll.top}${r.scroll.pending ? `+${r.scroll.pending}` : ''}${r.scroll.sticky ? 's' : ''}/${r.scroll.height}` : ''}`).join(' ')}`)
   const stale = renders.filter(r => r.stale > 0).length
   check('no render carried a stale key (every mounted index exact)', stale === 0, `${stale} of ${renders.length}`)
   const dup = renders.filter(r => r.dupKeys.length > 0)
   check('no render carried a duplicate sibling key', dup.length === 0, dup.slice(0, 3).map(r => r.dupKeys.join(',')).join(' | '))
   const offHead = renders.filter(r => r.range[0] > 0 && r.range[1] < r.messages).length
   check('the mounted window left BOTH ends during the run (the keyed-map path was exercised)', offHead > 0, `${offHead} of ${renders.length}`)
+  const reachedHead = renders.filter(r => r.range[0] === 0 && r.range[1] < r.messages).length
+  check('the window reached the head (ctrl+home re-windowed the list)', reachedHead > 0, `${reachedHead} of ${renders.length}`)
   // 1,011 records fold into ~800 painted rows (tool pairs group, read/search
   // groups collapse): the long-session floor is 300 painted rows.
   check('the list saw a long transcript (≥ 300 painted rows)', renders.some(r => r.messages >= 300), `max ${Math.max(0, ...renders.map(r => r.messages))}`)
   check('the key cache never outran the rows', renders.every(r => r.keys === r.messages), renders.filter(r => r.keys !== r.messages).slice(0, 2).map(r => `${r.keys}/${r.messages}`).join(' '))
 
   rmSync(staged, { force: true })
-  rmSync(scratch, { recursive: true, force: true })
+  if (failures === 0) rmSync(scratch, { recursive: true, force: true })
+  else console.log(`  kept for diagnosis: ${scratch} (grid.json · connector-trace.jsonl)`)
   cleanupScenario('resume-2turn')
 }
 
