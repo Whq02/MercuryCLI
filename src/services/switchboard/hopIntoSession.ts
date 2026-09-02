@@ -18,6 +18,7 @@ import { basename, dirname } from 'node:path'
 import type { AwayRecapMetadata } from '../../types/message.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
 import { bootBirthFacts, carriedKitOf, peekWornPresetKit, takeWornPresetKit } from './bootBirthFacts.js'
+import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
 /** The chat tag's LIVE derivation (L16 on the chat seat): the daemon's
  *  record title (minted or typed) wins, else the chat's own first words,
@@ -276,6 +277,11 @@ async function focusResumedSessionLanding(
         { timeoutMs: 30_000 },
       )) as Record<string, unknown>
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
+      // THE RETAINED MODEL'S RECEIPT: a resume admitted without the model it
+      // ran on (no credential for its family here) names the dropped model
+      // and its door on the screen-receipt seam — the chat's transcript
+      // takes the row (queued until the chat subscribes).
+      if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
       // The one-shot spends ONLY when the admission applied it: a live hop
       // (`liveHop: true`) re-stamped nothing — the wear stays armed; a
       // refused resume above kept it armed the same way.
