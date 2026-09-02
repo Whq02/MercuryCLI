@@ -438,9 +438,6 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     profile = 'sonnet-opus-review'
     decisive.push('bounded-implementation')
   }
-  if (m.preferWorkflow === true && profile !== 'workflow-delegated') {
-    adjustments.push('workflow-posture-absent')
-  }
 
   // ── Outcome history (bounded, capped, never primary) ──────────────────────
   let prior: RouteDecisionRecord['priorContribution']
