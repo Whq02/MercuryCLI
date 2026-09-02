@@ -440,6 +440,64 @@ let jsDebugMeta: { version: string; tarball: string; sha512: string } | null = n
   }
 }
 
+const { RUNTIME_PACK_PATH: nodeRelPath, nodePackPlatform, runtimeBinaryFor } = await import('./src/services/privateChannel/vendoredRuntime.ts');
+let nodeVendored = false;
+let nodeMeta: { version: string; platform: string; license: string; archiveSha256: string; binary: string; binarySha256: string } | null = null;
+{
+  const nodeDest = resolve(OUT, nodeRelPath);
+  rmSync(nodeDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_NODE === '1';
+  const hostPlatform = nodePackPlatform(process.platform, process.arch);
+  const lockPath = resolve(ROOT, 'vendor', 'node.lock.json');
+  const extractedDir = hostPlatform ? resolve(ROOT, 'vendor', 'node', 'extracted', hostPlatform) : null;
+  const vendorManifestPath = extractedDir ? resolve(extractedDir, '.vendor-manifest.json') : null;
+  if (!forceNo && hostPlatform && extractedDir && vendorManifestPath && statSync(lockPath, { throwIfNoEntry: false })?.isFile() && statSync(vendorManifestPath, { throwIfNoEntry: false })?.isFile()) {
+    try {
+      const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { version: string; license: string; platforms: Record<string, { sha256: string }> };
+      const vman = JSON.parse(readFileSync(vendorManifestPath, 'utf8')) as { version: string; platform: string; archiveSha256: string; binary: string };
+      const pinned = lock.platforms[hostPlatform];
+      const binary = runtimeBinaryFor(hostPlatform);
+      const binaryPath = resolve(extractedDir, ...binary.split('/'));
+      if (pinned && vman.version === lock.version && vman.platform === hostPlatform && vman.archiveSha256 === pinned.sha256 && vman.binary === binary && statSync(binaryPath, { throwIfNoEntry: false })?.isFile()) {
+        const { cpSync } = await import('node:fs');
+        cpSync(extractedDir, nodeDest, { recursive: true });
+        const shipped = resolve(nodeDest, ...binary.split('/'));
+        if (process.platform !== 'win32') chmodSync(shipped, 0o755);
+        nodeVendored = true;
+        nodeMeta = {
+          version: lock.version,
+          platform: hostPlatform,
+          license: lock.license,
+          archiveSha256: pinned.sha256,
+          binary,
+          binarySha256: createHash('sha256').update(readFileSync(shipped)).digest('hex'),
+        };
+        console.log(`VENDORED node ${lock.version} ${hostPlatform} (pinned nodejs.org archive, sha256-verified cache)\n  -> ${nodeDest}`);
+      } else {
+        console.error(
+          'BUILD FAILED: vendor/node cache does not match vendor/node.lock.json ' +
+            `(cache ${vman.version} ${vman.platform}, lock ${lock.version} ${hostPlatform}) — the lock was re-pinned without refetching.\n` +
+            '  remedy: bun run scripts/vendor/fetch-node.ts   (then rebuild)\n' +
+            '  (a missing cache degrades honestly instead — only a PRESENT-but-wrong cache fails the build)',
+        );
+        process.exit(1);
+      }
+    } catch (e) {
+      console.error(
+        `BUILD FAILED: vendor/node cache present but unreadable (${String(e)}) — ` +
+          'refetch it: bun run scripts/vendor/fetch-node.ts (a missing cache degrades honestly instead)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_NODE=1 — node runtime NOT vendored (degraded: runtime; proof seam).');
+  } else if (!hostPlatform) {
+    console.warn(`nodejs.org publishes no runtime archive Mercury vendors for ${process.platform}/${process.arch} — the artifact ships WITHOUT a bundled Node runtime (degraded: runtime; the launchers run MERCURY_NODE or a PATH node inside the supported range).`);
+  } else {
+    console.warn('no node vendor cache — the artifact ships WITHOUT the bundled Node runtime (degraded: runtime; the launchers run MERCURY_NODE or a PATH node inside the supported range). Prepare it: bun run scripts/vendor/fetch-node.ts');
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -734,6 +792,19 @@ const manifest = {
         remedy:
           'prepare the pinned js-debug cache (`bun run scripts/vendor/fetch-js-debug.ts`), then re-run `bun run build.ts` — the runtime falls back to MERCURY_JS_DEBUG_DAP or the ~/.js-debug unpack meanwhile',
       },
+  runtime: nodeVendored && nodeMeta
+    ? {
+        vendored: true,
+        path: nodeRelPath,
+        name: 'node',
+        ...nodeMeta,
+      }
+    : {
+        vendored: false,
+        path: nodeRelPath,
+        remedy:
+          'prepare the pinned Node runtime cache (`bun run scripts/vendor/fetch-node.ts`), then re-run `bun run build.ts` — the launchers run MERCURY_NODE or a PATH node inside the supported range meanwhile',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -778,6 +849,7 @@ const manifest = {
     ...(debugpyVendored ? [] : ['python-debugger']),
     ...(pyrightVendored ? [] : ['python-intelligence']),
     ...(jsDebugVendored ? [] : ['js-debugger']),
+    ...(nodeVendored ? [] : ['runtime']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),

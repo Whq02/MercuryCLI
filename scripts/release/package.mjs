@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync, execSync } from 'node:child_process'
+import { execFileSync, execSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -39,7 +39,14 @@ if (degraded.length > 0 && !process.argv.includes('--allow-degraded')) {
 }
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
-ok(`packaging ${NAME} (rg: ${rgDirs.join(', ')})`)
+const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]
+const runtime = manifest.runtime && manifest.runtime.vendored === true ? manifest.runtime : null
+if (runtime) {
+  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build on the target platform`)
+  const runtimeBinary = join(dist, ...runtime.path.split('/'), ...runtime.binary.split('/'))
+  if (!existsSync(runtimeBinary)) fail(`dist manifest declares the vendored runtime at ${runtime.path}/${runtime.binary} but the file is missing — rebuild`)
+}
+ok(`packaging ${NAME} (rg: ${rgDirs.join(', ')}; runtime: ${runtime ? `node ${runtime.version} ${runtime.platform}` : 'NONE (degraded — the launchers fall back to MERCURY_NODE or a PATH node)'})`)
 
 const LEDGER_FILE = 'scripts/gate/gate-ledger.jsonl'
 const verifyReceipts = {}
@@ -316,6 +323,43 @@ const run = (args) =>
 const versionOut = run(['--version']).trim()
 if (!versionOut.includes(VERSION)) fail(`smoke: --version printed "${versionOut}" (expected to include ${VERSION})`)
 ok(`--version → ${versionOut} (from a spaced path, clean home, no repo)`)
+
+const withPath = (env, value) => {
+  const out = { ...env }
+  for (const k of Object.keys(out)) if (k.toUpperCase() === 'PATH') delete out[k]
+  out[IS_WIN ? 'Path' : 'PATH'] = value
+  return out
+}
+const runLauncher = (args, env) =>
+  IS_WIN
+    ? spawnSync(['"' + launched + '"', ...args].join(' '), { shell: true, encoding: 'utf8', env, timeout: 120_000 })
+    : spawnSync(launched, args, { encoding: 'utf8', env, timeout: 120_000 })
+if (runtime) {
+  const extractedBinary = join(smoke, 'mercury', ...runtime.path.split('/'), ...runtime.binary.split('/'))
+  if (!existsSync(extractedBinary)) fail(`smoke: the vendored runtime ${runtime.path}/${runtime.binary} is missing from the archive`)
+  let noNodePath
+  if (IS_WIN) {
+    const systemRoot = process.env.SystemRoot ?? 'C:\\Windows'
+    noNodePath = `${systemRoot}\\System32;${systemRoot}`
+  } else {
+    const trap = join(smoke, 'trap')
+    mkdirSync(trap, { recursive: true })
+    writeFileSync(join(trap, 'node'), '#!/bin/sh\necho "smoke trap: the PATH node must not be used" >&2\nexit 86\n')
+    chmodSync(join(trap, 'node'), 0o755)
+    noNodePath = `${trap}:/usr/bin:/bin`
+  }
+  const bare = runLauncher(['--version'], withPath(smokeEnv, noNodePath))
+  if (bare.status !== 0 || !(bare.stdout ?? '').includes(VERSION)) {
+    fail(`smoke: with no node on PATH the launcher did not boot on the vendored runtime (exit ${bare.status}): ${(bare.stderr ?? '').slice(0, 300)}`)
+  }
+  ok(`--version → ${(bare.stdout ?? '').trim()} with NO node on PATH (the vendored runtime alone)`)
+  const bogus = runLauncher(['--version'], { ...smokeEnv, MERCURY_NODE: join(smoke, 'no-such-node') })
+  const refusal = bogus.stderr ?? ''
+  if (bogus.status === 0 || !refusal.includes('MERCURY_NODE') || !/vendor[\\/]node/.test(refusal) || !refusal.includes('PATH')) {
+    fail(`smoke: MERCURY_NODE naming a missing file must refuse naming all three rungs (exit ${bogus.status}): ${refusal.slice(0, 300)}`)
+  }
+  ok('MERCURY_NODE naming a missing file refuses, naming all three rungs')
+}
 const helpOut = run(['--help'])
 if (!helpOut.includes('update') || !helpOut.includes('install')) fail('smoke: --help does not surface the update/install verbs')
 ok('--help exits clean without an account (update/install discoverable)')
@@ -323,6 +367,10 @@ ok('--help exits clean without an account (update/install discoverable)')
 const mf = JSON.parse(readFileSync(join(smoke, 'mercury', 'manifest.json'), 'utf8'))
 if (!JSON.stringify(mf).includes('ripgrep')) fail('smoke: manifest has no ripgrep entry')
 ok('manifest names the vendored search binary')
+if (runtime && !(mf.runtime && mf.runtime.vendored === true && mf.runtime.version === runtime.version && mf.runtime.platform === runtime.platform)) {
+  fail('smoke: the shipped manifest does not carry the vendored runtime record the build wrote')
+}
+if (runtime) ok(`manifest names the vendored runtime (node ${mf.runtime.version} ${mf.runtime.platform})`)
 
 {
   const verifierPath = join(smoke, 'mercury', 'verify-artifact.mjs')
