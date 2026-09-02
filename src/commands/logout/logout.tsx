@@ -14,7 +14,9 @@ import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
 import { signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
+import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
@@ -43,6 +45,8 @@ export async function performLogout({
 
   await removeApiKey()
   getSecureStorage().delete()
+  clearScopeIdentitySnapshot(getMercuryHome())
+  forgetScopeIdentity()
 
   signOutEveryEngineCredential()
 

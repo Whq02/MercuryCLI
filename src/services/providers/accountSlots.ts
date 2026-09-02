@@ -1,16 +1,19 @@
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
-import type { ScopeIdentityState } from '../../utils/accounts/accountIdentity.js'
+import {
+  clearScopeIdentitySnapshot,
+  forgetScopeIdentity,
+  type ScopeIdentityState,
+} from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
 import {
-  clearOAuthTokenCache,
+  dropCredentialMemos,
   getAnthropicApiKeyWithSource,
-  getClaudeAIOAuthTokens,
   isClaudeAISubscriber,
   removeApiKey,
   type ApiKeySource,
 } from '../../utils/auth.js'
 import { revokeOAuthToken } from '../oauth/client.js'
-import { removeSecureStorageField } from '../../utils/secureStorage/index.js'
+import { getSecureStorage, removeSecureStorageField } from '../../utils/secureStorage/index.js'
 import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { resetUserCache } from '../../utils/user.js'
 import { logError } from '../../utils/log.js'
@@ -1011,26 +1014,43 @@ export interface SlotRemovalOwners {
   clearStoredLocalKey?: () => void
   clearManagedAnthropicKey?: () => void
   signOutAnthropicOauth?: () => void
+  revokeAnthropicToken?: (refreshToken: string) => Promise<void>
   openaiApiKeyAfter?: () => { key: string; source: 'env' | 'stored' } | undefined
 }
 
-async function signOutAnthropicOauthDefault(): Promise<void> {
+export interface AnthropicSlotSignOutIo {
+  revoke?: (refreshToken: string) => Promise<void>
+}
+
+export function signOutAnthropicSlot(
+  dir: string,
+  io: AnthropicSlotSignOutIo = {},
+): { loginLeft: boolean } {
+  let refreshToken: string | null = null
   try {
-    const tokens = getClaudeAIOAuthTokens()
-    if (tokens?.refreshToken) await revokeOAuthToken(tokens.refreshToken)
+    const stored = getSecureStorage().read()?.claudeAiOauth?.refreshToken
+    refreshToken = typeof stored === 'string' && stored.length > 0 ? stored : null
+  } catch (error) {
+    logError(error)
+  }
+  let loginLeft = false
+  try {
+    const removal = removeSecureStorageField('claudeAiOauth')
+    loginLeft = removal.removed
+    if (!removal.success) {
+      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
+    }
   } catch (error) {
     logError(error)
   }
   try {
-    const removal = removeSecureStorageField('claudeAiOauth')
-    if (!removal.success) {
-      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
-    }
     saveGlobalConfig(current => ({ ...current, oauthAccount: undefined }))
   } catch (error) {
     logError(error)
   }
-  clearOAuthTokenCache()
+  clearScopeIdentitySnapshot(dir)
+  forgetScopeIdentity(dir)
+  dropCredentialMemos()
   resetUserCache()
   try {
     const { resetLimitsForCredentialSwitch } =
@@ -1039,6 +1059,10 @@ async function signOutAnthropicOauthDefault(): Promise<void> {
   } catch (error) {
     logError(error)
   }
+  if (refreshToken !== null) {
+    void (io.revoke ?? revokeOAuthToken)(refreshToken).catch(logError)
+  }
+  return { loginLeft }
 }
 
 export function executeSlotRemoval(
@@ -1110,14 +1134,28 @@ function routeSlotRemoval(
         mutated: false,
       }
     case 'anthropic-oauth': {
-      if (!slot.signedIn) {
+      const snapshot =
+        slot.scope !== undefined && (slot.scope.uuid !== undefined || slot.scope.email !== undefined)
+      if (!slot.signedIn && !snapshot) {
+        forgetScopeIdentity(removal.dir)
         return { note: 'not signed in — nothing to sign out (↵ signs in)', mutated: false }
       }
-      ;(owners.signOutAnthropicOauth ?? (() => void signOutAnthropicOauthDefault()))()
-      return {
-        note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
-        mutated: true,
+      let loginLeft = slot.signedIn
+      if (owners.signOutAnthropicOauth) owners.signOutAnthropicOauth()
+      else {
+        loginLeft = signOutAnthropicSlot(removal.dir, {
+          ...(owners.revokeAnthropicToken ? { revoke: owners.revokeAnthropicToken } : {}),
+        }).loginLeft
       }
+      return loginLeft
+        ? {
+            note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
+            mutated: true,
+          }
+        : {
+            note: 'no Claude login was stored here — the stale identity snapshot cleared; the home, transcripts, and config stay (↵ signs in)',
+            mutated: true,
+          }
     }
     case 'anthropic-managed-key':
       ;(owners.clearManagedAnthropicKey ?? (() => void removeApiKey()))()
