@@ -177,9 +177,13 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
   t.check("the model precedence: the record (the menu's explicit choice) → a door's inheritance → the screen's main model", facts.birthModelOf({ model: 'a' }, 'b', 'c') === 'a' && facts.birthModelOf({ model: null }, 'b', 'c') === 'b' && facts.birthModelOf({ model: null }, null, 'c') === 'c' && facts.birthModelOf({ model: null }, undefined, 'c') === 'c')
   facts._resetBootBirthFactsForTesting()
   const born = read('src/services/switchboard/bornSession.ts')
-  t.check('THE ONE BIRTH DOOR reads the record through the precedence', born.includes('const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())'))
+  t.check('THE ONE BIRTH DOOR reads the record through the precedence', born.includes('const screen = screenBirthModel()') && born.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const face = read('src/components/BootSplashScreen.tsx')
-  t.check("the face's births pass NO explicit model — the record decides (New Session and the Projects birth)", !face.includes('model: getMainLoopModel()') && face.includes('bornSession({ workspaceDir: process.cwd() })') && face.includes('bornSession({ workspaceDir: p.dir })'))
+  // Re-trued: the face's births pass NO explicit model — the door decides
+  // (screenBirthModel's law: the record's choice, else the screen's main
+  // model with a sign-in, NOTHING on a keyless home); both births ride the
+  // flip-first road on the screen's cwd (getCwd — the ground can move).
+  t.check("the face's births pass NO explicit model — the door decides (New Session and the Projects birth, the one flip-first road)", !face.includes('model: getMainLoopModel()') && face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))') && face.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }))'))
   t.check("the board's tab passes none; /clear keeps its door inheritance (the cleared chat's model — outranked only by the record)", read('src/components/concourse/ConcourseRoute.tsx').includes('bornSession({ workspaceDir: ground })') && read('src/screens/REPL.tsx').includes('bornSession({ workspaceDir: getCwd(), model: getFocusedSessionConnector().modelFacts().effective })'))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
   t.check("THE RESUME DOOR reads the record's posture when its caller passes none (the face's Continue, the picker, the parked row); the session's model and effort stay its own", hop.includes('opts?.permissionMode ?? bootBirthFacts().permissionMode ?? undefined') && !hop.includes('model: bootBirthFacts'))

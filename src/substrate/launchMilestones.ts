@@ -25,6 +25,13 @@ export type LaunchMilestone =
   | 'route-ready'
   | 'first-frame'
   | 'input-live'
+  /** The boot face's New Session: the chat route flipped (the cockpit
+   *  paints held) BEFORE the birth answered — then the birth landed, or
+   *  was refused (the face takes the frame back with the reason). The
+   *  order of these rows is the flip-first law's own record. */
+  | 'chat-flipped'
+  | 'birth-landed'
+  | 'birth-refused'
 
 export interface LaunchMilestoneRowV1 {
   schema: 1

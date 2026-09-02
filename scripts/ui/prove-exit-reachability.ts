@@ -354,20 +354,24 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
   check('every roster witness prints a hint itself', blindWitness.length === 0, blindWitness.join(' · '))
 }
 
-section('§5 the session switcher keeps its exit live in both phases (the trap this lane closed)')
+section('§5 the session switcher keeps its exit live while the swap lands (the dead-esc trap, closed)')
 {
   const view = read('src/components/mercury-ui/screens/SessionManagerView.tsx')
-  check('the switch is a two-phase state, never a boolean that gates the handler off', view.includes("useState<'loading' | 'swapping' | null>(null)") && !view.includes('isActive: !switching'))
-  check('esc during a phase leaves it (loading cancels · swapping leaves the panel)', view.includes('if (key.escape) leaveSwitch()') && view.includes("if (phase === 'swapping') onCloseAll()"))
+  check('the switch is a named phase, never a boolean that gates the handler off', view.includes("useState<'swapping' | null>(null)") && !view.includes('isActive: !switching'))
+  check('esc during the swap leaves the panel while the swap keeps going', view.includes('if (key.escape) leaveSwitch()') && view.includes("if (phase === 'swapping') onCloseAll()"))
   const fences = (view.match(/if \(gen !== switchGenRef\.current\) return/g) ?? []).length
-  check(`a generation fence drops the late read AND the late land (2 fences, found ${fences})`, fences === 2)
-  check('the loading footer names the cancel · the swapping footer names the leave', view.includes("'reading the transcript… · esc cancel'") && view.includes("'switching — the swap keeps going · esc back to the chat'"))
+  check(`a generation fence drops the late land (1 fence, found ${fences})`, fences === 1)
+  // The hop reads the log's path and title and the session's connector
+  // paints the words incrementally — the whole-file parse the panel once
+  // awaited before every swap ('reading the transcript…') fed nothing and
+  // was the felt lag of switching; it is gone, phase and all.
+  check('the switch reads no transcript before the hop (no whole-file load, no loading phase)', !view.includes('loadFullLog') && !view.includes("'loading'") && view.includes("await onResume(sessionId, log, 'slash_command_picker')"))
+  check('the swapping footer names the leave', view.includes('switching — the swap keeps going · esc back to the chat'))
   check('the prune door’s deleting beat advertises no exit (closeKeys none)', view.includes("closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}") && view.includes("'deleting the named set…'"))
   check('a cancelled switch disarms the confirm it came from', /switchGenRef\.current\+\+\s*\n\s*setSwitching\(null\)\s*\n\s*setConfirmingKey\(null\)/.test(view))
-  // The footers advertise their own close verb, so the shell appends
+  // The footer advertises its own close verb, so the shell appends
   // nothing contradictory on top (the dedup law, driven pure).
-  check('the phase footers pass the shell’s composer untouched',
-    composeFooterHint('reading the transcript… · esc cancel', { closeKeys: 'esc-arrow', captureInput: false }) === 'reading the transcript… · esc cancel' &&
+  check('the phase footer passes the shell’s composer untouched',
     composeFooterHint('switching — the swap keeps going · esc back to the chat', { closeKeys: 'esc-arrow', captureInput: false }) === 'switching — the swap keeps going · esc back to the chat')
   check('the deleting footer under closeKeys none gains no appended esc',
     composeFooterHint('deleting the named set…', { closeKeys: 'none', captureInput: false }) === 'deleting the named set…' &&

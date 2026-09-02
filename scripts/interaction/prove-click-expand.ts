@@ -39,17 +39,55 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Cell = { c: string; bg?: string }
 type Grid = { grid: Cell[][] }
 
+/** The frame, row-numbered, for a red that needs its evidence in the log
+ *  (a row that is simply absent has no other witness). */
+function dumpFrame(label: string, lines: string[]): void {
+  console.log(`      ┌ ${label}`)
+  lines.forEach((line, index) => {
+    const row = line.trimEnd()
+    if (row !== '') console.log(`      │ ${String(index).padStart(2, ' ')} ${row}`)
+  })
+  console.log('      └')
+}
+
+/** A press+release aimed by TEXT: the send names its row (`targetText`) and
+ *  vshot resolves {X}/{Y} against THIS boot's grid at fire time — the row's
+ *  first cell plus `targetDx`, inside its text. Coordinates never ride
+ *  another boot's layout: the bottom chrome (the notification block, the
+ *  resumed card) differs between boots and between the settled end of one
+ *  capture and the click moment of the next. */
+const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
+/** Every click is OBSERVED-SETTLED: it fires only once the row it aims at
+ *  is on screen and the whole grid has held byte-identical for ten ticks —
+ *  a fixed tick raced slow boots, and a resume still streaming rows moved
+ *  the aimed row out from under the click. requireAwait refuses a journey
+ *  whose row never painted (exit 4) rather than clicking blind at the
+ *  deadline; atTick stays the hard deadline. */
+const SETTLED = { minTick: 10, awaitStableTicks: 10, requireAwait: true } as const
+const clickOn = (needle: string, atTick: number): Record<string, unknown> => ({
+  targetText: needle,
+  targetDx: 2,
+  awaitText: needle,
+  atTick,
+  data: CLICK,
+  ...SETTLED,
+})
+
 function capture(
   tag: string,
-  clicks: Array<{ x: number; y: number; atTick: number }>,
+  sends: Array<Record<string, unknown>>,
   total: number,
+  extra: Record<string, unknown> = {},
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('click-expand', 80, 40)
-  cfg.sends = clicks.map(k => ({
-    atTick: k.atTick,
-    data: `\x1b[<0;${k.x};${k.y}M\x1b[<0;${k.x};${k.y}m`,
-  }))
-  cfg.total = total
+  // 50 rows: the keyless hosted boot paints a five-row notification block
+  // (no live runner · model refused · the /logins ask · ↵ revives it) and a
+  // resumed card under the transcript; at 40 rows that chrome scrolled the
+  // first tool row — the agent's Done line — one row above the viewport, and
+  // an expanded error card pushed the expanded glob list off the top.
+  const cfg = scenario('click-expand', 80, 50) as Record<string, unknown>
+  cfg['sends'] = sends
+  cfg['total'] = total
+  Object.assign(cfg, extra)
   const gridPath = `/tmp/click-expand-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/click-expand-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -124,6 +162,7 @@ if (base) {
   globY = rowOf('Searched for 1 pattern')
   errY = rowOf('The target file could not be read')
   check('baseline: agent Done row present', agentY >= 0)
+  if (agentY < 0) dumpFrame('baseline frame — the agent Done row is absent', base.lines)
   check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1)
   check(
     'baseline: agent row carries the ⌄ cue',
@@ -137,18 +176,19 @@ if (base) {
 }
 
 // ---- leg 2: TOGGLE the agent row (expand, then collapse back) ---------------
-// Expanding scrolls earlier rows off the bottom-anchored viewport, but a full
-// expand+collapse returns the layout to the baseline — so the same coords hit
-// the same row twice, and the collapsed state must be back on screen.
+// The first click aims at the Done row; the second aims at the revealed
+// report line — the same rendered item, so it toggles the block closed — and
+// waits for that line to be on screen and settled first, so it lands on the
+// expanded block, never on a frame that had not repainted yet.
 if (base && agentY >= 0) {
-  // 1-based SGR coords; col 10 sits inside the row text (non-blank cells).
   const t = capture(
     'toggle',
     [
-      { x: 10, y: agentY + 1, atTick: 40 }, // expand agent
-      { x: 10, y: agentY + 1, atTick: 56 }, // collapse agent
+      clickOn('Done (3 tool uses', 110), // expand agent
+      clickOn('REPORT-LINE', 150), // collapse agent
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (t) {
     const rowOf = (needle: string): number => t.lines.findIndex(l => l.includes(needle))
@@ -165,17 +205,17 @@ if (base && agentY >= 0) {
 }
 
 // ---- leg 3: expand the glob group, then the lone error card -----------------
-// The error card sits BELOW the glob group: with the viewport bottom-anchored,
-// the glob expansion pushes rows ABOVE it up — the error card's screen rows
-// stay put, so both clicks use baseline coordinates.
+// The second click aims at the error card's own row and waits for the glob
+// file list — the first expansion's needle — to be on screen and settled.
 if (base && globY >= 0 && errY >= 0) {
   const e = capture(
     'grow',
     [
-      { x: 10, y: globY + 1, atTick: 40 }, // expand glob group
-      { x: 12, y: errY + 1, atTick: 56 }, // expand lone error card
+      clickOn('Searched for 1 pattern', 110), // expand glob group
+      { ...clickOn('The target file could not be read', 150), awaitText: 'GlobTool/prompt.ts' }, // expand lone error card
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (e) {
     const rowOf = (needle: string): number => e.lines.findIndex(l => l.includes(needle))
@@ -206,7 +246,11 @@ cleanupScenario('click-expand')
 // gates on ≥80 LOCAL columns (same gate as the sibling inlineTail) — a 100-col
 // terminal leaves only a 76-col pane.
 {
-  const cfg = scenario('tool-lifecycle', 120, 40)
+  // 50 rows: the cockpit's centre pane keeps an eleven-row session hero
+  // pinned at its top and the keyless hosted boot paints a five-row
+  // notification block under the composer; at 40 rows the pane's
+  // transcript window was ten rows and the Edit header sat above it.
+  const cfg = scenario('tool-lifecycle', 120, 50)
   const gridPath = `/tmp/tool-lifecycle-${process.pid}.json`
   const cfgPath = `/tmp/tool-lifecycle-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -230,28 +274,39 @@ cleanupScenario('click-expand')
     check('lifecycle: ONE visible card for the resolved Edit id', editRows.length >= 1 && new Set(editRows.map(l => l.trim())).size <= 2, `rows=${editRows.length}`)
     const metaRows = lines.filter(l => l.includes('· +1/-1'))
     check('lifecycle: the settled ± meta rides the header EXACTLY once', metaRows.length === 1, `rows=${metaRows.length}: ${metaRows.map(l => l.trim()).join(' | ')}`)
+    if (editRows.length === 0 || metaRows.length !== 1) dumpFrame('lifecycle frame — the Edit header is absent', lines)
     check(
       'lifecycle: the ± lane did NOT suppress the diff card (hunks still paint)',
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
     )
     // The fixture ALSO persists an unresolved trailing Bash tool_use
-    // (toolu_lc_bash1, no tool_result). The resume loader FILTERS incomplete
-    // trailing turns — honesty means it paints NOTHING, never a fabricated
-    // settled card. (Live queued/running motion is billed-leg territory:
-    // the render-live-motion pattern, not a fixture resume.)
+    // (toolu_lc_bash1, no tool_result). The resumed chain keeps the row, and
+    // a use with no result is UNRESOLVED: it paints as the QUEUED card — the
+    // dim dot, its command, `waiting…` — never a settled card. (Live
+    // queued/running motion is billed-leg territory: the render-live-motion
+    // pattern, not a fixture resume.)
     check(
-      'lifecycle: the filtered unresolved Bash paints NO ghost card',
-      !lines.some(l => l.includes('sleep 999') || l.includes('Long-running fixture command')),
+      'lifecycle: the unresolved Bash paints as the queued card (its command + waiting…)',
+      lines.some(l => l.includes('sleep 999')) && lines.some(l => l.includes('waiting…')),
+      lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | ') || '(neither row painted)',
+    )
+    // The trailing Bash tool_use has NO result, so it never RAN: a collapsed
+    // `Ran 1 bash command ⌄` row is a settled claim the record does not hold
+    // (the collapse walk keeps a result-less use out of the settled row).
+    check(
+      'lifecycle: the unresolved Bash is never a settled "Ran" row',
+      !lines.some(l => /Ran \d+ bash command/.test(l)),
+      lines.filter(l => /bash command/.test(l)).map(l => l.trim()).join(' | '),
     )
   }
 }
 
 // ---- lifecycle source contracts: the queued/unresolved branch --------------
-// A fixture resume cannot paint the queued state (the loader drops trailing
-// unresolved tool_use), so the queued card's honesty is pinned at SOURCE: the
-// queued branch derives from the REAL id sets (never a stored flag), renders
-// the dim queued dot, and only ever renders the tool's own queued message —
-// no outcome text exists on that path to fabricate.
+// The capture above paints the queued card for the resumed result-less use;
+// these pins keep its derivation honest at SOURCE: the queued branch derives
+// from the REAL id sets (never a stored flag), renders the dim queued dot,
+// and only ever renders the tool's own queued message — no outcome text
+// exists on that path to fabricate.
 {
   const atum = src('src/components/messages/AssistantToolUseMessage.tsx')
   check(
@@ -282,31 +337,21 @@ cleanupScenario('click-expand')
 // geometry/dispatch path itself broke; the live-accretion condition stays
 // tracked on the record.
 {
-  const run = (clicks: Array<{ x: number; y: number }>, total: number): string[] | null => {
+  const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {
     // Fresh scenario per capture: re-stages the synthetic session so each
     // boot resumes a pristine file (the shared-SID reuse probe).
-    const cfg = { ...scenario('two-bash-click', 80, 40) }
-    // Observed-SETTLED clicking (proof-hygiene, corrected twice): a fixed
-    // tick raced slow boots (press before mouse tracking armed); the first
-    // correction awaited the rows' PAINT (+2 ticks) — and CI 30231040753
-    // proved paint is still too early: on a slow shared runner the needle
-    // paints while the resume is STILL STREAMING filler rows, so a click
-    // aimed by the baseline boot's coordinates lands on a row that only
-    // later settles at that position (all three click legs dead, twice,
-    // deadline raises useless). The invariant a coordinate-aimed click
-    // needs is a layout that STOPPED MOVING: awaitStableTicks fires the
-    // click only after the whole grid has been byte-identical for 10
-    // consecutive ticks past the needle. atTick stays the hard deadline.
-    cfg.sends = clicks.map(k => ({
-      atTick: 110,
-      minTick: 10,
-      awaitText: 'bash command',
-      awaitStableTicks: 10,
-      data: `\x1b[<0;${k.x};${k.y}M\x1b[<0;${k.x};${k.y}m`,
-    }))
-    cfg.total = total
-    const gridPath = `/tmp/click-expand-twobash-${process.pid}.json`
-    const cfgPath = `/tmp/click-expand-twobash-cfg-${process.pid}.json`
+    const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
+    // Every click is text-aimed and observed-settled (CLICK · SETTLED
+    // above): a fixed tick raced slow boots (press before mouse tracking
+    // armed), a click aimed by the PAINT of the needle landed on a row the
+    // still-streaming resume later moved, and a click aimed by another
+    // boot's settled coordinates missed by the rows the bottom chrome had
+    // gained or lost in between (a transient notification present at the
+    // click moment and gone by the baseline's settled end).
+    cfg['sends'] = sends
+    cfg['total'] = total
+    const gridPath = `/tmp/click-expand-twobash-${tag}-${process.pid}.json`
+    const cfgPath = `/tmp/click-expand-twobash-${tag}-cfg-${process.pid}.json`
     writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
     const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
       encoding: 'utf8',
@@ -320,66 +365,56 @@ cleanupScenario('click-expand')
     const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as Grid).grid
     return grid.map(r => r.map(c => c.c).join(''))
   }
-  const twoBase = run([], 90)
+  const bashRows = (lines: string[]): string => lines.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | ')
+  const twoBase = run('base', [], 90)
   const rows = twoBase
     ? twoBase.map((l, i) => (/bash command/.test(l) ? i : -1)).filter(i => i >= 0)
     : []
   check('two-bash baseline shows BOTH collapsed rows', rows.length === 2, `rows=${JSON.stringify(rows)}`)
   if (rows.length === 2) {
-    const afterTop = run([{ x: 20, y: rows[0]! + 1 }], 130)
+    // Both rows wear the same collapsed label, and a text-aimed click lands
+    // on the FIRST row carrying its needle: the further-up row.
+    const afterTop = run('top', [{ ...clickOn('bash command', 110), targetDx: 0 }], 130)
     check(
       'clicking the FURTHER-UP row expands it (echo hi revealed)',
       afterTop !== null && afterTop.some(l => l.includes('Bash echo hi')),
-      afterTop === null
-        ? 'capture failed'
-        : afterTop.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | '),
+      afterTop === null ? 'capture failed' : bashRows(afterTop),
     )
-    const afterBot = run([{ x: 20, y: rows[1]! + 1 }], 130)
+    // The newest row is aimed once the further-up row has expanded — its
+    // label then reads `Bash echo hi`, so the only row still carrying the
+    // collapsed label is the newest; the second click waits for that
+    // expansion to be on screen and settled.
+    const afterBot = run(
+      'bottom',
+      [
+        { ...clickOn('bash command', 110), targetDx: 0 },
+        { ...clickOn('bash command', 150), targetDx: 0, awaitText: 'Bash echo hi' },
+      ],
+      170,
+    )
     check(
       'clicking the newest row expands it (shasum revealed)',
       afterBot !== null && afterBot.some(l => l.includes('shasum -a 256')),
-      afterBot === null
-        ? 'capture failed'
-        : afterBot.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | '),
+      afterBot === null ? 'capture failed' : bashRows(afterBot),
     )
     // CLICK SLOP: a click with ONE CELL of trackpad drift (press → motion
     // x+1 → release) must still toggle — before the slop law, any drift
-    // became a one-char selection and the DOM click was silently swallowed
-    //
-    const jitter = (() => {
-      const cfg = { ...scenario('two-bash-click', 80, 40) }
-      const y = rows[0]! + 1
-      cfg.sends = [
-        {
-          atTick: 110,
-          minTick: 10,
-          awaitText: 'bash command',
-          awaitStableTicks: 10,
-          data: `\x1b[<0;20;${y}M\x1b[<32;21;${y}M\x1b[<0;21;${y}m`,
-        },
-      ]
-      cfg.total = 130
-      const gridPath = `/tmp/click-expand-jitter-${process.pid}.json`
-      const cfgPath = `/tmp/click-expand-jitter-cfg-${process.pid}.json`
-      writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
-      const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
-        encoding: 'utf8',
-        timeout: vshotBudgetMs(120_000),
-        env: {
-          ...process.env,
-          MERCURY_CONFIG_DIR: CONFIG_HOME,
-        },
-      })
-      if (res.status !== 0) return null
-      const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as Grid).grid
-      return grid.map(r => r.map(c => c.c).join(''))
-    })()
+    // became a one-char selection and the DOM click was silently swallowed.
+    // Two text-aimed sends: the press on the row's first cell, then the
+    // motion and release one cell to the right, one tick later (nothing
+    // repaints between a press and its release).
+    const jitter = run(
+      'jitter',
+      [
+        { ...clickOn('bash command', 110), targetDx: 0, data: '\x1b[<0;{X};{Y}M' },
+        { targetText: 'bash command', targetDx: 1, afterPrevTicks: 1, data: '\x1b[<32;{X};{Y}M\x1b[<0;{X};{Y}m' },
+      ],
+      130,
+    )
     check(
       'a one-cell drift click still toggles (the slop law)',
       jitter !== null && jitter.some(l => l.includes('Bash echo hi')),
-      jitter === null
-        ? 'capture failed'
-        : jitter.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | '),
+      jitter === null ? 'capture failed' : bashRows(jitter),
     )
   }
 }

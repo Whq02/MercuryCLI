@@ -207,16 +207,10 @@ section('§4 — the CREDENTIALED world (presence = existence): the session arm 
     }
     const session = await workerModels.validateWorkerModelChoice(s.id, 'session')
     check(`${s.family}: the session arm admits '${s.id}'`, session.ok === true, JSON.stringify(session))
+    // The operator's law (no family is favoured): every credentialed family
+    // runs a crew seat exactly as it runs a session.
     const crew = await workerModels.validateWorkerModelChoice(s.id, 'crew')
-    if (s.family === 'anthropic') {
-      check(`${s.family}: the crew arm admits the frontier seat`, crew.ok === true, JSON.stringify(crew))
-    } else {
-      check(
-        `${s.family}: the crew arm refuses 'not-integrated:worker-engine' — typed, with the seat fix`,
-        !crew.ok && crew.reason === 'not-integrated:worker-engine' && /opus, sonnet or fable/.test(crew.action ?? ''),
-        JSON.stringify(crew),
-      )
-    }
+    check(`${s.family}: the crew arm admits '${s.id}' (no family is favoured for a crew seat)`, crew.ok === true, JSON.stringify(crew))
   }
   // The economy tier: a session runs it; an autonomous crew seat refuses it.
   const haikuSession = await workerModels.validateWorkerModelChoice('claude-haiku-4-5-20251001', 'session')

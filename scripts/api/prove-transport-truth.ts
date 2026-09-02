@@ -122,16 +122,26 @@ const PROBE_PRELUDE = `
     }
   `)
   check('node child ran the paired live probe', paired.status === 0 && !paired.ok, paired.stderr)
-  check(
-    'our connect budget governs under Node (≪ the 10s default)',
-    typeof paired.ms === 'number' && paired.ms < 5_000,
-    `${paired.ms}ms`,
-  )
-  check(
-    'deepest code names the transport class',
-    paired.code === 'UND_ERR_CONNECT_TIMEOUT',
-    String(paired.code),
-  )
+  // A box with no outbound route fails the connect at once with a routing
+  // code: neither OUR budget nor the timeout class is measurable there. The
+  // two pins need a route, so a routeless box says so by name — never a red.
+  const NO_ROUTE = new Set(['ENETUNREACH', 'EHOSTUNREACH', 'ENETDOWN'])
+  if (NO_ROUTE.has(String(paired.code))) {
+    console.log(
+      `  – [SKIP] connect-budget + transport-class legs — no route to TEST-NET-1 from this box (${paired.code}); both pins need an outbound route`,
+    )
+  } else {
+    check(
+      'our connect budget governs under Node (≪ the 10s default)',
+      typeof paired.ms === 'number' && paired.ms < 5_000,
+      `${paired.ms}ms`,
+    )
+    check(
+      'deepest code names the transport class',
+      paired.code === 'UND_ERR_CONNECT_TIMEOUT',
+      String(paired.code),
+    )
+  }
 
   // The cross-version CONSTRAINT stays pinned: Node's INTERNAL fetch rejects
   // our bundled dispatcher outright (UND_ERR_INVALID_ARG — the earlier

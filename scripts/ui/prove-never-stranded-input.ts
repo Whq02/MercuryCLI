@@ -113,8 +113,11 @@ console.log('§3 A5 — the resume waits bind their exits; a cancel outlives a l
     'the leaf carries its own KeybindingSetup (this root guarantees no provider — the NoConversations precedent)',
     /<KeybindingSetup>\s*\n\s*<ResumeWaitInner/.test(screen),
   )
+  // Re-trued: the pick parses no transcript before the hop (the loader's
+  // await left with the hop-lag fix), so onSelect holds TWO awaits — the
+  // clipboard copy and the resume door — each re-checking the generation.
   const guards = (screen.match(/if \(gen !== resumeGenRef\.current\) return/g) ?? []).length
-  check(`every await in onSelect re-checks the generation (3 guards, found ${guards})`, guards >= 3)
+  check(`every await in onSelect re-checks the generation (2 guards, found ${guards})`, guards >= 2)
   check('a cancel bumps the generation so in-flight work goes stale', screen.includes('resumeGenRef.current++') && screen.includes('const gen = ++resumeGenRef.current'))
 }
 

@@ -30,9 +30,7 @@ import { clearDaemonHaltStanddown } from '../daemonStanddown.js'
 import {
   CREW_TEAM,
   crewEnabled,
-  isCrewModelKey,
   isValidCrewName,
-  type CrewModelKey,
 } from '../../daemon/crewSpawn.js'
 import { readTeamFileAsync } from '../swarm/teamHelpers.js'
 import {
@@ -144,15 +142,18 @@ export interface CrewSpawnResult {
  */
 export async function spawnCrewTeammate(
   name: string,
-  modelKey: CrewModelKey | string,
+  /** A family word ('openai', 'anthropic', …), an Anthropic generation key
+   *  or a model id — the daemon's seat resolver validates it against the
+   *  crew arm and answers typed; the client never pre-judges a family. */
+  modelKey: string,
   projectDir: string,
 ): Promise<CrewSpawnResult> {
   if (!crewEnabled()) return { ok: false, error: 'crew is disabled (MERCURY_CREW=0)' }
   if (!isValidCrewName(name)) {
     return { ok: false, error: 'name must be [a-z][a-z0-9-]{1,15} (reserved names refused)' }
   }
-  if (!isCrewModelKey(String(modelKey))) {
-    return { ok: false, error: "pick a model: 'opus' | 'sonnet' | 'fable' | 'fable51'" }
+  if (String(modelKey).trim() === '') {
+    return { ok: false, error: 'pick a model — a family word (openai, anthropic, …), a generation key or a model id' }
   }
   ensureCrewDaemon(projectDir)
   // The daemon needs ~1-2s from cold spawn to a serving socket; a mid-boot RPC
