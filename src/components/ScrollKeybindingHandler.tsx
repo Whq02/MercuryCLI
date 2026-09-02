@@ -16,6 +16,8 @@ import { getClipboardPath, subscribeClipboardReceipts } from '../ink/termio/osc.
 import { logForDebugging } from '../utils/debug.js'
 import { peekInputSelectionRange } from '../utils/cockpit/inputSelectionBridge.js'
 import { isXtermJs } from '../ink/session/capabilities.js'
+import { appendFileSync } from 'node:fs'
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 
 export type WheelAccelState = {
@@ -344,6 +346,16 @@ export function ScrollKeybindingHandler({
         0,
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
+      const tracePath = flagEnv('MERCURY_CONNECTOR_TRACE')
+      if (tracePath) {
+        try {
+          appendFileSync(
+            tracePath,
+            `${JSON.stringify({ t: Date.now(), ev: 'scroll-request', delta, top: handle.getScrollTop(), pending: handle.getPendingDelta(), max, viewport: handle.getViewportHeight(), sticky: handle.isSticky() })}\n`,
+          )
+        } catch {
+        }
+      }
       if (max <= 0) return false
       translateOrClear(delta)
       jumpBy(handle, delta)
