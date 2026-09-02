@@ -38,7 +38,7 @@ for (const [name, version] of listed) {
 }
 check('no version drift vs installed metadata', versionDrift.length === 0, versionDrift.slice(0, 5).join('; '))
 
-for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms', 'Node.js runtime']) {
+for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms', 'Node.js runtime', 'voice capture pack']) {
   check(`vendor payload named: ${vendor}`, notices.includes(vendor))
 }
 {
