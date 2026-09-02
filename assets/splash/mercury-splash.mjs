@@ -1061,10 +1061,15 @@ function critterLabel() {
 // residue mix — through the core's one VOID anchor (adoptGroundFamily,
 // in-place, before any core exists). The ladder mirrors the runtime's
 // initialThemeSetting: the MERCURY_THEME_PIN env wins, then the stored
-// global-config theme, else the dark identity. K3 stance: this read is
-// COSMETIC — any failure (absent file, corrupt JSON) keeps the dark ground
-// silently, exactly the runtime's own concreteTheme() fallback; the boot
-// must never stall or complain over a ground color.
+// global-config theme, else the default appearance — True Black. The
+// default is hand-mirrored here from the runtime's one owner
+// (DEFAULT_THEME_SETTING, src/utils/systemTheme.ts): this asset runs before
+// the bundle exists and cannot import it; prove-ramp-parity pins the pair.
+// K3 stance: this read is COSMETIC — any failure (absent file, corrupt
+// JSON) keeps the default ground silently, exactly the runtime's own
+// concreteTheme() fallback; the boot must never stall or complain over a
+// ground color.
+const DEFAULT_THEME_FAMILY = 'true-black'
 function persistedThemeName() {
   const pin = process.env.MERCURY_THEME_PIN
   if (pin) return String(pin).toLowerCase().trim()
@@ -1072,10 +1077,14 @@ function persistedThemeName() {
     const stored = JSON.parse(readFileSync(resolveConfigFile(), 'utf8')).theme
     return typeof stored === 'string' ? stored.toLowerCase().trim() : ''
   } catch {
-    return '' // absent/corrupt config — the dark identity default
+    return '' // absent/corrupt config — the default appearance
   }
 }
-adoptGroundFamily(persistedThemeName() === 'true-black' ? 'true-black' : 'dark')
+// A stored or pinned name outside the two appearances keeps the oasis
+// ladder, exactly as the runtime's groundFamilyFor does for every
+// non-true-black family.
+const persistedTheme = persistedThemeName() || DEFAULT_THEME_FAMILY
+adoptGroundFamily(persistedTheme === 'true-black' ? 'true-black' : 'dark')
 
 // ── the shared compose core, bound to capability + the accent family ────────
 const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, accent: CRITTER_KEY })
