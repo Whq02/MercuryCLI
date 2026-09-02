@@ -11,7 +11,7 @@
 //  mechanical at the RESOLUTION chokepoints (getAgentModel, the daemon child
 //  spawn, the reconfigure RPC) rather than at the many entry surfaces.
 //
-//  Design decisions (plan: router-party program, P0):
+//  Design decisions:
 //  - Fallback is a FIXED 'claude-sonnet-5': a haiku pick signals "cheap/fast
 //    wanted", sonnet-5 is the cheapest allowed tier; inherit-parent is not a
 //    safe fallback because the parent can itself be Haiku (global default).

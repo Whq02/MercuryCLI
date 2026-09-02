@@ -67,32 +67,6 @@ export function createSystemMessage(
   }
 }
 
-/** HISTORICAL (the retired multiplayer estate): a room event as a LOUD
- *  [party] transcript row. `content` is the plain-text fallback other
- *  renderers/exports use. Recognition-only — old transcripts render;
- *  no live emitter calls this. */
-export function createPartyEventMessage(args: {
-  verb: import('../../types/message.js').PartyEventVerb
-  whoId: string
-  who: string
-  text: string
-  level?: SystemMessageLevel
-}): import('../../types/message.js').SystemPartyEventMessage {
-  return {
-    type: 'system',
-    subtype: 'party_event',
-    content: `[party] ${args.who}: ${args.text}`,
-    verb: args.verb,
-    whoId: args.whoId,
-    who: args.who,
-    text: args.text,
-    level: args.level ?? 'info',
-    isMeta: false,
-    timestamp: new Date().toISOString(),
-    uuid: randomUUID(),
-  }
-}
-
 /** one VISIBLE row per applied/timed-out operator seat
  *  reslot. Dedicated subtype — info-level informational rows are quiet-by-
  *  design in the default transcript, and a receipt must never be quiet. */

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // ============================================================================
 //  scripts/model-floor/prove-model-floor.ts
-//  PROOF (router-party P0): the mechanical never-Haiku floor. Enumerates the
+//  PROOF: the mechanical never-Haiku floor. Enumerates the
 //  INPUT SPACE (fable-audit lesson: on a gate primitive, table the inputs) —
 //  every haiku spelling × every resolution path ⇒ claude-sonnet-5 on the fork;
 //  every non-haiku input byte-identical; bare-stamp passes haiku through

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // ============================================================================
 //  scripts/model-floor/prove-floor-coverage.ts
-//  PROOF (router-party P0): the floor is WIRED at every resolution seam — the
+//  PROOF: the floor is WIRED at every resolution seam — the
 //  exported getAgentModel IS the floored wrapper (no raw leak), the daemon
 //  spawn floors spec.model, the teammate resolver floors its return (the path
 //  that bypasses getAgentModel entirely), and the floor survives into the

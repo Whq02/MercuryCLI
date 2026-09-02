@@ -112,7 +112,7 @@ export function resolveHuggingfaceModel(_modelClass: RouterModelClass, _posture:
 
 export function buildHuggingfaceLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider huggingface has no SEAT runtime — party/roster seats stay Anthropic; Hugging Face specialists dispatch through the AgentTool engine path',
+    'router: provider huggingface has no SEAT runtime — roster seats stay Anthropic; Hugging Face specialists dispatch through the AgentTool engine path',
   )
 }
 

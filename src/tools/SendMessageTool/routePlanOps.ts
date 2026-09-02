@@ -73,11 +73,9 @@ export interface RoutePlanDeps {
   senderRole: 'scribe' | 'router' | 'maintainer'
   /** The bus sender identity (scribeSenderName() at the call site). */
   senderName: string
-  /** Executor lanes for fan-out (the dps shorts). */
+  /** Executor lanes for fan-out (empty ⇒ nothing fans out). */
   executors: readonly string[]
 }
-
-const PARTY_EXECUTOR_DEFAULT: readonly string[] = ['dps1', 'dps2', 'dps3']
 
 const band = (v: number | undefined): RouteBand | undefined =>
   v === 0 || v === 1 || v === 2 || v === 3 ? v : undefined
@@ -200,7 +198,7 @@ export async function handleRoutePlan(
         } else {
           const committed = await readPlan(plan.id)
           if (committed) {
-            const workers: SchedulerWorker[] = (deps.executors.length ? deps.executors : PARTY_EXECUTOR_DEFAULT).map(
+            const workers: SchedulerWorker[] = deps.executors.map(
               short => ({ short, modelClass: 'sonnet', busy: false }),
             )
             const assignments = nextAssignments(committed, workers, { sharedLane })
@@ -287,7 +285,7 @@ export async function handleRoutePlan(
             targetName,
           )
         }
-        const worker = plan.mode === 'scribe' ? targetName : (node.assignedWorker ?? deps.executors[0] ?? 'dps1')
+        const worker = plan.mode === 'scribe' ? targetName : (node.assignedWorker ?? deps.executors[0] ?? targetName)
         const id = await dispatchNode(plan, node.id, worker, senderFrom, deps, now)
         return ack(
           JSON.stringify({ planId: plan.id, revised: node.id, attempt: node.attempt, dispatched: id ? [`${node.id}→${worker}`] : [] }),

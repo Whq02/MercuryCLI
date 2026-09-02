@@ -80,7 +80,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     const snapshot = buildRouterModelSnapshot()
     // The header names the estate as it is (every provider lane beside the
     // home lane, not the two it opened with) and the ruled crew fence.
-    const lines: string[] = ['engines — every provider lane beside the home lane; party seats stay Anthropic (the ruled crew fence)']
+    const lines: string[] = ['engines — every provider lane beside the home lane; roster seats stay Anthropic (the ruled crew fence)']
     for (const p of snapshot.providers.filter(x => x.id !== 'anthropic')) {
       const d = p.description
       const models = d.catalogue.map(c => c.id).join(', ') || '—'

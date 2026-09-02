@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // ============================================================================
 //  scripts/workflows/prove-workflow-routing.ts
-//  PROOF (router-party P9): the opt-in agent({tier}) routing default —
+//  PROOF: the opt-in agent({tier}) routing default —
 //  flag-OFF full (tier × model) table byte-identical (returns undefined,
 //  never touches opts); flag-ON executor→claude-opus-5, orchestrator→
 //  fallthrough, explicit model always wins; junk tier THROWS regardless of

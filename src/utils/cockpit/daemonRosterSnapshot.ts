@@ -135,11 +135,10 @@ export type RosterListSnapshot = {
 }
 
 /**
- * Read the WHOLE roster (router-party P6): the wire already carries every
- * entry (protocol.ts `list` reply) — the single-entry daemonRosterSnapshot
- * above just .find()s one. Multi-seat consumers (the /party board's live
- * cross-check, the cockpit party section) read the list in ONE RPC instead of
- * five. Optional `shorts` filter. Never throws; degrades honestly.
+ * Read the WHOLE roster: the wire already carries every entry (protocol.ts
+ * `list` reply) — the single-entry daemonRosterSnapshot above just .find()s
+ * one. Multi-seat consumers read the list in ONE RPC instead of one per
+ * seat. Optional `shorts` filter. Never throws; degrades honestly.
  */
 export async function daemonRosterList(
   shorts?: readonly string[],

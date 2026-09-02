@@ -21,13 +21,10 @@
 // ============================================================================
 
 export const SCRIBE_TEAM_NAME = 'scribe'
-export const PARTY_TEAM_NAME = 'party'
 
 /** Canonical bus agent names — these ARE the inbox filenames the drains read. */
 export const IMPLEMENTER_AGENT_NAME = 'implementer'
 export const BUS_TEAM_LEAD_NAME = 'team-lead' // mirror of swarm TEAM_LEAD_NAME (leaf copy)
-export const PARTY_ROUTER_AGENT_NAME = 'tank'
-export const PARTY_EXECUTOR_AGENT_NAMES = ['dps1', 'dps2', 'dps3'] as const
 
 /** Chatroom display nameplates (render-only — NEVER a mailbox address).
  *  Single source: UserTeammateMessage / the packs derive from here so a
@@ -59,25 +56,8 @@ const SCRIBE_ALIASES: Record<string, readonly string[]> = {
   ],
 }
 
-const PARTY_ALIASES: Record<string, readonly string[]> = {
-  [PARTY_ROUTER_AGENT_NAME]: ['tank', 'router', 'the router', 'mercury-tank'],
-  dps1: ['dps1', 'dps-1', 'executor1', 'executor-1', 'lane1', 'lane-1'],
-  dps2: ['dps2', 'dps-2', 'executor2', 'executor-2', 'lane2', 'lane-2'],
-  dps3: ['dps3', 'dps-3', 'executor3', 'executor-3', 'lane3', 'lane-3'],
-  [BUS_TEAM_LEAD_NAME]: [
-    'team-lead',
-    'team lead',
-    'lead',
-    'healer',
-    'maintainer',
-    'the maintainer',
-    'mercury-maintainer',
-  ],
-}
-
 function aliasTableFor(teamName: string | null | undefined): Record<string, readonly string[]> | null {
   if (teamName === SCRIBE_TEAM_NAME) return SCRIBE_ALIASES
-  if (teamName === PARTY_TEAM_NAME) return PARTY_ALIASES
   return null
 }
 
@@ -106,9 +86,9 @@ export interface CanonicalBusTarget {
 
 /**
  * Resolve a recipient string to its canonical bus address for a managed team
- * (scribe / party). Unknown teams (crew, ad-hoc swarms — operator-named
- * teammates) pass through untouched with known:false: this function must
- * never rewrite a name it does not own.
+ * (scribe). Unknown teams (crew, ad-hoc swarms — operator-named teammates)
+ * pass through untouched with known:false: this function must never rewrite
+ * a name it does not own.
  */
 export function canonicalizeBusTarget(
   teamName: string | null | undefined,
@@ -137,5 +117,5 @@ export function knownBusTargets(teamName: string | null | undefined): string[] {
 
 /** Is this team's addressing managed by this module (fail-closed on unknowns)? */
 export function isManagedBusTeam(teamName: string | null | undefined): boolean {
-  return teamName === SCRIBE_TEAM_NAME || teamName === PARTY_TEAM_NAME
+  return teamName === SCRIBE_TEAM_NAME
 }

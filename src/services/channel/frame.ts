@@ -53,8 +53,8 @@ export type { Principal }
  *   usage.*    — metered spend (multi-operator budgets): the harness writes a
  *                usage.turn per delegated batch, attributing the turn's cost
  *                delta to the initiating principal (budgets.ts folds them)
- *   bus.*      — the scribe/party/crew adapter envelopes (semantics preserved
- *                verbatim from the legacy buses, incl. the party's literal
+ *   bus.*      — the scribe/crew adapter envelopes (semantics preserved
+ *                verbatim from the legacy buses, incl. the literal
  *                `[request_id: …]` trailer contract)
  *   sys.*      — fabric bookkeeping (snapshot markers, redaction tombstones)
  */
@@ -79,7 +79,6 @@ export type FrameKind =
   | 'work.compact'
   | 'usage.turn'
   | 'bus.scribe'
-  | 'bus.party'
   | 'bus.crew'
   | 'sys.snapshot'
   | 'sys.redact'
@@ -106,7 +105,6 @@ const FRAME_KINDS: ReadonlySet<string> = new Set<FrameKind>([
   'work.compact',
   'usage.turn',
   'bus.scribe',
-  'bus.party',
   'bus.crew',
   'sys.snapshot',
   'sys.redact',
@@ -208,7 +206,7 @@ export interface Frame {
   /** Kind-specific payload — opaque to the fabric core (invariant 5). */
   body: unknown
   /** Lineage refs to prior frame ids (cross-seat refs are LINEAGE, never
-   *  supersession — the router-party doctrine, carried into the fabric). */
+   *  supersession). */
   refs?: string[]
   /** HMAC-SHA256 (hex) over the canonical bytes, for remote-originated frames.
    *  Local unix-socket writers omit it; the remote listener REQUIRES it. */
