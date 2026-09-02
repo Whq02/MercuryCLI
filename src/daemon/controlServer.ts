@@ -123,6 +123,9 @@ export interface ControlServerDeps {
         /** The effort the session started at — the receipt fact beside the
          *  model (the chain-of-custody law). */
         effort?: string
+        /** THE RETAINED MODEL'S RECEIPT — a resume admitted without the
+         *  model it ran on names the dropped model and its door. */
+        note?: string
         /** Twins under ONE truth, never both: kitSource ⟺ a kit stamp ran;
          *  liveHop ⟺ a pure hop onto a LIVE record — nothing
          *  re-stamped (the worn one-shot is not spent). */
@@ -840,6 +843,11 @@ async function routeControlRequest(
         ...(r.modelId !== undefined ? { modelId: r.modelId } : {}),
         ...(r.modelDisplayName !== undefined ? { modelDisplayName: r.modelDisplayName } : {}),
         ...(r.effort !== undefined ? { effort: r.effort } : {}),
+        // THE RETAINED MODEL'S RECEIPT rides the wire: a resume admitted
+        // without the model it ran on names the dropped model and its door
+        // in one line the resume door paints (the keyless-birth law applied
+        // to resume). An explicit answer that omitted it was a silent drop.
+        ...(r.note !== undefined ? { note: r.note } : {}),
         // The twins cross the wire under one truth, never both: where the
         // kit came from when a stamp ran (the launch receipts
         // name it), or the pure-hop fact when nothing was re-stamped

@@ -71,6 +71,10 @@ mkdirSync(HOME, { recursive: true })
 // The builder's coordinator resolution and the parked listing both read the
 // config home — pin it to scratch so this prover owns every store it reads.
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
+// The credential store rides the scratch home too (the file-backed store —
+// the keychain chain ignores the config-home pin on darwin, so a by-hand
+// run would otherwise reach this machine's keychain).
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

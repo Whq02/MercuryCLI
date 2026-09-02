@@ -215,6 +215,9 @@ const child = spawn(
       MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_TEAMS_DIR: join(captureHome, 'teams'),
       MERCURY_TABULA_DIR: join(captureHome, 'tabula'),
+      // The credential store pinned to the FILE backend under the capture
+      // home: on darwin the keychain chain ignores MERCURY_CONFIG_DIR.
+      MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_TERMINAL_TITLE: '0',
       MERCURY_CRITTER_IDLE: '0',
       MERCURY_CRITTER_GAZE: '0',
@@ -285,6 +288,144 @@ if (sendRecs.length === sends.length) {
   const standing = Object.values(workers).filter(w => w.endedAt === undefined)
   check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board)', standing.length === 1, text(Object.values(workers).map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt }))))
 }
+
+section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')
+{
+  // The wire: the control socket's admit answer picks its fields, so the
+  // note must be picked too — an omitted field is a silent drop of the
+  // receipt (the find: the cockpit painted with no row at all).
+  const socket = read('src/daemon/controlServer.ts')
+  check('the admit answer carries the retained-model note across the control socket', socket.includes('...(r.note !== undefined ? { note: r.note } : {}),'))
+  const supervisor6 = read('src/daemon/concourseSupervisor.ts')
+  check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', supervisor6.includes("validated.reason.startsWith('no-credential:')") && supervisor6.split('retainedNote !== undefined').length >= 4)
+  check('the resume door paints the note on the screen-receipt seam', read('src/services/switchboard/hopIntoSession.ts').includes("if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"))
+  // The seed: a durable session of this folder that RAN on claude-opus-5
+  // (its record and its transcript both say so), resumed on a keyless home.
+  // The old law refused it by name and the revived session had no runner —
+  // even a shell line could not run.
+  const home2 = mkdtempSync(join(tmpdir(), 'resume-keyless-home-'))
+  const cwd2 = realpathSync(mkdtempSync(join(tmpdir(), 'resume-keyless-cwd-')))
+  const configDir2 = join(home2, '.mercury')
+  const daemonDir2 = join(home2, 'daemon')
+  mkdirSync(configDir2, { recursive: true })
+  mkdirSync(daemonDir2, { recursive: true })
+  writeFileSync(
+    join(configDir2, '.config.json'),
+    JSON.stringify({ theme: 'dark', hasCompletedOnboarding: true, projects: { [cwd2]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } } }),
+  )
+  const sessionId2 = '11111111-2222-4333-8444-555555555555'
+  const NOW = Date.now()
+  const workers2 = {
+    'w-old': { schema: 1, runnerId: 'w-old', sessionId: sessionId2, workspaceId: cwd2, isolation: 'shared', modelKey: 'claude-opus-5', spawnedAt: NOW - 7 * 60_000, lastLiveAt: NOW - 6 * 60_000, endedAt: NOW - 5 * 60_000 },
+  }
+  writeFileSync(join(daemonDir2, 'concourse-workers.json'), `${JSON.stringify({ version: 1, workers: workers2 }, null, 1)}\n`)
+  // The transcript where the path law puts it FOR THE CHILD's config home
+  // (the path owner resolves the env at call time).
+  const prevCfg = process.env.MERCURY_CONFIG_DIR
+  process.env.MERCURY_CONFIG_DIR = configDir2
+  const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
+  const file2 = workerTranscriptPath({ sessionId: sessionId2, workspaceId: cwd2 })
+  if (prevCfg === undefined) delete process.env.MERCURY_CONFIG_DIR
+  else process.env.MERCURY_CONFIG_DIR = prevCfg
+  const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
+  mkdirSync(dirname(file2), { recursive: true })
+  const row = (extra: Record<string, unknown>): Record<string, unknown> => ({
+    isSidechain: false,
+    userType: 'external',
+    entrypoint: 'cli',
+    cwd: cwd2,
+    sessionId: sessionId2,
+    version: '1.0.0-beta.1',
+    gitBranch: 'main',
+    parentUuid: null,
+    uuid: `00000000-0000-4000-8000-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`,
+    timestamp: new Date(NOW - 6 * 60_000).toISOString(),
+    ...extra,
+  })
+  writeFileSync(
+    file2,
+    encodeSeedTranscript(
+      [
+        row({ type: 'user', message: { role: 'user', content: 'resume me' } }),
+        row({ type: 'assistant', message: { id: 'msg_5555', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'a reply.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } }),
+      ] as never,
+      sessionId2,
+    ),
+  )
+  const hint = '? for shortcuts'
+  const sends2 = [
+    `after:${hint}:2500:!echo resumed-ok`, // 0 a shell line into the resumed chat
+    `after:${hint}:3300:\r`, // 1 ↵ runs it
+  ]
+  const drive2 = join(home2, 'drive.jsonl')
+  const child2 = spawn(
+    driver.python,
+    [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '24', '--out', drive2, ...sends2.flatMap(s => ['--send', s]), '--', nodeBin, DIST, '--resume', sessionId2],
+    {
+      cwd: cwd2,
+      env: {
+        ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),
+        HOME: home2,
+        PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
+        TERM: 'xterm-256color',
+        MERCURY_CONFIG_DIR: configDir2,
+        MERCURY_DAEMON_DIR: daemonDir2,
+        MERCURY_TEAMS_DIR: join(home2, 'teams'),
+        MERCURY_TABULA_DIR: join(home2, 'tabula'),
+        MERCURY_CREDENTIAL_STORE: 'file',
+        MERCURY_TERMINAL_TITLE: '0',
+        MERCURY_CRITTER_IDLE: '0',
+        MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',
+        MERCURY_LIVE_CLOCK: '0',
+        MERCURY_LIVE_GLYPHS: '0',
+        MERCURY_TURN_RECEIPT: '0',
+        MERCURY_OASIS_BG: '0',
+      },
+    },
+  )
+  let driverOut2 = ''
+  child2.stdout.on('data', d => (driverOut2 += d))
+  child2.stderr.on('data', d => (driverOut2 += d))
+  const killer2 = setTimeout(() => child2.kill('SIGKILL'), 24_000 + 22_000)
+  await new Promise<void>(r => child2.on('exit', () => r()))
+  clearTimeout(killer2)
+  let workersAfter: Record<string, Worker & { keyless?: boolean; modelKey?: string }> = {}
+  try {
+    const wf = join(daemonDir2, 'concourse-workers.json')
+    if (existsSync(wf)) {
+      workersAfter = (JSON.parse(readFileSync(wf, 'utf8')) as { workers?: Record<string, Worker & { keyless?: boolean; modelKey?: string }> }).workers ?? {}
+      for (const rec of Object.values(workersAfter)) if (rec.pid !== undefined) { try { process.kill(rec.pid, 'SIGTERM') } catch {} }
+    }
+    const supFile = join(daemonDir2, 'supervisor.json')
+    if (existsSync(supFile)) {
+      const pid = (JSON.parse(readFileSync(supFile, 'utf8')) as { pid?: number }).pid
+      if (typeof pid === 'number' && pid > 0) { try { process.kill(pid, 'SIGTERM') } catch {} }
+    }
+  } catch {}
+  const recs2: Rec[] = existsSync(drive2) ? readFileSync(drive2, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : []
+  const firstOut2 = recs2.find(r => r.ts !== undefined)?.ts ?? 0
+  const sendRecs2 = recs2.filter(r => r.sent !== undefined)
+  const at2 = (i: number): number => Math.round((sendRecs2[i]?.sent ?? firstOut2) - firstOut2)
+  check('the resumed chat painted its cockpit and took the shell line (every send fired)', sendRecs2.length === sends2.length, `${sendRecs2.length}/${sends2.length}${sendRecs2.length < sends2.length ? ` · ${driverOut2.slice(-300)}` : ''}`)
+  if (sendRecs2.length === sends2.length) {
+    const res2 = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive2, '120', '40', String(at2(0) - 200), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
+    if (res2.status !== 0) {
+      console.error(`screengrab failed: ${res2.stderr}`)
+      process.exit(1)
+    }
+    const [beforeLine, final2] = (JSON.parse(res2.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
+    const t2 = (g: { rows: string[] }): string => g.rows.join('\n')
+    check('the resumed session was ADMITTED — the cockpit, never a refusal naming the retained model', /\? for shortcuts/.test(t2(beforeLine)) && !/model refused/.test(t2(beforeLine)), beforeLine.rows.filter(r => r.trim().length > 0).slice(-5).map(r => r.trim().slice(0, 100)).join(' | '))
+    check("the receipt names the dropped model and its door — the first model send picks the neutral default, /model chooses", /has no credential here/.test(t2(beforeLine)) && /claude-opus-5/.test(t2(beforeLine)) && /\/model chooses/.test(t2(beforeLine)), beforeLine.rows.filter(r => /credential|model/.test(r)).map(r => r.trim().slice(0, 110)).join(' | '))
+    check('the shell line RAN on the modelless runner — its output stands in the transcript', final2.rows.some(r => /resumed-ok/.test(r) && !/echo/.test(r)), final2.rows.filter(r => /resumed-ok/.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
+    const revived = Object.values(workersAfter).find(w => w.sessionId === sessionId2 && w.endedAt === undefined)
+    check('the revived record is stamped KEYLESS (a later sign-in takes the neutral default; the retained model is not carried)', revived !== undefined && revived.keyless === true, text(Object.values(workersAfter).map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, keyless: w.keyless, modelKey: w.modelKey }))))
+  }
+  rmSync(home2, { recursive: true, force: true })
+  rmSync(cwd2, { recursive: true, force: true })
+}
+
 rmSync(captureHome, { recursive: true, force: true })
 rmSync(cwd, { recursive: true, force: true })
 rmSync(scratch, { recursive: true, force: true })

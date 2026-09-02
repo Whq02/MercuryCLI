@@ -166,6 +166,17 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   check('the door drops every inherited or chosen model on a keyless home', door.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   const spelled = await wm.validateWorkerModelChoice('claude-opus-5', 'session')
   check("a spelled-out Claude id on a keyless home keeps its family's own door (only a launch with no id admits keyless)", !spelled.ok && spelled.reason === 'no-credential:anthropic', text(spelled))
+  // THE OPERATOR'S OWN DOOR speaks the refusal to its reader: the daemon's
+  // way-out is addressed to a relay ("ask the operator to run …"; "leave
+  // the model out … or name 'openai'"); bornSession rewrites it for the
+  // operator's own chat — the imperative stays, the launch-arg way-out
+  // becomes /model.
+  const { operatorFacingBirthReason } = await import('../../src/services/switchboard/bornSession.ts')
+  const relayed = "model refused (no-credential:anthropic) · ask the operator to run /logins anthropic — or OpenAI is signed in: leave the model out for its newest row (gpt-5.6), or name 'openai' to pick that family — the anthropic family holds no credential on this account (got \"claude-opus-5\")"
+  const spoken = operatorFacingBirthReason(relayed)
+  check("the operator's door strips the relay preamble and keeps the imperative", !/ask the operator/.test(spoken) && spoken.includes('· run /logins anthropic'), spoken)
+  check("…and turns the launch-arg way-out into the operator's own (/model picks the newest row)", spoken.includes('/model gpt-5.6 picks its newest row') && !/leave the model out|name 'openai'/.test(spoken), spoken)
+  check('a sentence with no relay words passes through untouched', operatorFacingBirthReason('every seat is taken — 1 of 1') === 'every seat is taken — 1 of 1')
   const keylessAdmit = await wm.validateWorkerModelChoice(undefined, 'session')
   check('the daemon admits the unnamed SESSION launch keyless (never a refusal naming a family)', keylessAdmit.ok && keylessAdmit.keyless === true, text(keylessAdmit))
   check('a keyless runner boots with NO --model', read('src/daemon/headlessRun.ts').includes("...(spec.keyless ? [] : ['--model', model]),"))

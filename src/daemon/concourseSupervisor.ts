@@ -1068,6 +1068,11 @@ export type ConcourseAdmitResult =
        *  the model it launched on, so an unnamed launch is never a mystery. */
       modelId?: string
       modelDisplayName?: string
+      /** THE RETAINED MODEL'S CREDENTIAL (the keyless-birth law applied to
+       *  resume): the session was admitted without the model it ran on —
+       *  no credential for its family here — and this one line names the
+       *  dropped model and its door; the resume door paints it. */
+      note?: string
       /** THE EFFORT THIS SESSION STARTED AT — the canonical ladder word the
        *  spec/record carry (the request's, a resume's retained tier, else
        *  the convention 'high'). The launch answer names it so an asked
@@ -1197,7 +1202,27 @@ export function makeConcourseAdmitHandler(
         ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
         : undefined
     const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
-    if (!validated.ok) {
+    // THE RETAINED MODEL'S CREDENTIAL (the keyless-birth law applied to
+    // resume): a resumed session keeps the model it ran on, but when the
+    // home holds no credential for that model's family the session is
+    // ADMITTED all the same — re-validated UNNAMED (keyless ⇒ the runner
+    // boots modelless; another family signed in ⇒ its neutral row) — and a
+    // one-line receipt names the dropped model and its door. The first
+    // MODEL send is what the credential gates; a shell line runs. A refusal
+    // by name here left the revived session with no runner at all.
+    let admission = validated
+    let retainedNote: string | undefined
+    if (!validated.ok && req.modelKey === undefined && retainedModelKey !== undefined && validated.reason.startsWith('no-credential:')) {
+      const unnamed = await validateWorkerModelChoice(undefined, 'session')
+      if (unnamed.ok) {
+        admission = unnamed
+        retainedNote =
+          unnamed.keyless === true
+            ? `the session's model ${retainedModelKey} has no credential here — the first model send picks the neutral default; /model chooses`
+            : `the session's model ${retainedModelKey} has no credential here — it continues on ${unnamed.entry.displayName} (the neutral default); /model chooses`
+      }
+    }
+    if (!admission.ok) {
       // The typed reason class + the ONE action ride the error verbatim —
       // whoever reads it (operator, coordinator) relays the real fix. THE
       // ACTION LEADS (the 100-column drive): the face
@@ -1208,15 +1233,15 @@ export function makeConcourseAdmitHandler(
       return {
         ok: false,
         code: 'invalid-request',
-        error: `model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
+        error: `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
       }
     }
-    const modelKey = validated.entry.modelId
-    const modelDisplayName = validated.entry.displayName
+    const modelKey = admission.entry.modelId
+    const modelDisplayName = admission.entry.displayName
     // THE KEYLESS ADMISSION (the neutral-default ruling): an unnamed launch
     // on a home with no credential anywhere is admitted with NO model — the
     // record wears the placeholder for display, the runner boots modelless.
-    const keyless = validated.keyless === true
+    const keyless = admission.keyless === true
     let stat
     try {
       stat = statSync(req.workspaceDir)
@@ -1276,7 +1301,7 @@ export function makeConcourseAdmitHandler(
         const others = liveWorkers
           .filter(r => r.runnerId !== standing.runnerId)
           .map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation }))
-        return reactivateConcourseSession(
+        const reactivated = await reactivateConcourseSession(
           standing,
           {
             modelKey,
@@ -1293,6 +1318,7 @@ export function makeConcourseAdmitHandler(
           others,
           deps,
         )
+        return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated
       }
     }
     // the stored first-boot capacity decision may
@@ -1411,6 +1437,7 @@ export function makeConcourseAdmitHandler(
         }
         return {
           ok: true,
+          ...(retainedNote !== undefined ? { note: retainedNote } : {}),
           runnerId,
           sessionId: claimSessionId,
           workspaceId,
@@ -1610,6 +1637,7 @@ export function makeConcourseAdmitHandler(
         : undefined
     return {
       ok: true,
+      ...(retainedNote !== undefined ? { note: retainedNote } : {}),
       runnerId,
       sessionId,
       workspaceId,
