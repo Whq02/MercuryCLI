@@ -41,9 +41,15 @@ const ROOT = join(HERE, '..', '..')
 export const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 const API_KEY = 'fixture-key-000'
-/** The chat composer's placeholder — the one line that paints only once the
- *  chat is up and input-wired (the vshot drives' entry needle). */
-const COMPOSER_READY_NEEDLE = 'Type a prompt'
+/** The chat world's ready line — the one line that paints only once the
+ *  chat is up and input-wired (the vshot drives' entry needle). The cockpit
+ *  (100+ columns) paints it as the composer's placeholder, 'Type a prompt';
+ *  the deck world below the cockpit floor paints it in the hero's ready row,
+ *  '● ready · type a prompt, or / for commands', and its composer carries no
+ *  placeholder. The needle is the tail the two spellings share, so a boot at
+ *  any width arms the anchor — a needle that never paints holds every
+ *  post-anchor send forever. */
+const COMPOSER_READY_NEEDLE = 'ype a prompt'
 /** The authored nominal: riders' earliest send sits at 4500ms, so the
  *  composer is assumed ready 500ms before it. */
 const COMPOSER_NOMINAL_MS = 4000
@@ -238,6 +244,10 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
+        // The registered file-store seam: an arena boot reads no machine keychain
+        // (darwin's would sign a keyless capture in; the pool seeds this for every
+        // child, a by-hand run must carry it itself).
+        MERCURY_CREDENTIAL_STORE: 'file',
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -250,8 +260,16 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         // every machine, never the account that ran it
         MERCURY_OPERATOR: process.env.MERCURY_OPERATOR?.trim() || 'sam',
         ...(opts.probe ? { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: probeTee } : {}),
-        // capture pins (repo convention): ambience off, the pipeline is the subject
+        // capture pins (repo convention): ambience off, the pipeline is the
+        // subject. Every display animation holds still — the critter's sway
+        // and blink, its gaze and sleep, the header's live seconds, the live
+        // glyphs — so a settle gate that reads the whole grid sees the screen
+        // hold and no recorded frame lands on an arbitrary animation phase.
+        // A drive that photographs an animation re-enables it through extraEnv.
+        MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',
+        MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_TURN_RECEIPT: '0',
         MERCURY_OASIS_BG: '0',
@@ -418,4 +436,19 @@ export function firstOutputTs(run: ArenaRun): number {
     }
   }
   return 0
+}
+
+/** A send's moment in grabScreens' STAMP base. grabScreens stamps each
+ *  screen with its requested (authored) offset and grabs it at offset + the
+ *  anchor shift, first-output-relative; a send record carries its true
+ *  epoch. The stamp a caller may window against is therefore the send's
+ *  true first-output-relative time minus that same shift — the two bases
+ *  meet, and the anchor's re-base (a fast or a slow world) cancels on both
+ *  sides instead of sliding a window across a press by the whole shift.
+ *  A moment before the nominal composer instant keeps the boot clock, like
+ *  a pre-anchor grab. */
+export function sendStamp(run: ArenaRun, s: SendRecord): number {
+  const shift = run.anchorShiftMs ?? 0
+  const trueMs = s.sent - firstOutputTs(run)
+  return trueMs >= COMPOSER_NOMINAL_MS + shift ? trueMs - shift : trueMs
 }

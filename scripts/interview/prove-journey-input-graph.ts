@@ -15,7 +15,7 @@
 //        footer; ↑ returns — one visible consequence per press;
 //    §2  'n' opens notes; the FIRST Esc leaves notes and NOTHING else;
 //    §3  Esc at the card root is the interview's OWN typed cancel: the card
-//        closes, the turn ends with NO extra model round, the composer
+//        closes, the denial crosses as ONE model round the model reads, the composer
 //        returns, and the durable session log records the cancelled outcome
 //        WITH the drafted note preserved.
 //
@@ -28,10 +28,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   findRows,
-  firstOutputTs,
   grabScreens,
   requireDist,
   runArtifactArena,
+  sendStamp,
   type GrabbedScreen,
 } from '../streaming/artifactArena.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -84,11 +84,10 @@ const run = await runArtifactArena({
 })
 
 try {
-  // Screen offsets are relative to the FIRST OUTPUT; sends are stamped in
-  // epoch ms — anchor every window to the actual send's screen-time so boot
-  // jitter can never slide an assertion across a press.
-  const base = firstOutputTs(run)
-  const sends = run.sendLog.map(s => ({ at: s.sent - base, data: Buffer.from(s.b64, 'base64').toString() }))
+  // Screen grabs are stamped with authored offsets; a send's moment in that
+  // same base is sendStamp (the anchor's re-base cancels on both sides), so
+  // boot jitter can never slide an assertion across a press.
+  const sends = run.sendLog.map(s => ({ at: sendStamp(run, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const sendAt = (data: string, nth = 0): number =>
     sends.filter(s => s.data === data)[nth]?.at ?? -1
   const offsets: number[] = []
@@ -147,14 +146,34 @@ try {
   const final = timeline.at(-1)!
   t.check('the card closed (its help line is gone)', !textOf(final).includes('Enter to select'))
   // The submit also fires the session-title side call on the small model;
-  // the law counts the MAIN model's rounds.
+  // the law counts the MAIN model's rounds. Every chat is a hosted seat:
+  // the card's answer travels the daemon's ask channel, where a bare No is
+  // a DENIAL the model reads (the canon denial text — the action was not
+  // run, stop and wait) and never a turn abort; the card's own abort verb
+  // is the interrupt. The cancel therefore costs exactly one more round:
+  // the denial's tool_result crosses, the model's reply ends the turn, and
+  // nothing fires after it.
   const mainRounds = run.fixture
     .messageRequests()
     .filter(r => String((r.body as { model?: string }).model ?? '').includes('opus'))
+  // Each request's shape rides the detail (the last message's role and its
+  // block types), so a surplus round names itself: a tool_result round
+  // is the turn continuing; a bare user turn is a side call on this model.
+  const roundShape = (r: { body: unknown }): string => {
+    const last = (r.body as { messages?: { role?: string; content?: unknown }[] }).messages?.at(-1)
+    const blocks = Array.isArray(last?.content) ? (last.content as { type?: string; content?: unknown }[]) : []
+    const kinds = blocks.length > 0 ? blocks.map(c => c.type ?? '?').join('+') : typeof last?.content
+    // A tool_result names its head: an interruption reads differently from
+    // a rejection fed back, and the two mean different product paths.
+    const result = blocks.find(c => c.type === 'tool_result')
+    const head = result === undefined ? '' : ` "${JSON.stringify(result.content ?? '').slice(0, 90)}"`
+    return `${last?.role ?? '?'}:${kinds}${head}`
+  }
+  const denialRounds = mainRounds.filter(r => roundShape(r).includes('tool_result'))
   t.check(
-    'no extra model round fired — the rejection ends the turn',
-    mainRounds.length === 1,
-    `${mainRounds.length} main-model request(s)`,
+    'the cancel crosses as ONE denial round the model reads, then the turn ends',
+    mainRounds.length === 2 && denialRounds.length === 1 && roundShape(denialRounds[0]!).includes('want to proceed'),
+    `${mainRounds.length} main-model request(s): ${mainRounds.map(roundShape).join(' · ')}`,
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
   {
@@ -225,8 +244,7 @@ const run2 = await runArtifactArena({
 })
 
 try {
-  const base2 = firstOutputTs(run2)
-  const sends2 = run2.sendLog.map(s => ({ at: s.sent - base2, data: Buffer.from(s.b64, 'base64').toString() }))
+  const sends2 = run2.sendLog.map(s => ({ at: sendStamp(run2, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const tabAt = sends2.find(s => s.data === '\t')?.at ?? -1
   const shiftTabAt = sends2.find(s => s.data === '\x1b[Z')?.at ?? -1
   const offsets2: number[] = []
