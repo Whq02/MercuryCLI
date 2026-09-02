@@ -1,4 +1,10 @@
 
+import { availableCores } from './availableCores.js'
+
+export function discoveryPoolWidth(): number {
+  return Math.max(1, Math.min(4, availableCores()))
+}
+
 export async function mapWithConcurrency<T, R>(
   items: readonly T[],
   limit: number,
