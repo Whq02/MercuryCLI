@@ -339,9 +339,10 @@ console.log('admission snapshot: the boot records once; the menu reads it, never
   check('a later save moves a fresh resolution', rowA(fresh) === a2)
   check('the admission snapshot keeps the boot value across the save (the menu\'s this-session line reads THIS)', rowA(menu.bootAdmissionSnapshot()) === a1 && menu.bootAdmissionSnapshot()?.snapshotId === admitted.snapshotId)
   menu.__resetBootAdmissionSnapshotForTests()
-  const mainSrc = read('src/main.tsx')
+  const readSrc = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
+  const mainSrc = readSrc('src/main.tsx')
   check('main records the admission right after the apply, once', /applyBootMenuEnv\(\);[\s\S]{0,400}recordBootAdmissionSnapshot\(resolveEffectiveSettingsSnapshot\(\{ sessionId: getSessionId\(\) \}\)\);/.test(mainSrc) && (mainSrc.match(/recordBootAdmissionSnapshot\(/g) ?? []).length === 1)
-  const screenSrc = read('src/components/BootSettingsScreen.tsx')
+  const screenSrc = readSrc('src/components/BootSettingsScreen.tsx')
   check("the boot menu's this-session line reads the admission first", screenSrc.includes('bootAdmissionSnapshot() ?? resolveEffectiveSettingsSnapshot({ sessionId: getSessionId(), path })'))
 }
 
