@@ -47,6 +47,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { paneSigs, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -142,18 +143,11 @@ function seedSession(home: string, cell: Cell): void {
 }
 
 // ── ruler v2: adjacency-chain content-row reconstruction ────────────────────
-type Grid = Array<Array<{ c: string }>>
-type Sig = { turn: number; sig: string; row: number }
-const sigRe = /TURN-(\d{3})( please survey| line (\d{2}))/
-function allSigs(grid: Grid): Sig[] {
-  const out: Sig[] = []
-  for (let r = 0; r < grid.length; r++) {
-    const text = grid[r]!.map(c => c.c).join('')
-    const m = text.match(sigRe)
-    if (m) out.push({ turn: Number(m[1]), sig: m[3] ?? 'u', row: r })
-  }
-  return out
-}
+// Signatures come from the transcript PANE alone (paneRuler): the cockpit's
+// rail echoes the last prompt at row 12 and the keyless chrome under the
+// composer echoes the first — read whole, the grid's first signature was
+// the rail's and never moved.
+const allSigs = (grid: Grid): Sig[] => paneSigs(grid)
 
 function analyze(cell: Cell, payload: {
   grid: Grid
@@ -164,14 +158,14 @@ function analyze(cell: Cell, payload: {
   tickGaps: number[]
   endDrift: number | null
   delivered: number
-  /** The transcript viewport, measured: the most signature-bearing rows any
-   *  frame of the drive shows (every seeded transcript row carries one; the
-   *  pane is full at rest with 300 turns behind it). */
+  /** The transcript region, measured: the most pane rows any frame of the
+   *  drive shows (the scroller's viewport plus the sticky header and the
+   *  jump pill's row when scrolled — paneRuler's cut). */
   viewport: number
 } {
   const parityKey = (turn: number): string => (cell.mix ? String(turn % 2) : 'all')
   const grids: Grid[] = [...(payload.marks ?? []).map(m => m.grid), payload.grid]
-  const viewport = grids.reduce((best, g) => Math.max(best, allSigs(g).length), 0)
+  const viewport = grids.reduce((best, g) => Math.max(best, viewportRows(g)), 0)
   const edgeModes = new Map<string, Map<number, number>>()
   for (const g of grids) {
     const sigs = allSigs(g)
@@ -304,24 +298,21 @@ function runCell(cell: Cell): void {
   const stepCounts = new Map<number, number>()
   for (const s of settled) stepCounts.set(s, (stepCounts.get(s) ?? 0) + 1)
   const step = [...stepCounts.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0])[0]?.[0] ?? 0
-  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · step mode ${step} · content viewport ${a.viewport} ⇒ bounds [${a.viewport - OVERLAP_ROWS}, ${a.viewport + 8}]`)
+  const bounds = stepBounds(a.viewport)
+  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · step mode ${step} · transcript region ${a.viewport} rows ⇒ step bounds [${bounds.floor}, ${bounds.ceiling}]`)
   // DELIVERED — every planned press fired (p00..pN-1 + final).
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
     `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
-  // The measured viewport is a real pane (a blank or wrong-frame drive
-  // reads 0 and must never bound the step against an empty pane). The floor
-  // is an emptiness guard, not a chrome pin: the session-seat rail costs one
-  // content row at every geometry (21 at 120x50, 7 at 120x38), so the floor
-  // sits at 6 — comfortably above a blank drive's 0, below every real pane.
-  check(`${cell.tag}: the viewport measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `viewport ${a.viewport}`)
-  // The step is a REAL page inside the measured pane's bounds: at least the
-  // signature-visible pane minus the overlap (an absorbed press is smaller),
-  // at most the pane plus the separator allowance (the estimate-compression
-  // regression crossed 4.3× the pane).
-  check(`${cell.tag}: page step ≥ viewport − ${OVERLAP_ROWS}`, step >= a.viewport - OVERLAP_ROWS,
-    `step ${step} vs floor ${a.viewport - OVERLAP_ROWS}`)
-  check(`${cell.tag}: page step ≤ viewport + 8`, step <= a.viewport + 8,
-    `step ${step} vs ceiling ${a.viewport + 8}`)
+  // The measured region is a real pane (a blank or wrong-frame drive reads
+  // 0 and must never bound the step against an empty pane).
+  check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
+  // The step is a REAL page inside the region's bounds: the scroller's
+  // viewport is the region less the sticky-prompt header and the jump
+  // pill's row when scrolled, a page keeps ${OVERLAP_ROWS} overlap rows —
+  // so at least region − 4 (an absorbed or compressed press is smaller),
+  // at most region + 1 (the estimate-compression regression crossed 4.3×).
+  check(`${cell.tag}: page step ≥ region − 4`, step >= bounds.floor, `step ${step} vs floor ${bounds.floor}`)
+  check(`${cell.tag}: page step ≤ region + 1`, step <= bounds.ceiling, `step ${step} vs ceiling ${bounds.ceiling}`)
   // ROW-EXACT + MONOTONE over settled presses: every press travels the mode
   // step within one row.
   for (let i = 0; i < a.deltas.length; i++) {
