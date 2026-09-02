@@ -524,12 +524,21 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'build-identity',
           label: 'Mercury build',
-          run: () => {
+          run: async () => {
             const identity = describeArtifactIdentity(version)
             const profile = isMercurySubstrateProfileOn()
+            const [{ resolveSplashAsset }, { runningBundlePayloadDir }] = await Promise.all([
+              import('../substrate/directSplash.js'),
+              import('../services/privateChannel/vendoredRuntime.js'),
+            ])
+            const splash = resolveSplashAsset({ bundleDir: runningBundlePayloadDir(), home: getMercuryHome() })
+            const splashWords =
+              splash === null
+                ? 'splash asset absent (a direct start boots plain)'
+                : `splash asset ${splash.rung === 'payload' ? 'beside the bundle' : splash.rung === 'home' ? 'in the config home' : 'in the source tree'}`
             return {
               status: 'ok',
-              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'}`,
+              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'} · ${splashWords}`,
             }
           },
         },
