@@ -124,6 +124,19 @@ function runCapture(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
+    // The settle gates (awaitStableTicks on the face's ↵, the stableTicks
+    // hold behind readyText) read the WHOLE grid, so the display animations
+    // every capture pins off are pinned here too: the boot face's greeting
+    // shimmer, the cockpit critter's sway, blink, gaze and sleep, the
+    // header's live seconds and the live glyphs would otherwise keep the
+    // grid from ever holding still — the face-↵ prelude never counted as
+    // settled, never fired, and the cockpit it enters never came (a
+    // NEVER-READY that shadowed the undelivered send).
+    MERCURY_CRITTER_IDLE: '0',
+    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',
+    MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
   }
   delete env.VSHOT_ACTIVE
   // Ambient-state pin: a canonical MERCURY_FULLSCREEN would outrank the
@@ -135,7 +148,20 @@ function runCapture(
   else delete env.VSHOT_TEE
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(120_000), stdio: 'pipe' })
   if (res.status !== 0) {
-    throw new Error(`vshot failed for ${leg}: ${res.stderr?.toString().slice(-400)}`)
+    // A refused capture (never-ready, an undelivered send) still wrote the
+    // grid it ended on: name that frame's tail beside the refusal, so a red
+    // leg says what the screen held instead of only what it never showed.
+    let frame = ''
+    try {
+      if (existsSync(gridPath)) {
+        const ended = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid
+        const rows = ended.grid.map(row => row.map(c => c.c).join('').trimEnd()).filter(row => row.length > 0)
+        frame = `\n  the frame it ended on (last ${Math.min(12, rows.length)} non-empty rows):\n${rows.slice(-12).map(row => `    ${row.slice(0, 116)}`).join('\n')}`
+      }
+    } catch {
+      /* the refusal stands on its own */
+    }
+    throw new Error(`vshot failed for ${leg}: ${res.stderr?.toString().slice(-400)}${frame}`)
   }
   const grid = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid
   const text = grid.grid.map(row => row.map(c => c.c).join(''))

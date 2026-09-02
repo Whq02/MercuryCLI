@@ -99,11 +99,11 @@ console.log('A — toggle presence per world/width')
   // and the chat block only.
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check(
-    // Needle re-trued:
-    // the living gate gained !verbsYield (the letter-verb yield discipline)
-    // in an earlier fold and this pin was never followed.
+    // Needle re-trued: the gate carries no yield — the rows never hand a
+    // letter to typing (typing needs the composer's own focus), so the
+    // toggle fires in every list state.
     'A12 the toggle handler is a list-region letter-verb gated off the reduced stage',
-    screen.includes("if (input === 's' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && pastGate())"),
+    screen.includes("if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate())"),
   )
 }
 

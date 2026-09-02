@@ -530,11 +530,17 @@ export default class Ink {
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
       this.scheduler.holdForSettle()
+      // ONE holding paint per storm, on entry — the same discipline the
+      // engine's gate keeps. Every later WINCH inside the window only
+      // re-arms the timer: the terminal already clips the held frame to
+      // each intermediate size, so a paint per event re-emitted the whole
+      // clipped screen for nothing (a drag delivers dozens) and a slow
+      // terminal fell behind the very storm the settle exists to absorb.
+      this.paintResizeHold(columns, rows)
     } else {
       clearTimeout(this.resizeSettleTimer)
     }
     this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
-    this.paintResizeHold(columns, rows)
   }
 
   /** The storm's cheap holding paint: last frame clipped, no clear, no

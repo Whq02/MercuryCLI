@@ -87,6 +87,22 @@ section('§2 — the ONE reader: validated at read, never a guess')
   check('a hand-poisoned config reads undefined (no guess, no substitute)', models.resolveCoordinatorEffort() === undefined)
   saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: undefined } }))
   check('an absent pick reads undefined (the model default applies)', models.resolveCoordinatorEffort() === undefined)
+  // THE /effort FALLBACK (one owner for the operator's tier): with no dial
+  // set, the coordinator reads the SAME persisted level the chat's own
+  // turns read — settings.effortLevel, what /effort and the model picker
+  // write — so a dialled tier applies to the coordinator's calls too; a
+  // set dial stays the more specific word, and a poisoned dial falls to
+  // the next owner instead of guessing.
+  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+  updateSettingsForSource('userSettings', { effortLevel: 'xhigh' })
+  check("no dial ⇒ the operator's /effort level applies to the coordinator (xhigh from the settings)", models.resolveCoordinatorEffort() === 'xhigh')
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: 'low' } }))
+  check('a set dial outranks /effort (low over xhigh)', models.resolveCoordinatorEffort() === 'low')
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: 'ultra' } }))
+  check('a poisoned dial falls to /effort (xhigh), never to a guess', models.resolveCoordinatorEffort() === 'xhigh')
+  saveGlobalConfig(c => ({ ...c, concourseCoordinator: { ...c.concourseCoordinator, effort: undefined } }))
+  updateSettingsForSource('userSettings', { effortLevel: undefined })
+  check('both absent ⇒ undefined (the model default applies)', models.resolveCoordinatorEffort() === undefined)
 }
 
 //
@@ -128,7 +144,7 @@ section("§5 — the session rows' e keeps its job")
   const screen = readFileSync(join(import.meta.dir, '../../src/components/concourse/ConcourseScreen.tsx'), 'utf8')
   check(
     'the board e still opens the session effort door through the daemon verb',
-    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && !verbsYield && callbacks.setSessionEffort !== undefined && pastGate())") &&
+    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate())") &&
       screen.includes("setRowPick({ kind: 'effort', sessionId: target.row.sessionId, title: target.row.title })"),
   )
   check('…mounting the SAME moved component', screen.includes("import { RowPickModal } from './RowPickModal.js'") && !screen.includes('function RowPickModal('))

@@ -27,6 +27,7 @@ import { CONFIG_HOME, RUNTIME_CWD, cleanupScenario, encodeFixtureTranscript, sce
 import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { buildCompass1k, COMPASS_SID, TAIL_SENTINEL } from '../navigation/fixture1k.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { composerCaret, inspect, rowsOf } from './frameChecks.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -39,7 +40,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 type Cell = { c?: string }
 type Grid = Cell[][]
-type Payload = { grid?: Grid; marks?: Array<{ label: string; grid: Grid; cols: number; rows: number }>; endReason?: string; sendReceipts?: Array<{ atTick: number; ts: number }> }
+type Payload = { grid?: Grid; cursor?: { x: number; y: number; hidden: boolean }; marks?: Array<{ label: string; grid: Grid; cols: number; rows: number }>; endReason?: string; sendReceipts?: Array<{ atTick: number; ts: number }> }
 const text = (g: Grid | undefined): string => (Array.isArray(g) ? g.map(row => row.map(cell => cell.c ?? ' ').join('')).join('\n') : '')
 const count = (hay: string, needle: string): number => hay.split(needle).length - 1
 
@@ -177,6 +178,19 @@ if (driver.kind !== 'posix-pty') {
   check('the pages down left the head behind (the first prompt’s row is off screen; its words may ride the sticky header)', marks.has('paged') && !(marks.get('paged') ?? '').includes(HEAD_ROW))
   check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'))
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length}`)
+  // After the settle the emulated cursor sits at the composer's caret (the
+  // declared-cursor park, re-resolved at the new width) and every border
+  // closes at 100 columns (the overflow checker's own reading).
+  const finalRows = rowsOf(payload.grid)
+  const caret = composerCaret(finalRows)
+  check('the composer is on screen after the resize', caret !== null)
+  check(
+    'the cursor sits at the composer’s caret after the resize',
+    caret !== null && payload.cursor !== undefined && payload.cursor.y === caret.y && payload.cursor.x >= caret.x - 1,
+    `cursor ${payload.cursor?.x},${payload.cursor?.y} · caret ${caret?.x},${caret?.y}`,
+  )
+  const borders = inspect(finalRows, 100, /\? for shortcuts|shift\+tab to cycle|to cycle\)|esc/)
+  check('every border closed at the new width (no broken edge, bleed or clip)', borders.length === 0, borders.map(b => `${b.kind}: ${b.detail}`).join(' · '))
   // Every chapter heading occurs exactly once in the fixture: any frame that
   // paints one twice has a stacked copy.
   const frames: Array<[string, string]> = [...marks.entries(), ['final', final]]

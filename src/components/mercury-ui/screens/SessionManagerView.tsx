@@ -15,11 +15,7 @@ import {
   type PruneReceipt,
 } from '../../../utils/sessionStorage/transcriptPruneDoor.js'
 import { boardHomedSessionIds } from '../../../daemon/concourseSupervisor.js'
-import {
-  getSessionIdFromLog,
-  isLiteLog,
-  loadFullLog,
-} from '../../../utils/sessionStorage.js'
+import { getSessionIdFromLog } from '../../../utils/sessionStorage.js'
 import { AMBER, CRIMSON, DUNE, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
@@ -174,15 +170,18 @@ function LiveSessionManager({
   const accent = useSessionAccent().accent
   const { columns } = useTerminalSize() // resize subscription + the live width budget
   const W = shellInteriorWidth(columns)
-  // THE SWITCH HAS TWO PHASES, and esc leaves both. LOADING reads the full
-  // transcript from disk — esc cancels the read and the list comes back (a
-  // generation fence drops the late read). SWAPPING is the REPL's in-place
-  // resume committing — it cannot be undone, so esc leaves the panel while
-  // the swap keeps going (the restore-keeps-going grammar the rewind
-  // surface speaks). The old boolean gated the whole key handler off for
-  // the duration: a slow disk left the operator on a spinner whose footer
-  // still read 'esc close' with a dead esc.
-  const [switching, setSwitching] = useState<'loading' | 'swapping' | null>(null)
+  // THE SWITCH IS ONE PHASE, and esc leaves it. SWAPPING is the REPL's
+  // in-place resume committing — it cannot be undone, so esc leaves the
+  // panel while the swap keeps going (the restore-keeps-going grammar the
+  // rewind surface speaks). No transcript is read here: the resume hops
+  // through the one door on the log's PATH and title, and the session's
+  // connector paints the words from its own incremental reader — the
+  // whole-file parse this panel used to await first ('reading the
+  // transcript…') fed nothing downstream and was the lag on every switch.
+  // The old boolean gated the whole key handler off for the duration: a
+  // slow disk left the operator on a spinner whose footer still read 'esc
+  // close' with a dead esc.
+  const [switching, setSwitching] = useState<'swapping' | null>(null)
   const switchGenRef = useRef(0)
   // 'project' = the quick switcher (this project, un-cleared). 'all' = the
   // FULL history: every project + /clear'ed sessions. `a` flips live.
@@ -304,15 +303,12 @@ function LiveSessionManager({
     const sessionId = getSessionIdFromLog(log)
     if (!sessionId) return
     const gen = ++switchGenRef.current
-    setSwitching('loading')
+    // A lite log is enough: the resume reads the transcript PATH and the
+    // title, and the session's connector paints the words incrementally —
+    // no whole-file parse stands between the ↵ and the swap.
+    setSwitching('swapping')
     try {
-      // Lite logs carry no messages — load the full transcript before the swap.
-      const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
-      // esc cancelled the read meanwhile: the list is back, the late read
-      // lands nowhere.
-      if (gen !== switchGenRef.current) return
-      setSwitching('swapping')
-      await onResume(sessionId, fullLog, 'slash_command_picker')
+      await onResume(sessionId, log, 'slash_command_picker')
       // esc left the panel while the swap committed: it is already closed.
       if (gen !== switchGenRef.current) return
       // resume() swapped setMessages in-place; fully dismiss /sessions so the
@@ -324,8 +320,8 @@ function LiveSessionManager({
     }
   }
 
-  // esc during LOADING: fence the read and return to the list. esc during
-  // SWAPPING: leave the panel — the swap keeps going and lands on its own.
+  // esc during SWAPPING: leave the panel — the swap keeps going and lands
+  // on its own.
   const leaveSwitch = (): void => {
     const phase = switching
     switchGenRef.current++
@@ -462,24 +458,18 @@ function LiveSessionManager({
         : `n new · d prune · ${scopeHint} · esc / ← close`
 
   if (switching !== null) {
-    // The footer names what esc does in THIS phase (cancel the read · leave
-    // while the swap keeps going) — never a bare 'esc close' over a spinner.
+    // The footer names what esc does here (leave while the swap keeps
+    // going) — never a bare 'esc close' over a spinner.
     return (
       <CommandCenter
         view="sessions"
         onClose={leaveSwitch}
         captureInput={false}
-        footer={
-          switching === 'loading'
-            ? 'reading the transcript… · esc cancel'
-            : 'switching — the swap keeps going · esc back to the chat'
-        }
+        footer="switching — the swap keeps going · esc back to the chat"
       >
         <Box marginTop={1}>
           <Spinner />
-          <Text color={SECOND}>
-            {switching === 'loading' ? ' Reading the transcript…' : ' Switching session…'}
-          </Text>
+          <Text color={SECOND}> Switching session…</Text>
         </Box>
       </CommandCenter>
     )

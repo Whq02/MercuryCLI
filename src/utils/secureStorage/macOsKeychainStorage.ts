@@ -11,6 +11,7 @@ import {
   getUsername,
   KEYCHAIN_CACHE_TTL_MS,
   keychainCacheState,
+  keychainReachable,
 } from './macOsKeychainHelpers.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
 
@@ -21,7 +22,18 @@ import type { SecureStorage, SecureStorageData } from './types.js'
 
 type SecurityResult = { exitCode: number; stdout: string; stderr: string }
 
+// The one rule guards the tool itself, not only the factory that selects
+// this store: a caller holding the backend directly under the file pin gets
+// a refused result (a miss, a failed write, a failed delete) and never a
+// spawned `security` — the machine's keychain stays untouched by construction.
+const KEYCHAIN_UNREACHABLE: SecurityResult = {
+  exitCode: 1,
+  stdout: '',
+  stderr: 'the credential store is pinned to the file backend; the keychain tool is not spawned',
+}
+
 function runSecurity(args: string[], input?: string): SecurityResult {
+  if (!keychainReachable()) return KEYCHAIN_UNREACHABLE
   const result = spawnSync('security', args, {
     windowsHide: true,
     encoding: 'utf8',
@@ -50,6 +62,7 @@ function readServiceSync(serviceName: string): string | null {
 }
 
 function readServiceAsync(serviceName: string): Promise<string | null> {
+  if (!keychainReachable()) return Promise.resolve(null)
   return new Promise(resolve => {
     execFile(
       'security',
@@ -269,7 +282,7 @@ let keychainLockedMemo: boolean | null = null
 
 /** Whether the macOS keychain is locked (common over SSH). Exit code 36 means locked; a thrown error reads as unlocked. */
 export function isMacOsKeychainLocked(): boolean {
-  if (process.platform !== 'darwin') return false
+  if (!keychainReachable()) return false
   if (keychainLockedMemo !== null) return keychainLockedMemo
   try {
     const result = runSecurity(['show-keychain-info'])

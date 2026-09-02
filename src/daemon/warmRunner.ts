@@ -119,7 +119,9 @@ const claimWaiters = new Map<string, (outcome: { ok: boolean; error?: string }) 
 
 /** A request that landed while its workspace's warm-up was in the air. */
 interface TrailingEnsure {
-  kit: SessionKitV1 | undefined
+  /** The kit the trailing request asks for (undefined = derive now) — a
+   *  request's kit, never a session record's stamp. */
+  requestedKit: SessionKitV1 | undefined
   deps: WarmRunnerDeps
   waiters: Array<{ resolve: (outcome: WarmEnsureOutcome) => void; reject: (err: unknown) => void }>
 }
@@ -138,8 +140,10 @@ interface TrailingEnsure {
  *  later arrival REPLACES the trailing kit and inherits its waiters, so a
  *  stale kit is never queued and the newest is never dropped. */
 interface EnsureFlight {
-  /** The kit the running body was asked for (undefined = derive now). */
-  kit: SessionKitV1 | undefined
+  /** The kit the running body was asked for (undefined = derive now) — a
+   *  request's kit; a session record's kit is written only by the kit
+   *  owner's stamp doors (sessionKit.ts). */
+  requestedKit: SessionKitV1 | undefined
   run: Promise<WarmEnsureOutcome>
   trailing: TrailingEnsure | null
 }
@@ -296,7 +300,7 @@ export async function ensureWarmRunner(
   // minting a concurrent second flight.
   const inFlight = ensureFlights.get(workspaceId)
   if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, deps)
-  const flight: EnsureFlight = { kit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
+  const flight: EnsureFlight = { requestedKit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
   ensureFlights.set(workspaceId, flight)
   settleEnsureFlight(workspaceId, flight)
   return flight.run
@@ -317,11 +321,11 @@ function awaitBehindFlight(
   kit: SessionKitV1 | undefined,
   deps: WarmRunnerDeps,
 ): Promise<WarmEnsureOutcome> {
-  if (flight.trailing === null && sameRequestedKit(flight.kit, kit)) return flight.run
+  if (flight.trailing === null && sameRequestedKit(flight.requestedKit, kit)) return flight.run
   return new Promise<WarmEnsureOutcome>((resolve, reject) => {
     const waiters = flight.trailing?.waiters ?? []
     waiters.push({ resolve, reject })
-    flight.trailing = { kit, deps, waiters }
+    flight.trailing = { requestedKit: kit, deps, waiters }
   })
 }
 
@@ -339,8 +343,8 @@ function settleEnsureFlight(workspaceId: string, flight: EnsureFlight): void {
       return
     }
     flight.trailing = null
-    flight.kit = next.kit
-    flight.run = ensureWarmRunnerFlight(workspaceId, next.kit, next.deps)
+    flight.requestedKit = next.requestedKit
+    flight.run = ensureWarmRunnerFlight(workspaceId, next.requestedKit, next.deps)
     void flight.run.then(
       outcome => {
         for (const waiter of next.waiters) waiter.resolve(outcome)
@@ -404,6 +408,12 @@ async function ensureWarmRunnerFlight(
   const validated = await validateWorkerModelChoice(undefined, 'session')
   if (!validated.ok) {
     return { state: 'refused', detail: `registry default unavailable (${validated.reason}) — the next dispatch spawns cold` }
+  }
+  // A KEYLESS home warms nothing: a warm runner boots on a pinned model and
+  // a keyless birth must boot on none — the next birth spawns cold,
+  // modelless, and follows the sign-in that lands later.
+  if (validated.keyless === true) {
+    return { state: 'refused', detail: 'keyless home — nothing to warm; the next birth spawns cold on no model' }
   }
   // Recheck across the await: the flight map keeps ensures out of each
   // other's way, but the pool has other writers (a claim deletes, proofs

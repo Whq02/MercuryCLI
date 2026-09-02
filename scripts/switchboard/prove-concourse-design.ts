@@ -292,8 +292,8 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   check('→ on an ARMED row enters (both the list and the live panel arms)', screen.split('boardArmedRef.current === sel.sessionId').length - 1 >= 2)
   check('esc disarms as its own layer (after the older fold, before the peek)', ordered(screen, '// ITEM 7: esc folds the drop-down', '// ARM-THEN-ENTER (item 2): esc disarms') && ordered(screen, '// ARM-THEN-ENTER (item 2): esc disarms', '// Line 5: esc closes the row peek first'))
   check('a selection move disarms (the target is ALWAYS the selected chat — the operator\'s words)', screen.includes('if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)'))
-  check('typing to the live side ARMS the selected row (type to message)', screen.split('armSelectedForTyping()').length - 1 >= 2)
-  check('the armed row SHOWS the arm on its granted line — and advertises typing only where the gate takes words (G4; the broadcast face suppresses the single-target ad too)', screen.includes('armed — ↵ again enters') && screen.includes("liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · type to message' : ''"))
+  check('typing in the live composer ARMS the selected row (the target turns explicit)', screen.split('armSelectedForTyping()').length - 1 >= 2)
+  check('the armed row SHOWS the arm on its granted line — the words road is tab (the composer’s own focus), advertised only where the gate takes words (G4; the broadcast face suppresses it too), and a held draft says send', screen.includes("'armed — ↵ again enters'") && screen.includes("liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''") && screen.includes("'armed — ↵ sends the draft · → enters'"))
   // TYPED WORDS OUTRANK THE EXAMPLE (the driven arena red: with words in the
   // coordinator composer, ↵ dispatched the ghost example over the operator's
   // own ask) — the pane's example ↵ yields to a held draft, and the screen

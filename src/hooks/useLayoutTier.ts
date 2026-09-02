@@ -26,6 +26,7 @@
  */
 
 import { isDeckPaneEnabled, isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js'
+import { VIEWPORT_FLOOR_EXIT_BAND, VIEWPORT_FLOOR_ROWS } from '../ink/viewportFloor.js'
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
 import { useTerminalSize } from './useTerminalSize.js'
 
@@ -55,7 +56,7 @@ export const LAYOUT_BREAKPOINTS = {
    *  was pushed off-screen (baseline: render-footer-suggestions.tsx pre-fix).
    *  The cockpit's rails + hero need more still. Below the floor each mode
    *  falls to the next: cockpit → deck-strip → inline. */
-  deckMinRows: 22,
+  deckMinRows: VIEWPORT_FLOOR_ROWS,
   cockpitMinRows: 26,
 } as const
 
@@ -92,7 +93,7 @@ export function computeChromeMode(
  *  99/100 boundary can never flap the whole chrome (rails mount/unmount,
  *  transcript rewrap) per event — the same doctrine as railPlan's wide-tier
  *  latch (helmGeometry, 150/144). */
-const COCKPIT_EXIT_HYST_COLS = 3
+const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND
 let cockpitLatched = false
 
 /** Test/proof seam: put the chrome latch back to its boot state. */

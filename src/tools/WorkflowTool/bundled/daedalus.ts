@@ -40,20 +40,33 @@
 import { flagEnvLoose } from '../../../substrate/flagRegistry.js'
 import { getGptSeatAvailability } from '../../../services/providers/openai/openaiCatalogue.js'
 
+/** The Anthropic generation trio and the current-generation explicit ids —
+ *  that family's own choices, offered while it is signed in. */
+const ANTHROPIC_CHOICES = ['opus', 'sonnet', 'fable', 'fable51', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'] as const
+
 /**
- * DAEDALUS model resolution — the HOST-side seam WorkflowTool
- * runs before launch: inject the boot-menu saved choices when args omit
- * models (provenance NAMED in modelSource/executorModelSource — the preview
- * and the receipt show it), validate every choice against the CURRENT model
- * catalogue, and refuse invalid picks with the compatible list. Never
- * substitutes silently; absent-and-unsaved stays absent (the script returns
- * the ask). The catalogue = the alias trio + the current-generation explicit
- * ids (the same lineup the /model picker's explicit rows carry — aliases
- * resolve onto these at dispatch).
+ * THE COMPATIBLE SET — derived from the account, never a favoured table (the
+ * operator's law: no family is favoured; a choice exists per SIGNED-IN
+ * family): every signed-in family's word and its newest usable row (the
+ * seat owner's roster — the same rows the crew spawn offers), the Anthropic
+ * choices while that family is signed in, and the qualified GPT ids while
+ * the OpenAI catalogue is connected + live-qualified. Exported so the
+ * preview and the pins read the one set the resolver validates against.
  */
-export function daedalusResolveModels(rawArgs: unknown): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
-  const args: Record<string, unknown> = rawArgs !== null && typeof rawArgs === 'object' ? { ...(rawArgs as Record<string, unknown>) } : {}
-  const compatible = new Set<string>(['opus', 'sonnet', 'fable', 'fable51', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'])
+export function daedalusCompatibleModels(): Set<string> {
+  const compatible = new Set<string>()
+  try {
+    const { seatFamilyChoices } =
+      require('../../../services/concourse/workerModels.js') as typeof import('../../../services/concourse/workerModels.js')
+    const families = seatFamilyChoices()
+    for (const f of families) {
+      compatible.add(f.family)
+      compatible.add(f.setting)
+    }
+    if (families.some(f => f.family === 'anthropic')) for (const id of ANTHROPIC_CHOICES) compatible.add(id)
+  } catch {
+    /* a seat read that fails offers nothing — never a favoured family */
+  }
   // Provider parity: qualified GPT ids join the compatible set while the
   // OpenAI lane is connected + live-qualified (the seat owner's one chain —
   // unready adds nothing, so the surface never advertises an unready lane).
@@ -61,9 +74,25 @@ export function daedalusResolveModels(rawArgs: unknown): { ok: true; args: Recor
     const seat = getGptSeatAvailability()
     if (seat.state === 'ready') for (const id of seat.ids) compatible.add(id)
   } catch {
-    /* seat read trouble ⇒ the Anthropic set stands */
+    /* seat read trouble adds nothing */
   }
-  const list = [...compatible].join(' | ')
+  return compatible
+}
+
+/**
+ * DAEDALUS model resolution — the HOST-side seam WorkflowTool
+ * runs before launch: inject the boot-menu saved choices when args omit
+ * models (provenance NAMED in modelSource/executorModelSource — the preview
+ * and the receipt show it), validate every choice against the CURRENT model
+ * catalogue, and refuse invalid picks with the compatible list. Never
+ * substitutes silently; absent-and-unsaved stays absent (the script returns
+ * the ask). The catalogue is daedalusCompatibleModels() — the account's
+ * signed-in families, no family favoured.
+ */
+export function daedalusResolveModels(rawArgs: unknown): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
+  const args: Record<string, unknown> = rawArgs !== null && typeof rawArgs === 'object' ? { ...(rawArgs as Record<string, unknown>) } : {}
+  const compatible = daedalusCompatibleModels()
+  const list = compatible.size > 0 ? [...compatible].join(' | ') : 'nothing — no provider is signed in; /logins signs one in and its newest row becomes a choice'
   const resolveOne = (key: 'model' | 'executorModel', envKey: string, sourceKey: string): string | null => {
     const explicit = typeof args[key] === 'string' ? (args[key] as string).trim() : ''
     if (explicit) {
@@ -119,7 +148,7 @@ if (!MODEL || !EXECUTOR_MODEL) {
   return {
     launched: false,
     needsModels: true,
-    message: 'DAEDALUS: pick the models before launch — args.model (planning/design/QA) and args.executorModel (building lanes). Compatible choices come from the current model catalogue (opus | sonnet | fable | fable51 today, plus any live future model); engine providers (OpenAI, Z.AI, and the other API-key lanes) are not integrated for the agent fleet, so their models are honestly absent here rather than quietly refused. A boot-menu saved choice (MERCURY_DAEDALUS_MODEL / MERCURY_DAEDALUS_EXECUTOR_MODEL) is injected automatically and named. Ask the operator; never guess.',
+    message: 'DAEDALUS: pick the models before launch — args.model (planning/design/QA) and args.executorModel (building lanes). Compatible choices come from the account: every signed-in family by its word (anthropic, openai, zai, …) or its newest usable row, the Anthropic generation keys (opus | sonnet | fable | fable51) while that family is signed in, and the live-qualified GPT ids while the OpenAI catalogue is connected — no family is favoured, and a family that is not signed in is honestly absent rather than quietly refused. A boot-menu saved choice (MERCURY_DAEDALUS_MODEL / MERCURY_DAEDALUS_EXECUTOR_MODEL) is injected automatically and named. Ask the operator; never guess.',
   }
 }
 const REQUIREMENTS_RAW = typeof A.requirements === 'string' ? A.requirements : ''

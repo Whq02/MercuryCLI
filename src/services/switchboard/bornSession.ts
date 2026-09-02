@@ -20,10 +20,9 @@
 //  entered.
 // ============================================================================
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
-import { birthModelOf, bootBirthFacts, carriedKitOf, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 
 export type BirthOutcome =
@@ -66,6 +65,21 @@ export function bornSession(req: BirthRequest): Promise<BirthOutcome> {
   return withLanding(birth(req))
 }
 
+/** THE OPERATOR'S OWN DOOR reads the daemon's refusal as its reader. The
+ *  daemon addresses its way-out to whoever relays it ("ask the operator to
+ *  run /logins anthropic" — the coordinator's tool result reads that and
+ *  relays; "leave the model out … or name 'openai'" — the launch arg the
+ *  coordinator holds). A birth through THIS door is the operator's own
+ *  chat, so the sentence is spoken TO the operator: the relay preamble
+ *  goes and the imperative stays; the launch-arg way-out becomes the
+ *  operator's own — /model picks the signed-in family's newest row. Pure;
+ *  the proof drives it. */
+export function operatorFacingBirthReason(reason: string): string {
+  return reason
+    .replace(/\bask the operator to /g, '')
+    .replace(/leave the model out for its newest row \(([^)]+)\), or name '[a-z-]+' to pick that family/g, '/model $1 picks its newest row')
+}
+
 async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
   if (!(await ensureOwnedDaemon())) return { ok: false, reason: DAEMON_DID_NOT_START }
@@ -76,7 +90,13 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   // doors can never both wear it; a refused birth spends it, visibly —
   // re-arming is one keystroke on the kit screen).
   const worn = takeWornPresetKit()
-  const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())
+  // A KEYLESS home births on NO model whatever a door inherited (/clear
+  // passes the cleared chat's, the vacate road its own) or the menu chose:
+  // the placeholder a keyless session shows is not a choice, and the runner
+  // resolves its own model at the first send (the neutral-default ruling).
+  // With a sign-in: the record's choice, else the door's, else the screen's.
+  const screen = screenBirthModel()
+  const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
@@ -90,7 +110,8 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         // defaulted fold into a worktree (that estate belongs to
         // coordinator dispatches and explicit opt-ins).
         isolation: 'shared',
-        model,
+        // A KEYLESS birth carries NO model: the field is absent on the wire.
+        ...(model !== undefined ? { model } : {}),
         bornBlank: true,
         ...(title !== null ? { title } : {}),
         ...(facts.effort !== null ? { effort: facts.effort } : {}),
@@ -110,7 +131,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   }
   const sessionId = typeof reply.sessionId === 'string' ? reply.sessionId : undefined
   if (reply.ok !== true || sessionId === undefined) {
-    return { ok: false, reason: String(reply.error ?? 'the session could not start') }
+    return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
   // THE FIRST-CHAT STAMP (the folder-as-project law): the record is on the
   // board — a chat was born in this folder — so the catalog owner
@@ -123,7 +144,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const hop = await hopIntoBoardSession(sessionId, req.firstPaintMs !== undefined ? { firstPaintMs: req.firstPaintMs } : undefined)
   if (!hop.ok) {
     logForDebugging(`[switchboard] born session ${sessionId} could not be entered: ${hop.reason}`)
-    return { ok: false, reason: hop.reason }
+    return { ok: false, reason: operatorFacingBirthReason(hop.reason) }
   }
   return { ok: true, sessionId, title: hop.title }
 }

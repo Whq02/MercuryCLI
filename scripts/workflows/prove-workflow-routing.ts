@@ -10,6 +10,10 @@
 //  routes BEFORE the resume cache key.
 //  Run:  ~/.bun/bin/bun run scripts/workflows/prove-workflow-routing.ts
 // ============================================================================
+// The one prover preamble FIRST: the neutral seat default below resolves
+// credentials, so this proof runs in its own scratch home on the
+// file-backed credential store — never the operator's home or keychain.
+import '../lib/hermetic.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 let failures = 0
@@ -48,18 +52,26 @@ section('opt-in default: unset ⇒ inert (the ask-the-operator rule holds by con
 check('DEFAULT (unset): executor + no model ⇒ undefined (no silent routing)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === undefined)
 check('DEFAULT (unset): no tier ⇒ undefined', wr.resolveWorkflowRoutedModel({}) === undefined)
 
-section('flag ON — executor routes, orchestrator falls through, explicit model wins')
+section('flag ON — the executor routes to the NEUTRAL seat default, orchestrator falls through, explicit model wins')
 process.env.MERCURY_WORKFLOW_ROUTING = '1'
-check("executor + no model ⇒ 'claude-opus-5'", wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === 'claude-opus-5')
+// The operator's law: no family is favoured. The executor tier routes to
+// the neutral seat default (the most recent sign-in's provider, its newest
+// usable row — the one resolver the coordinator's launches and the crew
+// spawn ask); the pinned first-party id it replaced had every routed
+// executor refuse on an account signed into another provider alone.
+const { neutralSeatDefault } = await import('../../src/services/concourse/workerModels.js')
+const neutral = neutralSeatDefault()
+check('executor + no model ⇒ the neutral seat default (undefined with no usable sign-in in this home, never a favoured family)', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === (neutral?.setting ?? undefined), JSON.stringify({ routed: wr.resolveWorkflowRoutedModel({ tier: 'executor' }), neutral }))
+check('the executor model is the neutral seat default, one owner', wr.workflowExecutorModel() === (neutral?.setting ?? undefined))
+check('no pinned executor id survives in the router (no favoured family)', !src('tools', 'WorkflowTool', 'workflowRouting.ts').includes("'claude-opus-5'"))
 check('orchestrator ⇒ undefined (main-loop fallthrough, cache keys untouched)', wr.resolveWorkflowRoutedModel({ tier: 'orchestrator' }) === undefined)
 check('no tier ⇒ undefined', wr.resolveWorkflowRoutedModel({}) === undefined)
 check('explicit model ALWAYS wins over the tier', wr.resolveWorkflowRoutedModel({ tier: 'executor', model: 'claude-opus-4-8' }) === undefined)
-check('executor model constant matches the party execution tier (D-02: opus-5)', wr.WORKFLOW_EXECUTOR_MODEL === 'claude-opus-5')
 
 // the flag opt-in is stamp-independent.
 section('bare stamp — routing STILL works with the flag set (stamp-independence)')
 setStamp(false)
-check("bare stamp + flag=1 ⇒ 'claude-opus-5'", wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === 'claude-opus-5')
+check('bare stamp + flag=1 ⇒ the same neutral answer', wr.resolveWorkflowRoutedModel({ tier: 'executor' }) === (neutral?.setting ?? undefined))
 setStamp(true)
 
 section('validateWorkflowTier — junk throws ALWAYS (flag-independent)')

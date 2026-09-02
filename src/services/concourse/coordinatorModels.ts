@@ -436,17 +436,26 @@ export function coordinatorEffortDetail(model: string, level: import('../../util
 }
 
 /**
- * The coordinator effort's ONE reader: the persisted level, validated at
- * read through the same normalizer that wrote it. An off-ladder stored
- * spelling (a hand-edited config) reads undefined — the model's own
- * default resolution applies; never a guess, never a silent substitute.
+ * The coordinator effort's ONE reader: the coordinator's own dial (the e
+ * doorway in the coordinator-model picker) when set, else the operator's
+ * /effort choice — the SAME persisted level the chat's own turns read
+ * (settings.effortLevel, what /effort and the model picker write) — so
+ * the tier the operator dialled applies to the coordinator's calls too,
+ * and the dial stays the more specific word where it exists. Both
+ * validate at read through the same normalizer that wrote them: an
+ * off-ladder stored spelling (a hand-edited file) reads as absent — the
+ * next owner answers, else the model's own default resolution applies;
+ * never a guess, never a silent substitute. The wire resolves the answer
+ * through the one effort owner (the builders' resolveAppliedEffort:
+ * step-down to the model's ladder, the thinking-off suppression).
  */
 export function resolveCoordinatorEffort(): import('../../utils/effort.js').EffortLevel | undefined {
   const { getGlobalConfig } = require('../../utils/config.js') as typeof import('../../utils/config.js')
-  const { normalizeEffortLevelString } = require('../../utils/effort.js') as typeof import('../../utils/effort.js')
+  const { normalizeEffortLevelString, getInitialEffortSetting } = require('../../utils/effort.js') as typeof import('../../utils/effort.js')
   const stored = getGlobalConfig().concourseCoordinator?.effort
-  if (stored === undefined) return undefined
-  return normalizeEffortLevelString(stored)
+  const dial = stored === undefined ? undefined : normalizeEffortLevelString(stored)
+  if (dial !== undefined) return dial
+  return getInitialEffortSetting()
 }
 
 const COORDINATOR_MODES = ['off', 'rules-only', 'agent-assisted'] as const
