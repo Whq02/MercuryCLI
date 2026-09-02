@@ -49,6 +49,7 @@ function vendorLock(file: string): { version?: string; license?: string; url?: s
 }
 const debugpy = vendorLock('debugpy.lock.json')
 const pyright = vendorLock('pyright.lock.json')
+const nodeRuntime = vendorLock('node.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
 const ripgrepMeta = pkgMeta('@vscode/ripgrep')
@@ -154,6 +155,9 @@ lines.push(
     )
   }
 }
+lines.push(
+  `- **Node.js runtime** ${nodeRuntime.version ?? '(not vendored on this checkout)'} — OpenJS Foundation and Node.js contributors, ${nodeRuntime.license ?? 'MIT'} (https://nodejs.org/dist/v${nodeRuntime.version ?? '<version>'}/). Receipt: vendor/node.lock.json (one official nodejs.org archive + sha256 per platform, every digest from that release's SHASUMS256.txt); the release archive ships the platform's runtime binary and Node's own LICENSE at dist/vendor/node/ — that LICENSE carries the notices of the components Node bundles (V8, libuv, OpenSSL, ICU, zlib, c-ares, nghttp2, simdjson and the rest).`,
+)
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
 lines.push('')
@@ -194,5 +198,5 @@ lines.push('')
 
 writeFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), lines.join('\n'))
 console.log(
-  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 6 vendor payloads + source attributions`,
+  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 7 vendor payloads + source attributions`,
 )

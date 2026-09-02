@@ -14,21 +14,28 @@ for scripts and editors. You bring a provider sign-in or an API key.
 
 ## Requirements
 
+A release install needs git only: every archive carries its own Node 24 LTS
+runtime beside the bundle, and the launcher, `mercury install` and
+`mercury update` run on it. Building from source needs:
+
 - Node 24 LTS: the supported range is `>=24.20.0 <25`, and `.node-version`
-  pins the exact patch used for builds.
-- bun 1.3.x, the build runtime.
+  pins the exact patch used for builds and vendored into release archives.
+- bun 1.3.x, the build runtime (never vendored).
 - git. On Windows, Windows Terminal or PowerShell 7; the step-by-step guide
   is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
 The floor is 24.20.0 because it carries the fix for nodejs/node#56645. Below
 it, a headless `-p` run that dispatched any tool aborts at exit on Windows.
+Every launcher picks its Node in one order: `MERCURY_NODE` (an explicit
+binary), the vendored runtime beside the bundle, then a PATH node inside the
+range; a missing rung is named, never skipped silently.
 
 ## Build from source
 
 Mercury builds with bun and runs on Node 24 LTS:
 
 ```sh
-bun run setup                      # once; bun install + the four vendored packs
+bun run setup                      # once; bun install + the five vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
@@ -36,8 +43,9 @@ node dist/mercury.mjs doctor --json
 ```
 
 `setup` fetches the vendored capability packs (pyright · debugpy · js-debug ·
-extra grammars); a failed fetch skips its pack, and the build and the
-affected features say so (`bun install` alone ships that degraded build).
+extra grammars · this machine's Node runtime); a failed fetch skips its pack,
+and the build and the affected features say so (`bun install` alone ships
+that degraded build).
 The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.
@@ -50,7 +58,8 @@ clean-tree build to `<config home>/runtime/dist` and
 runtime is a loud launcher failure, never a silent fallback. Release archives
 install with `mercury install` and stay current with `mercury update` on the
 private release channel (`--check`, `--status`, `--rollback`). Both paths run
-the artifact on Node 24 LTS. [AGENTS.md](AGENTS.md) is the one-screen
+the artifact on the vendored Node 24 LTS runtime the build carries, else on
+`MERCURY_NODE` or a PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
 build-and-run guide; [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 
 ## The first run

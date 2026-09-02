@@ -7,7 +7,15 @@ and how a broken boot recovers. The build that produces the artifact is
 ## One bundle, several routes
 
 `dist/mercury.mjs` runs on Node (one owned supported range; the entry gate
-refuses anything else on every route). The same bundle serves every route:
+refuses anything else on every route). Every launcher picks that Node in one
+order, first hit wins: `MERCURY_NODE` (an explicit binary), the vendored
+runtime beside the bundle (`vendor/node/bin/node`; `vendor\node\node.exe` on
+Windows — every release archive carries one, and a source build carries one
+once `bun run setup` fetched the pack), then a PATH `node`. No rung is
+silent: a `MERCURY_NODE` naming a missing file refuses, an unsupported Node
+is refused by name and range, and no rung at all prints all three. The
+runtime spawns its own children through the Node it runs on, so the rung
+the launcher picks is the runtime the whole session runs on. The same bundle serves every route:
 `--version`; the language-service sidecars and the TCP bridge; `daemon`
 (background workers); `acp` (the editor-bridge stdio protocol); and the
 command estate — interactive boot, `-p`/`--print`, `update`, `install`,
@@ -31,11 +39,14 @@ hot-swap a running product:
 
 The launcher resolves the config home without creating one —
 `MERCURY_CONFIG_DIR`, then `MERCURY_HOME`, else `~/.mercury` — and boots
-`<config-home>/runtime/dist/mercury.mjs`; `MERCURY_DIST` points a
-development boot at another bundle. A missing deployed runtime is a loud
-refusal card naming the deploy command, exit 66 — never a silent fallback
-onto stale bits. When the deployed runtime is older than the repository
-HEAD, the launcher prints a calm one-line drift note and continues.
+`<config-home>/runtime/dist/mercury.mjs` on the Node it resolves the same
+way the release launchers do (`MERCURY_NODE`, the vendored `vendor/node`
+beside the deployed bundle, then a PATH node — no rung answering is a loud
+card naming all three, exit 127); `MERCURY_DIST` points a development boot
+at another bundle. A missing deployed runtime is a loud refusal card naming
+the deploy command, exit 66 — never a silent fallback onto stale bits. When
+the deployed runtime is older than the repository HEAD, the launcher prints
+a calm one-line drift note and continues.
 
 On an interactive boot the launcher paints the enter screen before the main
 bundle loads (release archives carry it as `splash.mjs` + `splash-core.mjs`);
@@ -60,9 +71,20 @@ pointer file by atomic rename, never the shim; manual recovery is editing
 `current.txt`. Configuration and sessions live in the config home outside
 this root — install, update, rollback, and uninstall never touch them.
 
+Every payload carries its own Node runtime under `vendor/node`, and the
+manifest records it (version, platform, the archive digest, the shipped
+binary's digest): install and update refuse a payload whose declared runtime
+is missing, every `--version` smoke runs on the payload's own runtime — so
+the runtime a release ships is proven to run on this machine before it is
+activated — and deep verification (`mercury doctor --deep`, the shipped
+`verify-artifact.mjs --deep`) recomputes the binary's digest. `mercury
+update --status` and `mercury doctor` name the runtime in use: the vendored
+one, an explicit `MERCURY_NODE`, or a system node.
+
 `mercury install`, run from an extracted archive's own launcher,
 self-adopts that payload into the layout: idempotent, no administrator
-access. `--dry-run` previews, `--uninstall` removes managed binaries only
+access. `--dry-run` previews (and names the runtime the payload carries),
+`--uninstall` removes managed binaries only
 (and says what it preserved), `--force` replaces a pre-existing non-managed
 command at the stable path with a `.bak` kept — without it, a foreign
 command is refused, not clobbered. `--json` on every verb.
