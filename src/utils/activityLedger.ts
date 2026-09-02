@@ -21,8 +21,8 @@ export function noteHeadlessActivity(kind: HeadlessActivityKind): void {
         print: prev.print + (kind === 'print' ? 1 : 0),
         sdk: prev.sdk + (kind === 'sdk' ? 1 : 0),
         verbs: kind.startsWith('verb:')
-          ? { ...prev.verbs, [kind.slice(5)]: (prev.verbs[kind.slice(5)] ?? 0) + 1 }
-          : prev.verbs,
+          ? { ...(prev.verbs ?? {}), [kind.slice(5)]: (prev.verbs?.[kind.slice(5)] ?? 0) + 1 }
+          : (prev.verbs ?? {}),
         lastKind: kind,
         lastAt: Date.now(),
       }
