@@ -15,16 +15,16 @@
 //  intent path was removed after a trace proved it dead).
 //
 //  LAWS (each settled PageUp press over a resumed 300-turn session):
-//    · ROW-EXACT — every settled press travels the SAME page step within one
-//      row (the first press may carry the boundary row). The step is the
-//      product's viewport − 2 overlap rows, but the viewport belongs to the
-//      host (chrome differs runner vs darwin) and the signature ruler counts
-//      CONTENT rows only — the pane's blank separator rows carry no
-//      signature — so the step is pinned by its own consistency, bounded by
-//      the measured content pane: at least viewport − 2 (an absorbed or
-//      compressed press is smaller), at most viewport + 8 (the estimate-
-//      compression regression crossed 4.3× — far past the separator
-//      allowance);
+//    · ROW-EXACT, PER PRESS — every press asks for a page of the viewport it
+//      has AT THAT MOMENT (the scroll request the connector trace records:
+//      delta = −(viewport − 2), the two overlap rows kept) and settles what
+//      it asked within one row. The viewport is host truth AND changes
+//      mid-run — the notification block under a keyless composer clears a
+//      few seconds in and the transcript grows by its rows — so a step
+//      pinned over the run (a mode, a bound) reads a changed viewport as a
+//      lost press; the press's own request is the only honest yardstick.
+//      The frames guard the request: a viewport can never exceed the pane
+//      the frame shows;
 //    · MONOTONE — every press moves up, none backward;
 //    · SETTLED — the end-of-run grid matches the last settled mark exactly
 //      (no post-settle drift);
@@ -47,7 +47,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler.ts'
+import { paneSigs, regionOf, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -278,8 +278,7 @@ function runCell(cell: Cell): void {
   // The connector trace seam records every scroll request the page key
   // makes (the viewport before the move, the delta asked, the span) and
   // every virtual-list render (the settled top, the viewport, stickiness):
-  // when a press settles short, the two lines say whether the request or
-  // the settle lost the rows. Printed, never asserted; kept with the grids.
+  // the requests ARE the per-press yardstick; the renders are diagnosis.
   const trace = join(SCRATCH, `${cell.tag}-trace.jsonl`)
   const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {
     encoding: 'utf-8', timeout: vshotBudgetMs(420000), cwd: ROOT,
@@ -298,10 +297,11 @@ function runCell(cell: Cell): void {
   }
   const undelivered = /UNDELIVERED-SENDS/.test(res.stdout ?? '')
   const payload = JSON.parse(readFileSync(out, 'utf-8'))
+  type Req = { ev: string; delta?: number; top?: number; max?: number; viewport?: number; sticky?: boolean; range?: [number, number]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
+  let reqs: Req[] = []
   try {
-    type Req = { ev: string; delta?: number; top?: number; max?: number; viewport?: number; sticky?: boolean; range?: [number, number]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
     const lines = readFileSync(trace, 'utf-8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l) as Req } catch { return null } }).filter((r): r is Req => r !== null)
-    const reqs = lines.filter(r => r.ev === 'scroll-request')
+    reqs = lines.filter(r => r.ev === 'scroll-request' && typeof r.delta === 'number' && r.delta < 0)
     const rends = lines.filter(r => r.ev === 'list-render' && r.scroll)
     console.log(`  scroll requests (delta@top/viewport, span): ${reqs.map(r => `${r.delta}@${r.top}/${r.viewport}${r.sticky ? 's' : ''}·${r.max}`).join(' ')}`)
     console.log(`  list renders (range@top/viewport/height): ${rends.slice(-40).map(r => `[${r.range![0]},${r.range![1]})@${r.scroll!.top}${r.scroll!.sticky ? 's' : ''}/${r.scroll!.viewport}/${r.scroll!.height}`).join(' ')}`)
@@ -310,34 +310,35 @@ function runCell(cell: Cell): void {
   }
   const a = analyze(cell, payload)
   const shown = a.deltas.map(d => String(d)).join(',')
-  // The step the drive actually settles, press to press: its mode is the
-  // page step under proof (ties break low — the boundary press adds a row,
-  // never removes one).
-  const settled = a.deltas.map(d => -d)
-  const stepCounts = new Map<number, number>()
-  for (const s of settled) stepCounts.set(s, (stepCounts.get(s) ?? 0) + 1)
-  const step = [...stepCounts.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0])[0]?.[0] ?? 0
   const bounds = stepBounds(a.viewport)
-  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · step mode ${step} · transcript region ${a.viewport} rows ⇒ step bounds [${bounds.floor}, ${bounds.ceiling}]`)
+  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · transcript region ${a.viewport} rows (press frames' mode) · viewports asked ${reqs.map(r => r.viewport).join(',')} · step bounds if the region were the viewport [${bounds.floor}, ${bounds.ceiling}]`)
   // DELIVERED — every planned press fired (p00..pN-1 + final).
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
     `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
   // The measured region is a real pane (a blank or wrong-frame drive reads
-  // 0 and must never bound the step against an empty pane).
+  // 0 and must never be the pane a press is judged against).
   check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
-  // The step is a REAL page inside the region's bounds: the scroller's
-  // viewport is the region less the sticky-prompt header and the jump
-  // pill's row when scrolled, a page keeps ${OVERLAP_ROWS} overlap rows —
-  // so at least region − 4 (an absorbed or compressed press is smaller),
-  // at most region + 1 (the estimate-compression regression crossed 4.3×).
-  check(`${cell.tag}: page step ≥ region − 4`, step >= bounds.floor, `step ${step} vs floor ${bounds.floor}`)
-  check(`${cell.tag}: page step ≤ region + 1`, step <= bounds.ceiling, `step ${step} vs ceiling ${bounds.ceiling}`)
-  // ROW-EXACT + MONOTONE over settled presses: every press travels the mode
-  // step within one row.
+  // NO LOST PRESS — every page key reached the scroller as one request.
+  check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses`)
+  // ROW-EXACT PER PRESS + MONOTONE: press i asked for a page of ITS
+  // viewport (delta = −(viewport − overlap)), the viewport never exceeds
+  // the pane the press's own frame shows, and the settle honours the ask
+  // within one row.
+  const pressFrames = (payload.marks ?? []).filter((m: { label: string }) => /^p\d+$/.test(m.label)).map((m: { grid: Grid }) => m.grid)
   for (let i = 0; i < a.deltas.length; i++) {
     const d = a.deltas[i]!
-    check(`${cell.tag}: press ${i + 1} row-exact`, Math.abs(-d - step) <= 1,
-      `settled ${-d} rows vs the mode step ${step}`)
+    const r = reqs[i]
+    if (r === undefined || typeof r.delta !== 'number' || typeof r.viewport !== 'number') {
+      check(`${cell.tag}: press ${i + 1} has its request`, false, 'no scroll request recorded for this press')
+      continue
+    }
+    check(`${cell.tag}: press ${i + 1} asked a page of its own viewport (${r.viewport} − ${OVERLAP_ROWS})`, -r.delta === r.viewport - OVERLAP_ROWS,
+      `asked ${-r.delta} rows at viewport ${r.viewport}`)
+    const frame = pressFrames[i + 1] ?? pressFrames[pressFrames.length - 1]
+    const paneNow = frame ? viewportRows(frame) : a.viewport
+    check(`${cell.tag}: press ${i + 1} viewport never exceeds the pane on screen`, r.viewport <= paneNow + 1, `viewport ${r.viewport} vs pane ${paneNow}`)
+    check(`${cell.tag}: press ${i + 1} row-exact (settled what it asked)`, Math.abs(-d - -r.delta) <= 1,
+      `settled ${-d} rows vs asked ${-r.delta}`)
     check(`${cell.tag}: press ${i + 1} monotone up`, d < 0, `delta ${d}`)
   }
   // SETTLED — the end grid does not drift off the last settled mark.
