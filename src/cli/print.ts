@@ -94,6 +94,7 @@ import {
   fetchToolsForClient,
   setupSdkMcpClients,
 } from '../services/mcp/client.js'
+import { registerEditorCompanion } from '../services/mcp/vscodeSdkMcp.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
 import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
@@ -941,6 +942,7 @@ export async function runHeadless(
         io.sendMcpMessage.bind(io),
       )
       sdkMcp.clients = freshClients
+      registerEditorCompanion(freshClients)
       sdkMcp.tools = freshTools
       const staleNames = new Set([...oldNames, ...configuredNames])
       setAppState(previous => ({
