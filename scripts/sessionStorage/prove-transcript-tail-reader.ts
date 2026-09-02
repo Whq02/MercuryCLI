@@ -191,16 +191,17 @@ section('§B an append of N rows reads only the appended bytes (+ the ≤4 KB wi
   check('the fold state stays the one object across growth', completed.view.fold === cold.view.fold)
 }
 
-section('§C a truncation, a byte flip, a replaced file and a grown rewrite each reset to a full read')
+section('§C a truncation, a windowed byte flip, a replaced file and a grown rewrite each reset to a full read')
 {
   const file = join(SCRATCH, 'c.jsonl')
-  const seed = async (): Promise<void> => {
+  const seed = async (): Promise<{ leaf: string; tick: { i: number } }> => {
     resetAll()
     vnext.resetTranscriptFormatCacheForTesting()
     writeFileSync(file, '')
     const tick = { i: 0 }
-    appendTurns(file, null, 60, tick)
+    const leaf = appendTurns(file, null, 60, tick)
     await reader.readTranscript(file)
+    return { leaf, tick }
   }
   const same = async (label: string): Promise<void> => {
     const got = await loading.loadTranscriptFile(file)
@@ -216,13 +217,16 @@ section('§C a truncation, a byte flip, a replaced file and a grown rewrite each
   check('the fold no longer holds the cut rows', truncated.fold.messages.size < before.fold.messages.size && truncated.offset <= statSync(file).size)
   await same('truncation')
 
-  await seed()
+  const seeded = await seed()
   const flipped = readFileSync(file)
   const at = flipped.length - 10
   flipped[at] = flipped[at] === 0x61 ? 0x62 : 0x61
   writeFileSync(file, flipped)
+  const unobserved = await reader.readTranscript(file)
+  check('the documented non-goal: a same-size in-place rewrite with no growth is not observed (the product\'s own rewrite roads shrink the file or replace its inode)', unobserved.read.kind === 'none' && census.resets === 0 && census.coldReads === 1, JSON.stringify({ kind: unobserved.read.kind, census }))
+  appendTurns(file, seeded.leaf, 1, seeded.tick)
   const afterFlip = await reader.readTranscript(file)
-  check('a same-size byte flip inside the covered prefix: the window catches it — reset + cold read', census.resets === 1 && census.coldReads === 2 && afterFlip.read.kind === 'cold', JSON.stringify(census))
+  check('the next growth proves the window and finds the flip — reset + cold read', census.resets === 1 && census.coldReads === 2 && afterFlip.read.kind === 'cold', JSON.stringify(census))
   await same('byte flip')
 
   await seed()
