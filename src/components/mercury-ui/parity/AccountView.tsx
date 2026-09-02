@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import * as React from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { getGlobalConfig } from '../../../utils/config.js'
@@ -116,6 +116,13 @@ function familyConnectRoute(id: string): string {
 
 const MAX_ROWS_SHOWN = 8
 
+/** ⌫ is a two-press gesture: the first press ARMS the removal on the
+ *  focused slot and names what would leave; a second press on the SAME
+ *  slot inside this window executes it. Another slot, or the window
+ *  passing, disarms. A sign-out revokes tokens server-side and drops the
+ *  stored credential — a single stray keypress must never do that. */
+const REMOVAL_CONFIRM_WINDOW_MS = 8_000
+
 function tildify(p: string, home: string): string {
   return p.startsWith(home) ? `~${p.slice(home.length)}` || '~' : p
 }
@@ -167,6 +174,9 @@ export function AccountView({
   // version counter forces a re-read after a mutation (remove/connect/add).
   const [version, setVersion] = useState(0)
   const [identities, setIdentities] = useState<Identities>({})
+  // The armed removal (slot id + the moment ⌫ armed it) — see
+  // REMOVAL_CONFIRM_WINDOW_MS.
+  const armedRemovalRef = useRef<{ id: string; at: number } | null>(null)
 
   // The local engine's slot paints DISCOVERY truth: kick ONE bounded
   // loopback probe at mount (localDiscovery's own 900ms caps; single-flight,
@@ -299,12 +309,30 @@ export function AccountView({
       },
       {
         key: 'backspace',
-        hint: 'remove slot',
+        hint: 'remove slot (⌫ twice)',
         run: row => {
           if (!row) return 'no accounts found — r rescans'
           if (row.type === 'absent') {
             return `nothing to remove — ${row.family.id} has no login. ${familyConnectRoute(row.family.id)}`
           }
+          // The confirmation: the first ⌫ arms and names what would leave;
+          // only a second ⌫ on the same slot inside the window executes.
+          // Guidance rows (env pins, excluded scopes, settings-owned keys)
+          // mutate nothing, so they answer at once.
+          const removable =
+            row.slot.removal.route !== 'excluded' &&
+            row.slot.removal.route !== 'owner' &&
+            row.slot.removal.route !== 'settings' &&
+            row.slot.removal.route !== 'env'
+          const id = rowKey(row)
+          const armed = armedRemovalRef.current
+          const stillArmed = armed !== null && armed.id === id && Date.now() - armed.at <= REMOVAL_CONFIRM_WINDOW_MS
+          if (removable && !stillArmed) {
+            armedRemovalRef.current = { id, at: Date.now() }
+            const what = row.slot.identity || row.slot.kindLabel
+            return `⌫ again removes ${familyDisplayName(row.slot.family)} · ${what} (signs it out and drops the stored credential) — any other row keeps it`
+          }
+          armedRemovalRef.current = null
           // Routed to the owning store; env pins and excluded scopes come
           // back as honest refusals, guidance rows mutate nothing.
           const outcome = executeSlotRemoval(row.slot)
