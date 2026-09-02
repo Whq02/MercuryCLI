@@ -16,7 +16,7 @@
 #  the perf receipt runner (bench-baseline.ts) is operator-run, not a member.
 # ============================================================================
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 # One wall-seconds line per prover — the pool engine reads exactly this shape.

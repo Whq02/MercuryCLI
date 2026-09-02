@@ -694,6 +694,16 @@ export type DaemonReply =
       sessionId: string
       workspaceId: string
       pid?: number
+      /** The launch receipt's facts (the dispatch door's answer carries the
+       *  same set): the carved fork, the model and the effort the session
+       *  runs on — and, on a resume admitted without the model it ran on,
+       *  the dropped model's note. Additive on proto 3. */
+      branchName?: string
+      mainHolderTitle?: string
+      modelId?: string
+      modelDisplayName?: string
+      effort?: string
+      note?: string
       kitSource?: 'carried' | 'derived' | 'preset'
       liveHop?: true
       /** The preset the admission wore + the derivation's honesty note
@@ -752,7 +762,21 @@ export type DaemonReply =
   // alone must say so, with no trip to the ledger file required. `refusal`
   // is optional-additive as well: the typed admission-refusal code
   // ('runtime-ceiling' | 'workspace-collision' | …) next to the prose reason.
-  | { ok: false; code: DaemonErrorCode; error: string; refusal?: string; state?: string; stateRevision?: number; serverProto?: number; serverVersion?: string }
+  // `heldReason` / `heldByTitle` / `moves` are optional-additive too: a held
+  // dispatch's typed hold and its executable moves ride the refusal receipt.
+  | {
+      ok: false
+      code: DaemonErrorCode
+      error: string
+      refusal?: string
+      state?: string
+      stateRevision?: number
+      heldReason?: string
+      heldByTitle?: string
+      moves?: Array<{ verb: string; label: string }>
+      serverProto?: number
+      serverVersion?: string
+    }
 
 /** Flat snapshot the `status` op returns (assembled in status.ts). */
 export interface WireStatus {

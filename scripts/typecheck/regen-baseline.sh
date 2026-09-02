@@ -4,7 +4,7 @@
 # new, smaller backlog in as the floor so future runs can't silently regress past
 # it. Never run it to "make red go green" without having actually fixed something.
 set -uo pipefail
-cd "$(dirname "$0")/../.."
+cd "$(dirname "$0")/../.." || exit 1
 TSC="node_modules/.bin/tsc"; CFG="tsconfig.json"
 [ -x "$TSC" ] || { echo "tsc missing — run: bun add -d typescript"; exit 1; }
 raw=$(mktemp); trap 'rm -f "$raw"' EXIT

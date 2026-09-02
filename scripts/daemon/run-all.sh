@@ -36,6 +36,7 @@ __t=$SECONDS; "$bun" run "$here/prove-compact-state-word.ts" || fail=1; prover_m
 __t=$SECONDS; "$bun" run "$here/prove-daemon-handshake.ts" || fail=1; prover_mark "$here/prove-daemon-handshake.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-send-hops.ts" || fail=1; prover_mark "$here/prove-send-hops.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-rename-migration.ts" || fail=1; prover_mark "$here/prove-rename-migration.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-wire-answer-whole.ts" || fail=1; prover_mark "$here/prove-wire-answer-whole.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-saturn-core.ts" || fail=1; prover_mark "$here/prove-saturn-core.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-saturn-adversarial.ts" || fail=1; prover_mark "$here/prove-saturn-adversarial.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-saturn-keyless.ts" || fail=1; prover_mark "$here/prove-saturn-keyless.ts" "$__t"
