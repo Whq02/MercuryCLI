@@ -205,6 +205,18 @@ lines.push(
 lines.push(
   `- **Node.js runtime** ${nodeRuntime.version ?? '(not vendored on this checkout)'} — OpenJS Foundation and Node.js contributors, ${nodeRuntime.license ?? 'MIT'} (https://nodejs.org/dist/v${nodeRuntime.version ?? '<version>'}/). Receipt: vendor/node.lock.json (one official nodejs.org archive + sha256 per platform, every digest from that release's SHASUMS256.txt); the release archive ships the platform's runtime binary and Node's own LICENSE at dist/vendor/node/ — that LICENSE carries the notices of the components Node bundles (V8, libuv, OpenSSL, ICU, zlib, c-ares, nghttp2, simdjson and the rest).`,
 )
+{
+  // The voice capture pack: BUILT from native/voice (cargo), never fetched.
+  // Every crate linked into the addon is inventoried by the pack build
+  // beside the addon itself (vendor/voice/<platform>/NOTICES.json, with the
+  // licence texts under licenses/) — a per-platform record that ships in
+  // the archive; this tracked file names the family and the record's
+  // place, never one platform's crate list (the file stays identical on
+  // every checkout, pack built or not).
+  lines.push(
+    `- **voice capture pack** (\`dist/vendor/voice/<platform>/mercury_voice.node\`) — Mercury's own Node-API addon, built from the repository's native/voice sources with cargo (never fetched). It statically links the Rust crates it depends on, chiefly cpal (Apache-2.0 / MIT, https://github.com/RustAudio/cpal) and napi-rs (MIT, https://github.com/napi-rs/napi-rs); the full per-platform crate inventory ships beside the addon as \`NOTICES.json\`, with every linked crate's licence text under \`licenses/<crate>-<version>/\`.`,
+  )
+}
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
 lines.push('')
