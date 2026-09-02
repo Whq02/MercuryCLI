@@ -6,6 +6,7 @@ import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { splitGrepGlobField } from '../../utils/globPattern.js'
@@ -344,16 +345,14 @@ export const GrepTool = buildTool({
       }
     }
 
-    const statted = await Promise.all(
-      lines.map(async file => {
-        try {
-          const stats = await stat(file)
-          return { file, mtimeMs: stats.mtimeMs }
-        } catch {
-          return { file, mtimeMs: 0 }
-        }
-      }),
-    )
+    const statted = await mapWithConcurrency(lines, discoveryPoolWidth(), async file => {
+      try {
+        const stats = await stat(file)
+        return { file, mtimeMs: stats.mtimeMs }
+      } catch {
+        return { file, mtimeMs: 0 }
+      }
+    })
     if (process.env.NODE_ENV === 'test') {
       statted.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0))
     } else {

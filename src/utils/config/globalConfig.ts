@@ -44,6 +44,18 @@ export function wouldLoseAuthState(fresh: {
 
 let pendingDeferredUpdaters: Array<(currentConfig: GlobalConfig) => GlobalConfig> = []
 
+let deferredExitFlushArmed = false
+function armDeferredExitFlush(): void {
+  if (deferredExitFlushArmed) return
+  deferredExitFlushArmed = true
+  process.once('exit', () => {
+    try {
+      flushDeferredGlobalConfigSaves()
+    } catch {
+    }
+  })
+}
+
 function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
   let folded = current
   for (const pending of pendingDeferredUpdaters) folded = pending(folded)
@@ -61,6 +73,7 @@ export function saveGlobalConfigDeferred(
   const next = updater(current)
   if (next === current) return
   pendingDeferredUpdaters.push(updater)
+  armDeferredExitFlush()
   writeThroughGlobalConfigCache({
     ...next,
     projects: removeProjectHistory(next.projects),

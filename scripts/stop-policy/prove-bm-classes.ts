@@ -364,7 +364,13 @@ async function main(): Promise<void> {
     const printSrc = src('src/cli/print.ts')
     check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', printSrc.includes('noteHeadlessActivity('))
     const mainSrc = src('src/main.tsx')
-    check('BM-15: numStartups semantics UNTOUCHED (interactive increment only; no ledger call in main.tsx)', mainSrc.includes('numStartups: (current.numStartups ?? 0) + 1') && !mainSrc.includes('noteHeadlessActivity'))
+    check(
+      "BM-15: numStartups semantics UNTOUCHED (interactive increment only; main.tsx's one ledger call is the verb stamp, never print/sdk)",
+      mainSrc.includes('numStartups: (current.numStartups ?? 0) + 1') &&
+        (mainSrc.match(/noteHeadlessActivity\(/g) ?? []).length === 1 &&
+        mainSrc.includes("noteHeadlessActivity(`verb:${names.join(':')}`)") &&
+        !/noteHeadlessActivity\(\s*'(?:print|sdk)'/.test(mainSrc),
+    )
     check("BM-15: /health carries the activity row (wedge detection reads BOTH)", src('src/utils/healthReport.ts').includes("id: 'activity'"))
   }
 

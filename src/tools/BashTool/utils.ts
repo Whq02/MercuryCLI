@@ -61,10 +61,10 @@ export async function resizeShellImageOutput(
 ): Promise<string | null> {
   let source = stdout
   if (outputFilePath !== undefined) {
-    const { statSync, readFileSync } = await import('node:fs')
-    const size = outputFileSize ?? statSync(outputFilePath).size
+    const { stat, readFile } = await import('node:fs/promises')
+    const size = outputFileSize ?? (await stat(outputFilePath)).size
     if (size > MAX_IMAGE_DATA_URI_BYTES) return null
-    source = readFileSync(outputFilePath, 'utf8')
+    source = await readFile(outputFilePath, 'utf8')
   }
   const parsed = parseDataUri(source)
   if (!parsed) return null

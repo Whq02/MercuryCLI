@@ -1,6 +1,6 @@
 
 import { useCallback, useRef } from 'react'
-import { loadHistoryCorpus, makeHistoryReaderOver, type HistoryCorpus } from '../history.js'
+import { loadHistoryCorpus, makeHistoryReaderOver, type HistoryCorpus, type HistoryRecord } from '../history.js'
 import type { HistoryEntry, PastedContent } from '../utils/config.js'
 import {
   getModeFromInput,
@@ -37,6 +37,33 @@ export function disarmHistoryScanTimer(
   liveScanTimers.delete(timer)
 }
 
+export function findHistoryMatchSync(
+  corpus: HistoryCorpus,
+  query: string,
+  seen: ReadonlySet<string>,
+): HistoryRecord | undefined {
+  for (const record of corpus) {
+    if (!record.display.includes(query)) continue
+    if (seen.has(record.display)) continue
+    return record
+  }
+  return undefined
+}
+
+export function resolveFixedMatch(
+  record: HistoryRecord,
+  settle: (entry: HistoryEntry | undefined) => void,
+): void {
+  if (Object.keys(record.pastedContents ?? {}).length === 0) {
+    settle({ display: record.display, pastedContents: {} })
+    return
+  }
+  void (async () => {
+    const next = await makeHistoryReaderOver([record]).next()
+    return next.done ? undefined : next.value
+  })().then(settle, () => settle(undefined))
+}
+
 export function useHistorySearch(
   onAcceptHistory: (entry: HistoryEntry) => void,
   currentInput: string,
@@ -71,6 +98,9 @@ export function useHistorySearch(
   } | null>(null)
   const scanAbortRef = useRef<AbortController | null>(null)
   const scanDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const corpusValueRef = useRef<HistoryCorpus | null>(null)
+  const scanInFlightRef = useRef(false)
+  const scanEpochRef = useRef(0)
   const [, force] = useReducerLike()
 
   const searchingRef = useRef(isSearching)
@@ -113,29 +143,36 @@ export function useHistorySearch(
         closeReader()
         seenRef.current.clear()
       }
+      scanInFlightRef.current = true
+      const token = ++scanEpochRef.current
       void (async () => {
-        const corpus = await (corpusRef.current ??= loadHistoryCorpus())
-        if (abort.signal.aborted) return
-        if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
-        const reader = readerRef.current
-        for (;;) {
+        try {
+          const corpus = await (corpusRef.current ??= loadHistoryCorpus())
+          corpusValueRef.current = corpus
           if (abort.signal.aborted) return
-          const next = await reader.next()
-          if (abort.signal.aborted) return
-          if (next.done) {
-            failedRef.current = true
+          if (!continueScan || readerRef.current === null) readerRef.current = makeHistoryReaderOver(corpus)
+          const reader = readerRef.current
+          for (;;) {
+            if (abort.signal.aborted) return
+            const next = await reader.next()
+            if (abort.signal.aborted) return
+            if (next.done) {
+              failedRef.current = true
+              force()
+              return
+            }
+            const entry = next.value
+            if (!entry.display.includes(query)) continue
+            if (seenRef.current.has(entry.display)) continue
+            seenRef.current.add(entry.display)
+            matchRef.current = entry
+            failedRef.current = false
+            applyMatch(entry, query)
             force()
             return
           }
-          const entry = next.value
-          if (!entry.display.includes(query)) continue
-          if (seenRef.current.has(entry.display)) continue
-          seenRef.current.add(entry.display)
-          matchRef.current = entry
-          failedRef.current = false
-          applyMatch(entry, query)
-          force()
-          return
+        } finally {
+          if (token === scanEpochRef.current) scanInFlightRef.current = false
         }
       })()
     },
@@ -156,6 +193,8 @@ export function useHistorySearch(
     scanAbortRef.current?.abort()
     closeReader()
     corpusRef.current = null
+    corpusValueRef.current = null
+    scanInFlightRef.current = false
     seenRef.current.clear()
     queryRef.current = ''
     matchRef.current = undefined
@@ -176,6 +215,15 @@ export function useHistorySearch(
     scanDebounceRef.current = null
     closeReader()
     corpusRef.current = loadHistoryCorpus()
+    corpusValueRef.current = null
+    scanInFlightRef.current = false
+    const load = corpusRef.current
+    void load.then(
+      corpus => {
+        if (corpusRef.current === load) corpusValueRef.current = corpus
+      },
+      () => {},
+    )
     seenRef.current.clear()
     queryRef.current = ''
     matchRef.current = undefined
@@ -192,6 +240,7 @@ export function useHistorySearch(
         disarmHistoryScanTimer(scanDebounceRef.current)
         scanDebounceRef.current = null
         scanAbortRef.current?.abort()
+        scanInFlightRef.current = false
         closeReader()
         seenRef.current.clear()
         matchRef.current = undefined
@@ -226,19 +275,44 @@ export function useHistorySearch(
     scan(queryRef.current, true)
   }, [scan])
 
+  const withFixedMatch = useCallback(
+    (settle: (match: HistoryEntry | undefined) => void): void => {
+      const pending = scanDebounceRef.current !== null
+      if (queryRef.current === '' || (!pending && !scanInFlightRef.current)) {
+        settle(matchRef.current)
+        return
+      }
+      disarmHistoryScanTimer(scanDebounceRef.current)
+      scanDebounceRef.current = null
+      scanAbortRef.current?.abort()
+      scanInFlightRef.current = false
+      if (pending) seenRef.current.clear()
+      const corpus = corpusValueRef.current
+      const record =
+        corpus === null ? undefined : findHistoryMatchSync(corpus, queryRef.current, seenRef.current)
+      if (record === undefined) {
+        settle(undefined)
+        return
+      }
+      resolveFixedMatch(record, settle)
+    },
+    [],
+  )
+
   const accept = useCallback((): void => {
-    const match = matchRef.current
-    if (match !== undefined) {
-      const mode = getModeFromInput(match.display)
-      onModeChange(mode)
-      onInputChange(getValueFromInput(match.display))
-      setPastedContents(match.pastedContents)
-    } else {
-      const original = originalRef.current
-      if (original !== null) setPastedContents(original.pastedContents)
-    }
-    reset()
-  }, [onModeChange, onInputChange, setPastedContents, reset])
+    withFixedMatch(match => {
+      if (match !== undefined) {
+        const mode = getModeFromInput(match.display)
+        onModeChange(mode)
+        onInputChange(getValueFromInput(match.display))
+        setPastedContents(match.pastedContents)
+      } else {
+        const original = originalRef.current
+        if (original !== null) setPastedContents(original.pastedContents)
+      }
+      reset()
+    })
+  }, [withFixedMatch, onModeChange, onInputChange, setPastedContents, reset])
 
   const cancel = useCallback((): void => {
     restoreOriginal()
@@ -246,31 +320,32 @@ export function useHistorySearch(
   }, [restoreOriginal, reset])
 
   const execute = useCallback((): void => {
-    const query = queryRef.current
-    const match = matchRef.current
-    if (query === '') {
-      const original = originalRef.current
-      if (original !== null) {
-        onAcceptHistory({
-          display: original.input,
-          pastedContents: original.pastedContents,
-        })
+    withFixedMatch(match => {
+      const query = queryRef.current
+      if (query === '') {
+        const original = originalRef.current
+        if (original !== null) {
+          onAcceptHistory({
+            display: original.input,
+            pastedContents: original.pastedContents,
+          })
+        }
+        reset()
+        return
       }
+      if (match === undefined) {
+        reset()
+        return
+      }
+      const mode = getModeFromInput(match.display)
+      onModeChange(mode)
+      onAcceptHistory({
+        display: getValueFromInput(match.display),
+        pastedContents: match.pastedContents,
+      })
       reset()
-      return
-    }
-    if (match === undefined) {
-      reset()
-      return
-    }
-    const mode = getModeFromInput(match.display)
-    onModeChange(mode)
-    onAcceptHistory({
-      display: getValueFromInput(match.display),
-      pastedContents: match.pastedContents,
     })
-    reset()
-  }, [onAcceptHistory, onModeChange, reset])
+  }, [withFixedMatch, onAcceptHistory, onModeChange, reset])
 
   useKeybinding(
     'history:search',
