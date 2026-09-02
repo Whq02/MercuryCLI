@@ -361,8 +361,38 @@ export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env)
 
 export const HUGGINGFACE_MODEL_GROUP = 'Mercury — Hugging Face models'
 export const HUGGINGFACE_CONNECT_OPTION_VALUE = '__mercury_huggingface_connect__'
+export const HUGGINGFACE_EXPAND_OPTION_VALUE = '__mercury_huggingface_expand__'
 
 const PICKER_ROW_BOUND = 24
+
+function huggingfaceCatalogueRows(models: HuggingfaceLiveModel[], source: string, bound: number): ModelOption[] {
+  const rows: ModelOption[] = []
+  for (const model of models.slice(0, bound)) {
+    const verdict = canonicalWireModelId(`${HUGGINGFACE_MODEL_PREFIX}${model.id}`)
+    const widest = liveProviders(model)
+      .map(p => p.contextLength ?? 0)
+      .reduce((a, b) => Math.max(a, b), 0)
+    rows.push({
+      value: `${HUGGINGFACE_MODEL_PREFIX}${model.id}`,
+      label: huggingfaceSlugModelName(model.id),
+      description: '',
+      descriptionForModel: `${model.id} — served through the Hugging Face router (${source}), live-listed in the router's own order; persisted as ${HUGGINGFACE_MODEL_PREFIX}${model.id}; append :<provider> or :cheapest/:preferred to steer the backend.`,
+      group: HUGGINGFACE_MODEL_GROUP,
+      ...(verdict.ok && verdict.healed !== true
+        ? {}
+        : { unavailable: 'not a dispatchable id — the row carries display words, not a catalogue id' }),
+      ...(widest > 0 ? { statedContextWindow: widest } : {}),
+    })
+  }
+  return rows
+}
+
+export function getHuggingfaceFullModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+  const availability = getHuggingfaceAvailability(env)
+  if (availability.state !== 'ready') return []
+  const models = getCachedHuggingfaceCatalogue(env)?.models ?? []
+  return huggingfaceCatalogueRows(models, availability.source, models.length)
+}
 
 export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
   const availability = getHuggingfaceAvailability(env)
@@ -382,31 +412,15 @@ export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env)
   const snapshot = getCachedHuggingfaceCatalogue(env)
   const models = snapshot?.models ?? []
   if (models.length > 0) {
-    for (const model of models.slice(0, PICKER_ROW_BOUND)) {
-      const verdict = canonicalWireModelId(`${HUGGINGFACE_MODEL_PREFIX}${model.id}`)
-      const widest = liveProviders(model)
-        .map(p => p.contextLength ?? 0)
-        .reduce((a, b) => Math.max(a, b), 0)
-      rows.push({
-        value: `${HUGGINGFACE_MODEL_PREFIX}${model.id}`,
-        label: huggingfaceSlugModelName(model.id),
-        description: '',
-        descriptionForModel: `${model.id} — served through the Hugging Face router (${availability.source}), live-listed in the router's own order; persisted as ${HUGGINGFACE_MODEL_PREFIX}${model.id}; append :<provider> or :cheapest/:preferred to steer the backend.`,
-        group: HUGGINGFACE_MODEL_GROUP,
-        ...(verdict.ok && verdict.healed !== true
-          ? {}
-          : { unavailable: 'not a dispatchable id — the row carries display words, not a catalogue id' }),
-        ...(widest > 0 ? { statedContextWindow: widest } : {}),
-      })
-    }
+    rows.push(...huggingfaceCatalogueRows(models, availability.source, PICKER_ROW_BOUND))
     if (availability.modelCount > PICKER_ROW_BOUND) {
       rows.push({
-        value: HUGGINGFACE_CONNECT_OPTION_VALUE,
+        value: HUGGINGFACE_EXPAND_OPTION_VALUE,
         label: `Hugging Face — ${availability.modelCount} models live`,
-        description: `top ${PICKER_ROW_BOUND} shown (the router's own order) · type huggingface/<org>/<model> for any other`,
-        descriptionForModel: `The Hugging Face router lists ${availability.modelCount} live chat models; the picker renders the first ${PICKER_ROW_BOUND} in the router's order — any listed id dispatches when typed as huggingface/<org>/<model>.`,
+        description: `↵ expand · ${availability.modelCount} live · type to filter`,
+        descriptionForModel: `The Hugging Face router lists ${availability.modelCount} live chat models; the picker renders the first ${PICKER_ROW_BOUND} in the router's order, and this row expands the group to the full list behind a filter — any listed id also dispatches when typed as huggingface/<org>/<model>.`,
         group: HUGGINGFACE_MODEL_GROUP,
-        unavailable: 'a summary row — pick a listed model or type an id',
+        catalogueDoor: { family: 'Hugging Face', total: availability.modelCount },
       })
     }
     return rows
