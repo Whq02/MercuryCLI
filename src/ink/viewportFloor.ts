@@ -2,30 +2,30 @@
 //  ink/viewportFloor.ts — the fullscreen surface's minimum size, and the one
 //  line the product says when the window is under it.
 //
-//  Below the documented minimum no fullscreen surface can lay itself out
-//  honestly: the cockpit sheds to strips, strips to an inline fallback, and
-//  each step paints a frame nobody designed for. The hosts read ONE verdict
-//  here: the alternate-screen host paints ONE line instead — naming the
-//  minimum and the way back (resize) — and every host under the floor keeps
-//  its surface mounted, out of layout, frozen at the last size that fit, so
-//  the way back repaints it whole with every scroll position and draft
-//  intact.
+//  Below the minimum no fullscreen surface can lay itself out honestly: the
+//  plain world's strips shed into an inline fallback, borders clip, and each
+//  step paints a frame nobody designed. The hosts read ONE verdict here: the
+//  alternate-screen host paints ONE line instead — naming the minimum and
+//  the way back (resize) — and every host under the floor keeps its surface
+//  mounted, out of layout, frozen at the last size that fit, so the way back
+//  repaints it whole with every scroll position and draft intact.
 //
-//  The width floor is the cockpit's entry width (helmGeometry owns the
-//  number) behind the cockpit's own exit hysteresis at the same boundary: a
+//  The width floor is the plain world's own minimum (80 columns — the width
+//  the deck-strip home, the boot faces and the Concourse's board pane are
+//  designed down to); the cockpit's entry width (helmGeometry's 100) is a
+//  chrome tier above it, never the floor. The floor stands behind the same
+//  exit hysteresis the cockpit's chrome latch uses at its own boundary: a
 //  drag that dips a few columns under the floor keeps the surface, and a
 //  fresh window must reach the floor itself. The row floor is the shortest
-//  window any designed fullscreen chrome paints in (the deck strip's floor
-//  — the layout tier reads the same number); rows carry no band, like the
+//  window any designed fullscreen chrome paints in (the deck strip's floor —
+//  the layout tier reads the same number); rows carry no band, like the
 //  chrome's own row gate. ONE latch, module-owned like the chrome's, so the
 //  alternate-screen host and a route surface host painting over it read the
 //  same answer for the same frame. One engage, one release.
 // ============================================================================
 
-import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
-
 /** The minimum width a fullscreen surface is painted at. */
-export const VIEWPORT_FLOOR_COLS = HELM_HOME_MIN_COLS
+export const VIEWPORT_FLOOR_COLS = 80
 
 /** The minimum height: below it the deck strip cannot coexist with the
  *  prompt, the status bar and an open suggestion menu, and no chrome
@@ -34,8 +34,8 @@ export const VIEWPORT_FLOOR_ROWS = 22
 
 /** The exit band under the width floor: a surface already painted at or
  *  above the floor survives a shrink to (floor − band); it goes under at
- *  the column below. The cockpit's chrome latch reads the SAME band, so the
- *  surface and its chrome agree on every column of a drag. */
+ *  the column below. The cockpit's chrome latch reads the SAME band at its
+ *  own boundary, so a drag settles the same way at both. */
 export const VIEWPORT_FLOOR_EXIT_BAND = 3
 
 export type ViewportFloorVerdict = { fits: true } | { fits: false; line: string }

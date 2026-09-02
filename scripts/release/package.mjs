@@ -74,9 +74,17 @@ const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 // fetch-*.ts commands, rebuild). --allow-degraded is the explicit escape
 // for deliberate partial builds; silence is never one.
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
-if (degraded.length > 0 && !process.argv.includes('--allow-degraded')) {
-  fail(`dist manifest is DEGRADED (${degraded.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
+// The voice capture pack is BUILT on the packaging host (cargo, the
+// platform audio headers), not fetched: a runner that cannot build it still
+// publishes the archive — degraded and honest (the manifest's `voiceInput`
+// record names the remedy, the doctor row says so). Every other degradation
+// keeps refusing; the tolerance is named here, once.
+const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input'])
+const blocking = degraded.filter(d => !PUBLISHABLE_DEGRADATIONS.has(d))
+if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
+  fail(`dist manifest is DEGRADED (${blocking.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
 }
+if (degraded.includes('voice-input')) ok('the voice capture pack is absent from this build — the archive ships without voice input (degraded: voice-input, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 // The vendored Node runtime: a release archive carries its own, so a fresh

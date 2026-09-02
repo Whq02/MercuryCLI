@@ -5,8 +5,9 @@
 // (mode badge slot · tasks pill · idle hint) never nested inside the
 // truncating text wrapper.
 
-import React, { useContext } from 'react'
+import React, { useContext, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
+import { RECORDING_FOOTER, subscribeVoice, TRANSCRIBING_FOOTER, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { usePrStatus } from '../../hooks/usePrStatus.js'
@@ -101,6 +102,8 @@ export function PromptInputFooterLeftSide({
     isLoading,
     getGlobalConfig().prStatusFooterEnabled !== false,
   )
+  // Voice input: a capture in flight owns the whole left cluster (below).
+  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
 
   // 1 · exit-pending outranks everything. The ruled notice copy: shown only
   // while the exit chord is armed; it clears when the 3 s window lapses.
@@ -112,6 +115,25 @@ export function PromptInputFooterLeftSide({
   // 2 · paste in progress.
   if (isPasting) {
     return <Text dimColor>pasting text…</Text>
+  }
+  // 2b · a voice capture in flight: the one line, then the transcribing
+  // wait — the hint set stands aside until the words land.
+  if (voice.phase === 'recording') {
+    return (
+      <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
+        <Text wrap="truncate-end">
+          <Text color={tokens.failure}>●</Text>
+          <Text dimColor> {RECORDING_FOOTER}</Text>
+        </Text>
+      </Box>
+    )
+  }
+  if (voice.phase === 'transcribing') {
+    return (
+      <Box height={isFullscreenActive() ? 1 : undefined} overflow="hidden">
+        <Text dimColor wrap="truncate-end">{TRANSCRIBING_FOOTER}</Text>
+      </Box>
+    )
   }
 
   const taskList = Object.values(tasks)

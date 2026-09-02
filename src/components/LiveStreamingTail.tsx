@@ -31,6 +31,7 @@ import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
+import { ThinkingLabel } from './messages/thinkingGrammar.js'
 
 // The quiet-line's model: the FOCUSED chat's connector facts through the
 // focused slot — the road MercuryFrame and the helm rail were moved to. The
@@ -338,9 +339,10 @@ export function LiveStreamingTail({
   // Item D:
   // a GPT turn's in-chat thinking expander is absent — while the OpenAI
   // stream is QUIET (turn live, no text streamed yet) the tail shows ONE
-  // plain grayed 'thinking' line, nothing fancier; it vanishes the moment
-  // prose streams, and Claude turns are untouched. The route is the
-  // focused session's own effective model (R23), never a process-global.
+  // line, the thinking grammar's header (the settled row's own spelling with
+  // nothing to expand), nothing fancier; it vanishes the moment prose
+  // streams, and Claude turns are untouched. The route is the focused
+  // session's own effective model (R23), never a process-global.
   const liveModel = useSyncExternalStore(
     subscribeFocusedTailModel,
     getFocusedTailModel,
@@ -355,7 +357,7 @@ export function LiveStreamingTail({
     if (turnActive && quiet && declaredRouteOf(liveModel) === 'openai') {
       return (
         <Box marginTop={1} width="100%">
-          <Text dimColor>thinking</Text>
+          <ThinkingLabel />
         </Box>
       )
     }

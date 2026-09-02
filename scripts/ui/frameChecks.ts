@@ -125,10 +125,11 @@ export function inspect(rows: string[], cols: number, root?: RegExp): Finding[] 
 // ── resize readings ─────────────────────────────────────────────────────────
 
 /** The composer's caret: the pointer that opens the composer row — a '❯'
- *  preceded on its row only by borders, spaces and a mode glyph (never a
- *  transcript nameplate's '] ❯ ' nor a menu marker mid-row) — and the
- *  column right after it, where the declared cursor parks. The LAST such
- *  row is the composer (a card above it may open its own rows). */
+ *  right inside the composer box's left border, after at most spaces and a
+ *  mode glyph (never a transcript nameplate's '] ❯ ', a menu marker mid-row,
+ *  nor a rail row's own '❯' with no border before it) — and the column
+ *  right after it, where the declared cursor parks. The LAST such row is
+ *  the composer (a card above it may open its own rows). */
 export function composerCaret(rows: string[]): { y: number; x: number } | null {
   let found: { y: number; x: number } | null = null
   for (let y = 0; y < rows.length; y++) {
@@ -136,7 +137,7 @@ export function composerCaret(rows: string[]): { y: number; x: number } | null {
     const x = line.indexOf('❯')
     if (x < 0) continue
     const before = line.slice(0, x)
-    if (/^[\s│!#]*$/.test(before)) found = { y, x: x + 2 }
+    if (/^\s*│[\s!#]*$/.test(before)) found = { y, x: x + 2 }
   }
   return found
 }

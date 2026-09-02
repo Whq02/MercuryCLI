@@ -1,4 +1,4 @@
-import React, { type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
+import React, { createContext, type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
 import { InkInstanceContext } from './InkInstanceContext.js';
 import { consumeLauncherAltHold } from '../launcherAltHold.js';
 import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCROLL, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
@@ -8,7 +8,7 @@ import { RESET_SCROLL_REGION } from '../termio/csi.js';
 import { useViewportFloor } from '../hooks/use-viewport-floor.js';
 import Box from './Box.js';
 import Text from './Text.js';
-import { TerminalSizeContext } from './TerminalSizeContext.js';
+import { LiveTerminalSizeContext, TerminalSizeContext } from './TerminalSizeContext.js';
 type Props = PropsWithChildren<{
   /** Request SGR mouse reporting (wheel + click/drag) while mounted. On unless set false. */
   mouseTracking?: boolean;
@@ -69,12 +69,24 @@ type Props = PropsWithChildren<{
 const altScreenDepths = new WeakMap<object, { n: number }>()
 // Trees rendered without a provider (bare unit mounts) share one fallback key.
 const NO_INSTANCE_KEY = {}
+// THE TREE'S OWN DEPTH: how many AlternateScreen instances stand ABOVE this
+// one. Decided at render from the tree — never from the lifecycle record,
+// whose claims run child-first in a shared commit (a layout's inner
+// instance claims the record before the surface's outer one and the outer
+// reads itself as nested) — so the outermost fact is the one the tree
+// says: the instance with no instance above it. The viewport floor and the
+// hard height read it.
+const AltScreenDepthContext = createContext(0)
 
 export function AlternateScreen({
   children,
   mouseTracking = true,
 }: Props): React.ReactNode {
   const size = useContext(TerminalSizeContext);
+  // The window's TRUE size: a host above this one (the surface router
+  // around a REPL) may already provide the surface size frozen under the
+  // floor, and the floor must be judged on the window, never on that.
+  const live = useContext(LiveTerminalSizeContext) ?? size;
   const writeRaw = useContext(TerminalWriteContext);
   const inkFromContext = useContext(InkInstanceContext);
 
@@ -88,10 +100,7 @@ export function AlternateScreen({
   // is read once per mount" contract — the deps would otherwise contradict it).
   const mouseTrackingRef = useRef(mouseTracking);
   mouseTrackingRef.current = mouseTracking;
-  // Whether THIS instance is the outermost mount — decided once, when the
-  // lifecycle effect claims the depth. The depth record alone cannot say so
-  // on a later render: the outermost instance's own claim leaves it at 1.
-  const outermostRef = useRef<boolean | null>(null);
+  const depthAbove = useContext(AltScreenDepthContext);
 
   // useInsertionEffect (not useLayoutEffect): react-reconciler calls
   // resetAfterCommit between the mutation and layout commit phases, and
@@ -117,7 +126,6 @@ export function AlternateScreen({
     const effectiveMouse = mouseTrackingRef.current && (ink?.isMouseTrackingPreferred?.() ?? true);
 
     const outermost = depth.n === 0
-    outermostRef.current = outermost
     depth.n++
     if (outermost) {
       // LAUNCHER HOLD TAKEOVER (the boot black-beat fix): when
@@ -217,12 +225,10 @@ export function AlternateScreen({
   // the hard height — the root surface must fill the screen. Depth is read
   // at render from the same per-instance record the lifecycle effect keys;
   // the outer instance's effect has always run by the time a drill-in pane
-  // renders (panes mount on later commits). Once the effect has claimed the
-  // depth the ref is the fact — the record alone reads the outermost
-  // instance's own claim as nesting.
-  const nested = outermostRef.current !== null
-    ? !outermostRef.current
-    : (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
+  // renders (panes mount on later commits). The nesting fact itself is the
+  // TREE's (AltScreenDepthContext): an instance with another above it is
+  // nested, whatever order the lifecycle claims ran in.
+  const nested = depthAbove > 0;
   const rows = size?.rows ?? 24;
 
   // THE VIEWPORT FLOOR (the outermost instance only — a nested pane lives
@@ -232,13 +238,14 @@ export function AlternateScreen({
   // size that fit (use-viewport-floor: the floor's one latch, shared with
   // the route surface host that paints over this screen). The display is
   // named in BOTH states: a style key left absent is never re-applied, so
-  // the surface would stay out of layout after the way back.
-  const floor = useViewportFloor(size, !nested);
+  // the surface would stay out of layout after the way back. The verdict
+  // reads the LIVE size; the notice fills the live screen.
+  const floor = useViewportFloor(live, !nested);
 
   return (
     <>
       {floor.line === null ? null : (
-        <Box flexDirection="column" height={rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
+        <Box flexDirection="column" height={live?.rows ?? rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
           <Text color="ansi:yellow" bold>
             {floor.line}
           </Text>
@@ -251,7 +258,9 @@ export function AlternateScreen({
         flexShrink={0}
         display={floor.fits ? 'flex' : 'none'}
       >
-        <TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>
+        <AltScreenDepthContext.Provider value={depthAbove + 1}>
+          <TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>
+        </AltScreenDepthContext.Provider>
       </Box>
     </>
   );
