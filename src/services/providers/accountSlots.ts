@@ -1,4 +1,5 @@
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
+import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
 import {
   clearScopeIdentitySnapshot,
   forgetScopeIdentity,
@@ -233,7 +234,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
 export function scopeSlotTail(
   state: SlotSigninState,
   read: SlotIdentityRead | undefined,
-  slot: Pick<AccountSlot, 'scope'>,
+  slot: Pick<AccountSlot, 'scope' | 'family'>,
 ): string {
   const snapshot = slot.scope?.email
   switch (state.basis) {
@@ -248,9 +249,9 @@ export function scopeSlotTail(
     case 'signed-out':
       return snapshot !== undefined
         ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
-        : 'not signed in · ↵ opens Logins to sign in'
+        : familyAbsentWords(slot.family)
     case 'absent':
-      return 'not signed in · ↵ opens Logins to sign in'
+      return familyAbsentWords(slot.family)
     case 'unverified':
       return read?.state === 'unverified'
         ? `unverified — ${read.note}${read.email ? ` · snapshot ${read.email}` : ''} · not counted as signed in`
@@ -258,6 +259,22 @@ export function scopeSlotTail(
     case 'credential-present':
       return 'credential present'
   }
+}
+
+
+export function familyRouteWords(family: string): string {
+  if (family === 'local') return 'Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL'
+  const { subModelConnectHome } =
+    require('../../utils/model/subModelSlots.js') as typeof import('../../utils/model/subModelSlots.js')
+  const home = subModelConnectHome(family)
+  if (home.command === undefined) return home.note
+  const envKey = (PROVIDER_CREDENTIAL_ENV_VARS as Partial<Record<string, readonly string[]>>)[family]?.[0]
+  return envKey !== undefined ? `${home.command} or ${envKey}` : home.command
+}
+
+export function familyAbsentWords(family: string): string {
+  const state = family === 'local' ? 'no server discovered' : 'not signed in'
+  return `${state} · ↵ names the route — ${familyRouteWords(family)}`
 }
 
 export interface FamilySigninSummary {
@@ -437,26 +454,28 @@ function readAnthropicApiKey(): { key: string | null; source: ApiKeySource } {
 function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   const scopes = (reads.scanScopes ?? scanAccountScopes)()
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
-  const slots: AccountSlot[] = scopes.map(scope => ({
-    family: 'anthropic',
-    id: scope.dir,
-    name: scope.name,
-    kind: 'oauth' as const,
-    kindLabel: 'OAuth',
-    identity: scope.claudeFamily
-      ? "another tool's credential scope"
-      : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
-    active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
-    envPinned: false,
-    signedIn: scope.authed,
-    scope,
-    removal: scope.claudeFamily
-      ? {
-          route: 'excluded' as const,
-          note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
-        }
-      : { route: 'anthropic-oauth' as const, dir: scope.dir },
-  }))
+  const slots: AccountSlot[] = scopes
+    .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.claudeFamily)
+    .map(scope => ({
+      family: 'anthropic',
+      id: scope.dir,
+      name: 'claude',
+      kind: 'oauth' as const,
+      kindLabel: 'OAuth',
+      identity: scope.claudeFamily
+        ? "another tool's credential scope"
+        : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
+      active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
+      envPinned: false,
+      signedIn: scope.authed,
+      scope,
+      removal: scope.claudeFamily
+        ? {
+            route: 'excluded' as const,
+            note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
+          }
+        : { route: 'anthropic-oauth' as const, dir: scope.dir },
+    }))
   const apiKey = reads.anthropicApiKey ? reads.anthropicApiKey() : readAnthropicApiKey()
   if (apiKey.key !== null || apiKey.source === 'apiKeyHelper') {
     const subscriber = subscriberSeat
