@@ -51,7 +51,7 @@ console.log('§3 the affordance copy says where the gesture goes')
 check('the board paints the seam\'s one row composer', board.includes('scopeSlotTail(state, id, slot)') && seam.includes('export function scopeSlotTail('))
 check('the verified tail: ↵ opens Logins', seam.includes('↵ opens Logins to re-login'))
 check('the expired tail: ↵ opens Logins', seam.includes('↵ opens Logins to reauth'))
-check('the signed-out tail: ↵ opens Logins', seam.includes('↵ opens Logins to sign in'))
+check('the absent row names the route — one template for every family, Anthropic included', seam.includes('↵ names the route — ') && board.includes('familyAbsentWords(row.family.id)') && !seam.includes('↵ opens Logins to sign in'))
 check('the action hint matches', board.includes('opens Logins'))
 
 console.log('§4 removal stays whole')

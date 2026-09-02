@@ -254,9 +254,14 @@ section('R3 removing the Claude login through the REAL owner lands the keyless s
   check("the scope's own snapshot lost its account and kept its other keys", snapshot !== null && snapshot.oauthAccount === undefined && snapshot.fixtureKey === 'kept', JSON.stringify(snapshot))
   const scope = scan.scanAccountScopes()[0]!
   check('the scan: signed out, no identity', scope.authed === false && scope.email === undefined && scope.uuid === undefined, JSON.stringify(scope))
-  const gone = anthropicScopeSlot()!
+  const anthropicGroup = slots.deriveFamilySlotGroups().find(group => group.family.id === 'anthropic')
+  check("the board: no Anthropic slot remains — the family's absent row, in the one grammar every family paints", anthropicGroup?.slots.length === 0 && slots.familyAbsentWords('anthropic') === 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY', JSON.stringify(anthropicGroup?.slots.map(s => s.id)))
+  // The shape a board could still hold from before the removal: the slot
+  // with nothing behind it against a stale VERIFIED read.
+  const { email: _email, uuid: _uuid, ...bareScope } = slot.scope!
+  const gone: AccountSlot = { ...slot, signedIn: false, identity: 'not signed in', scope: { ...bareScope, authed: false } }
   const state = slots.slotSigninState(gone, staleRead)
-  check("the board's row: signed out even against a stale VERIFIED read (presence outranks the cache)", gone.signedIn === false && state.basis === 'signed-out' && slots.scopeSlotTail(state, staleRead[home], gone) === 'not signed in · ↵ opens Logins to sign in', slots.scopeSlotTail(state, staleRead[home], gone))
+  check("a held row: signed out even against a stale VERIFIED read (presence outranks the cache), in the template's words", state.basis === 'signed-out' && slots.scopeSlotTail(state, staleRead[home], gone) === slots.familyAbsentWords('anthropic'), slots.scopeSlotTail(state, staleRead[home], gone))
   check("the header: ' · 0/2 signed in' against the same stale read", slots.familySigninHeaderNote('anthropic', [gone], staleRead) === ' · 0/2 signed in', slots.familySigninHeaderNote('anthropic', [gone], staleRead))
   check('the live identity read answers signed-out from the store without touching the network (nothing cached survived)', (await identity.resolveLiveScopeIdentity(home, { fetchImpl: noNetwork })).state === 'signed-out')
   check('the presence owner: no family credentialed', usage.providerFamilyPresences().every(presence => !presence.credentialed && usage.presenceIdentityWords(presence) === undefined))
@@ -273,8 +278,8 @@ section('R3 removing the Claude login through the REAL owner lands the keyless s
   await sleep(10)
   check('exactly one revoke, with the stored refresh token', revoked.length === 1 && revoked[0]!.token === REFRESH_TOKEN, JSON.stringify(revoked))
   check('…and the store and the snapshot were already gone when it ran', revoked[0]?.storeEmptyAtRevoke === true && revoked[0]?.snapshotGoneAtRevoke === true)
-  const again = slots.executeSlotRemoval(anthropicScopeSlot()!)
-  check('a second ⌫ on the empty slot is the honest no-op', again.mutated === false && again.note.includes('nothing to sign out'), again.note)
+  const again = slots.executeSlotRemoval(gone)
+  check('a second ⌫ on a held empty slot is the honest no-op', again.mutated === false && again.note.includes('nothing to sign out'), again.note)
 }
 
 section('R5 a stale row cannot exist — a snapshot with no login behind it')
@@ -292,7 +297,7 @@ section('R5 a stale row cannot exist — a snapshot with no login behind it')
   check("the header: ' · 0/2 signed in'", slots.familySigninHeaderNote('anthropic', [slot], cachedVerified) === ' · 0/2 signed in')
   const cleared = slots.executeSlotRemoval(slot)
   check('⌫ clears the snapshot (mutated, the receipt says what left)', cleared.mutated && cleared.note.includes('stale identity snapshot cleared') && readJson(SNAPSHOT)?.oauthAccount === undefined, cleared.note)
-  check('…and the row is now the plain absent one', anthropicScopeSlot()?.identity === 'not signed in' && anthropicScopeSlot()?.signedIn === false)
+  check('…and no slot remains — the family paints its absent row', anthropicScopeSlot() === undefined && slots.deriveFamilySlotGroups().find(group => group.family.id === 'anthropic')?.slots.length === 0)
 
   // The identity cache follows the sign-in epoch: a verification cached
   // under one epoch is never served under the next.

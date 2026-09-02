@@ -215,7 +215,28 @@ section('§1 slotSigninState — one answer per slot')
       scopeSlotTail(staleState, { state: 'verified', email: 'stale@fixture.example' }, staleSnapshot) ===
         'snapshot stale@fixture.example — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot',
     scopeSlotTail(staleState, { state: 'verified', email: 'stale@fixture.example' }, staleSnapshot))
-  check('no login, no snapshot ⇒ the plain sign-in words', scopeSlotTail(pending, undefined, outlived) === 'not signed in · ↵ opens Logins to sign in', scopeSlotTail(pending, undefined, outlived))
+  check("no login, no snapshot ⇒ the family's absent words (the one template)", scopeSlotTail(pending, undefined, outlived) === 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY', scopeSlotTail(pending, undefined, outlived))
+  // THE ONE ROW GRAMMAR: every absent family paints the same template —
+  // "<state> · ↵ names the route — <route>" — the route spelled once from
+  // the /logins command and the family's first env spelling.
+  const template = /^(not signed in|no server discovered) · ↵ names the route — .+$/
+  const expected: Record<string, string> = {
+    anthropic: 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY',
+    openai: 'not signed in · ↵ names the route — /logins openai or OPENAI_API_KEY',
+    zai: 'not signed in · ↵ names the route — /logins zai or ZAI_API_KEY',
+    openrouter: 'not signed in · ↵ names the route — /logins openrouter or OPENROUTER_API_KEY',
+    gemini: 'not signed in · ↵ names the route — /logins gemini or GEMINI_API_KEY',
+    moonshot: 'not signed in · ↵ names the route — /logins moonshot or MOONSHOT_API_KEY',
+    deepseek: 'not signed in · ↵ names the route — /logins deepseek or DEEPSEEK_API_KEY',
+    huggingface: 'not signed in · ↵ names the route — /logins huggingface or HF_TOKEN',
+    'openai-compat': 'not signed in · ↵ names the route — MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)',
+    local: 'no server discovered · ↵ names the route — Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL',
+  }
+  for (const [family, words] of Object.entries(expected)) {
+    check(`the absent row template holds for ${family}`, slots.familyAbsentWords(family) === words && template.test(words), slots.familyAbsentWords(family))
+  }
+  check('an unknown family is never silent — the generic /logins route in the same template', slots.familyAbsentWords('acme') === 'not signed in · ↵ names the route — /logins')
+  check("Anthropic's route words are the same composer's (no family keeps its own)", slots.familyRouteWords('anthropic') === '/logins anthropic or ANTHROPIC_API_KEY')
   check('a probe in flight paints the snapshot LABELLED as one (snapshot-first), then verifies', scopeSlotTail(unstarted, undefined, authed) === 'snapshot stale@fixture.example · verifying identity…', scopeSlotTail(unstarted, undefined, authed))
   check('a verified probe paints the LIVE email as verified', scopeSlotTail(verified, { state: 'verified', email: 'live@fixture.example' }, authed) === 'live@fixture.example · verified live · ↵ opens Logins to re-login · ⌫ signs out')
   check('an expired probe labels the snapshot and never counts', scopeSlotTail(expired, { state: 'expired', snapshotEmail: 'stale@fixture.example' }, authed) === 'expired (snapshot stale@fixture.example) · not signed in · ↵ opens Logins to reauth')
