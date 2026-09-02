@@ -237,6 +237,7 @@ function staticImports(src: string): {
     './debug.js',
     './diagLogs.js',
     './log.js',
+    './process.js',
     './startupProfiler.js',
     'node:fs',
     'signal-exit',
