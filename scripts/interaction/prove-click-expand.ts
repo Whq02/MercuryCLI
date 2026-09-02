@@ -25,7 +25,7 @@ function dumpFrame(label: string, lines: string[]): void {
 }
 
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
-const SETTLED = { minTick: 10, awaitStableTicks: 10, requireAwait: true } as const
+const SETTLED = { minTick: 10, awaitSettleTicks: 4, requireAwait: true } as const
 const clickOn = (needle: string, atTick: number): Record<string, unknown> => ({
   targetText: needle,
   targetDx: 2,
@@ -41,7 +41,7 @@ function capture(
   total: number,
   extra: Record<string, unknown> = {},
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('click-expand', 80, 50) as Record<string, unknown>
+  const cfg = scenario('click-expand', 100, 60) as Record<string, unknown>
   cfg['sends'] = sends
   cfg['total'] = total
   Object.assign(cfg, extra)
@@ -239,7 +239,7 @@ cleanupScenario('click-expand')
 
 {
   const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {
-    const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
+    const cfg = { ...scenario('two-bash-click', 100, 50) } as Record<string, unknown>
     cfg['sends'] = sends
     cfg['total'] = total
     const gridPath = `/tmp/click-expand-twobash-${tag}-${process.pid}.json`
