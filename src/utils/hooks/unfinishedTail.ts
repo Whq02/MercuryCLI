@@ -109,8 +109,6 @@ function probeIsUnfinished(probe: string): boolean {
   return hasNonPromiseStall(probe) || hasLiveSoftPromise(probe)
 }
 
-const SCRIBE_WAIT_IDIOM = /\bi'?ll (?:wait|be here|be around|be right here|stand by)\b/gi
-
 function stripLineMarkers(line: string): string {
   return line.replace(/^[\s>#*\-\d.)+]+/, '').trim()
 }
@@ -123,15 +121,11 @@ function lastParagraph(text: string): string {
   return paras.length > 0 ? paras[paras.length - 1]! : ''
 }
 
-export function isUnfinishedTail(
-  text: string,
-  opts?: { allowOperatorQuestion?: boolean },
-): boolean {
+export function isUnfinishedTail(text: string): boolean {
   const tail = lastParagraph(text)
   if (!tail) return false
 
   if (/\?\s*$/.test(tail)) {
-    if (opts?.allowOperatorQuestion) return false
     if (
       SAFETY_PAUSE_MARKERS.some(re => re.test(tail)) ||
       AWAITING_OPERATOR_MARKERS.some(re => re.test(tail)) ||
@@ -146,11 +140,5 @@ export function isUnfinishedTail(
   const lines = tail.split('\n').map(stripLineMarkers).filter(Boolean)
   const lastLine = lines.length > 0 ? lines[lines.length - 1]! : tail
   const probe = `${tail}\n${lastLine}`
-  if (opts?.allowOperatorQuestion && tail.length <= 140) {
-    const withoutWait = probe.replace(SCRIBE_WAIT_IDIOM, ' ')
-    if (withoutWait !== probe && !probeIsUnfinished(withoutWait)) {
-      return false
-    }
-  }
   return probeIsUnfinished(probe)
 }

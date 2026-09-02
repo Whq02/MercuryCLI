@@ -2,7 +2,6 @@ import type { LocalCommandCall } from '../../types/command.js'
 import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import {
   type TasteKind,
   buildEpisode,
@@ -26,9 +25,6 @@ function activeModes(context: Parameters<LocalCommandCall>[1]): string[] {
     if (app?.supercode === true) modes.push('supercode')
   } catch {
   }
-  try {
-    if (isScribeModeOn()) modes.push('scribe')
-  } catch {}
   return modes
 }
 

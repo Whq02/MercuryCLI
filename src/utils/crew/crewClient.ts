@@ -1,7 +1,6 @@
 import { flagPair } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../debug.js'
 import { daemonSnapshot } from '../cockpit/daemonSnapshot.js'
-import { decideScribeDaemonAction } from '../scribe/ensureScribeDaemon.js'
 import {
   clearDeadSupervisorRecords,
   daemonControlRpc,
@@ -42,7 +41,7 @@ export function ensureCrewDaemon(projectDir: string): void {
     logForDebugging(`[crew] ensureCrewDaemon: probe failed: ${e}`)
     return
   }
-  if (decideScribeDaemonAction(state) === 'spawn') {
+  if (state !== 'live') {
     spawnCrewDaemon(projectDir)
     return
   }

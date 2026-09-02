@@ -8,7 +8,7 @@ export function machineLaneAllowance(cpuCount: number): number {
   return Math.min(16, Math.max(2, cpuCount - 2))
 }
 
-export type ComposedRole = 'concourse-worker' | 'single-seat' | 'visible'
+export type ComposedRole = 'concourse-worker' | 'visible'
 
 export interface CeilingFacts {
   cpuCount: number
@@ -22,9 +22,6 @@ export function composedRoleFromEnv(env: NodeJS.ProcessEnv = process.env): Compo
     return env[name] === '1'
   }
   if (on('MERCURY_CONCOURSE_WORKER')) return 'concourse-worker'
-  if (on('MERCURY_IMPLEMENTER')) {
-    return 'single-seat'
-  }
   return 'visible'
 }
 
@@ -34,9 +31,6 @@ export function composeGovernorCeilings(facts: CeilingFacts): GovernorCeilings {
   const cap = (n: number): number => Math.max(1, Math.min(n, operator))
   if (facts.role === 'concourse-worker') {
     return { modelLanes: cap(Math.min(2, machine)), delegationLanes: cap(1) }
-  }
-  if (facts.role === 'single-seat') {
-    return { modelLanes: cap(1), delegationLanes: cap(1) }
   }
   const delegation =
     facts.delegationBand === 1 ? 1 : facts.delegationBand === 2 ? 2 : machine

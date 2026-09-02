@@ -17,12 +17,6 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { parseAddress } from '../../utils/peerAddress.js'
 import { routerEnabled } from '../../utils/router/routerGates.js'
 import {
-  canonicalizeBusTarget,
-  isManagedBusTeam,
-  IMPLEMENTER_AGENT_NAME,
-  knownBusTargets,
-} from '../../utils/scribe/busIdentity.js'
-import {
   buildControl,
   buildDispatch,
   buildEscalate,
@@ -36,13 +30,6 @@ import {
   type ProgressEnvelope,
 } from '../../utils/swarm/busEnvelopes.js'
 import { isCrewRole } from '../../utils/workerRole.js'
-import {
-  isImplementerRole,
-  isScribeRole,
-  scribeModeEnabled,
-  scribeTaskRouterEnabled,
-} from '../../utils/scribe/scribeGates.js'
-import { composeDispatchAckHealth, getImplementerTelemetry } from '../../utils/scribe/implementerTelemetry.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { routerStoreWriters } from '../../substrate/routerRunStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -127,7 +114,6 @@ export type StructuredMessageInput =
       title?: string
       priority?: 'normal' | 'high'
       refRequestId?: string
-      route?: { effort?: string; lane?: string }
     }
   | { type: 'escalate'; reason: string; refRequestId?: string; needsOperator?: boolean }
   | {
@@ -211,14 +197,6 @@ const inputSchema = lazySchema(() => {
         title: z.string().optional(),
         priority: z.enum(['normal', 'high']).optional(),
         refRequestId: z.string().optional().describe('An earlier dispatch this one supersedes'),
-        ...(scribeTaskRouterEnabled()
-          ? {
-              route: z
-                .object({ effort: z.string().optional(), lane: z.string().optional() })
-                .optional()
-                .describe('Per-task routing hint'),
-            }
-          : {}),
       }),
       z.object({
         type: z.literal('escalate'),
@@ -381,14 +359,12 @@ async function resolveDeliverableRecipient(
 }
 
 function workerReplyTarget(addressed: string): string {
-  if (isImplementerRole()) return TEAM_LEAD_NAME
   if (isCrewRole()) return TEAM_LEAD_NAME
   return addressed
 }
 
 function busContextActive(): boolean {
-  if (isScribeRole() || isImplementerRole() || isCrewRole()) return true
-  return busEnvelopesEnabled() && scribeModeEnabled()
+  return isCrewRole() || busEnvelopesEnabled()
 }
 
 function busContextRefusal(kind: string, target: string): RequestOutput {
@@ -409,24 +385,9 @@ async function sendBusEnvelope(
   context: ToolUseContext,
 ): Promise<{ data: RequestOutput }> {
   const teamName = getTeamName(teamContextOf(context))
-  const resolvedTarget = canonicalizeBusTarget(teamName, targetName)
+  const resolvedTarget = { name: targetName.trim() }
   const isDirective =
     envelope.kind === 'dispatch' || envelope.kind === 'control' || envelope.kind === 'note'
-
-  if (isDirective && !resolvedTarget.known && isManagedBusTeam(teamName)) {
-    const busName = IMPLEMENTER_AGENT_NAME
-    return {
-      data: {
-        success: false,
-        message:
-          `Unknown bus address "${targetName}" — the ${envelope.kind} envelope was NOT sent. ` +
-          `Valid targets for team "${teamName}": ${knownBusTargets(teamName).join(', ')}. ` +
-          `Nameplates are display-only; the bus name to use here is "${busName}".`,
-        request_id: '',
-        target: targetName,
-      },
-    }
-  }
 
   if (isDirective) {
     const roster = await readRoster(teamName)
@@ -445,7 +406,7 @@ async function sendBusEnvelope(
   const color = senderColor(envelope.from)
 
   let deliveredViaRpc = false
-  if (isDirective && !isImplementerRole()) {
+  if (isDirective) {
     try {
       const reply = await daemonControlRpc({
         op: 'envelope',
@@ -483,11 +444,7 @@ async function sendBusEnvelope(
     }
   }
 
-  const renamed = resolvedTarget.name !== targetName.trim() ? ` (addressed "${targetName.trim()}")` : ''
-  let message = `Sent ${envelope.kind} envelope to ${resolvedTarget.name}${renamed} [request_id: ${envelope.request_id}]`
-  if (teamName === 'scribe' && envelope.kind === 'dispatch' && !isImplementerRole()) {
-    message += ` ${composeDispatchAckHealth(getImplementerTelemetry(), { rpcConfirmed: deliveredViaRpc })}`
-  }
+  const message = `Sent ${envelope.kind} envelope to ${resolvedTarget.name} [request_id: ${envelope.request_id}]`
   return {
     data: { success: true, message, request_id: envelope.request_id, target: resolvedTarget.name },
   }
@@ -583,10 +540,7 @@ async function sendDirectedPlainMessage(
   const resolution = await resolveDeliverableRecipient(rawTo, context)
   if (!resolution.ok) return { success: false, message: resolution.refusal }
 
-  if (
-    (isScribeRole() || isImplementerRole() || isCrewRole()) &&
-    looksLikeHandSerializedBusPayload(content)
-  ) {
+  if (isCrewRole() && looksLikeHandSerializedBusPayload(content)) {
     return {
       success: false,
       message:
@@ -1221,7 +1175,6 @@ export const SendMessageTool = buildTool({
           ...(message.title !== undefined ? { title: message.title } : {}),
           ...(message.priority !== undefined ? { priority: message.priority } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
-          ...(message.route !== undefined ? { route: message.route } : {}),
         })
         return await sendBusEnvelope(rawTo, envelope, context)
       }

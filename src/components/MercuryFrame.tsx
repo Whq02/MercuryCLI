@@ -55,7 +55,6 @@ import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
 import { formatQuietAge, workflowPulse } from '../tools/WorkflowTool/livePulse.js'
 import type { WorkflowProgressEvent } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { getScribeModeVersion, isScribeModeOn, subscribeScribeMode } from '../utils/scribeMode.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
@@ -122,7 +121,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const showBehavior = tier.showBehaviorChips
   const branchMax = tier.branchMax
   useSessionAccent()
-  useSyncExternalStore(subscribeScribeMode, getScribeModeVersion, getScribeModeVersion)
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
   const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
   const deckOwnsVitals = deckPresent && cols >= LAYOUT_BREAKPOINTS.cockpitMin
@@ -262,15 +260,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         </Text>
       ) : null
   }
-
-  const scribeOn = isScribeModeOn()
-  const behaviorNode = scribeOn ? (
-    <Text>
-      <Sep />
-      <Text color={tok.textMuted}>scribe </Text>
-      <Text color={tok.success}>●</Text>
-    </Text>
-  ) : null
 
   const healthSnap = !helmActive ? healthCertSnapshot() : null
   const healthChip = healthSnap && healthSnap.state === 'live' ? healthSnap.data : null
@@ -438,7 +427,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         {ctxNode}
         {!deckOwnsVitals ? costNode : null}
         {!usageOwnedElsewhere ? usageNode : null}
-        {!deckOwnsVitals && showBehavior ? behaviorNode : null}
         {
 }
         {healthNode}

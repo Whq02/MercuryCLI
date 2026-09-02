@@ -9,8 +9,6 @@ import { getFeatureValue_CACHED_WITH_REFRESH } from '../../services/analytics/fe
 import { buildTool } from '../../Tool.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { isImplementerRole, scribeChatroomEnabled, scribeModeEnabled } from '../../utils/scribe/scribeGates.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import { z } from 'zod'
 import {
   resolveAttachments,
@@ -27,8 +25,6 @@ const BRIEF_FEATURE_GATE = 'mercury_assistant_brief'
 const BRIEF_GATE_REFRESH_MS = 5 * 60_000
 
 export function isBriefEntitled(): boolean {
-  if (isImplementerRole()) return false
-  if (scribeModeEnabled() && isScribeModeOn() && !scribeChatroomEnabled()) return false
   if (flagEnv('MERCURY_BRIEF') === '0') return false
   const explicitBriefOptIn =
     getUserMsgOptIn() ||
@@ -53,8 +49,7 @@ export function isBriefEnabled(): boolean {
   const awayOrOptIn =
     isAssistantSessionActive() ||
     getUserMsgOptIn() ||
-    isEnvTruthy(flagEnv('MERCURY_BRIEF')) ||
-    (scribeModeEnabled() && isScribeModeOn() && scribeChatroomEnabled())
+    isEnvTruthy(flagEnv('MERCURY_BRIEF'))
   return awayOrOptIn
 }
 

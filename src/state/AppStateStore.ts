@@ -182,7 +182,6 @@ type AppStateMutableHalf = {
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
   teamContext?: TeamContext
   standaloneAgentContext?: { name: string; color?: string }
-  scribeTranscript?: Message[]
 
   mcp: {
     clients: MCPServerConnection[]
