@@ -76,7 +76,9 @@ const MAX_IMAGE_DATA_URI_BYTES = 20 * 1024 * 1024
  * Resize and re-encode a shell-produced image. Reads from the full output file
  * when one is present (stdout is capped and would decode to a corrupt image).
  * Returns null when there is nothing to resize; performs no error handling of
- * its own beyond the size gate.
+ * its own beyond the size gate. The stat and the read are awaited: this runs
+ * on the tool's async road and the file is up to the 20 MB cap — a
+ * synchronous read of it froze the whole cockpit for the read's duration.
  */
 export async function resizeShellImageOutput(
   stdout: string,
@@ -85,10 +87,10 @@ export async function resizeShellImageOutput(
 ): Promise<string | null> {
   let source = stdout
   if (outputFilePath !== undefined) {
-    const { statSync, readFileSync } = await import('node:fs')
-    const size = outputFileSize ?? statSync(outputFilePath).size
+    const { stat, readFile } = await import('node:fs/promises')
+    const size = outputFileSize ?? (await stat(outputFilePath)).size
     if (size > MAX_IMAGE_DATA_URI_BYTES) return null
-    source = readFileSync(outputFilePath, 'utf8')
+    source = await readFile(outputFilePath, 'utf8')
   }
   const parsed = parseDataUri(source)
   if (!parsed) return null
