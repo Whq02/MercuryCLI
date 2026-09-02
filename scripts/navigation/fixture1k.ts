@@ -9,6 +9,8 @@ export const TAIL_SENTINEL = 'FIXTURE-TAIL-⟦1K⟧'
 
 export const STREAM_FIN = '⟦CFIN⟧'
 
+export const CHAPTERS_DEFAULT = 53
+
 function lcg(seed: number): () => number {
   let s = seed >>> 0
   return () => {
@@ -58,7 +60,7 @@ export interface FixtureStats {
   byKind: Record<string, number>
 }
 
-export function buildCompass1k(cwd: string): {
+export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT): {
   lines: Record<string, unknown>[]
   stats: FixtureStats
 } {
@@ -177,7 +179,7 @@ export function buildCompass1k(cwd: string): {
       prose(rnd, 220),
   )
 
-  const CHAPTERS = 53
+  const CHAPTERS = Math.max(1, Math.floor(chapters))
   for (let c = 1; c <= CHAPTERS; c++) {
     const longPath = `${LONG_DIR}/veryLongFileNameForWidthStress-chapter-${String(c).padStart(4, '0')}.tsx`
     const fileBody = `// chapter ${c}\n${tsSnippet(c)}\n`
