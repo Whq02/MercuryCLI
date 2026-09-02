@@ -24,8 +24,8 @@ node dist/mercury.mjs doctor --json
 ```
 
 `setup` fetches the vendored packs (pyright · debugpy · js-debug · extra
-grammars · this machine's Node runtime); a failed fetch skips its pack — the
-build and the affected features say so (`bun install` alone ships that build).
+grammars · this machine's Node runtime) and, with cargo present, builds the
+voice capture addon; a skipped pack is named by the build and the doctor.
 
 The first run walks theme and sign-in; `/logins` and `/accounts` manage
 providers afterwards. Every interactive boot with no explicit journey lands on
