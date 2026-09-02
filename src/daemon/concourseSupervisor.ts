@@ -21,6 +21,7 @@ import { decodePermissionModeSpelling, type PermissionMode } from '../types/perm
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
+import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
 import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
 import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
@@ -582,11 +583,10 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
   }
   const transcript = join(getProjectDir(workspaceId), `${sessionId}.jsonl`)
   if (!existsSync(transcript)) return undefined
+  let retained: string | undefined
   try {
-    const lines = readFileSync(transcript, 'utf8').split('\n')
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i]!
-      if (!line.includes('assistant') && !line.includes('output')) continue
+    scanTranscriptLinesBackward(transcript, line => {
+      if (!line.includes('assistant') && !line.includes('output')) return
       try {
         const row = JSON.parse(line) as Record<string, unknown>
         const entry = (
@@ -595,13 +595,17 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
             : row
         ) as { type?: string; message?: { model?: unknown } }
         const served = servedModelOfAssistantRow(entry)
-        if (served !== undefined) return billingSafeRetainedForm(served)
+        if (served !== undefined) {
+          retained = billingSafeRetainedForm(served)
+          return true
+        }
       } catch {
       }
-    }
+      return
+    })
   } catch {
   }
-  return undefined
+  return retained
 }
 
 export function makeConcourseAdmitHandler(
