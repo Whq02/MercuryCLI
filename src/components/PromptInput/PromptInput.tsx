@@ -214,16 +214,17 @@ import {
   noteCapReturn,
   noteOfferAutoDone,
   noteOfferDismissal,
+  observedFamilyWindow,
   offerAutoDone,
   offerDismissed,
   resolveCapPosture,
 } from '../../services/capFailover.js'
+import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { openaiLimitWindow } from '../../services/providers/openai/openaiLimitState.js'
 import { SlotOfferCard } from '../SlotOfferCard.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
-import { getRateLimitDisplayName } from '../../services/claudeAiLimits.js'
 import { formatResetTime } from '../../utils/format.js'
 import { AMBER } from '../mercuryPalette.js'
 import type { Key } from '../../ink/events/input-event.js'
@@ -647,8 +648,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     /** The target's own declared lane — stamped at creation (an offer only
      *  ever lands on a declared lane; the null-guard refuses otherwise). */
     targetRoute: CallModelRoute
-    /** The non-Anthropic side of the move (candidate lane on a handoff, the
-     *  lane being left on the way home) — the card's spend line speaks it. */
+    /** The HOME family — the lane whose window walled (a handoff) or reset
+     *  (the way home); any family, the card names it. */
+    homeRoute: CallModelRoute
+    /** The away side of the move (candidate lane on a handoff, the lane
+     *  being left on the way home) — the card's spend line speaks it. */
     awayRoute: CallModelRoute
   } | null>(null)
   // The SLOT rung's own memories ride the same session-scoped
@@ -977,6 +981,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       }
     }
     if (posture === 'off') return
+    // ── the CROSS-FAMILY rung, family-neutral: HOME is the family the
+    // session runs on (or left); its OWN observed window decides; the
+    // candidates are every other signed-in usable family (sign-in recency
+    // first, no favourite); the way home needs the home window OBSERVED
+    // reset and the home credential still signed in.
     const modelFactsNow = getFocusedSessionConnector().modelFacts()
     const effective =
       modelFactsNow.sessionPin ?? modelFactsNow.setting ?? modelFactsNow.main
@@ -984,22 +993,36 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const noted = capHandoffState()
     // Self-heal: an abandoned or manually reversed handoff clears its note
     // once the live route is home again.
-    if (noted !== null && liveRoute === 'anthropic') {
+    if (noted !== null && liveRoute === noted.homeFamily) {
       noteCapReturn()
       return
     }
-    const onFailoverLane = noted !== null && liveRoute !== 'anthropic'
+    const onFailoverLane = noted !== null && liveRoute !== noted.homeFamily
+    const homeFamily: string | null = noted !== null && onFailoverLane ? noted.homeFamily : liveRoute
+    // An unrecognised id names no family: no window to watch, no card.
+    if (homeFamily === null) return
+    const homeUsability = usabilityForRoute(homeFamily as CallModelRoute)
+    // No home to return to: the home credential LEFT while the session was
+    // parked away (a board sign-out, /logout) — the handoff is over, and
+    // the session simply runs where it is. Never a return card.
+    if (onFailoverLane && homeUsability.credential === 'none') {
+      noteCapReturn()
+      return
+    }
+    // The ONE per-family window resolver: 'unknown' (nothing observed, a
+    // credential that just changed) is a state — it never reads as
+    // headroom for a handoff, nor as a reset for the way home.
+    const window = observedFamilyWindow(homeFamily)
     const action = onFailoverLane
-      ? decideCapReturn(posture, limits.status, true)
-      : decideCapAction(posture, limits.status)
+      ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
+      : decideCapAction(posture, window.state)
     if (action.kind === 'none') return
     const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
-    const decisionKey = `${direction}|${limits.status}|${limits.resetsAt ?? ''}`
-    const windowName =
-      limits.rateLimitType !== undefined
-        ? getRateLimitDisplayName(limits.rateLimitType)
-        : null
-    const resetText = formatResetTime(limits.resetsAt) ?? null
+    const decisionKey = `${direction}|${homeFamily}|${window.state}|${window.resetsAtMs ?? ''}`
+    const windowName = window.windowName ?? null
+    const resetText =
+      window.resetsAtMs !== undefined ? (formatResetTime(window.resetsAtMs / 1000) ?? null) : null
+    const homeName = providerDisplayName(homeFamily)
     if (action.kind === 'offer') {
       if (offerDismissed(decisionKey)) return
       // The offer replaces the input only while waiting for its keypress —
@@ -1009,9 +1032,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (direction === 'return') {
         target = noted?.homeModel ?? getFocusedSessionConnector().modelFacts().main
       } else {
-        // The widened candidate law: the readiest usable lane of the WHOLE
-        // readiness-checked catalogue (OpenAI first), from the one owner.
-        target = liveCapFailoverTarget()?.model ?? null
+        // The neutral candidate law: the readiest usable lane of the OTHER
+        // signed-in families (most recent sign-in first), from the one owner.
+        target = liveCapFailoverTarget(homeFamily)?.model ?? null
       }
       if (target === null) return
       // An offer only ever lands on (and leaves) a DECLARED lane: an
@@ -1028,6 +1051,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         resetText,
         targetModel: target,
         targetRoute,
+        homeRoute: homeFamily as CallModelRoute,
         awayRoute: awayRouteResolved,
       })
       setOverlay('cap-offer')
@@ -1038,13 +1062,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (offerAutoDone(decisionKey)) return
     noteOfferAutoDone(decisionKey)
     if (direction === 'handoff') {
-      const target = liveCapFailoverTarget()?.model
+      const target = liveCapFailoverTarget(homeFamily)?.model
       if (target === undefined) return
-      noteCapHandoff(effective)
+      noteCapHandoff(effective, homeFamily)
       applyModelSelection(target)
       addNotification({
         key: 'cap-failover',
-        text: `Usage handoff: ${renderModelName(target)} — the Claude ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}`,
+        text: `Usage handoff: ${renderModelName(target)} — the ${homeName} ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}`,
         priority: 'high',
         timeoutMs: 8000,
       })
@@ -1055,7 +1079,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     applyModelSelection(home)
     addNotification({
       key: 'cap-failover',
-      text: `Returned home: ${home === null ? 'Default' : renderModelName(home)} — the Claude subscription lane`,
+      text: `Returned home: ${home === null ? 'Default' : renderModelName(home)} — the ${homeName} lane`,
       priority: 'high',
       timeoutMs: 8000,
     })
@@ -2911,16 +2935,25 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         windowName={offer.windowName}
         resetText={offer.resetText}
         targetModel={offer.targetModel}
+        homeRoute={offer.homeRoute}
         awayRoute={offer.awayRoute}
-        targetUsability={usabilityForRoute(offer.targetRoute)}
+        homeUsability={usabilityForRoute(offer.homeRoute)}
+        awayUsability={usabilityForRoute(offer.awayRoute)}
         onAccept={() => {
           setCapOffer(null)
           setOverlay(null)
+          // An answered card never re-fires for the same wall: accept
+          // latches the decision key exactly like a dismissal, whatever
+          // the selection path then decides (applied, previewed, refused
+          // — the apply tail's own footer line carries a refusal's reason).
+          // Before this, a refused accept latched nothing and the effect
+          // re-showed the card on every commit; only Esc removed it.
+          noteOfferDismissal(offer.key)
           if (offer.direction === 'handoff') {
             // Record the way home at accept time; an abandoned preview
-            // self-heals (route stays anthropic → the note clears).
+            // self-heals (the route stays home → the note clears).
             const stateNow = appStateStore.getState()
-            noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel)
+            noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
           }
           // Accept re-enters the FULL selection path — router sentinels and
           // the preview gate included.
@@ -3144,14 +3177,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     )
 
   // The standing amber line while on the failover lane — the lane,
-  // the current model, the home reset time when the limit is not allowed,
-  // and the way home (contract data: `/model`).
+  // the current model, the HOME family's stated reset time while its
+  // window still stands, and the way home (contract data: `/model`).
   const capEffectiveModel = mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel
   const capRoute = declaredRouteOf(capEffectiveModel)
-  const capResetText = formatResetTime(limits.resetsAt)
+  const capNote = capHandoffState()
+  const capHomeWindow = capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
+  const capResetText =
+    capHomeWindow !== null && capHomeWindow.resetsAtMs !== undefined
+      ? formatResetTime(capHomeWindow.resetsAtMs / 1000)
+      : undefined
   const capLaneLine =
-    capHandoffState() !== null && capRoute !== null && capRoute !== 'anthropic'
-      ? `on the ${capRoute} failover lane · ${renderModelName(capEffectiveModel)}${limits.status !== 'allowed' && capResetText !== undefined ? ` · Claude window resets ${capResetText}` : ''} · /model to return`
+    capNote !== null && capRoute !== null && capRoute !== capNote.homeFamily
+      ? `on the ${capRoute} failover lane · ${renderModelName(capEffectiveModel)}${capHomeWindow !== null && (capHomeWindow.state === 'rejected' || capHomeWindow.state === 'warning') && capResetText !== undefined ? ` · ${providerDisplayName(capNote.homeFamily)} window resets ${capResetText}` : ''} · /model to return`
       : null
 
   return (

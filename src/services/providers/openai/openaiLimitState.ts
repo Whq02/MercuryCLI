@@ -60,6 +60,27 @@ export function openaiLimitWindow(source: OpenaiLimitSource, now: () => number =
   return { state: 'limited', resetsAtMs: observed.resetsAtMs, observedAtMs: observed.observedAtMs }
 }
 
+/** The raw wall record ONE source last stated, elapsed or not (null = none
+ *  observed). The failover return law reads it: a wall whose stated reset
+ *  has passed is an OBSERVED reset, which a bare 'clear' cannot tell from
+ *  never-walled. */
+export function openaiObservedWall(source: OpenaiLimitSource): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedBySource[source]
+}
+
+/**
+ * Forget everything observed on ONE source — the credential behind it
+ * left or changed (a disconnect, a fresh sign-in under another account).
+ * The records are keyed on the source KIND, not the credential, so without
+ * this a departed account's wall refused work on its successor, and its
+ * usage bands painted the new account's meters. The subscription's bands
+ * belong to the sign-in and go with it; a key holds none.
+ */
+export function forgetOpenaiLimitSource(source: OpenaiLimitSource): void {
+  observedBySource[source] = null
+  if (source === 'chatgpt-subscription') observedUsage = {}
+}
+
 // ── observed usage windows (the live weekly-meter surface) ──────────────────
 
 /** One provider-stated usage band, exactly as observed — every field except

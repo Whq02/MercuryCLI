@@ -34,9 +34,17 @@ process.env.NODE_ENV = 'test'
 delete process.env.MERCURY_MOCK_LIMITS
 delete process.env.MERCURY_CAP_FAILOVER
 
-const { decideCapAction, decideCapReturn, resolveCapPosture, deriveCapFailoverCandidates, CAP_FAILOVER_FAMILY_ORDER } = await import(
-  '../../src/services/capFailover.ts'
-)
+const {
+  decideCapAction,
+  decideCapReturn,
+  resolveCapPosture,
+  deriveCapFailoverCandidates,
+  orderFamiliesBySignIn,
+  observedFamilyWindow,
+  laneSpendPosture,
+  clearCapHandoffForFamily,
+  CAP_APPROACHING_PCT,
+} = await import('../../src/services/capFailover.ts')
 const mock = await import('../../src/services/mockRateLimits.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
@@ -78,15 +86,25 @@ section('§A the posture matrix — the default OFFERS; explicit off stays TOTAL
   delete process.env.MERCURY_CAP_FAILOVER
 }
 
-section('§B posture-symmetric return — home only on a TRUE reset')
+section('§B posture-symmetric return — home only on an OBSERVED reset with the home credential usable')
 {
-  check('not on the failover lane ⇒ none', decideCapReturn('auto', 'allowed', false).kind === 'none')
-  check('off never moved ⇒ nothing to return', decideCapReturn('off', 'allowed', true).kind === 'none')
-  check('home still warning ⇒ stay (no thrash)', decideCapReturn('offer', 'allowed_warning', true).kind === 'none')
-  const offerHome = decideCapReturn('offer', 'allowed', true)
+  const reset = { window: 'allowed', credentialUsable: true } as const
+  check('not on the failover lane ⇒ none', decideCapReturn('auto', reset, false).kind === 'none')
+  check('off never moved ⇒ nothing to return', decideCapReturn('off', reset, true).kind === 'none')
+  check('home still warning ⇒ stay (no thrash)', decideCapReturn('offer', { window: 'allowed_warning', credentialUsable: true }, true).kind === 'none')
+  check("home 'warning' (the neutral spelling) ⇒ stay", decideCapReturn('offer', { window: 'warning', credentialUsable: true }, true).kind === 'none')
+  // The operator's sighting: the home sign-out reset the limits latch to
+  // its 'allowed' default, and the old decision read that as "the window
+  // reset" — a card that Enter could not dismiss. Nothing observed is NOT
+  // a reset, and a signed-out home is no home.
+  check("'unknown' (nothing observed) is NEVER read as a reset", decideCapReturn('offer', { window: 'unknown', credentialUsable: true }, true).kind === 'none' && decideCapReturn('auto', { window: 'unknown', credentialUsable: true }, true).kind === 'none')
+  check('the home credential signed out ⇒ no return offer, even on an observed reset', decideCapReturn('offer', { window: 'allowed', credentialUsable: false }, true).kind === 'none' && decideCapReturn('auto', { window: 'allowed', credentialUsable: false }, true).kind === 'none')
+  const offerHome = decideCapReturn('offer', reset, true)
   check("offer ⇒ the way home is OFFERED (trigger 'reset')", offerHome.kind === 'offer' && offerHome.trigger === 'reset')
-  const autoHome = decideCapReturn('auto', 'allowed', true)
+  const autoHome = decideCapReturn('auto', reset, true)
   check('auto ⇒ unattended return at the boundary', autoHome.kind === 'auto-handoff' && autoHome.trigger === 'reset')
+  check("decideCapAction reads 'unknown' as nothing to do (no observation is not a wall)", decideCapAction('offer', 'unknown').kind === 'none' && decideCapAction('auto', 'unknown').kind === 'none')
+  check("decideCapAction takes the neutral 'warning' spelling too", decideCapAction('offer', 'warning').kind === 'offer')
 }
 
 section('§C the seam — folded shut unarmed, LIVE armed (the r04b revival)')
@@ -165,16 +183,22 @@ section('§E the full journey, both postures — warning → offer/auto → cont
       `[${posture}] cap ⇒ ${posture === 'auto' ? 'unattended handoff' : 'offer, never silent'}`,
       posture === 'auto' ? a2.kind === 'auto-handoff' : a2.kind === 'offer',
     )
-    // the accepted handoff notes the lane (session-scoped, never persisted)
-    noteCapHandoff('claude-fable-5')
-    check(`[${posture}] the handoff note carries the way home`, capHandoffState()?.homeModel === 'claude-fable-5')
+    // the accepted handoff notes the lane AND the home family (session-
+    // scoped, never persisted)
+    noteCapHandoff('claude-fable-5', 'anthropic')
+    check(`[${posture}] the handoff note carries the way home — model and family`, capHandoffState()?.homeModel === 'claude-fable-5' && capHandoffState()?.homeFamily === 'anthropic')
     // leg 3 — work continues on the failover lane; home still capped ⇒ stay.
-    const stay = decideCapReturn(posture, rej.status as never, true)
+    // The ONE family resolver reads the live latch: rejected, observed.
+    const capped = observedFamilyWindow('anthropic')
+    check(`[${posture}] the anthropic resolver reads the cap as an OBSERVED rejected window`, capped.state === 'rejected' && capped.basis === 'observed', JSON.stringify(capped))
+    const stay = decideCapReturn(posture, { window: capped.state, credentialUsable: true }, true)
     check(`[${posture}] home still capped ⇒ stay on the lane`, stay.kind === 'none')
     // leg 4 — the home window resets: the SAME posture speaks the way back.
     const reset = ingest('clear')
     check(`[${posture}] reset clears to allowed`, reset.status === 'allowed')
-    const back = decideCapReturn(posture, reset.status as never, true)
+    const cleared = observedFamilyWindow('anthropic')
+    check(`[${posture}] the resolver reads the fresh clear as an OBSERVED allowed window`, cleared.state === 'allowed' && cleared.basis === 'observed', JSON.stringify(cleared))
+    const back = decideCapReturn(posture, { window: cleared.state, credentialUsable: true }, true)
     check(
       `[${posture}] reset ⇒ posture-symmetric return (trigger 'reset')`,
       posture === 'auto'
@@ -190,6 +214,26 @@ section('§E the full journey, both postures — warning → offer/auto → cont
   const rejOff = ingest('weekly-limit-reached')
   check('[off] the same capped truth decides none', decideCapAction('off', rejOff.status as never).kind === 'none')
   ingest('clear')
+
+  // THE OPERATOR'S SIGHTING, reproduced at the owner: the home sign-out
+  // resets the latch to its settled default. The record says 'allowed'
+  // because it says NOTHING — the resolver reads 'unknown', and the return
+  // decision stays quiet with it.
+  ingest('weekly-limit-reached')
+  noteCapHandoff('claude-fable-5', 'anthropic')
+  limits.resetLimitsForCredentialSwitch()
+  check('after a credential switch the latch settles to its allowed default', limits.currentLimits.status === 'allowed')
+  check('…but nothing has been OBSERVED (claudeWindowObserved false)', limits.claudeWindowObserved() === false)
+  const afterSignOut = observedFamilyWindow('anthropic')
+  check("…so the resolver reads 'unknown' (basis none) — never a reset", afterSignOut.state === 'unknown' && afterSignOut.basis === 'none', JSON.stringify(afterSignOut))
+  check('…and no return card fires on it', decideCapReturn('offer', { window: afterSignOut.state, credentialUsable: true }, true).kind === 'none')
+  // A sign-out of the HOME family clears the note: there is no home.
+  clearCapHandoffForFamily('openai')
+  check("a sign-out of ANOTHER family leaves the note standing", capHandoffState()?.homeFamily === 'anthropic')
+  clearCapHandoffForFamily('anthropic')
+  check('a sign-out of the HOME family clears the handoff note', capHandoffState() === null)
+  ingest('clear')
+  check('the next observation re-arms the record', limits.claudeWindowObserved() === true)
   delete process.env.MERCURY_MOCK_LIMITS
 }
 
@@ -212,13 +256,13 @@ section('§F the arm surfaces — boot-menu posture row + the command opening')
   delete process.env.MERCURY_MOCK_LIMITS
 }
 
-section('§G the widened candidate law — the whole readiness-checked catalogue, fence intact')
+section('§G the NEUTRAL candidate law — every other signed-in family, sign-in recency first, fence intact')
 {
   const lane = (usable: boolean, blockers: string[] = []) => ({ usable, blockers })
-  // Fixture map: anthropic capped (the trigger world); openai + zai + local
-  // usable; deepseek usable; the rest blocked or absent.
+  // Fixture map: openai + zai + local + deepseek usable; the rest blocked
+  // or absent; gemini usable but recording no target fact.
   const map: Record<string, { usable: boolean; blockers: string[] }> = {
-    anthropic: lane(true), // even a USABLE home lane must never be a candidate
+    anthropic: lane(true),
     openai: lane(true),
     zai: lane(true),
     moonshot: lane(false, ['no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KEY)']),
@@ -230,64 +274,168 @@ section('§G the widened candidate law — the whole readiness-checked catalogue
     local: lane(true),
   }
   const targets: Record<string, string | undefined> = {
+    anthropic: 'claude-fable-5',
     openai: 'gpt-5.6-sol',
     zai: 'glm-4.7',
     deepseek: 'deepseek-chat-v3.4',
     local: 'local/llama-3.3-70b',
     gemini: undefined, // the no-fact family
   }
-  const set = deriveCapFailoverCandidates(map, route => targets[route])
+  // The sign-in ledger's recency: zai signed in last, then openai, then
+  // anthropic; deepseek and local are untimed (an env pin, a keyless server).
+  const signInAt: Record<string, number> = { zai: 3_000, openai: 2_000, anthropic: 1_000 }
+  const at = (family: string): number | undefined => signInAt[family]
+
+  // HOME = anthropic (the session runs on Claude): the set is every OTHER
+  // family, the most recent sign-in FIRST — never a hardwired OpenAI-first.
+  const fromAnthropic = deriveCapFailoverCandidates('anthropic', map, route => targets[route], at)
+  check('the home family is never its own candidate', fromAnthropic.home === 'anthropic' && !fromAnthropic.candidates.some(c => c.route === 'anthropic') && !fromAnthropic.excluded.some(e => e.route === 'anthropic'))
   check(
-    'anthropic is NEVER a candidate (the home lane, even when usable)',
-    !set.candidates.some(c => (c.route as string) === 'anthropic') && !(CAP_FAILOVER_FAMILY_ORDER as readonly string[]).includes('anthropic'),
-  )
-  check(
-    'only readiness-checked lanes with a target fact enter, OpenAI FIRST',
-    JSON.stringify(set.candidates) ===
+    'sign-in recency orders the set: the most recent sign-in first, untimed credentials after every timed one (in the resolver\'s order)',
+    JSON.stringify(fromAnthropic.candidates) ===
       JSON.stringify([
-        { route: 'openai', model: 'gpt-5.6-sol' },
         { route: 'zai', model: 'glm-4.7' },
+        { route: 'openai', model: 'gpt-5.6-sol' },
         { route: 'deepseek', model: 'deepseek-chat-v3.4' },
         { route: 'local', model: 'local/llama-3.3-70b' },
       ]),
-    JSON.stringify(set.candidates),
+    JSON.stringify(fromAnthropic.candidates),
   )
-  const gemini = set.excluded.find(e => e.route === 'gemini')
+  // HOME = openai (a GPT session walls): anthropic IS a candidate now, in
+  // its recency place — the neutral law has no favourite and no exclusion.
+  const fromOpenai = deriveCapFailoverCandidates('openai', map, route => targets[route], at)
+  check(
+    'a GPT home walls ⇒ the offer names another signed-in family; anthropic enters as an ordinary candidate',
+    fromOpenai.home === 'openai' &&
+      !fromOpenai.candidates.some(c => c.route === 'openai') &&
+      JSON.stringify(fromOpenai.candidates.map(c => c.route)) === JSON.stringify(['zai', 'anthropic', 'deepseek', 'local']),
+    JSON.stringify(fromOpenai.candidates),
+  )
+  check('the first candidate (the lane the card offers) for a GPT home is the most recent OTHER sign-in', fromOpenai.candidates[0]?.route === 'zai' && fromOpenai.candidates[0].model === 'glm-4.7')
+  // HOME = zai (the most recent sign-in itself walls): the next-most-recent
+  // leads — no family is favoured by name.
+  const fromZai = deriveCapFailoverCandidates('zai', map, route => targets[route], at)
+  check('a Z.AI home walls ⇒ openai (the next-most-recent sign-in) leads, anthropic after it', JSON.stringify(fromZai.candidates.map(c => c.route)) === JSON.stringify(['openai', 'anthropic', 'deepseek', 'local']), JSON.stringify(fromZai.candidates))
+  const gemini = fromAnthropic.excluded.find(e => e.route === 'gemini')
   check(
     'a usable lane with NO recorded target fact is excluded with the typed why (never a guessed id)',
     gemini !== undefined && gemini.why.includes('no recorded target model fact'),
     JSON.stringify(gemini),
   )
-  const moonshot = set.excluded.find(e => e.route === 'moonshot')
+  const moonshot = fromAnthropic.excluded.find(e => e.route === 'moonshot')
   check(
     "an unusable lane is excluded carrying its OWN blockers verbatim",
     moonshot !== undefined && moonshot.why.includes('/logins moonshot'),
     JSON.stringify(moonshot),
   )
   check(
-    'every non-candidate family is a TYPED exclusion (the set partitions the catalogue)',
-    set.candidates.length + set.excluded.length === CAP_FAILOVER_FAMILY_ORDER.length,
-    `${set.candidates.length}+${set.excluded.length} vs ${CAP_FAILOVER_FAMILY_ORDER.length}`,
+    'every non-candidate family is a TYPED exclusion (the set partitions the catalogue minus home)',
+    fromAnthropic.candidates.length + fromAnthropic.excluded.length === Object.keys(map).length - 1,
+    `${fromAnthropic.candidates.length}+${fromAnthropic.excluded.length} vs ${Object.keys(map).length - 1}`,
   )
-  // OpenAI signed out entirely: the NEXT readiness-checked family leads —
-  // never an invented OpenAI target, never silence while a lane qualifies.
-  const noOpenai = deriveCapFailoverCandidates({ ...map, openai: lane(false, ['no OpenAI account — /logins']) }, route => targets[route])
-  check(
-    'openai signed out ⇒ the next readiness-checked family leads (zai here)',
-    JSON.stringify(noOpenai.candidates[0]) === JSON.stringify({ route: 'zai', model: 'glm-4.7' }),
-    JSON.stringify(noOpenai.candidates[0]),
-  )
-  // NOTHING usable ⇒ the empty set — the offer/auto surfaces stay quiet
-  // (the pre-widening behavior for a missing OpenAI credential, kept total).
+  // No ledger at all: the resolver's own order stands (no hidden favourite).
+  const untimed = deriveCapFailoverCandidates('anthropic', map, route => targets[route])
+  check('with no sign-in times the resolver\'s own order stands', JSON.stringify(untimed.candidates.map(c => c.route)) === JSON.stringify(['openai', 'zai', 'deepseek', 'local']), JSON.stringify(untimed.candidates))
+  check('orderFamiliesBySignIn is the one ordering owner (recency, then untimed, then the given order)', JSON.stringify(orderFamiliesBySignIn(['a', 'b', 'c', 'd'], f => ({ a: 5, c: 9 } as Record<string, number>)[f])) === JSON.stringify(['c', 'a', 'b', 'd']))
+  // The most recent sign-in signed out: the next readiness-checked family
+  // leads — never an invented target, never silence while a lane qualifies.
+  const noZai = deriveCapFailoverCandidates('anthropic', { ...map, zai: lane(false, ['no Z.AI API key — /logins zai']) }, route => targets[route], at)
+  check('the most recent sign-in signed out ⇒ the next family leads (openai here)', JSON.stringify(noZai.candidates[0]) === JSON.stringify({ route: 'openai', model: 'gpt-5.6-sol' }), JSON.stringify(noZai.candidates[0]))
+  // NOTHING usable ⇒ the empty set — the offer/auto surfaces stay quiet.
   const none = deriveCapFailoverCandidates(
+    'anthropic',
     Object.fromEntries(Object.keys(map).map(k => [k, lane(false, ['signed out'])])),
     () => undefined,
   )
   check('no usable lane ⇒ the empty candidate set (surfaces stay quiet)', none.candidates.length === 0)
   // The default-off no-op law COMPOSES: candidates existing changes nothing
-  // under posture off (§A's law re-checked beside the widened set).
+  // under posture off (§A's law re-checked beside the neutral set).
   check('posture off never consumes a candidate (off × rejected ⇒ none)', decideCapAction('off', 'rejected').kind === 'none')
 }
 
-console.log(failures === 0 ? '\n ✅ SUBSTRATE — posture core + the revived journey seam + the widened candidate law' : `\n ❌ ${failures} FAILED`)
+section('§H the ONE per-family window resolver — unknown is a state, a stated reset elapsed is an observed reset')
+{
+  const now = 1_000_000_000_000
+  const clock = { now: () => now }
+  const quiet = {
+    ...clock,
+    openaiActiveSource: () => undefined,
+    openaiWall: () => null,
+    openaiBands: () => [],
+    openrouterWall: () => null,
+    geminiWall: () => null,
+    huggingfaceWall: () => null,
+    laneBilling: () => ({ state: 'clear' as const }),
+  }
+  // anthropic
+  const anthropicUnobserved = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'allowed', observed: false }) })
+  check("anthropic: the settled default with nothing observed reads 'unknown', basis none", anthropicUnobserved.state === 'unknown' && anthropicUnobserved.basis === 'none')
+  const anthropicWall = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'rejected', observed: true, resetsAtMs: now + 60_000, windowName: 'weekly limit' }) })
+  check('anthropic: a reached window with its reset ahead reads rejected (observed), the window named', anthropicWall.state === 'rejected' && anthropicWall.basis === 'observed' && anthropicWall.windowName === 'weekly limit' && anthropicWall.resetsAtMs === now + 60_000)
+  const anthropicElapsed = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'rejected', observed: true, resetsAtMs: now - 1, windowName: 'weekly limit' }) })
+  check("anthropic: the provider's own stated reset moment passing is an OBSERVED reset (allowed, basis stated-reset-elapsed)", anthropicElapsed.state === 'allowed' && anthropicElapsed.basis === 'stated-reset-elapsed')
+  const anthropicWarn = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'allowed_warning', observed: true, resetsAtMs: now + 5_000, windowName: 'session limit' }) })
+  check("anthropic: allowed_warning reads the neutral 'warning'", anthropicWarn.state === 'warning' && anthropicWarn.windowName === 'session limit')
+  const anthropicFresh = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => ({ status: 'allowed', observed: true }) })
+  check('anthropic: a fresh allowed observation reads allowed (observed)', anthropicFresh.state === 'allowed' && anthropicFresh.basis === 'observed')
+  // openai — the per-source wall, then the bands, else unknown
+  const openaiNone = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription' })
+  check("openai: no wall and no bands ⇒ 'unknown' (no headroom is invented)", openaiNone.state === 'unknown')
+  const openaiWalled = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription', openaiWall: () => ({ resetsAtMs: now + 90_000 }) })
+  check('openai: a wall with its reset ahead reads rejected (observed)', openaiWalled.state === 'rejected' && openaiWalled.basis === 'observed' && openaiWalled.resetsAtMs === now + 90_000)
+  const openaiElapsed = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription', openaiWall: () => ({ resetsAtMs: now - 1 }) })
+  check('openai: an elapsed wall is an OBSERVED reset — the way home for a GPT-home session', openaiElapsed.state === 'allowed' && openaiElapsed.basis === 'stated-reset-elapsed')
+  const openaiApproaching = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription', openaiBands: () => [{ usedPct: 40, windowName: '5h window' }, { usedPct: CAP_APPROACHING_PCT, windowName: 'weekly window', resetsAtMs: now + 3_600_000 }] })
+  check('openai: the worst live band at the approaching threshold reads warning, the window named', openaiApproaching.state === 'warning' && openaiApproaching.windowName === 'weekly window' && openaiApproaching.resetsAtMs === now + 3_600_000)
+  const openaiHeadroom = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription', openaiBands: () => [{ usedPct: 12, windowName: 'weekly window' }] })
+  check('openai: bands below the threshold read allowed (observed headroom)', openaiHeadroom.state === 'allowed' && openaiHeadroom.basis === 'observed')
+  const openaiStale = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'chatgpt-subscription', openaiBands: () => [{ usedPct: 99, windowName: 'weekly window', resetsAtMs: now - 1 }] })
+  check("openai: a band whose stated reset passed is stale, not a warning — 'unknown'", openaiStale.state === 'unknown')
+  const openaiKey = observedFamilyWindow('openai', { ...quiet, openaiActiveSource: () => 'api-key', openaiBands: () => [{ usedPct: 99, windowName: 'weekly window' }] })
+  check("openai: the key source reads no subscription bands — 'unknown' without its own wall", openaiKey.state === 'unknown')
+  // the engine lanes
+  const orWall = observedFamilyWindow('openrouter', { ...quiet, openrouterWall: () => ({ resetsAtMs: now + 10 }) })
+  const gmElapsed = observedFamilyWindow('gemini', { ...quiet, geminiWall: () => ({ resetsAtMs: now - 10 }) })
+  const hfWall = observedFamilyWindow('huggingface', { ...quiet, huggingfaceWall: () => ({ resetsAtMs: now + 10 }) })
+  check('openrouter/gemini/huggingface read their own walls the same way (ahead ⇒ rejected; passed ⇒ observed reset)', orWall.state === 'rejected' && gmElapsed.state === 'allowed' && gmElapsed.basis === 'stated-reset-elapsed' && hfWall.state === 'rejected')
+  const zaiCredit = observedFamilyWindow('zai', { ...quiet, laneBilling: family => ({ state: family === 'zai' ? 'credit-exhausted' : 'clear' }) })
+  check("a lane whose wire refused for credit reads rejected (observed), window 'credits'", zaiCredit.state === 'rejected' && zaiCredit.windowName === 'credits')
+  check("a lane that serves no usage signal reads 'unknown'", observedFamilyWindow('deepseek', quiet).state === 'unknown' && observedFamilyWindow('local', quiet).state === 'unknown')
+  const throwing = observedFamilyWindow('anthropic', { ...quiet, anthropic: () => { throw new Error('reader down') } })
+  check("a reader that throws reads 'unknown' — the resolver never throws", throwing.state === 'unknown')
+  const { APPROACHING_LIMIT_PCT } = await import('../../src/services/providers/limitWarning.ts')
+  check('the approaching threshold is the strip warning\'s own number', CAP_APPROACHING_PCT === APPROACHING_LIMIT_PCT)
+}
+
+section('§I the words — the card names the family; the spend posture is per family kind, never a default subscription lane')
+{
+  check('an OAuth credential on anthropic/openai/moonshot is a subscription lane', laneSpendPosture('anthropic', 'oauth', 'Anthropic').kind === 'subscription' && laneSpendPosture('openai', 'oauth', 'OpenAI').kind === 'subscription' && laneSpendPosture('moonshot', 'oauth', 'Moonshot').kind === 'subscription')
+  check('a key is metered per token, on every family', laneSpendPosture('anthropic', 'api-key', 'Anthropic').kind === 'metered' && laneSpendPosture('openai', 'api-key', 'OpenAI').kind === 'metered' && laneSpendPosture('zai', 'api-key', 'Z.AI').words.includes('bills per token under your Z.AI account'))
+  check('a local server bills nothing; an operator endpoint bills per its own terms', laneSpendPosture('local', 'keyless', 'Local models').kind === 'local' && laneSpendPosture('openai-compat', 'api-key', 'Custom endpoint').kind === 'endpoint')
+  check('no credential ⇒ the honest none', laneSpendPosture('gemini', 'none', 'Gemini').kind === 'none')
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const ROOT = join(import.meta.dir, '..', '..')
+  const card = readFileSync(join(ROOT, 'src/components/CapOfferCard.tsx'), 'utf8')
+  check('the card title names the HOME family (window reset — return? · usage window)', card.includes('`${homeName} window reset — return?`') && card.includes('`${homeName} usage window`'))
+  check('the card never spells a default subscription lane', !card.includes('Claude is your subscription lane') && !card.includes('Claude is the subscription lane') && !card.includes("'Claude window reset"))
+  check('the card composes both spend lines through the ONE posture owner', card.includes("import { laneSpendPosture } from '../services/capFailover.js'") && card.includes('laneSpendPosture(homeRoute') && card.includes('laneSpendPosture(awayRoute'))
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check('the composer reads the home window through the ONE resolver', composer.includes('observedFamilyWindow(homeFamily)'))
+  check('the composer derives the home family from the handoff note, not a hardwired family', composer.includes('liveRoute === noted.homeFamily') && !composer.includes("liveRoute === 'anthropic'"))
+  check('the composer asks the neutral candidate set for the HOME family', composer.includes('liveCapFailoverTarget(homeFamily)'))
+  check('the return decision carries the home credential verdict', composer.includes('credentialUsable: homeUsability.usable'))
+  check('a signed-out home ends the handoff (no return card)', /onFailoverLane && homeUsability\.credential === 'none'[\s\S]{0,120}?noteCapReturn\(\)/.test(composer))
+  check('an ACCEPT latches the decision key like a dismissal (a refused accept never re-fires the card)', /onAccept=\{\(\) => \{[\s\S]{0,700}?noteOfferDismissal\(offer\.key\)[\s\S]{0,600}?handleModelSelect\(offer\.targetModel\)/.test(composer))
+  check('the handoff note records the home FAMILY beside the model', composer.includes('noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)') && composer.includes('noteCapHandoff(effective, homeFamily)'))
+  check('the standing lane line names the home family, never Claude by default', composer.includes('capRoute !== capNote.homeFamily') && !composer.includes('Claude window resets'))
+  const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
+  const menu = readFileSync(join(ROOT, 'src/substrate/startupMenu.ts'), 'utf8')
+  check('the registry row and the /config text spell the neutral law (no favoured family, most recent sign-in first)', registry.includes('NEUTRAL across every signed-in family') && menu.includes('no favourite') && !menu.includes('OpenAI first') && !registry.includes('OpenAI first'))
+  const openaiCall = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
+  const messages = readFileSync(join(ROOT, 'src/services/rateLimitMessages.ts'), 'utf8')
+  check('the OpenAI wall row carries the cross-family lane remedy through the same composer the Anthropic row uses', openaiCall.includes("crossFamilyLaneRemedy('openai')") && messages.includes("crossFamilyLaneRemedy('anthropic'") && messages.includes('export function crossFamilyLaneRemedy('))
+}
+
+console.log(failures === 0 ? '\n ✅ SUBSTRATE — posture core + the revived journey seam + the neutral candidate law + the family window resolver' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

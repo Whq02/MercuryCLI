@@ -235,6 +235,18 @@ export function openrouterLimitWindow(now: () => number = Date.now): OpenrouterL
   }
 }
 
+/** The raw wall record last stated, elapsed or not (null = none observed)
+ *  — the failover return law's "observed reset" read. */
+export function openrouterObservedWall(): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedLimit
+}
+
+/** The credential behind the lane left or changed: its observed wall goes
+ *  with it (the record is process-wide, not per credential). */
+export function forgetOpenrouterObservedLimit(): void {
+  observedLimit = null
+}
+
 /** Proof seam. */
 export function __resetOpenrouterUsageStateForTest(): void {
   observedKeyUsage = null

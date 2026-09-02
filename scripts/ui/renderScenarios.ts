@@ -2316,10 +2316,10 @@ function scenarioInner(name: string, cols: number, rows: number) {
       argv: ['node', BIN],
       sends: [
         { atTick: 40, awaitText: 'for commands', minTick: 10, awaitSettleTicks: 2, data: '/mock-limits warning-7d\r', mark: 'seam' },
-        { atTick: 90, awaitText: 'Claude usage window', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'offer-accept' },
+        { atTick: 90, awaitText: 'Anthropic usage window', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'offer-accept' },
         { atTick: 140, awaitText: 'Model set to gpt-5.6', minTick: 4, awaitSettleTicks: 2, data: 'Reply with exactly: OK-GPT-JOURNEY\r', mark: 'gpt-turn' },
         { atTick: 260, awaitText: 'OK-GPT-JOURNEY', minTick: 10, awaitSettleTicks: 3, data: '/mock-limits clear\r', mark: 'reset' },
-        { atTick: 300, awaitText: 'return home', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'home-accept' },
+        { atTick: 300, awaitText: 'window reset', minTick: 4, awaitSettleTicks: 2, data: '\r', mark: 'home-accept' },
         // The way home is LOSS-HONEST: leaving the OpenAI lane resets its
         // continuation record, so the transition preview gates the return — the
         // second ↵ is the explicit confirm through the settlement owner.
