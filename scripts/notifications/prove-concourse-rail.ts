@@ -58,7 +58,6 @@ const run: ArenaRun = await runArtifactArena({
     MERCURY_CONCOURSE: 'always',
     MERCURY_CONCOURSE_FIXTURE: fixturePath,
     MERCURY_DAEMON_DIR: join(fixtureDir, 'daemon'),
-    MERCURY_DAEMON_DIR: join(fixtureDir, 'daemon'),
     MERCURY_CREW_DIR: join(fixtureDir, 'crew'),
   },
 })
@@ -193,7 +192,6 @@ const erun: ArenaRun = await runArtifactArena({
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
     MERCURY_DAEMON_DIR: join(fixtureDir2, 'daemon'),
-    MERCURY_DAEMON_DIR: join(fixtureDir2, 'daemon'),
     MERCURY_CREW_DIR: join(fixtureDir2, 'crew'),
   },
 })
@@ -265,7 +263,6 @@ const vrun: ArenaRun = await runArtifactArena({
   extraEnv: {
     MERCURY_CONCOURSE: 'always',
     MERCURY_CONCOURSE_FIXTURE: fixturePath3,
-    MERCURY_DAEMON_DIR: join(fixtureDir3, 'daemon'),
     MERCURY_DAEMON_DIR: join(fixtureDir3, 'daemon'),
     MERCURY_CREW_DIR: join(fixtureDir3, 'crew'),
   },

@@ -181,6 +181,9 @@ if (driver.kind !== 'posix-pty') {
       env: {
         ...process.env,
         MERCURY_CONFIG_DIR: home,
+        MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+        MERCURY_LIVE_GLYPHS: '0',
         MERCURY_OPENROUTER_API_BASE: `http://127.0.0.1:${port}/api/v1`,
         ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
       },

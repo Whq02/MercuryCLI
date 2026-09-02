@@ -1,6 +1,6 @@
 
 import { resolve } from 'node:path';
-import { chmodSync, copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -753,6 +753,18 @@ let grammarPackMissing: string[] = [];
   }
 }
 
+const SPLASH_PAIR = [
+  { src: resolve(ROOT, 'assets', 'splash', 'mercury-splash.mjs'), name: 'splash.mjs' },
+  { src: resolve(ROOT, 'assets', 'splash', 'splash-core.mjs'), name: 'splash-core.mjs' },
+] as const;
+for (const member of SPLASH_PAIR) {
+  if (!existsSync(member.src)) {
+    console.error(`BUILD FAILED: ${member.src} missing — the enter screen ships as a pair beside mercury.mjs`);
+    process.exit(1);
+  }
+  copyFileSync(member.src, resolve(OUT, member.name));
+}
+
 {
   const { stampNoticeOnSource, hasCurrentNoticeStamp } = await import('./src/constants/legalNotice.ts');
   for (const artifact of ['mercury.mjs', 'verify-artifact.mjs']) {
@@ -846,6 +858,12 @@ const manifest = {
         remedy:
           'prepare the pinned Node runtime cache (`bun run scripts/vendor/fetch-node.ts`), then re-run `bun run build.ts` — the launchers run MERCURY_NODE or a PATH node inside the supported range meanwhile',
       },
+  splash: {
+    path: 'splash.mjs',
+    core: 'splash-core.mjs',
+    bytes: statSync(resolve(OUT, 'splash.mjs')).size,
+    sha256: createHash('sha256').update(readFileSync(resolve(OUT, 'splash.mjs'))).digest('hex'),
+  },
   voiceInput: voiceVendored && voiceMeta
     ? {
         vendored: true,
