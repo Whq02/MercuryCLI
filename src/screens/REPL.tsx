@@ -28,7 +28,6 @@ import {
   MessageActionsKeybindings,
   useMessageActions,
   type MessageActionsNav,
-  type MessageActionsState,
 } from '../components/messageActions.js';
 import { MessageSelector } from '../components/MessageSelector.js';
 import { Messages } from '../components/Messages.js';
@@ -40,6 +39,7 @@ import { SandboxViolationExpandedView } from '../components/SandboxViolationExpa
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { BriefIdleStatus } from '../components/Spinner.js';
 import { MessageActionsBar } from '../components/messageActions.js';
+import { useMessageCursorActive } from '../components/messageCursorStore.js';
 import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
 import {
   useKickOffCheckAndDisableBypassPermissionsIfNeeded,
@@ -1925,9 +1925,9 @@ export function REPL({
   }, { isActive: searchBarOpen });
 
   const messageActionsDisabled = false;
-  const [messageCursor, setMessageCursor] = useState<MessageActionsState | null>(null);
+  const messageCursorActive = useMessageCursorActive();
   const messageNavRef = useRef<MessageActionsNav | null>(null);
-  const messageActions = useMessageActions(messageCursor, setMessageCursor, messageNavRef, {
+  const messageActions = useMessageActions(messageNavRef, {
     copy: (text: string) => {
       void setClipboardWithReceipt(text).then(receipt => {
         process.stdout.write(receipt.sequence);
@@ -2392,7 +2392,7 @@ export function REPL({
 
   const composerGroup = promptInput ? <Box flexDirection="column">{promptInput}</Box> : null;
   const composerSlot =
-    messageCursor !== null && !messageActionsDisabled ? <MessageActionsBar cursor={messageCursor} /> : composerGroup;
+    messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup;
 
   const bottomSlot = (
     <Box flexDirection="column">
@@ -2504,8 +2504,7 @@ export function REPL({
       scanElement={scanElement}
       setPositions={setPositions}
       disableRenderCap={dumpMode}
-      cursor={messageCursor}
-      setCursor={setMessageCursor}
+      ownsCursor
       cursorNavRef={messageNavRef}
     />
   );
@@ -2585,7 +2584,7 @@ export function REPL({
         modalScrollRef={modalScrollRef}
         modalUp={centredModalUp}
       />
-      {fullscreen && messageCursor !== null ? (
+      {fullscreen && messageCursorActive ? (
         <MessageActionsKeybindings handlers={messageActions.handlers} isActive={!messageActionsDisabled && focusedInputDialog === undefined} />
       ) : null}
       {cancelHandler}
