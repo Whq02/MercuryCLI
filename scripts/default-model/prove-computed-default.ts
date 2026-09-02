@@ -108,6 +108,7 @@ const { SIGN_IN_LEDGER_FILE, readSignInLedger, readSignInRecord, recordSignIn, s
 const {
   NO_SIGN_IN_REASON,
   NO_SIGN_IN_ROW,
+  NO_USABLE_ROW,
   computedDefault,
   describeComputedDefault,
   describeComputedDefaultLabel,
@@ -288,9 +289,11 @@ section('§3 the decision — pure over injected facts')
   const c = evaluateComputedDefault(facts({ laneRow }))
   check('row 3: no sign-in ⇒ keyless — no provider, the "no sign-in yet" row, the placeholder setting, the keyless words', c.source === 'keyless' && c.setting === KEYLESS.setting && c.provider === null && c.row === NO_SIGN_IN_ROW && c.chosen === null && c.considered.length === 0 && c.why === KEYLESS.why, JSON.stringify(c))
 
-  // row 4 — every sign-in unusable: keyless, with each family's reason
+  // row 4 — every sign-in unusable: keyless, with each family's reason; the
+  // row word says "no usable row yet" (a sign-in exists — a catalogue still
+  // composing, or gated), never "no sign-in yet"
   const d = evaluateComputedDefault({ ...base, laneRow: family => gated(`${family} offers nothing yet`) })
-  check('row 4: every sign-in unusable ⇒ keyless with each reason and the logins door', d.source === 'keyless' && d.setting === KEYLESS.setting && d.provider === null && d.row === NO_SIGN_IN_ROW && d.why === 'no sign-in offers a usable row (OpenAI: openai offers nothing yet; Anthropic: anthropic offers nothing yet) — /logins signs another provider in', d.why)
+  check('row 4: every sign-in unusable ⇒ keyless with each reason, the "no usable row yet" row and the logins door', d.source === 'keyless' && d.setting === KEYLESS.setting && d.provider === null && d.row === NO_USABLE_ROW && d.why === 'no sign-in offers a usable row (OpenAI: openai offers nothing yet; Anthropic: anthropic offers nothing yet) — /logins signs another provider in', d.why)
 
   // row 5 — a legacy home: untimed credentials keep the recorded lane, and say why
   const e = evaluateComputedDefault(facts({ credentials: [{ family: 'anthropic', at: null, label: 'Claude subscription (max)' }, { family: 'openrouter', at: null, label: 'OpenRouter (stored key)' }], recordedDefaultProvider: 'openrouter', laneRow: family => (family === 'openrouter' ? usable('openrouter/qwen/qwen3-coder', 'Qwen3 Coder', "the first row this sign-in can use (the catalogue's own order)") : laneRow(family)) }))
@@ -306,7 +309,7 @@ section('§3 the decision — pure over injected facts')
   // row 7 — the describers
   check('row 7a: the Default row keeps the neutral grammar and names row + provider + source', describeComputedDefaultRow(a, providerDisplayName) === 'Default (GPT-5.5 — OpenAI, the most recent sign-in)', describeComputedDefaultRow(a, providerDisplayName))
   check('row 7b: …a fallthrough says so', describeComputedDefaultRow(b, providerDisplayName) === 'Default (Fable 5 (1M context) — Anthropic, the most recent sign-in with a usable row)', describeComputedDefaultRow(b, providerDisplayName))
-  check('row 7c: …a keyless answer names no provider — the logins door', describeComputedDefaultRow(c, providerDisplayName) === `Default (${NO_SIGN_IN_REASON})` && describeComputedDefaultRow(d, providerDisplayName) === `Default (${NO_SIGN_IN_REASON})`, describeComputedDefaultRow(c, providerDisplayName))
+  check('row 7c: …a keyless answer names no provider — the logins door with no sign-in, each sign-in\'s gate then the door when sign-ins exist', describeComputedDefaultRow(c, providerDisplayName) === `Default (${NO_SIGN_IN_REASON})` && describeComputedDefaultRow(d, providerDisplayName) === `Default (${d.why})`, describeComputedDefaultRow(d, providerDisplayName))
   check('row 7d: …a legacy lane names the recorded default provider', describeComputedDefaultRow(e, providerDisplayName) === 'Default (Qwen3 Coder — OpenRouter, the recorded default provider)', describeComputedDefaultRow(e, providerDisplayName))
   for (const [tag, decision] of [['a', a], ['b', b], ['c', c], ['d', d], ['e', e]] as const) {
     check(`row 7e: the row grammar /^Default \\(.+\\)$/ holds (${tag})`, /^Default \(.+\)$/.test(describeComputedDefaultRow(decision, providerDisplayName)))
@@ -440,7 +443,7 @@ section('§5 the sign-in owners — every credential-landing site records; the r
   check("the doctor's Default model row projects it", between(src('utils/healthReport.ts'), "id: 'frontier'", 'link:').includes('computedDefault()'))
   const resolver = src('utils/model/computedDefault.ts')
   check('the key lanes answer from their pin tables before any picker composition (no probe rides a default resolution)', resolver.includes("if (KEY_LANES.has(family)) return keyLaneRow(") && resolver.indexOf('KEY_LANES.has(family)') < resolver.indexOf('rows = livePickerRows()') && between(resolver, 'function keyLaneRow', '\n}').includes('keyLanePins(family)[0]'))
-  check('the boot face chip says no sign-in yet on a keyless default', src('components/BootSplashScreen.tsx').includes("computedDefault().source === 'keyless'") && src('components/BootSplashScreen.tsx').includes('noSignIn ? NO_SIGN_IN_ROW : renderModelChip(mainModel)'))
+  check("the boot face chip prints the decision's own row word on a keyless default (no sign-in yet · no usable row yet)", src('components/BootSplashScreen.tsx').includes("decision.source === 'keyless' ? decision.row : null") && src('components/BootSplashScreen.tsx').includes('keylessRow ?? renderModelChip(mainModel)'))
   const face = src('components/BootLoginsScreen.tsx')
   check('the logins card and the Boot face focus the most recent sign-in\'s row; the face\'s summary reads it from its facts (a pure composer never reads the machine)', skin.includes('loginFamilyFocusFor(mostRecentSignInFamily())') && count(face, 'loginFamilyFocusFor(mostRecentSignInFamily())') === 1 && face.includes('loginFamilyFocusFor(facts.defaultFamily)') && face.includes('const defaultFamily = mostRecentSignInFamily();'))
 }

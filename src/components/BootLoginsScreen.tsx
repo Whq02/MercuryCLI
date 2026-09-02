@@ -781,14 +781,24 @@ export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): s
   lines.push(h.leg === 'openrouter-headless' ? 'URL:' : 'If nothing opened, visit:');
   lines.push(...wrapHard(h.authorizeUrl ?? '', DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', h.leg === 'openrouter-headless' ? 'code:' : 'paste:'));
-  lines.push(
-    h.copied
-      ? 'copied to clipboard'
-      : h.leg === 'openai-browser'
-        ? 'c copy · d device · esc cancel'
-        : 'c copy url · esc cancel',
-  );
+  lines.push(handlesWaitWayOut(h, draftLen));
   return lines;
+}
+
+/** The handles pane's way-out words (pure): exactly the keys that fire in
+ *  THIS state — c (the URL to the clipboard) needs an empty paste and a
+ *  URL to copy, d (the device-code sibling, the OpenAI browser leg alone)
+ *  an empty paste; a typed draft leaves esc alone (↵ rides the legend).
+ *  The stale form kept advertising c and d after the first typed
+ *  character, when neither fired. */
+export function handlesWaitWayOut(h: HandlesWaitStateV1, draftLen: number): string {
+  if (h.copied) return 'copied to clipboard';
+  const copy = draftLen === 0 && h.authorizeUrl !== undefined;
+  const device = draftLen === 0 && h.leg === 'openai-browser';
+  if (copy && device) return 'c copy · d device · esc cancel';
+  if (copy) return 'c copy url · esc cancel';
+  if (device) return 'd device · esc cancel';
+  return 'esc cancel';
 }
 
 export interface OpenaiDeviceStateV1 {
@@ -858,12 +868,14 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
       return pane.storing ? 'checking…' : '↵ store key · esc back';
     case 'device':
       return pane.device.phase === 'waiting' ? 'c copy url · esc cancel' : 'esc cancel';
-    case 'handles':
-      return pane.handles.leg === 'openai-browser' && pane.handles.phase === 'waiting'
-        ? '↵ submit paste · c copy · d device · esc cancel'
-        : pane.handles.phase === 'waiting'
-          ? '↵ submit paste · c copy · esc cancel'
-          : 'esc cancel';
+    case 'handles': {
+      // The same gate as the pane's way-out line and the key handlers: c
+      // and d fire on an empty paste only (c with a URL to copy).
+      if (pane.handles.phase !== 'waiting') return 'esc cancel';
+      const copy = pane.draftLen === 0 && pane.handles.authorizeUrl !== undefined;
+      const device = pane.draftLen === 0 && pane.handles.leg === 'openai-browser';
+      return `↵ submit paste${copy ? ' · c copy' : ''}${device ? ' · d device' : ''} · esc cancel`;
+    }
     case 'opdevice':
       return 'c copy code · esc stop watching';
     case 'client':

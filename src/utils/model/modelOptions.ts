@@ -49,9 +49,9 @@ import {
 import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
 import { has1mContext, modelSupports1M } from './capabilities.js'
 import {
-  NO_SIGN_IN_REASON,
   computedDefault,
   describeComputedDefaultRow,
+  keylessReason,
 } from './computedDefault.js'
 import {
   getBestModel,
@@ -841,14 +841,15 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   if (!(reads.anthropicCredentialed ?? liveAnthropicCredentialed)()) {
     const reason = anthropicNotSignedInReason()
     // The Default row follows the COMPUTED default: it is gated only while
-    // it resolves to no sign-in at all (the neutral words, never this
-    // family's) — a default that landed on another signed-in family stays
-    // selectable whatever this family's credential state.
+    // it resolves to no usable row (the neutral words, never this family's
+    // — the logins door with no sign-in anywhere, each sign-in's own gate
+    // when sign-ins exist) — a default that landed on another signed-in
+    // family stays selectable whatever this family's credential state.
     const decision = computedDefault()
     options = options.map(opt =>
       opt.group === undefined && opt.value === null
         ? decision.source === 'keyless'
-          ? { ...opt, unavailable: NO_SIGN_IN_REASON }
+          ? { ...opt, unavailable: keylessReason(decision) }
           : opt
         : opt.group === undefined && typeof opt.value === 'string' && !isSentinelValue(opt.value)
           ? { ...opt, unavailable: reason }

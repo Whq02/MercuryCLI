@@ -20,15 +20,12 @@ import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
-import { NO_SIGN_IN_ROW, computedDefault } from '../utils/model/computedDefault.js';
+import { computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
-import { declaredRouteOf } from '../services/providers/routeLaw.js';
-import {
-  anthropicCredentialPresence,
-  presenceIdentityWords,
-  providerFamilyPresences,
-} from '../services/providers/providerUsage.js';
+import { providerFamilyPresences } from '../services/providers/providerUsage.js';
+import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
+import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
@@ -186,6 +183,10 @@ export function BootSplashScreen(): React.ReactNode {
   // closing it re-reads the strip's account chip (the presence epoch).
   const [loginsOpen, setLoginsOpen] = useState(faceDoor === 'logins');
   const [presenceEpoch, setPresenceEpoch] = useState(0);
+  // The sign-in epoch re-derives the account chip and the Logins row's
+  // glance the moment a credential lands or leaves in this process (a
+  // chat's /logins, a board sign-out).
+  const signInEpoch = useSignInEpoch();
 
   // Session-store facts, gathered SYNCHRONOUSLY at mount (the launcher's own
   // bounded pre-paint scan, same law): the presence rows must exist before
@@ -312,8 +313,10 @@ export function BootSplashScreen(): React.ReactNode {
     } catch {
       return null; // K3: a failed read never claims signed-out
     }
+    // presenceEpoch: a face sign-in; signInEpoch: a credential landing or
+    // leaving anywhere in this process (a removal must leave no stale count).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presenceEpoch]);
+  }, [presenceEpoch, signInEpoch]);
 
   // THE MERGED ROW's live ctx (HOST TRUTH): the repos count is the boot
   // scan's own fact; a session TOTAL has no cheap owner at compose time,
@@ -633,43 +636,45 @@ export function BootSplashScreen(): React.ReactNode {
 
   // The strip's five chips from LIVE owners (each strictly better than the
   // launcher's cold file mirror — the frozen-stale chip classes retire here).
-  // The sign-in epoch re-derives the account chip the moment a credential
-  // lands or leaves in this process (a chat's /logins, a board sign-out).
-  const signInEpoch = useSignInEpoch();
+  // The catalogue epoch: a live catalogue settling (the OpenAI rows the
+  // computed default waits on) repaints the strip in place — the model chip
+  // heals from the placeholder to the row; the account chip was already
+  // right (snapshot-first, below).
+  const catalogueEpoch = useCatalogueEpoch();
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
     try {
-      // The account chip follows the MAIN MODEL'S route (the routing law)
-      // to that family's credential in the ONE presence owner — never the
-      // Anthropic snapshot whatever the route — and prints the ONE identity
+      // The account chip names WHOSE account the session bills — the ONE
+      // session-account composer (the main model's route; on a default still
+      // being composed, the sign-in it is composed for) in the ONE identity
       // composer's words: the recorded identity (the sign-in's email) when
       // the family's owning store holds one, else the credential's
-      // plan/source label. Every family alike; no per-surface copy.
-      const route = declaredRouteOf(mainModel);
+      // plan/source label. Every family alike; the stored identity paints on
+      // the first frame; no per-surface copy.
       const fit = (text: string): string => (text.length > 26 ? text.slice(0, 25) + '…' : text);
-      const presence =
-        route === 'anthropic'
-          ? anthropicCredentialPresence()
-          : providerFamilyPresences().find(family => (family.id as string) === route);
-      const words = presence === undefined ? undefined : presenceIdentityWords(presence);
-      acct = words !== undefined ? { state: 'email', text: fit(words) } : { state: 'none' };
+      const words = sessionAccountWords(mainModel);
+      acct = words.state === 'email' ? { state: 'email', text: fit(words.text) } : { state: 'none' };
     } catch {
       acct = { state: 'unreadable' }; // K3: a failed read never claims not-signed-in
     }
     const cert = healthCertSnapshot();
     const critterKey = getSessionCritterKey();
     // The model chip names the row the session runs. A session on the
-    // default with no sign-in anywhere has NO computed default (the neutral-
-    // default ruling): the chip says so and never names a provider the user
-    // cannot use; the logins door is one row down the card.
-    let noSignIn = false;
+    // default with no usable row has NO computed default (the neutral-
+    // default ruling): the chip prints the decision's own row word —
+    // 'no sign-in yet' with no credential anywhere, 'no usable row yet'
+    // while a sign-in exists but none offers a usable row (its catalogue
+    // still composing, or unreachable) — and never names a provider the
+    // user cannot use; the logins door is one row down the card.
+    let keylessRow: string | null = null;
     try {
-      noSignIn = getUserSpecifiedModelSetting() === null && computedDefault().source === 'keyless';
+      const decision = computedDefault();
+      keylessRow = getUserSpecifiedModelSetting() === null && decision.source === 'keyless' ? decision.row : null;
     } catch {
-      noSignIn = false; // an unreadable read paints the resolved chip, never a claim
+      keylessRow = null; // an unreadable read paints the resolved chip, never a claim
     }
     return {
-      model: noSignIn ? NO_SIGN_IN_ROW : renderModelChip(mainModel),
+      model: keylessRow ?? renderModelChip(mainModel),
       critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
       critterHue: getSessionAccent().accent,
       dir: projectDisplayName(getCwd()),
@@ -681,9 +686,10 @@ export function BootSplashScreen(): React.ReactNode {
     };
     // presenceEpoch: the logins layer's close bumps it so the account chip
     // re-reads the presence owner after a face sign-in (never optimistic);
+    // catalogueEpoch: a live catalogue settling (the default's row lands);
     // signInEpoch: the ledger's own count of landed and removed credentials.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainModel, presenceEpoch, signInEpoch]);
+  }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {

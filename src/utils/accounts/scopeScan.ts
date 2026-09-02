@@ -8,10 +8,11 @@
 // is retired with it — a sibling home is a separate estate an operator boots
 // with an explicit MERCURY_CONFIG_DIR pin, never a slot of this session.
 //
-// Pure node:fs + path — deliberately bun-loadable so the proof
-// (scripts/accounts/prove-accounts-display.ts) exercises the real functions.
-// Never reads a token: identity comes from the non-secret oauthAccount
-// fields; credential-FILE presence is the non-keychain auth fallback.
+// Pure node:fs + path for the identity half — deliberately bun-loadable so
+// the proof (scripts/accounts/prove-accounts-display.ts) exercises the real
+// functions. Identity comes from the non-secret oauthAccount snapshot;
+// SIGN-IN comes from the scope's credential store (existence only — no
+// token value ever leaves the read; the store read is injectable).
 
 import { existsSync, readFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
@@ -67,18 +68,59 @@ export function readScopeIdentity(configFile: string): ScopeIdentity {
   return {}
 }
 
-/** Sign-in probe for a scope dir: the dir-scoped identity snapshot
- *  (`<dir>/.claude.json` — the snapshot basename the scope stores use),
- *  with credential-file presence keeping non-keychain platforms honest. */
+/** Injectable store read for provers; production reads the scope's own
+ *  credential store. */
+export interface ScopeAuthReads {
+  /** A claude.ai login is STORED for the scope dir (existence — never
+   *  validity). */
+  storedLogin?: (dir: string) => boolean
+}
+
+/**
+ * Sign-in probe for a scope dir. SIGNED IN means the scope's credential
+ * store holds a claude.ai login — the same store the wire reads — never the
+ * identity snapshot: `<dir>/.claude.json` (the snapshot basename the scope
+ * stores use) is written by the board's verification heal and cleared by
+ * the removal owners, and a snapshot that outlives its credential (a
+ * removal by another tool, an interrupted sign-out) reads as SIGNED OUT
+ * with its identity labelled, never as a login. The stale-row class this
+ * closes: a row that said "signed in" for a credential that had left, and
+ * could not be removed because the removal found no tokens. The snapshot
+ * supplies identity only.
+ */
 export function probeScopeAuth(
   dir: string,
+  reads: ScopeAuthReads = {},
 ): { authed: boolean; email?: string; uuid?: string } {
   const id = readScopeIdentity(join(dir, '.claude.json'))
-  if (id.uuid) {
-    return { authed: true, uuid: id.uuid, ...(id.email ? { email: id.email } : {}) }
+  const authed = (reads.storedLogin ?? storedLoginLive)(dir)
+  return {
+    authed,
+    ...(id.uuid ? { uuid: id.uuid } : {}),
+    ...(id.email ? { email: id.email } : {}),
   }
-  const credFile = existsSync(join(dir, '.credentials.json'))
-  return { authed: credFile }
+}
+
+/** The stored-login read: the resolved home (the one scope this session
+ *  bills) asks the credential owner's own presence predicate — the store the
+ *  wire reads, through its door (its keychain cache keeps a render-path read
+ *  cheap; the auth-scope seam stays the stores' own, never read here); any
+ *  other dir reads in isolation through the audited scoped reader. A
+ *  refusing store (a locked keychain, an unreadable file) reads as signed
+ *  out — a state, never a throw. Call-time requires keep the module's
+ *  import graph the pure one the proof loads. */
+function storedLoginLive(dir: string): boolean {
+  try {
+    if (resolve(dir) === resolve(getMercuryHome())) {
+      const { hasStoredOAuthToken } = require('../auth.js') as typeof import('../auth.js')
+      return hasStoredOAuthToken()
+    }
+    const { readAccountOAuthCreds } =
+      require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
+    return readAccountOAuthCreds(dir) !== undefined
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -90,7 +132,7 @@ export function probeScopeAuth(
  * ruling); the name speaks the ROLE (the UX label law) — the session's own
  * home is 'primary', whatever its basename.
  */
-export function scanAccountScopes(): AccountScope[] {
+export function scanAccountScopes(reads: ScopeAuthReads = {}): AccountScope[] {
   const dir = resolve(getMercuryHome())
   return [
     {
@@ -99,7 +141,7 @@ export function scanAccountScopes(): AccountScope[] {
       isCurrent: true,
       hasConfig: existsSync(join(dir, '.claude.json')),
       claudeFamily: isClaudeFamilyDir(dir),
-      ...probeScopeAuth(dir),
+      ...probeScopeAuth(dir, reads),
     },
   ]
 }

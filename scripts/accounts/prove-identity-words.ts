@@ -149,7 +149,13 @@ section('I3 every identity surface reads the ONE composer (structural)')
   const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
   const chip = read('src/components/BootSplashScreen.tsx')
   const chipBlock = chip.slice(chip.indexOf('const chips = useMemo('), chip.indexOf('const selectedIndex = selCleared'))
-  check('the boot chip block reads the composer', chipBlock.includes('presenceIdentityWords(presence)'))
+  // The chip asks the session-account composer WHOSE account the session
+  // bills (the main model's route, or the sign-in a still-composing default
+  // is composed for); that composer spells WHO through this one composer —
+  // still one spelling of "who", now behind one answer to "whose".
+  const sessionAccount = read('src/utils/accounts/sessionAccount.ts')
+  check('the boot chip block reads the session-account composer', chipBlock.includes('sessionAccountWords(mainModel)'))
+  check('…which reads the ONE identity composer (no second spelling of who)', sessionAccount.includes('presenceIdentityWords(presence)') && !chipBlock.includes('credentialLabel'))
   check('…and no longer keeps its own Anthropic-only email copy', !chipBlock.includes('emailAddress') && !chipBlock.includes("startsWith('Claude subscription')"))
   check('…for every family alike (one presence, one composer — no per-route branches of words)', !chipBlock.includes("presence.credentialLabel ?? 'signed in'"))
   check('…re-deriving on the sign-in epoch', chipBlock.includes('signInEpoch]') && chip.includes("import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'"))

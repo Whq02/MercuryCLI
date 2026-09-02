@@ -5,7 +5,7 @@ import { Box, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
-import { resolveLiveScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
+import { forgetScopeIdentity, resolveLiveScopeIdentity } from '../../../utils/accounts/accountIdentity.js'
 import { AMBER, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import {
   CommandCenter,
@@ -34,10 +34,10 @@ import {
   familySigninHeaderNote,
   familySigninSummary,
   mainLoopIdentity,
+  scopeSlotTail,
   slotSigninState,
   type AccountSlot,
   type SlotIdentities,
-  type SlotSigninState,
 } from '../../../services/providers/accountSlots.js'
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -129,31 +129,6 @@ function tildify(p: string, home: string): string {
 
 type Identities = SlotIdentities
 
-/** The scope row's state words — switched on the ONE derivation's basis
- *  (the same object the header counts), the identity read supplying only
- *  the email/snapshot/note details. */
-function identityTail(state: SlotSigninState, id: Identities[string] | undefined): string {
-  switch (state.basis) {
-    case 'excluded':
-      return "another tool's credential scope — never billable from Mercury"
-    case 'checking':
-      return 'verifying identity…'
-    case 'verified-live':
-      return `${id?.state === 'verified' ? id.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
-    case 'expired':
-      return `expired${id?.state === 'expired' && id.snapshotEmail ? ` (snapshot ${id.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
-    case 'signed-out':
-    case 'absent':
-      return 'not signed in · ↵ opens Logins to sign in'
-    case 'unverified':
-      return id?.state === 'unverified'
-        ? `unverified — ${id.note}${id.email ? ` · snapshot ${id.email}` : ''} · not counted as signed in`
-        : 'unverified · not counted as signed in'
-    case 'credential-present':
-      return 'credential present'
-  }
-}
-
 export function AccountView({
   onClose,
 }: {
@@ -201,7 +176,10 @@ export function AccountView({
   const scopeSlots = groups.flatMap(group => group.slots.filter(slot => slot.scope !== undefined))
 
   // Live identity verification per scope slot — credential-derived, cached,
-  // labeled-unverified offline. Never blocks the board's first paint.
+  // labeled-unverified offline. Never blocks the board's first paint. Runs
+  // again on every mutation (the version): a removal drops the slot's read
+  // below and the re-probe answers from the scope's own store (the cache
+  // follows the sign-in epoch, so nothing verified outlives its login).
   const scopeDirsKey = scopeSlots.map(slot => slot.id).join('|')
   useEffect(() => {
     let alive = true
@@ -215,9 +193,10 @@ export function AccountView({
     return () => {
       alive = false
     }
-    // keyed by the scope dir set — scopeSlots is a fresh array every render
+    // keyed by the scope dir set + the mutation version — scopeSlots is a
+    // fresh array every render
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeDirsKey])
+  }, [scopeDirsKey, version])
 
   const acct = getGlobalConfig().oauthAccount
   // The main loop's model: the session override when a mode engaged one,
@@ -302,6 +281,9 @@ export function AccountView({
         key: 'r',
         hint: 'rescan',
         run: () => {
+          // The operator asked for a fresh verification: forget the resolved
+          // identities so the re-probe reaches the endpoint, not the cache.
+          forgetScopeIdentity()
           setVersion(v => v + 1)
           setIdentities({})
           return 'rescanned accounts (identities re-verify live)'
@@ -336,7 +318,16 @@ export function AccountView({
           // Routed to the owning store; env pins and excluded scopes come
           // back as honest refusals, guidance rows mutate nothing.
           const outcome = executeSlotRemoval(row.slot)
-          if (outcome.mutated) setVersion(v => v + 1)
+          if (outcome.mutated) {
+            // The departed slot's read leaves with it; the re-probe (the
+            // version) answers from the store — signed out, at once.
+            setIdentities(prev => {
+              const next = { ...prev }
+              delete next[row.slot.id]
+              return next
+            })
+            setVersion(v => v + 1)
+          }
           return outcome.note
         },
       },
@@ -404,7 +395,7 @@ export function AccountView({
         const state = slotSigninState(slot, identities)
         glyph = state.basis === 'excluded' ? '⊘' : state.signedIn ? '●' : '⦿'
         color = state.basis === 'excluded' ? FAINT : state.signedIn ? TEAL : AMBER
-        tail = [tildify(s.dir, home), s.isCurrent ? 'this session' : '', identityTail(state, id)]
+        tail = [tildify(s.dir, home), s.isCurrent ? 'this session' : '', scopeSlotTail(state, id, slot)]
           .filter(Boolean)
           .join(' · ')
       } else {

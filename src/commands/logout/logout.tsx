@@ -14,7 +14,9 @@ import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
 import { signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
+import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
+import { getMercuryHome } from '../../utils/envUtils.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
 import { resetUserCache } from '../../utils/user.js'
@@ -55,6 +57,12 @@ export async function performLogout({
 
   await removeApiKey()
   getSecureStorage().delete()
+  // The scope's own identity snapshot leaves with the login (the board's
+  // verification heal writes it; a snapshot that outlives every credential
+  // is the stale "signed in" row the next boot's board would paint), and
+  // the resolved identity with it.
+  clearScopeIdentitySnapshot(getMercuryHome())
+  forgetScopeIdentity()
 
   // The ruled copy is the law: /logout signs out of ALL accounts, not the
   // Anthropic side alone — every engine family through the ONE per-slot
