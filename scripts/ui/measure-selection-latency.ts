@@ -13,20 +13,30 @@
 //             ↑ ×10, ↓ ×5 spaced; esc) — the transcript selection
 //    manager  /sessions over the 1k with twelve staged sessions (↓ ×8; esc)
 //    picker   /model (↓ ×6; esc)
-//  The cursor leg also runs the MERCURY_CONNECTOR_TRACE seam and reports
-//  the virtual list's renders: any stale or duplicate key across the walk
-//  is a red line in the receipt, whatever the latency says.
+//  Every leg arms the FLUX probe (MERCURY_FLUX_PROBE + its tee): the dump
+//  gives the frame-duration percentiles of the whole run and, windowed per
+//  key, how many times each render owner ran for one keypress
+//  (render:repl-root · render:messages · render:composer · render:frame) —
+//  the cost model of a selection move, not just its latency. The cursor
+//  leg also runs the MERCURY_CONNECTOR_TRACE seam and reports the virtual
+//  list's renders: any stale or duplicate key across the walk is a red
+//  line in the receipt, whatever the latency says.
+//
+//  --fixture 1k (53 chapters, 1,011 records) or 5k (260 chapters, ~4,950
+//  records) or a chapter count; the settle wait scales with it and a load
+//  precheck confirms the tail is on screen before the first key — a leg
+//  that measured the load would be a lie.
 //
 //  Run: bun scripts/ui/measure-selection-latency.ts [--legs cursor,manager,picker]
-//         [--runs 3] [--json out.json]
+//         [--fixture 1k|5k|<chapters>] [--runs 3] [--json out.json]
 //  Re-runnable by design: the same command before and after a change.
 // ============================================================================
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { runCompassArena, requireDist, pct, firstOutAfter, type CompassRun } from '../navigation/arena.ts'
-import { buildCompass1k } from '../navigation/fixture1k.ts'
+import { runCompassArena, requireDist, pct, firstOutAfter, grabScreens, type CompassRun } from '../navigation/arena.ts'
+import { buildCompass1k, CHAPTERS_DEFAULT, TAIL_SENTINEL } from '../navigation/fixture1k.ts'
 
 requireDist()
 
@@ -46,8 +56,18 @@ if (!process.env.NODE_BIN) {
 }
 process.stderr.write(`[selection-latency] node: ${process.env.NODE_BIN} (${dirname(process.env.NODE_BIN)})\n`)
 
-const SETTLE = 9000 // ms after spawn before the first interaction (the 1k resume load)
 const GAP = 350 // ms between selection keys — each key an isolated experiment
+const COLS = 120
+const ROWS = 40
+
+const argv = process.argv.slice(2)
+const argOf = (flag: string, def: string): string => (argv.includes(flag) ? argv[argv.indexOf(flag) + 1]! : def)
+const fixtureArg = argOf('--fixture', '1k')
+const CHAPTERS = fixtureArg === '1k' ? CHAPTERS_DEFAULT : fixtureArg === '5k' ? 260 : Math.max(1, Number(fixtureArg) || CHAPTERS_DEFAULT)
+const FIXTURE_LINES = 4 + CHAPTERS * 19
+/** ms after spawn before the first interaction: the resume load of the
+ *  fixture. Scales with its size; the load precheck proves it suffices. */
+const SETTLE = Math.max(9000, Math.round(9000 * (CHAPTERS / CHAPTERS_DEFAULT)))
 
 const b64 = (s: string): string => Buffer.from(s, 'latin1').toString('base64')
 const UP = '\\x1b[A'
@@ -114,6 +134,63 @@ function diagnoseRun(label: string, run: CompassRun): void {
   }
 }
 
+// ── the FLUX probe dump: frame durations + per-key render-owner counts ──────
+type FluxMark = { k: string; t: number; v?: number }
+type FluxDump = { frames: { total: number; window: number; p50: number; p95: number; p99: number; maxMs: number }; allMarks: FluxMark[]; epochMinusPerfNow: number }
+const OWNERS = ['render:repl-root', 'render:messages', 'render:composer', 'render:frame'] as const
+function readFlux(path: string): FluxDump | null {
+  if (!existsSync(path)) return null
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as FluxDump
+  } catch {
+    return null
+  }
+}
+/** For each matching send: how many marks of each owner landed inside its
+ *  window (until the next send, at most ceilingMs). */
+function ownersPerKey(run: CompassRun, dump: FluxDump | null, match: (b64: string) => boolean, ceilingMs = 1000): Record<string, number[]> {
+  const out: Record<string, number[]> = Object.fromEntries(OWNERS.map(k => [k, []]))
+  if (!dump) return out
+  const epochs = dump.allMarks.map(m => ({ k: m.k, at: m.t + dump.epochMinusPerfNow }))
+  for (let i = 0; i < run.sends.length; i++) {
+    const s = run.sends[i]!
+    if (!match(s.b64)) continue
+    const ceiling = Math.min(run.sends[i + 1]?.sent ?? Infinity, s.sent + ceilingMs)
+    for (const k of OWNERS) out[k]!.push(epochs.filter(m => m.k === k && m.at > s.sent && m.at <= ceiling).length)
+  }
+  return out
+}
+const ownerSummary = (per: Record<string, number[]>): Record<string, Summary> => Object.fromEntries(Object.entries(per).map(([k, xs]) => [k, summarize(xs)]))
+const mergeOwners = (a: Record<string, number[]>, b: Record<string, number[]>): void => {
+  for (const k of OWNERS) a[k]!.push(...b[k]!)
+}
+const emptyOwners = (): Record<string, number[]> => Object.fromEntries(OWNERS.map(k => [k, []]))
+type FrameStats = { total: number; p50: number; p95: number; p99: number; maxMs: number }
+const frameStats = (dump: FluxDump | null): FrameStats | null => (dump ? { total: dump.frames.total, p50: dump.frames.p50, p95: dump.frames.p95, p99: dump.frames.p99, maxMs: dump.frames.maxMs } : null)
+
+/** One arena run with the probe tee and (for the cursor leg) the list trace. */
+async function probedRun(opts: { sends: string[]; seconds: number; trace?: boolean; extraSessions?: (cwd: string) => Array<{ sid: string; lines: Record<string, unknown>[] }> }): Promise<{ run: CompassRun; dump: FluxDump | null; trace: string; done: () => void }> {
+  const scratch = mkdtempSync(join(tmpdir(), 'selection-probe-'))
+  const flux = join(scratch, 'flux-probe.json')
+  const trace = join(scratch, 'connector-trace.jsonl')
+  const run = await runCompassArena({
+    sends: opts.sends,
+    seconds: opts.seconds,
+    chapters: CHAPTERS,
+    extraSessions: opts.extraSessions,
+    extraEnv: { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: flux, ...(opts.trace ? { MERCURY_CONNECTOR_TRACE: trace } : {}) },
+  })
+  return {
+    run,
+    dump: readFlux(flux),
+    trace,
+    done: () => {
+      run.cleanup()
+      rmSync(scratch, { recursive: true, force: true })
+    },
+  }
+}
+
 type ListRender = { ev?: string; range: [number, number]; messages: number; keys: number; stale: number; dupKeys: string[] }
 function readTrace(path: string): ListRender[] {
   if (!existsSync(path)) return []
@@ -128,6 +205,33 @@ function readTrace(path: string): ListRender[] {
       }
     })
     .filter((r): r is ListRender => r !== null && r.ev === 'list-render')
+}
+
+/** The load precheck: one silent run — when did the fixture's tail reach
+ *  the screen? A settle shorter than that would make every leg measure the
+ *  load; the instrument refuses instead. */
+async function legLoad(): Promise<Record<string, unknown>> {
+  const run = await runCompassArena({ sends: [], seconds: Math.ceil(SETTLE / 1000) + 4, chapters: CHAPTERS })
+  try {
+    if (run.outs.length === 0) return { failed: 'no PTY output at all', driverOut: run.driverOut.slice(-500) }
+    const offsets: number[] = []
+    for (let t = 1000; t <= SETTLE + 3000; t += 1000) offsets.push(t)
+    const screens = grabScreens(run, COLS, ROWS, [...offsets, -1])
+    const visible = (rows: string[]): boolean => rows.some(r => r.includes(TAIL_SENTINEL))
+    const final = screens.find(s => s.atMs === -1)!
+    const first = screens.find(s => s.atMs >= 0 && visible(s.rows))
+    const atMs = first?.atMs ?? -1
+    const ok = visible(final.rows) && atMs >= 0 && atMs <= SETTLE
+    return {
+      loaded: visible(final.rows),
+      tailVisibleAtMsAfterFirstPaint: atMs,
+      settleMs: SETTLE,
+      verdict: ok ? 'the tail is on screen before the first key' : `REFUSED: the tail was not on screen by the settle (${atMs} ms vs ${SETTLE})`,
+      ...(ok ? {} : { finalTail: final.rows.slice(-12) }),
+    }
+  } finally {
+    run.cleanup()
+  }
 }
 
 async function legCursor(runs: number): Promise<Record<string, unknown>> {
@@ -145,10 +249,10 @@ async function legCursor(runs: number): Promise<Record<string, unknown>> {
   let stale = 0
   let dup = 0
   let offHead = 0
+  const owners = emptyOwners()
+  const frameRuns: FrameStats[] = []
   for (let r = 0; r < runs; r++) {
-    const scratch = mkdtempSync(join(tmpdir(), 'selection-trace-'))
-    const trace = join(scratch, 'connector-trace.jsonl')
-    const run = await runCompassArena({ sends, seconds: Math.ceil((t + 2500) / 1000), extraEnv: { MERCURY_CONNECTOR_TRACE: trace } })
+    const { run, dump, trace, done } = await probedRun({ sends, seconds: Math.ceil((t + 2500) / 1000), trace: true })
     try {
       diagnoseRun(`cursor run ${r + 1}`, run)
       const e = keyStats(run, s => s === B64_SHIFT_UP, 1500)
@@ -159,25 +263,29 @@ async function legCursor(runs: number): Promise<Record<string, unknown>> {
       down.push(...d.lat)
       frames.push(...u.frames, ...d.frames)
       noPaint += u.noPaint + d.noPaint
+      mergeOwners(owners, ownersPerKey(run, dump, s => s === B64_UP || s === B64_DOWN))
+      const fs = frameStats(dump)
+      if (fs) frameRuns.push(fs)
       const list = readTrace(trace)
       renders += list.length
       stale += list.filter(x => x.stale > 0).length
       dup += list.filter(x => x.dupKeys.length > 0).length
       offHead += list.filter(x => x.range[0] > 0 && x.range[1] < x.messages).length
     } finally {
-      run.cleanup()
-      rmSync(scratch, { recursive: true, force: true })
+      done()
     }
   }
   return {
     runs,
-    surface: 'message-actions cursor over the 1k resumed transcript',
+    surface: `message-actions cursor over the resumed transcript (${FIXTURE_LINES} records)`,
     enter: summarize(enter),
     up: summarize(up),
     down: summarize(down),
     pooled: summarize([...up, ...down]),
     framesPerKey: summarize(frames),
     noPaintKeys: noPaint,
+    rendersPerKey: ownerSummary(owners),
+    fluxFrames: frameRuns,
     trace: { listRenders: renders, staleRenders: stale, duplicateKeyRenders: dup, windowOffBothEnds: offHead },
   }
 }
@@ -211,19 +319,24 @@ async function legManager(runs: number): Promise<Record<string, unknown>> {
   const down: number[] = []
   const frames: number[] = []
   let noPaint = 0
+  const owners = emptyOwners()
+  const frameRuns: FrameStats[] = []
   for (let r = 0; r < runs; r++) {
-    const run = await runCompassArena({ sends, seconds: Math.ceil((t + 2500) / 1000), extraSessions })
+    const { run, dump, done } = await probedRun({ sends, seconds: Math.ceil((t + 2500) / 1000), extraSessions })
     try {
       diagnoseRun(`manager run ${r + 1}`, run)
       const d = keyStats(run, s => s === B64_DOWN)
       down.push(...d.lat)
       frames.push(...d.frames)
       noPaint += d.noPaint
+      mergeOwners(owners, ownersPerKey(run, dump, s => s === B64_DOWN))
+      const fs = frameStats(dump)
+      if (fs) frameRuns.push(fs)
     } finally {
-      run.cleanup()
+      done()
     }
   }
-  return { runs, surface: '/sessions card selection over the 1k transcript (12 staged sessions)', down: summarize(down), framesPerKey: summarize(frames), noPaintKeys: noPaint }
+  return { runs, surface: `/sessions card selection over the resumed transcript (${FIXTURE_LINES} records · 12 staged sessions)`, down: summarize(down), framesPerKey: summarize(frames), noPaintKeys: noPaint, rendersPerKey: ownerSummary(owners), fluxFrames: frameRuns }
 }
 
 async function legPicker(runs: number): Promise<Record<string, unknown>> {
@@ -234,28 +347,32 @@ async function legPicker(runs: number): Promise<Record<string, unknown>> {
   const down: number[] = []
   const frames: number[] = []
   let noPaint = 0
+  const owners = emptyOwners()
+  const frameRuns: FrameStats[] = []
   for (let r = 0; r < runs; r++) {
-    const run = await runCompassArena({ sends, seconds: Math.ceil((t + 2500) / 1000) })
+    const { run, dump, done } = await probedRun({ sends, seconds: Math.ceil((t + 2500) / 1000) })
     try {
       diagnoseRun(`picker run ${r + 1}`, run)
       const d = keyStats(run, s => s === B64_DOWN)
       down.push(...d.lat)
       frames.push(...d.frames)
       noPaint += d.noPaint
+      mergeOwners(owners, ownersPerKey(run, dump, s => s === B64_DOWN))
+      const fs = frameStats(dump)
+      if (fs) frameRuns.push(fs)
     } finally {
-      run.cleanup()
+      done()
     }
   }
-  return { runs, surface: '/model picker row selection over the 1k transcript', down: summarize(down), framesPerKey: summarize(frames), noPaintKeys: noPaint }
+  return { runs, surface: `/model picker row selection over the resumed transcript (${FIXTURE_LINES} records)`, down: summarize(down), framesPerKey: summarize(frames), noPaintKeys: noPaint, rendersPerKey: ownerSummary(owners), fluxFrames: frameRuns }
 }
 
 const ALL_LEGS = ['cursor', 'manager', 'picker'] as const
 type Leg = (typeof ALL_LEGS)[number]
 
-const args = process.argv.slice(2)
-const legsArg = args.includes('--legs') ? args[args.indexOf('--legs') + 1]! : ALL_LEGS.join(',')
-const runs = args.includes('--runs') ? Number(args[args.indexOf('--runs') + 1]) : 3
-const jsonOut = args.includes('--json') ? args[args.indexOf('--json') + 1]! : null
+const legsArg = argOf('--legs', ALL_LEGS.join(','))
+const runs = Number(argOf('--runs', '3')) || 3
+const jsonOut = argv.includes('--json') ? argOf('--json', '') : null
 const legs = legsArg.split(',').map(s => s.trim()) as Leg[]
 for (const l of legs) {
   if (!ALL_LEGS.includes(l)) {
@@ -264,7 +381,27 @@ for (const l of legs) {
   }
 }
 
-const results: Record<string, unknown> = { fixture: '1k resumed transcript (scripts/navigation/fixture1k.ts)', cols: 120, rows: 40, settleMs: SETTLE, keyGapMs: GAP, runs }
+const results: Record<string, unknown> = {
+  fixture: `resumed transcript of ${FIXTURE_LINES} records — ${CHAPTERS} chapters of the seeded shape (scripts/navigation/fixture1k.ts)`,
+  cols: COLS,
+  rows: ROWS,
+  settleMs: SETTLE,
+  keyGapMs: GAP,
+  runs,
+}
+// The load precheck comes first: a settle the load outruns refuses the run.
+process.stderr.write(`[selection-latency] fixture ${FIXTURE_LINES} records · settle ${SETTLE} ms · load precheck…\n`)
+results.load = await legLoad()
+if (typeof (results.load as { verdict?: string }).verdict === 'string' && (results.load as { verdict: string }).verdict.startsWith('REFUSED')) {
+  console.log(JSON.stringify(results, null, 2))
+  console.error(`[selection-latency] ${(results.load as { verdict: string }).verdict}`)
+  process.exit(1)
+}
+if ('failed' in (results.load as object)) {
+  console.log(JSON.stringify(results, null, 2))
+  console.error(`[selection-latency] load precheck failed: ${(results.load as { failed: string }).failed}`)
+  process.exit(1)
+}
 for (const leg of legs) {
   process.stderr.write(`[selection-latency] leg ${leg}…\n`)
   const t0 = Date.now()

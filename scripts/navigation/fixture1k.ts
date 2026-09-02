@@ -42,6 +42,11 @@ export const TAIL_SENTINEL = 'FIXTURE-TAIL-⟦1K⟧'
 /** Unique glyph run at the end of the LIVE streamed-tail turn. */
 export const STREAM_FIN = '⟦CFIN⟧'
 
+/** 53 chapters of 19 lines + head + tail ≥ 1,000 lines — the 1k fixture.
+ *  A larger session for the selection-latency instrument is the same
+ *  seeded shape with more chapters (each chapter adds 19 records). */
+export const CHAPTERS_DEFAULT = 53
+
 // Seeded LCG — deterministic across runs/platforms (scripts/streaming/fixtures.ts).
 function lcg(seed: number): () => number {
   let s = seed >>> 0
@@ -95,7 +100,7 @@ export interface FixtureStats {
 
 /** Build the full JSONL line objects. `cwd` must be the directory the binary
  *  will be BOOTED from (the per-line cwd field mirrors production shapes). */
-export function buildCompass1k(cwd: string): {
+export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT): {
   lines: Record<string, unknown>[]
   stats: FixtureStats
 } {
@@ -217,7 +222,7 @@ export function buildCompass1k(cwd: string): {
   )
 
   // ── chapters ────────────────────────────────────────────────────────────
-  const CHAPTERS = 53
+  const CHAPTERS = Math.max(1, Math.floor(chapters))
   for (let c = 1; c <= CHAPTERS; c++) {
     const longPath = `${LONG_DIR}/veryLongFileNameForWidthStress-chapter-${String(c).padStart(4, '0')}.tsx`
     const fileBody = `// chapter ${c}\n${tsSnippet(c)}\n`

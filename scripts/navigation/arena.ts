@@ -77,6 +77,9 @@ export interface CompassArenaOpts {
    *  each — the session-switcher legs need a list to walk. Built against
    *  the arena's own cwd so they sit in the booted project. */
   extraSessions?: (cwd: string) => Array<{ sid: string; lines: Record<string, unknown>[] }>
+  /** Chapters in the staged fixture (default the 1k fixture's 53; each
+   *  chapter is 19 records). */
+  chapters?: number
 }
 
 export function requireDist(): void {
@@ -141,7 +144,7 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   // render scenarios stage the same way), never bare entry lines.
   const projDir = join(configDir, 'projects', projectSlug(cwd))
   mkdirSync(projDir, { recursive: true })
-  const { lines } = buildCompass1k(cwd)
+  const { lines } = buildCompass1k(cwd, opts.chapters)
   writeFileSync(join(projDir, `${COMPASS_SID}.jsonl`), encodeTranscript(lines, COMPASS_SID))
   for (const extra of opts.extraSessions?.(cwd) ?? []) {
     writeFileSync(join(projDir, `${extra.sid}.jsonl`), encodeTranscript(extra.lines, extra.sid))
