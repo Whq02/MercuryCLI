@@ -49,7 +49,7 @@ t('healthy capture accepted', good.ok, good.reason)
 const tmp = mkdtempSync(join(tmpdir(), 'hermes-oracle-'))
 const res = spawnSync(process.execPath, ['-e',
   `const { scenario } = await import('${join(import.meta.dir, 'renderScenarios.ts')}'); const cfg = scenario('resume-2turn', 80, 44); console.log(cfg.argv[cfg.argv.indexOf('--resume') + 1])`,
-], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp } })
+], { encoding: 'utf-8', timeout: 20000, env: { ...process.env, MERCURY_CONFIG_DIR: tmp, MERCURY_DAEMON_DIR: join(tmp, 'daemon') } })
 const stagedSid = (res.stdout ?? '').trim().split('\n').pop() ?? ''
 const RUNTIME_CWD = (process.env.MERCURY_RENDER_CWD ?? join(import.meta.dir, '..', '..')).normalize('NFC')
 const staged = join(tmp, 'projects', sanitizePath(RUNTIME_CWD), `${stagedSid}.jsonl`)

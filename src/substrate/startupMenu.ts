@@ -679,6 +679,17 @@ export function resolveEffectiveSettingsSnapshot(args: {
   }
 }
 
+let admissionSnapshot: SessionEffectiveSettingsSnapshotV1 | null = null
+export function recordBootAdmissionSnapshot(snapshot: SessionEffectiveSettingsSnapshotV1): void {
+  admissionSnapshot = snapshot
+}
+export function bootAdmissionSnapshot(): SessionEffectiveSettingsSnapshotV1 | null {
+  return admissionSnapshot
+}
+export function __resetBootAdmissionSnapshotForTests(): void {
+  admissionSnapshot = null
+}
+
 
 export interface ConfigMenuRow {
   id: string

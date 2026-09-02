@@ -185,6 +185,61 @@ function answer(sock: net.Socket, payload: DaemonReply): void {
   sock.end(encodeFrame(payload))
 }
 
+type Unlisted<R, K extends PropertyKey> = Exclude<keyof R, K>
+type Whole<R, K extends PropertyKey> = [Unlisted<R, K>] extends [never] ? true : { unlisted: Unlisted<R, K> }
+
+function pickDefined<R extends object, K extends keyof R>(r: R, keys: readonly K[]): Pick<R, K> {
+  const out: Partial<Pick<R, K>> = {}
+  for (const k of keys) if (r[k] !== undefined) out[k] = r[k]
+  return out as Pick<R, K>
+}
+
+type AdmitOk = Extract<Awaited<ReturnType<NonNullable<ControlServerDeps['concourseAdmit']>>>, { ok: true }>
+const ADMIT_WIRE_KEYS = [
+  'runnerId', 'sessionId', 'workspaceId', 'pid',
+  'branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName', 'effort', 'note',
+  'kitSource', 'liveHop', 'presetName', 'presetNote',
+] as const satisfies readonly (keyof AdmitOk)[]
+const admitWhole: Whole<Omit<AdmitOk, 'ok'>, (typeof ADMIT_WIRE_KEYS)[number]> = true
+
+type DispatchResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseDispatch']>>>
+const DISPATCH_WIRE_KEYS = [
+  'clientMessageId', 'state', 'stateRevision', 'runnerId', 'sessionId', 'replay',
+  'branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName', 'effort',
+  'kitSource', 'presetName', 'presetNote',
+] as const satisfies readonly (keyof DispatchResult)[]
+const DISPATCH_REFUSAL_WIRE_KEYS = ['state', 'stateRevision', 'heldReason', 'heldByTitle', 'moves'] as const satisfies readonly (keyof DispatchResult)[]
+const dispatchWhole: Whole<
+  Omit<DispatchResult, 'ok' | 'error'>,
+  (typeof DISPATCH_WIRE_KEYS)[number] | (typeof DISPATCH_REFUSAL_WIRE_KEYS)[number]
+> = true
+
+type ControlResult = ReturnType<NonNullable<ControlServerDeps['concourseControl']>>
+const CONTROL_WIRE_KEYS = ['outcome', 'detail'] as const satisfies readonly (keyof ControlResult)[]
+const controlWhole: Whole<ControlResult, (typeof CONTROL_WIRE_KEYS)[number]> = true
+
+type WarmResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseWarm']>>>
+const WARM_WIRE_KEYS = ['state', 'detail'] as const satisfies readonly (keyof WarmResult)[]
+const warmWhole: Whole<WarmResult, (typeof WARM_WIRE_KEYS)[number]> = true
+
+type ReleaseResult = ReturnType<NonNullable<ControlServerDeps['concourseRelease']>>
+const RELEASE_WIRE_KEYS = ['settled', 'killed'] as const satisfies readonly (keyof ReleaseResult)[]
+const releaseWhole: Whole<ReleaseResult, (typeof RELEASE_WIRE_KEYS)[number]> = true
+
+type ReconfigureResult = ReturnType<TaskRoster['reconfigureLongLived']>
+const RECONFIGURE_WIRE_KEYS = ['respawned', 'pending', 'note'] as const satisfies readonly (keyof ReconfigureResult)[]
+const reconfigureWhole: Whole<Omit<ReconfigureResult, 'ok' | 'error'>, (typeof RECONFIGURE_WIRE_KEYS)[number]> = true
+
+type CrewSpawnResult = Awaited<ReturnType<NonNullable<ControlServerDeps['crewSpawn']>>>
+const CREW_SPAWN_WIRE_KEYS = ['pid'] as const satisfies readonly (keyof CrewSpawnResult)[]
+const crewSpawnWhole: Whole<Omit<CrewSpawnResult, 'ok' | 'error'>, (typeof CREW_SPAWN_WIRE_KEYS)[number]> = true
+
+type WorkerDispatchResult = Awaited<ReturnType<TaskRoster['dispatch']>>
+const WORKER_DISPATCH_WIRE_KEYS = ['short', 'pid', 'via'] as const satisfies readonly (keyof WorkerDispatchResult)[]
+const workerDispatchWhole: Whole<Omit<WorkerDispatchResult, 'ok' | 'code' | 'error'>, (typeof WORKER_DISPATCH_WIRE_KEYS)[number]> = true
+
+void [admitWhole, dispatchWhole, controlWhole, warmWhole, releaseWhole, reconfigureWhole, crewSpawnWhole, workerDispatchWhole]
+
 function peerUidRejection(_sock: net.Socket): string | null {
   return null
 }
@@ -456,7 +511,7 @@ async function routeControlRequest(
           error: out.error ?? 'dispatch failed',
         })
       }
-      return answer(sock, { ok: true, op: 'dispatch', short: out.short, pid: out.pid, via: out.via })
+      return answer(sock, { ok: true, op: 'dispatch', ...pickDefined(out, WORKER_DISPATCH_WIRE_KEYS) })
     }
 
     case 'reply': {
@@ -551,7 +606,7 @@ async function routeControlRequest(
           error: r.error ?? 'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
-      return answer(sock, { ok: true, op: 'reconfigure', respawned: r.respawned, pending: r.pending, note: r.note })
+      return answer(sock, { ok: true, op: 'reconfigure', ...pickDefined(r, RECONFIGURE_WIRE_KEYS) })
     }
 
     case 'crewSpawn': {
@@ -568,7 +623,7 @@ async function routeControlRequest(
       if (!r.ok) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: r.error ?? 'crew spawn refused' })
       }
-      return answer(sock, { ok: true, op: 'crewSpawn', pid: r.pid })
+      return answer(sock, { ok: true, op: 'crewSpawn', ...pickDefined(r, CREW_SPAWN_WIRE_KEYS) })
     }
 
     case 'sessionAdmit': {
@@ -619,21 +674,8 @@ async function routeControlRequest(
       return answer(sock, {
         ok: true,
         op: requestedOp === 'concourseAdmit' ? 'concourseAdmit' : 'sessionAdmit',
-        runnerId: r.runnerId,
         workerId: r.runnerId,
-        sessionId: r.sessionId,
-        workspaceId: r.workspaceId,
-        pid: r.pid,
-        ...(r.branchName !== undefined ? { branchName: r.branchName } : {}),
-        ...(r.mainHolderTitle !== undefined ? { mainHolderTitle: r.mainHolderTitle } : {}),
-        ...(r.modelId !== undefined ? { modelId: r.modelId } : {}),
-        ...(r.modelDisplayName !== undefined ? { modelDisplayName: r.modelDisplayName } : {}),
-        ...(r.effort !== undefined ? { effort: r.effort } : {}),
-        ...(r.note !== undefined ? { note: r.note } : {}),
-        ...(r.kitSource !== undefined ? { kitSource: r.kitSource } : {}),
-        ...(r.liveHop === true ? { liveHop: true } : {}),
-        ...(r.presetName !== undefined ? { presetName: r.presetName } : {}),
-        ...(r.presetNote !== undefined ? { presetNote: r.presetNote } : {}),
+        ...pickDefined(r, ADMIT_WIRE_KEYS),
       })
     }
 
@@ -671,7 +713,7 @@ async function routeControlRequest(
         ...(raw.runnerOptionsPresent === true ? { bootCarriesRunnerOptions: true } : {}),
         ...(warmKit !== undefined ? { kit: warmKit } : {}),
       })
-      return answer(sock, { ok: true, op: 'concourseWarm', state: warm.state, ...(warm.detail !== undefined ? { detail: warm.detail } : {}) })
+      return answer(sock, { ok: true, op: 'concourseWarm', ...pickDefined(warm, WARM_WIRE_KEYS) })
     }
     case 'sessionDispatch': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
@@ -730,31 +772,14 @@ async function routeControlRequest(
           code: 'EUNKNOWN',
           error: r.error ?? 'dispatch refused',
           refusal: r.replay,
-          state: r.state,
-          stateRevision: r.stateRevision,
-          ...(r.heldReason !== undefined ? { heldReason: r.heldReason } : {}),
-          ...(r.heldByTitle !== undefined ? { heldByTitle: r.heldByTitle } : {}),
-          ...(r.moves !== undefined ? { moves: r.moves } : {}),
+          ...pickDefined(r, DISPATCH_REFUSAL_WIRE_KEYS),
         })
       }
       return answer(sock, {
         ok: true,
         op: requestedOp === 'concourseDispatch' ? 'concourseDispatch' : 'sessionDispatch',
-        clientMessageId: r.clientMessageId,
-        state: r.state,
-        stateRevision: r.stateRevision,
-        runnerId: r.runnerId,
         workerId: r.runnerId,
-        sessionId: r.sessionId,
-        replay: r.replay,
-        ...(r.branchName !== undefined ? { branchName: r.branchName } : {}),
-        ...(r.mainHolderTitle !== undefined ? { mainHolderTitle: r.mainHolderTitle } : {}),
-        ...(r.modelId !== undefined ? { modelId: r.modelId } : {}),
-        ...(r.modelDisplayName !== undefined ? { modelDisplayName: r.modelDisplayName } : {}),
-        ...(r.effort !== undefined ? { effort: r.effort } : {}),
-        ...(r.kitSource !== undefined ? { kitSource: r.kitSource } : {}),
-        ...(r.presetName !== undefined ? { presetName: r.presetName } : {}),
-        ...(r.presetNote !== undefined ? { presetNote: r.presetNote } : {}),
+        ...pickDefined(r, DISPATCH_WIRE_KEYS),
       })
     }
 
@@ -862,7 +887,7 @@ async function routeControlRequest(
         ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
       })
-      return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', outcome: r.outcome, ...(r.detail !== undefined ? { detail: r.detail } : {}) })
+      return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
     }
 
     case 'sessionRewind': {
@@ -909,7 +934,7 @@ async function routeControlRequest(
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionRelease requires { runnerId }' })
       }
       const r = deps.concourseRelease(runnerId)
-      return answer(sock, { ok: true, op: requestedOp === 'concourseRelease' ? 'concourseRelease' : 'sessionRelease', settled: r.settled, killed: r.killed })
+      return answer(sock, { ok: true, op: requestedOp === 'concourseRelease' ? 'concourseRelease' : 'sessionRelease', ...pickDefined(r, RELEASE_WIRE_KEYS) })
     }
 
     case 'restart-when-idle': {
