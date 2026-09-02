@@ -129,10 +129,20 @@ section('D3 · source pins — Enter immediate, flush-on-cycle, disarm on every 
     'the non-empty keystroke path arms ONE debounced scan at the named cadence, reading the query at fire time',
     /disarmHistoryScanTimer\(scanDebounceRef\.current\)\s*\n\s*scanDebounceRef\.current = armHistoryScanTimer\(\(\) => \{\s*\n\s*scanDebounceRef\.current = null\s*\n\s*scan\(queryRef\.current, false\)\s*\n\s*\}, HISTORY_SCAN_DEBOUNCE_MS\)/.test(setQueryBlock),
   )
+  // The branch itself is the scope. The previous negative look-ahead ran
+  // up to 900 characters past the branch's start — far enough to reach the
+  // arm below the branch and the deps array's onModeChange — so it failed
+  // a SHORTER branch that disarmed correctly: a pin on distance, not on
+  // shape. The needle is word-bounded: disarmHistoryScanTimer( contains
+  // the bare spelling.
+  const branchStart = setQueryBlock.indexOf("if (query === '') {")
+  const branchEnd = setQueryBlock.indexOf('// One-frame coalescing')
+  const emptyBranch = branchStart !== -1 && branchEnd > branchStart ? setQueryBlock.slice(branchStart, branchEnd) : ''
   check(
-    'the empty-query restore is IMMEDIATE (disarms, then restores in the same call — no arm before the restore)',
-    /if \(query === ''\) \{[\s\S]{0,900}disarmHistoryScanTimer[\s\S]{0,900}onModeChange\(original\.mode\)[\s\S]{0,200}return/.test(setQueryBlock) &&
-      !/if \(query === ''\) \{[\s\S]{0,900}armHistoryScanTimer\(\(\) =>[\s\S]{0,300}onModeChange/.test(setQueryBlock),
+    'the empty-query restore is IMMEDIATE (disarms, then restores in the same call — no arm inside the branch)',
+    emptyBranch !== '' &&
+      /disarmHistoryScanTimer\(scanDebounceRef\.current\)[\s\S]{0,900}onModeChange\(original\.mode\)[\s\S]{0,200}return/.test(emptyBranch) &&
+      !/\barmHistoryScanTimer\(/.test(emptyBranch),
   )
   const nextBlock = blockOf('const nextMatch = useCallback')
   check(
