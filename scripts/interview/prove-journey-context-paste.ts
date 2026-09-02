@@ -21,10 +21,10 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  firstOutputTs,
   grabScreens,
   requireDist,
   runArtifactArena,
+  sendStamp,
   type GrabbedScreen,
 } from '../streaming/artifactArena.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -76,8 +76,9 @@ const run = await runArtifactArena({
 })
 
 try {
-  const base = firstOutputTs(run)
-  const sends = run.sendLog.map(s => ({ at: s.sent - base, data: Buffer.from(s.b64, 'base64').toString() }))
+  // A send's moment in the grab's own stamp base (sendStamp): the anchor's
+  // re-base cancels on both sides.
+  const sends = run.sendLog.map(s => ({ at: sendStamp(run, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const escAt = sends.find(s => s.data === '\x1b')?.at ?? -1
   const enterAt = sends.filter(s => s.data === '\r').at(-1)?.at ?? -1
   const offsets: number[] = []

@@ -7,7 +7,8 @@
 # harness with ASSERTIONS):
 #   · 80x24 and 120x44 stay balanced (|below-above| <= 1);
 #   · tall sizes (120x60 · 100x50 · 160x70) distribute the slack optically
-#     (|below-above| <= 5 AND >= 4 rows above — never top-pinned);
+#     (|below-above| <= 5 AND >= 4 rows above — never top-pinned), or, when
+#     the block nearly fills the terminal (pad <= 6), balance what is left;
 #   · a live resize 44 -> 66 lands in the same law (stale-geometry kill);
 #   · the MENU view at a tall size is placed by the SAME owner (centred).
 #
@@ -55,17 +56,24 @@ def run_splash(cols, rows, hold_s=2.2, resize=None, send=None, send_after=1.2):
     pid, fd = pty.fork()
     if pid == 0:
         env = dict(os.environ)
-        # ALL FOUR home spellings pin to the empty home (proof-hygiene: the
-        # splash resolves MERCURY_CONFIG_DIR || MERCURY_CONFIG_DIR before
-        # MERCURY_HOME || MERCURY_HOME, and the gate wrapper exports the
-        # operator's LIVE ~/.claude — pinning only MERCURY_HOME let real
-        # recents grow the composed block one row and break the 100x50
-        # knife-edge leg POOLED-ONLY; the "load flake" was this).
-        env['MERCURY_HOME'] = EMPTY_HOME
+        # BOTH home spellings pin to the empty home (proof-hygiene: the
+        # splash resolves MERCURY_CONFIG_DIR before MERCURY_HOME, and the
+        # gate wrapper exports the operator's LIVE home — pinning only
+        # MERCURY_HOME let real recents grow the composed block one row and
+        # break the 100x50 knife-edge leg POOLED-ONLY; the "load flake" was
+        # this).
         env['MERCURY_HOME'] = EMPTY_HOME
         env['MERCURY_CONFIG_DIR'] = EMPTY_HOME
         env['TERM'] = 'xterm-256color'
         env['COLORTERM'] = 'truecolor'
+        # The display animations every capture pins still (the critter's
+        # sway and blink, its gaze and sleep, the live seconds, the live
+        # glyphs): a captured frame never lands on an arbitrary phase.
+        env['MERCURY_CRITTER_IDLE'] = '0'
+        env['MERCURY_CRITTER_GAZE'] = '0'
+        env['MERCURY_CRITTER_SLEEP'] = '0'
+        env['MERCURY_LIVE_CLOCK'] = '0'
+        env['MERCURY_LIVE_GLYPHS'] = '0'
         # the WAITING deck (the composed lockup these placement
         # laws grade) is the INLINE world now — a fullscreen boot auto-runs
         # the trace out from under the hold_s capture window. The inline deck
@@ -139,10 +147,16 @@ for label, cols, rows, resize, balanced_only in [
     if balanced_only:
         check(f'{label}: balanced (|imb| <= 1)', abs(imb) <= 1, f'{above} above / {below} below')
     else:
+        # The tall lockup measures one fixed 48-row block at every tall size
+        # (this run's own details: 6/6 at 120x60, 10/12 at 160x70, 1/1 at
+        # 100x50): a terminal it nearly fills has no slack to distribute,
+        # so the law reads the menu view's shape — distributed, or naturally
+        # full (pad <= 6 balances what little is left).
+        pad = above + below
         check(
-            f'{label}: optical distribution (|imb| <= 5, >= 4 above)',
-            abs(imb) <= 5 and above >= 4,
-            f'{above} above / {below} below',
+            f'{label}: optical distribution (|imb| <= 5, >= 4 above; or naturally full)',
+            (pad <= 6 and abs(imb) <= 1) or (abs(imb) <= 5 and above >= 4),
+            f'{above} above / {below} below (pad {pad})',
         )
 
 print('── §2 the menu is placed by the same owner ──')

@@ -127,7 +127,7 @@ section('end-to-end — a real PTY drag + ⌫ (no API)')
     extraSends: Array<{ atTick: number; data: string }>,
     total: number,
   ): string[] | null => {
-    const cfg = scenario('resume-2turn', 100, 40)
+    const cfg = scenario('resume-2turn', 80, 40)
     cfg.sends = [{ atTick: 34, data: 'sfff' }, ...extraSends]
     cfg.total = total
     const gridPath = `/tmp/sel-del-${tag}-${process.pid}.json`

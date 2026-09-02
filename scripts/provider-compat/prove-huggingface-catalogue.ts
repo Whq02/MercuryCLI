@@ -68,10 +68,13 @@ const {
   huggingfaceContextWindowFor,
   getHuggingfaceAvailability,
   getHuggingfaceModelOptions,
+  getHuggingfaceFullModelOptions,
   HUGGINGFACE_CONNECT_OPTION_VALUE,
+  HUGGINGFACE_EXPAND_OPTION_VALUE,
   HUGGINGFACE_MODEL_GROUP,
   __resetHuggingfaceCatalogueForTest,
 } = catalogue
+const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
 const { HUGGINGFACE_DISPLAY_PINS, splitHuggingfaceSlug, huggingfaceDisplayPin } = await import(
   '../../src/services/providers/huggingface/huggingfacePins.ts'
 )
@@ -218,13 +221,21 @@ section('4 · availability + the picker rows + the door')
   await refreshHuggingfaceCatalogue({ fetchImpl: refusing, force: true })
   const invalid = getHuggingfaceAvailability()
   check('a refused credential answers auth-invalid with the re-connect route', invalid.state === 'disabled' && invalid.why === 'auth-invalid')
-  // The summary row past the bound.
+  // The DOOR past the bound (30 rows; row 27 is junk-shaped — Mercury's own
+  // bracket dressing inside a catalogue id — so the adjudication past the
+  // bound is visible in the full list).
   __resetHuggingfaceCatalogueForTest()
-  const many = { object: 'list', data: Array.from({ length: 30 }, (_, i) => ({ id: `org/model-${i}`, object: 'model', providers: [{ provider: 'novita', status: 'live', context_length: 1000 }] })) }
+  const many = { object: 'list', data: Array.from({ length: 30 }, (_, i) => ({ id: i === 27 ? 'org/model-27[1m]' : `org/model-${i}`, object: 'model', providers: [{ provider: 'novita', status: 'live', context_length: 1000 }] })) }
   const manyFetch = (async () => jsonResponse(200, many)) as typeof fetch
   await refreshHuggingfaceCatalogue({ fetchImpl: manyFetch, force: true })
   const bounded = getHuggingfaceModelOptions()
-  check('the picker bounds the rows and appends the honest summary row', bounded.length === 25 && bounded[24]?.label.includes('30 models live') && bounded[24]?.unavailable !== undefined)
+  const door = bounded[24]
+  check('the picker bounds the rows to 24 and appends the door row (the count law: 25 rows)', bounded.length === 25 && bounded.slice(0, 24).every(r => r.value?.startsWith('huggingface/') && r.unavailable === undefined) && door?.value === HUGGINGFACE_EXPAND_OPTION_VALUE, JSON.stringify(bounded.map(r => r.value)))
+  check('the door carries the live count and the group, says what ↵ does, and is selectable (never a refused row)', door?.label.includes('30 models live') === true && door?.description === '↵ expand · 30 live · type to filter' && door?.catalogueDoor?.total === 30 && door?.catalogueDoor?.family === 'Hugging Face' && door?.group === HUGGINGFACE_MODEL_GROUP && door?.unavailable === undefined, JSON.stringify(door))
+  check('the door is an ACTION row by the one shape predicate (never a model to any composer)', isCatalogueDoorRow(HUGGINGFACE_EXPAND_OPTION_VALUE) && isProviderActionRow(HUGGINGFACE_EXPAND_OPTION_VALUE) && !isCatalogueDoorRow(HUGGINGFACE_CONNECT_OPTION_VALUE) && !isCatalogueDoorRow('huggingface/org/model-1'))
+  const full = getHuggingfaceFullModelOptions()
+  check('the full-rows accessor returns EVERY snapshot row in the router\'s order, adjudicated like the bounded view, no door', full.length === 30 && full.every(r => r.value?.startsWith('huggingface/')) && full[29]?.value === 'huggingface/org/model-29' && full[27]?.unavailable !== undefined && full.slice(0, 24).map(r => r.value).join() === bounded.slice(0, 24).map(r => r.value).join(), JSON.stringify(full.map(r => [r.value, r.unavailable])))
+  check('below the bound there is no door (the 5-row fixture above listed none)', !inRows.some(r => r.value === HUGGINGFACE_EXPAND_OPTION_VALUE))
   // Credentialed + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: the switch stops
   // catalogue traffic outright — zero requests; the pins stand in behind
   // the row that names the switch (dispatch stays essential).
@@ -243,6 +254,7 @@ section('4 · availability + the picker rows + the door')
   check('switch on: the action row names the switch (no lying retry) and the dated pins stand in, selectable', darkRows[0]?.label === 'Hugging Face — catalogue off' && (darkRows[0]?.description ?? '').includes('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC') && darkRows.length === 1 + HUGGINGFACE_DISPLAY_PINS.length && darkRows.slice(1).every(r => r.unavailable === undefined))
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
   writeStoredHuggingfaceApiKey(null)
+  check('signed out, the full-rows accessor answers nothing (no lineup behind the door either)', getHuggingfaceFullModelOptions().length === 0)
 }
 
 section('5 · the wire')
