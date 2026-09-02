@@ -482,9 +482,13 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
         ? '↑↓ move · ↵/u restore · esc back'
         : mode.kind === 'delete-confirm'
           ? 'y / ↵ delete (recoverable) · n / esc cancel'
-          : query
-            ? '↑↓ move · ↵ inspect · esc clear search'
-            : `type to search · ↑↓ · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
+          : mode.kind === 'clone'
+            ? '↵ clone under the new identifier · esc back'
+            : mode.kind === 'testdrive'
+              ? '↵ stage in composer · esc cancel'
+              : query
+                ? '↑↓ move · ↵ inspect · esc clear search'
+                : `type to search · ↑↓ · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
 
   return (
     <CommandCenter
