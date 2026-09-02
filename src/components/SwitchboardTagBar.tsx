@@ -28,8 +28,12 @@ export function statusDuration(ms: number): string {
 }
 
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
-  if (s.interrupting) return 'interrupting — the reply stops at its next step'
+  if (s.hardStopping) return 'stopping — the runner is cut if the turn is still open in a second'
+  if (s.interrupting) return 'interrupting — the request is torn down · esc again forces a stop'
   if (!live.inFlight) return 'ready'
+  if (live.phase === 'waiting') {
+    return `waiting on ${live.agentsWaiting} agent${live.agentsWaiting === 1 ? '' : 's'} · esc stops them`
+  }
   if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {
     return `no stream events for ${statusDuration(s.quietMs)} — the session may be stuck (the watchdog aborts at ${statusDuration(s.watchdogMs)})`
   }
@@ -53,7 +57,7 @@ function getFocusedSeatStatusKey(): string {
   if (!hasSeatLive(c)) return ''
   const live = c.live()
   const s = c.status()
-  return `${getFocusedSeatIdentityKey()}|${s.interrupting ? 1 : 0}|${live.inFlight ? 1 : 0}|${s.stuck ? 1 : 0}|${statusLine(live, s)}`
+  return `${getFocusedSeatIdentityKey()}|${s.interrupting ? 1 : 0}|${s.hardStopping ? 1 : 0}|${live.inFlight ? 1 : 0}|${s.stuck ? 1 : 0}|${statusLine(live, s)}`
 }
 
 export function SwitchboardAttributionProvider({ children }: { children: React.ReactNode }): React.ReactNode {
@@ -121,7 +125,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
               {
 }
               {' '}
-              {live.inFlight && !status.interrupting ? 'esc interrupts · ' : ''}{keyHintLabel('⇧← back')}{' '}
+              {live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}{keyHintLabel('⇧← back')}{' '}
             </Text>
           )}
         </InteractiveRow>
