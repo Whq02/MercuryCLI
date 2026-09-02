@@ -46,12 +46,41 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
   process.env[spelling] = home
 }
-for (const key of ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN']) {
+for (const key of [
+  'OPENAI_API_KEY',
+  'ANTHROPIC_API_KEY',
+  'ANTHROPIC_AUTH_TOKEN',
+  'MERCURY_OAUTH_TOKEN',
+  'ZAI_API_KEY',
+  'OPENROUTER_API_KEY',
+  'GOOGLE_API_KEY',
+  'GEMINI_API_KEY',
+  'MOONSHOT_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'HF_TOKEN',
+  'MERCURY_COMPAT_BASE_URL',
+  'MERCURY_LOCAL_BASE_URL',
+]) {
   delete process.env[key]
 }
-process.env.NODE_ENV = 'test'
+// The live decision (C7) walks the real owners on the scratch home: the
+// file credential plane, every provider base dead, no local probe.
+delete process.env.NODE_ENV
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+for (const base of [
+  'ANTHROPIC_BASE_URL',
+  'MERCURY_OPENAI_API_BASE',
+  'MERCURY_OPENAI_CHATGPT_BASE',
+  'MERCURY_OPENAI_AUTH_BASE',
+  'MERCURY_OPENROUTER_API_BASE',
+  'MERCURY_GEMINI_API_BASE',
+  'MERCURY_MOONSHOT_API_BASE',
+  'MERCURY_DEEPSEEK_API_BASE',
+  'MERCURY_HUGGINGFACE_HUB_BASE',
+]) {
+  process.env[base] = 'http://127.0.0.1:1'
+}
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -133,10 +162,49 @@ section('C6 the face wires the composer (structural)')
   const face = readFileSync(join(ROOT, 'src/components/BootSplashScreen.tsx'), 'utf8')
   check('the chips memo reads the ONE session-account composer', face.includes("import { sessionAccountWords } from '../utils/accounts/sessionAccount.js'") && face.includes('const words = sessionAccountWords(mainModel);'))
   check('…and no longer follows the raw route to a presence itself', !face.includes('declaredRouteOf(mainModel)') && !face.includes('anthropicCredentialPresence()'))
-  check('the strip keys on the catalogue epoch (a live catalogue settling repaints it) beside the sign-in and presence epochs', face.includes('const catalogueEpoch = useCatalogueEpoch();') && face.includes('}, [mainModel, presenceEpoch, signInEpoch, catalogueEpoch]);'))
+  check('the strip keys on the catalogue epoch (a live catalogue settling repaints it) beside the presence and sign-in epochs', face.includes('const catalogueEpoch = useCatalogueEpoch();') && face.includes('}, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);'))
   check("the Logins row's glance keys on the sign-in epoch (a removal leaves no stale count)", face.includes('}, [presenceEpoch, signInEpoch]);'))
   const hook = readFileSync(join(ROOT, 'src/hooks/useCatalogueEpoch.ts'), 'utf8')
   check('the catalogue epoch hook subscribes through the one catalogue signal', hook.includes('useSyncExternalStore(subscribeCatalogueEpoch, catalogueEpoch, catalogueEpoch)'))
+}
+
+section('C7 the model chip beside it: the decision\'s own row word, healed when the catalogue lands')
+{
+  // The two keyless states carry two row words: no credential anywhere is
+  // "no sign-in yet"; sign-ins whose rows are not usable yet (a catalogue
+  // composing, or unreachable) is "no usable row yet" — never "no sign-in
+  // yet" beside the ChatGPT email the account chip paints.
+  const computed = await import('../../src/utils/model/computedDefault.ts')
+  const catalogue = await import('../../src/services/providers/catalogueEpoch.ts')
+  const keyless = { setting: 'claude-fable-5-1', why: 'no provider is signed in yet — /logins signs one in, and its newest usable row becomes the default' }
+  const gated = (why: string) => ({ usable: false as const, why })
+  const nothing = computed.evaluateComputedDefault({ credentials: [], registryOrder: ['anthropic', 'openai'], laneRow: () => gated('unreached'), keyless })
+  check('no credential anywhere ⇒ the row is "no sign-in yet" and the Default row is the logins door', nothing.row === computed.NO_SIGN_IN_ROW && computed.describeComputedDefaultRow(nothing) === `Default (${computed.NO_SIGN_IN_REASON})` && computed.keylessReason(nothing) === computed.NO_SIGN_IN_REASON, JSON.stringify(nothing.row))
+  const composing = computed.evaluateComputedDefault({
+    credentials: [{ family: 'openai', at: 1_756_000_000_000, kind: 'subscription' }],
+    registryOrder: ['anthropic', 'openai'],
+    laneRow: () => gated('GPT-5.5: live catalogue not fetched yet — retry shortly'),
+    keyless,
+  })
+  check('a sign-in whose catalogue is composing ⇒ keyless with the "no usable row yet" row (the sign-in is not denied)', composing.source === 'keyless' && composing.provider === null && composing.row === computed.NO_USABLE_ROW && composing.considered.length === 1, JSON.stringify({ row: composing.row, why: composing.why }))
+  check("…the Default row and the picker's gate carry each sign-in's own gate, then the logins door (never the no-sign-in words)", computed.keylessReason(composing) === composing.why && composing.why.includes('live catalogue not fetched yet') && composing.why.endsWith('/logins signs another provider in') && computed.describeComputedDefaultRow(composing) === `Default (${composing.why})`, computed.describeComputedDefaultRow(composing))
+  check('…/model\'s label and the terse line lead with the row word', computed.describeComputedDefaultLabel(composing).startsWith(`${computed.NO_USABLE_ROW} (default — `) && computed.describeComputedDefault(composing) === `${computed.NO_USABLE_ROW} · ${composing.why}`, computed.describeComputedDefaultLabel(composing))
+  // The live memo follows the catalogue epoch: a decision taken while a
+  // catalogue composed is dropped the moment it settles.
+  computed.resetComputedDefaultMemo()
+  const first = computed.computedDefault()
+  const second = computed.computedDefault()
+  check('inside the memo window the same decision is served', first === second)
+  catalogue.bumpCatalogueEpoch()
+  const third = computed.computedDefault()
+  check('a live catalogue settling drops the memo — the next read re-derives', third !== first && third.source === first.source)
+  const chip = readFileSync(join(ROOT, 'src/components/BootSplashScreen.tsx'), 'utf8')
+  check("the model chip prints the decision's own row word on a keyless default (structural)", chip.includes("decision.source === 'keyless' ? decision.row : null") && chip.includes('keylessRow ?? renderModelChip(mainModel)') && !chip.includes('NO_SIGN_IN_ROW'))
+  const resolver = readFileSync(join(ROOT, 'src/utils/model/computedDefault.ts'), 'utf8')
+  check('the memo keys on the catalogue epoch (structural)', resolver.includes('memo.catalogue === catalogue') && resolver.includes("import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'"))
+  const picker = readFileSync(join(ROOT, 'src/utils/model/modelOptions.ts'), 'utf8')
+  const standing = readFileSync(join(ROOT, 'src/commands/defaultprovider/defaultprovider.tsx'), 'utf8')
+  check("the picker's Default-row gate and /defaultprovider's standing line read the same keyless words (structural)", picker.includes('unavailable: keylessReason(decision)') && standing.includes('? decision.row') && !standing.includes('NO_SIGN_IN_ROW'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

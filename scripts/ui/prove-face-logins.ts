@@ -1009,7 +1009,10 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   // Needle re-pinned: the agents layer joined the gate.
   t.check('the face seeds the layer from the one-shot and parks the list under it', face.includes("useState(faceDoor === 'logins')") && face.includes('!saturnOpen && !agentsOpen && !loginsOpen,'))
   t.check('the layer mounts with esc-home wiring and the chip epoch bump', face.includes('<BootLoginsScreen') && face.includes('setLoginsOpen(false);') && face.includes('setPresenceEpoch(e => e + 1);'))
-  t.check('the account chip re-reads on the presence epoch', face.includes('}, [mainModel, presenceEpoch]);'))
+  // The strip keys on the presence epoch beside the catalogue and sign-in
+  // epochs (a face sign-in, a live catalogue settling, a credential landing
+  // or leaving anywhere in the process).
+  t.check('the account chip re-reads on the presence epoch', face.includes('}, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);'))
   // Re-pinned at C1: THE ROW LIVES — the recut wired it (the dark phase
   // ended; the deep-link and the row are the two lawful doors).
   t.check("the card row opens the layer (the recut's wiring)", face.includes("case 'logins':") && face.includes('setLoginsOpen(true);'))

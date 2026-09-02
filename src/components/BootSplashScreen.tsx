@@ -20,7 +20,7 @@ import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
-import { NO_SIGN_IN_ROW, computedDefault } from '../utils/model/computedDefault.js';
+import { computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { providerFamilyPresences } from '../services/providers/providerUsage.js';
 import { sessionAccountWords } from '../utils/accounts/sessionAccount.js';
@@ -660,17 +660,21 @@ export function BootSplashScreen(): React.ReactNode {
     const cert = healthCertSnapshot();
     const critterKey = getSessionCritterKey();
     // The model chip names the row the session runs. A session on the
-    // default with no sign-in anywhere has NO computed default (the neutral-
-    // default ruling): the chip says so and never names a provider the user
-    // cannot use; the logins door is one row down the card.
-    let noSignIn = false;
+    // default with no usable row has NO computed default (the neutral-
+    // default ruling): the chip prints the decision's own row word —
+    // 'no sign-in yet' with no credential anywhere, 'no usable row yet'
+    // while a sign-in exists but none offers a usable row (its catalogue
+    // still composing, or unreachable) — and never names a provider the
+    // user cannot use; the logins door is one row down the card.
+    let keylessRow: string | null = null;
     try {
-      noSignIn = getUserSpecifiedModelSetting() === null && computedDefault().source === 'keyless';
+      const decision = computedDefault();
+      keylessRow = getUserSpecifiedModelSetting() === null && decision.source === 'keyless' ? decision.row : null;
     } catch {
-      noSignIn = false; // an unreadable read paints the resolved chip, never a claim
+      keylessRow = null; // an unreadable read paints the resolved chip, never a claim
     }
     return {
-      model: noSignIn ? NO_SIGN_IN_ROW : renderModelChip(mainModel),
+      model: keylessRow ?? renderModelChip(mainModel),
       critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
       critterHue: getSessionAccent().accent,
       dir: projectDisplayName(getCwd()),
@@ -682,10 +686,10 @@ export function BootSplashScreen(): React.ReactNode {
     };
     // presenceEpoch: the logins layer's close bumps it so the account chip
     // re-reads the presence owner after a face sign-in (never optimistic);
-    // signInEpoch: the ledger's own count of landed and removed credentials;
-    // catalogueEpoch: a live catalogue settling (the default's row lands).
+    // catalogueEpoch: a live catalogue settling (the default's row lands);
+    // signInEpoch: the ledger's own count of landed and removed credentials.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainModel, presenceEpoch, signInEpoch, catalogueEpoch]);
+  }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {

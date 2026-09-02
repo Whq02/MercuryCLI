@@ -9,7 +9,6 @@ import {
   switchDefaultProvider,
 } from '../../utils/model/defaultProviderRung.js'
 import {
-  NO_SIGN_IN_ROW,
   computedDefault,
   describeComputedDefault,
   type ComputedDefault,
@@ -73,10 +72,11 @@ function loginsWord(family: string): string {
   return family === 'openai-compat' ? 'compat' : family
 }
 
-/** What stands as the default, in the fewest words. */
+/** What stands as the default, in the fewest words (a keyless decision's
+ *  own row word: no sign-in yet, or no usable row yet). */
 function standing(decision: ComputedDefault): string {
   return decision.provider === null
-    ? NO_SIGN_IN_ROW
+    ? decision.row
     : `${decision.row} (${decision.setting}) on ${providerDisplayName(decision.provider)}`
 }
 

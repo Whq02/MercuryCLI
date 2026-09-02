@@ -53,6 +53,7 @@
 // ============================================================================
 import type { CallModelRoute } from '../../services/providers/routeLaw.js'
 import type { ModelOption } from './modelOptions.js'
+import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../accounts/signInLedger.js'
 
 export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
@@ -61,6 +62,13 @@ export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
  *  row's reason, the boot face's chip, /model's label, the doctor). */
 export const NO_SIGN_IN_ROW = 'no sign-in yet'
 export const NO_SIGN_IN_REASON = 'no sign-in yet — /logins signs a provider in'
+/** The keyless row word when sign-ins EXIST but none offers a usable row
+ *  yet (a live catalogue still composing, or unreachable): a compact
+ *  surface (the boot face's model chip, /defaultprovider's standing line)
+ *  must not say "no sign-in yet" beside a named sign-in. The fuller
+ *  surfaces (the Default row, /model's label) carry the decision's why,
+ *  which names each sign-in's gate and the logins door. */
+export const NO_USABLE_ROW = 'no usable row yet'
 
 /** One credentialed family with its recorded sign-in (or none). */
 export interface CredentialFact {
@@ -117,7 +125,9 @@ export interface ComputedDefault {
   /** The model-SETTING string a fresh unpinned session resolves (the
    *  keyless placeholder when source === 'keyless'). */
   setting: string
-  /** The row's display words — NO_SIGN_IN_ROW when keyless. */
+  /** The row's display words — when keyless, NO_SIGN_IN_ROW with no
+   *  credential anywhere, NO_USABLE_ROW when sign-ins exist but none
+   *  offers a usable row yet. */
   row: string
   /** The family the default landed on; null when keyless. */
   provider: string | null
@@ -202,7 +212,9 @@ export function evaluateComputedDefault(facts: ComputedDefaultFacts): ComputedDe
             .join('; ')}) — /logins signs another provider in`
     return {
       setting: facts.keyless.setting,
-      row: NO_SIGN_IN_ROW,
+      // The row word tells the two keyless states apart: no credential
+      // anywhere, or sign-ins whose rows are not usable (yet).
+      row: considered.length === 0 ? NO_SIGN_IN_ROW : NO_USABLE_ROW,
       provider: null,
       source: 'keyless',
       chosen: null,
@@ -247,18 +259,27 @@ function sourceWords(decision: ComputedDefault): string {
 
 const identity = (family: string): string => family
 
+/** The keyless reason in ONE spelling: the logins door when no credential
+ *  exists anywhere; the decision's own why (each sign-in's gate, then the
+ *  logins door) when sign-ins exist but none offers a usable row yet. The
+ *  Default row's description and its selectability reason read this. */
+export function keylessReason(decision: Pick<ComputedDefault, 'considered' | 'why'>): string {
+  return decision.considered.length === 0 ? NO_SIGN_IN_REASON : decision.why
+}
+
 /**
  * The Default row's description — the neutral catalogue grammar
  * 'Default (<name>)' (prove-model-honesty §7), the name carrying the row,
  * the provider and the source in the fewest words:
  *   Default (GPT-5.5 — OpenAI, the most recent sign-in)
  *   Default (no sign-in yet — /logins signs a provider in)
+ *   Default (no sign-in offers a usable row (OpenAI: …) — /logins signs another provider in)
  */
 export function describeComputedDefaultRow(
   decision: ComputedDefault,
   providerName: (family: string) => string = identity,
 ): string {
-  if (decision.source === 'keyless' || decision.provider === null) return `Default (${NO_SIGN_IN_REASON})`
+  if (decision.source === 'keyless' || decision.provider === null) return `Default (${keylessReason(decision)})`
   return `Default (${decision.row} — ${providerName(decision.provider)}, ${sourceWords(decision)})`
 }
 
@@ -267,13 +288,16 @@ export function describeComputedDefaultRow(
  * default word and its reason after:
  *   GPT-5.5 (default — OpenAI, the most recent sign-in)
  *   no sign-in yet (default — /logins signs a provider in)
+ *   no usable row yet (default — no sign-in offers a usable row (…) — /logins signs another provider in)
  */
 export function describeComputedDefaultLabel(
   decision: ComputedDefault,
   providerName: (family: string) => string = identity,
 ): string {
   if (decision.source === 'keyless' || decision.provider === null) {
-    return `${NO_SIGN_IN_ROW} (default — /logins signs a provider in)`
+    return decision.considered.length === 0
+      ? `${NO_SIGN_IN_ROW} (default — /logins signs a provider in)`
+      : `${NO_USABLE_ROW} (default — ${decision.why})`
   }
   return `${decision.row} (default — ${providerName(decision.provider)}, ${sourceWords(decision)})`
 }
@@ -283,13 +307,14 @@ export function describeComputedDefaultLabel(
  * provider and the source, then the recency and the gating words:
  *   GPT-5.5 · OpenAI · the most recent sign-in (subscription sign-in, 2026-09-01 23:20 UTC) · the newest row this sign-in can use (…)
  *   no sign-in yet · no provider is signed in yet — /logins signs one in …
+ *   no usable row yet · no sign-in offers a usable row (…) — /logins signs another provider in
  */
 export function describeComputedDefault(
   decision: ComputedDefault,
   providerName: (family: string) => string = identity,
 ): string {
   if (decision.chosen === null || decision.provider === null) {
-    return `${NO_SIGN_IN_ROW} · ${decision.why}`
+    return `${decision.row} · ${decision.why}`
   }
   return `${decision.row} · ${providerName(decision.provider)} · ${decision.chosen.recency} · ${decision.chosen.verdict.why}`
 }
@@ -540,9 +565,12 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
   return facts
 }
 
-/** The live memo — a moment long, never across a sign-in landed here. */
+/** The live memo — a moment long, never across a sign-in landed here, and
+ *  never across a live catalogue settling (the lane rows derive from the
+ *  catalogues: a decision taken while one was composing must not outlive
+ *  its landing — the boot face's strip reads this on that very epoch). */
 const MEMO_TTL_MS = 2_000
-let memo: { at: number; epoch: number; decision: ComputedDefault } | null = null
+let memo: { at: number; epoch: number; catalogue: number; decision: ComputedDefault } | null = null
 
 /** Drop the memo (a proof that moves credentials mid-process calls it). */
 export function resetComputedDefaultMemo(): void {
@@ -552,8 +580,11 @@ export function resetComputedDefaultMemo(): void {
 /** The live computed-default decision (pure core over gathered facts). */
 export function computedDefault(): ComputedDefault {
   const epoch = signInLedgerEpoch()
+  const catalogue = catalogueEpoch()
   const now = Date.now()
-  if (memo !== null && memo.epoch === epoch && now - memo.at < MEMO_TTL_MS) return memo.decision
+  if (memo !== null && memo.epoch === epoch && memo.catalogue === catalogue && now - memo.at < MEMO_TTL_MS) {
+    return memo.decision
+  }
   // Inside a picker composition (the latch) the nested Default row gets the
   // keyless words without a second presence walk — that render is discarded
   // by the outer composition, which lands on the real row.
@@ -569,6 +600,6 @@ export function computedDefault(): ComputedDefault {
   const decision = evaluateComputedDefault(facts)
   // A decision taken inside a nested picker composition saw no rows — it
   // answers that one render and is never remembered.
-  if (!facts.degraded) memo = { at: now, epoch, decision }
+  if (!facts.degraded) memo = { at: now, epoch, catalogue, decision }
   return decision
 }
