@@ -1,4 +1,3 @@
-import { decideDispatchRoute, normalizeRouteEffort } from '../scribe/dispatchRouter.js'
 import {
   ROUTER_POLICY_VERSION,
   ROUTE_PLAN_VERSION,
@@ -11,6 +10,7 @@ import {
   type RouteProfile,
   type RouteReasonCode,
   type RouteTaskShape,
+  type RouteTopology,
   type TaskRoutePlan,
 } from './contracts.js'
 import type {
@@ -25,7 +25,7 @@ export const OPUS_COUPLING_BAND: RouteBand = 3
 export const QUALITY_BAND_SHIFT = 1
 export const REVISION_ESCALATION_ATTEMPTS = 2
 export const CONTEXT_RENEWAL_PCT = 85
-export const PARTY_MAX_WIDTH = 3
+export const FANOUT_MAX_WIDTH = 3
 export const OUTCOME_MIN_SAMPLES = 5
 export const OUTCOME_MAX_WEIGHT = 0.25
 export const OUTCOME_POOR_FIRST_PASS = 0.5
@@ -56,7 +56,6 @@ export interface RouteMissionIntent {
   exactPin?: string
   requiresSynthesis?: boolean
   preferWorkflow?: boolean
-  legacyRoute?: { effort?: string; lane?: string }
   revisionOf?: { nodeId: string; failedAttempts: number }
 }
 
@@ -80,14 +79,12 @@ export interface RouteOutcomeSnapshot {
 }
 
 export interface RouteCompilerInput {
-  mode: 'scribe' | 'party'
-  intentSource: 'structured' | 'legacy'
+  mode: RouteTopology
   mission: RouteMissionIntent
   posture: RouterPosture
   models: RouteModelPort
   worker: RouteWorkerSnapshot
   outcome?: RouteOutcomeSnapshot
-  workflowPostureActive?: boolean
   now: number
   planId: string
 }
@@ -134,15 +131,27 @@ function bandFromCount(n: number, one: number, two: number, three: number): Rout
   return 0
 }
 
+const DEEP_KW =
+  /\b(refactor|refactoring|migrat\w*|architect\w*|rewrite|re-?write|redesign|debug\w*|root[- ]?cause|investigat\w*|overhaul|concurren\w*|race[- ]?condition|deadlock|security|vulnerab\w*|audit|optimiz\w*|performance|design\b|algorithm|end[- ]?to[- ]?end)\b/
+
+const QUICK_KW =
+  /\b(rename|typo|comment|docstring|format\w*|lint|prettier|bump|version|whitespace|reorder imports?|one[- ]?liner|trivial|tweak|nit|rename the|fix the comment|update the comment)\b/
+
+export function shapeFromTextSignals(task: string, title?: string): RouteTaskShape {
+  const text = `${title ?? ''}\n${task ?? ''}`.toLowerCase()
+  const len = (task ?? '').length
+  const files = new Set((text.match(PATH_RE) ?? []).map(s => s.toLowerCase())).size
+  if (DEEP_KW.test(text) || files >= 3 || len >= 600) return 'cross-cutting'
+  if (QUICK_KW.test(text) && files <= 1 && len < 220) return 'mechanical'
+  return 'bounded'
+}
+
 export function deriveFeatureVector(i: RouteCompilerInput): RouteFeatureVector {
   const m = i.mission
   const text = `${m.title}\n${m.task}`
   const paths = [...new Set((text.match(PATH_RE) ?? []).map(s => s.toLowerCase()))]
   const nodeCount = m.candidateNodes?.length ?? 0
-  const fallback = decideDispatchRoute(m.task, { title: m.title })
-  const shape: RouteTaskShape =
-    m.taskShape ??
-    (fallback.lane === 'quick' ? 'mechanical' : fallback.lane === 'deep' ? 'cross-cutting' : 'bounded')
+  const shape: RouteTaskShape = m.taskShape ?? shapeFromTextSignals(m.task, m.title)
   return {
     taskShape: shape,
     ambiguity: m.ambiguity ?? (shape === 'diagnostic' ? 2 : 0),
@@ -244,9 +253,9 @@ function toAcceptance(list: string[] | undefined, nodeId: string): RouteAcceptan
   return list.map((d, ix) => ({ id: `${nodeId}-a${ix + 1}`, description: d, kind: 'report' as const }))
 }
 
-function effortFor(modelClass: RouterModelClass, mode: 'scribe' | 'party', profile: RouteProfile): RouteEffortLevel {
+function effortFor(modelClass: RouterModelClass, mode: RouteTopology, profile: RouteProfile): RouteEffortLevel {
   if (modelClass === 'opus') {
-    return mode === 'scribe' && profile === 'opus-direct' ? 'max' : 'xhigh'
+    return mode === 'sequential' && profile === 'opus-direct' ? 'max' : 'xhigh'
   }
   return 'high'
 }
@@ -336,13 +345,6 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     profile = 'opus-direct'
     decisive.push('high-coupling')
     if (qualityShift > 0) decisive.push('posture-quality')
-  } else if (
-    m.preferWorkflow === true &&
-    i.mode === 'scribe' &&
-    i.workflowPostureActive === true
-  ) {
-    profile = 'workflow-delegated'
-    decisive.push('workflow-posture-active')
   } else if (multi && hasDeps) {
     profile = 'dependency-graph'
     decisive.push('ordered-dependencies')
@@ -357,7 +359,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
       adjustments.push('width-capped-shared-lane')
     } else {
       profile = 'parallel-sonnet'
-      if (width < Math.min(rawNodes.length, PARTY_MAX_WIDTH)) adjustments.push('width-capped-workers')
+      if (width < Math.min(rawNodes.length, FANOUT_MAX_WIDTH)) adjustments.push('width-capped-workers')
     }
   } else if (features.taskShape === 'mechanical') {
     profile = 'sonnet-direct'
@@ -371,14 +373,6 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
   }
   if (m.preferWorkflow === true && profile !== 'workflow-delegated') {
     adjustments.push('workflow-posture-absent')
-  }
-
-  if (i.intentSource === 'legacy') {
-    decisive.push('fallback-local')
-    const legacyEffort = normalizeRouteEffort(m.legacyRoute?.effort)
-    if (legacyEffort === 'max' && profile !== 'opus-direct' && i.posture !== 'fixed') {
-      profile = 'opus-direct'
-    }
   }
 
   let prior: RouteDecisionRecord['priorContribution']
@@ -450,8 +444,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     } else {
       const strong =
         profile === 'opus-direct' ||
-        compiledNodes.some(n => n.requestedModelClass !== undefined) ||
-        i.intentSource === 'legacy'
+        compiledNodes.some(n => n.requestedModelClass !== undefined)
       if (strong) {
         decisive.push('changeover-worth-it')
         workerAffinity = {
@@ -485,7 +478,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     features.requiresSynthesis || profile === 'parallel-sonnet' || profile === 'dependency-graph'
   const decision: RouteDecisionRecord = {
     policyVersion: ROUTER_POLICY_VERSION,
-    source: m.exactPin ? 'operator-pin' : i.intentSource === 'legacy' ? 'local-fallback' : 'structured-intent',
+    source: m.exactPin ? 'operator-pin' : 'structured-intent',
     posture: i.posture,
     selectedProfile: profile,
     selectedModels,
@@ -508,7 +501,7 @@ export function compileRoute(i: RouteCompilerInput): RouteCompileResult {
     nodes: compiledNodes,
     synthesis: {
       required: synthesisRequired,
-      owner: i.mode === 'scribe' ? 'scribe' : 'router',
+      owner: 'planner',
       acceptance: synthesisRequired
         ? [
             {

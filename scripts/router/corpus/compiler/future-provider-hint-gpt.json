@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "future-provider-hint-gpt",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "A bounded implementation with a provider hint the fleet cannot yet honor",
     "title": "Add a debounce to the search input",

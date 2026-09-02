@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import type { RouteProfile, RouteTaskShape } from '../utils/router/contracts.js'
+import { ROUTE_TOPOLOGIES, type RouteProfile, type RouteTaskShape, type RouteTopology } from '../utils/router/contracts.js'
 import { defineStore } from './fileStore.js'
 import { routerStateDir } from './routerPaths.js'
 
@@ -8,7 +8,7 @@ export const OUTCOME_HALF_LIFE_MS = 14 * 24 * 60 * 60 * 1000
 
 export interface RouteOutcomeRow {
   ts: number
-  mode: 'scribe' | 'party' | 'mission'
+  mode: RouteTopology | 'mission'
   taskShape: RouteTaskShape
   ambiguity: number
   coupling: number
@@ -27,13 +27,13 @@ function decodeRow(raw: unknown): RouteOutcomeRow | null {
   if (raw === null || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
   if (typeof r.ts !== 'number' || typeof r.firstPass !== 'boolean') return null
-  if (r.mode !== 'scribe' && r.mode !== 'party' && r.mode !== 'mission') return null
+  if (r.mode !== 'mission' && !(ROUTE_TOPOLOGIES as readonly string[]).includes(r.mode as string)) return null
   if (typeof r.taskShape !== 'string' || typeof r.profile !== 'string') return null
   if (typeof r.ambiguity !== 'number' || typeof r.coupling !== 'number') return null
   if (typeof r.modelClass !== 'string') return null
   return {
     ts: r.ts,
-    mode: r.mode,
+    mode: r.mode as RouteTopology | 'mission',
     taskShape: r.taskShape as RouteTaskShape,
     ambiguity: r.ambiguity,
     coupling: r.coupling,
@@ -73,7 +73,7 @@ export async function recordRouteOutcome(row: RouteOutcomeRow): Promise<void> {
 }
 
 export async function readOutcomeSnapshot(sig: {
-  mode: 'scribe' | 'party'
+  mode: RouteTopology
   taskShape: RouteTaskShape
   ambiguity: number
   coupling: number
