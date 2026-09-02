@@ -1,4 +1,5 @@
 
+import { isEqualWith } from 'lodash-es'
 import type React from 'react'
 
 export type OptionValue<T> = T | (string & {})
@@ -40,6 +41,15 @@ export function isInputOption<T>(
   option: OptionWithDescription<T> | undefined,
 ): option is InputOption<T> {
   return option?.type === 'input'
+}
+
+export function optionsEquivalent<T>(
+  a: readonly OptionWithDescription<T>[],
+  b: readonly OptionWithDescription<T>[],
+): boolean {
+  return isEqualWith(a, b, (x: unknown, y: unknown) =>
+    typeof x === 'function' && typeof y === 'function' ? true : undefined,
+  )
 }
 
 export type OptionMapItem<T> = {
