@@ -86,6 +86,8 @@ export function useVirtualScroll(
   })
   const minChangedIndexRef = useRef(Number.POSITIVE_INFINITY)
   const reflowHoldRef = useRef(false)
+  const outOfLayoutRef = useRef(false)
+  const laidOutRef = useRef(false)
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
   function indexByKey(keys: readonly string[], key: string): number | undefined {
@@ -450,6 +452,15 @@ export function useVirtualScroll(
     const spacer = spacerElementRef.current
     if (spacer?.layoutNode && spacer.layoutNode.getComputedWidth() > 0) {
       listOriginRef.current = spacer.layoutNode.getComputedTop()
+      laidOutRef.current = true
+      if (outOfLayoutRef.current) {
+        outOfLayoutRef.current = false
+        reflowHoldRef.current = true
+        forceResolve()
+      }
+    } else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {
+      outOfLayoutRef.current = true
+      reflowHoldRef.current = true
     }
     if (freezeRendersRef.current > 0) freezeRendersRef.current -= 1
     if (measurementSkipRef.current) {
@@ -492,6 +503,7 @@ export function useVirtualScroll(
         forceResolve()
       } else if (offsetsVersionRef.current !== offsetsBuiltVersionRef.current) {
         forceResolve()
+      } else if (outOfLayoutRef.current) {
       } else {
         reflowHoldRef.current = false
       }
