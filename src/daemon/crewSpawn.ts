@@ -10,6 +10,7 @@ import {
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
   return require('../services/concourse/workerModels.js') as typeof import('../services/concourse/workerModels.js')
@@ -66,7 +67,15 @@ export async function resolveCrewSeatModel(
     }
   }
   const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
-  const validated = await validateWorkerModelChoice(named, 'crew')
+  let validated: WorkerModelValidation
+  try {
+    validated = await validateWorkerModelChoice(named, 'crew')
+  } catch (e) {
+    return {
+      ok: false,
+      error: `model refused (registry-unavailable) · the worker registry could not be read here — ${e instanceof Error ? e.message : String(e)} (got ${JSON.stringify(named ?? '(unset → the neutral default)')})`,
+    }
+  }
   if (!validated.ok) {
     return {
       ok: false,
