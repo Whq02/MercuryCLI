@@ -6,6 +6,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { paneSigs, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -86,18 +87,7 @@ function seedSession(home: string, cell: Cell): void {
   writeFileSync(join(projDir, `${sid}.jsonl`), encodeSeedTranscript(lines, sid))
 }
 
-type Grid = Array<Array<{ c: string }>>
-type Sig = { turn: number; sig: string; row: number }
-const sigRe = /TURN-(\d{3})( please survey| line (\d{2}))/
-function allSigs(grid: Grid): Sig[] {
-  const out: Sig[] = []
-  for (let r = 0; r < grid.length; r++) {
-    const text = grid[r]!.map(c => c.c).join('')
-    const m = text.match(sigRe)
-    if (m) out.push({ turn: Number(m[1]), sig: m[3] ?? 'u', row: r })
-  }
-  return out
-}
+const allSigs = (grid: Grid): Sig[] => paneSigs(grid)
 
 function analyze(cell: Cell, payload: {
   grid: Grid
@@ -112,7 +102,7 @@ function analyze(cell: Cell, payload: {
 } {
   const parityKey = (turn: number): string => (cell.mix ? String(turn % 2) : 'all')
   const grids: Grid[] = [...(payload.marks ?? []).map(m => m.grid), payload.grid]
-  const viewport = grids.reduce((best, g) => Math.max(best, allSigs(g).length), 0)
+  const viewport = grids.reduce((best, g) => Math.max(best, viewportRows(g)), 0)
   const edgeModes = new Map<string, Map<number, number>>()
   for (const g of grids) {
     const sigs = allSigs(g)
@@ -231,14 +221,13 @@ function runCell(cell: Cell): void {
   const stepCounts = new Map<number, number>()
   for (const s of settled) stepCounts.set(s, (stepCounts.get(s) ?? 0) + 1)
   const step = [...stepCounts.entries()].sort((x, y) => y[1] - x[1] || x[0] - y[0])[0]?.[0] ?? 0
-  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · step mode ${step} · content viewport ${a.viewport} ⇒ bounds [${a.viewport - OVERLAP_ROWS}, ${a.viewport + 8}]`)
+  const bounds = stepBounds(a.viewport)
+  console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · step mode ${step} · transcript region ${a.viewport} rows ⇒ step bounds [${bounds.floor}, ${bounds.ceiling}]`)
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
     `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
-  check(`${cell.tag}: the viewport measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `viewport ${a.viewport}`)
-  check(`${cell.tag}: page step ≥ viewport − ${OVERLAP_ROWS}`, step >= a.viewport - OVERLAP_ROWS,
-    `step ${step} vs floor ${a.viewport - OVERLAP_ROWS}`)
-  check(`${cell.tag}: page step ≤ viewport + 8`, step <= a.viewport + 8,
-    `step ${step} vs ceiling ${a.viewport + 8}`)
+  check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
+  check(`${cell.tag}: page step ≥ region − 4`, step >= bounds.floor, `step ${step} vs floor ${bounds.floor}`)
+  check(`${cell.tag}: page step ≤ region + 1`, step <= bounds.ceiling, `step ${step} vs ceiling ${bounds.ceiling}`)
   for (let i = 0; i < a.deltas.length; i++) {
     const d = a.deltas[i]!
     check(`${cell.tag}: press ${i + 1} row-exact`, Math.abs(-d - step) <= 1,
