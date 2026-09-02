@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "id": "ordered-schema-impl-docs-migration",
+  "mode": "party",
+  "mission": {
+    "objective": "Schema change, its implementation, then the docs/migration note",
+    "title": "Add createdAt to the Session record",
+    "task": "Add a `createdAt` field to the Session record: first extend the schema, then update the store implementation to populate and read it, then write the migration note and update the docs describing the new field. Each step strictly needs the previous one finished first.",
+    "ambiguity": 0,
+    "coupling": 2,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Schema change",
+        "task": "Add createdAt to the Session schema in src/schema/session.ts.",
+        "dependsOn": [],
+        "ownsPaths": ["src/schema/session.ts"],
+        "acceptance": ["schema validates a Session with createdAt", "existing Session records without it still parse (optional field)"]
+      },
+      {
+        "id": "n2",
+        "title": "Store implementation",
+        "task": "Populate and read createdAt in src/store/sessionStore.ts.",
+        "dependsOn": ["n1"],
+        "ownsPaths": ["src/store/sessionStore.ts"],
+        "acceptance": ["new sessions get a createdAt timestamp", "reading an old session without createdAt does not throw"]
+      },
+      {
+        "id": "n3",
+        "title": "Docs + migration note",
+        "task": "Write the migration note and update docs/SESSION-SCHEMA.md describing createdAt.",
+        "dependsOn": ["n2"],
+        "ownsPaths": ["docs/SESSION-SCHEMA.md", "docs/migrations/session-created-at.md"],
+        "acceptance": ["docs describe the new field and its default", "migration note explains the backfill behavior"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "dependency-graph",
+    "width": 1,
+    "modelClasses": ["sonnet", "sonnet", "sonnet"],
+    "reasonCodes": ["ordered-dependencies"],
+    "adjustments": []
+  }
+}

@@ -1,0 +1,40 @@
+                                                            
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+                                                            
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀ 
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀  
+                                                            
+                                                        ⌁ agents
+                                                            
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ Agent                                                          │  │ ❯ Inherit                                  │
+   │ ❯ Inherit                                              current │  │                                            │
+   │                                                                │  │ What it controls                           │
+   │ Mercury — Anthropic models                                     │  │ Use the same model as the parent session   │
+   │   Fable                                                        │  │                                            │
+   │                                                                │  │ Current value                              │
+   │ Mercury — OpenAI models                                        │  │ current                                    │
+   │   GPT-6.2                                        needs sign-in │  │                                            │
+   │                                                                │  │                                            │
+   │ Mercury — Z.AI models                                          │  │                                            │
+   │   Z.AI — attach a key …                                sign in │  │                                            │
+   │   GLM-5.3                                        needs sign-in │  │                                            │
+   │                                                                │  ╰────────────────────────────────────────────╯
+   │ Mercury — custom endpoint                                      │  ╭────────────────────────────────────────────╮
+   │   qwen3                                                        │  │ AGENTS                                     │
+   ╰────────────────────────────────────────────────────────────────╯  │ Agents     2 active · 1 off                │
+                                                                       │ Issues     none                            │
+                                                                       │ Applies    ● live sessions see new agents  │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    fable                           │
+                                                                       │ Theme      Crab                            │
+                                                                       │ Dir        hermes                          │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  6 rows — the full catalogue; ↵ on a sign-in row opens Logins                                │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                              ↑↓ move · ↵ pick · esc back

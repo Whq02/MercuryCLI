@@ -1,0 +1,19 @@
+# scripts/ui-4/members.txt — this sub-suite's provers, one basename per
+# line (the files live in scripts/ui/). The parent suite runs every prover
+# NOT named by a sibling list, so a NEW prover lands there automatically; a
+# name listed here but missing on disk is a loud red in this runner.
+prove-agent-dispatch-engines-journey.ts
+prove-catalogue-gating-tripwire.ts
+prove-companion-render.ts
+prove-ctrl-o-stable.ts
+prove-denied-glyph-split.ts
+prove-diff-spine.ts
+prove-home-hero-noise.ts
+prove-hover-e2e.ts
+prove-keys-escape.ts
+prove-no-emoji.ts
+prove-pane-window.ts
+prove-render-tui.ts
+prove-s24-acceptance.ts
+prove-usage-family-meters.ts
+prove-visual-baseline.ts

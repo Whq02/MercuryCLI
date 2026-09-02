@@ -1,0 +1,12 @@
+{
+  "id": "util-function",
+  "title": "Add a small pure util with a proof (spec-exact behavior)",
+  "prompt": "Add an exported pure function summarizeSeatStates(seats: Array<{state: string}>): string to src/components/party/tones.ts that renders the /party telemetry rollup text: given seat rows, return '<busy> busy · <idle> idle' counting states exactly equal to 'busy' and 'idle' (all other states ignored), e.g. 2 busy + 1 idle ⇒ '2 busy · 1 idle'; zero seats ⇒ '0 busy · 0 idle'. Add scripts/party/prove-tones-rollup.ts (sibling-proof style) asserting those three cases plus a mixed-state case with degraded/dead rows ignored. Suite must stay green.",
+  "baseRef": "bench-corpus-v1",
+  "timeboxMs": 1200000,
+  "successChecks": [
+    { "kind": "cmd", "cmd": "bash scripts/party/run-all.sh" },
+    { "kind": "grep", "file": "src/components/party/tones.ts", "pattern": "summarizeSeatStates" }
+  ],
+  "tags": ["feature", "pure-util"]
+}

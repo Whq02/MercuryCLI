@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "overlapping-ownership-serialized",
+  "mode": "party",
+  "mission": {
+    "objective": "Two independent nodes that both need to touch the same shared file",
+    "title": "Two features, one shared config file",
+    "task": "Add feature-flag support for the new checkout flow and, separately, add feature-flag support for the new onboarding flow. Neither depends on the other's code, but both need to register their flag in the same src/shared.ts flag table.",
+    "ambiguity": 0,
+    "coupling": 2,
+    "parallelism": 2,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Checkout flag",
+        "task": "Register and read the checkout feature flag, wiring it into the checkout flow.",
+        "dependsOn": [],
+        "ownsPaths": ["src/shared.ts", "src/checkout/checkoutFlow.ts"],
+        "acceptance": ["the checkout flag gates the new flow correctly"]
+      },
+      {
+        "id": "n2",
+        "title": "Onboarding flag",
+        "task": "Register and read the onboarding feature flag, wiring it into the onboarding flow.",
+        "dependsOn": [],
+        "ownsPaths": ["src/shared.ts", "src/onboarding/onboardingFlow.ts"],
+        "acceptance": ["the onboarding flag gates the new flow correctly"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "dependency-graph",
+    "width": 1,
+    "modelClasses": ["sonnet", "sonnet"],
+    "reasonCodes": ["separable-disjoint-ownership"],
+    "adjustments": ["overlap-serialized"]
+  }
+}

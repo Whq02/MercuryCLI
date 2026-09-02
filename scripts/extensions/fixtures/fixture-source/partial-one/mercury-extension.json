@@ -1,0 +1,12 @@
+{
+  "name": "partial-one",
+  "version": "0.1.0",
+  "description": "declares a skills folder that is missing and a binary that is not on PATH",
+  "contributes": {
+    "skills": ["./skills", "./missing-skills"],
+    "hooks": { "NotAnEvent": [ { "hooks": [ { "type": "command", "command": "true" } ] } ] },
+    "channels": [ { "server": "nope", "label": "names no server" } ],
+    "keybindings": { "ctrl+x p": "/other-extension:thing" }
+  },
+  "needs": { "binaries": ["fixture-binary-that-does-not-exist"], "env": ["FIXTURE_UNSET_ENV"] }
+}

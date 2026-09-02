@@ -1,0 +1,286 @@
+{
+  "generatedBy": "scripts/consistency-census/gen-lockup-census.ts",
+  "note": "GENERATED — regenerate, never hand-edit. The UN-24 ratchet prover fails on UNCLASSIFIED rows.",
+  "sites": [
+    {
+      "file": "src/cli/handlers/util.tsx",
+      "line": 32,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "compact-status-inline",
+      "why": "CLI handler text output — flat by design"
+    },
+    {
+      "file": "src/cli/handlers/util.tsx",
+      "line": 33,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark version={MERCURY_VERSION} />",
+      "role": "compact-status-inline",
+      "why": "CLI handler text output — flat by design"
+    },
+    {
+      "file": "src/components/ContextVisualization.tsx",
+      "line": 129,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "session-identity",
+      "why": "context view — session mark, not product crab"
+    },
+    {
+      "file": "src/components/DeckPane.tsx",
+      "line": 363,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "compact-status-inline",
+      "why": "deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)"
+    },
+    {
+      "file": "src/components/DeckPane.tsx",
+      "line": 414,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "compact-status-inline",
+      "why": "deck vitals anchor — the live-accent Crab primitive as compact chrome (single-brand law: no product word; migrated from a hand-drawn static-palette copy in W4)"
+    },
+    {
+      "file": "src/components/MercuryExitConfirm.tsx",
+      "line": 48,
+      "kind": "session-mark",
+      "excerpt": "<SessionMark />{' '}",
+      "role": "compact-status-inline",
+      "why": "exit confirm row — quiet inline mention"
+    },
+    {
+      "file": "src/components/MercuryFrame.tsx",
+      "line": 647,
+      "kind": "crab",
+      "excerpt": "// crab here; a crab session renders byte-identically to the old <Crab/>.",
+      "role": "compact-status-inline",
+      "why": "statusbar chrome — intentionally quiet; session mark carries identity"
+    },
+    {
+      "file": "src/components/MercuryFrame.tsx",
+      "line": 654,
+      "kind": "session-mark",
+      "excerpt": "<SessionMark />",
+      "role": "compact-status-inline",
+      "why": "statusbar chrome — intentionally quiet; session mark carries identity"
+    },
+    {
+      "file": "src/components/MercuryHome.tsx",
+      "line": 338,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "mission-focal-title",
+      "why": "home/boot composition — the splash-adjacent focal surface"
+    },
+    {
+      "file": "src/components/MercuryHome.tsx",
+      "line": 467,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "mission-focal-title",
+      "why": "home/boot composition — the splash-adjacent focal surface"
+    },
+    {
+      "file": "src/components/MercuryKeybindings.tsx",
+      "line": 47,
+      "kind": "crab",
+      "excerpt": "<Crab /> keybindings",
+      "role": "product-identity-header",
+      "why": "keybindings command-center surface (shared shell)"
+    },
+    {
+      "file": "src/components/MercurySetupFrame.tsx",
+      "line": 86,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "mission-focal-title",
+      "why": "setup/onboarding frame — focal mission surface"
+    },
+    {
+      "file": "src/components/MercurySetupFrame.tsx",
+      "line": 88,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "mission-focal-title",
+      "why": "setup/onboarding frame — focal mission surface"
+    },
+    {
+      "file": "src/components/MercuryStatusline.tsx",
+      "line": 15,
+      "kind": "session-mark",
+      "excerpt": "<Text><SessionMark /><Text color={FAINT}> {'│'} Fable 5 {'│'} ctx </Text><Text color={TEAL}>{'███░░'}</Text></Text>",
+      "role": "product-identity-header",
+      "why": "statusline PREVIEW lockup — migrated to the shared Crab primitive in W4 (a preview drawn with different code than the live frame was the imitation class)"
+    },
+    {
+      "file": "src/components/MercuryTrust.tsx",
+      "line": 20,
+      "kind": "accent-mercury-text",
+      "excerpt": "<Text color={FAINT}>Mercury will read & run code here.</Text>",
+      "role": "compact-status-inline",
+      "why": "trust prompt prose — flat by design"
+    },
+    {
+      "file": "src/components/MercuryWelcome.tsx",
+      "line": 12,
+      "kind": "crab",
+      "excerpt": "<Text bold color={TERRA}><Crab/> Mercury</Text>",
+      "role": "mission-focal-title",
+      "why": "first-run welcome — focal mission surface (big wordmark art)"
+    },
+    {
+      "file": "src/components/MercuryWelcome.tsx",
+      "line": 12,
+      "kind": "accent-mercury-text",
+      "excerpt": "<Text bold color={TERRA}><Crab/> Mercury</Text>",
+      "role": "mission-focal-title",
+      "why": "first-run welcome — focal mission surface (big wordmark art)"
+    },
+    {
+      "file": "src/components/Onboarding.tsx",
+      "line": 283,
+      "kind": "accent-mercury-text",
+      "excerpt": "<Text color={IVORY}>Mercury can make mistakes</Text>",
+      "role": "compact-status-inline",
+      "why": "onboarding prose mention — flat by design"
+    },
+    {
+      "file": "src/components/mercury-ui/assets.tsx",
+      "line": 46,
+      "kind": "crab",
+      "excerpt": "// the exit farewell) render THIS instead of <Crab/>, so a non-crab session",
+      "role": "product-identity-header",
+      "why": "the Crab/Wordmark primitives themselves (the ramp lives here)"
+    },
+    {
+      "file": "src/components/mercury-ui/assets.tsx",
+      "line": 48,
+      "kind": "crab",
+      "excerpt": "// (<Crab/> + <Wordmark/>) stays the true crab everywhere it names Mercury.",
+      "role": "product-identity-header",
+      "why": "the Crab/Wordmark primitives themselves (the ramp lives here)"
+    },
+    {
+      "file": "src/components/mercury-ui/assets.tsx",
+      "line": 48,
+      "kind": "wordmark",
+      "excerpt": "// (<Crab/> + <Wordmark/>) stays the true crab everywhere it names Mercury.",
+      "role": "product-identity-header",
+      "why": "the Crab/Wordmark primitives themselves (the ramp lives here)"
+    },
+    {
+      "file": "src/components/mercury-ui/assets.tsx",
+      "line": 49,
+      "kind": "crab",
+      "excerpt": "// A crab session renders byte-identically to <Crab/> (same glyphs, same",
+      "role": "product-identity-header",
+      "why": "the Crab/Wordmark primitives themselves (the ramp lives here)"
+    },
+    {
+      "file": "src/components/mercury-ui/assets.tsx",
+      "line": 67,
+      "kind": "crab",
+      "excerpt": "// here; surfaces that can render JSX should prefer the accent-aware <Crab/>).",
+      "role": "product-identity-header",
+      "why": "the Crab/Wordmark primitives themselves (the ramp lives here)"
+    },
+    {
+      "file": "src/components/mercury-ui/components.tsx",
+      "line": 52,
+      "kind": "crab",
+      "excerpt": "// The command-center shell: round-TERRA frame + `<Crab/> Mercury — view`",
+      "role": "product-identity-header",
+      "why": "CommandCenter — THE shared crab+wordmark lockup owner"
+    },
+    {
+      "file": "src/components/mercury-ui/components.tsx",
+      "line": 96,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "product-identity-header",
+      "why": "CommandCenter — THE shared crab+wordmark lockup owner"
+    },
+    {
+      "file": "src/components/mercury-ui/components.tsx",
+      "line": 108,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "product-identity-header",
+      "why": "CommandCenter — THE shared crab+wordmark lockup owner"
+    },
+    {
+      "file": "src/components/messages/ChatLine.tsx",
+      "line": 126,
+      "kind": "accent-mercury-text",
+      "excerpt": "<Text color={critter.accent}>Mercury</Text>",
+      "role": "session-identity",
+      "why": "the transcript nameplate — critter accent IS session identity"
+    },
+    {
+      "file": "src/components/tasks/AgentInspectorPane.tsx",
+      "line": 165,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "session-identity",
+      "why": "agent inspector — the agent session mark"
+    },
+    {
+      "file": "src/components/tasks/AgentInspectorPane.tsx",
+      "line": 167,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "session-identity",
+      "why": "agent inspector — the agent session mark"
+    },
+    {
+      "file": "src/components/tasks/AgentInspectorPane.tsx",
+      "line": 293,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "session-identity",
+      "why": "agent inspector — the agent session mark"
+    },
+    {
+      "file": "src/components/tasks/AgentInspectorPane.tsx",
+      "line": 295,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "session-identity",
+      "why": "agent inspector — the agent session mark"
+    },
+    {
+      "file": "src/components/tasks/RunDetailPane.tsx",
+      "line": 812,
+      "kind": "crab",
+      "excerpt": "<Crab />",
+      "role": "session-identity",
+      "why": "run inspector — the run/session identity mark"
+    },
+    {
+      "file": "src/components/tasks/RunDetailPane.tsx",
+      "line": 814,
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "session-identity",
+      "why": "run inspector — the run/session identity mark"
+    },
+    {
+      "file": "src/tools/BriefTool/UI.tsx",
+      "line": 65,
+      "kind": "accent-mercury-text",
+      "excerpt": "<Text color={TERRA}>Mercury</Text>",
+      "role": "session-identity",
+      "why": "brief chat attribution — the session accent labels WHO spoke"
+    },
+    {
+      "file": "src/tools/BriefTool/UI.tsx",
+      "line": 104,
+      "kind": "accent-mercury-text",
+      "excerpt": "<Text color={TERRA}>Mercury</Text>",
+      "role": "session-identity",
+      "why": "brief chat attribution — the session accent labels WHO spoke"
+    }
+  ]
+}

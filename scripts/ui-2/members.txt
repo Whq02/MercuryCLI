@@ -1,0 +1,15 @@
+# scripts/ui-2/members.txt — this sub-suite's provers, one basename per
+# line (the files live in scripts/ui/). The parent suite runs every prover
+# NOT named by a sibling list, so a NEW prover lands there automatically; a
+# name listed here but missing on disk is a loud red in this runner.
+prove-fable-weekly-window.ts
+prove-feel-journey.ts
+prove-latency-receipts.ts
+prove-launchripple-deletion.ts
+prove-no-new-hex.ts
+prove-project-scope.ts
+prove-s26-acceptance.ts
+prove-trust-telemetry.ts
+prove-vshot-ready.ts
+prove-vshot-send-hygiene.ts
+prove-workflow-inline.ts

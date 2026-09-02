@@ -1,0 +1,88 @@
+#!/usr/bin/env bun
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+
+;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
+
+let failures = 0
+function check(label: string, cond: boolean, detail = ''): void {
+  if (!cond) failures++
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+}
+function section(t: string): void {
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
+
+console.log('============================================================')
+console.log(' lead team identity — briefs/verbs resolve from the lead seat')
+console.log('============================================================')
+
+const REPO = join(import.meta.dir, '../..')
+
+const teammate = await import('../../src/utils/teammate.js')
+const {
+  getLeadTeamFallback,
+  getTeamName,
+  isTeammate,
+  resolveLeadAwareTeamName,
+  setLeadTeamFallback,
+} = teammate
+
+section('resolver UNIT — fallback rung, precedence, teammate semantics untouched')
+setLeadTeamFallback(null)
+check('bare, no registration → undefined', resolveLeadAwareTeamName() === undefined)
+setLeadTeamFallback('teamX')
+check('registered → resolves the fallback', resolveLeadAwareTeamName() === 'teamX')
+check('explicit teamContext arg BEATS the fallback', resolveLeadAwareTeamName({ teamName: 'ctx' }) === 'ctx')
+check('getTeamName() itself stays blind (no global rung)', getTeamName() === undefined)
+check('isTeammate() stays false under a lead registration', isTeammate() === false)
+setLeadTeamFallback(null)
+check('cleared → undefined again', resolveLeadAwareTeamName() === undefined)
+
+type StoreState = Record<string, unknown>
+const makeStore = () => {
+  let state: StoreState = {}
+  return {
+    getState: () => state,
+    setState: (updater: (prev: StoreState) => StoreState) => {
+      state = updater(state)
+    },
+  }
+}
+
+section('SCRIBE engage — registers "scribe", disengage RESTORES the prior (live)')
+const scribeTeam = await import('../../src/utils/scribe/engageScribeTeam.js')
+scribeTeam.__resetScribeTeamStash()
+setLeadTeamFallback('prior-team')
+const scribeStore = makeStore()
+scribeTeam.engageScribeTeam(scribeStore)
+check('fallback registered as "scribe"', getLeadTeamFallback() === 'scribe')
+scribeTeam.disengageScribeTeam(scribeStore)
+check('disengage restores the PRIOR registration', getLeadTeamFallback() === 'prior-team')
+setLeadTeamFallback(null)
+
+section('DRIFT-LOCK — consumers + the TeamCreate seams stay wired')
+const mcpSrc = readFileSync(join(REPO, 'src/services/mcp/coordinationServer.ts'), 'utf8')
+check(
+  'coordination server has ZERO bare getTeamName() calls',
+  !/[^A-Za-z]getTeamName\(\)/.test(mcpSrc),
+)
+const serviceSrc = readFileSync(join(REPO, 'src/services/coordination/coordinationService.ts'), 'utf8')
+check('the coordination service consumes resolveLeadAwareTeamName (with the caller\'s context)', serviceSrc.includes('resolveLeadAwareTeamName(teamContext ?? undefined)'))
+check('the coordination service has ZERO bare getTeamName() calls', !/[^A-Za-z]getTeamName\(\)/.test(serviceSrc))
+check('coordination server resolves through the service', mcpSrc.includes('resolveCoordinationContext()'))
+const briefSrc = readFileSync(join(REPO, 'src/tools/TeamBriefTool/TeamBriefTool.ts'), 'utf8')
+check(
+  'TeamBrief resolves lead-aware with the AppState context (through the service)',
+  briefSrc.includes('resolveCoordinationContext(context.getAppState().teamContext'),
+)
+const teamCreateSrc = readFileSync(join(REPO, 'src/tools/TeamCreateTool/TeamCreateTool.ts'), 'utf8')
+check('TeamCreate registers the lead team', teamCreateSrc.includes('setLeadTeamFallback(finalTeamName)'))
+const teamDeleteSrc = readFileSync(join(REPO, 'src/tools/TeamDeleteTool/TeamDeleteTool.ts'), 'utf8')
+check('TeamDelete clears the registration', teamDeleteSrc.includes('setLeadTeamFallback(null)'))
+
+console.log('\n' + '═'.repeat(76))
+if (failures === 0) console.log('✅ ALL LEAD-TEAM-IDENTITY PROOFS PASS')
+else console.log(`❌ ${failures} LEAD-TEAM-IDENTITY PROOF(S) FAILED`)
+console.log('═'.repeat(76))
+process.exit(failures === 0 ? 0 : 1)

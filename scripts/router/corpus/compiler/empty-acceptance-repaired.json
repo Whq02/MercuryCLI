@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "empty-acceptance-repaired",
+  "mode": "scribe",
+  "mission": {
+    "objective": "A bounded single-node dispatch whose acceptance criteria were never filled in",
+    "title": "Add a health-check route",
+    "task": "Add a `/healthz` route to src/api/server.ts that returns 200 with an empty body when the process is up.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Add /healthz route",
+        "task": "Add a /healthz route returning 200 with an empty body.",
+        "dependsOn": [],
+        "ownsPaths": ["src/api/server.ts"],
+        "acceptance": []
+      }
+    ]
+  },
+  "expected": {
+    "profile": "sonnet-opus-review",
+    "width": 1,
+    "modelClasses": ["sonnet"],
+    "reasonCodes": ["bounded-implementation"],
+    "adjustments": ["empty-acceptance-repaired"]
+  }
+}

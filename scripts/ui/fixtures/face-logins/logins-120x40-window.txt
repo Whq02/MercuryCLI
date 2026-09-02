@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ signed in                                                      │  │ ❯ Kimi (Moonshot) — device-code sign-in o… │
+   │   Claude subscription account                   op@example.com │  │                                            │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ Moonshot                                   │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │                                            │
+   │ ❯ Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Kimi (Moonshot) — device-code sign-in      │
+   │                                                                │  │ or API key                                 │
+   │ available                                                      │  │                                            │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ state: kimi.ai (global) · window reached   │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ · Kimi sign-in — kimi.ai (global)          │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ ready · oauth · window reached             │
+   │   DeepSeek — API key                             not signed in │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   8                               │
+                                                                       │ Signed in  4 of 8                          │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  4 of 8 families signed in · 4 ready                                                         │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                             ↑↓ move · ↵ sign in · esc back

@@ -1,0 +1,482 @@
+import { execFile } from 'child_process'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import * as React from 'react'
+import { useContext, useEffect, useState, useSyncExternalStore } from 'react'
+import { buildRunCapsuleLine } from '../commands/run/runInspectorModel.js'
+import { formatSessionCost } from '../utils/spendSpelling.js'
+import { processMainOwner } from '../services/run/resolveOwner.js'
+import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js'
+import { countOperatorTurns } from '../utils/messages/operatorTurns.js'
+import { Box, Text } from '../ink.js'
+import { contextFillView, contextPercentLabel } from '../utils/contextFill.js'
+import { needsYouCount } from '../utils/needsYouCount.js'
+import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
+import { describeTurnOverride } from '../utils/autopilot/tierState.js'
+import { getDisplayedEffortLabel, type EffortValue } from '../utils/effort.js'
+import {
+  getFocusedSessionConnector,
+  subscribeThroughFocused,
+} from '../services/engine-connector/focusedConnector.js'
+import { type ModelName, renderModelChip, renderModelName } from '../utils/model/model.js'
+import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
+import { publishContextUsage } from '../utils/cockpit/contextUsageLive.js'
+import { LAYOUT_BREAKPOINTS, useLayoutTier } from '../hooks/useLayoutTier.js'
+import { cachedAttentionView, subscribeAttentionView } from '../services/attention/viewModel.js'
+import { bucketItems } from '../services/attention/contracts.js'
+import { FLAG_ICON } from '../constants/figures.js'
+import { chatOnlyBoot } from '../context/surfaceRoute.js'
+import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
+import { needsYouJump } from './mercury-ui/needsYouJump.js'
+import '../services/crew/obligationsBridge.js'
+import '../services/workbench/attentionBridge.js'
+import { isDeckPaneActive } from '../utils/fullscreen.js'
+import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
+import { formatCountdown } from '../utils/cockpit/quota.js'
+import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import inkInstances from '../ink/instances.js'
+import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
+import {
+  subscribeVerification,
+  verificationSummary,
+  verifyEvidenceEnabled,
+} from '../utils/verification/verificationState.js'
+import {
+  getModeColor,
+  isDefaultMode,
+  type PermissionMode,
+  permissionModeSymbol,
+  permissionModeTitle,
+} from '../utils/permissions/PermissionMode.js'
+import { useSessionAccent } from './mercury-ui/sessionAccent.js'
+import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
+import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
+import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
+import { formatQuietAge, workflowPulse } from '../tools/WorkflowTool/livePulse.js'
+import type { WorkflowProgressEvent } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { getScribeModeVersion, isScribeModeOn, subscribeScribeMode } from '../utils/scribeMode.js'
+import { SessionMark } from './mercury-ui/assets.js'
+import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
+import { EffortChip } from './mercury-ui/EffortChip.js'
+import { TrimChip } from './mercury-ui/TrimChip.js'
+import { HarnessChip } from './mercury-ui/HarnessChip.js'
+import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
+import { SessionTabs } from './mercury-ui/SessionTabs.js'
+import { fluxMark } from '../utils/flux/fluxProbe.js'
+
+
+type Props = {
+  model: ModelName
+  routeSurface?: boolean
+}
+
+function readBranchSync(cwd: string): string | null {
+  try {
+    const head = readFileSync(join(cwd, '.git', 'HEAD'), 'utf8').trim()
+    const m = /^ref:\s*refs\/heads\/(.+)$/.exec(head)
+    return m && m[1] ? m[1] : null
+  } catch {
+    return null
+  }
+}
+
+export const MercuryFrame = React.memo(MercuryFrameImpl)
+
+const subscribeFocusedModelFacts = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
+const getFocusedSessionPin = (): string | null => getFocusedSessionConnector().modelFacts().sessionPin
+const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener))
+const getFocusedPermissionMode = (): string => getFocusedSessionConnector().permissionMode()
+
+function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNode {
+  fluxMark('render:frame')
+  const tok = useMercuryTokens()
+  const messages = useFocusedTranscript()
+  const cwd = useFocusedWorkspaceCwd()
+  const [branch, setBranch] = useState<string | null>(() => readBranchSync(cwd))
+
+  useEffect(() => {
+    let alive = true
+    setBranch(readBranchSync(cwd))
+    execFile(
+      'git',
+      ['rev-parse', '--abbrev-ref', 'HEAD'],
+      { windowsHide: true, cwd, timeout: 500 },
+      (err, stdout) => {
+        if (!alive || err) return
+        const b = stdout.trim()
+        if (b && b !== 'HEAD') setBranch(b)
+      },
+    )
+    return () => {
+      alive = false
+    }
+  }, [cwd])
+
+  const tier = useLayoutTier()
+  const cols = tier.columns
+
+  const dir = cwd.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || cwd
+  const modelName = useDisplayedSessionModel().compact
+  const showBehavior = tier.showBehaviorChips
+  const branchMax = tier.branchMax
+  useSessionAccent()
+  useSyncExternalStore(subscribeScribeMode, getScribeModeVersion, getScribeModeVersion)
+  const helmActive = useContext(CockpitActiveContext) && !routeSurface
+  const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
+  const deckOwnsVitals = deckPresent && cols >= LAYOUT_BREAKPOINTS.cockpitMin
+  const usageOwnedElsewhere = !routeSurface && (deckOwnsVitals || helmActive)
+
+  const turns = countOperatorTurns(messages)
+  const turnsNode =
+    turns > 0 ? (
+      <Text>
+        <Sep />
+        <Text color={tok.textMuted}>{GLYPH.turns}</Text>
+        {}
+        <ValueGlow value={turns} color={tok.textSecondary}>{turns}</ValueGlow>
+      </Text>
+    ) : null
+
+  const attentionView = useSyncExternalStore(
+    subscribeAttentionView,
+    cachedAttentionView,
+    cachedAttentionView,
+  )
+  const boardChord = useShortcutDisplay('app:openSurfaceSwitcher', 'Global', 'ctrl+x c')
+  const needsJump = needsYouJump({
+    plain: chatOnlyBoot(),
+    ownOnly: bucketItems(attentionView.attention, 'needs-you').every(item => item.owner === 'command-queue'),
+    boardChord,
+  })
+  const needsNode =
+    attentionView.needsYou > 0 ? (
+      <Text>
+        <Sep />
+        <Text color={tok.warning}>{FLAG_ICON} {needsYouCount(attentionView.needsYou)}</Text>
+        <Text color={tok.textMuted}> · {needsJump}</Text>
+      </Text>
+    ) : null
+
+  let mouseOff = false
+  try {
+    const ink = inkInstances.get(process.stdout)
+    mouseOff = !!ink && typeof ink.isMouseTrackingEnabled === 'function' && !ink.isMouseTrackingEnabled()
+  } catch {
+    mouseOff = false
+  }
+  const mouseNode = mouseOff ? (
+    <Text>
+      <Sep />
+      <Text color={tok.warning}>mouse off — native copy sweeps rails</Text>
+      <Text color={tok.textMuted}> · /mouse on = clean drag-copy</Text>
+    </Text>
+  ) : null
+
+  const sessionPinnedModel = useSyncExternalStore(
+    subscribeFocusedModelFacts,
+    getFocusedSessionPin,
+    getFocusedSessionPin,
+  )
+  const windowModel = routeSurface ? model : (sessionPinnedModel ?? model)
+  useCatalogueEpoch()
+  const fill = contextFillView(messages, windowModel)
+  const used = fill.usedPct
+  const windowSize = fill.window
+  useEffect(() => {
+    publishContextUsage(used ?? null, windowSize, fill.compactAtPct, undefined, {
+      usedTokens: fill.usedTokens,
+      fillSource: fill.fillSource,
+      windowSource: fill.windowSource,
+    })
+  }, [used, windowSize, fill.compactAtPct, fill.usedTokens, fill.fillSource, fill.windowSource])
+
+  const ctxNode = !usageOwnedElsewhere ? (
+    <Text>
+      <Sep />
+      <Text color={tok.textMuted}>ctx </Text>
+      <Text
+        color={
+          used !== null && used >= 90
+            ? tok.failure
+            : used !== null && used >= 75
+              ? tok.warning
+              : tok.textSecondary
+        }
+      >
+        {contextPercentLabel(used, fill.fillSource)}
+      </Text>
+    </Text>
+  ) : null
+
+  const usageFacts = getFocusedSessionConnector().usage()
+  const cost = usageFacts.totalCostUSD
+  const unpricedTurns = usageFacts.unpricedTurns ?? 0
+  const costNode =
+    (cost > 0 || unpricedTurns > 0) && getFocusedSessionConnector().identity().consoleBilling ? (
+      <Text>
+        <Sep />
+        <Text color={tok.textMuted}>{unpricedTurns > 0 ? formatSessionCost(cost, unpricedTurns) : `$${cost.toFixed(2)}`}</Text>
+      </Text>
+    ) : null
+
+  let usageNode: React.ReactNode = null
+  if (tier.showFrameQuota) {
+    const usage = activeSourceUsage({ model: getFocusedSessionConnector().modelFacts().main })
+    const numberOnly = tier.numberOnlyGauges
+    const showSecond = tier.show7dGauge
+    const first = usage.windows[0]
+    const second = usage.windows[1]
+    const limited = usage.limited
+    usageNode =
+      first !== undefined || limited !== undefined ? (
+        <Text>
+          <Sep />
+          {first !== undefined ? (
+            <UsageMeter
+              compact
+              numberOnly={numberOnly}
+              window={first.label}
+              state={first.state}
+              value={first.usedPct ?? undefined}
+            />
+          ) : null}
+          {second !== undefined && showSecond ? (
+            <Text>
+              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
+              <UsageMeter
+                compact
+                window={second.label}
+                state={second.state}
+                value={second.usedPct ?? undefined}
+              />
+            </Text>
+          ) : null}
+          {limited !== undefined ? (
+            <Text>
+              {first !== undefined ? <Text color={tok.textMuted}> {GLYPH.dot} </Text> : null}
+              <Text color={tok.warning}>limit · resets {formatCountdown(limited.resetsAtMs - Date.now())}</Text>
+            </Text>
+          ) : null}
+        </Text>
+      ) : null
+  }
+
+  const scribeOn = isScribeModeOn()
+  const behaviorNode = scribeOn ? (
+    <Text>
+      <Sep />
+      <Text color={tok.textMuted}>scribe </Text>
+      <Text color={tok.success}>●</Text>
+    </Text>
+  ) : null
+
+  const healthSnap = !helmActive ? healthCertSnapshot() : null
+  const healthChip = healthSnap && healthSnap.state === 'live' ? healthSnap.data : null
+  const healthAlarm =
+    healthChip !== null &&
+    (healthChip.verdict === 'fault' || healthChip.alert?.tone === 'fault')
+  const healthWarn =
+    healthChip !== null &&
+    !healthAlarm &&
+    (healthChip.verdict === 'caution' || healthChip.stale)
+  const healthAge =
+    healthChip?.ageLabel && healthChip.ageLabel !== 'never'
+      ? healthChip.ageLabel.replace(' ago', '')
+      : null
+  const healthNode =
+    healthChip && (healthAlarm || healthWarn) ? (
+      <Text>
+        <Sep />
+        <Text color={tok.textMuted}>health </Text>
+        {healthAlarm ? (
+          <Text bold color={tok.failure}>
+            {GLYPH.fail} fault
+          </Text>
+        ) : (
+          <Text color={tok.warning}>
+            {GLYPH.warn} {healthChip.stale ? 'stale' : 'caution'}
+          </Text>
+        )}
+        {healthAge ? <Text color={tok.textMuted}>{` · ${healthAge}`}</Text> : null}
+      </Text>
+    ) : null
+
+  const vfySnap = useSyncExternalStore(
+    subscribeVerification,
+    () => {
+      if (!verifyEvidenceEnabled()) return null
+      const s = verificationSummary(getFocusedSessionConnector().workspace().cwd, { skipDigest: true })
+      return s.state === 'stale' || s.state === 'failed' ? s.state : null
+    },
+    () => null,
+  )
+  const vfyNode =
+    vfySnap !== null ? (
+      <Text>
+        <Sep />
+        {vfySnap === 'failed' ? (
+          <Text bold color={tok.failure}>
+            vfy {GLYPH.fail} failed
+          </Text>
+        ) : (
+          <Text color={tok.warning}>vfy {GLYPH.warn} stale</Text>
+        )}
+      </Text>
+    ) : null
+
+  const runCapsule = useSyncExternalStore(
+    subscribeRuns,
+    () => buildRunCapsuleLine(getRunSnapshot(processMainOwner()), Date.now()),
+    () => null,
+  )
+  const runNode = runCapsule ? (
+    <Text>
+      <Sep />
+      <Text color={tok.textMuted}>{GLYPH.done} </Text>
+      <Text color={tok.textSecondary}>{runCapsule}</Text>
+    </Text>
+  ) : null
+
+  const permMode = useSyncExternalStore(
+    subscribeFocusedPermissionMode,
+    getFocusedPermissionMode,
+    getFocusedPermissionMode,
+  )
+  const autopilotEffort = useAppStateMaybeOutsideOfProvider(
+    (s: { effortValue?: string | number } | undefined) => s?.effortValue,
+  ) as EffortValue | undefined
+  type WfTaskLite = {
+    type?: string
+    status?: string
+    startTime?: number
+    workflowProgress?: WorkflowProgressEvent[]
+  }
+  const allTasks = useAppStateMaybeOutsideOfProvider(
+    (s: { tasks?: Record<string, WfTaskLite> } | undefined) => s?.tasks,
+  ) as Record<string, WfTaskLite> | undefined
+  const wfLive = Object.values(allTasks ?? {}).filter(
+    t =>
+      t.type === 'local_workflow' &&
+      (t.status === 'running' || t.status === 'pending'),
+  )
+  const wfNow = useNowTick(wfLive.length > 0 ? 10_000 : null)
+  let wfNode: React.ReactNode = null
+  if (wfLive.length > 0) {
+    const worst = wfLive
+      .map(w => workflowPulse(w.workflowProgress ?? [], w.startTime ?? wfNow, wfNow))
+      .reduce((a, b) => (a.quietMs >= b.quietMs ? a : b))
+    const label = wfLive.length === 1 ? 'wf' : `wf×${wfLive.length}`
+    const phase =
+      wfLive.length === 1 && worst.phaseTitle
+        ? ` ${truncateToWidth(worst.phaseTitle, 14)}`
+        : ''
+    wfNode = (
+      <Text>
+        <Sep />
+        <Text color={worst.moving ? tok.success : tok.warning}>
+          {GLYPH.inProgress} {label}
+          {phase} {formatQuietAge(worst.quietMs)}
+        </Text>
+      </Text>
+    )
+  }
+  const autopilotTurnTier =
+    permMode === 'autopilot' ? describeTurnOverride(undefined) : null
+  const modeBand = !isDefaultMode(permMode as PermissionMode | undefined) ? (
+    <Box width="100%" paddingX={1} flexShrink={0}>
+      {permMode === 'sovereign' ? (
+        <Text bold color={tok.failure} wrap="truncate-end">
+          {permissionModeSymbol('sovereign')} {permissionModeTitle('sovereign').toLowerCase()} on — all tool calls auto-approved
+        </Text>
+      ) : permMode === 'autopilot' ? (
+        <Text bold color={tok.failure} wrap="truncate-end">
+          {permissionModeSymbol('autopilot')} {permissionModeTitle('autopilot').toLowerCase()} on — permissions bypassed · self-tier armed
+          <Text color={tok.textMuted}>
+            {
+}
+            {
+}
+            {autopilotTurnTier ? ` · ⇅ ${autopilotTurnTier}` : ''}
+          </Text>
+        </Text>
+      ) : (
+        <Text color={getModeColor(permMode as PermissionMode)} wrap="truncate-end">
+          {
+}
+          {permissionModeSymbol(permMode as PermissionMode)}{' '}
+          {permissionModeTitle(permMode as PermissionMode).toLowerCase()} on
+          <Text color={tok.textMuted}> (shift+tab to cycle)</Text>
+        </Text>
+      )}
+    </Box>
+  ) : null
+
+  const statusRow = (
+    <Box paddingX={helmActive ? 0 : 1}>
+      <Text wrap="truncate-end">
+        <SessionMark />
+        {!deckOwnsVitals ? (
+          <Text>
+            <Sep />
+            <Text color={tok.textSecondary}>{modelName}</Text>
+            <EffortChip model={model} />
+            <HarnessChip model={model} show={showBehavior} />
+          </Text>
+        ) : null}
+        <Sep />
+        <Text color={tok.textPrimary}>{dir}</Text>
+        {!deckOwnsVitals && branch ? (
+          <Text color={tok.textMuted}> {GLYPH.branch}{truncateToWidth(branch, branchMax)}</Text>
+        ) : null}
+        {turnsNode}
+        {needsNode}
+        {
+}
+        {wfNode}
+        {ctxNode}
+        {!deckOwnsVitals ? costNode : null}
+        {!usageOwnedElsewhere ? usageNode : null}
+        {!deckOwnsVitals && showBehavior ? behaviorNode : null}
+        {
+}
+        {healthNode}
+        {vfyNode}
+        {runNode}
+        {
+}
+        {!deckOwnsVitals ? <TrimChip /> : null}
+        {mouseNode}
+      </Text>
+    </Box>
+  )
+
+  return (
+    <Box flexShrink={0} width="100%" flexDirection="column">
+      {helmActive ? (
+        <>
+          {modeBand}
+          <Box
+            width="100%"
+            flexDirection="column"
+            borderStyle="round"
+            borderColor={tok.borderStrong}
+            paddingX={1}
+          >
+            {routeSurface ? null : <SessionTabs cols={cols} framed />}
+            {statusRow}
+          </Box>
+        </>
+      ) : (
+        <>
+          {
+}
+          {routeSurface ? null : <SessionTabs cols={cols} />}
+          {modeBand}
+          {statusRow}
+        </>
+      )}
+    </Box>
+  )
+}

@@ -1,0 +1,943 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "apiKeyHelper": {
+      "type": "string"
+    },
+    "proxyAuthHelper": {
+      "type": "string"
+    },
+    "forceLoginMethod": {
+      "type": "string",
+      "enum": [
+        "claudeai",
+        "console"
+      ]
+    },
+    "forceLoginOrgUUID": {
+      "type": "string"
+    },
+    "fileSuggestion": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "command"
+        },
+        "command": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "command"
+      ],
+      "additionalProperties": false
+    },
+    "respectGitignore": {
+      "type": "boolean"
+    },
+    "cleanupPeriodDays": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "instructionExcludes": {
+      "description": "Glob patterns or absolute paths of instruction files to skip (e.g. ~/.mercury/MERCURY.md or **/.mercury/rules/*.md); managed layers cannot be excluded",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "plansDirectory": {
+      "description": "Project-root-relative directory for plan files (replacing the default plans/ directory under the Mercury config home)",
+      "type": "string"
+    },
+    "autoMemoryEnabled": {
+      "type": "boolean"
+    },
+    "autoMemoryDirectory": {
+      "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
+      "type": "string"
+    },
+    "autoDreamEnabled": {
+      "type": "boolean"
+    },
+    "env": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "attribution": {
+      "type": "object",
+      "properties": {
+        "commit": {
+          "type": "string"
+        },
+        "pr": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "includeMercuryCoAuthor": {
+      "type": "boolean"
+    },
+    "includeGitInstructions": {
+      "type": "boolean"
+    },
+    "permissions": {
+      "type": "object",
+      "properties": {
+        "allow": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ask": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "defaultMode": {
+          "type": "string",
+          "enum": [
+            "default",
+            "dontAsk",
+            "implement",
+            "sovereign",
+            "strategy",
+            "flow",
+            "scribe",
+            "autopilot",
+            "apollo"
+          ]
+        },
+        "disableBypassPermissionsMode": {
+          "type": "string",
+          "const": "disable"
+        },
+        "additionalDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": {}
+    },
+    "model": {
+      "type": "string"
+    },
+    "availableModels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "modelOverrides": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "advisorModel": {
+      "type": "string"
+    },
+    "effortLevel": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ]
+    },
+    "supercodeEffort": {
+      "type": "boolean"
+    },
+    "alwaysThinkingEnabled": {
+      "type": "boolean"
+    },
+    "enableAllProjectMcpServers": {
+      "type": "boolean"
+    },
+    "enabledMcpjsonServers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "disabledMcpjsonServers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowedMcpServers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "serverName": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "serverCommand": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "serverUrl": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "deniedMcpServers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "serverName": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "serverCommand": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "serverUrl": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "allowManagedMcpServersOnly": {
+      "type": "boolean"
+    },
+    "hooks": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "enum": [
+          "PreToolUse",
+          "PostToolUse",
+          "PostToolUseFailure",
+          "Notification",
+          "UserPromptSubmit",
+          "UserPromptExpansion",
+          "SessionStart",
+          "SessionEnd",
+          "Stop",
+          "StopFailure",
+          "SubagentStart",
+          "SubagentStop",
+          "PreCompact",
+          "PostCompact",
+          "PermissionRequest",
+          "PermissionDenied",
+          "Setup",
+          "TeammateIdle",
+          "TaskCreated",
+          "TaskCompleted",
+          "Elicitation",
+          "ElicitationResult",
+          "ConfigChange",
+          "WorktreeCreate",
+          "WorktreeRemove",
+          "InstructionsLoaded",
+          "CwdChanged",
+          "FileChanged"
+        ]
+      },
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "matcher": {
+              "description": "Pattern matched against event-related values, typically tool names.",
+              "type": "string"
+            },
+            "hooks": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "command"
+                      },
+                      "command": {
+                        "type": "string",
+                        "description": "The shell command to execute."
+                      },
+                      "shell": {
+                        "description": "Shell to run the command with: 'bash' uses your login shell family; 'powershell' uses pwsh. Defaults to bash.",
+                        "type": "string",
+                        "enum": [
+                          "bash",
+                          "powershell"
+                        ]
+                      },
+                      "async": {
+                        "description": "Run in the background without blocking.",
+                        "type": "boolean"
+                      },
+                      "asyncRewake": {
+                        "description": "Run in the background and wake the model when the hook exits with the blocking-error status. Implies async.",
+                        "type": "boolean"
+                      },
+                      "if": {
+                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                        "type": "string"
+                      },
+                      "timeout": {
+                        "description": "Timeout for this hook, in seconds.",
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 2147483
+                      },
+                      "statusMessage": {
+                        "description": "Message shown in the spinner while the hook runs.",
+                        "type": "string"
+                      },
+                      "once": {
+                        "description": "Run this hook once, then remove it.",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "command"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "prompt"
+                      },
+                      "prompt": {
+                        "type": "string",
+                        "description": "Prompt evaluated by a model. An $ARGUMENTS placeholder receives the hook input JSON."
+                      },
+                      "model": {
+                        "description": "Model to evaluate the prompt with. Defaults to the default small fast model.",
+                        "type": "string"
+                      },
+                      "if": {
+                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                        "type": "string"
+                      },
+                      "timeout": {
+                        "description": "Timeout for this hook, in seconds.",
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 2147483
+                      },
+                      "statusMessage": {
+                        "description": "Message shown in the spinner while the hook runs.",
+                        "type": "string"
+                      },
+                      "once": {
+                        "description": "Run this hook once, then remove it.",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "prompt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "agent"
+                      },
+                      "prompt": {
+                        "type": "string",
+                        "description": "What the agent should verify. An $ARGUMENTS placeholder receives the hook input JSON. Timeout defaults to 60 seconds."
+                      },
+                      "model": {
+                        "description": "Model for the agent. Defaults to the default small fast model floored to the mid-tier model — agent hooks never run the smallest model.",
+                        "type": "string"
+                      },
+                      "if": {
+                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                        "type": "string"
+                      },
+                      "timeout": {
+                        "description": "Timeout for this hook, in seconds.",
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 2147483
+                      },
+                      "statusMessage": {
+                        "description": "Message shown in the spinner while the hook runs.",
+                        "type": "string"
+                      },
+                      "once": {
+                        "description": "Run this hook once, then remove it.",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "prompt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "const": "http"
+                      },
+                      "url": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL that receives a POST of the hook input JSON."
+                      },
+                      "headers": {
+                        "description": "Request headers. Values may reference environment variables as $VAR or ${VAR}; only variables named in allowedEnvVars are interpolated.",
+                        "type": "object",
+                        "propertyNames": {
+                          "type": "string"
+                        },
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "allowedEnvVars": {
+                        "description": "Environment variable names allowed in header interpolation. Required for any interpolation; unlisted references resolve to empty strings.",
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "if": {
+                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                        "type": "string"
+                      },
+                      "timeout": {
+                        "description": "Timeout for this hook, in seconds.",
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 2147483
+                      },
+                      "statusMessage": {
+                        "description": "Message shown in the spinner while the hook runs.",
+                        "type": "string"
+                      },
+                      "once": {
+                        "description": "Run this hook once, then remove it.",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "type",
+                      "url"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            }
+          },
+          "required": [
+            "hooks"
+          ],
+          "additionalProperties": false
+        }
+      }
+    },
+    "disableAllHooks": {
+      "type": "boolean"
+    },
+    "allowManagedHooksOnly": {
+      "type": "boolean"
+    },
+    "allowedHttpHookUrls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "httpHookAllowedEnvVars": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowManagedPermissionRulesOnly": {
+      "type": "boolean"
+    },
+    "extensions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "wanted": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "ref": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "source"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "blocked": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "options": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "strictExtensionOnlyCustomization": {
+      "description": "Managed lock restricting customization surfaces to extensions (filesystem sources such as the config home's skills directory are skipped for locked surfaces)",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "skills",
+              "agents",
+              "hooks",
+              "mcp"
+            ]
+          }
+        }
+      ]
+    },
+    "language": {
+      "type": "string"
+    },
+    "spinnerTipsEnabled": {
+      "type": "boolean"
+    },
+    "spinnerVerbs": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "append",
+            "replace"
+          ]
+        },
+        "verbs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "verbs"
+      ],
+      "additionalProperties": false
+    },
+    "spinnerTipsOverride": {
+      "type": "object",
+      "properties": {
+        "excludeDefault": {
+          "type": "boolean"
+        },
+        "tips": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "tips"
+      ],
+      "additionalProperties": false
+    },
+    "syntaxHighlightingDisabled": {
+      "type": "boolean"
+    },
+    "terminalTitleFromRename": {
+      "type": "boolean"
+    },
+    "prefersReducedMotion": {
+      "type": "boolean"
+    },
+    "showThinkingSummaries": {
+      "type": "boolean"
+    },
+    "showClearContextOnPlanAccept": {
+      "type": "boolean"
+    },
+    "progressReporting": {
+      "type": "boolean"
+    },
+    "promptSuggestionEnabled": {
+      "type": "boolean"
+    },
+    "feedbackSurveyRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "companyAnnouncements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "agent": {
+      "type": "string"
+    },
+    "skipWebFetchPreflight": {
+      "type": "boolean"
+    },
+    "skipDangerousModePermissionPrompt": {
+      "type": "boolean"
+    },
+    "disableAutoMode": {
+      "type": "string",
+      "const": "disable"
+    },
+    "defaultShell": {
+      "type": "string",
+      "enum": [
+        "bash",
+        "powershell"
+      ]
+    },
+    "instructionProfile": {
+      "type": "string",
+      "enum": [
+        "auto",
+        "native"
+      ]
+    },
+    "channelsEnabled": {
+      "type": "boolean"
+    },
+    "apollo": {
+      "description": "Apollo Mode: pre-flight interview poll budget (default 7)",
+      "type": "object",
+      "properties": {
+        "preflightQuestions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20
+        }
+      },
+      "additionalProperties": false
+    },
+    "sandbox": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "description": "Whether sandboxing is on",
+          "type": "boolean"
+        },
+        "failIfUnavailable": {
+          "description": "Refuse to run when the sandbox cannot be established",
+          "type": "boolean"
+        },
+        "autoAllowBashIfSandboxed": {
+          "description": "Auto-approve shell commands that run sandboxed",
+          "type": "boolean"
+        },
+        "allowUnsandboxedCommands": {
+          "description": "Permit commands to escape the sandbox when needed",
+          "type": "boolean"
+        },
+        "network": {
+          "type": "object",
+          "properties": {
+            "allowedDomains": {
+              "description": "Domains the sandboxed process may reach",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowManagedDomainsOnly": {
+              "description": "Restrict network access to managed domains only",
+              "type": "boolean"
+            },
+            "allowUnixSockets": {
+              "description": "Unix socket paths reachable from the sandbox",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowAllUnixSockets": {
+              "description": "Allow every unix socket",
+              "type": "boolean"
+            },
+            "allowLocalBinding": {
+              "description": "Allow binding local ports",
+              "type": "boolean"
+            },
+            "httpProxyPort": {
+              "description": "HTTP proxy port",
+              "type": "number"
+            },
+            "socksProxyPort": {
+              "description": "SOCKS proxy port",
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "filesystem": {
+          "type": "object",
+          "properties": {
+            "allowWrite": {
+              "description": "Writable path patterns",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "denyWrite": {
+              "description": "Write-denied path patterns",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "denyRead": {
+              "description": "Read-denied path patterns",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowRead": {
+              "description": "Readable path patterns",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "allowManagedReadPathsOnly": {
+              "description": "Restrict reads to managed paths only",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ignoreViolations": {
+          "description": "Violation patterns to ignore, keyed by command",
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "enableWeakerNestedSandbox": {
+          "description": "Allow the weaker nested-sandbox fallback",
+          "type": "boolean"
+        },
+        "enableWeakerNetworkIsolation": {
+          "description": "Allow the weaker network-isolation fallback",
+          "type": "boolean"
+        },
+        "excludedCommands": {
+          "description": "Commands excluded from sandboxing",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ripgrep": {
+          "description": "Search-tool binary override",
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "string"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "command"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": {}
+    },
+    "worktree": {
+      "type": "object",
+      "properties": {
+        "symlinkDirectories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sparsePaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "remote": {
+      "type": "object",
+      "properties": {
+        "defaultEnvironmentId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "sshConfigs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "sshHost": {
+            "type": "string"
+          },
+          "sshPort": {
+            "type": "number"
+          },
+          "sshIdentityFile": {
+            "type": "string"
+          },
+          "startDirectory": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "sshHost"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "autoUpdatesChannel": {
+      "type": "string",
+      "enum": [
+        "latest",
+        "stable"
+      ]
+    },
+    "minimumVersion": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": {}
+}

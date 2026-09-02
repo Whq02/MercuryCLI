@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ signed in                                                      │  │ ❯ Usage-based billing — Anthropic Console… │
+   │   Claude subscription account                   op@example.com │  │                                            │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ GLM Coding Plan key stored                 │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ (auth-scoped, mode 600). Requests ride     │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ api.z.ai/api/coding/paas/v4 (the           │
+   │                                                                │  │ Coding Plan base); the GLM rows join       │
+   │ available                                                      │  │ /model; the first turn proves the key      │
+   │ ❯ Usage-based billing — Anthropic Console…       not signed in │  │ (no key-check endpoint is wired for        │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ Z.AI).                                     │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │ ↵ done — the roster refreshes              │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
+   │   DeepSeek — API key                             not signed in │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   8                               │
+                                                                       │ Signed in  4 of 8                          │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  connected — ↵ returns to the roster                                                         │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                         ↵ done

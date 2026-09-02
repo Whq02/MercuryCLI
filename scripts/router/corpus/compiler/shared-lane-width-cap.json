@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "id": "shared-lane-width-cap",
+  "mode": "party",
+  "mission": {
+    "objective": "Three disjoint write-heavy nodes confined to one shared lane",
+    "title": "Three heavy rewrites, one worktree lane",
+    "task": "Rewrite three independent modules (the auth guard, the rate limiter, and the request logger) — each is a disjoint, self-contained file with no cross-dependency — but the operator has pinned this mission to a single shared worktree lane instead of one lane per node, so only one heavy write can safely run at a time.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 3,
+    "taskShape": "bounded",
+    "sharedLane": true,
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Rewrite the auth guard",
+        "task": "Rewrite src/middleware/authGuard.ts for clarity, preserving behavior.",
+        "dependsOn": [],
+        "ownsPaths": ["src/middleware/authGuard.ts"],
+        "acceptance": ["existing auth tests pass unchanged", "no behavior change, structure only"]
+      },
+      {
+        "id": "n2",
+        "title": "Rewrite the rate limiter",
+        "task": "Rewrite src/middleware/rateLimiter.ts for clarity, preserving behavior.",
+        "dependsOn": [],
+        "ownsPaths": ["src/middleware/rateLimiter.ts"],
+        "acceptance": ["existing rate-limit tests pass unchanged", "no behavior change, structure only"]
+      },
+      {
+        "id": "n3",
+        "title": "Rewrite the request logger",
+        "task": "Rewrite src/middleware/requestLogger.ts for clarity, preserving behavior.",
+        "dependsOn": [],
+        "ownsPaths": ["src/middleware/requestLogger.ts"],
+        "acceptance": ["existing logging tests pass unchanged", "no behavior change, structure only"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "dependency-graph",
+    "width": 1,
+    "modelClasses": ["sonnet", "sonnet", "sonnet"],
+    "reasonCodes": ["separable-disjoint-ownership"],
+    "adjustments": ["width-capped-shared-lane"]
+  }
+}

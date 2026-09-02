@@ -1,0 +1,98 @@
+# HARD-ZERO — paths that MUST type-check with zero strict errors and zero
+# baseline tolerance. The curated first-party crown-jewels allowlist. A file
+# graduates into this list the moment it is driven to zero, so the net can never
+# silently regress it. One path per line; '#' comments and blanks ignored.
+#
+# The off-distribution logic core — confirmed strict-clean at install time:
+build.ts
+src/utils/healthFix.ts
+src/utils/permissions/capabilityGate.ts
+src/daemon/protocol.ts
+src/utils/swarm/leaseGuard.ts
+#
+# Graduates here once cleaned (currently carry strict errors — see baseline):
+#   src/utils/swarm/leaseGlob.ts        (1)
+#   src/components/FullscreenLayout.tsx (10)
+#   src/screens/REPL.tsx                (143)
+src/utils/messages.ts
+# The message-pipeline submodules — zero tolerance:
+src/utils/messages/apiFilters.ts
+src/utils/messages/apiView.ts
+src/utils/messages/attachmentText.ts
+src/utils/messages/factories.ts
+src/utils/messages/identity.ts
+src/utils/messages/lookups.ts
+src/utils/messages/mappers.ts
+src/utils/messages/merge.ts
+src/utils/messages/normalize.ts
+src/utils/messages/pairing.ts
+src/utils/messages/rejectionText.ts
+src/utils/messages/streaming.ts
+src/utils/messages/systemInit.ts
+src/utils/messages/systemMessages.ts
+src/utils/messages/text.ts
+src/utils/messages/uiOrder.ts
+# The context-assembly submodules — zero tolerance:
+src/utils/attachments.ts
+src/utils/attachments/deltas.ts
+src/utils/attachments/diagnostics.ts
+src/utils/attachments/fileAttachments.ts
+src/utils/attachments/memorySurfacing.ts
+src/utils/attachments/mentionResolvers.ts
+src/utils/attachments/mentions.ts
+src/utils/attachments/modeLifecycles.ts
+src/utils/attachments/nestedMemory.ts
+src/utils/attachments/orchestrator.ts
+src/utils/attachments/queuedCommands.ts
+src/utils/attachments/reminders.ts
+src/utils/attachments/sessionContext.ts
+src/utils/attachments/shared.ts
+src/utils/attachments/skillListing.ts
+src/utils/attachments/taskStatus.ts
+src/utils/attachments/teammates.ts
+src/utils/attachments/types.ts
+# The hooks-engine submodules — zero tolerance:
+src/utils/hooks.ts
+src/utils/hooks/types.ts
+src/utils/hooks/matching.ts
+src/utils/hooks/messages.ts
+src/utils/hooks/execution.ts
+src/utils/hooks/outputProcessing.ts
+src/utils/hooks/engine.ts
+src/utils/hooks/outsideRepl.ts
+src/utils/hooks/events.ts
+# The session-persistence submodules — zero tolerance:
+src/utils/sessionStorage.ts
+src/utils/sessionStorage/chain.ts
+src/utils/sessionStorage/loading.ts
+src/utils/sessionStorage/logs.ts
+src/utils/sessionStorage/paths.ts
+src/utils/sessionStorage/writer.ts
+# The API-client submodules — zero tolerance:
+src/services/providers/anthropic/index.ts
+src/services/providers/anthropic/cacheAndUsage.ts
+src/services/providers/anthropic/media.ts
+src/services/providers/anthropic/messageParams.ts
+src/services/providers/anthropic/requestParams.ts
+src/services/providers/anthropic/streamCore.ts
+# The turn engine — the off-dist core, strict-clean, zero tolerance:
+src/query.ts
+src/QueryEngine.ts
+# The run-core owners:
+src/run-core/turn-machine.ts
+src/run-core/events.ts
+src/run-core/project-legacy.ts
+src/run-core/model-lane.ts
+src/run-core/budget-guard.ts
+src/run-core/attachment-drain.ts
+
+# The owned config/settings surfaces:
+src/utils/config.ts
+src/utils/config/schema.ts
+src/utils/config/globalConfig.ts
+src/utils/config/projectConfig.ts
+src/utils/config/trust.ts
+src/utils/config/derived.ts
+src/utils/settings/snapshot.ts
+src/cli/transports/Transport.ts
+src/cli/transports/connectionLifecycle.ts

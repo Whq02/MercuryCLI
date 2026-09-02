@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                 ⌁ sessions · projects
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ moodle                                                         │  │ ❯ moodle                                   │
+   │   moodle groundwork                                  1 day ago │  │                                            │
+   │                                                                │  │ repo: moodle                               │
+   │ router crews                                                   │  │ dir: /repo/moodle                          │
+   │   party · dps1 — dps1                           40 minutes ago │  │ last session: 26h ago                      │
+   │                                                                │  │                                            │
+   │ projects                                                       │  │ highlighted: the sessions above show       │
+   │   orchard-src                                   2m · 2 running │  │ this repo alone (↑ walks back out)         │
+   │ ❯ moodle                                                   26h │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  │ ↵ opens the newest chat there as the       │
+                                                                       │ … (the trail continues — a taller termina… │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ SESSIONS · PROJECTS                        │
+                                                                       │ Scope      all history — every project     │
+                                                                       │ Sessions   1 · 1 crew                      │
+                                                                       │ Repos      2                               │
+                                                                       │ Opens      ● a real chat, in place         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  1 session in 'moodle' (filtered) · 1 crew · ↵ opens the real chat                           │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                    ↑↓ move · ↵ open · n new session · d prune · a this project · ⇥ repos · esc back

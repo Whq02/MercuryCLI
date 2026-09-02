@@ -1,0 +1,96 @@
+{
+  "name": "tree-sitter-wasms",
+  "version": "0.1.13",
+  "tarball": "tree-sitter-wasms-0.1.13.tgz",
+  "url": "https://registry.npmjs.org/tree-sitter-wasms/-/tree-sitter-wasms-0.1.13.tgz",
+  "sha512": "c13f9c47a0f0688cfcd3fbe1a3702f485d0de2dc6e371ff96dc44aa17a2e39f0a5a7187faaaac5e1444d2d05db6edf0c680c5e92c65c65dd63f207068dcf90c5",
+  "packLicense": "Unlicense",
+  "packLicenseNote": "The Unlicense covers ONLY the pack's build scripts and packaging; every grammar wasm keeps its upstream licence, enumerated per-grammar below (each verified against npm registry metadata 2026-07-20).",
+  "provenance": "npm maintainer 'greeggoor' == the repository author (github.com/Gregoor/tree-sitter-wasms); published 2025-10-07; tarball sha512 pinned from the registry integrity field (verified 2026-07-20). The sourcegraph/tree-sitter-wasms fork does NOT publish this package.",
+  "licenseFiles": [
+    "LICENSE"
+  ],
+  "grammars": [
+    {
+      "wasm": "tree-sitter-c.wasm",
+      "sha256": "056b25072382f72deee2c64ec238ffc4bb8cf42844ef21502c0e70f03a8a0d66",
+      "bytes": 792959,
+      "upstream": {
+        "package": "tree-sitter-c",
+        "builtFromRange": "^0.20.7",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter/tree-sitter-c"
+      }
+    },
+    {
+      "wasm": "tree-sitter-html.wasm",
+      "sha256": "11b3405c1543fb012f5ed7f8ee73125076dce8b168301e1e787e4c717da6b456",
+      "bytes": 18468,
+      "upstream": {
+        "package": "tree-sitter-html",
+        "builtFromRange": "^0.20.0",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter/tree-sitter-html"
+      }
+    },
+    {
+      "wasm": "tree-sitter-json.wasm",
+      "sha256": "fdb5219abe058369e16897aaa11eecf47ef4f546752c3ddbac339cdd89e1e667",
+      "bytes": 5961,
+      "upstream": {
+        "package": "tree-sitter-json",
+        "builtFromRange": "^0.20.2",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter/tree-sitter-json"
+      }
+    },
+    {
+      "wasm": "tree-sitter-toml.wasm",
+      "sha256": "7849ac8ce9d10a4684ca189ea8ad3654c20c38acb2d674a014a164398cbd37a2",
+      "bytes": 25436,
+      "upstream": {
+        "package": "tree-sitter-toml",
+        "builtFromRange": "^0.5.1",
+        "license": "MIT",
+        "repository": "https://github.com/ikatyang/tree-sitter-toml"
+      }
+    },
+    {
+      "wasm": "tree-sitter-kotlin.wasm",
+      "sha256": "b5cb00c8d06ed0f10f1dbe497205b437809d7e87db1f638721a8cfb30e044449",
+      "bytes": 4052705,
+      "upstream": {
+        "package": "tree-sitter-kotlin",
+        "builtFromRange": "^0.3.1",
+        "license": "MIT",
+        "repository": "https://github.com/fwcd/tree-sitter-kotlin"
+      }
+    },
+    {
+      "wasm": "tree-sitter-swift.wasm",
+      "sha256": "0258a7ef17303a8079ffe0748b3583d59656b5c3e8653fca7b6451b3e6689eb2",
+      "bytes": 3825025,
+      "sourceUrl": "https://github.com/alex-pinkus/tree-sitter-swift/releases/download/0.7.3/tree-sitter-swift.wasm",
+      "sourceProvenance": "official upstream release asset, tag 0.7.3 published 2026-06-01, pinned 2026-08-31 (licence MIT re-verified against the tag's LICENSE the same day): the pack's own swift build (0.4.0-era) fatally OOMs V8's optimizing wasm compiler on load (turboshaft WasmLoweringPhase Zone OOM after a successful parse; node 24.20.0 exit 133/SIGTRAP on macOS, exit 3 on Windows) and killed the host until the FC-010 audition fence quarantined it; the 0.7.1/0.7.2/0.7.3 upstream release wasms all pass the same disposable-child audition clean under node",
+      "upstream": {
+        "package": "tree-sitter-swift",
+        "builtFromRange": "0.7.3",
+        "license": "MIT",
+        "repository": "https://github.com/alex-pinkus/tree-sitter-swift"
+      }
+    },
+    {
+      "wasm": "tree-sitter-vue.wasm",
+      "sha256": "6244521bb3fb60f34ce5f677f2af81facb2c38691193985ca5fa85e1b6f29250",
+      "bytes": 23895,
+      "upstream": {
+        "package": "tree-sitter-vue",
+        "builtFromRange": "github:tree-sitter-grammars/tree-sitter-vue#7e48557b903a9db9c38cea3b7839ef7e1f36c693",
+        "license": "MIT",
+        "repository": "https://github.com/tree-sitter-grammars/tree-sitter-vue",
+        "copyright": "Ika <ikatyang@gmail.com>"
+      }
+    }
+  ],
+  "notes": "REJECTED from this pack (census evidence, 2026-07-20): tree-sitter-yaml.wasm (C++ external scanner detonates at parse on the @vscode runtime \u2014 ABI mismatch) and tree-sitter-lua.wasm (scanner misparses valid code, e.g. `local x = 1`); re-sourcing them is S2b work. Update procedure: bump version+url, run scripts/vendor/fetch-grammars.ts --force, re-pin sha512 + per-file sha256 from its output, re-verify each upstream licence, re-run scripts/language-sidecars/prove-grammar-census.ts. A grammar entry may carry sourceUrl + sourceProvenance: its wasm then comes from THAT pinned https artifact instead of the pack tarball (same per-file sha256 law; swift rides the upstream 0.7.3 release asset because the pack's 0.4-era build fatally OOMs V8's optimizing wasm compiler \u2014 audition-fenced, see the registry's fragile marking). The ordinary build consumes ONLY the verified local cache (vendor/grammars/extracted) or produces an honest degraded manifest."
+}

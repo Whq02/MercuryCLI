@@ -1,0 +1,12 @@
+{
+  "id": "cli-hidden-flag",
+  "title": "Thread a diagnostic getter through an existing module (no behavior change)",
+  "prompt": "Add an exported function floorEventCount(): number to src/utils/model/modelFloor.ts returning the CURRENT number of entries in the FloorEvent ring (not the cap). Extend scripts/model-floor/prove-model-floor.ts with asserts: the count increases by 1 after one floored call and never exceeds 20 after 30 floored calls. Both model-floor proofs must stay green and no other file may change.",
+  "baseRef": "bench-corpus-v1",
+  "timeboxMs": 1200000,
+  "successChecks": [
+    { "kind": "cmd", "cmd": "bash scripts/model-floor/run-all.sh" },
+    { "kind": "grep", "file": "src/utils/model/modelFloor.ts", "pattern": "floorEventCount" }
+  ],
+  "tags": ["feature", "diagnostics"]
+}

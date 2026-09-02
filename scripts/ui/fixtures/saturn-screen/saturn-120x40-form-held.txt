@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                   ⌁ saturn scheduler
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ the birth                                                      │  │ ❯ When                                     │
+   │ ❯ When                                                   in 2h │  │                                            │
+   │   Model                                          claude-opus-5 │  │ schedule a birth                           │
+   │   Workspace                       /Users/op/Developer/orchard… │  │                                            │
+   │   Presence                               headless — unattended │  │ fires in 2h (in 2h)                        │
+   │                                                                │  │                                            │
+   │ born wearing                                                   │  │ account: openai/oauth · op@example.com     │
+   │   Kit preset                                        review-kit │  │ preflight: sign-in expired — re-login      │
+   │   Opening mission                 sweep the overnight issues … │  │ now (/logins) or it's born held            │
+   │   Contract                          no-contract (pre-answered) │  │                                            │
+   │                                                                │  │ … (the trail continues — a taller termina… │
+   │ words                                                          │  ╰────────────────────────────────────────────╯
+   │   Title                                          morning sweep │  ╭────────────────────────────────────────────╮
+   │   Note                                                       — │  │ SATURN                                     │
+   ╰────────────────────────────────────────────────────────────────╯  │ Schedules  5                               │
+                                                                       │ Next fire  in 2h                           │
+                                                                       │ Held       2 — /logins releases sign-in h… │
+                                                                       │ Sessions   2 live                          │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  the seven facts — ↵ edits a row                                                             │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                 ↑↓ move · ↵ edit · ⌫ clear · s schedule it · esc back

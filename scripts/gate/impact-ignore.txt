@@ -1,0 +1,13 @@
+# scripts/gate/impact-ignore.txt — DECLARED no-runtime-surface paths for the
+# impact manifest. A changed path matching one of these globs
+# selects no suite and does NOT escalate to the full gate: nothing in the
+# gate estate tests it, so escalation would prove nothing more than a slice.
+# Everything else unmatched stays FAIL-CLOSED (unclassified ⇒ FULL gate).
+# Validated by scripts/verify/prove-impact-manifest.ts (dead glob ⇒ RED).
+docs/**
+*.md
+**/*.md
+.github/**
+.gitignore
+design-system/**
+scripts/codemod/**

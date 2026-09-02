@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# gate-class: cpu
+# gate-watch: scripts/switchboard/** scripts/switchboard-4/**
+# gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseSupervisor.ts
+# gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
+# gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
+# gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
+set -u
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+
+cd "$(dirname "$0")/../.."
+bun="${BUN:-$HOME/.bun/bin/bun}"
+here="scripts/switchboard-4"
+
+failed=0
+while IFS= read -r name; do
+  case "$name" in (''|'#'*) continue ;; esac
+  f="scripts/switchboard/$name"
+  if [ ! -e "$f" ]; then
+    echo "❌ switchboard-4: member '$name' has no file at $f — a stale member row is a red, never a silent skip"
+    failed=1
+    continue
+  fi
+  echo "── switchboard-4: $name"
+  __t=$SECONDS; if ! "$bun" "$f"; then
+    failed=1
+  fi
+  prover_mark "$f" "$__t"
+done < "$here/members.txt"
+
+exit "$failed"

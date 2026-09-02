@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ signed in                                                      │  │ ❯ Claude subscription account              │
+   │ ❯ Claude subscription account                   op@example.com │  │                                            │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │ A browser window has been opened —         │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ finish signing in there.                   │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Browser did not open? Use this URL:        │
+   │                                                                │  │ https://console.example.test/authorize     │
+   │ available                                                      │  │ ?code=elided                               │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ c copies the URL                           │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ Paste code here if prompted:               │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │ code: ••••••▌                              │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ esc cancels the wait                       │
+   │   DeepSeek — API key                             not signed in │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   8                               │
+                                                                       │ Signed in  4 of 8                          │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  waiting on the browser sign-in                                                              │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                               ↵ submit code · esc cancel

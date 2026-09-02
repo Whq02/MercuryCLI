@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "id": "stale-generation-completion",
+  "scenario": "A node's worker is respawned (generation bump) after its first-generation worker stalled — e.g. an escalation forced a re-route to a different model class. The stale generation-1 worker later reports completion for work the kernel has already moved past. That stale completion must be refused; the node's state must stay owned by generation 2, not revert to the stale generation's report.",
+  "steps": [
+    { "event": "node n1 dispatched at generation 1 to a sonnet worker", "expect": "n1 is in-progress at generation 1" },
+    { "event": "n1 escalates (blocker); the kernel re-routes n1 to an opus worker at generation 2", "expect": "n1 is in-progress at generation 2; generation 1 is marked superseded" },
+    { "event": "the generation-1 worker (unaware of the re-route) reports progress: done for n1", "expect": "the completion is refused as stale (generation mismatch) — n1's state is NOT marked done" },
+    { "event": "n1 stays at generation 2", "expect": "n1 remains in-progress at generation 2, awaiting the generation-2 worker's own completion" },
+    { "event": "the generation-2 worker later reports progress: done for n1", "expect": "this completion is accepted; n1 transitions to done at generation 2" }
+  ]
+}

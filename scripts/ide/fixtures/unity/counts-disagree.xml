@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adversarial fixture: declared counts claim five, the body carries one —
+     the parser trusts the scanned cases and RECORDS the disagreement. -->
+<test-run id="2" testcasecount="5" result="Passed" total="5" passed="5" failed="0" inconclusive="0" skipped="0" duration="0.5">
+  <test-suite type="TestSuite" name="Game" fullname="Game" result="Passed">
+    <test-case id="1" name="Only" fullname="Game.Tests.Only" methodname="Only" classname="Game.Tests" result="Passed" duration="0.005" />
+  </test-suite>
+</test-run>

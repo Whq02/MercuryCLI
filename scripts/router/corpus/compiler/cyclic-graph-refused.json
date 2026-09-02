@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "cyclic-graph-refused",
+  "mode": "party",
+  "mission": {
+    "objective": "A two-node mission whose dependencies form a cycle",
+    "title": "A depends on B, B depends on A",
+    "task": "Split the login-flow rewrite into two nodes: the token-refresh piece and the session-guard piece. Each was scoped as depending on the other's output, so there is no valid start.",
+    "ambiguity": 1,
+    "coupling": 3,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Token refresh",
+        "task": "Rework token refresh in src/auth/tokenRefresh.ts.",
+        "dependsOn": ["n2"],
+        "ownsPaths": ["src/auth/tokenRefresh.ts"],
+        "acceptance": ["refresh succeeds against the new session guard shape"]
+      },
+      {
+        "id": "n2",
+        "title": "Session guard",
+        "task": "Rework the session guard in src/auth/sessionGuard.ts.",
+        "dependsOn": ["n1"],
+        "ownsPaths": ["src/auth/sessionGuard.ts"],
+        "acceptance": ["guard succeeds against the new refreshed-token shape"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "REFUSAL",
+    "width": 0,
+    "modelClasses": [],
+    "reasonCodes": ["cycle-detected"],
+    "adjustments": []
+  }
+}

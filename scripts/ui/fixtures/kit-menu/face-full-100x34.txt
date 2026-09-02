@@ -1,0 +1,29 @@
+
+
+
+
+
+                         ■ ─────────────────··· (>_) ···───────────────── ■
+
+                       ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                       █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                       ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                           >_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose
+
+        ╭──────────────────────────────────────────────────────────────────────────────────╮
+        │▎❯ ✶ New Session in orchard-src                                start fresh here → │
+        │   ↗ Continue Last Session                                     orchard-src · 5m → │
+        │   ⊞ Boot Menu                                               configure boot env → │
+        │   ⊛ MCPs & Skills                                  what the next session loads → │
+        │   ◈ Agents                                              create and edit agents → │
+        │   ✓ Doctor / Health Check                                   system diagnostics → │
+        │   ◷ Saturn Scheduler                                sessions born on the clock → │
+        │   ⚿ Logins                                                sign in to providers → │
+        │   ⊞ Session Concourse                                  the live board · 2 live → │
+        │   ↺ Sessions · Projects                               pick a session or a repo → │
+        ╰──────────────────────────────────────────────────────────────────────────────────╯
+        ╭──────────────────────────────────────────────────────────────────────────────────╮
+        │ Model Opus 5  │  Theme Octopus  │  Dir orchard-src                               │
+        │ Acct operator@example.com  │  Health ✓ certified · 2h                            │
+        ╰──────────────────────────────────────────────────────────────────────────────────╯

@@ -1,0 +1,1936 @@
+{
+ "plain-lower": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "a",
+    "sequence": "a",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "plain-upper": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "z",
+    "option": false,
+    "raw": "Z",
+    "sequence": "Z",
+    "shift": true,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "plain-digit-space": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "1 ",
+    "sequence": "1 ",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "unicode-2byte": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "é",
+    "sequence": "é",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "unicode-arrow": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "→",
+    "sequence": "→",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "unicode-emoji": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "👍",
+    "sequence": "👍",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "unicode-cjk": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "あ",
+    "sequence": "あ",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "unicode-combining": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "é",
+    "sequence": "é",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ctrl-a": {
+  "events": [
+   {
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "\u0001",
+    "sequence": "\u0001",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ctrl-c": {
+  "events": [
+   {
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "c",
+    "option": false,
+    "raw": "\u0003",
+    "sequence": "\u0003",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "backspace-bs": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "backspace",
+    "option": false,
+    "raw": "\b",
+    "sequence": "\b",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "backspace-del": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "backspace",
+    "option": false,
+    "raw": "",
+    "sequence": "",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "return": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "return",
+    "option": false,
+    "sequence": "\r",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "linefeed": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "enter",
+    "option": false,
+    "raw": "\n",
+    "sequence": "\n",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "tab": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "tab",
+    "option": false,
+    "raw": "\t",
+    "sequence": "\t",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bare-escape": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "escape",
+    "option": false,
+    "raw": "\u001b",
+    "sequence": "\u001b",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "arrow-up": {
+  "events": [
+   {
+    "code": "[A",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "up",
+    "option": false,
+    "raw": "\u001b[A",
+    "sequence": "\u001b[A",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "arrow-down": {
+  "events": [
+   {
+    "code": "[B",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "down",
+    "option": false,
+    "raw": "\u001b[B",
+    "sequence": "\u001b[B",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "arrow-right": {
+  "events": [
+   {
+    "code": "[C",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "right",
+    "option": false,
+    "raw": "\u001b[C",
+    "sequence": "\u001b[C",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "arrow-left": {
+  "events": [
+   {
+    "code": "[D",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "left",
+    "option": false,
+    "raw": "\u001b[D",
+    "sequence": "\u001b[D",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ss3-up": {
+  "events": [
+   {
+    "code": "OA",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "up",
+    "option": false,
+    "raw": "\u001bOA",
+    "sequence": "\u001bOA",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ss3-f1": {
+  "events": [
+   {
+    "code": "OP",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "f1",
+    "option": false,
+    "raw": "\u001bOP",
+    "sequence": "\u001bOP",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ss3-f2": {
+  "events": [
+   {
+    "code": "OQ",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "f2",
+    "option": false,
+    "raw": "\u001bOQ",
+    "sequence": "\u001bOQ",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "shift-up": {
+  "events": [
+   {
+    "code": "[A",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "up",
+    "option": false,
+    "raw": "\u001b[1;2A",
+    "sequence": "\u001b[1;2A",
+    "shift": true,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ctrl-right": {
+  "events": [
+   {
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "right",
+    "option": false,
+    "raw": "\u001b[1;5C",
+    "sequence": "\u001b[1;5C",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "alt-left": {
+  "events": [
+   {
+    "code": "[D",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": true,
+    "name": "left",
+    "option": false,
+    "raw": "\u001b[1;3D",
+    "sequence": "\u001b[1;3D",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "home": {
+  "events": [
+   {
+    "code": "[H",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "home",
+    "option": false,
+    "raw": "\u001b[H",
+    "sequence": "\u001b[H",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "end": {
+  "events": [
+   {
+    "code": "[F",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "end",
+    "option": false,
+    "raw": "\u001b[F",
+    "sequence": "\u001b[F",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "delete": {
+  "events": [
+   {
+    "code": "[3~",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "delete",
+    "option": false,
+    "raw": "\u001b[3~",
+    "sequence": "\u001b[3~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "pageup": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "pageup",
+    "option": false,
+    "raw": "\u001b[5~",
+    "sequence": "\u001b[5~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "pagedown": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "pagedown",
+    "option": false,
+    "raw": "\u001b[6~",
+    "sequence": "\u001b[6~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "insert": {
+  "events": [
+   {
+    "code": "[2~",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "insert",
+    "option": false,
+    "raw": "\u001b[2~",
+    "sequence": "\u001b[2~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "f1-tilde": {
+  "events": [
+   {
+    "code": "[11~",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "f1",
+    "option": false,
+    "raw": "\u001b[11~",
+    "sequence": "\u001b[11~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "f5": {
+  "events": [
+   {
+    "code": "[15~",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "f5",
+    "option": false,
+    "raw": "\u001b[15~",
+    "sequence": "\u001b[15~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "f12": {
+  "events": [
+   {
+    "code": "[24~",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "f12",
+    "option": false,
+    "raw": "\u001b[24~",
+    "sequence": "\u001b[24~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "shift-tab": {
+  "events": [
+   {
+    "code": "[Z",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "tab",
+    "option": false,
+    "raw": "\u001b[Z",
+    "sequence": "\u001b[Z",
+    "shift": true,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "csiu-shift-enter": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "return",
+    "option": false,
+    "raw": "\u001b[13;2u",
+    "sequence": "\u001b[13;2u",
+    "shift": true,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "csiu-escape": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "escape",
+    "option": false,
+    "raw": "\u001b[27u",
+    "sequence": "\u001b[27u",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "csiu-ctrl-a": {
+  "events": [
+   {
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "\u001b[97;5u",
+    "sequence": "\u001b[97;5u",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "csiu-shift-A": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "\u001b[65;2u",
+    "sequence": "\u001b[65;2u",
+    "shift": true,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mok-shift-enter": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "return",
+    "option": false,
+    "raw": "\u001b[27;2;13~",
+    "sequence": "\u001b[27;2;13~",
+    "shift": true,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mok-ctrl-tab": {
+  "events": [
+   {
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "tab",
+    "option": false,
+    "raw": "\u001b[27;5;9~",
+    "sequence": "\u001b[27;5;9~",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "meta-f": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": true,
+    "name": "right",
+    "option": false,
+    "raw": "\u001bf",
+    "sequence": "\u001bf",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "meta-b": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": true,
+    "name": "left",
+    "option": false,
+    "raw": "\u001bb",
+    "sequence": "\u001bb",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "paste-simple": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": true,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "hello world",
+    "sequence": "hello world",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "paste-empty": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": true,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "",
+    "sequence": "",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "paste-with-escapes": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": true,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "a\u001b[Bc",
+    "sequence": "a\u001b[Bc",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "paste-multiline": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": true,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "one\ntwo\rthree",
+    "sequence": "one\ntwo\rthree",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-sgr-press": {
+  "events": [
+   {
+    "action": "press",
+    "button": 0,
+    "col": 10,
+    "kind": "mouse",
+    "row": 5,
+    "sequence": "\u001b[<0;10;5M"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-sgr-release": {
+  "events": [
+   {
+    "action": "release",
+    "button": 0,
+    "col": 10,
+    "kind": "mouse",
+    "row": 5,
+    "sequence": "\u001b[<0;10;5m"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-sgr-wheel-up": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "wheelup",
+    "option": false,
+    "raw": "\u001b[<64;10;5M",
+    "sequence": "\u001b[<64;10;5M",
+    "shift": false,
+    "super": false,
+    "x": 10,
+    "y": 5
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-sgr-wheel-down": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "wheeldown",
+    "option": false,
+    "raw": "\u001b[<65;10;5M",
+    "sequence": "\u001b[<65;10;5M",
+    "shift": false,
+    "super": false,
+    "x": 10,
+    "y": 5
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-sgr-motion": {
+  "events": [
+   {
+    "action": "press",
+    "button": 35,
+    "col": 3,
+    "kind": "mouse",
+    "row": 7,
+    "sequence": "\u001b[<35;3;7M"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-sgr-right-press": {
+  "events": [
+   {
+    "action": "press",
+    "button": 2,
+    "col": 1,
+    "kind": "mouse",
+    "row": 1,
+    "sequence": "\u001b[<2;1;1M"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "mouse-x10-press": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "mouse",
+    "option": false,
+    "raw": "\u001b[M !!",
+    "sequence": "\u001b[M !!",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-cpr": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "\u001b[24;80R",
+    "sequence": "\u001b[24;80R",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-da1": {
+  "events": [
+   {
+    "kind": "response",
+    "response": {
+     "type": "da1",
+     "params": [
+      1,
+      2
+     ]
+    },
+    "sequence": "\u001b[?1;2c"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-decrpm-sync": {
+  "events": [
+   {
+    "kind": "response",
+    "response": {
+     "type": "decrpm",
+     "mode": 2026,
+     "status": 1
+    },
+    "sequence": "\u001b[?2026;1$y"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-dsr-ok": {
+  "events": [
+   {
+    "code": "[n",
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": true,
+    "option": false,
+    "raw": "\u001b[0n",
+    "sequence": "\u001b[0n",
+    "shift": true,
+    "super": true
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-osc11-bel": {
+  "events": [
+   {
+    "kind": "response",
+    "response": {
+     "type": "osc",
+     "code": 11,
+     "data": "rgb:1616/2c2c/3939"
+    },
+    "sequence": "\u001b]11;rgb:1616/2c2c/3939\u0007"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-osc11-st": {
+  "events": [
+   {
+    "kind": "response",
+    "response": {
+     "type": "osc",
+     "code": 11,
+     "data": "rgb:1616/2c2c/3939"
+    },
+    "sequence": "\u001b]11;rgb:1616/2c2c/3939\u001b\\"
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "focus-in": {
+  "events": [
+   {
+    "code": "[I",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "option": false,
+    "raw": "\u001b[I",
+    "sequence": "\u001b[I",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "focus-out": {
+  "events": [
+   {
+    "code": "[O",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "option": false,
+    "raw": "\u001b[O",
+    "sequence": "\u001b[O",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "multi-event-chunk": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "abc",
+    "sequence": "abc",
+    "shift": false,
+    "super": false
+   },
+   {
+    "code": "[A",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "up",
+    "option": false,
+    "raw": "\u001b[A",
+    "sequence": "\u001b[A",
+    "shift": false,
+    "super": false
+   },
+   {
+    "action": "press",
+    "button": 0,
+    "col": 3,
+    "kind": "mouse",
+    "row": 3,
+    "sequence": "\u001b[<0;3;3M"
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "def",
+    "sequence": "def",
+    "shift": false,
+    "super": false
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "return",
+    "option": false,
+    "sequence": "\r",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "ctrl-in-text-run": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "a",
+    "sequence": "a",
+    "shift": false,
+    "super": false
+   },
+   {
+    "ctrl": true,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "\u0001",
+    "sequence": "\u0001",
+    "shift": false,
+    "super": false
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "b",
+    "option": false,
+    "raw": "b",
+    "sequence": "b",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "crlf-burst": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "alpha\nbeta\ngamma",
+    "sequence": "alpha\nbeta\ngamma",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "crlf-burst-trailing": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "alpha\nbeta\n",
+    "sequence": "alpha\nbeta\n",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "text-then-return": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "o",
+    "option": false,
+    "raw": "o",
+    "sequence": "o",
+    "shift": false,
+    "super": false
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "return",
+    "option": false,
+    "sequence": "\r",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "response-interleaved-typing": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "ab",
+    "sequence": "ab",
+    "shift": false,
+    "super": false
+   },
+   {
+    "kind": "response",
+    "response": {
+     "type": "decrpm",
+     "mode": 2026,
+     "status": 2
+    },
+    "sequence": "\u001b[?2026;2$y"
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "cd",
+    "sequence": "cd",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "burst-wheel-events": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "wheelup",
+    "option": false,
+    "raw": "\u001b[<64;10;5M",
+    "sequence": "\u001b[<64;10;5M",
+    "shift": false,
+    "super": false,
+    "x": 10,
+    "y": 5
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "wheelup",
+    "option": false,
+    "raw": "\u001b[<64;10;6M",
+    "sequence": "\u001b[<64;10;6M",
+    "shift": false,
+    "super": false,
+    "x": 10,
+    "y": 6
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "wheelup",
+    "option": false,
+    "raw": "\u001b[<64;10;7M",
+    "sequence": "\u001b[<64;10;7M",
+    "shift": false,
+    "super": false,
+    "x": 10,
+    "y": 7
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-emoji-2+2": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "👍",
+    "sequence": "👍",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-emoji-1+3": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "👍",
+    "sequence": "👍",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-emoji-3+1": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "👍",
+    "sequence": "👍",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-emoji-1+1+1+1": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "👍",
+    "sequence": "👍",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-eacute-1+1": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "é",
+    "sequence": "é",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-cjk-1+2": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "あ",
+    "sequence": "あ",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-cjk-2+1": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "あ",
+    "sequence": "あ",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-text-then-split": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "a",
+    "option": false,
+    "raw": "a",
+    "sequence": "a",
+    "shift": false,
+    "super": false
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "あb",
+    "sequence": "あb",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytesplit-escape-then-split": {
+  "events": [
+   {
+    "code": "[A",
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "up",
+    "option": false,
+    "raw": "\u001b[A",
+    "sequence": "\u001b[A",
+    "shift": false,
+    "super": false
+   },
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "é",
+    "sequence": "é",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytedangling-lone-lead": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "�",
+    "sequence": "�",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ },
+ "bytedangling-partial-emoji": {
+  "events": [
+   {
+    "ctrl": false,
+    "fn": false,
+    "isPasted": false,
+    "kind": "key",
+    "meta": false,
+    "name": "",
+    "option": false,
+    "raw": "�",
+    "sequence": "�",
+    "shift": false,
+    "super": false
+   }
+  ],
+  "endState": {
+   "mode": "NORMAL",
+   "incomplete": "",
+   "pasteBuffer": ""
+  }
+ }
+}

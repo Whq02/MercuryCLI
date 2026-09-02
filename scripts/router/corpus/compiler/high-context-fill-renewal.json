@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "high-context-fill-renewal",
+  "mode": "scribe",
+  "mission": {
+    "objective": "A bounded implementation dispatched from a nearly-full context",
+    "title": "Add input validation to the upload endpoint",
+    "task": "Add basic input validation (file size + mime type) to the upload endpoint in src/api/uploadHandler.ts, matching the validation style already used by the sibling download endpoint.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "contextFillPct": 92
+  },
+  "expected": {
+    "profile": "sonnet-opus-review",
+    "width": 1,
+    "modelClasses": ["sonnet"],
+    "reasonCodes": ["bounded-implementation"],
+    "adjustments": ["context-pressure-renewal"]
+  }
+}

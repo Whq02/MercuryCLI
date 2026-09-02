@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Captured-SHAPE fixture: the NUnit-format results file the Unity Test
+     Framework writes ("Test results follow the XML format as defined by
+     NUnit" — docs.unity3d.com 6000.3 test-framework reference-command-line,
+     read 2026-08-29). Spec-authored (no Unity on this box); the field drill
+     swaps in a box-captured file. -->
+<test-run id="2" testcasecount="3" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="3" engine-version="3.5.0.0" clr-version="4.0.30319.42000" start-time="2026-08-29 10:00:00Z" end-time="2026-08-29 10:00:01Z" duration="1.042000">
+  <test-suite type="TestSuite" id="1000" name="Game" fullname="Game" runstate="Runnable" testcasecount="3" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" asserts="3" duration="1.042000">
+    <test-suite type="Assembly" id="1001" name="Tests.dll" fullname="/Game/Library/ScriptAssemblies/Tests.dll" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" duration="1.001000">
+      <test-suite type="TestFixture" id="1002" name="HealthTests" fullname="Game.Tests.HealthTests" classname="Game.Tests.HealthTests" result="Passed" total="3" passed="3" failed="0" inconclusive="0" skipped="0" duration="0.900000">
+        <test-case id="1003" name="SpawnsAtFullHealth" fullname="Game.Tests.HealthTests.SpawnsAtFullHealth" methodname="SpawnsAtFullHealth" classname="Game.Tests.HealthTests" runstate="Runnable" seed="1" result="Passed" start-time="2026-08-29 10:00:00Z" end-time="2026-08-29 10:00:00Z" duration="0.011000" asserts="1" />
+        <test-case id="1004" name="TakesDamage" fullname="Game.Tests.HealthTests.TakesDamage" methodname="TakesDamage" classname="Game.Tests.HealthTests" runstate="Runnable" seed="2" result="Passed" start-time="2026-08-29 10:00:00Z" end-time="2026-08-29 10:00:00Z" duration="0.004000" asserts="1" />
+        <test-case id="1005" name="DiesAtZero" fullname="Game.Tests.HealthTests.DiesAtZero" methodname="DiesAtZero" classname="Game.Tests.HealthTests" runstate="Runnable" seed="3" result="Passed" start-time="2026-08-29 10:00:01Z" end-time="2026-08-29 10:00:01Z" duration="0.002000" asserts="1" />
+      </test-suite>
+    </test-suite>
+  </test-suite>
+</test-run>

@@ -1,0 +1,36 @@
+# scripts/gate/suite-ceilings.tsv — per-suite HARD CEILINGS for the CI gate
+# (scripts/gate/ci-shard.sh, the hang law). One `dom<TAB>seconds` row per
+# suite; every unlisted suite gets the 900 s default. A suite earns a row by
+# a MEASURED healthy wall over ~600 s (hosted seconds, run 33148028015's tsv
+# or later), never by suspicion — the ceiling is the wedge-stopper, not the
+# budget: a listed suite that hangs still dies at ITS row, with slack over
+# its honest envelope.
+# RE-BASELINED after a hosted gate run under the movie-scaled hosted
+# capture profile: fixed-schedule PTY drives legitimately run ~scale× their
+# authored seconds on the 2-core runner, so the drive-heavy estates carry
+# grants sized from run 2's measured walls plus that stretch. journey was
+# tree-killed at 1500 s with every prover completing honestly and one still
+# to run (~2000 s whole); diffws at 900 s with prove-cockpit-pointer alone at
+# 671 s. The multiplayer row is gone with the multiplayer suite itself (the
+# estate retired; a ceiling for a suite that does not exist is dead weight).
+# scroll earned its row after a hosted gate run (killed at the 900 default): the
+# quiet-box wall at MERCURY_VSHOT_BUDGET_SCALE=3 measured 904 s with
+# the engine truly scaling (the wave-5 knob forward), so the hosted 2-core
+# run needs the diffws-class slack over that envelope.
+journey	2400
+scroll	1500
+diffws	1500
+prompts-panel	1200
+interaction	1200
+render-continuity	1200
+cockpit-interaction	1200
+ui-5	1800
+pulse	1200
+streaming	1200
+interview	1200
+switchboard	1200
+switchboard-2	1200
+switchboard-3	1200
+switchboard-4	1200
+switchboard-5	1200
+switchboard-6	1200

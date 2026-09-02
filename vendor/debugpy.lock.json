@@ -1,0 +1,16 @@
+{
+  "name": "debugpy",
+  "version": "1.8.21",
+  "wheel": "debugpy-1.8.21-py2.py3-none-any.whl",
+  "url": "https://files.pythonhosted.org/packages/95/51/67e7cf11a53e40694f720457d5b3a1cdaaa3d5a9a633e482f225456b93ff/debugpy-1.8.21-py2.py3-none-any.whl",
+  "sha256": "b1e37d333663c8851516a47364ef473da127f9caebe4417e6df6f5825a7e9a92",
+  "sizeBytes": 5352888,
+  "license": "MIT",
+  "licenseFiles": [
+    "debugpy-1.8.21.dist-info/licenses/LICENSE",
+    "debugpy/ThirdPartyNotices.txt"
+  ],
+  "pythonFloor": "3.8",
+  "adapterEntry": "debugpy/adapter",
+  "notes": "Pinned 2026-07-14. Universal pure-Python wheel (py2.py3-none-any — no compiled extensions; platform-independent). Metadata + hash reverified against live PyPI JSON and reproduced locally before pinning. The adapter entry is DIRECTORY invocation: `<python> <vendor-root>/debugpy/adapter` (adapter/__main__.py self-repairs sys.path two levels up). Update procedure: edit version/url/sha256/sizeBytes from `curl -s https://pypi.org/pypi/debugpy/<ver>/json`, run `bun run scripts/vendor/fetch-debugpy.ts`, rebuild, and re-run `bash scripts/ide/run-all.sh`."
+}

@@ -1,0 +1,6 @@
+{
+  "name": "gated-probe",
+  "version": "1.0.0",
+  "description": "a bundled fixture whose availability predicate answers false",
+  "contributes": { "skills": ["./skills"] }
+}

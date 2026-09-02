@@ -1,0 +1,130 @@
+{
+ "TODO_REMINDER_CONFIG/value": {
+  "TURNS_BETWEEN_REMINDERS": 10,
+  "TURNS_SINCE_WRITE": 10
+ },
+ "PLAN_MODE_ATTACHMENT_CONFIG/value": {
+  "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
+  "TURNS_BETWEEN_ATTACHMENTS": 5
+ },
+ "AUTO_MODE_ATTACHMENT_CONFIG/value": {
+  "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
+  "TURNS_BETWEEN_ATTACHMENTS": 5
+ },
+ "RELEVANT_MEMORIES_CONFIG/value": {
+  "MAX_SESSION_BYTES": 61440
+ },
+ "VERIFY_PLAN_REMINDER_CONFIG/value": {
+  "TURNS_BETWEEN_REMINDERS": 10
+ },
+ "CONTRACT_REMINDER_CONFIG/value": {
+  "TURNS_BETWEEN_REMINDERS": 12,
+  "TURNS_SINCE_TOUCH": 12
+ },
+ "extractAtMentionedFiles/samples": [
+  [
+   "src/utils/messages.ts"
+  ],
+  [
+   "my file with spaces.txt",
+   "b.ts#L10-20"
+  ],
+  [
+   "f.ts#L5",
+   "doc.md#heading"
+  ],
+  [
+   "server1:resource/path"
+  ],
+  [
+   "agent-code-reviewer"
+  ],
+  [
+   "agent-asana:project-status-updater"
+  ],
+  [],
+  []
+ ],
+ "extractMcpResourceMentions/samples": [
+  [],
+  [],
+  [],
+  [
+   "server1:resource/path"
+  ],
+  [],
+  [
+   "agent-asana:project-status-updater"
+  ],
+  [],
+  []
+ ],
+ "extractAgentMentions/samples": [
+  [],
+  [],
+  [],
+  [],
+  [
+   "explorer",
+   "agent-code-reviewer"
+  ],
+  [
+   "agent-asana:project-status-updater"
+  ],
+  [],
+  []
+ ],
+ "parseAtMentionedFileLines/shapes": [
+  {
+   "filename": "file.txt"
+  },
+  {
+   "filename": "file.txt",
+   "lineEnd": 10,
+   "lineStart": 10
+  },
+  {
+   "filename": "file.txt",
+   "lineEnd": 20,
+   "lineStart": 10
+  },
+  {
+   "filename": "file.txt"
+  },
+  {
+   "filename": "a",
+   "lineEnd": 3,
+   "lineStart": 3
+  }
+ ],
+ "memoryHeader/fresh-bucket": "Memory (saved today): /mem/example.md:",
+ "memoryHeader/stale-bucket": "This memory was written 553 days ago. A memory records an observation made at one moment, not the system's live state — claims about code behaviour and file-and-line citations may be outdated, and must be verified against the current code before being asserted as fact.\n\nMemory: /mem/old.md:",
+ "filterDuplicateMemoryAttachments/dedup-read-file": {
+  "«throws»": "readFileState.has is not a function. (In 'readFileState.has(m.path)', 'readFileState.has' is undefined)"
+ },
+ "filterDuplicateMemoryAttachments/no-overlap": {
+  "«throws»": "readFileState.has is not a function. (In 'readFileState.has(m.path)', 'readFileState.has' is undefined)"
+ },
+ "getVerifyPlanReminderTurnCount/counts": 0,
+ "createAttachmentMessage/shape": {
+  "attachment": {
+   "context": "x",
+   "itemCount": 1,
+   "type": "todo"
+  },
+  "timestamp": "«ts»",
+  "type": "attachment",
+  "uuid": "«u1»"
+ },
+ "getDirectoriesToProcess/nested": {
+  "cwdLevelDirs": [
+   "/repo"
+  ],
+  "nestedDirs": [
+   "/repo/src",
+   "/repo/src/deep"
+  ]
+ },
+ "getCompactionReminderAttachment/first-turn": [],
+ "getContextEfficiencyAttachment/fold-dead": []
+}

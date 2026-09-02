@@ -1,0 +1,73 @@
+{
+  "name": "mercury-vscode",
+  "displayName": "Mercury",
+  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp --stdio). A thin bridge: no second agent runtime.",
+  "version": "0.1.0",
+  "publisher": "mercury",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mercury",
+          "title": "Mercury",
+          "icon": "media/mercury.svg"
+        }
+      ]
+    },
+    "views": {
+      "mercury": [
+        {
+          "id": "mercuryAttention",
+          "name": "Attention"
+        },
+        {
+          "id": "mercurySessions",
+          "name": "Sessions"
+        },
+        {
+          "id": "mercuryWorkbench",
+          "name": "Agents & Worktrees"
+        },
+        {
+          "id": "mercuryArtifacts",
+          "name": "Artifacts & Reviews"
+        }
+      ]
+    },
+    "commands": [
+      { "command": "mercury.openChat", "title": "Mercury: Open Chat" },
+      { "command": "mercury.newSession", "title": "Mercury: New Session" },
+      { "command": "mercury.resumeSession", "title": "Mercury: Resume Session" },
+      { "command": "mercury.cancelTurn", "title": "Mercury: Cancel Current Turn" },
+      { "command": "mercury.askSelection", "title": "Mercury: Ask About Selection" },
+      { "command": "mercury.editSelection", "title": "Mercury: Edit Selection (preview before apply)" },
+      { "command": "mercury.reviewLastTurn", "title": "Mercury: Review Last Turn" },
+      { "command": "mercury.openArtifact", "title": "Mercury: Open Artifact" },
+      { "command": "mercury.showReviewComments", "title": "Mercury: Show Review Comments" },
+      { "command": "mercury.openTerminal", "title": "Mercury: Open in Mercury Terminal" },
+      { "command": "mercury.setMode", "title": "Mercury: Set Session Mode" },
+      { "command": "mercury.refreshViews", "title": "Mercury: Refresh Views" }
+    ],
+    "configuration": {
+      "title": "Mercury",
+      "properties": {
+        "mercury.path": {
+          "type": "string",
+          "default": "mercury",
+          "description": "The Mercury launcher (or `node /path/to/mercury.mjs`). The bridge runs `<path> acp --stdio`."
+        }
+      }
+    }
+  }
+}

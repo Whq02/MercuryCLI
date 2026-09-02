@@ -1,0 +1,24 @@
+{
+ "baseline": "b03-resize-churn",
+ "capturedAt": "2026-09-02T03:28:32.034Z",
+ "tree": {
+  "source": "c8a5823b1f24d9ecb2bdc214b356fb721bc8c360",
+  "dirty": true
+ },
+ "dist": {
+  "bytes": 17926286,
+  "sha256": "e8992fff9a293a7b2e27ba690b291035939bdf853a856247999c1f35fe3ea698"
+ },
+ "machine": {
+  "profile": "capable-workstation (dev Mac)",
+  "platform": "darwin",
+  "osRelease": "25.1.0",
+  "cpu": "Apple M1",
+  "cores": 8,
+  "totalMemGiB": 8
+ },
+ "note": "bytes repainted within 1.5 s of each TIOCSWINSZ+SIGWINCH",
+ "resize1shrinkBytes": 68506,
+ "resize2growBytes": 1833,
+ "steadyPre7sBytes": 49740
+}

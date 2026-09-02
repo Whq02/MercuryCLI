@@ -1,0 +1,2297 @@
+{
+  "version": 1,
+  "rows": [
+    {
+      "name": "Agent",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/tools/prove-tool-contracts.ts",
+      "declared": {
+        "intents": [
+          "delegate a task to a subagent",
+          "run parallel research or implementation",
+          "fan out independent work"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "execution": {
+          "kind": "agent",
+          "representation": "external-projection"
+        },
+        "resources": [
+          "agent"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running"
+      }
+    },
+    {
+      "name": "ApolloReview",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "operator-io"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "present the closing review of an Apollo pre-flight spec",
+          "ask the operator to approve or revise an Apollo spec",
+          "close an Apollo interview"
+        ],
+        "units": [
+          "operator-io"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "interactive",
+        "conditions": [
+          "an Apollo Mode interview in the main session"
+        ],
+        "workflows": false
+      }
+    },
+    {
+      "name": "ArtifactsList",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "resource-inspection"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "list durable artifacts",
+          "find a stored artifact"
+        ],
+        "units": [
+          "resource-inspection"
+        ],
+        "class": "observation",
+        "resources": [
+          "artifact"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Aseprite",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "status",
+        "info",
+        "export",
+        "create",
+        "run-script"
+      ],
+      "units": [
+        "pixel-art"
+      ],
+      "proof": "scripts/aseprite/run-all.sh",
+      "declared": {
+        "intents": [
+          "inspect an aseprite sprite: layers, tags, frames, size",
+          "export a sprite or animation to png or gif",
+          "build a sprite sheet with json metadata for a game engine",
+          "create a new pixel art sprite file",
+          "run a lua script against a sprite in aseprite",
+          "check which aseprite mercury can drive and its version"
+        ],
+        "units": [
+          "pixel-art"
+        ],
+        "class": "mutation",
+        "operations": [
+          "status",
+          "info",
+          "export",
+          "create",
+          "run-script"
+        ],
+        "evidence": [
+          "artifact"
+        ],
+        "cancellation": "kill",
+        "latency": "interactive",
+        "gate": "MERCURY_ASEPRITE",
+        "conditions": [
+          "the aseprite binary located (pin > PATH > app bundle > Steam > win32 installer/itch)"
+        ],
+        "proof": "scripts/aseprite/run-all.sh"
+      }
+    },
+    {
+      "name": "AskUserQuestion",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "operator-io"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "ask the operator a structured question",
+          "offer choices for a decision"
+        ],
+        "units": [
+          "operator-io"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "interactive"
+      }
+    },
+    {
+      "name": "AstEdit",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "structural-mutation",
+        "text-mutation"
+      ],
+      "proof": "scripts/ast-tools/run-all.sh",
+      "declared": {
+        "intents": [
+          "rewrite every match of a code pattern",
+          "rename a function or call shape across files",
+          "structural refactor with a dry-run diff",
+          "delete every occurrence of a code construct",
+          "codemod by syntax pattern in python go rust or typescript"
+        ],
+        "units": [
+          "structural-mutation",
+          "text-mutation"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "file",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "fast",
+        "gate": "MERCURY_STRUCTURE_POLYGLOT",
+        "conditions": [
+          "the packaged tree-sitter grammar engine (dist/vendor/treesitter beside the bundle, or the workspace package)"
+        ],
+        "proof": "scripts/ast-tools/run-all.sh"
+      }
+    },
+    {
+      "name": "AstSearch",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "source-reading",
+        "code-intelligence"
+      ],
+      "proof": "scripts/ast-tools/run-all.sh",
+      "declared": {
+        "intents": [
+          "find code by its syntax shape",
+          "search for calls with a given argument shape",
+          "find a construct inside another construct",
+          "count occurrences of a code pattern per file",
+          "search python go rust or typescript structurally"
+        ],
+        "units": [
+          "source-reading",
+          "code-intelligence"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "fast",
+        "gate": "MERCURY_STRUCTURE_POLYGLOT",
+        "conditions": [
+          "the packaged tree-sitter grammar engine (dist/vendor/treesitter beside the bundle, or the workspace package)"
+        ],
+        "proof": "scripts/ast-tools/run-all.sh"
+      }
+    },
+    {
+      "name": "Bash",
+      "category": "exec",
+      "risk": "high",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "process-execution"
+      ],
+      "proof": "scripts/tools/prove-stream-watchdog.ts",
+      "declared": {
+        "intents": [
+          "run a shell command",
+          "execute a build or test command",
+          "run git commands",
+          "start a background process"
+        ],
+        "units": [
+          "process-execution"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "background-job",
+          "representation": "external-projection"
+        },
+        "resources": [
+          "task"
+        ],
+        "cancellation": "kill",
+        "latency": "long-running"
+      }
+    },
+    {
+      "name": "Browser",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "cancel",
+      "deferred": true,
+      "operations": [
+        "status",
+        "open",
+        "click",
+        "type",
+        "scroll",
+        "waitFor",
+        "back",
+        "reload",
+        "select",
+        "press",
+        "hover",
+        "viewport",
+        "provision",
+        "extract",
+        "console",
+        "info",
+        "screenshot",
+        "close"
+      ],
+      "units": [
+        "browser-drive"
+      ],
+      "proof": "scripts/browser/prove-browser-drive.ts",
+      "declared": {
+        "intents": [
+          "test and verify a web app or UI journey end to end in a real browser",
+          "fill in and submit a form, log in to a live page",
+          "check a localhost dev server page renders and reproduce a UI bug",
+          "open a web page in a real browser",
+          "click, type into and scroll a live page",
+          "wait for a selector, text or navigation event",
+          "read a page as text or an accessibility tree",
+          "read the page console and errors",
+          "capture a screenshot of a web page",
+          "check which browser mercury can drive and its provenance",
+          "close the driven browser session"
+        ],
+        "units": [
+          "browser-drive"
+        ],
+        "class": "execution",
+        "operations": [
+          "status",
+          "open",
+          "click",
+          "type",
+          "scroll",
+          "waitFor",
+          "back",
+          "reload",
+          "select",
+          "press",
+          "hover",
+          "viewport",
+          "provision",
+          "extract",
+          "console",
+          "info",
+          "screenshot",
+          "close"
+        ],
+        "execution": {
+          "kind": "browser-session",
+          "representation": "child-execution"
+        },
+        "evidence": [
+          "artifact"
+        ],
+        "resources": [],
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_BROWSER",
+        "proof": "scripts/browser/prove-browser-drive.ts"
+      }
+    },
+    {
+      "name": "ChangeSet",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "preview",
+        "apply",
+        "status",
+        "discard"
+      ],
+      "units": [
+        "text-mutation"
+      ],
+      "proof": "scripts/changesets/run-all.sh",
+      "declared": {
+        "intents": [
+          "apply one coordinated change across several files",
+          "atomic multi-file edit with one review",
+          "preview a multi-file change set before applying",
+          "coordinated cross-file refactor with drift refusal"
+        ],
+        "units": [
+          "text-mutation"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "file",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "cancellation": "cooperative",
+        "latency": "fast",
+        "gate": "MERCURY_CHANGESET",
+        "proof": "scripts/changesets/run-all.sh"
+      }
+    },
+    {
+      "name": "Checkpoint",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/run-recovery/run-all.sh",
+      "declared": {
+        "intents": [
+          "mark a named checkpoint in the session",
+          "snapshot the working state for a later rewind"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/run-recovery/run-all.sh"
+      }
+    },
+    {
+      "name": "Correct",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "supersede",
+        "amend",
+        "retract"
+      ],
+      "units": [
+        "memory"
+      ],
+      "proof": "scripts/memory/prove-verbs-lifecycle.ts",
+      "declared": {
+        "intents": [
+          "correct a remembered fact",
+          "supersede or retract project memory"
+        ],
+        "units": [
+          "memory"
+        ],
+        "class": "mutation",
+        "operations": [
+          "supersede",
+          "amend",
+          "retract"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_MNEME",
+        "proof": "scripts/memory/prove-verbs-lifecycle.ts"
+      }
+    },
+    {
+      "name": "CronCreate",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "scheduling"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "schedule a recurring run",
+          "create a cron job"
+        ],
+        "units": [
+          "scheduling"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "CronDelete",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "scheduling"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "delete a scheduled run"
+        ],
+        "units": [
+          "scheduling"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "CronList",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "scheduling"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "list scheduled runs"
+        ],
+        "units": [
+          "scheduling"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Debug",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "launch",
+        "breakpoints",
+        "threads",
+        "stack",
+        "scopes",
+        "variables",
+        "evaluate",
+        "continue",
+        "next",
+        "stepIn",
+        "stepOut",
+        "pause",
+        "output",
+        "status",
+        "disconnect",
+        "loadedSources",
+        "modules",
+        "exceptionBreakpoints",
+        "source",
+        "completions",
+        "setVariable",
+        "attach",
+        "functionBreakpoints",
+        "disassemble",
+        "readMemory",
+        "restart",
+        "customRequest"
+      ],
+      "units": [
+        "debugging"
+      ],
+      "proof": "scripts/ide/prove-native-debug.ts",
+      "declared": {
+        "intents": [
+          "debug a program with breakpoints",
+          "step through code",
+          "inspect stack and variables",
+          "attach to a process"
+        ],
+        "units": [
+          "debugging"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "debug-adapter",
+          "representation": "external-projection"
+        },
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "gate": "MERCURY_DAP",
+        "conditions": [
+          "a resolvable debug adapter for the language (debugpy · lldb-dap · gdb · godot)"
+        ],
+        "proof": "scripts/ide/prove-native-debug.ts"
+      }
+    },
+    {
+      "name": "Edit",
+      "category": "edit",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "text-mutation"
+      ],
+      "proof": "scripts/project-services/prove-change-receipts.ts",
+      "declared": {
+        "intents": [
+          "edit a file by exact string replacement",
+          "apply a small code change"
+        ],
+        "units": [
+          "text-mutation"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "file",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/project-services/prove-change-receipts.ts"
+      }
+    },
+    {
+      "name": "EnterPlanMode",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "planning"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "start planning before implementation"
+        ],
+        "units": [
+          "planning"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "EnterWorktree",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "git-transactions"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "work in an isolated git worktree"
+        ],
+        "units": [
+          "git-transactions"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "interactive"
+      }
+    },
+    {
+      "name": "Eval",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "persistent-evaluation"
+      ],
+      "proof": "scripts/eval/prove-kernel-persistence.ts",
+      "declared": {
+        "intents": [
+          "run python or javascript with persistent state",
+          "orchestrate tools and agents from inside code",
+          "data work over a retained kernel",
+          "bulk transforms the shell is too stateless for"
+        ],
+        "units": [
+          "persistent-evaluation"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "eval-kernel",
+          "representation": "child-execution"
+        },
+        "evidence": [
+          "execution"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "gate": "MERCURY_EVAL",
+        "conditions": [
+          "a Python 3.10+ interpreter or a node binary reachable for kernels"
+        ],
+        "proof": "scripts/eval/prove-kernel-persistence.ts"
+      }
+    },
+    {
+      "name": "ExitPlanMode",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "planning"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "present the plan for approval",
+          "leave strategy mode"
+        ],
+        "units": [
+          "planning"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "ExitWorktree",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "git-transactions"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "leave the isolated worktree"
+        ],
+        "units": [
+          "git-transactions"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "interactive"
+      }
+    },
+    {
+      "name": "Git",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "status",
+        "diff",
+        "show",
+        "worktree",
+        "conflicts",
+        "mergebase",
+        "plan",
+        "apply",
+        "stage",
+        "restore",
+        "resolve",
+        "verify",
+        "reviewContext",
+        "reviewRecord",
+        "fileAtRef",
+        "tree",
+        "compare",
+        "hostSearch",
+        "prDiff",
+        "runs",
+        "runWatch"
+      ],
+      "units": [
+        "git-inspection",
+        "git-transactions"
+      ],
+      "proof": "scripts/builtin-tools/prove-git-plans.ts",
+      "declared": {
+        "intents": [
+          "inspect the local git working tree",
+          "split changes into atomic commits",
+          "prepare and apply a commit plan",
+          "stage an exact file or hunk set",
+          "inspect a local git conflict",
+          "resolve a merge conflict",
+          "inspect a commit or merge base",
+          "read a file or tree at an exact ref",
+          "compare two branches or refs",
+          "inspect this repository change on the host",
+          "search code commits prs or issues on the host",
+          "page through a pull request diff",
+          "watch a workflow run until it settles"
+        ],
+        "units": [
+          "git-inspection",
+          "git-transactions"
+        ],
+        "class": "mutation",
+        "operations": [
+          "status",
+          "diff",
+          "show",
+          "worktree",
+          "conflicts",
+          "mergebase",
+          "plan",
+          "apply",
+          "stage",
+          "restore",
+          "resolve",
+          "verify",
+          "reviewContext",
+          "reviewRecord",
+          "fileAtRef",
+          "tree",
+          "compare",
+          "hostSearch",
+          "prDiff",
+          "runs",
+          "runWatch"
+        ],
+        "transaction": {
+          "kind": "git.commit",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "git"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "fast",
+        "gate": "MERCURY_GIT_GRAPH",
+        "conditions": [
+          "a git repository at the working directory"
+        ],
+        "proof": "scripts/builtin-tools/prove-git-plans.ts"
+      }
+    },
+    {
+      "name": "Glob",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "source-reading"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "find files by name pattern",
+          "list files matching a glob"
+        ],
+        "units": [
+          "source-reading"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "conditions": [
+          "a search binary (vendored ripgrep or PATH rg)"
+        ]
+      }
+    },
+    {
+      "name": "Godot",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "game-engine"
+      ],
+      "proof": "scripts/vulcan/run-all.sh",
+      "declared": {
+        "intents": [
+          "drive the godot editor",
+          "edit scenes nodes and resources",
+          "run and test a godot game"
+        ],
+        "units": [
+          "game-engine"
+        ],
+        "class": "mutation",
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_GODOT_TOOLS",
+        "conditions": [
+          "a project.godot root",
+          "the mercury_vulcan addon listening on loopback"
+        ],
+        "proof": "scripts/vulcan/run-all.sh"
+      }
+    },
+    {
+      "name": "Grep",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "source-reading"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "search file contents by regex",
+          "find symbol references as text"
+        ],
+        "units": [
+          "source-reading"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "conditions": [
+          "a search binary (vendored ripgrep or PATH rg)"
+        ]
+      }
+    },
+    {
+      "name": "Inspect",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "resource-inspection"
+      ],
+      "proof": "scripts/project-services/prove-resource-plane.ts",
+      "declared": {
+        "intents": [
+          "read a mercury:// resource",
+          "inspect a receipt transaction execution or evidence record",
+          "page through bounded resource views"
+        ],
+        "units": [
+          "resource-inspection"
+        ],
+        "class": "observation",
+        "resources": [
+          "file",
+          "run",
+          "receipt",
+          "task",
+          "execution",
+          "transaction",
+          "evidence"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_REFS",
+        "proof": "scripts/project-services/prove-resource-plane.ts"
+      }
+    },
+    {
+      "name": "Journey",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "cancel",
+      "deferred": true,
+      "operations": [
+        "run",
+        "status",
+        "list"
+      ],
+      "units": [
+        "application-verification",
+        "service-management"
+      ],
+      "proof": "scripts/builtin-tools/prove-journeys.ts",
+      "declared": {
+        "intents": [
+          "start and verify a local application",
+          "run an end to end local verification journey",
+          "assert an http response from a local service",
+          "verify a cli command output and exit code",
+          "check service logs for an expected event"
+        ],
+        "units": [
+          "application-verification",
+          "service-management"
+        ],
+        "class": "execution",
+        "operations": [
+          "run",
+          "status",
+          "list"
+        ],
+        "execution": {
+          "kind": "journey",
+          "representation": "full-execution-owner"
+        },
+        "evidence": [
+          "check",
+          "execution"
+        ],
+        "resources": [
+          "journey",
+          "service",
+          "execution",
+          "evidence"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "gate": "MERCURY_JOURNEYS",
+        "proof": "scripts/builtin-tools/prove-journeys.ts"
+      }
+    },
+    {
+      "name": "Launch",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "list",
+        "inspect",
+        "debug",
+        "run",
+        "test",
+        "build",
+        "last"
+      ],
+      "units": [
+        "process-execution",
+        "debugging"
+      ],
+      "proof": "scripts/ide/prove-launch-profiles.ts",
+      "declared": {
+        "intents": [
+          "run a launch profile",
+          "debug run test or build from unified profiles"
+        ],
+        "units": [
+          "process-execution",
+          "debugging"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "debug-adapter",
+          "representation": "external-projection"
+        },
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "gate": "MERCURY_LAUNCH",
+        "proof": "scripts/ide/prove-launch-profiles.ts"
+      }
+    },
+    {
+      "name": "LaunchFleet",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "launch a fleet of teammates"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "team"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running"
+      }
+    },
+    {
+      "name": "ListMcpResourcesTool",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "resource-inspection"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "list resources exposed by mcp servers"
+        ],
+        "units": [
+          "resource-inspection"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "LSP",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "code-intelligence"
+      ],
+      "proof": "scripts/lsp/run-all.sh",
+      "declared": {
+        "intents": [
+          "rename a symbol across the project",
+          "go to definition or references",
+          "get diagnostics for a file",
+          "apply a server code action or quick fix",
+          "format a document",
+          "move a source file with import updates"
+        ],
+        "units": [
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "lsp.rename",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_LSP",
+        "conditions": [
+          "a connected language server for the file type"
+        ],
+        "proof": "scripts/lsp/run-all.sh"
+      }
+    },
+    {
+      "name": "Monitor",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "wait on a background task until a condition",
+          "watch task output"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "observation",
+        "resources": [
+          "task"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running"
+      }
+    },
+    {
+      "name": "NotebookEdit",
+      "category": "edit",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "text-mutation"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "edit a jupyter notebook cell"
+        ],
+        "units": [
+          "text-mutation"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "notebook",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "ProviderSearch",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "web-access"
+      ],
+      "proof": "scripts/search/run-all.sh",
+      "declared": {
+        "intents": [
+          "search the web through the session provider's own native search"
+        ],
+        "units": [
+          "web-access"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "proof": "scripts/search/run-all.sh"
+      }
+    },
+    {
+      "name": "PushNotification",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "operator-io"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "send the operator a push notification"
+        ],
+        "units": [
+          "operator-io"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Read",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "source-reading"
+      ],
+      "proof": "scripts/project-services/prove-change-anchors.ts",
+      "declared": {
+        "intents": [
+          "read a file",
+          "view an image or pdf",
+          "read a notebook"
+        ],
+        "units": [
+          "source-reading"
+        ],
+        "class": "observation",
+        "resources": [
+          "file"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/project-services/prove-change-anchors.ts"
+      }
+    },
+    {
+      "name": "ReadMcpResourceTool",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "resource-inspection"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "read a resource from an mcp server"
+        ],
+        "units": [
+          "resource-inspection"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Recall",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "memory"
+      ],
+      "proof": "scripts/memory/prove-verbs-lifecycle.ts",
+      "declared": {
+        "intents": [
+          "search project memory",
+          "read a remembered record by id"
+        ],
+        "units": [
+          "memory"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_MNEME",
+        "proof": "scripts/memory/prove-verbs-lifecycle.ts"
+      }
+    },
+    {
+      "name": "RecordConvention",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "text-mutation"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "record a user-stated project convention",
+          "update a standing rule in the instruction estate"
+        ],
+        "units": [
+          "text-mutation"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "file",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Reflect",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "memory"
+      ],
+      "proof": "scripts/memory/prove-reflect-grounding.ts",
+      "declared": {
+        "intents": [
+          "synthesize an answer over project memory with citations"
+        ],
+        "units": [
+          "memory"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_MNEME",
+        "proof": "scripts/memory/prove-reflect-grounding.ts"
+      }
+    },
+    {
+      "name": "RememberLesson",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "memory"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "bank a verified transferable lesson",
+          "save an experience card"
+        ],
+        "units": [
+          "memory"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_EXPERIENCE_CARDS"
+      }
+    },
+    {
+      "name": "Retain",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "memory"
+      ],
+      "proof": "scripts/memory/prove-retain-honesty.ts",
+      "declared": {
+        "intents": [
+          "store durable facts into project memory"
+        ],
+        "units": [
+          "memory"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_MNEME",
+        "proof": "scripts/memory/prove-retain-honesty.ts"
+      }
+    },
+    {
+      "name": "Rewind",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/run-recovery/run-all.sh",
+      "declared": {
+        "intents": [
+          "rewind the session to a checkpoint",
+          "restore the checkpointed working state"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "interactive",
+        "proof": "scripts/run-recovery/run-all.sh"
+      }
+    },
+    {
+      "name": "ScheduleWakeup",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "scheduling"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "schedule my own next wake",
+          "pace a self-driven loop"
+        ],
+        "units": [
+          "scheduling"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "SendMessage",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/scribe/run-all.sh",
+      "declared": {
+        "intents": [
+          "message a teammate or team",
+          "relay work between agents"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "team"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/scribe/run-all.sh"
+      }
+    },
+    {
+      "name": "SendUserFile",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "operator-io"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "send a file to the operator"
+        ],
+        "units": [
+          "operator-io"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "SendUserMessage",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "operator-io"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "send the operator a brief out-of-band message"
+        ],
+        "units": [
+          "operator-io"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Service",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": [
+        "start",
+        "list",
+        "describe",
+        "wait",
+        "logs",
+        "input",
+        "stop",
+        "restart"
+      ],
+      "units": [
+        "service-management"
+      ],
+      "proof": "scripts/project-services/prove-services.ts",
+      "declared": {
+        "intents": [
+          "start a named long-lived dev service",
+          "wait for service readiness",
+          "read service logs",
+          "stop or restart a service"
+        ],
+        "units": [
+          "service-management"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "service",
+          "representation": "full-execution-owner"
+        },
+        "evidence": [
+          "check",
+          "execution"
+        ],
+        "resources": [
+          "service",
+          "execution"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "gate": "MERCURY_SERVICES",
+        "proof": "scripts/project-services/prove-services.ts"
+      }
+    },
+    {
+      "name": "SetTier",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/autopilot/run-all.sh",
+      "declared": {
+        "intents": [
+          "retune model and effort tier in autopilot"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_AUTOPILOT"
+      }
+    },
+    {
+      "name": "Skill",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "capability-discovery"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "invoke a packaged skill or slash command"
+        ],
+        "units": [
+          "capability-discovery"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Sleep",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "scheduling"
+      ],
+      "proof": "scripts/tools/prove-sleep-tool.ts",
+      "declared": {
+        "intents": [
+          "wait a bounded interval"
+        ],
+        "units": [
+          "scheduling"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "proof": "scripts/tools/prove-sleep-tool.ts"
+      }
+    },
+    {
+      "name": "Structure",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "query",
+        "preview",
+        "apply",
+        "explain"
+      ],
+      "units": [
+        "structural-mutation",
+        "code-intelligence"
+      ],
+      "proof": "scripts/builtin-tools/prove-structure-transform.ts",
+      "declared": {
+        "intents": [
+          "find call expressions matching a pattern",
+          "query declarations imports or exports by shape",
+          "transform matching call expressions",
+          "apply a template codemod across files",
+          "rewrite an import specifier everywhere",
+          "rename a syntactic construct where lsp rename is unsuitable",
+          "find this code structure across languages",
+          "search python go or rust code structurally",
+          "rewrite a matched pattern in many files"
+        ],
+        "units": [
+          "structural-mutation",
+          "code-intelligence"
+        ],
+        "class": "mutation",
+        "operations": [
+          "query",
+          "preview",
+          "apply",
+          "explain"
+        ],
+        "transaction": {
+          "kind": "structure.apply",
+          "receipts": true
+        },
+        "evidence": [
+          "change",
+          "check"
+        ],
+        "resources": [
+          "structure",
+          "receipt"
+        ],
+        "preview": true,
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "gate": "MERCURY_STRUCTURE",
+        "conditions": [
+          "a typescript compiler facility (workspace package or the vendored copy)"
+        ],
+        "proof": "scripts/builtin-tools/prove-structure-transform.ts"
+      }
+    },
+    {
+      "name": "TaskCreate",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "create a tracked task"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "mutation",
+        "resources": [
+          "task"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TaskGet",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "read one tracked task"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "observation",
+        "resources": [
+          "task"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TaskList",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "list tracked tasks"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "observation",
+        "resources": [
+          "task"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TaskOutput",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "read output from a background task or agent"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "observation",
+        "resources": [
+          "task",
+          "agent"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TaskStop",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "stop a background task or agent"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "task"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TaskUpdate",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "update a tracked task"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "mutation",
+        "resources": [
+          "task"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TeamBrief",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "brief a chartered team"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "team"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "TeamCreate",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "charter a team of teammates"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "team"
+        ],
+        "cancellation": "cooperative",
+        "latency": "interactive"
+      }
+    },
+    {
+      "name": "TeamDelete",
+      "category": "coord",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "dissolve a chartered team"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "resources": [
+          "team"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "Test",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "discover",
+        "run",
+        "rerunFailed",
+        "debug",
+        "report"
+      ],
+      "units": [
+        "application-verification"
+      ],
+      "proof": "scripts/ide/prove-python-tests.ts",
+      "declared": {
+        "intents": [
+          "run the test suite structurally",
+          "rerun failed tests",
+          "debug one failing test",
+          "run the relevant tests",
+          "run the relevant tests for my changes",
+          "run the tests touched by changed files"
+        ],
+        "units": [
+          "application-verification"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "background-job",
+          "representation": "external-projection"
+        },
+        "evidence": [
+          "check"
+        ],
+        "resources": [
+          "test"
+        ],
+        "cancellation": "kill",
+        "latency": "long-running",
+        "gate": "MERCURY_TESTS",
+        "conditions": [
+          "a discoverable test framework (pytest · unittest · node-test · vitest · jest · cargo · go)"
+        ],
+        "proof": "scripts/ide/prove-python-tests.ts"
+      }
+    },
+    {
+      "name": "TodoWrite",
+      "category": "edit",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "planning"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "track a short todo list for the session"
+        ],
+        "units": [
+          "planning"
+        ],
+        "class": "coordination",
+        "cancellation": "not-applicable",
+        "latency": "fast"
+      }
+    },
+    {
+      "name": "ToolSearch",
+      "category": "read",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "capability-discovery"
+      ],
+      "proof": "scripts/builtin-tools/prove-toolsearch-capability.ts",
+      "declared": {
+        "intents": [
+          "find the right tool for a job",
+          "load a deferred tool schema",
+          "discover capability by intent"
+        ],
+        "units": [
+          "capability-discovery"
+        ],
+        "class": "observation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/builtin-tools/prove-toolsearch-capability.ts"
+      }
+    },
+    {
+      "name": "Transaction",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": [
+        "begin",
+        "step",
+        "status",
+        "finish",
+        "resume",
+        "list"
+      ],
+      "units": [
+        "application-verification"
+      ],
+      "proof": "scripts/ide/prove-closed-loop.ts",
+      "declared": {
+        "intents": [
+          "bind a coding loop into one evidence record",
+          "prove a fix end to end"
+        ],
+        "units": [
+          "application-verification"
+        ],
+        "class": "coordination",
+        "resources": [
+          "ide"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "gate": "MERCURY_IDE_LOOP",
+        "proof": "scripts/ide/prove-closed-loop.ts"
+      }
+    },
+    {
+      "name": "WebFetch",
+      "category": "net",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "web-access"
+      ],
+      "proof": null,
+      "declared": {
+        "intents": [
+          "fetch and read a web page"
+        ],
+        "units": [
+          "web-access"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "interactive"
+      }
+    },
+    {
+      "name": "WebSearch",
+      "category": "net",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "web-access"
+      ],
+      "proof": "scripts/search/run-all.sh",
+      "declared": {
+        "intents": [
+          "search the web"
+        ],
+        "units": [
+          "web-access"
+        ],
+        "class": "observation",
+        "cancellation": "cooperative",
+        "latency": "interactive",
+        "proof": "scripts/search/run-all.sh"
+      }
+    },
+    {
+      "name": "Workflow",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": true,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/workflows/run-all.sh",
+      "declared": {
+        "intents": [
+          "orchestrate many subagents deterministically",
+          "fan out and verify at scale"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "execution": {
+          "kind": "workflow-worker",
+          "representation": "child-execution"
+        },
+        "resources": [
+          "workflow"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running",
+        "gate": "MERCURY_WORKFLOWS",
+        "proof": "scripts/workflows/run-all.sh"
+      }
+    },
+    {
+      "name": "Workshop",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "persistent-evaluation"
+      ],
+      "proof": "scripts/project-services/prove-workshop.ts",
+      "declared": {
+        "intents": [
+          "evaluate code in a persistent kernel",
+          "keep state across evaluations",
+          "script tools and resources programmatically"
+        ],
+        "units": [
+          "persistent-evaluation"
+        ],
+        "class": "execution",
+        "execution": {
+          "kind": "workshop-js",
+          "representation": "full-execution-owner"
+        },
+        "transaction": {
+          "kind": "workshop",
+          "receipts": true
+        },
+        "evidence": [
+          "execution"
+        ],
+        "resources": [
+          "execution",
+          "artifact"
+        ],
+        "cancellation": "kill",
+        "latency": "long-running",
+        "gate": "MERCURY_WORKSHOP",
+        "proof": "scripts/project-services/prove-workshop.ts",
+        "workshop": false
+      }
+    },
+    {
+      "name": "Write",
+      "category": "edit",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "text-mutation"
+      ],
+      "proof": "scripts/project-services/prove-change-receipts.ts",
+      "declared": {
+        "intents": [
+          "create a file",
+          "overwrite a file wholesale"
+        ],
+        "units": [
+          "text-mutation"
+        ],
+        "class": "mutation",
+        "transaction": {
+          "kind": "file",
+          "receipts": true
+        },
+        "evidence": [
+          "change"
+        ],
+        "resources": [
+          "file",
+          "receipt"
+        ],
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/project-services/prove-change-receipts.ts"
+      }
+    }
+  ]
+}

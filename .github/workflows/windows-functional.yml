@@ -1,0 +1,125 @@
+name: windows-functional
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Exact commit SHA to test (required — the ledger law)'
+        required: true
+
+concurrency:
+  group: windows-functional
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  functional:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: Assert exact-SHA checkout
+        run: |
+          $head = git rev-parse HEAD
+          if ($head -ne "${{ inputs.sha }}") { throw "checkout $head != requested ${{ inputs.sha }}" }
+
+      - name: Node (runtime policy pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Bun (build runtime)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Cache bun installs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-win-func-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Functional suites (idiom · projectdirs · sessionStorage)
+        run: |
+          $failed = 0
+          foreach ($suite in @('idiom', 'projectdirs', 'sessionStorage')) {
+            Write-Host "==== suite: $suite ===="
+            bash "scripts/$suite/run-all.sh"
+            if ($LASTEXITCODE -ne 0) { $failed = 1; Write-Host "SUITE RED: $suite" }
+          }
+          exit $failed
+
+      - name: Windows path-semantics spot checks (drive-case + junction via prover §F)
+        run: |
+          bun scripts/idiom/prove-canonical-write-home.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Durable publication on NTFS
+        run: |
+          bash scripts/task-durability/run-all.sh
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Task-record journeys on NTFS
+        run: |
+          bun scripts/task-durability/prove-mo3-task-journey.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Worktree settlement on NTFS
+        run: |
+          bun scripts/consistency-census/prove-worktree-settlement.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Execution truth on Windows
+        run: |
+          bun scripts/consistency-census/prove-execution-truth.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/consistency-census/prove-payload-bytestable.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $expect = (git rev-parse "HEAD^{tree}")
+          $repo = ($pwd.Path -replace '\\','/')
+          $snippet = "const{runGit}=await import('$repo/scripts/lib/git.ts');const r=runGit(['rev-parse','HEAD^{tree}'],{cwd:'$repo'});if(r.state!=='ok')throw new Error(r.state);console.log(r.stdout.trim())"
+          Set-Content -Path "$env:RUNNER_TEMP/anchor.ts" -Value $snippet
+          $viaPs7 = (bun "$env:RUNNER_TEMP/anchor.ts")
+          $viaPs51 = (powershell -NoProfile -Command "bun `"$env:RUNNER_TEMP/anchor.ts`"")
+          $viaCmd = (cmd /c bun "$env:RUNNER_TEMP\anchor.ts")
+          Write-Host "expect=$expect ps7=$viaPs7 ps51=$viaPs51 cmd=$viaCmd"
+          if (($viaPs7 -ne $expect) -or ($viaPs51 -ne $expect) -or ($viaCmd -ne $expect)) {
+            Write-Host 'ANCHOR PARITY FAILED across shells'
+            exit 1
+          }
+
+      - name: state-integrity on NTFS/PS7
+        run: |
+          bun scripts/interview/prove-settlement-receipts.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/interview/prove-checkpoint-compaction.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/formal-models/prove-model-interview.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/formal-models/prove-model-filestore.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Field packet PS7 proof
+        run: |
+          bun scripts/field-tasks/gen-field-packet.ts --out "$env:RUNNER_TEMP/field-kit" --allow-unbuilt
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          pwsh -File scripts/field-tasks/prove-field-packet.ps1 -KitDir "$env:RUNNER_TEMP/field-kit/mercury-field-kit"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Build dist (journey payload)
+        run: bun run build.ts
+
+      - name: Update journey under git-bash PATH order (the mingw64 shadow)
+        shell: bash
+        run: bun run scripts/updater/prove-update-journey.ts

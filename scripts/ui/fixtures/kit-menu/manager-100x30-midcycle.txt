@@ -1,0 +1,23 @@
+
+
+
+
+
+  (>_) MERCURY · mcps & skills
+
+  MCPs
+    github                                                       on
+    postgres                                                     off
+    orchard-tools (extension)                                    off
+    ext:orchard-tools:db                                         off (extension)
+  Skills
+  ❯ deploy                                                       invocable
+    review                                                       on
+    notes                                                        off
+    orchard-tools (extension)                                    off
+    orchard-tools:prune                                          off (extension)
+    orchard-tools:graft                                          off (extension)
+    skills from MCP servers appear once a session connects them
+
+  skill · project settings — on is ambient (the agent can reach for it); invocable is listed but …
+  ↑↓ move · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back

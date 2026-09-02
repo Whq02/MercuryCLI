@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "id": "duplicate-result-idempotent",
+  "scenario": "The same progress:done envelope for a node is delivered twice (e.g. a mailbox redelivery after an ack was lost). The second delivery must be a no-op — exactly one state transition to done, no double-counted completion, no error surfaced from the harmless duplicate.",
+  "steps": [
+    { "event": "node n1 dispatched and in-progress", "expect": "n1 is in-progress" },
+    { "event": "progress: done envelope (request_id X) delivered for n1", "expect": "n1 transitions in-progress -> done exactly once; the transition is recorded against request_id X" },
+    { "event": "the identical progress: done envelope (same request_id X) is delivered again", "expect": "the duplicate is recognized (same request_id already settled) and dropped as a no-op — n1 stays done, no second transition is recorded, no error is raised" },
+    { "event": "the mission's completion count is read", "expect": "n1 counts once toward mission completion, not twice" }
+  ]
+}

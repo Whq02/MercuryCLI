@@ -1,0 +1,19 @@
+# scripts/ui-3/members.txt — this sub-suite's provers, one basename per
+# line (the files live in scripts/ui/). The parent suite runs every prover
+# NOT named by a sibling list, so a NEW prover lands there automatically; a
+# name listed here but missing on disk is a loud red in this runner.
+prove-bash-flicker.ts
+prove-critter-resize.ts
+prove-esc-clears-draft.ts
+prove-file-open.ts
+prove-helm-header-overflow.ts
+prove-lifecycle-teardown.ts
+prove-modal-surfaces-fit.ts
+prove-open-event-gate.ts
+prove-redraw-repair.ts
+prove-render-oracle.ts
+prove-scroll-damage.ts
+prove-search-single-flight.ts
+prove-sessiontab-switch.ts
+prove-ui-clock.ts
+prove-width-oracle-sot.ts

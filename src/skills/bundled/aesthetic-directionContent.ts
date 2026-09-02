@@ -1,0 +1,10 @@
+import skillMd from './aesthetic-direction/SKILL.md'
+import ref_references_anti_defaults_md from './aesthetic-direction/references/anti-defaults.md'
+import ref_scripts_palette_check_py from './aesthetic-direction/scripts/palette_check.py'
+
+export const SKILL_MD: string = skillMd
+
+export const SKILL_FILES: Record<string, string> = {
+  "references/anti-defaults.md": ref_references_anti_defaults_md,
+  "scripts/palette_check.py": ref_scripts_palette_check_py,
+}

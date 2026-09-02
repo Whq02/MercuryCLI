@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adversarial fixture (the XXE class): DOCTYPE + external entity. The
+     parser must REFUSE BY NAME — entity resolution does not exist in it. -->
+<!DOCTYPE test-run [
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">
+]>
+<test-run id="2" testcasecount="1" result="Passed" total="1" passed="1" failed="0" inconclusive="0" skipped="0" duration="0.1">
+  <test-suite type="TestSuite" name="&xxe;" fullname="&xxe;">
+    <test-case id="1" name="Leak" fullname="Game.Tests.Leak" result="Passed" duration="0.001" />
+  </test-suite>
+</test-run>

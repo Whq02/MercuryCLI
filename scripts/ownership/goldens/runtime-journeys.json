@@ -1,0 +1,58 @@
+{
+ "J1": {
+  "exit": 0,
+  "stdout": "J1-FIXTURE-REPLY\n",
+  "wire": {
+   "advertisesTools": true,
+   "hasSystem": true,
+   "messagesEndpoint": true,
+   "modelEchoed": true,
+   "stream": true,
+   "userMessageCount": 2
+  }
+ },
+ "J2": {
+  "exit": 0,
+  "kinds": [
+   "system:init",
+   "assistant",
+   "result:success"
+  ],
+  "resultMeta": {
+   "hasResultText": true,
+   "hasSessionId": true,
+   "hasUsage": true,
+   "is_error": false
+  }
+ },
+ "J3": {
+  "exit": 0,
+  "requestCount": 2,
+  "stdout": "J3-TOOL-DONE\n",
+  "toolResultCarried": true
+ },
+ "J4": {
+  "evidenceReprompts": [],
+  "exit": 0,
+  "fileWritten": true,
+  "requestCount": 2,
+  "stdout": "J4-MUTATION-DONE\n"
+ },
+ "J5": {
+  "exitKind": "code:0",
+  "secondRequestIssued": false,
+  "stdout": ""
+ },
+ "J6": {
+  "resumeCarriedTranscript": true,
+  "resumeMessageCount": 4,
+  "turn1": {
+   "exit": 0,
+   "stdout": "J6-FIRST-REPLY\n"
+  },
+  "turn2": {
+   "exit": 0,
+   "stdout": "J6-SECOND-REPLY\n"
+  }
+ }
+}

@@ -1,0 +1,87 @@
+name: Provider or model report
+description: A sign-in door, a model row, a refusal or a warning that reads wrong.
+title: "[provider] "
+labels: ["provider"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each provider family owns its own sign-in, wire and refusals, so the family and the exact text are what make a report actionable. Never paste an API key or a token.
+  - type: dropdown
+    id: family
+    attributes:
+      label: Provider family
+      options:
+        - Anthropic (Claude subscription, Console sign-in or API key)
+        - OpenAI (ChatGPT subscription or API key)
+        - OpenRouter
+        - Google Gemini
+        - Hugging Face
+        - Kimi (Moonshot)
+        - GLM (Z.AI)
+        - DeepSeek
+        - Local servers
+        - OpenAI-compatible custom endpoint
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: The model row
+      description: The row as `/model` shows it, or the id you typed.
+      placeholder: "the row's name, as shown"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it happened
+      options:
+        - The first-run walk
+        - /logins or /accounts
+        - /model or /defaultprovider
+        - A chat turn
+        - A headless -p run
+        - /health or doctor
+        - Somewhere else (say where in the steps)
+    validations:
+      required: true
+  - type: textarea
+    id: text
+    attributes:
+      label: The exact refusal or warning text
+      description: Paste it verbatim; the wording names the door and the cause.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The line `node dist/mercury.mjs --version` prints (`mercury --version` for a release install).
+      placeholder: "Mercury <version>"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and terminal
+      placeholder: "macOS 15 · Terminal, or Windows 11 · Windows Terminal (PowerShell 7)"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: From boot to the refusal or warning, one step per line.
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: doctor --json
+      description: The output of `node dist/mercury.mjs doctor --json` (`mercury doctor --json` for a release install). Its provider rows say what the install can see; it carries no credentials.
+      render: json
+    validations:
+      required: true

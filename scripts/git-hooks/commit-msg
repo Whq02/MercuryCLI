@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+msg="$1"
+
+tmp="$(mktemp)"
+grep -Ev \
+  -e '^[[:space:]]*(Claude-)?[Ss]ession(-[A-Za-z]+)?:.*(https?://|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-)' \
+  -e '^[[:space:]]*https?://(claude|www\.claude)\.(ai|com)/(s|session)(/[^[:space:]]*)?[[:space:]]*$' \
+  "$msg" > "$tmp" || true
+mv "$tmp" "$msg"
+
+if grep -Eq 'claude\.(ai|com)/(s|session)/' "$msg"; then
+  echo "commit-msg: session URL in the commit message — session metadata never lands in commits" >&2
+  exit 1
+fi
+exit 0

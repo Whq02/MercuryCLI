@@ -1,0 +1,5 @@
+# scripts/gate/ci-darwin-suites.txt — suites that PROVED darwin-only on the
+# CI Linux shards (the gate.yml straggler lane; macOS minutes bill at 10× —
+# a suite earns its place here by a reproduced Linux-platform failure, never
+# by suspicion). One suite name per line; comments and blanks ignored.
+# Empty list ⇒ the darwin job is skipped entirely.

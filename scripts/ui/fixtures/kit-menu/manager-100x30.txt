@@ -1,0 +1,23 @@
+
+
+
+
+
+  (>_) MERCURY · mcps & skills
+
+  MCPs
+  ❯ github                                                       on
+    postgres                                                     on
+    orchard-tools (extension)                                    on
+    ext:orchard-tools:db                                         on
+  Skills
+    deploy                                                       on
+    review                                                       on
+    notes                                                        on
+    orchard-tools (extension)                                    on
+    orchard-tools:prune                                          on
+    orchard-tools:graft                                          on
+    skills from MCP servers appear once a session connects them
+
+  MCP server · user scope — on connects it for the next session; off leaves it out of that sessio…
+  ↑↓ move · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back
