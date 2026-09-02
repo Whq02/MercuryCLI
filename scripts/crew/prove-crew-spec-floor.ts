@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'crew-specfloor-'))
 process.env.MERCURY_CONFIG_DIR = scratch
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_WORKER_RECON_ALLOW
 delete process.env.MERCURY_CREW

@@ -5,6 +5,7 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'crew-chat-'))
 process.env.MERCURY_CONFIG_DIR = scratch
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
