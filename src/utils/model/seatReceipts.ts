@@ -1,6 +1,7 @@
 // ============================================================================
 //  seatReceipts — ONE receipt row per event that must reach the operator's
-//  screen: a refused chat birth, an applied daemon change.
+//  screen: a refused chat birth, an applied daemon change, a persisted value
+//  this build no longer knows.
 //
 //  The mint is synchronous and the row is informational: the REPL hook
 //  (useSeatReceipts) subscribes and appends each receipt as one system row;
