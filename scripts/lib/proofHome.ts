@@ -8,6 +8,7 @@ export interface ProofHomeOptions {
 }
 
 export function resolveProofHome(trustedCwds: readonly string[], options: ProofHomeOptions = {}): string {
+  process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
   const pinned = process.env.MERCURY_CONFIG_DIR
   if (pinned) {
     const home = pinned.normalize('NFC')
