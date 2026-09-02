@@ -34,9 +34,12 @@ if (!existsSync(join(dist, 'mercury.mjs'))) fail('dist/mercury.mjs missing — r
 if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
 const degraded = Array.isArray(manifest.degraded) ? manifest.degraded : []
-if (degraded.length > 0 && !process.argv.includes('--allow-degraded')) {
-  fail(`dist manifest is DEGRADED (${degraded.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
+const PUBLISHABLE_DEGRADATIONS = new Set(['voice-input'])
+const blocking = degraded.filter(d => !PUBLISHABLE_DEGRADATIONS.has(d))
+if (blocking.length > 0 && !process.argv.includes('--allow-degraded')) {
+  fail(`dist manifest is DEGRADED (${blocking.join(', ')}) — run the scripts/vendor/fetch-*.ts commands and rebuild, or pass --allow-degraded deliberately`)
 }
+if (degraded.includes('voice-input')) ok('the voice capture pack is absent from this build — the archive ships without voice input (degraded: voice-input, publishable)')
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]

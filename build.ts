@@ -498,6 +498,47 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
   }
 }
 
+const { VOICE_PACK_PATH: voiceRelPath, VOICE_NATIVE_PATH: voiceNativePath, voicePackPlatform, checkVoicePackDir, voiceSourceTreeDigest } = await import('./src/services/voice/voicePack.ts');
+let voiceVendored = false;
+let voiceMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number } | null = null;
+{
+  const voiceDest = resolve(OUT, voiceRelPath);
+  rmSync(voiceDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_VOICE === '1';
+  const hostPlatform = voicePackPlatform();
+  const packDir = resolve(ROOT, voiceRelPath, hostPlatform);
+  const nativeDir = resolve(ROOT, voiceNativePath);
+  if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkVoicePackDir(packDir, { digest: true, platform: hostPlatform });
+    const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? voiceSourceTreeDigest(nativeDir) : null;
+    if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(voiceDest, hostPlatform), { recursive: true });
+      voiceVendored = true;
+      voiceMeta = {
+        version: check.manifest.version,
+        platform: hostPlatform,
+        addon: check.manifest.addon,
+        addonSha256: check.manifest.addonSha256,
+        crates: check.manifest.crates.length,
+      };
+      console.log(`VENDORED voice pack ${check.manifest.version} ${hostPlatform} (built from ${voiceNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(voiceDest, hostPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${voiceNativePath} is absent` : `the pack was built from other sources than ${voiceNativePath} now holds`;
+      console.error(
+        `BUILD FAILED: vendor/voice/${hostPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/build-voice.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_VOICE=1 — voice pack NOT vendored (degraded: voice-input; proof seam).');
+  } else {
+    console.warn(`no voice pack for ${hostPlatform} — the artifact ships WITHOUT the voice capture addon (degraded: voice-input; the runtime falls back to sox/arecord/ffmpeg on PATH, else the no-backend receipt). Prepare it: bun run scripts/vendor/build-voice.ts (needs cargo)`);
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -823,6 +864,22 @@ const manifest = {
     bytes: statSync(resolve(OUT, 'splash.mjs')).size,
     sha256: createHash('sha256').update(readFileSync(resolve(OUT, 'splash.mjs'))).digest('hex'),
   },
+  voiceInput: voiceVendored && voiceMeta
+    ? {
+        vendored: true,
+        path: `${voiceRelPath}/${voiceMeta.platform}`,
+        version: voiceMeta.version,
+        platform: voiceMeta.platform,
+        addon: voiceMeta.addon,
+        addonSha256: voiceMeta.addonSha256,
+        crateLicences: voiceMeta.crates,
+      }
+    : {
+        vendored: false,
+        path: voiceRelPath,
+        remedy:
+          'build the voice capture pack (`bun run scripts/vendor/build-voice.ts`, needs cargo), then re-run `bun run build.ts` — the runtime falls back to sox/arecord/ffmpeg on PATH meanwhile, else /speak says no backend',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -868,6 +925,7 @@ const manifest = {
     ...(pyrightVendored ? [] : ['python-intelligence']),
     ...(jsDebugVendored ? [] : ['js-debugger']),
     ...(nodeVendored ? [] : ['runtime']),
+    ...(voiceVendored ? [] : ['voice-input']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),
