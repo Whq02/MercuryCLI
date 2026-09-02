@@ -809,15 +809,16 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const onFailoverLane = noted !== null && liveRoute !== noted.homeFamily
     const homeFamily: string | null = noted !== null && onFailoverLane ? noted.homeFamily : liveRoute
     if (homeFamily === null) return
-    const homeUsability = usabilityForRoute(homeFamily as CallModelRoute)
-    if (onFailoverLane && homeUsability.credential === 'none') {
+    const homeUsability = onFailoverLane ? usabilityForRoute(homeFamily as CallModelRoute) : null
+    if (homeUsability !== null && homeUsability.credential === 'none') {
       noteCapReturn()
       return
     }
     const window = observedFamilyWindow(homeFamily)
-    const action = onFailoverLane
-      ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
-      : decideCapAction(posture, window.state)
+    const action =
+      onFailoverLane && homeUsability !== null
+        ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
+        : decideCapAction(posture, window.state)
     if (action.kind === 'none') return
     const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
     const decisionKey = `${direction}|${homeFamily}|${window.state}|${window.resetsAtMs ?? ''}`
