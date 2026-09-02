@@ -803,9 +803,9 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           const s = await ensureBrowserSession(owner)
           if ('state' in s) {
             result =
-              s.state === 'at-capacity'
-                ? `browser session refused: ${s.note}`
-                : `browser unavailable: ${s.note}\n  Report this block to the operator or use op:"provision" — do NOT hand-build a browser harness.`
+              s.state === 'unavailable'
+                ? `browser unavailable: ${s.note}\n  Report this block to the operator or use op:"provision" — do NOT hand-build a browser harness.`
+                : `browser session refused: ${s.note}`
             outcome = 'failed'
             break
           }
