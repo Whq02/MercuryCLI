@@ -8,8 +8,19 @@ import {
   useRef,
   useSyncExternalStore,
 } from 'react'
+import { appendFileSync } from 'node:fs'
 import type { DOMElement } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
+
+function pinTrace(entry: Record<string, unknown>): void {
+  const path = flagEnv('MERCURY_CONNECTOR_TRACE')
+  if (!path) return
+  try {
+    appendFileSync(path, `${JSON.stringify({ t: Date.now(), ev: 'pin', ...entry })}\n`)
+  } catch {
+  }
+}
 
 const UNMEASURED_ESTIMATE_ROWS = 3
 const OVERSCAN_ROWS = 80
@@ -209,6 +220,7 @@ export function useVirtualScroll(
       committedTop !== lastWrittenTopRef.current &&
       !reflowHoldRef.current
     ) {
+      pinTrace({ act: 'cancel', committed: committedTop, lastWritten: lastWrittenTopRef.current, pin: contentPinRef.current, origin })
       contentPinRef.current = null
       lastWrittenTopRef.current = null
     }
@@ -236,6 +248,7 @@ export function useVirtualScroll(
             inner: Math.min(Math.max(0, pos - offs[idx]!), Math.max(0, h - 1)),
           }
           lastWrittenTopRef.current = committedTop
+          pinTrace({ act: 'capture', committed: committedTop, origin, idx, off: offs[idx], h, pin: contentPinRef.current, hold: reflowHoldRef.current, out: outOfLayoutRef.current })
         } else {
           const idx = indexByKey(itemKeys, pin.key)
           if (idx === undefined) {
@@ -246,6 +259,7 @@ export function useVirtualScroll(
             const inner = Math.min(pin.inner, Math.max(0, h - 1))
             const target = Math.max(0, Math.floor(origin + offs[idx]! + inner))
             if (target !== committedTop && pendingDelta === 0) {
+              pinTrace({ act: 'write', committed: committedTop, target, origin, idx, off: offs[idx], inner, h, vp: viewportHeight, hold: reflowHoldRef.current, out: outOfLayoutRef.current })
               box.pinScrollTop(target)
               lastWrittenTopRef.current = target
               scrollTop = target
