@@ -36,7 +36,7 @@ export async function loadTranscriptFile(
   let fold: TranscriptFoldState = emptyFoldState()
   try {
     const view = await readTranscript(filePath, { policy: opts?.keepAllLeaves ? 'all' : 'resume' })
-    fold = view.fold
+    fold = copyOfFold(view.fold)
   } catch (e) {
     if ((e as NodeJS.ErrnoException)?.code !== 'ENOENT') {
       logError(
@@ -52,6 +52,30 @@ export async function loadTranscriptFile(
   return {
     ...publicFold,
     leafUuids: computeResumeLeaves(publicFold.messages),
+  }
+}
+
+function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
+  return {
+    messages: new Map(fold.messages),
+    summaries: new Map(fold.summaries),
+    customTitles: new Map(fold.customTitles),
+    tags: new Map(fold.tags),
+    agentNames: new Map(fold.agentNames),
+    agentColors: new Map(fold.agentColors),
+    agentSettings: new Map(fold.agentSettings),
+    prNumbers: new Map(fold.prNumbers),
+    prUrls: new Map(fold.prUrls),
+    prRepositories: new Map(fold.prRepositories),
+    modes: new Map(fold.modes),
+    worktreeStates: new Map(fold.worktreeStates),
+    fileHistorySnapshots: new Map(fold.fileHistorySnapshots),
+    attributionSnapshots: new Map(fold.attributionSnapshots),
+    contentReplacements: new Map([...fold.contentReplacements].map(([k, v]) => [k, [...v]])),
+    agentContentReplacements: new Map([...fold.agentContentReplacements].map(([k, v]) => [k, [...v]])),
+    contextCollapseCommits: [...fold.contextCollapseCommits],
+    contextCollapseSnapshot: fold.contextCollapseSnapshot,
+    progressBridge: fold.progressBridge,
   }
 }
 
