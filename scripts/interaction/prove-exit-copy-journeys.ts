@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from '../ui/renderScenarios.ts'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const CTRL_C = String.fromCharCode(3)
@@ -36,6 +38,7 @@ function drive(
   sends: Send[],
   total: number,
   readyText?: string,
+  envExtra: Record<string, string> = {},
 ): Payload | null {
   const cfg = { ...base, sends, total } as Record<string, unknown>
   if (readyText !== undefined) cfg['readyText'] = readyText
@@ -51,10 +54,17 @@ function drive(
       ...process.env,
       MERCURY_FULLSCREEN: '1',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
+      ...envExtra,
     },
   })
   if (res.status !== 0) {
     check(`${tag}: PTY journey completed`, false, (res.stderr ?? '').slice(-300))
+    const printed = (res.stdout ?? '').split('\n').filter(line => line.trimEnd() !== '')
+    if (printed.length > 0) {
+      console.log(`      ┌ ${tag}: the screen vshot ended on`)
+      for (const line of printed.slice(-16)) console.log(`      │ ${line.trimEnd()}`)
+      console.log('      └')
+    }
     return null
   }
   check(`${tag}: PTY journey completed`, true)
@@ -75,6 +85,7 @@ const dumpBottom = (label: string, grid: Array<Array<{ c: string }>>, count = 12
 }
 
 const NOTICE = 'twice to close Mercury'
+const INTERRUPTED_ROW = '⨯ Interrupted'
 
 section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
 {
@@ -123,10 +134,25 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
   cleanupScenario('resume-2turn')
 }
 
-const freshSession = (): ScenarioCfg => {
+const BUSY_KEY = 'sk-ant-fixture-exit-copy'
+type BusyWorld = { cfg: ScenarioCfg; env: Record<string, string>; home: string }
+const busyWorld = (): BusyWorld => {
   const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
-  return { ...base, argv: argv.slice(0, 2) }
+  const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
+  process.env.ANTHROPIC_API_KEY = BUSY_KEY
+  try {
+    seedFirstRun(home, [String(base['cwd'])])
+  } finally {
+    delete process.env.ANTHROPIC_API_KEY
+  }
+  return { cfg: { ...base, argv: argv.slice(0, 2) }, env: { MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: BUSY_KEY }, home }
+}
+const closeBusyWorld = (world: BusyWorld): void => {
+  try {
+    rmSync(world.home, { recursive: true, force: true })
+  } catch {
+  }
 }
 const ENTER_FRESH_CHAT: Send[] = [
   { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -134,9 +160,10 @@ const ENTER_FRESH_CHAT: Send[] = [
 
 section('C · busy: one press interrupts AND arms; a second press closes')
 {
+  const world = busyWorld()
   const p = drive(
     'busy',
-    freshSession(),
+    world.cfg,
     [
       ...ENTER_FRESH_CHAT,
       { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
@@ -146,7 +173,10 @@ section('C · busy: one press interrupts AND arms; a second press closes')
       { atTick: 240, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
     ],
     260,
+    undefined,
+    world.env,
   )
+  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
@@ -165,9 +195,10 @@ section('C · busy: one press interrupts AND arms; a second press closes')
 
 section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its promise)')
 {
+  const world = busyWorld()
   const p = drive(
     'busy-esc',
-    freshSession(),
+    world.cfg,
     [
       ...ENTER_FRESH_CHAT,
       { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
@@ -176,15 +207,17 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
     ],
     250,
-    'interrupted by user',
+    INTERRUPTED_ROW,
+    world.env,
   )
+  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
     check('the busy hint was up when ESC landed', hintUp)
     if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid)
-    const settled = textOf(p.grid).includes('interrupted by user')
-    check('ESC interrupted the turn (the interrupt marker settled)', settled)
+    const settled = textOf(p.grid).includes(INTERRUPTED_ROW)
+    check('ESC interrupted the turn (the interrupt row settled under the command)', settled)
     if (!settled) dumpBottom('the final frame — no interrupt marker', p.grid, 16)
     check('…and Mercury stayed open (no exit)', p.endReason !== 'eof', `endReason=${p.endReason}`)
   }
