@@ -121,8 +121,8 @@ try {
   const slotsSrc = readFileSync(join(import.meta.dir, '../../src/services/providers/accountSlots.ts'), 'utf8')
   check('backspace signs out — the home dir is never deleted',
     slotsSrc.includes('The home dir itself is') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
-  check('identity is live-verified (credential-derived, not snapshot-only)',
-    src.includes('resolveLiveScopeIdentity') && src.includes('verified live'))
+  check('identity is live-verified (credential-derived, not snapshot-only); the board paints the seam\'s ONE row composer',
+    src.includes('resolveLiveScopeIdentity') && src.includes('scopeSlotTail(state, id, slot)') && slotsSrc.includes('verified live'))
   // COPY TRUTH: 'this session' rides only the CURRENT scope's tail — a
   // scanned non-current home must never claim the session (the guard holds
   // even while the scan universe is the one resolved home).

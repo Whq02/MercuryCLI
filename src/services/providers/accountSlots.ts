@@ -271,7 +271,11 @@ export function familySigninCeiling(family: string): number | undefined {
 //  answer is the live identity verification of its OWN credential
 //  (utils/accounts/accountIdentity); a stored key/token has no live probe on
 //  this board and counts by existence, labelled so. The labelled offline
-//  snapshot is never a sign-in.
+//  snapshot is never a sign-in. The credential's PRESENCE outranks the
+//  verification: a scope whose store holds no login is signed out whatever
+//  an earlier probe answered — a verified identity can never outlive its
+//  credential on this board (the stale-row class: "verified live" under a
+//  family header that said no credential existed).
 
 /** The board's live identity read for one scope, as the view holds it:
  *  the verifier's answer, 'checking' while the probe is in flight, or
@@ -308,6 +312,10 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       : { signedIn: false, basis: 'absent' }
   }
   if (slot.scope.claudeFamily) return { signedIn: false, basis: 'excluded' }
+  // No stored login ⇒ signed out, before any probe result is consulted: the
+  // presence owner outranks the identity read (a cached verification, a
+  // probe still in flight, a stale snapshot behind either).
+  if (!slot.signedIn) return { signedIn: false, basis: 'signed-out' }
   const identity = identities[slot.id]
   switch (identity?.state) {
     case 'verified':
@@ -320,6 +328,46 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
       return { signedIn: false, basis: 'unverified' }
     default:
       return { signedIn: false, basis: 'checking' }
+  }
+}
+
+/**
+ * The scope row's state words — ONE composer over the derivation's basis
+ * (the same object the header counts), the identity read supplying the
+ * live email / snapshot / note details and the scan's snapshot standing in
+ * where no probe has answered. SNAPSHOT-FIRST: a probe in flight shows the
+ * stored identity labelled as a snapshot and heals when the probe lands; a
+ * signed-out scope whose snapshot survives says so and names the two ways
+ * out (re-login, or ⌫ to clear it) — never "verified", never bare "signed
+ * in".
+ */
+export function scopeSlotTail(
+  state: SlotSigninState,
+  read: SlotIdentityRead | undefined,
+  slot: Pick<AccountSlot, 'scope'>,
+): string {
+  const snapshot = slot.scope?.email
+  switch (state.basis) {
+    case 'excluded':
+      return "another tool's credential scope — never billable from Mercury"
+    case 'checking':
+      return `${snapshot !== undefined ? `snapshot ${snapshot} · ` : ''}verifying identity…`
+    case 'verified-live':
+      return `${read?.state === 'verified' ? read.email : 'signed in'} · verified live · ↵ opens Logins to re-login · ⌫ signs out`
+    case 'expired':
+      return `expired${read?.state === 'expired' && read.snapshotEmail ? ` (snapshot ${read.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
+    case 'signed-out':
+      return snapshot !== undefined
+        ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
+        : 'not signed in · ↵ opens Logins to sign in'
+    case 'absent':
+      return 'not signed in · ↵ opens Logins to sign in'
+    case 'unverified':
+      return read?.state === 'unverified'
+        ? `unverified — ${read.note}${read.email ? ` · snapshot ${read.email}` : ''} · not counted as signed in`
+        : 'unverified · not counted as signed in'
+    case 'credential-present':
+      return 'credential present'
   }
 }
 
@@ -492,8 +540,17 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
         text: `${label} · unverified — ${identity.note}${identity.email ? ` · snapshot ${identity.email}` : ''}`,
         basis: 'unverified',
       }
-    default:
-      return { route, family, text: `${label} · verifying identity…`, basis: 'checking' }
+    default: {
+      // Snapshot-first: the stored identity paints at once, labelled as a
+      // snapshot, and heals when the probe lands — never dressed as verified.
+      const snapshot = presence.identity
+      return {
+        route,
+        family,
+        text: `${label}${snapshot !== undefined ? ` · snapshot ${snapshot}` : ''} · verifying identity…`,
+        basis: 'checking',
+      }
+    }
   }
 }
 
