@@ -123,11 +123,13 @@ try {
     slotsSrc.includes('The home dir itself is') && !slotsSrc.includes('rm -rf') && src.includes('executeSlotRemoval('))
   check('identity is live-verified (credential-derived, not snapshot-only); the board paints the seam\'s ONE row composer',
     src.includes('resolveLiveScopeIdentity') && src.includes('scopeSlotTail(state, id, slot)') && slotsSrc.includes('verified live'))
-  // COPY TRUTH: 'this session' rides only the CURRENT scope's tail — a
-  // scanned non-current home must never claim the session (the guard holds
-  // even while the scan universe is the one resolved home).
-  check("'this session' is gated on isCurrent",
-    src.includes("s.isCurrent ? 'this session' : ''"))
+  // ONE ROW GRAMMAR: the sign-in row carries no scope facts — the session's
+  // scope is the This-session grid's own row; the absent row paints the
+  // seam's template like every other family.
+  check('the scope row carries no scope facts; the This-session grid does',
+    !src.includes("'this session'") && src.includes("{ k: 'scope'") && src.includes('tail = scopeSlotTail(state, id, slot)'))
+  check('the absent row paints the one template (no per-family prose survives on the board)',
+    src.includes('tail = familyAbsentWords(row.family.id)') && !src.includes('FAMILY_CONNECT_ROUTES') && !src.includes('not connected · ↵ opens Logins'))
   // PRE-FOCUS PARITY: every family the /logins menu carries is reachable by
   // name — huggingface included (the row existed; the vocabulary lagged).
   const loginSrc = readFileSync(join(import.meta.dir, '../../src/commands/login/login.tsx'), 'utf8')

@@ -143,15 +143,17 @@ section('(1) derivation — one slot per signed-in identity, catalogue-driven')
     groups.length === 3 && groups[0]?.family.id === 'anthropic' && groups[2]?.family.id === ('acme' as never))
 
   const anthropic = groups[0]!.slots
-  check('anthropic: the scope ring + the API-key ladder ⇒ 3 slots', anthropic.length === 3, JSON.stringify(anthropic.map(s => s.id)))
-  check('ring slot: OAuth kind, identity from the scan owner',
-    anthropic[0]?.kind === 'oauth' && anthropic[0]?.identity === 'main@example.com' && anthropic[0]?.active === true)
-  check('signed-out ring position stays a slot (honest ring, not signed in)',
-    anthropic[1]?.signedIn === false && anthropic[1]?.kind === 'oauth')
+  // ONE row grammar for every family: a scope with nothing behind it (no
+  // stored login, no snapshot) is the family's absent row, never a slot of
+  // its own — the signed-in scope and the API-key ladder remain.
+  check("anthropic: the signed-in scope + the API-key ladder ⇒ 2 slots; a scope with nothing behind it is the family's absent row, never a slot",
+    anthropic.length === 2 && !anthropic.some(s => s.id === '/proof-home/.mercury-account-b'), JSON.stringify(anthropic.map(s => s.id)))
+  check("ring slot: OAuth kind, identity from the scan owner, the sign-in's own name (the scope's role name is the This-session grid's fact)",
+    anthropic[0]?.kind === 'oauth' && anthropic[0]?.identity === 'main@example.com' && anthropic[0]?.active === true && anthropic[0]?.name === 'claude')
   check('managed key slot: removable through its owner route',
-    anthropic[2]?.kind === 'api-key' && anthropic[2]?.removal.route === 'anthropic-managed-key' && anthropic[2]?.envPinned === false)
+    anthropic[1]?.kind === 'api-key' && anthropic[1]?.removal.route === 'anthropic-managed-key' && anthropic[1]?.envPinned === false)
   check('managed key slot: masked last-four tail rides the identity',
-    anthropic[2]?.identity.includes('…9876') === true, String(anthropic[2]?.identity))
+    anthropic[1]?.identity.includes('…9876') === true, String(anthropic[1]?.identity))
 
   const openai = groups[1]!.slots
   check('openai: subscription AND stored key ⇒ two slots (never just the active one)',
@@ -274,7 +276,7 @@ section('(4) executeSlotRemoval — each slot to exactly its owning store')
   check('stored openai key ⇒ the providerSecrets clear alone',
     calls.join(',') === 'openai-key' && keyOut.mutated)
 
-  const managed = groups[0]!.slots[2]!
+  const managed = groups[0]!.slots[1]!
   calls.length = 0
   const managedOut = executeSlotRemoval(managed, spies)
   check('managed anthropic key ⇒ the removeApiKey owner alone',
@@ -302,10 +304,21 @@ section('(4) executeSlotRemoval — each slot to exactly its owning store')
   check('the sign-out note keeps the home and names /logout as the GLOBAL verb',
     currentOut.note.includes('stay') && currentOut.note.includes('/logout'))
 
-  const signedOutPosition = groups[0]!.slots[1]!
+  // A scope slot with nothing behind it never derives any more (it is the
+  // absent row) — the removal owner still answers the shape honestly should
+  // a board hold one: no-op, no owner called.
+  const signedOutPosition = {
+    ...current,
+    id: SCAN_DOUBLE[1]!.dir,
+    identity: 'not signed in',
+    active: false,
+    signedIn: false,
+    scope: SCAN_DOUBLE[1]!,
+    removal: { route: 'anthropic-oauth' as const, dir: SCAN_DOUBLE[1]!.dir },
+  }
   calls.length = 0
   const signedOutOut = executeSlotRemoval(signedOutPosition, spies)
-  check('a signed-out ring position ⇒ honest no-op, no owner called, nothing mutated',
+  check('a signed-out scope slot with nothing behind it ⇒ honest no-op, no owner called, nothing mutated',
     calls.length === 0 && !signedOutOut.mutated && signedOutOut.note.includes('not signed in'))
 
   // The primary ~/.mercury home is a login like any other: ⌫ signs its

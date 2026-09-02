@@ -39,6 +39,7 @@
 //  sign-in, never refusable.
 // ============================================================================
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
+import { PROVIDER_CREDENTIAL_ENV_VARS } from './credentialEnvSpellings.js'
 import {
   clearScopeIdentitySnapshot,
   forgetScopeIdentity,
@@ -344,7 +345,7 @@ export function slotSigninState(slot: AccountSlot, identities: SlotIdentities): 
 export function scopeSlotTail(
   state: SlotSigninState,
   read: SlotIdentityRead | undefined,
-  slot: Pick<AccountSlot, 'scope'>,
+  slot: Pick<AccountSlot, 'scope' | 'family'>,
 ): string {
   const snapshot = slot.scope?.email
   switch (state.basis) {
@@ -357,11 +358,13 @@ export function scopeSlotTail(
     case 'expired':
       return `expired${read?.state === 'expired' && read.snapshotEmail ? ` (snapshot ${read.snapshotEmail})` : ''} · not signed in · ↵ opens Logins to reauth`
     case 'signed-out':
+      // A scope with nothing behind it is the family's absent row (the
+      // derivation yields no slot for it); the words are the template's.
       return snapshot !== undefined
         ? `snapshot ${snapshot} — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot`
-        : 'not signed in · ↵ opens Logins to sign in'
+        : familyAbsentWords(slot.family)
     case 'absent':
-      return 'not signed in · ↵ opens Logins to sign in'
+      return familyAbsentWords(slot.family)
     case 'unverified':
       return read?.state === 'unverified'
         ? `unverified — ${read.note}${read.email ? ` · snapshot ${read.email}` : ''} · not counted as signed in`
@@ -369,6 +372,38 @@ export function scopeSlotTail(
     case 'credential-present':
       return 'credential present'
   }
+}
+
+// ── The family row grammar (ONE template, every family) ─────────────────────
+//  An absent family paints "<state> · ↵ names the route — <route>": the
+//  state is the family's own fact ('not signed in'; a local server 'no
+//  server discovered'), the route the family's way in, spelled ONCE from the
+//  owners every picker reads — the /logins command (subModelConnectHome)
+//  and the first env spelling that carries the credential
+//  (credentialEnvSpellings): '/logins anthropic or ANTHROPIC_API_KEY'.
+//  Anthropic included: the old signed-out scope row wore its own grammar
+//  (the scope dir, "this session", its own way-out words) beside nine
+//  families reading the template; a signed-out home with nothing behind it
+//  now IS the absent row, and the session's scope fact lives in the board's
+//  This-session grid alone.
+
+/** The family's way in: '/logins <family> or <ENV_KEY>' when both exist; a
+ *  family with no /logins leg names its own road (the compat slot's base
+ *  URL, the local servers). */
+export function familyRouteWords(family: string): string {
+  if (family === 'local') return 'Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL'
+  const { subModelConnectHome } =
+    require('../../utils/model/subModelSlots.js') as typeof import('../../utils/model/subModelSlots.js')
+  const home = subModelConnectHome(family)
+  if (home.command === undefined) return home.note
+  const envKey = (PROVIDER_CREDENTIAL_ENV_VARS as Partial<Record<string, readonly string[]>>)[family]?.[0]
+  return envKey !== undefined ? `${home.command} or ${envKey}` : home.command
+}
+
+/** The absent row's words — the one template every family paints. */
+export function familyAbsentWords(family: string): string {
+  const state = family === 'local' ? 'no server discovered' : 'not signed in'
+  return `${state} · ↵ names the route — ${familyRouteWords(family)}`
 }
 
 export interface FamilySigninSummary {
@@ -599,26 +634,34 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
   // the managed key seated the OAuth row honestly paints NOT active — one
   // active slot per family, the seat the wire would bill.
   const subscriberSeat = reads.familyReads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
-  const slots: AccountSlot[] = scopes.map(scope => ({
-    family: 'anthropic',
-    id: scope.dir,
-    name: scope.name,
-    kind: 'oauth' as const,
-    kindLabel: 'OAuth',
-    identity: scope.claudeFamily
-      ? "another tool's credential scope"
-      : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
-    active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
-    envPinned: false,
-    signedIn: scope.authed,
-    scope,
-    removal: scope.claudeFamily
-      ? {
-          route: 'excluded' as const,
-          note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
-        }
-      : { route: 'anthropic-oauth' as const, dir: scope.dir },
-  }))
+  const slots: AccountSlot[] = scopes
+    // A scope with nothing behind it — no stored login, no identity
+    // snapshot to clear, not another tool's home — is the family's ABSENT
+    // row in the one grammar every family paints (familyAbsentWords), never
+    // a slot of its own.
+    .filter(scope => scope.authed || scope.email !== undefined || scope.uuid !== undefined || scope.claudeFamily)
+    .map(scope => ({
+      family: 'anthropic',
+      id: scope.dir,
+      // The sign-in's own name, as every family's row carries (chatgpt ·
+      // kimi · oauth); the scope's role name is the This-session grid's fact.
+      name: 'claude',
+      kind: 'oauth' as const,
+      kindLabel: 'OAuth',
+      identity: scope.claudeFamily
+        ? "another tool's credential scope"
+        : (scope.email ?? (scope.authed ? 'signed in' : 'not signed in')),
+      active: scope.claudeFamily ? scope.isCurrent : scope.isCurrent && subscriberSeat,
+      envPinned: false,
+      signedIn: scope.authed,
+      scope,
+      removal: scope.claudeFamily
+        ? {
+            route: 'excluded' as const,
+            note: "another tool's credential scope is not a Mercury slot — nothing to remove here",
+          }
+        : { route: 'anthropic-oauth' as const, dir: scope.dir },
+    }))
   const apiKey = reads.anthropicApiKey ? reads.anthropicApiKey() : readAnthropicApiKey()
   // A helper-sourced key reports its source with no value (never executed
   // from a render read) — the slot still shows, honestly settings-owned.
