@@ -8,6 +8,7 @@ import instances from '../ink/instances.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { logForDebugging } from './debug.js'
+import { reclaimTerminalAfterChild } from './terminalHandback.js'
 import { whichSync } from './which.js'
 
 /**
@@ -181,6 +182,10 @@ export function openFileInExternalEditor(filePath: string, line?: number): boole
     }
     return true
   } finally {
+    // A killed editor may have left the terminal's foreground group behind:
+    // reclaim it BEFORE the renderer re-arms raw mode (a tcsetattr from a
+    // background process group is itself a stop).
+    reclaimTerminalAfterChild('external editor')
     instance.exitAlternateScreen()
   }
 }

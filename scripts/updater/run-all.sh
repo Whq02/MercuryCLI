@@ -11,7 +11,7 @@
 set -uo pipefail
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd "$here/../.." && pwd)"
-cd "$root"
+cd "$root" || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 

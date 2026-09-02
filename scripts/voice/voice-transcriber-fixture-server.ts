@@ -10,6 +10,10 @@
 //    POST */models/<model>:generateContent
 //                                       the Gemini shape: JSON with the WAV
 //                                       inline → { candidates: [ … ] }
+//    GET  */v1beta/models[?…]           the Gemini catalogue: one
+//                                       generateContent-capable row (the
+//                                       family's rows come from this wire
+//                                       alone, so a Gemini-only home boots)
 //
 //  Appends one line per served request to the ledger file named by
 //  argv[3] — method · path · the model · the body's byte count · whether a
@@ -87,6 +91,18 @@ const server = createServer(async (req, res) => {
     }
     record(`${new Date().toISOString()} POST ${url} model=${decodeURIComponent(gemini[1] as string)} bytes=${body.length} wav=${inline} verbatim=${/verbatim/i.test(prompt) ? 'yes' : 'no'}`)
     answer(200, { candidates: [{ content: { role: 'model', parts: [{ text: transcript }] }, finishReason: 'STOP' }] })
+    return
+  }
+  if (req.method === 'GET' && /\/v1beta\/models(\?|$)/.test(url)) {
+    // The Gemini catalogue (the family's rows come from this wire alone):
+    // one generateContent-capable row, so a Gemini-only home has a usable
+    // model and the chat can start. The census counts POSTs only.
+    record(`${new Date().toISOString()} GET ${url} catalogue`)
+    answer(200, {
+      models: [
+        { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', version: '001', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent'] },
+      ],
+    })
     return
   }
   if (req.method === 'GET' && url.endsWith('/models')) {

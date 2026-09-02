@@ -49,7 +49,10 @@ const SIZES: Array<[number, number]> = [
   // (99/101 around the 100-col cockpit gate, 151 beside the 150 dual-rail
   // gate) — boundary sizes are named review points, so the baseline must
   // pin the tier on BOTH sides of each threshold, not just the threshold.
-  [60, 18], [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
+  // (60×18 left the set: under the viewport floor — 80 columns × 22 rows —
+  // the fullscreen host paints the floor's one line, which the size matrix
+  // pins; a golden of it records nothing of the tiers.)
+  [80, 24], [97, 30], [99, 30], [100, 30], [101, 30], [120, 40],
   [149, 40], [150, 40], [151, 40], [160, 50],
 ]
 const CORE_AT_EVERY_SIZE = ['frame', 'resume-2turn']

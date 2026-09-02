@@ -366,6 +366,7 @@ name = "mercury_voice"
 version = "0.1.0"
 dependencies = [
  "cpal",
+ "libc",
  "napi",
  "napi-build",
  "napi-derive",

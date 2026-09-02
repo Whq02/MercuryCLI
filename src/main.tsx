@@ -74,7 +74,7 @@ import { recordInvocation } from './substrate/invocationRecord.js'
 import { recordLaunchMilestone } from './substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
 import { getCwd } from './utils/cwd.js'
-import { applyBootMenuEnv } from './substrate/startupMenu.js'
+import { applyBootMenuEnv, recordBootAdmissionSnapshot, resolveEffectiveSettingsSnapshot } from './substrate/startupMenu.js'
 import { setAssistantModeActive } from './tasks/LocalShellTask/LocalShellTask.js'
 import { getTools } from './tools.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
@@ -364,6 +364,9 @@ export async function main(): Promise<void> {
 
   // 2–5 — the early seams, in pinned order.
   applyBootMenuEnv();
+  // The admission snapshot: what this process runs at, recorded once here —
+  // the boot menu's "this session" line reads it, never a later profile.
+  recordBootAdmissionSnapshot(resolveEffectiveSettingsSnapshot({ sessionId: getSessionId() }));
   ensurePrivateConfigHome();
   collectLauncherNotes();
 
@@ -2675,13 +2678,16 @@ async function connectMcpBatch(
           },
         }))
       } catch (error) {
-        logForDebugging(`MCP connect failed for ${name}: ${error instanceof Error ? error.message : String(error)}`)
+        const reason = error instanceof Error ? error.message : String(error)
+        logForDebugging(`MCP connect failed for ${name}: ${reason}`)
+        // The failed row carries the connect failure's own sentence — a
+        // re-mark without it painted a bare "(failed)" on /mcp.
         setAppState(previous => ({
           ...previous,
           mcp: {
             ...previous.mcp,
             clients: previous.mcp.clients.map(entry =>
-              entry.name === name ? { name, type: 'failed' as const, config } : entry,
+              entry.name === name ? { name, type: 'failed' as const, config, error: reason } : entry,
             ),
           },
         }))

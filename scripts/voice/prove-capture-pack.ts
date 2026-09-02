@@ -10,7 +10,9 @@
 //  default input yields a capture-shaped WAV (16 kHz · mono · 16-bit — the
 //  SHAPE is pinned, never the content: the device may be silent). A host
 //  with no input device answers the honest refusal instead, and that leg
-//  is pinned by its words.
+//  is pinned by its words. The same addon file then loads under a PATH Node
+//  and under the vendored Node (Node-API is ABI-stable — one build serves
+//  both).
 //
 //  Without cargo: the build SKIPS LOUDLY (exit 0, the remedy named), the
 //  pack owner answers unavailable, the doctor row says none. A cargo that
@@ -135,6 +137,38 @@ if (load.state === 'ok') {
     const message = error instanceof Error ? error.message : String(error)
     warn(`no take on this host: ${message}`)
     check('a host that cannot open an input answers the honest refusal with the permission words', message.includes('microphone') || message.includes('input device'), message)
+  }
+
+  console.log('\n[5] the addon loads on the vendored Node and a PATH Node alike (Node-API is ABI-stable)')
+  const loader = [
+    'const a = require(process.argv[1])',
+    "const fns = ['packVersion', 'listInputDevices', 'defaultInputDevice', 'startCapture', 'stopCapture', 'cancelCapture']",
+    "const missing = fns.filter(f => typeof a[f] !== 'function')",
+    "if (missing.length > 0) { console.log('MISSING ' + missing.join(',')); process.exit(3) }",
+    "console.log('LOADED ' + process.version + ' pack ' + a.packVersion() + ' devices=' + a.listInputDevices().length)",
+  ].join('; ')
+  const addonPath = join(load.dir, load.manifest.addon)
+  const vendoredNode = (): string | null => {
+    const key = `${process.platform}-${process.arch}`
+    for (const rel of [join('bin', 'node'), 'node.exe', 'node']) {
+      const candidate = join(ROOT, 'vendor', 'node', 'extracted', key, rel)
+      if (existsSync(candidate)) return candidate
+    }
+    return null
+  }
+  const hosts: Array<[string, string | null]> = [
+    ['a PATH node', capture.findOnPath('node')],
+    ['the vendored node', vendoredNode()],
+  ]
+  for (const [label, exe] of hosts) {
+    if (exe === null) {
+      warn(`${label} is absent on this host — that load leg is skipped`)
+      continue
+    }
+    const res = spawnSync(exe, ['-e', loader, addonPath], { encoding: 'utf8', env: process.env, timeout: 30_000 })
+    const line = `${res.stdout ?? ''}${res.stderr ?? ''}`.trim().split('\n').slice(-1)[0] ?? ''
+    check(`${label} loads the addon and answers its whole surface`, res.status === 0 && /^LOADED v\d+/.test(line), `${exe}: ${String(res.status)} ${line}`)
+    console.log(`  · ${label}: ${line}`)
   }
 }
 

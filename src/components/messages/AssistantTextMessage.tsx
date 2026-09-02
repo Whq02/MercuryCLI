@@ -27,6 +27,8 @@ import {
 } from '../../services/api/errors.js'
 import { walletEntries } from '../../services/wallet/wallet.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
+import { familyRouteWords } from '../../services/providers/accountSlots.js'
+import { computedDefault } from '../../utils/model/computedDefault.js'
 import { isRateLimitErrorMessage } from '../../services/rateLimitMessages.js'
 import { getUpgradeMessage } from '../../utils/model/contextWindowUpgradeCheck.js'
 import {
@@ -217,16 +219,30 @@ export function AssistantTextMessage({
         return null
       }
     })()
+    // The lane that refused is Anthropic's (the matched constant is that
+    // lane's); the way forward names the family the session's default has
+    // landed on as the switch target, and the way in rides the one route
+    // grammar every family speaks (the accounts board's owner) — never a
+    // hand-spelled family.
+    const refusedFamily = providerDisplayName('anthropic')
+    const switchTarget = ((): string => {
+      try {
+        const landed = computedDefault().provider
+        return landed !== null && landed !== 'anthropic' ? providerDisplayName(landed) : 'their models'
+      } catch {
+        return 'their models'
+      }
+    })()
     return (
       <Box flexDirection="column">
         <Text color="error">
           {/* Display-only respelling of the pinned matched constant — the
-              cockpit login row's exact wording, so the two surfaces agree. */}
-          {otherProviders !== null ? 'No Anthropic account connected for this model' : 'Not logged in · Run /logins'}
+              cockpit login row's grammar, so the two surfaces agree. */}
+          {otherProviders !== null ? `No ${refusedFamily} account for this model` : 'Not logged in · Run /logins'}
         </Text>
         {otherProviders !== null ? (
           <Text dimColor>
-            {`${otherProviders} ${otherProviders.includes(' · ') ? 'are' : 'is'} connected — /model switches to their models, or /logins adds Anthropic.`}
+            {`${otherProviders} ${otherProviders.includes(' · ') ? 'are' : 'is'} connected — /model switches to ${switchTarget}, or ${familyRouteWords('anthropic')} adds one.`}
           </Text>
         ) : null}
         {isMacOsKeychainLocked() ? (
