@@ -112,7 +112,7 @@ git -C "$target" -c user.email=daedalus@local -c user.name=daedalus commit -qm '
 prompt="Launch the bundled 'daedalus' workflow via the Workflow tool. FIRST call it WITHOUT accept to get the preflight preview and print it: Workflow({ name: 'daedalus', args: { requirements: <the full text of ./REQUIREMENTS.md>, model: '$MODEL', executorModel: '$EXEC_MODEL' } }). THEN relaunch with the SAME args plus accept: true, wait for completion, and report the final result verbatim as JSON. Read REQUIREMENTS.md yourself first. Do not edit any file outside the workflow."
 
 set -x
-cd "$target"
+cd "$target" || exit 1
 MERCURY_THEMIS=warn MERCURY_DAEDALUS=1 \
   node "$dist" -p "$prompt" --permission-mode flow --model opus \
   --allowedTools 'Workflow' 'Read' 'Glob' 'Grep' 'Write' 'Edit' \

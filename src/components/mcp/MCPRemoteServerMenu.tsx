@@ -222,7 +222,7 @@ export function MCPRemoteServerMenu({
           ...previous.mcp,
           clients: previous.mcp.clients.map(entry =>
             entry.name === server.name
-              ? { type: 'failed', name: entry.name, config: entry.config }
+              ? { type: 'failed', name: entry.name, config: entry.config, error: `signed out of ${server.name} — /mcp reconnect ${server.name} signs in again` }
               : entry,
           ),
           tools: excludeToolsByServer(previous.mcp.tools, server.name),

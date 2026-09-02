@@ -1486,6 +1486,22 @@ async function callToolOnce(
       await clearServerCache(connected.name, connected.config)
       throw new McpSessionExpiredError(connected.name)
     }
+    // A connection closed mid-call or the SDK's own request deadline
+    // surfaced as a bare protocol sentence ("MCP error -32000: Connection
+    // closed") that named neither the server nor a next step; the tool's
+    // caller reads both.
+    if (isConnectionClosedError(err)) {
+      throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+        `MCP tool "${tool}" on server "${connected.name}" failed: the server closed the connection mid-call — /mcp shows its state; /mcp reconnect ${connected.name} starts it again`,
+        'MCP tool call connection closed',
+      )
+    }
+    if (err instanceof McpError && err.code === ErrorCode.RequestTimeout) {
+      throw new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
+        `MCP tool "${tool}" on server "${connected.name}" failed: no answer within ${Math.round(timeoutMs / 1000)}s (MCP_TOOL_TIMEOUT) — retry, or raise MCP_TOOL_TIMEOUT for a slow tool`,
+        'MCP tool call request timeout',
+      )
+    }
     throw err
   } finally {
     clearInterval(stillRunning)
