@@ -92,16 +92,27 @@ t.section('leg 1 — TERM=dumb boots the requirement card, not the cockpit')
     'choices',
   )
   t.check('the card wears the setup frame (step rail present)', r.text.includes('terminal · 1/1'), 'stepTag')
+  const rows = r.text.split('\n')
+  const rowOf = (needle: string): number => rows.findIndex(row => row.includes(needle))
+  t.check(
+    'Continue leads the choice; Exit sits below it',
+    rowOf('Continue anyway') >= 0 && rowOf('Continue anyway') < rowOf('Exit — relaunch'),
+    `continue=${rowOf('Continue anyway')} exit=${rowOf('Exit — relaunch')}`,
+  )
 }
 
 t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 {
   const r = capture('exit', 'dumb', {
-    sends: [{ atTick: 40, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\r' }],
+    sends: [
+      { atTick: 40, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\x1b[B' },
+      { afterPrevTicks: 2, data: '\r' },
+    ],
     stableTicks: 4,
     total: 90,
   })
   t.check('the exit guidance line paints', r.text.includes('missing required capabilities'), 'guidance')
+  t.check('…and no cockpit followed (the card never continued)', !r.text.includes('? for shortcuts'), 'cockpit')
 }
 
 t.section('leg 3 — CONTROL: a capable TERM boots straight to the composer')
