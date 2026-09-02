@@ -20,7 +20,7 @@ const ROOT = join(HERE, '..', '..')
 export const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 const API_KEY = 'fixture-key-000'
-const COMPOSER_READY_NEEDLE = 'Type a prompt'
+const COMPOSER_READY_NEEDLE = 'ype a prompt'
 const COMPOSER_NOMINAL_MS = 4000
 
 export interface TeeWrite {
