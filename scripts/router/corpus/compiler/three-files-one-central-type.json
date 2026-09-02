@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "three-files-one-central-type",
-  "mode": "party",
+  "mode": "fanout",
   "mission": {
     "objective": "Add a shared Widget type and two consumers",
     "title": "Widget type + two adapters",

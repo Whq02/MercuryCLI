@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "one-line-bounded-edit",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Rename a stale local variable",
     "title": "Rename foo to bar",

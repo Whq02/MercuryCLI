@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "diagnostic-unknown-cause",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Find the root cause of an intermittent crash",
     "title": "Daemon dies under load, cause unknown",

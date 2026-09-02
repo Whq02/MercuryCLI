@@ -74,7 +74,6 @@ import {
   createShutdownRequestMessage,
   writeToMailbox,
 } from '../../utils/teammateMailbox.js'
-import { handleRoutePlan, type RoutePlanMessage } from './routePlanOps.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
@@ -143,7 +142,6 @@ export type StructuredMessageInput =
       detail?: string
       refRequestId?: string
     }
-  | (RoutePlanMessage & { type: 'route_plan' })
 
 export type Input = {
   to: string
@@ -243,49 +241,6 @@ const inputSchema = lazySchema(() => {
         refRequestId: z.string().optional(),
       }),
     )
-    if (routerEnabled()) {
-      variants.push(
-        z.object({
-          type: z.literal('route_plan'),
-          op: z.enum(['plan', 'accept', 'revise', 'cancel', 'synthesize', 'accept-plan', 'explain']),
-          objective: z.string().optional(),
-          title: z.string().optional(),
-          task: z.string().optional(),
-          taskShape: z
-            .enum(['mechanical', 'bounded', 'cross-cutting', 'diagnostic', 'architectural', 'research'])
-            .optional(),
-          ambiguity: z.number().int().min(0).max(3).optional(),
-          coupling: z.number().int().min(0).max(3).optional(),
-          parallelism: z.number().int().min(0).max(3).optional(),
-          requiresSynthesis: semanticBoolean(z.boolean().optional()),
-          modelHint: z
-            .enum(['opus', 'sonnet', 'fable', 'gpt', 'glm'])
-            .optional()
-            .describe('A model CLASS preference — never a raw model id'),
-          exactPin: z
-            .string()
-            .optional()
-            .describe('An operator model pin that must resolve exactly or the plan is refused'),
-          nodes: z
-            .array(
-              z.object({
-                id: z.string(),
-                title: z.string(),
-                task: z.string(),
-                dependsOn: z.array(z.string()).optional(),
-                ownsPaths: z.array(z.string()).optional(),
-                acceptance: z.array(z.string()).optional(),
-                requestedModelClass: z.enum(['opus', 'sonnet', 'fable']).optional(),
-                expectedResult: z.string().optional(),
-              }),
-            )
-            .optional(),
-          planId: z.string().optional(),
-          nodeId: z.string().optional(),
-          note: z.string().optional(),
-        }),
-      )
-    }
   }
 
   return z.object({
@@ -1303,35 +1258,13 @@ export const SendMessageTool = buildTool({
         if (!scribeBusContextActive()) return { data: busContextRefusal('control', rawTo) }
         const from = senderName()
         if (message.command === 'ack' && message.refRequestId && routerEnabled()) {
-          void routerStoreWriters.acceptByRequest(message.refRequestId, 'scribe', Date.now()).catch(() => {})
+          void routerStoreWriters.acceptByRequest(message.refRequestId, 'planner', Date.now()).catch(() => {})
         }
         const envelope: ControlEnvelope = buildControl(from, message.command, {
           ...(message.detail !== undefined ? { detail: message.detail } : {}),
           ...(message.refRequestId !== undefined ? { refRequestId: message.refRequestId } : {}),
         })
         return await sendScribeEnvelope(rawTo, envelope, context)
-      }
-      case 'route_plan': {
-        if (!scribeBusContextActive()) return { data: busContextRefusal('route_plan', rawTo) }
-        if (!routerEnabled()) return { data: busContextRefusal('route_plan', rawTo) }
-        if (isImplementerRole()) {
-          return {
-            data: {
-              success: false,
-              message:
-                'Route planning is the planner contract (Scribe, Router, or Maintainer). An executor reports with a progress envelope instead.',
-              request_id: '',
-              target: rawTo,
-            },
-          }
-        }
-        const senderRole = 'scribe' as const
-        return await handleRoutePlan(rawTo, message as RoutePlanMessage, {
-          send: (to, env) => sendScribeEnvelope(to, env, context),
-          senderRole,
-          senderName: senderName(),
-          executors: [],
-        })
       }
     }
   },
