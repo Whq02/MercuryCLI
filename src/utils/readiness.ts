@@ -26,7 +26,7 @@
 // ============================================================================
 
 import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate/flagRegistry.js'
-import { bootEnvAppliedKeys } from '../substrate/startupMenu.js'
+import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
 import {
   mercuryDapEnabled,
@@ -1042,17 +1042,19 @@ function skillRecords(): ReadinessRecord[] {
 
 /**
  * One readiness record for one registry row. The EFFECTIVE value comes from
- * the registry's own reader, so this table can never contradict the gates.
- * `bootKeys` = the spellings the boot-menu env file applied this process
- * (source attribution).
+ * the registry's own reader, so this table can never contradict the gates;
+ * the SOURCE comes from the boot-env attribution owner (realEnvPin), so a
+ * saved default the boot applied is named as the boot menu's, never as the
+ * environment's.
  */
-export function flagReadinessRecord(spec: FlagSpec, bootKeys: ReadonlySet<string>): ReadinessRecord {
+export function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
   const effective = flagEnv(spec.env)
-  const source = bootKeys.has(spec.env)
-    ? 'boot-env.json (boot menu)'
-    : process.env[spec.env] !== undefined
-      ? 'environment'
-      : 'default (unset)'
+  const source =
+    effective === undefined
+      ? 'default (unset)'
+      : realEnvPin(spec.env) !== null
+        ? 'environment'
+        : 'boot-env.json (boot menu)'
 
   let state: ReadinessState
   let detail: string
@@ -1088,9 +1090,8 @@ export function flagReadinessRecord(spec: FlagSpec, bootKeys: ReadonlySet<string
 /** Every registry row as a readiness record — explicitly-set rows first,
  *  then by canonical name. */
 export function envReadinessProjection(): ReadinessRecord[] {
-  const bootKeys = bootEnvAppliedKeys()
   const rows = FLAG_REGISTRY.map(spec => ({
-    record: flagReadinessRecord(spec, bootKeys),
+    record: flagReadinessRecord(spec),
     explicit: flagEnv(spec.env) !== undefined,
     name: spec.env,
   }))

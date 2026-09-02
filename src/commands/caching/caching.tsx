@@ -4,10 +4,10 @@ import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import {
   COMMAND_SETTINGS_ROWS,
-  bootEnvAppliedKeys,
   menuRowChoices,
   readBootDefaultsProfile,
   readBootEnvChoices,
+  realEnvPin,
   writeBootEnvChoice,
   type MenuChoice,
 } from '../../substrate/startupMenu.js'
@@ -40,22 +40,14 @@ const TTL_ROW = COMMAND_SETTINGS_ROWS.find(r => r.env === 'MERCURY_CACHE_TTL')!
 function readDialState(): {
   /** The saved future-defaults choice (null = adaptive/default). */
   saved: string | null
-  /** A REAL operator env pin (set in the environment and NOT stamped there
-   *  by the boot-env applier) — outranks every saved default. */
+  /** A REAL operator env pin (set in the environment and NOT the boot-env
+   *  applier's own stamp — realEnvPin, the one attribution owner) —
+   *  outranks every saved default. */
   envPin: { spelling: string; value: string } | null
 } {
   const saved = readBootEnvChoices() ?? {}
   const savedSpelling = flagSpellings(TTL_ROW.env).find(sp => saved[sp] !== undefined)
-  const applied = bootEnvAppliedKeys()
-  let envPin: { spelling: string; value: string } | null = null
-  for (const sp of flagSpellings(TTL_ROW.env)) {
-    const v = process.env[sp]
-    if (v !== undefined && !applied.has(TTL_ROW.env)) {
-      envPin = { spelling: sp, value: v }
-      break
-    }
-  }
-  return { saved: savedSpelling !== undefined ? (saved[savedSpelling] ?? null) : null, envPin }
+  return { saved: savedSpelling !== undefined ? (saved[savedSpelling] ?? null) : null, envPin: realEnvPin(TTL_ROW.env) }
 }
 
 /** One family's row: the display name + its caching truth lines. */
