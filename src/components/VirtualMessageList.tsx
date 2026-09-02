@@ -3,6 +3,7 @@ import React, {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -322,7 +323,7 @@ export function VirtualMessageList({
 
   const vsRef = useRef(vs)
   vsRef.current = vs
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (selectedIndex === undefined) return
     const el = vsRef.current.getItemElement(selectedIndex)
     if (el) scrollRef.current?.scrollToElement(el, 1)
