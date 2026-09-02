@@ -62,7 +62,7 @@ function drive(
     const printed = (res.stdout ?? '').split('\n').filter(line => line.trimEnd() !== '')
     if (printed.length > 0) {
       console.log(`      ┌ ${tag}: the screen vshot ended on`)
-      for (const line of printed.slice(-16)) console.log(`      │ ${line.trimEnd()}`)
+      for (const line of printed) console.log(`      │ ${line.trimEnd()}`)
       console.log('      └')
     }
     return null
@@ -91,7 +91,7 @@ section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
 {
   const p = drive(
     'arm-close',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       { atTick: 100, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
@@ -114,7 +114,7 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
 {
   const p = drive(
     'arm-expire',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       { afterPrevTicks: 17, data: CTRL_C, mark: 'preSecond' },
@@ -134,21 +134,37 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
   cleanupScenario('resume-2turn')
 }
 
-const BUSY_KEY = 'sk-ant-fixture-exit-copy'
 type BusyWorld = { cfg: ScenarioCfg; env: Record<string, string>; home: string }
 const busyWorld = (): BusyWorld => {
-  const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
+  const base = scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
   const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
-  process.env.ANTHROPIC_API_KEY = BUSY_KEY
-  try {
-    seedFirstRun(home, [String(base['cwd'])])
-  } finally {
-    delete process.env.ANTHROPIC_API_KEY
+  seedFirstRun(home, [String(base['cwd'])])
+  return {
+    cfg: { ...base, argv: argv.slice(0, 2) },
+    env: {
+      MERCURY_CONFIG_DIR: home,
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
+    },
+    home,
   }
-  return { cfg: { ...base, argv: argv.slice(0, 2) }, env: { MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: BUSY_KEY }, home }
 }
 const closeBusyWorld = (world: BusyWorld): void => {
+  if (failures > 0) {
+    const found = (spawnSync('find', [world.home, '-name', '*.jsonl'], { encoding: 'utf8' }).stdout ?? '')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+    console.log(`      ┌ busy home kept at ${world.home} — transcripts: ${found.length}`)
+    for (const file of found.slice(-2)) {
+      const lines = readFileSync(file, 'utf8').trimEnd().split('\n')
+      console.log(`      │ ${file} (${lines.length} lines)`)
+      for (const line of lines.slice(-6)) console.log(`      │   ${line.slice(0, 240)}`)
+    }
+    console.log('      └')
+    return
+  }
   try {
     rmSync(world.home, { recursive: true, force: true })
   } catch {
@@ -166,8 +182,8 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
-      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
       { atTick: 240, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
@@ -176,12 +192,11 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     undefined,
     world.env,
   )
-  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
     check("the running footer named esc as the interrupt (the truthful hint)", hintUp)
-    if (!hintUp && busy !== undefined) dumpBottom('the frame at the first press — the hint absent', busy.grid)
+    if (!hintUp && busy !== undefined) dumpBottom('the frame at the first press — the hint absent', busy.grid, 60)
     check(
       "…and never the old 'ctrl+c interrupt' spelling",
       busy !== undefined && !textOf(busy.grid).includes('ctrl+c interrupt'),
@@ -190,6 +205,7 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     check('the busy first press showed the same notice', armed !== undefined && textOf(armed.grid).includes(NOTICE))
     check('the second press closed Mercury', p.endReason === 'eof', `endReason=${p.endReason}`)
   }
+  closeBusyWorld(world)
   cleanupScenario('resume-2turn')
 }
 
@@ -201,8 +217,8 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
-      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
     ],
@@ -210,31 +226,38 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     INTERRUPTED_ROW,
     world.env,
   )
-  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
     check('the busy hint was up when ESC landed', hintUp)
-    if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid)
+    if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid, 60)
     const settled = textOf(p.grid).includes(INTERRUPTED_ROW)
     check('ESC interrupted the turn (the interrupt row settled under the command)', settled)
     if (!settled) dumpBottom('the final frame — no interrupt marker', p.grid, 16)
     check('…and Mercury stayed open (no exit)', p.endReason !== 'eof', `endReason=${p.endReason}`)
   }
+  closeBusyWorld(world)
   cleanupScenario('resume-2turn')
 }
 
 section('D · the copy receipt on both trigger paths (the standing scenarios)')
 {
-  const sel = scenario('copy-receipt-select', 80, 44) as unknown as ScenarioCfg
-  const pSel = drive('receipt-select', sel, sel.sends, sel.total, 'Copied to clipboard')
+  const SGR = (button: number, up = false): string => `\x1b[<${button};{X};{Y}${up ? 'm' : 'M'}`
+  const DRAG: Send[] = [
+    { atTick: 60, minTick: 8, awaitText: '❯', data: '' },
+    { targetText: 'first task', targetDx: 1, afterPrevTicks: 2, data: SGR(0) },
+    { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(32) },
+    { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(0, true) },
+  ]
+  const sel = scenario('copy-receipt-select', 100, 44) as unknown as ScenarioCfg
+  const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard')
   if (pSel) {
     check('drag-release raised "Copied to clipboard"', textOf(pSel.grid).includes('Copied to clipboard'))
   }
   cleanupScenario('copy-receipt-select')
 
-  const ctl = scenario('copy-receipt-ctrlc', 80, 44) as unknown as ScenarioCfg
-  const pCtl = drive('receipt-ctrlc', ctl, ctl.sends, ctl.total, 'Copied to clipboard')
+  const ctl = scenario('copy-receipt-ctrlc', 100, 44) as unknown as ScenarioCfg
+  const pCtl = drive('receipt-ctrlc', ctl, [...DRAG, { afterPrevTicks: 4, data: CTRL_C }], ctl.total, 'Copied to clipboard')
   if (pCtl) {
     const text = textOf(pCtl.grid)
     check('ctrl+c with a selection raised "Copied to clipboard"', text.includes('Copied to clipboard'))
