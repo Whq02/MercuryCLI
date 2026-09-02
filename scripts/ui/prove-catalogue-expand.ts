@@ -28,10 +28,50 @@ if (!existsSync(DIST)) {
   process.exit(1)
 }
 
-const scratch = mkdtempSync(join(tmpdir(), 'catalogue-expand-'))
 const DEAD = 'http://127.0.0.1:9'
 const OPENROUTER_KEY = 'sk-or-v1-fixture-expand-key-000001'
 const HF_KEY = 'hf_fixture_expand_token_000001'
+
+if (process.argv[2] === '--compose') {
+  const port = Number(process.argv[3])
+  const home = process.argv[4]!
+  process.env.MERCURY_CONFIG_DIR = home
+  process.env.MERCURY_CREDENTIAL_STORE = 'file'
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  process.env.OPENROUTER_API_KEY = OPENROUTER_KEY
+  process.env.MERCURY_OPENROUTER_API_BASE = `http://127.0.0.1:${port}/or/v1`
+  process.env.HF_TOKEN = HF_KEY
+  process.env.MERCURY_HUGGINGFACE_API_BASE = `http://127.0.0.1:${port}/hf/v1`
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const or = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+  const hf = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
+  const orSnapshot = await or.refreshOpenrouterCatalogue('env', { force: true })
+  const hfSnapshot = await hf.refreshHuggingfaceCatalogue({ force: true })
+  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const options = getModelOptions()
+  const orDoor = options.findIndex(o => o.value === or.OPENROUTER_EXPAND_OPTION_VALUE)
+  const hfDoor = options.findIndex(o => o.value === hf.HUGGINGFACE_EXPAND_OPTION_VALUE)
+  console.log(
+    JSON.stringify({
+      total: options.length,
+      orDoor,
+      hfDoor,
+      orRows: orSnapshot?.models.length ?? -1,
+      hfRows: hfSnapshot?.models.length ?? -1,
+      orError: orSnapshot?.lastError ?? null,
+      hfError: hfSnapshot?.lastError ?? null,
+      orFamily: options[orDoor]?.catalogueDoor?.family ?? null,
+      hfFamily: options[hfDoor]?.catalogueDoor?.family ?? null,
+      orTotal: options[orDoor]?.catalogueDoor?.total ?? null,
+      hfTotal: options[hfDoor]?.catalogueDoor?.total ?? null,
+    }),
+  )
+  process.exit(0)
+}
+
+const scratch = mkdtempSync(join(tmpdir(), 'catalogue-expand-'))
 
 const ledger = join(scratch, 'fixture-ledger.log')
 const fixture = spawn(process.execPath, ['run', FIXTURE, ledger], { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -48,14 +88,14 @@ const port = await new Promise<number>((resolvePort, reject) => {
 const OR_BASE = `http://127.0.0.1:${port}/or/v1`
 const HF_BASE = `http://127.0.0.1:${port}/hf/v1`
 
-function childEnv(home: string, family: 'openrouter' | 'huggingface'): NodeJS.ProcessEnv {
+function childEnv(home: string, tag: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    MERCURY_DAEMON_DIR: join(scratch, `daemon-${family}`),
+    MERCURY_DAEMON_DIR: join(scratch, `daemon-${tag}`),
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_SLEEP: '0',
@@ -96,26 +136,22 @@ console.log('============================================================')
 console.log(' the catalogue door — both families, on the bundle, in a PTY')
 console.log('============================================================')
 
-console.log('[0] the composed catalogue over the fixture (this process, a twin home)')
+console.log('[0] the composed catalogue over the fixture (the product\'s composition, a twin home, its own process)')
 const indexHome = seededHome('home-index')
-for (const [key, value] of Object.entries(childEnv(indexHome, 'openrouter'))) {
-  if (value === undefined) delete process.env[key]
-  else process.env[key] = value
-}
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { enableConfigs } = await import('../../src/utils/config.ts')
-enableConfigs()
-const or = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-const hf = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
-const orSnapshot = await or.refreshOpenrouterCatalogue('env', { force: true })
-const hfSnapshot = await hf.refreshHuggingfaceCatalogue({ force: true })
-check('both fixture catalogues land in this process (30 rows each)', orSnapshot?.models.length === 30 && hfSnapshot?.models.length === 30, JSON.stringify({ or: orSnapshot?.models.length, orError: orSnapshot?.lastError, hf: hfSnapshot?.models.length, hfError: hfSnapshot?.lastError }))
-const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
-const options = getModelOptions()
-const orDoor = options.findIndex(o => o.value === or.OPENROUTER_EXPAND_OPTION_VALUE)
-const hfDoor = options.findIndex(o => o.value === hf.HUGGINGFACE_EXPAND_OPTION_VALUE)
-check('both doors sit in the composed catalogue, each past its family\'s 24 rows', orDoor >= 24 && hfDoor > orDoor + 24, JSON.stringify({ orDoor, hfDoor, total: options.length }))
-check('each door carries its family word and the live count of 30', options[orDoor]?.catalogueDoor?.family === 'OpenRouter' && options[orDoor]?.catalogueDoor?.total === 30 && options[hfDoor]?.catalogueDoor?.family === 'Hugging Face' && options[hfDoor]?.catalogueDoor?.total === 30)
+const composeRun = spawnSync(process.execPath, ['run', import.meta.path, '--compose', String(port), indexHome], {
+  encoding: 'utf-8',
+  env: childEnv(indexHome, 'compose'),
+  cwd: ROOT,
+  timeout: 120_000,
+})
+const composeLine = (composeRun.stdout ?? '').split('\n').filter(l => l.startsWith('{')).pop() ?? '{}'
+const composed = JSON.parse(composeLine) as { total?: number; orDoor?: number; hfDoor?: number; orRows?: number; hfRows?: number; orError?: string | null; hfError?: string | null; orFamily?: string | null; hfFamily?: string | null; orTotal?: number | null; hfTotal?: number | null }
+check('the composition subprocess answered (both fixture catalogues landed there, 30 rows each)', composeRun.status === 0 && composed.orRows === 30 && composed.hfRows === 30, `status ${composeRun.status}: ${composeLine} ${(composeRun.stderr ?? '').slice(-300)}`)
+const options = { length: composed.total ?? 0 }
+const orDoor = composed.orDoor ?? -1
+const hfDoor = composed.hfDoor ?? -1
+check('both doors sit in the composed catalogue, each past its family\'s 24 rows', orDoor >= 24 && hfDoor > orDoor + 24, composeLine)
+check('each door carries its family word and the live count of 30', composed.orFamily === 'OpenRouter' && composed.orTotal === 30 && composed.hfFamily === 'Hugging Face' && composed.hfTotal === 30, composeLine)
 
 interface DriveResult {
   status: number | null
@@ -123,13 +159,13 @@ interface DriveResult {
   final: string
   stderr: string
 }
-function drive(tag: string, home: string, family: 'openrouter' | 'huggingface', sends: unknown[], total: number): DriveResult {
+function drive(tag: string, home: string, sends: unknown[], total: number): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
-    env: childEnv(home, family),
+    env: childEnv(home, tag),
     cwd: ROOT,
     timeout: vshotBudgetMs(180_000),
   })
@@ -183,6 +219,40 @@ function filesCarrying(dir: string, needle: string): string[] {
   return out
 }
 
+function dumpHomeLogs(home: string): void {
+  const logs: string[] = []
+  const walk = (d: string): void => {
+    let entries: string[] = []
+    try {
+      entries = readdirSync(d)
+    } catch {
+      return
+    }
+    for (const name of entries) {
+      const p = join(d, name)
+      try {
+        const st = statSync(p)
+        if (st.isDirectory()) walk(p)
+        else if (/\.(log|txt|jsonl)$/.test(name) || /debug|log/i.test(name)) logs.push(p)
+      } catch {
+      }
+    }
+  }
+  walk(home)
+  for (const p of logs.slice(0, 6)) {
+    let text = ''
+    try {
+      text = readFileSync(p, 'utf8')
+    } catch {
+      continue
+    }
+    const tail = text.split('\n').filter(l => l.trim() !== '').slice(-25)
+    console.log(`\n──── log tail · ${p.replace(home, '<home>')} ────`)
+    console.log(tail.map(l => l.slice(0, 300)).join('\n'))
+  }
+  if (logs.length === 0) console.log(`\n──── no log files under ${home} ────`)
+}
+
 const UP = '\x1b[A'
 const DOWN = '\x1b[B'
 const ESC = '\x1b'
@@ -191,10 +261,10 @@ const walkTo = (door: number): string => TO_END + UP.repeat(options.length - 1 -
 
 type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: number; needleId: string; needleLabel: string; firstRow: string }
 
-function familySends(spec: FamilySpec): unknown[] {
+function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: number }): unknown[] {
   return [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 80, data: '/model', awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 8 },
+      { atTick: settle.atTick, data: '/model', awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: settle.settleTicks },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
@@ -226,11 +296,13 @@ function familySends(spec: FamilySpec): unknown[] {
 function familyDrive(spec: FamilySpec): void {
   console.log(`[${spec.family}] the door: expand · filter · esc clears · esc collapses · esc closes · select a deep row`)
   let home = seededHome(`home-${spec.family}`)
-  let res = drive(spec.family, home, spec.family, familySends(spec), 420)
+  let res = drive(spec.family, home, familySends(spec, { atTick: 130, settleTicks: 15 }), 460)
   if (res.status !== 0 && /first stuck: '(CHOOSE A MODEL|❯ \/model|Type a prompt|↑↓ choose)'/.test(res.stderr)) {
     console.log(`  (the picker never opened on the first boot — ${/first stuck: '[^']*'/.exec(res.stderr)?.[0] ?? ''}; one more boot)`)
+    dumpHomeLogs(home)
     home = seededHome(`home-${spec.family}-2`)
-    res = drive(`${spec.family}-2`, home, spec.family, familySends(spec), 420)
+    res = drive(`${spec.family}-2`, home, familySends(spec, { atTick: 220, settleTicks: 25 }), 520)
+    if (res.status !== 0) dumpHomeLogs(home)
   }
   const failuresBefore = failures
   check(`${spec.family}: the drive delivered every awaited screen (a real boot; every ↵/esc landed)`, res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-400)}`)
@@ -260,7 +332,7 @@ function familyDrive(spec: FamilySpec): void {
   check(`${spec.family}: esc with nothing open closes the picker (the receipt line)`, closed.includes('Kept model as'), lines(closed, 'Kept'))
   check(`${spec.family}: ↵ on the filtered deep row selects it — the receipt names the row`, selected.includes(`Set model to ${spec.needleLabel}`), lines(selected, 'Set model'))
   check(`${spec.family}: re-opening the picker opens the door at mount (the current model lives behind it) with the deep row focused and marked current`, reopened.includes(`${spec.word} — 30 live · filter:`) && reopened.includes(`${spec.needleId} · model IDs are real`) && lines(reopened, spec.needleLabel).includes('current'), lines(reopened, spec.needleLabel) + ' || ' + lines(reopened, spec.word))
-  const carriers = filesCarrying(home, spec.needleId).concat(filesCarrying(join(scratch, `daemon-${spec.family}`), spec.needleId))
+  const carriers = filesCarrying(home, spec.needleId).concat(filesCarrying(join(scratch, `daemon-${spec.family}`), spec.needleId), filesCarrying(join(scratch, `daemon-${spec.family}-2`), spec.needleId))
   check(`${spec.family}: the persisted model is the deep row's id (${spec.needleId}) — on disk in the scratch home`, carriers.length >= 1, `files: ${carriers.join(', ') || 'none'} · settings: ${existsSync(join(home, 'settings.json')) ? readFileSync(join(home, 'settings.json'), 'utf8').slice(0, 300) : 'absent'}`)
   if (failures !== failuresBefore) {
     for (const [label, screen] of res.marks) {
