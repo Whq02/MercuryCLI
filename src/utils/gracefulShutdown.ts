@@ -10,6 +10,7 @@ import { armInactivityDeadline } from './deadline.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
+import { registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
 
 
@@ -263,6 +264,8 @@ export const setupGracefulShutdown = (): void => {
       }
     }
   }
+
+  registerProcessOutputErrorHandlers()
 
   process.on('uncaughtException', (err: unknown) => {
     if (isModuleLoadFailure(err) && !isShuttingDown()) {
