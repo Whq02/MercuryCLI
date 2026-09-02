@@ -94,7 +94,7 @@ if (POISON_DIST === undefined) {
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
-  check('the ARMED legend keeps the chord row — no letter, it survives the yield lawfully', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'close'))
+  check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
   const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
   check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('ctrl+x ctrl+x stops the selected') && docs.includes('typing is never a control'))
   check('docs/SESSIONS.md no longer advertises a bare-x board verb', !/`x` on a|`x` stops|second `x`/.test(docs))
@@ -142,6 +142,7 @@ const sends = [
   after(10800, `${ESC}[1;2D`),
   after(11600, '\t'),
   after(12400, `${ESC}[B`),
+  after(13000, '\t'),
   after(13400, 'x'),
   after(15600, BACKSPACE),
   ...[...'keep me'].map((ch, i) => after(16200 + i * 80, ch)),
