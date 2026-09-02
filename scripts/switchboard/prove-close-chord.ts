@@ -183,16 +183,16 @@ const sends = [
   // words, and no letter flows through from them. One more tab moves the
   // focus from the rows to the live composer (its own hint: tab to type);
   // the selection stays on the working row, which is the composer's target.
-  after(13000, '\t'), // 8b tab: LIST → the LIVE composer (the selection stays on the working row)
-  after(13400, 'x'), // 9 THE POISON LETTER — must TYPE into the focused composer (pre-fix: it stopped)
-  after(15600, BACKSPACE), // 10 clear the typed x
-  ...[...'keep me'].map((ch, i) => after(16200 + i * 80, ch)), // 11..17 the draft that must survive
-  after(18000, CTRL_X), // 18 arm — the confirm hint paints
-  after(19300, 'q'), // 19 other input disarms (the chord eats the suffix; the draft stays whole)
-  after(21000, CTRL_X), // 20 arm again
-  after(21450, CTRL_X), // 21 complete — THE STOP STAGE (the row stays, wearing stopped)
-  after(25000, CTRL_X), // 22 arm — the hint now speaks the REMOVE stage
-  after(25900, CTRL_X), // 23 complete — THE REMOVE STAGE (exactly this row leaves)
+  after(13000, '\t'), // 9 tab: LIST → the LIVE composer (the selection stays on the working row)
+  after(13400, 'x'), // 10 THE POISON LETTER — must TYPE into the focused composer (pre-fix: it stopped)
+  after(15600, BACKSPACE), // 11 clear the typed x
+  ...[...'keep me'].map((ch, i) => after(16200 + i * 80, ch)), // 12..18 the draft that must survive
+  after(18000, CTRL_X), // 19 arm — the confirm hint paints
+  after(19300, 'q'), // 20 other input disarms (the chord eats the suffix; the draft stays whole)
+  after(21000, CTRL_X), // 21 arm again
+  after(21450, CTRL_X), // 22 complete — THE STOP STAGE (the row stays, wearing stopped)
+  after(25000, CTRL_X), // 23 arm — the hint now speaks the REMOVE stage
+  after(25900, CTRL_X), // 24 complete — THE REMOVE STAGE (exactly this row leaves)
 ]
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
@@ -254,7 +254,10 @@ const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
 check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-300)}` : ''}`)
 if (sendRecs.length === sends.length) {
-  const times = [at(9) + 1800, at(18) + 500, at(19) + 600, at(21) + 3000, at(22) + 400, at(23) + 2500]
+  // The capture offsets ride the RUNTIME send indices (the focus tab at
+  // index 9 shifted every later send by one): x=10, arm=19, disarm=20,
+  // stop-complete=22, remove-arm=23, remove-complete=24.
+  const times = [at(10) + 1800, at(19) + 500, at(20) + 600, at(22) + 3000, at(23) + 400, at(24) + 2500]
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)

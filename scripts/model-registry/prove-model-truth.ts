@@ -146,8 +146,10 @@ section('7. code-side model default census — literals resolve live, tiers trac
   // minerva.ts left this census when its literal pin became a live read —
   // zero literals is its law now. A row here for a file that does not exist
   // is a crash, never a law.
+  // workflowRouting.ts left this census the same way (the neutral seat
+  // law): the executor route is the neutral seat default's setting — no
+  // literal names a model there now, and the route's pin stands below.
   const censusFiles = [
-    'src/tools/WorkflowTool/workflowRouting.ts',
     'src/daemon/crewSpawn.ts',
   ]
   // StudioEditor.tsx left the literal census the same way: the agents face

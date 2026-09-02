@@ -94,8 +94,16 @@ function walk(root: string): string[] {
   // The door stopped passing a model at L18: the birth reads the
   // next-session facts' choice, else the screen's main — inside bornSession
   // (birthModelOf), never at the call site.
-  check('P2 New Session births a real session through the ONE birth door', newBody.includes('bornSession({ workspaceDir: process.cwd() })'))
-  check('P2 the chat is entered only once the birth succeeded (a refusal paints its reason, enters nothing)', newBody.indexOf('if (!born.ok) return born.reason') !== -1 && newBody.indexOf('if (!born.ok) return born.reason') < newBody.indexOf('enterRootRepl()'))
+  // Re-trued to the FLIP-FIRST law (the ruling): New Session births
+  // through the one door on the face's flip-first road — the chat route
+  // flips BEFORE the birth answers (the door arms the landing gate on the
+  // call), the birth lands behind, and a refusal hands the frame back to
+  // the face with its reason on the screen-receipt seam. The birth still
+  // takes the screen's cwd (getCwd — the ground can move; process.cwd() is
+  // the boot's).
+  check('P2 New Session births a real session through the ONE birth door (the flip-first road)', newBody.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))'))
+  const road = boot.slice(boot.indexOf('async function flipFirstBirth('), boot.indexOf('export function BootSplashScreen('))
+  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootRepl().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
   check('P2 no ghost is handed to the slot (the ENTERED law is gone)', !newBody.includes('focusNascentSession') && !newBody.includes('isNascentConnector'))
   check('P2 nothing is handed back to an engine and no /clear is armed', !boot.includes('focusInProcessSession') && !newBody.includes("armRootCommand('/clear')"))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
@@ -145,7 +153,12 @@ function walk(root: string): string[] {
   check('P3 the birth body is anchored (the slice cannot go vacuous)', fnAt !== -1)
   check('P3 the birth door admits through the daemon (born = registered) and then hops', body.includes("op: 'sessionAdmit'") && body.indexOf("op: 'sessionAdmit'") < body.indexOf('hopIntoBoardSession(sessionId'))
   check('P3 the birth is marked blank for the daemon (the birth grace reads it)', body.includes('bornBlank: true'))
-  check('P3 the birth carries the model shown, the title, the effort, the posture and the runner options', body.includes('model,') && body.includes('{ title }') && body.includes('effort: facts.effort') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
+  // Re-trued (the neutral-default ruling): the birth carries a model only
+  // when one is named — the record's choice, the door's inheritance or the
+  // screen's main model with a sign-in; NOTHING on a keyless home, where
+  // the daemon admits a modelless session and the first send is what a
+  // credential gates.
+  check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort, the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('effort: facts.effort') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
   check('P3 the birth sends NO words (a blank, ready session — never a dispatch)', !body.includes("op: 'sessionDispatch'") && !body.includes('prompt:'))
   check('P3 the daemon heals before the birth (the first Enter never meets ENOENT)', body.indexOf('ensureOwnedDaemon()') !== -1 && body.indexOf('ensureOwnedDaemon()') < body.indexOf("op: 'sessionAdmit'"))
 }
