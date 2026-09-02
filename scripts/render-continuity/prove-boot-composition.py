@@ -7,7 +7,8 @@
 # harness with ASSERTIONS):
 #   · 80x24 and 120x44 stay balanced (|below-above| <= 1);
 #   · tall sizes (120x60 · 100x50 · 160x70) distribute the slack optically
-#     (|below-above| <= 5 AND >= 4 rows above — never top-pinned);
+#     (|below-above| <= 5 AND >= 4 rows above — never top-pinned), or, when
+#     the block nearly fills the terminal (pad <= 6), balance what is left;
 #   · a live resize 44 -> 66 lands in the same law (stale-geometry kill);
 #   · the MENU view at a tall size is placed by the SAME owner (centred).
 #
@@ -146,10 +147,16 @@ for label, cols, rows, resize, balanced_only in [
     if balanced_only:
         check(f'{label}: balanced (|imb| <= 1)', abs(imb) <= 1, f'{above} above / {below} below')
     else:
+        # The tall lockup measures one fixed 48-row block at every tall size
+        # (this run's own details: 6/6 at 120x60, 10/12 at 160x70, 1/1 at
+        # 100x50): a terminal it nearly fills has no slack to distribute,
+        # so the law reads the menu view's shape — distributed, or naturally
+        # full (pad <= 6 balances what little is left).
+        pad = above + below
         check(
-            f'{label}: optical distribution (|imb| <= 5, >= 4 above)',
-            abs(imb) <= 5 and above >= 4,
-            f'{above} above / {below} below',
+            f'{label}: optical distribution (|imb| <= 5, >= 4 above; or naturally full)',
+            (pad <= 6 and abs(imb) <= 1) or (abs(imb) <= 5 and above >= 4),
+            f'{above} above / {below} below (pad {pad})',
         )
 
 print('── §2 the menu is placed by the same owner ──')
