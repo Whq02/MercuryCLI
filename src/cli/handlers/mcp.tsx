@@ -21,6 +21,7 @@ import {
   removeMcpConfig,
 } from '../../services/mcp/config.js'
 import { isMcpCatalogueMember } from '../../services/mcp/membership.js'
+import { clipToWord, describeMcpConfigIssues } from '../../services/mcp/utils.js'
 import {
   clearMcpClientConfig,
   clearServerTokensFromLocalStorage,
@@ -77,8 +78,9 @@ export async function probeServer(
 }
 
 function renderStatus(result: ProbeResult): string {
-  // The reason rides the line, clipped — one row per server stays one row.
-  const reason = result.reason !== undefined && result.reason.length > 0 ? ` — ${result.reason.slice(0, 160)}` : ''
+  // The reason rides the line, clipped at a word with the cut marked — one
+  // row per server stays one row, and never ends mid-word.
+  const reason = result.reason !== undefined && result.reason.length > 0 ? ` — ${clipToWord(result.reason, 160)}` : ''
   switch (result.outcome) {
     case 'connected':
       return `${GLYPH.ok} connected`
@@ -348,7 +350,9 @@ export async function mcpAddJsonHandler(
     // persist the RAW object regardless — an invalid config landed on disk
     // with a success receipt).
     if (!validated.success) {
-      cliError(`mcp add-json ${name}: the config does not match the server schema — ${validated.error.issues.map(i => `${i.path.join('.') || '(root)'}: ${i.message}`).join(' · ')}`)
+      // The union's own words (`(root): Invalid input`) name nothing; the
+      // describer prints the matched transport's field problems.
+      cliError(`mcp add-json ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`)
       return
     }
     await addMcpConfig(name, parsed, scope)
