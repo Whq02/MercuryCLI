@@ -214,10 +214,10 @@ export function useHistorySearch(
     disarmHistoryScanTimer(scanDebounceRef.current)
     scanDebounceRef.current = null
     closeReader()
-    const load = loadHistoryCorpus()
-    corpusRef.current = load
+    corpusRef.current = loadHistoryCorpus()
     corpusValueRef.current = null
     scanInFlightRef.current = false
+    const load = corpusRef.current
     void load.then(
       corpus => {
         if (corpusRef.current === load) corpusValueRef.current = corpus
