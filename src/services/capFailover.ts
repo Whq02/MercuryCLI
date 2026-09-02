@@ -4,6 +4,8 @@ export type CapPosture = 'off' | 'offer' | 'auto'
 
 export type CapQuota = 'allowed' | 'allowed_warning' | 'rejected'
 
+export type CapWindowState = 'allowed' | 'warning' | 'rejected' | 'unknown'
+
 export type CapAction =
   | { kind: 'none' }
   | {
@@ -17,27 +19,42 @@ export function resolveCapPosture(): CapPosture {
   return raw === 'off' || raw === 'auto' ? raw : 'offer'
 }
 
-export function decideCapAction(posture: CapPosture, quota: CapQuota): CapAction {
+function windowStateOf(state: CapWindowState | CapQuota): CapWindowState {
+  return state === 'allowed_warning' ? 'warning' : state
+}
+
+export function decideCapAction(posture: CapPosture, state: CapWindowState | CapQuota): CapAction {
   if (posture === 'off') return { kind: 'none' }
-  if (quota === 'allowed') return { kind: 'none' }
-  if (quota === 'allowed_warning') return { kind: 'offer', trigger: 'warning' }
+  const window = windowStateOf(state)
+  if (window === 'allowed' || window === 'unknown') return { kind: 'none' }
+  if (window === 'warning') return { kind: 'offer', trigger: 'warning' }
   return posture === 'auto'
     ? { kind: 'auto-handoff', trigger: 'rejected' }
     : { kind: 'offer', trigger: 'rejected' }
 }
 
-let capHandoff: { homeModel: string | null } | null = null
 
-export function noteCapHandoff(homeModel: string | null): void {
-  capHandoff = { homeModel }
+export interface CapHandoffNote {
+  homeModel: string | null
+  homeFamily: string
+}
+
+let capHandoff: CapHandoffNote | null = null
+
+export function noteCapHandoff(homeModel: string | null, homeFamily: string): void {
+  capHandoff = { homeModel, homeFamily }
 }
 
 export function noteCapReturn(): void {
   capHandoff = null
 }
 
-export function capHandoffState(): { homeModel: string | null } | null {
+export function capHandoffState(): CapHandoffNote | null {
   return capHandoff
+}
+
+export function clearCapHandoffForFamily(family: string): void {
+  if (capHandoff !== null && capHandoff.homeFamily === family) capHandoff = null
 }
 
 
@@ -63,15 +80,22 @@ export function noteOfferAutoDone(key: string): void {
 export function _resetOfferMemoriesForTesting(): void {
   offerDismissals.clear()
   offerAutoActions.clear()
+  capHandoff = null
+}
+
+export interface CapReturnHomeFacts {
+  window: CapWindowState | CapQuota
+  credentialUsable: boolean
 }
 
 export function decideCapReturn(
   posture: CapPosture,
-  homeQuota: CapQuota,
+  home: CapReturnHomeFacts,
   onFailoverLane: boolean,
 ): CapAction {
   if (!onFailoverLane || posture === 'off') return { kind: 'none' }
-  if (homeQuota !== 'allowed') return { kind: 'none' }
+  if (!home.credentialUsable) return { kind: 'none' }
+  if (windowStateOf(home.window) !== 'allowed') return { kind: 'none' }
   return posture === 'auto'
     ? { kind: 'auto-handoff', trigger: 'reset' }
     : { kind: 'offer', trigger: 'reset' }
@@ -89,42 +113,240 @@ export function decideSlotWallAction(
 }
 
 
-export const CAP_FAILOVER_FAMILY_ORDER = [
-  'openai',
-  'zai',
-  'moonshot',
-  'deepseek',
-  'huggingface',
-  'openrouter',
-  'gemini',
-  'openai-compat',
-  'local',
-] as const
+export type CapWindowBasis =
+  | 'observed'
+  | 'stated-reset-elapsed'
+  | 'none'
 
-export type CapFailoverRoute = (typeof CAP_FAILOVER_FAMILY_ORDER)[number]
+export interface FamilyWindowFact {
+  family: string
+  state: CapWindowState
+  basis: CapWindowBasis
+  resetsAtMs?: number
+  windowName?: string
+}
+
+export interface FamilyWindowReads {
+  now?: () => number
+  anthropic?: () => {
+    status: CapQuota
+    observed: boolean
+    resetsAtMs?: number
+    windowName?: string
+  }
+  openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
+  openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
+  openaiBands?: () => Array<{ usedPct: number; resetsAtMs?: number; windowName: string }>
+  openrouterWall?: () => { resetsAtMs: number } | null
+  geminiWall?: () => { resetsAtMs: number } | null
+  huggingfaceWall?: () => { resetsAtMs: number } | null
+  laneBilling?: (family: string) => { state: 'credit-exhausted' | 'clear' }
+}
+
+export const CAP_APPROACHING_PCT = 70
+
+function liveFamilyWindowReads(): Required<FamilyWindowReads> {
+  return {
+    now: Date.now,
+    anthropic: () => {
+      const limits = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
+      const current = limits.currentLimits
+      return {
+        status: current.status,
+        observed: limits.claudeWindowObserved(),
+        ...(current.resetsAt !== undefined ? { resetsAtMs: current.resetsAt * 1000 } : {}),
+        ...(current.rateLimitType !== undefined
+          ? { windowName: limits.getRateLimitDisplayName(current.rateLimitType) }
+          : {}),
+      }
+    },
+    openaiActiveSource: () => {
+      const { resolveOpenaiAccount } =
+        require('./providers/openai/openaiAccounts.js') as typeof import('./providers/openai/openaiAccounts.js')
+      return resolveOpenaiAccount()?.kind
+    },
+    openaiWall: source => {
+      const { openaiObservedWall } =
+        require('./providers/openai/openaiLimitState.js') as typeof import('./providers/openai/openaiLimitState.js')
+      return openaiObservedWall(source)
+    },
+    openaiBands: () => {
+      const { openaiObservedUsage } =
+        require('./providers/openai/openaiLimitState.js') as typeof import('./providers/openai/openaiLimitState.js')
+      const { usageWindowLabel } =
+        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      const observed = openaiObservedUsage()
+      const bands: Array<{ usedPct: number; resetsAtMs?: number; windowName: string }> = []
+      for (const band of [observed.primary, observed.secondary]) {
+        if (band === undefined || band.usedPct === undefined) continue
+        const label = usageWindowLabel(band.windowMinutes)
+        bands.push({
+          usedPct: band.usedPct,
+          ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
+          windowName: label === 'wk' ? 'weekly window' : label === 'win' ? 'usage window' : `${label} window`,
+        })
+      }
+      return bands
+    },
+    openrouterWall: () => {
+      const { openrouterObservedWall } =
+        require('./providers/openrouter/openrouterUsageState.js') as typeof import('./providers/openrouter/openrouterUsageState.js')
+      return openrouterObservedWall()
+    },
+    geminiWall: () => {
+      const { geminiObservedWall } =
+        require('./providers/gemini/geminiUsageState.js') as typeof import('./providers/gemini/geminiUsageState.js')
+      return geminiObservedWall()
+    },
+    huggingfaceWall: () => {
+      const { huggingfaceObservedWall } =
+        require('./providers/huggingface/huggingfaceUsageState.js') as typeof import('./providers/huggingface/huggingfaceUsageState.js')
+      return huggingfaceObservedWall()
+    },
+    laneBilling: family => {
+      if (family === 'huggingface') {
+        const { huggingfaceBillingState } =
+          require('./providers/huggingface/huggingfaceUsageState.js') as typeof import('./providers/huggingface/huggingfaceUsageState.js')
+        if (huggingfaceBillingState().state === 'credit-exhausted') return { state: 'credit-exhausted' }
+      }
+      const { laneBillingState } =
+        require('./providers/laneBillingState.js') as typeof import('./providers/laneBillingState.js')
+      return { state: laneBillingState(family as Parameters<typeof laneBillingState>[0]).state }
+    },
+  }
+}
+
+function wallFact(family: string, wall: { resetsAtMs: number }, now: number, windowName: string): FamilyWindowFact {
+  return wall.resetsAtMs > now
+    ? { family, state: 'rejected', basis: 'observed', resetsAtMs: wall.resetsAtMs, windowName }
+    : { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: wall.resetsAtMs }
+}
+
+export function observedFamilyWindow(family: string, reads?: FamilyWindowReads): FamilyWindowFact {
+  const r: Required<FamilyWindowReads> = { ...liveFamilyWindowReads(), ...stripUndefined(reads) }
+  const unknown: FamilyWindowFact = { family, state: 'unknown', basis: 'none' }
+  try {
+    const now = r.now()
+    if (family === 'anthropic') {
+      const a = r.anthropic()
+      if (!a.observed) return unknown
+      const windowName = a.windowName ?? 'usage window'
+      if (a.status === 'rejected' || a.status === 'allowed_warning') {
+        if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
+          return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
+        }
+        return {
+          family,
+          state: a.status === 'rejected' ? 'rejected' : 'warning',
+          basis: 'observed',
+          ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
+          windowName,
+        }
+      }
+      return { family, state: 'allowed', basis: 'observed' }
+    }
+    if (family === 'openai') {
+      const source = r.openaiActiveSource()
+      if (source === undefined) return unknown
+      const wall = r.openaiWall(source)
+      if (wall !== null) return wallFact(family, wall, now, 'usage window')
+      if (source === 'chatgpt-subscription') {
+        const live = r.openaiBands().filter(band => band.resetsAtMs === undefined || band.resetsAtMs > now)
+        if (live.length === 0) return billingOrUnknown(family, r, unknown)
+        const worst = live.reduce((a, b) => (b.usedPct > a.usedPct ? b : a))
+        if (worst.usedPct >= CAP_APPROACHING_PCT) {
+          return {
+            family,
+            state: 'warning',
+            basis: 'observed',
+            ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+            windowName: worst.windowName,
+          }
+        }
+        return { family, state: 'allowed', basis: 'observed' }
+      }
+      return billingOrUnknown(family, r, unknown)
+    }
+    const laneWall =
+      family === 'openrouter'
+        ? r.openrouterWall()
+        : family === 'gemini'
+          ? r.geminiWall()
+          : family === 'huggingface'
+            ? r.huggingfaceWall()
+            : null
+    if (laneWall !== null) return wallFact(family, laneWall, now, 'usage window')
+    return billingOrUnknown(family, r, unknown)
+  } catch {
+    return unknown
+  }
+}
+
+function billingOrUnknown(
+  family: string,
+  r: Required<FamilyWindowReads>,
+  unknown: FamilyWindowFact,
+): FamilyWindowFact {
+  const billing = r.laneBilling(family)
+  return billing.state === 'credit-exhausted'
+    ? { family, state: 'rejected', basis: 'observed', windowName: 'credits' }
+    : unknown
+}
+
+function stripUndefined<T extends object>(reads: T | undefined): Partial<T> {
+  const out: Partial<T> = {}
+  if (reads === undefined) return out
+  for (const [key, value] of Object.entries(reads)) {
+    if (value !== undefined) (out as Record<string, unknown>)[key] = value
+  }
+  return out
+}
+
 
 export interface CapFailoverCandidate {
-  route: CapFailoverRoute
+  route: string
   model: string
 }
 
 export interface CapFailoverExclusion {
-  route: CapFailoverRoute
+  route: string
   why: string
 }
 
 export interface CapFailoverCandidateSet {
+  home: string | null
   candidates: CapFailoverCandidate[]
   excluded: CapFailoverExclusion[]
 }
 
+export function orderFamiliesBySignIn(
+  families: readonly string[],
+  signInAt: (family: string) => number | undefined,
+): string[] {
+  return families
+    .map((family, index) => ({ family, index, at: signInAt(family) }))
+    .sort((a, b) => {
+      if (a.at !== undefined && b.at !== undefined && a.at !== b.at) return b.at - a.at
+      if (a.at !== undefined && b.at === undefined) return -1
+      if (a.at === undefined && b.at !== undefined) return 1
+      return a.index - b.index
+    })
+    .map(entry => entry.family)
+}
+
 export function deriveCapFailoverCandidates(
+  home: string | null,
   usability: Record<string, { usable: boolean; blockers: string[] }>,
-  targetModelOf: (route: CapFailoverRoute) => string | undefined,
+  targetModelOf: (route: string) => string | undefined,
+  signInAt: (family: string) => number | undefined = () => undefined,
 ): CapFailoverCandidateSet {
   const candidates: CapFailoverCandidate[] = []
   const excluded: CapFailoverExclusion[] = []
-  for (const route of CAP_FAILOVER_FAMILY_ORDER) {
+  const families = orderFamiliesBySignIn(
+    Object.keys(usability).filter(family => family !== home),
+    signInAt,
+  )
+  for (const route of families) {
     const lane = usability[route]
     if (lane === undefined || !lane.usable) {
       excluded.push({
@@ -140,25 +362,65 @@ export function deriveCapFailoverCandidates(
     }
     candidates.push({ route, model })
   }
-  return { candidates, excluded }
+  return { home, candidates, excluded }
 }
 
-export function liveCapFailoverCandidates(): CapFailoverCandidateSet {
+export function liveCapFailoverCandidates(home: string | null): CapFailoverCandidateSet {
   const { resolveProviderUsability } =
     require('./providers/providerUsability.js') as typeof import('./providers/providerUsability.js')
   const { getGptSeatAvailability } =
     require('./providers/openai/openaiCatalogue.js') as typeof import('./providers/openai/openaiCatalogue.js')
   const { providerFrontierFact } =
     require('../utils/model/providerFrontier.js') as typeof import('../utils/model/providerFrontier.js')
-  return deriveCapFailoverCandidates(resolveProviderUsability(), route => {
-    if (route === 'openai') {
-      const seat = getGptSeatAvailability()
-      return seat.state === 'ready' ? seat.ids[0] : undefined
+  const { readSignInLedger } =
+    require('../utils/accounts/signInLedger.js') as typeof import('../utils/accounts/signInLedger.js')
+  const ledger = ((): Record<string, { at: number }> => {
+    try {
+      return readSignInLedger()
+    } catch {
+      return {}
     }
-    return providerFrontierFact(route)?.modelId
-  })
+  })()
+  return deriveCapFailoverCandidates(
+    home,
+    resolveProviderUsability(),
+    route => {
+      if (route === 'openai') {
+        const seat = getGptSeatAvailability()
+        return seat.state === 'ready' ? seat.ids[0] : undefined
+      }
+      return providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+    },
+    family => ledger[family]?.at,
+  )
 }
 
-export function liveCapFailoverTarget(): CapFailoverCandidate | null {
-  return liveCapFailoverCandidates().candidates[0] ?? null
+export function liveCapFailoverTarget(home: string | null): CapFailoverCandidate | null {
+  return liveCapFailoverCandidates(home).candidates[0] ?? null
+}
+
+
+export type LaneSpendKind = 'subscription' | 'metered' | 'local' | 'endpoint' | 'none'
+
+export function laneSpendPosture(
+  route: string,
+  credential: 'oauth' | 'api-key' | 'keyless' | 'none',
+  displayName: string,
+): { kind: LaneSpendKind; words: string } {
+  if (route === 'local') {
+    return { kind: 'local', words: `the ${displayName} lane runs on your own server — no API billing` }
+  }
+  if (route === 'openai-compat') {
+    return { kind: 'endpoint', words: `the ${displayName} lane bills per its endpoint's own terms` }
+  }
+  if (credential === 'none') {
+    return { kind: 'none', words: `the ${displayName} lane has no credential` }
+  }
+  if (credential === 'oauth' && (route === 'anthropic' || route === 'openai' || route === 'moonshot')) {
+    return { kind: 'subscription', words: `the ${displayName} lane runs on your ${displayName} subscription` }
+  }
+  return {
+    kind: 'metered',
+    words: `the ${displayName} lane bills per token under your ${displayName} account`,
+  }
 }

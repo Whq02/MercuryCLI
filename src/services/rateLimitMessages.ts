@@ -243,27 +243,32 @@ export function composeAnthropicWallRemedies(reads?: WallRemedyReads): string {
       return null
     }
   })()
-  const laneRemedy = ((): string | null => {
-    try {
-      const pick = (
-        reads?.laneTarget ??
-        ((): { route: string; name: string } | null => {
-          const { liveCapFailoverTarget } = require('./capFailover.js') as typeof import('./capFailover.js')
-          const { providerDisplayName } = require('./providers/routeLaw.js') as typeof import('./providers/routeLaw.js')
-          const target = liveCapFailoverTarget()
-          return target === null ? null : { route: target.route, name: providerDisplayName(target.route) }
-        })
-      )()
-      if (pick === null) return null
-      return pick.route === 'local'
-        ? `The ${pick.name} lane is usable now — /model moves there (your own server; no API billing, not this window).`
-        : `The ${pick.name} lane is usable now — /model moves there (bills under your ${pick.name} account, not this window).`
-    } catch {
-      return null
-    }
-  })()
+  const laneRemedy = crossFamilyLaneRemedy('anthropic', reads?.laneTarget)
   const lines = [slotRemedy, upsell, laneRemedy].filter((line): line is string => line !== null)
   return lines.length === 0 ? '' : `\n${lines.join('\n')}`
+}
+
+export function crossFamilyLaneRemedy(
+  home: string,
+  laneTarget?: () => { route: string; name: string } | null,
+): string | null {
+  try {
+    const pick = (
+      laneTarget ??
+      ((): { route: string; name: string } | null => {
+        const { liveCapFailoverTarget } = require('./capFailover.js') as typeof import('./capFailover.js')
+        const { providerDisplayName } = require('./providers/routeLaw.js') as typeof import('./providers/routeLaw.js')
+        const target = liveCapFailoverTarget(home)
+        return target === null ? null : { route: target.route, name: providerDisplayName(target.route) }
+      })
+    )()
+    if (pick === null) return null
+    return pick.route === 'local'
+      ? `The ${pick.name} lane is usable now — /model moves there (your own server; no API billing, not this window).`
+      : `The ${pick.name} lane is usable now — /model moves there (bills under your ${pick.name} account, not this window).`
+  } catch {
+    return null
+  }
 }
 
 export function getRateLimitWarning(limits: ClaudeAILimits, model: string): string | null {

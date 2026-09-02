@@ -73,6 +73,16 @@ export function huggingfaceObservedRate(): { remaining: number; resetsAtMs?: num
   return observedRate
 }
 
+export function huggingfaceObservedWall(): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedLimit === null ? null : { resetsAtMs: observedLimit.resetsAtMs, observedAtMs: observedLimit.observedAtMs }
+}
+
+export function forgetHuggingfaceObservedLimits(): void {
+  observedLimit = null
+  observedRate = null
+  observedBilling = null
+}
+
 
 export type HuggingfaceBillingState =
   | { state: 'credit-exhausted'; observedAtMs: number }
