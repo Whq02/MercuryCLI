@@ -1,12 +1,14 @@
-import React, { type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
+import React, { type PropsWithChildren, useContext, useInsertionEffect, useLayoutEffect, useRef, useState } from 'react';
 import { InkInstanceContext } from './InkInstanceContext.js';
 import { consumeLauncherAltHold } from '../launcherAltHold.js';
 import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCROLL, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
 import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.js';
 import { TerminalWriteContext } from '../useTerminalNotification.js';
 import { RESET_SCROLL_REGION } from '../termio/csi.js';
+import { VIEWPORT_FLOOR_COLS, viewportFloorVerdict, type ViewportFloorVerdict } from '../viewportFloor.js';
 import Box from './Box.js';
-import { TerminalSizeContext } from './TerminalSizeContext.js';
+import Text from './Text.js';
+import { TerminalSizeContext, type TerminalSize } from './TerminalSizeContext.js';
 type Props = PropsWithChildren<{
   /** Request SGR mouse reporting (wheel + click/drag) while mounted. On unless set false. */
   mouseTracking?: boolean;
@@ -213,14 +215,48 @@ export function AlternateScreen({
   // renders (panes mount on later commits).
   const nested = (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
   const rows = size?.rows ?? 24;
+
+  // THE VIEWPORT FLOOR (the outermost instance only — a nested pane lives
+  // inside a surface that already fits): under the minimum width the host
+  // paints ONE line naming the minimum and the way back, and nothing else.
+  // The surface beneath stays MOUNTED but out of layout (display none — the
+  // layout engine zeroes the subtree, so no measurement effect ever reads a
+  // too-small geometry), with its size context FROZEN at the last size that
+  // fit: on the way back to that size nothing about it changed — no rescale
+  // of the transcript's height cache, no remount — and the settled repaint
+  // shows every scroll position and draft where it was. The latch is
+  // committed state (the pure verdict reads it), so the exit band settles
+  // exactly like the cockpit's chrome latch and a render is never impure.
+  const [surfaceUp, setSurfaceUp] = useState(false);
+  const verdict: ViewportFloorVerdict =
+    nested || size === null ? { fits: true } : viewportFloorVerdict(size.columns, size.rows, surfaceUp);
+  useLayoutEffect(() => {
+    if (surfaceUp !== verdict.fits) setSurfaceUp(verdict.fits);
+  }, [surfaceUp, verdict.fits]);
+  const lastFitRef = useRef<TerminalSize | null>(null);
+  if (verdict.fits && size !== null) lastFitRef.current = size;
+  const surfaceSize: TerminalSize | null = verdict.fits
+    ? size
+    : lastFitRef.current ?? (size === null ? null : { columns: VIEWPORT_FLOOR_COLS, rows: size.rows });
+
   return (
-    <Box
-      flexDirection="column"
-      {...(nested ? { maxHeight: rows } : { height: rows })}
-      width="100%"
-      flexShrink={0}
-    >
-      {children}
-    </Box>
+    <>
+      {verdict.fits ? null : (
+        <Box flexDirection="column" height={rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
+          <Text color="ansi:yellow" bold>
+            {verdict.line}
+          </Text>
+        </Box>
+      )}
+      <Box
+        flexDirection="column"
+        {...(nested ? { maxHeight: rows } : { height: rows })}
+        width="100%"
+        flexShrink={0}
+        {...(verdict.fits ? {} : { display: 'none' as const })}
+      >
+        <TerminalSizeContext.Provider value={surfaceSize}>{children}</TerminalSizeContext.Provider>
+      </Box>
+    </>
   );
 }

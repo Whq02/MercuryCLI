@@ -370,6 +370,54 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }
 
+// ── §15: the viewport floor — under the minimum width the fullscreen host
+//  paints ONE line (the minimum, this window, the way back) and nothing
+//  else, while the surface beneath stays mounted, out of layout, frozen at
+//  the last size that fit — so the way back repaints it whole with every
+//  scroll position and draft where it was. One owner for the floor (the
+//  cockpit's entry width), one latch for the exit band (the cockpit's own
+//  hysteresis at the same boundary), one verdict the host reads.
+console.log('§15 — the viewport floor: one verdict, one line, one latch')
+{
+  const { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_EXIT_BAND, viewportFloorLine, viewportFloorVerdict } = await import(
+    '../../src/ink/viewportFloor.ts'
+  )
+  const { HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
+  check('the floor IS the cockpit entry width (one owner, 100 columns)', VIEWPORT_FLOOR_COLS === HELM_HOME_MIN_COLS && VIEWPORT_FLOOR_COLS === 100)
+  check('a fresh window under the floor is under', !viewportFloorVerdict(99, 40, false).fits && !viewportFloorVerdict(80, 20, false).fits)
+  check('a fresh window at the floor fits', viewportFloorVerdict(100, 40, false).fits)
+  check('a painted surface survives the exit band', viewportFloorVerdict(100 - VIEWPORT_FLOOR_EXIT_BAND, 40, true).fits)
+  check('… and goes under one column below the band', !viewportFloorVerdict(100 - VIEWPORT_FLOOR_EXIT_BAND - 1, 40, true).fits)
+  check(
+    'the band is the cockpit chrome latch’s band (one number, two latches agree)',
+    read('src/hooks/useLayoutTier.ts').includes('const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND'),
+  )
+  const under = viewportFloorVerdict(80, 20, true)
+  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('100 columns') && under.line.includes('80×20') && /resize/.test(under.line))
+  const shortest = viewportFloorLine(20, 10)
+  check('the shortest form still names the minimum and the way', shortest.includes('100') && /resize/.test(shortest))
+  check(
+    'the line stays on ONE row at every width down to the shortest form',
+    [140, 99, 80, 60, 40].every(c => viewportFloorLine(c, 20).length <= Math.max(c - 2, shortest.length)),
+  )
+  const alt = read('src/ink/components/AlternateScreen.tsx')
+  check(
+    'the host reads the verdict at the OUTERMOST instance only',
+    alt.includes('nested || size === null ? { fits: true } : viewportFloorVerdict(size.columns, size.rows, surfaceUp)'),
+  )
+  check(
+    'the surface stays mounted, out of layout, frozen at the last fitting size',
+    alt.includes("{ display: 'none' as const }") &&
+      alt.includes('<TerminalSizeContext.Provider value={surfaceSize}>{children}</TerminalSizeContext.Provider>') &&
+      alt.includes('if (verdict.fits && size !== null) lastFitRef.current = size'),
+  )
+  check(
+    'the latch is committed state (the render stays pure)',
+    alt.includes('const [surfaceUp, setSurfaceUp] = useState(false)') && alt.includes('if (surfaceUp !== verdict.fits) setSurfaceUp(verdict.fits)'),
+  )
+  check('the notice is one Text, painted only under the floor', alt.includes('{verdict.fits ? null : (') && alt.includes('{verdict.line}'))
+}
+
 // ── §16: a storm holds ONCE
 //  The classic (engine-off) WINCH path painted the holding clip on EVERY
 //  event inside the settle window: a drag delivers dozens, each re-emitted
