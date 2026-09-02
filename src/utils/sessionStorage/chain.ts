@@ -214,8 +214,12 @@ export function applyPreservedSegmentRelinks(
   }
 
   if (segIsLive) {
+    // Every relink below is applied only where the link is not already the
+    // relinked one: the pass re-runs over a fold that grows in place, and a
+    // message re-minted for an unchanged link would lose its identity on
+    // every pass (the calm law keys rows on it).
     const head = messages.get(lastSeg.headUuid)
-    if (head) {
+    if (head && head.parentUuid !== lastSeg.anchorUuid) {
       messages.set(lastSeg.headUuid, {
         ...head,
         parentUuid: lastSeg.anchorUuid,
@@ -235,6 +239,16 @@ export function applyPreservedSegmentRelinks(
     for (const uuid of preservedUuids) {
       const msg = messages.get(uuid)
       if (msg?.type !== 'assistant') continue
+      const usage = msg.message.usage
+      if (
+        usage !== undefined &&
+        usage.input_tokens === 0 &&
+        usage.output_tokens === 0 &&
+        usage.cache_creation_input_tokens === 0 &&
+        usage.cache_read_input_tokens === 0
+      ) {
+        continue
+      }
       messages.set(uuid, {
         ...msg,
         message: {
