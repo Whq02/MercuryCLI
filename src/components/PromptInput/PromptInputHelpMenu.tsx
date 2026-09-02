@@ -1,13 +1,12 @@
 import * as React from 'react'
-import { Box, Text } from 'src/ink.js'
+import { Box, Text, elementScreenTop } from 'src/ink.js'
+import type { DOMElement } from '../../ink/dom.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { computeChromeMode } from '../../hooks/useLayoutTier.js'
 import { getPlatform } from 'src/utils/platform.js'
 import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBindings.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
-import { getNotificationRows, subscribeNotificationRows } from './notificationRowsMirror.js'
 import { isDeckPaneActive } from '../../utils/fullscreen.js'
 import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
@@ -136,13 +135,18 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
         : [[...groupPrefixes, ...groupChat, ...groupGlobal]]
   ).map(group => group.map(row))
 
-  const chrome = computeChromeMode(columns, termRows)
-  const noticeRows = React.useSyncExternalStore(subscribeNotificationRows, getNotificationRows, getNotificationRows)
-  const NOTICE_ROWS_IN_ALLOWANCE = 1
-  const availableRows = Math.max(
-    3,
-    termRows - (chrome === 'deck-strip' ? 14 : 6) - Math.max(0, noticeRows - NOTICE_ROWS_IN_ALLOWANCE),
-  )
+  const gridRef = React.useRef<DOMElement | null>(null)
+  const totalRows = columnGroups.reduce((most, group) => Math.max(most, group.length), 0)
+  const geometryKey = `${termRows}:${columns}:${totalRows}`
+  const [measured, setMeasured] = React.useState<{ key: string; rows: number } | null>(null)
+  React.useEffect(() => {
+    if (measured !== null && measured.key === geometryKey) return
+    const element = gridRef.current
+    if (!element) return
+    const top = elementScreenTop(element)
+    setMeasured({ key: geometryKey, rows: Math.max(3, termRows - top) })
+  })
+  const availableRows = measured !== null && measured.key === geometryKey ? measured.rows : Number.MAX_SAFE_INTEGER
   let hiddenRows = 0
   const shownGroups = columnGroups.map(group => {
     if (group.length <= availableRows) return group
@@ -151,7 +155,7 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   })
 
   return (
-    <Box paddingX={paddingX} flexDirection="column">
+    <Box paddingX={paddingX} flexDirection="column" ref={gridRef}>
       {
 }
       {
