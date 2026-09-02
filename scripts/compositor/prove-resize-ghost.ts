@@ -43,19 +43,26 @@ try {
   const cfg = {
     cols: 150,
     rows: 44,
-    total: 120,
     argv: ['node', BIN],
     sends: [],
+    total: 130,
     resizes: [
       { atTick: 45, cols: 80, rows: 30 },
       { atTick: 70, cols: 100, rows: 38 },
       { atTick: 90, cols: 120, rows: 44 },
+      { atMs: 21_000, cols: 110, rows: 40 },
+      { afterPrevMs: 80, cols: 100, rows: 36 },
+      { afterPrevMs: 80, cols: 90, rows: 32 },
+      { afterPrevMs: 80, cols: 100, rows: 36 },
+      { afterPrevMs: 80, cols: 110, rows: 40 },
+      { afterPrevMs: 80, cols: 120, rows: 44 },
     ],
     out: gridPath,
     cwd: SCRATCH,
     readyText: [NEEDLE],
     stableTicks: 8,
   }
+  const SETTLED_CHANGES = 3
   const cfgPath = join(SCRATCH, 'walk.cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
   const env: NodeJS.ProcessEnv = {
@@ -93,25 +100,48 @@ try {
   const exits = (all.match(/\x1b\[\?1049l/g) ?? []).length
   check('G3 the journey never leaves the alt screen (zero ?1049l)', exits === 0, `${exits} exits`)
 
-  const resizeTicks = cfg.resizes.map(r => r.atTick)
-  const erasesAfterFirstResize = frames
-    .filter(f => f.tick >= resizeTicks[0]!)
-    .reduce((n, f) => n + (f.bytes.toString('latin1').match(/\x1b\[2J/g) ?? []).length, 0)
+  const changeTicks = stages.map(s => s.untilTick)
+  const bytesIn = (from: number, to: number | null): string =>
+    Buffer.concat(frames.filter(f => f.tick >= from && (to === null || f.tick < to)).map(f => f.bytes)).toString('latin1')
+  const countOf = (hay: string, needle: string): number => hay.split(needle).length - 1
+  const erasesAfterFirstResize = countOf(bytesIn(changeTicks[0] ?? 45, null), '\x1b[2J')
   check(
-    'G3 every geometry change repaints THROUGH the clear law (erases ≥ resizes)',
-    erasesAfterFirstResize >= cfg.resizes.length,
-    `${erasesAfterFirstResize} erases for ${cfg.resizes.length} resizes`,
+    'G3 every geometry change repaints THROUGH the clear law (erases ≥ settled changes)',
+    erasesAfterFirstResize >= SETTLED_CHANGES + 1,
+    `${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst`,
   )
 
   check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length}`)
   stages.forEach((stage, i) => {
     const n = needleCount(stage.grid)
-    check(
-      `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
-      n === 1,
-      `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
-    )
+    if (i < SETTLED_CHANGES) {
+      check(
+        `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
+        n === 1,
+        `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
+      )
+    } else {
+      check(`G5 burst event ${i - SETTLED_CHANGES + 1} (${stage.cols}x${stage.rows}) never stacks the station`, n <= 1, `${n} copies`)
+    }
   })
+
+  const burstStart = changeTicks[SETTLED_CHANGES]
+  const windows: Array<[string, number, number | null]> = []
+  for (let i = 0; i < SETTLED_CHANGES; i++) {
+    const to = i + 1 < SETTLED_CHANGES ? changeTicks[i + 1]! : burstStart ?? null
+    windows.push([`change ${i + 1} (${cfg.resizes[i]!.cols}x${cfg.resizes[i]!.rows})`, changeTicks[i]!, to])
+  }
+  if (burstStart !== undefined) windows.push(['the burst', burstStart, null])
+  for (const [label, from, to] of windows) {
+    const bytes = bytesIn(from, to)
+    check(`G5 ${label}: exactly ONE contained erase in its window`, countOf(bytes, '\x1b[2J') === 1, `${countOf(bytes, '\x1b[2J')} erases`)
+  }
+  if (burstStart !== undefined) {
+    const burst = bytesIn(burstStart, null)
+    check('G5 the burst holds at most ONCE (one holding paint, not one per event)', countOf(burst, '\x1b[?25l') <= 1, `${countOf(burst, '\x1b[?25l')} holds`)
+  }
+  const afterFirst = bytesIn(changeTicks[0] ?? 45, null)
+  check('G6 not one line feed after the first change (a bottom-row LF would scroll the buffer)', countOf(afterFirst, '\n') === 0, `${countOf(afterFirst, '\n')} line feeds`)
   const finalCount = needleCount(payload.grid)
   check('G4 the final grid is single (one station frame at the final geometry)', finalCount === 1, `${finalCount} copies`)
   check(
