@@ -69,6 +69,7 @@ function vendorLock(file: string): { version?: string; license?: string; url?: s
 }
 const debugpy = vendorLock('debugpy.lock.json')
 const pyright = vendorLock('pyright.lock.json')
+const jsDebug = vendorLock('js-debug.lock.json')
 const nodeRuntime = vendorLock('node.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
@@ -167,6 +168,12 @@ lines.push(
 lines.push(
   `- **pyright** ${pyright.version ?? '(not vendored on this checkout)'} — Microsoft, ${pyright.license ?? 'MIT'} (${pyright.url ?? 'https://github.com/microsoft/pyright'}). Receipt: vendor/pyright.lock.json; licence text ships at dist/vendor/pyright/LICENSE.txt (+ typeshed LICENSE).`,
 )
+// The Node/TypeScript debug adapter (vscode-js-debug's standalone DAP
+// server); the pack's own LICENSE ships with it, and the release packager
+// refuses an archive whose notices omit a vendored payload family.
+lines.push(
+  `- **js-debug** ${jsDebug.version ?? '(not vendored on this checkout)'} — Microsoft, ${jsDebug.license ?? 'MIT'} (${jsDebug.url ?? 'https://github.com/microsoft/vscode-js-debug'}). Receipt: vendor/js-debug.lock.json; licence text ships at dist/vendor/js-debug/LICENSE.`,
+)
 lines.push(
   `- **TypeScript compiler** ${tsMeta.version} — Microsoft, ${tsMeta.license} (https://github.com/microsoft/TypeScript). Vendored from the repo devDependency; licence text ships at dist/vendor/typescript/LICENSE.txt.`,
 )
@@ -238,5 +245,5 @@ lines.push('')
 
 writeFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), lines.join('\n'))
 console.log(
-  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 7 vendor payloads + source attributions`,
+  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 8 vendor payloads + source attributions`,
 )
