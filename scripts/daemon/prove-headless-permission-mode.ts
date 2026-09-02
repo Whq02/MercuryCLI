@@ -52,9 +52,9 @@ const SPEC = {
   model: 'claude-opus-4-8',
   effort: 'max',
   appendSystemPrompt: 'pack',
-  role: 'MERCURY_IMPLEMENTER' as const,
-  agentName: 'imp',
-  agentId: 'imp-1',
+  role: 'MERCURY_CREW' as const,
+  agentName: 'scout',
+  agentId: 'scout-1',
 }
 const buildArgv = (): string[] => buildStreamJsonInvocation(SPEC).argv
 const hasPair = (argv: string[], mode: string): boolean => {

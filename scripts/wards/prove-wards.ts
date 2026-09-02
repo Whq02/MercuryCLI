@@ -17,7 +17,7 @@
 //      re-violation re-denies (hard-rule semantics), the session cap stands
 //      down, idempotent re-register, live =0 re-read stands down mid-session.
 //   4. WIRING — both registration chokepoints (REPL mount + QueryEngine) call
-//      registerWardsHook, NOT scribe-skipped.
+//      registerWardsHook, never mode-skipped.
 //
 //  Run:  ~/.bun/bin/bun run scripts/wards/prove-wards.ts
 // ============================================================================
@@ -369,7 +369,7 @@ async function main(): Promise<void> {
     check('re-register is a no-op (one hook)', hookCount === 1)
   }
 
-  section('5. wiring — the registration chokepoints, NOT scribe-skipped')
+  section('5. wiring — the registration chokepoints, never mode-skipped')
   {
     // Law 9 hoisted the mount-effect estate: the ENGINE is the
     // one registration chokepoint for every session kind (interactive,
@@ -383,12 +383,6 @@ async function main(): Promise<void> {
     const engine = src('QueryEngine.ts')
     const print = src('cli', 'print.ts')
     check('QueryEngine registers for EVERY session kind (the one chokepoint)', engine.includes('registerWardsHook(config.setAppState, sessionId)'))
-    check(
-      'engine registration is OUTSIDE the scribe self-gate (wards guard every session)',
-      engine.indexOf('registerWardsHook(config.setAppState, sessionId)') !== -1 &&
-        engine.indexOf('registerWardsHook(config.setAppState, sessionId)') <
-          engine.indexOf('if (!isScribeModeOn()) {'),
-    )
     check('print path registers too (wards.registerWardsHook)', print.includes('wards.registerWardsHook('))
     check('flag registry carries the MERCURY_WARDS row', src('substrate', 'flagRegistry.ts').includes("env: 'MERCURY_WARDS'"))
   }

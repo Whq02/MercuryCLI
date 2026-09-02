@@ -190,12 +190,12 @@ try {
     mkdirSync(join(dir, '.mercury', 'gate'), { recursive: true })
     writeFileSync(
       join(dir, '.mercury', 'gate', 'verdict.json'),
-      JSON.stringify({ ok: false, pass: ['ui'], fail: ['scribe', 'memory'], ranAt: new Date().toISOString(), headSha: null, dirty: false, durationS: 9 }),
+      JSON.stringify({ ok: false, pass: ['ui'], fail: ['crew', 'memory'], ranAt: new Date().toISOString(), headSha: null, dirty: false, durationS: 9 }),
     )
     const r = runHealth(dir)
     const cert = r.json as Cert
     check('red verdict ⇒ gate fail', byId(cert, 'gate')?.status === 'fail')
-    check('red evidence names the red suites', String(byId(cert, 'gate')?.evidence).includes('scribe'))
+    check('red evidence names the red suites', String(byId(cert, 'gate')?.evidence).includes('crew'))
     check('a failing check rolls the verdict to FAULT', cert.verdict === 'fault')
     check('FAULT exits 3 — produced AND the guard fires (FC-044)', r.status === 3)
   }

@@ -2,7 +2,7 @@
 # ============================================================================
 #  scripts/run-all-suites.sh — the ONE green-gate command.
 #
-#  The project gate is "the N domain proof suites" (scribe, subagent-doctrine,
+#  The project gate is "the N domain proof suites" (crew, subagent-doctrine,
 #  commit-gate, memory, identity, substrate, party, goal, ui, …). Globs
 #  scripts/*/run-all.sh dynamically → any new suite auto-joins the gate (no
 #  hardcoded list to go stale; parity has no run-all.sh, so that tooling dir is

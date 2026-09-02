@@ -14,8 +14,7 @@
 //       loudly — a bare tool name (`Bash`) or a wildcard specifier
 //       (`Bash(*)`, `Read(:*)`) never widens the set
 //    §4 every daemon worker kind reads THIS resolver (source pins): the crew
-//       spawn, the roster's one-shots, the daemon's scheduled and
-//       implementer runs
+//       spawn, the roster's one-shots, the daemon's scheduled runs
 //
 //  Run:  ~/.bun/bin/bun run scripts/daemon/prove-worker-recon.ts
 // ============================================================================

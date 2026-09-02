@@ -5,7 +5,7 @@
 //  inbox (operator → teammate) and the shared team-lead inbox (teammate →
 //  operator), time-ordered; unread badges are PER-CHAT on the shared inbox
 //  (markMessagesFromAsRead: opening @atlas's chat never flattens @beacon's
-//  badge — the scribe-TOCTOU lesson, scoped by sender). REAL mailbox files
+//  badge — the mailbox-TOCTOU lesson, scoped by sender). REAL mailbox files
 //  under a scratch MERCURY_CONFIG_DIR.
 //  Run:  ~/.bun/bin/bun run scripts/crew/prove-crew-chat.ts
 // ============================================================================

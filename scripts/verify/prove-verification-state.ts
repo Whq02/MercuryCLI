@@ -118,7 +118,7 @@ check('subsequent edit → stale again', vs.verificationSummary(cwd, { skipDiges
 {
   const c = vs.classifyVerificationCommand
   check('full gate classified', c('bash scripts/run-all-suites.sh')?.scope === 'full-gate')
-  check('gate SUBSET classified as suite-scope', c('bash scripts/run-all-suites.sh scribe ui')?.scope === 'suite')
+  check('gate SUBSET classified as suite-scope', c('bash scripts/run-all-suites.sh crew ui')?.scope === 'suite')
   check('typecheck classified', c('bash scripts/typecheck/run-all.sh')?.scope === 'typecheck')
   check('domain suite classified with name', c('bash scripts/crew/run-all.sh')?.coverage === 'scripts/crew suite')
   check('single proof classified', c('~/.bun/bin/bun run scripts/lsp/prove-lsp-contract.ts')?.scope === 'proof')

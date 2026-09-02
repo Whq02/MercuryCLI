@@ -489,7 +489,7 @@ const STREAM_FAULT_TEXT = streamFaultAfterPartialText(
 /** Belt: purge any durable prompt DRAFT keyed by a synthetic fixture SID —
  *  a prior run's child killed while a modal was up can leave one (drafts
  *  are per-session), and a leaked draft prefixes the next fixture's typed
- *  sends ('/party' became '/party/party' — measured). Sync +
+ *  sends (a command draft doubled itself — measured). Sync +
  *  fail-soft; only ever touches <configHome>/drafts/*.json entries whose
  *  key matches the given SID. */
 function purgeFixtureDraft(sid: string): void {
@@ -2059,28 +2059,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
     // The /model MercuryModelPicker surface (current-row state chain +
     // the §8.2 current→next header's OFF path — pendingNext absent renders the
     // legacy picker byte-identically). Captured at 80+120 per the UI law.
-    writeSyntheticSession('short')
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [{ atTick: 30, data: '/model\r' }],
-      total: 60,
-      cols,
-      rows,
-    }
-  }
-  if (name === 'model-picker-scribe-active') {
-    // The /model picker's ENGAGED-mode states — the
-    // scribe row's '(active)' suffix, the CURRENT dot on the router row
-    // (engagement truth), and the MODES group's 'Scribe active — a real
-    // model exits · the party row hands off' detail line. The session BOOTS
-    // as a launched Scribe (MERCURY_SCRIBE=1 ⇒ the REPL mount effect
-    // engages) with the live bus OFF so the engage spawns no daemon and the
-    // capture stays hermetic (ensureScribeDaemon + engageScribeTeam both
-    // gate on MERCURY_SCRIBE_BUS_LIVE). The party '(active)' arm shares the
-    // same label machinery (modelOptions) — engaging the party needs a real
-    // daemon, so its engaged capture stays a live-run item.
-    process.env.MERCURY_SCRIBE = '1'
-    process.env.MERCURY_SCRIBE_BUS_LIVE = '0'
     writeSyntheticSession('short')
     return {
       argv: ['node', BIN, '--resume', SID],
@@ -4541,7 +4519,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 170, cols, rows,
     }
   }
-  if (['critter', 'workflows', 'teammates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'scribe-promote', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
+  if (['critter', 'workflows', 'teammates', 'deck', 'sessions', 'substrate', 'trace', 'fleet', 'ledger', 'cards', 'ide', 'config', 'permissions', 'hooks', 'agents', 'diff', 'tickets', 'memory', 'workbench', 'surfaces', 'palette', 'realms', 'status'].includes(name)) {
     // Drive a bare fork command (no args) over a resumed session to verify the
  // Mercury views render with the terracotta + honest states.
     // 'parity'/'map' left with the specimen purge; 'surfaces' (né /manager) is
@@ -5066,9 +5044,9 @@ function scenarioInner(name: string, cols: number, rows: number) {
     }
   }
   if (name === 'router-board') {
-    // /router over a seeded route store: an active party dependency
+    // /router over a seeded route store: an active fanout dependency
     // graph (accepted/working/held node glyphs, the overlap-serialized
-    // adjustment, the affinity record) above the accepted scribe plan — the
+    // adjustment, the affinity record) above the accepted sequential plan — the
     // sideInfo "why this route?" glance must render reason CODES + the width
     // explanation, and the header must show posture + the honest provider
     // availability (openai/zai as not-integrated codes).
@@ -5658,9 +5636,9 @@ export function routerFixtureDir(): string {
   return join(tmpdir(), `hermes-router-fixture-${process.pid}`)
 }
 
-/** Seed the route store: one RUNNING party dependency-graph (mixed node
+/** Seed the route store: one RUNNING fanout dependency-graph (mixed node
  *  states — accepted/working/held/blocked, an attempt-2 node, a shared-lane
- *  width adjustment) + one ACCEPTED scribe plan, plus a small event tail. All
+ *  width adjustment) + one ACCEPTED sequential plan, plus a small event tail. All
  *  timestamps recent so freshness rows read live, none scheduled (no wall-clock
  *  drift class). */
 function writeRouterFixtures(): void {
@@ -5674,21 +5652,21 @@ function writeRouterFixtures(): void {
   const model = (cls: 'opus' | 'sonnet', m: string, effort: string) => ({
     provider: 'anthropic', model: m, modelClass: cls, effort, contextWindow: 1_000_000,
   })
-  const partyPlan = {
+  const fanoutPlan = {
     version: 1,
-    id: 'rp-fx-party',
+    id: 'rp-fx-fanout',
     revision: 1,
-    mode: 'party',
+    mode: 'fanout',
     title: 'ship the three-stage migration',
     objective: 'schema, then implementation and docs',
     features: { taskShape: 'bounded', ambiguity: 0, coupling: 1, parallelism: 2, contextDemand: 1, verificationDemand: 1, estimatedFiles: 3, explicitPaths: [], requiresSynthesis: true },
     profile: 'dependency-graph',
     nodes: [
-      { id: 'n1', title: 'schema', task: 'migrate the schema', dependsOn: [], ownsPaths: ['src/schema.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'dps1', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r1', expectedResult: 'typed completion', completion: { summary: 'schema migrated, both checks green', checksReported: ['schema compiles: PASS'], changedAreas: ['src/schema.ts'], unresolved: [], reportedAt: now - 200_000, acceptedBy: 'router', acceptedAt: now - 190_000 } },
-      { id: 'n2', title: 'implementation', task: 'implement against the new schema', dependsOn: ['n1'], ownsPaths: ['src/impl.ts'], acceptance: accept('n2'), state: 'working', attempt: 2, assignedWorker: 'dps2', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r2', workerGeneration: 2, expectedResult: 'typed completion' },
-      { id: 'n3', title: 'docs', task: 'update the docs', dependsOn: ['n1'], ownsPaths: ['docs/m.md'], acceptance: accept('n3'), state: 'held', attempt: 1, assignedWorker: 'dps3', assignedModel: model('opus', 'claude-opus-4-8[1m]', 'xhigh'), busRequestId: 'fx-r3', expectedResult: 'typed completion' },
+      { id: 'n1', title: 'schema', task: 'migrate the schema', dependsOn: [], ownsPaths: ['src/schema.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'w1', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r1', expectedResult: 'typed completion', completion: { summary: 'schema migrated, both checks green', checksReported: ['schema compiles: PASS'], changedAreas: ['src/schema.ts'], unresolved: [], reportedAt: now - 200_000, acceptedBy: 'planner', acceptedAt: now - 190_000 } },
+      { id: 'n2', title: 'implementation', task: 'implement against the new schema', dependsOn: ['n1'], ownsPaths: ['src/impl.ts'], acceptance: accept('n2'), state: 'working', attempt: 2, assignedWorker: 'w2', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-r2', workerGeneration: 2, expectedResult: 'typed completion' },
+      { id: 'n3', title: 'docs', task: 'update the docs', dependsOn: ['n1'], ownsPaths: ['docs/m.md'], acceptance: accept('n3'), state: 'held', attempt: 1, assignedWorker: 'w3', assignedModel: model('opus', 'claude-opus-4-8[1m]', 'xhigh'), busRequestId: 'fx-r3', expectedResult: 'typed completion' },
     ],
-    synthesis: { required: true, owner: 'router', acceptance: [{ id: 'synthesis-integrated', description: 'all required nodes accepted', kind: 'report' }] },
+    synthesis: { required: true, owner: 'planner', acceptance: [{ id: 'synthesis-integrated', description: 'all required nodes accepted', kind: 'report' }] },
     decision: {
       policyVersion: 'router-1', source: 'structured-intent', posture: 'adaptive',
       selectedProfile: 'dependency-graph',
@@ -5699,11 +5677,11 @@ function writeRouterFixtures(): void {
     },
     state: 'running', createdAt: now - 300_000, updatedAt: now - 20_000,
   }
-  const scribePlan = {
+  const sequentialPlan = {
     version: 1,
-    id: 'rp-fx-scribe',
+    id: 'rp-fx-sequential',
     revision: 1,
-    mode: 'scribe',
+    mode: 'sequential',
     title: 'status --json flag',
     objective: 'add the missing --json output mode',
     features: { taskShape: 'bounded', ambiguity: 0, coupling: 0, parallelism: 0, contextDemand: 1, verificationDemand: 1, estimatedFiles: 1, explicitPaths: ['src/commands/status.ts'], requiresSynthesis: false },
@@ -5711,7 +5689,7 @@ function writeRouterFixtures(): void {
     nodes: [
       { id: 'n1', title: 'status --json', task: 'add the flag + one test', dependsOn: [], ownsPaths: ['src/commands/status.ts'], acceptance: accept('n1'), state: 'accepted', attempt: 1, assignedWorker: 'implementer', assignedModel: model('sonnet', 'claude-sonnet-5', 'high'), busRequestId: 'fx-s1', expectedResult: 'typed completion', completion: { summary: 'flag added, test green', checksReported: ['new test: PASS'], changedAreas: ['src/commands/status.ts'], unresolved: [], reportedAt: now - 500_000, acceptedBy: 'scribe', acceptedAt: now - 490_000 } },
     ],
-    synthesis: { required: false, owner: 'scribe', acceptance: [] },
+    synthesis: { required: false, owner: 'planner', acceptance: [] },
     decision: {
       policyVersion: 'router-1', source: 'structured-intent', posture: 'adaptive',
       selectedProfile: 'sonnet-opus-review',
@@ -5724,14 +5702,14 @@ function writeRouterFixtures(): void {
     state: 'accepted', createdAt: now - 600_000, updatedAt: now - 480_000,
   }
   const events = [
-    { ts: now - 200_000, planId: 'rp-fx-party', nodeId: 'n1', from: 'working', to: 'reported' },
-    { ts: now - 190_000, planId: 'rp-fx-party', nodeId: 'n1', from: 'reported', to: 'accepted', reason: 'accepted by router' },
-    { ts: now - 180_000, planId: 'rp-fx-party', nodeId: 'n3', from: 'dispatched', to: 'held', reason: 'reconfiguring dps3 → claude-opus-4-8[1m]@xhigh' },
-    { ts: now - 20_000, planId: 'rp-fx-party', nodeId: 'n2', from: 'delivered', to: 'working' },
+    { ts: now - 200_000, planId: 'rp-fx-fanout', nodeId: 'n1', from: 'working', to: 'reported' },
+    { ts: now - 190_000, planId: 'rp-fx-fanout', nodeId: 'n1', from: 'reported', to: 'accepted', reason: 'accepted by planner' },
+    { ts: now - 180_000, planId: 'rp-fx-fanout', nodeId: 'n3', from: 'dispatched', to: 'held', reason: 'reconfiguring w3 → claude-opus-4-8[1m]@xhigh' },
+    { ts: now - 20_000, planId: 'rp-fx-fanout', nodeId: 'n2', from: 'delivered', to: 'working' },
   ]
   writeFileSync(
     join(dir, 'plans.json'),
-    JSON.stringify({ _v: 1, plans: [scribePlan, partyPlan], events, updatedAt: now - 20_000 }),
+    JSON.stringify({ _v: 1, plans: [sequentialPlan, fanoutPlan], events, updatedAt: now - 20_000 }),
   )
 }
 // ── mission-ledger fixture (cockpit-console) ─────────────────────────────────
@@ -5934,7 +5912,7 @@ export function cleanupScenario(name: string): void {
     /* already gone */
   }
   // critter-home pins MERCURY_CRITTER in scenario() — undo it here so a
-  // same-process follow-up scenario can't inherit the tint (the party-fixture
+  // same-process follow-up scenario can't inherit the tint (the fixture
   // cleanup pattern).
   if (name === 'critter-home') {
     delete process.env.MERCURY_CRITTER

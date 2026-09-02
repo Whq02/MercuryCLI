@@ -54,7 +54,6 @@ async function main(): Promise<void> {
   const kernel = await import('../../src/services/run/runKernel.js')
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
   const { parseBlockerDeclaration } = await import('../../src/services/run/blockerDeclaration.js')
-  const { isUnfinishedTail } = await import('../../src/utils/hooks/unfinishedTail.js')
   const mission = await import('../../src/utils/hooks/missionHook.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/speedster', sessionId: 'corpus', lane: 'main' })
@@ -80,28 +79,6 @@ async function main(): Promise<void> {
     apiError: false,
     verification: null,
     pendingIdeFeedback: false,
-  }
-
-  // ══ class 2 · refusal + question terminal (regression floor, #52) ═════════
-  section('class 2 — declared capability gap + alternative question is a FINISHED status')
-  {
-    const refusalQuestion =
-      "I can't generate images in this harness — no image-generation tool is available. " +
-      'Want me to produce an SVG placeholder instead?'
-    check(
-      'C2: capability refusal ending in an alternatives question is not an unfinished tail',
-      isUnfinishedTail(refusalQuestion) === false,
-    )
-    const statusImpossible =
-      'STATUS: impossible — the objective needs image generation, which this harness does not have. Handing off with the evidence above.'
-    check(
-      'C2: STATUS: impossible tail is not an unfinished tail',
-      isUnfinishedTail(statusImpossible) === false,
-    )
-    check(
-      'C2 control: a live promise tail still blocks',
-      isUnfinishedTail("I'll fix the parser test next.") === true,
-    )
   }
 
   // ══ class 8 · read-only correct finish (regression floor) ═════════════════

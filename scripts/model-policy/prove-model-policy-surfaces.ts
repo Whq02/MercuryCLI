@@ -119,8 +119,8 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     resolvesToExistingOption(rows, 'claude-sonnet-5') === false,
   )
   check(
-    'dedup: router sentinels are never resolved',
-    resolvesToExistingOption(rows, '__hermes_scribe_router__') === false &&
+    'dedup: sentinel values are never resolved',
+    resolvesToExistingOption(rows, '__mercury_test_sentinel__') === false &&
       resolvesToExistingOption(rows, 'coming-soon:claude-fable-6') === false,
   )
 }

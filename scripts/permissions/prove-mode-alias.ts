@@ -75,7 +75,7 @@ const vocab = await import('../../src/types/permissions.js')
   check('no retired spelling in any advertised mode list', advertised.every(m => !(m in RETIRED)))
   check('the external set is the five new external ids (alphabetical)', JSON.stringify(vocab.EXTERNAL_PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy']))
   // apollo joined (the pre-flight interview station).
-  check("the runtime set adds flow/scribe/autopilot/apollo (not bubble)", JSON.stringify(vocab.PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'scribe', 'autopilot', 'apollo']))
+  check("the runtime set adds flow/autopilot/apollo (not bubble)", JSON.stringify(vocab.PERMISSION_MODES) === JSON.stringify(['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'autopilot', 'apollo']))
 }
 
 // ── §2 permissionModeFromString — the string funnel ──────────────────────────

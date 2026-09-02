@@ -92,7 +92,7 @@ const hero = home.slice(home.indexOf('export function MercuryHero'), home.indexO
 t('art slot is pinned to HERO_ART_LINES', hero.includes('height={HERO_ART_LINES}'))
 t('art bottom-anchors onto the plinth', hero.includes('justifyContent="flex-end"'))
 t('shape from critterDefForKey(sa.key)', hero.includes('critterDefForKey(sa.key)'))
-t('hue from the folded accent (fable/scribe/override)', hero.includes('hue: sa.accent') && hero.includes('hueDeep: sa.accentDeep'))
+t('hue from the folded accent (fable/override)', hero.includes('hue: sa.accent') && hero.includes('hueDeep: sa.accentDeep'))
 const gateIdx = hero.indexOf('return null')
 t('geometry gate exists (authored-or-absent)', gateIdx > 0 && hero.includes('HERO_MIN_ROWS') && hero.includes('HERO_ART_COLS + 4'))
 // The hover pair replaced the old local useState (single-owner store,

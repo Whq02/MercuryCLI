@@ -134,10 +134,10 @@ const spec = {
   model: 'claude-haiku-4-5-20251001',
   effort: 'high',
   appendSystemPrompt: '',
-  role: 'MERCURY_IMPLEMENTER' as const,
-  agentName: 'implementer',
-  agentId: 'implementer@scribe',
-  teamName: 'scribe',
+  role: 'MERCURY_CREW' as const,
+  agentName: 'scout',
+  agentId: 'scout@default',
+  teamName: 'default',
 }
 const inv = hr.buildStreamJsonInvocation(spec)
 const modelFlagIdx = inv.argv.indexOf('--model')

@@ -1,12 +1,12 @@
 {
   "id": "bugfix-clamp",
   "title": "Fix a boundary bug with a red-before/green-after regression guard",
-  "prompt": "Bug report: validateSeatEffort in src/utils/model/seatSlots.ts accepts a numeric-looking string like '3' by falling through to the fallback SILENTLY without a note, but the seat-slots doctrine says every ADJUSTED value carries an honest note. Reproduce first: write scripts/seat-slots/prove-effort-note.ts asserting validateSeatEffort('3','high') returns effort 'high' AND a non-empty note (this must FAIL against the current code if the note is absent — check the actual behavior and, if the note is already present, assert the exact wording mentions the allowed levels). Then make the proof green (fix the code if red, or pin the behavior if already correct). The full seat-slots suite must end green.",
+  "prompt": "Bug report: validateSeatEffort in src/utils/model/seatSlots.ts accepts a numeric-looking string like '3' by falling through to the fallback SILENTLY without a note, but the seat validation doctrine says every ADJUSTED value carries an honest note. Reproduce first: write scripts/crew/prove-effort-note.ts asserting validateSeatEffort('3','high') returns effort 'high' AND a non-empty note (this must FAIL against the current code if the note is absent — check the actual behavior and, if the note is already present, assert the exact wording mentions the allowed levels). Then make the proof green (fix the code if red, or pin the behavior if already correct). The full crew suite must end green.",
   "baseRef": "bench-corpus-v1",
   "timeboxMs": 1200000,
   "successChecks": [
-    { "kind": "cmd", "cmd": "bash scripts/seat-slots/run-all.sh" },
-    { "kind": "cmd", "cmd": "test -f scripts/seat-slots/prove-effort-note.ts" }
+    { "kind": "cmd", "cmd": "bash scripts/crew/run-all.sh" },
+    { "kind": "cmd", "cmd": "test -f scripts/crew/prove-effort-note.ts" }
   ],
   "tags": ["bugfix", "regression-guard"]
 }

@@ -60,7 +60,7 @@ const contract = buildBehaviourContract({
     { name: 'identity-floor', text: 'W-1' }, // 3
     { name: 'mercury-doctrine', text: 'W-22' }, // 4
   ],
-  modeSections: [{ name: 'mode-scribe', text: 'MODEPACK' }], // 8
+  modeSections: [{ name: 'mode-autopilot', text: 'MODEPACK' }], // 8
   antiSycSections: [],
   reconcileTailSections: ['R'], // 1
 })

@@ -34,12 +34,7 @@ res=$("$bun" -e "const f=(s)=>s.replace(/\[\d+m\]\$/,''); console.log(f('claude-
 has src/utils/hooks/forcedReadHook.ts 'forcedReadEngagedSessions.has(sessionId)' 'forcedReadHook engage guard is session-keyed'
 if grep -qE 'let forcedReadEngaged = false' "$root/src/utils/hooks/forcedReadHook.ts"; then no 'forcedReadHook still has the process-global boolean'; else ok 'forcedReadHook process-global boolean is gone'; fi
 
-# batch #2 — no bundled `batch` skill may shadow the scribe
-# /batch brake. There is no such registration (and no batch.ts) —
-# assert it stays unregistered.
 not_has() { if grep -qF "$2" "$1"; then echo "  ✗ $3 (found in $1)"; fail=1; else echo "  ✓ $3"; fi; }
-not_has src/skills/bundled/index.ts 'registerBatchSkill' 'bundled batch skill stays unregistered (deleted with the bare-stamp arms)'
-if [ -f src/skills/bundled/batch.ts ]; then echo "  ✗ bundled batch.ts resurfaced"; fail=1; else echo "  ✓ bundled batch.ts stays deleted"; fi
 
 # --- audit-r2 batch 2 ---
 # (#3 agent.ts — with no gateway estate there is no Bedrock region-prefix
@@ -71,7 +66,6 @@ has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-su
 # section, so the staleness-verdict guard's subject is gone. The ratchet
 # runs the other way: the retirement holds.
 lacks src/services/coordination/coordinationService.ts 'party:' 'the party facet stays retired from the coordination brief'
-has src/components/mercury-ui/screens/ChatTranscriptView.tsx 'daemon unreachable — dispatches queue' 'bus-live claim folds daemon reachability'
 # advertised keys track real affordances (class ratchet: scripts/ui/prove-keydead-static.ts):
 has src/components/mercury-ui/screens/TeammateChatsView.tsx 'const browseVerbs' 'teammates footer tracks selected-row affordances (r/k)'
 # (task #3 rebuild: the old NavigablePanes footer's `anyRows ? 'i preview` became

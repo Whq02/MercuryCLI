@@ -4,13 +4,13 @@
 # ============================================================================
 #  scripts/bench/run-all.sh — Mercury micro-benchmark harness.
 #
-#  The improvement-chain (the scribe/fable/perf/bench
+#  The improvement-chain (the fable/perf/bench
 #  plan) wanted a FIRST-CLASS benchmark surface, not an afterthought. This is the
 #  tractable, deterministic, no-live-API subset: pure-logic micro-benchmarks that
 #  double as PERF-REGRESSION GUARDS (each asserts an ops/sec floor so a future
 #  change that 10×-slows a hot primitive goes RED, not silently slower).
 #
-#  NOT here (need API credentials / a live turn → measured out-of-band): scribe
+#  NOT here (need API credentials / a live turn → measured out-of-band): bus
 #  dispatch→result throughput, real render frame timing.
 #  Those are recorded; the
 #

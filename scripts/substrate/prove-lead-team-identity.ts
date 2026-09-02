@@ -5,7 +5,7 @@
 //
 //  A LEAD runs in the operator's main session: no CLI identity args (that's
 //  dynamicTeamContext — setting it would flip isTeammate(), the trap both
-//  TeamCreate and the scribe-team design dodge) and no AsyncLocalStorage
+//  TeamCreate and the coordination-team design dodge) and no AsyncLocalStorage
 //  scope. So every consumer of bare getTeamName() — TeamBrief, ALL five
 //  coordination MCP verbs — answered the not-in-a-team EMPTY shape
 //  from the lead seat. Live symptom: a lead's crewed run polled TeamBrief +
@@ -13,7 +13,7 @@
 //  config held every seat.
 //
 //  The fix: setLeadTeamFallback/resolveLeadAwareTeamName (teammate.ts) —
-//  registered by the lead engage seams (scribe team, TeamCreate; a third
+//  registered by the lead engage seams (TeamCreate; a third
 //  seam retired with the router party), cleared/restored on disengage,
 //  consumed by the briefs + MCP verbs. Deliberately NOT a rung inside
 //  getTeamName(): isTeammate()/standalone semantics must not change.
@@ -71,17 +71,6 @@ const makeStore = () => {
     },
   }
 }
-
-section('SCRIBE engage — registers "scribe", disengage RESTORES the prior (live)')
-const scribeTeam = await import('../../src/utils/scribe/engageScribeTeam.js')
-scribeTeam.__resetScribeTeamStash()
-setLeadTeamFallback('prior-team') // e.g. a TeamCreate team before scribe engage
-const scribeStore = makeStore()
-scribeTeam.engageScribeTeam(scribeStore)
-check('fallback registered as "scribe"', getLeadTeamFallback() === 'scribe')
-scribeTeam.disengageScribeTeam(scribeStore)
-check('disengage restores the PRIOR registration', getLeadTeamFallback() === 'prior-team')
-setLeadTeamFallback(null)
 
 section('DRIFT-LOCK — consumers + the TeamCreate seams stay wired')
 const mcpSrc = readFileSync(join(REPO, 'src/services/mcp/coordinationServer.ts'), 'utf8')

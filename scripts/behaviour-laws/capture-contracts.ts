@@ -33,8 +33,6 @@ const POSTURES: Record<string, Posture> = {
   'opus-default': { model: 'claude-opus-4-8', kind: 'main' },
   'sonnet-default': { model: 'claude-sonnet-5', kind: 'main' },
   gpt: { model: 'gpt-5.6-codex', kind: 'main' },
-  scribe: { model: 'claude-opus-4-8', kind: 'main' },
-  implementer: { model: 'claude-opus-4-8', kind: 'main' },
   autopilot: { model: 'claude-fable-5', permissionMode: 'autopilot', kind: 'main' },
   headless: { model: 'claude-fable-5', headless: true, kind: 'main' },
   'subagent-normal': { model: 'claude-sonnet-5', kind: 'subagent-normal' },

@@ -99,7 +99,7 @@ check('helmGeometry exports HELM_HOME_MIN_COLS = 100', /export const HELM_HOME_M
 check('helmGeometry exports helmCenterCols + HELM_RAIL_W (one source for the math)',
   /export function helmCenterCols/.test(geometry) && /export const HELM_RAIL_W/.test(geometry))
 
-// --- M1: MercuryFrame keeps model/cost/branch/scribe in the cockpit ---------
+// --- M1: MercuryFrame keeps model/cost/branch in the cockpit ---------
 check('M1: MercuryFrame keys vital-shed on CockpitActiveContext (not the overridden width; RB-01: never beneath a route surface)',
   /const helmActive = useContext\(CockpitActiveContext\) && !routeSurface/.test(frame))
 check('M1: deck-owned shed is false in cockpit (model/cost/branch kept; RB-01 route-surface guard)',

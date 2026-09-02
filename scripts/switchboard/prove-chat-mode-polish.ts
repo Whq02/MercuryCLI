@@ -150,16 +150,6 @@ t.section('§F — the sweep: board vocabulary follows the world or falls silent
   t.check('a refused resume names no concourse (the daemon resumes it; the sentence is the same in both worlds)', connector.includes('`the session could not resume — ${refusal} · ↵ again retries`') && !connector.includes('could not resume on the concourse'))
   t.check('/tasks\' workflow pointers to the run board fall silent in the plain world', read('src/components/tasks/BackgroundTasksDialog.tsx').includes("work.kind === 'workflow' && !chatOnlyBoot() ? '; /workflows opens the run board' : ''") && read('src/components/tasks/RunDetailPane.tsx').includes("`paused — finished agents stay cached${chatOnlyBoot() ? '' : '; R on the board resumes it'}`"))
   t.check('the substrate catalogue lists /deck and /fleet as off in the plain world (/trace stays)', read('src/utils/cockpit/substrateSnapshot.ts').includes("{ name: '/trace', on: true, hint: 'always-on (fork) · /deck and /fleet are off in this boot — the concourse is off' }"))
-  // The router party's engage receipt (and its world-gated board pointer)
-  // retired with the estate; the surviving engage receipt — the scribe
-  // router's — is WORLD-NEUTRAL by construction: it names no board and
-  // carries no world gate, at both sites, so the plain world needs no arm.
-  {
-    const modelCmd = read('src/commands/model/mercuryModel.tsx')
-    const composer = read('src/components/PromptInput/PromptInput.tsx')
-    const engageLines = (src: string): string[] => src.split('\n').filter(l => l.includes('Scribe Mode engaged'))
-    t.check('the surviving engage receipt is world-neutral at both sites: it names no board, carries no world gate, and no retired board pointer remains', engageLines(modelCmd).length >= 2 && engageLines(composer).length >= 2 && [...engageLines(modelCmd), ...engageLines(composer)].every(l => !/board/.test(l) && !l.includes('chatOnlyBoot')) && !modelCmd.includes('board + seats') && !composer.includes('board + seats'))
-  }
   // The census over the plain world's own paint: the fleet-world-only words
   // appear in these files ONLY inside a world-gated arm.
   const gatedFiles = ['src/components/MercuryFrame.tsx', 'src/components/mercury-ui/SessionTabs.tsx', 'src/components/HelpV2/ShortcutsTab.tsx', 'src/components/BootSplashScreen.tsx', 'src/components/BootSettingsScreen.tsx']

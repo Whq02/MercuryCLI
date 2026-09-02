@@ -203,8 +203,8 @@ for (const c of COLS) {
   //    wide enough that they render in full (assert present — the chips survive
   //    when there IS room, proving the gate isn't a permanent drop). ──
   // Behavior chips: the in-frame fable chip was removed (fableBand is its single owner), so
-  // behaviorNode is SCRIBE-only — and this fixture runs with scribe OFF, so no behavior chip
-  // renders at any width. fable/scribe surfacing is covered by prove-frame-dedup.ts + the
+  // The frame paints no per-mode behavior chip, so none renders at any width.
+  // fable surfacing is covered by prove-frame-dedup.ts + the
   // fable-mode render in dedup Task 3. Here we only lock that NO stale fable chip lingers.
   expect(`@${c}: no stale fable-hermes chip in the statusbar (single owner = fableBand)`, !/fable-hermes/.test(scr))
 

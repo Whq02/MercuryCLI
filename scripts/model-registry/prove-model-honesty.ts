@@ -95,7 +95,6 @@ enableConfigs()
 const {
   ANTHROPIC_CONNECT_OPTION_VALUE,
   OPENAI_MODEL_GROUP,
-  MODES_MODEL_GROUP,
   anthropicNotSignedInReason,
   getModelOptions,
   isProviderActionRow,
@@ -367,7 +366,6 @@ section('§7 the neutral catalog grammar — one description rule, vendor-blind,
     const out: string[] = []
     for (const o of options) {
       if (typeof o.value === 'string' && isProviderActionRow(o.value)) continue
-      if (o.group === MODES_MODEL_GROUP) continue
       if (o.value === null) {
         if (!/^Default \(.+\)$/.test(o.description)) out.push(`null:${o.description}`)
         continue

@@ -90,9 +90,6 @@ export const RETIRED_PERMISSION_MODE_SPELLINGS: Readonly<Record<string, Permissi
   auto: 'flow',
   bypassPermissions: 'sovereign',
   plan: 'strategy',
-  // The retired two-seat coordination mode was permission-inert (external
-  // projection: default); a persisted record still reads.
-  scribe: 'default',
 }
 
 /**

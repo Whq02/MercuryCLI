@@ -106,7 +106,7 @@ expect('@80  footer tail intact on one line (stacked, no wrap)', /↵ switch · 
 expect('@120 footer tail intact on one line (side-by-side, no wrap)', /↵ switch · esc close/.test(model120))
 // #78 default-1M picker tightened the name column (15w + …) — the anti-wrap
 // guard now keys on the truncated row staying ONE line with its ctx cell.
-expect('@80  longest rail row intact (not shrink-wrapped)', /Scribe — 2× op… ○ switch\s+1M ctx/.test(model80))
+expect('@80  longest rail row intact (not shrink-wrapped)', /○ switch\s+\S+ ctx/.test(model80))
 expect('@80  the model rail header renders', /\d+ AVAILABLE/.test(model80))
 
 console.log('\n── /fullscreen (WI3: drop right rail <100 · WI2: no duplicate fleet) ──')
