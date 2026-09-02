@@ -29,7 +29,8 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const facts = bootBirthFacts()
   const title = req.title !== undefined ? (req.title === null || req.title.trim() === '' ? null : req.title.trim()) : takeBootTitle()
   const worn = takeWornPresetKit()
-  const model = birthModelOf(facts, req.model ?? null, screenBirthModel())
+  const screen = screenBirthModel()
+  const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)
   let reply: Record<string, unknown>
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')

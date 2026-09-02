@@ -314,7 +314,8 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
   const registry = await composeWorkerModelRegistry()
   const defaultId = await canonicalWorkerModelId(defaultWorkerModelId(registry, arm))
   const id = idOrKey === undefined ? defaultId : await canonicalWorkerModelId(idOrKey)
-  const unnamed = idOrKey === undefined || id === defaultId
+  const defaultDispatches = registry.entries.find(e => e.modelId === defaultId)?.[arm].availability === 'available'
+  const unnamed = idOrKey === undefined || (id === defaultId && defaultDispatches)
   let entry = registry.entries.find(e => e.modelId === id)
   if (!entry) {
     const norm = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, '')
@@ -399,7 +400,7 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
     if (unnamed) {
       const noAccount = await unnamedLaunchNoAccount(verdict.refusal)
       if (noAccount !== undefined) {
-        if (arm === 'session') return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
+        if (arm === 'session' && idOrKey === undefined) return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
         return { ok: false, ...noAccount }
       }
     }

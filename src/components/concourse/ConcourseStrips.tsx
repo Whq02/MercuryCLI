@@ -153,8 +153,6 @@ export function ConcourseComposer({
             </Text>
           </Box>
         ) : composerNote !== undefined ? (
-          {
-}
           (() => {
             const n = controlNoteOf(composerNote)
             const why = n.reason !== undefined ? ` — ${n.reason.slice(0, 64)}` : ''
