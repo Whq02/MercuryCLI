@@ -152,15 +152,9 @@ export function ConcourseComposer({
               {contextLine.text}
             </Text>
           </Box>
-        ) : note !== null ? (
-          <Box flexGrow={1} overflow="hidden">
-            {
-}
-            <Text color={note.tone === 'warning' ? t.warning : t.textMuted} wrap="truncate-middle">
-              {note.text}
-            </Text>
-          </Box>
         ) : composerNote !== undefined ? (
+          {
+}
           (() => {
             const n = controlNoteOf(composerNote)
             const why = n.reason !== undefined ? ` — ${n.reason.slice(0, 64)}` : ''
@@ -182,6 +176,14 @@ export function ConcourseComposer({
               </Box>
             )
           })()
+        ) : note !== null ? (
+          <Box flexGrow={1} overflow="hidden">
+            {
+}
+            <Text color={note.tone === 'warning' ? t.warning : t.textMuted} wrap="truncate-middle">
+              {note.text}
+            </Text>
+          </Box>
         ) : (
           <Box flexGrow={1} overflow="hidden">
             <Text color={t.textMuted} wrap="truncate-end">

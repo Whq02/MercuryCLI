@@ -354,6 +354,15 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
     stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
       stripsSrc.includes('${seatsCell.text} seats'),
   )
+  check(
+    'E8 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
+    (() => {
+      const ctx = stripsSrc.indexOf('contextLine !== null && contextLine !== undefined ? (')
+      const receipt = stripsSrc.indexOf(') : composerNote !== undefined ? (')
+      const hint = stripsSrc.indexOf(') : note !== null ? (')
+      return ctx !== -1 && receipt > ctx && hint > receipt
+    })(),
+  )
 }
 
 console.log('F — the ground note: composed at dispatch from the REAL isolation fact, both shapes')
