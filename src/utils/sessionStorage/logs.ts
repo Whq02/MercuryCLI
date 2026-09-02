@@ -29,8 +29,7 @@ import {
   TRANSCRIPT_FORMAT_REFUSAL,
 } from '../../fabric/transcriptDecode.js'
 import { uniq } from '../array.js'
-import { availableCores } from '../availableCores.js'
-import { mapWithConcurrency } from '../concurrency.js'
+import { discoveryPoolWidth, mapWithConcurrency } from '../concurrency.js'
 import { updateSessionName } from '../concurrentSessions.js'
 import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../fileHistory.js'
@@ -68,10 +67,6 @@ import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
-
-function discoveryPoolWidth(): number {
-  return Math.max(1, Math.min(4, availableCores()))
-}
 
 export async function loadTranscriptFromFile(
   filePath: string,
