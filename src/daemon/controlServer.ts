@@ -628,6 +628,7 @@ async function routeControlRequest(
         ...(r.modelId !== undefined ? { modelId: r.modelId } : {}),
         ...(r.modelDisplayName !== undefined ? { modelDisplayName: r.modelDisplayName } : {}),
         ...(r.effort !== undefined ? { effort: r.effort } : {}),
+        ...(r.note !== undefined ? { note: r.note } : {}),
         ...(r.kitSource !== undefined ? { kitSource: r.kitSource } : {}),
         ...(r.liveHop === true ? { liveHop: true } : {}),
         ...(r.presetName !== undefined ? { presetName: r.presetName } : {}),
