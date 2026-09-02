@@ -56,6 +56,7 @@ import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { FLAG_REGISTRY, flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { realEnvPin } from '../substrate/startupMenu.js'
 import { isRunOrphaned, listWorkflowRunsDetailed } from '../tools/WorkflowTool/runManifest.js'
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from './auth.js'
 import { buildRouterModelSnapshot } from './router/modelRegistry.js'
@@ -2399,17 +2400,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const present = FLAG_REGISTRY.filter(f => flagEnv(f.env) !== undefined)
             const set = present.filter(f => f.selfStamped !== true)
             const stamped = present.filter(f => f.selfStamped === true)
+            // A saved boot default the boot itself copied into the env (the
+            // boot-env applier's receipt names it) is not an operator
+            // override either — realEnvPin is the one attribution owner.
+            const overrides = set.filter(f => realEnvPin(f.env) !== null)
+            const bootApplied = set.filter(f => realEnvPin(f.env) === null)
+            const shortValue = (f: { env: string }): string => `${f.env}=${String(flagEnv(f.env)).slice(0, 12)}`
             const stampNote =
-              stamped.length > 0
-                ? ` · self-stamped (not an override): ${stamped.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 12)}`).join(', ')}`
-                : ''
-            if (set.length === 0) {
+              (stamped.length > 0 ? ` · self-stamped (not an override): ${stamped.map(shortValue).join(', ')}` : '') +
+              (bootApplied.length > 0 ? ` · saved boot defaults (boot-env.json, not an override): ${bootApplied.map(shortValue).join(', ')}` : '')
+            if (overrides.length === 0) {
               return {
                 status: 'ok',
                 evidence: `no env overrides — all ${FLAG_REGISTRY.length} registered flags at their defaults${stampNote}`,
               }
             }
-            const show = set
+            const show = overrides
               .slice(0, 4)
               .map(f => {
                 const value = String(flagEnv(f.env))
@@ -2420,8 +2426,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               .join(', ')
             return {
               status: 'info',
-              evidence: `${set.length} flag(s) overridden in env: ${show}${set.length > 4 ? ` … +${set.length - 4} more` : ''}${stampNote}`,
-              detail: set.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
+              evidence: `${overrides.length} flag(s) overridden in env: ${show}${overrides.length > 4 ? ` … +${overrides.length - 4} more` : ''}${stampNote}`,
+              detail: overrides.map(f => `${f.env}=${String(flagEnv(f.env)).slice(0, 40)} (${f.kind})`).join(' · '),
               link: '/substrate',
             }
           },
