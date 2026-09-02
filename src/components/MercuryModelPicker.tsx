@@ -26,7 +26,8 @@ import { ProductLockup } from './mercury-ui/components.js'
 import { GLYPH, padTo } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { gaugeColor } from './mercury-ui/theme.js'
-import { modelPickerFooter, type ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
+import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
+import type { ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
 import { catalogueDoorFocus, catalogueDoorHeaderParts, composeCatalogueRows, type CatalogueDoorFacet } from '../utils/model/catalogueDoor.js'
 import {
   parseGptModelId,
