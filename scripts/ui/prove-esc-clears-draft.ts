@@ -76,9 +76,13 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
       // The board row wears the dispatch's TITLE: the supervisor keeps
       // req.title on the worker record, the list row prints it, and the
       // title mint fills empty titles only — anchor the hop on the words
-      // the row actually paints.
+      // the row actually paints. The board opens on the coordinator: tab
+      // reaches the list, the first ↵ ARMS the row (its line reads
+      // "armed — ↵ again enters") and the second ↵ enters — the second
+      // press rides the arm's own receipt, never a guessed delay.
       'after:Quiet seat:2500:\t',
       'after:Quiet seat:4000:\r',
+      'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
       `after:Type a prompt:${escAt + gapMs}:\x1b`,
