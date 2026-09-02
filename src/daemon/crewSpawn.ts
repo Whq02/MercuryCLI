@@ -25,6 +25,7 @@
 //  only).
 // ============================================================================
 import { logForDebugging } from '../utils/debug.js'
+import { isHaikuTier } from '../utils/model/modelFloor.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
   appendTeamMember,
@@ -124,6 +125,15 @@ export async function resolveCrewSeatModel(
   key: string | undefined,
 ): Promise<{ ok: true; model: string; effort: 'high'; label: string } | { ok: false; error: string }> {
   const named = key === undefined || key.trim() === '' ? undefined : key.trim()
+  // THE NEVER-HAIKU FLOOR answers PURE, before the registry: the crew's
+  // policy floor needs no catalogue and no config to refuse — a Haiku
+  // spelling never seats a crew teammate, whatever the account holds.
+  if (named !== undefined && isHaikuTier(named)) {
+    return {
+      ok: false,
+      error: `model refused (worker-policy:frontier-only) · pick a frontier row — opus, sonnet, fable or fable51, or a signed-in family's word — a crew seat never runs Haiku (got ${JSON.stringify(named)})`,
+    }
+  }
   const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
   const validated = await validateWorkerModelChoice(named, 'crew')
   if (!validated.ok) {
@@ -274,11 +284,12 @@ export function makeCrewSpawnHandler(
     if (!isValidCrewName(name)) {
       return { ok: false, error: `invalid teammate name ${JSON.stringify(name)} — [a-z][a-z0-9-]{1,15}, reserved names refused` }
     }
-    // THE SEAT resolves through the one provider-neutral resolver: a family
-    // word, a generation key or an id, validated for the crew arm; the
-    // refusal is the registry's own sentence with the way out.
-    const seat = await resolveCrewSeatModel(modelKey)
-    if (!seat.ok) return { ok: false, error: seat.error }
+    // THE CHEAP GATES ANSWER FIRST (the refusal ladder's law — failure ≠
+    // silence, and a policy floor needs no config to refuse): the roster,
+    // the duplicate name and the crew cap speak before the seat resolves,
+    // because the seat reads the worker registry (the catalogue, the
+    // operator's default — config-backed) and a ladder that has already
+    // refused never opens it.
     const r = deps.roster()
     if (!r) return { ok: false, error: 'daemon roster not ready' }
     if (r.has(name).present) {
@@ -292,6 +303,11 @@ export function makeCrewSpawnHandler(
     if (liveCrew >= MAX_CREW_TEAMMATES) {
       return { ok: false, error: `crew cap reached (${MAX_CREW_TEAMMATES} live teammates) — kill an idle teammate before spawning another` }
     }
+    // THE SEAT resolves through the one provider-neutral resolver: a family
+    // word, a generation key or an id, validated for the crew arm; the
+    // refusal is the registry's own sentence with the way out.
+    const seat = await resolveCrewSeatModel(modelKey)
+    if (!seat.ok) return { ok: false, error: seat.error }
     try {
       await ensureCrewTeamMember(name, seat.model, deps.dir)
     } catch (e) {

@@ -19,6 +19,11 @@ import { join } from 'node:path'
 // not skew the spec).
 const scratch = mkdtempSync(join(tmpdir(), 'crew-specfloor-'))
 process.env.MERCURY_CONFIG_DIR = scratch
+// THE PROOF'S HERMETICITY: the credential store is pinned to the FILE
+// backend under the scratch home — on darwin the keychain chain ignores
+// MERCURY_CONFIG_DIR, so a presence check would otherwise read this
+// machine's OS keychain (a prover never touches the operator's keychain).
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 delete process.env.MERCURY_WORKER_RECON_ALLOW
 delete process.env.MERCURY_CREW

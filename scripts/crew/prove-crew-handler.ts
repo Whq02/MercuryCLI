@@ -16,6 +16,20 @@ import { join } from 'node:path'
 const scratch = mkdtempSync(join(tmpdir(), 'crew-handler-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 delete process.env.MERCURY_CREW
+// THE PROOF'S HERMETICITY: the credential store is pinned to the FILE
+// backend under the scratch home — on darwin the keychain chain ignores
+// MERCURY_CONFIG_DIR, so a presence check would otherwise read this
+// machine's OS keychain (a prover never touches the operator's keychain).
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+// THE SEAT LAW reads the worker registry (config-backed) for a NAMED key,
+// so the valid spawns below enable configs and seed anthropic signed in (a
+// fixture key + the ledger row, the memo reset); the ladder's policy floors
+// — disabled, name, roster, duplicate, cap, never-Haiku — answer BEFORE
+// the seat and need none of it (the prover's law: failure ≠ silence).
+process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
+;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
+;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
 const MK = 'MACRO' as const
 const setStamp = (on: boolean) => { if (on) (globalThis as Record<string, unknown>)[MK] = { VERSION: '1.0.0' }; else delete (globalThis as Record<string, unknown>)[MK] }
 setStamp(true)
@@ -70,7 +84,7 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   // the model TABLE refusal (past the gate), never the disabled one.
   setStamp(false)
   const bareStampProbe = await handler('atlas', 'haiku')
-  check('bare stamp ⇒ gate passes (table refusal, not disabled)', !bareStampProbe.ok && /'opus' \| 'sonnet' \| 'fable'/.test(bareStampProbe.error ?? ''))
+  check('bare stamp ⇒ gate passes (the never-Haiku floor refuses pure, not the disabled refusal)', !bareStampProbe.ok && /worker-policy:frontier-only/.test(bareStampProbe.error ?? '') && /opus/.test(bareStampProbe.error ?? ''), bareStampProbe.error ?? '')
   setStamp(true)
   process.env.MERCURY_CREW = '0'
   const killed = await handler('atlas', 'sonnet')
@@ -82,7 +96,7 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   const reserved = await handler('tank', 'sonnet')
   check("reserved name 'tank' refused", !reserved.ok && /invalid teammate name/.test(reserved.error ?? ''))
   const badModel = await handler('atlas', 'haiku')
-  check("model 'haiku' unrepresentable ⇒ table refusal", !badModel.ok && /'opus' \| 'sonnet' \| 'fable'/.test(badModel.error ?? ''))
+  check("model 'haiku' ⇒ the never-Haiku floor refuses pure (no registry, no config), naming the frontier rows", !badModel.ok && /worker-policy:frontier-only/.test(badModel.error ?? '') && /opus/.test(badModel.error ?? ''), badModel.error ?? '')
   const noRoster = await cs.makeCrewSpawnHandler({ roster: () => undefined, dir: scratch, onSpawned: () => {} })('atlas', 'sonnet')
   check('roster not ready ⇒ honest refusal', !noRoster.ok && /not ready/.test(noRoster.error ?? ''))
 

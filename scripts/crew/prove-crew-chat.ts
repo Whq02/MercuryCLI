@@ -15,6 +15,11 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'crew-chat-'))
 process.env.MERCURY_CONFIG_DIR = scratch
+// THE PROOF'S HERMETICITY: the credential store is pinned to the FILE
+// backend under the scratch home — on darwin the keychain chain ignores
+// MERCURY_CONFIG_DIR, so a presence check would otherwise read this
+// machine's OS keychain (a prover never touches the operator's keychain).
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
