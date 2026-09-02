@@ -13,11 +13,19 @@
 //   B  idle arm → EXPIRE at 3 s: the second press lands ~3.4 s later; the
 //      mark taken just before it must show the notice GONE (the window
 //      lapsed), and that late press re-arms (readyText) instead of closing.
-//   C  busy: a local `!sleep 30` turn is running (its truthful resting hint
-//      `esc interrupt` is the await-gate — also the footer-truth pin, and
-//      the old `ctrl+c interrupt` spelling must be absent); ONE ctrl+c
-//      interrupts AND arms (the notice is the next await-gate), a second
-//      press inside the window closes Mercury.
+//   C  busy: a `!sleep 30` shell line is running on the session's runner
+//      (its truthful resting hint `esc interrupt` is the await-gate — also
+//      the footer-truth pin, and the old `ctrl+c interrupt` spelling must
+//      be absent); ONE ctrl+c interrupts AND arms (the notice is the next
+//      await-gate), a second press inside the window closes Mercury. The
+//      busy legs (C, C2) drive a FRESH session born on the keyless proof
+//      home: a shell line needs no credential — the runner executes it in
+//      its own process without a model call — and a keyless birth admits a
+//      live runner. (A RESUMED session keeps the model it ran on; when the
+//      home holds no credential for it, re-admission refuses that model by
+//      name, so the session has no runner for its shell lines either — an
+//      admission road for a refused model is a design question outside
+//      this proof, which pins the live world.)
 //   D  the copy receipt on both trigger paths, via the standing scenarios:
 //      copy-receipt-select (drag-release copy-on-select) and
 //      copy-receipt-ctrlc (copy-on-select seeded OFF — the receipt can only
@@ -158,28 +166,52 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
   cleanupScenario('resume-2turn')
 }
 
+// The busy legs need a session with a LIVE runner. The resumed fixture
+// (resume-2turn) has none: its transcript names a model the keyless proof
+// home holds no credential for, and a resumed session keeps the model it
+// ran on, so its re-admission is refused by name (the ruled honesty — never
+// a silent substitute) and a `!` line dispatched into it comes back to the
+// composer with the refusal. A shell line itself needs no credential: the
+// runner executes it in its own process without a model call, so the legs
+// drive a FRESH session born on the same keyless home — the Boot face's New
+// Session admits on the keyless default and paints the cockpit with a live
+// runner — and that keyless world is the pin that a `!` line runs, shows the
+// hint and interrupts with no account signed in.
+const freshSession = (): ScenarioCfg => {
+  const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
+  const argv = base['argv'] as string[]
+  return { ...base, argv: argv.slice(0, 2) }
+}
+// THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session
+// enters the chat first; the composer's footer hint is the cockpit's own
+// settled needle (no earlier surface paints it).
+const ENTER_FRESH_CHAT: Send[] = [
+  { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+]
+
 section('C · busy: one press interrupts AND arms; a second press closes')
 {
   const p = drive(
     'busy',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    freshSession(),
     [
+      ...ENTER_FRESH_CHAT,
       // '!' rides ALONE: a grouped '!sleep 30' chunk is one text atom, which
       // inserts literally instead of arming shell mode (the input-mode check
       // reads the RAW chunk). The bash-mode footer line is the arm receipt.
       // Every awaitText below fires ON the observed text; its atTick is only
       // the hard deadline (vshot's contract).
-      { atTick: 60, minTick: 8, awaitText: '❯', data: '!' },
-      { atTick: 80, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // Gated on the RUNNING turn's truthful resting hint — `esc interrupt`
       // (the kit grammar of chat:cancel). The mark is the footer-truth pin.
-      { atTick: 100, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
+      { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
       // The SAME press must have interrupted AND armed: the notice gates the
       // second press, which lands well inside the 3 s window.
-      { atTick: 120, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
+      { atTick: 240, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
     ],
-    140,
+    260,
   )
   if (p) {
     const busy = mark(p, 'busy')
@@ -206,15 +238,16 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
   // settle the interrupt marker, and Mercury must stay open.
   const p = drive(
     'busy-esc',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    freshSession(),
     [
-      { atTick: 60, minTick: 8, awaitText: '❯', data: '!' },
-      { atTick: 80, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      ...ENTER_FRESH_CHAT,
+      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // A bare ESC lands the moment the truthful busy hint paints.
-      { atTick: 100, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
+      { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
     ],
-    130,
+    250,
     // The settled interrupt row spells '[Request interrupted by user]'
     // (rejectionText) — the old capital-I marker died with its surface.
     'interrupted by user',
