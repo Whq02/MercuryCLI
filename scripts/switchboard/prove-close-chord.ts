@@ -117,7 +117,10 @@ if (POISON_DIST === undefined) {
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
-  check('the ARMED legend keeps the chord row — no letter, it survives the yield lawfully', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'close'))
+  // Re-trued (the board-letters law): an armed row changes nothing about
+  // what the letters and the chord do — the chord row keeps its STAGE-TRUE
+  // label while armed (the old armed legend relabelled it 'close').
+  check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
   const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
   check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('ctrl+x ctrl+x stops the selected') && docs.includes('typing is never a control'))
   check('docs/SESSIONS.md no longer advertises a bare-x board verb', !/`x` on a|`x` stops|second `x`/.test(docs))
@@ -175,7 +178,13 @@ const sends = [
   after(10800, `${ESC}[1;2D`), // 6 ⇧← the board — capsule: coordinator + session 1 selected
   after(11600, '\t'), // 7 tab: coordinator → LIST (deterministic from the capsule)
   after(12400, `${ESC}[B`), // 8 ↓ from the session-1 row onto the WORKING row (the streamer)
-  after(13400, 'x'), // 9 THE POISON LETTER — must TYPE (pre-fix: it stopped)
+  // THE COMPOSER'S OWN FOCUS (the board-letters law): typing reaches the
+  // live composer only while it holds focus — the rows carry verbs, never
+  // words, and no letter flows through from them. One more tab moves the
+  // focus from the rows to the live composer (its own hint: tab to type);
+  // the selection stays on the working row, which is the composer's target.
+  after(13000, '\t'), // 8b tab: LIST → the LIVE composer (the selection stays on the working row)
+  after(13400, 'x'), // 9 THE POISON LETTER — must TYPE into the focused composer (pre-fix: it stopped)
   after(15600, BACKSPACE), // 10 clear the typed x
   ...[...'keep me'].map((ch, i) => after(16200 + i * 80, ch)), // 11..17 the draft that must survive
   after(18000, CTRL_X), // 18 arm — the confirm hint paints
