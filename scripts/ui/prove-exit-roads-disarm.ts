@@ -109,7 +109,11 @@ for (const road of roads) {
     const armed = mark(r, 'armed')!
     const after = mark(r, 'after-exit')!
     const armedEv = modeEventsBetween(r, 0, armed.teeOffset)
-    check(`${road.tag}: the surface was armed before the signal (alt screen on, mouse on)`, lastStateOf(armedEv, 'alt-screen') === 'on' && MOUSE_FAMILIES.some(f => lastStateOf(armedEv, f) === 'on'), armedEv.map(e => e.mode).slice(-8).join(' '))
+    // The runtime's own arming is the mouse family; the alternate screen
+    // may already be held by the launch splash's handover (a direct start
+    // paints it before the host tracks the bundle's bytes), so its entry is
+    // not asserted here — its EXIT is the law, in the tail below.
+    check(`${road.tag}: the surface was armed before the signal (mouse tracking on)`, MOUSE_FAMILIES.every(f => lastStateOf(armedEv, f) === 'on'), armedEv.map(e => e.mode).slice(-8).join(' '))
     disarmed(r, armed.teeOffset, `${road.tag}: after ${road.signal}`)
     check(`${road.tag}: the shell prompt is usable after the exit`, after.grid.includes('done-42'))
     check(`${road.tag}: no stop was reported (the process ended, never suspended)`, !r.shellLines.some(l => /suspended|Stopped/.test(l)), r.shellLines.join(' | '))
