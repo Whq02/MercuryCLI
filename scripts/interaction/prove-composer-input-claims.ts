@@ -252,7 +252,7 @@ function capture(
   const a = capture(
     'conleak',
     'concourse',
-    100,
+    80,
     38,
     [
       { awaitText: 'for shortcuts', minTick: 5, atTick: 60, awaitSettleTicks: 3, data: 'zqxw' },
@@ -304,10 +304,14 @@ function capture(
   }
 }
 {
-  // Journey C — the narrow help overlay states what it cut (60×24 sheds
-  // rows; the remainder line is the visible truth), and the taller control
-  // shows the full single-column list with no remainder.
-  const c = capture('help-narrow', 'help', 100, 22, [{ atTick: 30, data: '?' }], 46)
+  // Journey C — the narrow help overlay states what it cut, and the taller
+  // control shows the whole list with no remainder. The fullscreen host
+  // paints nothing under its floor (80 columns × 22 rows), so the narrowest
+  // painted grid is the two-column form at 80 columns, and the shortest
+  // window is 22 rows — where that form still sheds rows and the remainder
+  // line is the visible truth (the old 60-column single-column premise sat
+  // under the floor).
+  const c = capture('help-narrow', 'help', 80, 22, [{ atTick: 30, data: '?' }], 46)
   if (c) {
     const saysWhatItCut = c.some(l => l.includes('more · /help lists every shortcut'))
     check('the clipped narrow help overlay says what it cut', saysWhatItCut, c.slice(-8).join(' | '))
@@ -322,7 +326,7 @@ function capture(
       console.log('      └')
     }
   }
-  const d = capture('help-tall', 'help', 100, 38, [{ atTick: 30, data: '?' }], 46)
+  const d = capture('help-tall', 'help', 80, 38, [{ atTick: 30, data: '?' }], 46)
   if (d) {
     check(
       'the 60×38 control shows the whole list (no remainder row)',
