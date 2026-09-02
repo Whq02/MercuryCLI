@@ -27,6 +27,7 @@ import { toTildePath } from './path.js'
 import { getProxyUrl } from './proxy.js'
 import { familyDisplayName } from '../services/providers/accountSlots.js'
 import {
+  presenceIdentityWords,
   providerFamilyPresences,
   type ProviderFamilyPresence,
 } from '../services/providers/providerUsage.js'
@@ -323,11 +324,14 @@ export function buildProviderAccountBlocks(
       entries.length > 0
         ? (reads?.activeFor ?? activeWalletEntry)(entries[0]!.provider)
         : undefined
+    const words = isDemo ? family.credentialLabel : presenceIdentityWords(family)
     rows.push({
       label: name,
-      value: <Text>{family.credentialLabel ?? active?.label ?? entries[0]!.label}</Text>,
+      value: <Text>{words ?? active?.label ?? entries[0]!.label}</Text>,
     })
-    if (active?.identity?.email && !isDemo) {
+    if (!isDemo && family.identity !== undefined && family.credentialLabel !== undefined) {
+      rows.push({ label: '', value: <Text dimColor>via · {family.credentialLabel}</Text> })
+    } else if (active?.identity?.email && !isDemo) {
       rows.push({ label: '', value: <Text dimColor>email · {active.identity.email}</Text> })
     }
     if (active?.identity?.plan) {

@@ -76,6 +76,7 @@ import {
   type OpenaiAccountRef,
 } from './openai/openaiAccounts.js'
 import {
+  presenceIdentityWords,
   providerFamilyPresences,
   type ProviderFamilyPresence,
   type ProviderFamilyReads,
@@ -319,9 +320,10 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
   if (presence === undefined || !presence.credentialed) return notSignedIn()
   const label = presence.credentialLabel ?? 'credential present'
   if (route !== 'anthropic') {
+    const words = presenceIdentityWords(presence) ?? label
     return route === 'local'
-      ? { route, family, text: `${label} · discovered live`, basis: 'discovered-live' }
-      : { route, family, text: `${label} · credential present`, basis: 'credential-present' }
+      ? { route, family, text: `${words} · discovered live`, basis: 'discovered-live' }
+      : { route, family, text: `${words} · credential present`, basis: 'credential-present' }
   }
   if (!label.startsWith('Claude subscription')) {
     return { route, family, text: `${label} · credential present`, basis: 'credential-present' }

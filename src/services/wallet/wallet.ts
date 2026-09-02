@@ -75,12 +75,14 @@ export function walletEntries(): WalletEntry[] {
     const armed = resolveOpenaiAccount()
     const accountId = armed?.kind === 'chatgpt-subscription' ? armed.accountId : undefined
     const plan = armed?.kind === 'chatgpt-subscription' ? armed.planType : undefined
+    const email = armed?.kind === 'chatgpt-subscription' ? armed.email : undefined
     entries.push({
       id: `openai:oauth:${accountId ? accountId.slice(0, 8) : 'subscription'}`,
       provider: 'openai',
       kind: 'subscription-oauth',
       label: armed?.kind === 'chatgpt-subscription' ? armed.label : 'ChatGPT subscription',
       identity: {
+        ...(email ? { email } : {}),
         ...(accountId ? { accountId } : {}),
         ...(plan ? { plan } : {}),
       },
