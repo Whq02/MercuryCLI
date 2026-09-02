@@ -117,14 +117,35 @@ const pool = new Map<string, WarmRunnerEntry>()
  *  roster drain's per-line hook). */
 const claimWaiters = new Map<string, (outcome: { ok: boolean; error?: string }) => void>()
 
-/** In-flight ensures keyed by canonical workspace id: a second ensure for
- *  the same workspace JOINS the running one. Without this, two overlapping
- *  ensures (the boot self-warm, the screen's RPC door and the post-claim
- *  re-warm all fire un-serialized) both passed the empty-pool check across
- *  the model-validation await, both registered a child, and the loser was
- *  overwritten OUT of the pool — alive on the roster, invisible to the
- *  idle sweep (it reads the pool), retired only by daemon death. */
-const ensureFlights = new Map<string, Promise<WarmEnsureOutcome>>()
+/** A request that landed while its workspace's warm-up was in the air. */
+interface TrailingEnsure {
+  kit: SessionKitV1 | undefined
+  deps: WarmRunnerDeps
+  waiters: Array<{ resolve: (outcome: WarmEnsureOutcome) => void; reject: (err: unknown) => void }>
+}
+
+/** One workspace's warm-up in the air, and the ONE request waiting behind
+ *  it. Two overlapping ensures (the boot self-warm, the screen's RPC door and
+ *  the post-claim re-warm all fire un-serialized) must never both pass the
+ *  empty-pool check across the model-validation await — the loser's child
+ *  was overwritten OUT of the pool: alive on the roster, invisible to the
+ *  idle sweep, retired only by daemon death. So one runs at a time; an EQUAL
+ *  request (the same carried kit, or both deriving) joins the run. A request
+ *  for a DIFFERENT kit cannot join it — a runner booted for the older kit
+ *  can never serve the newer one, and joining would hand the caller that
+ *  runner while its own kit was dropped — so it waits as the trailing
+ *  request, and ONE rerun after the run settles serves it. Exactly one: a
+ *  later arrival REPLACES the trailing kit and inherits its waiters, so a
+ *  stale kit is never queued and the newest is never dropped. */
+interface EnsureFlight {
+  /** The kit the running body was asked for (undefined = derive now). */
+  kit: SessionKitV1 | undefined
+  run: Promise<WarmEnsureOutcome>
+  trailing: TrailingEnsure | null
+}
+
+/** In-flight ensures keyed by canonical workspace id. */
+const ensureFlights = new Map<string, EnsureFlight>()
 
 /** Proofs drive the pool in-process; each scenario starts empty. */
 export function resetWarmRunnersForTesting(): void {
@@ -268,18 +289,69 @@ export async function ensureWarmRunner(
       /* an unresolvable retiring dir holds nothing to retire */
     }
   }
-  // Single-flight per workspace: join the running ensure. Only the minter
-  // clears the slot, and only its OWN flight — a joiner's late finally must
-  // never wipe a newer flight back open.
+  // Single-flight per workspace with ONE trailing rerun (EnsureFlight): an
+  // equal request joins the run, a different kit waits behind it as the
+  // newest trailing request. The chain clears the slot only once nothing
+  // trails, so a request landing mid-rerun trails that rerun instead of
+  // minting a concurrent second flight.
   const inFlight = ensureFlights.get(workspaceId)
-  if (inFlight !== undefined) return inFlight
-  const flight = ensureWarmRunnerFlight(workspaceId, args.kit, deps)
+  if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, deps)
+  const flight: EnsureFlight = { kit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
   ensureFlights.set(workspaceId, flight)
-  try {
-    return await flight
-  } finally {
-    if (ensureFlights.get(workspaceId) === flight) ensureFlights.delete(workspaceId)
+  settleEnsureFlight(workspaceId, flight)
+  return flight.run
+}
+
+/** Equal requests: both derive now, or both carry the same kit. */
+function sameRequestedKit(a: SessionKitV1 | undefined, b: SessionKitV1 | undefined): boolean {
+  if (a === undefined || b === undefined) return a === b
+  return sameKit(a, b)
+}
+
+/** A request landing while its workspace's warm-up is in the air: an equal
+ *  one (and nothing trailing yet) joins the run; any other becomes THE
+ *  trailing request — the newest kit, replacing an earlier trailing one and
+ *  inheriting its waiters, every one of them answered by the rerun. */
+function awaitBehindFlight(
+  flight: EnsureFlight,
+  kit: SessionKitV1 | undefined,
+  deps: WarmRunnerDeps,
+): Promise<WarmEnsureOutcome> {
+  if (flight.trailing === null && sameRequestedKit(flight.kit, kit)) return flight.run
+  return new Promise<WarmEnsureOutcome>((resolve, reject) => {
+    const waiters = flight.trailing?.waiters ?? []
+    waiters.push({ resolve, reject })
+    flight.trailing = { kit, deps, waiters }
+  })
+}
+
+/** The flight chain, wired as settlement reactions (registered BEFORE any
+ *  caller's own await, so the slot is already re-decided when a caller
+ *  continues): when the run settles, the trailing request — if one landed —
+ *  becomes the next run and its waiters take that run's outcome; otherwise
+ *  the slot clears. Only the chain clears the slot, and only its OWN flight
+ *  — a stale clear must never wipe a newer flight back open. */
+function settleEnsureFlight(workspaceId: string, flight: EnsureFlight): void {
+  const onSettled = (): void => {
+    const next = flight.trailing
+    if (next === null) {
+      if (ensureFlights.get(workspaceId) === flight) ensureFlights.delete(workspaceId)
+      return
+    }
+    flight.trailing = null
+    flight.kit = next.kit
+    flight.run = ensureWarmRunnerFlight(workspaceId, next.kit, next.deps)
+    void flight.run.then(
+      outcome => {
+        for (const waiter of next.waiters) waiter.resolve(outcome)
+      },
+      (err: unknown) => {
+        for (const waiter of next.waiters) waiter.reject(err)
+      },
+    )
+    void flight.run.then(onSettled, onSettled)
   }
+  void flight.run.then(onSettled, onSettled)
 }
 
 /** The ensure body, one per workspace at a time (the flight map above). */
