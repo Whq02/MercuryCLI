@@ -81,7 +81,7 @@ const badNames: Array<[string, string]> = [
   ['../x', 'traversal'], ['ätlas', 'unicode'],
 ]
 for (const [bad, why] of badNames) check(`refused: ${JSON.stringify(bad)} (${why})`, cs.isValidCrewName(bad) === false)
-for (const reserved of ['team-lead', 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon']) {
+for (const reserved of ['team-lead', 'crew', 'daemon']) {
   check(`reserved refused: '${reserved}'`, cs.isValidCrewName(reserved) === false)
 }
 

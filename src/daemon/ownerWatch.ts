@@ -1,24 +1,26 @@
 // ============================================================================
-//  ownerWatch — owner-orphan self-reap for the AUTO-STARTED scribe daemon.
+//  ownerWatch — owner-orphan self-reap for an AUTO-STARTED (owned) daemon.
 //
-//  The daemon that ensureScribeDaemon spawns is DETACHED. The parent-side reaper
+//  The daemon that spawnOwnedDaemon starts is DETACHED. The parent-side reaper
 //  (process.once('exit')) does NOT fire on SIGHUP (terminal close) or SIGKILL —
 //  PROVEN empirically — so closing the CLI would orphan the daemon (it kept
-//  running across sessions, which also let it route the Implementer through a
+//  running across sessions, which also let it route its workers through a
 //  STALE account: the daemon held whatever auth was live when it first started,
 //  while the foreground later switched accounts). This is the robust backstop:
-//  the auto-started daemon learns its owner's pid (MERCURY_SCRIBE_OWNER_PID) and
-//  SELF-shuts-down once the owner is absent — regardless of how the owner died.
+//  the auto-started daemon learns its owner's pid (the owner-pid stamp, whose
+//  env keeps its historical spelling) and SELF-shuts-down once the owner is
+//  absent — regardless of how the owner died.
 //
 //  An explicitly-run `mercury daemon` carries NO owner pid ⇒ the watch never arms
 //  ⇒ it persists for cron (the operator's deliberate long-lived daemon). Opt out
-//  of the auto-reap with MERCURY_SCRIBE_DAEMON_PERSIST=1.
+//  of the auto-reap with MERCURY_SCRIBE_DAEMON_PERSIST=1 (the historical
+//  spelling of the persist opt-out).
 //
 //  Pure + side-effect-light so it's unit-testable under `bun run` (daemon/main.ts
 //  is not loadable there — heavy deps + the feature() macro).
 //
 //  KNOWN LIMITATION (documented, not a bug): the daemon is shared and only the
-//  FIRST session that spawned it is its "owner" (ensureScribeDaemon no-ops when a
+//  FIRST session that spawned it is its "owner" (an ensure no-ops when a
 //  daemon is already live). If session A spawns the daemon, session B attaches,
 //  then A closes, the watch reaps even though B is live. Single-session (the
 //  common case) is fully correct; multi-session operators set PERSIST=1. A future
@@ -30,7 +32,8 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
-/** The env var ensureScribeDaemon stamps with the spawning session's pid. */
+/** The env var spawnOwnedDaemon stamps with the spawning session's pid (the
+ *  historical spelling — the registry row names its consumers). */
 export const OWNER_PID_ENV = 'MERCURY_SCRIBE_OWNER_PID'
 
 // Prefer pwsh (PowerShell 7 — ≈2× the 5.1 start cost) when it

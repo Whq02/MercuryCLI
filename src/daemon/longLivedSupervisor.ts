@@ -1,7 +1,7 @@
 /**
- * Scribe Mode "Amanuensis" — pure supervision policy for the long-lived
- * stream-json child (Implementer / Scribe). The roster (roster.ts) owns the
- * actual ChildProcess glue (spawn / child.on('exit') / stdin.write); this module
+ * Pure supervision policy for a long-lived stream-json child (a crew
+ * teammate, a session worker). The roster (roster.ts) owns the actual
+ * ChildProcess glue (spawn / child.on('exit') / stdin.write); this module
  * is the loadable, side-effect-free DECISION logic it drives:
  *
  *   - exponential capped backoff between respawns,
@@ -49,7 +49,7 @@ export const DEFAULT_LONG_LIVED_CONFIG: LongLivedSupervisorConfig = {
 
 /**
  * Long-lived respawns are EXEMPT from the shared DaemonBreaker: a crash-looping
- * Implementer must never suppress the cron fire path (they have independent
+ * seat must never suppress the cron fire path (they have independent
  * failure budgets). The roster reads this when wiring the crash handler.
  */
 export const LONG_LIVED_FEEDS_SHARED_BREAKER = false
@@ -162,7 +162,7 @@ export function parseStreamJsonFrame(line: string): Record<string, unknown> | nu
  *
  * `result` frames are EXCLUDED by type: their `usage` is the turn's SUMMED
  * API accounting (every call's input+cache tokens added — measured live
- * party run #3: a 10-call turn at ~132k live context summed to
+ * a measured run: a 10-call turn at ~132k live context summed to
  * ~1.3M, read as 100% of the 1M window, and spuriously auto-cleared a healthy
  * seat mid-mission). Live context is what the per-call assistant frames
  * carry; result usage is billing-shaped, never window-shaped.
@@ -262,7 +262,7 @@ export function decideReconfigure(args: {
 // PRECISE turn-active tracking (#41 bundling phase-out). The delivery-clock
 // (workerIsIdle) is a 15s heuristic — under stress a task running longer than
 // idleMs looked "idle" and back-pressure released, letting a 2nd dispatch land
-// while the Implementer was still mid-task (violating "strictly one task at a
+// while the worker was still mid-task (violating "strictly one task at a
 // time"). The daemon owns the child's stdout, which in stream-json mode emits a
 // `result` frame at the END of each turn — so we can track turn-active PRECISELY:
 // busy from the user-frame delivery (turn start) until the `result` frame (turn
@@ -272,7 +272,8 @@ export function decideReconfigure(args: {
 /** Safety cap: a turn cannot be "active" forever. If no `result` frame arrives
  *  within this window the turn is presumed wedged/dead and back-pressure releases
  *  (so a queued task is never starved). Generous — a legit deep task is fine; this
- *  only catches a hung/crashed turn. Env-tunable (MERCURY_IMPLEMENTER_MAX_TURN_MS). */
+ *  only catches a hung/crashed turn. Env-tunable (MERCURY_IMPLEMENTER_MAX_TURN_MS —
+ *  the knob keeps its historical spelling; it tunes every long-lived seat). */
 export const DEFAULT_MAX_TURN_MS = 20 * 60 * 1000
 
 /** Resolve the turn safety cap (env-tunable; non-numeric/≤0 ⇒ default). */
@@ -346,7 +347,7 @@ export type DispatchBackPressure = { hold: boolean; reason: 'busy' | 'idle' | 'u
 
 /**
  * Dispatch back-pressure (the operator's "stagger"): should a NEW dispatch be HELD
- * because the Implementer is mid-task? Reuses workerIsIdle as the single busy-truth
+ * because the worker is mid-task? Reuses workerIsIdle as the single busy-truth
  * (busy = a dispatch was delivered within idleMs, so a reply is likely still pending),
  * the SAME approximation decideReconfigure already ships — the daemon can't see the
  * child's mailbox replies, so delivery activity is the honest proxy.

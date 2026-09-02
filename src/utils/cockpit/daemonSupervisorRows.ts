@@ -32,7 +32,7 @@ export interface SupervisorWorkerRow {
   /** The wire's settled outcome ('degraded' · 'crashed' · 'killed' · a one-shot
    *  run's fire outcome); absent while the seat is live. A settled seat must
    *  never wear the idle costume — the roster keeps it until reap, so this
-   *  row is the operator's only tell that the Implementer died. */
+   *  row is the operator's only tell that a seat died. */
   outcome?: string
 }
 
@@ -98,7 +98,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       leases: null,
       fireLine: null,
       recentLine: null,
-      empty: 'run `mercury daemon` to start the supervisor + Implementer',
+      empty: 'run `mercury daemon` to start the supervisor',
       version: null,
     }
   }

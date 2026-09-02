@@ -660,7 +660,7 @@ async function routeControlRequest(
     case 'envelope': {
       // Bus ingress over the keyed socket. Holding the control key proves
       // same-uid (that is all a 0600 file can prove) — it does NOT prove
-      // dispatcher ROLE. Role is guarded solely by the from!=='implementer'
+      // dispatcher ROLE. Role is guarded solely by the from!==recipient
       // test further down, and a same-uid process forging any other `from`
       // clears both hurdles. In trust terms the socket therefore equals the
       // file bus it fronts (that journal was same-uid-writable all along);
@@ -668,7 +668,7 @@ async function routeControlRequest(
       // single envelope schema.
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const rawTo = String(raw.to ?? '')
-      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'scribe'
+      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'default'
       // Canonicalize the address at the ingress (layered with the
       // sender-side resolve): journaling to an alias mints a dead-letter
       // inbox that no drain will ever read. Aliases resolve; a name a
@@ -740,7 +740,7 @@ async function routeControlRequest(
           ok: false,
           code: 'ENOJOB',
           error:
-            'not a long-lived worker — reconfigure only retargets the Scribe/Implementer',
+            'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
       const r = deps.roster.reconfigureLongLived(short, { model, effort })
@@ -748,7 +748,7 @@ async function routeControlRequest(
         return answer(sock, {
           ok: false,
           code: 'ENOJOB',
-          error: r.error ?? 'not a long-lived worker — reconfigure only retargets the Scribe/Implementer',
+          error: r.error ?? 'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
       // `note` is optional-additive: the seat validator's honest refusal or

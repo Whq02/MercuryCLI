@@ -6,16 +6,19 @@
 //    (1) parent-side fast-path — process.once('exit') + a SIGHUP handler reap it
 //        the instant the owner exits cleanly / the terminal closes; and
 //    (2) the daemon-side owner-watch (ownerWatch.ts) — the robust backstop that
-//        self-reaps even on the owner's SIGKILL/crash, keyed on MERCURY_SCRIBE_OWNER_PID.
-//  BOTH layers key on the owner pid this seam STAMPS. ensureScribeDaemon AND
-//  ensureDungeonDaemon (the router party) route through here, so neither can orphan —
-//  a party spawning a detached daemon with NEITHER layer (no owner
-//  pid, no reaper) leaks its daemon + back-agents on every exit. One
-//  seam = one place to keep reaping airtight (extend via the seam, never beside it).
+//        self-reaps even on the owner's SIGKILL/crash, keyed on the owner-pid
+//        stamp (MERCURY_SCRIBE_OWNER_PID — the env keeps its historical spelling).
+//  BOTH layers key on the owner pid this seam STAMPS. Every auto-start (the
+//  crew engage, the switchboard's ensure, the concourse route, the handshake
+//  restart) routes through here, so none can orphan — a detached daemon spawned
+//  with NEITHER layer (no owner pid, no reaper) leaks its daemon + workers on
+//  every exit. One seam = one place to keep reaping airtight (extend via the
+//  seam, never beside it).
 //
 //  An explicitly-run `mercury daemon` carries no owner pid ⇒ the daemon-side
 //  owner-watch never arms ⇒ it persists for cron. Opt out of the parent reaper with
-//  MERCURY_SCRIBE_DAEMON_PERSIST=1 (the daemon-side owner-watch still self-reaps).
+//  MERCURY_SCRIBE_DAEMON_PERSIST=1 (the historical spelling of the persist
+//  opt-out; the daemon-side owner-watch still self-reaps).
 // ============================================================================
 import { adoptiveProjectPath } from '../utils/projectStoreAdoption.js'
 import { spawn } from 'node:child_process'
@@ -42,8 +45,8 @@ export function shouldReapAutoStartedDaemon(persistEnv: string | undefined): boo
 // One reaper PER OWNED DAEMON this process spawns. We only ever reap a daemon WE
 // just spawned, so an explicitly-run `mercury daemon` (kept for cron) is never touched.
 // Tracked in a Set (not a single scalar) so a session that auto-starts more than one
-// owned daemon — e.g. the scribe AND the party — parent-reaps every one of them, not
-// just the first; re-arming the same pid is a no-op.
+// owned daemon parent-reaps every one of them, not just the first; re-arming
+// the same pid is a no-op.
 //
 // CORRECTION (measured): process.once('exit') does NOT fire on SIGHUP (terminal
 // close) or SIGTERM — only on a graceful process.exit()/event-loop drain. So we also
@@ -210,11 +213,10 @@ export function adoptOwnedDaemonPid(pid: number): void {
 }
 
 // The label of the owned daemon THIS process most recently spawned (null =
-// none this session). Mode-transition seams consult it: an 'already-live'
-// daemon that THIS session itself stood up (a scribe↔party switch) is safe to
-// replace with the other mode's daemon — any other live daemon (a different
-// session's owned daemon on the same repo, or an explicit persistent
-// `mercury daemon`) is foreign and never touched.
+// none this session). Transition seams consult it: an 'already-live' daemon
+// that THIS session itself stood up is safe to replace with a successor — any
+// other live daemon (a different session's owned daemon on the same repo, or
+// an explicit persistent `mercury daemon`) is foreign and never touched.
 let ownedSpawnLabelThisProcess: string | null = null
 
 /** The label this process last spawned an owned daemon under, or null. */
@@ -353,8 +355,8 @@ export function spawnOwnedDaemon(
     // Daemon log capture: stdio would otherwise be
     // 'ignore', which swallowed the daemon's own spawn lines AND every seat
     // child's stderr (they share the daemon's stderr) — including the seat
-    // boot self-checks built precisely to make mis-wiring observable. The
-    // operator's party test failed with ZERO recoverable evidence. Append to
+    // boot self-checks built precisely to make mis-wiring observable — a
+    // failed run would otherwise leave ZERO recoverable evidence. Append to
     // <project>/.mercury/daemon/daemon.log instead; open failures degrade to
     // 'ignore' (a log must never block the engage).
     let outFd: number | 'ignore' = 'ignore'
@@ -386,10 +388,9 @@ export function spawnOwnedDaemon(
     // what it means.
     const child = spawn(process.execPath, [script, 'daemon', 'run', projectDir], {
       // Run the daemon IN the project dir it schedules — deterministic for every
-      // cwd-relative operation (esp. the party's Executor worktree lanes, which
-      // resolve under findCanonicalGitRoot(getCwd()); without this a daemon
-      // inheriting a different foreground cwd created lanes in the WRONG repo —
-      // surfaced by the P11 live smoke).
+      // cwd-relative operation (a worker's worktree carve resolves under
+      // findCanonicalGitRoot(getCwd()); without this a daemon inheriting a
+      // different foreground cwd would work in the WRONG repo).
       cwd: projectDir,
       detached: true,
       // win32: a detached console child gets its OWN VISIBLE console window

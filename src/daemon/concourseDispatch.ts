@@ -442,7 +442,7 @@ export function envelopeDigestOf(req: ConcourseDispatchRequest): string {
 /**
  * The operator's prompt as a stream-json user frame (the worker is the
  * operator's OWN chat — verbatim content, no bus framing; the
- * scribeDispatchBridge frame shape). The live battery's first run caught
+ * dispatchDrain frame shape). The live battery's first run caught
  * the raw-string class this prevents: an unframed prompt kills the child's
  * stdin parser instantly and respawn-loops it to DEGRADED.
  */

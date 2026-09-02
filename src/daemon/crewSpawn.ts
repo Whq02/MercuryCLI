@@ -2,8 +2,8 @@
 //  crewSpawn — daemon-side spawn specs for CREW TEAMMATES (/teammates).
 //
 //  Mercury's own, non-beta take on "agent teams": each teammate is a NAMED,
-//  long-lived daemon worker (registerLongLived → buildStreamJsonInvocation,
-//  exactly the Implementer shape) the operator CHATS with from the
+//  long-lived daemon worker (registerLongLived → buildStreamJsonInvocation)
+//  the operator CHATS with from the
 //  /teammates board — instanced, color-coded chats in ONE repo, managed
 //  horizontally. No upstream beta gates; the backend is the proven Mercury
 //  bus: operator messages ride writeToMailbox(teams/crew/inboxes/<name>) and
@@ -77,7 +77,7 @@ export function isCrewModelKey(k: string): k is CrewModelKey {
  *  hard: lowercase alnum + hyphen, 2-16 chars, letter-first. Reserved names
  *  refused (they collide with existing roster/bus identities). */
 const CREW_NAME_RE = /^[a-z][a-z0-9-]{1,15}$/
-const RESERVED_NAMES = new Set(['team-lead', 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
+const RESERVED_NAMES = new Set(['team-lead', 'crew', 'daemon'])
 export function isValidCrewName(name: string): boolean {
   return CREW_NAME_RE.test(name) && !RESERVED_NAMES.has(name)
 }
@@ -199,8 +199,8 @@ export function makeCrewSpawnHandler(
   deps: CrewSpawnDeps,
 ): (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }> {
   // Live crew-teammate shorts — the spend guard counts against THIS set, so
-  // party/scribe workers never eat the crew cap (and vice versa). Per-handler
-  // state: one handler per daemon run, exactly the old main.ts closure scoping.
+  // other daemon workers never eat the crew cap (and vice versa). Per-handler
+  // state: one handler per daemon run.
   const crewShorts = new Set<string>()
   return async (name, modelKey) => {
     if (!crewEnabled()) {
@@ -259,9 +259,8 @@ export function buildCrewSpec(
     agentId: `${name}@${CREW_TEAM}`,
     teamName: CREW_TEAM,
     cwd: dir,
-    // The daemon-worker capability floor (Implementer parity): no seat-side
-    // agent DAGs, and the teammate's own name in env so isCrewRole()/identity
-    // resolve child-side.
+    // The daemon-worker capability floor: no seat-side agent DAGs, and the
+    // teammate's own name in env so isCrewRole()/identity resolve child-side.
     extraEnv: {
       ...flagPair('MERCURY_WORKFLOWS', '0'),
       ...flagPair('MERCURY_CREW_AGENT', name),

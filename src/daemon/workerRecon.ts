@@ -1,6 +1,6 @@
 // ============================================================================
 //  workerRecon — the read-only recon allowlist every daemon-spawned worker
-//  rides (the crew teammates, the scribe Implementer, the one-shot runs).
+//  rides (the crew teammates, the one-shot runs).
 //
 //  Classifier-fault immunity for the read-only core: the auto-mode classifier
 //  is an API dependency — a classifier fault (the empty-prompt 400, a real

@@ -386,13 +386,12 @@ console.log('\n── §C: non-session children never latch a stray kit ──')
 {
   const { readFileSync } = await import('node:fs')
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
-  // The Implementer spec lives in daemonMain's closure (not loadable pure);
-  // the ACP env build sits inside the spawn path — both pinned by source
-  // needle, the estate's W13 grammar. The crew and worker strips are
-  // DRIVEN pins already (prove-kit-runner §N) — not re-pinned here.
+  // The ACP env build sits inside the spawn path — pinned by source needle.
+  // The crew and worker strips are DRIVEN pins already (prove-kit-runner §N)
+  // — the crew strip is re-pinned by needle here as the census anchor. The
+  // daemon's own main registers no long-lived seat of its own any more (C1).
   const dmain = read('src/daemon/main.ts')
-  const implBlock = dmain.slice(dmain.indexOf("registerLongLived('implementer'"), dmain.indexOf("registerLongLived('implementer'") + 2400)
-  check("C1 the Implementer spec strips the session-kit spellings (a full -p runner would latch a stray from the daemon's own env)", implBlock.includes("stripEnv: flagSpellings('MERCURY_SESSION_KIT')"))
+  check('C1 the daemon main registers no long-lived seat of its own (every seat is born through a spawn seam with its own strip)', !dmain.includes('registerLongLived('))
   const acp = read('src/services/acp/childSession.ts')
   check('C2 the ACP child env drops the session-kit spellings AFTER every overlay (an IDE-hosted session never wears a kit nobody stamped)', acp.includes("flagSpellings('MERCURY_SESSION_KIT')) delete env[spelling]") && acp.includes('...process.env') && acp.indexOf('...process.env') < acp.indexOf("flagSpellings('MERCURY_SESSION_KIT')) delete env[spelling]"))
   const crew = read('src/daemon/crewSpawn.ts')

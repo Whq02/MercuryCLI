@@ -79,9 +79,10 @@ console.log('\n§4 every daemon worker kind reads the one resolver')
   const main = read('src/daemon/main.ts')
   check('the crew spawn floor rides resolveWorkerReconAllow', crew.includes("from './workerRecon.js'") && crew.includes('allowedTools: resolveWorkerReconAllow()'))
   check("the roster's one-shots ride it", roster.includes("from './workerRecon.js'") && roster.includes('allowedTools: resolveWorkerReconAllow()'))
-  // AMENDED: the scheduled-run site died with the legacy
-  // engine; the implementer spawn is main.ts's one surviving reader.
-  check('the daemon reads it for the implementer spawn (the one surviving site)', main.includes("from './workerRecon.js'") && (main.match(/allowedTools: resolveWorkerReconAllow\(\)/g) ?? []).length === 1)
+  // The scheduled-run site died with the legacy engine and the daemon's own
+  // seat block left with its estate: the crew spawn and the roster are the
+  // two readers, and main.ts carries none of its own.
+  check('the daemon main carries no recon read of its own (the two spawn seams are the readers)', !main.includes("from './workerRecon.js'") && !/allowedTools: resolveWorkerReconAllow\(\)/.test(main))
   check('no worker builder carries a second recon table', !/SEAT_RECON_ALLOW\s*[:=]/.test(crew + roster + main))
 }
 

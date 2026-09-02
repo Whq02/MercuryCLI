@@ -59,7 +59,7 @@ function sweptRoleSpellings(): string[] {
  * role-hygiene seams: the supervisor scrub, the cron-child clone, and the
  * long-lived child sanitize (non-crew specs only — a leaked crew identity on
  * another seat would hijack its replies to team-lead, because
- * implementerReplyTarget's crew branch wins).
+ * workerReplyTarget's crew branch wins).
  */
 export function stripCrewRolePair(env: NodeJS.ProcessEnv): string[] {
   const removed: string[] = []
@@ -86,9 +86,9 @@ export function stripCrewRolePair(env: NodeJS.ProcessEnv): string[] {
 /**
  * Strip EVERY role env var from the supervisor's own process.env (mutates it).
  * The daemon supervisor must NEVER run AS a role: a role-tagged foreground
- * (the Scribe's MERCURY_SCRIBE) that spawns the detached
+ * (a daemon-hosted worker's own marker) that spawns the detached
  * daemon leaks its role into the inherited env, so an unrelated scheduled task
- * could adopt that persona (the scribe role gates key off
+ * could adopt that persona (the role gates key off
  * these vars). This is the SINGLE-STRIP source — call ONCE at daemon startup; the
  * cron one-shot path (runTaskHeadless) ALSO clones+strips per run (belt-and-
  * suspenders, cloneEnvWithoutRoles), so a leak after startup can't reach a child.
@@ -175,19 +175,18 @@ export function getRunMaxBufBytes(): number {
  *  classifier-adjudicated mode (flow ≠ bypass; genuinely risky commands still
  *  deny and the child escalates). Was implement mode (the AgentTool-subagent
  *  mirror) until: in a `-p` child every 'ask' terminal-denies, so
- *  implement left SHELL dead — the party's run-#2 stall ("This command
- *  requires approval" on the first real bash), which the seats fixed for
- *  themselves with a spec-level flow posture while cron one-shots kept the
- *  dead floor. Operator directive (the fable-5 benchmark session:
- *  Bash-dominant, 63 calls, shipped + pushed): workers get shell like the
- *  lead. The classifier's availability fault is covered by the fallback
+ *  implement left SHELL dead ("This command requires approval" on the
+ *  first real bash), which the seats fixed for themselves with a
+ *  spec-level flow posture while cron one-shots kept the dead floor.
+ *  Operator directive: workers get shell like the lead. The classifier's
+ *  availability fault is covered by the fallback
  *  chain (MERCURY_CLASSIFIER_FALLBACK) + the recon allowlist floor;
  *  MERCURY_DAEMON_PERMISSION_MODE=implement restores the old posture. */
 export const HEADLESS_PERMISSION_MODE_DEFAULT = 'flow'
 
 /** Operator-selectable child postures (MERCURY_DAEMON_PERMISSION_MODE). The
  *  interactive-only modes are deliberately absent: 'strategy' needs a human
- *  to approve the plan and 'scribe' is a foreground router selection —
+ *  to approve the plan —
  *  neither can progress inside a headless child. */
 export const HEADLESS_PERMISSION_MODES = [
   'default',
@@ -207,7 +206,7 @@ export type HeadlessPermissionMode = (typeof HEADLESS_PERMISSION_MODES)[number]
  * migration) decodes through the bounded alias before validation.
  *
  * `specDefault` (optional) is a per-spec posture a spawn seam declares for
- * its OWN children (the party seats declare 'flow' — see buildPartySpec). An
+ * its OWN children (the crew seats declare 'flow' — see buildCrewSpec). An
  * operator-set env ALWAYS wins over it (the ask-the-operator model rule's
  * permission analog: an explicit operator knob is never silently overridden);
  * the spec default applies only when the env is unset/invalid.
@@ -266,7 +265,7 @@ export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): vo
  * inherits. Belt-and-suspenders for the supervisor scrub (scrubSupervisorRoleEnv,
  * called once at daemon startup): even if a role leaked in AFTER startup, or the
  * single-strip ordering ever regressed, a per-run clone can never hand a scheduled
- * task a stray persona (the scribe gates key off these
+ * task a stray persona (the role gates key off these
  * vars). Mirrors the exact strip buildStreamJsonInvocation does on its own clone,
  * so the two spawn paths are identically role-safe.
  */
@@ -292,7 +291,7 @@ function cloneEnvWithoutRoles(): NodeJS.ProcessEnv {
   // the genuine away context — the operator is not watching a terminal, so
   // SendUserMessage (brief view + notifications) is the delivery channel.
   // The explicit opt-in survives the -p non-interactive denial in
-  // isBriefEntitled; the Implementer/party roles stay denied by their own
+  // isBriefEntitled; daemon-hosted worker roles stay denied by their own
   // entitlement terms. Interactive desktop sessions no longer default in.
   env.MERCURY_BRIEF ??= '1'
   return env
@@ -364,26 +363,23 @@ export function getSelfInvocation(): { node: string; script: string } {
   return { node: process.execPath, script: process.argv[1] || '' }
 }
 
-// ── Scribe Mode "Amanuensis": long-lived stream-json child (Task 4.1) ────────
-// Unlike runTaskHeadless (a one-shot isolated run with a 30m SIGKILL cap), the
-// Implementer / Scribe is a LONG-LIVED supervised process: bidirectional
-// stream-json over stdin/stdout, a per-role CLONED env, and NO wall-clock kill
-// timer (the roster supervises + respawns it instead — Task 4.2).
+// ── The long-lived stream-json child ─────────────────────────────────────────
+// Unlike runTaskHeadless (a one-shot isolated run with a 30m SIGKILL cap), a
+// crew teammate or a session worker is a LONG-LIVED supervised process:
+// bidirectional stream-json over stdin/stdout, a per-role CLONED env, and NO
+// wall-clock kill timer (the roster supervises + respawns it instead).
 
 export interface StreamJsonChildSpec {
-  /** Canonical model id, e.g. 'claude-opus-5' (the Implementer @max) or 'claude-fable-5[1m]' (and
-   *  the Scribe @xhigh — the Scribe is env-swappable via MERCURY_SCRIBE_MODEL). Passed
-   *  BOTH as --model and ANTHROPIC_MODEL. */
+  /** Canonical model id, e.g. 'claude-sonnet-5' or 'claude-fable-5[1m]'.
+   *  Passed BOTH as --model and ANTHROPIC_MODEL. */
   model: string
-  /** Effort floor, e.g. 'xhigh' (Scribe) / 'max' (Implementer). Set as
-   *  MERCURY_EFFORT_LEVEL so resolveAppliedEffort does not downgrade it. */
+  /** Effort floor, e.g. 'high'. Set as MERCURY_EFFORT_LEVEL so
+   *  resolveAppliedEffort does not downgrade it. */
   effort: string
   /** The compiled role wrapper pack, passed via --append-system-prompt. */
   appendSystemPrompt: string
   /** The role env var to set to '1' in the CLONED child env. */
   role:
-    | 'MERCURY_SCRIBE'
-    | 'MERCURY_IMPLEMENTER'
     | 'MERCURY_CREW'
     | 'MERCURY_CONCOURSE_WORKER'
   /** Mailbox identity triplet (validated together by the CLI). */
@@ -391,9 +387,9 @@ export interface StreamJsonChildSpec {
   agentId: string
   teamName?: string
   cwd?: string
-  /** Optional extra vars stamped into the CLONED child env (e.g. the workflows
-   *  posture MERCURY_IMPLEMENTER_WORKFLOWS). Spec-carried so supervisor respawns
-   *  keep it. Overlaid BEFORE the model/effort/swarm stamps and the role
+  /** Optional extra vars stamped into the CLONED child env (e.g. the crew
+   *  teammate's own name). Spec-carried so supervisor respawns keep it.
+   *  Overlaid BEFORE the model/effort/swarm stamps and the role
    *  sanitize+stamp — it can never override those. */
   extraEnv?: Readonly<Record<string, string>>
   /** Per-spec permission-posture DEFAULT for this child. An operator-set
@@ -401,7 +397,7 @@ export interface StreamJsonChildSpec {
    *  env is unset/invalid (see getHeadlessPermissionMode). Spec-carried so
    *  supervisor respawns keep it. Absent ⇒ the global daemon default. */
   permissionMode?: HeadlessPermissionMode
-  /** Permission ALLOW rules passed as `--allowedTools` (e.g. the party seats'
+  /** Permission ALLOW rules passed as `--allowedTools` (e.g. the crew seats'
    *  read-only recon set) — rule-allowed calls short-circuit before any
    *  classifier, so routine recon survives a classifier fault. Spec-carried
    *  so supervisor respawns keep it. Absent/empty ⇒ no flag (default argv). */
@@ -461,19 +457,19 @@ export function buildStreamJsonInvocation(
     spec.role === 'MERCURY_CONCOURSE_WORKER'
       ? spec.model
       : enforceSubagentModelFloor(spec.model, `daemon:${spec.agentName}`)
-  const teamName = spec.teamName ?? 'scribe'
+  const teamName = spec.teamName ?? 'default'
   const argv = [
     script,
     '-p',
     // print.ts refuses `--output-format=stream-json` without --verbose (exits 1
-    // on the first output line). The long-lived Implementer streams JSON events,
+    // on the first output line). A long-lived worker streams JSON events,
     // so --verbose is mandatory or the child dies before running a single turn.
     '--verbose',
     // Permission posture — without this the child boots 'default' mode and
     // every 'ask' terminal-denies silently (no prompt exists in print mode).
-    // Per-spec default (party seats: 'flow') under the operator env override.
+    // Per-spec default (crew seats: 'flow') under the operator env override.
     ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),
-    // Spec-carried allow rules (party recon set): rule-allowed ⇒ no ask ⇒ no
+    // Spec-carried allow rules (the worker recon set): rule-allowed ⇒ no ask ⇒ no
     // classifier dependency for the read-only core.
     ...(spec.allowedTools && spec.allowedTools.length > 0
       ? ['--allowedTools', ...spec.allowedTools]
@@ -522,8 +518,8 @@ export function buildStreamJsonInvocation(
     ...flagPair('MERCURY_SWARMS', '1'),
   }
   // Sanitize ALL role vars from the inherited clone before stamping the target
-  // role. A child spawned from a role-tagged parent (e.g. the foreground Scribe's
-  // MERCURY_SCRIBE) would otherwise inherit it
+  // role. A child spawned from a role-tagged parent (a daemon-hosted worker
+  // spawning its own) would otherwise inherit it
   // alongside its own role → assertSingleRole() sees both → throws → crash-loop.
   // Exactly one role var must ever be present in the child env.
   for (const v of sweptRoleSpellings()) {

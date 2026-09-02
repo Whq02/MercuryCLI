@@ -9,8 +9,8 @@
 //  The fix makes `respawnTimer` an ACCURATE "a crash-respawn is pending" signal:
 //  it is set on child-exit and CLEARED the moment spawnLongLived fires (a clear
 //  that lives only in kill() lets a stale fired handle linger after every recover and
-//  makes the reconfigure guard skip a real retarget — silently dropping /route,
-//  /model, effort, and onClear retargets on the long-lived implementer).
+//  makes the reconfigure guard skip a real retarget — silently dropping
+//  model, effort, and onClear retargets on a long-lived seat).
 //
 //  roster.ts pulls the daemon/child_process graph (bun-unloadable), so this locks
 //  the invariant by source-text.

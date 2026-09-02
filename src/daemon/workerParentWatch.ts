@@ -3,7 +3,7 @@
 //
 //  ownerWatch makes the auto-started DAEMON self-reap when its owning SESSION
 //  dies. This is the symmetric backstop one level down: a daemon-spawned WORKER
-//  (the Implementer / a dungeon-party agent) self-exits the instant its parent
+//  (a crew teammate, a session worker) self-exits the instant its parent
 //  DAEMON dies — so a worker can never outlive its supervisor.
 //
 //  Why it's needed even though the worker's stdin is a pipe from the daemon (so a

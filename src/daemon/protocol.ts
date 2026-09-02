@@ -266,7 +266,7 @@ export type DaemonRequest =
       // Agent-bus envelope carried over the keyed socket — the primary
       // coordination transport. Holding the 0600 control key is what makes a
       // caller a dispatcher: the daemon checks the key, refuses work frames
-      // that claim from:'implementer' (the role invariant), writes the
+      // signed by their own recipient (the role invariant), writes the
       // envelope into the recipient's mailbox — which stays the durability
       // journal, so a crash between journal and delivery replays from disk —
       // and then pokes the recipient's drain so delivery lands in
@@ -277,9 +277,9 @@ export type DaemonRequest =
       auth?: string
       /** Recipient agent (its inbox is the journal). */
       to: string
-      /** Which team's inbox namespace; 'scribe' when omitted. */
+      /** Which team's inbox namespace; the mailbox default when omitted. */
       team?: string
-      /** The scribe_protocol payload, validated by the server. */
+      /** The bus envelope payload, validated by the server. */
       env: unknown
       /** Display color for the sender, mirrored onto the mailbox write. */
       color?: string

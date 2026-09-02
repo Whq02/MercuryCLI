@@ -34,13 +34,9 @@ import { MERCURY_DAEMON_PROTO } from './protocol.js'
 import { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
-import { resolveImplementerSeat } from '../utils/model/seatSlots.js'
-import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
-import {
-  isCrewDaemon, isImplementerSpawnEnabled, isScribeEngageDaemon, isScribeWorkflowsDaemon,
-} from './daemonFeatureGates.js'
+import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
+import { isCrewDaemon } from './daemonFeatureGates.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
-import { resolveWorkerReconAllow } from './workerRecon.js'
 import { CREW_TEAM, makeCrewSpawnHandler } from './crewSpawn.js'
 import {
   listConcourseWorkers,
@@ -107,11 +103,6 @@ import {
   OWNER_WATCH_GRACE_CHECKS,
 } from './ownerWatch.js'
 import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
-import { scribeBusLiveEnabled, scribeBackPressureEnabled, scribeAutoClearEnabled, scribeTaskRouterEnabled } from '../utils/scribe/scribeGates.js'
-import { resolveDispatchEffort } from '../utils/scribe/dispatchRouter.js'
-import { routerEnabled } from '../utils/router/routerGates.js'
-import { resolveScribeDispatchRoute } from '../utils/router/adapters/scribe.js'
-import { routerStoreWriters } from '../substrate/routerRunStore.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
 import {
@@ -339,20 +330,20 @@ async function daemonRun(args: string[]): Promise<void> {
     `[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir} at ${new Date().toISOString()}\n`,
   )
 
-  // The supervisor must run ROLE-FREE. A role-tagged foreground (the Scribe's
-  // MERCURY_SCRIBE) that auto-started this detached
-  // daemon leaked its role into our inherited env; the cron one-shot path
-  // (runTaskHeadless) spawns `-p` children with `env: process.env` verbatim, so an
-  // unrelated scheduled task would otherwise adopt that persona (dungeon-audit
-  // fix #2). Scrub once, before any spawn. (buildStreamJsonInvocation re-stamps the
-  // intended role on its own clone, so the long-lived workers are unaffected.)
+  // The supervisor must run ROLE-FREE. A role-tagged process that auto-started
+  // this detached daemon would leak its role into our inherited env; the cron
+  // one-shot path (runTaskHeadless) spawns `-p` children with `env: process.env`
+  // verbatim, so an unrelated scheduled task would otherwise adopt that
+  // persona. Scrub once, before any spawn. (buildStreamJsonInvocation re-stamps
+  // the intended role on its own clone, so the long-lived workers are
+  // unaffected.)
   const scrubbed = scrubSupervisorRoleEnv()
   if (scrubbed.length > 0) {
     logForDebugging(`[daemon] scrubbed inherited role env (supervisor runs role-free): ${scrubbed.join(', ')}`)
   }
-  // Boot posture provenance (daemon.log forensics — the party run-#1 lesson):
-  // name WHICH engage spawned this daemon so a dead-worker investigation can
-  // tell a /teammates host from a scribe/party/scheduler daemon.
+  // Boot posture provenance (daemon.log forensics): name WHICH engage spawned
+  // this daemon so a dead-worker investigation can tell a /teammates host
+  // from a scheduler daemon.
   if (isCrewDaemon()) {
     logForDebugging('[daemon] crew-host posture (MERCURY_DAEMON_CREW=1 — spawned by a /teammates engage)')
   }
@@ -440,15 +431,14 @@ async function daemonRun(args: string[]): Promise<void> {
   // armed once the control layer is up (its delivery IS the dispatch door).
   let stopSaturnTicker: (() => void) | null = null
   let roster: TaskRoster | null = null
-  // Bus Gap 2: the Scribe→Implementer dispatch→stdin drains — SUBSCRIPTION-driven
-  // (reactive-substrate Phase 2; the old fixed 1s polls are absent). Disposed on
-  // shutdown. Declared here so shutdown reaches them.
+  // The workers' inbox→stdin dispatch drains — SUBSCRIPTION-driven (no fixed
+  // polls). Disposed on shutdown. Declared here so shutdown reaches them.
   const dispatchDrains: DispatchDrainHandle[] = []
-  // The roster's busy→idle nudges: on a worker's turn end / fresh spawn, run the
-  // governor (auto-clear) and deliver any held dispatch immediately.
+  // The roster's busy→idle nudges: on a worker's turn end / fresh spawn,
+  // deliver any held dispatch immediately.
   const idleNudges = new Map<string, () => void>()
-  // Owner-orphan self-reap poll (armed only for an AUTO-STARTED scribe daemon that
-  // carries MERCURY_SCRIBE_OWNER_PID); cleared on shutdown. ownerWatch.ts explains why.
+  // Owner-orphan self-reap poll (armed only for an AUTO-STARTED daemon that
+  // carries the owner-pid stamp); cleared on shutdown. ownerWatch.ts explains why.
   let ownerWatch: ReturnType<typeof setInterval> | undefined
   let ready = false
   const startedAt = Date.now()
@@ -456,7 +446,7 @@ async function daemonRun(args: string[]): Promise<void> {
   // (which always arrives long after setup, so the binding is set by then).
   let requestShutdown: (signal: string) => void = () => {}
   // per-config-home mutex. Acquire BEFORE the control layer
-  // binds, so a 2nd `mercury daemon` (or a racing ensureScribeDaemon double-spawn)
+  // binds, so a 2nd `mercury daemon` (or a racing auto-start double-spawn)
   // for the same config home can't unlink the live socket / overwrite control.key
   // and orphan the running daemon. On contention we refuse + exit cleanly, never
   // touching the live daemon's control files.
@@ -527,8 +517,8 @@ async function daemonRun(args: string[]): Promise<void> {
           onWarmRunnerLine(line)
           onSeatLine(short, line, roster)
         },
-        // Scribe Mode: a long-lived worker that exhausts its respawn budget flips
-        // a loud degraded marker (the /substrate snapshot reads getSupervisorState).
+        // A long-lived worker that exhausts its respawn budget flips a loud
+        // degraded marker (the /substrate snapshot reads getSupervisorState).
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
           console.error(`[daemon] ⚠️  SUPERVISOR DEGRADED — ${reason}`)
@@ -1138,7 +1128,7 @@ async function daemonRun(args: string[]): Promise<void> {
         onShutdown: reapWorkers => {
           // Reap live workers if asked, then trigger process shutdown.
           // Returns WHO was reaped — name and purpose — so /halt reports
-          // "implementer seat" instead of a bare count, and a worker already
+          // "crew seat" instead of a bare count, and a worker already
           // 'retiring' from an earlier reap is never counted again (the
           // second-halt-reaped-4-more class).
           const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
@@ -1409,168 +1399,6 @@ async function daemonRun(args: string[]): Promise<void> {
         }, 60_000)
         reconcileTick.unref?.()
       }
-
-      // Scribe Mode "Amanuensis": spawn + supervise the long-lived Implementer
-      // (the back process the Scribe dispatches to). Gated isImplementerSpawnEnabled()
-      // (MERCURY_AMANUENSIS). The persona pack is delivered by the child's
-      // OWN role-env getImplementerModeSections() (MERCURY_IMPLEMENTER=1, fires in
-      // -p via QueryEngine.getSystemPrompt), so we pass an EMPTY --append-system-prompt
-      // to avoid double-appending it. The Scribe is the foreground REPL the operator
-      // launches (or spawned the same way with the scribe seat pin + MERCURY_SCRIBE).
-      // + isScribeEngageDaemon(): only a daemon the scribe engage
-      // spawned (MERCURY_DAEMON_SCRIBE_ENGAGE=1) or an EXPLICIT MERCURY_AMANUENSIS=1
-      // hosts the opus@max Implementer — a plain `mercury daemon` scheduler run no
-      // longer eagerly spawns one off the Mercury default.
-      if (roster && isImplementerSpawnEnabled() && isScribeEngageDaemon()) {
-        try {
-          // Env-swappable so an earlier Opus can return without a rebuild (mirrors
-          // scribeModelPin's MERCURY_SCRIBE_MODEL) — now VALIDATED through the seat-slot
-          // machinery (router-party P1): MERCURY_IMPLEMENTER_MODEL/_EFFORT fail closed
-          // to the opus[1m]@max pin (never Haiku, never junk) with an honest note.
-          // This spec is ALSO the single source of the Implementer's model/effort
-          // defaults that the W2 `reconfigure` RPC patches in place.
-          const seat = resolveImplementerSeat()
-          if (seat.note) {
-            // eslint-disable-next-line no-console
-            console.error(`[daemon] Implementer seat override adjusted: ${seat.note}`)
-          }
-          const reg = roster.registerLongLived('implementer', {
-            model: seat.model,
-            effort: String(seat.effort),
-            appendSystemPrompt: '',
-            role: 'MERCURY_IMPLEMENTER',
-            agentName: 'implementer',
-            agentId: 'implementer@scribe',
-            teamName: 'scribe',
-            cwd: dir,
-            // Workflows posture (the /model "Scribe + workflows" row): the engage
-            // stamped this daemon (MERCURY_DAEMON_SCRIBE_WORKFLOWS=1); carry it on
-            // the SPEC so supervisor respawns keep the workflow-capable pack.
-            ...(isScribeWorkflowsDaemon()
-              ? { extraEnv: flagPair('MERCURY_IMPLEMENTER_WORKFLOWS', '1') }
-              : {}),
-            // Scribe-routing parity with the party seats (operator directive,
-            // the Implementer is the same `-p` child shape as a
-            // party lane, so it had the same run-#2 work-blocker — under the
-            // global implement-mode default of the day its first non-edit bash would
-            // terminal-deny and the dispatch stall. Flow routes asks through
-            // the classifier; an operator-set
-            // MERCURY_DAEMON_PERMISSION_MODE still overrides at the
-            // getHeadlessPermissionMode seam. The read-only recon rules
-            // short-circuit BEFORE the classifier (run-#3 immunity): a
-            // classifier fault can never blind the Implementer either.
-            // MERCURY_PARTY_RECON_ALLOW governs BOTH worker kinds — one recon
-            // concept for every daemon-spawned worker, not a per-team env.
-            permissionMode: 'flow',
-            allowedTools: resolveWorkerReconAllow(),
-            // THE NON-SESSION INSULATION (the kit one-law: a kit narrows
-            // only the session it was stamped on; the manager's tools and
-            // every non-session process are untouchable by construction):
-            // the Implementer is a full `-p` runner and would LATCH a stray
-            // session-kit spelling from the daemon's own env — strip it,
-            // the crew/worker specs' exact discipline.
-            stripEnv: flagSpellings('MERCURY_SESSION_KIT'),
-          })
-          // eslint-disable-next-line no-console
-          console.error(
-            reg.ok
-              ? `[daemon] Amanuensis Implementer spawned (pid ${reg.pid}) — ${seat.model}@${String(seat.effort)}, long-lived, supervised`
-              : `[daemon] Amanuensis Implementer NOT spawned: ${reg.error}`,
-          )
-          // Bus Gap 2: arm the dispatch→stdin bridge ONLY when the live bus is on
-          // (scribeBusLiveEnabled, default-ON for Mercury, opt-out =0). The daemon owns the
-          // child's stdin pipe, so it polls the Implementer's inbox (~1s) and
-          // delivers each dispatch as a stream-json user frame via roster.reply.
-          // OFF ⇒ the Implementer still spawns but receives nothing (idle, safe).
-          if (reg.ok && scribeBusLiveEnabled()) {
-            const r = roster
-            // Back-pressure (#29): supply isBusy ONLY when the gate is on, so a normal
-            // dispatch to a mid-task Implementer is held for retry. Gate off ⇒ undefined
-            // ⇒ deliver-immediately (byte-identical). priority:'high' always delivers.
-            const backPressure = scribeBackPressureEnabled()
-            // #43 R2: daemon-authoritative auto-clear — at each idle tick, if the Implementer's
-            // context is near full, respawn it (fresh transcript) before it degrades. Wires the
-            // previously-dead assessRegulation governor; acts ONLY at a real turn boundary.
-            const autoClear = scribeAutoClearEnabled()
-            // The route fabric (MERCURY_ROUTER, default-ON): the full route seam —
-            // model AND effort per task, resolved by the kernel (RouteWork envelope
-            // header → seat-validated; legacy envelope → local fallback compile),
-            // applied via a respawn ONLY at an idle boundary (the bridge holds the
-            // dispatch meanwhile). `MERCURY_ROUTER=0` falls back to the effort-only
-            // router (MERCURY_SCRIBE_TASK_ROUTER, default-OFF) — the un-routed
-            // surface exactly.
-            const routerOn = routerEnabled()
-            const taskRouter = scribeTaskRouterEnabled()
-            const implementerRoute = () => ({
-              model: r.currentLongLivedModel('implementer'),
-              effort: r.currentLongLivedEffort('implementer'),
-            })
-            // Event-driven drain (reactive-substrate Phase 2): a dispatch write
-            // lands ~50ms later via the inbox subscription; held dispatches retry
-            // on the bridge's 1s timer or the roster's busy→idle nudge below —
-            // whichever comes first. (armDispatchDrain drops faulted
-            // passes internally; nothing escalates to crashShutdown.)
-            const handle = armDispatchDrain(r, {
-              short: 'implementer',
-              agentName: 'implementer',
-              teamName: 'scribe',
-              isBusy: backPressure ? () => r.isWorkerBusy('implementer') : undefined,
-              // Context-clear (#31): a `clear` control from the Scribe respawns the
-              // Implementer with the SAME spec ⇒ a FRESH transcript (respawn-if-idle-
-              // else-queue, so it clears after the current task, never mid-write).
-              onClear: () => { r.reconfigureLongLived('implementer', {}) },
-              // #41 R1b dedup (exactly-once by the robust request_id): a redelivery
-              // (retry / fragile mark-read / respawn) is dropped, never re-executed.
-              hasSeen: id => r.hasSeenDispatch('implementer', id),
-              markSeen: id => r.markSeenDispatch('implementer', id),
-              // The route seam (or the effort-only wrapper when
-              // MERCURY_ROUTER=0 and the task router is armed).
-              resolveRoute: routerOn
-                ? env => resolveScribeDispatchRoute(env, implementerRoute())
-                : taskRouter
-                  ? env => ({ effort: resolveDispatchEffort(env.task, env.route?.effort, { title: env.title }).effort })
-                  : undefined,
-              currentRoute: routerOn || taskRouter ? implementerRoute : undefined,
-              reconfigureRoute:
-                routerOn || taskRouter
-                  ? patch => { r.reconfigureLongLived('implementer', patch) }
-                  : undefined,
-              // Route-store observers (routerEnabled only): the held park + the delivery
-              // transition — captured signals, never invented rows.
-              onRouteHeld: routerOn
-                ? (env, patch) => {
-                    if (env.routePlan) {
-                      void routerStoreWriters.nodeHeld(
-                        env.routePlan.planId,
-                        env.routePlan.nodeId,
-                        `reconfiguring worker${patch.model ? ` → ${patch.model}` : ''}${patch.effort ? `@${patch.effort}` : ''}`,
-                        Date.now(),
-                      )
-                    }
-                  }
-                : undefined,
-              onDelivered: routerOn
-                ? env => { void routerStoreWriters.requestDelivered(env.request_id, Date.now()) }
-                : undefined,
-              onDrained: delivered => {
-                r.onDispatchTick('implementer', delivered)
-                if (autoClear) r.autoClearIfContextFull('implementer')
-              },
-            })
-            dispatchDrains.push(handle)
-            // Busy→idle: run the auto-clear governor at the turn boundary (context
-            // is fullest right after a turn), then deliver any held dispatch NOW.
-            idleNudges.set('implementer', () => {
-              if (autoClear) r.autoClearIfContextFull('implementer')
-              handle.drain()
-            })
-            logForDebugging('[daemon] scribe dispatch bridge armed (MERCURY_SCRIBE_BUS_LIVE, subscription-driven)')
-          }
-        } catch (e) {
-          logForDebugging(`[daemon] Implementer spawn failed: ${e}`)
-        }
-      }
-
     } catch (e) {
       // LOUD, not just the debug channel: a boot error here silently killed the
       // whole roster block (the EINVAL sun_path bind — the daemon "ran" for
@@ -1617,7 +1445,7 @@ async function daemonRun(args: string[]): Promise<void> {
         clearInterval(ownerWatch)
         ownerWatch = undefined
       }
-      // Reap live rostered workers (incl. the long-lived Implementer) so a
+      // Reap live rostered workers (incl. the long-lived seats) so a
       // signal shutdown never orphans a supervised child. roster.kill() marks a
       // long-lived worker intentional-stop, so it exits cleanly without respawn.
       // Each reap lands a SYNC ledger row FIRST: the process exits
@@ -1748,8 +1576,8 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('SIGBREAK', () => shutdown('SIGBREAK'))
 
     // R5c — crash guard: an uncaught exception / unhandled rejection in the daemon
-    // must NOT leave the long-lived workers (the Implementer), the control socket,
-    // and the supervisor record orphaned. Run the SAME graceful teardown as a signal
+    // must NOT leave the long-lived workers, the control socket, and the
+    // supervisor record orphaned. Run the SAME graceful teardown as a signal
     // (reap workers → clear polls → close socket → clear state), then exit non-zero.
     // shutdown() is re-entrancy-guarded, so a fault mid-shutdown is safe; the unref'd
     // failsafe force-exits if the async teardown ever wedges (never hang a dead daemon).
@@ -1779,13 +1607,14 @@ async function daemonRun(args: string[]): Promise<void> {
     process.on('uncaughtException', err => crashShutdown('uncaughtException', err))
     process.on('unhandledRejection', reason => crashShutdown('unhandledRejection', reason))
 
-    // Owner-orphan self-reap: an AUTO-STARTED scribe daemon (ensureScribeDaemon
-    // stamps MERCURY_SCRIBE_OWNER_PID) shuts itself down once the spawning session
-    // is absent — the robust backstop for the parent reaper that SIGHUP/SIGKILL
-    // bypass, so a closed CLI never leaves a daemon (with a stale account's auth)
+    // Owner-orphan self-reap: an AUTO-STARTED daemon (spawnOwnedDaemon stamps
+    // the owner pid) shuts itself down once the spawning session is absent —
+    // the robust backstop for the parent reaper that SIGHUP/SIGKILL bypass, so
+    // a closed CLI never leaves a daemon (with a stale account's auth)
     // running. An explicit `mercury daemon` carries no owner pid ⇒ never arms ⇒
-    // persists for cron. Opt out: MERCURY_SCRIBE_DAEMON_PERSIST=1. Unref'd so it
-    // never itself keeps the process alive (keepAlive is the anchor).
+    // persists for cron. Opt out: MERCURY_SCRIBE_DAEMON_PERSIST=1 (the persist
+    // flag keeps its historical spelling). Unref'd so it never itself keeps the
+    // process alive (keepAlive is the anchor).
     const ownerPid = parseOwnerPid()
     const persist = isEnvTruthy(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))
     if (ownerPid !== null && !persist) {
