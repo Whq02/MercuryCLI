@@ -65,9 +65,11 @@ import {
   onSeatIdle,
   onSeatLine,
   onSeatSpawned,
+  publishSeatFacts,
   refreshSessionFacts,
   requestSessionFacts,
   rewindSession,
+  seatTurnOpen,
   setSessionEffort,
   setSessionKitDial,
   setSessionModel,
@@ -768,7 +770,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: ({ action, sessionId, by, reason, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, clientOpId, mintedAtMs, title, titleSource }) => {
+        concourseControl: ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, clientOpId, mintedAtMs, title, titleSource }) => {
           // Resolve the worker FROM its session identity —
           // the valve speaks session ids (the operator's vocabulary), the
           // records speak worker shorts. Typed refusal when no record owns
@@ -996,10 +998,11 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           if (action === 'interrupt') {
             // R4: abort the worker's CURRENT turn via its own -p control
-            // path (control_request → abortController). Never a kill, never
-            // a valve change; the worker stays live for the next delivery.
-            // The worker leg binds to the SAME identity so a ledger miss
-            // (crash between execute and record) still converges.
+            // path (control_request → abortController, and the same stop
+            // for every background agent the turn waits on). Never a valve
+            // change; the worker stays live for the next delivery. The
+            // worker leg binds to the SAME identity so a ledger miss (crash
+            // between execute and record) still converges.
             const delivered =
               roster != null &&
               roster.control(
@@ -1007,12 +1010,40 @@ async function daemonRun(args: string[]): Promise<void> {
                 JSON.stringify({
                   type: 'control_request',
                   request_id: `concourse-interrupt-${clientOpId ?? `${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`}`,
-                  request: { subtype: 'interrupt' },
+                  request: { subtype: 'interrupt', ...(hard === true ? { hard: true } : {}) },
                 }),
               )
+            if (delivered && hard === true && roster !== null) {
+              // THE HARD STOP (the second esc): a runner that has not closed
+              // its turn a second after the interrupt is cut — SIGTERM to
+              // its tree, which the runner answers by settling the turn's
+              // interruption rows before it exits. The record keeps no stop
+              // stamp: the session survives and its next words revive it.
+              // The seat's facts publish once the child is gone (the exit
+              // fires no idle edge), so the chat's busy fact falls with it.
+              const live = roster
+              const runnerId = rec.runnerId
+              setTimeout(() => {
+                const row = live.list().find(j => j.short === runnerId)
+                if (!seatTurnOpen(row)) return
+                // eslint-disable-next-line no-console
+                console.error(`[daemon] hard stop: ${runnerId} still holds its turn a second after the interrupt — cutting the runner`)
+                live.kill(runnerId)
+                const t0 = Date.now()
+                const settle = (): void => {
+                  const after = live.list().find(j => j.short === runnerId)
+                  if (after !== undefined && !after.outcome && Date.now() - t0 < 5_000) {
+                    setTimeout(settle, 100).unref()
+                    return
+                  }
+                  publishSeatFacts(runnerId, undefined, live)
+                }
+                settle()
+              }, 1_000).unref()
+            }
             return settle(
               delivered
-                ? { outcome: 'applied' as const, detail: `interrupt ${rec.runnerId}` }
+                ? { outcome: 'applied' as const, detail: `${hard === true ? 'hard stop' : 'interrupt'} ${rec.runnerId}` }
                 : { outcome: 'refused' as const, detail: 'worker has no live control channel' },
             )
           }
