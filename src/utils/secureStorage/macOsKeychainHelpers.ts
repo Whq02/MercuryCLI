@@ -3,8 +3,14 @@ import { homedir, userInfo } from 'node:os'
 import { join } from 'node:path'
 
 import { fileSuffixForOauthConfig } from '../../constants/oauth.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir, getAuthScope, rawConfigHomePinSpelling } from '../envUtils.js'
 import type { SecureStorageData } from './types.js'
+
+export function keychainReachable(): boolean {
+  if (process.platform !== 'darwin') return false
+  return flagEnv('MERCURY_CREDENTIAL_STORE') !== 'file'
+}
 
 
 export const CREDENTIALS_SERVICE_SUFFIX = '-credentials'
