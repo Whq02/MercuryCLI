@@ -550,8 +550,18 @@ export async function* openaiCallModel(
           return ''
         }
       })()
+      const laneRemedy = ((): string => {
+        try {
+          const { crossFamilyLaneRemedy } =
+            require('../../rateLimitMessages.js') as typeof import('../../rateLimitMessages.js')
+          const line = crossFamilyLaneRemedy('openai')
+          return line === null ? '' : ` ${line}`
+        } catch {
+          return ''
+        }
+      })()
       yield apiErrorMessage(
-        `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}`,
+        `${API_ERROR_MESSAGE_PREFIX}: the ${auth.account.label} usage window is reached (${outcome.fault.code}) — ${outcome.fault.message}. GPT work on this source pauses until it resets; Mercury never reroutes across providers silently, and never changes the account source without your word.${slotAppendix || ' Options: retry later · pick another model via /model · switch the OpenAI source explicitly (/router source).'}${laneRemedy}`,
         openaiFaultToTypedError(outcome.fault),
         `${outcome.fault.code}${outcome.fault.resetsAtMs !== undefined ? ` resets_at=${new Date(outcome.fault.resetsAtMs).toISOString()}` : ''}`,
       )

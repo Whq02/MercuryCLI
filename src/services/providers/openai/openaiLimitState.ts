@@ -25,6 +25,15 @@ export function openaiLimitWindow(source: OpenaiLimitSource, now: () => number =
   return { state: 'limited', resetsAtMs: observed.resetsAtMs, observedAtMs: observed.observedAtMs }
 }
 
+export function openaiObservedWall(source: OpenaiLimitSource): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedBySource[source]
+}
+
+export function forgetOpenaiLimitSource(source: OpenaiLimitSource): void {
+  observedBySource[source] = null
+  if (source === 'chatgpt-subscription') observedUsage = {}
+}
+
 
 export interface OpenaiObservedWindow {
   usedPct?: number

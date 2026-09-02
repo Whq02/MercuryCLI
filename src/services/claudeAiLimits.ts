@@ -342,11 +342,18 @@ export function getUsageCredentialEpoch(): number {
   return usageCredentialEpoch
 }
 
+let windowObserved = false
+
+export function claudeWindowObserved(): boolean {
+  return windowObserved
+}
+
 function handleGateClosed(): void {
   usageCredentialEpoch++
   rawUtilization = {}
   endpointUtilization = {}
   observedOwner = null
+  windowObserved = false
   if (currentLimits.status !== 'allowed' || currentLimits.resetsAt !== undefined) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }
@@ -360,6 +367,7 @@ export function extractQuotaStatusFromHeaders(headers: Headers): void {
   const effective = processRateLimitHeaders(headers)
   recomputeRawUtilization(effective)
   const next = computeNewLimitsFromHeaders(effective)
+  windowObserved = true
   if (!limitsEqual(next, currentLimits)) {
     emitStatusChange(next)
   }
@@ -380,6 +388,7 @@ export function extractQuotaStatusFromError(error: unknown): void {
       next = { ...currentLimits }
     }
     next.status = 'rejected'
+    windowObserved = true
     if (!limitsEqual(next, currentLimits)) {
       emitStatusChange(next)
     }
@@ -425,6 +434,7 @@ export function resetLimitsForCredentialSwitch(): void {
   rawUtilization = {}
   observedOwner = null
   endpointUtilization = {}
+  windowObserved = false
   if (!limitsEqual(currentLimits, DEFAULT_LIMITS)) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }
