@@ -1,15 +1,18 @@
 // ============================================================================
-//  services/voice/voicePack — the ONE owner of the vendored voice capture
-//  pack's shape.
+//  services/voice/voicePack — the ONE owner of the vendored native pack's
+//  shape (the voice capture pack, which also carries the terminal hand-back).
 //
 //  The pack is a native addon (a Node-API module built from native/voice)
 //  that lists input devices and captures 16 kHz mono PCM from the default
-//  one. Node-API is ABI-stable, so the same file loads on the vendored Node
-//  and a PATH Node alike. This module spells the shape once — the fixed
-//  directory beside the bundle, the platform key, the addon file name, the
-//  manifest record and the resolution ladder — for every consumer: the
-//  vendor build (scripts/vendor/build-voice.ts), the build (build.ts), the
-//  capture owner, the doctor row and the pack prover. Node builtins only.
+//  one, and — the tty module beside the capture — reads and reclaims the
+//  controlling terminal's foreground process group (utils/terminalHandback
+//  is its one consumer). Node-API is ABI-stable, so the same file loads on
+//  the vendored Node and a PATH Node alike. This module spells the shape
+//  once — the fixed directory beside the bundle, the platform key, the
+//  addon file name, the manifest record and the resolution ladder — for
+//  every consumer: the vendor build (scripts/vendor/build-voice.ts), the
+//  build (build.ts), the capture owner, the hand-back owner, the doctor
+//  rows and the pack prover. Node builtins only.
 //
 //  Resolution ladder (the grammar engine's shape): an explicit
 //  MERCURY_VOICE_PACK_DIR pin names itself when broken (no silent
@@ -205,7 +208,24 @@ export function resolveVoicePackDir(): VoicePackResolution {
   }
 }
 
-/** The addon's Node-API surface (native/voice/src/lib.rs). */
+/** A process group id, or the reason none could be answered ("unsupported"
+ *  off POSIX, else the operating system's error text). */
+export interface ProcessGroupAnswer {
+  pgid?: number | null
+  reason?: string | null
+}
+
+/** The outcome of a reclaim: the foreground group before and after the call. */
+export interface TerminalReclaimAnswer {
+  /** The call set the foreground group to ours, and it had not been ours. */
+  reclaimed: boolean
+  before?: number | null
+  after?: number | null
+  /** "unsupported" off POSIX; else why the call failed (absent when it did not). */
+  reason?: string | null
+}
+
+/** The addon's Node-API surface (native/voice/src/lib.rs + src/tty.rs). */
 export interface VoiceAddon {
   packVersion(): string
   listInputDevices(): string[]
@@ -216,7 +236,26 @@ export interface VoiceAddon {
   stopCapture(handle: number): Buffer
   /** Drop a capture without its bytes. */
   cancelCapture(handle: number): void
+  /** The terminal's foreground process group (tcgetpgrp on the descriptor). */
+  ttyForegroundGroup(fd: number): ProcessGroupAnswer
+  /** This process's own process group (getpgrp). */
+  ownProcessGroup(): ProcessGroupAnswer
+  /** tcsetpgrp(fd, getpgrp()) with SIGTTOU ignored for the call. */
+  reclaimTerminal(fd: number): TerminalReclaimAnswer
 }
+
+/** Every export the loader requires — the surface is one pack, one list. */
+export const VOICE_ADDON_EXPORTS = [
+  'packVersion',
+  'listInputDevices',
+  'defaultInputDevice',
+  'startCapture',
+  'stopCapture',
+  'cancelCapture',
+  'ttyForegroundGroup',
+  'ownProcessGroup',
+  'reclaimTerminal',
+] as const
 
 export type VoiceAddonLoad =
   | { state: 'ok'; addon: VoiceAddon; dir: string; manifest: VoicePackManifest; source: 'override' | 'vendored' | 'workspace' }
@@ -237,7 +276,7 @@ export function loadVoiceAddon(): VoiceAddonLoad {
     // Variable indirection — the bundler must never try to inline the addon.
     const target: string = resolution.addonPath
     const raw = req(target) as Partial<VoiceAddon>
-    for (const fn of ['packVersion', 'listInputDevices', 'defaultInputDevice', 'startCapture', 'stopCapture', 'cancelCapture'] as const) {
+    for (const fn of VOICE_ADDON_EXPORTS) {
       if (typeof raw[fn] !== 'function') {
         loaded = { state: 'unavailable', note: `the voice addon at ${resolution.addonPath} exports no ${fn}() — rebuild it: bun run scripts/vendor/build-voice.ts` }
         return loaded
