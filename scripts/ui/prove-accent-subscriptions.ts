@@ -11,7 +11,9 @@
 // must use the HOOK and must NOT plain-read. (Transient modal overlays that
 // remount per open may still plain-read — deliberately not listed.
 // MercuryHome's berthCritterCols is a pure layout FUNCTION mirrored by
-// subscribed components — exempt.)
+// subscribed components — exempt. The thinking renderers paint the theme's
+// subtle role through the thinking grammar, not the accent: they hold no
+// subscription at all — prove-thinking-disclosure pins that absence.)
 import { readFileSync } from 'node:fs';
 
 let fail = 0;
@@ -22,8 +24,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const MUST_SUBSCRIBE = [
   'src/components/DeckPane.tsx',
-  'src/components/messages/AssistantThinkingMessage.tsx',
-  'src/components/messages/AssistantRedactedThinkingMessage.tsx',
   'src/components/messages/TaskAssignmentMessage.tsx',
   'src/components/messages/UserAgentNotificationMessage.tsx',
 ];

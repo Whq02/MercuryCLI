@@ -4,11 +4,14 @@
 //  disclosure row.
 //
 //  Drives the REAL built binary via --resume onto the 'thinking' fixture (an
-//  assistant [thinking, text] message) and captures with vshot.py at 80 AND
-//  120 cols. Asserts the finalized thinking row paints as the collapsed
-//  `∴ Thinking ⌄` disclosure line (the old dispatch nulled it — the reasoning
-//  was silently unreachable in the default view) with the answer prose still
-//  beneath it. HARD-fails: the needle is deterministic text, not hue.
+//  assistant [thinking, text] message) and captures with vshot.py at 120 AND
+//  100 cols (the cockpit's floor — narrower, the product paints its resize
+//  gate, not a transcript). Asserts the finalized thinking row paints as the collapsed
+//  thinking-grammar line (`✳︎ thinking… ⌄` — the old dispatch nulled it and
+//  the reasoning was silently unreachable in the default view) with the
+//  answer prose still beneath it. HARD-fails: the needle is deterministic
+//  text, not hue. The glyph's text-presentation selector is zero-width, so
+//  the cell grid may or may not carry it — the needle admits both.
 //
 //  Run:  ~/.bun/bin/bun run scripts/ui/render-thinking-row.ts
 // ============================================================================
@@ -33,7 +36,12 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-for (const cols of [120, 80]) {
+// The grammar's row: glyph (selector optional in a cell grid), lowercase word,
+// ellipsis; the fold cue follows on the same line.
+const ROW = /✳︎? thinking…/
+const ROW_WITH_CUE = /✳︎? thinking…\s*⌄/
+
+for (const cols of [120, 100]) {
   console.log(`\n── thinking-row @ ${cols} cols ──`)
   execFileSync('sleep', ['2'])
   const cfgPath = `/tmp/vs-thinking-${cols}.json`
@@ -56,20 +64,21 @@ for (const cols of [120, 80]) {
     .join('\n')
   console.log(body.replace(/\n{3,}/g, '\n\n'))
 
-  check(`[${cols}] collapsed thinking row paints (∴ Thinking)`, body.includes('∴ Thinking'))
+  check(`[${cols}] collapsed thinking row paints (the grammar's glyph + lowercase word)`, ROW.test(body))
   check(
     `[${cols}] disclosure cue ⌄ rides the thinking line`,
-    /∴ Thinking\s*⌄/.test(body),
+    ROW_WITH_CUE.test(body),
     'cue missing — the row would be a dead-end again',
   )
+  check(`[${cols}] no sentence-case or accent-era spelling survives`, !body.includes('Thinking'))
   check(
     `[${cols}] full reasoning NOT dumped in the default view`,
     !body.includes('bundle time'),
     'collapsed row leaked the prose',
   )
   check(
-    // Single-word needle: the sentence wraps at 80 cols, so a phrase spanning
-    // the wrap boundary can never match the cell grid.
+    // Single-word needle: the sentence wraps at the narrow leg, so a phrase
+    // spanning the wrap boundary can never match the cell grid.
     `[${cols}] answer prose renders beneath`,
     body.includes('lock-step'),
   )
