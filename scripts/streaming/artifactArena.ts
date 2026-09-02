@@ -20,7 +20,7 @@ const ROOT = join(HERE, '..', '..')
 export const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 const API_KEY = 'fixture-key-000'
-const COMPOSER_READY_NEEDLE = 'Type a prompt'
+const COMPOSER_READY_NEEDLE = 'ype a prompt'
 const COMPOSER_NOMINAL_MS = 4000
 
 export interface TeeWrite {
@@ -149,6 +149,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
+        MERCURY_CREDENTIAL_STORE: 'file',
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -159,7 +160,10 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         MERCURY_TERMINAL_TITLE: '0',
         MERCURY_OPERATOR: process.env.MERCURY_OPERATOR?.trim() || 'sam',
         ...(opts.probe ? { MERCURY_FLUX_PROBE: '1', MERCURY_FLUX_PROBE_TEE: probeTee } : {}),
+        MERCURY_CRITTER_IDLE: '0',
         MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',
+        MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_TURN_RECEIPT: '0',
         MERCURY_OASIS_BG: '0',
@@ -293,4 +297,10 @@ export function firstOutputTs(run: ArenaRun): number {
     }
   }
   return 0
+}
+
+export function sendStamp(run: ArenaRun, s: SendRecord): number {
+  const shift = run.anchorShiftMs ?? 0
+  const trueMs = s.sent - firstOutputTs(run)
+  return trueMs >= COMPOSER_NOMINAL_MS + shift ? trueMs - shift : trueMs
 }

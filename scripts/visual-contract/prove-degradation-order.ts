@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../src/ink/viewportFloor.ts'
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'contour-degrade-'))
@@ -21,37 +22,42 @@ const gridLines = (path: string): string[] => {
 function renderScenario(name: string, cols: number, rows: number): string[] {
   const r = spawnSync(
     process.execPath,
-    ['run', 'scripts/ui/render-tui.ts', '--scenario', name, '--cols', String(cols), '--rows', String(rows), '--out', join(scratch, `${name}-${cols}.png`)],
+    ['run', 'scripts/ui/render-tui.ts', '--scenario', name, '--cols', String(cols), '--rows', String(rows), '--grid', join(scratch, `${name}-${cols}x${rows}.json`), '--out', join(scratch, `${name}-${cols}x${rows}.png`)],
     { encoding: 'utf8', timeout: vshotBudgetMs(240_000) },
   )
   if (r.status !== 0) {
     console.log((r.stdout ?? '').slice(-800) + (r.stderr ?? '').slice(-800))
     return []
   }
-  return gridLines(`/tmp/grid-${cols}.json`)
+  return gridLines(join(scratch, `${name}-${cols}x${rows}.json`))
 }
 
-t.section('§1 — the modal family closes inside a 45×12 viewport (compact tier)')
+t.section(`§1 — the modal family closes inside the floor viewport (${VIEWPORT_FLOOR_COLS}×${VIEWPORT_FLOOR_ROWS}, the full tier)`)
 {
-  const lines = renderScenario('model-picker-home', 45, 12)
+  const lines = renderScenario('model-picker-home', VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS)
   const all = lines.join('\n')
   const closes = lines.some(l => l.trimStart().startsWith('╰'))
   if (!closes) lines.forEach((l, i) => console.log(`      grid[${String(i).padStart(2, '0')}] ${JSON.stringify(l)}`))
   t.check('the card CLOSES: a bottom border row is on screen', closes, lines[lines.length - 1] ?? '(empty)')
-  t.check('selection survives as the ❯ caret (border simplified away)', all.includes('❯ '), lines.find(l => l.includes('❯')) ?? '(no caret)')
+  t.check('selection survives as the focused row\'s frame (the full tier)', lines.some(l => /│\s*╭/.test(l)), lines.find(l => /│\s*╭/.test(l)) ?? '(no framed row)')
   t.check('the cut is NAMED', /↓ \d+ more/.test(all), lines.find(l => l.includes('more')) ?? '(no counter)')
   t.check('the footer keeps its close hint', all.includes('esc close'), lines.find(l => l.includes('esc')) ?? '(no footer)')
-  t.check('the banner (decoration) is gone', !all.includes('CHOOSE A MODEL'), 'no banner row')
+  t.check('the banner STAYS: the floor holds the full tier (decoration sheds only under it)', all.includes('CHOOSE A MODEL'), lines.find(l => l.includes('CHOOSE A MODEL')) ?? '(no banner row)')
 }
 
-t.section('§2 — the inline REPL keeps its input line at 45×12 (frame sheds)')
+t.section(`§2 — the inline REPL keeps its input line at the floor (${VIEWPORT_FLOOR_COLS}×${VIEWPORT_FLOOR_ROWS}, the frame whole)`)
 {
-  const lines = renderScenario('thinking-row', 45, 12)
-  const all = lines.join('\n')
-  t.check('a ❯ input line renders', lines.some(l => l.trim().startsWith('❯') || l.includes('│❯')), lines.find(l => l.includes('❯')) ?? '(no input line)')
+  const lines = renderScenario('thinking-row', VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS)
+  const inputAt = lines.findIndex(l => l.trim().startsWith('❯') || l.includes('│❯'))
+  t.check('a ❯ input line renders', inputAt >= 0, lines[inputAt] ?? '(no input line)')
   t.check(
-    'the footer hint sheds to exactly `? for shortcuts`',
-    lines.some(l => l.trim() === '? for shortcuts'),
+    'the frame is whole: the input line sits between its ╭ and ╰ rows',
+    inputAt > 0 && (lines[inputAt - 1] ?? '').trimStart().startsWith('╭') && (lines[inputAt + 1] ?? '').trimStart().startsWith('╰'),
+    `${(lines[inputAt - 1] ?? '').slice(0, 24)} / ${(lines[inputAt + 1] ?? '').slice(0, 24)}`,
+  )
+  t.check(
+    'the footer hint keeps both its parts (the one-part shed lives under 50 columns, under the floor)',
+    lines.some(l => l.includes('? for shortcuts') && l.includes('for commands + files')),
     lines.find(l => l.includes('shortcuts')) ?? '(no hint)',
   )
   const borderOnly = lines.some((l, i) => {
@@ -134,7 +140,7 @@ t.section('§4 — the resize cycle leaves no residue (splash, real SIGWINCH)')
   const direct = run('direct')
   const cycled = run('cycled', [
     { atTick: 10, cols: 80, rows: 24 },
-    { atTick: 20, cols: 45, rows: 12 },
+    { atTick: 20, cols: VIEWPORT_FLOOR_COLS, rows: VIEWPORT_FLOOR_ROWS },
     { atTick: 30, cols: 150, rows: 45 },
     { atTick: 40, cols: 120, rows: 40 },
   ])

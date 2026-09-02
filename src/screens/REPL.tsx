@@ -2011,10 +2011,11 @@ export function REPL({
     unseen.onRepin();
     repinToBottom();
     setConversationId(focusedSessionId);
-    setToolJSX(null);
+    const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';
+    if (!landing) setToolJSX(null);
     if (rekeyedSessionRef.current !== focusedSessionId) {
       rekeyedSessionRef.current = focusedSessionId;
-      void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId);
+      void pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing });
       rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
