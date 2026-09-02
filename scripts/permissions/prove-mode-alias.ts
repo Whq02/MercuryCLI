@@ -172,6 +172,26 @@ section('§10 conversation recovery: persisted per-message modes adopt the new i
   check('the adopt arm rewrites to the decoded id (not undefined)', /permissionMode: decoded/.test(rec))
 }
 
+section('§11 a retired mode id (no alias row) degrades to the default with ONE notice, never a crash')
+{
+  const retiredMode = 'scri' + 'be'
+  check('the alias table carries no row for it', !(retiredMode in (vocab.RETIRED_PERMISSION_MODE_SPELLINGS as Record<string, string>)))
+  check('decode passes it through untouched', vocab.decodePermissionModeSpelling(retiredMode) === retiredMode)
+  check('it is in no vocabulary list', !([...vocab.PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES] as readonly string[]).includes(retiredMode))
+  check("fromString → 'default'", pm.permissionModeFromString(retiredMode) === 'default')
+  check('the mode schema REJECTS it (safeParse, no throw)', pm.permissionModeSchema().safeParse(retiredMode).success === false)
+  check('the external schema REJECTS it too (safeParse, no throw)', pm.externalPermissionModeSchema().safeParse(retiredMode).success === false)
+  const rec = srcText('utils', 'conversationRecovery.ts')
+  check('an unknown persisted mode is CLEARED (the session resumes in its default mode)', /return \{ \.\.\.message, permissionMode: undefined \} as Message/.test(rec))
+  check(
+    '…and the operator hears it as ONE warning screen-receipt naming the spelling',
+    /mintImmediateReceipt\(\s*`▲ the saved permission mode '\$\{mode\}' is not one this build knows — resuming in the default mode`,\s*'warning',?\s*\)/.test(rec),
+  )
+  check('…once per spelling (a latch, never a row per message)', /noticedPermissionModes\.has\(mode\)/.test(rec) && /noticedPermissionModes\.add\(mode\)/.test(rec))
+  const tips = srcText('utils', 'settings', 'validationTips.ts')
+  check('the defaultMode validation tip names no retired mode', !tips.includes(`"${retiredMode}"`))
+}
+
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL MODE-ALIAS PROOFS PASS')
 else console.log(`❌ ${failures} MODE-ALIAS PROOF(S) FAILED`)
