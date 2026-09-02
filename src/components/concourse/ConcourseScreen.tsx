@@ -1113,8 +1113,8 @@ export function ConcourseScreen({
       return
     }
     // ARM-THEN-ENTER (L17 item 2): a SESSION row's first keyboard ↵ ARMS
-    // it as the live composer's target (the row says so; type to message);
-    // the second ↵ enters. Doors, the older line and held launches keep
+    // it as the live composer's target (the row says so; tab reaches the
+    // composer); the second ↵ enters. Doors, the older line and held launches keep
     // their one-press grammar above; a pointer activate and the reduced
     // stage (no composer to target) enter directly.
     if (!reducedStage && opts.pointer !== true && boardArmedRef.current !== sessionId) {
@@ -2269,13 +2269,20 @@ export function ConcourseScreen({
       // mirror keep their own keys above this line).
       return
     }
+    if (region === 'chat') {
+      // TYPING REACHES ONLY THE FOCUSED PANE: the
+      // chat pane owns no composer in v1, so the composers' editing keys
+      // and the printable type-through must not fire from here — a
+      // keystroke in the chat pane never lands words in either draft.
+      return
+    }
     if (region !== 'coordinator' && region !== 'live') {
-      // TYPING NEEDS THE COMPOSER'S OWN FOCUS: the rows, the rail and the
-      // split chat pane carry verbs, never words — a printable, a newline
-      // or a backspace reaches a composer only while that composer holds
-      // focus (tab or click, as its own hint says). So the list's declared
-      // letters never yield to a type-through, and no keystroke moves the
-      // focus by itself; a key a region does not declare does nothing there.
+      // TYPING NEEDS THE COMPOSER'S OWN FOCUS: the rows and the rail carry
+      // verbs, never words — a printable, a newline or a backspace reaches
+      // a composer only while that composer holds focus (tab or click, as
+      // its own hint says). So the list's declared letters never yield to
+      // a type-through, and no keystroke moves the focus by itself; a key
+      // a region does not declare does nothing there.
       return
     }
     // ── the editing keys belong to the FOCUSED composer: the coordinator

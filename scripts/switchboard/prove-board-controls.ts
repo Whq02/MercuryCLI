@@ -379,12 +379,17 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   check(
     'E6 one Select listens at a time — the git offer’s two mounts yield while the seat card stands, and the key stream has ONE declared owner (seat-ask outranks git-offer in boardModalOwner)',
     screen.includes("gitOffer !== undefined && seatAsk === null && !contractAsk && geo.profile === 'wide'") &&
-      screen.includes("gitOffer !== undefined && seatAsk === null && !contractAsk && geo.profile !== 'wide'") &&
+      // The narrow (stacked) mount asks the ONE owner table whether the git
+      // offer holds the keys — the seat ask, the pickers and the asks that
+      // outrank it all answer through boardModalOwner, never a second guard.
+      /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*geo\.profile !== 'wide' &&/.test(screen) &&
+      screen.includes('gitOfferOwnsTheKeys({') &&
+      screen.includes('seatAsk: seatAsk !== null,') &&
       screen.includes('seatAsk: seatAskRef.current !== null,') &&
       screen.includes('const modalOwner = boardModalOwner({') &&
       (() => {
         const owner = read('src/components/concourse/boardModalOwner.ts')
-        return owner.includes("if (facts.seatAsk) return 'seat-ask'") && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") !== -1 && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") < owner.indexOf("if (facts.gitOffer) return 'git-offer'")
+        return owner.includes("return boardModalOwner(facts) === 'git-offer'") && owner.includes("if (facts.seatAsk) return 'seat-ask'") && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") < owner.indexOf("if (facts.gitOffer) return 'git-offer'")
       })(),
   )
   const strips = await import('../../src/components/concourse/ConcourseStrips.tsx')

@@ -473,7 +473,10 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
   check('B3 the screen wires the tab only off the reduced stage (rule 5: live view only) — the tab now ARMS the contract ask, which births through the same door on its answer', screen.includes('...(reducedStage || callbacks.newSession === undefined ? {} : { newSession: () => armContractAsk() })'))
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
   check('B3 the layout paints the tab only with the door wired and derives the legend through the one resolver', layout.includes('wiring.newSession !== undefined ? (') && layout.includes('id="concourse:board:new-session"') && layout.includes('regionKeysFor(region, {') && layout.includes('newSession: wiring.newSession !== undefined,'))
-  check("B3 the boot menu stays the solo road: the face's New Session births through the same door (the model resolves inside the door — birthModelOf)", read('src/components/BootSplashScreen.tsx').includes('bornSession({ workspaceDir: process.cwd() })'))
+  // The birth lands in the HARNESS GROUND (getCwd — the ground law: seed and
+  // cwd move together), never a frozen boot cwd; the model resolves inside
+  // the door (birthModelOf).
+  check("B3 the boot menu stays the solo road: the face's New Session births through the same door (the model resolves inside the door — birthModelOf)", read('src/components/BootSplashScreen.tsx').includes('bornSession({ workspaceDir: getCwd() })') && !read('src/components/BootSplashScreen.tsx').includes('bornSession({ workspaceDir: process.cwd() })'))
   // The reduced band paints the strip's OWN key-map row (STRIP's ruling B:
   // the live view is not a stop; only the moves that exist print) — the
   // router's pure derivation, re-read on the route beat.

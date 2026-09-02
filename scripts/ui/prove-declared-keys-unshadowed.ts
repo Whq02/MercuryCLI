@@ -332,10 +332,11 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
     const src = read(rel)
     if (!hostsTextField(src)) return false
     const code = stripComments(src)
-    // A ctrl chord is not a bare letter.
-    return code.split('\n').some(line => /(?:^|[^.\w])_?input === '[a-zA-Z]'/.test(line) && !/key\.ctrl &&/.test(line))
+    // A ctrl CHORD (`key.ctrl && input === 'x'`) is not a bare letter; the
+    // bare-letter guard `!key.ctrl && …` is exactly what a raw verb wears.
+    return code.split('\n').some(line => /(?:^|[^.\w])_?input === '[a-zA-Z]'/.test(line) && !/(?:^|[^!\w])key\.ctrl &&/.test(line))
   })
-  check('the census is populated (≥ 8 text hosts compare a raw letter)', letterHosts.length >= 8, `${letterHosts.length}`)
+  check('the census is populated (≥ 10 text hosts compare a raw letter)', letterHosts.length >= 10, `${letterHosts.length}`)
   const unrostered = letterHosts.filter(rel => !(rel in HOST_ROSTER) && !ACCOUNTS_HOSTS.has(rel))
   check('every such host is rostered (or an accounts surface, noted)', unrostered.length === 0, unrostered.join(' · '))
   const stale = Object.keys(HOST_ROSTER).filter(rel => !letterHosts.includes(rel))
