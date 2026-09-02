@@ -31,10 +31,10 @@ type Cell = {
 }
 const MSG_LINES = 12
 const STANDING: Cell[] = [
-  { tag: 'to100', cols: 120, rows: 50, rCols: 100, rRows: 50 },
+  { tag: 'to80', cols: 120, rows: 50, rCols: 80, rRows: 50 },
 ]
 const FULL_EXTRA: Cell[] = [
-  { tag: 'to120', cols: 100, rows: 50, rCols: 120, rRows: 50 },
+  { tag: 'to120', cols: 80, rows: 50, rCols: 120, rRows: 50 },
   { tag: 'rows38', cols: 120, rows: 50, rCols: 120, rRows: 38 },
 ]
 
