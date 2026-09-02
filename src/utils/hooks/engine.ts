@@ -548,6 +548,9 @@ export async function* executeHooks({
             exitCode: result.status,
             outcome: 'error',
           })
+          reportHeadlessHookFailure(
+            `hook ${hookName} (${hookEvent}) timed out after ${timeoutSeconds}s and was killed; the ${hookEvent} it guarded proceeded`,
+          )
           yield {
             message: createAttachmentMessage({
               type: 'hook_non_blocking_error',
@@ -606,6 +609,9 @@ export async function* executeHooks({
           exitCode: 1,
           outcome: 'error',
         })
+        reportHeadlessHookFailure(
+          `hook ${hookName} (${hookEvent}) returned JSON that failed validation: ${validationError.split('\n')[0]}`,
+        )
         yield {
           message: createAttachmentMessage({
             type: 'hook_non_blocking_error',
@@ -766,14 +772,9 @@ export async function* executeHooks({
         outcome: 'error',
       })
       if (extensionId) recordHookFailure(extensionId, hookCommand, `exit ${result.status}`)
-      if (getIsNonInteractiveSession()) {
-        try {
-          process.stderr.write(
-            `hook ${hookName} (${hookEvent}) failed with exit ${result.status ?? '?'}: ${result.stderr.trim() || 'no stderr output'}\n`,
-          )
-        } catch {
-        }
-      }
+      reportHeadlessHookFailure(
+        `hook ${hookName} (${hookEvent}) failed with exit ${result.status ?? '?'}: ${result.stderr.trim() || 'no stderr output'}`,
+      )
       yield {
         message: createAttachmentMessage({
           type: 'hook_non_blocking_error',
@@ -1158,5 +1159,13 @@ export async function executeHookCallback({
     ...processed,
     outcome: 'success',
     hook,
+  }
+}
+
+function reportHeadlessHookFailure(line: string): void {
+  if (!getIsNonInteractiveSession()) return
+  try {
+    process.stderr.write(`${line}\n`)
+  } catch {
   }
 }

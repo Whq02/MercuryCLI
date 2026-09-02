@@ -88,6 +88,7 @@ section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TRE
   t('§1 reason names the transport', error.includes('(stdio)'), error)
   t(`§1 reason names the seconds (${DEADLINE_LABEL})`, error.includes(`did not answer in ${DEADLINE_LABEL}`), error)
   t('§1 reason points at the retry door', error.includes('retry from /mcp'), error)
+  t('§1 the deadline sentence stands alone — no close-class tail', !error.includes('before closing') && !error.includes('server stderr'), error)
   if (process.platform === 'win32') {
     console.log('[SKIP] §1 reap census is pgrep-shaped on this host; the win32 arm rides the field leg')
   } else {
