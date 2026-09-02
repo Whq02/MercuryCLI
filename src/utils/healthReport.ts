@@ -145,7 +145,6 @@ import {
   getResolvedTeammateMode,
   isInProcessEnabled,
 } from './swarm/backends/registry.js'
-import { isTmuxAvailable } from './swarm/backends/detection.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 /**
@@ -3708,7 +3707,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'fail' as const,
                 evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; dead aliases: ${badAlias.map(([l]) => l).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
-                fix: 'A built-in agent role fails normalization — teammates spawned with it would degrade to generic agents. Report this.',
+                fix: 'A built-in agent role fails normalization — sub-agents spawned with it would degrade to generic agents. Report this.',
               }
             }
             return { status: 'ok' as const, evidence }
@@ -3716,15 +3715,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'team-launch',
-          label: 'Team launch backend',
-          run: async () => {
+          label: 'Sub-agent launch',
+          run: () => {
             const mode = getResolvedTeammateMode()
             const inProc = isInProcessEnabled()
-            const tmux = await isTmuxAvailable()
             const evidence = inProc
-              ? `in-process — TeamCreate spawns share this process (tmux ${tmux ? 'also available' : 'not installed'})`
-              : `${mode} panes — TeamCreate spawns open terminal panes (falls back to in-process if the pane backend fails)`
-            return { status: 'info' as const, evidence, link: '/team' }
+              ? "in-process — named sub-agents run inside this session's runner"
+              : `${mode} panes — named sub-agents open terminal panes (in-process if the pane backend fails)`
+            return { status: 'info' as const, evidence, link: '/teammates' }
           },
         },
       ],

@@ -30,9 +30,8 @@ import { useStableSelection } from './mercury-ui/useStableSelection.js'
 //  FleetMonitor — the Mercury swarm raid-frame (the /fleet view). Reads
 //  the coordination substrate via fleetGauge: MISSIONS (tasks grouped by
 //  missionId, dependency-ordered with a roll-up bar), AGENTS (roster health),
-//  LEASES + tree-conflicts. Not in a team → an honest `off` EmptyState (a swarm
-//  surface with no swarm is dormant, not broken; the live co-presence owners
-//  are /multiplayer · /tickets — no planned-tier cards here).
+//  LEASES + tree-conflicts. Not in a group → an honest `off` EmptyState (a
+//  group surface with no group is dormant, not broken).
 //
 //  Live re-probe (mirrors DaemonSupervisorView): the snapshot is keyed on a
 //  loadId, so `r` re-runs fleetGauge() into state; ↑↓ move a clamped cursor
@@ -202,14 +201,14 @@ export function FleetMonitor({ onClose }: { onClose: () => void }): React.ReactN
     )
   }
 
-  // Not in a team — dormant, honest.
+  // Not in a group — dormant, honest.
   if (snap.state !== 'live') {
     return (
       <CommandCenter view="fleet" onClose={onClose} captureInput={false} footer="r refresh">
         <Box marginTop={1}>
           <EmptyState
-            title={snap.reason ?? 'not in a team'}
-            hint="/fleet is the command-center for a swarm. Start or join a team first."
+            title={snap.reason ?? 'not in an agent group'}
+            hint="/fleet follows a shared agent group; this session's own sub-agents are on /teammates."
           />
         </Box>
       </CommandCenter>

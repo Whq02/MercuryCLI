@@ -1,6 +1,6 @@
 # Teams
 
-Mercury runs multi-agent work as teams: named teammates the operator chats
+Mercury runs multi-agent work as teams: named agents the operator chats
 with, a durable file-backed mailbox between them, one role registry shared with
 in-session subagents, and boards to watch it all. Team state is plain files
 under `<config home>/teams`, and every load-bearing team operation is
@@ -16,14 +16,15 @@ spawn ledger. Team creation and deletion are multi-record journal operations —
 an interrupted create rolls forward or compensates at the next boot rather
 than leaving a half-team behind.
 
-## Teammates and spawning
+## Named agents and spawning
 
-`/teammates` is the board of named, long-lived teammates — instanced,
-color-coded chats in one repository, managed side by side. There is no eager
-boot spawn: every teammate is an explicit, billed operator act through the
-spawn wizard.
+`/teammates` is the Crew view: the focused session's sub-agents live — name,
+model, status, tokens, elapsed — and the named, long-lived agents the daemon
+keeps for the repository, one color-coded chat each, side by side. There is
+no eager boot spawn: every named agent is an explicit, billed operator act
+through the spawn wizard.
 
-Teammates spawn on demand over the daemon's authed control socket. The RPC
+Named agents spawn on demand over the daemon's authed control socket. The RPC
 carries only intent — a name and a model choice — and the daemon enforces the
 floor server-side, where a client bug cannot bypass it:
 
@@ -31,10 +32,10 @@ floor server-side, where a client bug cannot bypass it:
 - permission mode `flow` — classifier-adjudicated asks — unless the operator's
   `MERCURY_DAEMON_PERMISSION_MODE` says otherwise;
 - a read-only reconnaissance tool allowlist;
-- child environment that prevents a teammate from fanning out workflow
+- child environment that prevents a named agent from fanning out workflow
   DAGs of its own;
 - a name allowlist (`[a-z0-9-]` — the name reaches file paths and env);
-- a spend guard: at most six live teammates, enforced at the spawn itself.
+- a spend guard: at most six live named agents, enforced at the spawn itself.
 
 `MERCURY_CREW=0` disables the board and refuses the spawn RPC.
 
@@ -48,18 +49,17 @@ same inboxes.
 
 A send lands durably and exactly once: every message carries its own id and
 sequence, and a crash between delivery and acknowledgement replays as a
-no-op instead of a duplicate act. Operator messages to a teammate ride this
-bus, and teammate replies ride the teammate's own SendMessage into the
-lead's inbox.
+no-op instead of a duplicate act. Operator messages to a named agent ride
+this bus, and its replies ride its own SendMessage into the lead's inbox.
 
-One delivery rule guards permission posture: inbound teammate messages arriving
+One delivery rule guards permission posture: inbound agent messages arriving
 while the session runs in a bypass-permissions mode are held, visibly, until
 the operator returns to a prompting mode (`MERCURY_INBOX_HOLD_BYPASS`); in
 prompting modes messages deliver as always.
 
 ## Roles
 
-Teammate roles resolve through one resolver fed into every launch backend. A role is an agent definition — built-in,
+Named-agent roles resolve through one resolver, whichever way the agent launches. A role is an agent definition — built-in,
 custom, or from an extension — the same registry the in-session subagent tool
 loads, and legacy type aliases decode to canonical ids, so a given role is the
 same agent no matter how it was launched. `/agents` opens the Agent Studio for
@@ -73,10 +73,11 @@ rename, reconnect, or restart never mints a duplicate.
 
 ## Boards
 
-`/team` is the Team Center — teammates, their phases, and handoffs. `/teammates`
-holds the chats. `/crew` shows the directory with presence and external seat
-attach/detach. `/sessions` manages this project's sessions, including teammate
-chats.
+`/team` opens the crew board on `/tasks` — the named agents, their phases and
+handoffs. `/teammates` is the Crew view: the session's sub-agents live, and the
+named agents' chats. `/crew` shows the directory with presence and external
+seat attach/detach. `/sessions` manages this project's sessions, including
+named-agent chats.
 
 ## The concourse
 
