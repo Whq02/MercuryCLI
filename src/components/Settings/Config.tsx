@@ -649,7 +649,7 @@ export function Config({
       searchText: `${row.label} provider signed in`,
       kind: 'info',
       value: (
-        <Text color={row.credentialed ? tokens.success : tokens.textSecondary}>
+        <Text color={row.credentialed ? tokens.success : tokens.textSecondary} wrap="truncate-end">
           {row.valueText}
         </Text>
       ),

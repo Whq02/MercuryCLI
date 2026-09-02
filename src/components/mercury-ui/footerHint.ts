@@ -9,10 +9,13 @@ export function footerAdvertisesClose(footer: string): boolean {
   return CLOSE_HINT_RE.test(footer)
 }
 
+export type FooterCloseKeys = 'esc-arrow' | 'esc' | 'none'
+
 export function composeFooterHint(
   base: string,
-  opts: { closeKeys: 'esc-arrow' | 'esc'; captureInput: boolean },
+  opts: { closeKeys: FooterCloseKeys; captureInput: boolean },
 ): string {
+  if (opts.closeKeys === 'none') return base
   if (footerAdvertisesClose(base)) return base
   const tail =
     opts.closeKeys !== 'esc' && opts.captureInput

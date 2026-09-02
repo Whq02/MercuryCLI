@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { COMPASS_SID, buildCompass1k } from './fixture1k.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { entryToRecord } from '../../src/fabric/entryCodec.ts'
+import { ordinalOf } from '../../src/fabric/ordinal.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -46,6 +48,8 @@ export interface CompassArenaOpts {
   rows?: number
   turns?: ScriptedTurn[]
   extraEnv?: Record<string, string>
+  extraSessions?: (cwd: string) => Array<{ sid: string; lines: Record<string, unknown>[] }>
+  chapters?: number
 }
 
 export function requireDist(): void {
@@ -57,6 +61,17 @@ export function requireDist(): void {
 
 function nodeBinPath(): string {
   return process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
+}
+
+function encodeTranscript(lines: Record<string, unknown>[], sessionId: string): string {
+  let n = 0
+  const ctx = {
+    sessionId: sessionId as never,
+    nextOrdinal: () => ordinalOf(++n) as never,
+    observedAt: '2026-06-20T08:00:00.000Z',
+    source: { channel: 'sdk' } as const,
+  }
+  return lines.map(l => JSON.stringify(entryToRecord(l, ctx as never))).join('\n') + '\n'
 }
 
 function projectSlug(cwd: string): string {
@@ -87,8 +102,11 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
 
   const projDir = join(configDir, 'projects', projectSlug(cwd))
   mkdirSync(projDir, { recursive: true })
-  const { lines } = buildCompass1k(cwd)
-  writeFileSync(join(projDir, `${COMPASS_SID}.jsonl`), lines.map(l => JSON.stringify(l)).join('\n') + '\n')
+  const { lines } = buildCompass1k(cwd, opts.chapters)
+  writeFileSync(join(projDir, `${COMPASS_SID}.jsonl`), encodeTranscript(lines, COMPASS_SID))
+  for (const extra of opts.extraSessions?.(cwd) ?? []) {
+    writeFileSync(join(projDir, `${extra.sid}.jsonl`), encodeTranscript(extra.lines, extra.sid))
+  }
 
   const tee = join(home, 'tee.jsonl')
   const drive = join(home, 'drive.jsonl')

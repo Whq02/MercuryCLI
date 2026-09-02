@@ -3,6 +3,7 @@ import React, { createContext, useContext, useMemo, useRef } from 'react'
 import { Box, Text } from '../ink.js'
 import { useKeybindings } from '../keybindings/useKeybinding.js'
 import { useRegisterKeybindingContext } from '../keybindings/KeybindingContext.js'
+import { getMessageCursor, setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import type {
   NormalizedUserMessage,
   RenderableMessage,
@@ -316,32 +317,26 @@ function applicableActions(cursor: MessageActionsState): MessageAction[] {
 
 
 export function useMessageActions(
-  cursor: MessageActionsState | null,
-  setCursor: (cursor: MessageActionsState | null) => void,
   navRef: React.RefObject<MessageActionsNav | null>,
   caps: MessageActionCaps,
 ): {
   enter: () => void
   handlers: Record<string, () => void>
 } {
-  const cursorRef = useRef(cursor)
-  cursorRef.current = cursor
   const capsRef = useRef(caps)
   capsRef.current = caps
-  const setCursorRef = useRef(setCursor)
-  setCursorRef.current = setCursor
 
   return useMemo(() => {
     const exit = (): void => {
-      setCursorRef.current(null)
+      setMessageCursor(null)
     }
     const runKey = (key: string): void => {
-      const current = cursorRef.current
+      const current = getMessageCursor()
       if (!current) return
       const action = applicableActions(current).find(a => a.key === key)
       if (!action) return
       if (action.staysInCursorMode) {
-        setCursorRef.current({ ...current, expanded: !current.expanded })
+        setMessageCursor({ ...current, expanded: !current.expanded })
         return
       }
       const selected = navRef.current?.getSelected()
@@ -373,9 +368,9 @@ export function useMessageActions(
           navRef.current?.bottom()
         },
         'messageActions:escape': (): void => {
-          const current = cursorRef.current
+          const current = getMessageCursor()
           if (current?.expanded) {
-            setCursorRef.current({ ...current, expanded: false })
+            setMessageCursor({ ...current, expanded: false })
             return
           }
           exit()
@@ -411,10 +406,13 @@ export function MessageActionsKeybindings({
 
 
 export function MessageActionsBar({
-  cursor,
+  cursor: given,
 }: {
-  cursor: MessageActionsState
-}): React.ReactNode {
+  cursor?: MessageActionsState
+} = {}): React.ReactNode {
+  const live = useMessageCursor()
+  const cursor = given ?? live
+  if (!cursor) return null
   const actions = applicableActions(cursor)
   return (
     <Box flexDirection="column" flexShrink={0} paddingY={1}>
