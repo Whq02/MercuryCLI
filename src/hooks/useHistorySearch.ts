@@ -267,10 +267,10 @@ export function useHistorySearch(
     // One read, one parse, per search session; the first scan awaits it,
     // and the loaded value is kept beside the promise for the fast-Enter
     // walk (a load failure surfaces through the scan's own await).
-    const load = loadHistoryCorpus()
-    corpusRef.current = load
+    corpusRef.current = loadHistoryCorpus()
     corpusValueRef.current = null
     scanInFlightRef.current = false
+    const load = corpusRef.current
     void load.then(
       corpus => {
         if (corpusRef.current === load) corpusValueRef.current = corpus
