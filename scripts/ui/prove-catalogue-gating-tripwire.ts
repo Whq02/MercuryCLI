@@ -279,6 +279,16 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
   // A refused drive still wrote the grid it ended on: print that frame's
   // tail beside the refusal, so a red leg says what the screen held.
   if (res.status !== 0 && gridText !== '') {
+    // Every mark's tail first (the moment each send landed), then the
+    // final frame — a refusal is read as a sequence, not one still.
+    if (existsSync(grid)) {
+      const payload = JSON.parse(readFileSync(grid, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
+      for (const m of payload.marks ?? []) {
+        const rows = m.grid.map(row => row.map(c => c.c).join('').trimEnd()).filter(r => r.length > 0)
+        console.log(`  mark '${m.label}' (last ${Math.min(8, rows.length)} non-empty rows):`)
+        for (const row of rows.slice(-8)) console.log(`    ${row.slice(0, 116)}`)
+      }
+    }
     const rows = gridText.split('\n').map(r => r.trimEnd()).filter(r => r.length > 0)
     console.log(`  the frame the drive ended on (last ${Math.min(14, rows.length)} non-empty rows):`)
     for (const row of rows.slice(-14)) console.log(`    ${row.slice(0, 116)}`)
@@ -326,7 +336,11 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
-      { afterPrevTicks: 4, data: '\r' },
+      // Two moments a refusal is read from: the typed line in the composer,
+      // and the screen the ↵ left behind.
+      { afterPrevTicks: 2, mark: 'typed', data: '' },
+      { afterPrevTicks: 2, data: '\r' },
+      { afterPrevTicks: 3, mark: 'entered', data: '' },
       // The picker's lockup line paints in EVERY form of the picker — the
       // compact tier (under ~20 rows) sheds the CHOOSE A MODEL banner with
       // the rest of its decoration, the lockup stays — so it is the one
