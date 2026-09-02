@@ -6,10 +6,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   findRows,
-  firstOutputTs,
   grabScreens,
   requireDist,
   runArtifactArena,
+  sendStamp,
   type GrabbedScreen,
 } from '../streaming/artifactArena.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -66,8 +66,7 @@ const run = await runArtifactArena({
 })
 
 try {
-  const base = firstOutputTs(run)
-  const sends = run.sendLog.map(s => ({ at: s.sent - base, data: Buffer.from(s.b64, 'base64').toString() }))
+  const sends = run.sendLog.map(s => ({ at: sendStamp(run, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const downs = sends.filter(s => s.data === '\x1b[B').map(s => s.at)
   const enterAt = sends.filter(s => s.data === '\r').at(-1)?.at ?? -1
   const offsets: number[] = []
