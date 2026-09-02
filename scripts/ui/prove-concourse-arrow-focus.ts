@@ -274,6 +274,15 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
   return lines
 }
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
+// A pane wraps a long entry at its own width, so one sentence can paint on
+// two rows ("… what model are you running" / "on?"). Read the pane's cells
+// (the text between its border glyphs) joined across rows, so a wrapped
+// sentence is found whole and no pane is ever widened for a proof.
+const hasWrapped = (lines: string[], needle: string): boolean =>
+  lines
+    .map(l => (l.split('│')[1] ?? '').trim())
+    .join(' ')
+    .includes(needle)
 // The ▸ selection row and its session TITLE alone (single-spaced words);
 // the age/activity columns to its right move between boots and must not
 // decide the match (the flow-captures ARROWS leg's own reading).
@@ -314,7 +323,7 @@ const scratches: string[] = []
   // example prompts must be absent.
   check(
     'coord: the pane is OUT of its zero state (conversation painted or opening — the example walk is not in play)',
-    (has(before, 'what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
+    (hasWrapped(before, 'what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
     before.find(l => l.includes('COORDINATOR'))?.trim().slice(0, 80) ?? '(no coordinator pane)',
   )
   check('coord: before any key the ▸ selection sits on the first session row', rowBefore >= 0 && titleOf(before[rowBefore]) !== '' && nextRow > rowBefore, `row=${rowBefore} title=${JSON.stringify(titleOf(before[rowBefore]))}`)
