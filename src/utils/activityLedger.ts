@@ -1,5 +1,5 @@
 
-import { getGlobalConfig, saveGlobalConfig } from './config/globalConfig.js'
+import { getGlobalConfig, saveGlobalConfigDeferred } from './config/globalConfig.js'
 
 export type HeadlessActivityKind = 'print' | 'sdk' | `verb:${string}`
 
@@ -15,7 +15,7 @@ const EMPTY: HeadlessActivity = { print: 0, sdk: 0, verbs: {}, lastKind: '', las
 
 export function noteHeadlessActivity(kind: HeadlessActivityKind): void {
   try {
-    saveGlobalConfig(current => {
+    saveGlobalConfigDeferred(current => {
       const prev = (current.headlessActivity as HeadlessActivity | undefined) ?? EMPTY
       const next: HeadlessActivity = {
         print: prev.print + (kind === 'print' ? 1 : 0),
