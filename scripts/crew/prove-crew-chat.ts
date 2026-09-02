@@ -20,6 +20,15 @@ process.env.MERCURY_CONFIG_DIR = scratch
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
 const cc = (await import('../../src/utils/crew/crewClient.js')) as typeof import('../../src/utils/crew/crewClient.js')
 const { writeToMailbox, readMailbox } = await import('../../src/utils/teammateMailbox.js')
+// THE SEAT LAW (no family favoured): a crew key resolves through the ONE
+// seat resolver — the Anthropic generation keys (opus · sonnet · fable ·
+// fable51) stand while anthropic is signed in, the family words per
+// signed-in family, nothing named ⇒ the neutral default. Seed the sign-in
+// (a fixture key + the ledger row) so the keys below resolve.
+process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
+;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
+;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -33,11 +42,14 @@ console.log(' Crew chat model (merge · unread isolation) — proof')
 console.log('============================================================')
 
 section('seed: two durable chat identities + traffic in both directions')
-await cs.ensureCrewTeamMember('atlas', 'sonnet', scratch)
-await cs.ensureCrewTeamMember('beacon', 'opus', scratch)
+const atlasSeat = await cs.resolveCrewSeatModel('sonnet')
+const beaconSeat = await cs.resolveCrewSeatModel('opus')
+check('the crew keys resolve through the seat while anthropic is signed in', atlasSeat.ok && beaconSeat.ok, JSON.stringify({ atlasSeat, beaconSeat }))
+await cs.ensureCrewTeamMember('atlas', atlasSeat.ok ? atlasSeat.model : 'sonnet', scratch)
+await cs.ensureCrewTeamMember('beacon', beaconSeat.ok ? beaconSeat.model : 'opus', scratch)
 const members = await cc.listCrewMembers()
 check('listCrewMembers: both, lead excluded', members.length === 2 && members.some(m => m.name === 'atlas') && members.some(m => m.name === 'beacon') && !members.some(m => m.name === 'team-lead'))
-check('member models from the closed table', members.find(m => m.name === 'atlas')?.model === 'claude-sonnet-5' && members.find(m => m.name === 'beacon')?.model === 'claude-opus-5')
+check('member models are the seat-resolved ids (sonnet → claude-sonnet-5, opus → claude-opus-5 — the Anthropic keys while anthropic is signed in)', members.find(m => m.name === 'atlas')?.model === 'claude-sonnet-5' && members.find(m => m.name === 'beacon')?.model === 'claude-opus-5', JSON.stringify(members.map(m => [m.name, m.model])))
 
 check('sendCrewMessage writes the operator frame', (await cc.sendCrewMessage('atlas', '  hi atlas  ')) === true)
 check('blank message refused (no ghost writes)', (await cc.sendCrewMessage('atlas', '   ')) === false)
