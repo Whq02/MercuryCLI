@@ -11,7 +11,7 @@
 //  byte log via pyte):
 //
 //    140×40 boot → prompt → ~5 s paced stream; resizes at 6.5 s (140→120),
-//    8 s (120→80×30), 9.5 s (80→120×40) — all inside the stream — then the
+//    8 s (120→100×30, the viewport floor), 9.5 s (100→120×40) — all inside the stream — then the
 //    stream finishes and settles.
 //
 //  Evidence screens are written to docs/benchmarks/rendezvous/c3/ by the
@@ -41,7 +41,7 @@ const LAST_NEEDLE = 'rv-stream-line-099'
 const run = await runArtifactArena({
   turns: [{ kind: 'paced', deltas, gapMs: 50, settleDelayMs: 1200 }],
   sends: ['4500:stream the rendezvous journey', '5300:\\r'],
-  resizes: ['6500:120:40', '8000:80:30', '9500:120:40'],
+  resizes: ['6500:120:40', '8000:100:30', '9500:120:40'],
   seconds: 15,
   cols: 140,
   rows: 40,
@@ -86,8 +86,8 @@ t.section('§1 the stream survived three mid-flight geometry changes')
   t.check('the composer is at rest — no unwanted activation', finText.includes('? for shortcuts'))
   const widest = Math.max(...fin.rows.map(r => r.trimEnd().length))
   t.check(
-    `the canonical geometry took (content re-lays past col 80: widest=${widest})`,
-    widest > 80,
+    `the canonical geometry took (content re-lays past col 100: widest=${widest})`,
+    widest > 100,
   )
   if (EMIT) {
     const dir = join(tmpdir(), 'rendezvous-c3')
@@ -108,7 +108,7 @@ t.section('§2 no blank frame in any resize phase (screens sampled mid-log)')
   const phases: Array<{ label: string; cols: number; rows: number; atMs: number }> = [
     { label: 'wide 140 pre-resize (streaming)', cols: 140, rows: 40, atMs: 6200 },
     { label: 'canonical 120 (streaming)', cols: 120, rows: 40, atMs: 7200 },
-    { label: 'narrow 80×30 (streaming)', cols: 80, rows: 30, atMs: 8800 },
+    { label: 'narrow 100×30 (streaming)', cols: 100, rows: 30, atMs: 8800 },
     { label: 'canonical return 120 (streaming)', cols: 120, rows: 40, atMs: 10_300 },
   ]
   for (const phase of phases) {
@@ -125,15 +125,15 @@ t.section('§2 no blank frame in any resize phase (screens sampled mid-log)')
 
 run.cleanup()
 
-t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30)')
+t.section('§3 the narrow geometry SETTLED truth (a run that ends at 100×30, the viewport floor)')
 {
   // The faithful stale-mascot instrument: the journey's narrow leg gets its
   // own run that streams THROUGH the shrink and settles there — the final
-  // screen is a true 80×30 frame, not a replay collage.
+  // screen is a true 100×30 frame (the viewport floor), not a replay collage.
   const run80 = await runArtifactArena({
     turns: [{ kind: 'paced', deltas, gapMs: 50, settleDelayMs: 1200 }],
     sends: ['4500:stream the rendezvous journey', '5300:\\r'],
-    resizes: ['6500:120:40', '8000:80:30'],
+    resizes: ['6500:120:40', '8000:100:30'],
     seconds: 15,
     cols: 140,
     rows: 40,
@@ -144,20 +144,20 @@ t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30)')
     run80.fixture.pacedEmits.length === deltas.length,
     `${run80.fixture.pacedEmits.length}/${deltas.length}`,
   )
-  const fin = grabScreens(run80, 80, 30, [-1])[0]!
+  const fin = grabScreens(run80, 100, 30, [-1])[0]!
   const text = flat(fin.rows)
-  t.check('the settled 80×30 screen shows the stream tail', text.includes(LAST_NEEDLE))
+  t.check('the settled 100×30 screen shows the stream tail', text.includes(LAST_NEEDLE))
   const violations = mascotSurfaceViolations(fin.rows)
   t.check(
     'no stale mascot at the settled narrow geometry (header + statusline both legitimately visible, each once)',
     violations === '',
     violations,
   )
-  t.check('the composer is at rest at 80×30', text.includes('? for shortcuts'))
+  t.check('the composer is at rest at 100×30', text.includes('? for shortcuts'))
   const widest = Math.max(...fin.rows.map(r => r.trimEnd().length))
-  t.check(`the narrow geometry took (widest row ${widest} ≤ 80)`, widest <= 80)
+  t.check(`the narrow geometry took (widest row ${widest} ≤ 100)`, widest <= 100)
   if (EMIT) {
-    writeFileSync(join('docs/benchmarks/rendezvous/c3', 'resize-stream-narrow-80.txt'), text + '\n')
+    writeFileSync(join('docs/benchmarks/rendezvous/c3', 'resize-stream-narrow-100.txt'), text + '\n')
   }
   run80.cleanup()
 }

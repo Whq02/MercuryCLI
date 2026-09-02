@@ -21,6 +21,8 @@
 //  round-trip error above the pin leaves a bounded (≤3 turn) landing offset.
 //  The strict law asserts under MERCURY_SCROLL_REFLOW_STRICT=1; the pooled
 //  law pins the achieved bound so it cannot widen back to the yank class.
+//  The cells reflow down to the viewport floor (100 columns) and back: under
+//  the floor the host paints one line, not a transcript.
 //
 //  LAWS (a resumed 300-turn session, resting mid-session, PTY resized):
 //    · CONTENT-BOUNDED — the settled viewport-top content after the reflow
@@ -70,11 +72,14 @@ const MSG_LINES = 12
 // transcript region paneRuler cuts), never a frozen number: the region is
 // host truth — a keyless composer carries five notification rows under it,
 // a signed-in one none — and a frozen 36 read one host and failed the other.
+// The narrow end of every cell is the viewport floor (100 columns): under
+// it the fullscreen host paints one line and no transcript at all, so a
+// reflow can only be measured down to the floor itself.
 const STANDING: Cell[] = [
-  { tag: 'to80', cols: 120, rows: 50, rCols: 80, rRows: 50 },
+  { tag: 'to100', cols: 120, rows: 50, rCols: 100, rRows: 50 },
 ]
 const FULL_EXTRA: Cell[] = [
-  { tag: 'to120', cols: 80, rows: 50, rCols: 120, rRows: 50 },
+  { tag: 'to120', cols: 100, rows: 50, rCols: 120, rRows: 50 },
   { tag: 'rows38', cols: 120, rows: 50, rCols: 120, rRows: 38 },
 ]
 
