@@ -83,12 +83,9 @@ const env = {
   ...process.env,
   MERCURY_CONFIG_DIR: home,
   MERCURY_DAEMON_DIR: daemonDir,
-  MERCURY_DAEMON_DIR: daemonDir,
   ANTHROPIC_API_KEY: 'fixture-key',
   ANTHROPIC_BASE_URL: api.url,
   MERCURY_CACHE_CLOCK: '0',
-  MERCURY_PARTY: '0',
-  MERCURY_PARTY: '0',
 }
 const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', work], {
   cwd: work,

@@ -51,14 +51,21 @@ def run_splash(cols, rows, hold_s=2.2, resize=None):
     pid, fd = pty.fork()
     if pid == 0:
         env = dict(os.environ)
-        # ALL FOUR home spellings (proof-hygiene — the boot-composition
-        # gate-env-leak lesson: the gate wrapper exports the live
-        # ~/.claude and the splash prefers the CONFIG_DIR spellings).
-        env['MERCURY_HOME'] = EMPTY_HOME
+        # BOTH home spellings (proof-hygiene — the boot-composition
+        # gate-env-leak lesson: the gate wrapper exports the live home
+        # and the splash prefers the CONFIG_DIR spelling).
         env['MERCURY_HOME'] = EMPTY_HOME
         env['MERCURY_CONFIG_DIR'] = EMPTY_HOME
         env['TERM'] = 'xterm-256color'
         env['COLORTERM'] = 'truecolor'
+        # The display animations every capture pins still (the critter's
+        # sway and blink, its gaze and sleep, the live seconds, the live
+        # glyphs): a captured frame never lands on an arbitrary phase.
+        env['MERCURY_CRITTER_IDLE'] = '0'
+        env['MERCURY_CRITTER_GAZE'] = '0'
+        env['MERCURY_CRITTER_SLEEP'] = '0'
+        env['MERCURY_LIVE_CLOCK'] = '0'
+        env['MERCURY_LIVE_GLYPHS'] = '0'
         env.pop('MERCURY_SPLASH', None)
         env.pop('NO_COLOR', None)
         os.execvpe('node', ['node', SPLASH], env)

@@ -99,7 +99,7 @@ function assertWidth(name: string, s: GrabbedScreen): void {
 }
 
 // ── static widths (each booted AT its geometry — replay-true) ───────────────
-for (const cols of [44, 80, 160]) {
+for (const cols of [80, 160]) {
   const run = await runArtifactArena({
     turns: TURNS,
     sends: SENDS,
@@ -114,6 +114,32 @@ for (const cols of [44, 80, 160]) {
     assertWidth(`static-${cols}`, grabScreens(run, cols, 44, [S(15_600)])[0]!)
   } finally {
     run.cleanup()
+  }
+}
+
+// ── the floor width, reached by a resize from the cockpit width ───────────
+// The viewport floor is 80×22: below it every fullscreen frame paints the
+// one resize line, so a narrower completeness leg has no card to grade
+// (the 44-column leg retired with that floor). The card's completeness at
+// the floor is graded after a resize from 120 — the reflow road, beside
+// the booted 80-column leg's layout road: the same laws, read from the
+// settled frame at 80.
+{
+  const narrow = await runArtifactArena({
+    turns: TURNS,
+    sends: SENDS,
+    resizes: ['15200:80:44'],
+    seconds: 19,
+    cols: 120,
+    rows: 44,
+    probe: false,
+    keep: true,
+  })
+  try {
+    void firstOutputTs(narrow)
+    assertWidth('resized-80', grabScreens(narrow, 80, 44, [S(16_600)])[0]!)
+  } finally {
+    narrow.cleanup()
   }
 }
 

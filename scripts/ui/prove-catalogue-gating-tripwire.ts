@@ -141,6 +141,13 @@ function childEnv(home: string, netlog: string, extra: Record<string, string | u
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
+    // The display animations every capture pins still (the critter's sway
+    // and blink, its gaze and sleep, the header's live seconds, the live
+    // glyphs): a settle gate reads the whole grid, and a recorded frame
+    // must never land on an arbitrary animation phase.
+    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
     ANTHROPIC_BASE_URL: DEAD,
     BROWSER: 'true',
   }
@@ -253,7 +260,12 @@ interface DriveResult {
 function drive(tag: string, home: string, netlog: string, sends: unknown[], total: number, extraEnv: Record<string, string | undefined>): DriveResult {
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST], sends, total, cols: 120, rows: 40, out: grid, title: tag }))
+  // CATGATE_DEBUG_FILE=<path> hands the child the product's own debug log
+  // (--debug --debug-file=<path>.<tag>.log): a drive whose screen shows
+  // nothing is read from what the product logged while it showed nothing.
+  const debugFile = process.env.CATGATE_DEBUG_FILE
+  const argv = debugFile ? ['node', DIST, '--debug', `--debug-file=${debugFile}.${tag}.log`] : ['node', DIST]
+  writeFileSync(cfgPath, JSON.stringify({ argv, sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
     env: childEnv(home, netlog, extraEnv),
@@ -268,6 +280,23 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
     }
     const text = (g: Array<Array<{ c: string }>>): string => g.map(row => row.map(c => c.c).join('')).join('\n')
     gridText = [...(payload.marks ?? []).map(m => text(m.grid)), payload.grid ? text(payload.grid) : ''].join('\n')
+  }
+  // A refused drive still wrote the grid it ended on: print that frame's
+  // tail beside the refusal, so a red leg says what the screen held.
+  if (res.status !== 0 && gridText !== '') {
+    // Every mark's tail first (the moment each send landed), then the
+    // final frame — a refusal is read as a sequence, not one still.
+    if (existsSync(grid)) {
+      const payload = JSON.parse(readFileSync(grid, 'utf8')) as { marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
+      for (const m of payload.marks ?? []) {
+        const rows = m.grid.map(row => row.map(c => c.c).join('').trimEnd()).filter(r => r.length > 0)
+        console.log(`  mark '${m.label}' (last ${Math.min(8, rows.length)} non-empty rows):`)
+        for (const row of rows.slice(-8)) console.log(`    ${row.slice(0, 116)}`)
+      }
+    }
+    const rows = gridText.split('\n').map(r => r.trimEnd()).filter(r => r.length > 0)
+    console.log(`  the frame the drive ended on (last ${Math.min(14, rows.length)} non-empty rows):`)
+    for (const row of rows.slice(-14)) console.log(`    ${row.slice(0, 116)}`)
   }
   return { status: res.status, gridText, stderr: (res.stderr ?? '').trim() }
 }
@@ -311,23 +340,62 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
       // THE LANDING RULE: a bare
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
-      { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
-      // The Hugging Face group sits below the fold — 14 steps put its
-      // signed-out face in the viewport (probed on the real screen).
-      { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
-      { afterPrevTicks: 15, mark: 'settled', data: '' },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
+      // Two moments a refusal is read from: the typed line in the composer,
+      // and the screen the ↵ left behind.
+      { afterPrevTicks: 2, mark: 'typed', data: '' },
+      { afterPrevTicks: 2, data: '\r' },
+      { afterPrevTicks: 3, mark: 'entered', data: '' },
+      // The picker's lockup line paints in EVERY form of the picker — the
+      // compact tier (under ~20 rows) sheds the CHOOSE A MODEL banner with
+      // the rest of its decoration, the lockup stays — so it is the one
+      // honest "opened" needle.
+      { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
+      // The Hugging Face group sits below the fold: walk the list in
+      // strides of FOUR with a mark after each, and read every mark's grid.
+      // The picker opens with its window centred on the current model, and
+      // that window holds about eight ENTRIES once the group headings, the
+      // frontier lines and the detail lines are counted — a stride longer
+      // than the window's entry count lands the next window past rows the
+      // last one never showed (strides of ten skipped the one-row Hugging
+      // Face group between Gemini's window and Z.AI's). Four keeps every
+      // consecutive pair of windows overlapping; the list clamps at its
+      // last row, so a long walk never overshoots into nothing.
+      { afterPrevTicks: 4, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-1', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-2', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-3', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-4', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-5', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 3, mark: 'walk-6', data: '' },
+      { afterPrevTicks: 1, data: '\x1b[B'.repeat(4) },
+      { afterPrevTicks: 4, mark: 'settled', data: '' },
     ],
-    70,
+    130,
     {},
   )
-  check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('CHOOSE A MODEL'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
+  check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('Mercury — model'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
   check('ZERO catalogue requests from the signed-out picker (count 0)', catalogue.length === 0, catalogue.join(' · '))
-  check('the ruled Hugging Face row is on the screen', res.gridText.includes('connect Hugging Face to browse its models'))
-  check('the ruled OpenRouter row is on the screen', res.gridText.includes('connect OpenRouter to browse its models'))
+  // A miss names the rows the walk did paint for the group, so a moved
+  // spelling or a group out of the read is told from a group absent.
+  const rowsOf = (needle: string): string => [...new Set(res.gridText.split('\n').filter(l => l.toLowerCase().includes(needle)).map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90)))].join(' | ') || '(no row)'
+  const hfOnScreen = res.gridText.includes('connect Hugging Face to browse its models')
+  if (!hfOnScreen) {
+    // The whole walk, distinct rows in order: a group the walk never showed
+    // reads as absent from these lines, a moved spelling reads as present.
+    const seen = [...new Set(res.gridText.split('\n').map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim()).filter(l => l.length > 0))]
+    console.log(`  the walk's rows (${seen.length} distinct):`)
+    for (const row of seen) console.log(`    ${row.slice(0, 110)}`)
+  }
+  check('the ruled Hugging Face row is on the screen', hfOnScreen, `${rowsOf('hugging')} · headings seen: ${rowsOf('mercury —')}`)
+  check('the ruled OpenRouter row is on the screen', res.gridText.includes('connect OpenRouter to browse its models'), rowsOf('openrouter'))
 }
 
 // ── §C the fixture credential: the fetch happens and renders ────────────────
@@ -354,9 +422,9 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
       // THE LANDING RULE: a bare
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
       // 14 steps bring the Hugging Face group into the viewport.
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { requireAwait: true, awaitText: 'catgate', awaitStableTicks: 2, mark: 'landed', data: '' },
@@ -402,10 +470,10 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
       // THE LANDING RULE: a bare
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { requireAwait: true, awaitText: 'Mercury — model', awaitStableTicks: 3, mark: 'open', data: '' },
       // 14 steps bring the Hugging Face group into the viewport.
       { afterPrevTicks: 4, data: '\x1b[B'.repeat(14) },
       { afterPrevTicks: 15, mark: 'settled', data: '' },

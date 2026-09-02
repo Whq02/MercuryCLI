@@ -117,6 +117,13 @@ if (driver.kind !== 'posix-pty') {
   const env = {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
+    // The display animations every capture pins still (the critter's sway
+    // and blink, its gaze and sleep, the header's live seconds, the live
+    // glyphs): a settle gate reads the whole grid, and a recorded frame
+    // must never land on an arbitrary animation phase.
+    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
     // No turn is ever sent; the Anthropic base points at a closed port so
     // nothing can leave the box.
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
