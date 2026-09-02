@@ -24,6 +24,7 @@ import { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst,
 // @ts-ignore -- untyped .mjs module
 import * as templates from '../release/launcherTemplates.mjs'
 import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
+import { RUNTIME_PACK_PATH, runtimeBinaryFor } from '../../src/services/privateChannel/vendoredRuntime.js'
 import { resolveProofHome } from '../lib/proofHome.ts'
 
 let failures = 0
@@ -134,8 +135,77 @@ for (const [v, want] of MATRIX) {
 }
 
 //
+// The three runtime rungs, driven for real: MERCURY_NODE · the vendored
+// runtime beside the bundle · a PATH node. The section-(2) matrix above ran
+// with NO vendored runtime (the PATH rung, the shim node); here a fake
+// runtime sits at the pack path and a trap node fronts PATH — the launcher's
+// own rung logic decides, and every refusal names all three.
+section('(2b) the runtime rungs — MERCURY_NODE · vendor/node · PATH')
+{
+  const VENDORED = (templates as Record<string, unknown>).VENDORED_RUNTIME_POSIX as string
+  const VENDORED_WIN = (templates as Record<string, unknown>).VENDORED_RUNTIME_WIN32 as string
+  check('the templates spell the pack path the runtime owner spells (POSIX)', VENDORED === `${RUNTIME_PACK_PATH}/${runtimeBinaryFor('linux-x64')}`, VENDORED)
+  check('the templates spell the pack path the runtime owner spells (win32)', VENDORED_WIN === `${RUNTIME_PACK_PATH.split('/').join('\\')}\\${runtimeBinaryFor('win-x64')}`, VENDORED_WIN)
+  const fakeRuntime = (path: string, marker: string, version = NODE_SUPPORT.minimum): void => {
+    mkdirSync(join(path, '..'), { recursive: true })
+    writeFileSync(path, `#!/bin/sh\nprintf 'ran\\n' >> "${marker}"\ncase "$1" in\n  -p) echo "${version}"; exit 0 ;;\n  -v|--version) echo "v${version}"; exit 0 ;;\nesac\nexec "${process.execPath}" "$@"\n`)
+    chmodSync(path, 0o755)
+  }
+  const vendored = join(appDir, ...VENDORED.split('/'))
+  const vendoredMarker = join(base, 'vendored.ran')
+  fakeRuntime(vendored, vendoredMarker)
+  const trapDir = join(base, 'trap')
+  mkdirSync(trapDir, { recursive: true })
+  writeFileSync(join(trapDir, 'node'), '#!/bin/sh\necho "trap: the PATH node must not be used while a higher rung answers" >&2\nexit 86\n')
+  chmodSync(join(trapDir, 'node'), 0o755)
+  const rungEnv = (extra: Record<string, string> = {}, path = `${trapDir}:/usr/bin:/bin`): NodeJS.ProcessEnv => {
+    const env: NodeJS.ProcessEnv = { ...process.env, PATH: path, MERCURY_CONFIG_DIR: SHIM_HOME, MERCURY_HOME: SHIM_HOME, ...extra }
+    delete env.FAKE_NODE_VERSION
+    if (!('MERCURY_NODE' in extra)) delete env.MERCURY_NODE
+    return env
+  }
+  {
+    const r = spawnSync('sh', [launcherPath, 'rung probe'], { encoding: 'utf8', env: rungEnv(), timeout: 30_000 })
+    check('vendored rung: boots on vendor/node/bin/node with a trap node first on PATH', r.status === 0 && r.stdout.trim().startsWith('["rung probe"]') && existsSync(vendoredMarker), `status=${r.status} out=${r.stdout.slice(0, 60)} err=${r.stderr.slice(0, 160)}`)
+  }
+  {
+    const explicit = join(base, 'explicit', 'node')
+    const explicitMarker = join(base, 'explicit.ran')
+    fakeRuntime(explicit, explicitMarker)
+    rmSync(vendoredMarker, { force: true })
+    const r = spawnSync('sh', [launcherPath, 'explicit probe'], { encoding: 'utf8', env: rungEnv({ MERCURY_NODE: explicit }), timeout: 30_000 })
+    check('MERCURY_NODE rung: wins over the vendored runtime (explicit ran, vendored did not)', r.status === 0 && existsSync(explicitMarker) && !existsSync(vendoredMarker), `status=${r.status} err=${r.stderr.slice(0, 160)}`)
+  }
+  {
+    const r = spawnSync('sh', [launcherPath, '--version'], { encoding: 'utf8', env: rungEnv({ MERCURY_NODE: join(base, 'no-such-node') }), timeout: 30_000 })
+    check('MERCURY_NODE naming a missing file refuses (exit 1) and never falls through to the vendored rung', r.status === 1 && !existsSync(vendoredMarker), `status=${r.status}`)
+    check('…and the refusal names all three rungs', r.stderr.includes('MERCURY_NODE') && r.stderr.includes(VENDORED) && r.stderr.includes('PATH'), r.stderr.slice(0, 300))
+  }
+  {
+    const old = join(base, 'old', 'node')
+    fakeRuntime(old, join(base, 'old.ran'), '22.21.0')
+    const r = spawnSync('sh', [launcherPath, '--version'], { encoding: 'utf8', env: rungEnv({ MERCURY_NODE: old }), timeout: 30_000 })
+    check('MERCURY_NODE below the floor is refused by label + range (the rung picked is checked, never trusted)', r.status === 1 && r.stderr.includes(policy.label) && r.stderr.includes(policy.range), `status=${r.status} ${r.stderr.slice(0, 200)}`)
+  }
+  rmSync(join(appDir, 'vendor'), { recursive: true, force: true })
+  if (existsSync('/usr/bin/node') || existsSync('/bin/node')) {
+    console.log('  [SKIP] no-rung leg — this host carries a node in /usr/bin or /bin, so no PATH without one can be minted')
+  } else {
+    const emptyDir = join(base, 'empty-path')
+    mkdirSync(emptyDir, { recursive: true })
+    const r = spawnSync('sh', [launcherPath, '--version'], { encoding: 'utf8', env: rungEnv({}, `${emptyDir}:/usr/bin:/bin`), timeout: 30_000 })
+    check('no rung at all refuses (exit 1) naming MERCURY_NODE, the vendored path and PATH', r.status === 1 && r.stderr.includes('MERCURY_NODE') && r.stderr.includes(VENDORED) && r.stderr.includes('PATH'), `status=${r.status} ${r.stderr.slice(0, 300)}`)
+  }
+}
+
+//
 section('(4) CMD + PS1 — the full-range check is present (gap closed)')
 const cmd = cmdLauncher(policy)
+check('CMD resolves the three rungs: MERCURY_NODE · the vendored node.exe · a PATH node, in order', cmd.indexOf('if defined MERCURY_NODE set "NODEBIN=%MERCURY_NODE%"') !== -1 && cmd.indexOf('if defined MERCURY_NODE set "NODEBIN=%MERCURY_NODE%"') < cmd.indexOf(`if exist "%DIR%${(templates as Record<string, unknown>).VENDORED_RUNTIME_WIN32 as string}"`) && cmd.indexOf(`if exist "%DIR%${(templates as Record<string, unknown>).VENDORED_RUNTIME_WIN32 as string}"`) < cmd.indexOf('where node >nul 2>nul'))
+check('CMD: a pinned-but-missing MERCURY_NODE refuses before any rung below it', cmd.includes('if defined NODEBIN if not exist "%NODEBIN%" goto :node_missing'))
+check('CMD: no rung at all names all three (never echoing the value or the directory)', cmd.includes(':node_missing\r\n') && cmd.includes('none of the three rungs answered') && !cmd.split('\r\n').some(l => l.startsWith('echo') && (l.includes('%MERCURY_NODE%') || l.includes('%DIR%'))))
+check('CMD: the rung block uses sequential top-level ifs (no parenthesized block around a path)', !/if defined MERCURY_NODE \(/.test(cmd))
+check('CMD boots every node start through the resolved runtime', !cmd.split('\r\n').some(l => /^(if [^\r]*?)?node (-e|"%DIR%)/.test(l)) && cmd.includes('"%NODEBIN%" "%DIR%mercury.mjs" %*'))
 check('CMD probes the real version (existence-only gap CLOSED)', cmd.includes('process.versions.node'))
 check('CMD anchors the supported major', cmd.includes(`findstr /r /c:"^${policy.major}\\.`))
 check('CMD enforces the minor floor', cmd.includes(`LSS ${policy.minorFloor}`))
@@ -146,6 +216,9 @@ check('CMD names label + range in the refusal (range < > caret-escaped so the ec
 check('CMD propagates the exit code (captured across the F1 heal)', cmd.includes('set "RT_EXIT=%errorlevel%"') && cmd.includes('exit /b %RT_EXIT%'))
 check('CMD heal is TTY-gated + abnormal-only', cmd.includes('if "%NODETTY%"=="1" if not "%RT_EXIT%"=="0"'))
 const ps1 = ps1Launcher(policy)
+check('PS1 resolves the three rungs: MERCURY_NODE · the vendored node.exe · a PATH node, in order', ps1.indexOf('if ($env:MERCURY_NODE) {') !== -1 && ps1.indexOf('if ($env:MERCURY_NODE) {') < ps1.indexOf(`Join-Path $dir '${(templates as Record<string, unknown>).VENDORED_RUNTIME_WIN32 as string}'`) && ps1.indexOf(`Join-Path $dir '${(templates as Record<string, unknown>).VENDORED_RUNTIME_WIN32 as string}'`) < ps1.indexOf('Get-Command node -ErrorAction SilentlyContinue'))
+check('PS1: no rung at all names all three', ps1.includes('none of the three rungs answered') && ps1.includes('MERCURY_NODE is unset') && ps1.includes("no 'node' on PATH"))
+check('PS1 boots every node start through the resolved runtime', !/& node /.test(ps1) && ps1.includes("& $nodeBin (Join-Path $dir 'mercury.mjs') @args"))
 check('PS1 checks major equality + minor floor', ps1.includes(`-eq ${policy.major}`) && ps1.includes(`-ge ${policy.minorFloor}`))
 check('PS1 refuses prerelease via the strict triple regex', ps1.includes("-match '^(\\d+)\\.(\\d+)\\.(\\d+)$'"))
 check('PS1 propagates the exit code (captured across the F1 heal)', ps1.includes('$rtExit = $LASTEXITCODE') && ps1.includes('exit $rtExit'))
@@ -158,6 +231,18 @@ if (pwsh.status === 0) {
   check('PS1 22.21.0 → refused (pwsh available)', r.status === 1, `status=${r.status}`)
   const r2 = spawnSync('pwsh', ['-NoProfile', '-File', ps1Path, 'ps probe'], { encoding: 'utf8', env: shimEnv(NODE_SUPPORT.minimum), timeout: 30_000 })
   check(`PS1 ${NODE_SUPPORT.minimum} → accepted (pwsh available)`, r2.status === 0 && r2.stdout.includes('["ps probe"]'), `status=${r2.status} out=${r2.stdout.slice(0, 80)}`)
+  // the vendored rung under pwsh: a fake node.exe (a shebang script — the OS
+  // runs it by path) beside the launcher wins over the shim node on PATH
+  const vendoredWin = join(appDir, 'vendor', 'node', 'node.exe')
+  const vendoredWinMarker = join(base, 'vendored-win.ran')
+  mkdirSync(join(appDir, 'vendor', 'node'), { recursive: true })
+  writeFileSync(vendoredWin, `#!/bin/sh\nprintf 'ran\\n' >> "${vendoredWinMarker}"\ncase "$1" in\n  -p) echo "${NODE_SUPPORT.minimum}"; exit 0 ;;\nesac\nexec "${process.execPath}" "$@"\n`)
+  chmodSync(vendoredWin, 0o755)
+  const r3 = spawnSync('pwsh', ['-NoProfile', '-File', ps1Path, 'ps rung'], { encoding: 'utf8', env: shimEnv('22.21.0'), timeout: 30_000 })
+  check('PS1 vendored rung: boots on vendor\\node\\node.exe while the PATH node is below the floor (pwsh available)', r3.status === 0 && r3.stdout.includes('["ps rung"]') && existsSync(vendoredWinMarker), `status=${r3.status} out=${r3.stdout.slice(0, 80)} err=${r3.stderr.slice(0, 160)}`)
+  const r4 = spawnSync('pwsh', ['-NoProfile', '-File', ps1Path, 'ps rung'], { encoding: 'utf8', env: { ...shimEnv(NODE_SUPPORT.minimum), MERCURY_NODE: join(base, 'no-such-node.exe') }, timeout: 30_000 })
+  check('PS1: MERCURY_NODE naming a missing file refuses, naming all three rungs (pwsh available)', r4.status === 1 && r4.stderr.includes('MERCURY_NODE') && r4.stderr.includes('PATH'), `status=${r4.status} err=${r4.stderr.slice(0, 200)}`)
+  rmSync(join(appDir, 'vendor'), { recursive: true, force: true })
 } else {
   console.log('  [SKIP] pwsh not on this machine — PS1/CMD execution rides the windows-x64 private-release smoke; structure asserted above')
 }
@@ -259,17 +344,18 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     check('POSIX honors a pre-set cache dir (operator wins)', posix.includes('[ -z "${NODE_COMPILE_CACHE:-}" ]'))
     check('CMD honors a pre-set cache dir', cmdT.includes('if not defined NODE_COMPILE_CACHE'))
     check('PS1 honors a pre-set cache dir', ps1T.includes('-not $env:NODE_COMPILE_CACHE'))
+    // every splash run rides the RESOLVED runtime (the three-rung law)
     check(
       'POSIX sets the cache env BEFORE the splash node run (splash parse caches too)',
-      posix.indexOf('NODE_COMPILE_CACHE') !== -1 && posix.indexOf('NODE_COMPILE_CACHE') < posix.indexOf('node "$dir/splash.mjs"'),
+      posix.indexOf('NODE_COMPILE_CACHE') !== -1 && posix.indexOf('"$node_bin" "$dir/splash.mjs"') !== -1 && posix.indexOf('NODE_COMPILE_CACHE') < posix.indexOf('"$node_bin" "$dir/splash.mjs"'),
     )
     check(
       'CMD sets the cache env BEFORE the splash node run',
-      cmdT.indexOf('NODE_COMPILE_CACHE') !== -1 && cmdT.indexOf('NODE_COMPILE_CACHE') < cmdT.indexOf('node "%DIR%splash.mjs"'),
+      cmdT.indexOf('NODE_COMPILE_CACHE') !== -1 && cmdT.indexOf('"%NODEBIN%" "%DIR%splash.mjs"') !== -1 && cmdT.indexOf('NODE_COMPILE_CACHE') < cmdT.indexOf('"%NODEBIN%" "%DIR%splash.mjs"'),
     )
     check(
       'PS1 sets the cache env BEFORE the splash node run',
-      ps1T.indexOf('NODE_COMPILE_CACHE') !== -1 && ps1T.indexOf('NODE_COMPILE_CACHE') < ps1T.indexOf('& node $splashPath'),
+      ps1T.indexOf('NODE_COMPILE_CACHE') !== -1 && ps1T.indexOf('& $nodeBin $splashPath') !== -1 && ps1T.indexOf('NODE_COMPILE_CACHE') < ps1T.indexOf('& $nodeBin $splashPath'),
     )
     // THE WIN32 PATH BOUND REACHES THE ENV FORM (TASK-017 S2,
     // launcher-compile-cache-path-bound-bypassed): the in-process guard
@@ -316,7 +402,8 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     // captures through a temp file — user argv must never ride inside a
     // for /f command (a second cmd parser pass: the class with user
     // input as the payload).
-    const probeLine = cmdT.split('\r\n').find(l => l.includes('node -e') && l.includes('process.stdin.isTTY')) ?? ''
+    // the probe runs on the RESOLVED runtime ("%NODEBIN%" -e …)
+    const probeLine = cmdT.split('\r\n').find(l => l.includes('"%NODEBIN%" -e') && l.includes('process.stdin.isTTY')) ?? ''
     check('CMD probe line exists (plain command line, temp-file capture)', probeLine !== '' && probeLine.includes('>"%MERCURY_PROBE_OUT%"'))
     check('AR-01 ratchet: NO for /f line re-parses a command containing node/argv', cmdT.split('\r\n').filter(l => l.includes('for /f')).every(l => !l.includes('node') && !l.includes('%*')))
     check('CMD probe output is consumed first-line-only from the temp file (usebackq)', cmdT.includes('for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%")'))
@@ -325,7 +412,7 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     // occurrence is the ABNORMAL-child heal, which never runs on a
     // normal boot. made the guard FLOW-shaped: the heal line is only
     // reachable after the 130/0/20 branches have all jumped away.
-    const nodeELines = cmdT.split('\r\n').filter(l => l.includes('node -e'))
+    const nodeELines = cmdT.split('\r\n').filter(l => l.includes('"%NODEBIN%" -e'))
     check('CMD has exactly ONE pre-app node -e probe (version+tty merged)', nodeELines.filter(l => !l.includes('?1049l')).length === 1)
     check(
       'CMD abnormal-child heal is flow-guarded (after the 130 stand-down and both handoff jumps, before the plain boot) and owner-scoped',
@@ -339,7 +426,7 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
   }
   check('PS1 gates on console redirection', ps1T.includes('IsInputRedirected') && ps1T.includes('IsOutputRedirected'))
   check('PS1 boots with forwarded args only (the pre-arg splice moved to the runtime consumer)', ps1T.includes('@args') && !ps1T.includes('mercuryPre'))
-  check('CMD boots with forwarded args only (no %-expansion of anything product-written)', cmdT.includes('node "%DIR%mercury.mjs" %*') && !cmdT.includes('MERCURY_PRE'))
+  check('CMD boots with forwarded args only (no %-expansion of anything product-written)', cmdT.includes('"%NODEBIN%" "%DIR%mercury.mjs" %*') && !cmdT.includes('MERCURY_PRE'))
 
   // The base64 consumer blobs stayed gone, and now
   // the native readers are absent too — no launcher touches the receipt files.

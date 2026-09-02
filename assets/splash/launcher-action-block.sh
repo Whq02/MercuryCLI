@@ -24,7 +24,10 @@ if [ -n "${MERCURY_SA_EXIT:-}" ]; then
     # abnormal splash death (nonzero, not the 130 cancel): bounded,
     # idempotent, owner-scoped heal — then boot plain, without a false hold
     # marker. A splash failure may cost hold cosmetics, never the boot.
-    node -e 'process.stdout.write("\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07")' 2>/dev/null || true
+    # The heal rides the launcher's resolved runtime (MERCURY_NODE_BIN — the
+    # three-rung resolution); the defaulted expansion keeps the block viable
+    # under set -u in a launcher generation that never set it.
+    "${MERCURY_NODE_BIN:-node}" -e 'process.stdout.write("\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07")' 2>/dev/null || true
   fi
   # exit 0 IS the settled held receipt (3.6.2/: the splash exits 20
   # when it restored the screen — inline mode). The app's root alt-screen

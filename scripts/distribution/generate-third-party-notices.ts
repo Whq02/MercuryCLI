@@ -8,8 +8,9 @@
 //    • runtime packages: package.json dependencies + the installed
 //      node_modules metadata (bun.lock is the version authority);
 //    • vendored tool payloads: the checked-in vendor lock receipts
-//      (vendor/debugpy.lock.json, vendor/pyright.lock.json) + the
-//      devDependency metadata for typescript / tree-sitter / ripgrep;
+//      (vendor/debugpy.lock.json, vendor/pyright.lock.json,
+//      vendor/node.lock.json) + the devDependency metadata for typescript /
+//      tree-sitter / ripgrep;
 //    • source attributions: third-party code living inside Mercury's own tree
 //      (stated below — the generated notices are their canonical statement);
 //    • bundled skills: per-skill LICENSE files beside their sources.
@@ -68,6 +69,8 @@ function vendorLock(file: string): { version?: string; license?: string; url?: s
 }
 const debugpy = vendorLock('debugpy.lock.json')
 const pyright = vendorLock('pyright.lock.json')
+const jsDebug = vendorLock('js-debug.lock.json')
+const nodeRuntime = vendorLock('node.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
 const ripgrepMeta = pkgMeta('@vscode/ripgrep')
@@ -165,6 +168,12 @@ lines.push(
 lines.push(
   `- **pyright** ${pyright.version ?? '(not vendored on this checkout)'} — Microsoft, ${pyright.license ?? 'MIT'} (${pyright.url ?? 'https://github.com/microsoft/pyright'}). Receipt: vendor/pyright.lock.json; licence text ships at dist/vendor/pyright/LICENSE.txt (+ typeshed LICENSE).`,
 )
+// The Node/TypeScript debug adapter (vscode-js-debug's standalone DAP
+// server); the pack's own LICENSE ships with it, and the release packager
+// refuses an archive whose notices omit a vendored payload family.
+lines.push(
+  `- **js-debug** ${jsDebug.version ?? '(not vendored on this checkout)'} — Microsoft, ${jsDebug.license ?? 'MIT'} (${jsDebug.url ?? 'https://github.com/microsoft/vscode-js-debug'}). Receipt: vendor/js-debug.lock.json; licence text ships at dist/vendor/js-debug/LICENSE.`,
+)
 lines.push(
   `- **TypeScript compiler** ${tsMeta.version} — Microsoft, ${tsMeta.license} (https://github.com/microsoft/TypeScript). Vendored from the repo devDependency; licence text ships at dist/vendor/typescript/LICENSE.txt.`,
 )
@@ -189,6 +198,13 @@ lines.push(
     )
   }
 }
+// The vendored Node runtime: the official nodejs.org build of the host
+// platform, the binary and its LICENSE only. Node's LICENSE file carries the
+// notices of every component it bundles, so shipping it whole is the
+// attribution.
+lines.push(
+  `- **Node.js runtime** ${nodeRuntime.version ?? '(not vendored on this checkout)'} — OpenJS Foundation and Node.js contributors, ${nodeRuntime.license ?? 'MIT'} (https://nodejs.org/dist/v${nodeRuntime.version ?? '<version>'}/). Receipt: vendor/node.lock.json (one official nodejs.org archive + sha256 per platform, every digest from that release's SHASUMS256.txt); the release archive ships the platform's runtime binary and Node's own LICENSE at dist/vendor/node/ — that LICENSE carries the notices of the components Node bundles (V8, libuv, OpenSSL, ICU, zlib, c-ares, nghttp2, simdjson and the rest).`,
+)
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
 lines.push('')
@@ -229,5 +245,5 @@ lines.push('')
 
 writeFileSync(join(ROOT, 'THIRD_PARTY_NOTICES.md'), lines.join('\n'))
 console.log(
-  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 6 vendor payloads + source attributions`,
+  `THIRD_PARTY_NOTICES.md written — ${rows.length} runtime packages across ${byLicense.size} licence identifiers + 8 vendor payloads + source attributions`,
 )

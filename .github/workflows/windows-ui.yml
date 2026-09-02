@@ -85,18 +85,20 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'vendor/grammars.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json') }}
 
       # Without these the built manifest is DEGRADED (no debugpy/pyright/
-      # grammar pack) and package.mjs REFUSES — the campaign burst packages
-      # the real collaborator kit, and --allow-degraded would forfeit exactly
-      # the claim it exists to prove (both dispatch preflights caught this;
-      # same fix as private-release.yml's step).
+      # js-debug/grammar pack/runtime) and package.mjs REFUSES — the campaign
+      # burst packages the real collaborator kit, and --allow-degraded would
+      # forfeit exactly the claim it exists to prove (both dispatch preflights
+      # caught this; same fix as private-release.yml's step).
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
           bun run scripts/vendor/fetch-debugpy.ts
+          bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
+          bun run scripts/vendor/fetch-node.ts --platform win-x64
 
       - name: Build dist
         run: bun run build.ts

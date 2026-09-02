@@ -164,22 +164,58 @@ export const SPLASH_VERSION_TTY_PROBE_JS =
   "const d=a.length>0&&a[0].charAt(0)==='-';" +
   "process.stdout.write(process.versions.node+' '+(process.stdin.isTTY&&!d&&!a.some(x=>f.includes(x))?'1':'0'))"
 
-/** POSIX launcher (mercury) — self-locating, argument-forwarding, full-range check. */
+// ── the runtime rungs ───────────────────────────────────────────────────────
+// Every launcher resolves its Node in ONE order, first hit wins:
+//   1. MERCURY_NODE — an explicit binary (a pinned-but-missing one refuses
+//      loudly; the operator asked for it by name);
+//   2. the vendored runtime beside the bundle — `vendor/node/bin/node`
+//      (`vendor\node\node.exe` on Windows): every release archive carries one,
+//      so a fresh machine needs only git;
+//   3. a PATH `node`.
+// No rung is silent: the chosen binary is then checked against the FULL
+// supported range, and no rung at all prints the three-rung refusal naming
+// each one. The runtime spawns its own children through process.execPath, so
+// the rung the launcher picks is the runtime the whole session runs on.
+// src/services/privateChannel/vendoredRuntime.ts owns the pack path; the
+// spellings here are pinned to it by scripts/node-runtime/prove-launchers.ts.
+export const VENDORED_RUNTIME_POSIX = 'vendor/node/bin/node'
+export const VENDORED_RUNTIME_WIN32 = 'vendor\\node\\node.exe'
+
+/** POSIX launcher (mercury) — self-locating, argument-forwarding, three
+ *  runtime rungs, full-range check on the rung it picked. */
 export function posixLauncher(p) {
   return `#!/bin/sh
-# Mercury launcher — self-locating, argument-forwarding. Needs ${p.label} (${p.range}).
+# Mercury launcher — self-locating, argument-forwarding. Runs on the Node
+# runtime beside it (vendor/node — every release archive carries one), or on
+# MERCURY_NODE / a PATH node inside ${p.label} (${p.range}).
 dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-if ! command -v node >/dev/null 2>&1; then
-  echo "mercury: ${p.label} (${p.range}) is required but 'node' was not found in PATH" >&2
-  echo "         install a current Node ${p.major}.x from https://nodejs.org and retry" >&2
-  exit 1
-fi
-node_unsupported() {
-  echo "mercury: ${p.label} (${p.range}) is required (found $(node -v 2>/dev/null || echo none))" >&2
-  echo "         install a current Node ${p.major}.x from https://nodejs.org and retry" >&2
+# ── the runtime (three rungs, first hit wins): MERCURY_NODE (an explicit
+# binary) · the vendored runtime beside the bundle · a PATH node. No rung is
+# silent: a pinned-but-missing MERCURY_NODE refuses here, and the rung picked
+# is checked against the FULL supported range below.
+node_missing() {
+  echo "mercury: no usable Node runtime — none of the three rungs answered:" >&2
+  echo "         1. MERCURY_NODE is unset, or names no executable file (point it at a Node ${p.major}.x binary to choose one explicitly)" >&2
+  echo "         2. no vendored runtime at $dir/${VENDORED_RUNTIME_POSIX} (re-extract the release archive intact — it carries one)" >&2
+  echo "         3. no 'node' on PATH (install ${p.label}, ${p.range}, from https://nodejs.org)" >&2
   exit 1
 }
-nodev=$(node -p 'process.versions.node' 2>/dev/null)
+node_bin=""
+if [ -n "\${MERCURY_NODE:-}" ]; then
+  if [ -f "$MERCURY_NODE" ] && [ -x "$MERCURY_NODE" ]; then node_bin="$MERCURY_NODE"; else node_missing; fi
+elif [ -f "$dir/${VENDORED_RUNTIME_POSIX}" ] && [ -x "$dir/${VENDORED_RUNTIME_POSIX}" ]; then
+  node_bin="$dir/${VENDORED_RUNTIME_POSIX}"
+elif command -v node >/dev/null 2>&1; then
+  node_bin="$(command -v node)"
+else
+  node_missing
+fi
+node_unsupported() {
+  echo "mercury: ${p.label} (${p.range}) is required (found $("$node_bin" -v 2>/dev/null || echo none) at $node_bin)" >&2
+  echo "         install a current Node ${p.major}.x from https://nodejs.org, point MERCURY_NODE at one, or re-extract the release archive for its vendored runtime" >&2
+  exit 1
+}
+nodev=$("$node_bin" -p 'process.versions.node' 2>/dev/null)
 case "$nodev" in ${p.major}.*) ;; *) node_unsupported ;; esac
 case "$nodev" in *-*) node_unsupported ;; esac
 nodemin=\${nodev#*.}; nodemin=\${nodemin%%.*}
@@ -197,7 +233,7 @@ fi
 # provenance verdict may never cost a boot. Piped/scripted boots skip it so
 # automation stays byte-clean; \`mercury doctor\` carries the full record.
 if [ -t 0 ] && [ -t 2 ] && [ -f "$dir/verify-artifact.mjs" ]; then
-  node "$dir/verify-artifact.mjs" --launcher || true
+  "$node_bin" "$dir/verify-artifact.mjs" --launcher || true
 fi
 # ── the config home (three rungs — runtime + splash resolve identically) ────
 if [ -n "\${MERCURY_CONFIG_DIR:-}" ]; then MERCURY_SA_HOME="$MERCURY_CONFIG_DIR"
@@ -236,7 +272,7 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
     # so simultaneous launches sharing one home stay isolated.
     MERCURY_LAUNCH_ID="posix-$$-$(date +%s 2>/dev/null || echo 0)"
     export MERCURY_LAUNCH_ID
-    node "$dir/splash.mjs"
+    "$node_bin" "$dir/splash.mjs"
     MERCURY_SA_EXIT=$?
     # THE EXIT-CODE HANDOVER: this launcher parses NOTHING the splash
     # writes — the 1.5.4 cmd reader died parsing the receipt file, so the
@@ -257,7 +293,7 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
       # idempotent, owner-scoped heal — exactly the splash-ownable modes —
       # and the runtime boots plain, WITHOUT a false hold marker. A splash
       # failure may cost hold cosmetics, never the boot.
-      node -e 'process.stdout.write("\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07")' 2>/dev/null || true
+      "$node_bin" -e 'process.stdout.write("\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07")' 2>/dev/null || true
     fi
     # hand over inside the held alternate buffer (the boot black-beat fix) —
     # exit 0 IS the settled held receipt (3.6.2/: the splash exits 20
@@ -271,14 +307,14 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
     printf '\\n  \\033[1;38;2;221;68;68m\\342\\234\\246 MERCURY\\033[0m \\033[38;2;140;133;118m\\302\\267 %s\\033[0m\\n\\n' "$PWD"
   fi
 fi
-node "$dir/mercury.mjs" "$@"
+"$node_bin" "$dir/mercury.mjs" "$@"
 rt=$?
 # post-child heal: TTY-gated, abnormal-exit only, code preserved. Focus
 # tracking (?1004l) is re-reset AFTER ?1049l: on win32 a reset written before
 # the alt-screen exit lands on the alt buffer, so 1004 stays armed on the main
 # buffer and focus flips spew ^[[I/^[[O at the dead prompt (field TASK-005 L4).
 if [ -t 1 ] && [ "$rt" != "0" ]; then
-  node -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>/dev/null || true
+  "$node_bin" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>/dev/null || true
 fi
 exit $rt
 `
@@ -307,12 +343,19 @@ rem what IT changes. On success the PRESET marker tells the runtime seam to\r
 rem skip even its query spawn (one less chcp.com per boot).\r
 chcp 65001 >nul 2>nul\r
 if not errorlevel 1 set "MERCURY_WIN32_UTF8_PRESET=1"\r
-where node >nul 2>nul\r
-if errorlevel 1 (\r
-  echo mercury: ${p.label} is required but 'node' was not found in PATH 1>&2\r
-  echo          install a current Node ${p.major}.x from https://nodejs.org and retry 1>&2\r
-  exit /b 1\r
-)\r
+rem ── the runtime (three rungs, first hit wins): MERCURY_NODE (an explicit\r
+rem binary) · the vendored runtime beside the bundle (${VENDORED_RUNTIME_WIN32})\r
+rem · a PATH node. Sequential top-level ifs only: a path with parentheses\r
+rem inside a parenthesized block would abort the batch. No rung is silent —\r
+rem a pinned-but-missing MERCURY_NODE refuses, and the rung picked is\r
+rem checked against the FULL supported range below.\r
+set "NODEBIN="\r
+if defined MERCURY_NODE set "NODEBIN=%MERCURY_NODE%"\r
+if defined NODEBIN if not exist "%NODEBIN%" goto :node_missing\r
+if not defined NODEBIN if exist "%DIR%${VENDORED_RUNTIME_WIN32}" set "NODEBIN=%DIR%${VENDORED_RUNTIME_WIN32}"\r
+if not defined NODEBIN where node >nul 2>nul\r
+if not defined NODEBIN if not errorlevel 1 set "NODEBIN=node"\r
+if not defined NODEBIN goto :node_missing\r
 rem ONE probe: version + interactivity in a single node start.\r
 rem stdout is captured, so the interactivity verdict reads STDIN — a\r
 rem user-redirected stdout is caught by the splash's own out.isTTY\r
@@ -335,7 +378,7 @@ rem there); an ancient node that runs-but-prints-garbage still leaves a\r
 rem file, so the clean version refusal is preserved.\r
 set "MERCURY_PROBE_OUT=%TEMP%\\mercury-probe-%RANDOM%-%TIME::=%.txt"\r
 if not defined TEMP set "MERCURY_PROBE_OUT=%DIR%mercury-probe-%RANDOM%-%TIME::=%.txt"\r
-node -e "${SPLASH_VERSION_TTY_PROBE_JS}" -- %* >"%MERCURY_PROBE_OUT%" 2>nul\r
+"%NODEBIN%" -e "${SPLASH_VERSION_TTY_PROBE_JS}" -- %* >"%MERCURY_PROBE_OUT%" 2>nul\r
 if not exist "%MERCURY_PROBE_OUT%" goto :boot\r
 for /f "usebackq tokens=1,2" %%v in ("%MERCURY_PROBE_OUT%") do (set "NODEV=%%v" & set "NODETTY=%%w")\r
 del /q "%MERCURY_PROBE_OUT%" >nul 2>nul\r
@@ -352,7 +395,7 @@ rem One stderr line on unsigned/tampered/unknown-key, silence when signed;\r
 rem the errorlevel is deliberately never consulted — a provenance verdict\r
 rem (or a verifier crash) can never cost a boot. Piped/scripted boots skip\r
 rem it (NODETTY from the probe above) so automation stays byte-clean.\r
-if "%NODETTY%"=="1" if exist "%DIR%verify-artifact.mjs" node "%DIR%verify-artifact.mjs" --launcher\r
+if "%NODETTY%"=="1" if exist "%DIR%verify-artifact.mjs" "%NODEBIN%" "%DIR%verify-artifact.mjs" --launcher\r
 rem ── the config home (three rungs — runtime + splash resolve identically) ──\r
 set "MERCURY_SA_HOME="\r
 if defined MERCURY_CONFIG_DIR set "MERCURY_SA_HOME=%MERCURY_CONFIG_DIR%"\r
@@ -392,7 +435,7 @@ rem by any shell. %RANDOM% is time-seeded per process (same-second launches\r
 rem collide), so the %TIME% centiseconds tail discriminates. The splash\r
 rem embeds it in the receipt; the runtime consumes only its own.\r
 set "MERCURY_LAUNCH_ID=cmd-%RANDOM%%RANDOM%-%TIME::=%"\r
-node "%DIR%splash.mjs"\r
+"%NODEBIN%" "%DIR%splash.mjs"\r
 set "MERCURY_SA_EXIT=%errorlevel%"\r
 rem THE EXIT-CODE HANDOVER: this block parses NOTHING\r
 rem the splash writes. 1.5.4 read splash-action.txt here with set /p —\r
@@ -410,13 +453,13 @@ rem   else = abnormal splash death: heal the terminal, boot plain\r
 if "%MERCURY_SA_EXIT%"=="130" exit /b 0\r
 if "%MERCURY_SA_EXIT%"=="0" goto :sa_handoff\r
 if "%MERCURY_SA_EXIT%"=="20" goto :sa_handoff\r
-node -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07')" >nul 2>nul\r
+"%NODEBIN%" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07')" >nul 2>nul\r
 goto :boot\r
 :sa_handoff\r
 set "MERCURY_SPLASH_HANDOFF=1"\r
 if "%MERCURY_SA_EXIT%"=="0" if not "%MERCURY_FULLSCREEN%"=="0" set "MERCURY_ALT_HELD=1"\r
 :boot\r
-node "%DIR%mercury.mjs" %*\r
+"%NODEBIN%" "%DIR%mercury.mjs" %*\r
 set "RT_EXIT=%errorlevel%"\r
 rem post-child heal (FN-002 F1, field T4): a killed/crashed runtime cannot\r
 rem restore terminal modes — the launcher is the only cover. TTY-gated\r
@@ -425,14 +468,22 @@ rem on exit 0 (a clean exit restored its own modes); exit code preserved.\r
 rem Focus tracking (?1004l) is re-reset AFTER ?1049l: on win32 a reset before\r
 rem the alt-screen exit lands on the alt buffer, so 1004 stays armed on the\r
 rem main buffer and focus flips spew ^[[I/^[[O at the dead prompt (TASK-005 L4).\r
-if "%NODETTY%"=="1" if not "%RT_EXIT%"=="0" node -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>nul\r
+if "%NODETTY%"=="1" if not "%RT_EXIT%"=="0" "%NODEBIN%" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>nul\r
 exit /b %RT_EXIT%\r
 :node_unsupported\r
 rem the range's < and > must be caret-escaped INSIDE the echo — unescaped\r
 rem they are parsed as redirects and the refusal never prints (it also\r
 rem planted a stray '=24.11.0' file beside the cwd).\r
 echo mercury: ${p.label} ^(${p.range.replace(/([<>])/g, '^$1')}^) is required, found %NODEV% 1>&2\r
-echo          install a current Node ${p.major}.x from https://nodejs.org and retry 1>&2\r
+echo          install a current Node ${p.major}.x from https://nodejs.org, point MERCURY_NODE at one, or re-extract the release archive for its vendored runtime 1>&2\r
+exit /b 1\r
+:node_missing\r
+rem No rung answered. Neither MERCURY_NODE nor the launcher directory is\r
+rem echoed: a value with cmd metacharacters would run inside the echo.\r
+echo mercury: no usable Node runtime - none of the three rungs answered: 1>&2\r
+echo          1. MERCURY_NODE is unset, or names no existing file ^(point it at a Node ${p.major}.x binary to choose one explicitly^) 1>&2\r
+echo          2. no vendored runtime beside this launcher at ${VENDORED_RUNTIME_WIN32} ^(re-extract the release archive intact - it carries one^) 1>&2\r
+echo          3. no 'node' on PATH ^(install ${p.label}, ${p.range.replace(/([<>])/g, '^$1')}, from https://nodejs.org^) 1>&2\r
 exit /b 1\r
 `
 }
@@ -466,14 +517,28 @@ try {
   [Console]::InputEncoding = New-Object System.Text.UTF8Encoding $false
   $env:MERCURY_WIN32_UTF8_PRESET = '1'
 } catch { }
-$node = Get-Command node -ErrorAction SilentlyContinue
-if (-not $node) { Write-Error "mercury: ${p.label} (${p.range}) is required but 'node' was not found in PATH"; exit 1 }
-$nodev = (& node -p 'process.versions.node' 2>$null)
+# -- the runtime (three rungs, first hit wins): MERCURY_NODE (an explicit
+# binary) - the vendored runtime beside the bundle (${VENDORED_RUNTIME_WIN32}) -
+# a PATH node. No rung is silent: a pinned-but-missing MERCURY_NODE refuses,
+# and the rung picked is checked against the FULL supported range below.
+$nodeBin = $null
+if ($env:MERCURY_NODE) {
+  if (Test-Path -LiteralPath $env:MERCURY_NODE -PathType Leaf) { $nodeBin = $env:MERCURY_NODE }
+} elseif (Test-Path -LiteralPath (Join-Path $dir '${VENDORED_RUNTIME_WIN32}') -PathType Leaf) {
+  $nodeBin = Join-Path $dir '${VENDORED_RUNTIME_WIN32}'
+} elseif (Get-Command node -ErrorAction SilentlyContinue) {
+  $nodeBin = 'node'
+}
+if (-not $nodeBin) {
+  Write-Error "mercury: no usable Node runtime - none of the three rungs answered: 1. MERCURY_NODE is unset, or names no existing file (point it at a Node ${p.major}.x binary to choose one explicitly); 2. no vendored runtime beside this launcher at ${VENDORED_RUNTIME_WIN32} (re-extract the release archive intact - it carries one); 3. no 'node' on PATH (install ${p.label}, ${p.range}, from https://nodejs.org)"
+  exit 1
+}
+$nodev = (& $nodeBin -p 'process.versions.node' 2>$null)
 $nodeOk = $false
 if ($nodev -match '^(\\d+)\\.(\\d+)\\.(\\d+)$') {
   $nodeOk = ([int]$Matches[1] -eq ${p.major}) -and ([int]$Matches[2] -ge ${p.minorFloor})
 }
-if (-not $nodeOk) { Write-Error "mercury: ${p.label} (${p.range}) is required (found v$nodev) - install a current Node ${p.major}.x from https://nodejs.org"; exit 1 }
+if (-not $nodeOk) { Write-Error "mercury: ${p.label} (${p.range}) is required (found v$nodev at $nodeBin) - install a current Node ${p.major}.x from https://nodejs.org, point MERCURY_NODE at one, or re-extract the release archive for its vendored runtime"; exit 1 }
 if (-not (Test-Path (Join-Path $dir 'mercury.mjs'))) { Write-Error "mercury: mercury.mjs missing beside this launcher"; exit 1 }
 # -- the config home (three rungs -- runtime + splash resolve identically) --
 $saHome = if ($env:MERCURY_CONFIG_DIR) { $env:MERCURY_CONFIG_DIR }
@@ -510,7 +575,7 @@ try { $interactive = (-not [Console]::IsInputRedirected) -and (-not [Console]::I
 # exit code is deliberately never consulted and a crash is swallowed — a
 # provenance verdict can never cost a boot. Non-interactive runs skip it.
 if ($interactive -and (Test-Path (Join-Path $dir 'verify-artifact.mjs'))) {
-  try { & node (Join-Path $dir 'verify-artifact.mjs') --launcher } catch { }
+  try { & $nodeBin (Join-Path $dir 'verify-artifact.mjs') --launcher } catch { }
 }
 $splashPath = Join-Path $dir 'splash.mjs'
 $splashMode = if ($env:MERCURY_SPLASH) { $env:MERCURY_SPLASH } else { '' }
@@ -519,7 +584,7 @@ if ($takeover -and $interactive -and (Test-Path $splashPath) -and ($noBanner -ne
   #mint THIS launch's opaque id — env-down only, never parsed back.
   # The splash embeds it in the receipt; the runtime consumes only its own.
   $env:MERCURY_LAUNCH_ID = "ps-$PID-$(Get-Random)"
-  & node $splashPath
+  & $nodeBin $splashPath
   $saExit = $LASTEXITCODE
   # THE EXIT-CODE HANDOVER: this launcher parses NOTHING
   # the splash writes — 1.5.4's cmd reader aborted its whole batch parsing
@@ -532,18 +597,18 @@ if ($takeover -and $interactive -and (Test-Path $splashPath) -and ($noBanner -ne
   if (($saExit -eq 0) -or ($saExit -eq 20)) {
     $env:MERCURY_SPLASH_HANDOFF = '1'
   } else {
-    & node -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07')" 2>$null
+    & $nodeBin -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1007l\\x1b[?1049l\\x1b[?25h\\x1b]111\\x07')" 2>$null
   }
   if (($saExit -eq 0) -and ($env:MERCURY_FULLSCREEN -ne '0')) { $env:MERCURY_ALT_HELD = '1' }
 }
-& node (Join-Path $dir 'mercury.mjs') @args
+& $nodeBin (Join-Path $dir 'mercury.mjs') @args
 $rtExit = $LASTEXITCODE
 # post-child heal: TTY-gated, abnormal-exit only, code preserved. Focus
 # tracking (?1004l) is re-reset AFTER ?1049l: on win32 a reset written before
 # the alt-screen exit lands on the alt buffer, so 1004 stays armed on the main
 # buffer and focus flips spew ^[[I/^[[O at the dead prompt (field TASK-005 L4).
 if ((-not [Console]::IsOutputRedirected) -and ($rtExit -ne 0)) {
-  & node -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>$null
+  & $nodeBin -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>$null
 }
 exit $rtExit
 } finally {
@@ -563,8 +628,11 @@ export function readmeFirst(p, version) {
 
 ## Quick start (three steps)
 
-1. **Require ${p.label}** (a Node ${p.major}.x release, ${p.range}; newer majors are not
-   yet qualified) — check with \`node -v\` (install from nodejs.org if needed).
+1. **Nothing to install first.** The archive carries its own Node runtime
+   (${p.label}) beside \`mercury.mjs\`, and every launcher runs on it. To run
+   on a Node of your own instead, point \`MERCURY_NODE\` at its binary, or
+   keep one on PATH inside ${p.range} and delete \`vendor/node\` (newer majors
+   are not yet qualified).
    **Windows additionally requires Git for Windows (git-bash)** —
    https://git-scm.com/downloads/win — Mercury runs its shell through git-bash's
    \`bash.exe\`. If it is installed but not on PATH, point Mercury at it:
@@ -663,8 +731,9 @@ background — updates happen only when you run the command.
   operator time than macOS/Linux; there is no automatic background update.
 - **Release notes:** RELEASE-NOTES.md in this folder covers what changed.
 
-This archive is self-contained: no npm install, no source checkout, no Bun.
-The \`vendor/ripgrep\` directory must stay beside \`mercury.mjs\`.
+This archive is self-contained: no Node install, no npm install, no source
+checkout, no Bun. The \`vendor\` directory (the Node runtime, ripgrep, the
+language packs) must stay beside \`mercury.mjs\`.
 
 Third-party notices + origin facts: \`NOTICES.md\` in this folder. Mercury is
 a standalone, source-built product.
@@ -675,7 +744,9 @@ a standalone, source-built product.
 export function installingDoc(p, version) {
   return `# Installing Mercury ${version}
 
-Two coherent paths, one runtime. Both need ${p.label} (${p.range}).
+Two coherent paths, one runtime. Both run on the Node the archive carries
+(\`vendor/node\`, ${p.label}); \`MERCURY_NODE\` or a PATH node inside
+${p.range} may stand in for it.
 
 ## Portable (zero install)
 
@@ -744,7 +815,8 @@ stores your GitHub credentials; \`gh\` holds them itself.
 
 - collaborator access to the private Mercury repository;
 - GitHub CLI installed and signed in — \`gh auth status\` confirms readiness;
-- ${p.label} (${p.range}), same as running Mercury.
+- no Node install: every archive carries its own runtime (${p.label}), and an
+  updated version brings its own.
 
 ## The commands
 

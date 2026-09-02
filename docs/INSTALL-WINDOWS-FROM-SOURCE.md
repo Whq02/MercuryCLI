@@ -11,7 +11,9 @@ Time: about 15 minutes, most of it downloads.
 
 ## 0. What you are building
 
-Mercury is one JavaScript file (`dist\mercury.mjs`) that Node runs. You will:
+Mercury is one JavaScript file (`dist\mercury.mjs`) that Node runs. (A
+release archive carries its own Node beside that file and needs only Git;
+this page builds from source, which needs Node and bun too.) You will:
 
 1. install three tools (Git, Node, bun),
 2. clone the repository,
@@ -125,8 +127,9 @@ a version other than 24, install the LTS-24 build from
 64-bit, version 24).
 
 The `doctor` health report you will meet in step 9 reads this same policy:
-its **Node & ripgrep** row (check id `runtime`) shows the Node it found
-against the supported range, and when its fix line says to install Node
+its **Node & ripgrep** row (check id `runtime`) shows which Node it runs on
+(the vendored runtime beside the build, an explicit `MERCURY_NODE`, or the
+PATH Node it found) against the supported range, and when its fix line says to install Node
 24.20.0 or newer it means this floor — the nodejs/node#56645 exit abort is
 what it is protecting you from. On a Node below the floor you rarely get
 that far: every `node dist\mercury.mjs` route, `doctor` included, refuses at
@@ -211,18 +214,21 @@ go back to step 4.
 
 ## 7. Fetch the optional language packs
 
-These four commands download pinned, hash-verified helpers: the Python
+These five commands download pinned, hash-verified helpers: the Python
 language server, the Python debugger, the Node/TypeScript debug adapter,
-and extra tree-sitter grammars for the structural code tools. Mercury
-builds and runs **without** them (the build prints a warning naming what
-was skipped, and the affected features say so honestly at runtime), but a
-full install has them.
+extra tree-sitter grammars for the structural code tools, and this
+machine's own Node runtime (the official `win-x64` build, vendored beside
+the bundle so a release archive made from this build needs no Node
+install). Mercury builds and runs **without** them (the build prints a
+warning naming what was skipped, and the affected features say so honestly
+at runtime), but a full install has them.
 
 ```powershell
 bun run scripts/vendor/fetch-pyright.ts
 bun run scripts/vendor/fetch-debugpy.ts
 bun run scripts/vendor/fetch-js-debug.ts
 bun run scripts/vendor/fetch-grammars.ts
+bun run scripts/vendor/fetch-node.ts
 ```
 
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the

@@ -54,6 +54,19 @@ import {
   type LayoutRoots,
   type ShimOutcome,
 } from './installLayout.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
+
+/** The RUNNING process's runtime — which rung produced it and whether the
+ *  payload it runs from carries a vendored one (the one owner's law). */
+export function runningRuntime(): RunningRuntime {
+  return describeRunningRuntime({
+    payloadDir: runningBundlePayloadDir(),
+    execPath: process.execPath,
+    execVersion: process.versions.node,
+    explicitNode: flagEnv('MERCURY_NODE') ?? null,
+  })
+}
 
 /** Progress states — calm, explicit, one line each, to stderr. */
 export type ProgressLine =
@@ -92,6 +105,8 @@ export interface ChannelStatus {
   versionsDir: string
   shim: 'absent' | 'managed' | 'foreign'
   shimPath: string
+  /** the running runtime: its rung, its version, the vendored one when carried */
+  runtime: RunningRuntime
   channelRepo: string
   access: GhAccess
 }
@@ -107,10 +122,14 @@ export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> 
     versionsDir: roots.versionsDir,
     shim: shimStatus(roots),
     shimPath: roots.shimPath,
+    runtime: runningRuntime(),
     channelRepo: slug,
     access: await checkAccess(slug),
   }
 }
+
+/** The status report's runtime line. */
+export const statusRuntimeLine = (status: Pick<ChannelStatus, 'runtime'>): string => runtimeLine(status.runtime)
 
 // ── check ───────────────────────────────────────────────────────────────────
 
@@ -502,7 +521,7 @@ export type InstallVerbOutcome =
       binDirOnPath: boolean
     }
   | { state: 'refused'; reason: string; remedy: string }
-  | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; note: string }
+  | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string }
 
 export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
   const payloadDir = runningPayloadDir()
@@ -512,6 +531,7 @@ export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
     version: payload.state === 'ok' ? payload.version : null,
     wouldInstallTo: join(roots.versionsDir, payload.state === 'ok' ? payload.version : '<version>'),
     shimPath: roots.shimPath,
+    runtime: payloadRuntimeLine(payloadDir),
     note:
       payload.state === 'ok'
         ? 'no changes made (dry run); configuration and sessions are never touched'

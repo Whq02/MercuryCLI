@@ -99,7 +99,7 @@ console.log('[2] cross-drive and colon-in-filename fall back with --force-local 
 
 console.log('[3] the census: every fetch script extracts through the one helper')
 {
-  const scripts = ['fetch-pyright.ts', 'fetch-js-debug.ts', 'fetch-grammars.ts']
+  const scripts = ['fetch-pyright.ts', 'fetch-js-debug.ts', 'fetch-grammars.ts', 'fetch-node.ts']
   for (const script of scripts) {
     const text = readFileSync(join(import.meta.dir, '..', 'vendor', script), 'utf8')
     check(`${script} imports the shared helper`, text.includes("from './tarExtract.ts'"))

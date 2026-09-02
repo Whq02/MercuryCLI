@@ -56,7 +56,9 @@ for (const [name, version] of listed) {
 }
 check('no version drift vs installed metadata', versionDrift.length === 0, versionDrift.slice(0, 5).join('; '))
 
-for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms']) {
+// Every vendored payload family the archive carries (the packager refuses an
+// archive whose notices omit one — js-debug was the gap it caught).
+for (const vendor of ['ripgrep', 'debugpy', 'pyright', 'js-debug', 'TypeScript compiler', 'tree-sitter', 'tree-sitter-wasms', 'Node.js runtime']) {
   check(`vendor payload named: ${vendor}`, notices.includes(vendor))
 }
 {
