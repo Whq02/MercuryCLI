@@ -28,6 +28,7 @@ import {
 } from '../../utils/auth.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
+import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
@@ -128,6 +129,7 @@ function NotificationsColumn({
     current?.key !== 'limit-reached'
   const notAuthenticated =
     apiKeyStatus === 'invalid' || apiKeyStatus === 'missing'
+  const signInEpoch = useSignInEpoch()
   const walletGate = useMemo((): NotLoggedInGate => {
     if (!notAuthenticated) return { state: 'ok' }
     try {
@@ -138,7 +140,8 @@ function NotificationsColumn({
     } catch {
       return { state: 'not-logged-in' }
     }
-  }, [notAuthenticated, mainLoopModel])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notAuthenticated, mainLoopModel, signInEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
   const tokenUsage = tokenCountWithEstimation(messages)
   const showTokenCount = verbose && !sessionBlocked
