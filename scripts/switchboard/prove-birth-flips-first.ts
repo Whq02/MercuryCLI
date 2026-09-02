@@ -244,6 +244,11 @@ if (sendRecs.length === sends.length) {
 
 section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')
 {
+  const socket = read('src/daemon/controlServer.ts')
+  check('the admit answer carries the retained-model note across the control socket', socket.includes('...(r.note !== undefined ? { note: r.note } : {}),'))
+  const supervisor6 = read('src/daemon/concourseSupervisor.ts')
+  check('the admission re-validates a refused retained model UNNAMED and mints the note on every ok road', supervisor6.includes("validated.reason.startsWith('no-credential:')") && supervisor6.split('retainedNote !== undefined').length >= 4)
+  check('the resume door paints the note on the screen-receipt seam', read('src/services/switchboard/hopIntoSession.ts').includes("if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')"))
   const home2 = mkdtempSync(join(tmpdir(), 'resume-keyless-home-'))
   const cwd2 = realpathSync(mkdtempSync(join(tmpdir(), 'resume-keyless-cwd-')))
   const configDir2 = join(home2, '.mercury')
