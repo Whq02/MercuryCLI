@@ -9,7 +9,9 @@ export function footerNoticeLine(text: string): string {
 
 import { basename } from 'node:path'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Text } from '../../ink.js'
+import { Box, Text, measureElement } from '../../ink.js'
+import type { DOMElement } from '../../ink/dom.js'
+import { publishNotificationRows } from './notificationRowsMirror.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { Message } from '../../types/message.js'
@@ -79,6 +81,16 @@ function NotificationsColumn({
   const current = useAppState(
     (state: AppState) => state.notifications.current,
   )
+  const columnRef = useRef<DOMElement | null>(null)
+  useEffect(() => {
+    const element = columnRef.current
+    if (!element) return
+    try {
+      publishNotificationRows(measureElement(element).height)
+    } catch {
+    }
+  })
+  useEffect(() => () => publishNotificationRows(0), [])
   const mainLoopModel = useAppState((state: AppState) => state.mainLoopModel)
   const limits = useClaudeAiLimits()
 
@@ -178,6 +190,7 @@ function NotificationsColumn({
       flexShrink={0}
       overflow="hidden"
       alignItems={alignStart ? 'flex-start' : 'flex-end'}
+      ref={columnRef}
     >
       <FaultInjector />
       <IdeStatusIndicator ideSelection={ideSelection} mcpClients={mcpClients} />
