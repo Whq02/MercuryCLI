@@ -15,12 +15,25 @@
 //       returns to zero (no timer outlives its window);
 //   D2  census discipline — disarm before fire leaves zero and never runs;
 //       distinct windows each run once;
-//   D3  (source pins — Enter immediate) accept/execute read the settled
-//       match synchronously and never touch the debounce; the empty-query
-//       restore is immediate; nextMatch FLUSHES a pending scan as a fresh
-//       scan; reset and handleStartSearch disarm; the non-empty keystroke
-//       path arms with HISTORY_SCAN_DEBOUNCE_MS and reads the query at
-//       fire time.
+//   D3  (source pins — Enter immediate, the identity fixed synchronously)
+//       accept/execute act through withFixedMatch, whose own block holds
+//       no await, no timer arm, no setTimeout: the settled match when the
+//       query's scan has landed, else the timer is disarmed, the scan
+//       aborted and the loaded corpus walked in place; only a paste-bearing
+//       record's resolution is awaited, after the record is fixed; the
+//       empty-query restore is immediate; nextMatch FLUSHES a pending scan
+//       as a fresh scan; reset and handleStartSearch disarm; the non-empty
+//       keystroke path arms with HISTORY_SCAN_DEBOUNCE_MS and reads the
+//       query at fire time; the scan raises its in-flight flag before its
+//       async road and lowers it in a finally guarded by its epoch.
+//   G   (the fast-Enter arm, module drive) THE DEFECT: "foo" settled, "b"
+//       typed inside the window, Enter — the previous query's match used to
+//       EXECUTE. The identity fixed over the loaded corpus is the NEW
+//       query's first match; a continuing scan's seen set yields the next
+//       not-yet-seen match; no match is no match; a record without pastes
+//       resolves before the call returns; a paste-bearing record resolves
+//       through the corpus reader after the fix; the disarmed timer never
+//       fires.
 //
 //  Pure module + source pins — no PTY, no render.
 //
@@ -97,17 +110,39 @@ section('D3 · source pins — Enter immediate, flush-on-cycle, disarm on every 
   }
   const acceptBlock = blockOf('const accept = useCallback')
   const executeBlock = blockOf('const execute = useCallback')
-  check('accept reads the settled match synchronously — no debounce interaction, no await', acceptBlock !== '' && !/armHistoryScanTimer|await |setTimeout/.test(acceptBlock))
-  check('execute reads the settled match synchronously — no debounce interaction, no await', executeBlock !== '' && !/armHistoryScanTimer|await |setTimeout/.test(executeBlock))
+  check('accept acts through withFixedMatch — no debounce arm, no await, no setTimeout in its block', acceptBlock !== '' && /withFixedMatch\(match => \{/.test(acceptBlock) && !/armHistoryScanTimer|await |setTimeout/.test(acceptBlock))
+  check('execute acts through withFixedMatch — no debounce arm, no await, no setTimeout in its block', executeBlock !== '' && /withFixedMatch\(match => \{/.test(executeBlock) && !/armHistoryScanTimer|await |setTimeout/.test(executeBlock))
+  const fixBlock = src.slice(src.indexOf('const withFixedMatch = useCallback'), src.indexOf('const accept = useCallback'))
+  check('withFixedMatch: the settled match stands only when nothing is pending or in flight', /if \(queryRef\.current === '' \|\| \(!pending && !scanInFlightRef\.current\)\) \{\s*\n\s*settle\(matchRef\.current\)/.test(fixBlock))
+  check('…else the timer is disarmed, the scan aborted and the identity fixed over the loaded corpus — synchronously (no await in the block)', /disarmHistoryScanTimer\(scanDebounceRef\.current\)[\s\S]{0,200}scanAbortRef\.current\?\.abort\(\)[\s\S]{0,400}findHistoryMatchSync\(corpus, queryRef\.current, seenRef\.current\)/.test(fixBlock) && !/await |setTimeout|\barmHistoryScanTimer/.test(fixBlock))
+  check('…with a fresh scan\'s semantics when the timer was pending (the previous query\'s seen set dropped)', /if \(pending\) seenRef\.current\.clear\(\)/.test(fixBlock))
+  check('…and the resolution runs only after the record is fixed', /if \(record === undefined\) \{\s*\n\s*settle\(undefined\)\s*\n\s*return\s*\n\s*\}\s*\n\s*resolveFixedMatch\(record, settle\)/.test(fixBlock))
+  const resolveBlock = src.slice(src.indexOf('export function resolveFixedMatch('), src.indexOf('export function useHistorySearch('))
+  check('resolveFixedMatch: a record without pastes settles in place, synchronously', /length === 0\) \{\s*\n\s*settle\(\{ display: record\.display, pastedContents: \{\} \}\)\s*\n\s*return/.test(resolveBlock))
+  check('…and a paste-bearing record resolves through the corpus reader (the one owner), after the fix', /makeHistoryReaderOver\(\[record\]\)\.next\(\)/.test(resolveBlock))
+  const scanBlock = src.slice(src.indexOf('const scan = useCallback'), src.indexOf('const restoreOriginal = useCallback'))
+  check('the scan raises its in-flight flag with an epoch token before its async road', /scanInFlightRef\.current = true\s*\n\s*const token = \+\+scanEpochRef\.current\s*\n\s*void \(async \(\) => \{/.test(scanBlock))
+  check('…and lowers it in a finally, only while it is still the latest scan', /\} finally \{[\s\S]{0,300}if \(token === scanEpochRef\.current\) scanInFlightRef\.current = false/.test(scanBlock))
+  check('the loaded corpus is kept beside its promise for the walk', /corpusValueRef\.current = corpus/.test(scanBlock) && /if \(corpusRef\.current === load\) corpusValueRef\.current = corpus/.test(src))
   const setQueryBlock = blockOf('const setHistoryQuery = useCallback')
   check(
     'the non-empty keystroke path arms ONE debounced scan at the named cadence, reading the query at fire time',
     /disarmHistoryScanTimer\(scanDebounceRef\.current\)\s*\n\s*scanDebounceRef\.current = armHistoryScanTimer\(\(\) => \{\s*\n\s*scanDebounceRef\.current = null\s*\n\s*scan\(queryRef\.current, false\)\s*\n\s*\}, HISTORY_SCAN_DEBOUNCE_MS\)/.test(setQueryBlock),
   )
+  // The branch itself is the scope. The previous negative look-ahead ran
+  // up to 900 characters past the branch's start — far enough to reach the
+  // arm below the branch and the deps array's onModeChange — so it failed
+  // a SHORTER branch that disarmed correctly: a pin on distance, not on
+  // shape. The needle is word-bounded: disarmHistoryScanTimer( contains
+  // the bare spelling.
+  const branchStart = setQueryBlock.indexOf("if (query === '') {")
+  const branchEnd = setQueryBlock.indexOf('// One-frame coalescing')
+  const emptyBranch = branchStart !== -1 && branchEnd > branchStart ? setQueryBlock.slice(branchStart, branchEnd) : ''
   check(
-    'the empty-query restore is IMMEDIATE (disarms, then restores in the same call — no arm before the restore)',
-    /if \(query === ''\) \{[\s\S]{0,900}disarmHistoryScanTimer[\s\S]{0,900}onModeChange\(original\.mode\)[\s\S]{0,200}return/.test(setQueryBlock) &&
-      !/if \(query === ''\) \{[\s\S]{0,900}armHistoryScanTimer\(\(\) =>[\s\S]{0,300}onModeChange/.test(setQueryBlock),
+    'the empty-query restore is IMMEDIATE (disarms, then restores in the same call — no arm inside the branch)',
+    emptyBranch !== '' &&
+      /disarmHistoryScanTimer\(scanDebounceRef\.current\)[\s\S]{0,900}onModeChange\(original\.mode\)[\s\S]{0,200}return/.test(emptyBranch) &&
+      !/\barmHistoryScanTimer\(/.test(emptyBranch),
   )
   const nextBlock = blockOf('const nextMatch = useCallback')
   check(
@@ -119,6 +154,55 @@ section('D3 · source pins — Enter immediate, flush-on-cycle, disarm on every 
   const startBlock = blockOf('const handleStartSearch = useCallback')
   check('handleStartSearch disarms the pending scan', /disarmHistoryScanTimer\(scanDebounceRef\.current\)/.test(startBlock))
   check('the cadence is roughly one frame (20-50ms)', HISTORY_SCAN_DEBOUNCE_MS >= 20 && HISTORY_SCAN_DEBOUNCE_MS <= 50, String(HISTORY_SCAN_DEBOUNCE_MS))
+}
+
+section('G · the fast-Enter arm — the identity is fixed synchronously over the loaded corpus')
+{
+  const { findHistoryMatchSync, resolveFixedMatch } = hooks
+  type Rec = { display: string; pastedContents: Record<number, { id: number; type: 'text' | 'image'; content?: string; contentHash?: string }>; timestamp: number; project: string }
+  const rec = (display: string, pastedContents: Rec['pastedContents'] = {}): Rec => ({ display, pastedContents, timestamp: 1, project: '/p' })
+  // Newest-first, as the corpus is: the "foo" query settles on the first
+  // row; the "foob" query's first match is the second.
+  const corpus = [rec('foo fighters'), rec('foobar'), rec('foob!'), rec('unrelated')] as never
+  // G1 — THE DEFECT ARM: "foo" settled on 'foo fighters' (its seen set holds
+  // it); "b" typed inside the window arms the timer; Enter.
+  {
+    const settledForFoo = findHistoryMatchSync(corpus, 'foo', new Set())
+    check('G1 fixture: the settled "foo" match is the first row', settledForFoo?.display === 'foo fighters')
+    let timer: ReturnType<typeof setTimeout> | null = armHistoryScanTimer(() => {}, HISTORY_SCAN_DEBOUNCE_MS)
+    // Enter, inside the window: disarm the pending scan and fix the identity
+    // now with a fresh scan's semantics (the previous seen set dropped).
+    disarmHistoryScanTimer(timer)
+    timer = null
+    const fixed = findHistoryMatchSync(corpus, 'foob', new Set())
+    check("G1 the fixed identity is the NEW query's first match, not the stale settled one", fixed?.display === 'foobar' && fixed?.display !== settledForFoo?.display, String(fixed?.display))
+    check('G1 the pending timer is gone (census 0)', historyScanTimerCensus() === 0, `census=${historyScanTimerCensus()}`)
+    await sleep(HISTORY_SCAN_DEBOUNCE_MS * 2)
+    check('G1 the disarmed scan never fires', historyScanTimerCensus() === 0)
+  }
+  // G2 — a continuing scan in flight keeps its seen set: the next not-yet-seen match
+  check('G2 with the seen set standing, the next not-yet-seen match is fixed', findHistoryMatchSync(corpus, 'foob', new Set(['foobar']))?.display === 'foob!')
+  check('G2 the walk keeps the reader order (newest first)', findHistoryMatchSync(corpus, 'foo', new Set())?.display === 'foo fighters')
+  // G3 — no match is no match
+  check('G3 no record matches ⇒ undefined (Enter then acts on no match, never a stale one)', findHistoryMatchSync(corpus, 'zzz', new Set()) === undefined)
+  check('G3 every match seen ⇒ undefined', findHistoryMatchSync(corpus, 'foob', new Set(['foobar', 'foob!'])) === undefined)
+  // G4 — resolution after the fix
+  {
+    let plain: unknown = 'unset'
+    resolveFixedMatch(rec('plain prompt') as never, entry => {
+      plain = entry
+    })
+    const p = plain as { display?: string; pastedContents?: Record<number, unknown> } | 'unset'
+    check('G4 a record without pastes settles before the call returns', p !== 'unset' && p?.display === 'plain prompt' && Object.keys(p?.pastedContents ?? { x: 1 }).length === 0, JSON.stringify(plain))
+    let pasted: unknown = 'unset'
+    resolveFixedMatch(rec('with a paste [Pasted text #1 +2 lines]', { 1: { id: 1, type: 'text', content: 'a\nb\nc' } }) as never, entry => {
+      pasted = entry
+    })
+    check('G4 a paste-bearing record does not settle synchronously (the identity is already fixed)', pasted === 'unset')
+    await sleep(30)
+    const q = pasted as { display?: string; pastedContents?: Record<number, { content?: string }> } | 'unset'
+    check('G4 …and settles with the paste resolved through the corpus reader', q !== 'unset' && q?.pastedContents?.[1]?.content === 'a\nb\nc', JSON.stringify(pasted))
+  }
 }
 
 console.log('\n' + '='.repeat(60))

@@ -21,8 +21,12 @@
 //       the tail too — it returned the first budget of bytes alone, cut
 //       mid-line with no notice and no pointer (TASK-014 w4-f01-01: the
 //       ledger's T4 failing on Windows through the spill sink).
+//    §7 the shell-IMAGE read: the spill file (up to 20 MB) is read back on
+//       the tool's async road through awaited stat/readFile, never the
+//       sync twins; the size gate, the null answers and the vanished-file
+//       rejection are drop-in identical.
 // ============================================================================
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, truncateSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
@@ -204,6 +208,41 @@ section('§6 one completion promise per command; the quiet timer dies on finish'
     check(`${rel}: exactly ONE completion .then per run`, src.split(".then(() => 'done'").length === 2)
     check(`${rel}: the quiet timer is cleared when the command wins`, src.includes('clearTimeout(quietTimerHandle)'))
   }
+}
+
+section('§7 the shell-image read is awaited — never a sync read on the tool’s async road')
+{
+  // A shell-produced image is read back from its spill file (stdout is
+  // capped) — up to the 20 MB cap — and the read sat on the tool's async
+  // road as statSync + readFileSync: the cockpit froze for the read.
+  const { resizeShellImageOutput } = await import('../../src/tools/BashTool/utils.ts')
+  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'BashTool', 'utils.ts'), 'utf8')
+  check('utils.ts carries no statSync/readFileSync (the resize road awaits node:fs/promises)', !/\b(?:statSync|readFileSync)\s*\(/.test(src) && src.includes("await import('node:fs/promises')"))
+  check('the size gate is an awaited stat and the read an awaited readFile', /outputFileSize \?\? \(await stat\(outputFilePath\)\)\.size/.test(src) && /source = await readFile\(outputFilePath, 'utf8'\)/.test(src))
+  check('the 20 MB cap is kept', src.includes('const MAX_IMAGE_DATA_URI_BYTES = 20 * 1024 * 1024'))
+  const dir = mkdtempSync(join(tmpdir(), 'shell-image-'))
+  const big = join(dir, 'big.output')
+  writeFileSync(big, '')
+  truncateSync(big, 21 * 1024 * 1024) // sparse: the size gate must answer from the stat alone
+  check('an over-cap spill file answers null through the size gate (a stat, never a read)', (await resizeShellImageOutput('data:image/png;base64,AAAA', big, undefined)) === null)
+  check('a caller-provided size takes the same gate without touching the file', (await resizeShellImageOutput('data:image/png;base64,AAAA', join(dir, 'absent.output'), 21 * 1024 * 1024)) === null)
+  check('a non-image stdout answers null', (await resizeShellImageOutput('plain text', undefined, undefined)) === null)
+  let rejected = false
+  try {
+    await resizeShellImageOutput('data:image/png;base64,AAAA', join(dir, 'absent.output'), undefined)
+  } catch {
+    rejected = true
+  }
+  check('a vanished spill file still rejects (the sync shape threw — drop-in parity)', rejected)
+  // The read road end to end: a 1×1 PNG data URI in the spill file comes
+  // back re-encoded as an image data URI (the resizer keeps a tiny in-bounds
+  // image as is).
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64')
+  const spill = join(dir, 'image.output')
+  writeFileSync(spill, `data:image/png;base64,${png.toString('base64')}`)
+  const out = await resizeShellImageOutput('data:image/png;base64,TRUNCATED', spill, undefined)
+  check('the spill file, not the capped stdout, is what gets decoded and re-encoded', typeof out === 'string' && out.startsWith('data:image/png;base64,') && Buffer.from(out.slice('data:image/png;base64,'.length), 'base64').equals(png), typeof out === 'string' ? out.slice(0, 40) : String(out))
+  rmSync(dir, { recursive: true, force: true })
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

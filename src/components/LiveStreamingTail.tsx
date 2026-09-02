@@ -72,22 +72,92 @@ const getFocusedTailModel = (): string => getFocusedSessionConnector().modelFact
  *  string may not itself contain a backtick; the closer is the same
  *  character, at least as long, with nothing else on its line. A
  *  fence-looking line inside an open block is content, never a nested
- *  opener. */
+ *  opener. Pure and uncached — the whole-prefix fold; the tail's own road
+ *  is the carried fold (openFenceBefore) over the same per-line law. */
 export function openFenceOf(prefix: string): string | null {
-  let open: { char: string; len: number; line: string } | null = null
-  for (const line of prefix.split('\n')) {
-    const m = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line)
-    if (!m) continue
-    const marker = m[1]!
-    const char = marker[0]!
-    const rest = m[2]!
-    if (open === null) {
-      if (char === '`' && rest.includes('`')) continue
-      open = { char, len: marker.length, line: line.trimStart() }
-    } else if (char === open.char && marker.length >= open.len && rest.trim() === '') {
-      open = null
-    }
+  const open = foldFenceRange(prefix, 0, prefix.length, null)
+  return open ? open.line : null
+}
+
+type OpenFence = { char: string; len: number; line: string }
+const FENCE_LINE = /^ {0,3}(`{3,}|~{3,})(.*)$/
+
+/** ONE line through the fence ledger: the per-line law, one owner. */
+function foldFenceLine(open: OpenFence | null, line: string): OpenFence | null {
+  const m = FENCE_LINE.exec(line)
+  if (!m) return open
+  const marker = m[1]!
+  const char = marker[0]!
+  const rest = m[2]!
+  if (open === null) {
+    if (char === '`' && rest.includes('`')) return null
+    return { char, len: marker.length, line: line.trimStart() }
   }
+  if (char === open.char && marker.length >= open.len && rest.trim() === '') return null
+  return open
+}
+
+/** A fence line begins with at most three spaces and then ` or ~ — the
+ *  cheap pre-check that spares every prose line its slice and its regex. */
+function canOpenFence(text: string, from: number, to: number): boolean {
+  let i = from
+  while (i < to && i - from < 3 && text.charCodeAt(i) === 32) i++
+  if (i >= to) return false
+  const c = text.charCodeAt(i)
+  return c === 96 || c === 126
+}
+
+/** Fold the lines of text[from, to) onto `open` — `to` a line start or the
+ *  end of the text. Lines are located by indexOf over the text in place,
+ *  never by slicing the region and splitting it into a line array; only a
+ *  line that can be a fence at all is sliced out and matched. */
+function foldFenceRange(text: string, from: number, to: number, open: OpenFence | null): OpenFence | null {
+  let at = from
+  while (at < to) {
+    let end = text.indexOf('\n', at)
+    if (end === -1 || end > to) end = to
+    fenceFoldCensus.lines++
+    if (canOpenFence(text, at, end)) open = foldFenceLine(open, text.slice(at, end))
+    at = end + 1
+  }
+  return open
+}
+
+/** Operation census for the parity prover — lines the fold visited, carries
+ *  taken, carries dropped. The law is O(delta) per publish, and a count is
+ *  the honest instrument for it, never a wall clock. */
+export const fenceFoldCensus = { lines: 0, carries: 0, resets: 0 }
+
+/** The fence fold behind boundTailForInline, carried across publishes. The
+ *  store republishes the growing reply every ~32 ms and the cut only moves
+ *  forward as the reply grows, so the fold over the discarded prefix is
+ *  carried: when the new text EXTENDS the last one and the cut did not
+ *  retreat, only the lines in [lastCut, cut) fold onto the carried state —
+ *  O(delta) per publish, where re-folding the whole prefix was O(reply
+ *  length) per tick (quadratic over a long stream, two allocations a tick:
+ *  the prefix copy and its line array). Any other shape — a new reply, a
+ *  rewrite, a cut that moved back on a resize — drops the carry and folds
+ *  from the start: conservative, correct. The cut is always a line start,
+ *  so the carried fold equals the whole fold to the byte (the parity
+ *  prover holds the whole-prefix shape as its oracle). One carry per
+ *  process: the inline tail is the one consumer, and a second tail
+ *  alternating texts merely re-folds (correct, uncarried). */
+const fenceCarry: { text: string; cut: number; open: OpenFence | null } = { text: '', cut: 0, open: null }
+
+function openFenceBefore(text: string, cut: number): string | null {
+  let from = 0
+  let open: OpenFence | null = null
+  if (cut >= fenceCarry.cut && text.startsWith(fenceCarry.text)) {
+    from = fenceCarry.cut
+    open = fenceCarry.open
+    fenceFoldCensus.carries++
+  } else {
+    fenceFoldCensus.resets++
+  }
+  open = foldFenceRange(text, from, cut, open)
+  fenceCarry.text = text
+  fenceCarry.cut = cut
+  fenceCarry.open = open
   return open ? open.line : null
 }
 
@@ -127,7 +197,10 @@ export function boundTailForInline(
   // state: the discarded prefix's standing opener rides out for the
   // renderer to prepend, so the tail's dress matches the settled render.
   // The kept TEXT itself stays byte-identical (the parity oracle's pin).
-  return { text: text.slice(cut), truncated: true, openFence: openFenceOf(text.slice(0, cut)) }
+  // The fold is carried between publishes (openFenceBefore): only the
+  // lines the cut advanced over since the last tick are folded, never the
+  // whole prefix again.
+  return { text: text.slice(cut), truncated: true, openFence: openFenceBefore(text, cut) }
 }
 
 /** The settle ghost's backstop past the turn's falling edge (FN-016 R24):

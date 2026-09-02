@@ -6,6 +6,7 @@ import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { anchorPatchEnabled } from '../../services/changeTransaction/anchorPatch.js'
 import { fileGeneration, recordSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { discoveryPoolWidth, mapWithConcurrency } from '../../utils/concurrency.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
 import { splitGrepGlobField } from '../../utils/globPattern.js'
@@ -395,18 +396,22 @@ export const GrepTool = buildTool({
       }
     }
 
-    // files_with_matches (default): settled-batch stats so one deleted file
-    // cannot sink the batch; failed stats sort as time zero.
-    const statted = await Promise.all(
-      lines.map(async file => {
-        try {
-          const stats = await stat(file)
-          return { file, mtimeMs: stats.mtimeMs }
-        } catch {
-          return { file, mtimeMs: 0 }
-        }
-      }),
-    )
+    // files_with_matches (default): mtime is the sort key, so every hit is
+    // stat'ed BEFORE pagination — through the bounded disk-metadata pool. An
+    // unbounded Promise.all over the hit list queued hundreds of thousands
+    // of stats at once against libuv's four-thread pool at the ripgrep
+    // output ceiling (20 MB of paths). The pool is order-preserving, so the
+    // sort sees byte-identical input; the per-file catch stays INSIDE the
+    // mapper (an uncaught throw rejects the whole map) — one deleted file
+    // cannot sink the batch, and a failed stat sorts as time zero.
+    const statted = await mapWithConcurrency(lines, discoveryPoolWidth(), async file => {
+      try {
+        const stats = await stat(file)
+        return { file, mtimeMs: stats.mtimeMs }
+      } catch {
+        return { file, mtimeMs: 0 }
+      }
+    })
     if (process.env.NODE_ENV === 'test') {
       // Deterministic under the test environment: pure filename order.
       statted.sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0))
