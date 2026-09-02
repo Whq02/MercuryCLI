@@ -95,7 +95,30 @@ export function wouldLoseAuthState(fresh: {
 // (flushDeferredGlobalConfigSaves). Every save in between FOLDS the
 // pending updaters into its own write — an intermediate save can never
 // publish a view that lacks them — and a landed write clears the list.
+// The headless roads (-p, a concourse worker, a verb) have no launch graph: the
+// deferred writer arms its own exit flush (armDeferredExitFlush below).
 let pendingDeferredUpdaters: Array<(currentConfig: GlobalConfig) => GlobalConfig> = []
+
+// The deferred road's exit seam. A headless run leaves through
+// gracefulShutdown's forceExit, a verb's own process.exit, or a drained
+// loop — the one seam every road crosses is the process 'exit' event, where
+// a synchronous publish is legal (the cost ledger's exit write is the
+// precedent) and asynchronous work is not. Armed once, at the first
+// deferral; a no-op at exit when nothing is pending. A kill that skips
+// 'exit' loses the pending telemetry counts — the named trade the deferred
+// road already makes for a crash before the launch-graph node.
+let deferredExitFlushArmed = false
+function armDeferredExitFlush(): void {
+  if (deferredExitFlushArmed) return
+  deferredExitFlushArmed = true
+  process.once('exit', () => {
+    try {
+      flushDeferredGlobalConfigSaves()
+    } catch {
+      // The exit proceeds; what was lost is telemetry.
+    }
+  })
+}
 
 function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
   let folded = current
@@ -104,8 +127,9 @@ function foldPendingUpdaters(current: GlobalConfig): GlobalConfig {
 }
 
 /** Apply `updater` to the in-memory config now; the disk publish waits for
- *  the next save of any kind or flushDeferredGlobalConfigSaves(). A
- *  same-reference return schedules nothing. */
+ *  the next save of any kind, flushDeferredGlobalConfigSaves(), or the
+ *  process exit (the armed exit flush). A same-reference return schedules
+ *  nothing. */
 export function saveGlobalConfigDeferred(
   updater: (currentConfig: GlobalConfig) => GlobalConfig,
 ): void {
@@ -117,6 +141,7 @@ export function saveGlobalConfigDeferred(
   const next = updater(current)
   if (next === current) return
   pendingDeferredUpdaters.push(updater)
+  armDeferredExitFlush()
   writeThroughGlobalConfigCache({
     ...next,
     projects: removeProjectHistory(next.projects),
