@@ -6,6 +6,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { readAccountOAuthCreds } from './scopedCredentialRead.js'
 import { readScopeIdentity } from './scopeScan.js'
+import { signInLedgerEpoch } from './signInLedger.js'
 
 export type ScopeIdentityState =
   | { state: 'verified'; email: string; uuid?: string }
@@ -14,10 +15,15 @@ export type ScopeIdentityState =
   | { state: 'unverified'; email?: string; note: string }
 
 const CACHE_TTL_MS = 5 * 60_000
-const cache = new Map<string, { at: number; value: ScopeIdentityState }>()
+const cache = new Map<string, { at: number; epoch: number; value: ScopeIdentityState }>()
+
+export function forgetScopeIdentity(dir?: string): void {
+  if (dir === undefined) cache.clear()
+  else cache.delete(dir)
+}
 
 export function _resetIdentityCacheForTesting(): void {
-  cache.clear()
+  forgetScopeIdentity()
 }
 
 export interface ResolveIdentityDeps {
@@ -31,9 +37,10 @@ export async function resolveLiveScopeIdentity(
   deps: ResolveIdentityDeps = {},
 ): Promise<ScopeIdentityState> {
   const cached = cache.get(dir)
-  if (cached && Date.now() - cached.at < CACHE_TTL_MS) return cached.value
+  const epoch = signInLedgerEpoch()
+  if (cached && cached.epoch === epoch && Date.now() - cached.at < CACHE_TTL_MS) return cached.value
   const value = await resolveUncached(dir, deps)
-  if (value.state !== 'unverified') cache.set(dir, { at: Date.now(), value })
+  if (value.state !== 'unverified') cache.set(dir, { at: Date.now(), epoch, value })
   return value
 }
 
@@ -135,5 +142,27 @@ export function healScopeIdentitySnapshot(
     logForDebugging(`[accounts] healed identity snapshot for ${dir} → ${identity.email}`)
   } catch (err) {
     logForDebugging(`[accounts] snapshot heal failed for ${dir}: ${String(err)}`)
+  }
+}
+
+export function clearScopeIdentitySnapshot(dir: string): void {
+  try {
+    const file = join(dir, '.claude.json')
+    if (!existsSync(file)) return
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(readFileSync(file, 'utf8'))
+    } catch (readErr) {
+      logForDebugging(`[accounts] snapshot clear skipped for ${dir}: the file is not readable JSON (${String(readErr)})`)
+      return
+    }
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return
+    const record = parsed as Record<string, unknown>
+    if (!('oauthAccount' in record)) return
+    delete record.oauthAccount
+    durableAtomicPublishSync(file, `${JSON.stringify(record, null, 2)}\n`)
+    logForDebugging(`[accounts] cleared the identity snapshot for ${dir}`)
+  } catch (err) {
+    logForDebugging(`[accounts] snapshot clear failed for ${dir}: ${String(err)}`)
   }
 }

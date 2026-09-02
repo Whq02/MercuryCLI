@@ -10,7 +10,7 @@ import { saveOAuthTokensIfNeeded, clearOAuthTokenCache } from '../auth.js'
 import { getAuthScope, setAuthScope, clearAuthScope } from '../envUtils.js'
 import { recordSignIn } from './signInLedger.js'
 import { logForDebugging } from '../debug.js'
-import { healScopeIdentitySnapshot, _resetIdentityCacheForTesting } from './accountIdentity.js'
+import { healScopeIdentitySnapshot, forgetScopeIdentity } from './accountIdentity.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 
 export interface PendingReauth {
@@ -123,7 +123,7 @@ export async function completeScopedReauth(
     }
   } catch {
   }
-  _resetIdentityCacheForTesting()
+  forgetScopeIdentity(pending.dir)
   logForDebugging(`[accounts] scoped reauth completed for ${pending.dir}${email ? ` (${email})` : ''}`)
   return { ok: true, ...(email !== undefined && { email }) }
 }
