@@ -92,7 +92,7 @@ t.section('§2 no blank frame in any resize phase (screens sampled mid-log)')
 
 run.cleanup()
 
-t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30)')
+t.section('§3 the narrow geometry SETTLED truth (a run that ends at 80×30, the viewport floor)')
 {
   const run80 = await runArtifactArena({
     turns: [{ kind: 'paced', deltas, gapMs: 50, settleDelayMs: 1200 }],

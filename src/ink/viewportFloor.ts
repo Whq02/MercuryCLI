@@ -1,7 +1,5 @@
 
-import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
-
-export const VIEWPORT_FLOOR_COLS = HELM_HOME_MIN_COLS
+export const VIEWPORT_FLOOR_COLS = 80
 
 export const VIEWPORT_FLOOR_ROWS = 22
 

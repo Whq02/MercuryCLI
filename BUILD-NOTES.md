@@ -181,6 +181,23 @@ against their checked-in lock files before a byte is consumed.
   directory, then a PATH node. Absent ⇒ degraded `runtime` (the launchers fall
   back); a PRESENT cache that mismatches the lock fails the build and names
   the fetch command. `MERCURY_BUILD_NO_VENDOR_NODE=1` forces the degraded arm.
+- **Voice capture pack** (optional at build; BUILT, never fetched). A
+  Node-API addon over the platform's own audio layer, compiled from
+  `native/voice` (Rust, cpal) by `bun run scripts/vendor/build-voice.ts`
+  (the last link of `bun run setup`) into `vendor/voice/<platform>/`:
+  `mercury_voice.node`, every linked crate's licence text under
+  `licenses/`, a `NOTICES.json` crate inventory, and a manifest carrying the
+  addon's sha256 and the digest of the Rust sources it was built from. The
+  build copies the HOST platform's pack to `dist/vendor/voice/<platform>/`
+  and records it as the manifest's `voiceInput`. Absent ⇒ degraded
+  `voice-input` (the runtime falls back to sox/arecord/ffmpeg on PATH, else
+  the composer says no backend); a PRESENT pack whose manifest disagrees
+  with its bytes or with the current `native/voice` sources fails the build
+  and names the build command. No cargo on the machine ⇒ the build script
+  skips loudly (exit 0). `--check` = no-cargo validity.
+  `MERCURY_BUILD_NO_VENDOR_VOICE=1` forces the degraded arm. The release
+  packager treats `voice-input` as the one publishable degradation: an
+  archive whose packaging host could not build the pack still ships, honest.
 - **debugpy** (optional). The Python debug adapter, an extracted wheel under
   `dist/vendor/debugpy/`. Truth is `vendor/debugpy.lock.json`
   (version · wheel · sha256 · adapter entry); the local cache is reproduced

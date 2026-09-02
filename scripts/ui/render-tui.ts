@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario, RUNTIME_CWD } from './renderScenarios.ts'
 import { evaluateCapture } from './renderOracle.ts'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS, viewportFloorLine } from '../../src/ink/viewportFloor.ts'
 import { gridToPng } from './gridToPng.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 
@@ -87,10 +88,16 @@ for (let attempt = 1; attempt <= 2; attempt++) {
     console.error(why)
     process.exit(1)
   }
-  verdict = evaluateCapture(
-    JSON.parse(readFileSync(gridPath, 'utf8')),
-    (cfg as { chromeMarkers?: string[] }).chromeMarkers,
-  )
+  const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Array<Array<{ c?: string }>> }
+  if (cols < VIEWPORT_FLOOR_COLS || rows < VIEWPORT_FLOOR_ROWS) {
+    const line = viewportFloorLine(cols, rows)
+    const text = payload.grid.map(row => row.map(c => c.c ?? '').join('')).join('\n')
+    verdict = text.includes(line)
+      ? { ok: true, reason: `under the viewport floor: the one line painted` }
+      : { ok: false, reason: `under the viewport floor but its line is not painted (looked for: ${line})` }
+  } else {
+    verdict = evaluateCapture(payload, (cfg as { chromeMarkers?: string[] }).chromeMarkers)
+  }
   if (verdict.ok) break
 }
 cleanupScenario(name)
