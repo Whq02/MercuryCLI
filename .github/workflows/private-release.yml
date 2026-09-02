@@ -82,10 +82,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-x64
+            node_pack: linux-x64
           - os: macos-14
             target: macos-arm64
+            node_pack: darwin-arm64
           - os: windows-latest
             target: windows-x64
+            node_pack: win-x64
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -108,12 +111,14 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'vendor/grammars.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json') }}
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
           bun run scripts/vendor/fetch-debugpy.ts
+          bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
+          bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}
       - name: native build
         run: bun run build.ts
       - name: package + friend-path smoke
@@ -212,7 +217,8 @@ jobs:
               --notes-file release-notes.md \
               assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
           else
-            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). Node 24 LTS required (>=24.11.0 <25 — the label + range are prover-pinned to the Node policy owner). See README-FIRST.md inside the archive.' "$GITHUB_SHA")
+            RANGE="$(python3 -c 'import json;print(json.load(open("package.json"))["engines"]["node"])')"
+            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$GITHUB_SHA" "$RANGE")
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
               --notes "$NOTES" \
