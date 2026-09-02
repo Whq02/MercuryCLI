@@ -95,7 +95,7 @@ for (const cols of [80, 160]) {
   const narrow = await runArtifactArena({
     turns: TURNS,
     sends: SENDS,
-    resizes: ['15200:44:44'],
+    resizes: ['15200:80:44'],
     seconds: 19,
     cols: 120,
     rows: 44,
@@ -104,7 +104,7 @@ for (const cols of [80, 160]) {
   })
   try {
     void firstOutputTs(narrow)
-    assertWidth('resized-44', grabScreens(narrow, 44, 44, [S(16_600)])[0]!)
+    assertWidth('resized-80', grabScreens(narrow, 80, 44, [S(16_600)])[0]!)
   } finally {
     narrow.cleanup()
   }
