@@ -370,24 +370,25 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }
 
-// ── §15: the viewport floor — under the minimum width the fullscreen host
-//  paints ONE line (the minimum, this window, the way back) and nothing
-//  else, while the surface beneath stays mounted, out of layout, frozen at
-//  the last size that fit — so the way back repaints it whole with every
-//  scroll position and draft where it was. One owner for the floor (the
-//  cockpit's entry width), one latch for the exit band (the cockpit's own
-//  hysteresis at the same boundary), one verdict the host reads.
+// ── §15: the viewport floor — under the minimum the fullscreen host paints
+//  ONE line (the minimum, this window, the way back) and nothing else,
+//  while the surface beneath stays mounted, out of layout, frozen at the
+//  last size that fit — so the way back repaints it whole with every scroll
+//  position and draft where it was. One owner for the floor (the plain
+//  world's own minimum, 80 columns; the cockpit's entry width is a chrome
+//  tier above it), one latch for the exit band (the cockpit's own
+//  hysteresis at its boundary), one verdict every host reads.
 console.log('§15 — the viewport floor: one verdict, one line, one latch')
 {
   const { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_EXIT_BAND, viewportFloorLine, viewportFloorVerdict } = await import(
     '../../src/ink/viewportFloor.ts'
   )
   const { HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
-  check('the floor IS the cockpit entry width (one owner, 100 columns)', VIEWPORT_FLOOR_COLS === HELM_HOME_MIN_COLS && VIEWPORT_FLOOR_COLS === 100)
-  check('a fresh window under the floor is under', !viewportFloorVerdict(99, 40, false).fits && !viewportFloorVerdict(80, 20, false).fits)
-  check('a fresh window at the floor fits', viewportFloorVerdict(100, 40, false).fits)
-  check('a painted surface survives the exit band', viewportFloorVerdict(100 - VIEWPORT_FLOOR_EXIT_BAND, 40, true).fits)
-  check('… and goes under one column below the band', !viewportFloorVerdict(100 - VIEWPORT_FLOOR_EXIT_BAND - 1, 40, true).fits)
+  check('the floor is the plain world’s minimum (80 columns), under the cockpit entry width (100)', VIEWPORT_FLOOR_COLS === 80 && HELM_HOME_MIN_COLS === 100 && VIEWPORT_FLOOR_COLS < HELM_HOME_MIN_COLS)
+  check('a fresh window under the floor is under', !viewportFloorVerdict(79, 40, false).fits && !viewportFloorVerdict(60, 20, false).fits)
+  check('a fresh window at the floor fits, and the plain world between the floor and the cockpit fits', viewportFloorVerdict(80, 40, false).fits && viewportFloorVerdict(90, 24, false).fits && viewportFloorVerdict(99, 22, false).fits)
+  check('a painted surface survives the exit band', viewportFloorVerdict(80 - VIEWPORT_FLOOR_EXIT_BAND, 40, true).fits)
+  check('… and goes under one column below the band', !viewportFloorVerdict(80 - VIEWPORT_FLOOR_EXIT_BAND - 1, 40, true).fits)
   check(
     'the band is the cockpit chrome latch’s band (one number, two latches agree)',
     read('src/hooks/useLayoutTier.ts').includes('const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND'),
@@ -395,24 +396,24 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
   const { VIEWPORT_FLOOR_ROWS } = await import('../../src/ink/viewportFloor.ts')
   check('the row floor is the deck strip’s floor (22 rows, one number)', VIEWPORT_FLOOR_ROWS === 22 && read('src/hooks/useLayoutTier.ts').includes('deckMinRows: VIEWPORT_FLOOR_ROWS'))
   check('a window under the row floor is under, at it fits (no band on rows)', !viewportFloorVerdict(120, 21, true).fits && viewportFloorVerdict(120, 22, true).fits && !viewportFloorVerdict(120, 21, false).fits)
-  const under = viewportFloorVerdict(80, 20, true)
-  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('100 columns') && under.line.includes('22 rows') && under.line.includes('80×20') && /resize/.test(under.line))
+  const under = viewportFloorVerdict(60, 20, true)
+  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('80 columns') && under.line.includes('22 rows') && under.line.includes('60×20') && /resize/.test(under.line))
   const shortest = viewportFloorLine(20, 10)
-  check('the shortest form still names the minimum and the way', shortest.includes('100') && /resize/.test(shortest))
+  check('the shortest form still names the minimum and the way', shortest.includes('80') && /resize/.test(shortest))
   check(
     'the line stays on ONE row at every width down to the shortest form',
-    [140, 99, 80, 60, 40].every(c => viewportFloorLine(c, 20).length <= Math.max(c - 2, shortest.length)),
+    [140, 99, 79, 60, 40].every(c => viewportFloorLine(c, 20).length <= Math.max(c - 2, shortest.length)),
   )
   // ONE latch, module-owned like the chrome's (viewportFloorLive): the
   // alternate-screen host and the route surface host that paints over it
   // read the same answer for the same frame — idempotent within a frame.
   const { resetViewportFloorForTests, viewportFloorLive } = await import('../../src/ink/viewportFloor.ts')
   resetViewportFloorForTests()
-  check('the live verdict engages the latch at the floor', viewportFloorLive(120, 40).fits && viewportFloorLive(98, 40).fits)
-  check('… a second reading of the same frame answers the same (idempotent)', viewportFloorLive(98, 40).fits)
-  check('… releases one column under the band and stays under until the floor', !viewportFloorLive(96, 40).fits && !viewportFloorLive(99, 40).fits && viewportFloorLive(100, 40).fits)
+  check('the live verdict engages the latch at the floor', viewportFloorLive(120, 40).fits && viewportFloorLive(78, 40).fits)
+  check('… a second reading of the same frame answers the same (idempotent)', viewportFloorLive(78, 40).fits)
+  check('… releases one column under the band and stays under until the floor', !viewportFloorLive(76, 40).fits && !viewportFloorLive(79, 40).fits && viewportFloorLive(80, 40).fits)
   resetViewportFloorForTests()
-  check('a fresh boot under the floor never engages', !viewportFloorLive(98, 40).fits && !viewportFloorLive(99, 40).fits)
+  check('a fresh boot under the floor never engages', !viewportFloorLive(78, 40).fits && !viewportFloorLive(79, 40).fits)
   resetViewportFloorForTests()
   const hook = read('src/ink/hooks/use-viewport-floor.ts')
   check(
