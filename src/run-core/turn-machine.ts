@@ -992,7 +992,9 @@ export async function* runEventCore(
       querySource !== 'session_memory'
     ) {
       const estimatedTokens =
-        compactionResult?.truePostCompactTokenCount ?? measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery)
+        compactionResult?.truePostCompactTokenCount ??
+        measuredRawTokenCount ??
+        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.mainLoopModel)
       const { level } = calculateTokenWarningState(
         estimatedTokens,
         toolUseContext.options.mainLoopModel,
