@@ -897,28 +897,39 @@ export function isOverageProvisioningAllowed(): boolean {
 
 const scopedAccountIdentityCache = new Map<
   string,
-  ReturnType<typeof getGlobalConfig>['oauthAccount'] | null
+  { mtimeMs: number; size: number; account: ReturnType<typeof getGlobalConfig>['oauthAccount'] | null }
 >()
 
 function readScopedOauthAccount(dir: string) {
-  const cached = scopedAccountIdentityCache.get(dir)
-  if (cached !== undefined) return cached
-  let result: ReturnType<typeof getGlobalConfig>['oauthAccount'] | null = null
+  const file = join(dir, '.claude.json')
+  let stamp: { mtimeMs: number; size: number }
   try {
-    const parsed = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8'))
-    const account = parsed?.oauthAccount
+    const stat = statSync(file)
+    stamp = { mtimeMs: stat.mtimeMs, size: stat.size }
+  } catch {
+    scopedAccountIdentityCache.delete(dir)
+    return null
+  }
+  const cached = scopedAccountIdentityCache.get(dir)
+  if (cached !== undefined && cached.mtimeMs === stamp.mtimeMs && cached.size === stamp.size) {
+    return cached.account
+  }
+  let account: ReturnType<typeof getGlobalConfig>['oauthAccount'] | null = null
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'))
+    const candidate = parsed?.oauthAccount
     if (
-      account &&
-      typeof account.accountUuid === 'string' &&
-      account.accountUuid.trim() !== ''
+      candidate &&
+      typeof candidate.accountUuid === 'string' &&
+      candidate.accountUuid.trim() !== ''
     ) {
-      result = account
+      account = candidate
     }
   } catch {
-    result = null
+    account = null
   }
-  scopedAccountIdentityCache.set(dir, result)
-  return result
+  scopedAccountIdentityCache.set(dir, { ...stamp, account })
+  return account
 }
 
 export function getOauthAccountInfo() {
