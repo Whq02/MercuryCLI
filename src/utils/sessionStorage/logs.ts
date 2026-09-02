@@ -1,7 +1,7 @@
 
 import type { UUID } from 'crypto'
 import type { Dirent } from 'fs'
-import { readdir, readFile, stat } from 'fs/promises'
+import { readdir, stat } from 'fs/promises'
 import { basename, join } from 'path'
 import {
   getOriginalCwd,
@@ -43,6 +43,7 @@ import {
   extractLastJsonStringField,
   LITE_READ_BUF_SIZE,
   readHeadAndTail,
+  readSessionLite,
   scanTailForEndedOnError,
   unescapeJsonString,
 } from '../sessionStoragePortable.js'
@@ -92,8 +93,8 @@ export async function loadTranscriptFromFile(
     } = await loadTranscriptFile(filePath)
 
     if (messages.size === 0) {
-      const head = await readFile(filePath, { encoding: 'utf-8' }).catch(() => '')
-      if (decodeTranscriptBuffer(head.slice(0, LITE_READ_BUF_SIZE)).refusal) {
+      const head = (await readSessionLite(filePath))?.head ?? ''
+      if (decodeTranscriptBuffer(head).refusal) {
         throw new Error(TRANSCRIPT_FORMAT_REFUSAL)
       }
       throw new Error('No messages found in JSONL file')
