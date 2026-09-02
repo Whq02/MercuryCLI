@@ -134,6 +134,17 @@ export type VoicePackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: VoicePackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
+export function voiceCheckoutRoot(moduleDir: string = path.dirname(fileURLToPath(import.meta.url))): string | null {
+  let dir = moduleDir
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(path.join(dir, 'package.json')) || existsSync(path.join(dir, '.git'))) return dir
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
 export function resolveVoicePackDir(): VoicePackResolution {
   const override = flagEnv('MERCURY_VOICE_PACK_DIR')
   if (override !== undefined && override.trim() !== '') {

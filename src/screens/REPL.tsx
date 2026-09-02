@@ -1114,7 +1114,7 @@ export function REPL({
     }
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
-  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean }): Promise<void> => {
+  const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean }): Promise<void> => {
     const text = input.trim();
     if (text === '') return;
     submitTrace('repl-onSubmit', input, { fromKeybinding: options?.fromKeybinding === true, speculation: false, guardActive: isLoadingRef.current });
@@ -1131,7 +1131,7 @@ export function REPL({
       helpers.clearBuffer();
       helpers.setCursorOffset(0);
       setInputMode('prompt');
-      if (!options?.fromKeybinding) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
+      if (!options?.fromKeybinding && !options?.rearmed) addToHistory({ display: seatMode === 'bash' ? `!${input}` : input, pastedContents: seatPastes });
     };
     if (seatCommand === undefined && text.startsWith('/') && seatMode !== 'bash') {
       const gated = resolveGatedPlainWorldCommand(text, commandsRef.current);
@@ -1165,6 +1165,19 @@ export function REPL({
           setPastedContents({});
           return;
         }
+      }
+      if (landingInFlight() && !hasFocusedSession()) {
+        takeComposer();
+        setAppState(prev => ({
+          ...prev,
+          initialMessage: {
+            message: createUserMessage({ content: text }),
+            ...(seatMode === 'bash' ? { bashMode: true } : {}),
+            armedAtLanding: true,
+          },
+        }));
+        addNotification({ key: 'landing-hold', text: 'the session is landing — your line sends when it lands', priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
+        return;
       }
       takeComposer();
       repinToBottom();
@@ -1301,7 +1314,8 @@ export function REPL({
       if (armedMessage.permissionMode) {
         getFocusedSessionConnector().setPermissionMode(armedMessage.permissionMode as PermissionMode);
       }
-      await onSubmitRef.current(text, INERT_PROMPT_HELPERS);
+      if (armedMessage.bashMode) pendingInput.setMode('bash');
+      await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);
     })();
   }, [armedMessage, landing, setAppState]);
 
