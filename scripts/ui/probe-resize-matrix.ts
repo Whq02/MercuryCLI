@@ -8,7 +8,7 @@ import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { composerCaret, inspect, needleRows, paintedRows, rowsOf, type Grid } from './frameChecks.ts'
-import { viewportFloorLine } from '../../src/ink/viewportFloor.ts'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS, viewportFloorLine } from '../../src/ink/viewportFloor.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -66,7 +66,7 @@ const SCENES: Scene[] = [
   {
     name: 'chat-idle', base: 'cockpit-wide', world: 'chat',
     ready: { text: COMPOSER_AT_REST, stable: 3 },
-    once: [COMPOSER_AT_REST], keep: ['pretense left to sell'],
+    once: [COMPOSER_AT_REST], keep: ['health none — /health'],
     key: { data: 'x', expect: 'composer-echo' },
     root: /\? for shortcuts|shift\+tab to cycle|to cycle\)/,
   },
@@ -108,19 +108,19 @@ const SCENES: Scene[] = [
     ready: { text: 'Do you want to proceed?', stable: 2 },
     once: ['Do you want to proceed?'], keep: ['Do you want to proceed?'],
     key: { data: ESC, expect: 'closes' },
-    fixture: [{ kind: 'tool_use', name: 'Bash', input: { command: 'echo resize-probe' }, preText: 'Running the echo.' }],
+    fixture: [{ kind: 'tool_use', name: 'Bash', input: { command: 'rm -f /tmp/mercury-resize-nothing-here', description: 'tidy' }, preText: 'about to tidy up.' }],
   },
   {
     name: 'concourse', base: 'concourse', world: 'board',
-    ready: { text: 'Fix OAuth callback', stable: 3 },
-    once: [], keep: ['Fix OAuth callback'], armed: true,
-    key: { data: DOWN, expect: 'selection-moves' },
+    ready: { text: 'STATUS & TITLE', stable: 3 },
+    once: ['STATUS & TITLE'], keep: ['SESSIONS', 'STATUS & TITLE'], armed: true,
+    key: { data: DOWN, expect: 'changes' },
   },
   {
     name: 'concourse-armed', base: 'concourse-r0-select-move', world: 'board',
     ready: { text: 'Fix OAuth callback', stable: 3 },
     once: [], keep: ['Fix OAuth callback'], armed: true,
-    key: { data: DOWN, expect: 'selection-moves' },
+    key: { data: DOWN, expect: 'changes' },
   },
   {
     name: 'sessions-manager', base: 'sessions-manager', world: 'surface',
@@ -186,8 +186,7 @@ const roundTrip = (m: Move): boolean => {
   const last = m.steps[m.steps.length - 1]!
   return last.cols === m.start[0] && last.rows === m.start[1]
 }
-const FLOOR_COLS = 100
-const underFloor = (s: Step): boolean => s.cols < FLOOR_COLS
+const underFloor = (s: Step): boolean => s.cols < VIEWPORT_FLOOR_COLS || s.rows < VIEWPORT_FLOOR_ROWS
 
 
 const sceneFilter = arg('--scenes', '').split(',').map(s => s.trim()).filter(Boolean)
@@ -394,9 +393,10 @@ function doubledRows(rows: string[]): Map<string, number[]> {
   for (const [k, v] of seen) if (v.length < 2) seen.delete(k)
   return seen
 }
+const BOARD_CARET = /▸ [●◐○□◆✓✕]/
 function selectedRow(rows: string[]): string | null {
-  const row = rows.find(r => r.includes('▸ '))
-  return row === null || row === undefined ? null : row.trim()
+  const row = rows.find(r => BOARD_CARET.test(r))
+  return row === undefined ? null : row.trim()
 }
 
 function judge(scene: Scene, move: Move, payload: Payload, teePath: string, tag: string): Result {
