@@ -32,6 +32,7 @@ import {
   nextThinkingSpan,
   thinkingPostscript,
 } from './pulseByline.js'
+import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
 import { teammateRole } from '../tasks/taskStatusUtils.js'
@@ -277,7 +278,8 @@ export function SpinnerAnimationRow(
   const inThinking = pulseOpen
     ? displayedPhase === 'thinking'
     : mode === 'thinking'
-  const thinkingLabelFull = `thinking${effortSuffix ?? ''}`
+  // The HUD word is the thinking grammar's (one spelling beside every model).
+  const thinkingLabelFull = `${THINKING_WORD}${effortSuffix ?? ''}`
   // The PAINTED message (the phase byline when it narrates, else the verb
   // chain) is what the meta budget subtracts. Budgeting the RAW verb while
   // painting the longer byline was overflow cause #1 of the jammed-specimen
@@ -401,7 +403,7 @@ export function SpinnerAnimationRow(
   // the live label DEFERS to the byline narration — one phrase, never two.
   if (wantsThinking && thinkingText !== null) {
     if (!admit({ key: 'thinking', text: thinkingText, kind: 'thinking' })) {
-      admit({ key: 'thinking', text: 'thinking', kind: 'thinking' })
+      admit({ key: 'thinking', text: THINKING_WORD, kind: 'thinking' })
     }
   }
   // 3+ · the gated HUD segments, in the order law above.
@@ -464,9 +466,12 @@ export function SpinnerAnimationRow(
     time > THINKING_SHIMMER_SUPPRESS_MS
   const shimmerPhase =
     (Math.sin((time / THINKING_SHIMMER_PERIOD_MS) * Math.PI * 2) + 1) / 2
+  // The thinking segment paints the thinking grammar's colour at rest and the
+  // grey shimmer while it breathes; the HUD placement is the row's own.
   const metaColor = (segment: Segment): string | undefined => {
     if (segment.kind === 'waiting') return theme.warning
-    if (segment.kind === 'thinking' && shimmerActive) {
+    if (segment.kind === 'thinking') {
+      if (!shimmerActive) return THINKING_COLOR
       const grey = Math.round(120 + shimmerPhase * 60)
       return `rgb(${grey},${grey},${grey})`
     }
@@ -525,7 +530,7 @@ export function SpinnerAnimationRow(
     )
   }
   const metaGroup = !metaVisible ? null : onlyThinking && !gaugesVisible ? (
-    <Text dimColor={!shimmerActive} color={metaColor(ordered[0]!)}>
+    <Text color={metaColor(ordered[0]!)}>
       ({ordered[0]!.text})
     </Text>
   ) : (
