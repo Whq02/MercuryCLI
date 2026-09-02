@@ -2102,6 +2102,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return { status: 'ok', evidence }
           },
         },
+        {
+          id: 'preserved-thinking',
+          label: 'Preserved thinking',
+          run: async () => {
+            // The last thinking block the API dropped on this machine and
+            // whether the drops ran on consecutive requests (Mercury
+            // rewriting sent history) — the row a tester pastes into a
+            // bug report. The receipt owner composes the words.
+            const { preservedThinkingHealth, readThinkingDropLedger } = await import(
+              '../services/providers/anthropic/thinkingBinding.js'
+            )
+            return preservedThinkingHealth(readThinkingDropLedger())
+          },
+        },
       ],
     },
     {
