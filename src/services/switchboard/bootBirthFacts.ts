@@ -39,8 +39,15 @@ export function takeWornPresetKit(): { name: string; kit: SessionKitV1 } | null 
   return worn
 }
 
-export function birthModelOf(record: Pick<BootBirthFacts, 'model'>, doorModel: string | null | undefined, screenModel: string): string {
+export function birthModelOf(record: Pick<BootBirthFacts, 'model'>, doorModel: string | null | undefined, screenModel: string | undefined): string | undefined {
   return record.model ?? doorModel ?? screenModel
+}
+
+export function screenBirthModel(): string | undefined {
+  const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+  if (computedDefault().source === 'keyless') return undefined
+  const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+  return getMainLoopModel()
 }
 
 export function carriedKitOf(record: Pick<BootBirthFacts, 'kit'>): { kit: SessionKitV1 } | Record<string, never> {

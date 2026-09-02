@@ -240,6 +240,9 @@ async function ensureWarmRunnerFlight(
   if (!validated.ok) {
     return { state: 'refused', detail: `registry default unavailable (${validated.reason}) — the next dispatch spawns cold` }
   }
+  if (validated.keyless === true) {
+    return { state: 'refused', detail: 'keyless home — nothing to warm; the next birth spawns cold on no model' }
+  }
   const appeared = pool.get(workspaceId)
   if (appeared !== undefined) {
     const state = roster.has(appeared.short)

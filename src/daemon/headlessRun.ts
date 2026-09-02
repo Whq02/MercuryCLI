@@ -176,6 +176,7 @@ export function getSelfInvocation(): { node: string; script: string } {
 
 export interface StreamJsonChildSpec {
   model: string
+  keyless?: true
   effort: string
   appendSystemPrompt: string
   role:
@@ -221,8 +222,7 @@ export function buildStreamJsonInvocation(
       : []),
     '--input-format=stream-json',
     '--output-format=stream-json',
-    '--model',
-    model,
+    ...(spec.keyless ? [] : ['--model', model]),
     '--append-system-prompt',
     spec.appendSystemPrompt,
     ...(spec.plainIdentity
