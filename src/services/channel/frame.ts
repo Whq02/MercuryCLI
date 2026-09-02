@@ -27,7 +27,6 @@ export type FrameKind =
   | 'work.compact'
   | 'usage.turn'
   | 'bus.scribe'
-  | 'bus.party'
   | 'bus.crew'
   | 'sys.snapshot'
   | 'sys.redact'
@@ -54,7 +53,6 @@ const FRAME_KINDS: ReadonlySet<string> = new Set<FrameKind>([
   'work.compact',
   'usage.turn',
   'bus.scribe',
-  'bus.party',
   'bus.crew',
   'sys.snapshot',
   'sys.redact',

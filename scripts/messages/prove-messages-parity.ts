@@ -355,14 +355,11 @@ add('createSystemMessage', 'basic', () =>
 add('createPermissionRetryMessage', 'basic', () =>
   M.createPermissionRetryMessage(['npm test', 'git status']),
 );
-add('createPartyEventMessage', 'basic', () =>
-  M.createPartyEventMessage({ verb: 'chat', whoId: 'guest-abc123', who: 'user1', text: 'hello there' }),
-);
 add('createSeatReceiptMessage', 'basic', () =>
-  M.createSeatReceiptMessage('⇄ reslot applied — dps1 → claude-fable-5 @max', 'info'),
+  M.createSeatReceiptMessage('⇄ reslot applied — worker → claude-fable-5 @max', 'info'),
 );
 add('createSeatReceiptMessage', 'timeout-warning', () =>
-  M.createSeatReceiptMessage('▲ reslot pending — tank → claude-fable-5 not observed applied after 10m', 'warning'),
+  M.createSeatReceiptMessage('▲ reslot pending — worker → claude-fable-5 not observed applied after 10m', 'warning'),
 );
 add('createScheduledTaskFireMessage', 'basic', () =>
   snapSafe(() => M.createScheduledTaskFireMessage({ name: 'daily' } as never)),
