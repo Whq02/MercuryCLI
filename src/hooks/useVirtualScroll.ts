@@ -140,6 +140,18 @@ export function useVirtualScroll(
    *  re-captured the displaced position as its new truth (measured: three
    *  turns on a 120→80 reflow at rest). */
   const reflowHoldRef = useRef(false)
+  /** True while the list is OUT OF LAYOUT — the host hid the surface (the
+   *  viewport floor: a window under the minimum keeps the surface mounted
+   *  but unlaid). Leaving and re-entering layout is a reflow window: the
+   *  re-entry commits fold geometry over a few frames exactly like a width
+   *  change, so the pin holds across it and the pump re-resolves until the
+   *  folds go quiet — otherwise the first re-laid frame's transient moved
+   *  the viewport, the outside-actor rule cancelled the pin at the moved
+   *  position, and the way back landed a turn away from where it left. */
+  const outOfLayoutRef = useRef(false)
+  /** The list has read a laid-out spacer at least once (a zero width before
+   *  that is the cold start, not a hidden surface). */
+  const laidOutRef = useRef(false)
   const [, forceResolve] = useReducer((n: number) => n + 1, 0)
 
   function indexByKey(keys: readonly string[], key: string): number | undefined {
@@ -608,6 +620,19 @@ export function useVirtualScroll(
     const spacer = spacerElementRef.current
     if (spacer?.layoutNode && spacer.layoutNode.getComputedWidth() > 0) {
       listOriginRef.current = spacer.layoutNode.getComputedTop()
+      laidOutRef.current = true
+      if (outOfLayoutRef.current) {
+        // Back in layout: the re-entry is a reflow window (see the ref).
+        outOfLayoutRef.current = false
+        reflowHoldRef.current = true
+        forceResolve()
+      }
+    } else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {
+      // A list that was laid out and whose spacer now reads zero width has
+      // left layout (the layout engine zeroes a hidden subtree whole): hold
+      // the pin across the window; nothing measures until it is back.
+      outOfLayoutRef.current = true
+      reflowHoldRef.current = true
     }
     if (freezeRendersRef.current > 0) freezeRendersRef.current -= 1
     if (measurementSkipRef.current) {
@@ -667,6 +692,10 @@ export function useVirtualScroll(
         // skip folds at or below the pin): force the re-derive for every
         // fold until the heights go quiet.
         forceResolve()
+      } else if (outOfLayoutRef.current) {
+        // Out of layout: nothing folds while the surface is hidden, and the
+        // hold must outlive the window — the re-entry's first frame is the
+        // transient it exists for.
       } else {
         // Quiescent: the reflow is fully folded; outside actors win again.
         reflowHoldRef.current = false

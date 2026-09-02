@@ -470,5 +470,30 @@ console.log('§16 — a resize storm paints its hold once, on entry')
   check('the engine path keeps its one hold on storm entry', ink.includes('onStormEntered: () => {') && ink.includes('this.paintResizeHold(columns, rows)\n      },'))
 }
 
+// ── §17: leaving and re-entering layout is a reflow window
+//  Under the viewport floor the host keeps the surface mounted but out of
+//  layout (the layout engine zeroes the hidden subtree whole). The virtual
+//  list's re-entry commits fold geometry over a few frames exactly like a
+//  width change: without the hold the first re-laid frame's transient moved
+//  the viewport, the outside-actor rule cancelled the resting pin at the
+//  moved position, and the way back landed a turn away from where it left.
+//  The list now marks itself out of layout when a laid-out spacer reads
+//  zero width, holds the pin across the window, and pumps re-resolve
+//  renders on re-entry until the folds go quiet.
+console.log('§17 — the virtual list holds its pin across an out-of-layout window')
+{
+  const hook = read('src/hooks/useVirtualScroll.ts')
+  check('a laid-out spacer reading zero width marks the list out of layout and arms the hold',
+    hook.includes('} else if (spacer?.layoutNode && laidOutRef.current && !outOfLayoutRef.current) {') &&
+      hook.includes('outOfLayoutRef.current = true\n      reflowHoldRef.current = true'))
+  check('re-entry re-arms the hold and pumps a re-resolve (the reflow discipline)',
+    hook.includes('if (outOfLayoutRef.current) {\n        // Back in layout: the re-entry is a reflow window (see the ref).\n        outOfLayoutRef.current = false\n        reflowHoldRef.current = true\n        forceResolve()'))
+  check('the cold start is never read as a hidden surface (laid out once first)', hook.includes('laidOutRef.current = true') && hook.includes('const laidOutRef = useRef(false)'))
+  check('the hold still suspends the outside-actor cancel and pumps until quiet (the reflow law it rides)',
+    hook.includes('!reflowHoldRef.current') && hook.includes('reflowHoldRef.current = false'))
+  check('the hold outlives the hidden window (the pump never releases it while out of layout)',
+    hook.includes('} else if (outOfLayoutRef.current) {') && hook.indexOf('} else if (outOfLayoutRef.current) {') < hook.indexOf('reflowHoldRef.current = false'))
+}
+
 console.log(failures === 0 ? '\nresize-laws: GREEN' : `\nresize-laws: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)
