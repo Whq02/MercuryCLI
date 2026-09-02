@@ -25,6 +25,9 @@
 //       the receipt names the bound, the words land — no key pressed.
 //    §H the concourse: with voice input on, v on the Session Concourse is
 //       nothing — no take, no crash, shift+← still walks home.
+//    §I the composer's other keys with voice input on: ? opens help, the
+//       ctrl+x p chord opens the palette, shift+← / → walk the strip, and
+//       v still records after all of it.
 // ============================================================================
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -577,6 +580,44 @@ console.log('[H] voice input on, v on the Session Concourse — nothing; shift+�
   const afterV = res.marks['after-v'] ?? ''
   check('v on the concourse starts nothing (no recording line, no receipt, the board still painted)', !afterV.includes('recording ·') && !afterV.includes('transcrib') && afterV.includes('╭'), afterV.split('\n').slice(0, 3).join(' · '))
   check('shift+← walks home to the Boot face', (res.marks.home ?? '').includes('↑↓ choose'), (res.marks.home ?? '').split('\n').filter(l => l.includes('choose')).join(' · '))
+  const stray = nonLoopback(netlines(netlog))
+  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+}
+
+// ── §I the composer's other keys, with voice input on ──────────────────────
+console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette · shift+← / → walk the strip · v still records')
+{
+  const netlog = join(scratch, 'keys-net.log')
+  const fx = await startFixture('keys', 0)
+  const res = drive(
+    'keys',
+    seededHome('home-i'),
+    netlog,
+    [
+      ...OPENING,
+      // ? toggles the shortcuts panel; a second ? toggles it away.
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '?' },
+      { requireAwait: true, awaitText: '/keybindings to customize', awaitStableTicks: 1, mark: 'help', data: '?' },
+      { afterPrevTicks: 4, mark: 'help-closed', data: '\x18' },
+      { afterPrevTicks: 2, data: 'p' },
+      { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette', data: '\x1b' },
+      { afterPrevTicks: 4, mark: 'palette-closed', data: '\x1b[1;2D' },
+      { requireAwait: true, awaitText: '↑↓ choose', awaitStableTicks: 2, mark: 'face', data: '\x1b[1;2C' },
+      { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat', data: 'v' },
+      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
+      { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 1, mark: 'cancelled', data: '' },
+      { afterPrevTicks: 2, data: '' },
+    ],
+    160,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
+  )
+  fx.child.kill('SIGTERM')
+  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('? in the empty composer opens the shortcuts panel (untouched by the v filter); ? again closes it', (res.marks.help ?? '').includes('/keybindings to customize') && !(res.marks['help-closed'] ?? '').includes('/keybindings to customize'), `${(res.marks.help ?? '').includes('/keybindings') ? 'opened' : 'never opened'} · ${(res.marks['help-closed'] ?? '').includes('/keybindings') ? 'still open' : 'closed'}`)
+  check('the ctrl+x p chord opens the command palette; esc closes it', (res.marks.palette ?? '').includes('fuzzy by name') && !(res.marks['palette-closed'] ?? '').includes('fuzzy by name'))
+  check('shift+← walks to the Boot face and shift+→ returns to the chat', (res.marks.face ?? '').includes('↑↓ choose') && (res.marks.chat ?? '').includes('Type a prompt'))
+  check('after all that, v still records and esc still cancels', (res.marks.recording ?? '').includes('● recording') && (res.marks.cancelled ?? '').includes('capture cancelled — nothing sent'))
+  check('no take was sent', ledgerPosts(fx.ledger).length === 0)
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
