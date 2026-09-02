@@ -90,6 +90,18 @@ function drive(
 const mark = (p: Payload, label: string): Mark | undefined =>
   p.marks?.find(m => m.label === label)
 
+/** The bottom of a frame, row-numbered — the footer, the notices and the
+ *  hints — for a red whose evidence is the state of that chrome. */
+const dumpBottom = (label: string, grid: Array<Array<{ c: string }>>, count = 12): void => {
+  const lines = rowsOf(grid)
+  console.log(`      ┌ ${label}`)
+  lines.slice(-count).forEach((line, offset) => {
+    const row = line.trimEnd()
+    if (row !== '') console.log(`      │ ${String(lines.length - count + offset).padStart(2, ' ')} ${row}`)
+  })
+  console.log('      └')
+}
+
 const NOTICE = 'twice to close Mercury'
 
 section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
@@ -171,10 +183,9 @@ section('C · busy: one press interrupts AND arms; a second press closes')
   )
   if (p) {
     const busy = mark(p, 'busy')
-    check(
-      "the running footer named esc as the interrupt (the truthful hint)",
-      busy !== undefined && textOf(busy.grid).includes('esc interrupt'),
-    )
+    const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
+    check("the running footer named esc as the interrupt (the truthful hint)", hintUp)
+    if (!hintUp && busy !== undefined) dumpBottom('the frame at the first press — the hint absent', busy.grid)
     check(
       "…and never the old 'ctrl+c interrupt' spelling",
       busy !== undefined && !textOf(busy.grid).includes('ctrl+c interrupt'),
@@ -210,11 +221,12 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
   )
   if (p) {
     const busy = mark(p, 'busy')
-    check(
-      'the busy hint was up when ESC landed',
-      busy !== undefined && textOf(busy.grid).includes('esc interrupt'),
-    )
-    check('ESC interrupted the turn (the interrupt marker settled)', textOf(p.grid).includes('interrupted by user'))
+    const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
+    check('the busy hint was up when ESC landed', hintUp)
+    if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid)
+    const settled = textOf(p.grid).includes('interrupted by user')
+    check('ESC interrupted the turn (the interrupt marker settled)', settled)
+    if (!settled) dumpBottom('the final frame — no interrupt marker', p.grid, 16)
     check('…and Mercury stayed open (no exit)', p.endReason !== 'eof', `endReason=${p.endReason}`)
   }
   cleanupScenario('resume-2turn')
