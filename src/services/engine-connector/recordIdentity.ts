@@ -11,11 +11,12 @@ export function mergeRecordsContentKeyed(
   prevSigs: readonly string[],
   raw: readonly unknown[],
   fresh: Message[],
+  sigOf: (record: unknown) => string = record => JSON.stringify(record),
 ): RecordMergeResult {
   const sigs = new Array<string>(raw.length)
   let reusedAll = fresh.length === prevRecords.length
   for (let i = 0; i < fresh.length; i++) {
-    const sig = JSON.stringify(raw[i])
+    const sig = sigOf(raw[i])
     sigs[i] = sig
     const prev = prevRecords[i]
     if (prev !== undefined && sig === prevSigs[i]) fresh[i] = prev as Message
