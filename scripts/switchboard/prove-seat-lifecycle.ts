@@ -142,7 +142,7 @@ function walk(root: string): string[] {
   const submitBody = repl.slice(onSubmitAt, onSubmitEnd)
   check('P6 the screen passes NO model into a session send (the runner owns the wire) — the poison is a render-sampled read', onSubmitAt !== -1 && !submitBody.includes('mainLoopModel') && !/sendWords\([^)]*model/.test(submitBody))
   const birthSrc = read('src/services/switchboard/bornSession.ts')
-  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())'))
+  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const screen = screenBirthModel()') && birthSrc.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   check("P6 the session's words carry no model of the screen's (the envelope names the target and the words)", !/op: 'sessionDispatch'[\s\S]{0,400}model:/.test(seatSrc))
 }
 
