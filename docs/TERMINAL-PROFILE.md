@@ -88,8 +88,9 @@ every one of them is a row of the in-code registry
 
 Two more switches ride the capability profile: fullscreen and mouse
 tracking (`MERCURY_FULLSCREEN`) and the terminal ground (`MERCURY_OASIS_BG`
-— the background colour set at interactive boot and restored on exit,
-TTY-only).
+— the background colour of the resolved appearance, set at interactive boot
+and restored on exit, TTY-only: pure black on the True Black default, the
+oasis navy when that appearance is chosen in `/appearance`).
 
 ## Reduced motion
 
