@@ -1,0 +1,35 @@
+{
+  "name": "node",
+  "version": "24.20.0",
+  "license": "MIT",
+  "licenseFiles": ["LICENSE"],
+  "checksums": "https://nodejs.org/dist/v24.20.0/SHASUMS256.txt",
+  "platforms": {
+    "darwin-arm64": {
+      "archive": "node-v24.20.0-darwin-arm64.tar.gz",
+      "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-darwin-arm64.tar.gz",
+      "sha256": "40e5607e5ecb3db9192723776da2d75d966260fc74a7a9e731c1bd67dda96bc8"
+    },
+    "darwin-x64": {
+      "archive": "node-v24.20.0-darwin-x64.tar.gz",
+      "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-darwin-x64.tar.gz",
+      "sha256": "9e5b2644cf107befb6aefca676b96d3296bc10138096f022ed378d6233ed81f4"
+    },
+    "linux-x64": {
+      "archive": "node-v24.20.0-linux-x64.tar.gz",
+      "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-linux-x64.tar.gz",
+      "sha256": "855d581f8a4eb1a8117e3426de25fe02770592febcfb31369aee1ffbfee9e8ec"
+    },
+    "linux-arm64": {
+      "archive": "node-v24.20.0-linux-arm64.tar.gz",
+      "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-linux-arm64.tar.gz",
+      "sha256": "3515603e2487879a39bc75716f1a2affd027500c64ba50e845cf72cb33219013"
+    },
+    "win-x64": {
+      "archive": "node-v24.20.0-win-x64.zip",
+      "url": "https://nodejs.org/dist/v24.20.0/node-v24.20.0-win-x64.zip",
+      "sha256": "6cac9ffbca8f6a47091e4b5c772e0606049c3871cb67d900c0cedde630e545ba"
+    }
+  },
+  "notes": "The vendored Node runtime — the fifth pack, so a release install needs only git (bun stays the build runtime and is never vendored). The version equals .node-version (prover-pinned: the runtime a release ships is the calibration runtime the build and hosted verification run on). One official nodejs.org archive per platform; every sha256 is taken from that release's SHASUMS256.txt (the checksums url above), never computed locally. The fetch (bun run scripts/vendor/fetch-node.ts) verifies the archive digest BEFORE extraction and installs only the runtime binary (bin/node · node.exe) and Node's LICENSE into vendor/node/extracted/<platform>/ — npm, corepack, headers and man pages are deliberately left out; the host platform by default, --platform <p> / --all for other caches. The build vendors the host platform's cache at the fixed path dist/vendor/node, which every launcher resolves after MERCURY_NODE and before a PATH node; the release archive carries it beside mercury.mjs, the manifest records version · platform · archive digest · shipped-binary digest, and install/update smoke the payload on that runtime before activating it. Node's LICENSE file carries the notices of every component it bundles (V8, libuv, OpenSSL, ICU, zlib, c-ares, nghttp2, simdjson and the rest) and ships whole. Update procedure: bump .node-version and this version, rewrite the five archive names + urls, take each sha256 from the new SHASUMS256.txt, run `bun run scripts/vendor/fetch-node.ts --all`, rebuild, re-run `bash scripts/updater/run-all.sh` and `bash scripts/node-runtime/run-all.sh`."
+}
