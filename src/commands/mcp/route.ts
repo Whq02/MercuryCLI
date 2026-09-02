@@ -59,8 +59,18 @@ export function mcpRosterRow(entry: McpRosterEntryV1): string {
   return entry.error !== undefined && entry.error !== '' ? `${state} — ${entry.error}` : state
 }
 
+/** The roster's rows with every FAILED row first (each carries the reason
+ *  and the next step — the words the operator acts on), the rest in roster
+ *  order; a one-row surface that clips the tail sheds healthy rows, never
+ *  a failure's reason. */
+export function mcpRosterRowsFailedFirst(roster: McpRosterV1): McpRosterEntryV1[] {
+  const failed = roster.clients.filter(entry => entry.type === 'failed')
+  const rest = roster.clients.filter(entry => entry.type !== 'failed')
+  return [...failed, ...rest]
+}
+
 /** The roster as the face's one line. */
 export function mcpRosterLine(roster: McpRosterV1): string {
   if (roster.clients.length === 0) return MCP_EMPTY_ROSTER_LINE
-  return `The session's MCP servers: ${roster.clients.map(mcpRosterRow).join(' · ')}. The session's runner owns them — this session only, the boot menu sets the next session's; per-server toggles ride /mcp enable|disable <name>.`
+  return `The session's MCP servers: ${mcpRosterRowsFailedFirst(roster).map(mcpRosterRow).join(' · ')}. The session's runner owns them — this session only, the boot menu sets the next session's; per-server toggles ride /mcp enable|disable <name>.`
 }

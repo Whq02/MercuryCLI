@@ -25,7 +25,7 @@
 import { getActiveSet, publishActiveSet, type ActiveExtension } from '../../extensions/active.js'
 import { clearExtensionCommandCaches, getExtensionSkills } from '../../extensions/load/commands.js'
 import { contributionCounts, parseServerRuntimeName, type ExtensionManifest } from '../../extensions/manifest.js'
-import { clearSkillCaches, getSkillDirCommands } from '../../skills/loadSkillsDir.js'
+import { clearSkillCaches, getSkillDirCommands, getSkillLoadRefusals, type SkillLoadRefusal } from '../../skills/loadSkillsDir.js'
 import type { Command } from '../../types/command.js'
 import { getSettingSourceName, type SettingSource } from '../../utils/settings/constants.js'
 import { clearClaudeAIMcpConfigsCache } from '../mcp/claudeai.js'
@@ -45,6 +45,9 @@ export interface KitDoors {
   dirSkills: (cwd: string) => Promise<readonly Command[]>
   extensionSkills: () => readonly Command[]
   activeExtensions: () => ReadonlyArray<Pick<ActiveExtension, 'manifest'>>
+  /** The loader's typed refusals from the dirSkills read (read AFTER it —
+   *  the channel fills as the load runs); absent ⇒ none. */
+  skillRefusals?: () => readonly SkillLoadRefusal[]
 }
 
 export const REAL_KIT_DOORS: KitDoors = {
@@ -52,6 +55,34 @@ export const REAL_KIT_DOORS: KitDoors = {
   dirSkills: cwd => getSkillDirCommands(cwd),
   extensionSkills: () => getExtensionSkills(),
   activeExtensions: () => getActiveSet().active,
+  skillRefusals: () => getSkillLoadRefusals(),
+}
+
+/** A refused skill file's row words: the file (cwd-relative when it is
+ *  under the cwd), then the loader's reason on one line — the row names
+ *  the file and why, so a typo on line 3 never reads as "never created". */
+export function refusedSkillNote(refusal: SkillLoadRefusal, cwd: string): string {
+  const file = refusal.path.startsWith(cwd) ? refusal.path.slice(cwd.length).replace(/^[\\/]/, '') : refusal.path
+  const reason = refusal.error.split('\n')[0]?.trim() ?? refusal.error
+  return `refused: ${file} (${refusal.source}) — ${reason}`
+}
+
+/** A shadowed skill's row words: the runner keeps the FIRST command per
+ *  name (managed · user · project · added dirs · legacy commands, in that
+ *  order), so a later file claiming the same name never loads — the row
+ *  says which copy loads and which stay on disk unused. `winner` and
+ *  `shadowed` are copy words (`user settings skill`, `project settings
+ *  legacy command`). */
+export function shadowedSkillNote(name: string, winner: string, shadowed: readonly string[]): string {
+  const losers = shadowed.map(copy => `the ${copy}`)
+  const list = losers.length === 1 ? losers[0]! : `${losers.slice(0, -1).join(', ')} and ${losers[losers.length - 1]!}`
+  return `shadowed: ${name} — the ${winner} loads; ${list} ${losers.length === 1 ? 'stays' : 'stay'} on disk unused (rename one)`
+}
+
+/** A loader skill's copy words for the shadow note: its settings home and
+ *  its form (a SKILL.md skill, or a legacy command file). */
+function skillCopyWords(command: Command): string {
+  return `${skillSourceWords(command)} ${command.loadedFrom === 'legacy-commands' ? 'legacy command' : 'skill'}`
 }
 
 /**
@@ -143,9 +174,29 @@ export async function enumerateKitCatalogue(cwd: string, doors: KitDoors = REAL_
   }
 
   // ── Skills ────────────────────────────────────────────────────────────────
-  const skillPlain: KitRow[] = dirSkills
-    .filter(isLoaderSkill)
-    .map(command => ({ kind: 'skill', section: 'skill', name: command.name, source: skillSourceWords(command), extension: null }))
+  // ONE row per name, the loader's own winner first (the runner keeps the
+  // first command per name): three files claiming `good` once painted
+  // three identical rows under one toggle key. The losers and the loader's
+  // refusals become NOTE rows after the members — every file on disk that
+  // will not load is named with its reason, never a silent gap.
+  const skillPlain: KitRow[] = []
+  const shadowed = new Map<string, { winner: string; losers: string[] }>()
+  for (const command of dirSkills.filter(isLoaderSkill)) {
+    const seen = shadowed.get(command.name)
+    if (seen !== undefined) {
+      seen.losers.push(skillCopyWords(command))
+      continue
+    }
+    shadowed.set(command.name, { winner: skillCopyWords(command), losers: [] })
+    skillPlain.push({ kind: 'skill', section: 'skill', name: command.name, source: skillSourceWords(command), extension: null })
+  }
+  const skillNotes: KitRow[] = []
+  for (const [name, { winner, losers }] of shadowed) {
+    if (losers.length > 0) skillNotes.push({ kind: 'note', section: 'skill', text: shadowedSkillNote(name, winner, losers) })
+  }
+  for (const refusal of doors.skillRefusals?.() ?? []) {
+    skillNotes.push({ kind: 'note', section: 'skill', text: refusedSkillNote(refusal, cwd) })
+  }
   const skillByExtension = new Map<string, KitRow[]>()
   for (const command of extensionSkills) {
     if (command.type !== 'prompt' || command.loadedFrom !== 'extension') continue
@@ -177,6 +228,7 @@ export async function enumerateKitCatalogue(cwd: string, doors: KitDoors = REAL_
   for (const [owner, list] of skillByExtension) if (!extensions.some(e => e.manifest.name === owner)) skillRows.push(...list)
 
   rows.push(...skillRows)
+  rows.push(...skillNotes)
   rows.push({ kind: 'note', section: 'skill', text: MCP_SKILLS_NOTE })
   return { rows }
 }

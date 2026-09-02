@@ -165,6 +165,27 @@ section("§5 the row speaks the deadline's honest reason (the panel's own words)
   check('§5 the projection forwards the reason only for a failed row', rosterSrc.includes("client.type === 'failed'") && rosterSrc.includes('error: client.error'))
 }
 
+section('§6 the failed rows lead the line')
+{
+  // The line paints on a one-row surface that clips its tail: with seven
+  // servers the failed rows' reasons — the words the operator acts on —
+  // fell past the clip behind the healthy rows. Failed rows now lead, the
+  // rest keep roster order.
+  const { mcpRosterRowsFailedFirst } = await import(join(ROOT, 'src/commands/mcp/route.ts'))
+  const roster = {
+    clients: [
+      { name: 'a', type: 'connected' },
+      { name: 'b', type: 'failed', error: 'command not found: /x — check the path' },
+      { name: 'c', type: 'pending' },
+      { name: 'd', type: 'failed', error: 'connection refused at 127.0.0.1:9' },
+    ],
+  }
+  const ordered = mcpRosterRowsFailedFirst(roster as never).map((r: { name: string }) => r.name)
+  check('§6 every failed row first, roster order kept on both sides', JSON.stringify(ordered) === JSON.stringify(['b', 'd', 'a', 'c']), ordered.join(','))
+  const line = mcpRosterLine(roster as never)
+  check('§6 the line opens with the first failure and its reason', line.startsWith("The session's MCP servers: b (failed) — command not found: /x — check the path · d (failed) — connection refused at 127.0.0.1:9 · a (connected) · c (pending)"), line)
+}
+
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {
   console.log(' ✅ ALL /mcp ROUTE PROOFS PASS')

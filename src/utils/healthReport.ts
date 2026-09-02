@@ -3993,20 +3993,32 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'capability-census',
           label: 'Capability census',
           run: async () => {
-            const { buildToolCensus, CENSUS_VERSION } = await import('./capability/census.js')
+            const { buildToolCensus, censusGapLines, CENSUS_NO_REASON, CENSUS_VERSION } = await import('./capability/census.js')
             const c = buildToolCensus()
             const s = c.summary
             const undeclared = c.rows.filter(r => r.declared === null).map(r => r.name)
+            // The counts alone told the operator nothing about WHICH tools
+            // wait on what: the detail names every conditional and gated-out
+            // tool with its reason, and a row with no reason warns the row.
+            const gaps = censusGapLines(c)
+            const reasonless = gaps.filter(g => g.reason === CENSUS_NO_REASON).flatMap(g => g.tools)
+            const detail = gaps
+              .map(g => `${g.support === 'conditional' ? 'conditional' : 'off'} · ${g.tools.join(', ')} — ${g.reason}`)
+              .join('\n')
+            const status =
+              undeclared.length > 0 || s.unclassified.length > 0 ? ('fail' as const) : reasonless.length > 0 ? ('warn' as const) : ('ok' as const)
             return {
-              status: undeclared.length === 0 && s.unclassified.length === 0 ? ('ok' as const) : ('fail' as const),
+              status,
               evidence:
                 `census v${CENSUS_VERSION} · ${s.tools} tool(s): ${s.bySupport.available} available · ` +
                 `${s.bySupport.conditional} conditional · ${s.bySupport.unavailable} unavailable · ` +
                 `${s.operations} operation(s)` +
                 (undeclared.length > 0 ? ` · UNDECLARED: ${undeclared.join(', ')}` : '') +
-                (s.unclassified.length > 0 ? ` · UNCLASSIFIED: ${s.unclassified.join(', ')}` : ''),
-              ...(undeclared.length + s.unclassified.length > 0
-                ? { fix: 'Declare the tool’s capability contract, then re-run `bun run scripts/builtin-tools/census-gen.ts`.' }
+                (s.unclassified.length > 0 ? ` · UNCLASSIFIED: ${s.unclassified.join(', ')}` : '') +
+                (reasonless.length > 0 ? ` · NO REASON DECLARED: ${reasonless.join(', ')}` : ''),
+              ...(detail.length > 0 ? { detail } : {}),
+              ...(undeclared.length + s.unclassified.length + reasonless.length > 0
+                ? { fix: 'Declare the tool’s capability contract (gate/conditions for a gated tool), then re-run `bun run scripts/builtin-tools/census-gen.ts`.' }
                 : {}),
             }
           },
