@@ -13,7 +13,7 @@ is `docs/TERMINAL-RUNTIME.md`.
 ## The build command
 
 ```sh
-bun run setup        # once; bun install + the four vendored packs (network)
+bun run setup        # once; bun install + the five vendored packs (network)
 bun run build.ts     # -> dist/mercury.mjs + manifest.json + vendor payloads
 node dist/mercury.mjs --version    # "Mercury <package.json version>"
 ```
@@ -167,6 +167,20 @@ against their checked-in lock files before a byte is consumed.
   runtime suppresses Glob/Grep from the tool catalog until an rg appears
   (a live probe). `MERCURY_BUILD_NO_VENDOR_RG=1` forces the no-binary
   condition.
+- **Node runtime** (optional at build, carried by every release archive). The
+  host platform's official nodejs.org build — the runtime binary and its
+  LICENSE, nothing else — at the fixed path `dist/vendor/node/` (`bin/node`;
+  `node.exe` on Windows), so a release install needs no Node on the machine.
+  Truth is `vendor/node.lock.json` (one archive + sha256 per platform, every
+  digest from that version's `SHASUMS256.txt`; the version equals
+  `.node-version`); the cache is reproduced by
+  `bun run scripts/vendor/fetch-node.ts` (`--check` = no-network validity;
+  `--platform <p>` / `--all` prepare other platforms' caches). The manifest's
+  `runtime` record carries version · platform · the archive digest · the
+  shipped binary's digest; the launchers resolve `MERCURY_NODE`, then this
+  directory, then a PATH node. Absent ⇒ degraded `runtime` (the launchers fall
+  back); a PRESENT cache that mismatches the lock fails the build and names
+  the fetch command. `MERCURY_BUILD_NO_VENDOR_NODE=1` forces the degraded arm.
 - **debugpy** (optional). The Python debug adapter, an extracted wheel under
   `dist/vendor/debugpy/`. Truth is `vendor/debugpy.lock.json`
   (version · wheel · sha256 · adapter entry); the local cache is reproduced
@@ -237,8 +251,8 @@ reproducible-build comparisons are unaffected.
 
 `dist/manifest.json`, schema 2: `{schema, name, version, buildTime,
 buildTree, bundle, bundleBytes, bundleSha256, node, selfContained, search,
-pythonDebugger, pyright, jsDebug, typescript, treeSitter, imageProcessing,
-degraded}`. `bun run artifact:smoke` asserts every claim against the real
+pythonDebugger, pyright, jsDebug, runtime, typescript, treeSitter,
+imageProcessing, degraded}`. `bun run artifact:smoke` asserts every claim against the real
 files. The runtime tool catalog does not read it — it probes the real
 binary state live, which agrees by construction since both derive from the
 same vendored files. `bundleSha256` names the exact bundle bytes;
@@ -261,18 +275,22 @@ pure function of its input).
 
 `node scripts/release/package.mjs --target <linux-x64|macos-arm64|macos-x64|windows-x64>`
 assembles one platform archive and then proves the friend path on the spot
-(unpack into a directory with spaces, no repo or bun nearby, `--version`,
-`--help`, no dev residue). Contents: the bundle, `manifest.json`, the
-platform ripgrep, the platform launcher (`mercury`, or `mercury.cmd` +
-`mercury.ps1`), the enter-screen pair (`splash.mjs` + `splash-core.mjs`,
-canonical in `assets/splash/`), `verify-artifact.mjs`, optional install
-scripts, `README-FIRST.md`, and `NOTICES.md` (the generated
-`THIRD_PARTY_NOTICES.md` verbatim). A degraded manifest refuses to package
-unless `--allow-degraded` says so explicitly.
+(unpack into a directory with spaces, no repo or bun nearby, `--version` —
+once with no node on PATH, on the vendored runtime alone — `--help`, a
+missing `MERCURY_NODE` refusing by name, no dev residue). Contents: the
+bundle, `manifest.json`, the platform ripgrep, the platform Node runtime
+(`vendor/node` — a fresh machine needs only git), the platform launcher
+(`mercury`, or `mercury.cmd` + `mercury.ps1`), the enter-screen pair
+(`splash.mjs` + `splash-core.mjs`, canonical in `assets/splash/`),
+`verify-artifact.mjs`, optional install scripts, `README-FIRST.md`, and
+`NOTICES.md` (the generated `THIRD_PARTY_NOTICES.md` verbatim). A degraded
+manifest refuses to package unless `--allow-degraded` says so explicitly.
 
 Launcher templates live in `scripts/release/launcherTemplates.mjs`; every
-launcher and README projects the Node policy from `engines.node` through a
-parser that refuses unrecognized shapes. Signing is optional at packaging:
+launcher resolves its Node in one order — `MERCURY_NODE`, the vendored
+`vendor/node` beside the bundle, then a PATH node — and projects the Node
+policy from `engines.node` through a parser that refuses unrecognized
+shapes. Signing is optional at packaging:
 a signing key enters only through `MERCURY_SIGNING_KEY_FILE`
 (Ed25519 over the release-manifest tuple); an unsigned archive says so
 plainly. Release publication (tag ≡ version, `SHA256SUMS.txt`, the release
