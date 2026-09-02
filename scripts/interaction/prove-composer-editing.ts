@@ -62,6 +62,20 @@ console.log('\n── §2 contracts pinned in source ─────────
   const help = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
   check('chat:redo registered in schema + defaults + help', graph.includes("'chat:redo'") && schema.includes("export { KEYBINDING_ACTIONS } from './actionGraph.js'") && defaults.includes("'ctrl+x ctrl+r': 'chat:redo'") && help.includes('to redo'))
   check('ctrl+z is never advertised for redo', !defaults.includes("ctrl+z': 'chat:redo") && !help.includes('ctrl + z to redo'))
+  const shutdown = read('src/utils/gracefulShutdown.ts')
+  const installerStart = shutdown.indexOf('export const setupGracefulShutdown')
+  const crashHandlerAt = shutdown.indexOf("process.on('uncaughtException'")
+  const installer = installerStart >= 0 && crashHandlerAt > installerStart ? shutdown.slice(installerStart, crashHandlerAt) : ''
+  check(
+    'the stream-gone handlers are armed inside the shutdown installer, ahead of the crash handler',
+    shutdown.includes("import { registerProcessOutputErrorHandlers } from './process.js'") && installer.includes('registerProcessOutputErrorHandlers()'),
+  )
+  const entry = read('src/main.tsx')
+  const init = read('src/entrypoints/init.ts')
+  check(
+    'the interactive boot reaches that installer (main → init → setupGracefulShutdown)',
+    entry.includes("import { init } from './entrypoints/init.js'") && entry.includes('await init()') && init.includes('setupGracefulShutdown()'),
+  )
 }
 
 console.log('\n── §3 the REAL binary: burst-undo · redo · receipts ─────────')

@@ -15,17 +15,36 @@ function check(label: string, cond: boolean, detail = ''): void {
 type Cell = { c: string; bg?: string }
 type Grid = { grid: Cell[][] }
 
+function dumpFrame(label: string, lines: string[]): void {
+  console.log(`      ┌ ${label}`)
+  lines.forEach((line, index) => {
+    const row = line.trimEnd()
+    if (row !== '') console.log(`      │ ${String(index).padStart(2, ' ')} ${row}`)
+  })
+  console.log('      └')
+}
+
+const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
+const SETTLED = { minTick: 10, awaitStableTicks: 10, requireAwait: true } as const
+const clickOn = (needle: string, atTick: number): Record<string, unknown> => ({
+  targetText: needle,
+  targetDx: 2,
+  awaitText: needle,
+  atTick,
+  data: CLICK,
+  ...SETTLED,
+})
+
 function capture(
   tag: string,
-  clicks: Array<{ x: number; y: number; atTick: number }>,
+  sends: Array<Record<string, unknown>>,
   total: number,
+  extra: Record<string, unknown> = {},
 ): { lines: string[]; grid: Cell[][] } | null {
-  const cfg = scenario('click-expand', 80, 40)
-  cfg.sends = clicks.map(k => ({
-    atTick: k.atTick,
-    data: `\x1b[<0;${k.x};${k.y}M\x1b[<0;${k.x};${k.y}m`,
-  }))
-  cfg.total = total
+  const cfg = scenario('click-expand', 80, 50) as Record<string, unknown>
+  cfg['sends'] = sends
+  cfg['total'] = total
+  Object.assign(cfg, extra)
   const gridPath = `/tmp/click-expand-${tag}-${process.pid}.json`
   const cfgPath = `/tmp/click-expand-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -90,6 +109,7 @@ if (base) {
   globY = rowOf('Searched for 1 pattern')
   errY = rowOf('The target file could not be read')
   check('baseline: agent Done row present', agentY >= 0)
+  if (agentY < 0) dumpFrame('baseline frame — the agent Done row is absent', base.lines)
   check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1)
   check(
     'baseline: agent row carries the ⌄ cue',
@@ -106,10 +126,11 @@ if (base && agentY >= 0) {
   const t = capture(
     'toggle',
     [
-      { x: 10, y: agentY + 1, atTick: 40 },
-      { x: 10, y: agentY + 1, atTick: 56 },
+      clickOn('Done (3 tool uses', 110),
+      clickOn('REPORT-LINE', 150),
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (t) {
     const rowOf = (needle: string): number => t.lines.findIndex(l => l.includes(needle))
@@ -129,10 +150,11 @@ if (base && globY >= 0 && errY >= 0) {
   const e = capture(
     'grow',
     [
-      { x: 10, y: globY + 1, atTick: 40 },
-      { x: 12, y: errY + 1, atTick: 56 },
+      clickOn('Searched for 1 pattern', 110),
+      { ...clickOn('The target file could not be read', 150), awaitText: 'GlobTool/prompt.ts' },
     ],
-    76,
+    170,
+    { stableTicks: 4 },
   )
   if (e) {
     const rowOf = (needle: string): number => e.lines.findIndex(l => l.includes(needle))
@@ -153,7 +175,7 @@ if (base && globY >= 0 && errY >= 0) {
 cleanupScenario('click-expand')
 
 {
-  const cfg = scenario('tool-lifecycle', 120, 40)
+  const cfg = scenario('tool-lifecycle', 120, 50)
   const gridPath = `/tmp/tool-lifecycle-${process.pid}.json`
   const cfgPath = `/tmp/tool-lifecycle-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
@@ -177,13 +199,20 @@ cleanupScenario('click-expand')
     check('lifecycle: ONE visible card for the resolved Edit id', editRows.length >= 1 && new Set(editRows.map(l => l.trim())).size <= 2, `rows=${editRows.length}`)
     const metaRows = lines.filter(l => l.includes('· +1/-1'))
     check('lifecycle: the settled ± meta rides the header EXACTLY once', metaRows.length === 1, `rows=${metaRows.length}: ${metaRows.map(l => l.trim()).join(' | ')}`)
+    if (editRows.length === 0 || metaRows.length !== 1) dumpFrame('lifecycle frame — the Edit header is absent', lines)
     check(
       'lifecycle: the ± lane did NOT suppress the diff card (hunks still paint)',
       lines.some(l => l.includes('-alpha')) && lines.some(l => l.includes('+omega')),
     )
     check(
-      'lifecycle: the filtered unresolved Bash paints NO ghost card',
-      !lines.some(l => l.includes('sleep 999') || l.includes('Long-running fixture command')),
+      'lifecycle: the unresolved Bash paints as the queued card (its command + waiting…)',
+      lines.some(l => l.includes('sleep 999')) && lines.some(l => l.includes('waiting…')),
+      lines.filter(l => l.includes('sleep 999') || l.includes('waiting')).map(l => l.trim()).join(' | ') || '(neither row painted)',
+    )
+    check(
+      'lifecycle: the unresolved Bash is never a settled "Ran" row',
+      !lines.some(l => /Ran \d+ bash command/.test(l)),
+      lines.filter(l => /bash command/.test(l)).map(l => l.trim()).join(' | '),
     )
   }
 }
@@ -209,18 +238,12 @@ cleanupScenario('click-expand')
 }
 
 {
-  const run = (clicks: Array<{ x: number; y: number }>, total: number): string[] | null => {
-    const cfg = { ...scenario('two-bash-click', 80, 40) }
-    cfg.sends = clicks.map(k => ({
-      atTick: 110,
-      minTick: 10,
-      awaitText: 'bash command',
-      awaitStableTicks: 10,
-      data: `\x1b[<0;${k.x};${k.y}M\x1b[<0;${k.x};${k.y}m`,
-    }))
-    cfg.total = total
-    const gridPath = `/tmp/click-expand-twobash-${process.pid}.json`
-    const cfgPath = `/tmp/click-expand-twobash-cfg-${process.pid}.json`
+  const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {
+    const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
+    cfg['sends'] = sends
+    cfg['total'] = total
+    const gridPath = `/tmp/click-expand-twobash-${tag}-${process.pid}.json`
+    const cfgPath = `/tmp/click-expand-twobash-${tag}-cfg-${process.pid}.json`
     writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
     const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
       encoding: 'utf8',
@@ -234,62 +257,44 @@ cleanupScenario('click-expand')
     const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as Grid).grid
     return grid.map(r => r.map(c => c.c).join(''))
   }
-  const twoBase = run([], 90)
+  const bashRows = (lines: string[]): string => lines.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | ')
+  const twoBase = run('base', [], 90)
   const rows = twoBase
     ? twoBase.map((l, i) => (/bash command/.test(l) ? i : -1)).filter(i => i >= 0)
     : []
   check('two-bash baseline shows BOTH collapsed rows', rows.length === 2, `rows=${JSON.stringify(rows)}`)
   if (rows.length === 2) {
-    const afterTop = run([{ x: 20, y: rows[0]! + 1 }], 130)
+    const afterTop = run('top', [{ ...clickOn('bash command', 110), targetDx: 0 }], 130)
     check(
       'clicking the FURTHER-UP row expands it (echo hi revealed)',
       afterTop !== null && afterTop.some(l => l.includes('Bash echo hi')),
-      afterTop === null
-        ? 'capture failed'
-        : afterTop.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | '),
+      afterTop === null ? 'capture failed' : bashRows(afterTop),
     )
-    const afterBot = run([{ x: 20, y: rows[1]! + 1 }], 130)
+    const afterBot = run(
+      'bottom',
+      [
+        { ...clickOn('bash command', 110), targetDx: 0 },
+        { ...clickOn('bash command', 150), targetDx: 0, awaitText: 'Bash echo hi' },
+      ],
+      170,
+    )
     check(
       'clicking the newest row expands it (shasum revealed)',
       afterBot !== null && afterBot.some(l => l.includes('shasum -a 256')),
-      afterBot === null
-        ? 'capture failed'
-        : afterBot.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | '),
+      afterBot === null ? 'capture failed' : bashRows(afterBot),
     )
-    const jitter = (() => {
-      const cfg = { ...scenario('two-bash-click', 80, 40) }
-      const y = rows[0]! + 1
-      cfg.sends = [
-        {
-          atTick: 110,
-          minTick: 10,
-          awaitText: 'bash command',
-          awaitStableTicks: 10,
-          data: `\x1b[<0;20;${y}M\x1b[<32;21;${y}M\x1b[<0;21;${y}m`,
-        },
-      ]
-      cfg.total = 130
-      const gridPath = `/tmp/click-expand-jitter-${process.pid}.json`
-      const cfgPath = `/tmp/click-expand-jitter-cfg-${process.pid}.json`
-      writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
-      const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
-        encoding: 'utf8',
-        timeout: vshotBudgetMs(120_000),
-        env: {
-          ...process.env,
-          MERCURY_CONFIG_DIR: CONFIG_HOME,
-        },
-      })
-      if (res.status !== 0) return null
-      const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as Grid).grid
-      return grid.map(r => r.map(c => c.c).join(''))
-    })()
+    const jitter = run(
+      'jitter',
+      [
+        { ...clickOn('bash command', 110), targetDx: 0, data: '\x1b[<0;{X};{Y}M' },
+        { targetText: 'bash command', targetDx: 1, afterPrevTicks: 1, data: '\x1b[<32;{X};{Y}M\x1b[<0;{X};{Y}m' },
+      ],
+      130,
+    )
     check(
       'a one-cell drift click still toggles (the slop law)',
       jitter !== null && jitter.some(l => l.includes('Bash echo hi')),
-      jitter === null
-        ? 'capture failed'
-        : jitter.filter(l => /bash command|Bash /.test(l)).map(l => l.trim()).join(' | '),
+      jitter === null ? 'capture failed' : bashRows(jitter),
     )
   }
 }
