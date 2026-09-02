@@ -45,7 +45,10 @@ one that is live:
    These are used only when you have installed them yourself; Mercury never
    vendors them.
 3. **No backend**: pressing `v` answers the receipt "no microphone backend",
-   naming both remedies.
+   naming the remedy that fits the install: on a source checkout the pack
+   build (`bun run setup`) or a recorder on PATH; on a release install — no
+   checkout to build from — a recorder on PATH (ffmpeg or sox), with the
+   platform's install command.
 
 On macOS the first capture makes the operating system ask whether your
 terminal app may use the microphone. A denied permission does not crash a
