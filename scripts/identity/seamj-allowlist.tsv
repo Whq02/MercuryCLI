@@ -1,0 +1,14 @@
+# The zero-remnant allowlist (the enumerated estate, §6 law).
+# Classes: a=OAuth/login support · b=Claude-model support surfaces ·
+# c=boundary-decoded compat INPUTS (+ Mercury's own legacy-honor fallbacks) ·
+# guard=anti-remnant refusal naming the external product deliberately.
+# Scope: USER-VISIBLE external display spellings in src. The emitted-
+# identity surface is pinned separately (prove-native-identity-sweep.ts).
+# file	class	reason
+src/components/mercury-ui/parity/AccountView.tsx	guard	accounts board labels the external scope it will never bill through
+src/substrate/flagRegistry.ts	c	the foreign-compat control's summaries name the external product they gate
+src/substrate/startupMenu.ts	c	the boot-menu compat rows name the external product they gate
+src/utils/secureStorage/macOsKeychainHelpers.ts	c	legacy keychain service spelling — dual-read fallback only, never written
+src/utils/secureStorage/keychainPrefetch.ts	c	legacy keychain service spelling — prefetch fallback only, never written
+src/utils/deepLink/registerProtocol.ts	c	the legacy handler-app name constant exists only to retire our own pre-rename artifact
+src/utils/knownAgentClis.ts	guard	the foreign-writer recognizer attributes the external product it detects by that product's own display name

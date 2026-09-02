@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "architectural-design-task",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Design the next-generation router kernel's state model",
+    "title": "Design the routing kernel's owner-scoped state model",
+    "task": "Design the state model for the routing kernel: how a mission's candidate-node graph, its dispatch history, and per-node worker affinity should be represented and persisted so that a crash mid-dispatch can reconcile cleanly. This is a from-scratch design decision that will constrain every future routing slice, not an implementation task — propose the shape, the invariants, and the failure modes it forecloses.",
+    "ambiguity": 2,
+    "coupling": 3,
+    "parallelism": 0,
+    "taskShape": "architectural"
+  },
+  "expected": {
+    "profile": "opus-direct",
+    "width": 1,
+    "modelClasses": ["opus"],
+    "reasonCodes": ["architectural"],
+    "adjustments": []
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "meridian-orders",
+  "version": "0.4.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --experimental-strip-types tests/",
+    "start": "node --experimental-strip-types src/api/server.ts"
+  }
+}

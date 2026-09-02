@@ -1,0 +1,108 @@
+{
+ "getProjectsDir/shape": "/tmp/mercury-parity-home/projects",
+ "getTranscriptPathForSession/shape": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1».jsonl",
+ "getAgentTranscriptPath/shape": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1»/subagents/agent-agent-fixture-1.jsonl",
+ "getWorkflowTranscriptDir/shape": "/tmp/mercury-parity-home/projects/«parity-cwd»/«u1»/subagents/workflows/wf_fixture1",
+ "sessionIdExists/absent": false,
+ "getNodeEnv/value": "development",
+ "getProjectDir/sanitized-shape": "/tmp/mercury-parity-home/projects/-tmp-example-repo-with-dots-9e4efec0",
+ "getUserType/value": "external",
+ "isCustomTitleEnabled/value": true,
+ "isChainParticipant/kinds": [
+  true,
+  true,
+  true,
+  true,
+  false
+ ],
+ "isEphemeralToolProgress/kinds": [
+  false,
+  false,
+  false,
+  false
+ ],
+ "isTranscriptMessage/kinds": [
+  true,
+  false
+ ],
+ "isLoggableMessage/kinds": [
+  true,
+  false
+ ],
+ "buildConversationChain/linear-with-orphan": [
+  {
+   "message": {
+    "content": "first",
+    "role": "user"
+   },
+   "parentUuid": null,
+   "sessionId": "«u1»",
+   "timestamp": "«t1»",
+   "type": "user",
+   "uuid": "«u2»"
+  },
+  {
+   "message": {
+    "content": [
+     {
+      "citations": [],
+      "text": "hi",
+      "type": "text"
+     }
+    ],
+    "id": "msg_1",
+    "role": "assistant"
+   },
+   "parentUuid": "«u2»",
+   "sessionId": "«u1»",
+   "timestamp": "«t2»",
+   "type": "assistant",
+   "uuid": "«u3»"
+  },
+  {
+   "message": {
+    "content": "second",
+    "role": "user"
+   },
+   "parentUuid": "«u3»",
+   "sessionId": "«u1»",
+   "timestamp": "«t1»",
+   "type": "user",
+   "uuid": "«u4»"
+  }
+ ],
+ "removeExtraFields/strips-envelope": [
+  {
+   "message": {
+    "content": "x",
+    "role": "user"
+   },
+   "sessionId": "«u1»",
+   "timestamp": "«t1»",
+   "type": "user",
+   "uuid": "«u2»"
+  }
+ ],
+ "checkResumeConsistency/consistent-chain": "«undefined»",
+ "getFirstMeaningfulUserMessageTextContent/first-real": "first",
+ "cleanMessagesForLogging/passthrough-shape": [
+  {
+   "message": {
+    "content": "y",
+    "role": "user"
+   },
+   "parentUuid": null,
+   "sessionId": "«u1»",
+   "timestamp": "«t1»",
+   "type": "user",
+   "uuid": "«u2»"
+  }
+ ],
+ "extractAgentIdsFromMessages/none": [],
+ "getSessionIdFromLog/from-path": "«undefined»",
+ "isLiteLog/lite-vs-full": [
+  false,
+  false
+ ],
+ "extractTeammateTranscriptsFromTasks/empty": {}
+}

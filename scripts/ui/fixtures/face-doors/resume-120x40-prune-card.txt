@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                    ⌁ resume session
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ orchard-src                                                    │  │ ❯ the tool-loop fold                       │
+   │ ❯ the tool-loop fold                             2 minutes ago │  │                                            │
+   │   concourse polish                       3 hours ago · cleared │  │ prune transcripts — the one deleting       │
+   │                                                                │  │ door · nothing is ever deleted             │
+   │ moodle                                                         │  │ automatically                              │
+   │   moodle groundwork                                  1 day ago │  │                                            │
+   │                                                                │  │ scope: the full history (every project, c… │
+   │ orchard-src                                                    │  │ older than 30 days                         │
+   │   splash ripple study                               2 days ago │  │                                            │
+   │   forty-day spike                                  1 month ago │  │ would delete: 2 transcripts · total 164.1… │
+   │   ninety-day archive                              3 months ago │  │ age range: 3 months ago → 1 month ago      │
+   │                                                                │  │ … (the trail continues — a taller termina… │
+   │ router crews                                                   │  ╰────────────────────────────────────────────╯
+   │   party · dps1 — dps1                           40 minutes ago │  ╭────────────────────────────────────────────╮
+   ╰────────────────────────────────────────────────────────────────╯  │ SESSIONS                                   │
+                                                                       │ Scope      all history — every project     │
+                                                                       │ Sessions   6 · 1 crew                      │
+                                                                       │ Opens      ● a real chat, in place         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  6 sessions in the full history · 1 crew · ↵ opens the real chat                             │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                           ↑↓ choose · ↵ commit (No is the default) · esc / n keep everything

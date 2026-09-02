@@ -1,0 +1,863 @@
+{
+  "header": {
+    "family": "openai",
+    "label": "OpenAI Responses",
+    "model": "gpt-5.5",
+    "backend": "openai-responses",
+    "dialect": "responses",
+    "mechanical": true,
+    "tree": "4004072fd",
+    "fold": "unlabelled",
+    "when": "2026-09-02T03:08:57.436Z",
+    "promptChars": 27330,
+    "promptTokensEst": 6833,
+    "toolCount": 21,
+    "toolNames": [
+      "Agent",
+      "Bash",
+      "Glob",
+      "Grep",
+      "Read",
+      "Edit",
+      "Write",
+      "Skill",
+      "Inspect",
+      "Workshop",
+      "Service",
+      "Eval",
+      "AstSearch",
+      "AstEdit",
+      "Checkpoint",
+      "Rewind",
+      "TeamBrief",
+      "ArtifactsList",
+      "Sleep",
+      "PushNotification",
+      "ToolSearch"
+    ],
+    "toolSchemaChars": 61811,
+    "notes": []
+  },
+  "rows": [
+    {
+      "task": "fix-bug",
+      "title": "find and fix a bug",
+      "skipped": null,
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Bash(node:*)",
+        "Bash(npm:*)",
+        "Bash(cat:*)",
+        "Bash(ls:*)",
+        "Bash(wc:*)",
+        "Bash(git:*)",
+        "Bash(grep:*)",
+        "Bash(find:*)",
+        "Bash(head:*)",
+        "Bash(tail:*)",
+        "Bash(sed:*)"
+      ],
+      "finalText": "Fixed median() in src/stats.js: an even-length list now averages its two middle values. node --test passes (4 of 4).",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "node --test exit 0; changed files: src/stats.js; final: Fixed median() in src/stats.js: an even-length list now averages its two middle ",
+      "turns": 5,
+      "toolCalls": 4,
+      "wasted": 1,
+      "probes": 1,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 2658,
+      "toolResultTokensEst": 665,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "Bash",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.537417ms)\n✔ median of an odd-length list (0.101875ms)\n✖ median of an even-length list averages the middle pair (0.532167ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 65.594083\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.532167ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/var/folders/rk/7yhp7p897hz36kg2678npky40000gn/",
+          "namesFix": true,
+          "probe": true
+        }
+      ],
+      "wallMs": 1820,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 40,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 25,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "add-test",
+      "title": "add a test and run it",
+      "skipped": null,
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Bash(node:*)",
+        "Bash(npm:*)",
+        "Bash(cat:*)",
+        "Bash(ls:*)",
+        "Bash(wc:*)",
+        "Bash(git:*)",
+        "Bash(grep:*)",
+        "Bash(find:*)",
+        "Bash(head:*)",
+        "Bash(tail:*)",
+        "Bash(sed:*)"
+      ],
+      "finalText": "Added \"mean of an empty list is 0\" to test/stats.test.js; it passes. The suite still reports the pre-existing even-length median failure (3 pass, 1 fail).",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "test present: true; new case passes: true; changed: test/stats.test.js; suite run: true",
+      "turns": 4,
+      "toolCalls": 3,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 1612,
+      "toolResultTokensEst": 403,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1662,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 20,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "anchored-edit",
+      "title": "edit a file precisely",
+      "skipped": null,
+      "allowedTools": [
+        "Read",
+        "Edit",
+        "Write",
+        "Grep",
+        "Glob",
+        "Bash(node:*)",
+        "Bash(npm:*)",
+        "Bash(cat:*)",
+        "Bash(ls:*)",
+        "Bash(wc:*)",
+        "Bash(git:*)",
+        "Bash(grep:*)",
+        "Bash(find:*)",
+        "Bash(head:*)",
+        "Bash(tail:*)",
+        "Bash(sed:*)"
+      ],
+      "finalText": "Changed the README heading to \"## Usage (CLI)\"; nothing else touched.",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "heading present: true; numstat: 1\t1\tREADME.md; changed: README.md",
+      "turns": 4,
+      "toolCalls": 3,
+      "wasted": 1,
+      "probes": 1,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 957,
+      "toolResultTokensEst": 239,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "Edit",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content.</tool_use_error>",
+          "namesFix": true,
+          "probe": true
+        }
+      ],
+      "wallMs": 1244,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 32,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 20,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "search-symbol",
+      "title": "search the repo for a symbol",
+      "skipped": null,
+      "allowedTools": [
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash(grep:*)",
+        "Bash(rg:*)"
+      ],
+      "finalText": "normalizeRecord is defined at src/records.js:7 and called at src/stats.js:19 (imported at src/stats.js:2).",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "definition cited: true; call site cited: true; searched: true",
+      "turns": 2,
+      "toolCalls": 1,
+      "wasted": 1,
+      "probes": 1,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 1006,
+      "toolResultTokensEst": 252,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "Grep",
+          "text": "[openai] the provider emitted a malformed tool call (Grep): the arguments do not match the tool's input schema (The required parameter `pattern` is missing; The parameter `query` was not expected) — it was not executed.",
+          "namesFix": true,
+          "probe": true
+        }
+      ],
+      "wallMs": 1224,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 15,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "shell-pipeline",
+      "title": "run a shell pipeline and read its output",
+      "skipped": null,
+      "allowedTools": [
+        "Bash(cat:*)",
+        "Bash(wc:*)",
+        "Bash(find:*)",
+        "Bash(ls:*)",
+        "Read",
+        "Glob"
+      ],
+      "finalText": "The .js files under src/ total 45 lines.",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "expected 45; cited: true; pipeline used: true",
+      "turns": 2,
+      "toolCalls": 1,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 8,
+      "toolResultTokensEst": 2,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1260,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 10,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "use-skill",
+      "title": "use a bundled skill",
+      "skipped": null,
+      "allowedTools": [
+        "Skill",
+        "Read",
+        "Grep",
+        "Glob"
+      ],
+      "finalText": "The OpenAI Responses dialect posts to POST /v1/responses (the base URL plus /responses).",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "provider-apis loaded: true; answer names responses: true",
+      "turns": 4,
+      "toolCalls": 2,
+      "wasted": 1,
+      "probes": 1,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 196,
+      "toolResultTokensEst": 49,
+      "imageChars": 0,
+      "injectedTokensEst": 854,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "Skill",
+          "text": "<tool_use_error>Unknown skill: provider-api. Did you mean: provider-apis? The available skills ride in system-reminder messages in this conversation.</tool_use_error>",
+          "namesFix": true,
+          "probe": true
+        }
+      ],
+      "wallMs": 1246,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 24,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 15,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "delegate-agent",
+      "title": "delegate a subtask to an agent",
+      "skipped": null,
+      "allowedTools": [
+        "Agent",
+        "Read",
+        "Grep",
+        "Glob"
+      ],
+      "finalText": "The subagent reports the tests cover two functions: mean (one case) and median (two cases, odd- and even-length).",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "agent reported: true; relayed: true; seat ran its script: true",
+      "turns": 2,
+      "toolCalls": 1,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 579,
+      "toolResultTokensEst": 145,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 184,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1313,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 10,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "ide-diagnostics",
+      "title": "open a file in the IDE seam",
+      "skipped": null,
+      "allowedTools": [
+        "LSP",
+        "Read",
+        "Grep",
+        "Glob"
+      ],
+      "finalText": "Opened src/stats.js in the language server; its diagnostics are listed in the LSP result above.",
+      "stderrTail": "",
+      "success": false,
+      "oracle": "LSP called: false; server answered: false; first result: ",
+      "turns": 1,
+      "toolCalls": 0,
+      "wasted": 1,
+      "probes": 0,
+      "unexpectedErrors": 1,
+      "duplicates": 0,
+      "toolResultChars": 0,
+      "toolResultTokensEst": 0,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "?",
+          "text": "[openai] No such tool available: LSP — it is not in this session's tool list, so it was not executed. Call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).",
+          "namesFix": true,
+          "probe": false
+        }
+      ],
+      "wallMs": 1217,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 10,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "browser-page",
+      "title": "drive the browser tool on a fixture page",
+      "skipped": null,
+      "allowedTools": [
+        "Browser"
+      ],
+      "finalText": "The page title is \"Mercury AX Fixture Page\"; screenshot captured.",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "title in a Browser result: true; title reported: true",
+      "turns": 5,
+      "toolCalls": 4,
+      "wasted": 1,
+      "probes": 1,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 451,
+      "toolResultTokensEst": 113,
+      "imageChars": 18916,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "Browser",
+          "text": "<tool_use_error>open requires an http(s) url</tool_use_error>",
+          "namesFix": true,
+          "probe": true
+        }
+      ],
+      "wallMs": 4843,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 40,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 25,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "guide-question",
+      "title": "ask the guide agent a how-do-I question",
+      "skipped": null,
+      "allowedTools": [
+        "Agent",
+        "Read",
+        "Grep",
+        "Glob",
+        "WebFetch"
+      ],
+      "finalText": "The guide says: in an interactive session the mode cycles on the shift+tab carousel; /authority is the control surface; a headless run sets it with --permission-mode <mode>.",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "guide seat request: true; guide prompt: true; roster carries /authority: true; relayed: true",
+      "turns": 2,
+      "toolCalls": 1,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 715,
+      "toolResultTokensEst": 179,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1246,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 10,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "two-seats",
+      "title": "coordinate two seats",
+      "skipped": null,
+      "allowedTools": [
+        "Agent",
+        "Read",
+        "Grep",
+        "Glob"
+      ],
+      "finalText": "Seat A: test/stats.test.js holds 3 test cases. Seat B: src/stats.js exports mean, median, summarize.",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "agent calls: 2; one parallel round: true; both seats answered with their facts: true; merged: true",
+      "turns": 3,
+      "toolCalls": 2,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 910,
+      "toolResultTokensEst": 228,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 436,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1356,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 16,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 10,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "structural-rename",
+      "title": "rename a function structurally across three files",
+      "skipped": null,
+      "allowedTools": [
+        "AstSearch",
+        "AstEdit",
+        "Read",
+        "Grep",
+        "Glob",
+        "Bash(node:*)"
+      ],
+      "finalText": "Renamed normalizeRecord to normaliseRecord structurally — the declaration in src/records.js, the imports and every use in src/stats.js and src/format.js — through one AstEdit plan; README and tests untouched. node --test still shows only the pre-existing even-length median failure (2 pass, 1 fail).",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "old name gone: true; new name in all three: true; changed: src/format.js, src/records.js, src/stats.js; README intact: true; structural apply: true; modules load (2 pass, 1 fail as before): true (2/1)",
+      "turns": 6,
+      "toolCalls": 5,
+      "wasted": 1,
+      "probes": 1,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 2819,
+      "toolResultTokensEst": 705,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [
+        {
+          "tool": "AstEdit",
+          "text": "<tool_use_error>apply: true needs plan — run the dry run first (the same call without apply), read the diff, then use the plan token it returned as plan.</tool_use_error>",
+          "namesFix": true,
+          "probe": true
+        }
+      ],
+      "wallMs": 1989,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 48,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 30,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "resume-a",
+      "title": "resume a session (phase 1: the codeword)",
+      "skipped": null,
+      "allowedTools": [],
+      "finalText": "noted",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "final: noted",
+      "turns": 1,
+      "toolCalls": 0,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 0,
+      "toolResultTokensEst": 0,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1104,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 5,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    },
+    {
+      "task": "resume-b",
+      "title": "resume a session (phase 2: recall)",
+      "skipped": null,
+      "allowedTools": [],
+      "finalText": "PELICAN-42",
+      "stderrTail": "",
+      "success": true,
+      "oracle": "recalled: true; resumed request carried the prior turn: true",
+      "turns": 1,
+      "toolCalls": 0,
+      "wasted": 0,
+      "probes": 0,
+      "unexpectedErrors": 0,
+      "duplicates": 0,
+      "toolResultChars": 0,
+      "toolResultTokensEst": 0,
+      "imageChars": 0,
+      "injectedTokensEst": 0,
+      "subagentResultTokensEst": 0,
+      "asks": 0,
+      "denials": 0,
+      "errors": [],
+      "wallMs": 1127,
+      "exitCode": 0,
+      "timedOut": false,
+      "resultSubtype": "success",
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 5,
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "",
+        "iterations": null,
+        "speed": "standard",
+        "output_tokens_details": null
+      },
+      "costUsd": 0
+    }
+  ]
+}

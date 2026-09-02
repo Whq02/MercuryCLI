@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Captured-SHAPE fixture (spec-authored; see editmode-pass.xml header):
+     mixed verdicts — passed, failed with CDATA message + stack-trace,
+     skipped with a reason, and an NUnit Inconclusive. -->
+<test-run id="2" testcasecount="4" result="Failed" total="4" passed="1" failed="1" inconclusive="1" skipped="1" asserts="2" start-time="2026-08-29 10:05:00Z" end-time="2026-08-29 10:05:02Z" duration="2.250000">
+  <test-suite type="TestSuite" id="1000" name="Game" fullname="Game" result="Failed" total="4" passed="1" failed="1" inconclusive="1" skipped="1" duration="2.250000">
+    <test-suite type="TestFixture" id="1002" name="CombatTests" fullname="Game.Tests.CombatTests" classname="Game.Tests.CombatTests" result="Failed" total="4" passed="1" failed="1" inconclusive="1" skipped="1" duration="2.100000">
+      <test-case id="1003" name="HitsConnect" fullname="Game.Tests.CombatTests.HitsConnect" methodname="HitsConnect" classname="Game.Tests.CombatTests" runstate="Runnable" result="Passed" duration="0.021000" asserts="1" />
+      <test-case id="1004" name="DamageIsAdditive" fullname="Game.Tests.CombatTests.DamageIsAdditive" methodname="DamageIsAdditive" classname="Game.Tests.CombatTests" runstate="Runnable" result="Failed" duration="0.034000" asserts="1">
+        <failure>
+          <message><![CDATA[  Expected: 5
+  But was:  -1
+]]></message>
+          <stack-trace><![CDATA[at Game.Tests.CombatTests.DamageIsAdditive () [0x0001a] in /Game/Assets/Tests/CombatTests.cs:42]]></stack-trace>
+        </failure>
+      </test-case>
+      <test-case id="1005" name="CritsDouble" fullname="Game.Tests.CombatTests.CritsDouble" methodname="CritsDouble" classname="Game.Tests.CombatTests" runstate="Ignored" result="Skipped" duration="0.001000">
+        <reason>
+          <message><![CDATA[crit rework pending]]></message>
+        </reason>
+      </test-case>
+      <test-case id="1006" name="NetworkedHitsSync" fullname="Game.Tests.CombatTests.NetworkedHitsSync" methodname="NetworkedHitsSync" classname="Game.Tests.CombatTests" runstate="Runnable" result="Inconclusive" duration="1.998000" />
+    </test-suite>
+  </test-suite>
+</test-run>

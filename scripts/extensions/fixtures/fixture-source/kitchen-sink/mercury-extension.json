@@ -1,0 +1,102 @@
+{
+  "name": "kitchen-sink",
+  "version": "1.0.0",
+  "description": "every contribution kind, for the provers",
+  "author": {
+    "name": "the proof suite"
+  },
+  "license": "MIT",
+  "contributes": {
+    "skills": [
+      "./skills"
+    ],
+    "commands": [
+      "./commands"
+    ],
+    "agents": [
+      "./agents"
+    ],
+    "hooks": {
+      "PostToolUse": [
+        {
+          "matcher": "Write|Edit",
+          "hooks": [
+            {
+              "type": "command",
+              "command": "sh ${MERCURY_EXTENSION_ROOT}/bin/fixture-hook.sh",
+              "timeout": 30
+            }
+          ]
+        }
+      ],
+      "SessionStart": [
+        {
+          "hooks": [
+            {
+              "type": "command",
+              "command": "sh ${MERCURY_EXTENSION_ROOT}/bin/fixture-hook.sh",
+              "timeout": 30
+            }
+          ]
+        }
+      ]
+    },
+    "servers": {
+      "fixture": {
+        "type": "stdio",
+        "command": "node",
+        "args": [
+          "${MERCURY_EXTENSION_ROOT}/server/fixture-server.mjs"
+        ],
+        "env": {
+          "FIXTURE_TOKEN": "${option.FIXTURE_TOKEN}"
+        }
+      }
+    },
+    "language": {
+      "fixture-ls": {
+        "command": "node",
+        "args": [
+          "--version"
+        ],
+        "extensionToLanguage": {
+          ".fixture": "fixture"
+        }
+      }
+    },
+    "channels": [
+      {
+        "server": "fixture",
+        "label": "fixture notices"
+      }
+    ],
+    "keybindings": {
+      "ctrl+x f": "/kitchen-sink:fixture-skill"
+    }
+  },
+  "needs": {
+    "binaries": [
+      "node"
+    ],
+    "env": [],
+    "network": [
+      "fixture.invalid"
+    ],
+    "options": {
+      "FIXTURE_TOKEN": {
+        "type": "string",
+        "title": "fixture token",
+        "description": "a sensitive option the provers set",
+        "required": false,
+        "sensitive": true
+      },
+      "FIXTURE_NAME": {
+        "type": "string",
+        "title": "fixture name",
+        "description": "a plain option",
+        "required": false,
+        "default": "anon"
+      }
+    }
+  }
+}

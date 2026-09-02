@@ -1,0 +1,11 @@
+{
+  "$comment": "Future-ready ACP registry manifest — NOT published (private).",
+  "name": "mercury",
+  "displayName": "Mercury",
+  "description": "Private multi-purpose software-development harness — full session machinery over ACP v1",
+  "command": "mercury",
+  "args": ["acp", "--stdio"],
+  "protocolVersion": 1,
+  "sdk": { "package": "@agentclientprotocol/sdk", "version": "1.2.1", "license": "Apache-2.0" },
+  "publish": false
+}

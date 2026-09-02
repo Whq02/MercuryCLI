@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "id": "exact-pin-unresolvable",
+  "mode": "scribe",
+  "mission": {
+    "objective": "A dispatch pinned to a raw model string the fleet cannot resolve",
+    "title": "Run this on gpt-5-turbo specifically",
+    "task": "Run the same debounce fix as the SearchBox task, but the operator explicitly pinned it to a raw model string that names a model outside the roster this fleet can spawn.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "exactPin": "gpt-5-turbo"
+  },
+  "expected": {
+    "profile": "REFUSAL",
+    "width": 0,
+    "modelClasses": [],
+    "reasonCodes": ["exact-pin-unresolvable"],
+    "adjustments": []
+  }
+}

@@ -1,0 +1,42 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+.render/
+
+# Local-only tool homes and project stores; never tracked.
+.claude/
+.mercury/
+.tmp-lsp-proof-*/
+
+# The operator's untracked local instruction stub.
+/MERCURY.local.md
+
+# Vendored third-party caches: the checked-in truth is the vendor/*.lock.json
+# receipt; the payloads are reproduced from it (hash-verified) and never tracked.
+vendor/debugpy/
+vendor/pyright/
+vendor/grammars/
+vendor/js-debug/
+release-out/
+
+# Gate shard artifacts from local runs.
+ci-gate-out/
+ci-verdict.json
+__pycache__/
+winreg-artifacts/
+
+# Private key material never lives in the tree (provers use ephemeral keys in tmp).
+*.pem
+
+# generated inspection artifacts — generate → verify → never commit
+scripts/orphans/.out/
+scripts/substrate/.out/
+scripts/tool-economy/.out/
+scripts/reliability/.out/
+# Generated inventories are verify-time artifacts, never committed:
+docs/FLAG-REGISTRY.md
+docs/REACHABILITY-MANIFEST.json
+docs/REACHABILITY-MAP.md
+# per-run journey copies of the render-continuity prover, never committed
+scripts/render-continuity/receipts/.last/

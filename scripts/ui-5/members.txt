@@ -1,0 +1,8 @@
+# scripts/ui-5/members.txt — this sub-suite's provers, one basename per
+# line (the files live in scripts/ui/). ONE member by design: the workflows
+# board journey runs fourteen vshot captures (~50 s each, budgets that
+# double under load) — its honest wall alone exceeds the default CI ceiling,
+# so it earns its own suite and a ceiling row BY NAME rather than a shared
+# bin (the split proof tree-killed ui-2 with it inboard). A name listed here
+# but missing on disk is a loud red in this runner.
+prove-workflows-board.ts

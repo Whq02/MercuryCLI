@@ -1,0 +1,4 @@
+Mercury VS Code bridge — private, all rights reserved.
+Part of the Mercury private collaborator distribution. Not for publication
+or redistribution. Contains no third-party code (the ACP transport is
+hand-carried NDJSON JSON-RPC; the `vscode` module is provided by the editor).

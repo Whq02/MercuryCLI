@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "id": "three-independent-adapters",
+  "mode": "party",
+  "mission": {
+    "objective": "Add three independent provider adapters",
+    "title": "Ship the S3, GCS, and Azure blob adapters",
+    "task": "We need three new storage adapters implementing the existing BlobStore interface: one for S3, one for GCS, and one for Azure Blob Storage. Each is a standalone file with no shared implementation beyond the interface they already implement. They can be built and tested completely independently of one another.",
+    "ambiguity": 0,
+    "coupling": 0,
+    "parallelism": 3,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "S3 adapter",
+        "task": "Implement BlobStore for S3 in src/storage/s3Adapter.ts with unit tests.",
+        "dependsOn": [],
+        "ownsPaths": ["src/storage/s3Adapter.ts"],
+        "acceptance": ["put/get/delete round-trip against a mocked S3 client", "implements the full BlobStore interface"]
+      },
+      {
+        "id": "n2",
+        "title": "GCS adapter",
+        "task": "Implement BlobStore for GCS in src/storage/gcsAdapter.ts with unit tests.",
+        "dependsOn": [],
+        "ownsPaths": ["src/storage/gcsAdapter.ts"],
+        "acceptance": ["put/get/delete round-trip against a mocked GCS client", "implements the full BlobStore interface"]
+      },
+      {
+        "id": "n3",
+        "title": "Azure Blob adapter",
+        "task": "Implement BlobStore for Azure Blob Storage in src/storage/azureAdapter.ts with unit tests.",
+        "dependsOn": [],
+        "ownsPaths": ["src/storage/azureAdapter.ts"],
+        "acceptance": ["put/get/delete round-trip against a mocked Azure client", "implements the full BlobStore interface"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "parallel-sonnet",
+    "width": 3,
+    "modelClasses": ["sonnet", "sonnet", "sonnet"],
+    "reasonCodes": ["separable-disjoint-ownership"],
+    "adjustments": []
+  }
+}

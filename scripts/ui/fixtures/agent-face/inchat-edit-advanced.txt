@@ -1,0 +1,23 @@
+0q4mu● edit fixture-scout  →  <PATH>
+
+All fields (one draft — guided, advanced and raw share it) ─────────────────────────────────────────
+▸ identifier          fixture-scout
+  description         Use this agent to scout the fixture est…
+  system prompt       You are the fixture scout. Walk the  · 146 chars
+  tools               Read, Grep
+  disallowed tools    Bash
+  skills              chart-lore, map-lore
+  model               opus
+  effort              high
+  permission mode     default
+  max turns           12
+  memory              project
+  background          always background
+  isolation           worktree
+  initial prompt      Survey the estate first.
+  instruction profile native
+  color               (automatic)
+  raw view (exact bytes)
+  review & save
+
+↑↓ field · ↵ edit · esc cancel

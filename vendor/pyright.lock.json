@@ -1,0 +1,13 @@
+{
+  "name": "pyright",
+  "version": "1.1.413",
+  "tarball": "pyright-1.1.413.tgz",
+  "url": "https://registry.npmjs.org/pyright/-/pyright-1.1.413.tgz",
+  "sha512": "d65a712ab8740c71e97c040e7dc899a36a23b9ada36ac7b7c303bd6adf2495d73e17fa753c1b1cc40e424371b5aa0e6530e3215e8e996a230b317100a800c802",
+  "integrity": "sha512-1lpxKrh0DHHpfAQOfciZo2ojua2jase3wwO9at8kldc+F/p1PBscxA5CQ3G1qg5lMOMhXo6ZaiMLMXEAqADIAg==",
+  "license": "MIT",
+  "licenseFiles": ["LICENSE.txt"],
+  "nodeFloor": ">=14.0.0",
+  "serverEntry": "langserver.index.js",
+  "notes": "Pinned 2026-07-14 at 1.1.411; re-pinned 2026-08-28 at 1.1.413 (the dependency refresh — metadata + integrity taken from the live registry document, the tarball sha512-verified by the fetch). Pyright language server (Microsoft, MIT) — the Python semantic lane. Pure JS under Mercury's node prerequisite; analyses the operator's selected Python environment, never a bundled runtime. Metadata + integrity reverified against live npm before pinning (1.1.411 was the live latest). Invocation: `node <vendor-root>/langserver.index.js --stdio`. Update procedure: bump version/url/sha512/integrity from `curl -s https://registry.npmjs.org/pyright/<ver>`, run `bun run scripts/vendor/fetch-pyright.ts`, rebuild, re-run `bash scripts/ide/run-all.sh`."
+}

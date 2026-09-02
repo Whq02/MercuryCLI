@@ -1,0 +1,18 @@
+
+
+
+
+
+(>_) MERCURY · saturn scheduler
+
+journey session
+❯ aaaa1111  in 2h            in 2h
+  bbbb2222  tomorrow 07:30   in 1d
+box (machine)
+  eeee5555  in 6h            in 6h
+ops · parked
+  cccc3333  every day 09:00  paused
+  dddd4444  in 20m           no future fire · 2 held
+
+fire · in 2h
+↑↓ move · a schedule birth… · x delete · n run-now · p pause/resume · r refresh · esc back

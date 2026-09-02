@@ -1,0 +1,311 @@
+# private-release — the collaborator download kit.
+#
+# Builds Mercury natively per OS (so the vendored ripgrep matches the
+# platform), packages the friend-ready archive, SMOKES the friend path on
+# every runner (spaced-path unpack, --version, --help, no node_modules,
+# manifest check — scripts/release/package.mjs), and publishes the assets +
+# SHA256SUMS to this PRIVATE repository's Releases page only. Never npm,
+# never a public bucket.
+#
+# Verification model: the tag itself is only ever pushed from a tree whose
+# FULL local gate (bun run verify — every domain suite) is green; the Linux
+# verify job here re-runs the machine-checkable core (typecheck ratchet +
+# build + isolated-artifact smoke + the build/identity/prompt/substrate
+# suites) as the CI floor before any packaging starts.
+name: private-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v1.0.0-beta.1) — must exist'
+        required: true
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+# RL-01: keyed by the TAG, not the event ref — a tag push and a
+# manual dispatch of the SAME tag would otherwise land in different groups and race
+# (the v1.5.3/v1.5.4 dual-trigger collisions); now they serialize, and the
+# second settles neutral at the publish step.
+concurrency:
+  group: private-release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify (linux floor)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+          # Full history: package.mjs's verify-receipt bind resolves the
+          # graded tree through the receipt-safe ancestor walk — a shallow
+          # clone blinds it (the windows-lane class, caught pre-tag).
+          fetch-depth: 0
+      # The release tag must equal the ONE version root (package.json) —
+      # a mistagged candidate dies before any packaging minute is spent.
+      - name: tag equals package.json version
+        run: |
+          TAG='${{ github.event.inputs.tag || github.ref_name }}'
+          PKG="v$(python3 -c 'import json;print(json.load(open("package.json"))["version"])')"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "release tag $TAG does not equal the version root $PKG (package.json)" >&2
+            exit 1
+          fi
+          echo "tag ≡ version root: $TAG"
+      # RL-01: every job checks out the TAG ref above — assert this tree IS
+      # the tag's commit, so a manual dispatch can never verify a branch head
+      # while publishing a tag.
+      - name: checkout is the tag commit
+        run: |
+          TAG='${{ github.event.inputs.tag || github.ref_name }}'
+          WANT="$(git rev-list -n1 "refs/tags/$TAG" 2>/dev/null || true)"
+          HEAD="$(git rev-parse HEAD)"
+          if [ -z "$WANT" ]; then echo "tag $TAG not found in this checkout" >&2; exit 1; fi
+          if [ "$HEAD" != "$WANT" ]; then echo "checkout $HEAD is not tag commit $WANT" >&2; exit 1; fi
+          echo "bound to tag commit $WANT"
+      # PRODUCT Node runtime = the exact calibration pin;
+      # Bun below stays the build runtime. No package-manager caching.
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Print selected Node
+        run: node --version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      # ── EXACT-TREE ELIGIBILITY ──────────────────────────
+      # A string equality (tag matches package.json) plus this job's own
+      # Linux floor is not eligibility — nothing in that shape consults a
+      # full-gate verdict. The tag must be covered by a
+      # RECORDED HOSTED verdict for its exact codeTree, lockfile digest and
+      # pinned toolchain. A one-line source change or a lockfile-only change
+      # after that verdict invalidates it.
+      #
+      # codeTree excludes the ledger path, so the commit that records the
+      # verdict is itself eligible — which is what makes the canonical order
+      # work: bump and write notes, dispatch the gate, record the row, tag
+      # that commit.
+      - name: hosted verdict covers this exact tree
+        run: |
+          bun run scripts/gate/ledger.ts check \
+            --rev "$(git rev-parse HEAD)" --kind hosted --require-toolchain
+      - name: install (lockfile held)
+        run: bun install --frozen-lockfile
+      - name: typecheck ratchet
+        run: bun run typecheck
+      - name: build
+        run: bun run build.ts
+      - name: isolated-artifact smoke
+        run: bun run artifact:smoke
+      - name: core suites (build · build-identity · identity · prompt · substrate)
+        run: |
+          MERCURY_GATE_PREBUILT=1 bash scripts/build/run-all.sh
+          MERCURY_GATE_PREBUILT=1 bash scripts/build-identity/run-all.sh
+          MERCURY_GATE_PREBUILT=1 bash scripts/identity/run-all.sh
+          MERCURY_GATE_PREBUILT=1 bash scripts/prompt/run-all.sh
+          MERCURY_GATE_PREBUILT=1 bash scripts/substrate/run-all.sh
+
+  package:
+    name: package (${{ matrix.target }})
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: macos-14
+            target: macos-arm64
+          # macos-x64 (Intel) DROPPED: GitHub retired the macos-13
+          # Intel runners (the label queues forever — run 29173728481 sat
+          # unscheduled >45 min while every other target built), and free
+          # hosted Intel images do not exist. Cross-packaging from arm64
+          # would ship the WRONG vendored ripgrep (package.mjs bundles the
+          # HOST-built rg). Intel Macs use the source build (README quick
+          # start — bun install fetches their platform rg); restore this row
+          # only with a paid Intel runner or per-target rg fetching.
+          - os: windows-latest
+            target: windows-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+          # Full history: package.mjs's verify-receipt bind resolves the
+          # graded tree through the receipt-safe ancestor walk — a shallow
+          # clone blinds it (the windows-lane class, caught pre-tag).
+          fetch-depth: 0
+      # Every packaging OS runs package.mjs + the friend-path smoke under the
+      # PRODUCT Node runtime — the exact calibration pin, printed per-OS.
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Print selected Node
+        run: node --version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      - name: install (lockfile held — postinstall fetches the PLATFORM rg)
+        run: bun install --frozen-lockfile
+      - name: Cache vendor fetches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'vendor/grammars.lock.json') }}
+      # Without these, the built manifest is DEGRADED (no debugpy/pyright/
+      # grammar-pack) and the packager refuses — a hosted release must ship
+      # the same full payload set a local build does (fix; the gap
+      # predates the vendored IDE payloads and no release had run since).
+      - name: Fetch pinned vendor artifacts (hash-verified)
+        run: |
+          bun run scripts/vendor/fetch-pyright.ts
+          bun run scripts/vendor/fetch-debugpy.ts
+          bun run scripts/vendor/fetch-grammars.ts
+      - name: native build
+        run: bun run build.ts
+      - name: package + friend-path smoke
+        run: node scripts/release/package.mjs --target ${{ matrix.target }}
+      # Archives ONLY — package.mjs also writes <name>.dryrun.json beside the
+      # archive; a bare release-out/* would carry
+      # it into the checksum manifest and the Release asset list.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: mercury-${{ matrix.target }}
+          path: |
+            release-out/*.tar.gz
+            release-out/*.zip
+          if-no-files-found: error
+
+  # ── BRIDGE GATE (MERCURY-UPDATE-RELIABILITY UPD-14) ──────────────────────
+  # The workflow must be UNABLE to publish an archive the previous shipped
+  # reader refuses: per OS, download the candidate artifact just packaged AND
+  # the PREVIOUS release's real asset, then drive the previous release's
+  # actual shipped runtime through its ordinary `update` verb against a
+  # fixture channel serving the candidate (scripts/updater/
+  # prove-release-bridge.ts). A reader already shipped can refuse a freshly
+  # published archive when no gate ever ran shipped readers against the
+  # about-to-publish bytes; this job is that gate.
+  bridge-gate:
+    name: bridge-gate (${{ matrix.target }})
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+          - os: macos-14
+            target: macos-arm64
+          - os: windows-latest
+            target: windows-x64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+          # Full history: package.mjs's verify-receipt bind resolves the
+          # graded tree through the receipt-safe ancestor walk — a shallow
+          # clone blinds it (the windows-lane class, caught pre-tag).
+          fetch-depth: 0
+      # The previous shipped runtime and the candidate smoke both execute
+      # under the PRODUCT Node pin; bun only drives the prover script.
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: mercury-${{ matrix.target }}
+          path: release-out
+      # The full update journey runs against the CANDIDATE archive's own
+      # bundle (MERCURY_JOURNEY_DIST) — on windows-latest that is the real-ZIP
+      # + pwsh + MERCURY_GH_CMD lane the POSIX pool cannot provide (UPD-12).
+      - name: update journey against the candidate bundle
+        shell: bash
+        run: |
+          mkdir -p bridge-extract
+          case "${{ matrix.target }}" in
+            windows-x64)
+              pwsh -NoProfile -Command 'Expand-Archive -LiteralPath (Get-Item release-out/*.zip).FullName -DestinationPath bridge-extract -Force';;
+            *)
+              tar -xzf release-out/*.tar.gz -C bridge-extract;;
+          esac
+          MERCURY_JOURNEY_DIST="$PWD/bridge-extract/mercury/mercury.mjs" bun run scripts/updater/prove-update-journey.ts
+      - name: previous shipped reader consumes the candidate archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun run scripts/updater/prove-release-bridge.ts
+
+  # release runs sha256sum + gh only (no Node executes) — deliberately NO
+  # product-Node selection (the contract covers jobs that
+  # build/run/smoke/package Mercury; this one publishes bytes).
+  release:
+    name: publish to Releases
+    needs: [package, bridge-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref_name }}
+          # Full history: package.mjs's verify-receipt bind resolves the
+          # graded tree through the receipt-safe ancestor walk — a shallow
+          # clone blinds it (the windows-lane class, caught pre-tag).
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          path: assets
+          merge-multiple: true
+      - name: checksums
+        run: |
+          cd assets
+          sha256sum mercury-*.tar.gz mercury-*.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: resolve tag
+        id: tag
+        run: echo "tag=${{ github.event.inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+      - name: create release (prerelease for -<label>.N)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG='${{ steps.tag.outputs.tag }}'
+          # RL-01.6: exactly one invocation owns publication — the paired
+          # trigger (tag push + manual dispatch of the same tag) settles
+          # NEUTRAL here instead of dying red on already-exists, but only
+          # after proving the existing release binds this same tag.
+          if gh release view "$TAG" --json tagName -q .tagName >/dev/null 2>&1; then
+            echo "release $TAG already published by the paired trigger — settling neutral (RL-01)"
+            exit 0
+          fi
+          PRERELEASE=''
+          case "$TAG" in *-*.*) PRERELEASE='--prerelease';; esac
+          # The user-facing notes come from the bundled changelog (the same
+          # section every archive packages as RELEASE-NOTES.md, extracted by
+          # notesFromChangelog.mjs); the inline text is only the
+          # no-section fallback.
+          if node scripts/release/notesFromChangelog.mjs "$TAG" > release-notes.md; then
+            gh release create "$TAG" $PRERELEASE \
+              --title "Mercury $TAG" \
+              --notes-file release-notes.md \
+              assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
+          else
+            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). Node 24 LTS required (>=24.11.0 <25 — the label + range are prover-pinned to the Node policy owner). See README-FIRST.md inside the archive.' "$GITHUB_SHA")
+            gh release create "$TAG" $PRERELEASE \
+              --title "Mercury $TAG" \
+              --notes "$NOTES" \
+              assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
+          fi

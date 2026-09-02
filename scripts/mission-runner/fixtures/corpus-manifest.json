@@ -1,0 +1,1552 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "scripts/mission-runner/corpus/tasks.ts",
+  "corpusDigest": "hc1-b89bcb6d3a378032b8e483b2",
+  "prerequisites": [
+    "git",
+    "node>=22",
+    "python3>=3.9"
+  ],
+  "repos": {
+    "stats": {
+      "main": "828cb05129252ff4383cbc14a5243177790378dc"
+    },
+    "notedeck": {
+      "main": "f51731a7c32c6d1f1ad47e723702e431346130ab",
+      "task/cmp-render-stats": "45ee2627a3153c99c2509fc591f943948c44fa08",
+      "task/cmp-serialize": "01966f20ffb6a1f620da51762418054931c0866b",
+      "task/cmp-tags": "ac31a0cba0a43e5cd0b8c1e11c2ffe0195e75987",
+      "task/lanes": "b8079b6f22ec5427ff9ea0a339adcf458182b4af",
+      "task/mf-banner": "99ede097c1c19d2d53bf3fff15ddd0bcf6591cf2",
+      "task/mf-greeting": "0128f356ef3d9f885e59e055fb58d6f79a4a73b2",
+      "task/mf-limits": "cbe88eebf835d581eab8720b34740d3b2765059f",
+      "task/mf-pipeline": "881b39d08c2f4ff5be075c9521bd82da85936b3f",
+      "task/mf-slug": "6196f391b366225fe78900dd4347f88346be1171",
+      "task/mf-views": "02bb1ba58533bacdc209c09e7e23bd038977d498",
+      "task/misleading": "5082c0b5df0719de7fb58eef0e0e45fe66d3de85",
+      "task/parse-defect": "96c017f80959255422861ee887c4c31fd9793785",
+      "task/refactor-id": "0511ca4ce0a033181f49ec6ff4c8694fd2c8900c",
+      "task/shared-schema": "87b24543bff05dcf76d6dfd645c4036891c5e6d6",
+      "task/tiny": "8175c0f016682687333a38cf7ec1f8d635259225"
+    },
+    "pyledger": {
+      "main": "869337f0a290e69df80ade76b6773e5ed76c49a2",
+      "task/cmp-accounts": "db55d2cc19f3266c51525db12072416391c6a04a",
+      "task/cmp-memo": "4d1ce8fe49a35b3b43a19de4b74ab6cd30c6a435",
+      "task/cmp-switch-a": "3879c3e7cb27f46f766bee8f185bedb144d292d2",
+      "task/mechanical": "1babb6ca2f8595fc2bb37a4574c14878dc0f2df4",
+      "task/misleading": "28c6fd43569db86cb3105443244f7726a9ae313f",
+      "task/rename-decoy": "78e70ca20292355ccf641ce1afddbf973539e7a1",
+      "task/rounding-defect": "1afa49d4383e071d9b7f0287f33c90a8d07fb2fb",
+      "task/trap": "1153bf29a1dcac4e7251e1ed6665f53275a3f17b"
+    },
+    "relay": {
+      "main": "9ff9d6fef38563dcca651d1b7446c07e74534730",
+      "task/cmp-deadletter": "01713adece9b24e6fe172fea3a0688677af58de8",
+      "task/cmp-gamma-fifo": "2538fa51d098ad4604d898935768b7a06666e3e2",
+      "task/cmp-rename-drain": "2e12f35045b6fb4416ffec54b448c05710c614d4",
+      "task/cmp-review": "9eeeb8eed18a4a0f4c243eba38993e46edfa5e3b",
+      "task/coupled-backpressure": "29ee03c9eb938d32f878840c528e4850cb89986e",
+      "task/queue-race": "118d6c7b5c9427ea3531409e4ec0657e2e384abd",
+      "task/refactor-ack": "f07970282fd97155f5456edaf29062b5fe0f9418",
+      "task/shared-registry": "e1c2df7e69c316f5783202727415f4b5c8e48660",
+      "task/three-lanes": "2a07a9fb9f50828cb7888ee92f6f28a86c15450e",
+      "task/wide-migration": "dd0645ece03b7ad1ae30a771b07893643575692f"
+    },
+    "textkit": {
+      "main": "81153315c9505dac3e077cf7fbac499cb733e041",
+      "task/cmp-dashes": "76c0c504797afb6d39dc9e25102bdd82ee0d9238",
+      "task/cmp-lanes": "49f3870ec84bf99b4799d5c3fe2d4018c4d3bfa8",
+      "task/cmp-ruledocs": "1873766f6987f7da037f204d21d653117a69a876",
+      "task/mechanical": "f4af01345cc43a27408feae696ed85e927796382",
+      "task/misleading2": "616a826107cf2a4eac3e83ff85248f5e8e05215c",
+      "task/rename-decoy": "685bd538930df5bcf78bbce8e482da242e4fad90",
+      "task/switch-a": "c1161e055f8330d9b31bb7af4b1bfe877487af2f",
+      "task/switch-b": "f7b2f4314cb277e429482d034653435db9c13eec",
+      "task/tiny": "10c026be473c6928e7456eceb475377cddd3416d",
+      "task/wide-normalize": "03d09369a2fe94670faf826d1ebaa4bebb3f5eea"
+    },
+    "gridgame": {
+      "main": "cf5e44cabbbbf3fb1e3ffadf700e435d6450fd41",
+      "task/cmp-diag": "7847757466cdb1c0dac1652195ea212d0fcedf66",
+      "task/cmp-sim-rest": "11022b3d19638eda985a7428f8f3ccdf4b849168",
+      "task/cmp-switch-b": "d323cb728f3eaa0a8287c72357a3cad41f29db0c",
+      "task/cmp-threat": "6f6038f931bfe9f8f47f999af25c578f63405eaa",
+      "task/coupled-rules": "eed3c4574f01beb7ffc12801132b3c7c1377864d",
+      "task/diag-cost": "a619c6f0cfded4e00fc8b66905ae716648cc3226",
+      "task/refactor-coords": "cb91ce605405cd44e18ca9b884230ebef0a88956",
+      "task/sim-order": "aebcf206d51c6af21822f0630a4c7902a2e1cc44",
+      "task/tiny": "3a9641499dc59ec2a9ba57a2f9c7d2e5b4658bc3",
+      "task/trap": "38e81b4cc3365bdb37e9b16c00936bf0e8fa8732",
+      "task/two-lanes": "6da40e79982f2144c78ee2f6dfbba2860d43c8b4"
+    },
+    "emberweald": {
+      "main": "0f081a3726d4cdaf1c6b7f4e4d743a4b39a4a695",
+      "task/g2": "5d708ba9ad48d2c270c8c9cc4600dbcc31f52ef4",
+      "task/g3": "88460497f7d265a679b8d11de49ad0520d73780b"
+    },
+    "lanternkit": {
+      "main": "7792ad393ff5b60df7ce5c0766321f8f388afe16",
+      "task/k1": "e375f75d0943a02c952822ffd75fe5f1d6a0cfe6",
+      "task/k2": "26b4e1f2e64d9292e75c60b9de033d1f684a144d"
+    },
+    "greymarsh": {
+      "main": "8f212dffc74f0ddfe59a7289c98db688e2062e82",
+      "task/x1": "270f6279de5fb3c9c223f52b8e58dfa9af0933fa",
+      "task/x2": "49cbc209e32dc5f4dfc19823ae6f45477672a1b4",
+      "task/x3": "820a93925d144b47ce30210d90cb8d15cd488303",
+      "task/x4": "9f28ad389bafbc5998a637c45052a95bb777d45f"
+    },
+    "waypost": {
+      "main": "b1a9cc7d212ca362bcd4150914efd8109a5d2316"
+    }
+  },
+  "counts": {
+    "tasks": 75,
+    "repos": 10,
+    "families": 24,
+    "byFamily": {
+      "orientation-discovery": 6,
+      "narrow-bug-repair": 6,
+      "multi-file-typed-refactor": 5,
+      "rename-with-decoy": 3,
+      "runtime-diagnosis": 3,
+      "misleading-symptom": 5,
+      "long-tool-heavy": 3,
+      "solo-suitable": 5,
+      "disjoint-lanes": 4,
+      "hidden-shared-owner": 3,
+      "cheaper-model-sufficient": 2,
+      "strongest-planner": 3,
+      "provider-switch": 4,
+      "replan-trap": 2,
+      "no-change-investigation": 4,
+      "collaboration": 1,
+      "multi-file-change-set": 6,
+      "topdown-action-game": 3,
+      "cli-update-journey": 2,
+      "cross-module-change": 1,
+      "contradictory-constraints": 1,
+      "long-session-continuity": 1,
+      "multi-agent-integration": 1,
+      "responsive-web-product": 1
+    },
+    "byPartition": {
+      "development": 13,
+      "calibration": 12,
+      "qualification": 13,
+      "comparison": 27,
+      "crucible-qualification": 8,
+      "crucible-calibration": 1,
+      "crucible-dev": 1
+    }
+  },
+  "partitions": {
+    "development": [
+      "T01",
+      "T04",
+      "T05",
+      "T07",
+      "T10",
+      "T12",
+      "T14",
+      "T18",
+      "T20",
+      "T24",
+      "T28",
+      "T30",
+      "T32"
+    ],
+    "calibration": [
+      "T02",
+      "T35",
+      "T06",
+      "T08",
+      "T11",
+      "T15",
+      "T16",
+      "T19",
+      "T38",
+      "T22",
+      "T26",
+      "T29"
+    ],
+    "qualification": [
+      "T03",
+      "T09",
+      "T13",
+      "T36",
+      "T17",
+      "T37",
+      "T21",
+      "T23",
+      "T25",
+      "T27",
+      "T31",
+      "T33",
+      "T34"
+    ],
+    "comparison": [
+      "C01",
+      "C02",
+      "C03",
+      "C04",
+      "C05",
+      "C06",
+      "C07",
+      "C21",
+      "C08",
+      "C09",
+      "C10",
+      "C11",
+      "C13",
+      "C14",
+      "C15",
+      "C16",
+      "C12",
+      "C17",
+      "C18",
+      "C19",
+      "C20",
+      "M01",
+      "M02",
+      "M03",
+      "M04",
+      "M05",
+      "M06"
+    ],
+    "crucible-dev": [
+      "GM3"
+    ],
+    "crucible-calibration": [
+      "EW2"
+    ],
+    "crucible-qualification": [
+      "EW1",
+      "EW3",
+      "LK1",
+      "LK2",
+      "GM1",
+      "GM2",
+      "GM4",
+      "WP1"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "T01",
+      "family": 1,
+      "familyName": "orientation-discovery",
+      "title": "notedeck id-minting discovery",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "development",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T02",
+      "family": 1,
+      "familyName": "orientation-discovery",
+      "title": "relay retry-policy discovery",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T03",
+      "family": 1,
+      "familyName": "orientation-discovery",
+      "title": "gridgame diagonal-cost bug site discovery",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/diag-cost"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T35",
+      "family": 1,
+      "familyName": "orientation-discovery",
+      "title": "pyledger carry-forward discovery",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T04",
+      "family": 2,
+      "familyName": "narrow-bug-repair",
+      "title": "stats module repair (the frozen native-GPT mission)",
+      "repo": "stats",
+      "ref": {
+        "kind": "sha",
+        "value": "828cb05129252ff4383cbc14a5243177790378dc"
+      },
+      "partition": "development",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T05",
+      "family": 2,
+      "familyName": "narrow-bug-repair",
+      "title": "notedeck quoted-tag parsing repair",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/parse-defect"
+      },
+      "partition": "development",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T06",
+      "family": 2,
+      "familyName": "narrow-bug-repair",
+      "title": "pyledger half-up rounding repair",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/rounding-defect"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T07",
+      "family": 3,
+      "familyName": "multi-file-typed-refactor",
+      "title": "notedeck structured-id refactor",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/refactor-id"
+      },
+      "partition": "development",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T08",
+      "family": 3,
+      "familyName": "multi-file-typed-refactor",
+      "title": "relay typed-result refactor",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/refactor-ack"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T09",
+      "family": 3,
+      "familyName": "multi-file-typed-refactor",
+      "title": "gridgame object-coordinate refactor",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/refactor-coords"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T10",
+      "family": 4,
+      "familyName": "rename-with-decoy",
+      "title": "textkit mergeHunks rename (normalize.merge decoy)",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/rename-decoy"
+      },
+      "partition": "development",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T11",
+      "family": 4,
+      "familyName": "rename-with-decoy",
+      "title": "pyledger grand_total rename (parse.total decoy)",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/rename-decoy"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T12",
+      "family": 5,
+      "familyName": "runtime-diagnosis",
+      "title": "gridgame diverging battle log (mutating sort)",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/sim-order"
+      },
+      "partition": "development",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T13",
+      "family": 5,
+      "familyName": "runtime-diagnosis",
+      "title": "relay double-delivery in one redelivery pass",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/queue-race"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T14",
+      "family": 6,
+      "familyName": "misleading-symptom",
+      "title": "notedeck stale render after update",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/misleading"
+      },
+      "partition": "development",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T15",
+      "family": 6,
+      "familyName": "misleading-symptom",
+      "title": "pyledger unbalanced trial balance",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/misleading"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T36",
+      "family": 6,
+      "familyName": "misleading-symptom",
+      "title": "textkit indented lines mangled by patches",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/misleading2"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T16",
+      "family": 7,
+      "familyName": "long-tool-heavy",
+      "title": "relay ctx-object middleware migration",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/wide-migration"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T17",
+      "family": 7,
+      "familyName": "long-tool-heavy",
+      "title": "textkit typed-rule pipeline migration",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/wide-normalize"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T18",
+      "family": 8,
+      "familyName": "solo-suitable",
+      "title": "textkit exact-width wrap fix",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/tiny"
+      },
+      "partition": "development",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T19",
+      "family": 8,
+      "familyName": "solo-suitable",
+      "title": "notedeck unknown-command exit code fix",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/tiny"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T37",
+      "family": 8,
+      "familyName": "solo-suitable",
+      "title": "gridgame initiative sign fix",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/tiny"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T20",
+      "family": 9,
+      "familyName": "disjoint-lanes",
+      "title": "relay three independent route defects",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/three-lanes"
+      },
+      "partition": "development",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T21",
+      "family": 9,
+      "familyName": "disjoint-lanes",
+      "title": "gridgame two independent defects",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/two-lanes"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T38",
+      "family": 9,
+      "familyName": "disjoint-lanes",
+      "title": "notedeck two independent defects",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/lanes"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T22",
+      "family": 10,
+      "familyName": "hidden-shared-owner",
+      "title": "relay audit + replay kinds (shared registry order)",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/shared-registry"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T23",
+      "family": 10,
+      "familyName": "hidden-shared-owner",
+      "title": "notedeck pinned + archived flags (shared schema)",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/shared-schema"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T24",
+      "family": 11,
+      "familyName": "cheaper-model-sufficient",
+      "title": "textkit arrows table extension (mechanical, spec-exact)",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mechanical"
+      },
+      "partition": "development",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "exact",
+      "runner": null
+    },
+    {
+      "id": "T25",
+      "family": 11,
+      "familyName": "cheaper-model-sufficient",
+      "title": "pyledger helper stubs (mechanical, spec-exact)",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mechanical"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "exact",
+      "runner": null
+    },
+    {
+      "id": "T26",
+      "family": 12,
+      "familyName": "strongest-planner",
+      "title": "gridgame flanking (cross-module geometry coupling)",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/coupled-rules"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T27",
+      "family": 12,
+      "familyName": "strongest-planner",
+      "title": "relay hysteretic backpressure (coupled watermarks)",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/coupled-backpressure"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T28",
+      "family": 13,
+      "familyName": "provider-switch",
+      "title": "textkit bold parsing fix (switch pair, first)",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/switch-a"
+      },
+      "partition": "development",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": {
+        "switchPair": "first"
+      }
+    },
+    {
+      "id": "T29",
+      "family": 13,
+      "familyName": "provider-switch",
+      "title": "textkit table alignment fix (switch pair, second)",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/switch-b"
+      },
+      "partition": "calibration",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": {
+        "switchPair": "second"
+      }
+    },
+    {
+      "id": "T30",
+      "family": 14,
+      "familyName": "replan-trap",
+      "title": "gridgame suboptimal paths (the stepCost trap)",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/trap"
+      },
+      "partition": "development",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T31",
+      "family": 14,
+      "familyName": "replan-trap",
+      "title": "pyledger trial-balance separators (the to_currency trap)",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/trap"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T32",
+      "family": 15,
+      "familyName": "no-change-investigation",
+      "title": "notedeck CRLF data-loss investigation (no bug exists)",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "development",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T33",
+      "family": 15,
+      "familyName": "no-change-investigation",
+      "title": "relay duplicate-delivery investigation (no bug exists)",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "T34",
+      "family": 16,
+      "familyName": "collaboration",
+      "title": "relay three lanes, two seats (two-seat collaboration)",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/three-lanes"
+      },
+      "partition": "qualification",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "collaboration",
+      "variability": "behavioral",
+      "runner": {
+        "collaboration": true
+      }
+    },
+    {
+      "id": "C01",
+      "family": 1,
+      "familyName": "orientation-discovery",
+      "title": "relay pipeline-drop discovery",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C02",
+      "family": 1,
+      "familyName": "orientation-discovery",
+      "title": "gridgame tie-law discovery",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C03",
+      "family": 2,
+      "familyName": "narrow-bug-repair",
+      "title": "textkit dash-order repair",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-dashes"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C04",
+      "family": 2,
+      "familyName": "narrow-bug-repair",
+      "title": "pyledger memo-tail repair",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-memo"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C05",
+      "family": 2,
+      "familyName": "narrow-bug-repair",
+      "title": "notedeck serialize-seq repair",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-serialize"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C06",
+      "family": 3,
+      "familyName": "multi-file-typed-refactor",
+      "title": "notedeck tag index across store + cli",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-tags"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C07",
+      "family": 3,
+      "familyName": "multi-file-typed-refactor",
+      "title": "relay dead-letter introspection",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-deadletter"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C21",
+      "family": 4,
+      "familyName": "rename-with-decoy",
+      "title": "relay drainQueue rename (gamma.drain decoy)",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-rename-drain"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C08",
+      "family": 5,
+      "familyName": "runtime-diagnosis",
+      "title": "gridgame diverging battle log (rest sign)",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-sim-rest"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C09",
+      "family": 6,
+      "familyName": "misleading-symptom",
+      "title": "pyledger wrong balances after multi-posting",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-accounts"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C10",
+      "family": 6,
+      "familyName": "misleading-symptom",
+      "title": "relay review: the committed prefix-guard change",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-review"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C11",
+      "family": 7,
+      "familyName": "long-tool-heavy",
+      "title": "textkit rule-docs migration (8 owners)",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-ruledocs"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 1200,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C13",
+      "family": 8,
+      "familyName": "solo-suitable",
+      "title": "gridgame diagonal step-cost fix",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-diag"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C14",
+      "family": 8,
+      "familyName": "solo-suitable",
+      "title": "relay gamma band-order fix",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-gamma-fifo"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C15",
+      "family": 9,
+      "familyName": "disjoint-lanes",
+      "title": "textkit two independent defects",
+      "repo": "textkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-lanes"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C16",
+      "family": 10,
+      "familyName": "hidden-shared-owner",
+      "title": "notedeck word-count + tag-count (one render owner)",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-render-stats"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C12",
+      "family": 12,
+      "familyName": "strongest-planner",
+      "title": "gridgame threat map over the geometry owners",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-threat"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C17",
+      "family": 13,
+      "familyName": "provider-switch",
+      "title": "pyledger fraction-padding fix (switch pair, first)",
+      "repo": "pyledger",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-switch-a"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": {
+        "switchPair": "first"
+      }
+    },
+    {
+      "id": "C18",
+      "family": 13,
+      "familyName": "provider-switch",
+      "title": "gridgame advantage-threshold fix (switch pair, second)",
+      "repo": "gridgame",
+      "ref": {
+        "kind": "branch",
+        "value": "task/cmp-switch-b"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 420,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": {
+        "switchPair": "second"
+      }
+    },
+    {
+      "id": "C19",
+      "family": 15,
+      "familyName": "no-change-investigation",
+      "title": "relay gamma-starvation investigation (no bug exists)",
+      "repo": "relay",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "C20",
+      "family": 15,
+      "familyName": "no-change-investigation",
+      "title": "notedeck tag-casing investigation (no bug exists)",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "investigation",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "M01",
+      "family": 17,
+      "familyName": "multi-file-change-set",
+      "title": "notedeck two-file banner bump",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mf-banner"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "M02",
+      "family": 17,
+      "familyName": "multi-file-change-set",
+      "title": "notedeck slug collapse — implementation + old spec together",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mf-slug"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "M03",
+      "family": 17,
+      "familyName": "multi-file-change-set",
+      "title": "notedeck four-view formatter migration",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mf-views"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "M04",
+      "family": 17,
+      "familyName": "multi-file-change-set",
+      "title": "notedeck pipeline stage registration — two regions + a stage fix",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mf-pipeline"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 900,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "M05",
+      "family": 17,
+      "familyName": "multi-file-change-set",
+      "title": "notedeck limits raise — one member already satisfied",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mf-limits"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 600,
+      "humanEstimate": null,
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "M06",
+      "family": 17,
+      "familyName": "multi-file-change-set",
+      "title": "notedeck greeting fix — the single-file honesty task",
+      "repo": "notedeck",
+      "ref": {
+        "kind": "branch",
+        "value": "task/mf-greeting"
+      },
+      "partition": "comparison",
+      "timeCeilingSec": 480,
+      "humanEstimate": null,
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "EW1",
+      "family": 18,
+      "familyName": "topdown-action-game",
+      "title": "emberweald sim core: six mission seams to a playable clearing",
+      "repo": "emberweald",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 5400,
+      "humanEstimate": {
+        "minutes": 120,
+        "method": "reference-build wall: the corpus author implemented the six seams against the pinned suite in one authoring pass (2026-08-04, ~75 min including verification); banded to the METR-style ~2 h horizon against the mined real-session game-sim rows (friction digest p02/p03)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "EW2",
+      "family": 18,
+      "familyName": "topdown-action-game",
+      "title": "emberweald satchel: items, drops, wards and exact save/resume",
+      "repo": "emberweald",
+      "ref": {
+        "kind": "branch",
+        "value": "task/g2"
+      },
+      "partition": "crucible-calibration",
+      "timeCeilingSec": 5400,
+      "humanEstimate": {
+        "minutes": 90,
+        "method": "reference-build wall: the corpus author implemented items/enemy-modulation/save-v2 against the pinned suites in one pass (2026-08-04, ~50 min including verification); banded to the METR-style ~1.5 h horizon against the mined real-session game-sim rows (friction digest p02/p03)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "EW3",
+      "family": 18,
+      "familyName": "topdown-action-game",
+      "title": "emberweald warden era: the full playable progression",
+      "repo": "emberweald",
+      "ref": {
+        "kind": "branch",
+        "value": "task/g3"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 7200,
+      "humanEstimate": {
+        "minutes": 240,
+        "method": "reference-build wall: the corpus author implemented the handover + warden fight and hit the phantom-victory ledger class live (guard + strengthened test), then verified the balance floors across three seeds (victories at hp 10-12); banded to the METR-style half-day horizon against the mined multi-hour game-session rows (friction digest p02/p03, RT-01)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "LK1",
+      "family": 19,
+      "familyName": "cli-update-journey",
+      "title": "lanternkit update journey: verify, journaled swap, exact resume",
+      "repo": "lanternkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/k1"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 3600,
+      "humanEstimate": {
+        "minutes": 75,
+        "method": "reference-build wall: the corpus author implemented the reader against the pinned suite in one pass (2026-08-04, ~40 min) and the interruption matrix caught a real crash-window bug (rename landed, journal write lost) requiring the idempotent-placement repair; banded to the METR-style ~1.25 h horizon."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "LK2",
+      "family": 19,
+      "familyName": "cli-update-journey",
+      "title": "lanternkit path discipline: messy homes, precedence, escape guard",
+      "repo": "lanternkit",
+      "ref": {
+        "kind": "branch",
+        "value": "task/k2"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 2700,
+      "humanEstimate": {
+        "minutes": 45,
+        "method": "reference-build wall: the corpus author implemented the path layer in one pass (2026-08-04, ~20 min including the guard edge cases); banded to the METR-style ~45 min horizon against the mined real-session write-guard rows (friction digest RT-03)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "GM1",
+      "family": 20,
+      "familyName": "cross-module-change",
+      "title": "greymarsh winter-log regression: the confirmation that never sticks",
+      "repo": "greymarsh",
+      "ref": {
+        "kind": "branch",
+        "value": "task/x1"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 3600,
+      "humanEstimate": {
+        "minutes": 60,
+        "method": "reference-build wall: the corpus author planted the defect from the RT-01 mined shape and repaired it in one pass (2026-08-04); the diagnosis chain (symptom at the fold → tie law is correct → seq collision after compaction → assignment at the log owner) banded to the METR-style ~1 h horizon."
+      },
+      "sourceClass": "reconstructed-defect",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "GM2",
+      "family": 21,
+      "familyName": "contradictory-constraints",
+      "title": "greymarsh storm levy: three laws that seem unable to coexist",
+      "repo": "greymarsh",
+      "ref": {
+        "kind": "branch",
+        "value": "task/x2"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 3600,
+      "humanEstimate": {
+        "minutes": 45,
+        "method": "reference-build wall: the corpus author authored the composable-surcharge resolution in one pass (2026-08-04); the trap (both generation modules are the wrong owner) banded to the METR-style ~45 min horizon against the mined contradictory-checks retro shape (RT-05)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "GM3",
+      "family": 22,
+      "familyName": "long-session-continuity",
+      "title": "greymarsh migration close-out: finish the recorded plan exactly",
+      "repo": "greymarsh",
+      "ref": {
+        "kind": "branch",
+        "value": "task/x3"
+      },
+      "partition": "crucible-dev",
+      "timeCeilingSec": 2700,
+      "humanEstimate": {
+        "minutes": 30,
+        "method": "reference-build wall: the corpus author landed the recorded move in one pass (2026-08-04, ~15 min); the continuity discipline (read the trail, do exactly the remaining step, update the ledger) banded to the METR-style ~30 min horizon against the mined resume-session shape (RT-04)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "GM4",
+      "family": 23,
+      "familyName": "multi-agent-integration",
+      "title": "greymarsh warden features: two areas, two shared seams",
+      "repo": "greymarsh",
+      "ref": {
+        "kind": "branch",
+        "value": "task/x4"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 4500,
+      "humanEstimate": {
+        "minutes": 75,
+        "method": "reference-build wall: the corpus author landed both areas + the cross-feature refusals in one pass (2026-08-04, ~35 min); the seam discipline (one event vocabulary, one fold, refusal symmetry) banded to the METR-style ~1.25 h horizon against the mined fan-out session shape (RT-08)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    },
+    {
+      "id": "WP1",
+      "family": 24,
+      "familyName": "responsive-web-product",
+      "title": "waypost dispatch board: filter, honest render, keyboard model",
+      "repo": "waypost",
+      "ref": {
+        "kind": "branch",
+        "value": "main"
+      },
+      "partition": "crucible-qualification",
+      "timeCeilingSec": 5400,
+      "humanEstimate": {
+        "minutes": 110,
+        "method": "reference-build wall: the corpus author implemented the three seams against the pinned suites in one pass (2026-08-04, ~55 min); the spec density (ordering laws + honesty states + escaping + keyboard model) banded to the METR-style ~2 h horizon against the mined web-overhaul session rows (friction digest p02, RT-02)."
+      },
+      "sourceClass": "engineering-work",
+      "variability": "behavioral",
+      "runner": null
+    }
+  ]
+}

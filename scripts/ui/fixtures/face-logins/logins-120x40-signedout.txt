@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ available                                                      │  │ ❯ Claude subscription account              │
+   │ ❯ Claude subscription account                    not signed in │  │                                            │
+   │   OpenAI — ChatGPT subscription or API key       not signed in │  │ Anthropic · subscription arm               │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │                                            │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ Claude subscription account                │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
+   │   Hugging Face — device-code sign-in or a…       not signed in │  │ state: not signed in                       │
+   │   Kimi (Moonshot) — device-code sign-in o…       not signed in │  │ · no sign-in on this arm yet               │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
+   │   DeepSeek — API key                             not signed in │  │ · no credential for this family            │
+   ╰────────────────────────────────────────────────────────────────╯  │                                            │
+                                                                       │                                            │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   8                               │
+                                                                       │ Signed in  0 of 8                          │
+                                                                       │ Ready      0 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  no family signed in yet · 0 ready without one                                               │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                             ↑↓ move · ↵ sign in · esc back

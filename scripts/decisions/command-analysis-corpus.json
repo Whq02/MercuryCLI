@@ -1,0 +1,169 @@
+{
+ "split": {
+  "ls -la": [
+   "ls -la"
+  ],
+  "git status && git diff": [
+   "git status",
+   "git diff"
+  ],
+  "echo \"a && b\"": [
+   "echo \"a && b\""
+  ],
+  "cd /tmp; rm -f x.txt": [
+   "cd /tmp",
+   "rm -f x.txt"
+  ],
+  "cat foo | grep bar | wc -l": [
+   "cat foo",
+   "grep bar",
+   "wc -l"
+  ],
+  "echo one\necho two": [
+   "echo one",
+   "echo two"
+  ],
+  "FOO=bar go test ./...": [
+   "FOO=bar go test ./..."
+  ],
+  "find . -name \"*.ts\" -exec grep -l TODO {} \\;": [
+   "find . -name \"*.ts\" -exec grep -l TODO {} ;"
+  ],
+  "echo 'single && quoted; safe'": [
+   "echo 'single && quoted; safe'"
+  ],
+  "git commit -m \"feat: x\" || echo failed": [
+   "git commit -m \"feat: x\"",
+   "echo failed"
+  ]
+ },
+ "redirections": {
+  "echo hi > out.txt": {
+   "commandWithoutRedirections": "echo hi",
+   "redirections": [
+    {
+     "target": "out.txt",
+     "operator": ">"
+    }
+   ],
+   "hasDangerousRedirection": false
+  },
+  "echo hi >> log.txt": {
+   "commandWithoutRedirections": "echo hi",
+   "redirections": [
+    {
+     "target": "log.txt",
+     "operator": ">>"
+    }
+   ],
+   "hasDangerousRedirection": false
+  },
+  "ls -la": {
+   "commandWithoutRedirections": "ls -la",
+   "redirections": [],
+   "hasDangerousRedirection": false
+  },
+  "echo a > /tmp/x && echo b >> /tmp/y": {
+   "commandWithoutRedirections": "echo a && echo b",
+   "redirections": [
+    {
+     "target": "/tmp/x",
+     "operator": ">"
+    },
+    {
+     "target": "/tmp/y",
+     "operator": ">>"
+    }
+   ],
+   "hasDangerousRedirection": false
+  },
+  "cat < in.txt": {
+   "commandWithoutRedirections": "cat < in.txt",
+   "redirections": [],
+   "hasDangerousRedirection": false
+  },
+  "echo dangerous > ~/.bashrc": {
+   "commandWithoutRedirections": "echo dangerous > ~/.bashrc",
+   "redirections": [],
+   "hasDangerousRedirection": true
+  }
+ },
+ "tokens": {
+  "git commit -m \"hello world\"": {
+   "success": true,
+   "tokens": [
+    "git",
+    "commit",
+    "-m",
+    "hello world"
+   ]
+  },
+  "echo 'a b' c": {
+   "success": true,
+   "tokens": [
+    "echo",
+    "a b",
+    "c"
+   ]
+  },
+  "VAR=1 cmd --flag=value": {
+   "success": true,
+   "tokens": [
+    "VAR=1",
+    "cmd",
+    "--flag=value"
+   ]
+  },
+  "echo $HOME": {
+   "success": true,
+   "tokens": [
+    "echo",
+    ""
+   ]
+  },
+  "grep -r \"needle\" .": {
+   "success": true,
+   "tokens": [
+    "grep",
+    "-r",
+    "needle",
+    "."
+   ]
+  }
+ },
+ "parseStub": {
+  "ls -la": null,
+  "(subshell) && x": null,
+  "empty": null
+ },
+ "security": {
+  "aborted-root git status": {
+   "kind": "too-complex",
+   "reason": "Parser aborted (timeout or resource limit) — possible adversarial input",
+   "nodeType": "PARSE_ABORT"
+  },
+  "control-chars": {
+   "kind": "too-complex",
+   "reason": "Contains control characters"
+  },
+  "checkSemantics []": {
+   "ok": true
+  },
+  "nodeTypeId('command')": 0,
+  "nodeTypeId(undefined)": -2
+ },
+ "psStrip": {
+  "Get-ChildItem": "Get-ChildItem",
+  "Microsoft.PowerShell.Management\\Get-ChildItem": "Get-ChildItem",
+  "Remove-Item": "Remove-Item",
+  "Invoke-Expression": "Invoke-Expression",
+  "Select-String": "Select-String"
+ },
+ "psClassify": {
+  "Get-ChildItem": "cmdlet",
+  "Microsoft.PowerShell.Management\\Get-ChildItem": "cmdlet",
+  "Remove-Item": "cmdlet",
+  "Invoke-Expression": "cmdlet",
+  "Select-String": "cmdlet"
+ }
+}

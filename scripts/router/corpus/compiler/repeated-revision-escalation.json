@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "id": "repeated-revision-escalation",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Re-attempt a bounded fix that has already failed twice",
+    "title": "Third attempt: fix the flaky retry backoff",
+    "task": "Fix the retry backoff in src/net/retry.ts so it stops double-firing on a 429. Two prior attempts at this exact fix were reviewed and rejected — the first missed the jitter interaction, the second regressed the timeout path. This is nominally a small, bounded edit, but it keeps coming back.",
+    "ambiguity": 1,
+    "coupling": 1,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "revisionOf": {
+      "nodeId": "n1",
+      "failedAttempts": 2
+    }
+  },
+  "expected": {
+    "profile": "opus-direct",
+    "width": 1,
+    "modelClasses": ["opus"],
+    "reasonCodes": ["revision-escalation"],
+    "adjustments": []
+  }
+}

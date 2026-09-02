@@ -1,0 +1,180 @@
+# ============================================================================
+#  .github/workflows/windows-functional.yml — the Windows FUNCTIONAL lane.
+#  SEPARATE from the capture-only windows-ui
+#  lane: this job RUNS the functional suites that pin Windows filesystem
+#  semantics — canonical-home resolution + one-time adoption (junction
+#  aliasing, drive-case), the fabric domain + validating read seam, the
+#  settlement writer, and the projectdirs contract — under PowerShell 7 on
+#  windows-latest.
+#
+#  DISPATCH-ONLY, EXACT-SHA: `gh workflow run windows-functional.yml
+#  -f sha=<sha>`. No push trigger, ever (the gate.yml quota rule).
+#  Budgeted with the windows-ui lane (~12 dispatches per release cycle).
+#  Verdicts are ledgered via gate:ledger like the hosted gate.
+# ============================================================================
+name: windows-functional
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Exact commit SHA to test (required — the ledger law)'
+        required: true
+
+concurrency:
+  group: windows-functional
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  functional:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: Assert exact-SHA checkout
+        run: |
+          $head = git rev-parse HEAD
+          if ($head -ne "${{ inputs.sha }}") { throw "checkout $head != requested ${{ inputs.sha }}" }
+
+      - name: Node (runtime policy pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Bun (build runtime)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Cache bun installs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-win-func-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Functional suites (idiom · projectdirs · sessionStorage)
+        run: |
+          $failed = 0
+          foreach ($suite in @('idiom', 'projectdirs', 'sessionStorage')) {
+            Write-Host "==== suite: $suite ===="
+            bash "scripts/$suite/run-all.sh"
+            if ($LASTEXITCODE -ne 0) { $failed = 1; Write-Host "SUITE RED: $suite" }
+          }
+          exit $failed
+
+      - name: Windows path-semantics spot checks (drive-case + junction via prover §F)
+        run: |
+          # The §F alias leg exercises a real NTFS junction on this runner
+          # (symlinkSync(..., 'junction') — no privilege needed on Windows).
+          bun scripts/idiom/prove-canonical-write-home.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Durable publication on NTFS
+        run: |
+          # The whole suite (glob — every landed prove-*.ts joins):
+          # the 50/100/200ms rename retry at both publication owners and the
+          # shared helpers, typed-result accounting, kill-between-attempts,
+          # the read-only-file persistent-EPERM shape, the concurrent-writer
+          # storm, the census ratchet, and the REAL PowerShell open-handle
+          # lifecycle (FileShare.Read holder — retry through it, budget
+          # exhaustion, recovery after release).
+          bash scripts/task-durability/run-all.sh
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Task-record journeys on NTFS
+        run: |
+          # The reported field defect's surface, named as its own lane step:
+          # task create ×3 → update under a clearing EPERM (absorbed, ONE
+          # notification) → epoch reset under contention → 3 full journeys —
+          # every observation whole-old-or-whole-new, ids never reused, zero
+          # orphan temps, no excessive waiting.
+          bun scripts/task-durability/prove-mo3-task-journey.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Worktree settlement on NTFS
+        run: |
+          # The full typed-delta settlement matrix on a real Windows runner;
+          # the win32-gated §N legs (junction-reached lane, held-handle
+          # settlement) run here and SKIP loudly on POSIX hosts.
+          bun scripts/consistency-census/prove-worktree-settlement.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Execution truth on Windows
+        run: |
+          # The typed-git + profile matrix on a real Windows host, then the
+          # F1 parity claim: the SAME `<sha>^{tree}` anchor resolves to the
+          # SAME tree through argv execution under PowerShell 7, Windows
+          # PowerShell 5.1, and cmd.exe — the byte class cmd.exe's `^`
+          # escaping eats through a string-shell helper.
+          bun scripts/consistency-census/prove-execution-truth.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # UN-53's Windows leg: byte-stable managed payloads + the build-keyed
+          # cache root + CONCURRENT creation, on real NTFS.
+          bun scripts/consistency-census/prove-payload-bytestable.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          $expect = (git rev-parse "HEAD^{tree}")
+          $repo = ($pwd.Path -replace '\\','/')
+          $snippet = "const{runGit}=await import('$repo/scripts/lib/git.ts');const r=runGit(['rev-parse','HEAD^{tree}'],{cwd:'$repo'});if(r.state!=='ok')throw new Error(r.state);console.log(r.stdout.trim())"
+          Set-Content -Path "$env:RUNNER_TEMP/anchor.ts" -Value $snippet
+          $viaPs7 = (bun "$env:RUNNER_TEMP/anchor.ts")
+          $viaPs51 = (powershell -NoProfile -Command "bun `"$env:RUNNER_TEMP/anchor.ts`"")
+          $viaCmd = (cmd /c bun "$env:RUNNER_TEMP\anchor.ts")
+          Write-Host "expect=$expect ps7=$viaPs7 ps51=$viaPs51 cmd=$viaCmd"
+          if (($viaPs7 -ne $expect) -or ($viaPs51 -ne $expect) -or ($viaCmd -ne $expect)) {
+            Write-Host 'ANCHOR PARITY FAILED across shells'
+            exit 1
+          }
+
+      - name: state-integrity on NTFS/PS7
+        run: |
+          # The owners' semantic laws on real NTFS under PS7: per-identity
+          # durable settlement (typed receipts, drain-all, pending-first),
+          # checkpoint compaction (identity across double compaction, v1
+          # backward decode), and the generated model suites (the INTERVIEW
+          # lifecycle + the fileStore kernel incl. corruption quarantine).
+          # The SIGSTOP stall law is POSIX-only and runs in the Linux pool
+          # (gate.yml); win32 semantics for the same mutex ride the pidLock
+          # rename/claim paths these suites exercise.
+          bun scripts/interview/prove-settlement-receipts.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/interview/prove-checkpoint-compaction.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/formal-models/prove-model-interview.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          bun scripts/formal-models/prove-model-filestore.ts
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Field packet PS7 proof
+        run: |
+          # Generate the Windows field kit from this exact tree, then prove
+          # its launcher/collector mechanics under real PS7 (a named mercury
+          # shim answers --version — the product is proven by the product
+          # lanes; this leg proves the packet).
+          bun scripts/field-tasks/gen-field-packet.ts --out "$env:RUNNER_TEMP/field-kit" --allow-unbuilt
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          pwsh -File scripts/field-tasks/prove-field-packet.ps1 -KitDir "$env:RUNNER_TEMP/field-kit/mercury-field-kit"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: Build dist (journey payload)
+        run: bun run build.ts
+
+      - name: Update journey under git-bash PATH order (the mingw64 shadow)
+        # DELIBERATELY shell: bash — the only lane leg that boots the runtime
+        # the way the release bridge-gate does: from a git-bash step whose
+        # MSYS-ordered PATH lists mingw64\bin before cmd. The v1.5.1 red
+        # (findGitBashPath dying on the first candidate) lived exactly and
+        # only in this environment; pwsh legs can never witness it.
+        shell: bash
+        run: bun run scripts/updater/prove-update-journey.ts

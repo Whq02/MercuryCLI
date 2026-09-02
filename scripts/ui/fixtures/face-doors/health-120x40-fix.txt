@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                     ⌁ health check
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ NEXT                                                           │  │ ❯ Anthropic credential                     │
+   │   open /logins to re-verify                            ◓ stale │  │                                            │
+   │   remove the unknown rows, or re-run the keyb…          ▲ warn │  │ fix · destructive remedy                   │
+   │                                                                │  │                                            │
+   │ RUNTIME                                                        │  │ drop the cached credential snapshot        │
+   │   Node runtime                                            ✓ ok │  │ and force a fresh verification             │
+   │   Bundle integrity                                        ✓ ok │  │ round-trip                                 │
+   │   Keybindings file                                      ▲ warn │  │                                            │
+   │                                                                │  │ evidence: last verified 26h ago            │
+   │ PROVIDERS                                                      │  │                                            │
+   │ ❯ Anthropic credential                                 ◓ stale │  │ … (the trail continues — a taller termina… │
+   │   Model route                                           · info │  ╰────────────────────────────────────────────╯
+   │                                                                │  ╭────────────────────────────────────────────╮
+   │ ESTATE                                                         │  │ CERTIFICATE                                │
+   │   Daemon reachability                                ◌ unknown │  │ Verdict    ▲ caution                       │
+   │   Certificate store                                      · off │  │ Checks     7 · 1 stale · 1 warn · 1 unkno… │
+   ╰────────────────────────────────────────────────────────────────╯  │ Issued     2m ago · 830ms                  │
+                                                                       │ Build      1.0.0-beta.1 · main @ abcdef1   │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  verdict caution · 7 checks · issued 2m ago · 830ms · read-only                              │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                  ↵ apply · esc cancel

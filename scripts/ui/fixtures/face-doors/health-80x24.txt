@@ -1,0 +1,21 @@
+
+
+
+           (>_) MERCURY · health check
+
+           NEXT
+             open /logins to re-verify                     ◓ stale
+             remove the unknown rows, or re-run the keyb…  ▲ warn
+           RUNTIME
+             Node runtime                                  ✓ ok
+             Bundle integrity                              ✓ ok
+           ❯ Keybindings file                              ▲ warn
+           PROVIDERS
+             Anthropic credential                          ◓ stale
+             Model route                                   · info
+           ESTATE
+             Daemon reachability                           ◌ unknown
+             Certificate store                             · off
+
+           ~/.mercury/keybindings.json holds 2 unknown actions
+           ↑↓ move · ↵ evidence · d deep · r re-run · esc back

@@ -1,0 +1,12 @@
+# Pin source + proof files to LF regardless of core.autocrlf / platform.
+# HB-0065: several scribe proofs anchor a literal char immediately before `\n`
+# in a cross-line regex over checked-out source; on a CRLF checkout (Windows —
+# the field machines' platform) those `\n`-anchored matches false-fail and red the
+# green-gate even though the product code is correct. Forcing LF here makes the
+# proofs deterministic across platforms (the product never depends on EOL).
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.mjs  text eol=lf
+*.js   text eol=lf
+*.json text eol=lf
+*.sh   text eol=lf

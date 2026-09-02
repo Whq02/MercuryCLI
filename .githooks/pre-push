@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Mercury's pre-push guard. Committed here, enabled by the operator with ONE
+# documented command:
+#
+#     git config core.hooksPath .githooks
+#
+# Mercury's safety plane refuses programmatic changes to git's hooks path, and
+# State-integrity work adds no exception — manual enablement is the design. The logic lives in
+# scripts/verify/pre-push-guard.sh so it can be read, run by hand and proven
+# without a git remote.
+exec "$(git rev-parse --show-toplevel)/scripts/verify/pre-push-guard.sh" "$@"

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# scripts/git-hooks/commit-msg — session URLs and transcript/session metadata
+# never land in commit messages. Model attribution (Co-Authored-By) passes
+# untouched.
+# Activate once per clone: git config core.hooksPath scripts/git-hooks
+set -euo pipefail
+msg="$1"
+
+# 1) Strip harness-injected session-metadata TRAILER lines in place:
+#    a Session-ish trailer whose value carries a URL or a UUID, or a bare
+#    session-URL line. Prose lines are never touched.
+tmp="$(mktemp)"
+grep -Ev \
+  -e '^[[:space:]]*(Claude-)?[Ss]ession(-[A-Za-z]+)?:.*(https?://|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-)' \
+  -e '^[[:space:]]*https?://(claude|www\.claude)\.(ai|com)/(s|session)(/[^[:space:]]*)?[[:space:]]*$' \
+  "$msg" > "$tmp" || true
+mv "$tmp" "$msg"
+
+# 2) Reject session URLs embedded in prose (cannot be stripped without
+#    changing the message's meaning).
+if grep -Eq 'claude\.(ai|com)/(s|session)/' "$msg"; then
+  echo "commit-msg: session URL in the commit message — session metadata never lands in commits" >&2
+  exit 1
+fi
+exit 0

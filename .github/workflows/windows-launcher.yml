@@ -1,0 +1,129 @@
+# ============================================================================
+#  .github/workflows/windows-launcher.yml — the Windows LAUNCHER EXECUTION
+#  lane.
+#
+#  WHY: v1.5.4 shipped a cmd launcher that aborted on its own splash receipt —
+#  every Windows interactive boot died before node started — and the release
+#  floor was triple-green anyway, because NO lane ever executed mercury.cmd
+#  under cmd.exe: prove-launchers pins template TEXT on a POSIX host,
+#  windows-ui boots the runtime directly, windows-functional runs suites from
+#  a source checkout, and the release smoke ran --version only. THE LAW
+#  (REC-3): template pins are not execution — any release, and any commit
+#  touching launcher templates / the splash handoff / the boot argv contract,
+#  needs THIS lane green on the exact SHA.
+#
+#  WHAT: packages the REAL windows-x64 archive at the requested SHA, extracts
+#  it, and drives the SHIPPED mercury.cmd through a real ConPTY
+#  (scripts/winreg/boot-drill-win.py): deck → ↵ → splash handoff (beacon
+#  stamp) → runtime process alive → hold frame taken over (no strand), plus
+#  the piped skip-path matrix and a MERCURY_SPLASH=off interactive boot. The
+#  1.5.4 murder signature is an instant-fail tripwire.
+#
+#  DISPATCH-ONLY (the gate.yml quota incident): `gh workflow run
+#  windows-launcher.yml -f sha=<sha>`. Windows runners bill 2× — this is one
+#  slim job, never a test pool.
+# ============================================================================
+name: windows-launcher
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Exact commit SHA to drill (required — the ledger law)'
+        required: true
+
+concurrency:
+  group: windows-launcher
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  boot-drill:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.sha }}
+          # Full history: the packaging verify-receipt bind resolves the
+          # graded tree through the receipt-safe ancestor walk
+          # (package.mjs gradedTreeIsReceiptSafeAncestor) — a receipt
+          # committed after its fold can never match HEAD's own tree, so a
+          # shallow clone blinds the walk and reds every post-fold SHA.
+          fetch-depth: 0
+
+      - name: Assert exact-SHA checkout
+        shell: pwsh
+        run: |
+          $head = git rev-parse HEAD
+          if ($head -ne "${{ inputs.sha }}") { throw "checkout $head != requested ${{ inputs.sha }}" }
+
+      - name: Node (runtime policy pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Bun (build runtime)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Cache bun installs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache vendor fetches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'vendor/grammars.lock.json') }}
+
+      - name: Fetch pinned vendor artifacts (hash-verified)
+        run: |
+          bun run scripts/vendor/fetch-pyright.ts
+          bun run scripts/vendor/fetch-debugpy.ts
+          bun run scripts/vendor/fetch-grammars.ts
+
+      - name: Build dist
+        run: bun run build.ts
+
+      # The drill runs the SHIPPED artifact, not the checkout: package the
+      # real windows-x64 archive at this SHA and extract it — the same bytes
+      # a release would publish. This lane packages UPSTREAM of the gate
+      # ledger by construction (its own green becomes the windows-launcher
+      # ledger row), so the verify-receipt bind takes the deliberate escape;
+      # the release lane (private-release.yml) keeps the strict bind.
+      - name: Package the windows-x64 archive
+        run: node scripts/release/package.mjs --target windows-x64 --allow-stale-verify-receipts
+
+      - name: Extract the shipped archive
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem release-out/*windows-x64.zip | Select-Object -First 1
+          if (-not $zip) { throw "no windows-x64 zip in release-out/" }
+          Expand-Archive -LiteralPath $zip.FullName -DestinationPath "$env:RUNNER_TEMP\mercury-drill" -Force
+          $launcher = Join-Path "$env:RUNNER_TEMP\mercury-drill" 'mercury\mercury.cmd'
+          if (-not (Test-Path -LiteralPath $launcher)) { throw "mercury.cmd missing from the extracted archive" }
+          "MERCURY_DRILL_LAUNCHER=$launcher" | Out-File -Encoding ascii -Append $env:GITHUB_ENV
+
+      - name: Drill driver dependencies (pinned)
+        run: python -m pip install --quiet pywinpty==2.0.15 pyte==0.8.2
+
+      - name: Run the boot drill (the shipped mercury.cmd in a real ConPTY)
+        run: python scripts/winreg/boot-drill-win.py --launcher "$env:MERCURY_DRILL_LAUNCHER" --artifacts winreg-artifacts
+
+      - name: Upload drill artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: boot-drill-${{ inputs.sha }}-${{ github.run_id }}
+          path: winreg-artifacts/
+          if-no-files-found: error
+          retention-days: 14

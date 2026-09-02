@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# gate-class: pure
+# gate-watch: src/utils/cache/cacheClock* src/utils/cache/cacheClockCore* src/utils/modelCost*
+# Mercury Cache Clock — proof harness. Runs every
+# scripts/cache/prove-*.ts via bun run; non-zero exit on any failure. New
+# proofs are picked up by the glob. NOTE: extract-corpus.ts and bench-sim.ts
+# are runners, not proofs — the extractor reads the local transcript store and
+# must never join the gate (prove-cache-clock-benchmark asserts this).
+set -u
+# One wall-seconds line per prover — the pool engine reads exactly this shape.
+prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
+
+here="$(cd "$(dirname "$0")" && pwd)"
+bun="${BUN:-$HOME/.bun/bin/bun}"
+fail=0
+echo "############################################################"
+echo "# Cache Clock — proof harness"
+echo "############################################################"
+shopt -s nullglob
+for proof in "$here"/prove-*.ts; do
+  echo
+  echo ">>> $(basename "$proof")"
+  __t=$SECONDS; "$bun" run "$proof" || fail=1; prover_mark "$proof" "$__t"
+done
+echo "############################################################"
+if [ "$fail" = "0" ]; then echo "# ✅ ALL CACHE PROOFS PASS"; else echo "# ❌ SOME CACHE PROOFS FAILED"; fi
+echo "############################################################"
+exit "$fail"

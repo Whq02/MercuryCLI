@@ -1,0 +1,45 @@
+{
+  "v": 1,
+  "benchmark": "cache-clock-sim-v1",
+  "generatedIso": "2026-07-05T04:40:24.574Z",
+  "corpusSha256": "fb3497719c592595fbfd0f1456f7ca730a22f1aeb7a34688987a218588097cea",
+  "method": "deterministic replay of real shape-only session traces through the PRODUCTION cacheClockCore decision table (prior evolving chronologically) vs the flat all-5m baseline; arrival-time correction (completion \u2212 generous 30tok/s generation estimate); API-multiplier pricing (0.1 read / 1.25 5m write / 2.0 1h write); all sessions classed interactive (conservative)",
+  "result": {
+    "corpus": {
+      "sessions": 82,
+      "requests": 62242,
+      "spanDays": 20
+    },
+    "costUnits": {
+      "baseline5m": 3249239029,
+      "clock": 2948608636,
+      "all1h": 2948139814
+    },
+    "savingsPct": 9.3,
+    "coldRewrites": {
+      "baseline5m": 626,
+      "clock": 23
+    },
+    "clock": {
+      "upfront1hSessions": 73,
+      "escalatedSessions": 4,
+      "fiveMSessions": 5
+    },
+    "worstSessionRegressionPct": 45.9,
+    "regressedSessions": 28
+  },
+  "variants": {
+    "escalateOnly": {
+      "costUnits": 2957328928,
+      "savingsPct": 9,
+      "coldRewrites": 73,
+      "regressedSessions": 8,
+      "worstSessionRegressionPct": 23.7
+    }
+  },
+  "green": true,
+  "evidenceRefs": [
+    "scripts/cache/bench-sim.ts",
+    "scripts/cache/fixtures/corpus.json"
+  ]
+}

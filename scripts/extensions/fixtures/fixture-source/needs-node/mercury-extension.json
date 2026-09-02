@@ -1,0 +1,9 @@
+{
+  "name": "needs-node",
+  "version": "2.0.0",
+  "description": "a server that needs node and an env var",
+  "contributes": {
+    "servers": { "echo": { "command": "node", "args": ["-e", "process.exit(0)"] } }
+  },
+  "needs": { "binaries": ["node"], "env": ["NEEDS_NODE_TOKEN"], "options": { "MUST_SET": { "type": "string", "required": true } } }
+}

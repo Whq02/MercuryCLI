@@ -1,0 +1,157 @@
+# ============================================================================
+#.github/workflows/windows-ui.yml — the Windows UI capture lane.
+#
+#  DISPATCH-ONLY, capture-only, deliberately slim: ONE windows-latest job that
+#  builds dist once, runs a named capture burst through the pywinpty driver
+#  (scripts/winreg/vshot-win.py — same scenario grammar and cell-grid JSON as
+#  vshot.py), and uploads the grids for LOCAL artifact-replay iteration.
+#
+#  HONEST LANE LABEL: this lane is ConPTY +
+#  simulated WT environment — host "profiles" are env FINGERPRINTS
+#  (WT_SESSION / TERM_PROGRAM) injected into a real ConPTY with pyte as the
+#  semantic screen. The Windows Terminal renderer process never runs here;
+#  WT-rendering claims belong to the windows-tasks field box.
+#
+#  CADENCE: bring-up burst → iterate offline on
+#  the downloaded artifacts → ONE receipt run per Windows-claiming stage.
+#  Budget: ~12 slim dispatches for the whole, then ask. Windows
+#  runners bill at 2× — keep bursts small, never widen this into a test pool.
+#  Trigger: `gh workflow run windows-ui.yml` only. No push trigger, ever
+#  (the gate.yml quota incident).
+# ============================================================================
+name: windows-ui
+
+on:
+  workflow_dispatch:
+    inputs:
+      burst:
+        description: 'Capture burst to run (scripts/winreg/<burst>-win.py)'
+        required: false
+        default: 'bringup'
+      sha:
+        description: 'Exact commit SHA to capture (required — UI-130, the ledger law)'
+        required: true
+
+concurrency:
+  group: windows-ui
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    env:
+      BURST: ${{ inputs.burst }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.sha }}
+          # Full history for the packaging verify-receipt bind's
+          # receipt-safe ancestor walk (see windows-launcher.yml — the
+          # campaign burst packages the kit exactly the way a release does).
+          fetch-depth: 0
+
+      # UI-130: the capture claim binds to ONE exact tree — assert it before
+      # any minute is spent, exactly like windows-functional's ledger law.
+      - name: Assert exact-SHA checkout
+        shell: pwsh
+        run: |
+          $head = git rev-parse HEAD
+          if ($head -ne "${{ inputs.sha }}") { throw "checkout $head != requested ${{ inputs.sha }}" }
+
+      - name: Node (runtime policy pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+
+      - name: Bun (build runtime)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+
+      - name: Cache bun installs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Cache vendor fetches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'vendor/grammars.lock.json') }}
+
+      # Without these the built manifest is DEGRADED (no debugpy/pyright/
+      # grammar pack) and package.mjs REFUSES — the campaign burst packages
+      # the real collaborator kit, and --allow-degraded would forfeit exactly
+      # the claim it exists to prove (both dispatch preflights caught this;
+      # same fix as private-release.yml's step).
+      - name: Fetch pinned vendor artifacts (hash-verified)
+        run: |
+          bun run scripts/vendor/fetch-pyright.ts
+          bun run scripts/vendor/fetch-debugpy.ts
+          bun run scripts/vendor/fetch-grammars.ts
+
+      - name: Build dist
+        run: bun run build.ts
+
+      # UI-130: the built manifest must exist and the WORKING TREE must still
+      # be the requested SHA's (a build that dirties tracked files would make
+      # the captured binary unattributable).
+      - name: Verify build tree + manifest
+        shell: pwsh
+        run: |
+          if (-not (Test-Path dist/manifest.json)) { throw "dist/manifest.json missing — degraded build" }
+          $dirty = git status --porcelain -- ':!dist' ':!vendor' ':!winreg-artifacts'
+          if ($dirty) { throw "tracked tree dirtied by the build:`n$dirty" }
+          git rev-parse HEAD | Out-File -Encoding ascii dist-sha.txt
+
+      - name: Capture driver dependencies (pinned)
+        run: python -m pip install --quiet pywinpty==2.0.15 pyte==0.8.2
+
+      - name: Capture driver preflight
+        # Free AttributeError insurance before any capture spends minutes:
+        # print the installed surface so a red names the missing method, and
+        # the pyo3 text signature of spawn so the FIRST run's log settles the
+        # appname/cmdline convention permanently (preflight-2 defect 1 rider).
+        run: python -c "import winpty, pyte; print(winpty.__version__ if hasattr(winpty,'__version__') else 'winpty ?'); print([m for m in dir(winpty.PTY) if not m.startswith('_')]); print(winpty.PTY.spawn.__doc__)"
+
+      - name: Run capture burst
+        run: python "scripts/winreg/${env:BURST}-win.py"
+
+      # UI-130 + WG-01: the live receipt is an ASSERTION, not an
+      # observation — a nonzero direct-runtime exit or a version that does
+      # not match the built manifest FAILS the lane (a printed receipt used
+      # to stay green around a wrong result). The Windows Terminal presence
+      # fact stays observational (present with a version, or absent — never
+      # assumed either way).
+      - name: Live Windows receipt (asserted — exit 0 + manifest version)
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force winreg-artifacts | Out-Null
+          $ver = (node dist/mercury.mjs --version) 2>&1 | Out-String
+          $exit = $LASTEXITCODE
+          $manifest = (Get-Content dist/manifest.json | ConvertFrom-Json).version
+          $wt = Get-Command wt.exe -ErrorAction SilentlyContinue
+          $wtFact = if ($wt) { (& wt.exe --version 2>&1 | Out-String).Trim() } else { 'absent' }
+          @{ sha = "${{ inputs.sha }}"; burst = "${{ inputs.burst }}"; binaryVersion = $ver.Trim(); binaryExit = $exit; manifestVersion = $manifest; asserted = $true; windowsTerminal = $wtFact } |
+            ConvertTo-Json | Out-File -Encoding utf8 winreg-artifacts/live-receipt.json
+          Get-Content winreg-artifacts/live-receipt.json
+          if ($exit -ne 0) { throw "WG-01: direct runtime exit $exit (must be 0)" }
+          if (-not $ver.Contains($manifest)) { throw "WG-01: reported version '$($ver.Trim())' does not carry manifest version '$manifest'" }
+
+      - name: Upload capture artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: winreg-${{ inputs.burst }}-${{ inputs.sha }}-${{ github.run_id }}
+          path: winreg-artifacts/
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,13 @@
+{
+  "id": "type-tighten",
+  "title": "Tighten a string field to a closed union without breaking the ratchet",
+  "prompt": "In src/daemon/partySpawn.ts, the PARTY_BACK_AGENTS entries' `short` field is typed as plain `string` while every value is one of 'tank'|'dps1'|'dps2'|'dps3'. Tighten the field's type to that closed union (deriving from the seat field's PartySeat type where sensible), fix any resulting type errors in consumers WITHOUT weakening other types (no `any`, no assertions that erase the union), and keep the strict typecheck floor green: `bash scripts/typecheck/run-all.sh` must report no new breaks.",
+  "baseRef": "bench-corpus-v1",
+  "timeboxMs": 1200000,
+  "successChecks": [
+    { "kind": "cmd", "cmd": "! grep -q 'short: string' src/daemon/partySpawn.ts" },
+    { "kind": "cmd", "cmd": "bash scripts/typecheck/run-all.sh" },
+    { "kind": "cmd", "cmd": "bash scripts/party/run-all.sh" }
+  ],
+  "tags": ["refactor", "types"]
+}

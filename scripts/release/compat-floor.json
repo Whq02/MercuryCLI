@@ -1,0 +1,7 @@
+{
+  "schema": 1,
+  "floorVersion": "1.0.0-beta.1",
+  "forwarder": "none",
+  "changed": "2026-09-02",
+  "rationale": "The floor is the first version of the public line. Archives ship mercury.mjs-only with no forwarder; every reader at or above the floor accepts them, and an install below it uses the fresh-install path. Changing this floor later is ONE explicit edit here: the packager, the updater provers and the release bridge-gate all derive from this file."
+}

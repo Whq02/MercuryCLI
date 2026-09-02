@@ -1,0 +1,399 @@
+{
+ "object": "list",
+ "data": [
+  {
+   "id": "deepseek-ai/DeepSeek-V4-Pro-0813",
+   "object": "model",
+   "created": 1786590306,
+   "owned_by": "deepseek-ai",
+   "architecture": {
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ]
+   },
+   "providers": [
+    {
+     "provider": "novita",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 1.32,
+      "output": 3.96
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": false,
+     "first_token_latency_ms": 478.2,
+     "throughput": 44.51887527806487,
+     "is_model_author": false
+    },
+    {
+     "provider": "together",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 1.32,
+      "output": 3.96
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": false,
+     "first_token_latency_ms": 712.5,
+     "throughput": 76.8660451089811,
+     "is_model_author": false
+    },
+    {
+     "provider": "fireworks-ai",
+     "status": "live",
+     "context_length": 1048576,
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 744.4,
+     "throughput": 45.19500604914906,
+     "is_model_author": false
+    },
+    {
+     "provider": "baseten",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 1.32,
+      "output": 3.96
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 511.2,
+     "throughput": 114.54766825956317,
+     "is_model_author": false
+    }
+   ]
+  },
+  {
+   "id": "Qwen/Qwen3.8-2.4T-A95B",
+   "object": "model",
+   "created": 1786153852,
+   "owned_by": "Qwen",
+   "architecture": {
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ]
+   },
+   "providers": [
+    {
+     "provider": "together",
+     "status": "live",
+     "context_length": 1010000,
+     "pricing": {
+      "input": 2.5,
+      "output": 6.25
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": false,
+     "first_token_latency_ms": 763.2,
+     "throughput": 97.61880206348322,
+     "is_model_author": false
+    },
+    {
+     "provider": "fireworks-ai",
+     "status": "live",
+     "context_length": 262144,
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 877.2,
+     "throughput": 106.41864938236688,
+     "is_model_author": false
+    }
+   ]
+  },
+  {
+   "id": "moonshotai/Kimi-K3",
+   "object": "model",
+   "created": 1781332977,
+   "owned_by": "moonshotai",
+   "architecture": {
+    "input_modalities": [
+     "text",
+     "image"
+    ],
+    "output_modalities": [
+     "text"
+    ]
+   },
+   "providers": [
+    {
+     "provider": "together",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 3,
+      "output": 15
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": false,
+     "first_token_latency_ms": 1483,
+     "throughput": 16.090962978235336,
+     "is_model_author": false
+    },
+    {
+     "provider": "fireworks-ai",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 3,
+      "output": 15
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 739.6,
+     "throughput": 56.09464292397106,
+     "is_model_author": false
+    },
+    {
+     "provider": "featherless-ai",
+     "status": "live",
+     "is_free": false,
+     "is_model_author": false
+    },
+    {
+     "provider": "baseten",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 3,
+      "output": 15
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 550.6,
+     "throughput": 81.19396127401615,
+     "is_model_author": false
+    },
+    {
+     "provider": "deepinfra",
+     "status": "live",
+     "context_length": 1048576,
+     "pricing": {
+      "input": 2.8499999999999996,
+      "output": 14.25
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 675.8,
+     "throughput": 21.958957156518718,
+     "is_model_author": false
+    }
+   ]
+  },
+  {
+   "id": "openai/gpt-oss-120b",
+   "object": "model",
+   "created": 1754346786,
+   "owned_by": "openai",
+   "architecture": {
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ]
+   },
+   "providers": [
+    {
+     "provider": "groq",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.15,
+      "output": 0.75
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 264.8,
+     "throughput": 426.074209821346,
+     "is_model_author": false
+    },
+    {
+     "provider": "novita",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.05,
+      "output": 0.25
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 432.8,
+     "throughput": 152.0279264439137,
+     "is_model_author": false
+    },
+    {
+     "provider": "cerebras",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.35,
+      "output": 0.75
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 171.4,
+     "throughput": 1050.7822769831116,
+     "is_model_author": false
+    },
+    {
+     "provider": "nscale",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.1,
+      "output": 0.4
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 833.2,
+     "throughput": 105.54553217779883,
+     "is_model_author": false
+    },
+    {
+     "provider": "together",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.15,
+      "output": 0.6
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 315.2,
+     "throughput": 157.2229899870734,
+     "is_model_author": false
+    },
+    {
+     "provider": "fireworks-ai",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.15,
+      "output": 0.6
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 463.4,
+     "throughput": 175.19457935722045,
+     "is_model_author": false
+    },
+    {
+     "provider": "featherless-ai",
+     "status": "live",
+     "is_free": false,
+     "is_model_author": false
+    },
+    {
+     "provider": "scaleway",
+     "status": "live",
+     "pricing": {
+      "input": 0.171,
+      "output": 0.684
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 607.4,
+     "throughput": 113.81760399628726,
+     "is_model_author": false
+    },
+    {
+     "provider": "baseten",
+     "status": "live",
+     "context_length": 128072,
+     "pricing": {
+      "input": 0.1,
+      "output": 0.5
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 223.8,
+     "throughput": 292.6545958419693,
+     "is_model_author": false
+    },
+    {
+     "provider": "ovhcloud",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.09,
+      "output": 0.47
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 319,
+     "throughput": 97.37381317760621,
+     "is_model_author": false
+    },
+    {
+     "provider": "deepinfra",
+     "status": "live",
+     "context_length": 131072,
+     "pricing": {
+      "input": 0.037,
+      "output": 0.16999999999999998
+     },
+     "is_free": false,
+     "supports_tools": true,
+     "supports_structured_output": true,
+     "first_token_latency_ms": 241.4,
+     "throughput": 75.402947415809,
+     "is_model_author": false
+    }
+   ]
+  },
+  {
+   "id": "CohereLabs/tiny-aya-fire",
+   "object": "model",
+   "created": 1770982746,
+   "owned_by": "CohereLabs",
+   "architecture": {
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ]
+   },
+   "providers": [
+    {
+     "provider": "cohere",
+     "status": "live",
+     "is_free": false,
+     "supports_tools": false,
+     "supports_structured_output": false,
+     "first_token_latency_ms": 180.6,
+     "throughput": 118.15061552847695,
+     "is_model_author": true
+    }
+   ]
+  }
+ ]
+}

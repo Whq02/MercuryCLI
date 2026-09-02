@@ -1,0 +1,37 @@
+{
+  "type": "search",
+  "query": { "original": "terminal harness for software development", "show_strict_warning": false, "is_navigational": false },
+  "mixed": { "type": "mixed", "main": [{ "type": "web", "index": 0, "all": false }], "top": [], "side": [] },
+  "web": {
+    "type": "search",
+    "family_friendly": true,
+    "results": [
+      {
+        "type": "search_result",
+        "title": "Harness: AI for DevOps, Testing, AppSec, and Cost Optimization",
+        "url": "https://www.harness.io/",
+        "description": "<strong>Harness</strong> is a unified, end-to-end AI <strong>software</strong> delivery platform to manage the SDLC using purpose-built AI agents.",
+        "page_age": "2026-06-25T00:00:00",
+        "profile": { "name": "Harness", "long_name": "harness.io" },
+        "language": "en",
+        "family_friendly": true
+      },
+      {
+        "type": "search_result",
+        "title": "10 Agent Harnesses Every AI Builder Should Know in 2026",
+        "url": "https://www.thetoolnerd.com/p/10-agent-harnesses-every-ai-builder",
+        "description": "A tour of agent <strong>harnesses</strong> &amp; the trade-offs between them.",
+        "language": "en",
+        "family_friendly": true
+      },
+      {
+        "type": "search_result",
+        "title": "Blocked host example",
+        "url": "https://blocked.example.net/entry",
+        "description": "A hit the domain filter should be able to drop.",
+        "language": "en",
+        "family_friendly": true
+      }
+    ]
+  }
+}

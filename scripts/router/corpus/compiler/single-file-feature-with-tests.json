@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "single-file-feature-with-tests",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Add a bounded CLI flag with test coverage",
+    "title": "Add --json to status command",
+    "task": "Add a `--json` flag to the existing `status` subcommand in src/cli/statusCommand.ts that prints the same fields as machine-readable JSON instead of the table. Add unit tests covering the flag in the same file's test suite. The output shape is already specified by the existing table columns, so no new fields are needed.",
+    "ambiguity": 1,
+    "coupling": 0,
+    "parallelism": 0,
+    "taskShape": "bounded",
+    "candidateNodes": [
+      {
+        "id": "n1",
+        "title": "Add --json flag + tests",
+        "task": "Add a --json flag to statusCommand.ts and cover it with unit tests.",
+        "dependsOn": [],
+        "ownsPaths": ["src/cli/statusCommand.ts"],
+        "acceptance": ["`--json` prints valid JSON matching the table's fields", "existing table output is unchanged when the flag is absent"]
+      }
+    ]
+  },
+  "expected": {
+    "profile": "sonnet-opus-review",
+    "width": 1,
+    "modelClasses": ["sonnet"],
+    "reasonCodes": ["bounded-implementation"],
+    "adjustments": []
+  }
+}

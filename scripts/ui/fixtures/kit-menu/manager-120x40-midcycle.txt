@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                    ⌁ mcps & skills
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ MCPs                                                           │  │ ❯ deploy                                   │
+   │   github                                                    on │  │                                            │
+   │   postgres                                                 off │  │ What it controls                           │
+   │   orchard-tools (extension)                                off │  │ skill · project settings — on is ambient   │
+   │   ext:orchard-tools:db                         off (extension) │  │ (the agent can reach for it); invocable    │
+   │                                                                │  │ is listed but loads only when you          │
+   │ Skills                                                         │  │ /deploy; off is absent from the next       │
+   │ ❯ deploy                                             invocable │  │ session.                                   │
+   │   review                                                    on │  │                                            │
+   │   notes                                                    off │  │ Current value                              │
+   │   orchard-tools (extension)                                off │  │ invocable                                  │
+   │   orchard-tools:prune                          off (extension) │  │ … (the trail continues — a taller termina… │
+   │   orchard-tools:graft                          off (extension) │  ╰────────────────────────────────────────────╯
+   │   skills from MCP servers appear once a session connects them  │  ╭────────────────────────────────────────────╮
+   ╰────────────────────────────────────────────────────────────────╯  │ NEXT SESSION                               │
+                                                                       │ MCPs       1 on · 2 off                    │
+                                                                       │ Skills     1 on · 1 invocable · 3 off      │
+                                                                       │ Applies    ● the next session              │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  4 choices saved — applies to the next session  ·  2 established sessions unchanged          │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                   ↑↓ move · ↵ change (saved) · ⌫ default · p save as preset… · w presets… · esc back

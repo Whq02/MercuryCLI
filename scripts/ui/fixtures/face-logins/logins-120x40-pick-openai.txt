@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ OpenAI                                                         │  │ ❯ ChatGPT subscription — browser sign-in   │
+   │ ❯ ChatGPT subscription — browser sign-in                       │  │                                            │
+   │   OpenAI API key — paste one (stored locally, mode 600)        │  │ One OpenAI family, two credentials:        │
+   ╰────────────────────────────────────────────────────────────────╯  │ the ChatGPT subscription signs in with     │
+                                                                       │ the browser (d on the wait switches to     │
+                                                                       │ a device code); an API key bills           │
+                                                                       │ usage-based.                               │
+                                                                       │                                            │
+                                                                       │ esc — back to the roster                   │
+                                                                       │                                            │
+                                                                       │                                            │
+                                                                       │                                            │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   8                               │
+                                                                       │ Signed in  4 of 8                          │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  OpenAI — subscription or key                                                                │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                              ↑↓ move · ↵ pick · esc back

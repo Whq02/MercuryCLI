@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "id": "diagnostic-unknown-cause",
+  "mode": "scribe",
+  "mission": {
+    "objective": "Find the root cause of an intermittent crash",
+    "title": "Daemon dies under load, cause unknown",
+    "task": "The scheduler daemon crashes roughly once every few hours under sustained load with no consistent stack trace — sometimes it's a segfault-shaped exit, sometimes an unhandled rejection with no message. We don't know yet whether this is a leak, a race in the worker pool, or a native binding issue. Root-cause it before proposing a fix.",
+    "ambiguity": 3,
+    "coupling": 2,
+    "parallelism": 0,
+    "taskShape": "diagnostic"
+  },
+  "expected": {
+    "profile": "opus-direct",
+    "width": 1,
+    "modelClasses": ["opus"],
+    "reasonCodes": ["diagnostic-unknown-cause"],
+    "adjustments": []
+  }
+}

@@ -1,0 +1,342 @@
+# ============================================================================
+#  .github/workflows/gate.yml — the full pooled gate, relocated to CI.
+#
+#  SHAPE — mirrors scripts/run-all-suites.sh 1:1 where it matters:
+#    · build job  = Phase 0 (dist built ONCE; every shard tests the SAME build,
+#      MERCURY_GATE_PREBUILT=1 reaches suites exactly as locally).
+#    · shard jobs = a suite-sharded matrix over scripts/*/run-all.sh. Each shard
+#      runs its bucket SEQUENTIALLY through scripts/gate/run-suite.sh (the same
+#      per-suite watchdog + tree-kill unit as the local pool) — one suite at a
+#      time per runner, so pty contention and the exclusive class are satisfied
+#      by construction (every suite is effectively solo).
+#    · darwin job = the one mac straggler lane. scripts/gate/ci-darwin-suites.txt
+#      names suites that PROVED darwin-only; empty file ⇒ the job is skipped
+#      (macOS minutes bill at 10× — keep this list honest and short).
+#    · verdict job = the aggregate: per-suite table in the step summary + a
+#      verdict artifact in the local verdict.json schema. Exit code is the law.
+#
+#  LOCAL POLICY (AGENTS.md §Checks): the suite nearest the change while
+#  iterating; the FULL LOCAL POOL (`bun run verify` = scripts/run-all-suites.sh)
+#  to green at every closure. This workflow is the ASYNC full-gate verdict,
+#  DISPATCHED on the operator's cadence.
+#
+#  TRIGGER CONTRACT: the
+#  every-push trigger is REMOVED — at ~7/day it exhausted the
+#  Pro plan's 3,000 private-repo minutes in ~2 days and GitHub froze runner
+#  provisioning account-wide mid-round ("spending limit" annotation). CI runs
+#  by `gh workflow run gate.yml` ONLY — the operator fires it every 3-4
+#  (~every other day), which fits inside free minutes. Do NOT
+#  re-add the push trigger without an explicit operator ask.
+#
+#  COST MATH: ~16 ubuntu shards × ~6-12 min + build ~6 min ≈ 130-200
+#  runner-minutes per round. Private-repo Actions minutes apply;
+#  flip vars.GATE_DISABLE=1 to pause the workflow, or move the labels to a
+#  self-hosted runner if quota bites.
+# ============================================================================
+name: gate
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+  # Color-capable terminal identity: runners have NO TERM at all —
+  # color assertions read fg=undefined, and paint physics shift (extra notice
+  # rows). Matches the calibration environment.
+  TERM: xterm-256color
+  COLORTERM: truecolor
+  # Provers that exercise real git transactions in temp fixture repos need a
+  # commit identity; runners have none configured ("Author identity unknown").
+  GIT_AUTHOR_NAME: mercury-gate
+  GIT_AUTHOR_EMAIL: gate@mercury.invalid
+  GIT_COMMITTER_NAME: mercury-gate
+  GIT_COMMITTER_EMAIL: gate@mercury.invalid
+  # A fresh machine has no credential; the boot auth gate wants an env key.
+  # Suites drive fixtures/staged transcripts only — no real calls are
+  # possible with this value. Declared HERE (the environment's own truth),
+  # never pinned inside provers: a fake key where local auth is
+  # keychain/OAuth changes account-gated renders.
+  ANTHROPIC_API_KEY: proof-key-ci-gate-not-a-real-key
+  # Hosted per-suite budget BASE: the operator's pin, which scripts/gate/ci-shard.sh
+  # takes in place of its measured rule (max(600 s, 2 × the suite's seed
+  # seconds)) and then CAPS at the suite's HARD CEILING (900 s default;
+  # per-suite grants in scripts/gate/suite-ceilings.tsv — the hang law). The
+  # pin buys slack for real work under a grant, never the right to wedge a
+  # shard past the job clock: run 33148028015's four hangers each held a
+  # 3000 s budget plus a 3000 s retry inside a 60-minute job, so four shards
+  # died wedged with their bucket-tails unreported.
+  MERCURY_SUITE_TIMEOUT: '3000'
+  # THE HOSTED CAPTURE PROFILE:
+  # the 2-core runner is slower than every authoring box. The scale
+  # stretches each capture as ONE MOVIE — the deadline AND the send/resize
+  # schedule, in both PTY engines (scripts/ui/vshot.py + its ptydrive
+  # sibling) and every wrapper wall around them (vshotBudgetMs,
+  # scripts/lib/captureDriver.ts). Run 2 proved deadline-only stretching
+  # tears the movie: blind sends fired at authored ticks into boots 3×
+  # behind them (UNDELIVERED-SENDS, zero-observation fixture drives), while
+  # walls computed from authored time killed the captures they had granted
+  # headroom to (status-null, empty stderr). Awaits stay event-driven,
+  # observed-ready still ends a green scene early, hold criteria
+  # (stableTicks) and pure fixed-window captures stay authored, and
+  # authored budgets remain the local law (scale 1 = byte-identical).
+  # Registry: src/substrate/flagRegistry.ts.
+  MERCURY_VSHOT_BUDGET_SCALE: '3'
+
+jobs:
+  build:
+    name: "phase-0 · dist"
+    if: ${{ vars.GATE_DISABLE != '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    outputs:
+      darwin_suites: ${{ steps.plan.outputs.darwin_suites }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      # The PRODUCT Node runtime: the exact calibration pin
+      # (.node-version) — distinct from the Bun build runtime below and from
+      # the JS runtime inside actions. No package-manager cache: Bun owns
+      # dependency installation.
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Print selected Node
+        run: node --version
+      # Bun is pinned to the calibration machine — unpinned drift changed
+      # module-eval semantics. The installer was a live
+      # curl-to-shell: the PAYLOAD was pinned but the installer script was
+      # not, and the retry loop existed because the installer's inner zip
+      # download dies on runner-side connection resets (run 30084372076
+      # shard 1, curl 35 mid-download). A SHA-pinned action removes both the
+      # unpinned script and the hand-rolled retry.
+      - name: Install bun (pinned action)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      # Every suite resolves bun as ${BUN:-$HOME/.bun/bin/bun}, which the
+      # curl installer satisfied by construction. The action installs
+      # elsewhere and only adds it to PATH, so the canonical path is
+      # re-established here rather than editing ~130 suite scripts.
+      - name: Anchor bun at the canonical path
+        run: |
+          mkdir -p ~/.bun/bin
+          if [ ! -x ~/.bun/bin/bun ]; then ln -sf "$(command -v bun)" ~/.bun/bin/bun; fi
+          ~/.bun/bin/bun --version
+      - name: Cache bun installs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - name: Install deps
+        run: ~/.bun/bin/bun install --frozen-lockfile
+      - name: Cache vendor fetches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json') }}
+      - name: Fetch pinned vendor artifacts (hash-verified — an artifact without them is DEGRADED)
+        run: |
+          ~/.bun/bin/bun run scripts/vendor/fetch-pyright.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-debugpy.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-grammars.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
+      - name: Build dist (Phase 0 — once for every shard)
+        run: ~/.bun/bin/bun run build.ts
+      - name: Pack dist (+ the vendor cache — prove-pyright-vendor's loud-skip DEMANDS it wherever it runs)
+        run: tar -czf dist.tar.gz dist vendor
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dist
+          path: dist.tar.gz
+          retention-days: 3
+      # Real-process runtime qualification: the built artifact
+      # succeeds on the calibration Node, and a REAL older hosted runtime
+      # (Node 22) receives the concise non-zero refusal — never a stack.
+      - name: Qualify artifact (calibration Node — supported)
+        run: bash scripts/node-runtime/qualify-artifact.sh dist/mercury.mjs expect-supported
+      - name: Set up Node 22 (refusal leg)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '22'
+      - name: Qualify artifact (Node 22 — concise refusal)
+        run: bash scripts/node-runtime/qualify-artifact.sh dist/mercury.mjs expect-refusal
+      - name: Read darwin straggler list
+        id: plan
+        run: |
+          list=$(grep -v '^#' scripts/gate/ci-darwin-suites.txt 2>/dev/null | tr -d ' ' | grep -v '^$' | paste -sd' ' - || true)
+          echo "darwin_suites=$list" >> "$GITHUB_OUTPUT"
+
+  shard:
+    name: "suites · shard ${{ matrix.shard }}"
+    needs: build
+    runs-on: ubuntu-latest
+    # 90: under the movie-scaled capture profile the
+    # drive-heavy estates legitimately run ~scale× their authored seconds,
+    # and three shards were window-cancelled UNREPORTED at 60 — a shard
+    # that cannot REPORT is worse than a slow one. Billing follows actual
+    # minutes, so the wider window costs nothing when shards finish early;
+    # the re-seeded duration-seed.tsv balances buckets to ~35-45 min P50.
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      # Every shard can run Node-backed proofs + the built artifact — the
+      # PRODUCT runtime is the calibration pin, printed for the receipt.
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Print selected Node
+        run: node --version
+      # Bun is pinned to the calibration machine — unpinned drift changed
+      # module-eval semantics. The installer was a live
+      # curl-to-shell: the PAYLOAD was pinned but the installer script was
+      # not, and the retry loop existed because the installer's inner zip
+      # download dies on runner-side connection resets (run 30084372076
+      # shard 1, curl 35 mid-download). A SHA-pinned action removes both the
+      # unpinned script and the hand-rolled retry.
+      - name: Install bun (pinned action)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      # Every suite resolves bun as ${BUN:-$HOME/.bun/bin/bun}, which the
+      # curl installer satisfied by construction. The action installs
+      # elsewhere and only adds it to PATH, so the canonical path is
+      # re-established here rather than editing ~130 suite scripts.
+      - name: Anchor bun at the canonical path
+        run: |
+          mkdir -p ~/.bun/bin
+          if [ ! -x ~/.bun/bin/bun ]; then ln -sf "$(command -v bun)" ~/.bun/bin/bun; fi
+          ~/.bun/bin/bun --version
+      - name: Cache bun installs
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+      - name: Install deps
+        run: |
+          ~/.bun/bin/bun install --frozen-lockfile
+          sudo apt-get update -q && sudo apt-get install -y -q ripgrep
+          /usr/bin/python3 -m pip install --break-system-packages -q pyte pillow
+          /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest  # the .py companion lane, PINNED to the calibration formatter (format output is version-shaped); pytest arms the test-transaction leg
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: dist
+      - name: Unpack dist
+        run: tar -xzf dist.tar.gz
+      - name: Run shard suites
+        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 16
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: gate-results-shard-${{ matrix.shard }}
+          path: ci-gate-out/results.tsv
+          retention-days: 7
+          # a shard that produced no rows is an ERROR at the source, not a warning
+          # (the verdict still refuses the gap either way)
+          if-no-files-found: error
+
+  darwin:
+    name: "suites · darwin stragglers"
+    needs: build
+    if: ${{ needs.build.outputs.darwin_suites != '' }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      # Product runtime = the calibration pin here too (darwin runs the same
+      # Node-backed suites); printed for the receipt.
+      - name: Set up Node (calibration pin)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .node-version
+      - name: Print selected Node
+        run: node --version
+      # Bun is pinned to the calibration machine — unpinned drift changed
+      # module-eval semantics. The installer was a live
+      # curl-to-shell: the PAYLOAD was pinned but the installer script was
+      # not, and the retry loop existed because the installer's inner zip
+      # download dies on runner-side connection resets (run 30084372076
+      # shard 1, curl 35 mid-download). A SHA-pinned action removes both the
+      # unpinned script and the hand-rolled retry.
+      - name: Install bun (pinned action)
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.11
+      # Every suite resolves bun as ${BUN:-$HOME/.bun/bin/bun}, which the
+      # curl installer satisfied by construction. The action installs
+      # elsewhere and only adds it to PATH, so the canonical path is
+      # re-established here rather than editing ~130 suite scripts.
+      - name: Anchor bun at the canonical path
+        run: |
+          mkdir -p ~/.bun/bin
+          if [ ! -x ~/.bun/bin/bun ]; then ln -sf "$(command -v bun)" ~/.bun/bin/bun; fi
+          ~/.bun/bin/bun --version
+      - name: Install deps
+        run: |
+          ~/.bun/bin/bun install --frozen-lockfile
+          /usr/bin/python3 -m pip install --break-system-packages -q pyte pillow || pip3 install -q pyte pillow
+          /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest || pip3 install -q ruff==0.15.22 pytest
+      - name: Cache vendor fetches
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: vendor
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json') }}
+      - name: Fetch pinned vendor artifacts (hash-verified — an artifact without them is DEGRADED)
+        run: |
+          ~/.bun/bin/bun run scripts/vendor/fetch-pyright.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-debugpy.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-grammars.ts
+          ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
+      - name: Build dist (platform-correct vendoring)
+        run: ~/.bun/bin/bun run build.ts
+      - name: Run darwin suites
+        run: bash scripts/gate/ci-shard.sh darwin 16
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: gate-results-darwin
+          path: ci-gate-out/results.tsv
+          retention-days: 7
+          # same law as the shard uploads: zero rows = a loud source-job error
+          if-no-files-found: error
+
+  # verdict runs python-only aggregation (no Node executes here) — deliberately
+  # NO product-Node selection (the runtime contract covers jobs
+  # that build/run/smoke/package Mercury; this one does none of those).
+  verdict:
+    name: "verdict"
+    needs: [build, shard, darwin]
+    if: ${{ always() && vars.GATE_DISABLE != '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: gate-results-*
+          path: results
+      - name: Aggregate
+        run: /usr/bin/python3 scripts/gate/ci-verdict.py results
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: gate-verdict
+          path: ci-verdict.json
+          retention-days: 30

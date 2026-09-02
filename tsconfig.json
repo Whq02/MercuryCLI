@@ -1,0 +1,35 @@
+{
+  // The one compiler configuration: editors, the typecheck gate
+  // (scripts/typecheck/run-all.sh) and bun's runtime resolver read this file;
+  // bun (build.ts) bundles — tsc never emits.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noImplicitOverride": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "types": ["node", "react"],
+    // baseUrl is load-bearing at RUNTIME, not only for tsc: bun resolves the bare
+    // `src/…` import family and the `paths` aliases below through it under
+    // `bun run`, and tsc resolves the same `src/…` imports through it. TypeScript 6
+    // deprecates it (TS5101) — silenced until the `src/…` sites migrate (TS 7 item).
+    "baseUrl": ".",
+    "ignoreDeprecations": "6.0",
+    // The native bare specifiers build.ts resolves through STUB_MAP — kept in step with it.
+    "paths": {
+      "color-diff-napi": ["./src/native-ts/color-diff/index.ts"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
