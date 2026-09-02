@@ -297,3 +297,9 @@ export function firstOutputTs(run: ArenaRun): number {
   }
   return 0
 }
+
+export function sendStamp(run: ArenaRun, s: SendRecord): number {
+  const shift = run.anchorShiftMs ?? 0
+  const trueMs = s.sent - firstOutputTs(run)
+  return trueMs >= COMPOSER_NOMINAL_MS + shift ? trueMs - shift : trueMs
+}
