@@ -86,12 +86,12 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
     ctl !== undefined && ctl.region === 'list' && ctl.keys.join(',') === 'space' && ctl.pointer === 'none',
   )
   check(
-    'the list legend teaches space with BOTH truths in one row (the steer’s wording — it lies in neither state)',
-    CONCOURSE_REGION_KEYS.list.some(k => k.keys === 'space' && k.label === 'marks · while composing, space types'),
+    'the list legend teaches space as the mark (on the rows space is the mark and nothing else)',
+    CONCOURSE_REGION_KEYS.list.some(k => k.keys === 'space' && k.label === 'mark'),
   )
   // The handler lives INSIDE the list-region block (a list verb) — after
   // the split keys, before the block closes into the chat-pane grammar.
-  const SPACE_GUARD = "if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && !verbsYield && pastGate()) {"
+  const SPACE_GUARD = "if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {"
   const spaceAt = screen.indexOf(SPACE_GUARD)
   check(
     'space fires as a LIST verb (inside the list block, full stage only)',
@@ -99,19 +99,21 @@ console.log('§1 — marking (item 1): space toggles in the list region; screen 
       ordered(screen, "if (region === 'list') {", SPACE_GUARD) &&
       ordered(screen, SPACE_GUARD, "if (region === 'chat') {"),
   )
-  // SPACE IS A PRINTABLE (the steer) — pin BOTH directions.
+  // SPACE IS A PRINTABLE IN THE COMPOSER, THE MARK ON THE ROWS — pin BOTH
+  // directions through the composer-focus gate that stands between them.
+  const COMPOSER_GATE = "if (region !== 'coordinator' && region !== 'live') {"
   check(
-    'POISON (a mid-sentence space toggling a mark): the mark verb requires the EMPTY live draft — a composing space falls through to the type-through and lands IN the draft',
-    SPACE_GUARD.includes('!verbsYield') &&
-      read('src/components/concourse/letterVerbYield.ts').includes('if (facts.liveDraftLength > 0) return true') &&
-      ordered(screen, SPACE_GUARD, '// IP-6: printables type through') &&
-      ordered(screen, '// IP-6: printables type through', 'side.edit(d => insertAt(d, payload))'),
+    'POISON (a mid-sentence space toggling a mark): typing never reaches the rows’ grammar — the composer-focus gate keeps every non-composer region out of the type-through, and the mark verb never yields to a draft',
+    !SPACE_GUARD.includes('verbsYield') &&
+      !screen.includes('letterVerbsYield') &&
+      ordered(screen, SPACE_GUARD, COMPOSER_GATE) &&
+      ordered(screen, COMPOSER_GATE, 'side.edit(d => insertAt(d, payload))'),
   )
   check(
-    'POISON (an empty-draft space landing in the draft): the verb CONSUMES it above the type-through (stop + return, never a fall-through)',
+    'POISON (a rows-side space landing in the draft): the verb CONSUMES it above the composer gate (stop + return, never a fall-through)',
     (() => {
       const slice = screen.slice(spaceAt, screen.indexOf('return\n      }', spaceAt) + 1)
-      return spaceAt > 0 && slice.includes('event.stopImmediatePropagation()') && ordered(screen, SPACE_GUARD, '// IP-6: printables type through')
+      return spaceAt > 0 && slice.includes('event.stopImmediatePropagation()') && ordered(screen, SPACE_GUARD, COMPOSER_GATE)
     })(),
   )
   check(
@@ -348,12 +350,12 @@ console.log('§6 — the plain world (item 5): the reduced stage keeps space dea
   check(
     'TAUGHT on the full stage wherever a row can take a mark (every row class; never on an empty board)',
     (['live', 'paused', 'attached', 'queued', 'parked', 'stopped', 'door'] as const).every(c =>
-      regionKeysFor('list', { newSession: true, selection: c }).some(k => k.keys === 'space' && k.label === 'marks · while composing, space types'),
+      regionKeysFor('list', { newSession: true, selection: c }).some(k => k.keys === 'space' && k.label === 'mark'),
     ) && !regionKeysFor('list', { newSession: true, selection: 'none' }).some(k => k.keys === 'space'),
   )
   check(
     "DEAD: the space handler is guarded by the stage fact itself (the reduced stage's list never marks)",
-    screen.includes("if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && !verbsYield && pastGate()) {"),
+    screen.includes("if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {"),
   )
   check(
     'the atlas teaches space through the same one resolver rows (CONCOURSE_REGION_KEYS.list feeds it)',

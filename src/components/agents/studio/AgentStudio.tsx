@@ -508,6 +508,10 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
     return verbs.join(' · ')
   }
   const librarySpace = fl.selected?.agent && fl.selected.agent.source !== 'built-in' ? 'Space toggle · ' : ''
+  // The clone and test-drive fields own the keys while they show: their
+  // footers name the two moves that work there, never the library's letters
+  // (N/U/R would be typing into the field, and there is no search to type
+  // into) — a printed key that does not fire is a lie.
   const footer =
     mode.kind === 'inspect'
       ? inspected?.kind === 'invalid'
@@ -519,9 +523,13 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
         ? '↑↓ move · ↵/u restore · esc back'
         : mode.kind === 'delete-confirm'
           ? 'y / ↵ delete (recoverable) · n / esc cancel'
-          : query
-            ? '↑↓ move · ↵ inspect · esc clear search'
-            : `type to search · ↑↓ · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
+          : mode.kind === 'clone'
+            ? '↵ clone under the new identifier · esc back'
+            : mode.kind === 'testdrive'
+              ? '↵ stage in composer · esc cancel'
+              : query
+                ? '↑↓ move · ↵ inspect · esc clear search'
+                : `type to search · ↑↓ · ↵ inspect · ${librarySpace}N new · U trash · R reload · tab scope · shift+tab filter · esc close`
 
   return (
     <CommandCenter
