@@ -98,7 +98,11 @@ section('§3 the wiring, call-shaped')
   const poolCalls = logsSrc.split('mapWithConcurrency(').length - 1
   check('every discovery fan-out rides the pool (five call sites)', poolCalls >= 5, `calls=${poolCalls}`)
   check('the unbounded stat fan-out is gone (no bare Promise.all over candidates)', !/await Promise\.all\(\s*candidates\.map/.test(logsSrc))
-  check('the width reads the quota-aware core count (law 6)', /Math\.min\(4, availableCores\(\)\)/.test(logsSrc))
+  // The width's one owner is the pool module (Grep's stat walk sizes from
+  // the same helper); logs.ts imports it.
+  const poolSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'concurrency.ts'), 'utf8')
+  check('the width reads the quota-aware core count (law 6) in its one owner', /export function discoveryPoolWidth\(\): number \{\s*\n\s*return Math\.max\(1, Math\.min\(4, availableCores\(\)\)\)/.test(poolSrc))
+  check('…and the discovery scans import it from there', /import \{[^}]*\bdiscoveryPoolWidth\b[^}]*\} from '\.\.\/concurrency\.js'/.test(logsSrc) && !/function discoveryPoolWidth\(/.test(logsSrc))
 }
 
 console.log(`\n${failures === 0 ? `✅ DISCOVERY SCAN POOL: green (${checks} checks)` : `❌ ${failures} FAILURE(S) of ${checks}`}`)
