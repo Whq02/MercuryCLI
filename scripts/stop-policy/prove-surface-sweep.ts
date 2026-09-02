@@ -124,7 +124,7 @@ section('§3 3.3 · SC-1..5 class censuses')
   }
   walk4(join(ROOT, 'src'))
   check(`SC-4 census: ${sc4} quoted legacy hermes-* basename literal(s) — the K8 (Stage 5) enforcement feed`, sc4 >= 0)
-  console.log('  [CENSUS] SC-5: win32-inert signal registrations adjudicated INTENTIONAL at (SIGCONT resume · SIGPIPE EPIPE contracts; the only SIGSTOP route is win32-gated) — all-clear')
+  console.log('  [CENSUS] SC-5: win32-inert signal registrations adjudicated INTENTIONAL at (SIGCONT resume · SIGPIPE EPIPE contracts; the only self-stop route (SIGTSTP into the stop owner) is win32-gated) — all-clear')
 }
 
 if (failures > 0) {
