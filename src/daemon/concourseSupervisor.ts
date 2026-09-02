@@ -566,6 +566,7 @@ export type ConcourseAdmitResult =
       mainHolderTitle?: string
       modelId?: string
       modelDisplayName?: string
+      note?: string
       effort?: string
       kitSource?: 'carried' | 'derived' | 'preset'
       presetName?: string
@@ -631,16 +632,28 @@ export function makeConcourseAdmitHandler(
         ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
         : undefined
     const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
-    if (!validated.ok) {
+    let admission = validated
+    let retainedNote: string | undefined
+    if (!validated.ok && req.modelKey === undefined && retainedModelKey !== undefined && validated.reason.startsWith('no-credential:')) {
+      const unnamed = await validateWorkerModelChoice(undefined, 'session')
+      if (unnamed.ok) {
+        admission = unnamed
+        retainedNote =
+          unnamed.keyless === true
+            ? `the session's model ${retainedModelKey} has no credential here — the first model send picks the neutral default; /model chooses`
+            : `the session's model ${retainedModelKey} has no credential here — it continues on ${unnamed.entry.displayName} (the neutral default); /model chooses`
+      }
+    }
+    if (!admission.ok) {
       return {
         ok: false,
         code: 'invalid-request',
-        error: `model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
+        error: `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
       }
     }
-    const modelKey = validated.entry.modelId
-    const modelDisplayName = validated.entry.displayName
-    const keyless = validated.keyless === true
+    const modelKey = admission.entry.modelId
+    const modelDisplayName = admission.entry.displayName
+    const keyless = admission.keyless === true
     let stat
     try {
       stat = statSync(req.workspaceDir)
@@ -678,7 +691,7 @@ export function makeConcourseAdmitHandler(
         const others = liveWorkers
           .filter(r => r.runnerId !== standing.runnerId)
           .map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation }))
-        return reactivateConcourseSession(
+        const reactivated = await reactivateConcourseSession(
           standing,
           {
             modelKey,
@@ -693,6 +706,7 @@ export function makeConcourseAdmitHandler(
           others,
           deps,
         )
+        return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated
       }
     }
     const admissionClaims = liveWorkers.filter(
@@ -769,6 +783,7 @@ export function makeConcourseAdmitHandler(
         }
         return {
           ok: true,
+          ...(retainedNote !== undefined ? { note: retainedNote } : {}),
           runnerId,
           sessionId: claimSessionId,
           workspaceId,
@@ -916,6 +931,7 @@ export function makeConcourseAdmitHandler(
         : undefined
     return {
       ok: true,
+      ...(retainedNote !== undefined ? { note: retainedNote } : {}),
       runnerId,
       sessionId,
       workspaceId,
