@@ -4,15 +4,33 @@
 import { flagEnvLoose } from '../../../substrate/flagRegistry.js'
 import { getGptSeatAvailability } from '../../../services/providers/openai/openaiCatalogue.js'
 
-export function daedalusResolveModels(rawArgs: unknown): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
-  const args: Record<string, unknown> = rawArgs !== null && typeof rawArgs === 'object' ? { ...(rawArgs as Record<string, unknown>) } : {}
-  const compatible = new Set<string>(['opus', 'sonnet', 'fable', 'fable51', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'])
+const ANTHROPIC_CHOICES = ['opus', 'sonnet', 'fable', 'fable51', 'claude-sonnet-5', 'claude-opus-5', 'claude-fable-5-1'] as const
+
+export function daedalusCompatibleModels(): Set<string> {
+  const compatible = new Set<string>()
+  try {
+    const { seatFamilyChoices } =
+      require('../../../services/concourse/workerModels.js') as typeof import('../../../services/concourse/workerModels.js')
+    const families = seatFamilyChoices()
+    for (const f of families) {
+      compatible.add(f.family)
+      compatible.add(f.setting)
+    }
+    if (families.some(f => f.family === 'anthropic')) for (const id of ANTHROPIC_CHOICES) compatible.add(id)
+  } catch {
+  }
   try {
     const seat = getGptSeatAvailability()
     if (seat.state === 'ready') for (const id of seat.ids) compatible.add(id)
   } catch {
   }
-  const list = [...compatible].join(' | ')
+  return compatible
+}
+
+export function daedalusResolveModels(rawArgs: unknown): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
+  const args: Record<string, unknown> = rawArgs !== null && typeof rawArgs === 'object' ? { ...(rawArgs as Record<string, unknown>) } : {}
+  const compatible = daedalusCompatibleModels()
+  const list = compatible.size > 0 ? [...compatible].join(' | ') : 'nothing — no provider is signed in; /logins signs one in and its newest row becomes a choice'
   const resolveOne = (key: 'model' | 'executorModel', envKey: string, sourceKey: string): string | null => {
     const explicit = typeof args[key] === 'string' ? (args[key] as string).trim() : ''
     if (explicit) {
@@ -68,7 +86,7 @@ if (!MODEL || !EXECUTOR_MODEL) {
   return {
     launched: false,
     needsModels: true,
-    message: 'DAEDALUS: pick the models before launch — args.model (planning/design/QA) and args.executorModel (building lanes). Compatible choices come from the current model catalogue (opus | sonnet | fable | fable51 today, plus any live future model); engine providers (OpenAI, Z.AI, and the other API-key lanes) are not integrated for the agent fleet, so their models are honestly absent here rather than quietly refused. A boot-menu saved choice (MERCURY_DAEDALUS_MODEL / MERCURY_DAEDALUS_EXECUTOR_MODEL) is injected automatically and named. Ask the operator; never guess.',
+    message: 'DAEDALUS: pick the models before launch — args.model (planning/design/QA) and args.executorModel (building lanes). Compatible choices come from the account: every signed-in family by its word (anthropic, openai, zai, …) or its newest usable row, the Anthropic generation keys (opus | sonnet | fable | fable51) while that family is signed in, and the live-qualified GPT ids while the OpenAI catalogue is connected — no family is favoured, and a family that is not signed in is honestly absent rather than quietly refused. A boot-menu saved choice (MERCURY_DAEDALUS_MODEL / MERCURY_DAEDALUS_EXECUTOR_MODEL) is injected automatically and named. Ask the operator; never guess.',
   }
 }
 const REQUIREMENTS_RAW = typeof A.requirements === 'string' ? A.requirements : ''

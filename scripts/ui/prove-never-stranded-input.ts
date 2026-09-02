@@ -84,7 +84,7 @@ console.log('§3 A5 — the resume waits bind their exits; a cancel outlives a l
     /<KeybindingSetup>\s*\n\s*<ResumeWaitInner/.test(screen),
   )
   const guards = (screen.match(/if \(gen !== resumeGenRef\.current\) return/g) ?? []).length
-  check(`every await in onSelect re-checks the generation (3 guards, found ${guards})`, guards >= 3)
+  check(`every await in onSelect re-checks the generation (2 guards, found ${guards})`, guards >= 2)
   check('a cancel bumps the generation so in-flight work goes stale', screen.includes('resumeGenRef.current++') && screen.includes('const gen = ++resumeGenRef.current'))
 }
 

@@ -3,7 +3,11 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 export const WORKFLOW_TIERS = ['orchestrator', 'executor'] as const
 export type WorkflowTier = (typeof WORKFLOW_TIERS)[number]
 
-export const WORKFLOW_EXECUTOR_MODEL = 'claude-opus-5'
+export function workflowExecutorModel(): string | undefined {
+  const { neutralSeatDefault } =
+    require('../../services/concourse/workerModels.js') as typeof import('../../services/concourse/workerModels.js')
+  return neutralSeatDefault()?.setting
+}
 
 export function workflowRoutingEnabled(): boolean {
   return flagEnv('MERCURY_WORKFLOW_ROUTING') === '1'
@@ -25,5 +29,5 @@ export function resolveWorkflowRoutedModel(opts: {
   if (!workflowRoutingEnabled()) return undefined
   if (opts.tier !== 'executor') return undefined
   if (opts.model !== undefined && opts.model !== null) return undefined
-  return WORKFLOW_EXECUTOR_MODEL
+  return workflowExecutorModel()
 }
