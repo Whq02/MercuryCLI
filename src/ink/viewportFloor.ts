@@ -4,11 +4,12 @@
 //
 //  Below the documented minimum no fullscreen surface can lay itself out
 //  honestly: the cockpit sheds to strips, strips to an inline fallback, and
-//  each step paints a frame nobody designed for. The alternate-screen host
-//  reads ONE verdict here and paints ONE line instead — naming the minimum
-//  and the way back (resize) — while the surface beneath stays mounted,
-//  frozen at the last size that fit, so the way back repaints it whole with
-//  every scroll position and draft intact.
+//  each step paints a frame nobody designed for. The hosts read ONE verdict
+//  here: the alternate-screen host paints ONE line instead — naming the
+//  minimum and the way back (resize) — and every host under the floor keeps
+//  its surface mounted, out of layout, frozen at the last size that fit, so
+//  the way back repaints it whole with every scroll position and draft
+//  intact.
 //
 //  The width floor is the cockpit's entry width (helmGeometry owns the
 //  number) behind the cockpit's own exit hysteresis at the same boundary: a
@@ -16,7 +17,9 @@
 //  fresh window must reach the floor itself. The row floor is the shortest
 //  window any designed fullscreen chrome paints in (the deck strip's floor
 //  — the layout tier reads the same number); rows carry no band, like the
-//  chrome's own row gate. One engage, one release.
+//  chrome's own row gate. ONE latch, module-owned like the chrome's, so the
+//  alternate-screen host and a route surface host painting over it read the
+//  same answer for the same frame. One engage, one release.
 // ============================================================================
 
 import { HELM_HOME_MIN_COLS } from '../utils/helmGeometry.js'
@@ -43,6 +46,23 @@ export function viewportFloorVerdict(columns: number, rows: number, surfaceUp: b
   const colFloor = surfaceUp ? VIEWPORT_FLOOR_COLS - VIEWPORT_FLOOR_EXIT_BAND : VIEWPORT_FLOOR_COLS
   if (columns >= colFloor && rows >= VIEWPORT_FLOOR_ROWS) return { fits: true }
   return { fits: false, line: viewportFloorLine(columns, rows) }
+}
+
+/** The ONE latch: whether the fullscreen world is painted right now. */
+let surfaceUp = false
+
+/** The LIVE verdict every host reads — the pure verdict behind the one
+ *  latch. Idempotent within a frame: the first reading settles the latch
+ *  and every later reading of the same size answers the same. */
+export function viewportFloorLive(columns: number, rows: number): ViewportFloorVerdict {
+  const verdict = viewportFloorVerdict(columns, rows, surfaceUp)
+  surfaceUp = verdict.fits
+  return verdict
+}
+
+/** Test/proof seam: put the latch back to its boot state. */
+export function resetViewportFloorForTests(): void {
+  surfaceUp = false
 }
 
 /** The one line: the minimum, this window, the way. Shorter forms keep it

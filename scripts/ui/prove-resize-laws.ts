@@ -403,11 +403,26 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
     'the line stays on ONE row at every width down to the shortest form',
     [140, 99, 80, 60, 40].every(c => viewportFloorLine(c, 20).length <= Math.max(c - 2, shortest.length)),
   )
-  const alt = read('src/ink/components/AlternateScreen.tsx')
+  // ONE latch, module-owned like the chrome's (viewportFloorLive): the
+  // alternate-screen host and the route surface host that paints over it
+  // read the same answer for the same frame — idempotent within a frame.
+  const { resetViewportFloorForTests, viewportFloorLive } = await import('../../src/ink/viewportFloor.ts')
+  resetViewportFloorForTests()
+  check('the live verdict engages the latch at the floor', viewportFloorLive(120, 40).fits && viewportFloorLive(98, 40).fits)
+  check('… a second reading of the same frame answers the same (idempotent)', viewportFloorLive(98, 40).fits)
+  check('… releases one column under the band and stays under until the floor', !viewportFloorLive(96, 40).fits && !viewportFloorLive(99, 40).fits && viewportFloorLive(100, 40).fits)
+  resetViewportFloorForTests()
+  check('a fresh boot under the floor never engages', !viewportFloorLive(98, 40).fits && !viewportFloorLive(99, 40).fits)
+  resetViewportFloorForTests()
+  const hook = read('src/ink/hooks/use-viewport-floor.ts')
   check(
-    'the host reads the verdict at the OUTERMOST instance only',
-    alt.includes('nested || size === null ? { fits: true } : viewportFloorVerdict(size.columns, size.rows, surfaceUp)'),
+    'one hook carries a host’s reading: the live verdict, the frozen size while under',
+    hook.includes('viewportFloorLive(size.columns, size.rows)') &&
+      hook.includes('if (verdict.fits && size !== null) lastFitRef.current = size') &&
+      hook.includes('surfaceSize: verdict.fits ? size : lastFitRef.current'),
   )
+  const alt = read('src/ink/components/AlternateScreen.tsx')
+  check('the alternate-screen host reads the floor at the OUTERMOST instance only', alt.includes('const floor = useViewportFloor(size, !nested)'))
   // The outermost fact is DECIDED at the lifecycle claim and kept in a ref:
   // the depth record alone reads the outermost instance's own claim as
   // nesting on every later render, and the floor never fired after mount.
@@ -415,17 +430,25 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
     'outermost is decided once at the depth claim and read from the ref on every later render',
     alt.includes('outermostRef.current = outermost') && alt.includes('const nested = outermostRef.current !== null\n    ? !outermostRef.current'),
   )
+  // A style key left ABSENT is never re-applied (applyStyles skips it), so a
+  // host must name its display in BOTH states or stay out of layout after
+  // the way back (the shard's 527-byte return).
   check(
-    'the surface stays mounted, out of layout, frozen at the last fitting size',
-    alt.includes("{ display: 'none' as const }") &&
-      alt.includes('<TerminalSizeContext.Provider value={surfaceSize}>{children}</TerminalSizeContext.Provider>') &&
-      alt.includes('if (verdict.fits && size !== null) lastFitRef.current = size'),
+    'the surface stays mounted, out of layout under the floor, back in layout above it — the display named in both states',
+    alt.includes("display={floor.fits ? 'flex' : 'none'}") &&
+      alt.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>'),
   )
+  check('the notice is one Text, painted only under the floor', alt.includes('{floor.line === null ? null : (') && alt.includes('{floor.line}'))
+  // The route surfaces (the Boot face, the Concourse) paint OVER the
+  // alternate screen's host from an absolutely-positioned opaque box of
+  // their own: that host yields the frame under the floor the same way.
+  const router = read('src/components/SurfaceRouter.tsx')
   check(
-    'the latch is committed state (the render stays pure)',
-    alt.includes('const [surfaceUp, setSurfaceUp] = useState(false)') && alt.includes('if (surfaceUp !== verdict.fits) setSurfaceUp(verdict.fits)'),
+    'the route surface host reads the same floor and yields the frame under it',
+    router.includes('const floor = useViewportFloor(useContext(TerminalSizeContext), true)') &&
+      router.includes("display={floor.fits ? 'flex' : 'none'}") &&
+      router.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>'),
   )
-  check('the notice is one Text, painted only under the floor', alt.includes('{verdict.fits ? null : (') && alt.includes('{verdict.line}'))
 }
 
 // ── §16: a storm holds ONCE
