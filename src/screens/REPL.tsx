@@ -47,7 +47,7 @@ import { SandboxViolationExpandedView } from '../components/SandboxViolationExpa
 import { ScrollKeybindingHandler } from '../components/ScrollKeybindingHandler.js';
 import { BriefIdleStatus } from '../components/Spinner.js';
 import { MessageActionsBar } from '../components/messageActions.js';
-import { useMessageCursorActive } from '../components/messageCursorStore.js';
+import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';
 import { FocusedSessionStatusRow } from '../components/SwitchboardTagBar.js';
 import {
   useKickOffCheckAndDisableBypassPermissionsIfNeeded,

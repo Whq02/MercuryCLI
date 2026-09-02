@@ -75,8 +75,8 @@ section('§1 the store — one owner, identity-guarded, the active flag beside i
 section('§2 the wiring — by census at every owner')
 {
   const repl = read('src/screens/REPL.tsx')
-  check('the REPL keeps no cursor state of its own', !repl.includes('useState<MessageActionsState | null>') && !repl.includes('setMessageCursor'))
-  check('the REPL subscribes to the active flag only', repl.includes('const messageCursorActive = useMessageCursorActive();') && repl.includes("import { useMessageCursorActive } from '../components/messageCursorStore.js';"))
+  check('the REPL keeps no cursor state of its own (its one clear — the jump-to-new pill — writes the store)', !repl.includes('useState<MessageActionsState | null>') && (repl.match(/setMessageCursor\(/g) ?? []).length === 1 && repl.includes('setMessageCursor(null);\n    unseen.jumpToNew(scrollRef.current);'))
+  check('the REPL subscribes to the active flag only', repl.includes('const messageCursorActive = useMessageCursorActive();') && repl.includes("import { setMessageCursor, useMessageCursorActive } from '../components/messageCursorStore.js';"))
   check('the bar and the key handlers mount on the active flag', repl.includes('messageCursorActive && !messageActionsDisabled ? <MessageActionsBar /> : composerGroup') && repl.includes('{fullscreen && messageCursorActive ? ('))
   check('the live transcript owns the cursor; no transcript mount passes a cursor prop', /ownsCursor\s*\n\s*cursorNavRef=\{messageNavRef\}/.test(repl) && !/\bcursor=\{/.test(repl))
   check('the hook takes the nav ref and the capabilities, reading the cursor live', repl.includes('useMessageActions(messageNavRef, {'))
