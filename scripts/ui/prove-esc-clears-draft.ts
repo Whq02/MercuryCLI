@@ -54,6 +54,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
     sends: [
       'after:Quiet seat:2500:\t',
       'after:Quiet seat:4000:\r',
+      'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
       `after:Type a prompt:${escAt + gapMs}:\x1b`,
