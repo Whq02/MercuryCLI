@@ -1,6 +1,6 @@
 
 import { FLAG_REGISTRY, flagEnabled, flagEnv, type FlagSpec } from '../substrate/flagRegistry.js'
-import { bootEnvAppliedKeys } from '../substrate/startupMenu.js'
+import { realEnvPin } from '../substrate/startupMenu.js'
 import { driverNodeGate, resolveBrowser } from '../services/browser/browserResolver.js'
 import {
   mercuryDapEnabled,
@@ -913,13 +913,14 @@ function skillRecords(): ReadinessRecord[] {
 }
 
 
-export function flagReadinessRecord(spec: FlagSpec, bootKeys: ReadonlySet<string>): ReadinessRecord {
+export function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
   const effective = flagEnv(spec.env)
-  const source = bootKeys.has(spec.env)
-    ? 'boot-env.json (boot menu)'
-    : process.env[spec.env] !== undefined
-      ? 'environment'
-      : 'default (unset)'
+  const source =
+    effective === undefined
+      ? 'default (unset)'
+      : realEnvPin(spec.env) !== null
+        ? 'environment'
+        : 'boot-env.json (boot menu)'
 
   let state: ReadinessState
   let detail: string
@@ -952,9 +953,8 @@ export function flagReadinessRecord(spec: FlagSpec, bootKeys: ReadonlySet<string
 }
 
 export function envReadinessProjection(): ReadinessRecord[] {
-  const bootKeys = bootEnvAppliedKeys()
   const rows = FLAG_REGISTRY.map(spec => ({
-    record: flagReadinessRecord(spec, bootKeys),
+    record: flagReadinessRecord(spec),
     explicit: flagEnv(spec.env) !== undefined,
     name: spec.env,
   }))

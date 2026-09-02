@@ -1,0 +1,23 @@
+[package]
+name = "mercury_voice"
+version = "0.1.0"
+edition = "2021"
+description = "Mercury's voice capture addon: input devices and 16 kHz mono capture over the platform audio layer, as a Node-API module"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+cpal = "0.18"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = "symbols"

@@ -41,6 +41,7 @@ import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
+import { cancelVoiceCapture, subscribeVoice, toggleVoiceCapture, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
   enterTeammateView,
@@ -387,6 +388,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerMainModel,
   )
   void editGen
+  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
+  const voiceReceiptSeqRef = useRef(0)
+  useEffect(() => {
+    const receipt = voice.receipt
+    if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
+    voiceReceiptSeqRef.current = receipt.seq
+    addNotification({
+      key: 'voice-receipt',
+      text: receipt.text,
+      priority: 'immediate',
+      ...(receipt.tone === 'error' ? { color: 'error' as const } : {}),
+      timeoutMs: 8000,
+    })
+  }, [voice.receipt, addNotification])
   const composerWhyRef = useRef<Record<string, unknown> | null>(null)
   fluxWhy('composer', composerWhyRef, () => ({
     ...props,
@@ -1965,6 +1980,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         input === '' && cursorOffset === 0 && mode === 'prompt' &&
         footerSelection === null && !helpOpen && !isSearchingHistory
 
+      if (voice.phase === 'recording' && key.escape) {
+        event.stopImmediatePropagation()
+        cancelVoiceCapture()
+        return
+      }
+
       if (
         key.tab &&
         !key.shift &&
@@ -2052,7 +2073,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
@@ -2523,6 +2544,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
   const vimEnabled = isVimModeEnabled()
 
+  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
+    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    const live = voiceSnapshot()
+    if (live.phase === 'recording' || live.phase === 'transcribing') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    return rawInput
+  }, [])
+
   const textInputProps = {
     viewportStartRef: composerViewportStartRef,
     value: input,
@@ -2530,6 +2565,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     cursorOffset,
     onChangeCursorOffset: setCursorOffset,
     columns: columns - 3,
+    inputFilter: voiceInputFilter,
     onSubmit: (value: string) => {
       void submit(value, {})
     },

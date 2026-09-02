@@ -18,12 +18,13 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isProviderActionRow, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { providerFrontierLine } from '../../utils/model/providerFrontier.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
   OPENROUTER_MODEL_GROUP,
   getOpenrouterAvailability,
+  getOpenrouterFullModelOptions,
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import {
@@ -35,6 +36,7 @@ import {
   HUGGINGFACE_CONNECT_OPTION_VALUE,
   HUGGINGFACE_MODEL_GROUP,
   getHuggingfaceAvailability,
+  getHuggingfaceFullModelOptions,
 } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
@@ -56,6 +58,11 @@ import {
 } from '../../utils/effort.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
+
+const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
+  [OPENROUTER_MODEL_GROUP]: () => getOpenrouterFullModelOptions(),
+  [HUGGINGFACE_MODEL_GROUP]: () => getHuggingfaceFullModelOptions(),
+}
 
 function fmtCtx(windowSize: number): string {
   if (!windowSize) return ''
@@ -124,18 +131,20 @@ function MercuryModelWrapper({
   }
 
   const options = getModelOptions()
-  const models: ModelChoice[] = options.map(opt => {
+  const choiceOf = (opt: ModelOption): ModelChoice => {
     let ctx = ''
     let ctxBase = ''
     let ctx1m = ''
     if (opt.value !== null && isProviderActionRow(opt.value)) {
+      const group = opt.group ?? ANTHROPIC_MODEL_GROUP
       return {
         id: opt.value,
         name: opt.label,
         tag: opt.description,
         ctx: '',
-        group: opt.group ?? ANTHROPIC_MODEL_GROUP,
+        group,
         action: true,
+        ...(opt.catalogueDoor ? { expand: { group, family: opt.catalogueDoor.family, total: opt.catalogueDoor.total } } : {}),
       }
     }
     if (opt.statedContextWindow !== undefined || (typeof opt.value === 'string' && qualifiedIdSpaceOf(opt.value)?.qualifiedPrefix !== undefined)) {
@@ -182,7 +191,16 @@ function MercuryModelWrapper({
       group: opt.group ?? ANTHROPIC_MODEL_GROUP,
       ...(opt.unavailable !== undefined ? { gated: true, gatedReason: opt.unavailable } : {}),
     }
-  })
+  }
+  const models: ModelChoice[] = options.map(choiceOf)
+  const expandRows = (group: string): ModelChoice[] =>
+    applyModelAllowlist(CATALOGUE_DOORS[group]?.() ?? []).map(choiceOf)
+  const labelOf = (id: string): string =>
+    options.find(o => (o.value ?? 'default') === id)?.label ??
+    Object.values(CATALOGUE_DOORS)
+      .flatMap(rows => rows())
+      .find(o => o.value === id)?.label ??
+    id
   const current =
     focusedSeat !== null
       ? focusedSeat.effective
@@ -298,6 +316,7 @@ function MercuryModelWrapper({
     })(),
   }
   function handleSelect(id: string): void {
+    if (isCatalogueDoorRow(id)) return
     const value = id === 'default' ? null : id
     if (id === ANTHROPIC_CONNECT_OPTION_VALUE) {
       onDone('Claude sign-in — running /logins (the picker re-opens when it settles)', {
@@ -466,8 +485,7 @@ function MercuryModelWrapper({
   function applySelection(value: string | null, id: string): void {
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
-      const opt = options.find(o => (o.value ?? 'default') === id)
-      const label = opt?.label ?? id
+      const label = labelOf(id)
       const factsBefore = focused.modelFacts()
       void focused.setModel(value).then(receipt => {
         if (receipt.state === 'no-op') {
@@ -489,18 +507,18 @@ function MercuryModelWrapper({
       })
       return
     }
-    const opt = options.find(o => (o.value ?? 'default') === id)
+    const label = labelOf(id)
     const stateNow = store.getState()
     const settled = settleModelSelection(stateNow, value, {
       turnActive: stateNow.foregroundTurnActive || stateNow.pendingModelSwitch !== null,
     })
     if (settled.kind === 'no-op') {
-      onDone(`Already on ${opt?.label ?? id} — nothing to change`)
+      onDone(`Already on ${label} — nothing to change`)
       return
     }
     if (settled.kind === 'cancelled-pending') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
-      onDone(`Already on ${opt?.label ?? id} — queued switch cancelled`)
+      onDone(`Already on ${label} — queued switch cancelled`)
       return
     }
     const effectiveFrom = stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel
@@ -509,13 +527,13 @@ function MercuryModelWrapper({
     if (settled.kind === 'queued') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
       onDone(
-        `Model switch queued: ${opt?.label ?? id} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+        `Model switch queued: ${label} applies when the current turn settles (the running turn keeps its model)${settled.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
       )
       return
     }
     setAppState(prev => ({ ...prev, ...settled.patch }))
     onDone(
-      `Set model to ${opt?.label ?? id}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
+      `Set model to ${label}${settled.receipt.crossProvider ? crossProviderNote(value) : ''}${lossNote}`,
     )
   }
 
@@ -558,6 +576,7 @@ function MercuryModelWrapper({
       notice={notice}
       groupDetails={groupDetails}
       onSlotSwitch={handleSlotSwitch}
+      expandRows={expandRows}
       {...(pendingNext !== undefined ? { pendingNext } : {})}
       onSelect={handleSelect}
       onClose={() =>

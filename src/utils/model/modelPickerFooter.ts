@@ -1,13 +1,27 @@
+export type ModelPickerFooterDoor =
+  | { open: false }
+  | { open: true; onHeader: boolean; filtering: boolean }
+
 export function modelPickerFooter(
-  opts: { hasEffort: boolean; supports1m: boolean; gated: boolean; enableFlag?: string },
+  opts: { hasEffort: boolean; supports1m: boolean; gated: boolean; enableFlag?: string; door?: ModelPickerFooterDoor },
   innerWidth: number,
 ): string {
   const head = '↑↓ select'
-  const tail = 'esc close'
-  const action = opts.gated ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}` : '↵ switch'
+  const door = opts.door
+  const tail = door?.open ? (door.filtering ? 'esc clear' : 'esc collapse') : 'esc close'
+  const action = opts.gated
+    ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}`
+    : door === undefined
+      ? '↵ switch'
+      : !door.open
+        ? '↵ expand'
+        : door.onHeader
+          ? '↵ collapse'
+          : '↵ switch'
   const middle = [
     { text: '←→ effort', show: opts.hasEffort, drop: 2 },
     { text: 'c context', show: opts.supports1m, drop: 3 },
+    { text: 'type to filter', show: door?.open === true, drop: 0 },
     { text: action, show: true, drop: 1 },
   ]
   const join = (parts: string[]): string => parts.join(' · ')
