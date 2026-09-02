@@ -9,11 +9,13 @@
 //
 // Identity mandates: the advertisement home is a subdirectory of
 //  Mercury's own config home (compat homes are a bounded READ affordance);
-//  the install arm targets Mercury's own extension identifier and FAILS
-//  HONESTLY while no Mercury artifact is published — foreign software is
-//  never installed; every env read gates on a registered MERCURY_IDE_* flag,
-//  with the externally documented Claude-family spelling decoded one rung
-//  below at this consumer (the spelling itself is never renamed).
+//  the install arm installs Mercury's OWN extension package — the .vsix
+//  shipped beside this build (utils/editorExtensionPackage, the one
+//  package owner) — under Mercury's own extension identifier; foreign
+//  software is never installed; every env read gates on a registered
+//  MERCURY_IDE_* flag, with the externally documented Claude-family
+//  spelling decoded one rung below at this consumer (the spelling itself is
+//  never renamed).
 //
 // Failure posture: discovery and hygiene never throw into their
 //  callers — they log and degrade to empty/null.
@@ -41,6 +43,7 @@ import { configHomeExplicitlySet, getMercuryHome } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getAncestorCommandsAsync, getAncestorPidsAsync, isProcessRunning } from './genericProcessUtils.js'
 import { checkWSLDistroMatch, WindowsToWSLConverter } from './idePathConversion.js'
+import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from './editorExtensionPackage.js'
 import { isJetBrainsPluginInstalledCached } from './jetbrains.js'
 import { logError } from './log.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
@@ -64,20 +67,9 @@ const LOCKFILE_SUFFIX = '.lock'
 /** Bridge subdirectory under a config home. Field layout: `<home>/ide/`. */
 const IDE_BRIDGE_DIR = 'ide'
 
-/**
- * Mercury's OWN marketplace-style extension identifier — the
- * publisher.name of integrations/vscode/package.json. The ONE owned install
- * identity; no foreign identifier is ever installed.
- */
-export const MERCURY_IDE_EXTENSION_ID = 'mercury.mercury-vscode'
-
-/**
- * No published Mercury extension artifact exists yet: the install arm must
- * return the honest named failure instead of invoking any installer
- * Flip when the Mercury artifact ships on a channel the CLI
- * force-install can reach.
- */
-const MERCURY_EXTENSION_ARTIFACT_PUBLISHED = false
+/** Mercury's OWN extension identity and package — one owner, re-exported
+ *  for this module's importers. No foreign identifier is ever installed. */
+export { MERCURY_IDE_EXTENSION_ID } from './editorExtensionPackage.js'
 
 /**
  * Close-every-open-diff RPC op. No surviving file pins the spelling
@@ -1198,19 +1190,12 @@ function semverOlder(candidate: string, reference: string): boolean {
   return false
 }
 
-function noPublishedArtifactError(displayName: string): string {
-  return (
-    `No published Mercury extension artifact yet — the ${displayName} extension ` +
-    `(${MERCURY_IDE_EXTENSION_ID}) cannot be auto-installed until Mercury ships one. ` +
-    'In-editor features stay off until then.'
-  )
-}
-
 /**
  * The VS Code-family install flow: discover the CLI, read installed state,
- * install/update when missing or older than the harness build version.
- * While no Mercury artifact is published this arm returns the honest named
- * failure and invokes no installer.
+ * install/update from the .vsix shipped beside this build when missing or
+ * older than the harness build version (the package carries the harness
+ * version by construction). No package beside the build is an honest named
+ * failure that says where one comes from; no installer runs then.
  */
 async function runVSCodeFamilyInstall(
   kind: IdeType,
@@ -1240,11 +1225,15 @@ async function runVSCodeFamilyInstall(
     }
   }
 
-  if (!MERCURY_EXTENSION_ARTIFACT_PUBLISHED) {
+  const vsix = locateBridgeVsix()
+  if (vsix === null) {
     return {
       status: {
         installed: before.installed,
-        error: noPublishedArtifactError(displayName),
+        error:
+          `No Mercury extension package (mercury-vscode.vsix) beside this build — ` +
+          `\`mercury editor status\` shows where one is looked for; a source checkout builds it with ` +
+          `bash scripts/vscode/build-vsix.sh. In-editor features stay off until it is installed.`,
         installedVersion: before.version,
         ideType: kind,
       },
@@ -1254,7 +1243,7 @@ async function runVSCodeFamilyInstall(
 
   // Rapid successive CLI invocations crash the editor CLI: wait first.
   await delay(CLI_INVOCATION_DELAY_MS)
-  const outcome = await execFileNoThrow(cli, ['--force', '--install-extension', MERCURY_IDE_EXTENSION_ID], {
+  const outcome = await execFileNoThrow(cli, ['--force', '--install-extension', vsix], {
     timeout: 120_000,
     ...vsCodeCliEnvSpread(),
   })
