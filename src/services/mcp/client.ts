@@ -80,7 +80,7 @@ import type {
   ScopedMcpServerConfig,
   ServerResource,
 } from './types.js'
-import { getLoggingSafeMcpBaseUrl } from './utils.js'
+import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 
 /**
  * The MCP client core: transport selection per server type, connect with
@@ -743,7 +743,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
       reject(
         new TelemetrySafeError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS(
           `MCP server "${name}" (${transportLabel}) did not answer in ${deadlineSecondsLabel(connectTimeoutMs())} — retry from /mcp`,
-          'MCP connection timeout',
+          MCP_CONNECT_TIMEOUT_TELEMETRY,
         ),
       )
       // The tree BEFORE the close (w4-f05-02): closing the pipes kills a
@@ -779,16 +779,20 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     await inProcessServer?.close().catch(() => {})
     await transport.close().catch(() => {})
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
-    // The operator-facing reason carries the server's own last words
-    // (FC-066): every stdio failure surfaced as one opaque sentence — the
-    // SDK's generic close error — while the distinguishing evidence (the
-    // server's stderr, or its absence) reached only the debug log.
-    if (type === 'stdio') {
+    // The operator-facing reason rides ONE composer (describeMcpConnectFailure):
+    // a stdio server's last stderr words (FC-066 — every stdio failure once
+    // surfaced as the SDK's one opaque close sentence), a spawn that never
+    // started named as such, a remote fault unwrapped to its real cause, and
+    // the connect deadline's own sentence left exactly as it is.
+    if (type === 'stdio' || type === 'sse' || type === 'http') {
       const stderrTail = stderrBuffer.trim().split('\n').slice(-3).join(' · ').slice(0, 300)
       throw new Error(
-        stderrTail.length > 0
-          ? `${errorMessage(err)} — server stderr: ${stderrTail}`
-          : `${errorMessage(err)} — the server wrote nothing to stderr before closing (run the command by hand to see why it exits)`,
+        describeMcpConnectFailure(err, {
+          transport: type,
+          command: type === 'stdio' ? (config as { command?: string }).command : undefined,
+          url: typeof config.url === 'string' ? config.url : undefined,
+          stderrTail,
+        }),
         { cause: err },
       )
     }
