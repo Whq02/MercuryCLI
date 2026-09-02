@@ -326,6 +326,12 @@ export type DaemonReply =
       sessionId: string
       workspaceId: string
       pid?: number
+      branchName?: string
+      mainHolderTitle?: string
+      modelId?: string
+      modelDisplayName?: string
+      effort?: string
+      note?: string
       kitSource?: 'carried' | 'derived' | 'preset'
       liveHop?: true
       presetName?: string
@@ -353,7 +359,19 @@ export type DaemonReply =
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }
   | ({ ok: true; op: 'hello'; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)
   | { ok: true; op: 'restart-when-idle'; state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
-  | { ok: false; code: DaemonErrorCode; error: string; refusal?: string; state?: string; stateRevision?: number; serverProto?: number; serverVersion?: string }
+  | {
+      ok: false
+      code: DaemonErrorCode
+      error: string
+      refusal?: string
+      state?: string
+      stateRevision?: number
+      heldReason?: string
+      heldByTitle?: string
+      moves?: Array<{ verb: string; label: string }>
+      serverProto?: number
+      serverVersion?: string
+    }
 
 export interface WireStatus {
   pid: number

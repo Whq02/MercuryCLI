@@ -1,12 +1,14 @@
 import * as pendingInput from '../../input-core/pending-input.js'
+import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 import {
-  CAPTURE_BOUND_MS,
+  captureBoundMs,
   microphonePermissionHint,
   resolveCaptureBackend,
   startCapture,
+  voiceDebugWavDir,
   type CaptureBackendKind,
   type CaptureBackendResolution,
   type CaptureHandle,
@@ -85,6 +87,11 @@ export function setVoiceInputEnabled(on: boolean): void {
 
 const seconds = (ms: number): string => `${Math.max(1, Math.round(ms / 1000))}s`
 
+export function boundLabel(ms: number): string {
+  if (ms % 60_000 === 0) return `${ms / 60_000}-minute`
+  return `${Math.round(ms / 100) / 10}-second`
+}
+
 export function landTranscript(text: string): void {
   const draft = pendingInput.text()
   const separator = draft === '' || /\s$/.test(draft) ? '' : ' '
@@ -96,7 +103,7 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
   if (handle === null || handle.settled) return
   active = null
   publish({ phase: 'transcribing' })
-  if (reason === 'bound') receipt(`capture stopped at the ${Math.round(CAPTURE_BOUND_MS / 60_000)}-minute bound — transcribing`, 'info')
+  if (reason === 'bound') receipt(`capture stopped at the ${boundLabel(captureBoundMs())} bound — transcribing`, 'info')
   try {
     let result
     try {
@@ -180,6 +187,22 @@ export function cancelVoiceCapture(): boolean {
   return true
 }
 
+export function releaseVoiceCaptureOnExit(): boolean {
+  const handle = active
+  if (handle === null) return false
+  active = null
+  try {
+    handle.cancel()
+  } catch {
+  }
+  publish({ phase: 'idle', startedAt: null, backend: null })
+  return true
+}
+
+registerCleanup(async () => {
+  releaseVoiceCaptureOnExit()
+})
+
 function backendWords(backend: CaptureBackendResolution): string {
   return backend.state === 'ok' ? backend.detail : `none — ${backend.note}`
 }
@@ -216,13 +239,17 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
       ? 'microphone permission: macOS asks for the terminal on the first capture — not knowable before it'
       : 'microphone permission: the operating system decides at the first capture'
   const line = `backend: ${backendWords(backend)} · transcriber: ${transcriberWords(transcriber)} · /speak ${on ? 'on' : 'off'}`
+  const anthropicNamed = transcriber.skipped.some(s => s.startsWith('Anthropic'))
+  const debugDir = voiceDebugWavDir()
   const detail = [
     backend.state === 'ok' ? `capture: ${backend.detail}${backend.pinned ? ' (MERCURY_VOICE_BACKEND)' : ''}` : `capture: ${backend.note}`,
     transcriber.state === 'ok' ? `transcriber: ${transcriber.choice.label}` : `transcriber: ${transcriber.note}`,
     ...(transcriber.skipped.length > 0 ? [`families passed over: ${transcriber.skipped.join('; ')}`] : []),
-    'Anthropic: no speech-to-text endpoint',
+    ...(anthropicNamed ? [] : ['Anthropic: no speech-to-text endpoint']),
     permission,
-    'audio leaves the box only to the transcribing family, only after a take stops; nothing is written to disk',
+    `audio leaves the box only to the transcribing family, only after a take stops; ${
+      debugDir === null ? 'nothing is written to disk' : `a debug copy of every take is written to ${debugDir} (MERCURY_VOICE_DEBUG_WAV_DIR)`
+    }`,
   ].join('\n')
   return { ready: backend.state === 'ok' && transcriber.state === 'ok', line, detail }
 }
