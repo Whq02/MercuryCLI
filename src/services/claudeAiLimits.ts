@@ -454,6 +454,19 @@ export function getUsageCredentialEpoch(): number {
   return usageCredentialEpoch
 }
 
+/** Whether the window state has been OBSERVED since the last credential
+ *  change: a response's headers or a 429 filled the record. The default
+ *  record says 'allowed' because it says nothing — a fresh boot, a sign-out,
+ *  a slot flip all read as "not observed", and the failover decision reads
+ *  that as 'unknown', never as headroom or as a reset. */
+let windowObserved = false
+
+/** The failover resolver's read: has any response spoken since the last
+ *  credential change? */
+export function claudeWindowObserved(): boolean {
+  return windowObserved
+}
+
 /** C8: on a false gate, clear the raw record and settle to the default.
  *  The endpoint feeder empties with it — a session the gate says is not a
  *  subscriber must not keep painting subscription windows from an earlier
@@ -463,6 +476,7 @@ function handleGateClosed(): void {
   rawUtilization = {}
   endpointUtilization = {}
   observedOwner = null
+  windowObserved = false
   if (currentLimits.status !== 'allowed' || currentLimits.resetsAt !== undefined) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }
@@ -477,6 +491,9 @@ export function extractQuotaStatusFromHeaders(headers: Headers): void {
   const effective = processRateLimitHeaders(headers)
   recomputeRawUtilization(effective)
   const next = computeNewLimitsFromHeaders(effective)
+  // A response spoke: the record is an observation from here on, even
+  // when it repeats the state already held.
+  windowObserved = true
   if (!limitsEqual(next, currentLimits)) {
     emitStatusChange(next)
   }
@@ -498,6 +515,7 @@ export function extractQuotaStatusFromError(error: unknown): void {
       next = { ...currentLimits }
     }
     next.status = 'rejected'
+    windowObserved = true
     if (!limitsEqual(next, currentLimits)) {
       emitStatusChange(next)
     }
@@ -561,6 +579,10 @@ export function resetLimitsForCredentialSwitch(): void {
   // sign-out/switch empties every window feeder together (the one-truth
   // law: no surface may keep painting the old account's meters).
   endpointUtilization = {}
+  // The settled default is NOT an observation: the failover return law
+  // reads the record as 'unknown' until the new credential's own response
+  // speaks — "no observation" is never "the window reset".
+  windowObserved = false
   if (!limitsEqual(currentLimits, DEFAULT_LIMITS)) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }

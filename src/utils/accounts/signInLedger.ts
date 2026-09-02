@@ -25,7 +25,10 @@
 //      record rewrites it whole); unknown keys in a readable file survive a
 //      rewrite (the versioned-shape law every store here follows);
 //    · every landed record bumps an in-process epoch, so a resolver memo
-//      re-reads the moment a sign-in lands in this process;
+//      re-reads the moment a sign-in lands in this process; a sign-OUT
+//      bumps the same epoch (noteCredentialRemoval — the removal owners
+//      call it), and subscribers (subscribeSignInEpoch) hear every bump, so
+//      a screen keyed on the epoch re-derives without a restart;
 //    · the resolver, not this store, decides what an untimed credential
 //      means. Pure node:fs + the atomic publish primitive — bun-loadable, so
 //      the proof (scripts/default-model/) drives the real functions.
@@ -66,12 +69,46 @@ export interface SignInLedgerIo {
 const FAMILY_RE = /^[a-z][a-z0-9-]{0,31}$/
 const KINDS: ReadonlySet<string> = new Set<SignInKind>(['oauth', 'subscription', 'api-key', 'operator-switch'])
 
-/** Bumped on every landed record in this process — the resolver's memo key. */
+/** Bumped on every landed record AND every removal in this process — the
+ *  resolvers' memo key. */
 let epoch = 0
 
-/** The in-process count of landed records (a memo key, never a time). */
+/** The in-process count of credential moves (a memo key, never a time). */
 export function signInLedgerEpoch(): number {
   return epoch
+}
+
+const epochListeners = new Set<() => void>()
+
+/** Hear every epoch bump (a sign-in landed, a credential removed) in this
+ *  process; returns the unsubscribe. A listener that throws never fails
+ *  the sign-in or the removal that woke it. */
+export function subscribeSignInEpoch(listener: () => void): () => void {
+  epochListeners.add(listener)
+  return () => {
+    epochListeners.delete(listener)
+  }
+}
+
+function bumpEpoch(): void {
+  epoch += 1
+  for (const listener of [...epochListeners]) {
+    try {
+      listener()
+    } catch {
+      /* a subscriber's failure is its own */
+    }
+  }
+}
+
+/**
+ * A credential LEFT (a slot removed on the board, /logout, a disconnect):
+ * the ledger keeps its records (a sign-out is not a sign-in, and the
+ * resolver's presence read already answers absence), but the estate moved
+ * — every memo keyed on the epoch re-reads, every subscriber re-derives.
+ */
+export function noteCredentialRemoval(): void {
+  bumpEpoch()
 }
 
 /** The router family id, normalised; undefined for a spelling no family
@@ -144,7 +181,7 @@ export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedger
     const signIns: Record<string, unknown> = { ...kept, [name]: { at: io?.now?.() ?? Date.now(), kind } }
     const next: SignInLedgerFile = { ...(existing ?? {}), version: SIGN_IN_LEDGER_VERSION, signIns }
     durableAtomicPublishSync(ledgerPath(io), JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
-    epoch += 1
+    bumpEpoch()
     return true
   } catch {
     return false

@@ -48,7 +48,7 @@ import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessio
 import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
-import { is1PApiCustomer } from '../utils/auth.js'
+import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
@@ -1929,6 +1929,14 @@ export async function runHeadless(
             respondError(requestId, `claim refused — effort '${claimedEffort}' is not on the shared ladder`)
             return
           }
+          // CREDENTIAL PRESENCE IS LIVE AT THE CLAIM: this runner booted
+          // before the operator's sign-in may have landed, and its
+          // credential reads are process-lifetime memos — drop them here so
+          // the claimed session's first turn reads the disk's truth (the
+          // sign-in the screen just stored), never the warm boot's null or
+          // its stale header set. Cheap (memos only, no network), once per
+          // claim.
+          dropCredentialMemos()
           // The id and the transcript home — the setup.ts --session-id
           // seam, deferred to this moment (the home pin is consumed HERE,
           // before any tool child could inherit it).

@@ -110,6 +110,21 @@ export function huggingfaceObservedRate(): { remaining: number; resetsAtMs?: num
   return observedRate
 }
 
+/** The raw wall record last stated, elapsed or not (null = none observed)
+ *  — the failover return law's "observed reset" read. */
+export function huggingfaceObservedWall(): { resetsAtMs: number; observedAtMs: number } | null {
+  return observedLimit === null ? null : { resetsAtMs: observedLimit.resetsAtMs, observedAtMs: observedLimit.observedAtMs }
+}
+
+/** The credential behind the lane left or changed: every observation made
+ *  under it goes with it — the wall, the rate facts, the billing refusal
+ *  (the records are process-wide, not per credential). */
+export function forgetHuggingfaceObservedLimits(): void {
+  observedLimit = null
+  observedRate = null
+  observedBilling = null
+}
+
 // ── The observed billing refusal (no credit API exists — the wire's own
 //    402 is the ONE knowable fact; a later successful response clears it) ──
 

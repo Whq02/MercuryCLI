@@ -752,6 +752,27 @@ export function clearOAuthTokenCache(): void {
   clearKeychainCache()
 }
 
+/**
+ * Drop every credential memo this process holds so the next read is the
+ * DISK's truth: the claude.ai token memo (and the keychain cache under
+ * it), the login-managed key memo and the boot prefetch that feeds it, and
+ * the per-credential derived caches (the beta-header set, the tool-schema
+ * shape). Sync, no network — the warm session runner calls it at the
+ * moment it is claimed: the runner booted BEFORE the operator's sign-in
+ * and memoised "no credential"; the disk-change invalidator only runs on
+ * the token-refresh road, so the first turn otherwise refused with the
+ * boot-time null and a stale header set.
+ */
+export function dropCredentialMemos(): void {
+  clearOAuthTokenCache()
+  signedOutOAuthMemoStamp = null
+  signedOutKeyMemoStamp = null
+  getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
+  clearLegacyApiKeyPrefetch()
+  clearBetasCaches()
+  clearToolSchemaCache()
+}
+
 export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
   success: boolean
   warning?: string

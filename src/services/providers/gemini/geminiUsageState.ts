@@ -59,6 +59,18 @@ export function geminiLimitWindow(now: () => number = Date.now): GeminiLimitWind
   return { state: 'limited', resetsAtMs: observed.resetsAtMs, observedAtMs: observed.observedAtMs }
 }
 
+/** The raw wall record last stated, elapsed or not (null = none observed)
+ *  — the failover return law's "observed reset" read. */
+export function geminiObservedWall(): { resetsAtMs: number; observedAtMs: number } | null {
+  return observed
+}
+
+/** The credential behind the lane left or changed: its observed wall goes
+ *  with it (the record is process-wide, not per credential). */
+export function forgetGeminiObservedLimit(): void {
+  observed = null
+}
+
 /** Proof seam. */
 export function __resetGeminiUsageStateForTest(): void {
   observed = null

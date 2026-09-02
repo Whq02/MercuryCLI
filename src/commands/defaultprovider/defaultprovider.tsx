@@ -3,7 +3,7 @@ import { Box, Text } from '../../ink.js'
 import { Select } from '../../components/CustomSelect/index.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
-import { providerFamilyPresences } from '../../services/providers/providerUsage.js'
+import { presenceIdentityWords, providerFamilyPresences } from '../../services/providers/providerUsage.js'
 import {
   knownDefaultProviderFamilies,
   switchDefaultProvider,
@@ -117,7 +117,7 @@ function DefaultProviderPicker({ onDone }: { onDone: LocalJSXCommandOnDone }): R
     if (id === current) marks.push('current')
     marks.push(
       presence?.credentialed
-        ? (presence.credentialLabel ?? 'signed in')
+        ? (presenceIdentityWords(presence) ?? 'signed in')
         : `not connected — /logins ${loginsWord(id)} signs it in first`,
     )
     return { label: `${providerDisplayName(id)} — ${marks.join(' · ')}`, value: id }

@@ -22,9 +22,13 @@ import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
 import { NO_SIGN_IN_ROW, computedDefault } from '../utils/model/computedDefault.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
-import { getOauthAccountInfo } from '../utils/auth.js';
 import { declaredRouteOf } from '../services/providers/routeLaw.js';
-import { anthropicCredentialPresence, providerFamilyPresences } from '../services/providers/providerUsage.js';
+import {
+  anthropicCredentialPresence,
+  presenceIdentityWords,
+  providerFamilyPresences,
+} from '../services/providers/providerUsage.js';
+import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
@@ -629,31 +633,26 @@ export function BootSplashScreen(): React.ReactNode {
 
   // The strip's five chips from LIVE owners (each strictly better than the
   // launcher's cold file mirror — the frozen-stale chip classes retire here).
+  // The sign-in epoch re-derives the account chip the moment a credential
+  // lands or leaves in this process (a chat's /logins, a board sign-out).
+  const signInEpoch = useSignInEpoch();
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
     try {
       // The account chip follows the MAIN MODEL'S route (the routing law)
       // to that family's credential in the ONE presence owner — never the
-      // Anthropic snapshot whatever the route. On the Anthropic family a
-      // present credential paints its snapshot email (the board's live
-      // verification heals that snapshot); a key or bearer paints its
-      // label; every other family paints its owning resolver's label.
+      // Anthropic snapshot whatever the route — and prints the ONE identity
+      // composer's words: the recorded identity (the sign-in's email) when
+      // the family's owning store holds one, else the credential's
+      // plan/source label. Every family alike; no per-surface copy.
       const route = declaredRouteOf(mainModel);
       const fit = (text: string): string => (text.length > 26 ? text.slice(0, 25) + '…' : text);
-      if (route === 'anthropic') {
-        const presence = anthropicCredentialPresence();
-        const email = presence.credentialed ? (getOauthAccountInfo()?.emailAddress ?? null) : null;
-        const label = presence.credentialLabel ?? null;
-        const subscription = label !== null && label.startsWith('Claude subscription');
-        acct = presence.credentialed
-          ? { state: 'email', text: fit(subscription && email ? email : (label ?? 'signed in')) }
-          : { state: 'none' };
-      } else {
-        const presence = providerFamilyPresences().find(family => (family.id as string) === route);
-        acct = presence?.credentialed
-          ? { state: 'email', text: fit(presence.credentialLabel ?? 'signed in') }
-          : { state: 'none' };
-      }
+      const presence =
+        route === 'anthropic'
+          ? anthropicCredentialPresence()
+          : providerFamilyPresences().find(family => (family.id as string) === route);
+      const words = presence === undefined ? undefined : presenceIdentityWords(presence);
+      acct = words !== undefined ? { state: 'email', text: fit(words) } : { state: 'none' };
     } catch {
       acct = { state: 'unreadable' }; // K3: a failed read never claims not-signed-in
     }
@@ -681,9 +680,10 @@ export function BootSplashScreen(): React.ReactNode {
           : null,
     };
     // presenceEpoch: the logins layer's close bumps it so the account chip
-    // re-reads the presence owner after a face sign-in (never optimistic).
+    // re-reads the presence owner after a face sign-in (never optimistic);
+    // signInEpoch: the ledger's own count of landed and removed credentials.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainModel, presenceEpoch]);
+  }, [mainModel, presenceEpoch, signInEpoch]);
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
