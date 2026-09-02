@@ -10,6 +10,7 @@ import { armInactivityDeadline } from './deadline.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
+import { registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
 
 /**
@@ -382,6 +383,17 @@ export const setupGracefulShutdown = (): void => {
       }
     }
   }
+
+  // The stdout/stderr counterparty can leave under a live session — the
+  // terminal window closes, a PTY is torn down — and the stream's next
+  // write raises an 'error' event (write EIO/EPIPE). Unhandled, that event
+  // is an uncaughtException: a crash report, and a "previous session
+  // crashed" notice at the next boot, for what was the terminal going away.
+  // Armed here, beside the crash handler, so every boot gets the stream-gone
+  // handlers from the one installer: a gone stream is destroyed (a write
+  // after destroy raises no second 'error'), and the orphan probe above ends
+  // the session honestly.
+  registerProcessOutputErrorHandlers()
 
   process.on('uncaughtException', (err: unknown) => {
     // A module the artifact cannot load is a packaging defect, never a
