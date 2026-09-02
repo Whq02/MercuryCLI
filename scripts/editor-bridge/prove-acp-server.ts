@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -204,6 +204,17 @@ function childPids(serverPid: number): number[] {
   } catch {
     return []
   }
+}
+
+section('(0) the SDK-host seam — the editor companion binds out of every fresh client list')
+{
+  const host = readFileSync('src/cli/print.ts', 'utf8')
+  const at = host.indexOf('sdkMcp.clients = freshClients')
+  check('the host imports registerEditorCompanion from its owner', host.includes("import { registerEditorCompanion } from '../services/mcp/vscodeSdkMcp.js'"))
+  check(
+    'registerEditorCompanion(freshClients) follows the fresh-list assignment',
+    at !== -1 && host.slice(at, at + 400).includes('registerEditorCompanion(freshClients)'),
+  )
 }
 
 const server1 = spawnServer()
