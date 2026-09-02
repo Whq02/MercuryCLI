@@ -4,8 +4,9 @@
 //  disclosure row.
 //
 //  Drives the REAL built binary via --resume onto the 'thinking' fixture (an
-//  assistant [thinking, text] message) and captures with vshot.py at 80 AND
-//  120 cols. Asserts the finalized thinking row paints as the collapsed
+//  assistant [thinking, text] message) and captures with vshot.py at 120 AND
+//  100 cols (the cockpit's floor — narrower, the product paints its resize
+//  gate, not a transcript). Asserts the finalized thinking row paints as the collapsed
 //  thinking-grammar line (`✳︎ thinking… ⌄` — the old dispatch nulled it and
 //  the reasoning was silently unreachable in the default view) with the
 //  answer prose still beneath it. HARD-fails: the needle is deterministic
@@ -40,7 +41,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 const ROW = /✳︎? thinking…/
 const ROW_WITH_CUE = /✳︎? thinking…\s*⌄/
 
-for (const cols of [120, 80]) {
+for (const cols of [120, 100]) {
   console.log(`\n── thinking-row @ ${cols} cols ──`)
   execFileSync('sleep', ['2'])
   const cfgPath = `/tmp/vs-thinking-${cols}.json`
@@ -76,8 +77,8 @@ for (const cols of [120, 80]) {
     'collapsed row leaked the prose',
   )
   check(
-    // Single-word needle: the sentence wraps at 80 cols, so a phrase spanning
-    // the wrap boundary can never match the cell grid.
+    // Single-word needle: the sentence wraps at the narrow leg, so a phrase
+    // spanning the wrap boundary can never match the cell grid.
     `[${cols}] answer prose renders beneath`,
     body.includes('lock-step'),
   )
