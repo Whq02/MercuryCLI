@@ -33,6 +33,7 @@ console.log('§2 a prover on two or more homes carries a daemon dir in each spaw
   const offenders: string[] = []
   let multiHome = 0
   for (const file of files) {
+    if (file.endsWith('prove-capture-home-owns-daemon.ts')) continue
     const src = readFileSync(join(ROOT, file), 'utf8')
     if (!src.includes('renderScenarios')) continue
     const minted = (expr: string): boolean => expr !== 'CONFIG_HOME' && !expr.startsWith('process.env.MERCURY_CONFIG_DIR')
