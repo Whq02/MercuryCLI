@@ -49,6 +49,7 @@ import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import * as pendingInput from '../../input-core/pending-input.js'
+import { cancelVoiceCapture, subscribeVoice, toggleVoiceCapture, voiceSnapshot } from '../../services/voice/voiceSession.js'
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
   enterTeammateView,
@@ -439,6 +440,23 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerMainModel,
   )
   void editGen
+  // Voice input: the capture phase drives `v`/esc in the raw-key ladder;
+  // each receipt (a refusal, a cancel, the transcribing family) paints once
+  // through the notification queue.
+  const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
+  const voiceReceiptSeqRef = useRef(0)
+  useEffect(() => {
+    const receipt = voice.receipt
+    if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
+    voiceReceiptSeqRef.current = receipt.seq
+    addNotification({
+      key: 'voice-receipt',
+      text: receipt.text,
+      priority: receipt.tone === 'error' ? 'high' : 'medium',
+      ...(receipt.tone === 'error' ? { color: 'error' as const } : {}),
+      timeoutMs: 8000,
+    })
+  }, [voice.receipt, addNotification])
   // The render-reason probe (MERCURY_FLUX_PROBE only; off ⇒ one boolean
   // check): which prop or store snapshot moved this composer render — the
   // region-invalidation matrix's reader names the parent prop or feed that
@@ -2319,6 +2337,23 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         input === '' && cursorOffset === 0 && mode === 'prompt' &&
         footerSelection === null && !helpOpen && !isSearchingHistory
 
+      // 2b · voice input. A terminal sees no key-up, so a capture is
+      // press-to-start / press-to-stop: while one runs, `v` stops it (the
+      // take goes to the transcriber) and esc cancels it — neither types.
+      // With /speak on, `v` in an empty plain composer starts one; with it
+      // off, v is the letter v.
+      if (voice.phase === 'recording' && !key.ctrl && !key.meta && (key.escape || rawInput === 'v')) {
+        event.stopImmediatePropagation()
+        if (key.escape) cancelVoiceCapture()
+        else void toggleVoiceCapture()
+        return
+      }
+      if (voice.enabled && voice.phase === 'idle' && emptyPlainPrompt && rawInput === 'v' && !key.ctrl && !key.meta) {
+        event.stopImmediatePropagation()
+        void toggleVoiceCapture()
+        return
+      }
+
       // 3 · Tab on an empty plain prompt moves focus into the rails.
       if (
         key.tab &&
@@ -2416,7 +2451,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.enabled, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
