@@ -108,6 +108,30 @@ export function getSkillLoadRefusals(): SkillLoadRefusal[] {
   return [...skillLoadRefusals.values()]
 }
 
+/** The words for a SKILL.md with nothing in it — no frontmatter, no body:
+ *  refused, never offered as a blank skill under the directory's name. */
+export const EMPTY_SKILL_FILE_REASON = 'the file is empty — no frontmatter, no body'
+
+/** The frontmatter keys whose value is an author's OPT-OUT (E008-53): a
+ *  spelling the parser cannot read as a boolean would silently land on the
+ *  permissive side (`disable-model-invocation: maybe` read as "not
+ *  disabled"), so an unreadable value refuses the skill through the same
+ *  channel as a parse failure — the reason names the key and the value. */
+const BOOLEAN_OPT_OUT_KEYS = ['disable-model-invocation', 'user-invocable'] as const
+
+/** One frontmatter problem that must fail CLOSED, or null when the fields
+ *  read cleanly (unknown keys pass — a skill written for another harness
+ *  keeps loading; only a known key with an unreadable value refuses). */
+export function skillFrontmatterProblem(frontmatter: Record<string, unknown>): string | null {
+  for (const key of BOOLEAN_OPT_OUT_KEYS) {
+    const value = frontmatter[key]
+    if (value === undefined || value === null) continue
+    if (value === true || value === false || value === 'true' || value === 'false') continue
+    return `frontmatter key ${key}: "${String(value)}" is not true or false`
+  }
+  return null
+}
+
 // ── C.1 where skills come from ─────────────────────────────────────────────
 
 /**
@@ -434,9 +458,18 @@ async function loadSkillsFromDir(
         return null
       }
       try {
+        if (markdown.trim() === '') {
+          recordSkillRefusal(skillFile, EMPTY_SKILL_FILE_REASON, sourceLabel)
+          return null
+        }
         const parsed = parseFrontmatter(markdown, skillFile)
         if (parsed.parseError) {
           recordSkillRefusal(skillFile, `frontmatter did not parse: ${parsed.parseError.message}`, sourceLabel)
+          return null
+        }
+        const fieldProblem = skillFrontmatterProblem(parsed.frontmatter)
+        if (fieldProblem !== null) {
+          recordSkillRefusal(skillFile, fieldProblem, sourceLabel)
           return null
         }
         const nameProblem = slashNameProblem(entry.name)
@@ -523,6 +556,11 @@ export function transformSkillFiles(files: MarkdownFileEntry[]): LoadedSkill[] {
   for (const { file, isSkillForm } of kept) {
     if (file.parseError) {
       recordSkillRefusal(file.filePath, `frontmatter did not parse: ${file.parseError.message}`, 'legacy-commands')
+      continue
+    }
+    const fieldProblem = skillFrontmatterProblem(file.frontmatter)
+    if (fieldProblem !== null) {
+      recordSkillRefusal(file.filePath, fieldProblem, 'legacy-commands')
       continue
     }
     try {
