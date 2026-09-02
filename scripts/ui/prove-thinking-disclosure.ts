@@ -1,10 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+process.env.FORCE_COLOR = '3';
+const ROOT = join(import.meta.dir, '..', '..');
+process.chdir(ROOT);
 
 let fail = 0;
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  ${cond ? '✓' : '✗'} ${label}${cond ? '' : ' — ' + detail}`);
   if (!cond) fail = 1;
 };
+const code = (src: string): string => src.split("\n").filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join("\n");
 
 const message = readFileSync('src/components/Message.tsx', 'utf8');
 const messages = readFileSync('src/components/Messages.tsx', 'utf8');
@@ -68,8 +74,110 @@ check(
   thinkingCmp.includes('<CtrlOToExpand />'),
 );
 check(
-  'AssistantThinkingMessage subscribes the accent (useSessionAccent)',
-  thinkingCmp.includes('useSessionAccent().accent') && !thinkingCmp.includes('getSessionAccent'),
+  'AssistantThinkingMessage holds no accent subscription and no accent read (nothing paints it)',
+  !/useSessionAccent|getSessionAccent|useMercuryTokens|\baccent\b/.test(code(thinkingCmp)),
 );
+check(
+  'the expanded body paints the grammar colour (header and body share one role)',
+  thinkingCmp.includes('<Markdown color={THINKING_COLOR}>'),
+);
+
+const OWNER = 'src/components/messages/thinkingGrammar.tsx';
+const grammar = await import('../../src/components/messages/thinkingGrammar.tsx');
+const { stringWidth } = await import('../../src/ink/stringWidth.ts');
+const { getTheme, THEME_NAMES } = await import('../../src/utils/theme.ts');
+const { getSessionAccent } = await import('../../src/components/mercury-ui/sessionAccent.ts');
+
+const GLYPH = '\u2733\uFE0E';
+check('owner: the glyph is U+2733 with VS15 (text presentation)', grammar.THINKING_GLYPH === GLYPH);
+check('owner: the glyph measures one cell (the selector is zero-width)', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
+check('owner: the word is lowercase', grammar.THINKING_WORD === 'thinking');
+check('owner: the label is glyph + space + word + ellipsis', grammar.THINKING_LABEL === `${GLYPH} thinking…`);
+check('owner: the colour is the theme role `subtle`', grammar.THINKING_COLOR === 'subtle');
+check(
+  'owner: every theme family resolves the role (a grey of its own, never the accent)',
+  THEME_NAMES.every(name => {
+    const theme = getTheme(name);
+    return typeof theme.subtle === 'string' && theme.subtle !== '' && theme.subtle !== getSessionAccent().accent;
+  }),
+);
+check('owner: exports the row element', typeof grammar.ThinkingLabel === 'function');
+const ownerSrc = readFileSync(OWNER, 'utf8');
+check(
+  'owner: the selector is spelled as an escape (never a droppable invisible literal)',
+  ownerSrc.includes("'\u2733\\uFE0E'") && !ownerSrc.includes('\uFE0E'),
+);
+
+const RENDERERS: Record<string, string> = {
+  settled: 'src/components/messages/AssistantThinkingMessage.tsx',
+  redacted: 'src/components/messages/AssistantRedactedThinkingMessage.tsx',
+  live: 'src/components/LiveStreamingTail.tsx',
+  spinner: 'src/components/Spinner/SpinnerAnimationRow.tsx',
+};
+const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8')]));
+for (const [name, src] of Object.entries(sources)) {
+  check(`${name}: imports the thinking grammar owner`, src.includes("/thinkingGrammar.js'"));
+  check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK'));
+  check(`${name}: spells no label of its own`, !/[Tt]hinking…/.test(src));
+}
+check('settled + redacted: no accent anywhere (the row is not identity)', !/accent/i.test(code(sources.settled!)) && !/accent/i.test(code(sources.redacted!)));
+check('settled: the collapsed branch and the expanded header draw the one element', (sources.settled!.match(/<ThinkingLabel/g) ?? []).length === 2);
+check('redacted: the stub draws the one element, with nothing to expand', sources.redacted!.includes('<ThinkingLabel />') && !sources.redacted!.includes('CtrlOToExpand'));
+check('live: the quiet-stream line draws the one element (no bare word, no dim override)', sources.live!.includes('<ThinkingLabel />') && !/<Text[^>]*>\s*thinking\s*<\/Text>/.test(sources.live!));
+check('spinner: the HUD word is the grammar word (full label and bare fallback)', sources.spinner!.includes('`${THINKING_WORD}${effortSuffix') && sources.spinner!.includes('text: THINKING_WORD') && !/text: 'thinking'/.test(sources.spinner!) && !/`thinking\$\{/.test(sources.spinner!));
+check('spinner: the segment paints the grammar colour at rest (the dim override that beat it is gone)', sources.spinner!.includes('return THINKING_COLOR') && !sources.spinner!.includes('dimColor={!shimmerActive}'));
+
+const walk = (dir: string, out: string[]): void => {
+  for (const e of readdirSync(dir)) {
+    const p = join(dir, e);
+    if (statSync(p).isDirectory()) walk(p, out);
+    else if (/\.(ts|tsx)$/.test(e)) out.push(p);
+  }
+};
+const files: string[] = [];
+walk('src', files);
+const spellers = files.filter(f => readFileSync(f, 'utf8').includes('\u2733')).map(f => f.split('\\').join('/'));
+check('the glyph literal is spelled in the owner and nowhere else under src', spellers.length === 1 && spellers[0] === OWNER, spellers.join(', ') || '(none)');
+
+const React = (await import('react')).default;
+const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx');
+const { AssistantThinkingMessage } = await import('../../src/components/messages/AssistantThinkingMessage.tsx');
+const { AssistantRedactedThinkingMessage } = await import('../../src/components/messages/AssistantRedactedThinkingMessage.tsx');
+const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '');
+const rgbOf = (value: string): string | null => {
+  const hex = value.match(/^#([0-9a-f]{6})$/i);
+  if (hex) return [0, 2, 4].map(i => parseInt(hex[1]!.slice(i, i + 2), 16)).join(';');
+  const rgb = value.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+  return rgb ? `${rgb[1]};${rgb[2]};${rgb[3]}` : null;
+};
+const subtle = rgbOf(getTheme('dark').subtle);
+const accent = rgbOf(getSessionAccent().accent);
+check('fixture: the dark family\'s subtle and the accent are truecolor values', subtle !== null && accent !== null, `${subtle} / ${accent}`);
+
+const collapsedAnsi = await renderToAnsiString(
+  React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: 'the reasoning body' } }),
+  60,
+);
+const collapsed = stripAnsi(collapsedAnsi);
+check('rendered collapsed row: the label paints', collapsed.includes(grammar.THINKING_LABEL), JSON.stringify(collapsed.trim()));
+check('rendered collapsed row: the fold cue rides the same row', /thinking…\s+\(.*to expand\)|thinking…\s+⌄/.test(collapsed), JSON.stringify(collapsed.trim()));
+check('rendered collapsed row: the body stays folded', !collapsed.includes('the reasoning body'));
+check('rendered collapsed row: painted in the subtle colour', collapsedAnsi.includes(`38;2;${subtle}`), JSON.stringify(collapsedAnsi.slice(0, 120)));
+check('rendered collapsed row: the accent is absent from its bytes', !collapsedAnsi.includes(`38;2;${accent}`));
+check('rendered collapsed row: italic', collapsedAnsi.includes('\x1b[3m'));
+
+const expandedAnsi = await renderToAnsiString(
+  React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: 'the reasoning body' }, verbose: true }),
+  60,
+);
+const expanded = stripAnsi(expandedAnsi);
+check('rendered expanded block: the same header, then the body', expanded.includes(grammar.THINKING_LABEL) && expanded.includes('the reasoning body'));
+check('rendered expanded block: no fold cue when the body is open', !/to expand|⌄/.test(expanded));
+check('rendered expanded block: the accent is absent from its bytes', !expandedAnsi.includes(`38;2;${accent}`));
+
+const redactedAnsi = await renderToAnsiString(React.createElement(AssistantRedactedThinkingMessage, { addMargin: false }), 60);
+const redacted = stripAnsi(redactedAnsi);
+check('rendered redacted stub: the same label, nothing to expand', redacted.trim() === grammar.THINKING_LABEL, JSON.stringify(redacted.trim()));
+check('rendered redacted stub: painted in the subtle colour, never the accent', redactedAnsi.includes(`38;2;${subtle}`) && !redactedAnsi.includes(`38;2;${accent}`));
 
 process.exit(fail);

@@ -8,8 +8,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const MUST_SUBSCRIBE = [
   'src/components/DeckPane.tsx',
-  'src/components/messages/AssistantThinkingMessage.tsx',
-  'src/components/messages/AssistantRedactedThinkingMessage.tsx',
   'src/components/messages/TaskAssignmentMessage.tsx',
   'src/components/messages/UserAgentNotificationMessage.tsx',
 ];

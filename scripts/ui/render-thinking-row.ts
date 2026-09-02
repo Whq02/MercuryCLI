@@ -20,6 +20,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
+const ROW = /✳︎? thinking…/
+const ROW_WITH_CUE = /✳︎? thinking…\s*⌄/
+
 for (const cols of [120, 80]) {
   console.log(`\n── thinking-row @ ${cols} cols ──`)
   execFileSync('sleep', ['2'])
@@ -43,12 +46,13 @@ for (const cols of [120, 80]) {
     .join('\n')
   console.log(body.replace(/\n{3,}/g, '\n\n'))
 
-  check(`[${cols}] collapsed thinking row paints (∴ Thinking)`, body.includes('∴ Thinking'))
+  check(`[${cols}] collapsed thinking row paints (the grammar's glyph + lowercase word)`, ROW.test(body))
   check(
     `[${cols}] disclosure cue ⌄ rides the thinking line`,
-    /∴ Thinking\s*⌄/.test(body),
+    ROW_WITH_CUE.test(body),
     'cue missing — the row would be a dead-end again',
   )
+  check(`[${cols}] no sentence-case or accent-era spelling survives`, !body.includes('Thinking'))
   check(
     `[${cols}] full reasoning NOT dumped in the default view`,
     !body.includes('bundle time'),
