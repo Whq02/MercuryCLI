@@ -34,7 +34,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { runArtifactArena, grabScreens, firstOutputTs } = await import('../streaming/artifactArena.ts')
+const { runArtifactArena, grabScreens, sendStamp } = await import('../streaming/artifactArena.ts')
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -151,11 +151,14 @@ console.log('leg B — the born session, mid-thinking, 120x40')
   })
   try {
     // The assert clock is the SEND LOG's actual fire times (the sends are
-    // needle-anchored; a fixed-offset read adjudicates the wrong frames).
-    const t0 = firstOutputTs(run)
+    // needle-anchored; a fixed-offset read adjudicates the wrong frames),
+    // spoken in grabScreens' STAMP base: a screen is grabbed at its
+    // authored offset plus the state anchor's shift, so a send's true time
+    // is re-based through the arena's own sendStamp — the two clocks meet,
+    // and a tight window never reads frames from before its own key.
     const escMs = run.sendLog
       .filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b')
-      .map(s => s.sent - t0)
+      .map(s => sendStamp(run, s))
       .sort((a, b) => a - b)[0]
     check('B: the esc was sent', escMs !== undefined, JSON.stringify(run.sendLog.length))
     const grabs = grabScreens(run, 120, 40, [Math.max(0, (escMs ?? 8000) - 700), (escMs ?? 8000) + 2500, (escMs ?? 8000) + 5500])
