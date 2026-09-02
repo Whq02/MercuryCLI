@@ -455,14 +455,16 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     return { roster15, booted, ensure }
   }
   // Two different kits overlap: K1 runs; K2 reruns after it, never joined.
+  // A runner's identity here is the kit its spec booted, never its short:
+  // the mint takes the lowest free slot name, and the retire frees it.
   {
     const { roster15, booted, ensure } = fresh()
     const [r1, r2] = await Promise.all([ensure(K1), ensure(K2)])
     check('W15 the running warm-up lands its own kit', r1.state === 'warmed' && booted()[0] === J(K1), `${r1.state}; booted=${booted().join(' | ')}`)
     check(
       'W15 a different kit is not joined: it reruns after the run and boots the newest kit',
-      r2.state === 'warmed' && r2.short !== r1.short && booted().length === 2 && booted()[1] === J(K2),
-      `${r2.state}/${String(r2.short)} vs ${String(r1.short)}; booted=${booted().length}`,
+      r2.state === 'warmed' && booted().length === 2 && booted()[1] === J(K2),
+      `${r2.state}/${String(r2.short)}; booted=${booted().join(' | ')}`,
     )
     check('W15 the older runner retired at the rerun (kit drift)', roster15.killed.length === 1 && roster15.killed[0] === r1.short, roster15.killed.join(','))
     const kept = await ensure(K2)
@@ -476,7 +478,7 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     check('W15 the superseded middle kit never boots (no stale queue)', !booted().includes(J(K2)))
     check(
       'W15 the superseded caller is answered with the rerun outcome (the newest kit)',
-      b.state === 'warmed' && c.state === 'warmed' && b.short === c.short && a.short !== c.short,
+      b.state === 'warmed' && c.state === 'warmed' && b.short === c.short,
       `${a.state}/${String(a.short)} ${b.state}/${String(b.short)} ${c.state}/${String(c.short)}`,
     )
     check('W15 one runner lives after the chain, one retired', warm.warmRunnerCount() === 1 && roster15.killed.length === 1)
@@ -505,7 +507,7 @@ console.log('\n── W15: the newest kit trails the running warm-up ──')
     check('W15 each superseded runner retired in turn', roster15.killed.length === 2 && roster15.killed[0] === r1.short && roster15.killed[1] === r2.short, roster15.killed.join(','))
     check(
       'W15 the mid-rerun caller lands the newest kit; one runner lives',
-      r3 !== null && r3.state === 'warmed' && r3.short !== r2.short && warm.warmRunnerCount() === 1,
+      r3 !== null && r3.state === 'warmed' && warm.warmRunnerCount() === 1,
       r3 === null ? 'never fired' : `${r3.state}/${String(r3.short)}`,
     )
   }
