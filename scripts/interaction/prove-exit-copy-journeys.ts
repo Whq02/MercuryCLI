@@ -123,19 +123,29 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
   cleanupScenario('resume-2turn')
 }
 
+const freshSession = (): ScenarioCfg => {
+  const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
+  const argv = base['argv'] as string[]
+  return { ...base, argv: argv.slice(0, 2) }
+}
+const ENTER_FRESH_CHAT: Send[] = [
+  { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+]
+
 section('C · busy: one press interrupts AND arms; a second press closes')
 {
   const p = drive(
     'busy',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    freshSession(),
     [
-      { atTick: 60, minTick: 8, awaitText: '❯', data: '!' },
-      { atTick: 80, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      ...ENTER_FRESH_CHAT,
+      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
-      { atTick: 100, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
-      { atTick: 120, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
+      { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
+      { atTick: 240, awaitText: NOTICE, minTick: 0, data: CTRL_C, mark: 'armed' },
     ],
-    140,
+    260,
   )
   if (p) {
     const busy = mark(p, 'busy')
@@ -157,14 +167,15 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
 {
   const p = drive(
     'busy-esc',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    freshSession(),
     [
-      { atTick: 60, minTick: 8, awaitText: '❯', data: '!' },
-      { atTick: 80, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      ...ENTER_FRESH_CHAT,
+      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
-      { atTick: 100, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
+      { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
     ],
-    130,
+    250,
     'interrupted by user',
   )
   if (p) {
