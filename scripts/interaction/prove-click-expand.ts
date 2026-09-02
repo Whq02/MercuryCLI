@@ -87,7 +87,7 @@ function capture(
   // resumed card under the transcript; at 40 rows that chrome scrolled the
   // first tool row — the agent's Done line — one row above the viewport, and
   // an expanded error card pushed the expanded glob list off the top.
-  const cfg = scenario('click-expand', 100, 60) as Record<string, unknown>
+  const cfg = scenario('click-expand', 80, 50) as Record<string, unknown>
   cfg['sends'] = sends
   cfg['total'] = total
   Object.assign(cfg, extra)
@@ -343,7 +343,7 @@ cleanupScenario('click-expand')
   const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {
     // Fresh scenario per capture: re-stages the synthetic session so each
     // boot resumes a pristine file (the shared-SID reuse probe).
-    const cfg = { ...scenario('two-bash-click', 100, 50) } as Record<string, unknown>
+    const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
     // Every click is text-aimed and observed-settled (CLICK · SETTLED
     // above): a fixed tick raced slow boots (press before mouse tracking
     // armed), a click aimed by the PAINT of the needle landed on a row the
