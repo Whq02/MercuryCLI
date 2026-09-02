@@ -3,12 +3,19 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 
+export interface TurnEndDetail {
+  subtype: string
+  stopReason?: string
+  errors: string[]
+}
+
 export interface ChildEventHandlers {
   onInit: (mercurySessionId: string) => void
   onAssistantText: (text: string) => void
+  onAssistantThought?: (text: string) => void
   onToolUse: (toolUseId: string, name: string, input: unknown) => void
-  onToolResult: (toolUseId: string, isError: boolean) => void
-  onTurnEnd: (outcome: 'success' | 'error' | 'cancelled') => void
+  onToolResult: (toolUseId: string, isError: boolean, content?: string) => void
+  onTurnEnd: (outcome: 'success' | 'error' | 'cancelled', detail: TurnEndDetail) => void
   onUsage?: (
     lastRoundTrip: Record<string, unknown>,
     model: string,
@@ -35,9 +42,19 @@ export interface SpawnChildOptions {
   effort?: string
   entry?: { node: string; script: string }
   env?: Record<string, string>
+  mcpConfig?: string
 }
 
 let controlSeq = 0
+
+export function toolResultText(content: unknown): string | undefined {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return undefined
+  const texts = (content as Array<Record<string, unknown>>)
+    .filter(block => block.type === 'text' && typeof block.text === 'string')
+    .map(block => block.text as string)
+  return texts.length > 0 ? texts.join('\n') : undefined
+}
 
 export class MercuryChildSession {
   readonly child: ChildProcess
@@ -66,6 +83,7 @@ export class MercuryChildSession {
       ...(opts.model ? ['--model', opts.model] : []),
       ...(opts.resumeSessionId ? ['--resume', opts.resumeSessionId] : []),
       ...(opts.sessionId && !opts.resumeSessionId ? ['--session-id', opts.sessionId] : []),
+      ...(opts.mcpConfig ? ['--mcp-config', opts.mcpConfig] : []),
     ]
     const env: NodeJS.ProcessEnv = {
       ...process.env,
@@ -176,6 +194,8 @@ export class MercuryChildSession {
       for (const block of content as Array<Record<string, unknown>>) {
         if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
           this.handlers.onAssistantText(block.text)
+        } else if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking !== '') {
+          this.handlers.onAssistantThought?.(block.thinking)
         } else if (block.type === 'tool_use' && typeof block.id === 'string') {
           this.handlers.onToolUse(block.id, String(block.name ?? 'tool'), block.input)
         }
@@ -187,7 +207,7 @@ export class MercuryChildSession {
       const content = Array.isArray(message?.content) ? message.content : []
       for (const block of content as Array<Record<string, unknown>>) {
         if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
-          this.handlers.onToolResult(block.tool_use_id, block.is_error === true)
+          this.handlers.onToolResult(block.tool_use_id, block.is_error === true, toolResultText(block.content))
         }
       }
       return
@@ -202,8 +222,16 @@ export class MercuryChildSession {
         this.lastRoundTripUsage = null
       }
       const subtype = String(frame.subtype ?? 'success')
+      const errors = Array.isArray(frame.errors)
+        ? (frame.errors as unknown[]).filter((e): e is string => typeof e === 'string')
+        : []
       this.handlers.onTurnEnd(
         subtype === 'success' ? 'success' : subtype.includes('interrupt') ? 'cancelled' : 'error',
+        {
+          subtype,
+          ...(typeof frame.stop_reason === 'string' ? { stopReason: frame.stop_reason } : {}),
+          errors,
+        },
       )
       return
     }
