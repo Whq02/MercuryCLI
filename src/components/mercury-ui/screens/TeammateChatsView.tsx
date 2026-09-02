@@ -44,7 +44,15 @@ interface Row {
   unread: number
 }
 
-export function TeammateChatsView({ onClose }: { onClose: () => void }): React.ReactNode {
+export function TeammateChatsView({
+  onClose,
+  initialName,
+  initialSpawn = false,
+}: {
+  onClose: () => void
+  initialName?: string
+  initialSpawn?: boolean
+}): React.ReactNode {
   const accent = useSessionAccent().accent
   const tokens = useMercuryTokens()
   const enabled = crewEnabled()
@@ -54,7 +62,7 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
   const roster = useStableSelection(rows, r => r.member.name)
   const sel = roster.index
   const [chat, setChat] = useState<CrewChatRow[]>([])
-  const [mode, setMode] = useState<Mode>('browse')
+  const [mode, setMode] = useState<Mode>(initialSpawn ? 'spawn-name' : 'browse')
   const [draft, setDraft] = useState('')
   const [nameDraft, setNameDraft] = useState('')
   const [modelSel, setModelSel] = useState(0)
@@ -95,6 +103,14 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
       alive = false
     }
   }, [enabled, tick])
+
+  const landedRef = useRef(false)
+  useEffect(() => {
+    if (landedRef.current || initialName === undefined) return
+    if (!rows.some(r => r.member.name === initialName)) return
+    landedRef.current = true
+    roster.selectId(initialName)
+  }, [rows, initialName, roster])
 
   useEffect(() => {
     if (!enabled) return
@@ -242,22 +258,22 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
 
   if (!enabled) {
     return (
-      <CommandCenter view="teammates" onClose={onClose} footer="esc close" captureInput={false}>
+      <CommandCenter view="named agents" onClose={onClose} footer="esc close" captureInput={false}>
         <Box marginTop={1} flexDirection="column">
-          <Text bold color={accent}>teammate chats</Text>
-          <Text color={FAINT}>crew is disabled (MERCURY_CREW=0) — no teammates can spawn</Text>
+          <Text bold color={accent}>named agents</Text>
+          <Text color={FAINT}>crew is disabled (MERCURY_CREW=0) — no named agents can spawn</Text>
         </Box>
       </CommandCenter>
     )
   }
 
   return (
-    <CommandCenter view="teammates" onClose={onClose} footer={footer} captureInput={false}>
+    <CommandCenter view="named agents" onClose={onClose} footer={footer} captureInput={false}>
       <Box marginTop={1} justifyContent="space-between" flexWrap="wrap">
         <Text>
           <Text color={FAINT}>repo </Text>
           <Text bold color={IVORY}>{truncateToWidth(pathTailLabel(cwd) || 'repo', 28)}</Text>
-          <Text color={FAINT}> · {rows.length} teammate{rows.length === 1 ? '' : 's'} · instanced chats in one repo</Text>
+          <Text color={FAINT}> · {rows.length} named agent{rows.length === 1 ? '' : 's'} · one chat each</Text>
         </Text>
         <Box borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1}>
           <Text color={FAINT}>/teammates · n new</Text>
@@ -281,9 +297,9 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
         </Box>
       ) : (
         <Box marginTop={1}>
-          <Text color={FAINT}>no teammates yet — press </Text>
+          <Text color={FAINT}>no named agents yet — press </Text>
           <Text color={accent}>n</Text>
-          <Text color={FAINT}> to spawn your first collaborator</Text>
+          <Text color={FAINT}> to spawn one</Text>
         </Box>
       )}
 
@@ -350,7 +366,7 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
       {}
       {mode === 'spawn-name' ? (
         <Box marginTop={1} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} flexDirection="column">
-          <Text bold color={accent}>new teammate</Text>
+          <Text bold color={accent}>new named agent</Text>
           <Text>
             <Text color={FAINT}>name  </Text>
             <Text color={IVORY}>{nameDraft}</Text>
@@ -375,7 +391,7 @@ export function TeammateChatsView({ onClose }: { onClose: () => void }): React.R
               )
             })}
           </Box>
-          <Text color={FAINT}>the operator picks the model per teammate — never defaulted silently</Text>
+          <Text color={FAINT}>you pick the model per agent — never defaulted silently</Text>
         </Box>
       ) : null}
 
