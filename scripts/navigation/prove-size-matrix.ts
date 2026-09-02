@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { CONFIG_HOME, RUNTIME_CWD } from '../ui/renderScenarios.js'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS, viewportFloorLine } from '../../src/ink/viewportFloor.ts'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 let failures = 0
@@ -54,8 +55,14 @@ for (const [cols, rows] of SIZES) {
   })
   check('no wrapped-border fragments', orphan.length === 0, orphan[0]?.trim())
 
-  const hasPrompt = rowsText.some(l => l.includes('❯') || l.includes('for shortcuts'))
-  check('the composer chrome is present', hasPrompt)
+  if (cols < VIEWPORT_FLOOR_COLS || rows < VIEWPORT_FLOOR_ROWS) {
+    const line = viewportFloorLine(cols, rows)
+    check('under the viewport floor: the one line is painted', rowsText.some(l => l.includes(line)), line)
+    check('under the viewport floor: nothing else paints', rowsText.filter(l => l.trim() !== '').length === 1)
+  } else {
+    const hasPrompt = rowsText.some(l => l.includes('❯') || l.includes('for shortcuts'))
+    check('the composer chrome is present', hasPrompt)
+  }
 }
 
 console.log('\n== transient resize: 120×40 → 50×15 → 120×40 (one journey) ==')

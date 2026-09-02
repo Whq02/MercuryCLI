@@ -93,7 +93,7 @@ export function composerCaret(rows: string[]): { y: number; x: number } | null {
     const x = line.indexOf('❯')
     if (x < 0) continue
     const before = line.slice(0, x)
-    if (/^[\s│!#]*$/.test(before)) found = { y, x: x + 2 }
+    if (/^\s*│[\s!#]*$/.test(before)) found = { y, x: x + 2 }
   }
   return found
 }
