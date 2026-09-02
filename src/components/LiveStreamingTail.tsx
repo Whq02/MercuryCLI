@@ -15,6 +15,7 @@ import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
+import { ThinkingLabel } from './messages/thinkingGrammar.js'
 
 const subscribeFocusedTailModel = subscribeThroughFocused((connector, listener) =>
   connector.subscribeModel(listener),
@@ -177,7 +178,7 @@ export function LiveStreamingTail({
     if (turnActive && quiet && declaredRouteOf(liveModel) === 'openai') {
       return (
         <Box marginTop={1} width="100%">
-          <Text dimColor>thinking</Text>
+          <ThinkingLabel />
         </Box>
       )
     }
