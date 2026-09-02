@@ -68,8 +68,8 @@ section('§1 a discovered local model admits (session arm), crew speaks the engi
   check('the registry lists the discovered model as its persisted id', row !== undefined, registry.entries.map(e => e.modelId).join(' · '))
   check('the session arm is AVAILABLE (keyless presence — no credential asked)', row?.session.availability === 'available', JSON.stringify(row?.session))
   check(
-    "the crew arm speaks the landed engine law, typed ('not-integrated:worker-engine')",
-    row?.crew.availability === 'refused' && row.crew.refusal === 'not-integrated:worker-engine',
+    'the crew arm FOLLOWS the session arm on the discovered engine row (available — no narrower crew vocabulary)',
+    row?.crew.availability === 'available',
     JSON.stringify(row?.crew),
   )
   const admitted = await validateWorkerModelChoice('local/qwen3:1.7b', 'session')
