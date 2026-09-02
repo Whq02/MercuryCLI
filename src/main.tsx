@@ -2137,13 +2137,14 @@ async function connectMcpBatch(
           },
         }))
       } catch (error) {
-        logForDebugging(`MCP connect failed for ${name}: ${error instanceof Error ? error.message : String(error)}`)
+        const reason = error instanceof Error ? error.message : String(error)
+        logForDebugging(`MCP connect failed for ${name}: ${reason}`)
         setAppState(previous => ({
           ...previous,
           mcp: {
             ...previous.mcp,
             clients: previous.mcp.clients.map(entry =>
-              entry.name === name ? { name, type: 'failed' as const, config } : entry,
+              entry.name === name ? { name, type: 'failed' as const, config, error: reason } : entry,
             ),
           },
         }))
