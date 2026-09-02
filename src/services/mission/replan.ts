@@ -1,13 +1,13 @@
 // ============================================================================
 // services/mission/replan — the bounded replan-trigger vocabulary (H4).
 //
-//  Replanning EXECUTES through the route-fabric owners (routePlanOps 'revise' →
-//  routerRunStore.reviseNode — per-node NODE_MAX_ATTEMPTS + the plan-wide
-//  MISSION_REPLAN_CEILING both refuse at the store). This module owns only
-//  the TYPED TRIGGER vocabulary: a revision is justified by an OBSERVED
-//  event class, named by the planner on the revise op and recorded in the
-//  revision note + event echo. Free-form churn ("try again") classifies to
-//  null and is refused at the op seam when a trigger is required.
+//  Replanning EXECUTES through the route-fabric owner (routerRunStore.reviseNode
+//  — per-node NODE_MAX_ATTEMPTS + the plan-wide MISSION_REPLAN_CEILING both
+//  refuse at the store). This module owns only the TYPED TRIGGER vocabulary:
+//  a revision is justified by an OBSERVED event class, named by the planner
+//  on the revise and recorded in the revision note + event echo. Free-form
+//  churn ("try again") classifies to null and is refused when a trigger is
+//  required.
 // ============================================================================
 
 export const MISSION_REPLAN_TRIGGERS = [

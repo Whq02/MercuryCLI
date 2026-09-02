@@ -1,18 +1,16 @@
 // ============================================================================
 //  router/contracts — the versioned route-plan contracts + total decoders.
 // ----------------------------------------------------------------------------
-//  ONE typed routing vocabulary shared by the Scribe and Party adapters (the
-//  plan-level repair for the three-things-called-routing confusion:
-//  scribeRouterSelect = MODE engage · scribeRoute = ACCOUNT placement · THIS =
-//  per-task routing). A TaskRoutePlan is the durable record of one routing
-//  decision: what was asked, how it decomposed, which model class executes each
-//  node, why — with stable reason CODES (tests assert codes, never prose).
+//  ONE typed routing vocabulary for the route kernel (per-task routing, as
+//  distinct from account placement and mode engagement). A TaskRoutePlan is
+//  the durable record of one routing decision: what was asked, how it
+//  decomposed, which model class executes each node, why — with stable
+//  reason CODES (tests assert codes, never prose).
 //
-//  Compatibility law: decoders are TOTAL. An old `{effort, lane}` envelope
-//  routes through the deterministic fallback (dispatchRouter.ts, now the
-//  fallback facade); an unknown/corrupt persisted plan decodes to null and the
-//  STORE drops that row individually (never the file). New envelope fields are
-//  additive-optional, proven backward-safe by scripts/router/.
+//  Compatibility law: decoders are TOTAL. An unknown/corrupt persisted plan
+//  decodes to null and the STORE drops that row individually (never the
+//  file). New fields are additive-optional, proven backward-safe by
+//  scripts/router/.
 // ============================================================================
 import { createHash } from 'node:crypto'
 import type {
@@ -24,6 +22,15 @@ import type {
 
 export const ROUTER_POLICY_VERSION = 'router-1'
 export const ROUTE_PLAN_VERSION = 1 as const
+
+/** The dispatch topology a plan compiled for: one executor lane worked in
+ *  order, or a fan-out over several executor lanes. */
+export type RouteTopology = 'sequential' | 'fanout'
+export const ROUTE_TOPOLOGIES: readonly RouteTopology[] = ['sequential', 'fanout']
+
+/** The role that plans, accepts nodes and owns synthesis. One member today;
+ *  a successor planner extends this owner, never a parallel vocabulary. */
+export type RoutePlannerRole = 'planner'
 
 // ── Reason codes (stable, closed — the corpus + UI + tests key on these) ────
 export const ROUTE_REASON_CODES = [
@@ -163,7 +170,7 @@ export interface RouteNodeCompletion {
   changedAreas: string[]
   unresolved: string[]
   reportedAt: number
-  acceptedBy?: 'scribe' | 'router' | 'maintainer'
+  acceptedBy?: RoutePlannerRole
   acceptedAt?: number
 }
 
@@ -208,7 +215,7 @@ export interface TaskRoutePlan {
   version: typeof ROUTE_PLAN_VERSION
   id: string
   revision: number
-  mode: 'scribe' | 'party'
+  mode: RouteTopology
   title: string
   objective: string
   features: RouteFeatureVector
@@ -216,7 +223,7 @@ export interface TaskRoutePlan {
   nodes: RouteNode[]
   synthesis: {
     required: boolean
-    owner: 'scribe' | 'router' | 'maintainer'
+    owner: RoutePlannerRole
     acceptance: RouteAcceptanceCheck[]
   }
   decision: RouteDecisionRecord
@@ -326,9 +333,7 @@ function decodeCompletion(raw: unknown): RouteNodeCompletion | undefined {
     changedAreas: strArr(r.changedAreas) ?? [],
     unresolved: strArr(r.unresolved) ?? [],
     reportedAt: r.reportedAt,
-    ...(r.acceptedBy === 'scribe' || r.acceptedBy === 'router' || r.acceptedBy === 'maintainer'
-      ? { acceptedBy: r.acceptedBy }
-      : {}),
+    ...(r.acceptedBy === 'planner' ? { acceptedBy: r.acceptedBy } : {}),
     ...(num(r.acceptedAt) ? { acceptedAt: r.acceptedAt } : {}),
   }
 }
@@ -458,7 +463,7 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
   const r = raw as Record<string, unknown>
   if (r.version !== ROUTE_PLAN_VERSION) return null
   if (!str(r.id) || !num(r.revision) || !str(r.title) || !str(r.objective)) return null
-  if (r.mode !== 'scribe' && r.mode !== 'party') return null
+  if (!str(r.mode) || !(ROUTE_TOPOLOGIES as readonly string[]).includes(r.mode)) return null
   if (!str(r.state) || !(ROUTE_PLAN_STATES as readonly string[]).includes(r.state)) return null
   if (!str(r.profile) || !(ROUTE_PROFILES as readonly string[]).includes(r.profile)) return null
   if (!num(r.createdAt) || !num(r.updatedAt)) return null
@@ -474,14 +479,14 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
   }
   const s = r.synthesis as Record<string, unknown> | null
   if (s === null || typeof s !== 'object') return null
-  if (s.owner !== 'scribe' && s.owner !== 'router' && s.owner !== 'maintainer') return null
+  if (s.owner !== 'planner') return null
   const synthAcceptance = decodeAcceptance(s.acceptance)
   if (synthAcceptance === null) return null
   return {
     version: ROUTE_PLAN_VERSION,
     id: r.id,
     revision: r.revision,
-    mode: r.mode,
+    mode: r.mode as RouteTopology,
     title: r.title,
     objective: r.objective,
     features,

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "ambiguous-defect-report",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Triage a vaguely reported defect",
     "title": "Users report 'sync feels off'",

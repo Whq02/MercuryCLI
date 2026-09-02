@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "empty-acceptance-repaired",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "A bounded single-node dispatch whose acceptance criteria were never filled in",
     "title": "Add a health-check route",

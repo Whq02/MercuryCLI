@@ -5,6 +5,7 @@ import { routerRunStore, type RouterRunState } from '../substrate/routerRunStore
 import { buildRouterModelSnapshot } from '../utils/router/modelRegistry.js'
 import { readRouterPostureFile, resolveRouterPosture } from '../utils/router/postures.js'
 import { ACTIVE_NODE_STATES, explainWidth } from '../utils/router/scheduler.js'
+import { FANOUT_MAX_WIDTH } from '../utils/router/routeCompiler.js'
 import type { RouteNode, TaskRoutePlan } from '../utils/router/contracts.js'
 import { FreshnessLine, KeyValueGrid, useNowTick, type KVRow } from './mercury-ui/components.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -40,9 +41,8 @@ const PROFILE_CHIP: Record<string, string> = {
 
 function modelPath(plan: TaskRoutePlan): string {
   const exec = [...new Set(plan.decision.selectedModels.map(m => m.modelClass.toUpperCase()))].join('+')
-  const planner = plan.mode === 'scribe' ? 'SCRIBE' : 'ROUTER'
   const review = plan.synthesis.required ? ` → ${plan.synthesis.owner.toUpperCase()} ACCEPT` : ' → ACCEPT'
-  return `${planner} PLAN → ${exec || '—'} EXECUTE${review}`
+  return `${plan.mode.toUpperCase()} PLAN → ${exec || '—'} EXECUTE${review}`
 }
 
 function nodeGlyphs(nodes: readonly RouteNode[]): { text: string; activeCount: number } {
@@ -112,7 +112,7 @@ export function RouterBoard({ onClose }: { onClose: () => void }): React.ReactNo
       id: 'active',
       label: 'active routes',
       rows: active.map(plan => ({ plan })).reverse(),
-      emptyHint: 'no route in flight — a Scribe/Router dispatch mints one',
+      emptyHint: 'no route in flight — a planner dispatch mints one',
     },
     {
       id: 'recent',
@@ -158,7 +158,7 @@ export function RouterBoard({ onClose }: { onClose: () => void }): React.ReactNo
   const sideInfo = (r: PlanRow): React.ReactNode => {
     const p = r.plan
     const d = p.decision
-    const maxWidth = p.mode === 'party' ? 3 : 1
+    const maxWidth = p.mode === 'fanout' ? FANOUT_MAX_WIDTH : 1
     const kv: KVRow[] = [
       { k: 'path', v: modelPath(p), tone: tokens.textPrimary },
       { k: 'why', v: d.decisiveReasons.join(' · ') || '—', tone: tokens.textSecondary },

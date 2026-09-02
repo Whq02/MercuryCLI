@@ -53,7 +53,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
     const state = await routerRunStore().read().catch(() => null)
     const plan = state?.plans[state.plans.length - 1]
     if (!plan) {
-      onDone('no route decision recorded yet — a Scribe/Router dispatch mints the first plan')
+      onDone('no route decision recorded yet — a planner dispatch mints the first plan')
       return null
     }
     const d = plan.decision

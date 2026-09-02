@@ -40,7 +40,7 @@ function plan(overrides: Partial<TaskRoutePlan> = {}): TaskRoutePlan {
     version: 1,
     id: 'rp-test-1',
     revision: 2,
-    mode: 'scribe',
+    mode: 'sequential',
     title: 'fix the relay lanes',
     objective: 'repair three route modules',
     features: {} as TaskRoutePlan['features'],
@@ -77,7 +77,7 @@ function plan(overrides: Partial<TaskRoutePlan> = {}): TaskRoutePlan {
         expectedResult: 'tests green',
       },
     ],
-    synthesis: { required: true, owner: 'scribe', acceptance: [] },
+    synthesis: { required: true, owner: 'planner', acceptance: [] },
     decision: {
       policyVersion: 'v1',
       source: 'structured-intent',

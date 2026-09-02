@@ -4082,15 +4082,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { routerEnabled } = await import('./router/routerGates.js')
             if (!routerEnabled()) {
-              return { status: 'info' as const, evidence: 'MERCURY_ROUTER=0 — routing off (legacy MERCURY_SCRIBE_TASK_ROUTER path)' }
+              return { status: 'info' as const, evidence: 'MERCURY_ROUTER=0 — routing off' }
             }
             const { compileRoute } = await import('./router/routeCompiler.js')
             const { buildRouterModelSnapshot } = await import('./router/modelRegistry.js')
             const { decodeTaskRoutePlan, stableDigest, ROUTER_POLICY_VERSION } = await import('./router/contracts.js')
             const { resolveRouterPosture } = await import('./router/postures.js')
             const r = compileRoute({
-              mode: 'party',
-              intentSource: 'structured',
+              mode: 'fanout',
               mission: {
                 objective: 'health probe',
                 title: 'probe',

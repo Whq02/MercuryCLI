@@ -14,7 +14,7 @@
 //   - version === 1
 //   - id is a non-empty kebab-case string matching its filename (no drift
 //     between "the file everyone opens" and "the id everyone greps for")
-//   - mode ∈ {scribe, party}
+//   - mode ∈ {sequential, fanout}
 //   - expected.profile ∈ the allowed profile set (or REFUSAL)
 //   - expected.width is a number
 //   - expected.reasonCodes / expected.adjustments are arrays whose every
@@ -43,7 +43,7 @@ const ROOT = join(import.meta.dir, 'corpus')
 const COMPILER_DIR = join(ROOT, 'compiler')
 const LIFECYCLE_DIR = join(ROOT, 'lifecycle')
 
-const ALLOWED_MODES = new Set(['scribe', 'party'])
+const ALLOWED_MODES = new Set(['sequential', 'fanout'])
 const ALLOWED_PROFILES = new Set([
   'sonnet-direct',
   'sonnet-opus-review',
@@ -122,7 +122,7 @@ for (const file of compilerFiles) {
   check(`${file}: id is unique across the corpus`, typeof parsed.id === 'string' && !seenIds.has(parsed.id as string))
   if (typeof parsed.id === 'string') seenIds.add(parsed.id)
 
-  check(`${file}: mode ∈ {scribe, party}`, typeof parsed.mode === 'string' && ALLOWED_MODES.has(parsed.mode as string), `got ${JSON.stringify(parsed.mode)}`)
+  check(`${file}: mode ∈ {sequential, fanout}`, typeof parsed.mode === 'string' && ALLOWED_MODES.has(parsed.mode as string), `got ${JSON.stringify(parsed.mode)}`)
 
   const mission = parsed.mission as Record<string, unknown> | undefined
   check(`${file}: mission is an object`, typeof mission === 'object' && mission !== null)

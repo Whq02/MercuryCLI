@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/daemon/scribeDispatchBridge*
-# gate-watch: src/substrate/routerRunStore* src/tools/SendMessageTool/routePlanOps*
+# gate-watch: src/substrate/routerRunStore* src/tools/SendMessageTool/SendMessageTool*
 # gate-watch: src/utils/model/** src/utils/router/** src/utils/scribe/dispatchRouter*
 # gate-watch: src/utils/scribe/scribeBus* src/utils/teammateMailbox*
 # Mercury router fabric — proof harness. Runs every scripts/router/

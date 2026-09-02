@@ -50,13 +50,12 @@ for (const file of readdirSync(DIR).sort()) {
   if (!file.endsWith('.json')) continue
   const fx = JSON.parse(readFileSync(join(DIR, file), 'utf8')) as {
     id: string
-    mode: 'scribe' | 'party'
+    mode: 'sequential' | 'fanout'
     mission: RouteMissionIntent & {
       workerAffinity?: { currentModelClass?: string; currentEffort?: string }
       sharedLane?: boolean
       contextFillPct?: number
       activeTurn?: boolean
-      workflowPostureActive?: boolean
     }
     expected: {
       profile: string
@@ -69,12 +68,11 @@ for (const file of readdirSync(DIR).sort()) {
   const m = fx.mission
   const input: RouteCompilerInput = {
     mode: fx.mode,
-    intentSource: m.legacyRoute ? 'legacy' : 'structured',
     mission: m,
     posture: 'adaptive',
     models: snapshot,
     worker: {
-      maxWidth: fx.mode === 'party' ? 3 : 1,
+      maxWidth: fx.mode === 'fanout' ? 3 : 1,
       sharedLane: m.sharedLane === true,
       ...(m.workerAffinity?.currentModelClass
         ? { currentModelClass: m.workerAffinity.currentModelClass as 'opus' | 'sonnet' | 'fable' }
@@ -83,7 +81,6 @@ for (const file of readdirSync(DIR).sort()) {
       ...(typeof m.contextFillPct === 'number' ? { contextFillPct: m.contextFillPct } : {}),
       ...(m.activeTurn === true ? { activeTurn: true } : {}),
     },
-    workflowPostureActive: m.workflowPostureActive === true,
     now: NOW,
     planId: `rp-corpus-${fx.id}`,
   }
