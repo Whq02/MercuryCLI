@@ -893,6 +893,7 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
     geminiClientPaneLines,
     geminiPickOptions,
     handlesWaitPaneLines,
+    loginsFlowLegendOf,
     loginsPickOptions,
     openaiDevicePaneLines,
   } = await import('../../src/components/BootLoginsScreen.js')
@@ -939,8 +940,14 @@ t.section('§9 — THE HANDLES FAMILIES (A6b: openai · openrouter · gemini —
   // The panes: masked paste + way out; the headless words; the exchanging
   // phase; the opdevice honesty; the client prompt's plain id + masked
   // secret; every pane inside the width.
-  const wait = handlesWaitPaneLines({ leg: 'openai-browser', phase: 'waiting', authorizeUrl: 'https://auth.openai.test/' + 'q'.repeat(50), copied: false }, 5)
-  t.check('the openai wait pane: loopback sentence · url whole · masked paste · d offered', wait.join(' ').includes('loopback listener completes automatically') && wait.join('').includes('q'.repeat(50)) && wait.some(l => l === 'paste: •••••▌') && wait[wait.length - 1] === 'c copy · d device · esc cancel' && wait.every(l => l.length <= 38))
+  const openaiWait = { leg: 'openai-browser' as const, phase: 'waiting' as const, authorizeUrl: 'https://auth.openai.test/' + 'q'.repeat(50), copied: false }
+  const wait = handlesWaitPaneLines(openaiWait, 5)
+  // The way-out line names only the keys that fire NOW: c and d fire on an
+  // empty paste (c with a URL to copy) — a typed draft leaves esc alone.
+  t.check('the openai wait pane: loopback sentence · url whole · masked paste · c and d withheld while a draft is typed', wait.join(' ').includes('loopback listener completes automatically') && wait.join('').includes('q'.repeat(50)) && wait.some(l => l === 'paste: •••••▌') && wait[wait.length - 1] === 'esc cancel' && wait.every(l => l.length <= 38))
+  const untouched = handlesWaitPaneLines(openaiWait, 0)
+  t.check('…and offers c and d on an empty paste', untouched[untouched.length - 1] === 'c copy · d device · esc cancel' && handlesWaitPaneLines({ ...openaiWait, authorizeUrl: undefined }, 0).at(-1) === 'd device · esc cancel' && handlesWaitPaneLines({ ...openaiWait, leg: 'openrouter-browser' }, 0).at(-1) === 'c copy url · esc cancel' && handlesWaitPaneLines({ ...openaiWait, copied: true }, 0).at(-1) === 'copied to clipboard')
+  t.check('the handles legend follows the same gate', loginsFlowLegendOf({ kind: 'handles', handles: openaiWait, draftLen: 0 }) === '↵ submit paste · c copy · d device · esc cancel' && loginsFlowLegendOf({ kind: 'handles', handles: openaiWait, draftLen: 3 }) === '↵ submit paste · esc cancel' && loginsFlowLegendOf({ kind: 'handles', handles: { ...openaiWait, leg: 'openrouter-browser' }, draftLen: 0 }) === '↵ submit paste · c copy · esc cancel' && loginsFlowLegendOf({ kind: 'handles', handles: { ...openaiWait, authorizeUrl: undefined }, draftLen: 0 }) === '↵ submit paste · d device · esc cancel' && loginsFlowLegendOf({ kind: 'handles', handles: { ...openaiWait, phase: 'exchanging' }, draftLen: 0 }) === 'esc cancel')
   const headless = handlesWaitPaneLines({ leg: 'openrouter-headless', phase: 'waiting', authorizeUrl: 'https://openrouter.test/auth', copied: false }, 0)
   t.check('the headless pane says paste-the-code and offers NO d', headless.join(' ').includes('displays a code — paste it below') && headless.some(l => l === 'code: ▌') && !headless.join(' ').includes('d device'))
   t.check('the exchanging phase paints the mint words with a way out', handlesWaitPaneLines({ leg: 'openrouter-browser', phase: 'exchanging', copied: false }, 0).join(' ').includes('OpenRouter mints the key…') && handlesWaitPaneLines({ leg: 'gemini-oauth', phase: 'exchanging', copied: false }, 0).includes('esc cancels'))
@@ -1135,6 +1142,9 @@ t.section('§12 — THE SECRECY RIDER (the ruling: keys masked on screen AND abs
   t.check('the key pane signature takes draftLen, never the draft', screen.includes('export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draftLen: number, storing: boolean): string[]'))
   t.check('the anthropic pane signature takes draftLen, never the draft', screen.includes('export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: number): string[]'))
   t.check('the handles pane signature takes draftLen, never the draft', screen.includes('export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): string[]'))
+  // The hint's gate and the key handlers' gate are the same fact: an empty
+  // paste (and a URL for c) — the pane and the legend read one composer.
+  t.check("the c and d handlers fire on an empty paste only (c with a URL), and the hint composer gates on the same", screen.includes("h.phase === 'waiting' && draftRef.current === '' && h.authorizeUrl !== undefined") && screen.includes("h.leg === 'openai-browser' && h.phase === 'waiting' && draftRef.current === ''") && screen.includes('lines.push(handlesWaitWayOut(h, draftLen));') && screen.includes("const copy = draftLen === 0 && h.authorizeUrl !== undefined;"))
 }
 
 // ── §13 THE LATE-SETTLE DISCLOSURE (AUTHHARD H2b — the disclose-not-unwind
