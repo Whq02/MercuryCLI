@@ -165,8 +165,6 @@ export interface StreamJsonChildSpec {
   effort: string
   appendSystemPrompt: string
   role:
-    | 'MERCURY_SCRIBE'
-    | 'MERCURY_IMPLEMENTER'
     | 'MERCURY_CREW'
     | 'MERCURY_CONCOURSE_WORKER'
   agentName: string
@@ -196,7 +194,7 @@ export function buildStreamJsonInvocation(
     spec.role === 'MERCURY_CONCOURSE_WORKER'
       ? spec.model
       : enforceSubagentModelFloor(spec.model, `daemon:${spec.agentName}`)
-  const teamName = spec.teamName ?? 'scribe'
+  const teamName = spec.teamName ?? 'default'
   const argv = [
     script,
     '-p',

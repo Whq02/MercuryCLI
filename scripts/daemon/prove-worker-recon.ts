@@ -59,7 +59,7 @@ console.log('\n§4 every daemon worker kind reads the one resolver')
   const main = read('src/daemon/main.ts')
   check('the crew spawn floor rides resolveWorkerReconAllow', crew.includes("from './workerRecon.js'") && crew.includes('allowedTools: resolveWorkerReconAllow()'))
   check("the roster's one-shots ride it", roster.includes("from './workerRecon.js'") && roster.includes('allowedTools: resolveWorkerReconAllow()'))
-  check('the daemon reads it for the implementer spawn (the one surviving site)', main.includes("from './workerRecon.js'") && (main.match(/allowedTools: resolveWorkerReconAllow\(\)/g) ?? []).length === 1)
+  check('the daemon main carries no recon read of its own (the two spawn seams are the readers)', !main.includes("from './workerRecon.js'") && !/allowedTools: resolveWorkerReconAllow\(\)/.test(main))
   check('no worker builder carries a second recon table', !/SEAT_RECON_ALLOW\s*[:=]/.test(crew + roster + main))
 }
 

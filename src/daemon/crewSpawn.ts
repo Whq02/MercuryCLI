@@ -33,7 +33,7 @@ export function isCrewModelKey(k: string): k is CrewModelKey {
 }
 
 const CREW_NAME_RE = /^[a-z][a-z0-9-]{1,15}$/
-const RESERVED_NAMES = new Set(['team-lead', 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
+const RESERVED_NAMES = new Set(['team-lead', 'crew', 'daemon'])
 export function isValidCrewName(name: string): boolean {
   return CREW_NAME_RE.test(name) && !RESERVED_NAMES.has(name)
 }

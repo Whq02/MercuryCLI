@@ -358,7 +358,7 @@ export class TaskRoster {
     logForDebugging(
       `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
-    const team = ll.spec.teamName ?? 'scribe'
+    const team = ll.spec.teamName ?? 'default'
     if (carryForwardEnabled()) {
       const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
       void writeToMailbox(
@@ -681,7 +681,7 @@ export class TaskRoster {
         void writeToMailbox(
           'team-lead',
           { from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() },
-          ll.spec.teamName ?? 'scribe',
+          ll.spec.teamName ?? 'default',
         ).catch(() => {})
       }
       const stampCrash = (respawning: boolean, detail?: string): void => {
