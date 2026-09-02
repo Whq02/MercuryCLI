@@ -273,12 +273,19 @@ function runCell(cell: Cell): void {
     argv: ['node', join(ROOT, 'dist/mercury.mjs'), '--resume', '00000000-aaaa-bbbb-cccc-a3a3a3a3a3a3'],
     cols: cell.cols, rows: cell.rows, total: 500, sends, out,
   }))
+  // The connector trace seam records every scroll request the page key
+  // makes (the viewport before the move, the delta asked, the span) and
+  // every virtual-list render (the settled top, the viewport, stickiness):
+  // when a press settles short, the two lines say whether the request or
+  // the settle lost the rows. Printed, never asserted; kept with the grids.
+  const trace = join(SCRATCH, `${cell.tag}-trace.jsonl`)
   const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {
     encoding: 'utf-8', timeout: vshotBudgetMs(420000), cwd: ROOT,
     env: {
       ...process.env,
       MERCURY_FULLSCREEN: '1',      MERCURY_DECK_COMPANION: '0',
       MERCURY_CONFIG_DIR: home,
+      MERCURY_CONNECTOR_TRACE: trace,
     },
   })
   check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}`)
@@ -289,6 +296,16 @@ function runCell(cell: Cell): void {
   }
   const undelivered = /UNDELIVERED-SENDS/.test(res.stdout ?? '')
   const payload = JSON.parse(readFileSync(out, 'utf-8'))
+  try {
+    type Req = { ev: string; delta?: number; top?: number; max?: number; viewport?: number; sticky?: boolean; range?: [number, number]; scroll?: { top: number; pending: number; sticky: boolean; viewport: number; height: number } | null }
+    const lines = readFileSync(trace, 'utf-8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l) as Req } catch { return null } }).filter((r): r is Req => r !== null)
+    const reqs = lines.filter(r => r.ev === 'scroll-request')
+    const rends = lines.filter(r => r.ev === 'list-render' && r.scroll)
+    console.log(`  scroll requests (delta@top/viewport, span): ${reqs.map(r => `${r.delta}@${r.top}/${r.viewport}${r.sticky ? 's' : ''}·${r.max}`).join(' ')}`)
+    console.log(`  list renders (range@top/viewport/height): ${rends.slice(-40).map(r => `[${r.range![0]},${r.range![1]})@${r.scroll!.top}${r.scroll!.sticky ? 's' : ''}/${r.scroll!.viewport}/${r.scroll!.height}`).join(' ')}`)
+  } catch {
+    console.log('  (no connector trace this run)')
+  }
   const a = analyze(cell, payload)
   const shown = a.deltas.map(d => String(d)).join(',')
   // The step the drive actually settles, press to press: its mode is the
