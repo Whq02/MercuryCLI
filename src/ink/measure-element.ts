@@ -23,3 +23,14 @@ export function elementScreenLeft(node: DOMElement): number {
   }
   return left
 }
+
+export function elementScreenTop(node: DOMElement): number {
+  let top = 0
+  let cur: DOMElement | undefined = node
+  while (cur) {
+    const layout = cur.layoutNode
+    if (layout) top += layout.getComputedTop()
+    cur = cur.parentNode
+  }
+  return top
+}
