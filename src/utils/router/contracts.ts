@@ -23,7 +23,6 @@ export const ROUTE_REASON_CODES = [
   'architectural',
   'separable-disjoint-ownership',
   'ordered-dependencies',
-  'workflow-posture-active',
   'revision-escalation',
   'affinity-kept-model',
   'changeover-worth-it',
@@ -39,7 +38,6 @@ export const ROUTE_REASON_CODES = [
   'width-capped-workers',
   'width-capped-shared-lane',
   'provider-unavailable',
-  'workflow-posture-absent',
   'empty-acceptance-repaired',
   'context-pressure-renewal',
   'held-for-idle',
@@ -48,6 +46,9 @@ export const ROUTE_REASON_CODES = [
 export type RouteReasonCode = (typeof ROUTE_REASON_CODES)[number]
 export const isRouteReasonCode = (v: unknown): v is RouteReasonCode =>
   typeof v === 'string' && (ROUTE_REASON_CODES as readonly string[]).includes(v)
+
+export const LEGACY_ROUTE_REASON_CODES = ['workflow-posture-active', 'workflow-posture-absent'] as const
+export type LegacyRouteReasonCode = (typeof LEGACY_ROUTE_REASON_CODES)[number]
 
 export const ROUTE_PROFILES = [
   'sonnet-direct',
@@ -60,6 +61,8 @@ export type RouteProfile = (typeof ROUTE_PROFILES)[number]
 
 export const LEGACY_ROUTE_PROFILES = ['workflow-delegated'] as const
 export type LegacyRouteProfile = (typeof LEGACY_ROUTE_PROFILES)[number]
+const isReadableRouteProfile = (v: string): v is RouteProfile | LegacyRouteProfile =>
+  (ROUTE_PROFILES as readonly string[]).includes(v) || (LEGACY_ROUTE_PROFILES as readonly string[]).includes(v)
 
 export const ROUTE_TASK_SHAPES = [
   'mechanical',
@@ -161,7 +164,7 @@ export interface RouteDecisionRecord {
   policyVersion: string
   source: 'structured-intent' | 'local-fallback' | 'operator-pin'
   posture: RouterPosture
-  selectedProfile: RouteProfile
+  selectedProfile: RouteProfile | LegacyRouteProfile
   selectedModels: RouteModelRef[]
   decisiveReasons: RouteReasonCode[]
   displayReasons: string[]
@@ -377,7 +380,7 @@ function decodeDecision(raw: unknown): RouteDecisionRecord | null {
     r.posture !== 'fixed'
   )
     return null
-  if (!str(r.selectedProfile) || !(ROUTE_PROFILES as readonly string[]).includes(r.selectedProfile)) return null
+  if (!str(r.selectedProfile) || !isReadableRouteProfile(r.selectedProfile)) return null
   const models: RouteModelRef[] = []
   if (!Array.isArray(r.selectedModels)) return null
   for (const m of r.selectedModels) {
@@ -407,7 +410,7 @@ function decodeDecision(raw: unknown): RouteDecisionRecord | null {
     policyVersion: r.policyVersion,
     source: r.source,
     posture: r.posture,
-    selectedProfile: r.selectedProfile as RouteProfile,
+    selectedProfile: r.selectedProfile as RouteProfile | LegacyRouteProfile,
     selectedModels: models,
     decisiveReasons: decisive,
     displayReasons: display,
@@ -424,7 +427,7 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
   if (!str(r.id) || !num(r.revision) || !str(r.title) || !str(r.objective)) return null
   if (!str(r.mode) || !(ROUTE_TOPOLOGIES as readonly string[]).includes(r.mode)) return null
   if (!str(r.state) || !(ROUTE_PLAN_STATES as readonly string[]).includes(r.state)) return null
-  if (!str(r.profile) || !(ROUTE_PROFILES as readonly string[]).includes(r.profile)) return null
+  if (!str(r.profile) || !isReadableRouteProfile(r.profile)) return null
   if (!num(r.createdAt) || !num(r.updatedAt)) return null
   const features = decodeFeatures(r.features)
   const decision = decodeDecision(r.decision)
@@ -449,7 +452,7 @@ export function decodeTaskRoutePlan(raw: unknown): TaskRoutePlan | null {
     title: r.title,
     objective: r.objective,
     features,
-    profile: r.profile as RouteProfile,
+    profile: r.profile as RouteProfile | LegacyRouteProfile,
     nodes,
     synthesis: { required: s.required === true, owner: s.owner, acceptance: synthAcceptance },
     decision,
