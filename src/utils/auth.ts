@@ -591,6 +591,16 @@ export function clearOAuthTokenCache(): void {
   clearKeychainCache()
 }
 
+export function dropCredentialMemos(): void {
+  clearOAuthTokenCache()
+  signedOutOAuthMemoStamp = null
+  signedOutKeyMemoStamp = null
+  getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
+  clearLegacyApiKeyPrefetch()
+  clearBetasCaches()
+  clearToolSchemaCache()
+}
+
 export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
   success: boolean
   warning?: string
