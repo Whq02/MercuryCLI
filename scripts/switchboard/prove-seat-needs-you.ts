@@ -215,12 +215,28 @@ try {
     check('N3 the child ran the tool and its reply landed in the session\'s file', await untilAsync(async () => logText().includes('Tidied after your allow.'), 20_000))
     const answered = hoppedFrames.filter(g => text(g).includes('Tidied after your allow.'))
     check('N3 the reply painted inside the focused chat', answered.length > 0, `frames: ${answered.map(g => g.atMs).join(',') || 'none'}`)
-    // N4: the words delivered.
+    // N4: the words delivered. THE ONE IDENTITY: the focused chat's
+    // connector mints a bare uuid as the clientMessageId and it rides the
+    // dispatch as the frame uuid, the queue entry's uuid and the transcript
+    // row's uuid; the ledger row carries the words' digest (never their
+    // content — the digest law) and the operator's attribution.
     const dispatch = await import('../../src/daemon/concourseDispatch.ts')
     const rows = Object.values(dispatch.readConcourseDispatches(daemonDir))
-    const mine = rows.find(r => r.sessionId === sid && r.clientMessageId.startsWith('seat-send-'))
-    check('N4 the typed words rode the dispatch ledger to the session', mine !== undefined && (mine.state === 'working' || mine.state === 'settled' || mine.state === 'starting'), `row=${mine ? `${mine.clientMessageId} ${mine.state}` : 'none'}; ids=${rows.map(r => `${r.clientMessageId}:${r.state}`).join(' ')}`)
+    const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    const mine = rows.find(r => r.sessionId === sid && r.promptDigest === dispatch.promptDigestOf(WORDS))
+    check('N4 the typed words rode the dispatch ledger to the session — the row keyed by the ONE identity (a bare uuid), carrying the words\' digest and the operator\'s attribution', mine !== undefined && UUID_SHAPE.test(mine.clientMessageId) && mine.by === 'operator' && (mine.state === 'working' || mine.state === 'settled' || mine.state === 'starting'), `row=${mine ? `${mine.clientMessageId} ${mine.state} by=${mine.by ?? ''}` : 'none'}; ids=${rows.map(r => `${r.clientMessageId}:${r.state}`).join(' ')}`)
     check("N4 the session's file gained the operator's row", await untilAsync(async () => logText().includes(WORDS), 20_000))
+    // The file holds versioned records (the envelope carries the entry;
+    // the uuid rides inside it), so the rows are read the way the focused
+    // chat's connector reads them: through the transcript reader's chain
+    // door, which hands back the conversation rows with the envelope
+    // stripped — a hand-parsed line sees the envelope, never the row.
+    const reader = await import('../../src/utils/sessionStorage/transcriptReader.ts')
+    const userRowUuids = async (): Promise<string[]> => {
+      const chain = await reader.readTranscriptChainSince(log, null)
+      return chain.rows.flatMap(r => (r.type === 'user' && typeof (r as { uuid?: unknown }).uuid === 'string' ? [(r as { uuid: string }).uuid] : []))
+    }
+    check("N4 …and that row wears the SAME identity: the transcript's user row uuid IS the ledger's clientMessageId", mine !== undefined && (await userRowUuids()).includes(mine.clientMessageId), `user uuids=${(await userRowUuids()).join(',')}`)
     check('N4 …and the session answered them', await untilAsync(async () => logText().includes('hi back — the words landed.'), 20_000))
     const echoed = hoppedFrames.filter(g => text(g).includes(WORDS))
     check('N4 the words painted in the focused chat (the echo, then the row)', echoed.length > 0, `frames: ${echoed.map(g => g.atMs).join(',') || 'none'}`)
