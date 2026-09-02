@@ -44,7 +44,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createPathChecker } = await import('../../src/tools/BashTool/pathValidation.ts')
-const { getOriginalCwd } = await import('../../src/utils/cwd.ts')
+const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
 
 const context = { ...getDefaultAppState().toolPermissionContext, mode: 'default' as const }
 const cwd = getOriginalCwd()
