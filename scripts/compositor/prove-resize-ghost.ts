@@ -18,7 +18,10 @@
 //    G2  a fullscreen-exit-sized shrink (150→80) and two more geometry
 //        changes (80→100, 100→120): after EVERY change the settled frame
 //        carries EXACTLY ONE copy of the station's furniture — never a
-//        stacked ghost (the operator's screenshot showed 2+).
+//        stacked ghost (the operator's screenshot showed 2+). A geometry
+//        UNDER THE VIEWPORT FLOOR (80×30 is under the 100-column floor)
+//        settles to the floor's ONE line and ZERO station copies — the
+//        ghost law there is that no station copy survives either.
 //    G3  the repaint is THROUGH the clear law: each geometry change is
 //        followed by a contained erase before the next settled frame (2J
 //        count ≥ resize count), and the journey never leaves the alternate
@@ -45,6 +48,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { resetViewportFloorForTests, viewportFloorLine, viewportFloorLive } from '../../src/ink/viewportFloor.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -165,15 +169,29 @@ try {
   )
 
   // ── the frames: exactly ONE station copy at every geometry ───────────────
+  // The viewport floor's latch is replayed through the settled geometries
+  // in order (the same live owner the product ran): a geometry it calls
+  // under settles to the floor's one line and no station at all.
   check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length}`)
+  resetViewportFloorForTests()
   stages.forEach((stage, i) => {
     const n = needleCount(stage.grid)
     if (i < SETTLED_CHANGES) {
-      check(
-        `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
-        n === 1,
-        `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
-      )
+      const floor = viewportFloorLive(stage.cols, stage.rows)
+      if (floor.fits) {
+        check(
+          `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
+          n === 1,
+          `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
+        )
+      } else {
+        const painted = stage.grid.map(rowText).filter(r => r.trim() !== '')
+        check(
+          `G2 geometry ${stage.cols}x${stage.rows} is under the floor: the one line, ZERO station copies`,
+          n === 0 && painted.length === 1 && painted[0]!.trim() === viewportFloorLine(stage.cols, stage.rows),
+          `${n} copies of ${JSON.stringify(NEEDLE)} · ${painted.length} painted row(s): ${JSON.stringify(painted[0]?.trim() ?? '')}`,
+        )
+      }
     } else {
       // Mid-storm the screen holds the last frame clipped to each
       // intermediate size: the needle may be clipped away, never doubled.
