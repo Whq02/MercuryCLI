@@ -178,17 +178,49 @@ export function driverVersion(): string {
 
 export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
 
-export async function ensureBrowserSession(owner: OwnerKey): Promise<Session | EnsureSessionRefusal> {
+export async function ensureBrowserSession(
+  owner: OwnerKey,
+  opts: { signal?: AbortSignal | undefined } = {},
+): Promise<Session | EnsureSessionRefusal> {
   const state = ownerStates.get(owner)
   if (state.session && state.session.browser.connected) return state.session
-  if (state.launchFlight !== null) return state.launchFlight
+  if (state.launchFlight !== null) return awaitLaunch(state.launchFlight, opts.signal)
   const flight = launchOwnerSession(owner, state)
   state.launchFlight = flight
-  try {
-    return await flight
-  } finally {
+  const clear = (): void => {
     if (state.launchFlight === flight) state.launchFlight = null
   }
+  void flight.then(clear, clear)
+  return awaitLaunch(flight, opts.signal)
+}
+
+function awaitLaunch(
+  flight: Promise<Session | EnsureSessionRefusal>,
+  signal: AbortSignal | undefined,
+): Promise<Session | EnsureSessionRefusal> {
+  if (signal === undefined) return flight
+  if (signal.aborted) return Promise.reject(abortReason(signal))
+  return new Promise((resolve, reject) => {
+    const onAbort = (): void => reject(abortReason(signal))
+    signal.addEventListener('abort', onAbort, { once: true })
+    flight.then(
+      value => {
+        signal.removeEventListener('abort', onAbort)
+        resolve(value)
+      },
+      (err: unknown) => {
+        signal.removeEventListener('abort', onAbort)
+        reject(err)
+      },
+    )
+  })
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  if (signal.reason !== undefined) return signal.reason
+  const err = new Error('the launch wait was interrupted')
+  err.name = 'AbortError'
+  return err
 }
 
 async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Promise<Session | EnsureSessionRefusal> {
