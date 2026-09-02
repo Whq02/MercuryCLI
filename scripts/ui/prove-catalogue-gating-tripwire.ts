@@ -318,7 +318,7 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
       // THE LANDING RULE: a bare
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
       // The Hugging Face group sits below the fold — 14 steps put its
@@ -361,7 +361,7 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
       // THE LANDING RULE: a bare
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
       // 14 steps bring the Hugging Face group into the viewport.
@@ -409,7 +409,7 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
       // THE LANDING RULE: a bare
       // boot lands on the Boot face — ↵ on New Session enters the chat first.
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
+      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
