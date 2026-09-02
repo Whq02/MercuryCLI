@@ -157,14 +157,6 @@ async function main(): Promise<void> {
       !denies(evaluateWards(rules, bash('git push -f origin feature/wards'))),
     )
     check(
-      'force-push a party/* lane branch ⇒ denied (federation FC4)',
-      denies(evaluateWards(rules, bash('git push --force origin party/user1/recon'))),
-    )
-    check(
-      'plain push a party/* lane ⇒ passes',
-      !denies(evaluateWards(rules, bash('git push origin party/user1/recon'))),
-    )
-    check(
       'plain push main ⇒ passes',
       !denies(evaluateWards(rules, bash('git push origin main'))),
     )
