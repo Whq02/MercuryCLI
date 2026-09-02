@@ -46,13 +46,13 @@ const pool = new Map<string, WarmRunnerEntry>()
 const claimWaiters = new Map<string, (outcome: { ok: boolean; error?: string }) => void>()
 
 interface TrailingEnsure {
-  kit: SessionKitV1 | undefined
+  requestedKit: SessionKitV1 | undefined
   deps: WarmRunnerDeps
   waiters: Array<{ resolve: (outcome: WarmEnsureOutcome) => void; reject: (err: unknown) => void }>
 }
 
 interface EnsureFlight {
-  kit: SessionKitV1 | undefined
+  requestedKit: SessionKitV1 | undefined
   run: Promise<WarmEnsureOutcome>
   trailing: TrailingEnsure | null
 }
@@ -156,7 +156,7 @@ export async function ensureWarmRunner(
   }
   const inFlight = ensureFlights.get(workspaceId)
   if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, deps)
-  const flight: EnsureFlight = { kit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
+  const flight: EnsureFlight = { requestedKit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
   ensureFlights.set(workspaceId, flight)
   settleEnsureFlight(workspaceId, flight)
   return flight.run
@@ -172,11 +172,11 @@ function awaitBehindFlight(
   kit: SessionKitV1 | undefined,
   deps: WarmRunnerDeps,
 ): Promise<WarmEnsureOutcome> {
-  if (flight.trailing === null && sameRequestedKit(flight.kit, kit)) return flight.run
+  if (flight.trailing === null && sameRequestedKit(flight.requestedKit, kit)) return flight.run
   return new Promise<WarmEnsureOutcome>((resolve, reject) => {
     const waiters = flight.trailing?.waiters ?? []
     waiters.push({ resolve, reject })
-    flight.trailing = { kit, deps, waiters }
+    flight.trailing = { requestedKit: kit, deps, waiters }
   })
 }
 
@@ -188,8 +188,8 @@ function settleEnsureFlight(workspaceId: string, flight: EnsureFlight): void {
       return
     }
     flight.trailing = null
-    flight.kit = next.kit
-    flight.run = ensureWarmRunnerFlight(workspaceId, next.kit, next.deps)
+    flight.requestedKit = next.requestedKit
+    flight.run = ensureWarmRunnerFlight(workspaceId, next.requestedKit, next.deps)
     void flight.run.then(
       outcome => {
         for (const waiter of next.waiters) waiter.resolve(outcome)
@@ -239,6 +239,9 @@ async function ensureWarmRunnerFlight(
   const validated = await validateWorkerModelChoice(undefined, 'session')
   if (!validated.ok) {
     return { state: 'refused', detail: `registry default unavailable (${validated.reason}) — the next dispatch spawns cold` }
+  }
+  if (validated.keyless === true) {
+    return { state: 'refused', detail: 'keyless home — nothing to warm; the next birth spawns cold on no model' }
   }
   const appeared = pool.get(workspaceId)
   if (appeared !== undefined) {

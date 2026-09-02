@@ -5,7 +5,9 @@ import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCRO
 import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.js';
 import { TerminalWriteContext } from '../useTerminalNotification.js';
 import { RESET_SCROLL_REGION } from '../termio/csi.js';
+import { useViewportFloor } from '../hooks/use-viewport-floor.js';
 import Box from './Box.js';
+import Text from './Text.js';
 import { TerminalSizeContext } from './TerminalSizeContext.js';
 type Props = PropsWithChildren<{
   mouseTracking?: boolean;
@@ -24,6 +26,7 @@ export function AlternateScreen({
 
   const mouseTrackingRef = useRef(mouseTracking);
   mouseTrackingRef.current = mouseTracking;
+  const outermostRef = useRef<boolean | null>(null);
 
   useInsertionEffect(() => {
     const ink = inkFromContext;
@@ -34,6 +37,7 @@ export function AlternateScreen({
     const effectiveMouse = mouseTrackingRef.current && (ink?.isMouseTrackingPreferred?.() ?? true);
 
     const outermost = depth.n === 0
+    outermostRef.current = outermost
     depth.n++
     if (outermost) {
       const launcherHolds = consumeLauncherAltHold();
@@ -72,16 +76,31 @@ export function AlternateScreen({
     };
   }, [writeRaw, inkFromContext]);
 
-  const nested = (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
+  const nested = outermostRef.current !== null
+    ? !outermostRef.current
+    : (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
   const rows = size?.rows ?? 24;
+
+  const floor = useViewportFloor(size, !nested);
+
   return (
-    <Box
-      flexDirection="column"
-      {...(nested ? { maxHeight: rows } : { height: rows })}
-      width="100%"
-      flexShrink={0}
-    >
-      {children}
-    </Box>
+    <>
+      {floor.line === null ? null : (
+        <Box flexDirection="column" height={rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
+          <Text color="ansi:yellow" bold>
+            {floor.line}
+          </Text>
+        </Box>
+      )}
+      <Box
+        flexDirection="column"
+        {...(nested ? { maxHeight: rows } : { height: rows })}
+        width="100%"
+        flexShrink={0}
+        display={floor.fits ? 'flex' : 'none'}
+      >
+        <TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>
+      </Box>
+    </>
   );
 }
