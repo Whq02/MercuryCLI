@@ -7,6 +7,7 @@ const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'concourse-resume-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
