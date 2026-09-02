@@ -216,6 +216,7 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks } from '../utils/task/framework.js'
+import { stopRunningAgentTasks } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
@@ -1364,6 +1365,17 @@ export async function runHeadless(
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
+    waitableBackgroundTaskCount: () =>
+      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate').length,
+    onAgentWait: count => {
+      io.outbound.enqueue({
+        type: 'system',
+        subtype: 'status',
+        status: count > 0 ? { waitingOnAgents: count } : null,
+        uuid: randomUUID(),
+        session_id: getSessionId(),
+      })
+    },
     takePendingSuggestion: () => {
       const suggestion = pendingSuggestion
       pendingSuggestion = null
@@ -1619,6 +1631,7 @@ export async function runHeadless(
             seenInterruptIds.add(requestId)
           }
           inFlightAbort?.abort()
+          stopRunningAgentTasks(getAppState().tasks, setAppState)
           abortSuggestion()
           lastEmittedSuggestion = null
           respondSuccess(requestId)

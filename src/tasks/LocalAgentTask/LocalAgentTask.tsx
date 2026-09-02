@@ -28,6 +28,7 @@ import {
 } from '../../utils/task/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
+import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
 
 
 const DEFAULT_AGENT_TYPE = 'general-purpose'
@@ -380,6 +381,25 @@ export function killAllRunningAgentTasks(
     if (task.status !== 'running') continue
     killAsyncAgent(task.id, setAppState)
   }
+}
+
+export function stopRunningAgentTasks(
+  tasks: Record<string, unknown>,
+  setAppState: SetAppState,
+): LocalAgentTaskState[] {
+  const running = Object.values(tasks ?? {}).filter(
+    (task): task is LocalAgentTaskState => isLocalAgentTask(task) && task.status === 'running',
+  )
+  if (running.length === 0) return running
+  killAllRunningAgentTasks(tasks, setAppState)
+  for (const task of running) {
+    markAgentsNotified(task.id, setAppState)
+    emitTaskTerminatedSdk(task.id, 'stopped', {
+      ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
+      summary: task.description,
+    })
+  }
+  return running
 }
 
 export function markAgentsNotified(taskId: string, setAppState: SetAppState): void {
