@@ -105,9 +105,28 @@ export function takeWornPresetKit(): { name: string; kit: SessionKitV1 } | null 
 
 /** The birth's model precedence (pure): the record's model — the menu's
  *  explicit choice — outranks a door's own inheritance (/clear passes the
- *  cleared chat's model), which outranks the screen's main model. */
-export function birthModelOf(record: Pick<BootBirthFacts, 'model'>, doorModel: string | null | undefined, screenModel: string): string {
+ *  cleared chat's model), which outranks the screen's main model — or the
+ *  NOTHING the screen offers on a keyless home (screenBirthModel): the
+ *  birth then carries no model at all. */
+export function birthModelOf(record: Pick<BootBirthFacts, 'model'>, doorModel: string | null | undefined, screenModel: string | undefined): string | undefined {
   return record.model ?? doorModel ?? screenModel
+}
+
+/** THE SCREEN'S BIRTH MODEL — the neutral owner's word (the neutral-default
+ *  ruling): the screen's main model while a sign-in exists, NOTHING on a
+ *  keyless home. A keyless birth carries no model — the door passes
+ *  nothing, the daemon admits a modelless session, the cockpit paints with
+ *  the composer's own not-logged-in gate naming the logins door, and the
+ *  FIRST SEND (never the birth) is what a credential gates. The keyless
+ *  placeholder the main loop shows under the 'no sign-in yet' chip is a
+ *  Claude id; handing it to the daemon was a refusal naming a family
+ *  nobody chose. Deferred requires keep this record import-light for the
+ *  doors and the face that read it. */
+export function screenBirthModel(): string | undefined {
+  const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+  if (computedDefault().source === 'keyless') return undefined
+  const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+  return getMainLoopModel()
 }
 
 /** THE KIT'S CARRY (pure): the admit frame's kit fragment — the record's

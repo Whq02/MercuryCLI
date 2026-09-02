@@ -14,12 +14,15 @@ export type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'c
 
 /** Focus regions in visual tab order — PANELS (L17 item 4): coordinator ·
  *  list · live (the mirror + its composer are ONE panel) · needs-you.
- *  IP-6 printables type through — into the COORDINATOR's composer while
- *  its panel holds focus, into the LIVE composer from everywhere else
- *  (the row-side box; its target is the selected row). Single-letter
- *  hotkeys fire only while their region holds focus. 'chat' is the split
- *  view's chat pane — the LAST stop of the extended Tab ring, present
- *  exactly while the split frame composes (the split-view sheet, item 4). */
+ *  TYPING NEEDS THE COMPOSER'S OWN FOCUS: printables reach the
+ *  COORDINATOR's composer while its panel holds focus and the LIVE
+ *  composer (the row-side box; its target is the selected row) while ITS
+ *  panel holds focus — never from the rows, the rail or the split pane,
+ *  whose single letters are verbs (no key belongs to two focus states).
+ *  Single-letter hotkeys fire only while their region holds focus. 'chat'
+ *  is the split view's chat pane — the LAST stop of the extended Tab ring,
+ *  present exactly while the split frame composes (the split-view sheet,
+ *  item 4). */
 export type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
 
 export interface ConcourseControlSpec {
@@ -62,9 +65,11 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'board:open', action: 'concourse:enter-session', region: 'list', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
   // ARM-THEN-ENTER (L17 item 2): a SESSION row's first keyboard ↵ ARMS it
   // as the live composer's target (the row shows the arm — "↵ again
-  // enters · type to message"); the second ↵ or → enters; esc (or a
-  // selection move) disarms. Doors, the older line and held launches keep
-  // their one-press grammar; pointer clicks keep select-then-enter.
+  // enters · tab to message"); the second ↵ or → enters; esc (or a
+  // selection move) disarms. The arm never changes what the letters do:
+  // the rows keep their verbs, and tab (or a click) reaches the composer.
+  // Doors, the older line and held launches keep their one-press grammar;
+  // pointer clicks keep select-then-enter.
   { id: 'board:arm', action: 'concourse:arm-session', region: 'list', modes: ['browse'], keys: ['return'], pointer: 'none', receipt: 'selection' },
   // Item 5: ↵ on a QUEUED row paints the in-place queued line (no screen);
   // the deliver-on-start room is the EXPLICIT 'm' door on the queued row.
@@ -121,12 +126,11 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   // broadcast speaks to (≥2 marks: the placeholder counts them and ↵↵ fans
   // ONE message through the one steering door; the fan skips refusing rows
   // with their typed reason — item 3). ANY row marks; the send decides.
-  // SPACE IS A PRINTABLE: the verb fires only on an EMPTY live draft —
-  // while composing, space types into the draft (IP-6; a mid-sentence
-  // space must never toggle a mark). Marks are SCREEN state (never
-  // persisted, never a record fact); esc clears them all; a project switch
-  // clears them (item 5). Full stage only: the reduced stage keeps space
-  // dead and untaught.
+  // On the rows space is this verb and nothing else; in the live composer
+  // (its own focus) space is a printable, so a mid-sentence space can
+  // never toggle a mark. Marks are SCREEN state (never persisted, never a
+  // record fact); esc clears them all; a project switch clears them (item
+  // 5). Full stage only: the reduced stage keeps space dead and untaught.
   { id: 'board:mark', action: 'concourse:toggle-broadcast-mark', region: 'list', modes: ['browse'], keys: ['space'], pointer: 'none', receipt: 'selection' },
   // ── the live pane (the mirror + ITS composer — one panel) ─────────────────
   { id: 'mirror:title', action: 'concourse:enter-session', region: 'live', modes: ['browse'], keys: ['return'], pointer: 'activate', receipt: 'route-transition' },
@@ -137,8 +141,8 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   // ── SPLIT VIEW ────────────────────────────
   // `s` toggles the split frame — the board and the focused chat side by
   // side, one VIEW STATE of this stop (the strip's stops do not change). A
-  // board letter-verb by the landed x/m/e/i/p pattern (never intercepted in
-  // the composers — the type-through law holds); the SAME control fires from
+  // board letter-verb by the landed m/e/i/p pattern (a focused composer
+  // keeps s a letter); the SAME control fires from
   // the split chat pane (there it reads 'full board'). Full stage only: the
   // reduced stage / plain world has no board to split with — the key stays
   // dead and untaught there. A frame under the two-minimum threshold
@@ -146,7 +150,8 @@ export const CONCOURSE_CONTROLS: readonly ConcourseControlSpec[] = [
   { id: 'board:split-toggle', action: 'concourse:toggle-split-view', region: 'list', modes: ['browse'], keys: ['s'], pointer: 'none', receipt: 'mode-transition' },
   // `[` / `]` nudge the divider between the named ratios while split is on
   // (board-min · even · chat-min, clamped to both minimums); both panes
-  // fire them. Off-split they stay the composers' printables, untouched.
+  // fire them. Off-split the rows ignore them; a focused composer keeps
+  // them as printables.
   { id: 'board:split-ratio', action: 'concourse:nudge-split-ratio', region: 'list', modes: ['browse'], keys: ['[', ']'], pointer: 'none', receipt: 'mode-transition' },
   // The chat pane's ↵ — the FOCUSED session enters the full chat (the same
   // enter journey shift+→ rides); with no focused session it is the board's
@@ -216,11 +221,10 @@ export const CONCOURSE_REGION_KEYS = {
     { keys: 'm', label: 'message queued' },
     // THE BROADCAST MARK (item 1): the key-map row teaches space only where
     // it fires — the list on the full stage (stageFilter drops it with the
-    // other full-stage doors; 'none' selections keep it off below). SPACE
-    // IS A PRINTABLE (the steer): the verb fires only on an EMPTY live
-    // draft — while composing, space types into the draft — and this one
-    // row spells BOTH truths, so it never lies in either state.
-    { keys: 'space', label: 'marks · while composing, space types' },
+    // other full-stage doors; 'none' selections keep it off below). On the
+    // rows space is the mark and nothing else; the live composer's own
+    // focus keeps space a printable there, so this row never lies.
+    { keys: 'space', label: 'mark' },
     { keys: 's', label: 'split' },
   ],
   // The LIVE panel: the mirror and ITS composer are one focus stop — the
@@ -326,28 +330,27 @@ export function boardSelectionClassOf(
  *  baseline). */
 export function regionKeysFor(
   region: keyof typeof CONCOURSE_REGION_KEYS,
-  opts: { newSession: boolean; selection?: BoardSelectionClass; chatSession?: boolean; landing?: boolean; olderBrowse?: boolean; armed?: boolean },
+  opts: {
+    newSession: boolean
+    selection?: BoardSelectionClass
+    chatSession?: boolean
+    landing?: boolean
+    olderBrowse?: boolean
+    /** ARM-THEN-ENTER: the selected row is armed — the list's ↵ row reads
+     *  'enters (armed)' and → reads 'enter'; every letter verb stays (the
+     *  arm never changes what the letters do). */
+    armed?: boolean
+    /** THE DRAFT-AWARE ↵ (ruled): with words held in the live composer the
+     *  list's ↵ SENDS them wherever it lands — the row says 'send', never
+     *  'enter session'. */
+    liveDraftHeld?: boolean
+  },
 ): ReadonlyArray<{ keys: string; label: string }> {
   // ITEM 7 (L20): while the older drop-down stands, the row verbs yield to
   // the browse grammar — the one move is bringing a chat back (the base
   // legend's ↑↓/esc swap their labels at the paint site, one resolver).
   if (opts.olderBrowse === true) {
     return [{ keys: '↵', label: 'bring it back' }]
-  }
-  // THE LETTER-VERB YIELD (letterVerbYield.ts): with the selected row ARMED
-  // the list's single letters are words for the live composer — a legend
-  // printing i/p/m there would advertise keys that no longer fire. The
-  // armed moves: the second ↵ (or →) enters, typing messages, esc disarms
-  // (the base esc row is relabelled at the paint site). The close CHORD is
-  // no letter — it rides the app leader and fires armed or not (the ruled
-  // "composer present or not"), so its row survives the yield.
-  if (region === 'list' && opts.armed === true) {
-    return [
-      { keys: '↵', label: 'enters (armed)' },
-      { keys: '→', label: 'enter' },
-      { keys: 'type', label: 'to message' },
-      { keys: '⌃x ⌃x', label: 'close' },
-    ]
   }
   const stageFilter = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
     // The full-stage doors print together: the New Session tab, the rename
@@ -376,47 +379,69 @@ export function regionKeysFor(
       k.keys === '↵' && opts.chatSession === false ? { keys: '↵', label: 'new session' } : k,
     )
   }
-  if (region !== 'list' || opts.selection === undefined) {
+  if (region !== 'list') {
     return stageFilter(CONCOURSE_REGION_KEYS[region])
+  }
+  // THE LIST'S ↵ TRUTH rides the same resolver as its verbs (the legend,
+  // the atlas and the pins read one row): armed ⇒ the second press enters
+  // and → enters; a held live draft ⇒ ↵ sends (the draft-aware ↵ outranks
+  // the arm — a send is what the key does). The letters are untouched in
+  // every state: an armed row and a held draft change nothing about what
+  // n, m, e, i, p, r, s, space or / do on the rows.
+  const withEnterTruth = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
+    rows.map(k =>
+      k.keys === '↵↵' && opts.liveDraftHeld === true
+        ? { keys: '↵', label: 'send' }
+        : k.keys === '↵↵' && opts.armed === true
+          ? { keys: '↵', label: 'enters (armed)' }
+          : k.keys === '→' && opts.armed === true
+            ? { keys: '→', label: 'enter' }
+            : k,
+    )
+  if (opts.selection === undefined) {
+    return withEnterTruth(stageFilter(CONCOURSE_REGION_KEYS.list))
   }
   const base = CONCOURSE_REGION_KEYS.list
   const row = (keys: string): { keys: string; label: string } | undefined => base.find(k => k.keys === keys)
   const keep = (...names: string[]): Array<{ keys: string; label: string }> =>
     names.map(n => row(n)).filter((k): k is { keys: string; label: string } => k !== undefined)
-  switch (opts.selection) {
-    case 'live':
-    case 'paused':
-      // The row controls lead (shedToFit drops rightmost on ties — the
-      // selection's own moves survive a narrow legend longest).
-      return stageFilter([
-        ...keep('↵↵'),
-        { keys: 'i', label: 'interrupt' },
-        { keys: 'p', label: opts.selection === 'paused' ? 'resume' : 'pause' },
-        { keys: 'm', label: 'model' },
-        { keys: 'e', label: 'effort' },
-        ...keep('r', '→', '/', '⌃x ⌃x', 'n', 'space', 's'),
-      ])
-    case 'attached':
-      // With you — its own chat carries the controls; the board only
-      // browses, renames and removes. Space still marks: the fan types the
-      // skip at the send (item 3 — the toggle itself never refuses).
-      return stageFilter([...keep('↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'space', 's')])
-    case 'queued':
-      // A held reservation: m queues a message for its start, one x
-      // withdraws it outright (the screen's own withdraw arm).
-      return stageFilter([...keep('n', 'm', '/'), { keys: '⌃x ⌃x', label: 'withdraw' }, ...keep('space', 's')])
-    case 'parked':
-      // The ruled dim reason IS the row-controls cluster here — the
-      // legend's instruction ink is the dim; ↵ is the one move.
-      return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'clear' }, ...keep('space', 's')])
-    case 'stopped':
-      return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'remove' }, ...keep('space', 's')])
-    case 'door':
-      return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
-    case 'none':
-      // No row under the cursor — nothing to mark (space reaches nothing).
-      return stageFilter([...keep('n', '/', 's')])
+  const listRowsFor = (selection: BoardSelectionClass): ReadonlyArray<{ keys: string; label: string }> => {
+    switch (selection) {
+      case 'live':
+      case 'paused':
+        // The row controls lead (shedToFit drops rightmost on ties — the
+        // selection's own moves survive a narrow legend longest).
+        return stageFilter([
+          ...keep('↵↵'),
+          { keys: 'i', label: 'interrupt' },
+          { keys: 'p', label: selection === 'paused' ? 'resume' : 'pause' },
+          { keys: 'm', label: 'model' },
+          { keys: 'e', label: 'effort' },
+          ...keep('r', '→', '/', '⌃x ⌃x', 'n', 'space', 's'),
+        ])
+      case 'attached':
+        // With you — its own chat carries the controls; the board only
+        // browses, renames and removes. Space still marks: the fan types the
+        // skip at the send (item 3 — the toggle itself never refuses).
+        return stageFilter([...keep('↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'space', 's')])
+      case 'queued':
+        // A held reservation: m queues a message for its start, one x
+        // withdraws it outright (the screen's own withdraw arm).
+        return stageFilter([...keep('n', 'm', '/'), { keys: '⌃x ⌃x', label: 'withdraw' }, ...keep('space', 's')])
+      case 'parked':
+        // The ruled dim reason IS the row-controls cluster here — the
+        // legend's instruction ink is the dim; ↵ is the one move.
+        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'clear' }, ...keep('space', 's')])
+      case 'stopped':
+        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'remove' }, ...keep('space', 's')])
+      case 'door':
+        return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
+      case 'none':
+        // No row under the cursor — nothing to mark (space reaches nothing).
+        return stageFilter([...keep('n', '/', 's')])
+    }
   }
+  return withEnterTruth(listRowsFor(opts.selection))
 }
 
 /** The split toggle's label truth (one resolver — the legend, the atlas and
@@ -472,3 +497,22 @@ export const COORDINATOR_SURFACE_KEYS = [
   { keys: '⇧↵/⌃j', label: 'newline' },
   { keys: 'pgup/pgdn', label: 'scroll' },
 ] as const
+
+/** THE NEW SESSION TAB's label — the SESSIONS pane title's right-hand
+ *  affordance. The `n` half prints exactly where the key fires: the rows
+ *  hold focus and no filter is being typed. From a focused composer n is a
+ *  letter, and while the / filter captures it is a filter character, so the
+ *  tab shows its click-only face there (ONE state-truth resolver — the
+ *  layout paints it, the pins read it). */
+export function newSessionTabLabel(opts: { region: string; filtering: boolean }): string {
+  return opts.region === 'list' && !opts.filtering ? '+ new session · n' : '+ new session'
+}
+
+/** THE ATLAS KEY's truth — '?' opens the key atlas from the rows, the rail
+ *  and the split pane always, and from a composer only while its draft is
+ *  empty (with words held it is a question mark). ONE resolver: the screen's
+ *  handler decides with it, the layout prints the '? keys' row with it. */
+export function helpKeyFiresFor(region: string, focusedComposerEmpty: boolean): boolean {
+  if (region !== 'coordinator' && region !== 'live') return true
+  return focusedComposerEmpty
+}

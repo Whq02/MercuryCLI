@@ -274,6 +274,7 @@ export function darwinDebuggerAuthorisationHint(): string | null {
       encoding: 'utf8',
       stdio: 'pipe',
       timeout: 3_000,
+      windowsHide: true,
       env: subprocessEnv(),
     })
     const text = `${status.stdout ?? ''}${status.stderr ?? ''}`

@@ -113,16 +113,33 @@ t.section('leg 1 — TERM=dumb boots the requirement card, not the cockpit')
     'choices',
   )
   t.check('the card wears the setup frame (step rail present)', r.text.includes('terminal · 1/1'), 'stepTag')
+  // The first-contact law: a first-run gate whose DEFAULT keystroke ends the
+  // process teaches the wrong thing, so Continue leads the choice and Exit
+  // sits below it — the order leg 2's drive depends on.
+  const rows = r.text.split('\n')
+  const rowOf = (needle: string): number => rows.findIndex(row => row.includes(needle))
+  t.check(
+    'Continue leads the choice; Exit sits below it',
+    rowOf('Continue anyway') >= 0 && rowOf('Continue anyway') < rowOf('Exit — relaunch'),
+    `continue=${rowOf('Continue anyway')} exit=${rowOf('Exit — relaunch')}`,
+  )
 }
 
 t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 {
+  // Continue holds the default focus (leg 1's order pin), so choosing Exit is
+  // one step down onto its row, then ↵ — a bare ↵ on the settled card would
+  // continue into the cockpit instead.
   const r = capture('exit', 'dumb', {
-    sends: [{ atTick: 40, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\r' }],
+    sends: [
+      { atTick: 40, awaitText: 'Exit — relaunch', minTick: 5, awaitSettleTicks: 2, data: '\x1b[B' },
+      { afterPrevTicks: 2, data: '\r' },
+    ],
     stableTicks: 4,
     total: 90,
   })
   t.check('the exit guidance line paints', r.text.includes('missing required capabilities'), 'guidance')
+  t.check('…and no cockpit followed (the card never continued)', !r.text.includes('? for shortcuts'), 'cockpit')
 }
 
 t.section('leg 3 — CONTROL: a capable TERM boots straight to the composer')

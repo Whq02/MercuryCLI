@@ -409,6 +409,12 @@ async function ensureWarmRunnerFlight(
   if (!validated.ok) {
     return { state: 'refused', detail: `registry default unavailable (${validated.reason}) — the next dispatch spawns cold` }
   }
+  // A KEYLESS home warms nothing: a warm runner boots on a pinned model and
+  // a keyless birth must boot on none — the next birth spawns cold,
+  // modelless, and follows the sign-in that lands later.
+  if (validated.keyless === true) {
+    return { state: 'refused', detail: 'keyless home — nothing to warm; the next birth spawns cold on no model' }
+  }
   // Recheck across the await: the flight map keeps ensures out of each
   // other's way, but the pool has other writers (a claim deletes, proofs
   // reset) — a live same-kit entry that appeared while validation ran is

@@ -147,7 +147,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   )
   check(
     'B4 i fires only in the list region with the door wired; p toggles by the paused state; m keeps its queued meaning first',
-    screen.includes("if (input === 'i' && !key.ctrl && !key.meta && !verbsYield && callbacks.interruptSession !== undefined && pastGate())") &&
+    screen.includes("if (input === 'i' && !key.ctrl && !key.meta && callbacks.interruptSession !== undefined && pastGate())") &&
       screen.includes("if (target.row.state === 'paused') callbacks.resumeSession(target.row.sessionId)") &&
       screen.indexOf("sel?.sessionId.startsWith('dispatch:') === true") !== -1 && screen.indexOf("sel?.sessionId.startsWith('dispatch:') === true") < screen.indexOf("setRowPick({ kind: 'model', sessionId: target.row.sessionId"),
   )
@@ -168,7 +168,7 @@ console.log('B — row controls i/p/m: manifest, selection-aware legend, receipt
   )
   check(
     'B4 e fires only in the list region with the door wired, through the same live-row guard as i/p/m',
-    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && !verbsYield && callbacks.setSessionEffort !== undefined && pastGate())"),
+    screen.includes("if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate())"),
   )
   const manifest2 = manifest.regionKeysFor('list', { newSession: true, selection: 'live' })
   check('B2 a LIVE selection prints e effort beside m model (the WARMRUN rider’s key-map row)', manifest2.some(k => k.keys === 'e' && k.label === 'effort'))
@@ -379,12 +379,17 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   check(
     'E6 one Select listens at a time — the git offer’s two mounts yield while the seat card stands, and the key stream has ONE declared owner (seat-ask outranks git-offer in boardModalOwner)',
     screen.includes("gitOffer !== undefined && seatAsk === null && !contractAsk && geo.profile === 'wide'") &&
-      screen.includes("gitOffer !== undefined && seatAsk === null && !contractAsk && geo.profile !== 'wide'") &&
+      // The narrow (stacked) mount asks the ONE owner table whether the git
+      // offer holds the keys — the seat ask, the pickers and the asks that
+      // outrank it all answer through boardModalOwner, never a second guard.
+      /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*geo\.profile !== 'wide' &&/.test(screen) &&
+      screen.includes('gitOfferOwnsTheKeys({') &&
+      screen.includes('seatAsk: seatAsk !== null,') &&
       screen.includes('seatAsk: seatAskRef.current !== null,') &&
       screen.includes('const modalOwner = boardModalOwner({') &&
       (() => {
         const owner = read('src/components/concourse/boardModalOwner.ts')
-        return owner.includes("if (facts.seatAsk) return 'seat-ask'") && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") !== -1 && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") < owner.indexOf("if (facts.gitOffer) return 'git-offer'")
+        return owner.includes("return boardModalOwner(facts) === 'git-offer'") && owner.includes("if (facts.seatAsk) return 'seat-ask'") && owner.indexOf("if (facts.seatAsk) return 'seat-ask'") < owner.indexOf("if (facts.gitOffer) return 'git-offer'")
       })(),
   )
   const strips = await import('../../src/components/concourse/ConcourseStrips.tsx')
@@ -415,6 +420,19 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
     'E7 the rail wears the over mark in warning ink on the ONE seats cell (and the budget line carries the same spelling)',
     stripsSrc.includes('seatsCell.over ? t.warning : t.textSecondary') &&
       stripsSrc.includes('${seatsCell.text} seats'),
+  )
+  // THE META-ROW SLOT LAW: one slot, three claimants — the broadcast arm
+  // (contextLine) on top, a card's self-expiring receipt (composerNote)
+  // next, the derived composer hint (note) last. The hint stands on every
+  // door row, so a receipt beneath it was never seen.
+  check(
+    'E8 the strip paints context > receipt > hint (a self-expiring receipt outranks the standing door hint)',
+    (() => {
+      const ctx = stripsSrc.indexOf('contextLine !== null && contextLine !== undefined ? (')
+      const receipt = stripsSrc.indexOf(') : composerNote !== undefined ? (')
+      const hint = stripsSrc.indexOf(') : note !== null ? (')
+      return ctx !== -1 && receipt > ctx && hint > receipt
+    })(),
   )
 }
 
