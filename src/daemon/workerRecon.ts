@@ -1,6 +1,6 @@
 // ============================================================================
 //  workerRecon — the read-only recon allowlist every daemon-spawned worker
-//  rides (the crew teammates, the scribe Implementer, the one-shot runs).
+//  rides (the crew teammates, the one-shot runs).
 //
 //  Classifier-fault immunity for the read-only core: the auto-mode classifier
 //  is an API dependency — a classifier fault (the empty-prompt 400, a real
@@ -45,7 +45,7 @@ export function isValidReconAllowRule(rule: string): boolean {
 }
 
 /**
- * Resolve the daemon-worker recon allowlist. MERCURY_PARTY_RECON_ALLOW (the
+ * Resolve the daemon-worker recon allowlist. MERCURY_WORKER_RECON_ALLOW (the
  * env keeps its registered spelling — operator-facing):
  *   unset        ⇒ the builtin read-only set above
  *   '0'          ⇒ empty (kill the allowlist; every bash rides the classifier)
@@ -55,7 +55,7 @@ export function isValidReconAllowRule(rule: string): boolean {
  * One recon concept for every daemon-spawned worker, not a per-team env.
  */
 export function resolveWorkerReconAllow(): readonly string[] {
-  const raw = (flagEnv('MERCURY_PARTY_RECON_ALLOW') ?? '').trim()
+  const raw = (flagEnv('MERCURY_WORKER_RECON_ALLOW') ?? '').trim()
   if (!raw) return SEAT_RECON_ALLOW
   if (raw === '0') return []
   const extras: string[] = []
@@ -64,7 +64,7 @@ export function resolveWorkerReconAllow(): readonly string[] {
       extras.push(part)
     } else {
       logForDebugging(
-        `[daemon] MERCURY_PARTY_RECON_ALLOW entry ${JSON.stringify(part)} is not a Tool(specifier) rule — dropped (bare tool names and wildcard specifiers are refused)`,
+        `[daemon] MERCURY_WORKER_RECON_ALLOW entry ${JSON.stringify(part)} is not a Tool(specifier) rule — dropped (bare tool names and wildcard specifiers are refused)`,
       )
     }
   }

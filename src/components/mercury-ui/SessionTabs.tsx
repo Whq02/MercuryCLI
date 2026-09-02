@@ -152,9 +152,9 @@ export function SessionTabs({
         const resumable = filterResumableSessions(all, sessionId)
           .filter(isSubstantiveSession)
           .filter(l => !boardHomed.has(getSessionIdFromLog(l) ?? ''))
-          // Router-crew transcripts (party seats / scribe Implementer) are not
-          // the operator's sessions — they were flooding the strip ring + the
-          // +N count after every party run (task #73/#75). /sessions shows
+          // Crew transcripts (daemon-hosted seats) are not the operator's
+          // sessions — they were flooding the strip ring + the +N count after
+          // every crew run (task #73/#75). /sessions shows
           // them in their own section; the strip is operator work only.
           .filter(l => !isCrewSession(l))
           // PROJECT SCOPE: the berth ring tabs

@@ -148,7 +148,7 @@ export function deriveSelectionBand(
     return `#${m(a[0], g[0])}${m(a[1], g[1])}${m(a[2], g[2])}`
   }
   // Walk toward the ground until the floors hold. Near-ink-luminance accents
-  // (the scribe-glow clam/jellyfish tones — verify-wave refutation) only
+  // (the clam/jellyfish tones — verify-wave refutation) only
   // satisfy the muted floor deep in the walk, so the range runs to 0.95; and
   // because contrast is monotone toward the ground base, the deepest
   // candidate is the BEST available when no step passes — the fallback is

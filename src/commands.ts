@@ -29,10 +29,7 @@ import { context, contextNonInteractive } from './commands/context/index.js'
 import { mission, missionNonInteractive } from './commands/mission/index.js'
 import autoCompactWindow from './commands/auto-compact-window/index.js'
 import cost from './commands/cost/index.js'
-import chat from './commands/chat/index.js'
 import crew from './commands/crew/index.js'
-import all from './commands/all/index.js'
-import batch from './commands/batch/index.js'
 import debrief from './commands/debrief/index.js'
 import halt from './commands/halt/index.js'
 import companion from './commands/companion/index.js'
@@ -109,7 +106,6 @@ import fullscreen from './commands/fullscreen/index.js'
 import capabilities from './commands/capabilities/index.js'
 import harness from './commands/harness/index.js'
 import cards from './commands/cards/index.js'
-import scribePromote from './commands/scribe-promote/index.js'
 import tabula, { minervaCommand, noteCommand } from './commands/tabula/index.js'
 import workbench from './commands/workbench/index.js'
 import router from './commands/router/index.js'
@@ -244,10 +240,7 @@ const COMMANDS = memoize((): Command[] => [
   missionNonInteractive,
   autoCompactWindow,
   cost,
-  chat,
   crew,
-  all,
-  batch,
   debrief,
   halt,
   companion,
@@ -327,7 +320,6 @@ const COMMANDS = memoize((): Command[] => [
   harness,
   cards,
   caching,
-  scribePromote,
   tabula,
   noteCommand,
   minervaCommand,

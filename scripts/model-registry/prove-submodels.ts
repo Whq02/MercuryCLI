@@ -87,7 +87,7 @@ const options = () => [
   { value: 'fable', label: 'Fable 5', description: '' },
   { value: 'claude-fable-5', label: 'Fable 5', description: '' },
   { value: 'opus', label: 'Opus 4.8', description: '' },
-  { value: '__scribe_router__', label: 'Scribe', description: 'mode sentinel' },
+  { value: '__mercury_test_sentinel__', label: 'Sentinel', description: 'mode sentinel' },
   { value: '__mercury_connect__:moonshot', label: 'Moonshot — attach a key', description: 'action row' },
   { value: 'gpt-5.2', label: 'GPT-5.2 Sol', description: '' },
   { value: 'kimi-k3', label: 'Kimi K3', description: '', unavailable: 'no API key attached' },

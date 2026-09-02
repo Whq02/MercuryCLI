@@ -256,15 +256,15 @@ export interface StoreConfig<T, A extends unknown[]> {
    * Steady-state poll FLOOR that runs ALONGSIDE a healthy watcher (opt-in;
    * absent ⇒ watcher-only, the prior behavior). A cross-process atomic-rename
    * write can silently miss the platform watch engine (measured live
-   * a party executor's escalate sat 39s in the Router's inbox —
+   * a worker's escalate sat 39s in the coordinator's inbox —
    * three sibling writes that morning delivered in ~30ms — until the next
    * socket-side write flushed it; nothing errors, so the error→poll fallback
    * never engages). Content-dedup makes each tick a no-op unless bytes really
    * changed, so the floor turns "stranded until the next unrelated write"
    * into "delivered within one floor interval" for the price of one small
    * read per interval. Set it on stores whose subscribers are load-bearing
-   * consumers of OTHER PROCESSES' writes (the teammate mailbox bus, the party
-   * board state); leave it off for stores only their writer reads.
+   * consumers of OTHER PROCESSES' writes (the teammate mailbox bus); leave it
+   * off for stores only their writer reads.
    */
   pollFloorMs?: number
   /**
@@ -672,7 +672,7 @@ export function defineStore<T, A extends unknown[] = []>(
         // chokidar v4+ CANNOT watch a not-yet-existent path (v3's glob engine
         // could): it attaches to nothing and never fires, so a subscription
         // armed before the store's first write would go permanently deaf to
-        // cross-process changes — the /party board froze on exactly this (the
+        // cross-process changes — a board froze on exactly this (the
         // reader subscribed at mount; the daemon created the file ~1s later).
         // Poll at the documented-fallback cadence until the file first exists,
         // then re-enter to attach the real watcher.

@@ -3,7 +3,7 @@
 // ----------------------------------------------------------------------------
 //  One gesture (the /halt command) tears down everything that could be running:
 //   1. every IN-PROCESS running agent task (subagents/fleet) — via stopTask;
-//   2. the scheduler DAEMON and every worker it hosts (the Implementer + any
+//   2. the scheduler DAEMON and every worker it hosts (any
 //      rostered long-lived / fleet workers) — via the daemon `shutdown` control
 //      RPC with reapWorkers:true (the same hardened teardown SIGINT/SIGTERM run).
 //  The daemon is the lingering concern (in-process agents die with the foreground

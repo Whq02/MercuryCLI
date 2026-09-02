@@ -39,7 +39,7 @@ export function SpecimenGallery({
   items: GalleryItem[]
   onClose: () => void
 }): React.ReactNode {
-  const { accent } = useSessionAccent() // live identity accent (TERRA / critter / scribe-glow)
+  const { accent } = useSessionAccent() // live identity accent (TERRA / critter)
   const [sel, setSel] = useState(0)
   const [open, setOpen] = useState<number | null>(null)
   // 150ms buffer so the keystroke that launched the gallery doesn't

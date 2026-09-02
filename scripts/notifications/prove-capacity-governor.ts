@@ -18,8 +18,8 @@
 //  §5  hysteresis: lowering ceilings revokes nothing (drains at release);
 //      raising admits waiters immediately.
 //  §6  the composition (profile+machine+role terms): the role
-//      partition (two-seat worker · single-seat children · visible machine
-//      allowance), the delegation BAND mapping (1→1, 2→2, 3→machine — the
+//      partition (two-seat worker · visible machine allowance), the
+//      delegation BAND mapping (1→1, 2→2, 3→machine — the
 //      profile fact is delegation width, never a duplicate in-process
 //      clamp), and the machine formula shared with the workflow limiter.
 //  §7  the delegation-class clamp: 'background-session' admission honors
@@ -131,8 +131,6 @@ t.section('§6 — the §5.6 composition: roles, the delegation band, the machin
   t.check('machine allowance = min(16, max(2, cpu−2)) — the shared formula', compose.machineLaneAllowance(10) === 8 && compose.machineLaneAllowance(2) === 2 && compose.machineLaneAllowance(64) === 16, `${compose.machineLaneAllowance(10)}/${compose.machineLaneAllowance(2)}/${compose.machineLaneAllowance(64)}`)
   const worker = compose.composeGovernorCeilings({ cpuCount: 10, role: 'concourse-worker', delegationBand: 3, operatorLanes: null })
   t.check('a concourse worker composes the TWO-SEAT law (2 lanes, 1 delegated)', worker.modelLanes === 2 && worker.delegationLanes === 1, JSON.stringify(worker))
-  const seat = compose.composeGovernorCeilings({ cpuCount: 10, role: 'single-seat', delegationBand: null, operatorLanes: null })
-  t.check('a party seat / Implementer composes ONE lane (a seat is one seat)', seat.modelLanes === 1 && seat.delegationLanes === 1, JSON.stringify(seat))
   const visible = compose.composeGovernorCeilings({ cpuCount: 10, role: 'visible', delegationBand: null, operatorLanes: null })
   t.check('the visible process composes the machine allowance (unarmed profile ⇒ full width)', visible.modelLanes === 8 && visible.delegationLanes === 8, JSON.stringify(visible))
   const solo = compose.composeGovernorCeilings({ cpuCount: 10, role: 'visible', delegationBand: 1, operatorLanes: null })
@@ -143,7 +141,7 @@ t.section('§6 — the §5.6 composition: roles, the delegation band, the machin
   t.check('band 3 defers to the machine term (never a NEW clamp)', band3.delegationLanes === 8, JSON.stringify(band3))
 
   t.check("role detection: the worker role env composes 'concourse-worker'", compose.composedRoleFromEnv({ MERCURY_CONCOURSE_WORKER: '1' }) === 'concourse-worker', 'worker')
-  t.check("role detection: the implementer stamp composes 'single-seat'; a RETIRED seat stamp composes nothing", compose.composedRoleFromEnv({ MERCURY_IMPLEMENTER: '1' }) === 'single-seat' && compose.composedRoleFromEnv({ MERCURY_TANK: '1' }) === 'visible', 'seat')
+  t.check("role detection: a RETIRED seat stamp composes nothing", compose.composedRoleFromEnv({ MERCURY_TANK: '1' }) === 'visible', 'seat')
   t.check("role detection: a clean env composes 'visible'", compose.composedRoleFromEnv({}) === 'visible', 'visible')
   const pinned = compose.composeGovernorCeilings({ cpuCount: 10, role: 'visible', delegationBand: null, operatorLanes: 1 })
   t.check('the §5.6 OPERATOR term mins BOTH axes (MERCURY_MODEL_LANES=1 serializes)', pinned.modelLanes === 1 && pinned.delegationLanes === 1, JSON.stringify(pinned))

@@ -77,7 +77,6 @@ command-catalogue	44
 ownership	35
 memory	50
 primitives-kernel	30
-scribe	20
 eval	50
 editor-bridge	40
 render-engine	35
@@ -152,7 +151,6 @@ deepthink	2
 dev-context	2
 model-registry	2
 prompt	2
-seat-slots	2
 sessionStorage	2
 subagent-doctrine	2
 themis	2
@@ -191,6 +189,7 @@ search	2
 staleness	2
 unity-bridge	5
 aseprite	4
+origin	4
 browser	76
 rewind	30
 tool-economy	20

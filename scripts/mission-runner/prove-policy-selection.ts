@@ -9,7 +9,7 @@
 //    low-sample / wrong-epoch history IGNORED and NAMED; history adjusts
 //    only between adjacent solo profiles; contradiction ⇒ named fallback;
 //    epoch shifts when the catalogue/profile-set shifts; the mission store
-//    lane never leaks into the scribe/party priors.
+//    lane never leaks into the route-kernel priors.
 // ============================================================================
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -132,8 +132,8 @@ process.env.MERCURY_ROUTER_STATE_DIR = scratch
   const stats = await readMissionOutcomeStats({ taskShape: 'bounded', epoch: EPOCH, now })
   check('mission stats scope to the epoch', stats.perProfile.length === 1 && stats.perProfile[0].sampleCount === 1 && stats.perProfile[0].acceptedRate === 1)
   check('out-of-epoch rows are counted, not consumed', stats.outOfEpochRows === 1)
-  const scribePrior = await readOutcomeSnapshot({ mode: 'scribe', taskShape: 'bounded', ambiguity: 1, coupling: 1, now })
-  check('mission rows never leak into the scribe/party priors', scribePrior === undefined)
+  const kernelPrior = await readOutcomeSnapshot({ mode: 'sequential', taskShape: 'bounded', ambiguity: 1, coupling: 1, now })
+  check('mission rows never leak into the route-kernel priors', kernelPrior === undefined)
 }
 delete process.env.MERCURY_ROUTER_STATE_DIR
 rmSync(scratch, { recursive: true, force: true })

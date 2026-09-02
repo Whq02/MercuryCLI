@@ -6,7 +6,7 @@
 //
 //  THE DEFECT: LiveStreamingTail decided the provider placeholder from
 //  AppState's mainLoopModelForSession ?? mainLoopModel. Only LOCAL roads
-//  write those fields (the /model transition, the scribe reslot): a
+//  write those fields (the /model transition): a
 //  daemon-lane /model switch returns before any setAppState, so a session
 //  switched to a GPT model streamed its quiet stretch with NO line — while
 //  the settled rows, keyed on the row's own served model, suppressed the

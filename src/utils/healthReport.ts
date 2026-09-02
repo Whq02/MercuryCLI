@@ -52,7 +52,6 @@ import {
   MAX_ENTRYPOINT_LINES,
 } from '../memdir/memdir.js'
 import { getAutoMemPath } from '../memdir/paths.js'
-import { listScribeCandidates } from '../memdir/scribePromote.js'
 import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
 import { publishAtomic } from '../substrate/fileStore.js'
@@ -1989,24 +1988,6 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             return { status: 'ok', evidence, link: '/workflows' }
-          },
-        },
-        {
-          id: 'scribe',
-          label: 'Scribe scope',
-          run: async () => {
-            const busOn = flagEnv('MERCURY_SCRIBE_BUS_LIVE') !== '0'
-            const staged = await listScribeCandidates()
-            const evidence = `bus ${busOn ? 'on' : 'off'} · ${staged.length} staged candidate(s) awaiting ratify`
-            if (staged.length > 0) {
-              return {
-                status: 'info',
-                evidence,
-                fix: 'Ratify staged scribe notes into memory with /scribe-promote (p to ratify).',
-                link: '/scribe-promote',
-              }
-            }
-            return { status: 'ok', evidence }
           },
         },
       ],
@@ -4091,15 +4072,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { routerEnabled } = await import('./router/routerGates.js')
             if (!routerEnabled()) {
-              return { status: 'info' as const, evidence: 'MERCURY_ROUTER=0 — routing off (legacy MERCURY_SCRIBE_TASK_ROUTER path)' }
+              return { status: 'info' as const, evidence: 'MERCURY_ROUTER=0 — routing off' }
             }
             const { compileRoute } = await import('./router/routeCompiler.js')
             const { buildRouterModelSnapshot } = await import('./router/modelRegistry.js')
             const { decodeTaskRoutePlan, stableDigest, ROUTER_POLICY_VERSION } = await import('./router/contracts.js')
             const { resolveRouterPosture } = await import('./router/postures.js')
             const r = compileRoute({
-              mode: 'party',
-              intentSource: 'structured',
+              mode: 'fanout',
               mission: {
                 objective: 'health probe',
                 title: 'probe',

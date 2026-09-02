@@ -59,7 +59,7 @@ export function mercuryLspServersEnv(): string | undefined {
 
 /**
  * The IDE-evidence doctrine line for spawned agents (subagentDoctrine seam)
- * and the scribe/party packs. Phrased conditionally ("when the LSP tool is
+ * and the crew packs. Phrased conditionally ("when the LSP tool is
  * available") because the tool self-hides when no server exists for the
  * workspace — the line must stay honest in both worlds. Null when the bridge
  * is off ⇒ byte-identical doctrine.
@@ -71,10 +71,9 @@ export function getLspDoctrineLine(): string | null {
 
 /**
  * The pack-section variant of the IDE-evidence doctrine — spliced as an
- * `evidence` section into the Implementer pack (implementerMode.ts) and the
- * the retired party packs before them) AT CONSUMPTION, never into
- * the generated pack sources (a pack regeneration must not silently drop
- * the bridge doctrine). Null when the bridge is off ⇒ packs byte-identical.
+ * `evidence` section into a worker pack AT CONSUMPTION, never into the
+ * generated pack sources (a pack regeneration must not silently drop the
+ * bridge doctrine). Null when the bridge is off ⇒ packs byte-identical.
  */
 export function getLspPackEvidenceText(): string | null {
   if (!mercuryLspEnabled()) return null

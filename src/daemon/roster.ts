@@ -6,7 +6,7 @@
 //   • ONE-SHOT dispatched runs: isolated headless `-p` children
 //     (headlessRun.ts). Nothing hosts a PTY (runPtyHost.ts explains why), so
 //     a row tracks pid + lifecycle, never a terminal.
-//   • LONG-LIVED supervised seats (Scribe / Implementer / crew / session
+//   • LONG-LIVED supervised seats (crew teammates and session
 //     workers): stream-json children with bidirectional stdin that the
 //     roster relaunches under capped backoff, retargets without teardown,
 //     and watches for context exhaustion.
@@ -58,9 +58,12 @@ import {
   buildCarryForwardNote,
   carryForwardEnabled,
   lastSeenDispatchId,
-} from '../utils/scribe/carryForward.js'
-import { REGULATION_CONTEXT_CLEAR_PCT } from '../utils/scribe/scribeRegulation.js'
+} from './carryForward.js'
 import { writeToMailbox } from '../utils/teammateMailbox.js'
+
+/** Context usage (%) at/above which the auto-clear governor respawns an
+ *  idle long-lived worker with a fresh transcript. */
+export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
 import type { DispatchBody, DispatchSource, WireRosterEntry } from './protocol.js'
 
@@ -275,8 +278,8 @@ export class TaskRoster {
       if (h.entry.outcome) continue
       if (h.entry.state === 'retiring') continue
       const longLived = h.longLived !== undefined
-      // spec.role is the role ENV VAR name ('MERCURY_IMPLEMENTER') — the
-      // operator-facing word drops the prefix: 'implementer seat'.
+      // spec.role is the role ENV VAR name ('MERCURY_CREW') — the
+      // operator-facing word drops the prefix: 'crew seat'.
       const purpose = longLived
         ? `${h.longLived!.spec.role.replace(/^MERCURY_/, '').toLowerCase()} seat`
         : `${h.entry.source} run: ${h.entry.prompt.replace(/\s+/g, ' ').slice(0, 48)}`
@@ -510,11 +513,11 @@ export class TaskRoster {
   /**
    * Width of the delivery-clock idle window, in ms. Mailbox replies are
    * invisible to the daemon, so before any turn boundary exists, "idle" is
-   * an honest approximation over delivery activity. MERCURY_IMPLEMENTER_IDLE_MS
-   * tunes it; 15s otherwise.
+   * an honest approximation over delivery activity. MERCURY_WORKER_IDLE_MS
+   * tunes it (it applies to every long-lived seat); 15s otherwise.
    */
   private idleWindowMs(): number {
-    const n = Number(flagEnv('MERCURY_IMPLEMENTER_IDLE_MS'))
+    const n = Number(flagEnv('MERCURY_WORKER_IDLE_MS'))
     return Number.isFinite(n) && n > 0 ? n : 15_000
   }
 
@@ -530,7 +533,7 @@ export class TaskRoster {
       now: Date.now(),
       lastDeliveredAt: ll.lastDeliveredAt,
       idleMs: this.idleWindowMs(),
-      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_IMPLEMENTER_MAX_TURN_MS')),
+      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')),
     }).busy
   }
 
@@ -583,10 +586,10 @@ export class TaskRoster {
     // duplicating the note and the respawn.
     if (ll.clearInFlight) return false
     if (!this.seatIsIdle(ll)) return false
-    if ((ll.contextPct ?? 0) < REGULATION_CONTEXT_CLEAR_PCT) return false
+    if ((ll.contextPct ?? 0) < AUTO_CLEAR_CONTEXT_PCT) return false
     ll.clearInFlight = true
     logForDebugging(
-      `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${REGULATION_CONTEXT_CLEAR_PCT}% + idle — respawning (fresh transcript)`,
+      `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
     // Continuity handoff: one note goes into the worker's inbox BEFORE the
     // bounce. The fresh child drains it as its first input (the mailbox
@@ -598,7 +601,7 @@ export class TaskRoster {
     // The handoff follows the carry-forward flag (`=0` opts out). The note
     // goes to the seat's OWN team inbox — pinning a team name here would
     // misfile a seat's note into an inbox nothing drains.
-    const team = ll.spec.teamName ?? 'scribe'
+    const team = ll.spec.teamName ?? 'default'
     if (carryForwardEnabled()) {
       const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
       void writeToMailbox(
@@ -1078,7 +1081,7 @@ export class TaskRoster {
         void writeToMailbox(
           'team-lead',
           { from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() },
-          ll.spec.teamName ?? 'scribe',
+          ll.spec.teamName ?? 'default',
         ).catch(() => {})
       }
       // The session-end visibility law: a concourse worker's crash is a

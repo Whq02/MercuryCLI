@@ -5,8 +5,8 @@ import type { Command } from '../../commands.js'
 //
 // Closes the reader-less half of the evolution-ledger substrate:
 // rows were WRITTEN from three seams (the `ledger` workflow
-// global, /party dispatch outcomes, memdir card decisions) but only
-// /party→History could read them, scoped to one program. /ledger binds the
+// global, route dispatch outcomes, memdir card decisions) but only one
+// retired board could read them, scoped to one program. /ledger binds the
 // pure rollups (frontier · outcome mix · subject drift) across ALL programs
 // in both homes (repo .mercury/evolution + memdir).
 //

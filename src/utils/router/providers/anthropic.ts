@@ -4,7 +4,7 @@
 //  The only LIVE provider today. Model truth is derived from EXISTING helpers
 //  — nothing here hardcodes a fact a helper already owns:
 //    - SEAT_ALLOWED_FAMILIES / validateSeatModel (seatSlots.ts) — the ONE
-//      never-Haiku, allowed-family gate the router-party seats already use.
+//      never-Haiku, allowed-family gate every roster seat already uses.
 //    - getCanonicalName (model.ts) — folds an id to its seat-family canonical
 //      ('claude-opus-4-8[1m]' → 'claude-opus-4-6', per seatSlots.ts:56-60).
 //    - isHaikuTier (modelFloor.ts) — the mechanical never-Haiku check.
@@ -27,9 +27,8 @@
 //      labels; never a raw id, never a new hardcoded label table.
 //
 //  Class resolution uses LITERAL ids (not aliases) — the exact strings the
-//  router-party seat table already pins (PARTY_SEAT_DEFAULTS, seatSlots.ts
-//  :79-85) — then re-validates each through validateSeatModel against
-//  itself. That validate-against-self call is a FAIL-CLOSED guard, not a
+//  seat allowlist already pins (SEAT_ALLOWED_FAMILIES, seatSlots.ts) — then
+//  re-validates each through validateSeatModel against itself. That validate-against-self call is a FAIL-CLOSED guard, not a
 //  formality: if a future edit ever mis-pins a class default to a Haiku or
 //  off-family id, validateSeatModel returns a `note` (the substitution
 //  advisory) and resolveModel REFUSES the class (returns null) rather than

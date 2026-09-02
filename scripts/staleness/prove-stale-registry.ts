@@ -132,6 +132,7 @@ src/services/concourse/coordinatorIdentity.ts :: cached :: static-for-process
 src/services/concourse/coordinatorTools.ts :: knownDirsCache :: ttl-bounded
 src/services/contextLanes/lanes.ts :: laneScanMemo :: keyed-by-truth
 src/services/crew/projection.ts :: snapshot :: subscription-fed
+src/services/dap/dapClient.ts :: darwinDebuggerAuthMemo :: static-for-process
 src/services/dap/dapClient.ts :: gdbProbeCache :: ttl-bounded
 src/services/dap/dapClient.ts :: lldbDapMemo :: static-for-process
 src/services/dap/debugpyResolver.ts :: cache :: ttl-bounded
@@ -207,7 +208,7 @@ src/utils/aseprite/gates.ts :: contextCache :: ttl-bounded
 src/utils/aseprite/gates.ts :: locatedCache :: ttl-bounded
 src/utils/auth.ts :: getApiKeyFromConfigOrMacOSKeychain :: invalidator=removeApiKey
 src/utils/auth.ts :: getClaudeAIOAuthTokens :: invalidator=clearOAuthTokenCache
-src/utils/auth.ts :: scopedAccountIdentityCache :: ttl-bounded
+src/utils/auth.ts :: scopedAccountIdentityCache :: keyed-by-truth
 src/utils/auth.ts :: signedOutKeyMemoStamp :: invalidator=invalidateOnDiskChange
 src/utils/auth.ts :: signedOutOAuthMemoStamp :: invalidator=invalidateOnDiskChange
 src/utils/availableCores.ts :: memo :: static-for-process
@@ -263,7 +264,6 @@ src/utils/ide.ts :: hostResolutionCache :: keyed-by-truth
 src/utils/ide.ts :: jetBrainsFamilyTerminal :: static-for-process
 src/utils/ide.ts :: runningIDECache :: invalidator=resetRunningIDECache
 src/utils/ide.ts :: vsCodeFamilyTerminal :: static-for-process
-src/utils/implementerMode.ts :: implementerAppendCache :: keyed-by-truth
 src/utils/lockfile.ts :: cached :: static-for-process
 src/utils/markdownConfigLoader.ts :: loadMarkdownFilesForSubdir :: keyed-by-truth
 src/utils/mercuryTokens.ts :: rampCache :: keyed-by-truth
@@ -271,7 +271,6 @@ src/utils/mercuryTokens.ts :: tokenCache :: keyed-by-truth
 src/utils/model/capabilities.ts :: getAllModelBetas :: keyed-by-truth
 src/utils/model/capabilities.ts :: getModelBetas :: keyed-by-truth
 src/utils/model/computedDefault.ts :: memo :: ttl-bounded
-src/utils/model/seatSlotStore.ts :: cache :: keyed-by-truth
 src/utils/mtls.ts :: getMTLSAgent :: static-for-process
 src/utils/mtls.ts :: getMTLSConfig :: static-for-process
 src/utils/permissions/filesystem.ts :: bundledSkillsRootCache :: static-for-process
@@ -290,7 +289,6 @@ src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-pro
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
 src/utils/savedPrompts/minervaRefinedStore.ts :: cache :: subscription-fed
 src/utils/savedPrompts/savedPromptsStore.ts :: cache :: subscription-fed
-src/utils/scribeMode.ts :: scribeAppendCache :: keyed-by-truth
 src/utils/secureStorage/macOsKeychainHelpers.ts :: keychainCacheState :: invalidator=clearKeychainCache
 src/utils/secureStorage/macOsKeychainStorage.ts :: keychainLockedMemo :: static-for-process
 src/utils/sessionStorage/clearedSessions.ts :: memo :: ttl-bounded

@@ -9,7 +9,6 @@ import {
 } from '../../memdir/experienceCards.js'
 import { harvestCardEvidence } from '../../memdir/evidenceHarvest.js'
 import { getCwd } from '../../utils/cwd.js'
-import { stageScribeNote } from '../../memdir/scribePromote.js'
 import { deriveSlug } from '../../commands/remember/remember.js'
 import {
   REMEMBER_LESSON_DESCRIPTION,
@@ -28,12 +27,6 @@ const inputSchema = lazySchema(() =>
     sourceRefs: z.array(z.string()).optional().describe('commit SHAs / file paths (scanned for secrets too)'),
     appliesWhen: z.string().optional().describe('one-line "applies when …" regime cue'),
     notWhen: z.string().optional().describe('one-line "NOT when …" guard against over-recall'),
-    scope: z
-      .enum(['card', 'scribe'])
-      .optional()
-      .describe(
-        'where to bank it. "card" (default) = a recall-visible experience card (requires greenGatePassed). "scribe" = a COMPACT, recall-EXCLUDED note in the scribe scope — a working memo the operator later ratifies; use in Scribe mode to checkpoint session state WITHOUT poisoning recall (hard-capped + secret-refusing).',
-      ),
     greenGatePassed: z
       .boolean()
       .describe('did the originating work pass the project green-gate? only bank verified lessons'),
@@ -46,8 +39,6 @@ const outputSchema = lazySchema(() =>
     banked: z.boolean(),
     path: z.string().optional(),
     reason: z.string().optional(),
-    // 'scribe' ⇒ a staged scribe-scope note (recall-excluded) rather than a card.
-    scope: z.enum(['card', 'scribe']).optional(),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
@@ -80,21 +71,6 @@ export const RememberLessonTool = buildTool({
     return getAutoMemPath()
   },
   async call(input) {
-    // Scribe-scope route — wires the previously-severed stageScribeNote: a COMPACT,
-    // recall-EXCLUDED working note staged into the scribe scope, ratified LATER by
-    // promoteScribeCandidate (operator-invoked, never automatic — the `/scribe-promote`
-    // command lists candidates + ratifies the selected one; see commands/scribe-promote).
-    // Reuses the staging floor (hard cap + secret refusal + idempotent-by-name). Gated
-    // identically to the card path (isEnabled).
-    if (input.scope === 'scribe') {
-      const staged = await stageScribeNote(input.title || input.problemClass, input.lesson, {
-        description: input.summary,
-      })
-      if (staged.ok) return { data: { banked: true, path: staged.path, scope: 'scribe' } }
-      const why =
-        staged.reason === 'secret' ? 'looked secret-bearing — refused' : 'empty body — nothing to stage'
-      return { data: { banked: false, reason: why, scope: 'scribe' } }
-    }
     // The agent supplies STRUCTURED fields (vs /remember's free-text derivation). Card is born
     // a CANDIDATE (approved:false); shouldDistill (via {signal}) refuses secrets/trivia and
     // requires greenGatePassed; writeExperienceCard dedups + indexes MEMORY.md. createdAt is
@@ -147,9 +123,7 @@ export const RememberLessonTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(output, toolUseID) {
     const content = output.banked
-      ? output.scope === 'scribe'
-        ? `Staged a scribe-scope note → ${output.path}. It is EXCLUDED from recall (a compact working memo) until the operator ratifies it — do NOT rely on it as a trusted lesson yet.`
-        : `Banked a CANDIDATE lesson → ${output.path}. It surfaces in recall marked unverified until the operator promotes it — do NOT treat it as trusted yet.`
+      ? `Banked a CANDIDATE lesson → ${output.path}. It surfaces in recall marked unverified until the operator promotes it — do NOT treat it as trusted yet.`
       : `Not banked (${output.reason}). Nothing written — this is honest, not a failure to hide.`
     return { tool_use_id: toolUseID, type: 'tool_result', content }
   },

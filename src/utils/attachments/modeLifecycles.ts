@@ -462,7 +462,7 @@ export function getSupercodeKeywordAttachment(
   
   // skipSkillDiscovery marks `input` as expanded SKILL.md/meta content, NOT
   // user intent (processSlashCommand) — a skill body containing the bare word
-  // (scribe-amanuensis SKILL.md does) must never grant the cost opt-in.
+  // must never grant the cost opt-in.
   if (options?.skipSkillDiscovery) return []
   if (!input || !hasSupercodeKeyword(input)) return []
   if (toolUseContext.getAppState().supercode === true) return []

@@ -28,8 +28,10 @@ export type WorkflowTier = (typeof WORKFLOW_TIERS)[number]
 /** The routed execution-tier model: the neutral seat default's setting, or
  *  undefined with no usable sign-in (a pinned first-party id here was the
  *  favoured family — an account signed into another provider alone had
- *  every routed executor refuse). The seat owner is required at call time
- *  (the deferred-require idiom) so the router's module graph stays light. */
+ *  every routed executor refuse; the pinned id's last repin, opus-5 over
+ *  the drifted sonnet-5 remnant, retired with the pin). The seat owner is
+ *  required at call time (the deferred-require idiom) so the router's
+ *  module graph stays light. */
 export function workflowExecutorModel(): string | undefined {
   const { neutralSeatDefault } =
     require('../../services/concourse/workerModels.js') as typeof import('../../services/concourse/workerModels.js')

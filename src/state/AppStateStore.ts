@@ -244,12 +244,6 @@ type AppStateMutableHalf = {
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
   teamContext?: TeamContext
   standaloneAgentContext?: { name: string; color?: string }
-  /**
-   * Published on turn boundaries ONLY in scribe mode, so a props-less deck
-   * that reads state can derive its ledger. Absent or empty = behave
-   * exactly as without it.
-   */
-  scribeTranscript?: Message[]
 
   // MCP.
   mcp: {

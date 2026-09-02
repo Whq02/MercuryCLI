@@ -29,7 +29,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 // §1 structural: the rail's read — the CONNECTOR's model facts (re-trued):
 // AppState's mainLoopModelForSession is written only by LOCAL
-// roads (the /model transition, the scribe reslot); a daemon-hosted chat
+// roads (the /model transition); a daemon-hosted chat
 // entered by hop never feeds it, so the first cut still painted the
 // cockpit-local default's windows over a focused GPT session (the overnight
 // re-sighting). The rail now reads the focused connector's model facts —

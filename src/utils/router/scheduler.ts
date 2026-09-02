@@ -57,7 +57,7 @@ export function promotableNodes(plan: TaskRoutePlan): string[] {
 }
 
 export interface SchedulerWorker {
-  /** Worker short ('implementer', 'dps1'…). */
+  /** Worker short (the roster name). */
   short: string
   /** The model class the worker currently runs (absent = unknown). */
   modelClass?: string
@@ -143,7 +143,7 @@ export function generationMaySettle(node: RouteNode, generation: number | undefi
   return generation >= node.workerGeneration
 }
 
-/** Compact width explanation for the UI ("why is the party width 1?"). */
+/** Compact width explanation for the UI ("why is the width 1?"). */
 export function explainWidth(
   plan: TaskRoutePlan,
   maxWidth: number,

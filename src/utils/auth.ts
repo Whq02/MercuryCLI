@@ -1148,10 +1148,13 @@ export function isOverageProvisioningAllowed(): boolean {
   return billing !== undefined && billing !== null && OVERAGE_BILLING_TYPES.has(billing)
 }
 
-/** Per-directory cache of the switched-scope identity read. */
+/** Per-directory cache of the switched-scope identity read, keyed on the
+ *  snapshot file's own identity (mtime + size): a heal, a sign-out or a
+ *  re-login that rewrites `<dir>/.claude.json` is a new key, so a later
+ *  bracket can never be served the departed account. */
 const scopedAccountIdentityCache = new Map<
   string,
-  ReturnType<typeof getGlobalConfig>['oauthAccount'] | null
+  { mtimeMs: number; size: number; account: ReturnType<typeof getGlobalConfig>['oauthAccount'] | null }
 >()
 
 /**
@@ -1162,24 +1165,37 @@ const scopedAccountIdentityCache = new Map<
  * account UUID to count as a hit; tolerates missing/unparseable files.
  */
 function readScopedOauthAccount(dir: string) {
-  const cached = scopedAccountIdentityCache.get(dir)
-  if (cached !== undefined) return cached
-  let result: ReturnType<typeof getGlobalConfig>['oauthAccount'] | null = null
+  const file = join(dir, '.claude.json')
+  let stamp: { mtimeMs: number; size: number }
   try {
-    const parsed = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8'))
-    const account = parsed?.oauthAccount
+    const stat = statSync(file)
+    stamp = { mtimeMs: stat.mtimeMs, size: stat.size }
+  } catch {
+    // No snapshot file: nothing to serve and nothing to remember — a file
+    // that appears later is read on its first bracket.
+    scopedAccountIdentityCache.delete(dir)
+    return null
+  }
+  const cached = scopedAccountIdentityCache.get(dir)
+  if (cached !== undefined && cached.mtimeMs === stamp.mtimeMs && cached.size === stamp.size) {
+    return cached.account
+  }
+  let account: ReturnType<typeof getGlobalConfig>['oauthAccount'] | null = null
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'))
+    const candidate = parsed?.oauthAccount
     if (
-      account &&
-      typeof account.accountUuid === 'string' &&
-      account.accountUuid.trim() !== ''
+      candidate &&
+      typeof candidate.accountUuid === 'string' &&
+      candidate.accountUuid.trim() !== ''
     ) {
-      result = account
+      account = candidate
     }
   } catch {
-    result = null
+    account = null
   }
-  scopedAccountIdentityCache.set(dir, result)
-  return result
+  scopedAccountIdentityCache.set(dir, { ...stamp, account })
+  return account
 }
 
 export function getOauthAccountInfo() {

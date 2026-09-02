@@ -5,7 +5,7 @@
 //
 //  The gap: the daemon's seat verbs read the roster row's `busy` bit, which
 //  is the back-pressure DECISION — turnActive AND inside the twenty-minute
-//  turn cap (MERCURY_IMPLEMENTER_MAX_TURN_MS). The cap's release exists to
+//  turn cap (MERCURY_WORKER_MAX_TURN_MS). The cap's release exists to
 //  keep dispatch from starving on a wedged seat; it is not a statement that
 //  the turn ended. A /model past the cap applied immediately: the seat's
 //  model facts flipped while the in-flight turn kept running the old model,

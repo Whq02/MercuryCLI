@@ -117,7 +117,7 @@ check("external = 'sovereign' (persistence/SDK see the true posture)", toExterna
 section('§4 the ONE bypass-semantics predicate')
 check('sovereign ⇒ true', modeBypassesPermissions('sovereign' as never) === true)
 check('autopilot ⇒ true', modeBypassesPermissions('autopilot' as never) === true)
-for (const m of ['default', 'implement', 'strategy', 'flow', 'dontAsk', 'scribe']) {
+for (const m of ['default', 'implement', 'strategy', 'flow', 'dontAsk']) {
   check(`${m} ⇒ false`, modeBypassesPermissions(m as never) === false)
 }
 

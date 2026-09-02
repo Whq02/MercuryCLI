@@ -5,7 +5,6 @@
 // resolved on/off + the enable hint (env flag / 'always-on (fork)' / 'in a team').
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
-import { isImplementerSpawnEnabled } from '../../daemon/daemonFeatureGates.js'
 import { isCoordinationServerEnabled } from '../../services/mcp/coordinationServer.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
@@ -19,7 +18,7 @@ import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
 import { NEVER_HAIKU_FALLBACK, recentFloorEvents } from '../model/modelFloor.js'
 import { ctxForecastEnabled } from './ctxForecast.js'
-import { carryForwardEnabled } from '../scribe/carryForward.js'
+import { carryForwardEnabled } from '../../daemon/carryForward.js'
 import { evolutionLedgerEnabled } from '../evolution/evolutionLedger.js'
 import { type Snapshot } from './types.js'
 
@@ -127,11 +126,10 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
   }
 
   const cronOn = isSaturnSchedulingEnabled()
-  const implementerSpawnOn = isImplementerSpawnEnabled()
   const breakerFails = (flagEnv('MERCURY_DAEMON_BREAKER_FAILS') ?? '').trim() || '5'
   // Derive the daemon row from the SAME live probe /deck uses (daemonSnapshot),
   // not a hardcoded false — otherwise /substrate insists "off" while /deck shows it
-  // live (a cross-surface contradiction on the row that hosts the Implementer).
+  // live (a cross-surface contradiction on the daemon row).
   const daemon = daemonSnapshot()
   const daemonLive = daemon.state === 'live'
   const autonomy: SubstrateSection = {
@@ -143,7 +141,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       // (The old fire path's riders — the handoff summary, the artifacts
       // channel, the fire-outcome ledger — died with their engine; SATURN's
       // per-session receipts are the fire record.)
-      { name: 'Amanuensis Implementer-spawn', on: implementerSpawnOn, hint: implementerSpawnOn ? (daemonLive ? 'daemon · live (opt out =0)' : 'enabled · daemon off (opt out =0)') : 'MERCURY_AMANUENSIS=0 set' },
       // P7 — the respawn task-state handoff (GTFA AdaCoM). Graduated
       // default-ON; read the REAL gate, never a duplicated
       // polarity (this row silently inverted at the flip — the drift class the

@@ -183,7 +183,6 @@ section('source: engageCommitGate is WIRED into QueryEngine (not severed)')
   const qe = readFileSync(join(import.meta.dir, '..', '..', 'src', 'QueryEngine.ts'), 'utf-8')
   check('QueryEngine imports engageCommitGate', /import \{[^}]*engageCommitGate[^}]*\} from '.\/utils\/hooks\/commitGate.js'/.test(qe))
   check('engageCommitGate is CALLED in the engage block (unconditional)', qe.includes('engageCommitGate(setAppState, getSessionId())'))
-  check('it is gated off the foreground Scribe (executor style is the Implementer)', /if \(!isScribeModeOn\(\)\) \{\s*engageCommitGate/.test(qe))
 }
 
 section('dist: the wired standalone gate ships in dist/mercury.mjs')

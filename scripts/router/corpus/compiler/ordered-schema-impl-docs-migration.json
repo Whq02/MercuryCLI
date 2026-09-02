@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "ordered-schema-impl-docs-migration",
-  "mode": "party",
+  "mode": "fanout",
   "mission": {
     "objective": "Schema change, its implementation, then the docs/migration note",
     "title": "Add createdAt to the Session record",

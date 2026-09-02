@@ -80,8 +80,6 @@ accent.setSessionCritter('octopus')
 // ── (3) the fable bridge + resolver subscriptions (source pins) ────────────
 const ROOT = join(import.meta.dir, '..', '..')
 const accentSrc = readFileSync(join(ROOT, 'src/components/mercury-ui/sessionAccent.ts'), 'utf8')
-check('scribe toggles bridge into the accent listeners (glow repaint)', /subscribeScribeMode\(\(\) => \{\s*bumpAccentEpoch\(\)/.test(accentSrc))
-check('the hook snapshot covers the scribe-glow bit', /scribeGlowEnabled\(\) \? 'glow'/.test(accentSrc))
 const boxSrc = readFileSync(join(ROOT, 'src/components/design-system/ThemedBox.tsx'), 'utf8')
 const textSrc = readFileSync(join(ROOT, 'src/components/design-system/ThemedText.tsx'), 'utf8')
 // The themed wrappers subscribe through the ONE accent hook; the hook owns the store subscription.

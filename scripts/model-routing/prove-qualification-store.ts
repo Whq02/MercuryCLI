@@ -13,7 +13,7 @@
 //    3. LIVE-ONLY MINTING: the runtime records a receipt exactly at the
 //       settled-turn seam (source wiring — the latch and the mint share the
 //       settlement branch).
-//    4. Role digests are distinct per role (a scribe-router receipt can
+//    4. Role digests are distinct per role (a specialist receipt can
 //       never satisfy another role's check; a RETIRED role's stored receipt
 //       digests to the retired marker and expires mechanically).
 //
@@ -114,7 +114,7 @@ section('3 · live-only minting (source wiring)')
 section('4 · role digests are distinct')
 //
 {
-  const roles = ['primary', 'scribe-router', 'scribe-implementer', 'specialist', 'coordinator'] as const
+  const roles = ['primary', 'specialist', 'coordinator'] as const
   const digests = roles.map(r => roleCapabilityDigest(r))
   check('every role digest is unique', new Set(digests).size === roles.length)
   check('digests are stable across calls', roleCapabilityDigest('primary') === roleCapabilityDigest('primary'))

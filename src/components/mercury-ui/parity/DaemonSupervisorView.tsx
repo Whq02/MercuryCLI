@@ -29,10 +29,10 @@ import { deriveSupervisorRows } from '../../../utils/cockpit/daemonSupervisorRow
 //  footer read "do not fake live state until the backend exists"). The backend DOES
 //  exist: getMercuryDaemonStatus() (src/daemon/status.ts) is a complete, never-throws
 //  control-socket RPC client. So this now reads the operator's REAL supervisor and
-//  renders it — pid/uptime, the long-lived Implementer worker (model/effort/context
+//  renders it — pid/uptime, the long-lived workers (model/effort/context
 //  -fill/respawns/busy), the breaker, lease holders, the loud DEGRADED escalation,
 //  and the fire-outcome rollup. The "damn" for an away operator: type /daemon and
-//  SEE whether the Implementer is busy, how full its context is, how many times it
+//  SEE whether a seat is busy, how full its context is, how many times it
 //  respawned, and whether the breaker tripped — no guesswork.
 //
 //  Honest discipline (the live-read idiom, shared with /saturn): a SYNC pid probe paints
@@ -250,7 +250,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
       ) : v.empty ? (
         <Box marginTop={1} flexDirection="column">
           <EmptyState glyph="○" title="no daemon running" hint={v.empty} />
-          <Text color={FAINT}>  the supervisor + Implementer start headless; nothing is fabricated here</Text>
+          <Text color={FAINT}>  the supervisor starts headless; nothing is fabricated here</Text>
         </Box>
       ) : (
         <Box flexDirection="column">
@@ -288,7 +288,7 @@ export function DaemonSupervisorView({ onClose }: { onClose: () => void }): Reac
           {/* worker roster */}
           <SectionHeader count={v.workers.length}>Workers</SectionHeader>
           {visible.length === 0 ? (
-            <Text color={FAINT}>  no long-lived workers rostered (the Implementer spawns on first dispatch)</Text>
+            <Text color={FAINT}>  no long-lived workers rostered (a crew or session seat spawns on its engage)</Text>
           ) : (
             <>
             {winStart > 0 ? <Text color={FAINT}>{`  ↑ +${winStart} above`}</Text> : null}

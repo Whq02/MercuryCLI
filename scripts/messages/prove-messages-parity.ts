@@ -403,16 +403,13 @@ add('createSystemMessage', 'basic', () =>
 add('createPermissionRetryMessage', 'basic', () =>
   M.createPermissionRetryMessage(['npm test', 'git status']),
 );
-add('createPartyEventMessage', 'basic', () =>
-  M.createPartyEventMessage({ verb: 'chat', whoId: 'guest-abc123', who: 'user1', text: 'hello there' }),
-);
 // the applied-reslot receipt row (own subtype — info-level
 // informational rows are quiet below the verbose gate; receipts must be loud).
 add('createSeatReceiptMessage', 'basic', () =>
-  M.createSeatReceiptMessage('⇄ reslot applied — dps1 → claude-fable-5 @max', 'info'),
+  M.createSeatReceiptMessage('⇄ reslot applied — worker → claude-fable-5 @max', 'info'),
 );
 add('createSeatReceiptMessage', 'timeout-warning', () =>
-  M.createSeatReceiptMessage('▲ reslot pending — tank → claude-fable-5 not observed applied after 10m', 'warning'),
+  M.createSeatReceiptMessage('▲ reslot pending — worker → claude-fable-5 not observed applied after 10m', 'warning'),
 );
 // createBridgeStatusMessage RETIRED with its door:
 // the remote-control server is gone and systemMessages.ts records the

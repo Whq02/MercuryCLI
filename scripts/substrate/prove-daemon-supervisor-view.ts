@@ -47,10 +47,10 @@ function section(t: string): void {
 // respawns/busy; the rest is filled to keep the shape honest).
 function mkWorker(o: Partial<Record<string, unknown>>): never {
   return {
-    short: 'implementer',
+    short: 'scout',
     sessionId: 's1',
     prompt: 'p',
-    source: 'scribe',
+    source: 'crew',
     state: 'running',
     startedAt: 1718000000000,
     cliVersion: '1.0.0',
@@ -85,15 +85,15 @@ section('live supervisor + a busy + an idle worker ⇒ badge live, real rows')
 {
   const st = mkStatus({
     workers: [
-      mkWorker({ short: 'implementer', state: 'running', model: 'claude-opus-5', effort: 'max', contextPct: 42, respawns: 1, busy: true }),
-      mkWorker({ short: 'scribe', state: 'idle', model: 'claude-fable-5[1m]', effort: 'xhigh', contextPct: 7, respawns: 0, busy: false }),
+      mkWorker({ short: 'scout', state: 'running', model: 'claude-opus-5', effort: 'max', contextPct: 42, respawns: 1, busy: true }),
+      mkWorker({ short: 'runner', state: 'idle', model: 'claude-fable-5[1m]', effort: 'xhigh', contextPct: 7, respawns: 0, busy: false }),
     ],
   })
   const v = deriveSupervisorRows(st)
   check("badge === 'live'", v.badge === 'live', v.badge)
   check('supervisorLine carries pid/version/uptime', /pid 321 · v1\.0\.0 · up 142s/.test(v.supervisorLine ?? ''))
   check('2 worker rows', v.workers.length === 2, `${v.workers.length}`)
-  check('busy worker: model/effort/ctx/busy mapped', v.workers[0]!.short === 'implementer' && v.workers[0]!.model === 'claude-opus-5' && v.workers[0]!.effort === 'max' && v.workers[0]!.ctx === '42%' && v.workers[0]!.busy === true)
+  check('busy worker: model/effort/ctx/busy mapped', v.workers[0]!.short === 'scout' && v.workers[0]!.model === 'claude-opus-5' && v.workers[0]!.effort === 'max' && v.workers[0]!.ctx === '42%' && v.workers[0]!.busy === true)
   check('idle worker: busy=false, respawns 0, ctx 7%', v.workers[1]!.busy === false && v.workers[1]!.respawns === 0 && v.workers[1]!.ctx === '7%')
   check('breaker closed, leases surfaced', v.breaker === 'closed' && v.breakerOpen === false && v.leases === 2)
   check('NOT empty', v.empty === null)
@@ -136,8 +136,8 @@ section('elapsed-on-turn + stall (busy too long ⇒ the AMBER heads-up)')
 
 section('degraded ⇒ the loud escalation reason')
 {
-  const v = deriveSupervisorRows(mkStatus({ degraded: true, degradedReason: 'Implementer exhausted respawns' }))
-  check('degraded string present', v.degraded === 'Implementer exhausted respawns')
+  const v = deriveSupervisorRows(mkStatus({ degraded: true, degradedReason: 'scout exhausted respawns' }))
+  check('degraded string present', v.degraded === 'scout exhausted respawns')
   const vNoReason = deriveSupervisorRows(mkStatus({ degraded: true }))
   check('degraded falls back to a default reason', /exhausted its respawn budget/.test(vNoReason.degraded ?? ''))
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/run/**
-# gate-watch: src/utils/hooks/unfinishedTail* src/utils/cockpit/contextUsageLive*
+# gate-watch: src/utils/cockpit/contextUsageLive*
 # gate-watch: src/utils/cockpit/ctxForecast* src/utils/verification/verificationState*
 # ============================================================================
 #  scripts/run/run-all.sh — the autonomous-run kernel proof suite.

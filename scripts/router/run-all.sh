@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/daemon/scribeDispatchBridge*
-# gate-watch: src/substrate/routerRunStore* src/tools/SendMessageTool/routePlanOps*
-# gate-watch: src/utils/model/** src/utils/router/** src/utils/scribe/dispatchRouter*
-# gate-watch: src/utils/scribe/scribeBus* src/utils/teammateMailbox*
+# gate-watch: src/daemon/dispatchDrain*
+# gate-watch: src/substrate/routerRunStore* src/tools/SendMessageTool/SendMessageTool*
+# gate-watch: src/utils/model/** src/utils/router/**
+# gate-watch: src/utils/swarm/busEnvelopes* src/utils/teammateMailbox*
 # Mercury router fabric — proof harness. Runs every scripts/router/
 # prove-*.ts via bun run; non-zero exit on any failure. New proofs are picked
 # up by the glob; the pooled green gate (scripts/run-all-suites.sh) picks THIS

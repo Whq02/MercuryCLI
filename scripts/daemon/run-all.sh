@@ -44,6 +44,8 @@ __t=$SECONDS; "$bun" run "$here/prove-loop-cadence.ts" || fail=1; prover_mark "$
 __t=$SECONDS; "$bun" run "$here/prove-live-turn-chars.ts" || fail=1; prover_mark "$here/prove-live-turn-chars.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-liveness-stamp.ts" || fail=1; prover_mark "$here/prove-liveness-stamp.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-seat-line-adversarial.ts" || fail=1; prover_mark "$here/prove-seat-line-adversarial.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-worker-liveness-identity.ts" || fail=1; prover_mark "$here/prove-worker-liveness-identity.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-quit-reaps-the-tree.ts" || fail=1; prover_mark "$here/prove-quit-reaps-the-tree.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL DAEMON PROOFS PASS"; else echo "# ❌ SOME DAEMON PROOFS FAILED"; fi
 echo "############################################################"

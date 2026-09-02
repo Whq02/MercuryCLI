@@ -1,12 +1,12 @@
-// daemonRosterSnapshot — the foreground reader for dual-agent telemetry (W5).
+// daemonRosterSnapshot — the foreground reader for a long-lived worker's
+// telemetry.
 //
 // Unlike daemonSnapshot (a cheap SYNC supervisor-liveness probe used on the
 // per-render path), this issues the heavier `list` control RPC to read a specific
 // long-lived worker's wire entry (model / effort / contextPct / respawns / live).
-// It is ASYNC and is consumed OFF the render path — the deck reads it on its ~5s
-// tick and caches the result. Never throws: any transport failure (no daemon,
-// refused, timeout) degrades to {ok:false, implementer:null}, honest like the rest
-// of utils/cockpit.
+// It is ASYNC and is consumed OFF the render path. Never throws: any transport
+// failure (no daemon, refused, timeout) degrades to {ok:false, entry:null},
+// honest like the rest of utils/cockpit.
 import { getSessionId } from '../../bootstrap/state.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
@@ -22,13 +22,11 @@ export type RosterSnapshot = {
 }
 
 /**
- * Read a long-lived worker's telemetry from the daemon roster. Defaults to the
- * Amanuensis Implementer. The control client auto-stamps proto + the control key,
- * so we pass only the op. Returns honestly when there's no daemon.
+ * Read a long-lived worker's telemetry from the daemon roster. The control
+ * client auto-stamps proto + the control key, so we pass only the op.
+ * Returns honestly when there's no daemon.
  */
-export async function daemonRosterSnapshot(
-  short = 'implementer',
-): Promise<RosterSnapshot> {
+export async function daemonRosterSnapshot(short: string): Promise<RosterSnapshot> {
   try {
     const reply = await daemonControlRpc({ op: 'list' } as DaemonRequest)
     if (!reply.ok) {
@@ -45,8 +43,8 @@ export async function daemonRosterSnapshot(
 }
 
 // ──: the CREW-LIVENESS facet for the critter's awake
-//  predicate. Operator ruling: long-lived daemon workers (the scribe /
-//  implementer teammates and their party spawns) count as ACTIVE AGENTS.
+//  predicate. Operator ruling: long-lived daemon workers (crew teammates,
+//  session workers) count as ACTIVE AGENTS.
 //  The daemon runs out of process, so there is no in-process push edge for
 //  its roster — the honest read is the daemonSnapshot idiom: a SYNC accessor
 //  over a module TTL cache, with a stale read kicking ONE fire-and-forget
@@ -135,11 +133,10 @@ export type RosterListSnapshot = {
 }
 
 /**
- * Read the WHOLE roster (router-party P6): the wire already carries every
- * entry (protocol.ts `list` reply) — the single-entry daemonRosterSnapshot
- * above just .find()s one. Multi-seat consumers (the /party board's live
- * cross-check, the cockpit party section) read the list in ONE RPC instead of
- * five. Optional `shorts` filter. Never throws; degrades honestly.
+ * Read the WHOLE roster: the wire already carries every entry (protocol.ts
+ * `list` reply) — the single-entry daemonRosterSnapshot above just .find()s
+ * one. Multi-seat consumers read the list in ONE RPC instead of one per
+ * seat. Optional `shorts` filter. Never throws; degrades honestly.
  */
 export async function daemonRosterList(
   shorts?: readonly string[],

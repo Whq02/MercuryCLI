@@ -44,7 +44,7 @@ const plan = (nodes: RouteNode[]): TaskRoutePlan => ({
   version: 1,
   id: 'rp-cap',
   revision: 1,
-  mode: 'party',
+  mode: 'fanout',
   title: 'capsule test',
   objective: 'prove the capsule bounds',
   features: {
@@ -60,7 +60,7 @@ const plan = (nodes: RouteNode[]): TaskRoutePlan => ({
   },
   profile: 'dependency-graph',
   nodes,
-  synthesis: { required: true, owner: 'router', acceptance: [] },
+  synthesis: { required: true, owner: 'planner', acceptance: [] },
   decision: {
     policyVersion: 'router-1',
     source: 'structured-intent',

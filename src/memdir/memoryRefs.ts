@@ -185,7 +185,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
     }
   }
 
-  // ── cards + memory files (header scan; scribe/ and .superseded excluded —
+  // ── cards + memory files (header scan; .superseded excluded —
   //     the memoryScan exclusion contract) ───────────────────────────────
   const memDir = opts.memoryDir ?? getAutoMemPath()
   if (existsSync(memDir)) {

@@ -9,6 +9,7 @@ import { suppressNextSkillListing } from './attachments/skillListing.js'
 import { getCwd } from './cwd.js'
 import { copyFileHistoryForResume } from './fileHistory.js'
 import { logError } from './log.js'
+import { mintImmediateReceipt } from './model/seatReceipts.js'
 import {
   createAssistantMessage,
   createUserMessage,
@@ -97,8 +98,11 @@ function migrateLegacyAttachment(message: Message): Message {
  * been written by a build with a different vocabulary. A RETIRED spelling
  * (a session recorded before the mode-identity migration) decodes through
  * the bounded alias and is ADOPTED as its new id — zero-loss resume;
- * anything else outside this build's set is cleared.
+ * anything else outside this build's set (a mode this build no longer has)
+ * is cleared — the session resumes in its default mode — and the operator
+ * hears it ONCE per spelling as one screen-receipt row, never a crash.
  */
+const noticedPermissionModes = new Set<string>()
 function scrubPermissionMode(message: Message): Message {
   if (message.type !== 'user') return message
   const mode = (message as UserMessage).permissionMode
@@ -107,6 +111,13 @@ function scrubPermissionMode(message: Message): Message {
   const decoded = decodePermissionModeSpelling(mode)
   if (decoded !== mode && (PERMISSION_MODES as readonly string[]).includes(decoded)) {
     return { ...message, permissionMode: decoded } as Message
+  }
+  if (!noticedPermissionModes.has(mode)) {
+    noticedPermissionModes.add(mode)
+    mintImmediateReceipt(
+      `▲ the saved permission mode '${mode}' is not one this build knows — resuming in the default mode`,
+      'warning',
+    )
   }
   return { ...message, permissionMode: undefined } as Message
 }

@@ -65,7 +65,7 @@ Census version 1 — 71 built-in production tools · 170 operations · 71 with a
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
 | Rewind | mutation | task-coordination | — | block | no | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
-| SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://team | scripts/scribe/run-all.sh |
+| SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://team | scripts/crew/run-all.sh |
 | SendUserFile | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | SendUserMessage | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | Service | execution | service-management | 8 | block | no | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |

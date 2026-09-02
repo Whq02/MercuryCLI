@@ -122,7 +122,7 @@ export interface RunStopAdapterOptions {
   /** Hard per-turn continuation ceiling (the role's loop brake). */
   maxBlocks: number
   /** The role's wording hint for tails (false ⇒ evidence-only — the default
-   *  Mercury posture; fable/scribe/dungeon pass their detector's verdict). */
+   *  Mercury posture; fable passes its detector's verdict). */
   wordingUnfinished: boolean
   /** Owner override (tests); default = the process main owner. */
   owner?: OwnerKey

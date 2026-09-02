@@ -144,7 +144,6 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
       "'sovereign'",
       "'dontAsk'",
       "'flow'",
-      "'scribe'",
       "'autopilot'",
     ],
   },

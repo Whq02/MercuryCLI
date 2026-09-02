@@ -11,7 +11,7 @@
  *   2. dynamic boundary       — the global-cache-scope marker (when armed)
  *   3. dynamic sections       — the systemPromptSection registry, resolved
  *   4. contract sections      — the Mercury identity floor + doctrine
- *   5. mode sections          — runtime/role packs (scribe/implementer/party)
+ *   5. mode sections          — runtime/role packs (autopilot/apollo/vulcan)
  *   6. anti-sycophancy arm    — opt-in always-on arm
  *   7. reconcile tail         — the identity reconcile re-emitted iff 5/6 spliced
  *
@@ -53,7 +53,7 @@ export interface PromptParts {
   /** The Mercury contract block (identity floor · doctrine), each section
    *  carrying its stable semantic name. */
   wrapperSections: ReadonlyArray<NamedSection>
-  /** Behavioral mode packs (scribe/implementer/party/autopilot/vulcan),
+  /** Behavioral mode packs (autopilot/apollo/vulcan),
    *  each carrying its stable semantic name. */
   modeSections: ReadonlyArray<NamedSection>
   /** Opt-in anti-sycophancy arm. */

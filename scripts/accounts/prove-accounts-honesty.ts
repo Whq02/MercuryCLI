@@ -118,6 +118,7 @@ const {
   familySigninHeaderNote,
   familySigninSummary,
   mainLoopIdentity,
+  scopeSlotTail,
   slotSigninState,
 } = slots
 type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
@@ -191,6 +192,54 @@ section('§1 slotSigninState — one answer per slot')
   check('an in-flight probe is not a sign-in yet (checking)', !checking.signedIn && checking.basis === 'checking')
   const unstarted = slotSigninState(authed, {})
   check('a probe that has not started reads checking, never the scan’s existence bit', !unstarted.signedIn && unstarted.basis === 'checking', JSON.stringify(unstarted))
+  // PRESENCE OUTRANKS THE CACHE: a scope whose store holds no login is
+  // signed out whatever the identity read says — a verification cached
+  // before the removal, a probe in flight, a snapshot that outlived the
+  // login (the stale-row class: "verified live" under a family header
+  // that said no credential existed).
+  const outlived = scopeSlot(false)
+  const cachedVerified = slotSigninState(outlived, { [SCOPE_DIR]: { state: 'verified', email: 'stale@fixture.example' } })
+  check('no stored login + a cached VERIFIED read ⇒ signed out (the presence owner outranks the cache)', !cachedVerified.signedIn && cachedVerified.basis === 'signed-out', JSON.stringify(cachedVerified))
+  const pending = slotSigninState(outlived, {})
+  check("no stored login + no probe yet ⇒ signed out, never 'checking'", !pending.signedIn && pending.basis === 'signed-out')
+  // The row words over the derivation — ONE composer, snapshot-first,
+  // never dressed as verified.
+  const staleSnapshot: AccountSlot = {
+    ...outlived,
+    identity: 'stale@fixture.example',
+    scope: { ...outlived.scope!, email: 'stale@fixture.example', uuid: 'uuid-fixture' },
+  }
+  const staleState = slotSigninState(staleSnapshot, { [SCOPE_DIR]: { state: 'verified', email: 'stale@fixture.example' } })
+  check("a snapshot that outlived its login says so and names re-login and ⌫ — never 'verified live'",
+    staleState.basis === 'signed-out' &&
+      scopeSlotTail(staleState, { state: 'verified', email: 'stale@fixture.example' }, staleSnapshot) ===
+        'snapshot stale@fixture.example — signed out · ↵ opens Logins to re-login · ⌫ clears the snapshot',
+    scopeSlotTail(staleState, { state: 'verified', email: 'stale@fixture.example' }, staleSnapshot))
+  check("no login, no snapshot ⇒ the family's absent words (the one template)", scopeSlotTail(pending, undefined, outlived) === 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY', scopeSlotTail(pending, undefined, outlived))
+  // THE ONE ROW GRAMMAR: every absent family paints the same template —
+  // "<state> · ↵ names the route — <route>" — the route spelled once from
+  // the /logins command and the family's first env spelling.
+  const template = /^(not signed in|no server discovered) · ↵ names the route — .+$/
+  const expected: Record<string, string> = {
+    anthropic: 'not signed in · ↵ names the route — /logins anthropic or ANTHROPIC_API_KEY',
+    openai: 'not signed in · ↵ names the route — /logins openai or OPENAI_API_KEY',
+    zai: 'not signed in · ↵ names the route — /logins zai or ZAI_API_KEY',
+    openrouter: 'not signed in · ↵ names the route — /logins openrouter or OPENROUTER_API_KEY',
+    gemini: 'not signed in · ↵ names the route — /logins gemini or GEMINI_API_KEY',
+    moonshot: 'not signed in · ↵ names the route — /logins moonshot or MOONSHOT_API_KEY',
+    deepseek: 'not signed in · ↵ names the route — /logins deepseek or DEEPSEEK_API_KEY',
+    huggingface: 'not signed in · ↵ names the route — /logins huggingface or HF_TOKEN',
+    'openai-compat': 'not signed in · ↵ names the route — MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)',
+    local: 'no server discovered · ↵ names the route — Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL',
+  }
+  for (const [family, words] of Object.entries(expected)) {
+    check(`the absent row template holds for ${family}`, slots.familyAbsentWords(family) === words && template.test(words), slots.familyAbsentWords(family))
+  }
+  check('an unknown family is never silent — the generic /logins route in the same template', slots.familyAbsentWords('acme') === 'not signed in · ↵ names the route — /logins')
+  check("Anthropic's route words are the same composer's (no family keeps its own)", slots.familyRouteWords('anthropic') === '/logins anthropic or ANTHROPIC_API_KEY')
+  check('a probe in flight paints the snapshot LABELLED as one (snapshot-first), then verifies', scopeSlotTail(unstarted, undefined, authed) === 'snapshot stale@fixture.example · verifying identity…', scopeSlotTail(unstarted, undefined, authed))
+  check('a verified probe paints the LIVE email as verified', scopeSlotTail(verified, { state: 'verified', email: 'live@fixture.example' }, authed) === 'live@fixture.example · verified live · ↵ opens Logins to re-login · ⌫ signs out')
+  check('an expired probe labels the snapshot and never counts', scopeSlotTail(expired, { state: 'expired', snapshotEmail: 'stale@fixture.example' }, authed) === 'expired (snapshot stale@fixture.example) · not signed in · ↵ opens Logins to reauth')
   const excluded = slotSigninState(scopeSlot(true, true), { [SCOPE_DIR]: { state: 'verified', email: 'x@y' } })
   check("a foreign Claude-family scope is excluded even when its credential verifies", !excluded.signedIn && excluded.basis === 'excluded')
   const stored = slotSigninState(keySlot('zai', false), {})
@@ -260,7 +309,9 @@ section('§3 mainLoopIdentity — the route decides the family, the owner decide
   check('offline ⇒ unverified, the snapshot labelled, never dressed as verified', offline.basis === 'unverified' && offline.text.includes('unverified — offline') && offline.text.includes('snapshot stale@fixture.example') && !offline.text.includes('verified live'), offline.text)
 
   const checking = mainLoopIdentity({ model: 'claude-opus-5', presences: presences(), currentScopeIdentity: { state: 'checking' } })
-  check('in flight ⇒ verifying, never an identity claim', checking.basis === 'checking' && checking.text.endsWith('verifying identity…') && !checking.text.includes('fixture.example'), checking.text)
+  check('in flight ⇒ verifying; no identity claimed when the store recorded none', checking.basis === 'checking' && checking.text.endsWith('verifying identity…') && !checking.text.includes('fixture.example'), checking.text)
+  const checkingSnapshot = mainLoopIdentity({ model: 'claude-opus-5', presences: presences({ anthropic: { identity: 'snap@fixture.example' } }), currentScopeIdentity: { state: 'checking' } })
+  check('in flight with a stored identity ⇒ the snapshot paints first, LABELLED, then verifies (never dressed as verified)', checkingSnapshot.basis === 'checking' && checkingSnapshot.text === 'Claude subscription (max) · snapshot snap@fixture.example · verifying identity…', checkingSnapshot.text)
 
   const key = mainLoopIdentity({ model: 'claude-opus-5', presences: presences({ anthropic: { credentialLabel: 'Anthropic API key' } }), currentScopeIdentity: anthropicExpired })
   check('an Anthropic API key bills itself — presence-labelled, the scope probe not consulted', key.text === 'Anthropic API key · credential present' && key.basis === 'credential-present', key.text)
@@ -358,7 +409,7 @@ section('§6 the board wires the seam (structural)')
 {
   const board = readFileSync(join(import.meta.dir, '../../src/components/mercury-ui/parity/AccountView.tsx'), 'utf8')
   check('the header counts through familySigninSummary / familySigninHeaderNote', board.includes('familySigninSummary(group.slots, identities).signedIn') && board.includes('familySigninHeaderNote(group.family.id, group.slots, identities)'))
-  check('the scope row paints from slotSigninState', board.includes('const state = slotSigninState(slot, identities)') && board.includes('identityTail(state, id)'))
+  check("the scope row paints from slotSigninState through the seam's ONE row composer", board.includes('const state = slotSigninState(slot, identities)') && board.includes('scopeSlotTail(state, id, slot)') && !board.includes('function identityTail('))
   check('the main-loop row derives from mainLoopIdentity over the main model', board.includes('mainLoopIdentity({') && board.includes('model: mainLoopModel,'))
   check("no snapshot is dressed as the billing identity (the old '(snapshot)' fallback is gone)", !board.includes("`${acct.emailAddress} (snapshot)`"))
   check('the org fact is labelled a snapshot and rides only a verified Anthropic main loop', board.includes("mainLoop.basis === 'verified-live' && acct?.organizationName"))

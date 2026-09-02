@@ -28,7 +28,6 @@ import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import { enforceSubagentModelFloor } from './modelFloor.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { SCRIBE_ROUTER_OPTION_VALUE, isScribeRouterSentinel } from '../scribeMode.js'
 
 export type ModelShortName = string
 export type ModelName = string
@@ -261,11 +260,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
     }
   }
   if (setting === null) return null
-  // A router-sentinel is a picker ACTION, not a model — a stuck persisted
-  // sentinel self-heals to the default resolution.
-  const specifiedModel = setting
-  if (isScribeRouterSentinel(specifiedModel)) return null
-  return specifiedModel
+  return setting
 }
 
 /** The main-loop model: the user setting parsed, or the computed default

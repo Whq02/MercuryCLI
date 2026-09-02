@@ -1,9 +1,8 @@
-# Router-party replay corpus (bench-corpus-v1)
+# Replay corpus (bench-corpus-v1)
 
 Replayable, self-contained, MECHANICALLY-CHECKED task specs for the replay
 benchmarks (`scripts/workflows/bench-replay.ts`, whose utilities also carry
-`bench-workflow-routing.ts`; the P2 router-party benchmark itself retired with
-the multiplayer estate). Each spec runs in its OWN local clone
+`bench-workflow-routing.ts`). Each spec runs in its OWN local clone
 pinned to the `baseRef` tag's commit (origin/main ref-pinned inside the clone so
 executor lanes base on it; node_modules + dist clonefile-copied so suites run), and
 success is judged FROM OUTSIDE by `successChecks` (command exit codes + file greps)
@@ -23,9 +22,9 @@ legitimate ambiguity-resolution meeting) adds ~3-5m on the heaviest tasks
 (flag-registry-row: 538s clean → 932s+ with one escalate). 20m prices in ONE
 such round-trip; the acceptance criterion itself (routed batch wall ≤ solo at
 equal-or-lower error) is UNCHANGED. Check regex v2: 05's literal
-token check gained case-insensitive semantic tolerance after the tank→executor
+token check gained case-insensitive semantic tolerance after a
 re-specification hop reproducibly paraphrased a semantically complete artifact.
 Operator ratifies via `bench-replay.ts --dry-run` before the first billed run.
 The acceptance criterion: routed batch wall-clock ≤ solo at
-equal-or-lower error rate — `prove-party-flip.ts` refuses a default-ON party
-flag without a committed green `verdict.json` whose corpusSha256 matches.
+equal-or-lower error rate, judged by a committed green `verdict.json` whose
+corpusSha256 matches.

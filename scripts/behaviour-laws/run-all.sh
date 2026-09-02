@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/prompt/** src/constants/prompts.ts src/utils/scribe/** scripts/behaviour-laws/**
+# gate-watch: src/prompt/** src/constants/prompts.ts scripts/behaviour-laws/**
 # ============================================================================
 #  scripts/behaviour-laws/run-all.sh — the behavioural-contract laws.
 #

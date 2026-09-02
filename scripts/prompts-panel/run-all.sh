@@ -38,7 +38,7 @@ fail=0
 echo "############################################################"
 echo "# PROMPTS PANEL — records · saved prompts · Minerva's room"
 echo "############################################################"
-for f in prove-prompt-rows prove-saved-prompts-store prove-minerva-room prove-panel-captures prove-hop-follows-focus; do
+for f in prove-prompt-rows prove-saved-prompts-store prove-minerva-room prove-panel-captures prove-hop-follows-focus prove-detail-footer-honesty; do
   echo "── scripts/prompts-panel/$f.ts"
   __t=$SECONDS; "$BUN" run "$here/$f.ts" || fail=1; prover_mark "$here/$f.ts" "$__t"
 done

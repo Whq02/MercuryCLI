@@ -388,7 +388,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     stateClass: 'authority',
     migrated: true,
     authorityArtifact: '<teams>/<team>/dedup/<name>.json (the durable consumption ledger — bounded 500, so compacted, NOT append-only)',
-    operation: 'drainScribeDispatches — read unread → deliver to child stdin → mark read',
+    operation: 'drainDispatches — read unread → deliver to child stdin → mark read',
     ownerKey: 'consumer agent name + team',
     files: [
       '<teams>/<team>/dedup/<name>.json (the DURABLE consumption ledger)',
@@ -397,7 +397,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     projections: ['roster.seenDispatchIds (in-memory fast path)', 'child transcript (the acted-on work)'],
     lockOwner: 'FileStore locks per store; the durable ledger records around the act',
     writeOrder: "read unread → dedup 'delivering' (durable, BEFORE the act) → roster.reply (ACT) → dedup 'delivered' → mark-read",
-    idempotencyKey: 'the scribe request_id, persisted per consumer in the dedup ledger (bounded 500, survives restarts)',
+    idempotencyKey: 'the envelope request_id, persisted per consumer in the dedup ledger (bounded 500, survives restarts)',
     publication: 'ledger + mark-read publishes',
     recovery:
       "Slice 4b (FC4 fixed): a 'delivered' record makes redelivery a CONSUME (exactly-once across daemon restarts — the pure ack-loss window); a 'delivering' record (died mid-act) redelivers WITH the honest replay marker (at-least-once, never a silent duplicate — the acting agent verifies state first). The in-memory seen-set stays as the zero-IO fast path.",
@@ -406,7 +406,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2 (bounded + honest, Slice 4b): die MID-act — redelivered with the replay marker',
     ],
     failureClass: ['FC4-mailbox-act-before-ack'],
-    source: ['src/daemon/scribeDispatchBridge.ts:173', 'src/daemon/roster.ts:440'],
+    source: ['src/daemon/dispatchDrain.ts', 'src/daemon/roster.ts'],
   },
   {
     id: 'mailbox-clear',
@@ -740,7 +740,7 @@ export const RESOURCE_BOUNDS: readonly ResourceBoundRow[] = [
     writer: 'mailbox consume (mark-read at drain end)',
     bound: 'bounded 500 (compacted, not append-only)',
     reaper: 'per-write compaction',
-    preserves: 'the newest consumption receipts (the scribe deliveredKeys law)',
+    preserves: 'the newest consumption receipts (the deliveredKeys law)',
     proof: 'scripts/reliability/prove-interruption-windows.ts',
   },
   {

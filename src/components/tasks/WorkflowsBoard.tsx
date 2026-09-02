@@ -396,7 +396,7 @@ function PhaseStrip({ facts }: { facts: RunFacts }): React.ReactNode {
 // header floor: NAME bold accent · description · state + runtime · facts), then the
 // numbered Phases rail (❯ cursor on the in-flight phase) with per-agent
 // machine-head chips (✧ in agentHeadAt(index).hue — a stable per-agent
-// identity, mirroring the party board's lane hues).
+// identity).
 // Disk-resume eligibility for a Past row — the pure core (runManifest.ts)
 // with the board's real fs/pid deps.
 function probeDiskResumability(

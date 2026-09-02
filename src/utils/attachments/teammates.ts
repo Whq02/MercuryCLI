@@ -192,7 +192,7 @@ export async function getTeammateMailboxAttachments(
   // rows (protocol envelopes stay unread — useInboxPoller owns them),
   // SCOPED to this snapshot's messages (the ones actually in the attachment above),
   // not a fresh `!isStructuredProtocolMessage` class scan: markMessagesAsReadByPredicate
-  // re-reads under lock, so a scribe envelope (non-structured) that lands between the
+  // re-reads under lock, so a bus envelope (non-structured) that lands between the
   // snapshot read and this mark would otherwise be marked read though never delivered
   // in the attachment ⇒ permanently lost. Mirror the foreground poll's scoped mark.
   if (unreadMessages.length > 0) {

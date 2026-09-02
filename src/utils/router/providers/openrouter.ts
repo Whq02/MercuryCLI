@@ -87,7 +87,7 @@ export function resolveOpenrouterModel(
 
 export function buildOpenrouterLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider openrouter has no SEAT runtime — party/roster seats stay Anthropic; OpenRouter dispatch lands with the provider-wire fold',
+    'router: provider openrouter has no SEAT runtime — roster seats stay Anthropic; OpenRouter dispatch lands with the provider-wire fold',
   )
 }
 

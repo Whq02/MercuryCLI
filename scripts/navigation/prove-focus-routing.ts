@@ -136,13 +136,10 @@ console.log('== membership + consumption + editor-ownership source pins ==')
   // exactly two screen-level keys (ctrl+c, bare tab), both delegating the
   // rest to the composer.
 
-  // ── MINI-TEMPER item 1: the Scribe effort target chooser joins the laws ──
-  // The chooser rides the shared interactive list — the overlay registration,
-  // the top-layer esc guard, the consume-when-acting input and the open-event
-  // gate are the list's, pinned at the list.
-  const effort = read('src/commands/effort/effort.tsx')
+  // ── the shared interactive list joins the laws ──────────────────────────
+  // The overlay registration, the top-layer esc guard, the consume-when-acting
+  // input and the open-event gate are the list's, pinned at the list.
   const sharedList = read('src/components/mercury-ui/useInteractiveList.ts')
-  check('effort chooser rides the shared interactive list under its own namespace', effort.includes('useInteractiveList<ChooserRow>({') && effort.includes("idNamespace: 'effort-target'"))
   check('the shared list registers as an overlay', sharedList.includes("useRegisterOverlay('list', active)"))
   check('the shared list: esc guarded by isTopOverlayNow (one layer)', sharedList.includes('isTopOverlayNow(overlayToken)'))
   check('the shared list consumes exactly when acting (3-arg form)', sharedList.includes('useInput(\n    (input, key, event) => {') && (sharedList.match(/stopImmediatePropagation\(\)/g) ?? []).length >= 3)

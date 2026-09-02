@@ -60,20 +60,6 @@ import {
   subscribePresence,
   type PresenceSeat,
 } from '../utils/cockpit/presenceLive.js'
-import { getScribeEngagedAtMs, getScribeModeVersion, isScribeModeOn, subscribeScribeMode } from '../utils/scribeMode.js'
-
-// The stale-CHAT epoch floor for role-env launches (setScribeMode never runs
-// there): anything in the inbox files from before this module loaded belongs
-// to an earlier session, not this one.
-const RAIL_BOOT_MS = Date.now()
-import { scribeBusLiveEnabled } from '../utils/scribe/scribeGates.js'
-import { getMailboxStore, type TeammateMessage } from '../utils/teammateMailbox.js'
-import {
-  CREW_CHAT_ROWS,
-  crewChatRowsFromMailbox,
-  type CrewChatRow,
-  type CrewChatTone,
-} from '../utils/cockpit/crewChatRows.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import {
@@ -370,87 +356,10 @@ const lastKnownWorkShape = new Map<string, string>()
 // subscribe function is module-stable for useSyncExternalStore).
 const subscribeFocusedRecords = subscribeThroughFocused((c, l) => c.subscribeRecords(l))
 
-// CHAT tones → theme tokens (the derive is React-free and returns semantics;
-// the color binding lives here, beside the other rail tone maps — resolved
-// through the ADAPTIVE layer since HZ2, so light/daltonized/ansi
-// families read their own inks instead of dark-brand leftovers).
-function chatTone(tone: CrewChatTone, tok: MercuryThemeTokens): string {
-  switch (tone) {
-    case 'ok':
-    case 'work':
-      return tok.success
-    case 'warn':
-      return tok.warning
-    case 'block':
-      return tok.failure
-    default:
-      return tok.textSecondary
-  }
-}
-
-// A mini-chat feed line (#71): caret + tone glyph + SECOND route + IVORY gist.
-// RailRow's shape reserves a ≤12-col verb FIRST — wrong budget split for a
-// feed whose payload IS the long gist — so this is its own hand-rolled row
-// (the sanctioned command-center idiom), with the same click/hover parity.
-function ChatRow({
-  width,
-  row,
-  selected = false,
-  rowIndex,
-  rowSig,
-}: {
-  width: number
-  row: CrewChatRow
-  selected?: boolean
-  rowIndex?: number
-  rowSig?: string
-}): React.ReactNode {
-  const { accent } = useSessionAccent()
-  const tok = useMercuryTokens()
-  // TWO-LINE row (visual audit: the one-line form left the gist
-  // ~8-13 chars at rail width — the flagship feed was illegible on day one).
-  // Line 1: caret + tone glyph + full route. Line 2: the gist, indented, with
-  // the WHOLE remaining width. One logical row for selection/click.
-  const routeT = truncateToWidth(row.route, Math.max(6, width - 4))
-  const gistT = truncateToWidth(row.gist, Math.max(3, width - 4))
-  const clickable = rowIndex != null
-  return (
-    <InteractiveRow
-      id={`helm:lanes:chat:${rowSig ?? rowIndex ?? 'static'}`}
-      selected={selected}
-      unavailable={!clickable}
-      onSelect={
-        clickable
-          ? () => (rowSig ? setHelmCursorBySig('lanes', rowSig) : setHelmCursor('lanes', rowIndex))
-          : undefined
-      }
-      onActivate={
-        clickable
-          ? () =>
-              rowSig
-                ? requestHelmRowActivationBySig('lanes', rowSig)
-                : requestHelmRowActivation('lanes', rowIndex)
-          : undefined
-      }
-      width={width}
-      flexDirection="column"
-    >
-      <Text wrap="truncate-end">
-        <Text color={accent}>{selected ? `${GLYPH.prompt} ` : '  '}</Text>
-        <Text color={chatTone(row.tone, tok)}>{row.glyph} </Text>
-        <Text color={tok.textSecondary}>{routeT}</Text>
-      </Text>
-      <Text wrap="truncate-end">
-        <Text color={tok.textPrimary}>{'    '}{gistT}</Text>
-      </Text>
-    </InteractiveRow>
-  )
-}
-
 // The WORKBENCH card's one row (the ruled card under Minerva): the last sent
 // prompt wrapped to the card's budget — the payload IS the long text, so this
-// is the ChatRow shape (a hand-rolled multi-line InteractiveRow with the same
-// click/hover parity), never RailRow's verb-first budget split.
+// is a hand-rolled multi-line InteractiveRow (with the same click/hover
+// parity), never RailRow's verb-first budget split.
 function WorkbenchCardRow({
   width,
   lines,
@@ -684,46 +593,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const boxed = !mergedTelemetry
   const rowW = boxed ? railPanelInnerWidth(width) : width
 
-  // CHAT feed (#71) — router-agent activity as compact nameplated lines:
-  // the team-'scribe' inbox tails (implementer + team-lead), live via the
-  // mailbox kernel stores. Not engaged ⇒ zero rows ⇒ the section renders
-  // NOTHING (byte-identical for plain sessions).
-  // Version-subscribed so a MID-SESSION scribe engage re-renders this rail —
-  // isScribeModeOn() is module state React can't see (the keybinding-gotchas
-  // class; useSyncExternalStore is the sanctioned bridge).
-  const scribeVersion = useSyncExternalStore(subscribeScribeMode, getScribeModeVersion, getScribeModeVersion)
-  const scribeChatOn = isScribeModeOn() && scribeBusLiveEnabled()
-  const [scribeInboxes, setScribeInboxes] = useState<
-    Array<{ inbox: string; messages: TeammateMessage[] }>
-  >([])
-  useEffect(() => {
-    if (!scribeChatOn) {
-      setScribeInboxes(prev => (prev.length > 0 ? [] : prev))
-      return
-    }
-    const unsubs = ['implementer', 'team-lead'].map(name =>
-      getMailboxStore(name, 'scribe').subscribe(
-        msgs => {
-          setScribeInboxes(prev => {
-            const rest = prev.filter(p => p.inbox !== name)
-            return [...rest, { inbox: name, messages: msgs }]
-          })
-        },
-        { immediate: true },
-      ),
-    )
-    return () => {
-      for (const u of unsubs) u()
-    }
-  }, [scribeChatOn])
-  const chatRows: CrewChatRow[] = scribeChatOn
-    ? // Engagement-epoch scoped: inbox
-      // files outlive sessions, so only traffic since THIS engage renders.
-      // A role-env launch (MERCURY_SCRIBE=1) never calls setScribeMode, so
-      // fall back to the rail module's load time — old mail predates boot.
-      crewChatRowsFromMailbox(scribeInboxes, CREW_CHAT_ROWS, getScribeEngagedAtMs() ?? RAIL_BOOT_MS)
-    : []
-
   // CREW lane — sourced from the app-store tasks (NOT fleetGauge): the
   // in-process teammates + the local-agent tasks, deduped by `.id`.
   const tasks = useAppState(s => s.tasks)
@@ -784,12 +653,10 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     ctxUsageVersion,
     lanesVersion,
     minervaVersion,
-    scribeVersion,
     accent,
     focusedRecords,
     workRunSnap,
     workShape,
-    scribeInboxes,
     tasks,
     roster,
     viewingAgentTaskId,
@@ -1079,7 +946,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   // nothing AND registers no rows — the published model is exactly the
   // painted rows. INTENT FORMULAS below mirror each builder's row math (the
   // telemetry-rail precedent; the lanes parity proof catches drift). Shed
-  // order (first→last): NEXT hints → TABULA → PARTY → RECENT → CHAT → CREW.
+  // order (first→last): NEXT hints → TABULA → RECENT → CREW.
   // NEVER shed: SEAT (identity), TASKS+RUNS (the mission board), MISSION when
   // armed, the merged-telemetry glance, and any section holding the CURRENT
   // cursor (published-label lookup — focus raises priority, and the cursor
@@ -1122,7 +989,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     // busy branch renders CREW always (a 1-row empty state when none run).
     // +1 = the permanent CREW root row.
     crew: solo ? 0 : Math.max(1, 1 + crewShown.length + (crewMore > 0 ? 1 : 0)),
-    chat: chatRows.length,
     // The WORK digest (M3) — while it renders, TASKS yields (no duplication).
     work: work ? work.rows.length : 0,
     // solo renders TASKS only when the ledger has rows; busy always (1-row empty state).
@@ -1147,7 +1013,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const cursorLabel = publishedRows[getHelmCursor('lanes')]?.label ?? ''
   const cursorSection =
     cursorLabel.startsWith('crew') ? 'crew'
-    : cursorLabel.startsWith('chat') ? 'chat'
     : cursorLabel.startsWith('recent') ? 'recent'
     : cursorLabel.startsWith('tabula') ? 'tabula'
     : cursorLabel.startsWith('workbench') ? 'workbench'
@@ -1159,7 +1024,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     if (cursorSection) mustKeep.add(cursorSection)
     let spent =
       1 + // the reserved focus-banner row
-      (['seat', 'crew', 'chat', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next'] as const)
+      (['seat', 'crew', 'work', 'tasks', 'runs', 'recent', 'mission', 'tabula', 'workbench', 'next'] as const)
         .reduce((n, k) => n + sectionCost(k), 0) +
       (seatGlanceRows + SECTION_CHROME) + // the SEAT glance (display-only; always painted)
       (mergedTelemetry ? 4 + SECTION_CHROME : 0) + // the merged TELEMETRY glance (display-only)
@@ -1314,31 +1179,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         {...railRowProps(isOn, sel, { kind: 'command', command: '/fleet', label: 'crew:more' })}
       />,
     )
-
-  // CHAT nodes — built HERE (after CREW, before TASKS) so sel() registration
-  // matches visual order in BOTH branches: busy renders CHAT under CREW; the
-  // scribe-solo layout renders it under SEAT, where crew contributed zero
-  // rows, so the indices still line up. ↵ opens the owning surface (/daemon
-  // for the scribe bus).
-  const chatCommand = '/daemon'
-  // Stable interaction identity: the chat row's key IS its published label (route+ts, with an
-  // ordinal only for genuine same-ms duplicates) — an index key handed a
-  // row's subtree state to a different message whenever the feed shifted.
-  const chatLabelSeen = new Map<string, number>()
-  const chatNodes: React.ReactNode[] = shedSet.has('chat') ? [] : chatRows.map(r => {
-    const baseLabel = `chat:${r.route}:${r.ts}`
-    const dupes = chatLabelSeen.get(baseLabel) ?? 0
-    chatLabelSeen.set(baseLabel, dupes + 1)
-    const label = dupes === 0 ? baseLabel : `${baseLabel}:${dupes}`
-    return (
-      <ChatRow
-        key={label}
-        width={rowW}
-        row={r}
-        {...railRowProps(isOn, sel, { kind: 'command', command: chatCommand, label })}
-      />
-    )
-  })
 
   // WORK rows — display-only digest rows; the section header's
   // open target (/workbench) is the ONE route into the detail board, so the
@@ -1915,13 +1755,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
 
       {solo ? (
         <>
-          {/* CHAT — scribe-bus traffic (a scribe session is crew-less ⇒ solo
-              layout); appears only when envelopes exist, gone when the mode
-              disengages. Party traffic renders in the busy branch instead. */}
-          {chatNodes.length > 0
-            ? section('chat', GLYPH.handoff, 'CHAT', String(chatRows.length), chatNodes, { open: chatCommand })
-            : null}
-
           {/* WORK — the current-work digest: outcome ·
               phase + real progress · active · blocker/next · changed+check ·
               queued/blocked. One route in: the header opens /workbench. */}
@@ -1983,12 +1816,6 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             crewNodes,
             { open: '/teammates' },
           )}
-
-          {/* CHAT — the router crew's bus traffic, newest first (#71). Only
-              when envelopes exist; the scribe inbox tails feed it live. */}
-          {chatNodes.length > 0
-            ? section('chat', GLYPH.handoff, 'CHAT', String(chatRows.length), chatNodes, { open: chatCommand })
-            : null}
 
           {/* WORK — the current-work digest; TASKS yields
               while it renders (the digest and the list never duplicate). */}
@@ -2071,7 +1898,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             <Text color={tok.textMuted}>
               {'  more: ' +
                 [...shedSet]
-                  .map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : k === 'chat' ? '/daemon' : `/${k}`))
+                  .map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : `/${k}`))
                   .join(' · ')}
             </Text>
           </Text>

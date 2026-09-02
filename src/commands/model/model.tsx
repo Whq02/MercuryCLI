@@ -2,7 +2,6 @@ import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { useAppState, useAppStateStore, useSetAppState } from '../../state/AppState.js'
-import { handleScribeRouterSelect } from '../../utils/scribe/scribeRouterSelect.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
@@ -198,17 +197,6 @@ function ModelSet({
       onDone(`${focusedSwitchSentence(receipt, target)}${doorCross}${lossNote}`)
       return
     }
-    // Mode exit parity for the TYPED path: the pickers treat a REAL model
-    // pick while the scribe router is engaged as the exit — `/model <arg>`
-    // would otherwise switch the wire model UNDER the engaged mode, leaving
-    // persona pack, hooks and team identity running against a model the
-    // mode never chose (the "seat not applied" leak). Same shared handler,
-    // same order: exit first, then apply — the operator's typed choice wins
-    // over the exit's restore. Runs only here (after validation and the
-    // needs-choice gate), so an invalid model or a cancelled preview never
-    // half-exits a mode.
-    const routerOutcome = handleScribeRouterSelect(target, { setAppState, store })
-    const left = routerOutcome === 'disengaged' ? ' · left Scribe Mode' : ''
     // The initializer is CAST to the union (the REPL boundary effect's
     // idiom): a plain literal initializer narrows `landed` to its no-op
     // member — the updater-closure assignment is invisible to CFA — and the
@@ -224,20 +212,7 @@ function ModelSet({
       })
       return landed.patch ? { ...prev, ...landed.patch } : prev
     })
-    if ((landed.kind === 'no-op' || landed.kind === 'cancelled-pending') && left) {
-      // Mode exit re-applies the underlying model even when it equals the
-      // exit's restored one — bookkeeping, not a transition (the pickers'
-      // shared rule; no receipt row for an identity that did not change).
-      setAppState(prev => ({
-        ...prev,
-        mainLoopModel: target,
-        mainLoopModelForSession: null,
-        pendingModelSwitch: null,
-      }))
-      onDone(`Model set to ${renderModelLabel(target)}${left}`)
-      return
-    }
-    onDone(`${settlementMessage(landed, plan)}${left}`)
+    onDone(settlementMessage(landed, plan))
   }
 
   useEffect(() => {

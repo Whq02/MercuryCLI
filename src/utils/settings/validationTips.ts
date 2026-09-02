@@ -23,7 +23,7 @@ const DEFAULT_MODE_SUGGESTION =
   'Valid modes: "default" (standard prompting), "implement" (file edits pre-approved), ' +
   '"strategy" (read-only analysis), "dontAsk" (skip prompts, deny instead), ' +
   '"sovereign" (bypass everything), "flow" (classifier-arbitrated), ' +
-  '"scribe" (scribe sessions), "autopilot" (bypass posture; requires arming)'
+  '"autopilot" (bypass posture; requires arming)'
 
 function matchTip(context: TipContext): ValidationTip | null {
   // 1. permissions.defaultMode enum.

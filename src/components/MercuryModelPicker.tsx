@@ -2,15 +2,6 @@
 // Renders 1:1 with the prototype: round terracotta panel, single-column
 // SelectRow-boxed rows, session-accent identity, honest current/gated. Model IDs
 // are real, never themed. Read-only except ↵ switch → onSelect (wire to setMainLoopModel).
-//
-// an optional ROLES section — the role-seat slots (scribe ·
-// implementer · party seats). Role rows share the ONE vertical selection space;
-// their edit grammar mirrors the /party board (m cycles model · +/− steps
-// effort), applied by the WRAPPER through the ONE reslot seam
-// (applyOperatorReslot → seatSlots). Cells show DISPLAY TRUTH (running/live vs
-// next-engage resolution) with a queued retarget as the AMBER pending arrow;
-// env-pinned axes render LOCKED with the pinning var NAMED (the env-pin
-// override-origin lesson).
 import figures from 'figures'
 import * as React from 'react'
 import { useState } from 'react'
@@ -30,7 +21,6 @@ import { getDefaultMainLoopModel, parseUserSpecifiedModel } from '../utils/model
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import { markTransitionEnd } from '../utils/observability/frictionStopwatch.js'
 import { getContextWindowForModel } from '../utils/context.js'
-import { SCRIBE_ROUTER_OPTION_VALUE } from '../utils/scribeMode.js'
 import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 import { ProductLockup } from './mercury-ui/components.js'
 import { GLYPH, padTo } from './mercury-ui/glyphs.js'
@@ -70,39 +60,6 @@ function bar(pct: number, width = 10): string {
  *  refused and the reason rides the row copy instead of a flag hint. */
 export type ModelChoice = { id: string; name: string; tag: string; ctx: string; ctxBase?: string; ctx1m?: string; group: string; gated?: boolean; enableFlag?: string; gatedReason?: string; /** A connect/attach ACTION row — never a model, never counted as one. */ action?: boolean }
 
-/** One ROLES row — display truth assembled by the wrapper (live seat truth
- *  when engaged; the resolver's next-engage resolution otherwise). */
-export type RoleChoice = {
-  role: string
-  /** e.g. 'scribe · front' */
-  label: string
-  model: string
-  effort: string
-  /** The SELECTED model's own effort ladder (effort.ts truth) — an empty
-   *  ladder means the model has no effort dial and the row shows none;
-   *  absent = unknown (legacy wrappers), display unchanged. */
-  efforts?: string[]
-  /** Queued retarget (running ≠ requested) — the AMBER pending arrow. */
-  pendingModel?: string
-  pendingEffort?: string
-  /** Env var pinning the axis this session (LOCKED — named, not editable). */
-  modelLockedBy?: string
-  effortLockedBy?: string
-  /** 'live' (a running/engaged seat) vs 'next engage' (resolution only). */
-  live: boolean
-  /** Origin detail for the selected row's tag line (provenance honesty). */
-  originDetail: string
-  /** GPT seat state line: honest per-seat availability —
-   *  "gpt: disabled — <reason>" / the qualified ids / the active slot.
-   *  Absent on orchestration seats (tank/healer — the false-title class). */
-  gptDetail?: string
-  /** True when `g` slots a qualified gpt id on this seat (the wrapper routes
-   *  it through setOperatorSeatSlot — never part of the m-cycle). */
-  gptEligible?: boolean
-}
-
-export type RoleAction = 'model' | 'effort-up' | 'effort-down' | 'hint' | 'gpt'
-
 type Props = {
   models: ModelChoice[]
   current?: string
@@ -114,11 +71,8 @@ type Props = {
   onEffort?: (e: string) => void
   onSelect?: (id: string) => void
   onClose?: () => void
-  /** ROLES section. */
-  roles?: RoleChoice[]
-  onRoleAction?: (role: string, action: RoleAction) => void
-  /** One-line outcome/notice from the last role action (wrapper-owned). */
-  roleNotice?: string
+  /** One-line outcome/notice from the wrapper (catalogue refresh outcomes). */
+  notice?: string
   /** a queued foreground switch: the NEXT model id (applies when
    *  the running turn settles). Renders the current→next header + the AMBER
    *  'next' row state. */
@@ -140,7 +94,7 @@ type Props = {
 // mount away from rendering. The one live mount (/model) passes the REAL
 // model list from getModelOptions.)
 
-export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, roles, onRoleAction, roleNotice, pendingNext, groupDetails, onSlotSwitch }: Props): React.ReactNode {
+export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, groupDetails, onSlotSwitch }: Props): React.ReactNode {
   // Friction stopwatch: the picker mounting lands the picker-open
   // transition (the /model dispatch marked the start).
   React.useEffect(() => {
@@ -165,11 +119,9 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // derives from the panel — the fixed 15 truncated 'Default (recom…' while
   // ~15 interior columns sat unused right of the ctx column.
   const nameW = Math.max(15, Math.min(30, panelWidth - 32))
-  // ONE vertical selection space: model rows first, then role rows.
-  const roleRows = roles ?? []
-  const totalRows = models.length + roleRows.length
-  // the picker rendered EVERY model + role row unwindowed — on a
-  // short terminal the clipping modal slot cut roles/footer off screen. The
+  const totalRows = models.length
+  // the picker rendered EVERY model row unwindowed — on a
+  // short terminal the clipping modal slot cut rows/footer off screen. The
   // palette's cursor-following window (paneWindow) over the ONE combined
   // index space; reserve covers panel chrome (header · selected-row
   // expansion · group headers · context/effort/footer). Every row stays
@@ -195,7 +147,6 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
   const [i, setI] = useState(startI)
   const focusedModel = i < models.length ? models[i] : undefined
-  const focusedRole = i >= models.length ? roleRows[i - models.length] : undefined
   const hasEffort = !!(efforts && efforts.length)
   const ei = hasEffort ? Math.max(0, efforts!.indexOf(effort ?? '')) : 0
   // 1M-context toggle (the `c` keybind): per-focused-model, only offered when the
@@ -206,16 +157,14 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // so the 1M-context toggle works on the current row too (Opus 4.8 1M ⇄ 200k).
   const probe = (m?: ModelChoice): string | null => m ? (m.id === 'default' ? getDefaultMainLoopModel() : m.id) : null
   // DEFAULT-1M (operator directive: "all models get 1m, fallback
-  // only if not supported"): the router sentinel defaults 1M (scribe pin is
-  // opus[1m]), and any row whose family carries a
-  // [1m] variant defaults to it — `c` toggles DOWN to 200k instead of up.
+  // only if not supported"): any row whose family carries a [1m] variant
+  // defaults to it — `c` toggles DOWN to 200k instead of up.
   // Rows with no 1M variant (or natively-1M catalog models) show no toggle.
   // GPT rows carry the same DEFAULT-big polarity: a bare id budgets the
   // source-declared ceiling, so the toggle seeds BIG
   // unless the session's persisted id is THIS row opted down via `[served]`
   // — then it re-opens showing the served truth (persistence parity).
   const ctxStateOf = (p: string | null): boolean => {
-    if (p === SCRIBE_ROUTER_OPTION_VALUE) return true
     if (p !== null && parseGptModelId(p)) {
       return !(hasGptServedWindowSuffix(current) && stripGptServedWindowSuffix(current) === p)
     }
@@ -264,7 +213,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // The in-place window toggle exists exactly when the source offers BOTH.
   const focusedGptToggle = focusedGptWindow?.ceiling !== undefined
   // ONE transient answer line for c-presses that cannot toggle (GPT
-  // source-fixed / natively-1M rows) — renders in the roleNotice slot below;
+  // source-fixed / natively-1M rows) — renders in the notice slot below;
   // cleared on cursor move.
   const [ctxNotice, setCtxNotice] = useState<string | null>(null)
   // Natively-1M Anthropic rows (Opus 5, Sonnet 5 — the catalog serves 1M on
@@ -289,12 +238,6 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // The ONE ↵ body — keyboard return and a second pointer click both land
   // here (select-then-activate; InteractiveRow routes the activation).
   const commitCurrent = (): void => {
-    if (focusedRole) {
-      // Role rows don't "switch" — ↵ answers with the edit grammar (never a
-      // silent dead key; the rule).
-      onRoleAction?.(focusedRole.role, 'hint')
-      return
-    }
     const m = models[i]; if (!m || !onSelect) return
     if (m.gated) {
       // An unavailable row answers ↵ with the resolver's reason
@@ -303,11 +246,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
       return
     }
     const p = probe(m)
-    if (p === SCRIBE_ROUTER_OPTION_VALUE) {
-      // The router engages scribe (handleScribeRouterSelect); ride the 1M toggle:
-      // [1m] ⇒ 1M (default), bare ⇒ 200k.
-      onSelect(context1m ? withContext1m(SCRIBE_ROUTER_OPTION_VALUE) : SCRIBE_ROUTER_OPTION_VALUE)
-    } else if (p && focusedOptionSupports1m(p)) {
+    if (p && focusedOptionSupports1m(p)) {
       const base = stripContext1m(p)
       // Unchanged from the row's natural context → keep the row id (so 'default'
       // stays no-preference); else pin the explicit base model ± [1m].
@@ -322,7 +261,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
       onSelect(m.id)
     }
   }
-  // ACTION keys (↵ select, `c` context flip, the role edit keys) only past the
+  // ACTION keys (↵ select, `c` context flip) only past the
   // mount buffer: the picker opens off a typed "/model↵" — that submitting ↵
   // (or its terminal repeat) must never instantly act (idle-parked-commits /
   // STALE-PAINT arm). Arrows/esc stay immediate per the useOpenEventGate doctrine.
@@ -330,9 +269,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // Overlay-stack membership: esc closes ONE layer — a
   // surface stacked on the picker owns esc until it pops. TWO visible axes
   // decode separately (navSemantics): the rows are VERTICAL; the effort
-  // slider is a HORIZONTAL control (←→ cycle it — never a row alias). On a
-  // focused ROLE row ←→ is DECLINED (the role's effort steps ride +/− per the
-  // footer) so the global slider can't masquerade as a per-seat edit.
+  // slider is a HORIZONTAL control (←→ cycle it — never a row alias).
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
     const rowAxis = decodeNavKey(input, key, { orientation: 'vertical' })
@@ -341,14 +278,14 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
     else if (rowAxis === 'movePrevious') { event.stopImmediatePropagation(); selectRow(Math.max(0, i - 1)) }
     else if (rowAxis === 'first') { event.stopImmediatePropagation(); selectRow(0) }
     else if (rowAxis === 'last') { event.stopImmediatePropagation(); selectRow(totalRows - 1) }
-    else if (effortAxis === 'moveLeft' && hasEffort && !focusedRole) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei - 1 + efforts!.length) % efforts!.length]) }
-    else if (effortAxis === 'moveRight' && hasEffort && !focusedRole) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei + 1) % efforts!.length]) }
-    else if (input === 'c' && !key.ctrl && !key.meta && !focusedRole && focusedOptionSupports1m(probe(focusedModel))) {
+    else if (effortAxis === 'moveLeft' && hasEffort) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei - 1 + efforts!.length) % efforts!.length]) }
+    else if (effortAxis === 'moveRight' && hasEffort) { event.stopImmediatePropagation(); onEffort?.(efforts![(ei + 1) % efforts!.length]) }
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedOptionSupports1m(probe(focusedModel))) {
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
       setContext1m(v => !v)
     }
-    else if (input === 'c' && !key.ctrl && !key.meta && !focusedRole && focusedGptWindow && focusedGptWindow.ceiling !== undefined) {
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedGptWindow && focusedGptWindow.ceiling !== undefined) {
       // The GPT window TOGGLE: both windows
       // genuinely exist for the account, so `c` cycles served ↔ declared max
       // — same grammar as the Anthropic 1M toggle. The notice states which
@@ -364,7 +301,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
           : `${fmtCtx(focusedGptWindow.served)} ctx active · the source's served default (declared max ${fmtCtx(focusedGptWindow.ceiling)}) · c toggles`,
       )
     }
-    else if (input === 'c' && !key.ctrl && !key.meta && !focusedRole && focusedGptWindow) {
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedGptWindow) {
       // ONE window only — the account source states nothing larger, so there
       // is genuinely nothing to toggle; answer the press with the law (the
       // notice line) instead of silence. A pin-derived figure names
@@ -378,22 +315,14 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
           : `${fmtCtx(focusedGptWindow.served)} ctx · set by the GPT account source · not a toggle`,
       )
     }
-    else if (input === 'c' && !key.ctrl && !key.meta && !focusedRole && focusedNative1m) {
+    else if (input === 'c' && !key.ctrl && !key.meta && focusedNative1m) {
       // A natively-1M row serves 1M on its bare id — nothing to toggle; the
       // notice line answers the press (never a silent dead key).
       if (!pastOpenEvent()) return
       event.stopImmediatePropagation()
       setCtxNotice('1M ctx · native to this model · not a toggle')
     }
-    else if (focusedRole && (input === 'm' || input === '+' || input === '=' || input === '-')) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      onRoleAction?.(
-        focusedRole.role,
-        input === 'm' ? 'model' : input === '-' ? 'effort-down' : 'effort-up',
-      )
-    }
-    else if (input === 's' && !key.ctrl && !key.meta && !focusedRole && onSlotSwitch && focusedModel) {
+    else if (input === 's' && !key.ctrl && !key.meta && onSlotSwitch && focusedModel) {
       // The account-slot switch: the wrapper owns the flip and the words;
       // a group with no switchable pair answers null and the press stays
       // unclaimed (the affordance is only advertised where the pair is).
@@ -403,15 +332,6 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
         event.stopImmediatePropagation()
         setCtxNotice(receipt)
       }
-    }
-    else if (focusedRole && input === 'g') {
-      // GPT slotting is its OWN explicit keypress: never part of
-      // the m-cycle. The wrapper answers every press — an ineligible or
-      // disabled seat gets the honest reason, an eligible
-      // one slots the next qualified id through setOperatorSeatSlot.
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      onRoleAction?.(focusedRole.role, 'gpt')
     }
     else if (rowAxis === 'activate') {
       if (!pastOpenEvent()) return
@@ -427,23 +347,13 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   // ── THE MEASURED WINDOW (the tail-clip law: the focused row is FULLY
   // visible at every list position, expansion included). Rows PAINT
   // variable heights — the focused card expands by its border and detail
-  // lines, every group boundary paints a heading block, and the ROLES
-  // section brings its own — so an index-span window could fit by COUNT
-  // while its paint overflowed the modal slot, which bottom-clipped exactly
-  // the focused card at the tail (the seat-slot rows). The window now
+  // lines, every group boundary paints a heading block — so an index-span
+  // window could fit by COUNT while its paint overflowed the modal slot,
+  // which bottom-clipped exactly the focused card at the tail. The window now
   // shrinks (fitMeasuredWindow, one row per step) until its measured paint
   // fits the real budget. The measure below IS the render's paint law,
   // kept beside it — a row added to the render grows here too.
   const rowPaint = (idx: number): number => {
-    const on = idx === i
-    if (idx >= models.length) {
-      const r = roleRows[idx - models.length]
-      if (!r) return 1
-      const queued = on && (r.pendingModel !== undefined || r.pendingEffort !== undefined) ? 1 : 0
-      if (compact) return 1 + queued
-      // Focused role card: border 2 + row 1 + origin line 1 (+ gpt detail).
-      return on ? 4 + (r.gptDetail ? 1 : 0) + queued : 1
-    }
     if (compact) return 1
     // Focused model card: border 2 + row 1 (+ tag 1 when the row has one —
     // model rows carry no tag under the neutrality ruling; action/Default
@@ -471,7 +381,6 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
         prev = g
       }
     }
-    if (w.end > models.length && roleRows.length > 0) lines += compact ? 1 : 2
     return lines
   }
   // The TRUE fixed chrome (the render outside the windowed rows): border 2
@@ -480,7 +389,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
   const basePaint =
     (compact ? (shedMeters ? 5 : 6) : 10) +
     (pendingNext ? 1 : 0) +
-    (!compact && ctxNotice ? 2 : !compact && roleNotice ? 1 : 0)
+    (!compact && ctxNotice ? 2 : !compact && notice ? 1 : 0)
   const paintBudget = Math.max(3, availRows - basePaint)
   const win = fitMeasuredWindow(
     totalRows,
@@ -502,7 +411,7 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
       {/* The banner's AVAILABLE count is the SELECTABLE model rows — gated
           rows and connect/attach action rows are never counted as available
           (the count once read every row). */}
-      {compact ? null : <Text color={FAINT}>CHOOSE A MODEL · {models.filter(m => !m.gated && !m.action).length} AVAILABLE · {models.filter(m => m.gated).length} GATED{roleRows.length ? ` · ${roleRows.length} ROLE SEATS` : ''}</Text>}
+      {compact ? null : <Text color={FAINT}>CHOOSE A MODEL · {models.filter(m => !m.gated && !m.action).length} AVAILABLE · {models.filter(m => m.gated).length} GATED</Text>}
       {pendingNext ? (
         <Text>
           <Text color={FAINT}>current </Text>
@@ -571,58 +480,6 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
           </React.Fragment>
         )
       })}
-      {roleRows.length > 0 && win.end > models.length ? (
-        <Box marginTop={compact ? 0 : 1}><Text bold color={tokens.info}>ROLES — SEAT SLOTS</Text></Box>
-      ) : null}
-      {roleRows.map((r, ri) => {
-        const idx = models.length + ri
-        if (idx < win.start || idx >= win.end) return null
-        const on = idx === i
-        const lockedNames = [...new Set([r.modelLockedBy, r.effortLockedBy].filter(Boolean))] as string[]
-        return (
-          <InteractiveRow
-            key={`role:${r.role}`}
-            id={`model:role:${r.role}`}
-            selected={on}
-            onSelect={() => selectRow(idx)}
-            onActivate={commitCurrent}
-            flexDirection="column"
-            // ONE RECTANGLE (class 2): border-card selection in full mode,
-            // band-in-interior in compact — see the model rows above.
-            selectionBand={compact}
-          >
-            <Box borderStyle={on && !compact ? 'round' : undefined} borderColor={on && !compact ? TERRA : undefined} paddingLeft={on && !compact ? 1 : 2} paddingRight={1} flexDirection="column">
-              <Text wrap="truncate-end">
-                {compact ? <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text> : null}
-                <Text bold color={IVORY}>{padTo(r.label, nameW)}</Text>
-                <Text color={SAND}> {r.model}</Text>
-                {r.pendingModel ? <Text color={AMBER}>{` →${r.pendingModel}`}</Text> : null}
-                {r.efforts === undefined || r.efforts.length > 0 ? (
-                  <Text color={FAINT}> @{r.effort}</Text>
-                ) : (
-                  <Text color={FAINT}> · no effort dial</Text>
-                )}
-                {r.pendingEffort ? <Text color={AMBER}>{` →@${r.pendingEffort}`}</Text> : null}
-                <Text color={r.live ? TEAL : FAINT}>{`  ${r.live ? 'live' : 'next engage'}`}</Text>
-              </Text>
-              {on && !compact ? (
-                <Text wrap="truncate-end">
-                  <Text color={SAND}>{r.originDetail}</Text>
-                  {lockedNames.length ? (
-                    <Text color={AMBER}>{` · locked · ${lockedNames.join(' + ')}`}</Text>
-                  ) : null}
-                </Text>
-              ) : null}
-              {on && !compact && r.gptDetail ? (
-                <Text color={FAINT} wrap="truncate-end">{r.gptDetail}</Text>
-              ) : null}
-              {on && (r.pendingModel || r.pendingEffort) ? (
-                <Text color={AMBER}>queued — applies at turn end</Text>
-              ) : null}
-            </Box>
-          </InteractiveRow>
-        )
-      })}
       {win.below > 0 ? <Text color={FAINT}>  ↓ {win.below} more</Text> : null}
       {shedMeters ? null : <Box marginTop={compact ? 0 : 1}>
         {/* Tier law: the tier words come from the ONE active-source owner
@@ -654,37 +511,35 @@ export function MercuryModelPicker({ models, current = 'opus-4-8', ctxPct = 62, 
           </Text>
         )
       ) : null}
-      {/* The c-press answer outranks the last role notice until the cursor
+      {/* The c-press answer outranks the last wrapper notice until the cursor
           moves; it WRAPS (the panel caps at 62 wide and the ceiling variant
           runs long) so 'not a toggle' is never truncated away. */}
       {ctxNotice && !compact ? (
         <Text color={tokens.info} wrap="wrap">{ctxNotice}</Text>
-      ) : roleNotice && !compact ? (
-        <Text color={tokens.info} wrap="truncate-end">{roleNotice}</Text>
+      ) : notice && !compact ? (
+        <Text color={tokens.info} wrap="truncate-end">{notice}</Text>
       ) : null}
       {/* ↵ is a no-op on a gated row (handler returns early), so the footer
           only advertises "↵ switch" when the focused row is selectable. */}
       <Box marginTop={compact ? 0 : 1} display={compact ? 'none' : 'flex'}>
         <Text color={FAINT} wrap="truncate-end">
-          {focusedRole
-            ? `${focusedRole.role} seat slot · precedence: env pin > saved slot > ratified default`
-            : /* FC-128: connect/attach rows are ACTIONS whose value is an
-                 internal sentinel — printing it as a model id put
-                 __mercury_anthropic_connect__ beside the ids-are-real
-                 promise. */
-              isProviderActionRow(focusedModel!.id)
-              ? 'connect action — ↵ starts the sign-in; not a model'
-              : focusedModel!.gated
-                ? focusedModel!.gatedReason
-                  ? `${focusedModel!.id} · ${focusedModel!.gatedReason} — not selectable`
-                  : `gated — set ${focusedModel!.enableFlag ?? focusedModel!.ctx} to enable. Never shown as live.`
-                : `${focusedModel!.id} · model IDs are real, never themed`}
+          {/* FC-128: connect/attach rows are ACTIONS whose value is an
+              internal sentinel — printing it as a model id put
+              __mercury_anthropic_connect__ beside the ids-are-real
+              promise. */}
+          {isProviderActionRow(focusedModel!.id)
+            ? 'connect action — ↵ starts the sign-in; not a model'
+            : focusedModel!.gated
+              ? focusedModel!.gatedReason
+                ? `${focusedModel!.id} · ${focusedModel!.gatedReason} — not selectable`
+                : `gated — set ${focusedModel!.enableFlag ?? focusedModel!.ctx} to enable. Never shown as live.`
+              : `${focusedModel!.id} · model IDs are real, never themed`}
         </Text>
       </Box>
       {/* `supports1m` here means "the focused row has an in-place c context
         * toggle" — the Anthropic 1M pair and the GPT served↔declared pair
         * share the one affordance word. */}
-      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag, roleFocused: !!focusedRole }, panelWidth - 4)}</Text>
+      <Text color={FAINT} wrap="truncate-end">{modelPickerFooter({ hasEffort, supports1m: focusedSupports1m || focusedGptToggle, gated: !!focusedModel?.gated, enableFlag: focusedModel?.enableFlag }, panelWidth - 4)}</Text>
     </Box>
   )
 }

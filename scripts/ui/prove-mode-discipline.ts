@@ -133,8 +133,6 @@ rmSync(cfg2Path, { force: true })
 // ── B. source locks — the re-assert web stays wired ────────────────────────
 section('B. re-assert wiring (engage paths + resume/wake/editor seams)')
 const srcOf = (...p: string[]) => readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
-const scribeSel = srcOf('utils', 'scribe', 'scribeRouterSelect.ts')
-check('scribe router engage re-asserts', scribeSel.includes('reassertTerminalModes()'))
 const ink = srcOf('ink', 'ink.tsx')
 // The reassert leaves through the ONE door (render-engine mount): flag-off
 // termWrite IS stdout.write; flag-on it is the serialized door.

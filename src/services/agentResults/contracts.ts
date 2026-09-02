@@ -17,7 +17,7 @@
 //      (built by normalize.ts at their parent boundaries);
 //    · Workflow agents → the Workflow engine's StructuredOutput schema
 //      results (an existing, stricter structured-completion contract);
-//    · teammates/Scribe/Party → the typed bus envelopes + HANDOFF PACKET at
+//    · teammates → the typed bus envelopes + HANDOFF PACKET at
 //      the subagent-doctrine addendum seam (existing structured products).
 // ============================================================================
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
-# gate-watch: src/tools/WorkflowTool/agentHooks* src/utils/scribeMode*
+# gate-watch: src/tools/WorkflowTool/agentHooks*
 # gate-watch: src/utils/swarm/teammatePromptAddendum*
 # Subagent/agent doctrine — proof harness. Non-zero exit on any fail.
 # Covers: the bun proofs (doctrine layer + teammate addendum) AND dist-greps that

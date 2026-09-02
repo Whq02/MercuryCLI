@@ -96,13 +96,5 @@ for (const p of SWEPT) {
   const hit = RENDERED_HERMES.exec(src)
   check(!hit, `${p.split('/').pop()} renders no 'Hermes' text${hit ? ` (found: ${hit[0].slice(0, 60)})` : ''}`)
 }
-// the nameplate literal moved to busIdentity (the ONE bus-identity
-// source) — the renderer must derive from it, and the leaf must hold the value.
-check(
-  read('src/utils/scribe/busIdentity.ts').includes("SCRIBE_DISPLAY_NAME = 'Mercury-Amanuensis'") &&
-    read('src/components/messages/UserTeammateMessage.tsx').includes('SCRIBE_DISPLAY_NAME'),
-  'scribe nameplate is Mercury-Amanuensis (derived from busIdentity)',
-)
-
 console.log(failures === 0 ? '✅ mercury loyal GREEN' : `❌ mercury loyal RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

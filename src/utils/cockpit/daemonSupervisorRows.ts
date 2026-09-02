@@ -32,7 +32,7 @@ export interface SupervisorWorkerRow {
   /** The wire's settled outcome ('degraded' · 'crashed' · 'killed' · a one-shot
    *  run's fire outcome); absent while the seat is live. A settled seat must
    *  never wear the idle costume — the roster keeps it until reap, so this
-   *  row is the operator's only tell that the Implementer died. */
+   *  row is the operator's only tell that a seat died. */
   outcome?: string
 }
 
@@ -54,7 +54,7 @@ export interface SupervisorView {
 }
 
 // A turn busy this long is flagged on the cockpit — an early heads-up well before
-// the daemon's maxTurnMs watchdog (~20m default, env MERCURY_IMPLEMENTER_MAX_TURN_MS)
+// the daemon's maxTurnMs watchdog (~20m default, env MERCURY_WORKER_MAX_TURN_MS)
 // kills it. Pure display threshold, derived at HALF the live kill cap so it always
 // lands at a fraction of the real watchdog (see stallMs in deriveSupervisorRows).
 
@@ -98,7 +98,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       leases: null,
       fireLine: null,
       recentLine: null,
-      empty: 'run `mercury daemon` to start the supervisor + Implementer',
+      empty: 'run `mercury daemon` to start the supervisor',
       version: null,
     }
   }
@@ -107,7 +107,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
   const reachable = status.controlReachable
   // Half the live (env-tunable) maxTurnMs kill cap — the amber heads-up before the
   // daemon's watchdog kills the turn. Default 20m ⇒ 10m (matches the prior fixed value).
-  const stallMs = Math.round(getMaxTurnMs(flagEnv('MERCURY_IMPLEMENTER_MAX_TURN_MS')) * 0.5)
+  const stallMs = Math.round(getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')) * 0.5)
   const workers: SupervisorWorkerRow[] = (status.workers ?? []).map(w => {
     const busy = w.busy === true
     const turnMs = w.turnElapsedMs

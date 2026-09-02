@@ -65,7 +65,7 @@ const {
 } = await import('../../src/utils/model/capabilities.ts')
 const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
 const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
-const { SEAT_ALLOWED_FAMILIES, SEAT_MODEL_CYCLE } = await import('../../src/utils/model/seatSlots.ts')
+const { SEAT_ALLOWED_FAMILIES } = await import('../../src/utils/model/seatSlots.ts')
 const { getLaunchDefaultEffort } = await import('../../src/utils/effort.ts')
 const { AUTOPILOT_TIER_KEYS, autopilotAllowedModels } = await import('../../src/utils/autopilot/autopilotGates.ts')
 const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
@@ -243,7 +243,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check("the exact-generation alias 'fable51' resolves to the bare id", parseUserSpecifiedModel('fable51') === ID, parseUserSpecifiedModel('fable51'))
   check("the family alias 'fable' still resolves to the family default, not the second member", getCanonicalName(parseUserSpecifiedModel('fable')) === FAMILY, parseUserSpecifiedModel('fable'))
   check("the router classifies it 'fable'", classOfModel(ID) === 'fable', String(classOfModel(ID)))
-  check('the seat allowlist and the seat cycle carry it beside the family default', SEAT_ALLOWED_FAMILIES.includes(ID) && SEAT_ALLOWED_FAMILIES.includes(FAMILY) && SEAT_MODEL_CYCLE.includes(ID))
+  check('the seat allowlist carries it beside the family default', SEAT_ALLOWED_FAMILIES.includes(ID) && SEAT_ALLOWED_FAMILIES.includes(FAMILY))
   check('natively 1M on the bare id', getContextWindowForModel(ID) === 1_000_000, String(getContextWindowForModel(ID)))
   check('128K output through the family arm of the output table', getModelMaxOutputTokens(ID).upperLimit === 128_000)
 

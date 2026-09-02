@@ -73,7 +73,7 @@ export function useAgentsChange(cwd: string | undefined): void {
     if (!cwd) return
     // Arm the watcher OFF the boot window: hot reload is a background
     // affordance, and chokidar's initial root scan must not compete with the
-    // first paint (the party-board dossier leg measured the cost under the
+    // first paint (a board's dossier leg measured the cost under the
     // gate's 2-slot PTY load — pool round 1).
     const arm = setTimeout(() => {
       void startAgentWatch(cwd).catch(error => logError(toError(error)))

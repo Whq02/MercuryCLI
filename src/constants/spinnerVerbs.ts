@@ -11,7 +11,6 @@
 import { randomInt } from 'node:crypto'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
-import { isScribeModeOn } from '../utils/scribeMode.js'
 
 export type QuicksilverMode = 'off' | 'mixed' | 'only'
 
@@ -144,9 +143,8 @@ export function isQuicksilverLine(verb: string): boolean {
  * Deterministic pool composition: base list (desert unless
  * MERCURY_DESERT_VERBS reads exactly '0'), then the quicksilver fold by
  * mode — off → base alone; only → quicksilver alone; mixed → base plus
- * quicksilver, and in an identity-forward mode (scribe) base plus
- * quicksilver TWICE (a ~2:1 weighting). An explicit
- * '0' always beats any mode. A `spinnerVerbs` setting overlays last:
+ * quicksilver. An explicit '0' always beats any mode. A `spinnerVerbs`
+ * setting overlays last:
  * replace-with-verbs wins when non-empty, any other mode appends.
  */
 export function getSpinnerVerbs(): string[] {
@@ -159,8 +157,6 @@ export function getSpinnerVerbs(): string[] {
     pool = [...desert]
   } else if (mode === 'only') {
     pool = [...quicksilver]
-  } else if (isScribeModeOn()) {
-    pool = [...desert, ...quicksilver, ...quicksilver]
   } else {
     pool = [...desert, ...quicksilver]
   }

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "id": "affinity-keeps-sonnet",
-  "mode": "scribe",
+  "mode": "sequential",
   "mission": {
     "objective": "Continue a bounded implementation on the worker already carrying context",
     "title": "Add a second field to the same form validator",

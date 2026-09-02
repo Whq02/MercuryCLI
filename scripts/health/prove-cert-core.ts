@@ -69,7 +69,7 @@ check('fail dominates ⇒ fault', verdictFromStatuses(['ok', 'warn', 'fail', 'st
 const NOW = Date.parse('2026-07-03T12:00:00Z')
 const green: GateVerdict = {
   ok: true,
-  pass: ['ui', 'scribe', 'typecheck'],
+  pass: ['ui', 'crew', 'typecheck'],
   fail: [],
   ranAt: '2026-07-03T11:46:00Z',
   headSha: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
@@ -88,16 +88,16 @@ const green: GateVerdict = {
   check('…and the optional road stays named', (r.fix ?? '').includes('run-all-suites.sh'))
 }
 {
-  const red: GateVerdict = { ...green, ok: false, pass: ['ui'], fail: ['scribe', 'memory'] }
+  const red: GateVerdict = { ...green, ok: false, pass: ['ui'], fail: ['crew', 'memory'] }
   const r = interpretGateVerdict(red, { sha: green.headSha, dirty: false }, NOW)
   check('red verdict at the SAME state ⇒ live fail', r.status === 'fail')
-  check('red evidence names the red suites', r.evidence.includes('scribe') && r.evidence.includes('RED'))
+  check('red evidence names the red suites', r.evidence.includes('crew') && r.evidence.includes('RED'))
   // Inventory S3: a red AGES exactly like a green — recorded
   // against a superseded commit/tree it is stale evidence of a PAST red,
   // never a present-tense assertion.
   const movedHead = interpretGateVerdict(red, { sha: 'somewhere-else', dirty: false }, NOW)
   check('red verdict at a SUPERSEDED commit ⇒ stale, never present-tense fail', movedHead.status === 'stale')
-  check('the stale red still names what WAS red', movedHead.evidence.includes('scribe') && movedHead.evidence.includes('superseded'))
+  check('the stale red still names what WAS red', movedHead.evidence.includes('crew') && movedHead.evidence.includes('superseded'))
   const movedTree = interpretGateVerdict(
     { ...red, treeSha: 'tree-a' },
     { sha: green.headSha, dirty: false, treeSha: 'tree-b' },

@@ -14,7 +14,7 @@
 //   - version === 1
 //   - id is a non-empty kebab-case string matching its filename (no drift
 //     between "the file everyone opens" and "the id everyone greps for")
-//   - mode ∈ {scribe, party}
+//   - mode ∈ {sequential, fanout}
 //   - expected.profile ∈ the allowed profile set (or REFUSAL)
 //   - expected.width is a number
 //   - expected.reasonCodes / expected.adjustments are arrays whose every
@@ -43,13 +43,16 @@ const ROOT = join(import.meta.dir, 'corpus')
 const COMPILER_DIR = join(ROOT, 'compiler')
 const LIFECYCLE_DIR = join(ROOT, 'lifecycle')
 
-const ALLOWED_MODES = new Set(['scribe', 'party'])
+const ALLOWED_MODES = new Set(['sequential', 'fanout'])
 const ALLOWED_PROFILES = new Set([
   'sonnet-direct',
   'sonnet-opus-review',
   'opus-direct',
   'parallel-sonnet',
   'dependency-graph',
+  // READ-tolerant: a legacy profile the compiler no longer produces (it
+  // belonged to a retired seat's workflow posture) — a pre-retirement
+  // fixture may still spell it; the replay prover pins that none EXPECTS it.
   'workflow-delegated',
   'REFUSAL',
 ])
@@ -63,6 +66,9 @@ const ALLOWED_CODES = new Set([
   'architectural',
   'separable-disjoint-ownership',
   'ordered-dependencies',
+  // READ-tolerant: the two workflow-posture codes are legacy (a retired
+  // seat's posture); a pre-retirement fixture may still spell them, the
+  // replay prover pins that no compile produces them.
   'workflow-posture-active',
   'revision-escalation',
   'affinity-kept-model',
@@ -98,7 +104,9 @@ section(`compiler/*.json — schema + closed reason-code vocabulary (${COMPILER_
 
 const compilerFiles = readdirSync(COMPILER_DIR).filter(f => f.endsWith('.json')).sort()
 check('at least one compiler fixture found', compilerFiles.length > 0, `found ${compilerFiles.length}`)
-check('exactly 19 compiler fixtures (the corpus spec)', compilerFiles.length === 19, `found ${compilerFiles.length}`)
+// 18 since the legacy effort-only envelope fixture left with the retired
+// seat's route path (the compiler has no legacy fallback branch to replay).
+check('exactly 18 compiler fixtures (the corpus spec)', compilerFiles.length === 18, `found ${compilerFiles.length}`)
 
 const seenIds = new Set<string>()
 
@@ -122,7 +130,7 @@ for (const file of compilerFiles) {
   check(`${file}: id is unique across the corpus`, typeof parsed.id === 'string' && !seenIds.has(parsed.id as string))
   if (typeof parsed.id === 'string') seenIds.add(parsed.id)
 
-  check(`${file}: mode ∈ {scribe, party}`, typeof parsed.mode === 'string' && ALLOWED_MODES.has(parsed.mode as string), `got ${JSON.stringify(parsed.mode)}`)
+  check(`${file}: mode ∈ {sequential, fanout}`, typeof parsed.mode === 'string' && ALLOWED_MODES.has(parsed.mode as string), `got ${JSON.stringify(parsed.mode)}`)
 
   const mission = parsed.mission as Record<string, unknown> | undefined
   check(`${file}: mission is an object`, typeof mission === 'object' && mission !== null)

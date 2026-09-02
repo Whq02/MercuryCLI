@@ -97,7 +97,7 @@ export function resolveCompatModel(
 
 export function buildCompatLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: the openai-compat slot has no SEAT runtime — party/roster seats stay Anthropic; compat specialists dispatch through the AgentTool engine path',
+    'router: the openai-compat slot has no SEAT runtime — roster seats stay Anthropic; compat specialists dispatch through the AgentTool engine path',
   )
 }
 

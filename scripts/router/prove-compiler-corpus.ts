@@ -23,7 +23,14 @@
 // ============================================================================
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { decodeTaskRoutePlan, stableDigest } from '../../src/utils/router/contracts.js'
+import {
+  decodeTaskRoutePlan,
+  LEGACY_ROUTE_PROFILES,
+  LEGACY_ROUTE_REASON_CODES,
+  ROUTE_PROFILES,
+  ROUTE_REASON_CODES,
+  stableDigest,
+} from '../../src/utils/router/contracts.js'
 import { buildRouterModelSnapshot } from '../../src/utils/router/modelRegistry.js'
 import {
   compileRoute,
@@ -46,17 +53,23 @@ const pass = (id: string, msg: string): void => {
 
 const snapshot = buildRouterModelSnapshot()
 
+// The profiles every fixture EXPECTS and every compile PRODUCES — the legacy
+// profile law below reads both sets, plus one compiled plan as its sample.
+const EXPECTED_PROFILES = new Set<string>()
+const PRODUCED_PROFILES = new Set<string>()
+const PRODUCED_CODES = new Set<string>()
+let SAMPLE_PLAN: unknown = null
+
 for (const file of readdirSync(DIR).sort()) {
   if (!file.endsWith('.json')) continue
   const fx = JSON.parse(readFileSync(join(DIR, file), 'utf8')) as {
     id: string
-    mode: 'scribe' | 'party'
+    mode: 'sequential' | 'fanout'
     mission: RouteMissionIntent & {
       workerAffinity?: { currentModelClass?: string; currentEffort?: string }
       sharedLane?: boolean
       contextFillPct?: number
       activeTurn?: boolean
-      workflowPostureActive?: boolean
     }
     expected: {
       profile: string
@@ -67,14 +80,14 @@ for (const file of readdirSync(DIR).sort()) {
     }
   }
   const m = fx.mission
+  EXPECTED_PROFILES.add(fx.expected.profile)
   const input: RouteCompilerInput = {
     mode: fx.mode,
-    intentSource: m.legacyRoute ? 'legacy' : 'structured',
     mission: m,
     posture: 'adaptive',
     models: snapshot,
     worker: {
-      maxWidth: fx.mode === 'party' ? 3 : 1,
+      maxWidth: fx.mode === 'fanout' ? 3 : 1,
       sharedLane: m.sharedLane === true,
       ...(m.workerAffinity?.currentModelClass
         ? { currentModelClass: m.workerAffinity.currentModelClass as 'opus' | 'sonnet' | 'fable' }
@@ -83,7 +96,6 @@ for (const file of readdirSync(DIR).sort()) {
       ...(typeof m.contextFillPct === 'number' ? { contextFillPct: m.contextFillPct } : {}),
       ...(m.activeTurn === true ? { activeTurn: true } : {}),
     },
-    workflowPostureActive: m.workflowPostureActive === true,
     now: NOW,
     planId: `rp-corpus-${fx.id}`,
   }
@@ -108,6 +120,9 @@ for (const file of readdirSync(DIR).sort()) {
     continue
   }
   const plan = result.plan
+  PRODUCED_PROFILES.add(plan.profile)
+  for (const c of [...plan.decision.decisiveReasons, ...plan.decision.adjustments]) PRODUCED_CODES.add(c)
+  SAMPLE_PLAN ??= plan
   const problems: string[] = []
   if (plan.profile !== fx.expected.profile) {
     problems.push(`profile '${plan.profile}' != '${fx.expected.profile}'`)
@@ -151,6 +166,35 @@ for (const file of readdirSync(DIR).sort()) {
       `${plan.profile} width=${width} [${plan.decision.decisiveReasons.join(',')}]${plan.decision.adjustments.length ? ` adj[${plan.decision.adjustments.join(',')}]` : ''}`,
     )
   }
+}
+
+// ── the legacy profile law ──────────────────────────────────────────────────
+// A profile the compiler no longer produces (it belonged to a retired seat's
+// workflow posture) is READ-tolerant, never PRODUCED: the corpus schema
+// still spells it for pre-retirement fixtures and a persisted plan carrying
+// it still decodes, while the producer-facing vocabulary, every compile and
+// every fixture's expectation stay clear of it.
+{
+  const legacy = new Set<string>(LEGACY_ROUTE_PROFILES)
+  const law = (id: string, ok: boolean, msg: string): void => (ok ? pass(id, msg) : fail(id, msg))
+  law('legacy-profile', !(ROUTE_PROFILES as readonly string[]).some(p => legacy.has(p)), 'the producer-facing vocabulary carries no legacy profile')
+  law('legacy-profile', ![...PRODUCED_PROFILES].some(p => legacy.has(p)), `no compile produced a legacy profile (${[...PRODUCED_PROFILES].sort().join(', ')})`)
+  law('legacy-profile', ![...EXPECTED_PROFILES].some(p => legacy.has(p)), 'no fixture expects a legacy profile')
+  const sample = SAMPLE_PLAN as { decision: Record<string, unknown> } & Record<string, unknown>
+  const restamp = (patch: Record<string, unknown>, decisionPatch: Record<string, unknown> = {}): unknown =>
+    JSON.parse(JSON.stringify({ ...sample, ...patch, decision: { ...sample.decision, ...decisionPatch } }))
+  law('legacy-profile', SAMPLE_PLAN !== null, 'at least one fixture compiled to a plan (the sample for the read-tolerance pins)')
+  law('legacy-profile', SAMPLE_PLAN !== null && decodeTaskRoutePlan(restamp({ profile: LEGACY_ROUTE_PROFILES[0] })) !== null, 'a persisted plan carrying the legacy profile still decodes (read-tolerant)')
+  law('legacy-profile', SAMPLE_PLAN !== null && decodeTaskRoutePlan(restamp({}, { selectedProfile: LEGACY_ROUTE_PROFILES[0] })) !== null, 'a persisted decision record carrying the legacy profile still decodes (read-tolerant)')
+  // The same law for the reason codes the retired posture named: the
+  // vocabulary and every compile stay clear of them; a persisted record
+  // carrying one still decodes — the code drops (reasons filter to the live
+  // vocabulary), the record stays.
+  const legacyCodes = new Set<string>(LEGACY_ROUTE_REASON_CODES)
+  law('legacy-reason', !(ROUTE_REASON_CODES as readonly string[]).some(c => legacyCodes.has(c)), 'the reason vocabulary carries no legacy code')
+  law('legacy-reason', ![...PRODUCED_CODES].some(c => legacyCodes.has(c)), `no compile produced a legacy reason code (${[...PRODUCED_CODES].sort().join(', ')})`)
+  const decodedWithLegacyCode = SAMPLE_PLAN === null ? null : decodeTaskRoutePlan(restamp({}, { adjustments: [LEGACY_ROUTE_REASON_CODES[0], LEGACY_ROUTE_REASON_CODES[1]] }))
+  law('legacy-reason', decodedWithLegacyCode !== null && decodedWithLegacyCode.decision.adjustments.length === 0, 'a persisted record carrying legacy reason codes still decodes (the codes drop, the record stays)')
 }
 
 console.log('════════════════════════════════════════════════════════════════════════════')

@@ -24,8 +24,8 @@ type Props = {
 //             LIVE against the real chrome — the running app IS the specimen;
 //             Enter applies + persists; Esc restores the prior theme exactly;
 //             the OSC 11 ground re-syncs through the ThemeProvider effect).
-//  · ACCENT — the live identity accent (critter pick · /accent override ·
-//             scribe glow) with its real swatch and the deep links.
+//  · ACCENT — the live identity accent (critter pick · /accent override)
+//             with its real swatch and the deep links.
 //  · MOTION — full ↔ reduced ('m' toggles; persists prefersReducedMotion,
 //             which every decorative animation gate already honors with
 //             frame-0 static degradation — progress semantics survive).

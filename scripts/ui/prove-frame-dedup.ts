@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Proof: isDeckPaneActive() — which drives whether MercuryFrame SHEDS the deck-owned vitals
-// (model/cost/usage/branch/scribe) — flips correctly on the fullscreen + deck gate. This locks
+// (model/cost/usage/branch) — flips correctly on the fullscreen + deck gate. This locks
 // the dedup invariant: the frame sheds vitals IFF the deck is showing them (no double-render),
 // and KEEPS them when there's no deck (no inline regression).
 //

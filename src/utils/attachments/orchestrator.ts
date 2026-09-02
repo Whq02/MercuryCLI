@@ -68,10 +68,8 @@ import {
 } from './reminders.js'
 import {
   getCriticalSystemReminderAttachment,
-  getImplementerAwarenessAttachment,
   getMaxBudgetUsdAttachment,
   getOutputTokenUsageAttachment,
-  getScribeAwarenessAttachment,
   getTasteRecallAttachment,
 } from './sessionContext.js'
 import {
@@ -361,12 +359,6 @@ export async function getAttachments(
       Promise.resolve(
         getCriticalSystemReminderAttachment(toolUseContext, messages ?? []),
       ),
-    ),
-    maybe('scribe_awareness', () =>
-      Promise.resolve(getScribeAwarenessAttachment(messages ?? [])),
-    ),
-    maybe('implementer_awareness', () =>
-      Promise.resolve(getImplementerAwarenessAttachment(messages ?? [])),
     ),
     maybe('taste_recall', () => getTasteRecallAttachment(toolUseContext, messages)),
     // deterministic fixtures (MERCURY_PULSE_FIXTURE, test-only; unset ⇒ []).

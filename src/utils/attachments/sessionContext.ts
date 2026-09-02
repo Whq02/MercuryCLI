@@ -1,7 +1,6 @@
-// Session-context producers — the critical system reminder passthrough, the
-// scribe/implementer per-turn awareness pair (content-aware per-turn throttle
-// — an ungated generator re-injected every tool round), taste-loop recall,
-// and the token/budget gauges.
+// Session-context producers — the critical system reminder passthrough
+// (content-aware per-turn throttle — an ungated generator re-injected every
+// tool round), taste-loop recall, and the token/budget gauges.
 
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
@@ -14,8 +13,6 @@ import {
   getTasteRecallContent,
   tasteLoopEnabled,
 } from '../../memdir/tasteLoop.js'
-import { buildImplementerAwarenessReminder } from '../scribe/implementerAwareness.js'
-import { buildScribeAwarenessReminder } from '../scribe/scribeAwareness.js'
 import type { Attachment } from './types.js'
 
 export function getCriticalSystemReminderAttachment(
@@ -52,10 +49,7 @@ export function getCriticalSystemReminderAttachment(
 // memory-prefetch attachments already use.
 function awarenessAlreadyEmittedThisTurn(
   messages: readonly unknown[],
-  type:
-    | 'scribe_awareness'
-    | 'implementer_awareness'
-    | 'critical_system_reminder',
+  type: 'critical_system_reminder',
   content: string,
 ): boolean {
   const arr = messages as ReadonlyArray<{
@@ -78,26 +72,6 @@ function awarenessAlreadyEmittedThisTurn(
     }
   }
   return false
-}
-
-// Scribe Mode "Amanuensis" per-turn awareness (W3c). Self-gated inside the builder
-// (returns '' unless scribeModeEnabled() && isScribeRole()), so OFF /
-// non-Scribe-process ⇒ [] ⇒ byte-identical. NOT behind feature() (those DCE).
-export function getScribeAwarenessAttachment(messages: readonly unknown[]): Attachment[] {
-  const content = buildScribeAwarenessReminder(messages)
-  if (!content) return []
-  if (awarenessAlreadyEmittedThisTurn(messages, 'scribe_awareness', content)) return []
-  return [{ type: 'scribe_awareness', content }]
-}
-
-// Implementer per-turn awareness (mirror of scribe_awareness). Self-gated inside the
-// builder (returns '' unless implementerModeEnabled() && isImplementerRole()), so OFF /
-// non-Implementer-process ⇒ [] ⇒ byte-identical. NOT behind feature() (those DCE).
-export function getImplementerAwarenessAttachment(messages: readonly unknown[]): Attachment[] {
-  const content = buildImplementerAwarenessReminder(messages)
-  if (!content) return []
-  if (awarenessAlreadyEmittedThisTurn(messages, 'implementer_awareness', content)) return []
-  return [{ type: 'implementer_awareness', content }]
 }
 
 // Taste Loop recall (fork). Main thread only (subagents carry their own doctrine,

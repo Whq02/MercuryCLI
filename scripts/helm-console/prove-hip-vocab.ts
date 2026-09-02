@@ -15,8 +15,6 @@
 //    · the PICK is fresh — sampleSpinnerVerb() remembers recent draws and
 //      avoids them, degrading gracefully
 //      on tiny pools;
-//    · identity-forward coverage: scribe AND the router party AND fable all
-//      guarantee the quicksilver-heavy pool;
 //    · the SpinnerGlyph swing: quicksilver cadence maps through
 //      QUICKSILVER_SWING, standard cadence and reduced-motion stay untouched.
 //  Run:  ~/.bun/bin/bun run scripts/helm-console/prove-hip-vocab.ts
@@ -78,11 +76,6 @@ const srcCode = src
   .filter(l => !l.trim().startsWith('//'))
   .join('\n')
 check('no Math.random CALL in the vocab module (comments exempt)', !srcCode.includes('Math.random'))
-check(
-  'identity-forward covers the scribe (the retired party arm left the disjunction)',
-  src.includes('} else if (isScribeModeOn()) {'),
-)
-check('quicksilver-heavy weighting in identity modes', src.includes('[...desert, ...quicksilver, ...quicksilver]'))
 check('mixed default folds quicksilver into the pool', src.includes('[...desert, ...quicksilver]'))
 check('adjacent sets present', src.includes('MERCURY_QUICKSILVER_CODE') && src.includes('MERCURY_QUICKSILVER_FLOW'))
 check(

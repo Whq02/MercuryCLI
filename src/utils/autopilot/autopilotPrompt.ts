@@ -6,7 +6,7 @@
 //
 //  Rides the modeSections group in the owned composer (src/prompt/composer.ts)
 //  — after the wrapper/floor, before the identity reconcile tail, exactly like
-//  the fable/scribe/dungeon packs. OFF (flag, fork, or any other mode) ⇒ []
+//  the fable packs. OFF (flag, fork, or any other mode) ⇒ []
 //  ⇒ byte-identical prompt.
 //
 //  Doctrine source: ATLAS (arXiv:2606.01667) — the model itself is the best

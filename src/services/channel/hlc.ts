@@ -7,7 +7,7 @@
  * remote room), and keeping causality when a clock steps backwards (NTP slew,
  * VM resume). Classic Kulkarni/Demirbas HLC rules, string-encoded so plain
  * lexicographic comparison IS the happens-after comparison — no parse needed
- * at sort sites (the same trick the party store used for request ids).
+ * at sort sites.
  *
  * Encoding: `<millis:14 base10>.<counter:4 base36>.<node>`
  *   - 14 digits of millis is good through year 5138 — the pad never overflows.

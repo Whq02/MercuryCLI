@@ -6,8 +6,8 @@
 //  The gap under proof: a daemon child runs `-p` (print mode) where NO
 //  permission prompt exists — getCanUseToolFn's no-prompt path resolves every
 //  'ask' to a terminal deny (src/cli/print.ts:4297). Pre-fix, BOTH daemon argv
-//  builders (buildStreamJsonInvocation for the long-lived Scribe/Implementer/
-//  party children; runTaskHeadless for cron one-shots) passed no permission
+//  builders (buildStreamJsonInvocation for the long-lived crew and session
+//  children; runTaskHeadless for cron one-shots) passed no permission
 //  flag at all, so children booted 'default' mode and every non-rule-allowed
 //  tool call silently died — indistinguishable from a tool failure upstream.
 //
@@ -52,9 +52,9 @@ const SPEC = {
   model: 'claude-opus-4-8',
   effort: 'max',
   appendSystemPrompt: 'pack',
-  role: 'MERCURY_IMPLEMENTER' as const,
-  agentName: 'imp',
-  agentId: 'imp-1',
+  role: 'MERCURY_CREW' as const,
+  agentName: 'scout',
+  agentId: 'scout-1',
 }
 const buildArgv = (): string[] => buildStreamJsonInvocation(SPEC).argv
 const hasPair = (argv: string[], mode: string): boolean => {

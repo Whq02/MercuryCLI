@@ -5,10 +5,10 @@
 //
 //  Render-verify is the law for Ink changes, and the streaming branch
 //  only renders while a real turn streams (streamingText non-empty) — so this
-//  drives the REAL built binary (fork default = non-scribe), sends a prompt that
+//  drives the REAL built binary (the fork default), sends a prompt that
 //  streams for several seconds, and captures with /tmp/vshot.py:
 //    • MID-STREAM (total tuned to land mid-turn) at 80 AND 120: the fork
-//      non-scribe prose leads with a BULLETLESS inline [Mercury] nameplate (no ●),
+//      the prose leads with a BULLETLESS inline [Mercury] nameplate (no ●),
 //      wrapped lines at column 0 — the fix.
 //    • POST-FINALIZE: the settled line reads HH:MM:SS [Mercury] — confirming the
 //      ONLY delta on finalize is the clock fading in (no ●→nameplate swap).
@@ -88,7 +88,7 @@ if (process.env.MERCURY_UI_BILLED !== '1') {
 }
 
 console.log('============================================================')
-console.log(' HB-0215 LIVE render-verify: fork non-scribe streaming nameplate')
+console.log(' HB-0215 LIVE render-verify: the streaming nameplate')
 console.log('============================================================')
 
 // 10 lines, not 25: the long stream scrolled the nameplate ROW

@@ -189,9 +189,9 @@ export function flushDraftSaves(): Promise<void> {
  * delete would resurrect the just-submitted draft. A modal/local-JSX submit
  * also unmounts PromptInput in the SAME commit that clears the input, so
  * the empty-save effect never fires there — the submit chokepoint owns the
- * clear deterministically instead (measured: the party-board fixture's
- * '/party' draft survived its child and prefilled the NEXT session's
- * prompt as '/party/party').
+ * clear deterministically instead (measured: a board fixture's command
+ * draft survived its child and prefilled the NEXT session's prompt with
+ * the command twice).
  */
 export function cancelPendingDraftSave(): void {
   pending = null

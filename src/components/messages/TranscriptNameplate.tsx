@@ -2,16 +2,10 @@ import os from 'node:os'
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { isScribeModeOn } from '../../utils/scribeMode.js'
 import { FAINT, TEAL } from '../mercuryPalette.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import {
-  classifyAuthor,
-  scribeStreamName,
-  type ScribeAuthor,
-} from '../mercury-ui/scribeChatTabs.js'
 
 // ============================================================================
 //  TranscriptNameplate — Mercury's per-message identity prefix.
@@ -65,19 +59,15 @@ export const NameplateAccentContext = React.createContext<string | null>(null)
 type MessageMeta = {
   timestamp?: string
   role: MessageRole
-  // In Scribe Mode, the stream this message belongs to (operator / Scribe /
-  // Implementer) so the nameplate stamps [Mercury-Amanuensis] / [Mercury-Implement]
-  // instead of a generic [Mercury]. undefined outside scribe mode ⇒ default naming.
-  scribeAuthor?: ScribeAuthor
   // Inside the attached-session surface: the three-party attribution.
   attachedAuthor?: AttachedAuthor
 }
 
 const MessageMetaContext = React.createContext<MessageMeta | null>(null)
 
-/** Read the current message's meta (timestamp/role/scribeAuthor), or null outside a
- *  Message. Lets sibling renderers (e.g. the relayed-teammate line in scribe mode)
- *  reuse the same honest stored timestamp the nameplate uses. */
+/** Read the current message's meta (timestamp/role), or null outside a
+ *  Message. Lets sibling renderers reuse the same honest stored timestamp
+ *  the nameplate uses. */
 export function useMessageMeta(): MessageMeta | null {
   return React.useContext(MessageMetaContext)
 }
@@ -111,16 +101,6 @@ export function MessageMetaProvider({
       ? 'assistant'
       : 'user'
   const timestamp = message?.timestamp
-  // Scribe Mode: classify the stream so the nameplate can label the Scribe vs the
-  // relayed Implementer distinctly. Agent-side turns the provider already groups
-  // as 'assistant' (incl. tool groups) stay the Scribe even if classifyAuthor's
-  // text heuristic would say 'operator' (a tool-only turn). Outside scribe mode ⇒
-  // undefined ⇒ default [Mercury]/handle naming (byte-identical).
-  let scribeAuthor: ScribeAuthor | undefined
-  if (isScribeModeOn()) {
-    scribeAuthor = classifyAuthor(message as Parameters<typeof classifyAuthor>[0])
-    if (role === 'assistant' && scribeAuthor === 'operator') scribeAuthor = 'scribe'
-  }
   // The attached-session surface speaks its three-party vocabulary — the
   // surface provides the user/coordinator classifier; agent-side turns are
   // the worker itself.
@@ -128,8 +108,8 @@ export function MessageMetaProvider({
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
   const value = React.useMemo<MessageMeta>(
-    () => ({ timestamp, role, scribeAuthor, attachedAuthor }),
-    [timestamp, role, scribeAuthor, attachedAuthor],
+    () => ({ timestamp, role, attachedAuthor }),
+    [timestamp, role, attachedAuthor],
   )
   return (
     <MessageMetaContext.Provider value={value}>
@@ -191,20 +171,14 @@ export function TranscriptNameplate(): React.ReactNode {
   // already stamped on its first message — don't re-stamp mid-response.
   if (isContinuation) return null
   const clock = formatClock(meta.timestamp)
-  // Outside scribe mode, keep the honest self-omit (no fabricated stamp ⇒ no
-  // nameplate). In SCRIBE mode the [name] is IDENTITY (role-derived, never
-  // invented), so always show it — only the HH:MM:SS self-omits when the stored
-  // timestamp is missing. This keeps every Scribe turn tagged [Mercury-Amanuensis] /
-  // [Mercury-Implement] consistently, even a turn that lacks a stored stamp (which
-  // otherwise renders as a bare, un-attributed dump).
-  // The attached surface's plates are IDENTITY (role/ledger-derived, never
-  // invented) — like the scribe plates they always show; only the clock
-  // self-omits on a missing stored stamp.
-  if (!clock && !meta.scribeAuthor && !meta.attachedAuthor) return null
+  // Keep the honest self-omit (no fabricated stamp ⇒ no nameplate). The
+  // attached surface's plates are IDENTITY (role/ledger-derived, never
+  // invented) — they always show; only the clock self-omits on a missing
+  // stored stamp.
+  if (!clock && !meta.attachedAuthor) return null
   const isAgent = meta.role === 'assistant'
-  // Attached session: the ruled three-party vocabulary. Scribe Mode:
-  // distinct identity + colour per stream (Scribe = accent, Implementer =
-  // TEAL, matching the deck chat-tabs); else the default naming.
+  // Attached session: the ruled three-party vocabulary; else the default
+  // naming.
   let name: string
   let nameColor: string
   if (meta.attachedAuthor) {
@@ -213,14 +187,6 @@ export function TranscriptNameplate(): React.ReactNode {
       meta.attachedAuthor === 'agent'
         ? (paneAccent ?? critter.accent)
         : meta.attachedAuthor === 'coordinator'
-          ? TEAL
-          : userBloom
-  } else if (meta.scribeAuthor) {
-    name = scribeStreamName(meta.scribeAuthor, userHandle())
-    nameColor =
-      meta.scribeAuthor === 'scribe'
-        ? critter.accent
-        : meta.scribeAuthor === 'implement'
           ? TEAL
           : userBloom
   } else {

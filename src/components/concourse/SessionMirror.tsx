@@ -453,7 +453,7 @@ export function SessionMirror({
               {derived.collapsed.map((m, i) => (
                 <NameplateContinuationContext.Provider
                   key={m.uuid}
-                  value={isAssistantContinuationRow(derived.collapsed, i, false)}
+                  value={isAssistantContinuationRow(derived.collapsed, i)}
                 >
                   {/* One mirrored row's render throw degrades to that row's
                       fallback line, exactly as in the main transcript

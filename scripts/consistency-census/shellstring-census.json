@@ -787,14 +787,6 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
-      "file": "scripts/journey/prove-muster-reslot-journey.ts",
-      "line": 155,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'vshot.py'), cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
       "file": "scripts/journey/prove-noping-stream-completes.ts",
       "line": 152,
       "mechanism": "hardcoded-interpreter",
@@ -995,6 +987,14 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/operator-identity/prove-coordination-modes-retired.ts",
+      "line": 57,
+      "mechanism": "execSync-string",
+      "excerpt": "const tracked = execSync('git ls-files -z', { cwd: ROOT }).toString('utf8').split('\\0').filter(Boolean)",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
       "file": "scripts/origin/prove-public-cut.ts",
       "line": 38,
       "mechanism": "execSync-string",
@@ -1020,7 +1020,7 @@
     },
     {
       "file": "scripts/permissions/prove-commit-gate.ts",
-      "line": 196,
+      "line": 195,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1419,30 +1419,6 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
-      "file": "scripts/scribe/prove-workflows-posture.ts",
-      "line": 202,
-      "mechanism": "execSync-string",
-      "excerpt": "return execSync(`grep -n ${JSON.stringify(pattern)} ${JSON.stringify(file)}`, { encoding: 'utf8', cwd: root })",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
-      "file": "scripts/scribe/render-chatroom.ts",
-      "line": 140,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
-      "file": "scripts/scribe/render-doublefix.ts",
-      "line": 108,
-      "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', env: { ...process.env, ...env }, timeout: vshotBudgetMs(300",
-      "cls": "platform-owner",
-      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
-    },
-    {
       "file": "scripts/scroll/prove-scroll-reflow.ts",
       "line": 203,
       "mechanism": "hardcoded-interpreter",
@@ -1652,7 +1628,7 @@
     },
     {
       "file": "scripts/substrate/prove-flag-registry.ts",
-      "line": 449,
+      "line": 454,
       "mechanism": "execSync-string",
       "excerpt": "const files = execSync('git ls-files -z src', { cwd: root, maxBuffer: 64 * 1024 * 1024 })",
       "cls": "intentional-shell",
@@ -1735,6 +1711,22 @@
       "line": 101,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(60_000), env: { ...process.env, ESC_T",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/switchboard/prove-letter-verb-yield.ts",
+      "line": 123,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "'/usr/bin/python3',",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/switchboard/prove-letter-verb-yield.ts",
+      "line": 180,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(5) + 400), Str",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
@@ -2572,7 +2564,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2176,
+      "line": 2154,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
@@ -2580,7 +2572,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2350,
+      "line": 2328,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q', { cwd: project })",
       "cls": "intentional-shell",
@@ -2588,7 +2580,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 2379,
+      "line": 2357,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git add -A && git -c user.email=fix@x -c user.name=fix commit -qm seed', { cwd: project })",
       "cls": "intentional-shell",
@@ -2596,7 +2588,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 3840,
+      "line": 3818,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",
@@ -2604,7 +2596,7 @@
     },
     {
       "file": "scripts/ui/renderScenarios.ts",
-      "line": 4981,
+      "line": 4959,
       "mechanism": "execSync-string",
       "excerpt": "execSync(",
       "cls": "intentional-shell",

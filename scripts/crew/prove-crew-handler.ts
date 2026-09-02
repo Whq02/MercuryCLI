@@ -118,13 +118,13 @@ section('SPEND CAP — 6 live crew, crew-scoped, kill frees a slot')
   check('after a kill the 7th spawns', after.ok === true)
 }
 {
-  // Crew-scoping: six live NON-crew workers (party seats + scribe pair) never
+  // Crew-scoping: six live NON-crew workers (other daemon seats) never
   // eat the crew cap.
   const rig = makePort()
-  for (const other of ['tank', 'dps1', 'dps2', 'dps3', 'implementer', 'scribe']) rig.live.set(other, {})
+  for (const other of ['seat-a', 'seat-b', 'seat-c', 'seat-d', 'seat-e', 'seat-f']) rig.live.set(other, {})
   const handler = cs.makeCrewSpawnHandler({ roster: () => rig.port, dir: scratch, onSpawned: () => {} })
   const r = await handler('solo', 'fable')
-  check('party/scribe workers do not count against the crew cap', r.ok === true)
+  check('other daemon seats do not count against the crew cap', r.ok === true)
 }
 
 section('durable team-file identity — governance OFF, members persist, no dupes')

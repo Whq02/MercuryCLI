@@ -56,10 +56,6 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
     // output contract (call the SyntheticOutput tool) — a client-led response
     // contract, not a persistence pusher; bounded by the SDK turn shape.
     'src/utils/hooks/hookHelpers.ts': 'contract-gate',
-    // unfinishedTail.ts is a pure wording DETECTOR consumed by the stop
-    // hooks — it registers no Stop hook of its own, so it carries no row;
-    // the census above catches it the day it registers one.
-    'src/utils/hooks/scribeImplementerStopHook.ts': 'shared-authority',
     'src/utils/hooks/missionHook.ts': 'latch-claiming',
     'src/utils/hooks/forcedReadHook.ts': 'latch-claiming',
     'src/utils/hooks/tabulaFireHooks.ts': 'observer',

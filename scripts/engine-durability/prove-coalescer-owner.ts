@@ -99,13 +99,13 @@ t.section('§3 — one owner: the inline-copy ratchet')
 {
   // Pinned deliberately, with the reason recorded here:
   //
-  //   daemon/scribeDispatchBridge.ts — a HARDENED variant rather than a naive
+  //   daemon/dispatchDrain.ts — a HARDENED variant rather than a naive
   //     copy: it carries disposal, a held-mail retry timer, and an explicit
   //     re-entry for a trigger landing in the trailing unread-check window,
   //     which the plain loop drops. Folding it onto the lane would lose those
   //     behaviours, so it stays until it has a reproducer of its own.
   const PINNED = [
-    'src/daemon/scribeDispatchBridge.ts',
+    'src/daemon/dispatchDrain.ts',
   ]
 
   const found: string[] = []

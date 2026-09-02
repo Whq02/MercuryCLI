@@ -1,4 +1,4 @@
-import { scribeBusEnabled } from '../../utils/scribe/scribeGates.js'
+import { busEnvelopesEnabled } from '../../utils/swarm/busEnvelopes.js'
 import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 
@@ -17,7 +17,7 @@ When you are part of a coordinated team, four structured envelope kinds ride thi
 Always send an envelope as the structured object shown above — never as a JSON string in a plain message. Echo the request id you are reporting on in refRequestId so the report threads to its dispatch.`
 
 export function getPrompt(): string {
-  const busSection = scribeBusEnabled() ? BUS_SECTION : ''
+  const busSection = busEnvelopesEnabled() ? BUS_SECTION : ''
   return `Deliver a message to a teammate agent.
 
 Example: { "to": "researcher", "summary": "auth findings ready", "message": "I finished mapping the auth flow; notes are in docs/auth.md." }

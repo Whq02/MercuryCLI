@@ -103,7 +103,7 @@ export function resolveLocalModel(_modelClass: RouterModelClass, _posture: Route
 
 export function buildLocalLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
-    'router: provider local has no SEAT runtime — party/roster seats stay Anthropic; local specialists dispatch through the AgentTool engine path',
+    'router: provider local has no SEAT runtime — roster seats stay Anthropic; local specialists dispatch through the AgentTool engine path',
   )
 }
 

@@ -76,7 +76,6 @@ check(
   briefSrc.includes('isAssistantSessionActive()') &&
     !/return \(isAssistantFamilyAvailable\(\) \|\| getUserMsgOptIn\(\)\) && isBriefEntitled\(\)/.test(briefSrc),
 )
-check('scribe CHATROOM keeps its chat line', /scribeChatroomEnabled\(\)\)\s*\n\s*return awayOrOptIn/.test(briefSrc))
 
 // restore
 if (saved.brief === undefined) delete process.env.MERCURY_BRIEF

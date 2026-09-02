@@ -20,10 +20,7 @@ import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { DiagnosticsDisplay } from '../DiagnosticsDisplay.js'
 import { MessageResponse } from '../MessageResponse.js'
 import type { NullRenderingAttachmentType } from './nullRenderingAttachments.js'
-import {
-  TeammateMessageContent,
-  scribeRelayName,
-} from './UserTeammateMessage.js'
+import { TeammateMessageContent } from './UserTeammateMessage.js'
 import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
 import { UserImageMessage } from './UserImageMessage.js'
@@ -128,7 +125,7 @@ export function AttachmentMessage({
         backgroundColor={selectedBg}
       >
         {surviving.map((message, index) => {
-          const senderName = scribeRelayName(message.from)
+          const senderName = message.from
           const assignment = tryRenderTaskAssignmentMessage(
             message.text,
             senderName,

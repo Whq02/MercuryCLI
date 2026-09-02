@@ -43,7 +43,6 @@ async function main(): Promise<void> {
   const kernel = await import('../../src/services/run/runKernel.js')
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
   const latch = await import('../../src/services/run/continuationLatch.js')
-  const { isUnfinishedTail } = await import('../../src/utils/hooks/unfinishedTail.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'run-x', lane: 'main' })
   const base = () =>
@@ -85,10 +84,6 @@ async function main(): Promise<void> {
       { type: 'substantive', at: 2, reason: 'created tasks' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'write the parser', state: 'done' },
     ])
-    check(
-      'unfinished wording is still unfinished wording (hint intact)',
-      isUnfinishedTail("I'll run the full gate next to be safe.") === true,
-    )
     const d2 = evaluateStop({ ...defaults, snapshot: doneRun, wordingUnfinished: true })
     check('"I\'ll…" prose + complete run → complete (wording overridden)', d2.kind === 'complete', d2.kind)
   }

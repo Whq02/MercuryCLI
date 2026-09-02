@@ -2,7 +2,7 @@ import type { Command } from '../../commands.js'
 import { routerEnabled } from '../../utils/router/routerGates.js'
 
 // ============================================================================
-// commands/router — the Scribe+Party route fabric operator surface.
+// commands/router — the route fabric operator surface.
 //
 // `/router` opens the board (active/recent route plans × profile chips × node
 // states, the "why this route?" glance + drill-in); `/router <posture>` sets

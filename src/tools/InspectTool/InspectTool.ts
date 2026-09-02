@@ -2,8 +2,8 @@
 //  Inspect tool — the model's read surface over the mercury:// resource
 //  plane. ONE resolver (services/resources/registry.ts)
 //  maps refs to Mercury's durable work graph: files, runs, receipts, tasks,
-//  teams, workflows, artifacts, the health certificate, session agents, the
-//  router party — and the kinds later slices register (services, lanes).
+//  teams, workflows, artifacts, the health certificate, session agents — and
+//  the kinds later slices register (services, lanes).
 //
 //  Honesty floor: a missing object is NEVER an empty object — absent /
 //  expired / unavailable / busy are distinct, explicit answers.

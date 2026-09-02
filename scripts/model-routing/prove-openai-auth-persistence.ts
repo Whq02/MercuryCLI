@@ -3,7 +3,7 @@
 //  scripts/model-routing/prove-openai-auth-persistence.ts
 //  PROOF:
 //  the OpenAI auth store survives MULTI-PROCESS use of a ROTATING refresh
-//  token. The store is shared by the foreground, the scribe daemon, and
+//  token. The store is shared by the foreground, the owned daemon, and
 //  every engine-routed child; before this law, each process refreshed off
 //  its own stale snapshot with an in-process-only single-flight — the loser
 //  presented an already-rotated token (AS reuse detection ⇒ grant revoked ⇒
