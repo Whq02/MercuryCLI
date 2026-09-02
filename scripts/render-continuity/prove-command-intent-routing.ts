@@ -11,11 +11,22 @@
 //     to unknown. No hand-maintained allowlist.
 //  §2 LAWS — unknown slash input reports honestly; '//x' is the literal-send
 //     path; plain text is guidance.
-//  §3 JOURNEY — packaged dist, real PTY:
-//     in the agent view, an unknown command notifies and
-//     PRESERVES the draft, ← opens the manager (not agent text), a queued
-//     session command executes locally, '//echo hi' paints as the ONE
-//     literal agent row, and none of the command text reaches any model call.
+//  §3 JOURNEY — packaged dist, real PTY, the hosted world: every chat is a
+//     daemon-hosted session whose runner executes the model's tools, so a
+//     background agent lives in the runner's roster and reaches the screen
+//     over the connector. The CREW lane lists it; the two-click drill opens
+//     its work card (the roster card); esc returns without stopping it; an
+//     unknown /name answers the screen's own sentence; ← opens the surface
+//     index; a session command never becomes a user turn; and none of the
+//     command text reaches any model call.
+//     DEFERRED, named here and not asserted — the five agent-VIEW legs: an
+//     unknown command notifying INSIDE the agent view, its draft preserved
+//     in the composer, the backspaces clearing that draft, agent-view ←
+//     opening the surface index, and the '//x' literal painting as ONE
+//     agent row inside the view. They are pending a hosted agent view: the
+//     runner streams an agent's transcript to the cockpit and accepts
+//     guidance for it — scheduled for the post-release window. The
+//     classifier laws those legs exercised stay pinned in §2.
 // ============================================================================
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
@@ -141,7 +152,6 @@ t.section('§2 unknown / literal / guidance laws')
 t.section('§3 journey: agent view routes commands locally, guidance to the agent')
 {
   const ESC = String.fromCharCode(27)
-  const BACKSPACES = String.fromCharCode(127).repeat(11)
   const sgrClick = (col: number, row: number): string =>
     `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
 
@@ -178,24 +188,20 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       // literal-send race that went red on the first hosted dispatch).
       'after:↑↓ choose:900:\\r',
       '7400:spawn the probe\\r',
-      // Row 7: the child agent row (row 6 is the permanent CREW root, PO-1).
+      // Row 7: the hosted agent's CREW row (row 6 is the permanent CREW
+      // root). Rail rows select on the first click and activate on the
+      // second (the InteractiveRow kernel): the agent's work card opens.
       `11000:${sgrClick(10, 7)}`,
-      `11700:${sgrClick(10, 7)}`, // drill into the agent view
-      '14200:/frobnicate\\r', // unknown: notify + preserve draft
-      `16800:${BACKSPACES}`, // clear the preserved draft (11 backspaces)
-      `19200:${ESC}[D`, // agent-view ← : manager panel, NOT agent text
+      `11700:${sgrClick(10, 7)}`,
+      `14200:${ESC}`, // close the card — return ≠ stop
+      '16800:/frobnicate\\r', // an unknown name: the screen's own sentence
+      `19200:${ESC}[D`, // main-view ← on the empty composer: the surface index
       `21800:${ESC}`, // close it
       // Primer keypress absorbs a possible first-press-after-close swallow
-      // (type one char, erase it — identical composer either way), then the
-      // literal is TYPED and SUBMITTED as separate sends so the Enter never
-      // rides the same stdin chunk as the text.
+      // (type one char, erase it — identical composer either way).
       `23200:x`,
       `23700:${String.fromCharCode(127)}`,
-      '24600://echo hi', // literal-send text …
-      '25600:\\r', // … submitted separately: ONE '/echo hi' agent row
-      '27400:/cost\\r', // session command routes to the session, not the agent
-      `29800:${ESC}`, // leave the agent view (return path; agent keeps running)
-      `32000:${ESC}[D`, // main-view ← on the settled cockpit: manager opens
+      '24600:/cost\\r', // a session command routes to the session, never the agent
     ],
     seconds: 40,
     cols: 120,
@@ -246,88 +252,63 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
       return -1
     }
 
-    const iDrill = idxOf(0, f => has(f, 'viewing'))
-    t.check('the two-click drill entered the agent view', iDrill >= 0)
-    const iNotify = idxOf(iDrill + 1, f => has(f, /Unknown command: \/frobnicate/))
-    t.check(
-      'unknown command notifies honestly in the agent view',
-      iDrill >= 0 && iNotify > iDrill,
-    )
-    const iDraft = idxOf(iNotify, f => composerOf(f).includes('/frobnicate'))
-    t.check(
-      'the unknown-command draft is PRESERVED in the composer',
-      iNotify >= 0 && iDraft >= iNotify,
-    )
-    t.check(
-      'the unknown command NEVER paints as an agent transcript row',
-      frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/frobnicate/.test(r))),
-    )
-    const iCleared = idxOf(iDraft + 1, f => !composerOf(f).includes('/frobnicate'))
-    t.check(
-      'the backspaces clear the preserved draft before the arrow',
-      iDraft >= 0 && iCleared > iDraft,
-    )
-    const iManager = idxOf(iCleared + 1, f => has(f, 'Mercury — surfaces'))
-    t.check(
-      'agent-view ← opens the manager panel (not agent text)',
-      iCleared >= 0 && iManager > iCleared,
-    )
-    const iClosed = idxOf(iManager + 1, f => !has(f, 'Mercury — surfaces'))
-    t.check(
-      'esc closes the agent-view manager before the literal-send',
-      iManager >= 0 && iClosed > iManager,
-    )
-    const literalIdx = frames
-      .map((f, i) => ({ f, i }))
-      .filter(({ f, i }) => i > iClosed && f.rows.some(r => /\[[^\]]+\] ❯ \/echo hi(\s|$)/.test(r)))
     // The nameplate HANDLE is ambient (os user / git identity on a dev box,
     // 'runner' hosted): every user-row predicate anchors to the row SHAPE
-    // `[handle] ❯`, never the handle (the ambient-state law; round-3 red).
-    // Failure-time forensics: the hosted runner's boolean-only reds hid the
-    // actual composer/breadcrumb state — dump the post-close timeline so a
-    // red names what the composer HELD and what surface owned the frame.
-    const literalForensics = (): string =>
+    // `[handle] ❯`, never the handle (the ambient-state law).
+    // Failure-time forensics: a boolean-only red hides what the rail and
+    // the composer HELD — dump a window of frames from a step so a red
+    // names the rail's top rows, the surface owning the frame, the composer.
+    const forensics = (from: number): string =>
       frames
-        .map((f, i) => ({ f, i }))
-        .filter(({ i }) => i > iClosed)
-        .slice(0, 24)
+        .slice(Math.max(0, from), Math.max(0, from) + 20)
         .map(
-          ({ f }) =>
-            `@${f.atMs} composer=${JSON.stringify(composerOf(f).slice(0, 40))}` +
+          f =>
+            `@${f.atMs} rail=${JSON.stringify(f.rows.slice(1, 8).map(r => r.slice(0, 24).trim()).filter(Boolean).join(' | '))}` +
+            ` composer=${JSON.stringify(composerOf(f).slice(0, 32))}` +
             `${has(f, 'Mercury — surfaces') ? ' MGR' : ''}` +
-            `${has(f, /Main ‹ @poise probe/) ? ' CRUMB' : ''}` +
-            `${f.rows.some(r => /echo hi/.test(r)) ? ' ECHOROW' : ''}`,
+            `${has(f, /agent › poise probe/) ? ' CARD' : ''}`,
         )
         .join(' ↵ ')
+    const crewRow = (f: Fr): boolean => f.rows.some(r => /poise probe\s+running/.test(r))
+    const iCrew = idxOf(0, crewRow)
     t.check(
-      "the literal-send '//echo hi' paints as a '/echo hi' agent row",
-      iClosed >= 0 && literalIdx.length > 0,
-      literalIdx.length ? undefined : literalForensics(),
+      "the hosted agent lists in the CREW lane (the runner's roster over the connector)",
+      iCrew >= 0,
+      iCrew >= 0 ? undefined : forensics(frames.findIndex(f => f.rows.some(r => r.includes('poise probe')))),
+    )
+    const iCard = idxOf(iCrew + 1, f => has(f, /agent › poise probe/))
+    t.check(
+      "the two-click drill opened the agent's work card (the roster card — its transcript lives with the runner)",
+      iCrew >= 0 && iCard > iCrew,
+      iCard > iCrew ? undefined : forensics(iCrew),
+    )
+    const iClosed = idxOf(iCard + 1, f => !has(f, /agent › poise probe/) && crewRow(f))
+    t.check(
+      'esc closed the card and the agent keeps running (return ≠ stop)',
+      iCard >= 0 && iClosed > iCard,
+      iClosed > iCard ? undefined : forensics(iCard),
+    )
+    const iNotify = idxOf(iClosed + 1, f => has(f, /Unknown command: \/frobnicate/))
+    t.check(
+      "an unknown /name answers the screen's own sentence (never the runner's)",
+      iClosed >= 0 && iNotify > iClosed,
+      iNotify > iClosed ? undefined : forensics(iClosed),
     )
     t.check(
-      'the literal row lives in the agent view (breadcrumb present in the same frame)',
-      literalIdx.some(({ f }) => has(f, /Main ‹ @poise probe/)),
-      literalIdx.length ? undefined : '(no literal frames — see the previous check)',
+      'the unknown command NEVER paints as a user transcript row',
+      frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/frobnicate/.test(r))),
     )
+    const iManager = idxOf(iNotify + 1, f => has(f, 'Mercury — surfaces'))
     t.check(
-      "no transcript row ever shows the raw '//echo hi'",
-      frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/\/echo hi/.test(r))),
+      'main-view ← opens the surface index (the classified funnel, never words)',
+      iNotify >= 0 && iManager > iNotify,
+      iManager > iNotify ? undefined : forensics(iNotify),
     )
+    const iMgrClosed = idxOf(iManager + 1, f => !has(f, 'Mercury — surfaces'))
+    t.check('esc closes the surface index', iManager >= 0 && iMgrClosed > iManager)
     t.check(
-      'the session command (/cost) never paints as an agent row',
+      'the session command (/cost) never paints as a user row',
       frames.every(f => !f.rows.some(r => /\[[^\]]+\] ❯ .*\/cost/.test(r))),
-    )
-    const iLastLiteral = literalIdx.length ? literalIdx[literalIdx.length - 1]!.i : -1
-    const iReturn = idxOf(iLastLiteral + 1, f =>
-      !has(f, /Main ‹/) && f.rows.some(r => r.includes('poise pro') && r.includes('running')),
-    )
-    t.check(
-      'esc returns to main while the agent keeps running (return ≠ stop)',
-      iLastLiteral >= 0 && iReturn > iLastLiteral,
-    )
-    t.check(
-      'main-view ← opens the manager (same classified funnel)',
-      iReturn >= 0 && idxOf(iReturn + 1, f => has(f, 'Mercury — surfaces')) > iReturn,
     )
 
     type Msg = { role: string; content: unknown }
