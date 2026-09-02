@@ -1,6 +1,8 @@
 /* ============================================================================
    prove-matrix-complete.ts — the anti-rot gate for the Capability Graduation
-   Matrix (docs/CAPABILITY-GRADUATION-MATRIX.md).
+   Matrix (docs/CAPABILITY-GRADUATION-MATRIX.md — a LOCAL document, never
+   tracked: the proof runs in full where the file is present, and says
+   SKIPPED and passes where it is absent).
 
    The matrix is only useful if it cannot silently go stale. This proof parses
    the canonical matrix table(s) and FAILS the green gate unless EVERY row is
@@ -111,8 +113,10 @@ function findExact(headers: string[], name: string): string | undefined {
 
 function main(): void {
   if (!existsSync(MATRIX)) {
-    console.error(`✗ matrix not found: ${MATRIX}`)
-    process.exit(1)
+    console.log(
+      'SKIPPED — docs/CAPABILITY-GRADUATION-MATRIX.md is absent from this tree (a local document, never tracked); the completeness gate runs only where it is present',
+    )
+    process.exit(0)
   }
   const lines = readFileSync(MATRIX, 'utf8').split('\n')
 

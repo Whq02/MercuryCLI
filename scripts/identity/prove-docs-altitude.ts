@@ -12,7 +12,8 @@
 //      exemptions: docs/COMPATIBILITY.md (the interop audit surface — its
 //      wire-owner citations are the audit trail), the one config-index
 //      spelling `src/substrate/flagRegistry.ts` (allowed everywhere), and
-//      docs/CAPABILITY-GRADUATION-MATRIX.md from §2 and §3 both — its
+//      docs/CAPABILITY-GRADUATION-MATRIX.md from §2 and §3 both (a local
+//      document, never tracked — scanned only where present): its
 //      source-anchor and proof columns are machine-required by its own
 //      completeness gate, which fails the suite when either goes missing.
 //

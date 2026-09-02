@@ -91,7 +91,7 @@ t.section('§2 — counts reconcile across the machine owners (CA-11)')
     )
   } else {
     t.check(
-      'capability legs: SKIPPED by name — docs/CAPABILITY-GRADUATION-MATRIX.md absent from this tree (returns with the docs fold) and the manifest says so',
+      'capability legs: SKIPPED by name — docs/CAPABILITY-GRADUATION-MATRIX.md absent from this tree (a local document, never tracked) and the manifest says so',
       manifest.summary.capabilityMatrix.startsWith('absent') && manifest.summary.capabilities === 0,
       manifest.summary.capabilityMatrix,
     )

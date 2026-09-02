@@ -2,8 +2,9 @@
 # gate-class: pure
 # Capability Graduation Matrix — proof harness. Runs every
 # scripts/capabilities/prove-*.ts via bun run; non-zero exit on any failure.
-# The matrix-completeness proof keeps docs/CAPABILITY-GRADUATION-MATRIX.md from
-# silently rotting: every row must carry a verdict, a real source anchor, a
+# The matrix-completeness proof keeps the capability matrix (a local document,
+# never tracked — the proof says SKIPPED where it is absent) from silently
+# rotting: every row must carry a verdict, a real source anchor, a
 # flag/default, and a real proof file (or a parked/dead reason). New proofs are
 # picked up by the glob; this suite auto-joins the green gate via
 # scripts/run-all-suites.sh (globs */run-all.sh).

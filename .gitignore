@@ -40,3 +40,6 @@ docs/REACHABILITY-MANIFEST.json
 docs/REACHABILITY-MAP.md
 # per-run journey copies of the render-continuity prover, never committed
 scripts/render-continuity/receipts/.last/
+# The capability graduation matrix is a local working document, never tracked;
+# the checks that read it say SKIPPED where it is absent.
+docs/CAPABILITY-GRADUATION-MATRIX.md

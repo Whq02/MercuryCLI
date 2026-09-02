@@ -6,8 +6,8 @@
 //  Extends the existing owners — the syntax-aware import graph
 //  (scripts/orphans/graph.ts), the typed orphan baseline (baseline.json), the
 //  flag registry (src/substrate/flagRegistry.ts), the capability graduation
-//  matrix (docs/CAPABILITY-GRADUATION-MATRIX.md — parsed when present, a
-//  named absence otherwise), and the durable-operation
+//  matrix (docs/CAPABILITY-GRADUATION-MATRIX.md — a local document, never
+//  tracked: parsed when present, a named absence otherwise), and the durable-operation
 //  matrix (src/substrate/durableOperationMatrix.ts) — into ONE generated,
 //  deterministic manifest, written to the UNTRACKED inspection path:
 //

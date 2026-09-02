@@ -11,9 +11,9 @@
    listed slash command is registered in src/commands.ts. Source-truth, headless,
    no mocks — it reads the real tree the same way `rg` does.
 
-   This is the proof backing the "Proof: scripts/capabilities/run-all.sh" rows in
-   docs/CAPABILITY-GRADUATION-MATRIX.md. Add a capability here when the matrix
-   cites this suite as its proof.
+   This is the proof backing the "Proof: scripts/capabilities/run-all.sh" rows of
+   the capability matrix (a local document, never tracked). Add a capability
+   here when the matrix cites this suite as its proof.
    ============================================================================ */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'

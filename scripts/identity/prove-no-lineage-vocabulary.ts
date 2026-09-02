@@ -316,7 +316,6 @@ const ALLOW: Array<[string, string, string]> = [
   ['design-system/live/manifest.json', 'roster', 'generated visual baseline — its note strings regenerate from the fixed generator at the next real-binary capture'],
   // ── §10 (the retired multiplayer estate) ──────────────────────────────────
   ['scripts/operator-identity/prove-estate-boundary.ts', 'estate-paths,estate-idents,estate-caduceus', 'the boundary ratchet names the estate to pin its absence'],
-  ['docs/CAPABILITY-GRADUATION-MATRIX.md', 'estate-paths', "the DELETED verdict's inverted anchor contract documents what left the tree"],
   ['scripts/workflows/corpus/', 'estate-paths', 'replay fixtures pinned to a pre-retirement corpus commit speak that tree\'s paths'],
   ['scripts/workflows/fixtures/verdict.json', 'estate-paths', 'evidence record of the ratified benchmark run at the pinned corpus commit'],
   ['src/services/channel/', 'estate-caduceus', "the extracted channel home: the protocol's HKDF/AAD wire strings spell the old name by contract, and its origin notes name it"],
