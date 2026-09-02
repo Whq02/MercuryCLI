@@ -189,7 +189,9 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
     MERCURY_CREW_DIR: join(scratch, 'crew'),
     MERCURY_AWAY_SUMMARY: '0',
-    MERCURY_PARTY: '0',
+    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
