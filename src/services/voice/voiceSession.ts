@@ -225,13 +225,16 @@ function transcriberWords(transcriber: TranscriberResolution): string {
   return `none — ${transcriber.note}`
 }
 
-/** The /speak status line. */
+/** The /speak status line — the transcriber before the backend, whose
+ *  words can carry a path (a receipt row truncates at the terminal's width;
+ *  the sign-in must never be the part that falls off). */
 export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): string {
   const on = voiceInputEnabled()
+  const transcriber = resolveTranscriber(env)
   return [
     `voice input ${on ? 'ON — v in an empty composer starts a capture, v or esc stops it' : 'OFF — /speak on turns it on'}`,
+    `transcriber: ${transcriber.state === 'ok' ? `${providerDisplayName(transcriber.choice.family)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
-    `transcriber: ${transcriberWords(resolveTranscriber(env))}`,
   ].join('\n')
 }
 

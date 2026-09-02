@@ -449,10 +449,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     const receipt = voice.receipt
     if (receipt === null || receipt.seq === voiceReceiptSeqRef.current) return
     voiceReceiptSeqRef.current = receipt.seq
+    // Immediate on both tones — the receipt answers the key the operator
+    // just pressed, so it pre-empts whatever the queue is showing (a
+    // command receipt rides the same priority) instead of waiting behind it.
     addNotification({
       key: 'voice-receipt',
       text: receipt.text,
-      priority: receipt.tone === 'error' ? 'high' : 'medium',
+      priority: 'immediate',
       ...(receipt.tone === 'error' ? { color: 'error' as const } : {}),
       timeoutMs: 8000,
     })
@@ -2337,20 +2340,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         input === '' && cursorOffset === 0 && mode === 'prompt' &&
         footerSelection === null && !helpOpen && !isSearchingHistory
 
-      // 2b · voice input. A terminal sees no key-up, so a capture is
-      // press-to-start / press-to-stop: while one runs, `v` stops it (the
-      // take goes to the transcriber) and esc cancels it — neither types.
-      // With /speak on, `v` in an empty plain composer starts one; with it
-      // off, v is the letter v.
-      if (voice.phase === 'recording' && !key.ctrl && !key.meta && (key.escape || rawInput === 'v')) {
+      // 2b · voice input: esc during a take cancels it — the take is
+      // dropped, nothing is sent. (The `v` press-to-start / press-to-stop
+      // lives in the text input's filter, voiceInputFilter below, where the
+      // keystroke can be swallowed before it types.)
+      if (voice.phase === 'recording' && key.escape) {
         event.stopImmediatePropagation()
-        if (key.escape) cancelVoiceCapture()
-        else void toggleVoiceCapture()
-        return
-      }
-      if (voice.enabled && voice.phase === 'idle' && emptyPlainPrompt && rawInput === 'v' && !key.ctrl && !key.meta) {
-        event.stopImmediatePropagation()
-        void toggleVoiceCapture()
+        cancelVoiceCapture()
         return
       }
 
@@ -2451,7 +2447,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.enabled, voice.phase],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
@@ -3013,6 +3009,28 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     footerSelection === null && !isSearchingHistory && helmOnPrompt && !surfaceCovered && !keyboardOwnedByOverlay
   const vimEnabled = isVimModeEnabled()
 
+  // Voice input rides the text input's own filter — the one place a
+  // keystroke can be swallowed before it types (the text input subscribes
+  // ahead of the raw-key ladder). A terminal sees no key-up, so `v` is
+  // press-to-start / press-to-stop: with /speak on, `v` in an empty plain
+  // composer starts a take; while one runs (or its transcription is in
+  // flight) `v` stops it — neither types. Read LIVE, never the render's
+  // snapshot: the second press must see the first press's phase. With
+  // /speak off, v is the letter v.
+  const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
+    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    const live = voiceSnapshot()
+    if (live.phase === 'recording' || live.phase === 'transcribing') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    if (live.enabled && pendingInput.text() === '' && pendingInput.mode() === 'prompt') {
+      void toggleVoiceCapture()
+      return ''
+    }
+    return rawInput
+  }, [])
+
   const textInputProps = {
     viewportStartRef: composerViewportStartRef,
     value: input,
@@ -3020,6 +3038,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     cursorOffset,
     onChangeCursorOffset: setCursorOffset,
     columns: columns - 3,
+    inputFilter: voiceInputFilter,
     onSubmit: (value: string) => {
       void submit(value, {})
     },
