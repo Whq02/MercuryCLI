@@ -540,7 +540,8 @@ async function sendDirectedPlainMessage(
   const resolution = await resolveDeliverableRecipient(rawTo, context)
   if (!resolution.ok) return { success: false, message: resolution.refusal }
 
-  if (isCrewRole() && looksLikeHandSerializedBusPayload(content)) {
+  const busRoleSender = Boolean(isCrewRole())
+  if (busRoleSender && looksLikeHandSerializedBusPayload(content)) {
     return {
       success: false,
       message:
