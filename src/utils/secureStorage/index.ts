@@ -1,5 +1,5 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createFallbackStorage } from './fallbackStorage.js'
+import { keychainReachable } from './macOsKeychainHelpers.js'
 import { macOsKeychainStorage } from './macOsKeychainStorage.js'
 import { plainTextStorage } from './plainTextStorage.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
@@ -14,6 +14,7 @@ export {
   getUsername,
   KEYCHAIN_CACHE_TTL_MS,
   keychainCacheState,
+  keychainReachable,
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 export { isMacOsKeychainLocked, macOsKeychainStorage } from './macOsKeychainStorage.js'
@@ -27,10 +28,7 @@ export {
 export type { SecureStorage, SecureStorageData } from './types.js'
 
 export function getSecureStorage(): SecureStorage {
-  if (flagEnv('MERCURY_CREDENTIAL_STORE') === 'file') {
-    return plainTextStorage
-  }
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     return createFallbackStorage(macOsKeychainStorage, plainTextStorage)
   }
   return plainTextStorage

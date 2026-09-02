@@ -6,6 +6,9 @@ import { join } from 'node:path'
 const scratch = mkdtempSync(join(tmpdir(), 'crew-handler-'))
 process.env.MERCURY_CONFIG_DIR = scratch
 delete process.env.MERCURY_CREW
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
+delete process.env.NODE_ENV
 const MK = 'MACRO' as const
 const setStamp = (on: boolean) => { if (on) (globalThis as Record<string, unknown>)[MK] = { VERSION: '1.0.0' }; else delete (globalThis as Record<string, unknown>)[MK] }
 setStamp(true)
@@ -24,6 +27,17 @@ function section(t: string): void { console.log('\n' + '─'.repeat(76) + '\n' +
 console.log('============================================================')
 console.log(' Crew spawn handler (policy floor) — proof')
 console.log('============================================================')
+
+section('the ladder never throws — before configs are allowed, a NAMED key answers a typed refusal')
+{
+  const early = await cs.resolveCrewSeatModel('sonnet')
+  check('a named key with configs not yet allowed ⇒ a typed refusal naming the fault (never a throw up the control socket)', !early.ok && /registry-unavailable/.test(early.error ?? '') && /Config accessed before allowed/.test(early.error ?? ''), early.ok ? 'ok' : early.error)
+  const earlyHaiku = await cs.resolveCrewSeatModel('haiku')
+  check('…and the never-Haiku floor answers pure ahead of the registry, configs or not', !earlyHaiku.ok && /worker-policy:frontier-only/.test(earlyHaiku.error ?? ''), earlyHaiku.ok ? 'ok' : earlyHaiku.error)
+}
+;(await import('../../src/utils/config.js')).enableConfigs()
+;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
+;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
 
 function makePort() {
   const live = new Map<string, { outcome?: string }>()
@@ -56,7 +70,7 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
 
   setStamp(false)
   const bareStampProbe = await handler('atlas', 'haiku')
-  check('bare stamp ⇒ gate passes (table refusal, not disabled)', !bareStampProbe.ok && /'opus' \| 'sonnet' \| 'fable'/.test(bareStampProbe.error ?? ''))
+  check('bare stamp ⇒ gate passes (the never-Haiku floor refuses pure, not the disabled refusal)', !bareStampProbe.ok && /worker-policy:frontier-only/.test(bareStampProbe.error ?? '') && /opus/.test(bareStampProbe.error ?? ''), bareStampProbe.error ?? '')
   setStamp(true)
   process.env.MERCURY_CREW = '0'
   const killed = await handler('atlas', 'sonnet')
@@ -68,7 +82,7 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   const reserved = await handler('tank', 'sonnet')
   check("reserved name 'tank' refused", !reserved.ok && /invalid teammate name/.test(reserved.error ?? ''))
   const badModel = await handler('atlas', 'haiku')
-  check("model 'haiku' unrepresentable ⇒ table refusal", !badModel.ok && /'opus' \| 'sonnet' \| 'fable'/.test(badModel.error ?? ''))
+  check("model 'haiku' ⇒ the never-Haiku floor refuses pure (no registry, no config), naming the frontier rows", !badModel.ok && /worker-policy:frontier-only/.test(badModel.error ?? '') && /opus/.test(badModel.error ?? ''), badModel.error ?? '')
   const noRoster = await cs.makeCrewSpawnHandler({ roster: () => undefined, dir: scratch, onSpawned: () => {} })('atlas', 'sonnet')
   check('roster not ready ⇒ honest refusal', !noRoster.ok && /not ready/.test(noRoster.error ?? ''))
 

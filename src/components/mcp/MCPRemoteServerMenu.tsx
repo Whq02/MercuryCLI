@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import useInput from '../../ink/hooks/use-input.js'
+import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getOauthConfig } from '../../constants/oauth.js'
 import {
   AuthenticationCancelledError,
@@ -246,8 +247,9 @@ export function MCPRemoteServerMenu({
   }
 
   useInput(
-    (input, key) => {
-      if (input === 'c' && !key.ctrl && !key.meta && authUrl) {
+    (input, key, event) => {
+      if (input === 'c' && !key.ctrl && !key.meta && authUrl && pasteText === '') {
+        event.stopImmediatePropagation()
         void copyAnsiToClipboard(authUrl).then(() => {
           if (unmountedRef.current) return
           setCopied(true)
@@ -260,6 +262,12 @@ export function MCPRemoteServerMenu({
     },
     { isActive: phase.id === 'auth' },
   )
+
+  const cancelAuth = (): void => {
+    abortRef.current?.abort()
+    setPhase({ id: 'menu' })
+  }
+  useKeybinding('confirm:no', cancelAuth, { context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null })
 
   useInput(
     (_input, key) => {
@@ -289,10 +297,8 @@ export function MCPRemoteServerMenu({
     return (
       <Dialog
         title={capitalise(server.name)}
-        onCancel={() => {
-          abortRef.current?.abort()
-          setPhase({ id: 'menu' })
-        }}
+        onCancel={cancelAuth}
+        isCancelActive={pasteSubmit === null}
       >
         <Box flexDirection="column">
           <Box>
@@ -313,7 +319,9 @@ export function MCPRemoteServerMenu({
                 </Link>
               </Text>
               <Text dimColor>
-                {copied ? 'Copied.' : 'Press c to copy the URL.'}
+                {
+}
+                {copied ? 'Copied.' : pasteText === '' ? 'Press c to copy the URL.' : '↵ submits the pasted URL.'}
               </Text>
             </Box>
           ) : null}

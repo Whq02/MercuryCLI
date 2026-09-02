@@ -464,11 +464,11 @@ export default class Ink {
     if (this.resizeSettleTimer === null) {
       if (columns === this.cachedColumns && rows === this.cachedRows) return
       this.scheduler.holdForSettle()
+      this.paintResizeHold(columns, rows)
     } else {
       clearTimeout(this.resizeSettleTimer)
     }
     this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)
-    this.paintResizeHold(columns, rows)
   }
 
   private paintResizeHold(columns: number, rows: number): void {

@@ -289,10 +289,11 @@ export function coordinatorEffortDetail(model: string, level: import('../../util
 
 export function resolveCoordinatorEffort(): import('../../utils/effort.js').EffortLevel | undefined {
   const { getGlobalConfig } = require('../../utils/config.js') as typeof import('../../utils/config.js')
-  const { normalizeEffortLevelString } = require('../../utils/effort.js') as typeof import('../../utils/effort.js')
+  const { normalizeEffortLevelString, getInitialEffortSetting } = require('../../utils/effort.js') as typeof import('../../utils/effort.js')
   const stored = getGlobalConfig().concourseCoordinator?.effort
-  if (stored === undefined) return undefined
-  return normalizeEffortLevelString(stored)
+  const dial = stored === undefined ? undefined : normalizeEffortLevelString(stored)
+  if (dial !== undefined) return dial
+  return getInitialEffortSetting()
 }
 
 const COORDINATOR_MODES = ['off', 'rules-only', 'agent-assisted'] as const

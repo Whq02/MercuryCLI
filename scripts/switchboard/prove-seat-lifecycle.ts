@@ -48,8 +48,9 @@ function walk(root: string): string[] {
   const boot = read('src/components/BootSplashScreen.tsx')
   const newAt = boot.indexOf("case 'new': {")
   const newBody = boot.slice(newAt, boot.indexOf("case 'continue'", newAt))
-  check('P2 New Session births a real session through the ONE birth door', newBody.includes('bornSession({ workspaceDir: process.cwd() })'))
-  check('P2 the chat is entered only once the birth succeeded (a refusal paints its reason, enters nothing)', newBody.indexOf('if (!born.ok) return born.reason') !== -1 && newBody.indexOf('if (!born.ok) return born.reason') < newBody.indexOf('enterRootRepl()'))
+  check('P2 New Session births a real session through the ONE birth door (the flip-first road)', newBody.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))'))
+  const road = boot.slice(boot.indexOf('async function flipFirstBirth('), boot.indexOf('export function BootSplashScreen('))
+  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootRepl().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
   check('P2 no ghost is handed to the slot (the ENTERED law is gone)', !newBody.includes('focusNascentSession') && !newBody.includes('isNascentConnector'))
   check('P2 nothing is handed back to an engine and no /clear is armed', !boot.includes('focusInProcessSession') && !newBody.includes("armRootCommand('/clear')"))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
@@ -89,7 +90,7 @@ function walk(root: string): string[] {
   check('P3 the birth body is anchored (the slice cannot go vacuous)', fnAt !== -1)
   check('P3 the birth door admits through the daemon (born = registered) and then hops', body.includes("op: 'sessionAdmit'") && body.indexOf("op: 'sessionAdmit'") < body.indexOf('hopIntoBoardSession(sessionId'))
   check('P3 the birth is marked blank for the daemon (the birth grace reads it)', body.includes('bornBlank: true'))
-  check('P3 the birth carries the model shown, the title, the effort, the posture and the runner options', body.includes('model,') && body.includes('{ title }') && body.includes('effort: facts.effort') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
+  check('P3 the birth carries the model only when one is named (nothing on a keyless home), the title, the effort, the posture and the runner options', body.includes('...(model !== undefined ? { model } : {}),') && body.includes('{ title }') && body.includes('effort: facts.effort') && body.includes('permissionMode: facts.permissionMode') && body.includes('runnerArgv: [...facts.runnerArgv]'))
   check('P3 the birth sends NO words (a blank, ready session — never a dispatch)', !body.includes("op: 'sessionDispatch'") && !body.includes('prompt:'))
   check('P3 the daemon heals before the birth (the first Enter never meets ENOENT)', body.indexOf('ensureOwnedDaemon()') !== -1 && body.indexOf('ensureOwnedDaemon()') < body.indexOf("op: 'sessionAdmit'"))
 }
@@ -142,7 +143,7 @@ function walk(root: string): string[] {
   const submitBody = repl.slice(onSubmitAt, onSubmitEnd)
   check('P6 the screen passes NO model into a session send (the runner owns the wire) — the poison is a render-sampled read', onSubmitAt !== -1 && !submitBody.includes('mainLoopModel') && !/sendWords\([^)]*model/.test(submitBody))
   const birthSrc = read('src/services/switchboard/bornSession.ts')
-  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const model = birthModelOf(facts, req.model ?? null, getMainLoopModel())'))
+  check('P6 the birth door reads the model at birth from its owner (never a render sample)', birthSrc.includes('const screen = screenBirthModel()') && birthSrc.includes('const model = screen === undefined ? undefined : birthModelOf(facts, req.model ?? null, screen)'))
   check("P6 the session's words carry no model of the screen's (the envelope names the target and the words)", !/op: 'sessionDispatch'[\s\S]{0,400}model:/.test(seatSrc))
 }
 

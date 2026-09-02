@@ -105,6 +105,7 @@ export interface ConcourseWorkerRecordV1 {
   workspaceId: string
   isolation: WorkspaceIsolation
   modelKey: string
+  keyless?: true
   agentName?: string
   seatsMax?: 1 | 2
   effort?: string
@@ -419,6 +420,7 @@ export function buildConcourseWorkerSpec(args: {
   sessionId?: string
   workspaceId: string
   modelKey: string
+  keyless?: true
   effort?: string
   title?: string
   resume?: boolean
@@ -432,6 +434,7 @@ export function buildConcourseWorkerSpec(args: {
   const wireArgv = ['--permission-prompt-tool', 'stdio', '--include-partial-messages'] as const
   return {
     model: foldLegacyWorkerModelKey(args.modelKey),
+    ...(args.keyless ? { keyless: true } : {}),
     effort: args.effort ?? 'high',
     appendSystemPrompt: [
       "You run as a BACKGROUND session on the operator's switchboard.",
@@ -563,6 +566,7 @@ export type ConcourseAdmitResult =
       mainHolderTitle?: string
       modelId?: string
       modelDisplayName?: string
+      note?: string
       effort?: string
       kitSource?: 'carried' | 'derived' | 'preset'
       presetName?: string
@@ -573,7 +577,7 @@ export type ConcourseAdmitResult =
 
 export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: string): string | undefined {
   const fromRecord = Object.values(readSessionWorkers(dir))
-    .filter(r => r.sessionId === sessionId && r.modelKey !== undefined)
+    .filter(r => r.sessionId === sessionId && r.modelKey !== undefined && r.keyless !== true)
     .sort((a, b) => b.spawnedAt - a.spawnedAt)[0]?.modelKey
   if (fromRecord !== undefined) return fromRecord
   let workspaceId = workspaceDir
@@ -628,15 +632,28 @@ export function makeConcourseAdmitHandler(
         ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
         : undefined
     const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
-    if (!validated.ok) {
+    let admission = validated
+    let retainedNote: string | undefined
+    if (!validated.ok && req.modelKey === undefined && retainedModelKey !== undefined && validated.reason.startsWith('no-credential:')) {
+      const unnamed = await validateWorkerModelChoice(undefined, 'session')
+      if (unnamed.ok) {
+        admission = unnamed
+        retainedNote =
+          unnamed.keyless === true
+            ? `the session's model ${retainedModelKey} has no credential here — the first model send picks the neutral default; /model chooses`
+            : `the session's model ${retainedModelKey} has no credential here — it continues on ${unnamed.entry.displayName} (the neutral default); /model chooses`
+      }
+    }
+    if (!admission.ok) {
       return {
         ok: false,
         code: 'invalid-request',
-        error: `model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
+        error: `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
       }
     }
-    const modelKey = validated.entry.modelId
-    const modelDisplayName = validated.entry.displayName
+    const modelKey = admission.entry.modelId
+    const modelDisplayName = admission.entry.displayName
+    const keyless = admission.keyless === true
     let stat
     try {
       stat = statSync(req.workspaceDir)
@@ -674,11 +691,12 @@ export function makeConcourseAdmitHandler(
         const others = liveWorkers
           .filter(r => r.runnerId !== standing.runnerId)
           .map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation }))
-        return reactivateConcourseSession(
+        const reactivated = await reactivateConcourseSession(
           standing,
           {
             modelKey,
             modelDisplayName,
+            ...(keyless ? { keyless: true } : {}),
             ...(req.effort !== undefined ? { effort: req.effort } : {}),
             ...(req.permissionMode !== undefined ? { permissionMode: req.permissionMode } : {}),
             ...(req.kit !== undefined ? { kit: req.kit } : {}),
@@ -688,6 +706,7 @@ export function makeConcourseAdmitHandler(
           others,
           deps,
         )
+        return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated
       }
     }
     const admissionClaims = liveWorkers.filter(
@@ -713,6 +732,7 @@ export function makeConcourseAdmitHandler(
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)
     if (
       deps.claimWarm !== undefined &&
+      !keyless &&
       req.resumeSessionId === undefined &&
       (effectiveIsolation === 'exclusive' || effectiveIsolation === 'shared') &&
       (req.runnerArgv === undefined || req.runnerArgv.length === 0)
@@ -763,6 +783,7 @@ export function makeConcourseAdmitHandler(
         }
         return {
           ok: true,
+          ...(retainedNote !== undefined ? { note: retainedNote } : {}),
           runnerId,
           sessionId: claimSessionId,
           workspaceId,
@@ -860,6 +881,7 @@ export function makeConcourseAdmitHandler(
       sessionId,
       workspaceId,
       modelKey,
+      ...(keyless ? { keyless: true } : {}),
       effort,
       cwd: workerCwd,
       kit,
@@ -879,6 +901,7 @@ export function makeConcourseAdmitHandler(
         isolation: effectiveIsolation,
         modelKey,
         effort,
+        ...(keyless ? { keyless: true } : {}),
         ...(typeof req.agentName === 'string' && req.agentName.trim().length > 0
           ? { agentName: req.agentName.trim().slice(0, 24) }
           : {}),
@@ -908,6 +931,7 @@ export function makeConcourseAdmitHandler(
         : undefined
     return {
       ok: true,
+      ...(retainedNote !== undefined ? { note: retainedNote } : {}),
       runnerId,
       sessionId,
       workspaceId,
@@ -1591,6 +1615,7 @@ export async function reactivateConcourseSession(
   args: {
     modelKey: string
     modelDisplayName?: string
+    keyless?: true
     effort?: string
     permissionMode?: PermissionMode
     kit?: SessionKitV1
@@ -1660,6 +1685,8 @@ export async function reactivateConcourseSession(
         if (!current || current.endedAt !== undefined) return
         if (short !== rec.runnerId) delete workers[rec.runnerId]
         const next: ConcourseWorkerRecordV1 = { ...current, runnerId: short, modelKey: args.modelKey, effort, lastLiveAt: Date.now() }
+        if (args.keyless === true) next.keyless = true
+        else delete next.keyless
         if (claimed.pid !== undefined) next.pid = claimed.pid
         else delete next.pid
         if (isolationDrift) next.isolation = claimIsolation
@@ -1691,12 +1718,15 @@ export async function reactivateConcourseSession(
       rewarm.unref?.()
     }
   }
-  if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift) {
+  const keylessDrift = (args.keyless === true) !== (rec.keyless === true)
+  if (args.modelKey !== rec.modelKey || effort !== rec.effort || isolationDrift || keylessDrift) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (!w || w.endedAt !== undefined) return
       w.modelKey = args.modelKey
       w.effort = effort
+      if (args.keyless === true) w.keyless = true
+      else delete w.keyless
       if (isolationDrift) w.isolation = claimIsolation
     }, deps.dir)
   }
@@ -1724,6 +1754,7 @@ export async function reactivateConcourseSession(
       sessionId: rec.sessionId,
       workspaceId: rec.workspaceId,
       modelKey: args.modelKey,
+      ...(args.keyless ? { keyless: true } : {}),
       effort,
       kit,
       ...(rec.title !== undefined ? { title: rec.title } : {}),

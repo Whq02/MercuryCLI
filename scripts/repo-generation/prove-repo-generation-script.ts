@@ -125,7 +125,12 @@ section('refusals — no themis, no models, no requirements; host resolver')
   check('missing args.requirements ⇒ refused', typeof noReq.result.error === 'string' && noReq.result.error.includes('args.requirements'))
   check('refusal paths spawned zero agents', noThemis.harness.calls.length === 0 && noArgs.harness.calls.length === 0 && noExec.harness.calls.length === 0)
 
-  const { daedalusResolveModels } = await import('../../src/tools/WorkflowTool/bundled/daedalus.ts')
+  const prevAnthropicKey = process.env.ANTHROPIC_API_KEY
+  process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
+  const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+  resetComputedDefaultMemo()
+  const { daedalusResolveModels, daedalusCompatibleModels } = await import('../../src/tools/WorkflowTool/bundled/daedalus.ts')
+  check('host: the compatible set is derived from the signed-in families — anthropic signed in offers its generation keys', daedalusCompatibleModels().has('opus') && daedalusCompatibleModels().has('anthropic'), JSON.stringify([...daedalusCompatibleModels()]))
   const bad = daedalusResolveModels({ requirements: 'x', model: 'banana', executorModel: 'sonnet' })
   check('host: invalid explicit model refused naming the catalogue', bad.ok === false && /catalogue/.test((bad as { error: string }).error) && /banana/.test((bad as { error: string }).error))
   const prevM = process.env.MERCURY_DAEDALUS_MODEL
@@ -139,6 +144,8 @@ section('refusals — no themis, no models, no requirements; host resolver')
   check('host: an invalid SAVED choice refuses (never silently substituted)', badSaved.ok === false && /MERCURY_DAEDALUS_MODEL/.test((badSaved as { error: string }).error))
   if (prevM === undefined) delete process.env.MERCURY_DAEDALUS_MODEL; else process.env.MERCURY_DAEDALUS_MODEL = prevM
   if (prevE === undefined) delete process.env.MERCURY_DAEDALUS_EXECUTOR_MODEL; else process.env.MERCURY_DAEDALUS_EXECUTOR_MODEL = prevE
+  if (prevAnthropicKey === undefined) delete process.env.ANTHROPIC_API_KEY; else process.env.ANTHROPIC_API_KEY = prevAnthropicKey
+  resetComputedDefaultMemo()
 }
 
 section('preflight — preview-first, size classes, clarification; zero agents')
