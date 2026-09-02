@@ -180,6 +180,10 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
         MERCURY_CONFIG_DIR: configDir,
+        // The registered file-store seam: an arena boot reads no machine keychain
+        // (darwin's would sign a keyless capture in; the pool seeds this for every
+        // child, a by-hand run must carry it itself).
+        MERCURY_CREDENTIAL_STORE: 'file',
         ANTHROPIC_BASE_URL: fixture.url,
         ANTHROPIC_API_KEY: API_KEY,
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
