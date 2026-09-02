@@ -282,7 +282,8 @@ const MOVES: Move[] = [
       { cols: 120, rows: 40, afterMs: 80 },
     ],
   },
-  { name: 'below', start: [120, 40], steps: [{ cols: 80, rows: 20, afterMs: 400 }, { cols: 120, rows: 40, afterMs: 1500 }] },
+  // Under the floor on BOTH axes (72 < 80 columns, 20 < 22 rows), and back.
+  { name: 'below', start: [120, 40], steps: [{ cols: 72, rows: 20, afterMs: 400 }, { cols: 120, rows: 40, afterMs: 1500 }] },
   { name: 'height', start: [120, 40], steps: [{ cols: 120, rows: 30, afterMs: 400 }] },
   { name: 'width', start: [120, 40], steps: [{ cols: 100, rows: 40, afterMs: 400 }] },
 ]
