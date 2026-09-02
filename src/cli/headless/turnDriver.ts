@@ -266,8 +266,14 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         phase = 'draining_commands'
         let command: QueuedCommand | undefined
         while ((command = ports.dequeue())) {
+          // A bash line is a turn like any other: it runs one at a time
+          // (never batched), under the same in-flight fact and abort
+          // controller as a model turn — so the seat's busy edge spans the
+          // shell and an interrupt frame reaches it. Refusing it here wrote
+          // an error result and shut the runner down on every `!` line.
           if (
             command.mode !== 'prompt' &&
+            command.mode !== 'bash' &&
             command.mode !== 'orphaned-permission' &&
             command.mode !== 'task-notification'
           ) {
