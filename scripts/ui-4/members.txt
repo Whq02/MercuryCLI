@@ -3,6 +3,7 @@
 # NOT named by a sibling list, so a NEW prover lands there automatically; a
 # name listed here but missing on disk is a loud red in this runner.
 prove-agent-dispatch-engines-journey.ts
+prove-catalogue-expand.ts
 prove-catalogue-gating-tripwire.ts
 prove-companion-render.ts
 prove-ctrl-o-stable.ts

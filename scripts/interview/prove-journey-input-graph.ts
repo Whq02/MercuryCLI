@@ -6,10 +6,10 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
   findRows,
-  firstOutputTs,
   grabScreens,
   requireDist,
   runArtifactArena,
+  sendStamp,
   type GrabbedScreen,
 } from '../streaming/artifactArena.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
@@ -62,8 +62,7 @@ const run = await runArtifactArena({
 })
 
 try {
-  const base = firstOutputTs(run)
-  const sends = run.sendLog.map(s => ({ at: s.sent - base, data: Buffer.from(s.b64, 'base64').toString() }))
+  const sends = run.sendLog.map(s => ({ at: sendStamp(run, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const sendAt = (data: string, nth = 0): number =>
     sends.filter(s => s.data === data)[nth]?.at ?? -1
   const offsets: number[] = []
@@ -124,10 +123,19 @@ try {
   const mainRounds = run.fixture
     .messageRequests()
     .filter(r => String((r.body as { model?: string }).model ?? '').includes('opus'))
+  const roundShape = (r: { body: unknown }): string => {
+    const last = (r.body as { messages?: { role?: string; content?: unknown }[] }).messages?.at(-1)
+    const blocks = Array.isArray(last?.content) ? (last.content as { type?: string; content?: unknown }[]) : []
+    const kinds = blocks.length > 0 ? blocks.map(c => c.type ?? '?').join('+') : typeof last?.content
+    const result = blocks.find(c => c.type === 'tool_result')
+    const head = result === undefined ? '' : ` "${JSON.stringify(result.content ?? '').slice(0, 90)}"`
+    return `${last?.role ?? '?'}:${kinds}${head}`
+  }
+  const denialRounds = mainRounds.filter(r => roundShape(r).includes('tool_result'))
   t.check(
-    'no extra model round fired — the rejection ends the turn',
-    mainRounds.length === 1,
-    `${mainRounds.length} main-model request(s)`,
+    'the cancel crosses as ONE denial round the model reads, then the turn ends',
+    mainRounds.length === 2 && denialRounds.length === 1 && roundShape(denialRounds[0]!).includes('want to proceed'),
+    `${mainRounds.length} main-model request(s): ${mainRounds.map(roundShape).join(' · ')}`,
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
   {
@@ -196,8 +204,7 @@ const run2 = await runArtifactArena({
 })
 
 try {
-  const base2 = firstOutputTs(run2)
-  const sends2 = run2.sendLog.map(s => ({ at: s.sent - base2, data: Buffer.from(s.b64, 'base64').toString() }))
+  const sends2 = run2.sendLog.map(s => ({ at: sendStamp(run2, s), data: Buffer.from(s.b64, 'base64').toString() }))
   const tabAt = sends2.find(s => s.data === '\t')?.at ?? -1
   const shiftTabAt = sends2.find(s => s.data === '\x1b[Z')?.at ?? -1
   const offsets2: number[] = []

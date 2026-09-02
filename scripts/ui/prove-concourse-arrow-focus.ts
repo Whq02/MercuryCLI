@@ -189,7 +189,9 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
     MERCURY_CREW_DIR: join(scratch, 'crew'),
     MERCURY_AWAY_SUMMARY: '0',
-    MERCURY_PARTY: '0',
+    MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+    MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+    MERCURY_LIVE_GLYPHS: '0',
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
@@ -205,6 +207,11 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
   return lines
 }
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
+const hasWrapped = (lines: string[], needle: string): boolean =>
+  lines
+    .map(l => (l.split('│')[1] ?? '').trim())
+    .join(' ')
+    .includes(needle)
 const selRow = (lines: string[]): number => lines.findIndex(l => /▸ /.test(l) && /Audit|Fix OAuth|Refactor|Update/.test(l))
 const titleOf = (line: string | undefined): string => (line ?? '').match(/(?:Audit|Fix OAuth|Refactor|Update)(?: \S+)*/)?.[0] ?? ''
 const sameTitle = (a: string, b: string): boolean => {
@@ -231,7 +238,7 @@ const scratches: string[] = []
   const nextRow = before.findIndex((l, i) => i > rowBefore && titleOf(l) !== '')
   check(
     'coord: the pane is OUT of its zero state (conversation painted or opening — the example walk is not in play)',
-    (has(before, 'what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
+    (hasWrapped(before, 'what model are you running on?') || has(before, 'opening the conversation')) && !has(before, COORDINATOR_EXAMPLE_PROMPTS[0]),
     before.find(l => l.includes('COORDINATOR'))?.trim().slice(0, 80) ?? '(no coordinator pane)',
   )
   check('coord: before any key the ▸ selection sits on the first session row', rowBefore >= 0 && titleOf(before[rowBefore]) !== '' && nextRow > rowBefore, `row=${rowBefore} title=${JSON.stringify(titleOf(before[rowBefore]))}`)

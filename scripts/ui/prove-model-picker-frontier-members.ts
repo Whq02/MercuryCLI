@@ -109,6 +109,9 @@ if (driver.kind !== 'posix-pty') {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
+      MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
+      MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
+      MERCURY_LIVE_GLYPHS: '0',
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
     },
     timeout: vshotBudgetMs(120_000),

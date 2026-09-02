@@ -231,6 +231,11 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
 ```
 
+A sixth pack, the voice capture addon, is built rather than fetched: with a
+Rust toolchain installed (https://rustup.rs, the MSVC toolchain), run
+`bun run scripts/vendor/build-voice.ts`; without cargo it says so and skips,
+and Mercury runs without voice input (the doctor names the remedy).
+
 Each should end without an error. `fetch-debugpy` unpacks the wheel with the
 first extractor it finds — `unzip`, `python3`, `tar.exe` (ships with Windows
 10 1803 and later), `python`, `py -3` — so a stock Windows box needs nothing
@@ -304,10 +309,12 @@ straight into the chat. Inside the chat, shift+← walks back to the concourse
 and the Boot face at any time; with `--chat` (or the concourse switched off)
 shift+← is the Boot face directly — the strip is the face and the chat alone.
 
-A source build started this way has no launch splash — it opens straight on
-the Boot face. (A release install's `mercury` launcher paints one first;
-`$env:MERCURY_SPLASH = "off"` skips it there. The variable has no effect on
-a direct `node dist\mercury.mjs` start, which never runs the splash.)
+A source build started this way paints the launch splash first — the
+circuit-trace animation before the Boot face — exactly as a release
+install's `mercury` launcher does: the build copies the splash beside
+`dist\mercury.mjs`, and a bare `node dist\mercury.mjs` runs it before the
+face. `$env:MERCURY_SPLASH = "off"` skips it on both roads; a start with any
+argument (a prompt, `--continue`, a verb) goes straight to its destination.
 
 ---
 

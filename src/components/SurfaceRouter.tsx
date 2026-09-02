@@ -28,7 +28,7 @@ import { RouteSurfaceScopeContext } from '../keybindings/RouteSurfaceScope.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { estateGroundBg } from '../utils/mercuryTokens.js';
-import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
+import { LiveTerminalSizeContext, TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
 import { useViewportFloor } from '../ink/hooks/use-viewport-floor.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { BootSplashScreen } from './BootSplashScreen.js';
@@ -80,11 +80,15 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const route = currentSurfaceRoute();
   const entry = getRouteSurface(route.kind);
+  const liveSize = useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext);
+  const surface = useViewportFloor(liveSize, true);
   return (
     <>
       {
 }
-      <MotionParkContext.Provider value={entry !== undefined}>{children}</MotionParkContext.Provider>
+      <MotionParkContext.Provider value={entry !== undefined}>
+        <TerminalSizeContext.Provider value={surface.surfaceSize}>{children}</TerminalSizeContext.Provider>
+      </MotionParkContext.Provider>
       {entry ? (
         <RouteSurfaceHost key={surfaceRouteId(route)} kind={route.kind} frame={entry.frame}>
           {
@@ -123,7 +127,7 @@ function RouteSurfaceHost({
   const t = useMercuryTokens();
   const ground = estateGroundBg(t);
   const [exitChordArmed, setExitChordArmed] = useState(false);
-  const floor = useViewportFloor(useContext(TerminalSizeContext), true);
+  const floor = useViewportFloor(useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext), true);
   return (
     <Box
       ref={elevatedRef}
