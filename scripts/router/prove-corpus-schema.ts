@@ -66,6 +66,9 @@ const ALLOWED_CODES = new Set([
   'architectural',
   'separable-disjoint-ownership',
   'ordered-dependencies',
+  // READ-tolerant: the two workflow-posture codes are legacy (a retired
+  // seat's posture); a pre-retirement fixture may still spell them, the
+  // replay prover pins that no compile produces them.
   'workflow-posture-active',
   'revision-escalation',
   'affinity-kept-model',
@@ -101,7 +104,9 @@ section(`compiler/*.json — schema + closed reason-code vocabulary (${COMPILER_
 
 const compilerFiles = readdirSync(COMPILER_DIR).filter(f => f.endsWith('.json')).sort()
 check('at least one compiler fixture found', compilerFiles.length > 0, `found ${compilerFiles.length}`)
-check('exactly 19 compiler fixtures (the corpus spec)', compilerFiles.length === 19, `found ${compilerFiles.length}`)
+// 18 since the legacy effort-only envelope fixture left with the retired
+// seat's route path (the compiler has no legacy fallback branch to replay).
+check('exactly 18 compiler fixtures (the corpus spec)', compilerFiles.length === 18, `found ${compilerFiles.length}`)
 
 const seenIds = new Set<string>()
 

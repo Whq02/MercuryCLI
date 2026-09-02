@@ -23,7 +23,14 @@
 // ============================================================================
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { decodeTaskRoutePlan, LEGACY_ROUTE_PROFILES, ROUTE_PROFILES, stableDigest } from '../../src/utils/router/contracts.js'
+import {
+  decodeTaskRoutePlan,
+  LEGACY_ROUTE_PROFILES,
+  LEGACY_ROUTE_REASON_CODES,
+  ROUTE_PROFILES,
+  ROUTE_REASON_CODES,
+  stableDigest,
+} from '../../src/utils/router/contracts.js'
 import { buildRouterModelSnapshot } from '../../src/utils/router/modelRegistry.js'
 import {
   compileRoute,
@@ -50,6 +57,7 @@ const snapshot = buildRouterModelSnapshot()
 // profile law below reads both sets, plus one compiled plan as its sample.
 const EXPECTED_PROFILES = new Set<string>()
 const PRODUCED_PROFILES = new Set<string>()
+const PRODUCED_CODES = new Set<string>()
 let SAMPLE_PLAN: unknown = null
 
 for (const file of readdirSync(DIR).sort()) {
@@ -113,6 +121,7 @@ for (const file of readdirSync(DIR).sort()) {
   }
   const plan = result.plan
   PRODUCED_PROFILES.add(plan.profile)
+  for (const c of [...plan.decision.decisiveReasons, ...plan.decision.adjustments]) PRODUCED_CODES.add(c)
   SAMPLE_PLAN ??= plan
   const problems: string[] = []
   if (plan.profile !== fx.expected.profile) {
@@ -171,8 +180,21 @@ for (const file of readdirSync(DIR).sort()) {
   law('legacy-profile', !(ROUTE_PROFILES as readonly string[]).some(p => legacy.has(p)), 'the producer-facing vocabulary carries no legacy profile')
   law('legacy-profile', ![...PRODUCED_PROFILES].some(p => legacy.has(p)), `no compile produced a legacy profile (${[...PRODUCED_PROFILES].sort().join(', ')})`)
   law('legacy-profile', ![...EXPECTED_PROFILES].some(p => legacy.has(p)), 'no fixture expects a legacy profile')
-  const withLegacy = SAMPLE_PLAN === null ? null : { ...(SAMPLE_PLAN as Record<string, unknown>), profile: LEGACY_ROUTE_PROFILES[0] }
-  law('legacy-profile', withLegacy !== null && decodeTaskRoutePlan(JSON.parse(JSON.stringify(withLegacy))) !== null, 'a persisted plan carrying the legacy profile still decodes (read-tolerant)')
+  const sample = SAMPLE_PLAN as { decision: Record<string, unknown> } & Record<string, unknown>
+  const restamp = (patch: Record<string, unknown>, decisionPatch: Record<string, unknown> = {}): unknown =>
+    JSON.parse(JSON.stringify({ ...sample, ...patch, decision: { ...sample.decision, ...decisionPatch } }))
+  law('legacy-profile', SAMPLE_PLAN !== null, 'at least one fixture compiled to a plan (the sample for the read-tolerance pins)')
+  law('legacy-profile', SAMPLE_PLAN !== null && decodeTaskRoutePlan(restamp({ profile: LEGACY_ROUTE_PROFILES[0] })) !== null, 'a persisted plan carrying the legacy profile still decodes (read-tolerant)')
+  law('legacy-profile', SAMPLE_PLAN !== null && decodeTaskRoutePlan(restamp({}, { selectedProfile: LEGACY_ROUTE_PROFILES[0] })) !== null, 'a persisted decision record carrying the legacy profile still decodes (read-tolerant)')
+  // The same law for the reason codes the retired posture named: the
+  // vocabulary and every compile stay clear of them; a persisted record
+  // carrying one still decodes — the code drops (reasons filter to the live
+  // vocabulary), the record stays.
+  const legacyCodes = new Set<string>(LEGACY_ROUTE_REASON_CODES)
+  law('legacy-reason', !(ROUTE_REASON_CODES as readonly string[]).some(c => legacyCodes.has(c)), 'the reason vocabulary carries no legacy code')
+  law('legacy-reason', ![...PRODUCED_CODES].some(c => legacyCodes.has(c)), `no compile produced a legacy reason code (${[...PRODUCED_CODES].sort().join(', ')})`)
+  const decodedWithLegacyCode = SAMPLE_PLAN === null ? null : decodeTaskRoutePlan(restamp({}, { adjustments: [LEGACY_ROUTE_REASON_CODES[0], LEGACY_ROUTE_REASON_CODES[1]] }))
+  law('legacy-reason', decodedWithLegacyCode !== null && decodedWithLegacyCode.decision.adjustments.length === 0, 'a persisted record carrying legacy reason codes still decodes (the codes drop, the record stays)')
 }
 
 console.log('════════════════════════════════════════════════════════════════════════════')
