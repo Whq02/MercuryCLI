@@ -41,9 +41,15 @@ const ROOT = join(HERE, '..', '..')
 export const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 const API_KEY = 'fixture-key-000'
-/** The chat composer's placeholder — the one line that paints only once the
- *  chat is up and input-wired (the vshot drives' entry needle). */
-const COMPOSER_READY_NEEDLE = 'Type a prompt'
+/** The chat world's ready line — the one line that paints only once the
+ *  chat is up and input-wired (the vshot drives' entry needle). The cockpit
+ *  (100+ columns) paints it as the composer's placeholder, 'Type a prompt';
+ *  the deck world below the cockpit floor paints it in the hero's ready row,
+ *  '● ready · type a prompt, or / for commands', and its composer carries no
+ *  placeholder. The needle is the tail the two spellings share, so a boot at
+ *  any width arms the anchor — a needle that never paints holds every
+ *  post-anchor send forever. */
+const COMPOSER_READY_NEEDLE = 'ype a prompt'
 /** The authored nominal: riders' earliest send sits at 4500ms, so the
  *  composer is assumed ready 500ms before it. */
 const COMPOSER_NOMINAL_MS = 4000
