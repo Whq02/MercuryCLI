@@ -31,3 +31,8 @@ for (const name of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
  *  leg needs a foreign filesystem view. */
 export const proofHome: string = mkdtempSync(join(tmpdir(), 'proof-home-'))
 process.env.MERCURY_CONFIG_DIR = proofHome
+// A proof never touches the operator's OS keychain: the file-backed
+// credential store rides beside the scratch home (the one rule every
+// keychain spawn honours). Absent-only, so a proof of the keychain backend
+// itself may pin its own value first.
+process.env.MERCURY_CREDENTIAL_STORE ??= 'file'

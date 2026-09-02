@@ -6,15 +6,17 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import {
   getMacOsKeychainStorageServiceName,
   getUsername,
+  keychainReachable,
 } from './secureStorage/index.js'
 
 /**
- * Delete the login-managed API key's keychain entry. macOS only (a no-op
- * elsewhere); THROWS on a non-zero exit so callers can distinguish "removed"
- * from "still present".
+ * Delete the login-managed API key's keychain entry. A no-op wherever the
+ * keychain is unreachable (off macOS, or with the credential store pinned to
+ * the file backend — the one rule every keychain spawn honours); THROWS on
+ * a non-zero exit so callers can distinguish "removed" from "still present".
  */
 export async function maybeRemoveApiKeyFromMacOSKeychainThrows(): Promise<void> {
-  if (process.platform !== 'darwin') return
+  if (!keychainReachable()) return
   const result = await execFileNoThrow('security', [
     'delete-generic-password',
     '-a',

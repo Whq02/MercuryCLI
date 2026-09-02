@@ -214,7 +214,41 @@ raw_seen = bytearray()
 # pyte screen resizes, and a stage snapshot of the PREVIOUS geometry's final
 # frame is appended to `stages` in the output JSON. Absent ⇒ byte-identical
 # single-geometry behavior (every existing config).
-resizes = sorted(cfg.get("resizes", []), key=lambda r: r.get("atTick", 0))
+# SUB-TICK and OBSERVED schedules (additive; an atTick-only list is sorted
+# and applied exactly as before): a step may name its moment as
+#   · "atMs": N            — N ms after the capture's start (a burst of
+#                             WINCHes 80 ms apart cannot ride 200 ms ticks);
+#   · "afterMark": L, "afterMs": N
+#                          — N ms after the send carrying mark L fired (a
+#                             resize aimed at a settled scene, whose ready
+#                             moment only the mark observes);
+#   · "afterPrevMs": N     — N ms after the previous resize fired (the
+#                             burst's cadence).
+# A relative step is applied in authored order; the select wait is capped at
+# the next due moment so a sub-tick step fires on time in a quiet PTY.
+TICK_S = 0.2
+_resizes_raw = list(cfg.get("resizes", []))
+_RELATIVE_KEYS = ("atMs", "afterMark", "afterPrevMs")
+if all(not any(k in r for k in _RELATIVE_KEYS) for r in _resizes_raw):
+    resizes = sorted(_resizes_raw, key=lambda r: r.get("atTick", 0))
+else:
+    resizes = _resizes_raw
+
+def _resize_due_s(step, marks_fired_s, last_resize_s):
+    """Seconds after start at which `step` is due; None while its anchor
+    (a mark or a previous resize) has not fired."""
+    if "afterMark" in step:
+        base = marks_fired_s.get(step["afterMark"])
+        if base is None:
+            return None
+        return base + float(step.get("afterMs", 0)) * _scale / 1000.0
+    if "afterPrevMs" in step:
+        if last_resize_s is None:
+            return None
+        return last_resize_s + float(step["afterPrevMs"]) * _scale / 1000.0
+    if "atMs" in step:
+        return float(step["atMs"]) * _scale / 1000.0
+    return _scaled(int(step.get("atTick", 0))) * TICK_S
 tee_path = os.environ.get("VSHOT_TEE")
 tee = open(tee_path, "ab") if tee_path else None
 
@@ -252,25 +286,43 @@ else:                                          # parent: drive + capture
                   "rev": bool(screen.buffer[y][x].reverse)}
                  for x in range(c)] for y in range(r)]
 
+    # The emulated cursor beside every grid (additive): where the last frame
+    # left it and whether it is hidden — the resize laws read the composer's
+    # caret from it.
+    def snap_cursor():
+        return {"x": screen.cursor.x, "y": screen.cursor.y,
+                "hidden": bool(screen.cursor.hidden)}
+
+    marks_fired_s = {}   # mark label → seconds after start its send fired
+    last_resize_s = None  # seconds after start the previous resize fired
     t0 = time.monotonic()
-    TICK_S = 0.2
     while True:
         tick = int((time.monotonic() - t0) / TICK_S)
         if tick >= total:
             ended_at_tick, end_reason = tick, "budget"
             break
-        if resized < len(resizes) and tick >= _scaled(int(resizes[resized].get("atTick", 0))):
+        if resized < len(resizes):
+            due_s = _resize_due_s(resizes[resized], marks_fired_s, last_resize_s)
+        else:
+            due_s = None
+        if due_s is not None and (time.monotonic() - t0) >= due_s:
             step = resizes[resized]
+            now_s = time.monotonic() - t0
             # snapshot the OUTGOING geometry's final frame first
             stages.append({"cols": cols, "rows": rows, "untilTick": tick,
+                           "untilMs": int(now_s * 1000), "cursor": snap_cursor(),
                            "grid": snap_grid(cols, rows)})
             cols, rows = int(step["cols"]), int(step["rows"])
             screen.resize(rows, cols)
             fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
             resized += 1
+            last_resize_s = now_s
         # Cap the select wait at the remainder of the current tick so send
-        # timing stays ~one tick accurate even when the child is quiet.
+        # timing stays ~one tick accurate even when the child is quiet — and
+        # at the next resize's due moment, so a sub-tick step fires on time.
         wait = max(0.0, (tick + 1) * TICK_S - (time.monotonic() - t0))
+        if due_s is not None:
+            wait = max(0.0, min(wait, due_s - (time.monotonic() - t0)))
         r, _, _ = select.select([fd], [], [], wait)
         if fd in r:
             try:
@@ -390,8 +442,11 @@ else:                                          # parent: drive + capture
                         ready_seen_pre_sends = True
                 if nxt.get("mark"):
                     marks.append({"label": nxt["mark"], "atTick": tick,
+                                  "atMs": int((time.monotonic() - t0) * 1000),
                                   "cols": cols, "rows": rows,
+                                  "cursor": snap_cursor(),
                                   "grid": snap_grid(cols, rows)})
+                    marks_fired_s[nxt["mark"]] = time.monotonic() - t0
                 # `signal` sends deliver a POSIX signal to the child instead
                 # of bytes (SR-042's suspend/resume trace: SIGTSTP parks the
                 # process, SIGCONT resumes it, and the NEXT key must land
@@ -455,6 +510,7 @@ else:                                          # parent: drive + capture
               "rev": bool(screen.buffer[y][x].reverse)}
              for x in range(cols)] for y in range(rows)]
     payload = {"cols": cols, "rows": rows, "grid": grid,
+               "cursor": snap_cursor(),
                # Ready-gate receipt: WHY this capture ended, so a caller (or a
                # human reading the artifact) can tell a real settle from a
                # budget expiry without re-deriving it from the pixels.

@@ -1,5 +1,5 @@
-import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createFallbackStorage } from './fallbackStorage.js'
+import { keychainReachable } from './macOsKeychainHelpers.js'
 import { macOsKeychainStorage } from './macOsKeychainStorage.js'
 import { plainTextStorage } from './plainTextStorage.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
@@ -18,6 +18,7 @@ export {
   getUsername,
   KEYCHAIN_CACHE_TTL_MS,
   keychainCacheState,
+  keychainReachable,
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 export { isMacOsKeychainLocked, macOsKeychainStorage } from './macOsKeychainStorage.js'
@@ -36,13 +37,11 @@ export type { SecureStorage, SecureStorageData } from './types.js'
  * derives from the auth config home, so a child process started against a
  * scratch home has no path to the real machine's OS keychain. Otherwise
  * macOS gets the keychain composed over the file store, and every other
- * platform the file store alone.
+ * platform the file store alone. The factory reads the same rule every
+ * `security` spawn reads (keychainReachable) — one fact, one owner.
  */
 export function getSecureStorage(): SecureStorage {
-  if (flagEnv('MERCURY_CREDENTIAL_STORE') === 'file') {
-    return plainTextStorage
-  }
-  if (process.platform === 'darwin') {
+  if (keychainReachable()) {
     return createFallbackStorage(macOsKeychainStorage, plainTextStorage)
   }
   return plainTextStorage
