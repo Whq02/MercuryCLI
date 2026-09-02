@@ -68,7 +68,14 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   }, [])
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
-  const [expanded, setExpanded] = useState<string | null>(null)
+  const currentRow = stripGptServedWindowSuffix(current)
+  const [expanded, setExpanded] = useState<string | null>(() => {
+    if (listed.some(m => m.id === currentRow)) return null
+    for (const door of listed) {
+      if (door.expand && (expandRows?.(door.expand.group) ?? []).some(m => m.id === currentRow)) return door.expand.group
+    }
+    return null
+  })
   const [filter, setFilter] = useState('')
   const expandRowsRef = React.useRef(expandRows)
   expandRowsRef.current = expandRows
@@ -88,7 +95,6 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const availRows = useModalOrTerminalSize({ rows: termRows, columns: cols }).rows
   const compact = availRows < 20
   const shedMeters = availRows < 13
-  const currentRow = stripGptServedWindowSuffix(current)
   const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
   const [cursor, setI] = useState(startI)
   const i = Math.min(cursor, Math.max(0, totalRows - 1))
@@ -258,7 +264,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   })
   const rowPaint = (idx: number): number => {
     if (compact) return 1
-    if (models[idx]?.expand?.open) return 1
+    if (models[idx]?.expand?.open) return 0
     return idx === i ? (models[idx]?.tag ? 4 : 3) : 1
   }
   const detailLines = new Map<string, string[]>()
@@ -267,13 +273,14 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   }
   const headingPaint = (w: PaneWindow): number => {
     let lines = 0
-    if (!compact) {
-      let prev: string | undefined
-      for (let idx = w.start; idx < Math.min(w.end, models.length); idx++) {
-        const g = models[idx]!.group
-        if (g !== prev) lines += 2 + (detailLines.get(g)?.length ?? 0)
-        prev = g
+    let prev: string | undefined
+    for (let idx = w.start; idx < Math.min(w.end, models.length); idx++) {
+      const g = models[idx]!.group
+      if (g !== prev) {
+        if (!compact) lines += 2 + (detailLines.get(g)?.length ?? 0)
+        if (expanded === g) lines += 1
       }
+      prev = g
     }
     return lines
   }
@@ -293,6 +300,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     },
   )
   let lastGroup: string | null = null
+  const doorHeaderIndex = expanded === null ? -1 : models.findIndex(m => m.expand?.open === true)
+  const doorHeader = doorHeaderIndex === -1 ? undefined : { index: doorHeaderIndex, id: models[doorHeaderIndex]!.id, parts: catalogueDoorHeaderParts(models[doorHeaderIndex]!.expand!) }
   const footerDoor: ModelPickerFooterDoor | undefined =
     expanded !== null
       ? { open: true, onHeader: focusedModel?.expand?.open === true, filtering: filter.length > 0 }
@@ -323,28 +332,29 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         const on = idx === i; const cur = m.id === currentRow
         const isNext = pendingNext !== undefined && m.id === pendingNext
         const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.expand ? [GLYPH.pending, 'expand', FAINT] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
-        const heading = head && !compact ? <Box marginTop={1} flexDirection="column">
-          <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>
-          {detailLines.get(m.group)?.map((line, k) => (
+        const doorLine = head && doorHeader !== undefined && expanded === m.group ? ((): React.ReactNode => {
+          const onHeader = i === doorHeader.index
+          return (
+            <InteractiveRow id={`model:row:${doorHeader.id}`} selected={onHeader} onSelect={() => selectRow(doorHeader.index)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
+              <Text wrap="truncate-end">
+                <Text color={onHeader ? TERRA : FAINT}>{onHeader ? `${figures.pointer} ` : '  '}</Text>
+                <Text color={tokens.info}>{doorHeader.parts.lead}</Text>
+                <Text bold color={IVORY}>{filter}</Text>
+                <Text color={onHeader ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
+                <Text color={FAINT}>{doorHeader.parts.tail}</Text>
+              </Text>
+            </InteractiveRow>
+          )
+        })() : null
+        const heading = head && (!compact || doorLine !== null) ? <Box marginTop={compact ? 0 : 1} flexDirection="column">
+          {compact ? null : <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>}
+          {compact ? null : detailLines.get(m.group)?.map((line, k) => (
             <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
           ))}
+          {doorLine}
         </Box> : null
         if (m.expand?.open) {
-          const parts = catalogueDoorHeaderParts(m.expand)
-          return (
-            <React.Fragment key={m.id}>
-              {heading}
-              <InteractiveRow id={`model:row:${m.id}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
-                <Text wrap="truncate-end">
-                  <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
-                  <Text color={tokens.info}>{parts.lead}</Text>
-                  <Text bold color={IVORY}>{filter}</Text>
-                  <Text color={on ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
-                  <Text color={FAINT}>{parts.tail}</Text>
-                </Text>
-              </InteractiveRow>
-            </React.Fragment>
-          )
+          return <React.Fragment key={m.id}>{heading}</React.Fragment>
         }
         return (
           <React.Fragment key={m.id}>
