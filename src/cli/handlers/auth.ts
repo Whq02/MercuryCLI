@@ -326,9 +326,27 @@ export async function authStatus(opts: {
         /* a closed fd must not mask the status exit */
       }
     }
+    // The other families, from the ONE presence owner — the same identity
+    // words the screens print (the sign-in's email over the plan label).
+    // Before this, the text verb reported the Anthropic ladder alone and
+    // told a ChatGPT-only operator "Not signed in" while every screen said
+    // signed in.
+    const others = routed.rows.filter(row => row.id !== 'anthropic' && row.present)
+    for (const row of others) {
+      try {
+        writeSync(1, `${row.id}: ${row.identity ?? row.source}\n`)
+      } catch {
+        /* a closed fd must not mask the status exit */
+      }
+    }
     if (!loggedIn) {
       try {
-        writeSync(1, `Not signed in — run: ${binaryName()} auth login\n`)
+        writeSync(
+          1,
+          others.length > 0
+            ? `No Anthropic credential — ${others.map(row => row.id).join(', ')} signed in; run: ${binaryName()} auth login to add Anthropic\n`
+            : `Not signed in — run: ${binaryName()} auth login\n`,
+        )
       } catch {
         /* a closed fd must not mask the status exit */
       }
@@ -381,21 +399,40 @@ export async function authStatus(opts: {
 
 /** The declared-family rows + the routed family's presence, composed from
  *  the router snapshot (adapter status is recorded local state — cheap,
- *  sync, never a network call; "validity untested by design" holds). */
+ *  sync, never a network call; "validity untested by design" holds), with
+ *  each family's recorded identity from the ONE presence owner (the same
+ *  words the screens print; additive — the frozen fields stand). */
 function routedProviderRows(anthropicPresent: boolean): {
   family: string
   present: boolean
-  rows: Array<{ id: string; kind: string; source: string; present: boolean }>
+  rows: Array<{ id: string; kind: string; source: string; present: boolean; identity?: string }>
 } {
   try {
     const { declaredRouteOf } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
     const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
     const { buildRouterModelSnapshot } = require('../../utils/router/modelRegistry.js') as typeof import('../../utils/router/modelRegistry.js')
+    const { providerFamilyPresences } =
+      require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
     const family = declaredRouteOf(getMainLoopModel()) ?? 'anthropic'
-    const rows = buildRouterModelSnapshot().providers.map(provider => {
+    const snapshot = buildRouterModelSnapshot()
+    const presences = ((): ReturnType<typeof providerFamilyPresences> => {
+      try {
+        return providerFamilyPresences(snapshot.providers)
+      } catch {
+        return [] // identity is additive — the rows stand without it
+      }
+    })()
+    const rows = snapshot.providers.map(provider => {
       const account = provider.description.account
       const present = provider.id === 'anthropic' ? anthropicPresent : account.kind !== 'none'
-      return { id: provider.id, kind: account.kind, source: account.label, present }
+      const identity = presences.find(presence => presence.id === provider.id)?.identity
+      return {
+        id: provider.id,
+        kind: account.kind,
+        source: account.label,
+        present,
+        ...(identity !== undefined ? { identity } : {}),
+      }
     })
     const routedRow = rows.find(row => row.id === family)
     return { family, present: routedRow?.present ?? false, rows }

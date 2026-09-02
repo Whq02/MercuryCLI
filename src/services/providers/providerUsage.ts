@@ -18,7 +18,14 @@
 //  the parity work touched rides here.
 // ============================================================================
 import { getModelUsage, getUnpricedTurns } from '../../bootstrap/state.js'
-import { getAnthropicApiKey, getAuthTokenSource, getSubscriptionType, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../../utils/auth.js'
+import {
+  getAnthropicApiKey,
+  getAuthTokenSource,
+  getOauthAccountInfo,
+  getSubscriptionType,
+  isAnthropicOAuthSignInExpired,
+  isClaudeAISubscriber,
+} from '../../utils/auth.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { modelPricingBasis } from '../../utils/modelCost.js'
 import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
@@ -120,6 +127,12 @@ export interface ProviderFamilyPresence {
   /** The owning resolver's display words for the present credential
    *  (plan/source facts, never a secret); undefined when absent. */
   credentialLabel?: string
+  /** WHO is signed in, when the family's owning store recorded an identity
+   *  (the account email of a subscription sign-in, a Hub username) — never
+   *  a secret; undefined when the credential carries none (a key, a local
+   *  server, a token without the claim). The identity words every surface
+   *  prints prefer this over the plan label (presenceIdentityWords). */
+  identity?: string
 }
 
 /** Injectable reads for provers; production callers pass nothing. */
@@ -131,6 +144,49 @@ export interface ProviderFamilyReads {
    *  env bearer such as ANTHROPIC_AUTH_TOKEN is a dispatchable credential
    *  that neither the subscriber nor the key read sees. */
   bearerTokenSource?: () => { source: string; hasToken: boolean }
+  /** The Anthropic account snapshot's email (the profile the sign-in
+   *  stored) — identity display only, read when the subscription seat is
+   *  the credential. */
+  anthropicEmail?: () => string | undefined
+  /** An engine family's recorded identity from its OWNING resolver (the
+   *  ChatGPT sign-in's email, the Hub username) — undefined when the store
+   *  holds none. */
+  engineIdentity?: (id: RouterProviderId) => string | undefined
+}
+
+/**
+ * THE identity words for a family's credential — ONE composer every surface
+ * prints (the boot face's account chip, /status, the /accounts board's
+ * main-loop row, /defaultprovider, the headless auth verb): the recorded
+ * identity when the owning store holds one, else the credential's
+ * plan/source label; undefined when nothing is present. A surface that
+ * needs the plan word beside the identity reads credentialLabel itself —
+ * this composer never invents a second spelling of either.
+ */
+export function presenceIdentityWords(
+  presence: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'>,
+): string | undefined {
+  if (!presence.credentialed) return undefined
+  return presence.identity ?? presence.credentialLabel
+}
+
+/** The engine families' recorded identities, each from its owning store —
+ *  a refusing custodian names nobody (undefined), never a throw. */
+function engineIdentityLive(id: RouterProviderId): string | undefined {
+  try {
+    if (id === 'openai') {
+      // The ACTIVE account's identity (the same account the presence label
+      // describes): the ChatGPT sign-in records the id_token's email claim;
+      // an API key records none.
+      const { resolveOpenaiAccount } =
+        require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
+      return resolveOpenaiAccount()?.email
+    }
+    if (id === 'huggingface') return resolveHuggingfaceAccount()?.username
+  } catch {
+    /* a custodian that cannot answer names no identity */
+  }
+  return undefined
 }
 
 /** The Anthropic family's credential presence — THE derivation behind
@@ -142,7 +198,7 @@ export interface ProviderFamilyReads {
  *  subscription, the API-key ladder, or an env bearer token. */
 export function anthropicCredentialPresence(
   reads?: ProviderFamilyReads,
-): { credentialed: boolean; credentialLabel?: string; expired?: boolean } {
+): { credentialed: boolean; credentialLabel?: string; identity?: string; expired?: boolean } {
   const subscriber = reads?.claudeSubscriber?.() ?? isClaudeAISubscriber()
   const plan = reads?.subscriptionType?.() ?? getSubscriptionType()
   const keyPresent =
@@ -188,10 +244,26 @@ export function anthropicCredentialPresence(
       return false
     }
   })()
+  // WHO: the subscription seat's account email, from the profile the sign-in
+  // stored (the board's live verification heals that snapshot). A key or an
+  // env bearer names no account — the label is their honest identity.
+  const identity = subscriber ? readAnthropicEmail(reads) : undefined
   return {
     credentialed: credentialLabel !== undefined,
     ...(credentialLabel !== undefined ? { credentialLabel } : {}),
+    ...(identity !== undefined ? { identity } : {}),
     ...(expired ? { expired: true } : {}),
+  }
+}
+
+/** The stored account email, render-safe (a refusing config read names
+ *  nobody); blank spellings read as absent. */
+function readAnthropicEmail(reads?: ProviderFamilyReads): string | undefined {
+  try {
+    const email = reads?.anthropicEmail ? reads.anthropicEmail() : getOauthAccountInfo()?.emailAddress
+    return typeof email === 'string' && email.trim() !== '' ? email.trim() : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -221,14 +293,17 @@ export function providerFamilyPresences(
       }
     }
     // Engine families: the adapter's own account view (kind + source label —
-    // status() self-primed discovery, describe() reads the primed cache).
+    // status() self-primed discovery, describe() reads the primed cache),
+    // plus the identity the family's owning store recorded for it.
     const account = provider.description.account
+    const identity = account.kind !== 'none' ? (reads?.engineIdentity ?? engineIdentityLive)(provider.id) : undefined
     return {
       id: provider.id,
       available: provider.available,
       ...(provider.reason !== undefined ? { reason: provider.reason } : {}),
       credentialed: account.kind !== 'none',
       ...(account.kind !== 'none' ? { credentialLabel: account.label } : {}),
+      ...(identity !== undefined && identity !== '' ? { identity } : {}),
     }
   })
 }

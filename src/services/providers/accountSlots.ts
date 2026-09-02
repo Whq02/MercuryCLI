@@ -116,6 +116,7 @@ import {
   type OpenaiAccountRef,
 } from './openai/openaiAccounts.js'
 import {
+  presenceIdentityWords,
   providerFamilyPresences,
   type ProviderFamilyPresence,
   type ProviderFamilyReads,
@@ -447,10 +448,13 @@ export function mainLoopIdentity(input: MainLoopIdentityInput): MainLoopIdentity
   const label = presence.credentialLabel ?? 'credential present'
   if (route !== 'anthropic') {
     // A discovered local server is a live fact (the resolver probed it);
-    // every other family's credential is an existence fact on this board.
+    // every other family's credential is an existence fact on this board —
+    // named by the ONE identity composer (the sign-in's email when its
+    // store recorded one, else the plan/source label).
+    const words = presenceIdentityWords(presence) ?? label
     return route === 'local'
-      ? { route, family, text: `${label} · discovered live`, basis: 'discovered-live' }
-      : { route, family, text: `${label} · credential present`, basis: 'credential-present' }
+      ? { route, family, text: `${words} · discovered live`, basis: 'discovered-live' }
+      : { route, family, text: `${words} · credential present`, basis: 'credential-present' }
   }
   // Anthropic: the subscription bills the scope's OAuth login, which the
   // board verifies live; a key or env bearer bills itself (no live probe).
