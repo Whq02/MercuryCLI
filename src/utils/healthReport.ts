@@ -1759,6 +1759,16 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return { status: 'ok', evidence }
           },
         },
+        {
+          id: 'preserved-thinking',
+          label: 'Preserved thinking',
+          run: async () => {
+            const { preservedThinkingHealth, readThinkingDropLedger } = await import(
+              '../services/providers/anthropic/thinkingBinding.js'
+            )
+            return preservedThinkingHealth(readThinkingDropLedger())
+          },
+        },
       ],
     },
     {
