@@ -953,6 +953,17 @@ export class DapSession {
       windowsHide: true,
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
+      // The adapter tree gets NO controlling terminal: a new session on
+      // POSIX (setsid). Pipes alone are not enough — a debug launcher
+      // opens /dev/tty by name and hands the terminal's foreground process
+      // group to the debuggee (debugpy's launcher does exactly this), and
+      // when the debuggee exits nothing hands it back; this process is then
+      // a background job of its own terminal, and its next read of the
+      // keyboard stops it (SIGTTIN, "suspended (tty input)") with every
+      // terminal mode still armed. With no controlling terminal the
+      // /dev/tty open fails and the launcher skips the hand-off. The
+      // detached leader also makes the tree kill a group kill.
+      detached: process.platform !== 'win32',
       // W7-E (L19): adapters (and their debuggees) execute the
       // vendored python tree — the byte-stability env routes bytecode into
       // the build-keyed runtime cache instead of the managed payload.

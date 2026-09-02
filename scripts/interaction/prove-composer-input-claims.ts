@@ -181,6 +181,26 @@ console.log('\n── §2 wiring pinned in source ──────────
     suggestions.includes('tokens.selectionBand') &&
       !suggestions.includes("selected ? 'selectionBand'"),
   )
+  // The `?` grid budgets its rows beneath a notice column whose height
+  // varies (the sign-in row, a steering split at its seams, a JSX refusal
+  // of several rows); a fixed chrome allowance pushed the grid's own
+  // remainder row below the screen (journey C). The grid now measures its
+  // own screen top after an uncapped paint and caps to the rows beneath it
+  // — the fork's row twin of elementScreenLeft is the one owner of that
+  // arithmetic.
+  const helpMenu = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
+  const measurer = read('src/ink/measure-element.ts')
+  check(
+    'the fork owns the screen-row measurement beside its column twin',
+    measurer.includes('export function elementScreenTop(node: DOMElement): number') &&
+      measurer.includes('export function elementScreenLeft(node: DOMElement): number'),
+  )
+  check(
+    'the help grid caps to the rows beneath its measured screen top, not a chrome guess',
+    helpMenu.includes('const top = elementScreenTop(element)') &&
+      helpMenu.includes('rows: Math.max(3, termRows - top)') &&
+      helpMenu.includes('ref={gridRef}'),
+  )
 }
 
 console.log('\n── §3 PTY journeys ──────────────────────────────────────────')
@@ -232,7 +252,7 @@ function capture(
   const a = capture(
     'conleak',
     'concourse',
-    80,
+    100,
     38,
     [
       { awaitText: 'for shortcuts', minTick: 5, atTick: 60, awaitSettleTicks: 3, data: 'zqxw' },
@@ -287,15 +307,22 @@ function capture(
   // Journey C — the narrow help overlay states what it cut (60×24 sheds
   // rows; the remainder line is the visible truth), and the taller control
   // shows the full single-column list with no remainder.
-  const c = capture('help-narrow', 'help', 60, 24, [{ atTick: 30, data: '?' }], 46)
+  const c = capture('help-narrow', 'help', 100, 22, [{ atTick: 30, data: '?' }], 46)
   if (c) {
-    check(
-      'the clipped narrow help overlay says what it cut',
-      c.some(l => l.includes('more · /help lists every shortcut')),
-      c.slice(-8).join(' | '),
-    )
+    const saysWhatItCut = c.some(l => l.includes('more · /help lists every shortcut'))
+    check('the clipped narrow help overlay says what it cut', saysWhatItCut, c.slice(-8).join(' | '))
+    if (!saysWhatItCut) {
+      // The whole frame, row-numbered: a remainder row that fell below the
+      // screen leaves no trace in the last rows alone.
+      console.log('      ┌ the 60×24 frame — no remainder row')
+      c.forEach((line, index) => {
+        const row = line.trimEnd()
+        if (row !== '') console.log(`      │ ${String(index).padStart(2, ' ')} ${row}`)
+      })
+      console.log('      └')
+    }
   }
-  const d = capture('help-tall', 'help', 60, 38, [{ atTick: 30, data: '?' }], 46)
+  const d = capture('help-tall', 'help', 100, 38, [{ atTick: 30, data: '?' }], 46)
   if (d) {
     check(
       'the 60×38 control shows the whole list (no remainder row)',
