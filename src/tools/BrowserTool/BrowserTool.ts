@@ -800,7 +800,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
           break
         }
         case 'open': {
-          const s = await ensureBrowserSession(owner)
+          const s = await ensureBrowserSession(owner, { signal: context.abortController?.signal })
           if ('state' in s) {
             result =
               s.state === 'unavailable'
