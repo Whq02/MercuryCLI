@@ -1,6 +1,6 @@
 import type { UUID } from 'crypto'
 import * as React from 'react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { getSessionId } from '../../../bootstrap/state.js'
 import type { ResumeEntrypoint } from '../../../commands.js'
 import { Box, Text, useInput } from '../../../ink.js'
@@ -174,7 +174,16 @@ function LiveSessionManager({
   const accent = useSessionAccent().accent
   const { columns } = useTerminalSize() // resize subscription + the live width budget
   const W = shellInteriorWidth(columns)
-  const [switching, setSwitching] = useState(false)
+  // THE SWITCH HAS TWO PHASES, and esc leaves both. LOADING reads the full
+  // transcript from disk — esc cancels the read and the list comes back (a
+  // generation fence drops the late read). SWAPPING is the REPL's in-place
+  // resume committing — it cannot be undone, so esc leaves the panel while
+  // the swap keeps going (the restore-keeps-going grammar the rewind
+  // surface speaks). The old boolean gated the whole key handler off for
+  // the duration: a slow disk left the operator on a spinner whose footer
+  // still read 'esc close' with a dead esc.
+  const [switching, setSwitching] = useState<'loading' | 'swapping' | null>(null)
+  const switchGenRef = useRef(0)
   // 'project' = the quick switcher (this project, un-cleared). 'all' = the
   // FULL history: every project + /clear'ed sessions. `a` flips live.
   const [scope, setScope] = useState<SessionScope>(initialScope)
@@ -294,23 +303,44 @@ function LiveSessionManager({
     if (!log) return
     const sessionId = getSessionIdFromLog(log)
     if (!sessionId) return
-    setSwitching(true)
+    const gen = ++switchGenRef.current
+    setSwitching('loading')
     try {
       // Lite logs carry no messages — load the full transcript before the swap.
       const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
+      // esc cancelled the read meanwhile: the list is back, the late read
+      // lands nowhere.
+      if (gen !== switchGenRef.current) return
+      setSwitching('swapping')
       await onResume(sessionId, fullLog, 'slash_command_picker')
+      // esc left the panel while the swap committed: it is already closed.
+      if (gen !== switchGenRef.current) return
       // resume() swapped setMessages in-place; fully dismiss /sessions so the
       // restored transcript shows unobstructed. (If resume threw, we stay open
       // with the list.)
       onCloseAll()
     } catch {
-      setSwitching(false)
+      if (gen === switchGenRef.current) setSwitching(null)
     }
+  }
+
+  // esc during LOADING: fence the read and return to the list. esc during
+  // SWAPPING: leave the panel — the swap keeps going and lands on its own.
+  const leaveSwitch = (): void => {
+    const phase = switching
+    switchGenRef.current++
+    setSwitching(null)
+    setConfirmingKey(null)
+    if (phase === 'swapping') onCloseAll()
   }
 
   useInput(
     (input, key) => {
-      if (switching) return
+      if (switching !== null) {
+        // Both phases keep their one exit live; every other key waits.
+        if (key.escape) leaveSwitch()
+        return
+      }
       // The prune door's stages own every key while open. CARD: ↑↓ move
       // between No and Yes (No is the default and the cursor's start), ↵
       // commits the highlighted answer, esc / n answer No — nothing is
@@ -348,9 +378,8 @@ function LiveSessionManager({
       // Confirm gate — the "are you sure?". esc / n cancel immediately
       // (ungated, matching the nav doctrine); ↵ commits — but only once the
       // mount buffer clears, so a launching Enter can't leak straight into a
-      // switch. While a switch is pending, nothing else acts. So an accidental
-      // ↵ mid-browse only ARMS the confirm — it can never drop the active
-      // session on its own.
+      // switch. So an accidental ↵ mid-browse only ARMS the confirm — it can
+      // never drop the active session on its own.
       if (confirming !== null) {
         if (key.escape || input === 'n') {
           setConfirmingKey(null)
@@ -414,7 +443,7 @@ function LiveSessionManager({
         return
       }
     },
-    { isActive: !switching },
+    { isActive: true },
   )
 
   // this surface owns input (captureInput=false) and binds BOTH esc + ←
@@ -432,12 +461,25 @@ function LiveSessionManager({
         ? `↑↓ / click browse · ↵ switch · n new · d prune · ${scopeHint} · esc / ← close`
         : `n new · d prune · ${scopeHint} · esc / ← close`
 
-  if (switching) {
+  if (switching !== null) {
+    // The footer names what esc does in THIS phase (cancel the read · leave
+    // while the swap keeps going) — never a bare 'esc close' over a spinner.
     return (
-      <CommandCenter view="sessions" onClose={onClose} captureInput={false}>
+      <CommandCenter
+        view="sessions"
+        onClose={leaveSwitch}
+        captureInput={false}
+        footer={
+          switching === 'loading'
+            ? 'reading the transcript… · esc cancel'
+            : 'switching — the swap keeps going · esc back to the chat'
+        }
+      >
         <Box marginTop={1}>
           <Spinner />
-          <Text color={SECOND}> Switching session…</Text>
+          <Text color={SECOND}>
+            {switching === 'loading' ? ' Reading the transcript…' : ' Switching session…'}
+          </Text>
         </Box>
       </CommandCenter>
     )
@@ -455,12 +497,16 @@ function LiveSessionManager({
           : '↵ / esc close'
         : prune.stage === 'receipt'
           ? '↵ / esc back to the list'
-          : ''
+          : 'deleting the named set…'
     return (
       <CommandCenter
         view="sessions"
         onClose={() => setPrune(null)}
         captureInput={false}
+        // The deleting beat owns no exit (the unlinks are in flight): the
+        // shell appends no 'esc close' over it — the footer says what is
+        // happening instead.
+        closeKeys={prune.stage === 'deleting' ? 'none' : 'esc-arrow'}
         footer={pruneFooter}
       >
         {prune.stage === 'card' ? (
