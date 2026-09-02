@@ -77,7 +77,10 @@ export function isCrewModelKey(k: string): k is CrewModelKey {
  *  hard: lowercase alnum + hyphen, 2-16 chars, letter-first. Reserved names
  *  refused (they collide with existing roster/bus identities). */
 const CREW_NAME_RE = /^[a-z][a-z0-9-]{1,15}$/
-const RESERVED_NAMES = new Set(['team-lead', 'crew', 'daemon'])
+// Reserved: the lead's own name, the daemon and crew words, and the retired
+// seat identities — old records and the role-env sweep still name them, so a
+// teammate must never take one.
+const RESERVED_NAMES = new Set(['team-lead', 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
 export function isValidCrewName(name: string): boolean {
   return CREW_NAME_RE.test(name) && !RESERVED_NAMES.has(name)
 }

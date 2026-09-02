@@ -610,8 +610,9 @@ async function sendDirectedPlainMessage(
   // Mechanically enforce the rule the prompt packs state: a bus-role sender
   // must never hand-serialise an envelope into a plain string — the retry
   // must land on the structured path instead of delivering as a context
-  // frame.
-  if (isCrewRole() && looksLikeHandSerializedBusPayload(content)) {
+  // frame. The guard keys on the crew role (the one bus role left).
+  const busRoleSender = Boolean(isCrewRole())
+  if (busRoleSender && looksLikeHandSerializedBusPayload(content)) {
     return {
       success: false,
       message:
