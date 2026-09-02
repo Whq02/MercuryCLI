@@ -28,7 +28,9 @@ import {
 } from '../../utils/auth.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
+import { sessionAccountFamily } from '../../utils/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
+import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
@@ -130,18 +132,19 @@ function NotificationsColumn({
   const notAuthenticated =
     apiKeyStatus === 'invalid' || apiKeyStatus === 'missing'
   const signInEpoch = useSignInEpoch()
+  const catalogueEpoch = useCatalogueEpoch()
   const walletGate = useMemo((): NotLoggedInGate => {
     if (!notAuthenticated) return { state: 'ok' }
     try {
       return notLoggedInGateDecision(
         walletEntries(),
-        declaredRouteOf(mainLoopModel ?? getMainLoopModel()),
+        sessionAccountFamily(mainLoopModel ?? getMainLoopModel()),
       )
     } catch {
       return { state: 'not-logged-in' }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notAuthenticated, mainLoopModel, signInEpoch])
+  }, [notAuthenticated, mainLoopModel, signInEpoch, catalogueEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
   const tokenUsage = tokenCountWithEstimation(messages)
   const showTokenCount = verbose && !sessionBlocked

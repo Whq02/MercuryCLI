@@ -254,6 +254,8 @@ type AppStateMutableHalf = {
     clearContext?: boolean
     permissionMode?: InternalPermissionMode
     allowedPrompts?: AllowedPrompt[]
+    bashMode?: boolean
+    armedAtLanding?: boolean
   } | null
   pendingPlanVerification?: {
     verificationStarted?: boolean
