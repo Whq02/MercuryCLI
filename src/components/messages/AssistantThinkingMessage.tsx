@@ -1,11 +1,9 @@
 
 import React from 'react'
-import { Box, Text } from '../../ink.js'
-import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
+import { Box } from '../../ink.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { Markdown } from '../Markdown.js'
-
-const THINKING_GLYPH = '✳\uFE0E'
+import { THINKING_COLOR, ThinkingLabel } from './thinkingGrammar.js'
 
 export function AssistantThinkingMessage({
   param,
@@ -20,7 +18,6 @@ export function AssistantThinkingMessage({
   isTranscriptMode?: boolean
   hideInTranscript?: boolean
 }): React.ReactNode {
-  const accent = useSessionAccent().accent
   const thinking = param.thinking ?? ''
   if (thinking === '' || hideInTranscript) return null
 
@@ -28,19 +25,18 @@ export function AssistantThinkingMessage({
   if (!expanded) {
     return (
       <Box marginTop={addMargin ? 1 : 0}>
-        <Text italic color={accent}>
-          {THINKING_GLYPH} Thinking… <CtrlOToExpand />
-        </Text>
+        <ThinkingLabel>
+          {' '}
+          <CtrlOToExpand />
+        </ThinkingLabel>
       </Box>
     )
   }
   return (
     <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
-      <Text italic color={accent}>
-        {THINKING_GLYPH} Thinking…
-      </Text>
+      <ThinkingLabel />
       <Box paddingLeft={2} flexDirection="column">
-        <Markdown color="subtle">{thinking}</Markdown>
+        <Markdown color={THINKING_COLOR}>{thinking}</Markdown>
       </Box>
     </Box>
   )

@@ -1,4 +1,4 @@
-import React, { type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
+import React, { createContext, type PropsWithChildren, useContext, useInsertionEffect, useRef } from 'react';
 import { InkInstanceContext } from './InkInstanceContext.js';
 import { consumeLauncherAltHold } from '../launcherAltHold.js';
 import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCROLL, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
@@ -8,25 +8,27 @@ import { RESET_SCROLL_REGION } from '../termio/csi.js';
 import { useViewportFloor } from '../hooks/use-viewport-floor.js';
 import Box from './Box.js';
 import Text from './Text.js';
-import { TerminalSizeContext } from './TerminalSizeContext.js';
+import { LiveTerminalSizeContext, TerminalSizeContext } from './TerminalSizeContext.js';
 type Props = PropsWithChildren<{
   mouseTracking?: boolean;
 }>;
 
 const altScreenDepths = new WeakMap<object, { n: number }>()
 const NO_INSTANCE_KEY = {}
+const AltScreenDepthContext = createContext(0)
 
 export function AlternateScreen({
   children,
   mouseTracking = true,
 }: Props): React.ReactNode {
   const size = useContext(TerminalSizeContext);
+  const live = useContext(LiveTerminalSizeContext) ?? size;
   const writeRaw = useContext(TerminalWriteContext);
   const inkFromContext = useContext(InkInstanceContext);
 
   const mouseTrackingRef = useRef(mouseTracking);
   mouseTrackingRef.current = mouseTracking;
-  const outermostRef = useRef<boolean | null>(null);
+  const depthAbove = useContext(AltScreenDepthContext);
 
   useInsertionEffect(() => {
     const ink = inkFromContext;
@@ -37,7 +39,6 @@ export function AlternateScreen({
     const effectiveMouse = mouseTrackingRef.current && (ink?.isMouseTrackingPreferred?.() ?? true);
 
     const outermost = depth.n === 0
-    outermostRef.current = outermost
     depth.n++
     if (outermost) {
       const launcherHolds = consumeLauncherAltHold();
@@ -76,17 +77,15 @@ export function AlternateScreen({
     };
   }, [writeRaw, inkFromContext]);
 
-  const nested = outermostRef.current !== null
-    ? !outermostRef.current
-    : (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
+  const nested = depthAbove > 0;
   const rows = size?.rows ?? 24;
 
-  const floor = useViewportFloor(size, !nested);
+  const floor = useViewportFloor(live, !nested);
 
   return (
     <>
       {floor.line === null ? null : (
-        <Box flexDirection="column" height={rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
+        <Box flexDirection="column" height={live?.rows ?? rows} width="100%" flexShrink={0} justifyContent="center" paddingX={1}>
           <Text color="ansi:yellow" bold>
             {floor.line}
           </Text>
@@ -99,7 +98,9 @@ export function AlternateScreen({
         flexShrink={0}
         display={floor.fits ? 'flex' : 'none'}
       >
-        <TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>
+        <AltScreenDepthContext.Provider value={depthAbove + 1}>
+          <TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>
+        </AltScreenDepthContext.Provider>
       </Box>
     </>
   );
