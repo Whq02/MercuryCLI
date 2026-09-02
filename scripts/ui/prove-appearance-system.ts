@@ -382,9 +382,10 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
     picker.includes('defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}') &&
       picker.includes('defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}'),
   )
+  const fitting = src('components', 'Onboarding.tsx')
   check(
     'the first-run fitting opens on the provider’s setting (the default on a fresh home)',
-    onboarding.includes('initialId: themeSetting') && onboarding.includes('? DEFAULT_THEME_SETTING : theme'),
+    fitting.includes('initialId: themeSetting') && fitting.includes('? DEFAULT_THEME_SETTING : theme'),
   )
   const providerSrc = src('components', 'design-system', 'ThemeProvider.tsx')
   check(
