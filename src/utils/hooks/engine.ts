@@ -636,6 +636,9 @@ export async function* executeHooks({
             exitCode: result.status,
             outcome: 'error',
           })
+          reportHeadlessHookFailure(
+            `hook ${hookName} (${hookEvent}) timed out after ${timeoutSeconds}s and was killed; the ${hookEvent} it guarded proceeded`,
+          )
           yield {
             message: createAttachmentMessage({
               type: 'hook_non_blocking_error',
@@ -697,6 +700,9 @@ export async function* executeHooks({
           exitCode: 1,
           outcome: 'error',
         })
+        reportHeadlessHookFailure(
+          `hook ${hookName} (${hookEvent}) returned JSON that failed validation: ${validationError.split('\n')[0]}`,
+        )
         yield {
           message: createAttachmentMessage({
             type: 'hook_non_blocking_error',
@@ -866,20 +872,11 @@ export async function* executeHooks({
         outcome: 'error',
       })
       if (extensionId) recordHookFailure(extensionId, hookCommand, `exit ${result.status}`)
-      // The headless report (FC-083): the /hooks browser promises a
-      // non-zero exit "shows stderr to the user only and continues" — the
-      // interactive road renders the attachment below, but a -p run's
-      // attachment reaches no stream, so the promise was kept nowhere a
-      // headless operator looks. One stderr line IS the promise there.
-      if (getIsNonInteractiveSession()) {
-        try {
-          process.stderr.write(
-            `hook ${hookName} (${hookEvent}) failed with exit ${result.status ?? '?'}: ${result.stderr.trim() || 'no stderr output'}\n`,
-          )
-        } catch {
-          /* a dead stderr must not break the turn */
-        }
-      }
+      // The headless report: one stderr line where a -p run's attachment
+      // reaches no stream (reportHeadlessHookFailure).
+      reportHeadlessHookFailure(
+        `hook ${hookName} (${hookEvent}) failed with exit ${result.status ?? '?'}: ${result.stderr.trim() || 'no stderr output'}`,
+      )
       yield {
         message: createAttachmentMessage({
           type: 'hook_non_blocking_error',
@@ -1303,5 +1300,23 @@ export async function executeHookCallback({
     ...processed,
     outcome: 'success',
     hook,
+  }
+}
+
+/**
+ * The headless report (FC-083): the /hooks browser promises a hook's
+ * non-blocking failure "shows stderr to the user only and continues" — the
+ * interactive road renders the attachment, but a -p run's attachment
+ * reaches no stream, so ONE stderr line keeps the promise there. Every
+ * non-blocking failure class rides it: a non-zero exit, an overrun killed
+ * by its clock, JSON that fails the schema (the last two once reported
+ * nowhere a headless operator looks).
+ */
+function reportHeadlessHookFailure(line: string): void {
+  if (!getIsNonInteractiveSession()) return
+  try {
+    process.stderr.write(`${line}\n`)
+  } catch {
+    /* a dead stderr must not break the turn */
   }
 }

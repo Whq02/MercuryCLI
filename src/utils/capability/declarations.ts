@@ -362,6 +362,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'coordination',
     cancellation: 'not-applicable',
     latency: 'fast',
+    conditions: ['a remote-environment delivery channel (none exists in this build, so the tool hides itself)'],
   },
   SendUserMessage: {
     intents: ['send the operator a brief out-of-band message'],
@@ -369,6 +370,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'coordination',
     cancellation: 'not-applicable',
     latency: 'fast',
+    gate: 'MERCURY_BRIEF',
+    conditions: ['an away session or the operator’s brief opt-in (MERCURY_BRIEF=1 forces it on)'],
   },
   Service: {
     intents: [
@@ -417,6 +420,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'not-applicable',
     latency: 'fast',
+    gate: 'MERCURY_TASKS',
+    conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
   TaskGet: {
     intents: ['read one tracked task'],
@@ -425,6 +430,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'not-applicable',
     latency: 'fast',
+    gate: 'MERCURY_TASKS',
+    conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
   TaskList: {
     intents: ['list tracked tasks'],
@@ -433,6 +440,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'not-applicable',
     latency: 'fast',
+    gate: 'MERCURY_TASKS',
+    conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
   TaskOutput: {
     intents: ['read output from a background task or agent'],
@@ -457,6 +466,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'not-applicable',
     latency: 'fast',
+    gate: 'MERCURY_TASKS',
+    conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
   TeamBrief: {
     intents: ['brief a chartered team'],

@@ -132,6 +132,11 @@ section('§1 stdio — frozen child settles failed; reason honest; the WHOLE TRE
   t('§1 reason names the transport', error.includes('(stdio)'), error)
   t(`§1 reason names the seconds (${DEADLINE_LABEL})`, error.includes(`did not answer in ${DEADLINE_LABEL}`), error)
   t('§1 reason points at the retry door', error.includes('retry from /mcp'), error)
+  // The deadline ended the server; it never closed on its own — so the
+  // close-class tail ("wrote nothing to stderr before closing (run the
+  // command by hand to see why it exits)") is a lie on this row, and it
+  // pushed the sentence past the CLI's clip.
+  t('§1 the deadline sentence stands alone — no close-class tail', !error.includes('before closing') && !error.includes('server stderr'), error)
   // The frozen child is ended by the timed-out transport's close — a staged
   // ladder (stdin EOF grace, then SIGTERM, then SIGKILL), bounded at ~4s.
   // Poll to that bound plus slack rather than sampling inside the grace.
