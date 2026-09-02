@@ -1,6 +1,6 @@
 // ============================================================================
 //  editorExtensionPackage — the ONE owner of Mercury's own editor-extension
-//  identity and package: the marketplace-style id, where the built .vsix
+//  identity and package: the publisher-style id, where the built .vsix
 //  lives (beside the running bundle in a release layout, dist/ in a source
 //  checkout), and which editors have it installed — read live from their
 //  extension directories, never from a cache or a spawned CLI.
@@ -10,7 +10,7 @@ import { existsSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 
-/** Mercury's OWN marketplace-style extension identifier — the
+/** Mercury's OWN publisher-style extension identifier — the
  *  publisher.name of integrations/vscode/package.json. */
 export const MERCURY_IDE_EXTENSION_ID = 'mercury.mercury-vscode'
 
