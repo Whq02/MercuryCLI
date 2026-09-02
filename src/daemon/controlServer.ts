@@ -70,6 +70,7 @@ export interface ControlServerDeps {
         modelId?: string
         modelDisplayName?: string
         effort?: string
+        note?: string
         kitSource?: 'carried' | 'derived' | 'preset'
         liveHop?: true
         presetName?: string
