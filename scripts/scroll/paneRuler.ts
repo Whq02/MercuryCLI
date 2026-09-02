@@ -54,6 +54,15 @@ export function viewportRows(grid: Grid): number {
   return paneRows(grid).length
 }
 
+export function regionOf(grids: Grid[]): number {
+  const counts = new Map<number, number>()
+  for (const g of grids) {
+    const n = viewportRows(g)
+    counts.set(n, (counts.get(n) ?? 0) + 1)
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? 0
+}
+
 export function stepBounds(rows: number): { floor: number; ceiling: number } {
   return { floor: Math.max(1, rows - 4), ceiling: rows + 1 }
 }

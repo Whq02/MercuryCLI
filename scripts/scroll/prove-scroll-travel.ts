@@ -6,7 +6,7 @@ import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { paneSigs, stepBounds, viewportRows, type Grid, type Sig } from './paneRuler.ts'
+import { paneSigs, regionOf, stepBounds, type Grid, type Sig } from './paneRuler.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const FULL = process.env.PROVE_SCROLL_FULL === '1'
@@ -102,7 +102,7 @@ function analyze(cell: Cell, payload: {
 } {
   const parityKey = (turn: number): string => (cell.mix ? String(turn % 2) : 'all')
   const grids: Grid[] = [...(payload.marks ?? []).map(m => m.grid), payload.grid]
-  const viewport = grids.reduce((best, g) => Math.max(best, viewportRows(g)), 0)
+  const viewport = regionOf((payload.marks ?? []).filter(m => /^p\d+$/.test(m.label)).map(m => m.grid))
   const edgeModes = new Map<string, Map<number, number>>()
   for (const g of grids) {
     const sigs = allSigs(g)
