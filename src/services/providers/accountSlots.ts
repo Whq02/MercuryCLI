@@ -39,18 +39,21 @@
 //  sign-in, never refusable.
 // ============================================================================
 import { providerDisplayName, declaredRouteOf, type CallModelRoute } from './routeLaw.js'
-import type { ScopeIdentityState } from '../../utils/accounts/accountIdentity.js'
+import {
+  clearScopeIdentitySnapshot,
+  forgetScopeIdentity,
+  type ScopeIdentityState,
+} from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
 import {
-  clearOAuthTokenCache,
+  dropCredentialMemos,
   getAnthropicApiKeyWithSource,
-  getClaudeAIOAuthTokens,
   isClaudeAISubscriber,
   removeApiKey,
   type ApiKeySource,
 } from '../../utils/auth.js'
 import { revokeOAuthToken } from '../oauth/client.js'
-import { removeSecureStorageField } from '../../utils/secureStorage/index.js'
+import { getSecureStorage, removeSecureStorageField } from '../../utils/secureStorage/index.js'
 import { saveGlobalConfig } from '../../utils/config/globalConfig.js'
 import { resetUserCache } from '../../utils/user.js'
 import { logError } from '../../utils/log.js'
@@ -1191,42 +1194,75 @@ export interface SlotRemovalOwners {
   /** Default fires the async keychain+config clear without blocking the
    *  keypress (the board repaints from the stores on the next derive). */
   clearManagedAnthropicKey?: () => void
-  /** Per-slot anthropic OAuth sign-out (plain sign-out):
-   *  best-effort server-side revoke, token-store delete, identity-snapshot
-   *  clear, auth-cache reset. Fires async without blocking the keypress. */
+  /** Per-slot anthropic OAuth sign-out, the WHOLE owner replaced (a spy):
+   *  the default is signOutAnthropicSlot — the local teardown lands before
+   *  the keypress returns, the server-side revoke follows async. */
   signOutAnthropicOauth?: () => void
+  /** The default owner's network leg alone (the proof drives the real
+   *  teardown with the revoke stubbed). */
+  revokeAnthropicToken?: (refreshToken: string) => Promise<void>
   /** Post-disconnect key probe for the honest still-resolves appendix. */
   openaiApiKeyAfter?: () => { key: string; source: 'env' | 'stored' } | undefined
 }
 
-/** The default per-slot anthropic OAuth sign-out: server-side revoke first
- *  (a deleted local copy alone leaves a live token on the server — the
- *  /logout law), then the token store, the identity snapshot, and the auth
- *  caches. THIS login only; /logout remains the global everything-verb. */
-async function signOutAnthropicOauthDefault(): Promise<void> {
+/** Injectable seams for the per-slot Anthropic sign-out. */
+export interface AnthropicSlotSignOutIo {
+  /** The server-side revoke; default: the OAuth client's. */
+  revoke?: (refreshToken: string) => Promise<void>
+}
+
+/**
+ * The per-slot anthropic OAuth sign-out — REMOVAL IS TOTAL, and it lands
+ * BEFORE the keypress returns: the token-store field (THIS slot's field
+ * only — the store is shared with the MCP server sessions, the extension
+ * secrets and the trusted-device token; the whole-store delete is /logout's
+ * verb), BOTH identity snapshots (the global config's account row and the
+ * scope's own dir-scoped snapshot — the board's verification heal writes
+ * the latter, and nothing cleared it, so the row it fed outlived the login
+ * and refused every ⌫ as "nothing to sign out"), every in-process
+ * credential memo (the token and keychain memos, the beta-header set, the
+ * tool-schema shape, the user cache), the scope's resolved identity, and
+ * the account's usage truth (the window feeders). The server-side revoke
+ * runs AFTER, best-effort and async, on the refresh token captured first —
+ * a deleted local copy alone would leave a live token on the server (the
+ * /logout law), while a revoke that waited on the network BEFORE the local
+ * teardown left every surface signed in for the whole round trip (the
+ * epoch had bumped; the reads still found the tokens). THIS login only;
+ * /logout remains the global everything-verb. Answers whether a stored
+ * login actually left (the receipt's wording).
+ */
+export function signOutAnthropicSlot(
+  dir: string,
+  io: AnthropicSlotSignOutIo = {},
+): { loginLeft: boolean } {
+  let refreshToken: string | null = null
   try {
-    const tokens = getClaudeAIOAuthTokens()
-    if (tokens?.refreshToken) await revokeOAuthToken(tokens.refreshToken)
+    const stored = getSecureStorage().read()?.claudeAiOauth?.refreshToken
+    refreshToken = typeof stored === 'string' && stored.length > 0 ? stored : null
+  } catch (error) {
+    logError(error)
+  }
+  let loginLeft = false
+  try {
+    const removal = removeSecureStorageField('claudeAiOauth')
+    loginLeft = removal.removed
+    if (!removal.success) {
+      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
+    }
   } catch (error) {
     logError(error)
   }
   try {
-    // THIS slot's field only: the store is shared with the MCP server
-    // sessions, the extension secrets and the trusted-device token, and the
-    // whole-store delete is /logout's verb (FN-015 rank 13 — one ⌫ on the
-    // board signed every MCP server out and erased every extension secret).
-    const removal = removeSecureStorageField('claudeAiOauth')
-    if (!removal.success) {
-      logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
-    }
     saveGlobalConfig(current => ({ ...current, oauthAccount: undefined }))
   } catch (error) {
     logError(error)
   }
-  clearOAuthTokenCache()
+  clearScopeIdentitySnapshot(dir)
+  forgetScopeIdentity(dir)
+  dropCredentialMemos()
   resetUserCache()
   // The signed-out account's usage truth goes with it: the window feeders
-  // (lane IV — the one usage-truth reset owner).
+  // (the one usage-truth reset owner).
   try {
     const { resetLimitsForCredentialSwitch } =
       require('../claudeAiLimits.js') as typeof import('../claudeAiLimits.js')
@@ -1234,6 +1270,10 @@ async function signOutAnthropicOauthDefault(): Promise<void> {
   } catch (error) {
     logError(error)
   }
+  if (refreshToken !== null) {
+    void (io.revoke ?? revokeOAuthToken)(refreshToken).catch(logError)
+  }
+  return { loginLeft }
 }
 
 /**
@@ -1331,16 +1371,34 @@ function routeSlotRemoval(
       }
     case 'anthropic-oauth': {
       // Plain per-slot sign-out. The home dir itself is
-      // NEVER deleted — only the login (tokens + identity snapshot) leaves;
-      // transcripts, config, and the home stay untouched on disk.
-      if (!slot.signedIn) {
+      // NEVER deleted — only the login (tokens + identity snapshots) leaves;
+      // transcripts, config, and the home stay untouched on disk. REMOVAL
+      // IS TOTAL: a slot with no stored login but a surviving identity
+      // snapshot (a removal by another tool, an interrupted sign-out) still
+      // clears — that snapshot was the row that could not be removed; only
+      // a slot with nothing behind it is the honest no-op.
+      const snapshot =
+        slot.scope !== undefined && (slot.scope.uuid !== undefined || slot.scope.email !== undefined)
+      if (!slot.signedIn && !snapshot) {
+        forgetScopeIdentity(removal.dir)
         return { note: 'not signed in — nothing to sign out (↵ signs in)', mutated: false }
       }
-      ;(owners.signOutAnthropicOauth ?? (() => void signOutAnthropicOauthDefault()))()
-      return {
-        note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
-        mutated: true,
+      let loginLeft = slot.signedIn
+      if (owners.signOutAnthropicOauth) owners.signOutAnthropicOauth()
+      else {
+        loginLeft = signOutAnthropicSlot(removal.dir, {
+          ...(owners.revokeAnthropicToken ? { revoke: owners.revokeAnthropicToken } : {}),
+        }).loginLeft
       }
+      return loginLeft
+        ? {
+            note: 'signing out this Claude login — tokens revoked and dropped; the home, transcripts, and config stay (/logout stays the global verb)',
+            mutated: true,
+          }
+        : {
+            note: 'no Claude login was stored here — the stale identity snapshot cleared; the home, transcripts, and config stay (↵ signs in)',
+            mutated: true,
+          }
     }
     case 'anthropic-managed-key':
       ;(owners.clearManagedAnthropicKey ?? (() => void removeApiKey()))()
