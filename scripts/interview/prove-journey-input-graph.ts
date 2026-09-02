@@ -131,9 +131,10 @@ try {
     const head = result === undefined ? '' : ` "${JSON.stringify(result.content ?? '').slice(0, 90)}"`
     return `${last?.role ?? '?'}:${kinds}${head}`
   }
+  const denialRounds = mainRounds.filter(r => roundShape(r).includes('tool_result'))
   t.check(
-    'no extra model round fired — the rejection ends the turn',
-    mainRounds.length === 1,
+    'the cancel crosses as ONE denial round the model reads, then the turn ends',
+    mainRounds.length === 2 && denialRounds.length === 1 && roundShape(denialRounds[0]!).includes('want to proceed'),
     `${mainRounds.length} main-model request(s): ${mainRounds.map(roundShape).join(' · ')}`,
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
