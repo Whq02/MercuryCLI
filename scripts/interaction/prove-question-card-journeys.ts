@@ -610,8 +610,12 @@ if (wants('D')) {
   check('D: the drive completed', d.status === 0, `status=${d.status} end=${d.endReason}`)
   const card = markOr(d, 'd-card')
   check('D: the card was up with its Esc affordance stated', card.some(r => r.includes('Esc to cancel')))
-  check('D: after Esc the card is gone and the decline is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && d.final.some(r => r.includes('User declined to answer')))
-  if (!d.final.some(r => r.includes('User declined to answer'))) dumpFrame('d-final', d.final)
+  // Every chat is a hosted seat: the card's cancel travels the ask channel
+  // as a DENIAL the model reads, painted on the transcript as the canon
+  // denial row (the action was not run) under the ask.
+  const denied = d.final.some(r => r.includes('want to proceed'))
+  check('D: after Esc the card is gone and the denial is on the transcript', !d.final.some(r => r.includes('Esc to cancel')) && denied)
+  if (!denied) dumpFrame('d-final', d.final)
   check('D: the session continued (the model replied to the denial)', d.final.some(r => r.includes('stopping here as asked')))
   if (failures === before) d.discard()
   else console.log(`  [forensics] world kept: ${d.world}`)
