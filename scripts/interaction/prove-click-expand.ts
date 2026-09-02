@@ -57,13 +57,16 @@ function dumpFrame(label: string, lines: string[]): void {
  *  resumed card) differs between boots and between the settled end of one
  *  capture and the click moment of the next. */
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
-/** Every click is OBSERVED-SETTLED: it fires only once the row it aims at
- *  is on screen and the whole grid has held byte-identical for ten ticks —
- *  a fixed tick raced slow boots, and a resume still streaming rows moved
- *  the aimed row out from under the click. requireAwait refuses a journey
- *  whose row never painted (exit 4) rather than clicking blind at the
- *  deadline; atTick stays the hard deadline. */
-const SETTLED = { minTick: 10, awaitStableTicks: 10, requireAwait: true } as const
+/** Every click is OBSERVED: it fires only once the row it aims at is on
+ *  screen and has held for four ticks — a fixed tick raced slow boots, and a
+ *  resume still streaming rows moved a coordinate-aimed click off its row.
+ *  The aim is resolved on the live grid at fire time, so the click needs
+ *  the row present, not a byte-identical screen: the cockpit keeps a live
+ *  cell repainting (a caret, an indicator), and a whole-grid stability
+ *  gate never opens there. requireAwait refuses a journey whose row never
+ *  painted (exit 4) rather than clicking blind at the deadline; atTick
+ *  stays the hard deadline. */
+const SETTLED = { minTick: 10, awaitSettleTicks: 4, requireAwait: true } as const
 const clickOn = (needle: string, atTick: number): Record<string, unknown> => ({
   targetText: needle,
   targetDx: 2,
@@ -84,7 +87,7 @@ function capture(
   // resumed card under the transcript; at 40 rows that chrome scrolled the
   // first tool row — the agent's Done line — one row above the viewport, and
   // an expanded error card pushed the expanded glob list off the top.
-  const cfg = scenario('click-expand', 80, 50) as Record<string, unknown>
+  const cfg = scenario('click-expand', 100, 60) as Record<string, unknown>
   cfg['sends'] = sends
   cfg['total'] = total
   Object.assign(cfg, extra)
@@ -340,7 +343,7 @@ cleanupScenario('click-expand')
   const run = (tag: string, sends: Array<Record<string, unknown>>, total: number): string[] | null => {
     // Fresh scenario per capture: re-stages the synthetic session so each
     // boot resumes a pristine file (the shared-SID reuse probe).
-    const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
+    const cfg = { ...scenario('two-bash-click', 100, 50) } as Record<string, unknown>
     // Every click is text-aimed and observed-settled (CLICK · SETTLED
     // above): a fixed tick raced slow boots (press before mouse tracking
     // armed), a click aimed by the PAINT of the needle landed on a row the

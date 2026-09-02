@@ -18,17 +18,17 @@
 //      the footer-truth pin, and the old `ctrl+c interrupt` spelling must
 //      be absent); ONE ctrl+c interrupts AND arms (the notice is the next
 //      await-gate), a second press inside the window closes Mercury. The
-//      busy legs (C, C2) drive a FRESH session born on a home seeded with
-//      a presence-only fixture key: a shell line needs no credential — the
-//      runner executes it in its own process without a model call — but a
-//      RUNNER is admitted only on a model whose family holds a credential,
-//      so the keyless shared home admits none (a resumed session keeps the
-//      model it ran on and is refused by name; a fresh birth is refused the
-//      same way). NAMED DEFERRAL: a keyless operator therefore has no seat
-//      for `!ls` today — an admission road that seats a runner without a
-//      credential and refuses only the first MODEL send by name is a design
-//      question for the operator, outside this proof, which pins the live
-//      world.
+//      busy legs (C, C2) drive a FRESH session born on a KEYLESS home of
+//      their own: a session whose model has no credential here is admitted
+//      modelless (the receipt names the model and its door), and a shell
+//      line needs no model — the runner executes it in its own process
+//      without a model call — so `!sleep 30` runs, the footer names esc,
+//      and esc interrupts it with no account signed in. The world is the
+//      leg's own: its config home AND its daemon dir, so the seat, its
+//      facts and its transcript are born under the home the screen reads
+//      (a daemon shared across captures is born under the FIRST capture's
+//      home, and a later screen on another home then never sees its own
+//      seat's rows).
 //   D  the copy receipt on both trigger paths, via the standing scenarios:
 //      copy-receipt-select (drag-release copy-on-select) and
 //      copy-receipt-ctrlc (copy-on-select seeded OFF — the receipt can only
@@ -101,7 +101,7 @@ function drive(
     const printed = (res.stdout ?? '').split('\n').filter(line => line.trimEnd() !== '')
     if (printed.length > 0) {
       console.log(`      ┌ ${tag}: the screen vshot ended on`)
-      for (const line of printed.slice(-16)) console.log(`      │ ${line.trimEnd()}`)
+      for (const line of printed) console.log(`      │ ${line.trimEnd()}`)
       console.log('      └')
     }
     return null
@@ -134,7 +134,7 @@ section('A · idle: ctrl+c arms, a second press INSIDE 3 s closes Mercury')
 {
   const p = drive(
     'arm-close',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       // Gated on the NOTICE itself (atTick is only the hard deadline —
@@ -162,7 +162,7 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
 {
   const p = drive(
     'arm-expire',
-    scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg,
+    scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg,
     [
       { atTick: 60, minTick: 8, awaitText: '❯', data: CTRL_C },
       // 17 ticks ≈ 3.4 s — outside the 3000 ms window. The mark snapshots
@@ -184,36 +184,52 @@ section('B · idle: the window EXPIRES at 3 s — a late second press re-arms, n
   cleanupScenario('resume-2turn')
 }
 
-// The busy legs need a session with a LIVE runner, and a runner is admitted
-// only on a model whose family holds a credential. The shared proof home is
-// keyless by law: the resumed fixture (resume-2turn) keeps the model it ran
-// on and its re-admission is refused by name (never a silent substitute),
-// and a fresh birth on that home is refused the same way (`model refused
-// (no-credential:…)` on the face). The shell line itself needs no
-// credential — the runner executes it in its own process without a model
-// call — so the legs seed their OWN home with a presence-only fixture key
-// (the seed and the capture carry the same key, the way the frame-trace and
-// profile-card proofs do; no wire is ever reached) and drive a FRESH session
-// born there: the Boot face's New Session admits a live runner, and the
-// legs pin that a `!` line runs, shows the hint and interrupts.
-const BUSY_KEY = 'sk-ant-fixture-exit-copy'
+// The busy legs need a session with a LIVE runner. The resumed fixture
+// (resume-2turn) is a dead session on a keyless home; a FRESH session born
+// there is admitted modelless (a model with no credential here is named,
+// never substituted) and its runner executes a `!` line in its own process
+// with no model call — the keyless world IS the pin. The world is the
+// leg's own: a fresh seeded home AND its own daemon dir. A daemon dir shared
+// across captures keeps ONE daemon alive through every leg, born under the
+// FIRST capture's home; a later screen on another home then births its seat
+// on that daemon, and the seat's transcript and facts land under the other
+// home — the screen never sees its own rows, its busy fact, or the interrupt.
 type BusyWorld = { cfg: ScenarioCfg; env: Record<string, string>; home: string }
 const busyWorld = (): BusyWorld => {
   // The scenario call pins the display flags and the boot cwd in this
   // process's env (and strips any ambient key — captures are keyless by
-  // default); the busy home is seeded after it, with its own key.
-  const base = scenario('resume-2turn', 80, 44) as unknown as ScenarioCfg
+  // law); the busy home is seeded after it, keyless, for the same cwd.
+  const base = scenario('resume-2turn', 100, 44) as unknown as ScenarioCfg
   const argv = base['argv'] as string[]
   const home = mkdtempSync(join(tmpdir(), 'exit-copy-busy-'))
-  process.env.ANTHROPIC_API_KEY = BUSY_KEY
-  try {
-    seedFirstRun(home, [String(base['cwd'])])
-  } finally {
-    delete process.env.ANTHROPIC_API_KEY
+  seedFirstRun(home, [String(base['cwd'])])
+  return {
+    cfg: { ...base, argv: argv.slice(0, 2) },
+    env: {
+      MERCURY_CONFIG_DIR: home,
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
+    },
+    home,
   }
-  return { cfg: { ...base, argv: argv.slice(0, 2) }, env: { MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: BUSY_KEY }, home }
 }
 const closeBusyWorld = (world: BusyWorld): void => {
+  if (failures > 0) {
+    // Evidence for a red: the session's own records — the echoed line, the
+    // shell's result, the interrupt — live in the busy home's transcripts.
+    const found = (spawnSync('find', [world.home, '-name', '*.jsonl'], { encoding: 'utf8' }).stdout ?? '')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+    console.log(`      ┌ busy home kept at ${world.home} — transcripts: ${found.length}`)
+    for (const file of found.slice(-2)) {
+      const lines = readFileSync(file, 'utf8').trimEnd().split('\n')
+      console.log(`      │ ${file} (${lines.length} lines)`)
+      for (const line of lines.slice(-6)) console.log(`      │   ${line.slice(0, 240)}`)
+    }
+    console.log('      └')
+    return
+  }
   try {
     rmSync(world.home, { recursive: true, force: true })
   } catch {
@@ -240,8 +256,12 @@ section('C · busy: one press interrupts AND arms; a second press closes')
       // reads the RAW chunk). The bash-mode footer line is the arm receipt.
       // Every awaitText below fires ON the observed text; its atTick is only
       // the hard deadline (vshot's contract).
-      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
-      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      // The cockpit composer's own placeholder is the needle no earlier
+      // surface paints (the face's hints share '? for shortcuts'); the
+      // shell-mode footer line is the arm receipt, and a journey whose
+      // arm never paints is refused rather than typed blind.
+      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // Gated on the RUNNING turn's truthful resting hint — `esc interrupt`
       // (the kit grammar of chat:cancel). The mark is the footer-truth pin.
@@ -254,12 +274,11 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     undefined,
     world.env,
   )
-  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
     check("the running footer named esc as the interrupt (the truthful hint)", hintUp)
-    if (!hintUp && busy !== undefined) dumpBottom('the frame at the first press — the hint absent', busy.grid)
+    if (!hintUp && busy !== undefined) dumpBottom('the frame at the first press — the hint absent', busy.grid, 60)
     check(
       "…and never the old 'ctrl+c interrupt' spelling",
       busy !== undefined && !textOf(busy.grid).includes('ctrl+c interrupt'),
@@ -268,6 +287,7 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     check('the busy first press showed the same notice', armed !== undefined && textOf(armed.grid).includes(NOTICE))
     check('the second press closed Mercury', p.endReason === 'eof', `endReason=${p.endReason}`)
   }
+  closeBusyWorld(world)
   cleanupScenario('resume-2turn')
 }
 
@@ -284,8 +304,12 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '!' },
-      { atTick: 150, awaitText: 'for shell mode', minTick: 0, data: 'sleep 30' },
+      // The cockpit composer's own placeholder is the needle no earlier
+      // surface paints (the face's hints share '? for shortcuts'); the
+      // shell-mode footer line is the arm receipt, and a journey whose
+      // arm never paints is refused rather than typed blind.
+      { atTick: 130, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // A bare ESC lands the moment the truthful busy hint paints.
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
@@ -299,25 +323,38 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     INTERRUPTED_ROW,
     world.env,
   )
-  closeBusyWorld(world)
   if (p) {
     const busy = mark(p, 'busy')
     const hintUp = busy !== undefined && textOf(busy.grid).includes('esc interrupt')
     check('the busy hint was up when ESC landed', hintUp)
-    if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid)
+    if (!hintUp && busy !== undefined) dumpBottom('the frame at the ESC — the hint absent', busy.grid, 60)
     const settled = textOf(p.grid).includes(INTERRUPTED_ROW)
     check('ESC interrupted the turn (the interrupt row settled under the command)', settled)
     if (!settled) dumpBottom('the final frame — no interrupt marker', p.grid, 16)
     check('…and Mercury stayed open (no exit)', p.endReason !== 'eof', `endReason=${p.endReason}`)
   }
+  closeBusyWorld(world)
   cleanupScenario('resume-2turn')
 }
 
 section('D · the copy receipt on both trigger paths (the standing scenarios)')
 {
+  // The drag is aimed by TEXT (vshot resolves {X}/{Y} on the live grid at
+  // fire time): the press lands on the first turn's row, the motion and the
+  // release on the second's — a selection spanning real transcript text at
+  // any geometry, never a coordinate authored for one width. The scenarios
+  // keep their homes (copy-on-select ON, then seeded OFF) and their end
+  // gates; only the pointer bytes are re-aimed.
+  const SGR = (button: number, up = false): string => `\x1b[<${button};{X};{Y}${up ? 'm' : 'M'}`
+  const DRAG: Send[] = [
+    { atTick: 60, minTick: 8, awaitText: '❯', data: '' },
+    { targetText: 'first task', targetDx: 1, afterPrevTicks: 2, data: SGR(0) },
+    { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(32) },
+    { targetText: 'second task', targetDx: 3, afterPrevTicks: 1, data: SGR(0, true) },
+  ]
   // Drag-release (copy-on-select, default ON).
-  const sel = scenario('copy-receipt-select', 80, 44) as unknown as ScenarioCfg
-  const pSel = drive('receipt-select', sel, sel.sends, sel.total, 'Copied to clipboard')
+  const sel = scenario('copy-receipt-select', 100, 44) as unknown as ScenarioCfg
+  const pSel = drive('receipt-select', sel, DRAG, sel.total, 'Copied to clipboard')
   if (pSel) {
     check('drag-release raised "Copied to clipboard"', textOf(pSel.grid).includes('Copied to clipboard'))
   }
@@ -325,8 +362,8 @@ section('D · the copy receipt on both trigger paths (the standing scenarios)')
 
   // Plain ctrl+c with a selection (copy-on-select seeded OFF by the
   // scenario, so the receipt can ONLY be this path).
-  const ctl = scenario('copy-receipt-ctrlc', 80, 44) as unknown as ScenarioCfg
-  const pCtl = drive('receipt-ctrlc', ctl, ctl.sends, ctl.total, 'Copied to clipboard')
+  const ctl = scenario('copy-receipt-ctrlc', 100, 44) as unknown as ScenarioCfg
+  const pCtl = drive('receipt-ctrlc', ctl, [...DRAG, { afterPrevTicks: 4, data: CTRL_C }], ctl.total, 'Copied to clipboard')
   if (pCtl) {
     const text = textOf(pCtl.grid)
     check('ctrl+c with a selection raised "Copied to clipboard"', text.includes('Copied to clipboard'))
