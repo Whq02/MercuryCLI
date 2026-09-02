@@ -68,6 +68,7 @@ import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
 import { useIdeSelection, type IDESelection } from '../hooks/useIdeSelection.js';
 import { useIdeLogging } from '../hooks/useIdeLogging.js';
 import { useIDEStatusIndicator } from '../hooks/notifs/useIDEStatusIndicator.js';
+import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentStateClassifier } from '../hooks/useAgentStateClassifier.js';
 import { IdeOnboardingDialog } from '../components/IdeOnboardingDialog.js';
 import { type IDEExtensionInstallationStatus, type IdeType } from '../utils/ide.js';
@@ -1036,6 +1037,15 @@ export function REPL({
   });
   useIdeLogging(mcpState.clients);
   useIDEStatusIndicator({ ideInstallationStatus, ideSelection, mcpClients: mcpState.clients });
+  // Screen receipts (Law 9 restore): receipts mint into a bounded buffer with
+  // no other drain — each paints as ONE display row on the focused chat
+  // (the screen's rows, never a session record).
+  useSeatReceipts({
+    setMessages: next => {
+      const rows = typeof next === 'function' ? next([]) : next;
+      for (const row of rows) paintScreenRow(row, '');
+    },
+  });
   // The agent-state classifier (Law 9 restore): the companion engine reads
   // its content-derived verdict; self-gated, cleared on the loading edge.
   useAgentStateClassifier(messages, isLoading);
