@@ -106,9 +106,9 @@ the concourse ever comes to require it.
 - [COMPATIBILITY.md](COMPATIBILITY.md): the live interop surfaces, honored
   external environment spellings, the User-Agent identity, MCP, claude.ai
   connectors, and credential migration.
-- [CAPABILITY-GRADUATION-MATRIX.md](CAPABILITY-GRADUATION-MATRIX.md): the
-  user-facing capabilities and their verdicts, beside the flag registry
-  (`src/substrate/flagRegistry.ts`).
+- Capabilities: what the harness can do on this machine is what `mercury
+  doctor` reports; every capability's switch and default lives in the flag
+  registry (`src/substrate/flagRegistry.ts`).
 - [BUILD-NOTES.md](../BUILD-NOTES.md): building and packaging the artifact,
   the vendored payloads, the manifest, and the launchers.
 - [templates/extension-source-README.md](templates/extension-source-README.md):

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/commands.ts src/commands/** src/components/HelpV2/** src/components/mercury-ui/** src/types/command* src/main* src/utils/processUserInput/** README.md docs/CAPABILITY-GRADUATION-MATRIX.md
+# gate-watch: src/commands.ts src/commands/** src/components/HelpV2/** src/components/mercury-ui/** src/types/command* src/main* src/utils/processUserInput/** README.md
 set -uo pipefail
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
