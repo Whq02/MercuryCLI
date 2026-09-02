@@ -686,6 +686,7 @@ export class DapSession {
       windowsHide: true,
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
       env: pythonSpawnEnv(),
     })
     this.#child = child

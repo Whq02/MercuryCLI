@@ -144,7 +144,6 @@ reg(
     'src/commands/console/console.tsx',
     'src/commands/copy/copy.tsx',
     'src/commands/health/HealthCertificate.tsx',
-    'src/commands/effort/effort.tsx',
     'src/commands/effort/EffortSlider.tsx',
     'src/commands/home/home.tsx',
     'src/commands/run/run.tsx',
