@@ -452,11 +452,56 @@ export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env)
 export const HUGGINGFACE_MODEL_GROUP = 'Mercury — Hugging Face models'
 /** The connect action sentinel (a picker ACTION, never a model). */
 export const HUGGINGFACE_CONNECT_OPTION_VALUE = '__mercury_huggingface_connect__'
+/** The catalogue DOOR sentinel (a picker ACTION, never a model): the row
+ *  past the bound whose ↵ expands the group to the full live list behind a
+ *  type-to-filter line (isCatalogueDoorRow shape-matches it). */
+export const HUGGINGFACE_EXPAND_OPTION_VALUE = '__mercury_huggingface_expand__'
 
-/** How many live rows the picker renders (the router's own order); the full
- *  catalogue stays available through the snapshot accessors and by typing
- *  an exact huggingface/<org>/<model> id. */
+/** How many live rows the picker renders before the door (the router's own
+ *  order); the door expands to every row the snapshot holds
+ *  (getHuggingfaceFullModelOptions), the snapshot accessors serve every
+ *  other surface, and an exact huggingface/<org>/<model> id always types. */
 const PICKER_ROW_BOUND = 24
+
+/** The ONE picker-row builder over the snapshot's models: the first `bound`
+ *  rows in the router's order, each adjudicated by the wire-id owner. The
+ *  bounded picker view and the door's full list both derive here, so a row
+ *  reads the same at both depths. */
+function huggingfaceCatalogueRows(models: HuggingfaceLiveModel[], source: string, bound: number): ModelOption[] {
+  const rows: ModelOption[] = []
+  for (const model of models.slice(0, bound)) {
+    // Row truth (the openrouter picker's law, same class): an id the
+    // wire-id owner would refuse — display words or a composed prefix in
+    // the catalogue data itself — renders visible-but-unavailable; junk
+    // never persists as a selection.
+    const verdict = canonicalWireModelId(`${HUGGINGFACE_MODEL_PREFIX}${model.id}`)
+    const widest = liveProviders(model)
+      .map(p => p.contextLength ?? 0)
+      .reduce((a, b) => Math.max(a, b), 0)
+    rows.push({
+      value: `${HUGGINGFACE_MODEL_PREFIX}${model.id}`,
+      label: huggingfaceSlugModelName(model.id),
+      description: '',
+      descriptionForModel: `${model.id} — served through the Hugging Face router (${source}), live-listed in the router's own order; persisted as ${HUGGINGFACE_MODEL_PREFIX}${model.id}; append :<provider> or :cheapest/:preferred to steer the backend.`,
+      group: HUGGINGFACE_MODEL_GROUP,
+      ...(verdict.ok && verdict.healed !== true
+        ? {}
+        : { unavailable: 'not a dispatchable id — the row carries display words, not a catalogue id' }),
+      ...(widest > 0 ? { statedContextWindow: widest } : {}),
+    })
+  }
+  return rows
+}
+
+/** EVERY snapshot row as picker rows — the door's expanded list: the same
+ *  builder as the bounded view (adjudicated the same way, the router's
+ *  order), unbounded. Empty unless the lane is ready with live rows. */
+export function getHuggingfaceFullModelOptions(env: NodeJS.ProcessEnv = process.env): ModelOption[] {
+  const availability = getHuggingfaceAvailability(env)
+  if (availability.state !== 'ready') return []
+  const models = getCachedHuggingfaceCatalogue(env)?.models ?? []
+  return huggingfaceCatalogueRows(models, availability.source, models.length)
+}
 
 /** The /model picker rows for the Hugging Face lane. Model rows carry NO
  *  description (the neutrality ruling: one empty grammar for every
@@ -484,35 +529,21 @@ export function getHuggingfaceModelOptions(env: NodeJS.ProcessEnv = process.env)
   const snapshot = getCachedHuggingfaceCatalogue(env)
   const models = snapshot?.models ?? []
   if (models.length > 0) {
-    for (const model of models.slice(0, PICKER_ROW_BOUND)) {
-      // Row truth (the openrouter picker's law, same class): an id the
-      // wire-id owner would refuse — display words or a composed prefix in
-      // the catalogue data itself — renders visible-but-unavailable; junk
-      // never persists as a selection.
-      const verdict = canonicalWireModelId(`${HUGGINGFACE_MODEL_PREFIX}${model.id}`)
-      const widest = liveProviders(model)
-        .map(p => p.contextLength ?? 0)
-        .reduce((a, b) => Math.max(a, b), 0)
-      rows.push({
-        value: `${HUGGINGFACE_MODEL_PREFIX}${model.id}`,
-        label: huggingfaceSlugModelName(model.id),
-        description: '',
-        descriptionForModel: `${model.id} — served through the Hugging Face router (${availability.source}), live-listed in the router's own order; persisted as ${HUGGINGFACE_MODEL_PREFIX}${model.id}; append :<provider> or :cheapest/:preferred to steer the backend.`,
-        group: HUGGINGFACE_MODEL_GROUP,
-        ...(verdict.ok && verdict.healed !== true
-          ? {}
-          : { unavailable: 'not a dispatchable id — the row carries display words, not a catalogue id' }),
-        ...(widest > 0 ? { statedContextWindow: widest } : {}),
-      })
-    }
+    rows.push(...huggingfaceCatalogueRows(models, availability.source, PICKER_ROW_BOUND))
     if (availability.modelCount > PICKER_ROW_BOUND) {
+      // THE DOOR: the rows past the bound are one ↵ away — the picker
+      // expands the group in place to the full live list (the same builder,
+      // unbounded) behind a filter line; the copy says exactly that, in the
+      // grammar every catalogue door shares. The count is the
+      // availability's, and the row is an ACTION (never a model, never
+      // counted as one).
       rows.push({
-        value: HUGGINGFACE_CONNECT_OPTION_VALUE,
+        value: HUGGINGFACE_EXPAND_OPTION_VALUE,
         label: `Hugging Face — ${availability.modelCount} models live`,
-        description: `top ${PICKER_ROW_BOUND} shown (the router's own order) · type huggingface/<org>/<model> for any other`,
-        descriptionForModel: `The Hugging Face router lists ${availability.modelCount} live chat models; the picker renders the first ${PICKER_ROW_BOUND} in the router's order — any listed id dispatches when typed as huggingface/<org>/<model>.`,
+        description: `↵ expand · ${availability.modelCount} live · type to filter`,
+        descriptionForModel: `The Hugging Face router lists ${availability.modelCount} live chat models; the picker renders the first ${PICKER_ROW_BOUND} in the router's order, and this row expands the group to the full list behind a filter — any listed id also dispatches when typed as huggingface/<org>/<model>.`,
         group: HUGGINGFACE_MODEL_GROUP,
-        unavailable: 'a summary row — pick a listed model or type an id',
+        catalogueDoor: { family: 'Hugging Face', total: availability.modelCount },
       })
     }
     return rows

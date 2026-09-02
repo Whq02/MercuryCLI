@@ -42,6 +42,8 @@ console.log('§1 the predicate covers every sentinel spelling')
   for (const sentinel of [
     '__mercury_anthropic_connect__',
     '__mercury_zai_connect__',
+    '__mercury_openrouter_expand__',
+    '__mercury_huggingface_expand__',
     GPT_CONNECT_OPTION_VALUE,
     keyConnectValue('zai'),
     keyConnectValue('compat'),
