@@ -14,6 +14,7 @@
 import {
   BUS_ENVELOPE_KINDS,
   BUS_PROTOCOL_TYPE,
+  LEGACY_BUS_PROTOCOL_TYPE,
   buildControl,
   buildDispatch,
   buildEscalate,
@@ -145,14 +146,27 @@ check('no verified sender ⇒ dropped', resolveNoteSender(undefined, n, 'scout')
 check('in-body from that spoofs another agent ⇒ dropped', resolveNoteSender('mallory', n, 'scout') === null)
 check('a note "from" the receiver itself ⇒ dropped', resolveNoteSender('scout', buildNote('scout', 'self'), 'scout') === null)
 
+section('the protocol type: writers emit the neutral spelling; the retired spelling still decodes')
+check('a fresh envelope carries the neutral type', dispatch.type === 'bus_protocol' && serializeBusEnvelope(note).includes('"type":"bus_protocol"'))
+const legacyDispatch = JSON.stringify({ type: LEGACY_BUS_PROTOCOL_TYPE, kind: 'dispatch', request_id: 'legacy-1', from: 'team-lead', timestamp: '2026-01-01T00:00:00Z', task: 't' })
+check(
+  'a persisted envelope with the retired protocol spelling still parses as its kind',
+  parseBusEnvelope(legacyDispatch)?.kind === 'dispatch' && isBusProtocolMessage(legacyDispatch) && isDispatchEnvelope(legacyDispatch) !== null,
+)
+check(
+  'the retired spelling widens nothing else (an unknown kind still drops)',
+  parseBusEnvelope(JSON.stringify({ type: LEGACY_BUS_PROTOCOL_TYPE, kind: 'teleport', request_id: 'legacy-2', from: 'x', timestamp: 't' })) === null,
+)
+check('the two spellings are distinct constants', BUS_PROTOCOL_TYPE !== LEGACY_BUS_PROTOCOL_TYPE)
+
 section('the format gate reads its registry flag')
-const stash = process.env.MERCURY_SCRIBE_BUS
-delete process.env.MERCURY_SCRIBE_BUS
+const stash = process.env.MERCURY_DAEMON_BUS
+delete process.env.MERCURY_DAEMON_BUS
 check('unset ⇒ on (default-on)', busEnvelopesEnabled() === true)
-process.env.MERCURY_SCRIBE_BUS = '0'
+process.env.MERCURY_DAEMON_BUS = '0'
 check("'0' ⇒ off (the one off-switch)", busEnvelopesEnabled() === false)
-if (stash === undefined) delete process.env.MERCURY_SCRIBE_BUS
-else process.env.MERCURY_SCRIBE_BUS = stash
+if (stash === undefined) delete process.env.MERCURY_DAEMON_BUS
+else process.env.MERCURY_DAEMON_BUS = stash
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL BUS ENVELOPE PROOFS PASS')

@@ -7,7 +7,7 @@
 //        the instant the owner exits cleanly / the terminal closes; and
 //    (2) the daemon-side owner-watch (ownerWatch.ts) — the robust backstop that
 //        self-reaps even on the owner's SIGKILL/crash, keyed on the owner-pid
-//        stamp (MERCURY_SCRIBE_OWNER_PID — the env keeps its historical spelling).
+//        stamp (MERCURY_DAEMON_OWNER_PID).
 //  BOTH layers key on the owner pid this seam STAMPS. Every auto-start (the
 //  crew engage, the switchboard's ensure, the concourse route, the handshake
 //  restart) routes through here, so none can orphan — a detached daemon spawned
@@ -17,8 +17,7 @@
 //
 //  An explicitly-run `mercury daemon` carries no owner pid ⇒ the daemon-side
 //  owner-watch never arms ⇒ it persists for cron. Opt out of the parent reaper with
-//  MERCURY_SCRIBE_DAEMON_PERSIST=1 (the historical spelling of the persist
-//  opt-out; the daemon-side owner-watch still self-reaps).
+//  MERCURY_DAEMON_PERSIST=1 (the daemon-side owner-watch still self-reaps).
 // ============================================================================
 import { adoptiveProjectPath } from '../utils/projectStoreAdoption.js'
 import { spawn } from 'node:child_process'
@@ -36,7 +35,7 @@ import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 /**
  * Pure: should a daemon WE auto-started be reaped on the originating session's exit?
  * Yes by default (the orphaned detached daemon otherwise lingers); opt into
- * persistence with MERCURY_SCRIBE_DAEMON_PERSIST=1.
+ * persistence with MERCURY_DAEMON_PERSIST=1.
  */
 export function shouldReapAutoStartedDaemon(persistEnv: string | undefined): boolean {
   return persistEnv !== '1'
@@ -208,7 +207,7 @@ function reapDaemonOnSessionExit(pid: number): void {
  * persist opt-out like the spawn seam.
  */
 export function adoptOwnedDaemonPid(pid: number): void {
-  if (!shouldReapAutoStartedDaemon(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))) return
+  if (!shouldReapAutoStartedDaemon(flagEnv('MERCURY_DAEMON_PERSIST'))) return
   reapDaemonOnSessionExit(pid)
 }
 
@@ -416,7 +415,7 @@ export function spawnOwnedDaemon(
     child.unref()
     logForDebugging(`[${label}] spawnOwnedDaemon: spawned detached daemon (pid ${child.pid}) for ${projectDir}`)
     ownedSpawnLabelThisProcess = label
-    if (child.pid && !opts?.persist && shouldReapAutoStartedDaemon(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))) {
+    if (child.pid && !opts?.persist && shouldReapAutoStartedDaemon(flagEnv('MERCURY_DAEMON_PERSIST'))) {
       reapDaemonOnSessionExit(child.pid)
     }
     return child.pid

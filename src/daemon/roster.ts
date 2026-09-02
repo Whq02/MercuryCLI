@@ -513,12 +513,11 @@ export class TaskRoster {
   /**
    * Width of the delivery-clock idle window, in ms. Mailbox replies are
    * invisible to the daemon, so before any turn boundary exists, "idle" is
-   * an honest approximation over delivery activity. MERCURY_IMPLEMENTER_IDLE_MS
-   * tunes it (the knob keeps its historical spelling; it applies to every
-   * long-lived seat); 15s otherwise.
+   * an honest approximation over delivery activity. MERCURY_WORKER_IDLE_MS
+   * tunes it (it applies to every long-lived seat); 15s otherwise.
    */
   private idleWindowMs(): number {
-    const n = Number(flagEnv('MERCURY_IMPLEMENTER_IDLE_MS'))
+    const n = Number(flagEnv('MERCURY_WORKER_IDLE_MS'))
     return Number.isFinite(n) && n > 0 ? n : 15_000
   }
 
@@ -534,7 +533,7 @@ export class TaskRoster {
       now: Date.now(),
       lastDeliveredAt: ll.lastDeliveredAt,
       idleMs: this.idleWindowMs(),
-      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_IMPLEMENTER_MAX_TURN_MS')),
+      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')),
     }).busy
   }
 

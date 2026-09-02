@@ -23,7 +23,7 @@ scratch_home="$(mktemp -d "${TMPDIR:-/tmp}/crew-proof-home.XXXXXX")"
 export MERCURY_CONFIG_DIR="$scratch_home"
 # Host-env hygiene: an operator's crew/role/posture env must not skew the
 # polarity matrices these proofs assert.
-unset MERCURY_CREW MERCURY_CREW_AGENT MERCURY_DAEMON_CREW MERCURY_DAEMON_PERMISSION_MODE MERCURY_PARTY_RECON_ALLOW 2>/dev/null || true
+unset MERCURY_CREW MERCURY_CREW_AGENT MERCURY_DAEMON_CREW MERCURY_DAEMON_PERMISSION_MODE MERCURY_WORKER_RECON_ALLOW 2>/dev/null || true
 trap 'rm -rf "$scratch_home"' EXIT
 echo "############################################################"
 echo "# Crew teammates — proof harness"

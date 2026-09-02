@@ -7,13 +7,13 @@
 //  running across sessions, which also let it route its workers through a
 //  STALE account: the daemon held whatever auth was live when it first started,
 //  while the foreground later switched accounts). This is the robust backstop:
-//  the auto-started daemon learns its owner's pid (the owner-pid stamp, whose
-//  env keeps its historical spelling) and SELF-shuts-down once the owner is
+//  the auto-started daemon learns its owner's pid (the owner-pid stamp)
+//  and SELF-shuts-down once the owner is
 //  absent — regardless of how the owner died.
 //
 //  An explicitly-run `mercury daemon` carries NO owner pid ⇒ the watch never arms
 //  ⇒ it persists for cron (the operator's deliberate long-lived daemon). Opt out
-//  of the auto-reap with MERCURY_SCRIBE_DAEMON_PERSIST=1 (the historical
+//  of the auto-reap with MERCURY_DAEMON_PERSIST=1 (the historical
 //  spelling of the persist opt-out).
 //
 //  Pure + side-effect-light so it's unit-testable under `bun run` (daemon/main.ts
@@ -33,8 +33,8 @@ import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 
 /** The env var spawnOwnedDaemon stamps with the spawning session's pid (the
- *  historical spelling — the registry row names its consumers). */
-export const OWNER_PID_ENV = 'MERCURY_SCRIBE_OWNER_PID'
+ *  registry row names its consumers). */
+export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
 // Prefer pwsh (PowerShell 7 — ≈2× the 5.1 start cost) when it
 // resolves; the resolution is a zero-spawn PATH scan, cached per process.
@@ -254,7 +254,7 @@ export const OWNER_WATCH_GRACE_CHECKS = 2
  *  pattern): a PRE-migration session stamps only the legacy spelling, and an
  *  unarmed owner-watch means the daemon outlives its dead owner. */
 export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
-  const raw = (env[OWNER_PID_ENV] ?? env.MERCURY_SCRIBE_OWNER_PID)?.trim()
+  const raw = (env[OWNER_PID_ENV] ?? env.MERCURY_DAEMON_OWNER_PID)?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null
@@ -274,7 +274,7 @@ export function isProcessAlive(pid: number): boolean {
 
 /**
  * Decide whether an owner-watched daemon should self-reap. Pure.
- *  - persist=true (MERCURY_SCRIBE_DAEMON_PERSIST) ⇒ never.
+ *  - persist=true (MERCURY_DAEMON_PERSIST) ⇒ never.
  *  - ownerPid===null (explicit `mercury daemon`) ⇒ never.
  *  - owner still alive ⇒ never.
  *  - owner gone for >= graceChecks consecutive probes ⇒ reap.

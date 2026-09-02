@@ -1612,11 +1612,11 @@ async function daemonRun(args: string[]): Promise<void> {
     // the robust backstop for the parent reaper that SIGHUP/SIGKILL bypass, so
     // a closed CLI never leaves a daemon (with a stale account's auth)
     // running. An explicit `mercury daemon` carries no owner pid ⇒ never arms ⇒
-    // persists for cron. Opt out: MERCURY_SCRIBE_DAEMON_PERSIST=1 (the persist
-    // flag keeps its historical spelling). Unref'd so it never itself keeps the
+    // persists for cron. Opt out: MERCURY_DAEMON_PERSIST=1. Unref'd so it
+    // never itself keeps the
     // process alive (keepAlive is the anchor).
     const ownerPid = parseOwnerPid()
-    const persist = isEnvTruthy(flagEnv('MERCURY_SCRIBE_DAEMON_PERSIST'))
+    const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
     if (ownerPid !== null && !persist) {
       let deadStreak = 0
       // R5b — pin the owner's IDENTITY, not just its pid: capture the owner's process

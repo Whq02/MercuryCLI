@@ -156,7 +156,7 @@ check(
 
 // ── §3 polarity behavior (the OFF ⇒ byte-identical spot audit) ───────────────
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
-const optOutSample = ['MERCURY_SCRIBE_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER'] // AMENDED: the two retired fire-rider gates left the sample; the catch-up gate keeps the default-on leg covered
+const optOutSample = ['MERCURY_DAEMON_BUS', 'MERCURY_CARRY_FORWARD', 'MERCURY_DAEMON_CATCHUP', 'MERCURY_ROUTER'] // AMENDED: the two retired fire-rider gates left the sample; the catch-up gate keeps the default-on leg covered
 for (const env of optOutSample) {
   delete process.env[env]
   const on = flagEnabled(env)
@@ -210,11 +210,11 @@ for (const env of optInSample) {
 // Non-gate kinds must refuse boolean answers.
 let threw = false
 try {
-  flagEnabled('MERCURY_SCRIBE_OWNER_PID')
+  flagEnabled('MERCURY_DAEMON_OWNER_PID')
 } catch {
   threw = true
 }
-check("value flags refuse flagEnabled (MERCURY_SCRIBE_OWNER_PID throws)", threw)
+check("value flags refuse flagEnabled (MERCURY_DAEMON_OWNER_PID throws)", threw)
 
 // ── §3c the reader reads ONE spelling ────────────────────────────────────────
 section('§3c the registry reader honours the MERCURY_* spelling only')

@@ -8,7 +8,8 @@
 //  rows, its seat roles, its sentinel, its notification keys, its team and
 //  agent names, its nameplates, its commands and its permission-mode member.
 //  What stayed is EXACTLY the shared mechanisms named in §6, each with its
-//  live consumer — the historical spellings those envs keep are deliberate.
+//  live consumer — the kept envs took neutral names; the bus envelope writes
+//  a neutral protocol type and reads the retired one for persisted files.
 //
 //  RED on: a deleted path reappearing (§1); a deleted flag spelled anywhere
 //  in src, scripts, docs or the README (§2); the seat roles, the sentinel or
@@ -140,7 +141,10 @@ console.log('============================================================')
   const IM = J('MERCURY_', 'IMPLEM', 'ENTER')
   const DELETED_FLAGS = [
     `${SC}(?![_A-Z0-9])`,
+    `${SC}_BUS(?![_A-Z0-9])`,
     `${SC}_BUS_LIVE`,
+    `${SC}_DAEMON_PERSIST`,
+    `${SC}_OWNER_PID`,
     `${SC}_HOOKS`,
     `${SC}_MODEL`,
     `${SC}_TELEMETRY_MS`,
@@ -158,6 +162,9 @@ console.log('============================================================')
     `${IM}_EFFORT`,
     `${IM}_MODEL`,
     `${IM}_WORKFLOWS`,
+    `${IM}_IDLE_MS`,
+    `${IM}_MAX_TURN_MS`,
+    J('MERCURY_PARTY_', 'RECON_ALLOW'),
     J('MERCURY_', 'AMANU', 'ENSIS'),
     J('MERCURY_DAEMON_', 'SCRI', 'BE_ENGAGE'),
     J('MERCURY_DAEMON_', 'SCRI', 'BE_WORKFLOWS'),
@@ -225,23 +232,29 @@ console.log('============================================================')
 {
   const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
   const survivors: Array<[string, string]> = [
-    [J('MERCURY_SCRI', 'BE_BUS'), 'src/utils/swarm/busEnvelopes.ts'],
-    [J('MERCURY_SCRI', 'BE_DAEMON_PERSIST'), 'src/daemon/ownedDaemon.ts'],
-    [J('MERCURY_SCRI', 'BE_OWNER_PID'), 'src/daemon/ownerWatch.ts'],
-    [J('MERCURY_IMPLEM', 'ENTER_IDLE_MS'), 'src/daemon/roster.ts'],
-    [J('MERCURY_IMPLEM', 'ENTER_MAX_TURN_MS'), 'src/utils/cockpit/daemonSupervisorRows.ts'],
-    [J('MERCURY_PARTY_', 'RECON_ALLOW'), 'src/daemon/workerRecon.ts'],
+    ['MERCURY_DAEMON_BUS', 'src/utils/swarm/busEnvelopes.ts'],
+    ['MERCURY_DAEMON_PERSIST', 'src/daemon/ownedDaemon.ts'],
+    ['MERCURY_DAEMON_OWNER_PID', 'src/daemon/ownerWatch.ts'],
+    ['MERCURY_WORKER_IDLE_MS', 'src/daemon/roster.ts'],
+    ['MERCURY_WORKER_MAX_TURN_MS', 'src/utils/cockpit/daemonSupervisorRows.ts'],
+    ['MERCURY_WORKER_RECON_ALLOW', 'src/daemon/workerRecon.ts'],
     ['MERCURY_CARRY_FORWARD', 'src/daemon/carryForward.ts'],
   ]
   for (const [env, consumer] of survivors) {
     const row = new RegExp(`env: '${env}'`).test(registry)
     const read = exists(consumer) && readFileSync(join(ROOT, consumer), 'utf8').includes(env)
-    check(`§6 ${env} stays: registered, read by ${consumer}`, row && read)
+    check(`§6 ${env} stays (renamed from the retired mode's spelling): registered, read by ${consumer}`, row && read)
   }
   const envelopes = readFileSync(join(ROOT, 'src/utils/swarm/busEnvelopes.ts'), 'utf8')
   check(
-    '§6 the bus envelope keeps its persisted wire spelling (the historical protocol type)',
-    envelopes.includes(J("BUS_PROTOCOL_TYPE = '", 'scri', "be_protocol'")),
+    '§6 the bus envelope writes the neutral protocol type',
+    envelopes.includes("BUS_PROTOCOL_TYPE = 'bus_protocol'"),
+  )
+  check(
+    '§6 …and still reads the retired spelling (persisted envelopes) through ONE legacy constant',
+    envelopes.includes(J("LEGACY_BUS_PROTOCOL_TYPE = '", 'scri', "be_protocol'")) &&
+      envelopes.includes('parsed.type === LEGACY_BUS_PROTOCOL_TYPE') &&
+      (envelopes.match(new RegExp(J("'scri", "be_protocol'"), 'g')) ?? []).length === 1,
   )
   const identity = readFileSync(join(ROOT, 'src/services/crew/identity.ts'), 'utf8')
   check(

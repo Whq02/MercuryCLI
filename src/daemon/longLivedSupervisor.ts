@@ -272,8 +272,8 @@ export function decideReconfigure(args: {
 /** Safety cap: a turn cannot be "active" forever. If no `result` frame arrives
  *  within this window the turn is presumed wedged/dead and back-pressure releases
  *  (so a queued task is never starved). Generous — a legit deep task is fine; this
- *  only catches a hung/crashed turn. Env-tunable (MERCURY_IMPLEMENTER_MAX_TURN_MS —
- *  the knob keeps its historical spelling; it tunes every long-lived seat). */
+ *  only catches a hung/crashed turn. Env-tunable (MERCURY_WORKER_MAX_TURN_MS;
+ *  it tunes every long-lived seat). */
 export const DEFAULT_MAX_TURN_MS = 20 * 60 * 1000
 
 /** Resolve the turn safety cap (env-tunable; non-numeric/≤0 ⇒ default). */
