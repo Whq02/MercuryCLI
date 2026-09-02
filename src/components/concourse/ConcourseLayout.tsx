@@ -10,7 +10,7 @@ import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { fitGroupedWindow, paneWindow, scrolledWindow, shedToFit } from '../mercury-ui/geometry.js'
 import { controlNoteOf, type ConcourseRowV1, type ConcourseSnapshotV1, type ControlNoteState } from './contracts.js'
-import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, legendPriorityOf, regionKeysFor, withSplitViewTruth } from './controlManifest.js'
+import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, legendPriorityOf, newSessionTabLabel, regionKeysFor, withSplitViewTruth } from './controlManifest.js'
 import { chatPresent, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js'
 import { landingInFlight } from '../../services/engine-connector/focusedConnector.js'
 import { useSyncExternalStore } from 'react'
@@ -251,6 +251,7 @@ export function ConcourseLayout({
   focusTall,
   liveDraftRows,
   liveDraftEmpty = true,
+  coordinatorDraftEmpty = true,
   modelPickerOpen = false,
   groundPickerOpen = false,
   rowPeekOpen = false,
@@ -280,6 +281,7 @@ export function ConcourseLayout({
   focusTall: 'mirror' | 'coordinator'
   liveDraftRows: number
   liveDraftEmpty?: boolean
+  coordinatorDraftEmpty?: boolean
   modelPickerOpen?: boolean
   groundPickerOpen?: boolean
   rowPeekOpen?: boolean
@@ -444,7 +446,7 @@ export function ConcourseLayout({
                   const n = newSessionNote !== undefined ? controlNoteOf(newSessionNote) : undefined
                   return n === undefined ? (
                     <Text color={hover ? t.textPrimary : t.info} wrap="truncate-end">
-                      + new session · n
+                      {newSessionTabLabel({ region, filtering })}
                     </Text>
                   ) : n.state === 'refused' || n.state === 'failed' ? (
                     <Text color={t.failureText} wrap="truncate-end">
@@ -806,13 +808,13 @@ export function ConcourseLayout({
                         newSession: wiring.newSession !== undefined,
                         olderBrowse,
                         ...(region === 'list'
-                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected }
+                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty }
                           : {}),
                         ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
                         }),
                         { splitOn },
                       ),
-                      CONCOURSE_HELP_KEY,
+                      ...(helpKeyFiresFor(region, region === 'coordinator' ? coordinatorDraftEmpty : liveDraftEmpty) ? [CONCOURSE_HELP_KEY] : []),
                       browseKeys.find(k => k.keys === 'esc')!,
                     ]
                       .map(k =>
@@ -822,9 +824,7 @@ export function ConcourseLayout({
                             ? { keys: k.keys, label: 'fold the list' }
                             : armedSelected && k.keys === 'esc'
                               ? { keys: k.keys, label: 'disarm' }
-                              : armedSelected && k.keys === '↵↵'
-                                ? { keys: '↵', label: 'enters (armed)' }
-                                : k,
+                              : k,
                       )
                       .map(k => ({ text: `${keyHintLabel(k.keys)} ${k.label}`, priority: prio(k.keys) }))
                     if (tilesDegraded)

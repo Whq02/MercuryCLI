@@ -3,10 +3,9 @@ import { Box, Text, useInput } from '../../ink.js';
 import { chatPresent, concourseWayBack, plainWorldWhy, stripKeyMapHint, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
 import { useRegisterOverlay } from '../../context/overlayContext.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
-import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, regionKeysFor } from './controlManifest.js';
+import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, regionKeysFor } from './controlManifest.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js';
-import { letterVerbsYield } from './letterVerbYield.js';
 import { boardModalOwner, gitOfferOwnsTheKeys, mayArmBoardModal, type BoardModalFactsV1 } from './boardModalOwner.js';
 import { claimConcourseCloseChord } from '../../services/concourse/closeChordSlot.js';
 import { getPendingChordMirror, subscribePendingChordMirror } from '../../keybindings/pendingChordMirror.js';
@@ -1417,12 +1416,7 @@ export function ConcourseScreen({
       }
     }
     if (region === 'list') {
-      const verbsYield = letterVerbsYield({
-        armedSessionId: boardArmedRef.current,
-        selectedSessionId: boardSelRef.current,
-        liveDraftLength: liveDraftRef.current.text.length,
-      })
-      if (input === '/' && !key.ctrl && !key.meta && !verbsYield) {
+      if (input === '/' && !key.ctrl && !key.meta) {
         event.stopImmediatePropagation()
         setFiltering(true)
         setFilter(f => ({ ...f, caret: f.text.length }))
@@ -1467,7 +1461,7 @@ export function ConcourseScreen({
         setRowPeekOpen(v => !v)
         return
       }
-      if (input === 'm' && !key.ctrl && !key.meta && !verbsYield && pastGate()) {
+      if (input === 'm' && !key.ctrl && !key.meta && pastGate()) {
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel?.sessionId.startsWith('dispatch:') === true) {
           event.stopImmediatePropagation()
@@ -1489,21 +1483,21 @@ export function ConcourseScreen({
           return
         }
       }
-      if (input === 'e' && !key.ctrl && !key.meta && !verbsYield && callbacks.setSessionEffort !== undefined && pastGate()) {
+      if (input === 'e' && !key.ctrl && !key.meta && callbacks.setSessionEffort !== undefined && pastGate()) {
         event.stopImmediatePropagation()
         const target = rowControlSel()
         if (target.row !== undefined) setRowPick({ kind: 'effort', sessionId: target.row.sessionId, title: target.row.title })
         else rowControlRefused(target.reason ?? 'no session to set')
         return
       }
-      if (input === 'i' && !key.ctrl && !key.meta && !verbsYield && callbacks.interruptSession !== undefined && pastGate()) {
+      if (input === 'i' && !key.ctrl && !key.meta && callbacks.interruptSession !== undefined && pastGate()) {
         event.stopImmediatePropagation()
         const target = rowControlSel()
         if (target.row !== undefined) callbacks.interruptSession(target.row.sessionId)
         else rowControlRefused(target.reason ?? 'nothing to interrupt')
         return
       }
-      if (input === 'p' && !key.ctrl && !key.meta && !verbsYield && pastGate()) {
+      if (input === 'p' && !key.ctrl && !key.meta && pastGate()) {
         event.stopImmediatePropagation()
         const target = rowControlSel()
         if (target.row !== undefined) {
@@ -1512,7 +1506,7 @@ export function ConcourseScreen({
         } else rowControlRefused(target.reason ?? 'nothing to pause')
         return
       }
-      if (input === 'r' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && callbacks.renameSession !== undefined && pastGate()) {
+      if (input === 'r' && !key.ctrl && !key.meta && !reducedStage && callbacks.renameSession !== undefined && pastGate()) {
         event.stopImmediatePropagation()
         const sel = sessionRows.find(row => row.sessionId === boardSelRef.current)
         if (!sel || sel.sessionId.startsWith('dispatch:') || sel.door !== undefined || sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) return
@@ -1520,24 +1514,24 @@ export function ConcourseScreen({
         setRegion('live')
         return
       }
-      if (input === 'n' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && callbacks.newSession !== undefined && pastGate()) {
+      if (input === 'n' && !key.ctrl && !key.meta && !reducedStage && callbacks.newSession !== undefined && pastGate()) {
         event.stopImmediatePropagation()
         armContractAsk()
         return
       }
-      if (input === 's' && !key.ctrl && !key.meta && !verbsYield && !reducedStage && pastGate()) {
+      if (input === 's' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
         event.stopImmediatePropagation()
         const out = toggleSplitView(termCols, termRows)
         if (!out.ok) setNote({ tone: 'muted', text: out.reason })
         else setNote(null)
         return
       }
-      if ((input === '[' || input === ']') && !key.ctrl && !key.meta && !verbsYield && splitActive && pastGate()) {
+      if ((input === '[' || input === ']') && !key.ctrl && !key.meta && splitActive && pastGate()) {
         event.stopImmediatePropagation()
         nudgeSplitRatio(input === '[' ? -1 : 1)
         return
       }
-      if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && !verbsYield && pastGate()) {
+      if (input === ' ' && !key.ctrl && !key.meta && !reducedStage && pastGate()) {
         event.stopImmediatePropagation()
         const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
         if (sel !== undefined) toggleMark(sel.sessionId)
@@ -1579,8 +1573,7 @@ export function ConcourseScreen({
       input === '?' &&
       !key.ctrl &&
       !key.meta &&
-      ((region !== 'coordinator' && region !== 'live') ||
-        (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)
+      helpKeyFiresFor(region, (region === 'coordinator' ? draftRef : liveDraftRef).current.text.length === 0)
     ) {
       event.stopImmediatePropagation()
       helpOpenRef.current = true
@@ -1609,7 +1602,7 @@ export function ConcourseScreen({
     if (reducedStage) {
       return
     }
-    if (region === 'chat') {
+    if (region !== 'coordinator' && region !== 'live') {
       return
     }
     const side =
@@ -1636,12 +1629,10 @@ export function ConcourseScreen({
       event.stopImmediatePropagation()
       const refusal = liveGateRefusal()
       if (refusal !== null) {
-        setRegion('live')
         setLiveNote({ tone: 'muted', text: refusal })
         return
       }
       armSelectedForTyping()
-      if (region !== side.focus) setRegion(side.focus)
       recordDraftEdit(side.undo.current, side.ref.current, 'type')
       side.edit(d => insertAt(d, NL))
       return
@@ -1669,7 +1660,6 @@ export function ConcourseScreen({
     }
     if (key.backspace || key.delete) {
       event.stopImmediatePropagation()
-      if (region !== side.focus) setRegion(side.focus)
       recordDraftEdit(side.undo.current, side.ref.current, 'delete')
       side.edit(key.backspace ? backspaceAt : deleteAt)
       return
@@ -1707,12 +1697,10 @@ export function ConcourseScreen({
       event.stopImmediatePropagation()
       const refusal = liveGateRefusal()
       if (refusal !== null) {
-        setRegion('live')
         setLiveNote({ tone: 'muted', text: refusal })
         return
       }
       armSelectedForTyping()
-      if (region !== side.focus) setRegion(side.focus)
       const payload = editorText(input)
       recordDraftEdit(side.undo.current, side.ref.current, payload.length > 1 ? 'paste' : 'type')
       side.edit(d => insertAt(d, payload))
@@ -1918,10 +1906,10 @@ export function ConcourseScreen({
             boardArmed === sel.sessionId ? (
               <Box height={1} flexShrink={0} overflow="hidden">
                 <Text color={t.info} wrap="truncate-end">
-                  {GLYPH.handoff} armed — ↵ again enters
+                  {GLYPH.handoff} {liveDraft.text.trim().length > 0 ? 'armed — ↵ sends the draft · → enters' : 'armed — ↵ again enters'}
                   {
 }
-                  {liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · type to message' : ''} · esc disarms
+                  {liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''} · esc disarms
                 </Text>
               </Box>
             ) : null
@@ -2044,6 +2032,7 @@ export function ConcourseScreen({
         focusTall={focusTall}
         liveDraftRows={liveDraftDesired}
         liveDraftEmpty={liveDraft.text.length === 0}
+        coordinatorDraftEmpty={draft.text.length === 0}
         modelPickerOpen={settingsOpen}
         groundPickerOpen={groundPickerOpen}
         coordinatorNode={(rows, width) => reducedStage ? (
