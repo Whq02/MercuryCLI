@@ -49,8 +49,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   }
 }
 
-const COLS = 40
-const ROWS = 10
+const COLS = 80
+const ROWS = 22
 
 class FakeStdout extends EventEmitter {
   isTTY = true
@@ -357,17 +357,17 @@ process.exit(0)
   rig.stdout.emit('resize')
   await rig.settle()
   check('resize: same-dims resize is byte-silent', rig.stdout.since(mSame) === '', JSON.stringify(rig.stdout.since(mSame).slice(0, 60)))
-  const NEW_ROWS = 12
+  const NEW_ROWS = 24
   const mReal = rig.stdout.markerAt()
-  rig.stdout.columns = 60
-  rig.stdout.rows = 14
+  rig.stdout.columns = 100
+  rig.stdout.rows = 30
   rig.stdout.emit('resize')
   await new Promise(resolve => setTimeout(resolve, 30))
   const stormWrites = rig.stdout.writes.slice(mReal)
   check('resize: a storm WINCH paints a clip-hold, not a clear',
     stormWrites.some(isFrameWrite) && !stormWrites.some(w => w.includes(`${ESC}[2J`)),
     JSON.stringify(stormWrites.map(w => w.slice(0, 24))))
-  rig.stdout.columns = 50
+  rig.stdout.columns = 90
   rig.stdout.rows = NEW_ROWS
   rig.stdout.emit('resize')
   await rig.settle()
