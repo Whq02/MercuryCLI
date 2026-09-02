@@ -25,6 +25,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import {
   _resetFrameTraceForTesting,
+  FRAME_TRACE_RING_CAP,
   readFrameTrace,
   recordFrameTrace,
   traceKeyResolved,
@@ -165,7 +166,14 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       /* empty */
     }
     t.check('the journey completed (vshot exit 0)', r.status === 0, `exit=${r.status}`)
-    t.check('the frames section renders with named sample count', /n=\d+ · p50 /.test(text))
+    // The header states the ring's WINDOW, not a bare count: rows over the
+    // cap and the live span (`n=<rows>/<cap> · last <span> · p50 …`) — the
+    // ring bounds a frame count, so a bare n implied an unbounded history.
+    // The cap rides the import so the pin follows the ring owner.
+    t.check(
+      'the frames section renders the sample count over the cap and the live span',
+      new RegExp(`n=\\d+/${FRAME_TRACE_RING_CAP} · last \\d+(?:\\.\\d+)?[sm] · p50 `).test(text),
+    )
     t.check('the slowest frame is stage-attributed', text.includes('slowest ') && text.includes('compose '))
     t.check(
       // Classified label, never content. Since the TASK-009 fold the ↵ is a
