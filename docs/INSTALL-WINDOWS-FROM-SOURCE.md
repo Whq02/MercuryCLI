@@ -304,10 +304,12 @@ straight into the chat. Inside the chat, shift+← walks back to the concourse
 and the Boot face at any time; with `--chat` (or the concourse switched off)
 shift+← is the Boot face directly — the strip is the face and the chat alone.
 
-A source build started this way has no launch splash — it opens straight on
-the Boot face. (A release install's `mercury` launcher paints one first;
-`$env:MERCURY_SPLASH = "off"` skips it there. The variable has no effect on
-a direct `node dist\mercury.mjs` start, which never runs the splash.)
+A source build started this way paints the launch splash first — the
+circuit-trace animation before the Boot face — exactly as a release
+install's `mercury` launcher does: the build copies the splash beside
+`dist\mercury.mjs`, and a bare `node dist\mercury.mjs` runs it before the
+face. `$env:MERCURY_SPLASH = "off"` skips it on both roads; a start with any
+argument (a prompt, `--continue`, a verb) goes straight to its destination.
 
 ---
 
