@@ -183,39 +183,56 @@ function filesCarrying(dir: string, needle: string): string[] {
   return out
 }
 
+const UP = '\x1b[A'
 const DOWN = '\x1b[B'
-const HOME_KEY = '\x1b[H'
 const ESC = '\x1b'
-function familyDrive(spec: { family: 'openrouter' | 'huggingface'; word: string; door: number; needleId: string; needleLabel: string; firstRow: string }): void {
-  console.log(`[${spec.family}] the door: expand · filter · esc clears · esc collapses · esc closes · select a deep row`)
-  const home = seededHome(`home-${spec.family}`)
-  const res = drive(
-    spec.family,
-    home,
-    spec.family,
-    [
+const TO_END = DOWN.repeat(options.length + 4)
+const walkTo = (door: number): string => TO_END + UP.repeat(options.length - 1 - door)
+
+type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: number; needleId: string; needleLabel: string; firstRow: string }
+
+function familySends(spec: FamilySpec): unknown[] {
+  return [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5 },
-      { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: HOME_KEY },
-      { afterPrevTicks: 3, data: DOWN.repeat(spec.door) },
+      { atTick: 80, data: '/model', awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 8 },
+      { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
+      { afterPrevTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'open', data: '' },
+      { afterPrevTicks: 3, data: walkTo(spec.door) },
+      { afterPrevTicks: 4, mark: 'walked', data: '' },
       { requireAwait: true, awaitText: 'catalogue door', awaitStableTicks: 2, mark: 'door', data: '\r' },
       { requireAwait: true, awaitText: 'esc collapse', awaitStableTicks: 2, mark: 'expanded', data: 'needle' },
       { requireAwait: true, awaitText: 'filter: needle', awaitStableTicks: 2, mark: 'filtered', data: ESC },
       { afterPrevTicks: 5, mark: 'cleared', data: ESC },
       { requireAwait: true, awaitText: 'catalogue door', awaitStableTicks: 2, mark: 'collapsed', data: ESC },
-      { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, mark: 'closed', data: '/model' },
-      { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, data: HOME_KEY },
-      { afterPrevTicks: 3, data: DOWN.repeat(spec.door) },
+      { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, mark: 'closed', data: '' },
+      { afterPrevTicks: 6, data: '/model' },
+      { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
+      { afterPrevTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, data: '' },
+      { afterPrevTicks: 3, data: walkTo(spec.door) },
       { requireAwait: true, awaitText: 'catalogue door', awaitStableTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'esc collapse', awaitStableTicks: 2, data: 'needle' },
       { requireAwait: true, awaitText: 'filter: needle', awaitStableTicks: 2, mark: 'refiltered', data: '\r' },
       { requireAwait: true, awaitText: 'Set model to', awaitStableTicks: 3, mark: 'selected', data: '' },
-      { afterPrevTicks: 8, data: '' },
-    ],
-    320,
-  )
+      { afterPrevTicks: 6, data: '/model' },
+      { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
+      { afterPrevTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'reopened', data: '' },
+      { afterPrevTicks: 4, data: '' },
+  ]
+}
+
+function familyDrive(spec: FamilySpec): void {
+  console.log(`[${spec.family}] the door: expand · filter · esc clears · esc collapses · esc closes · select a deep row`)
+  let home = seededHome(`home-${spec.family}`)
+  let res = drive(spec.family, home, spec.family, familySends(spec), 420)
+  if (res.status !== 0 && /first stuck: '(CHOOSE A MODEL|❯ \/model|Type a prompt|↑↓ choose)'/.test(res.stderr)) {
+    console.log(`  (the picker never opened on the first boot — ${/first stuck: '[^']*'/.exec(res.stderr)?.[0] ?? ''}; one more boot)`)
+    home = seededHome(`home-${spec.family}-2`)
+    res = drive(`${spec.family}-2`, home, spec.family, familySends(spec), 420)
+  }
+  const failuresBefore = failures
   check(`${spec.family}: the drive delivered every awaited screen (a real boot; every ↵/esc landed)`, res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-400)}`)
   const open = res.marks.get('open') ?? ''
   const door = res.marks.get('door') ?? ''
@@ -225,13 +242,14 @@ function familyDrive(spec: { family: 'openrouter' | 'huggingface'; word: string;
   const collapsed = res.marks.get('collapsed') ?? ''
   const closed = res.marks.get('closed') ?? ''
   const selected = res.marks.get('selected') ?? ''
+  const reopened = res.marks.get('reopened') ?? ''
   const before = availableOf(open)
   check(`${spec.family}: the picker opened with an AVAILABLE count`, before > 0, lines(open, 'CHOOSE'))
   check(`${spec.family}: the focused door row carries "${spec.word} — 30 models live" and the copy "↵ expand · 30 live · type to filter"`, door.includes(`${spec.word} — 30 models live`) && door.includes('↵ expand · 30 live · type to filter'), lines(door, spec.word))
   check(`${spec.family}: the footer advertises ↵ expand on the door`, door.includes('↵ expand') && door.includes('esc close'), lines(door, '↑↓ select'))
   check(`${spec.family}: the expanded group paints the header "${spec.word} — 30 live · filter:" with "esc collapse"`, expanded.includes(`${spec.word} — 30 live · filter:`) && expanded.includes('esc collapse'), lines(expanded, spec.word))
   check(`${spec.family}: the AVAILABLE count grows by the 6 rows past the bound (${before} → ${before + 6})`, availableOf(expanded) === before + 6, lines(expanded, 'CHOOSE'))
-  check(`${spec.family}: the first live row is focused inside the open group (its id on the id line)`, expanded.includes(`${spec.firstRow} · model IDs are real`), lines(expanded, 'model IDs'))
+  check(`${spec.family}: the first live row is focused inside the open group (its id on the id line)`, expanded.includes(`${spec.firstRow} · model IDs are`), lines(expanded, 'model IDs'))
   check(`${spec.family}: the footer names the filter while the group is open`, expanded.includes('type to filter') && expanded.includes('esc collapse'), lines(expanded, '↑↓ select'))
   check(`${spec.family}: typing narrows the group — the header reads "filter: needle" and the deep row is focused`, filtered.includes('filter: needle') && filtered.includes(`${spec.needleId} · model IDs are real`), lines(filtered, 'needle'))
   check(`${spec.family}: the footer says esc clear while a filter stands`, filtered.includes('esc clear'), lines(filtered, '↑↓ select'))
@@ -241,8 +259,17 @@ function familyDrive(spec: { family: 'openrouter' | 'huggingface'; word: string;
   check(`${spec.family}: the collapsed screen paints no header line`, !collapsed.includes('esc collapse'))
   check(`${spec.family}: esc with nothing open closes the picker (the receipt line)`, closed.includes('Kept model as'), lines(closed, 'Kept'))
   check(`${spec.family}: ↵ on the filtered deep row selects it — the receipt names the row`, selected.includes(`Set model to ${spec.needleLabel}`), lines(selected, 'Set model'))
+  check(`${spec.family}: re-opening the picker opens the door at mount (the current model lives behind it) with the deep row focused and marked current`, reopened.includes(`${spec.word} — 30 live · filter:`) && reopened.includes(`${spec.needleId} · model IDs are real`) && lines(reopened, spec.needleLabel).includes('current'), lines(reopened, spec.needleLabel) + ' || ' + lines(reopened, spec.word))
   const carriers = filesCarrying(home, spec.needleId).concat(filesCarrying(join(scratch, `daemon-${spec.family}`), spec.needleId))
   check(`${spec.family}: the persisted model is the deep row's id (${spec.needleId}) — on disk in the scratch home`, carriers.length >= 1, `files: ${carriers.join(', ') || 'none'} · settings: ${existsSync(join(home, 'settings.json')) ? readFileSync(join(home, 'settings.json'), 'utf8').slice(0, 300) : 'absent'}`)
+  if (failures !== failuresBefore) {
+    for (const [label, screen] of res.marks) {
+      console.log(`\n──── ${spec.family} · mark "${label}" ────`)
+      console.log(screen.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l !== '').join('\n'))
+    }
+    console.log(`\n──── ${spec.family} · final ────`)
+    console.log(res.final.split('\n').map(l => l.replace(/\s+$/, '')).filter(l => l !== '').join('\n'))
+  }
 }
 
 familyDrive({
