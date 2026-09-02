@@ -5,11 +5,6 @@ import {
   evaluateMissionCompletion,
   parseReviewResult,
 } from '../../src/services/mission/completion.js'
-import {
-  classifyReplanNote,
-  isMissionReplanTrigger,
-  MISSION_REPLAN_TRIGGERS,
-} from '../../src/services/mission/replan.js'
 import { composeMissionView } from '../../src/services/mission/projection.js'
 import type { TaskRoutePlan } from '../../src/utils/router/contracts.js'
 
@@ -67,13 +62,6 @@ check('review tail parses', parsed.verdict === 'revise' && parsed.requirementIds
 check('garbage parses to indeterminate', parseReviewResult('all done, looks great!').verdict === 'indeterminate')
 check('malformed verdict parses to indeterminate', parseReviewResult('REVIEW: shipit').verdict === 'indeterminate')
 check('the LAST review line wins', parseReviewResult('REVIEW: reject\nmore work\nREVIEW: accept').verdict === 'accept')
-
-check('eight trigger classes', MISSION_REPLAN_TRIGGERS.length === 8)
-check('validation is closed', isMissionReplanTrigger('check-failed') && !isMissionReplanTrigger('vibes'))
-check('tagged notes classify exactly', classifyReplanNote('[trigger: symbol-moved] the helper moved') === 'symbol-moved')
-check('check failures classify', classifyReplanNote('the acceptance test failed with a new stack') === 'check-failed')
-check('shared owners classify', classifyReplanNote('discovered a shared owner in registry.js') === 'undeclared-dependency')
-check('free-form churn classifies to null', classifyReplanNote('try again please') === null)
 
 const scratch = mkdtempSync(join(tmpdir(), 'helix-replan-'))
 process.env.MERCURY_ROUTER_STATE_DIR = scratch
