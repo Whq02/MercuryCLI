@@ -15,11 +15,7 @@ import {
   type PruneReceipt,
 } from '../../../utils/sessionStorage/transcriptPruneDoor.js'
 import { boardHomedSessionIds } from '../../../daemon/concourseSupervisor.js'
-import {
-  getSessionIdFromLog,
-  isLiteLog,
-  loadFullLog,
-} from '../../../utils/sessionStorage.js'
+import { getSessionIdFromLog } from '../../../utils/sessionStorage.js'
 import { AMBER, CRIMSON, DUNE, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
@@ -119,7 +115,7 @@ function LiveSessionManager({
   const accent = useSessionAccent().accent
   const { columns } = useTerminalSize()
   const W = shellInteriorWidth(columns)
-  const [switching, setSwitching] = useState<'loading' | 'swapping' | null>(null)
+  const [switching, setSwitching] = useState<'swapping' | null>(null)
   const switchGenRef = useRef(0)
   const [scope, setScope] = useState<SessionScope>(initialScope)
   const { logs, pendingMore, flat, crew, elsewhereCount, dropSessions } = useSessionPickerModel(scope)
@@ -193,12 +189,9 @@ function LiveSessionManager({
     const sessionId = getSessionIdFromLog(log)
     if (!sessionId) return
     const gen = ++switchGenRef.current
-    setSwitching('loading')
+    setSwitching('swapping')
     try {
-      const fullLog = isLiteLog(log) ? await loadFullLog(log) : log
-      if (gen !== switchGenRef.current) return
-      setSwitching('swapping')
-      await onResume(sessionId, fullLog, 'slash_command_picker')
+      await onResume(sessionId, log, 'slash_command_picker')
       if (gen !== switchGenRef.current) return
       onCloseAll()
     } catch {
@@ -319,17 +312,11 @@ function LiveSessionManager({
         view="sessions"
         onClose={leaveSwitch}
         captureInput={false}
-        footer={
-          switching === 'loading'
-            ? 'reading the transcript… · esc cancel'
-            : 'switching — the swap keeps going · esc back to the chat'
-        }
+        footer="switching — the swap keeps going · esc back to the chat"
       >
         <Box marginTop={1}>
           <Spinner />
-          <Text color={SECOND}>
-            {switching === 'loading' ? ' Reading the transcript…' : ' Switching session…'}
-          </Text>
+          <Text color={SECOND}> Switching session…</Text>
         </Box>
       </CommandCenter>
     )

@@ -31,6 +31,9 @@ import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
 import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink } from '../substrate/splashHandover.js';
 import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
+import { enterBootSettings, settleAbsentChat } from '../context/surfaceRoute.js';
+import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
+import { mintImmediateReceipt, recentWarningReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
 import { BootAgentsScreen } from './BootAgentsScreen.js';
 import { BootHealthScreen } from './BootHealthScreen.js';
 import { BootLoginsScreen } from './BootLoginsScreen.js';
@@ -74,6 +77,27 @@ export function concourseRowCtx(facts: { live: boolean; why: PlainWorldWhy | nul
 }
 
 
+type BornSessionFn = typeof import('../services/switchboard/bornSession.js')['bornSession'];
+
+async function flipFirstBirth(start: (bornSession: BornSessionFn) => ReturnType<BornSessionFn>): Promise<string | null> {
+  const { bornSession } = await import('../services/switchboard/bornSession.js');
+  const birth = start(bornSession);
+  const flipped = enterRootRepl().ok;
+  if (flipped) recordLaunchMilestone('chat-flipped');
+  const born = await birth;
+  if (!born.ok) {
+    recordLaunchMilestone('birth-refused');
+    if (flipped) {
+      if (!settleAbsentChat().ok) enterBootSettings();
+      setTimeout(() => mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning'), 0);
+    }
+    return born.reason;
+  }
+  recordLaunchMilestone('birth-landed');
+  if (!flipped) enterRootRepl();
+  return null;
+}
+
 export function BootSplashScreen(): React.ReactNode {
   const t = useMercuryTokens();
   const { columns, rows } = useTerminalSize();
@@ -99,6 +123,15 @@ export function BootSplashScreen(): React.ReactNode {
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const keyMapHint = stripKeyMapHint();
   const menuAvailable = columns >= 64 && rows >= 13;
+
+  const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
+  useEffect(
+    () =>
+      subscribeSeatReceipts(r => {
+        if (r.level === 'warning') setBirthReceipt(r.text);
+      }),
+    [],
+  );
 
   const [liveCount, setLiveCount] = useState<number>(0);
   useEffect(() => {
@@ -219,9 +252,7 @@ export function BootSplashScreen(): React.ReactNode {
             const outcome = await hop.hopIntoBoardSession(p.firstSessionId);
             if (!outcome.ok) return outcome.reason;
           } else {
-            const { bornSession } = await import('../services/switchboard/bornSession.js');
-            const born = await bornSession({ workspaceDir: p.dir });
-            if (!born.ok) return born.reason;
+            return await flipFirstBirth(bornSession => bornSession({ workspaceDir: p.dir }));
           }
         } catch (e) {
           return e instanceof Error ? e.message : String(e);
@@ -267,13 +298,7 @@ export function BootSplashScreen(): React.ReactNode {
       case 'new': {
         return {
           pending: 'starting a session…',
-          result: (async (): Promise<string | null> => {
-            const { bornSession } = await import('../services/switchboard/bornSession.js');
-            const born = await bornSession({ workspaceDir: getCwd() });
-            if (!born.ok) return born.reason;
-            enterRootRepl();
-            return null;
-          })(),
+          result: flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() })),
         };
       }
       case 'continue': {
@@ -544,8 +569,8 @@ export function BootSplashScreen(): React.ReactNode {
     <Box flexDirection="column" width={columns} height={rows}>
       {Array.from({ length: rows }, (_, i) => {
         const line = composition.placed[i] ?? '';
-        if (i === rows - 1 && list.note !== null) {
-          const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + list.note + core.R;
+        if (i === rows - 1 && (list.note !== null || birthReceipt !== null)) {
+          const noteLine = '  ' + core.hexFg(core.FAINT, core.T256.faint) + (list.note ?? birthReceipt ?? '') + core.R;
           return (
             <Box key="boot-note" height={1} flexShrink={0}>
               {renderSceneLine(noteLine)}

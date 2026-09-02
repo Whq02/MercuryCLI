@@ -74,7 +74,7 @@ export const CONCOURSE_REGION_KEYS = {
     { keys: '/', label: 'filter' },
     { keys: '⌃x ⌃x', label: 'stop · again removes' },
     { keys: 'm', label: 'message queued' },
-    { keys: 'space', label: 'marks · while composing, space types' },
+    { keys: 'space', label: 'mark' },
     { keys: 's', label: 'split' },
   ],
   live: [
@@ -136,18 +136,18 @@ export function boardSelectionClassOf(
 
 export function regionKeysFor(
   region: keyof typeof CONCOURSE_REGION_KEYS,
-  opts: { newSession: boolean; selection?: BoardSelectionClass; chatSession?: boolean; landing?: boolean; olderBrowse?: boolean; armed?: boolean },
+  opts: {
+    newSession: boolean
+    selection?: BoardSelectionClass
+    chatSession?: boolean
+    landing?: boolean
+    olderBrowse?: boolean
+    armed?: boolean
+    liveDraftHeld?: boolean
+  },
 ): ReadonlyArray<{ keys: string; label: string }> {
   if (opts.olderBrowse === true) {
     return [{ keys: '↵', label: 'bring it back' }]
-  }
-  if (region === 'list' && opts.armed === true) {
-    return [
-      { keys: '↵', label: 'enters (armed)' },
-      { keys: '→', label: 'enter' },
-      { keys: 'type', label: 'to message' },
-      { keys: '⌃x ⌃x', label: 'close' },
-    ]
   }
   const stageFilter = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
     opts.newSession
@@ -161,37 +161,53 @@ export function regionKeysFor(
       k.keys === '↵' && opts.chatSession === false ? { keys: '↵', label: 'new session' } : k,
     )
   }
-  if (region !== 'list' || opts.selection === undefined) {
+  if (region !== 'list') {
     return stageFilter(CONCOURSE_REGION_KEYS[region])
+  }
+  const withEnterTruth = (rows: ReadonlyArray<{ keys: string; label: string }>): ReadonlyArray<{ keys: string; label: string }> =>
+    rows.map(k =>
+      k.keys === '↵↵' && opts.liveDraftHeld === true
+        ? { keys: '↵', label: 'send' }
+        : k.keys === '↵↵' && opts.armed === true
+          ? { keys: '↵', label: 'enters (armed)' }
+          : k.keys === '→' && opts.armed === true
+            ? { keys: '→', label: 'enter' }
+            : k,
+    )
+  if (opts.selection === undefined) {
+    return withEnterTruth(stageFilter(CONCOURSE_REGION_KEYS.list))
   }
   const base = CONCOURSE_REGION_KEYS.list
   const row = (keys: string): { keys: string; label: string } | undefined => base.find(k => k.keys === keys)
   const keep = (...names: string[]): Array<{ keys: string; label: string }> =>
     names.map(n => row(n)).filter((k): k is { keys: string; label: string } => k !== undefined)
-  switch (opts.selection) {
-    case 'live':
-    case 'paused':
-      return stageFilter([
-        ...keep('↵↵'),
-        { keys: 'i', label: 'interrupt' },
-        { keys: 'p', label: opts.selection === 'paused' ? 'resume' : 'pause' },
-        { keys: 'm', label: 'model' },
-        { keys: 'e', label: 'effort' },
-        ...keep('r', '→', '/', '⌃x ⌃x', 'n', 'space', 's'),
-      ])
-    case 'attached':
-      return stageFilter([...keep('↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'space', 's')])
-    case 'queued':
-      return stageFilter([...keep('n', 'm', '/'), { keys: '⌃x ⌃x', label: 'withdraw' }, ...keep('space', 's')])
-    case 'parked':
-      return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'clear' }, ...keep('space', 's')])
-    case 'stopped':
-      return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'remove' }, ...keep('space', 's')])
-    case 'door':
-      return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
-    case 'none':
-      return stageFilter([...keep('n', '/', 's')])
+  const listRowsFor = (selection: BoardSelectionClass): ReadonlyArray<{ keys: string; label: string }> => {
+    switch (selection) {
+      case 'live':
+      case 'paused':
+        return stageFilter([
+          ...keep('↵↵'),
+          { keys: 'i', label: 'interrupt' },
+          { keys: 'p', label: selection === 'paused' ? 'resume' : 'pause' },
+          { keys: 'm', label: 'model' },
+          { keys: 'e', label: 'effort' },
+          ...keep('r', '→', '/', '⌃x ⌃x', 'n', 'space', 's'),
+        ])
+      case 'attached':
+        return stageFilter([...keep('↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'space', 's')])
+      case 'queued':
+        return stageFilter([...keep('n', 'm', '/'), { keys: '⌃x ⌃x', label: 'withdraw' }, ...keep('space', 's')])
+      case 'parked':
+        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'clear' }, ...keep('space', 's')])
+      case 'stopped':
+        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'remove' }, ...keep('space', 's')])
+      case 'door':
+        return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
+      case 'none':
+        return stageFilter([...keep('n', '/', 's')])
+    }
   }
+  return withEnterTruth(listRowsFor(opts.selection))
 }
 
 export function withSplitViewTruth(
@@ -223,3 +239,12 @@ export const COORDINATOR_SURFACE_KEYS = [
   { keys: '⇧↵/⌃j', label: 'newline' },
   { keys: 'pgup/pgdn', label: 'scroll' },
 ] as const
+
+export function newSessionTabLabel(opts: { region: string; filtering: boolean }): string {
+  return opts.region === 'list' && !opts.filtering ? '+ new session · n' : '+ new session'
+}
+
+export function helpKeyFiresFor(region: string, focusedComposerEmpty: boolean): boolean {
+  if (region !== 'coordinator' && region !== 'live') return true
+  return focusedComposerEmpty
+}
