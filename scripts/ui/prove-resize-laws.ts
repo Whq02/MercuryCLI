@@ -267,5 +267,79 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }
 
+console.log('§15 — the viewport floor: one verdict, one line, one latch')
+{
+  const { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_EXIT_BAND, viewportFloorLine, viewportFloorVerdict } = await import(
+    '../../src/ink/viewportFloor.ts'
+  )
+  const { HELM_HOME_MIN_COLS } = await import('../../src/utils/helmGeometry.ts')
+  check('the floor IS the cockpit entry width (one owner, 100 columns)', VIEWPORT_FLOOR_COLS === HELM_HOME_MIN_COLS && VIEWPORT_FLOOR_COLS === 100)
+  check('a fresh window under the floor is under', !viewportFloorVerdict(99, 40, false).fits && !viewportFloorVerdict(80, 20, false).fits)
+  check('a fresh window at the floor fits', viewportFloorVerdict(100, 40, false).fits)
+  check('a painted surface survives the exit band', viewportFloorVerdict(100 - VIEWPORT_FLOOR_EXIT_BAND, 40, true).fits)
+  check('… and goes under one column below the band', !viewportFloorVerdict(100 - VIEWPORT_FLOOR_EXIT_BAND - 1, 40, true).fits)
+  check(
+    'the band is the cockpit chrome latch’s band (one number, two latches agree)',
+    read('src/hooks/useLayoutTier.ts').includes('const COCKPIT_EXIT_HYST_COLS = VIEWPORT_FLOOR_EXIT_BAND'),
+  )
+  const { VIEWPORT_FLOOR_ROWS } = await import('../../src/ink/viewportFloor.ts')
+  check('the row floor is the deck strip’s floor (22 rows, one number)', VIEWPORT_FLOOR_ROWS === 22 && read('src/hooks/useLayoutTier.ts').includes('deckMinRows: VIEWPORT_FLOOR_ROWS'))
+  check('a window under the row floor is under, at it fits (no band on rows)', !viewportFloorVerdict(120, 21, true).fits && viewportFloorVerdict(120, 22, true).fits && !viewportFloorVerdict(120, 21, false).fits)
+  const under = viewportFloorVerdict(80, 20, true)
+  check('the line names the minimum, this window and the way', !under.fits && under.line.includes('100 columns') && under.line.includes('22 rows') && under.line.includes('80×20') && /resize/.test(under.line))
+  const shortest = viewportFloorLine(20, 10)
+  check('the shortest form still names the minimum and the way', shortest.includes('100') && /resize/.test(shortest))
+  check(
+    'the line stays on ONE row at every width down to the shortest form',
+    [140, 99, 80, 60, 40].every(c => viewportFloorLine(c, 20).length <= Math.max(c - 2, shortest.length)),
+  )
+  const { resetViewportFloorForTests, viewportFloorLive } = await import('../../src/ink/viewportFloor.ts')
+  resetViewportFloorForTests()
+  check('the live verdict engages the latch at the floor', viewportFloorLive(120, 40).fits && viewportFloorLive(98, 40).fits)
+  check('… a second reading of the same frame answers the same (idempotent)', viewportFloorLive(98, 40).fits)
+  check('… releases one column under the band and stays under until the floor', !viewportFloorLive(96, 40).fits && !viewportFloorLive(99, 40).fits && viewportFloorLive(100, 40).fits)
+  resetViewportFloorForTests()
+  check('a fresh boot under the floor never engages', !viewportFloorLive(98, 40).fits && !viewportFloorLive(99, 40).fits)
+  resetViewportFloorForTests()
+  const hook = read('src/ink/hooks/use-viewport-floor.ts')
+  check(
+    'one hook carries a host’s reading: the live verdict, the frozen size while under',
+    hook.includes('viewportFloorLive(size.columns, size.rows)') &&
+      hook.includes('if (verdict.fits && size !== null) lastFitRef.current = size') &&
+      hook.includes('surfaceSize: verdict.fits ? size : lastFitRef.current'),
+  )
+  const alt = read('src/ink/components/AlternateScreen.tsx')
+  check('the alternate-screen host reads the floor at the OUTERMOST instance only', alt.includes('const floor = useViewportFloor(size, !nested)'))
+  check(
+    'outermost is decided once at the depth claim and read from the ref on every later render',
+    alt.includes('outermostRef.current = outermost') && alt.includes('const nested = outermostRef.current !== null\n    ? !outermostRef.current'),
+  )
+  check(
+    'the surface stays mounted, out of layout under the floor, back in layout above it — the display named in both states',
+    alt.includes("display={floor.fits ? 'flex' : 'none'}") &&
+      alt.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>{children}</TerminalSizeContext.Provider>'),
+  )
+  check('the notice is one Text, painted only under the floor', alt.includes('{floor.line === null ? null : (') && alt.includes('{floor.line}'))
+  const router = read('src/components/SurfaceRouter.tsx')
+  check(
+    'the route surface host reads the same floor and yields the frame under it',
+    router.includes('const floor = useViewportFloor(useContext(TerminalSizeContext), true)') &&
+      router.includes("display={floor.fits ? 'flex' : 'none'}") &&
+      router.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>'),
+  )
+}
+
+console.log('§16 — a resize storm paints its hold once, on entry')
+{
+  const ink = read('src/ink/ink.tsx')
+  const entry = ink.indexOf('if (this.resizeSettleTimer === null) {')
+  const elseAt = ink.indexOf('} else {', entry)
+  const rearm = ink.indexOf('this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)', entry)
+  const hold = ink.indexOf('this.paintResizeHold(columns, rows)', entry)
+  check('the holding paint sits inside the storm-entry branch', entry >= 0 && hold > entry && hold < elseAt)
+  check('a later event only re-arms the timer (no hold after the re-arm)', rearm > elseAt && ink.indexOf('this.paintResizeHold(columns, rows)', rearm) === -1)
+  check('the engine path keeps its one hold on storm entry', ink.includes('onStormEntered: () => {') && ink.includes('this.paintResizeHold(columns, rows)\n      },'))
+}
+
 console.log(failures === 0 ? '\nresize-laws: GREEN' : `\nresize-laws: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)
