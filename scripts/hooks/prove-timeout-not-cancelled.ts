@@ -87,13 +87,37 @@ const drive = async (toolName: string, signal?: AbortSignal): Promise<Collected>
   return collected
 }
 
+// The headless channel: a -p run's attachment reaches no stream, so the
+// engine writes ONE stderr line per non-blocking failure. Captured here
+// under the non-interactive posture; the interactive default writes none.
+const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+const stderrLines: string[] = []
+const realStderrWrite = process.stderr.write.bind(process.stderr)
+const captureStderr = (on: boolean): void => {
+  process.stderr.write = on
+    ? ((chunk: string | Uint8Array): boolean => {
+        stderrLines.push(String(chunk))
+        return true
+      }) as typeof process.stderr.write
+    : realStderrWrite
+}
+
 section('§1 THE OVERRUN')
 {
   writeHooks({ PreToolUse: [{ matcher: 'ProbeOverrun', hooks: [{ type: 'command', command: 'sleep 25; echo BLOCK 1>&2; exit 2', timeout: 1 }] }] })
   resetSettingsCache()
+  setIsInteractive(false)
+  captureStderr(true)
   const t0 = Date.now()
   const run = await drive('ProbeOverrun')
   const took = Date.now() - t0
+  captureStderr(false)
+  setIsInteractive(true)
+  check(
+    'headless: the overrun is ONE stderr line naming the hook, the event and the timeout (a -p run has no other channel)',
+    stderrLines.some(line => /^hook .* \(PreToolUse\) timed out after 1s and was killed; the PreToolUse it guarded proceeded\n$/.test(line)),
+    JSON.stringify(stderrLines).slice(0, 300),
+  )
   check('the hook was actually killed by its clock (ran ~1s, not 25s)', took < 20000, `${took}ms`)
   check(
     'the overrun yields a VISIBLE attachment, not the null-rendered hook_cancelled (FC-018)',
@@ -128,6 +152,27 @@ section('§3 THE BLOCKING CONTROL')
   resetSettingsCache()
   const run = await drive('ProbeBlock')
   check('an in-time exit-2 guard still BLOCKS', run.blocking === true, JSON.stringify(run.attachmentTypes))
+}
+
+section('§4 JSON THAT FAILS THE SCHEMA — visible, and reported headless')
+{
+  // exit 0 with a JSON body the schema refuses: a non-blocking error the
+  // interactive road renders as an attachment; headless, one stderr line.
+  writeHooks({ PreToolUse: [{ matcher: 'ProbeGarbage', hooks: [{ type: 'command', command: 'echo \'{"decision": "maybe"}\'; exit 0', timeout: 60 }] }] })
+  resetSettingsCache()
+  stderrLines.length = 0
+  setIsInteractive(false)
+  captureStderr(true)
+  const run = await drive('ProbeGarbage')
+  captureStderr(false)
+  setIsInteractive(true)
+  check('the schema refusal is a VISIBLE non-blocking error (never a silent proceed)', run.attachmentTypes.includes('hook_non_blocking_error'), JSON.stringify(run.attachmentTypes))
+  check('…and it never blocks the tool', run.blocking === false)
+  check(
+    'headless: ONE stderr line names the hook, the event and the validation failure',
+    stderrLines.some(line => /^hook .* \(PreToolUse\) returned JSON that failed validation: /.test(line)),
+    JSON.stringify(stderrLines).slice(0, 300),
+  )
 }
 
 rmSync(HOME, { recursive: true, force: true })
