@@ -215,6 +215,9 @@ const child = spawn(
       MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_TEAMS_DIR: join(captureHome, 'teams'),
       MERCURY_TABULA_DIR: join(captureHome, 'tabula'),
+      // The credential store pinned to the FILE backend under the capture
+      // home: on darwin the keychain chain ignores MERCURY_CONFIG_DIR.
+      MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_TERMINAL_TITLE: '0',
       MERCURY_CRITTER_IDLE: '0',
       MERCURY_CRITTER_GAZE: '0',
