@@ -1,6 +1,6 @@
 
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
-import type { LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { NO_SIGN_IN_ROW, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
 import { canonicalCoordinatorModelId } from './coordinatorModels.js'
 
 export type WorkerModelRefusal =
@@ -281,11 +281,17 @@ export function defaultWorkerModelId(registry: WorkerModelRegistryV1, arm: Worke
   if (neutralDefault !== undefined) return neutralDefault.modelId
   const firstAvailable = registry.entries.find(e => e[arm].availability === 'available')
   if (firstAvailable !== undefined) return firstAvailable.modelId
+  const operatorRow = registry.entries.find(e => e.isOperatorDefault === true)
+  if (operatorRow !== undefined) return operatorRow.modelId
   return registry.entries[0]?.modelId ?? foldLegacyWorkerModelKey('fable')
 }
 
 export type WorkerModelValidation =
-  | { ok: true; entry: WorkerModelEntryV1 }
+  | {
+      ok: true
+      entry: WorkerModelEntryV1
+      keyless?: true
+    }
   | {
       ok: false
       reason: 'unknown-model' | WorkerModelRefusal
@@ -392,7 +398,10 @@ export async function validateWorkerModelChoice(idOrKey: string | undefined, arm
   if (verdict.availability !== 'available') {
     if (unnamed) {
       const noAccount = await unnamedLaunchNoAccount(verdict.refusal)
-      if (noAccount !== undefined) return { ok: false, ...noAccount }
+      if (noAccount !== undefined) {
+        if (arm === 'session') return { ok: true, entry: { ...entry, displayName: NO_SIGN_IN_ROW }, keyless: true }
+        return { ok: false, ...noAccount }
+      }
     }
     const drift = unnamed ? await unnamedLaunchDrift(verdict.refusal) : undefined
     return {
