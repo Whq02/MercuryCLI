@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { resetViewportFloorForTests, viewportFloorLine, viewportFloorLive } from '../../src/ink/viewportFloor.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -112,14 +113,25 @@ try {
   )
 
   check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length}`)
+  resetViewportFloorForTests()
   stages.forEach((stage, i) => {
     const n = needleCount(stage.grid)
     if (i < SETTLED_CHANGES) {
-      check(
-        `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
-        n === 1,
-        `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
-      )
+      const floor = viewportFloorLive(stage.cols, stage.rows)
+      if (floor.fits) {
+        check(
+          `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
+          n === 1,
+          `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
+        )
+      } else {
+        const painted = stage.grid.map(rowText).filter(r => r.trim() !== '')
+        check(
+          `G2 geometry ${stage.cols}x${stage.rows} is under the floor: the one line, ZERO station copies`,
+          n === 0 && painted.length === 1 && painted[0]!.trim() === viewportFloorLine(stage.cols, stage.rows),
+          `${n} copies of ${JSON.stringify(NEEDLE)} · ${painted.length} painted row(s): ${JSON.stringify(painted[0]?.trim() ?? '')}`,
+        )
+      }
     } else {
       check(`G5 burst event ${i - SETTLED_CHANGES + 1} (${stage.cols}x${stage.rows}) never stacks the station`, n <= 1, `${n} copies`)
     }
