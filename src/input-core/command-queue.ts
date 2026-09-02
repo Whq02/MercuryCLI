@@ -240,11 +240,29 @@ export function markDraining(commands: readonly QueuedCommand[]): void {
 let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
-export function rekeyCommandQueueToSession(sessionId: string | null): void {
+export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { landing?: boolean }): void {
   const prevKey = owningSessionId ?? getSessionId()
   const nextKey = sessionId ?? getSessionId()
   owningSessionId = sessionId
   if (nextKey === prevKey) return
+  // A LANDING is not a hop: the slot filling from NO session (a birth, a
+  // resume from the face) keeps the entries queued while it landed — they
+  // were queued for the chat that is arriving, and parking them under the
+  // bootstrap identity would leave them unreachable (nothing re-keys back
+  // to it in the hosted world). The caller names the landing: the queue's
+  // owner at boot is the bootstrap identity, which is also a live
+  // session's own id in the plain world, so the owner alone cannot tell.
+  if (opts?.landing === true) {
+    const returning = parkedQueues.get(nextKey)
+    if (returning !== undefined) {
+      parkedQueues.delete(nextKey)
+      if (returning.length > 0) {
+        queue.push(...returning)
+        commit()
+      }
+    }
+    return
+  }
   let moved = false
   // Park the outgoing session's entries whole (drainingNow stays live —
   // the corner above); order within the bank is queue order.
