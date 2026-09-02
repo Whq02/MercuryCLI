@@ -950,6 +950,25 @@ export function resolveEffectiveSettingsSnapshot(args: {
   }
 }
 
+// ── THE ADMISSION SNAPSHOT (this process's own boot values) ─────────────
+//  The boot menu's "this session … (source)" line reports what THIS process
+//  runs at — the values admitted at boot — never what the profile reads
+//  now: the effective resolver re-reads the profile, so after an in-session
+//  save it showed the new value for a row this process still runs at its
+//  boot value. main() records the snapshot once, right after the apply;
+//  readers ask here first and fall back to a fresh resolution only when no
+//  boot recorded one (a prover's in-process mount).
+let admissionSnapshot: SessionEffectiveSettingsSnapshotV1 | null = null
+export function recordBootAdmissionSnapshot(snapshot: SessionEffectiveSettingsSnapshotV1): void {
+  admissionSnapshot = snapshot
+}
+export function bootAdmissionSnapshot(): SessionEffectiveSettingsSnapshotV1 | null {
+  return admissionSnapshot
+}
+export function __resetBootAdmissionSnapshotForTests(): void {
+  admissionSnapshot = null
+}
+
 // ── the CONFIG-BACKED Coordinator row ────────────────────────
 //  STARTUP_MENU rows are env-flag-backed by LAW (rows ⊆ FLAG_REGISTRY — the
 //  anti-smuggling allowlist applyBootMenuEnv enforces over boot-env.json).

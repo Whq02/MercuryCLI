@@ -44,7 +44,7 @@ export const SPLASH_EXIT = {
  *  booting plain: SGR reset, alternate-scroll off, the alt screen closed,
  *  the cursor shown, the terminal's own ground restored. Bounded and
  *  idempotent — safe on a screen the splash never touched. */
-export const SPLASH_ABNORMAL_HEAL = '\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07'
+export const SPLASH_ABNORMAL_HEAL = '\x1b[?2026l\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07'
 
 /** The asset pair as it ships beside the bundle and in a deployed home: the
  *  driver imports './splash-core.mjs' beside itself, so a rung answers only

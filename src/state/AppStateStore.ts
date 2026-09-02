@@ -337,6 +337,12 @@ type AppStateMutableHalf = {
     clearContext?: boolean
     permissionMode?: InternalPermissionMode
     allowedPrompts?: AllowedPrompt[]
+    /** A line armed at the LANDING WINDOW (submitted while the slot was
+     *  still landing): it carries its composer mode, and its history entry
+     *  was written when the composer was taken, so the landing's submit
+     *  writes none. */
+    bashMode?: boolean
+    armedAtLanding?: boolean
   } | null
   pendingPlanVerification?: {
     verificationStarted?: boolean

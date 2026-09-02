@@ -244,8 +244,11 @@ if [ -n "${MERCURY_SA_EXIT:-}" ]; then
     # marker. A splash failure may cost hold cosmetics, never the boot.
     # The heal rides the launcher's resolved runtime (MERCURY_NODE_BIN — the
     # three-rung resolution); the defaulted expansion keeps the block viable
-    # under set -u in a launcher generation that never set it.
-    "${MERCURY_NODE_BIN:-node}" -e 'process.stdout.write("\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07")' 2>/dev/null || true
+    # under set -u in a launcher generation that never set it. It opens with
+    # the synchronized-output close (?2026l), as the release launchers and
+    # the exit teardown do: a splash killed between BSU and ESU must not
+    # leave the terminal frozen.
+    "${MERCURY_NODE_BIN:-node}" -e 'process.stdout.write("\x1b[?2026l\x1b[0m\x1b[?1007l\x1b[?1049l\x1b[?25h\x1b]111\x07")' 2>/dev/null || true
   fi
   # exit 0 IS the settled held receipt (3.6.2/: the splash exits 20
   # when it restored the screen — inline mode). The app's root alt-screen
