@@ -121,7 +121,20 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   // full list. The full list is read from the wrapper once per expansion
   // (and again only when the catalogue re-hands the rows); a keystroke
   // re-filters that array — the snapshot is the source, nothing re-fetches.
-  const [expanded, setExpanded] = useState<string | null>(null)
+  // The persisted GPT window choice rides the id as `[served]` dressing
+  // row identity matching strips it so the
+  // CURRENT dot lands on the row and the toggle re-opens showing its truth.
+  const currentRow = stripGptServedWindowSuffix(current)
+  const [expanded, setExpanded] = useState<string | null>(() => {
+    // A current model that lives BEHIND a door (picked through it, or typed)
+    // opens that door at mount, so the CURRENT dot lands on its row instead
+    // of on nothing — the collapsed top-N cannot show it. Esc collapses.
+    if (listed.some(m => m.id === currentRow)) return null
+    for (const door of listed) {
+      if (door.expand && (expandRows?.(door.expand.group) ?? []).some(m => m.id === currentRow)) return door.expand.group
+    }
+    return null
+  })
   const [filter, setFilter] = useState('')
   const expandRowsRef = React.useRef(expandRows)
   expandRowsRef.current = expandRows
@@ -169,10 +182,6 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   // between the card and its ╰ — shed it; the interactive effort row and
   // the (shortened) footer stay.
   const shedMeters = availRows < 13
-  // The persisted GPT window choice rides the id as `[served]` dressing
-  // row identity matching strips it so the
-  // CURRENT dot lands on the row and the toggle re-opens showing its truth.
-  const currentRow = stripGptServedWindowSuffix(current)
   const startI = Math.max(0, models.findIndex(m => m.id === currentRow))
   const [cursor, setI] = useState(startI)
   // The cursor clamps to the composed rows: a catalogue re-hand or a filter
@@ -447,9 +456,9 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   // kept beside it — a row added to the render grows here too.
   const rowPaint = (idx: number): number => {
     if (compact) return 1
-    // The open door's header line paints ONE row at every focus state (a
-    // control line, never a card — the render below keeps that law).
-    if (models[idx]?.expand?.open) return 1
+    // The open door's header row is the cursor's anchor only — its paint is
+    // the sticky filter line in the group's heading block (headingPaint).
+    if (models[idx]?.expand?.open) return 0
     // Focused model card: border 2 + row 1 (+ tag 1 when the row has one —
     // model rows carry no tag under the neutrality ruling; action/Default
     // rows still do).
@@ -466,15 +475,18 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   }
   const headingPaint = (w: PaneWindow): number => {
     let lines = 0
-    if (!compact) {
-      // The first visible model row always re-paints its group heading
-      // (lastGroup resets each render); later rows only on boundaries.
-      let prev: string | undefined
-      for (let idx = w.start; idx < Math.min(w.end, models.length); idx++) {
-        const g = models[idx]!.group
-        if (g !== prev) lines += 2 + (detailLines.get(g)?.length ?? 0)
-        prev = g
+    // The first visible model row always re-paints its group heading
+    // (lastGroup resets each render); later rows only on boundaries. The
+    // open door's filter line rides the heading block (one line, compact
+    // included); the title + detail lines are full-mode paint.
+    let prev: string | undefined
+    for (let idx = w.start; idx < Math.min(w.end, models.length); idx++) {
+      const g = models[idx]!.group
+      if (g !== prev) {
+        if (!compact) lines += 2 + (detailLines.get(g)?.length ?? 0)
+        if (expanded === g) lines += 1
       }
+      prev = g
     }
     return lines
   }
@@ -497,6 +509,11 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     },
   )
   let lastGroup: string | null = null
+  // THE OPEN DOOR's header, resolved once per render: the header row's index
+  // (the cursor's anchor) and the sentence parts the sticky filter line
+  // paints around the live filter text.
+  const doorHeaderIndex = expanded === null ? -1 : models.findIndex(m => m.expand?.open === true)
+  const doorHeader = doorHeaderIndex === -1 ? undefined : { index: doorHeaderIndex, id: models[doorHeaderIndex]!.id, parts: catalogueDoorHeaderParts(models[doorHeaderIndex]!.expand!) }
   const footerDoor: ModelPickerFooterDoor | undefined =
     expanded !== null
       ? { open: true, onHeader: focusedModel?.expand?.open === true, filtering: filter.length > 0 }
@@ -532,37 +549,45 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         // reason rides the row copy); 'gated' keeps its flag-gate meaning;
         // 'expand' is the catalogue door's own word (↵ opens, never switches).
         const [sg, sw, sc] = cur ? [GLYPH.done, 'current', TEAL] as const : isNext ? [GLYPH.pending, 'next', AMBER] as const : m.expand ? [GLYPH.pending, 'expand', FAINT] as const : m.gated ? [GLYPH.fisheye, m.gatedReason ? 'unavail' : 'gated', AMBER] as const : [GLYPH.pending, 'switch', FAINT] as const
+        // THE OPEN DOOR's filter line is STICKY: it rides the group's heading
+        // block, so it paints wherever the open group's first visible row is
+        // — a walk deep into 400 rows never scrolls it out of view, and a
+        // filter that matches nothing keeps it (the header row alone remains
+        // in the group). Family · live count · the filter text with the
+        // caret · the way out; the header row is its focus anchor, so the
+        // line shows the pointer + accent when the cursor sits there, and a
+        // click or ↵ on it lands on that row (collapse). Compact keeps this
+        // line (it is functional) and sheds the title + detail (decoration).
+        const doorLine = head && doorHeader !== undefined && expanded === m.group ? ((): React.ReactNode => {
+          const onHeader = i === doorHeader.index
+          return (
+            <InteractiveRow id={`model:row:${doorHeader.id}`} selected={onHeader} onSelect={() => selectRow(doorHeader.index)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
+              <Text wrap="truncate-end">
+                <Text color={onHeader ? TERRA : FAINT}>{onHeader ? `${figures.pointer} ` : '  '}</Text>
+                <Text color={tokens.info}>{doorHeader.parts.lead}</Text>
+                <Text bold color={IVORY}>{filter}</Text>
+                <Text color={onHeader ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
+                <Text color={FAINT}>{doorHeader.parts.tail}</Text>
+              </Text>
+            </InteractiveRow>
+          )
+        })() : null
         // Group headings are informational: the info channel — the CURRENT
         // card + selected row keep the accent/state paint. The provider's
         // signed-in state (wrapper-resolved) rides a faint detail line under
         // its heading — one grammar, each provider's account truth visible
-        // in place. Both row shapes below paint it.
-        const heading = head && !compact ? <Box marginTop={1} flexDirection="column">
-          <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>
-          {detailLines.get(m.group)?.map((line, k) => (
+        // in place. The open door's filter line closes the block.
+        const heading = head && (!compact || doorLine !== null) ? <Box marginTop={compact ? 0 : 1} flexDirection="column">
+          {compact ? null : <Text bold color={tokens.info}>{m.group.toUpperCase()}</Text>}
+          {compact ? null : detailLines.get(m.group)?.map((line, k) => (
             <Text key={k} color={FAINT} wrap="truncate-end">{line}</Text>
           ))}
+          {doorLine}
         </Box> : null
         if (m.expand?.open) {
-          // THE OPEN DOOR's header line: family · live count · the filter
-          // text with the caret · the way out. ONE row at every focus state
-          // (rowPaint's law): focus reads as the pointer + accent, never a
-          // card — this is the group's control line, not a choice.
-          const parts = catalogueDoorHeaderParts(m.expand)
-          return (
-            <React.Fragment key={m.id}>
-              {heading}
-              <InteractiveRow id={`model:row:${m.id}`} selected={on} onSelect={() => selectRow(idx)} onActivate={commitCurrent} flexDirection="column" selectionBand={compact}>
-                <Text wrap="truncate-end">
-                  <Text color={on ? TERRA : FAINT}>{on ? `${figures.pointer} ` : '  '}</Text>
-                  <Text color={tokens.info}>{parts.lead}</Text>
-                  <Text bold color={IVORY}>{filter}</Text>
-                  <Text color={on ? TERRA : FAINT}>{GLYPH.caretBlock}</Text>
-                  <Text color={FAINT}>{parts.tail}</Text>
-                </Text>
-              </InteractiveRow>
-            </React.Fragment>
-          )
+          // The header row paints nothing of its own (rowPaint 0): the
+          // sticky line above IS its paint, wherever the window starts.
+          return <React.Fragment key={m.id}>{heading}</React.Fragment>
         }
         return (
           <React.Fragment key={m.id}>
