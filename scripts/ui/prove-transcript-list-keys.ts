@@ -42,11 +42,31 @@
 //      carried over (pinned at "Retrying in 0 seconds…" once the delay was
 //      no longer than the counter); under the law the replaced banner takes
 //      its own uuid key in a fresh array — a fresh mount, a fresh countdown.
+//   §7 THE LONG SCROLLED WINDOW (the class the short fixtures missed): a
+//      400-row transcript whose mounted window starts far from the head,
+//      driven through every sibling mutation a live session performs —
+//      the recap-before-receipt insertion, the recap REPLACING its
+//      predecessor, a hop (a new conversation id ⇒ a new key function), a
+//      compaction (the prefix collapses to one summary row and the tail
+//      shifts), a resize (no key moves — the heights re-scale by key), a
+//      tool group settling (its derived uuid anchors on its FIRST member,
+//      so a settle re-keys nothing) and a detach/re-attach (the same rows,
+//      new objects) — every window key exact, unique among siblings, and
+//      identical across a no-op reconcile;
+//   §8 THE KEYED-MAP PATH, LIVE: a windowed keyed list rendered through the
+//      real ink reconciler with its window start off the head, mutated in
+//      place (an insertion before the tail, a replacement, a settle
+//      re-key) — the painted frame carries each row exactly once (the
+//      zombie copy is a React keyed-reconciliation artefact, so the seal
+//      runs React itself, not a model of it).
 //
 //  Run: bun scripts/ui/prove-transcript-list-keys.ts
 // ============================================================================
+process.env.NODE_ENV = 'test'
+
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { Readable, Writable } from 'node:stream'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { reconcileItemKeys } = await import(join(ROOT, 'src/components/virtualListKeys.ts'))
@@ -188,6 +208,197 @@ section('§6 the banner-collapse face (FN-016 R3, verify-only): every retry atte
   const producer = readFileSync(join(ROOT, 'src/utils/messages/systemMessages.ts'), 'utf8')
   const creator = producer.slice(producer.indexOf('export function createSystemAPIErrorMessage'), producer.indexOf('compact-boundary predicates'))
   check('every attempt\'s banner carries a fresh uuid', creator.includes('uuid: randomUUID()'))
+}
+
+section('§7 the long scrolled window — 400 rows, every live mutation, keys exact and unique')
+{
+  const N = 400
+  const WINDOW: [number, number] = [150, 350]
+  const windowOf = (keys: readonly string[], rows: readonly Row[]): { exact: number[]; dupes: string[] } => ({
+    exact: rows.slice(WINDOW[0], WINDOW[1]).map((m, j) => (keys[WINDOW[0] + j] === keyOf(m) ? -1 : WINDOW[0] + j)).filter(i => i >= 0),
+    dupes: dupes(keys.slice(WINDOW[0], WINDOW[1])),
+  })
+  // A transcript the shape of a real one: turns of user · assistant ·
+  // tool group, a receipt closing every turn.
+  const long: Row[] = []
+  for (let t = 0; long.length < N - 1; t++) {
+    long.push(row('user', `u${t}`), row('assistant', `a${t}`), row('grouped_tool_use', `grouped-tu${t}`), row('turn_receipt', `u${t}-turn-receipt`))
+  }
+  const base = long.slice(0, N - 1)
+  const tailReceipt = row('turn_receipt', 'live-turn-receipt')
+  const live = [...base, tailReceipt]
+  let state = reconcileItemKeys(null, live, keyOf)
+  check('the long fixture derives exact keys at every index', exact(state.keys, live).length === 0 && state.keys.length === N)
+
+  // 1. the recap lands BEFORE the trailing receipt, deep in the window.
+  const recap1 = row('system', 'recap-a')
+  const withRecap = [...base, recap1, tailReceipt]
+  state = reconcileItemKeys(state, withRecap, keyOf)
+  let w = windowOf(state.keys, withRecap)
+  check('recap-before-receipt with the window off the head: exact, unique', exact(state.keys, withRecap).length === 0 && w.dupes.length === 0, JSON.stringify(w))
+
+  // 2. the next resume's recap REPLACES its predecessor (same index, new uuid).
+  const recap2 = row('system', 'recap-b')
+  const replaced = [...base, recap2, tailReceipt]
+  state = reconcileItemKeys(state, replaced, keyOf)
+  check('a recap replacing its predecessor re-keys that index alone', exact(state.keys, replaced).length === 0 && dupes(state.keys).length === 0 && state.keys[N - 1] === keyOf(recap2))
+
+  // 3. a hop: a new conversation id is a new key function — every key rebuilds.
+  const hopped = (m: Row): string => `${m.uuid}:hop`
+  const afterHop = reconcileItemKeys(state, replaced, hopped)
+  check('a hop rebuilds every key under the new conversation (exact, unique)', afterHop.keys.every((k, i) => k === hopped(replaced[i]!)) && dupes(afterHop.keys).length === 0 && afterHop.keyFn === hopped)
+  state = reconcileItemKeys(afterHop, replaced, keyOf)
+  check('hopping back restores the conversation keys exactly', exact(state.keys, replaced).length === 0)
+
+  // 4. a compaction: the prefix collapses to one summary row, the tail shifts left.
+  const summary = row('user', 'compact-summary')
+  const compacted = [summary, ...replaced.slice(300)]
+  state = reconcileItemKeys(state, compacted, keyOf)
+  check('a compaction (prefix → one summary, tail shifted) yields exact unique keys', exact(state.keys, compacted).length === 0 && dupes(state.keys).length === 0 && state.keys.length === compacted.length)
+  const grown = [...compacted, row('user', 'u-after'), row('assistant', 'a-after')]
+  const beforeGrow = state.keys
+  state = reconcileItemKeys(state, grown, keyOf)
+  check('appends after the compaction keep the array identity (the scroll hook rides it)', state.keys === beforeGrow && exact(state.keys, grown).length === 0)
+
+  // 5. a resize touches no key (heights re-scale by key in the scroll hook):
+  //    a no-op reconcile returns the same state object and the same array.
+  const same = reconcileItemKeys(state, grown, keyOf)
+  check('a no-op reconcile (a resize repaint) keeps the state and the array identity', same === state && same.keys === state.keys)
+
+  // 6. a tool group settling: the group row is a NEW object (its members
+  //    changed) under the SAME derived uuid — the key holds, no re-mount.
+  const groupIdx = grown.findIndex(m => m.type === 'grouped_tool_use')
+  const settled = grown.slice()
+  settled[groupIdx] = row('grouped_tool_use', grown[groupIdx]!.uuid)
+  const beforeSettle = state.keys[groupIdx]
+  state = reconcileItemKeys(state, settled, keyOf)
+  check('a settled tool group (new object, same derived uuid) keeps its key', state.keys[groupIdx] === beforeSettle && exact(state.keys, settled).length === 0)
+
+  // 7. a detach/re-attach hands the list the SAME rows as new objects: every
+  //    key re-derives to the same string — no drift, no duplicate.
+  const reattached = settled.map(m => row(m.type, m.uuid))
+  const beforeReattach = state.keys.slice()
+  state = reconcileItemKeys(state, reattached, keyOf)
+  check('a re-attach (same rows, new objects) re-derives every key to the same string', state.keys.every((k, i) => k === beforeReattach[i]) && dupes(state.keys).length === 0)
+  w = windowOf(state.keys, reattached)
+  check('the mounted window is exact and unique after every mutation', w.exact.length === 0 && w.dupes.length === 0, JSON.stringify(w))
+
+  // The derived identities the law leans on: a group's uuid anchors on its
+  // FIRST member (a settle changes members, never the anchor), a receipt's on
+  // the prompt it closes.
+  const grouping = readFileSync(join(ROOT, 'src/utils/groupToolUses.ts'), 'utf8')
+  const collapsing = readFileSync(join(ROOT, 'src/utils/collapseReadSearch.ts'), 'utf8')
+  const receipts = readFileSync(join(ROOT, 'src/utils/cockpit/turnReceipt.ts'), 'utf8')
+  check('a tool group’s uuid anchors on its first member', grouping.includes('uuid: `grouped-${first.uuid}`'))
+  check('a collapsed read/search group’s uuid anchors on its first member', collapsing.includes('uuid: `collapsed-${first.uuid}` as UUID'))
+  check('a turn receipt’s uuid anchors on the prompt it closes', receipts.includes("uuid: `${anchorUuid}-turn-receipt`"))
+}
+
+section('§8 the keyed-map path, live — a windowed keyed list through the real reconciler')
+{
+  const React = await import('react')
+  const { render, Box, Text } = await import('../../src/ink.js')
+  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const h = React.createElement as (...a: unknown[]) => React.ReactElement
+
+  let lastChunk = ''
+  const stdout = Object.assign(
+    new Writable({
+      write(chunk: Buffer, _enc, cb) {
+        lastChunk = chunk.toString()
+        cb()
+      },
+    }),
+    { columns: 80, rows: 60, isTTY: false },
+  ) as unknown as NodeJS.WriteStream
+  const stdin = Object.assign(new Readable({ read() {} }), {
+    isTTY: true,
+    setRawMode() {},
+    ref() {},
+    unref() {},
+  }) as unknown as NodeJS.ReadStream
+  const strip = (x: string): string => x.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
+  const count = (hay: string, needle: string): number => hay.split(needle).length - 1
+
+  // The list under test: 400 rows, the mounted window [150, 350), keys
+  // through the law. `setRows` is lifted so the proof mutates in place —
+  // the same render tree, the same fiber list, the keyed reconciliation
+  // React performs when a middle sibling changes.
+  const START = 150
+  const END = 350
+  const initialRows: Row[] = ((): Row[] => {
+    const out: Row[] = []
+    for (let t = 0; out.length < 399; t++) out.push(row('user', `u${t}`), row('assistant', `a${t}`), row('turn_receipt', `u${t}-turn-receipt`))
+    return [...out.slice(0, 399), row('turn_receipt', 'live-turn-receipt')]
+  })()
+  type KeyState = { keys: string[]; rows: readonly Row[]; keyFn: (row: Row, index: number) => string }
+  let setRowsOuter: ((rows: Row[]) => void) | null = null
+  function WindowedList(): React.ReactNode {
+    const [rows, setRows] = React.useState<Row[]>(initialRows)
+    setRowsOuter = setRows
+    const stateRef = React.useRef<KeyState | null>(null)
+    stateRef.current = reconcileItemKeys(stateRef.current, rows, keyOf) as KeyState
+    const keys = stateRef.current.keys
+    const items: React.ReactElement[] = []
+    for (let i = START; i < Math.min(END, rows.length); i++) {
+      items.push(h(Text as never, { key: keys[i] }, `row ${rows[i]!.uuid} [${rows[i]!.type}]`))
+    }
+    return h(Box as never, { flexDirection: 'column' }, ...items)
+  }
+  const instance = await render(h(AppStateProvider as never, {}, h(WindowedList as never, {})), {
+    stdout,
+    stdin,
+    exitOnCtrlC: false,
+    patchConsole: false,
+  })
+  const settle = (): Promise<void> => new Promise(r => setTimeout(r, 40))
+  await settle()
+  const frame0 = strip(lastChunk)
+  check('the windowed list paints its window (first and last window rows present, the head absent)', frame0.includes('row u50 ') && count(frame0, 'row live-turn-receipt') === 0 && !frame0.includes('row u0 '))
+
+  // 1. a middle insertion at index 200 — inside the mounted window, so
+  //    every fiber after it shifts one sibling across (the recap-before-
+  //    receipt shape, landed where the keyed map reconciles it).
+  const rows1 = initialRows
+  const inserted = [...rows1.slice(0, 200), row('system', 'recap-a'), ...rows1.slice(200)]
+  setRowsOuter!(inserted)
+  await settle()
+  const frame1 = strip(lastChunk)
+  check('a middle insertion paints the new row exactly once and shifts the rest (no stacked copy)', count(frame1, 'row recap-a ') === 1 && count(frame1, `row ${rows1[200]!.uuid} `) === 1 && count(frame1, `row ${rows1[199]!.uuid} `) === 1)
+  const windowRows = inserted.slice(START, END)
+  const doubled1 = windowRows.filter(r => count(frame1, `row ${r.uuid} [`) !== 1)
+  check('every window row paints exactly once after the insertion', doubled1.length === 0, doubled1.map(r => r.uuid).join(','))
+
+  // 2. the recap REPLACED by the next resume's recap (same index, new uuid).
+  const replaced = inserted.slice()
+  replaced[200] = row('system', 'recap-b')
+  setRowsOuter!(replaced)
+  await settle()
+  const frame2 = strip(lastChunk)
+  check('a replacement paints the new row once and the old row not at all', count(frame2, 'row recap-b ') === 1 && count(frame2, 'row recap-a ') === 0)
+
+  // 3. a tool-group settle re-key: a NEW object under the same uuid (the
+  //    derived-identity law) — painted once, never twice.
+  const settledRows = replaced.slice()
+  settledRows[210] = row(replaced[210]!.type, replaced[210]!.uuid)
+  setRowsOuter!(settledRows)
+  await settle()
+  const frame3 = strip(lastChunk)
+  const doubled3 = settledRows.slice(START, END).filter(r => count(frame3, `row ${r.uuid} [`) !== 1)
+  check('a settle (new object, same key) paints every window row exactly once', doubled3.length === 0, doubled3.map(r => r.uuid).join(','))
+
+  // 4. a compaction folds the prefix into one summary row and shifts the
+  //    tail 99 slots left under the window: nothing from the dropped prefix
+  //    survives, nothing paints twice.
+  const compacted = [row('user', 'compact-summary'), ...settledRows.slice(100)]
+  setRowsOuter!(compacted)
+  await settle()
+  const frame4 = strip(lastChunk)
+  const windowAfter = compacted.slice(START, END)
+  check('the compacted window is populated (no vacuous pass)', windowAfter.length > 100)
+  check('a compaction leaves no dropped-prefix row painted and no doubled tail row', !frame4.includes('row u20 ') && windowAfter.every(r => count(frame4, `row ${r.uuid} [`) === 1))
+
+  instance.unmount?.()
 }
 
 console.log(failures === 0 ? '\nprove-transcript-list-keys: ALL LAWS HOLD' : `\nprove-transcript-list-keys: ${failures} FAILURE(S)`)
