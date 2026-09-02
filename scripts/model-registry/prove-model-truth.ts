@@ -103,7 +103,6 @@ section('6. router class mirrors — every seat family classifies to a router cl
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
   const censusFiles = [
-    'src/tools/WorkflowTool/workflowRouting.ts',
     'src/daemon/crewSpawn.ts',
   ]
   for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
@@ -125,12 +124,12 @@ section('7. code-side model default census — literals resolve live, tiers trac
       dead.length ? `dead: ${dead.join(', ')}` : 'no literals matched — census regex aged',
     )
   }
-  const wf = /WORKFLOW_EXECUTOR_MODEL = '([^']+)'/.exec(
-    src('src/tools/WorkflowTool/workflowRouting.ts'),
-  )?.[1]
+  const routing = src('src/tools/WorkflowTool/workflowRouting.ts')
   check(
-    `WORKFLOW_EXECUTOR_MODEL (${wf}) = the current Opus (the executor tier)`,
-    wf === getDefaultOpusModel(),
+    'the workflow executor route is the neutral seat default (no pinned first-party id)',
+    routing.includes('export function workflowExecutorModel(): string | undefined') &&
+      routing.includes('neutralSeatDefault()?.setting') &&
+      !/WORKFLOW_EXECUTOR_MODEL = '/.test(routing),
   )
   const crewOpus = /opus:\s*\{\s*model:\s*'([^']+)'/.exec(src('src/daemon/crewSpawn.ts'))?.[1]
   check(
