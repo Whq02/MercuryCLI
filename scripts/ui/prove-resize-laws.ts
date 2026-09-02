@@ -370,5 +370,24 @@ console.log('§14 CB-05 — the state-word column is reserved; title columns are
   check('the old inserting paint is gone', !layoutSrc.includes('<Text color={t[sg.color]}> {STATE_WORD[r.state] ?? r.state}</Text>'))
 }
 
+// ── §16: a storm holds ONCE
+//  The classic (engine-off) WINCH path painted the holding clip on EVERY
+//  event inside the settle window: a drag delivers dozens, each re-emitted
+//  the whole clipped screen, and a slow terminal fell behind the storm the
+//  settle exists to absorb. The engine's gate always held once on entry;
+//  the classic path now keeps the same discipline — later events only
+//  re-arm the timer.
+console.log('§16 — a resize storm paints its hold once, on entry')
+{
+  const ink = read('src/ink/ink.tsx')
+  const entry = ink.indexOf('if (this.resizeSettleTimer === null) {')
+  const elseAt = ink.indexOf('} else {', entry)
+  const rearm = ink.indexOf('this.resizeSettleTimer = setTimeout(this.applySettledResize, RESIZE_SETTLE_MS)', entry)
+  const hold = ink.indexOf('this.paintResizeHold(columns, rows)', entry)
+  check('the holding paint sits inside the storm-entry branch', entry >= 0 && hold > entry && hold < elseAt)
+  check('a later event only re-arms the timer (no hold after the re-arm)', rearm > elseAt && ink.indexOf('this.paintResizeHold(columns, rows)', rearm) === -1)
+  check('the engine path keeps its one hold on storm entry', ink.includes('onStormEntered: () => {') && ink.includes('this.paintResizeHold(columns, rows)\n      },'))
+}
+
 console.log(failures === 0 ? '\nresize-laws: GREEN' : `\nresize-laws: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)
