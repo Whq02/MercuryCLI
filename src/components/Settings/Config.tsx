@@ -736,8 +736,11 @@ export function Config({
       label: row.label,
       searchText: `${row.label} provider signed in`,
       kind: 'info',
+      // The value cell truncates beside its fixed label column: at the
+      // minimum width the moonshot/deepseek/local lines used to wrap the
+      // env-var tail onto a second row under an empty label.
       value: (
-        <Text color={row.credentialed ? tokens.success : tokens.textSecondary}>
+        <Text color={row.credentialed ? tokens.success : tokens.textSecondary} wrap="truncate-end">
           {row.valueText}
         </Text>
       ),
