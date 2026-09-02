@@ -7,7 +7,7 @@ import { isKeybindingCustomizationEnabled } from '../../keybindings/loadUserBind
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
-import { useAppState, type AppState } from '../../state/AppState.js'
+import { getNotificationRows, subscribeNotificationRows } from './notificationRowsMirror.js'
 import { isDeckPaneActive } from '../../utils/fullscreen.js'
 import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js'
 import { stripKeyMapHint } from '../../context/surfaceRoute.js'
@@ -189,15 +189,15 @@ export function PromptInputHelpMenu(props: Props): React.ReactNode {
   // shed eight entries with no trace. Cap every column to the rows the
   // terminal can afford and SAY what was cut; /help carries the full list.
   const chrome = computeChromeMode(columns, termRows)
-  // The notification column sits between the composer and this grid, and a
-  // notice can be several rows tall (a refusal with its cause, its ask and
-  // its remedy). The chrome allowance already holds a couple of notice
-  // rows; a taller notice takes its extra rows out of the grid's budget —
-  // with a fixed allowance a four-row notice pushed the remainder row
-  // itself below the screen, the silent clip this cap exists to prevent.
-  const notice = useAppState((state: AppState) => state.notifications.current)
-  const noticeRows = notice === null ? 0 : 'text' in notice ? notice.text.split('\n').length : 1
-  const NOTICE_ROWS_IN_ALLOWANCE = 2
+  // The notice column sits between the composer and this grid and paints a
+  // variable number of rows (the sign-in state, a steering split at its
+  // seams, the transient). The chrome allowance was calibrated with ONE such
+  // row; the column publishes its measured height after every paint, and
+  // every row beyond that one comes out of the grid's budget — with a fixed
+  // allowance the extra rows pushed the remainder row itself below the
+  // screen, the silent clip this cap exists to prevent.
+  const noticeRows = React.useSyncExternalStore(subscribeNotificationRows, getNotificationRows, getNotificationRows)
+  const NOTICE_ROWS_IN_ALLOWANCE = 1
   const availableRows = Math.max(
     3,
     termRows - (chrome === 'deck-strip' ? 14 : 6) - Math.max(0, noticeRows - NOTICE_ROWS_IN_ALLOWANCE),

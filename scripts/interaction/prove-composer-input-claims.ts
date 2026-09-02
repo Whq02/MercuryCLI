@@ -181,6 +181,22 @@ console.log('\n── §2 wiring pinned in source ──────────
     suggestions.includes('tokens.selectionBand') &&
       !suggestions.includes("selected ? 'selectionBand'"),
   )
+  // The `?` grid budgets its rows beneath the notice column, whose height
+  // varies (the sign-in row, a steering split at its seams, a JSX refusal
+  // of several rows). The column measures itself after every paint and
+  // publishes the height; the grid reads that one fact — a fixed allowance
+  // pushed the grid's own remainder row below the screen (journey C).
+  const notices = read('src/components/PromptInput/Notifications.tsx')
+  const helpMenu = read('src/components/PromptInput/PromptInputHelpMenu.tsx')
+  check(
+    'the notice column publishes its measured height after every paint',
+    notices.includes('publishNotificationRows(measureElement(element).height)') && notices.includes('ref={columnRef}'),
+  )
+  check(
+    'the help grid budgets against the published notice rows, not a guess',
+    helpMenu.includes('useSyncExternalStore(subscribeNotificationRows, getNotificationRows, getNotificationRows)') &&
+      /termRows - \(chrome === 'deck-strip' \? 14 : 6\) - Math\.max\(0, noticeRows - NOTICE_ROWS_IN_ALLOWANCE\)/.test(helpMenu),
+  )
 }
 
 console.log('\n── §3 PTY journeys ──────────────────────────────────────────')
@@ -289,11 +305,18 @@ function capture(
   // shows the full single-column list with no remainder.
   const c = capture('help-narrow', 'help', 60, 24, [{ atTick: 30, data: '?' }], 46)
   if (c) {
-    check(
-      'the clipped narrow help overlay says what it cut',
-      c.some(l => l.includes('more · /help lists every shortcut')),
-      c.slice(-8).join(' | '),
-    )
+    const saysWhatItCut = c.some(l => l.includes('more · /help lists every shortcut'))
+    check('the clipped narrow help overlay says what it cut', saysWhatItCut, c.slice(-8).join(' | '))
+    if (!saysWhatItCut) {
+      // The whole frame, row-numbered: a remainder row that fell below the
+      // screen leaves no trace in the last rows alone.
+      console.log('      ┌ the 60×24 frame — no remainder row')
+      c.forEach((line, index) => {
+        const row = line.trimEnd()
+        if (row !== '') console.log(`      │ ${String(index).padStart(2, ' ')} ${row}`)
+      })
+      console.log('      └')
+    }
   }
   const d = capture('help-tall', 'help', 60, 38, [{ atTick: 30, data: '?' }], 46)
   if (d) {
