@@ -63,9 +63,8 @@ if (driver.kind !== 'posix-pty') {
     { afterPrevTicks: 4, mark: 'scrolled', data: '' },
     { afterPrevTicks: 2, data: CTRL_HOME },
     { afterPrevTicks: 4, mark: 'home', data: PAGE_DOWN },
-    { afterPrevTicks: 2, data: PAGE_DOWN },
-    { afterPrevTicks: 2, data: PAGE_DOWN },
-    { afterPrevTicks: 4, mark: 'paged', data: '' },
+    ...Array.from({ length: 23 }, () => ({ afterPrevTicks: 1, data: PAGE_DOWN })),
+    { afterPrevTicks: 5, mark: 'paged', data: '' },
     { afterPrevTicks: 2, data: SHIFT_UP },
     { requireAwait: true, awaitText: 'navigate', awaitSettleTicks: 1, mark: 'cursor', data: UP },
     { afterPrevTicks: 2, data: UP },
@@ -118,7 +117,8 @@ if (driver.kind !== 'posix-pty') {
   const paneRows = (label: string): number => (marks.get(label) ?? '').split('\n').slice(2, 36).filter(r => r.trim() !== '').length
   check('the scrolled viewport is painted, not the spacer (the window followed the scroll)', paneRows('scrolled') >= 12, `${paneRows('scrolled')} painted rows`)
   check('ctrl+home reached the head (the first prompt on screen)', (marks.get('home') ?? '').includes('load the compass baseline fixture'))
-  check('three page-downs from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows`)
+  check('the pages down from the head paint content, not the spacer', paneRows('paged') >= 12, `${paneRows('paged')} painted rows`)
+  check('the pages down left the head behind (the first prompt is off screen)', marks.has('paged') && !(marks.get('paged') ?? '').includes('load the compass baseline fixture'))
   check('cursor mode opened (the action bar names the walk)', (marks.get('cursor') ?? '').includes('navigate') && (marks.get('cursor') ?? '').includes('esc'))
   check('the resize landed (the final grid is 100 columns wide)', Array.isArray(payload.grid) && payload.grid[0]?.length === 100, `${payload.grid?.[0]?.length}`)
   const frames: Array<[string, string]> = [...marks.entries(), ['final', final]]
