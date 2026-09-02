@@ -26,6 +26,7 @@ export function AlternateScreen({
 
   const mouseTrackingRef = useRef(mouseTracking);
   mouseTrackingRef.current = mouseTracking;
+  const outermostRef = useRef<boolean | null>(null);
 
   useInsertionEffect(() => {
     const ink = inkFromContext;
@@ -36,6 +37,7 @@ export function AlternateScreen({
     const effectiveMouse = mouseTrackingRef.current && (ink?.isMouseTrackingPreferred?.() ?? true);
 
     const outermost = depth.n === 0
+    outermostRef.current = outermost
     depth.n++
     if (outermost) {
       const launcherHolds = consumeLauncherAltHold();
@@ -74,7 +76,9 @@ export function AlternateScreen({
     };
   }, [writeRaw, inkFromContext]);
 
-  const nested = (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
+  const nested = outermostRef.current !== null
+    ? !outermostRef.current
+    : (altScreenDepths.get(inkFromContext ?? NO_INSTANCE_KEY)?.n ?? 0) > 0;
   const rows = size?.rows ?? 24;
 
   const [surfaceUp, setSurfaceUp] = useState(false);
