@@ -8,6 +8,7 @@ import {
   getMacOsKeychainStorageServiceName,
   getRawSpellingKeychainStorageServiceName,
   getUsername,
+  keychainReachable,
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 
@@ -36,7 +37,7 @@ function lookup(serviceName: string): Promise<PrefetchLookupResult> {
 }
 
 export function startKeychainPrefetch(): void {
-  if (process.platform !== 'darwin') return
+  if (!keychainReachable()) return
   if (prefetchInFlight !== null) return
   if (isBareMode()) return
   prefetchInFlight = (async () => {

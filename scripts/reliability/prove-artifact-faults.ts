@@ -65,7 +65,12 @@ function runDoctor(deep: boolean): { status: number | null; cert: unknown } {
   const res = spawnSync(
     'node',
     nodeArgs(['doctor', '--json', ...(deep ? ['--deep'] : [])]),
-    { cwd: project, env: childEnv(), encoding: 'utf8', timeout: deep ? 180_000 : 60_000 },
+    {
+      cwd: project,
+      env: childEnv({ ANTHROPIC_API_KEY: 'fixture-anthropic-key' }),
+      encoding: 'utf8',
+      timeout: deep ? 180_000 : 60_000,
+    },
   )
   let cert: unknown = null
   try {
@@ -167,7 +172,7 @@ const terminal = (s: string | null) => s === 'aborted' || s === 'committed'
 console.log('— A. doctor --json --deep on the artifact —')
 {
   const { status, cert } = runDoctor(true)
-  ok(status === 0 && cert !== null, `deep doctor emitted a certificate (exit ${status})`)
+  ok(status === 0 && cert !== null, `deep doctor emitted a certificate with a credential present (exit ${status})`)
   const durability = checksOf(cert, 'durability')
   const txn = durability.find(c => c.id === 'durable-transaction')
   ok(txn?.status === 'ok', `durable-transaction probe ok in the bundle (${txn?.evidence?.slice(0, 80) ?? 'MISSING'})`)

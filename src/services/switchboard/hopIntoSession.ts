@@ -3,6 +3,7 @@ import { basename, dirname } from 'node:path'
 import type { AwayRecapMetadata } from '../../types/message.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
 import { bootBirthFacts, carriedKitOf, peekWornPresetKit, takeWornPresetKit } from './bootBirthFacts.js'
+import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
 export function liveTitleDeriverFor(
   supervisor: {
@@ -161,6 +162,7 @@ async function focusResumedSessionLanding(
         { timeoutMs: 30_000 },
       )) as Record<string, unknown>
       if (reply.ok !== true) return typeof reply.error === 'string' && reply.error !== '' ? reply.error : 'the daemon refused the resume'
+      if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')
       if (worn !== null && reply.liveHop !== true) takeWornPresetKit()
       const settled = Object.values(supervisor.readSessionWorkers()).find(r => r.sessionId === sessionId && r.endedAt === undefined)
       if (settled === undefined) return 'no live session record owns this id'

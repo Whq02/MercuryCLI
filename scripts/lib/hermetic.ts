@@ -9,3 +9,4 @@ for (const name of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) {
 
 export const proofHome: string = mkdtempSync(join(tmpdir(), 'proof-home-'))
 process.env.MERCURY_CONFIG_DIR = proofHome
+process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
