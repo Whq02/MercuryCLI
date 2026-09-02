@@ -1,7 +1,8 @@
 import { generateRequestId } from '../agentId.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 
-export const BUS_PROTOCOL_TYPE = 'scribe_protocol' as const
+export const BUS_PROTOCOL_TYPE = 'bus_protocol' as const
+export const LEGACY_BUS_PROTOCOL_TYPE = 'scribe_protocol' as const
 
 export type BusEnvelopeKind = 'dispatch' | 'escalate' | 'progress' | 'control' | 'note'
 
@@ -14,14 +15,14 @@ export const BUS_ENVELOPE_KINDS: readonly BusEnvelopeKind[] = [
 ]
 
 export function busEnvelopesEnabled(): boolean {
-  return flagEnabled('MERCURY_SCRIBE_BUS')
+  return flagEnabled('MERCURY_DAEMON_BUS')
 }
 
 export const OPERATOR_BROADCAST_LABEL = '[operator broadcast]'
 export const OPERATOR_NOTE_LABEL = '[operator note]'
 
 interface BusEnvelopeBase {
-  type: typeof BUS_PROTOCOL_TYPE
+  type: typeof BUS_PROTOCOL_TYPE | typeof LEGACY_BUS_PROTOCOL_TYPE
   kind: BusEnvelopeKind
   request_id: string
   from: string
@@ -216,7 +217,7 @@ export function parseBusEnvelope(messageText: string): BusEnvelope | null {
     if (
       parsed &&
       typeof parsed === 'object' &&
-      parsed.type === BUS_PROTOCOL_TYPE &&
+      (parsed.type === BUS_PROTOCOL_TYPE || parsed.type === LEGACY_BUS_PROTOCOL_TYPE) &&
       typeof parsed.kind === 'string' &&
       BUS_ENVELOPE_KINDS.includes(parsed.kind as BusEnvelopeKind) &&
       typeof parsed.request_id === 'string' &&

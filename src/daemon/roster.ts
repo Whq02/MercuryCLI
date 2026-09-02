@@ -311,7 +311,7 @@ export class TaskRoster {
   }
 
   private idleWindowMs(): number {
-    const n = Number(flagEnv('MERCURY_IMPLEMENTER_IDLE_MS'))
+    const n = Number(flagEnv('MERCURY_WORKER_IDLE_MS'))
     return Number.isFinite(n) && n > 0 ? n : 15_000
   }
 
@@ -322,7 +322,7 @@ export class TaskRoster {
       now: Date.now(),
       lastDeliveredAt: ll.lastDeliveredAt,
       idleMs: this.idleWindowMs(),
-      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_IMPLEMENTER_MAX_TURN_MS')),
+      maxTurnMs: getMaxTurnMs(flagEnv('MERCURY_WORKER_MAX_TURN_MS')),
     }).busy
   }
 

@@ -27,7 +27,7 @@ export function isValidReconAllowRule(rule: string): boolean {
 }
 
 export function resolveWorkerReconAllow(): readonly string[] {
-  const raw = (flagEnv('MERCURY_PARTY_RECON_ALLOW') ?? '').trim()
+  const raw = (flagEnv('MERCURY_WORKER_RECON_ALLOW') ?? '').trim()
   if (!raw) return SEAT_RECON_ALLOW
   if (raw === '0') return []
   const extras: string[] = []
@@ -36,7 +36,7 @@ export function resolveWorkerReconAllow(): readonly string[] {
       extras.push(part)
     } else {
       logForDebugging(
-        `[daemon] MERCURY_PARTY_RECON_ALLOW entry ${JSON.stringify(part)} is not a Tool(specifier) rule — dropped (bare tool names and wildcard specifiers are refused)`,
+        `[daemon] MERCURY_WORKER_RECON_ALLOW entry ${JSON.stringify(part)} is not a Tool(specifier) rule — dropped (bare tool names and wildcard specifiers are refused)`,
       )
     }
   }
