@@ -67,7 +67,7 @@ export function deriveSupervisorRows(status: MercuryDaemonStatus | null): Superv
       leases: null,
       fireLine: null,
       recentLine: null,
-      empty: 'run `mercury daemon` to start the supervisor + Implementer',
+      empty: 'run `mercury daemon` to start the supervisor',
       version: null,
     }
   }

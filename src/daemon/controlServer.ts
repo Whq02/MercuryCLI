@@ -492,7 +492,7 @@ async function routeControlRequest(
     case 'envelope': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const rawTo = String(raw.to ?? '')
-      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'scribe'
+      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'default'
       const resolvedTo = canonicalizeBusTarget(team, rawTo)
       if (rawTo && !resolvedTo.known && isManagedBusTeam(team)) {
         return answer(sock, {
@@ -548,7 +548,7 @@ async function routeControlRequest(
           ok: false,
           code: 'ENOJOB',
           error:
-            'not a long-lived worker — reconfigure only retargets the Scribe/Implementer',
+            'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
       const r = deps.roster.reconfigureLongLived(short, { model, effort })
@@ -556,7 +556,7 @@ async function routeControlRequest(
         return answer(sock, {
           ok: false,
           code: 'ENOJOB',
-          error: r.error ?? 'not a long-lived worker — reconfigure only retargets the Scribe/Implementer',
+          error: r.error ?? 'not a long-lived worker — reconfigure only retargets a supervised seat',
         })
       }
       return answer(sock, { ok: true, op: 'reconfigure', respawned: r.respawned, pending: r.pending, note: r.note })
