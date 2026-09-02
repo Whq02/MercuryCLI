@@ -65,6 +65,14 @@ mkdir -p "$MERCURY_HOME"
 # makes every proof-context open a no-op. Never overrides an explicit choice.
 export BROWSER="${BROWSER:-/usr/bin/true}"
 
+# NO-KEYCHAIN PIN: a proof never touches the operator's OS keychain — reads
+# or writes. MERCURY_CREDENTIAL_STORE=file is the one rule every keychain
+# spawn honours (the store factory, the boot prefetch, the backend, the
+# legacy API-key roads, the lock probe), so every suite's every child runs
+# on the file-backed store under its scratch home. An inherited pin is
+# honoured (a suite proving the keychain backend itself pins its own value).
+export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
+
 # Freeze-then-reap: STOP a node BEFORE enumerating its children — a suite that
 # is actively forking can otherwise spawn into the pgrep→kill window and escape
 # the reap (enumerate-then-kill TOCTOU). Every node is enumerated only after it

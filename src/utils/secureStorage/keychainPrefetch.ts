@@ -8,6 +8,7 @@ import {
   getMacOsKeychainStorageServiceName,
   getRawSpellingKeychainStorageServiceName,
   getUsername,
+  keychainReachable,
   primeKeychainCacheFromPrefetch,
 } from './macOsKeychainHelpers.js'
 
@@ -53,7 +54,10 @@ function lookup(serviceName: string): Promise<PrefetchLookupResult> {
  * TTL-expired miss.
  */
 export function startKeychainPrefetch(): void {
-  if (process.platform !== 'darwin') return
+  // The one rule: off darwin, or with the credential store pinned to the
+  // file backend, the boot never reaches the keychain tool — a scratch-home
+  // proof booting the artifact must not read the machine's keychain.
+  if (!keychainReachable()) return
   if (prefetchInFlight !== null) return
   if (isBareMode()) return
   prefetchInFlight = (async () => {
