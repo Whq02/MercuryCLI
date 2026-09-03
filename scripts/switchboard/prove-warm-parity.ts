@@ -180,11 +180,15 @@ try {
   // ── the facts diff (the daemon-published projection of each session) ──
   const factsOf = (sid: string): string => join(daemonDir, 'session-facts', `${sid}.json`)
   check('both facts projections published', await untilAsync(() => existsSync(factsOf(claimed.sessionId)) && existsSync(factsOf(cold.sessionId)), 20_000))
-  // Both sessions idle: busy flips settle within the facts cadence.
+  // Both sessions idle AND their usage published: the busy flip lands first
+  // and the token totals fold into the facts a beat later (the re-fold +
+  // re-publish cadence) — a compare at the busy flip read 25 vs 0 input
+  // tokens on the 2-core runner (gate run 12). Each session ran one real
+  // fixture turn, so both totals are positive once published.
   await untilAsync(() => {
-    const a = JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8')) as { busy?: boolean }
-    const b = JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')) as { busy?: boolean }
-    return a.busy === false && b.busy === false
+    const a = JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }
+    const b = JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }
+    return a.busy === false && b.busy === false && (a.totalInputTokens ?? 0) > 0 && (b.totalInputTokens ?? 0) > 0
   }, 20_000)
   const fClaimed = normalize(JSON.stringify(JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8')), null, 1))
   const fCold = normalize(JSON.stringify(JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')), null, 1))
