@@ -2713,14 +2713,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           // disagree about what this host is.
           run: () => {
             const { resolveTerminalProfile } = require('../ink/session/terminalProfile.js') as typeof import('../ink/session/terminalProfile.js')
+            // The hand-back fact rides this row: which road a killed editor
+            // or panel shell leaves this host on (the native reclaim, or
+            // the clean stop + fg) — read from the one hand-back owner.
+            const { describeTerminalHandback } = require('./terminalHandback.js') as typeof import('./terminalHandback.js')
+            const handback = describeTerminalHandback()
             const p = resolveTerminalProfile()
             const cols = process.stdout.columns ?? 0
             const rows = process.stdout.rows ?? 0
             const color = process.env.NO_COLOR ? 'no-color' : (flagEnv('MERCURY_TRUECOLOR') ?? '1') !== '0' ? 'truecolor' : 'reduced'
             const missing = p.checks.filter(c => !c.ok)
-            const detail = p.checks
-              .map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`)
-              .join('\n')
+            const detail = [
+              ...p.checks.map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`),
+              handback.line,
+            ].join('\n')
             // A PIPED run (`doctor --json > report.json`) is not this host's
             // interactive terminal: the profile's TTY-keyed requirements
             // describe an environment the certificate is not running in, and
@@ -2737,7 +2743,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: p.verdict === 'unsupported' ? 'fail' : p.verdict === 'capable' ? 'info' : 'ok',
-              evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''}`,
+              evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''} · hand-back: ${handback.native ? 'native' : 'stop + fg'}`,
               detail,
               ...(p.verdict === 'unsupported'
                 ? { fix: missing.find(c => c.requirement === 'required')?.remediation }
