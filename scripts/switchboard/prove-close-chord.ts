@@ -27,6 +27,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -112,7 +114,15 @@ if (POISON_DIST === undefined) {
   check('the board claims the slot at mount and releases by unmount cleanup', screen.includes('useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])'))
   check('the hint reads the MIRROR, never a provider of its own (the covered-provider truth)', screen.includes('useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)'))
   check('the routine dispatches the queued withdraw FIRST (one completed gesture, the landed removeSession door)', /startsWith\('dispatch:'\)\)\s*\{\s*\/\/[^]*?one completed chord withdraws[^]*?callbacks\.removeSession\?\.\(sel\.sessionId\)/.test(screen))
-  check('the stage matrix is two-sourced: the fresh window OR the settled stopped class advances to remove', screen.includes("if (staged || sel.state === 'stopped') {"))
+  // The stage matrix under the stop law: only a row that READS stopped (the
+  // runner's acknowledgement, never the kill's dispatch) advances to remove;
+  // a standing receipt over a row still going down re-sends the stop and
+  // says where it stands. The fresh window alone never removes.
+  const stoppedArm = screen.indexOf("if (sel.state === 'stopped') {")
+  const stagedArm = screen.indexOf('if (staged) {', stoppedArm)
+  const stopStage = screen.indexOf('lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }', stagedArm)
+  const stagedBlock = stagedArm !== -1 && stopStage !== -1 ? screen.slice(stagedArm, stopStage) : ''
+  check('the stage matrix reads the row: the settled stopped class advances to remove; the fresh window over a row still going down re-sends the stop and never removes', stoppedArm !== -1 && stagedArm !== -1 && screen.slice(stoppedArm, stagedArm).includes('callbacks.removeSession?.(sel.sessionId)') && stagedBlock.includes('callbacks.stopSession?.(sel.sessionId)') && !stagedBlock.includes('removeSession'))
   const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.js')
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
   check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
@@ -194,11 +204,12 @@ const sends = [
   after(25000, CTRL_X), // 23 arm — the hint now speaks the REMOVE stage
   after(25900, CTRL_X), // 24 complete — THE REMOVE STAGE (exactly this row leaves)
 ]
+const WALL_S = driveWallSeconds(sends, { tailMs: 2500 }) // the last grab is at(24) + 2500
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
   '/usr/bin/python3',
-  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '31', '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
+  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
     env: {
@@ -210,6 +221,7 @@ const child = spawn(
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'xterm-256color',
+      MERCURY_SPLASH: 'off',
       MERCURY_CONFIG_DIR: configDir,
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
@@ -227,8 +239,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 31_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 await api.close()
 // exact-pid reap: runners from the records file, then the owned daemon.
@@ -252,19 +264,31 @@ const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
-check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-300)}` : ''}`)
+check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
   // The capture offsets ride the RUNTIME send indices (the focus tab at
   // index 9 shifted every later send by one): x=10, arm=19, disarm=20,
   // stop-complete=22, remove-arm=23, remove-complete=24.
-  const times = [at(10) + 1800, at(19) + 500, at(20) + 600, at(22) + 3000, at(23) + 400, at(24) + 2500]
+  // The grabs are picked BY TIME (screengrab returns them sorted): the stop
+  // receipt is a 4 s beat in the product's own clock, so its three grabs
+  // are plain real-time offsets after the completed chord, never stretched.
+  const stopAt = at(22)
+  const receiptAt = [1000, 2000, 3000].map(o => stopAt + o)
+  const times = [at(10) + 1800, at(19) + 500, at(20) + 600, ...receiptAt, at(23) + 400, at(24) + 2500]
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
     process.exit(1)
   }
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
-  const [xFrame, armFrame, disarmFrame, stopFrame, removeArmFrame, goneFrame] = screens
+  const frameAt = (ms: number): { atMs: number; rows: string[] } => screens.find(g => g.atMs === ms) ?? { atMs: ms, rows: [] }
+  const xFrame = frameAt(at(10) + 1800)
+  const armFrame = frameAt(at(19) + 500)
+  const disarmFrame = frameAt(at(20) + 600)
+  const receiptFrames = receiptAt.map(frameAt)
+  const stopFrame = frameAt(stopAt + 3000)
+  const removeArmFrame = frameAt(at(23) + 400)
+  const goneFrame = frameAt(at(24) + 2500)
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
   // The painted chord is host-spelled (off macOS "ctrl+x"): every frame
   // needle reads through the ONE platform-aware owner.
@@ -274,10 +298,20 @@ if (sendRecs.length === sends.length) {
     check('…and stopped NOTHING (the stream runs on, no stop receipt)', !/STOPPED|stopped —/i.test(t(xFrame)))
     check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armFrame).includes(keyHintLabel('⌃x again stops — esc keeps it')), t(armFrame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)')
     check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(disarmFrame).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(disarmFrame)) && disarmFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)), disarmFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
-    check('STOP STAGE: the completed chord stopped the highlighted row — it STAYS, wearing stopped', /STOPPED/i.test(t(stopFrame)) && /stream slowly/.test(t(stopFrame)))
-    check("…and the standing line advertises the next step in the new key's spelling", t(stopFrame).includes(keyHintLabel('⌃x ⌃x removes it')))
+    const stopWords = (g: { rows: string[] }): string => g.rows.filter(r => /stopp|⌃x|ctrl\+x|stream slowly/i.test(r)).map(r => r.trim().slice(0, 150)).join(' | ')
+    // The row's OWN state word beside its title (never the note's prose, which
+    // says "stopped" while the row still runs): the record read stopped on
+    // the runner's acknowledgement.
+    check('STOP STAGE: the completed chord stopped the highlighted row — it STAYS, wearing stopped', /\bstopped\s+stream slowly/.test(t(stopFrame)), stopWords(stopFrame))
+    // The stop law: the receipt speaks the verb's detail — "stop sent — <runner>
+    // ends its turn…" while the kill is on its way, "stopped — ⌃x ⌃x removes it
+    // from the board" once the daemon answers with the stamp — inside its own
+    // 4 s beat; the removal step itself is the list legend's and the armed
+    // chord's, not a standing composer line.
+    const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x removes it'))
+    check("…and the composer's receipt spoke the stop verb's detail inside its beat", receiptFrames.some(receiptWords), receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | '))
     check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))
-    check('REMOVE ARM: the hint now speaks the remove stage', t(removeArmFrame).includes(keyHintLabel('⌃x again removes it from the board')))
+    check('REMOVE ARM: the hint now speaks the remove stage', t(removeArmFrame).includes(keyHintLabel('⌃x again removes it from the board')), stopWords(removeArmFrame))
     check('REMOVE: exactly the highlighted session left the board', !/stream slowly/.test(t(goneFrame)))
     check('…the NEIGHBOR survives untouched (its row still stands)', /●\s+new session/.test(t(goneFrame)) && !/no sessions running/.test(t(goneFrame)))
     check('…and the draft survives the whole ladder un-mangled', goneFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))

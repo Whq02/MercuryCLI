@@ -24,7 +24,7 @@ process.env.MERCURY_DOCTOR_STATE_DIR = virginRoot
 const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)
 enableConfigs()
-const { runAndRecordPreflight } = await import(`${repo}/src/utils/healthPreflight.js`)
+const { runAndRecordPreflight, _resetBootPreflightForTesting } = await import(`${repo}/src/utils/healthPreflight.js`)
 
 let failures = 0
 const check = (cond: boolean, msg: string, detail = ''): void => {
@@ -49,10 +49,18 @@ check(
 )
 check(readdirSync(virginRoot).length === 0, 'the virgin state root is byte-untouched')
 
-console.log('established estate — the artifact persists as before')
+console.log('once per boot — a second ask in the same boot is the same preflight, and writes nothing')
 mkdirSync(join(virginRoot, '.mercury'))
+const summaryAgain = await runAndRecordPreflight()
+check(summaryAgain === summary1, 'the boot runs ONE preflight (the second ask answers the same summary)')
+check(
+  !existsSync(join(virginRoot, '.mercury', 'doctor', 'last-preflight.json')),
+  'the estate born after the preflight gets no late artifact from it',
+)
+console.log('established estate — the next boot persists the artifact as before')
+_resetBootPreflightForTesting()
 const summary2 = await runAndRecordPreflight()
-check(typeof summary2.verdict === 'string', 'second run returns a summary')
+check(typeof summary2.verdict === 'string', 'the next boot returns a summary')
 check(
   existsSync(join(virginRoot, '.mercury', 'doctor', 'last-preflight.json')),
   'last-preflight.json lands inside the established estate',

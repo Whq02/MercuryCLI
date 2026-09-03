@@ -588,10 +588,16 @@ if (j8) {
 // ---- source contracts: the switch-restore seam --------------------------------
 console.log('\n── source contracts ─────────────────────────────────────────')
 {
-  const repl = readFileSync(join(REPO, 'src/screens/REPL.tsx'), 'utf8')
-  // (S3: the draft engine is behind the pending-input owner's verbs.)
-  check('the switch tail RESTORES the target draft (never blind-clears)', repl.includes('const targetDraft = pendingInput.readDraftFor(sessionId);'))
-  check('pending source-owned saves flush during STAGE', repl.includes('await pendingInput.flushDrafts();'))
+  // The switch-restore seam lives behind the pending-input owner now: the
+  // slot swap (rekeyToSession) flushes the SOURCE session's keystrokes
+  // first, then reads the TARGET's saved page — never a blind clear.
+  const pending = readFileSync(join(REPO, 'src/input-core/pending-input.ts'), 'utf8')
+  const rekeyAt = pending.indexOf('export async function rekeyToSession(')
+  const rekey = rekeyAt === -1 ? '' : pending.slice(rekeyAt, pending.indexOf('\n}\n', rekeyAt))
+  const flushAt = rekey.indexOf('await flushDraftSaves()')
+  const rekeyOwnerAt = rekey.indexOf('owningSessionId = sessionId')
+  check('the switch tail RESTORES the target draft (never blind-clears)', rekeyOwnerAt !== -1 && rekey.includes('const saved = readDraftSync(sessionId)') && !rekey.includes("draft = { text: ''"))
+  check('pending source-owned saves flush during STAGE', flushAt !== -1 && rekeyOwnerAt !== -1 && flushAt < rekeyOwnerAt)
 }
 
 // ---- cleanup -------------------------------------------------------------------

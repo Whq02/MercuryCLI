@@ -15,6 +15,7 @@
 //  yields to the boot menu. A chat starts to exist only when entered.
 //  There is no other kind of chat.
 // ============================================================================
+import { getSessionId } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { noSessionConnector } from './noSessionConnector.js'
 import type { EngineConnectorV1 } from './types.js'
@@ -52,6 +53,18 @@ function emit(): void {
  *  one holds the slot, the resting no-session connector otherwise. */
 export function getFocusedSessionConnector(): EngineConnectorV1 {
   return focused ?? noSessionConnector()
+}
+
+/** THE CONVERSATION THE OPERATOR IS IN — one reader, one spelling: the
+ *  focused chat's own id while a session holds the slot (a hosted chat's id
+ *  is the runner's and the transcript's, never this process's), the
+ *  bootstrap identity otherwise (the plain world's one session; no chat
+ *  open yet). Per-session durable state written FROM the cockpit — the
+ *  mission card — keys by it, so a later boot that adopts the transcript
+ *  reads it under the same id. */
+export function conversationIdHere(): string {
+  const focused = getFocusedSessionConnector().sessionId()
+  return focused !== '' ? focused : String(getSessionId())
 }
 
 /** Does a session hold the slot? False while no chat is open (a fresh

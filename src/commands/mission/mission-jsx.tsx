@@ -28,8 +28,12 @@ import {
 // panel rendered to a string.
 // ============================================================================
 
+/** What the panel reads: the live record, or a hosted chat's CARD (the hook
+ *  lives in the session's seat; the card is its shared truth). */
+type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'gaveUp'> & { seat?: boolean }
+
 /** Status panel for the active mission (no-arg /mission). */
-function MissionStatusPanel({ mission }: { mission: ActiveMission }): React.ReactNode {
+function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
   const iterationsLabel =
     mission.iterations === 0
       ? 'not yet evaluated'
@@ -43,7 +47,7 @@ function MissionStatusPanel({ mission }: { mission: ActiveMission }): React.Reac
     ? '✓ Mission met — stops are allowed; a new /mission replaces it'
     : mission.gaveUp
       ? `${GLYPH.warn} Mission DISARMED (block cap reached, not met — set it again to re-arm)`
-      : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}`
+      : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}${mission.seat ? " · the hook rides the session's seat" : ''}`
   return (
     <Box flexDirection="column">
       <Text bold>Standing mission</Text>
@@ -70,16 +74,31 @@ export async function call(
 
   // --- empty arg: report the active mission (or usage) ----------------------
   if (arg === '') {
-    const mission = getActiveMission()
+    // A hosted chat's turns end in its SEAT, so its mission's hook and its
+    // checks live there: the card keyed by the conversation is the shared
+    // truth and the panel reads it; this process's own record answers only
+    // for a chat it runs itself.
+    const { conversationIdHere, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
+    const hosted = hasFocusedSession()
+    const mission = hosted ? undefined : getActiveMission()
     if (!mission) {
-      // No live hook — the persisted card still answers (a peer process
-      // reading this session's continuity record); same fallback as the
-      // headless command. Settled states are history, reported as such.
+      // No live hook here — the persisted card still answers (the seat's
+      // record, or a peer process reading this session's continuity record);
+      // same fallback as the headless command. Settled states are history,
+      // reported as such.
       try {
         const { readMissionCard } = await import('../../services/mission/missionCard.js')
-        const { getSessionId } = await import('../../bootstrap/state.js')
-        const card = readMissionCard(getSessionId())
+        const card = readMissionCard(conversationIdHere())
         if (card) {
+          if (card.state === 'armed' && hosted) {
+            const output = await renderToString(
+              <MissionStatusPanel
+                mission={{ condition: card.goal, iterations: card.iterations, ...(card.nextStep ? { lastReason: card.nextStep } : {}), seat: true }}
+              />,
+            )
+            onDone(output)
+            return null
+          }
           const stateLine =
             card.state === 'armed'
               ? 'Mission card ARMED (no live hook in this process — a resume re-arms it)'

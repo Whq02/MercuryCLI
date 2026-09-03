@@ -51,6 +51,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -383,7 +384,9 @@ console.log('leg G — the main REPL (the control: the same words, the same exit
     // composer paints the notice as an ink DIFF over the hint row (cursor
     // jumps between changed segments), so the needle splits in the OUTPUT
     // STREAM even though the frame check reads it whole on the grid.
-    sends: ['after:Type a prompt:1500:\x03', 'after:Type a prompt:2600:\x03'],
+    // The two presses must land inside the chord's 3 s window in the product's
+    // own clock: the gap is handed to the driver pre-divided by the stretch.
+    sends: ['after:Type a prompt:1500:\x03', `after:Type a prompt:${1500 + Math.round(1100 / vshotBudgetScale())}:\x03`],
     seconds: 25,
     cols: 120,
     rows: 40,

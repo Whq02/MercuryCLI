@@ -23,7 +23,7 @@
 //  reruns the same journey at the small size (the capture battery drives
 //  both and banks the frames).
 // ============================================================================
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -105,10 +105,14 @@ writeFileSync(
 
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 let daemon: ReturnType<typeof spawn> | null = null
-const spawnDaemonWithHome = (configHome: string): void => {
+// The board shows TILES only for sessions of its own project: a session of
+// another project is an OTHER PROJECTS door line ("1 running in …work ·
+// switch to see them"), never a row with a NOW cell. Both sessions are
+// dispatched into the arena's own cwd — the project the board boots in.
+const spawnDaemonWithHome = (configHome: string, projectDir: string): void => {
   process.env.MERCURY_CONFIG_DIR = configHome
-  daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', work], {
-    cwd: work,
+  daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', projectDir], {
+    cwd: projectDir,
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: configHome,
@@ -153,28 +157,33 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, workB])
+      // Two sessions in one folder need git (the second forks a worktree of
+      // its own — the daemon holds it "no-repository" otherwise): the arena's
+      // cwd is a repository with one commit before either dispatch.
+      spawnSync('git', ['init', '-q', '-b', 'main'], { cwd })
+      spawnSync('git', ['-c', 'user.name=tiles', '-c', 'user.email=tiles@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'seed'], { cwd })
       // The ask rule that PARKS session B's rm (a genuine permission ask).
       writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ permissions: { ask: ['Bash(rm:*)'] } }))
-      spawnDaemonWithHome(configDir)
+      spawnDaemonWithHome(configDir, cwd)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
       const a = (await daemonControlRpc({
         op: 'concourseDispatch',
         clientMessageId: 'tiles-alpha-1',
         prompt: 'stream a long alpha body',
-        workspaceDir: work,
+        workspaceDir: cwd,
         title: 'Alpha stream',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check('alpha dispatched', a.ok === true && a.sessionId !== undefined, JSON.stringify(a))
       alphaId = a.sessionId ?? ''
-      const alphaTranscript = join(paths.getProjectDir(work), `${alphaId}.jsonl`)
+      const alphaTranscript = join(paths.getProjectDir(cwd), `${alphaId}.jsonl`)
       check('alpha transcript born', await untilAsync(async () => existsSync(alphaTranscript) && statSync(alphaTranscript).size > 100, 30_000))
       const b = (await daemonControlRpc({
         op: 'concourseDispatch',
         clientMessageId: 'tiles-beta-1',
         prompt: 'try a cleanup',
-        workspaceDir: workB,
+        workspaceDir: cwd,
         title: 'Beta asker',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
@@ -222,11 +231,15 @@ try {
     // §6 the ask leads ITS tile in the same frame as Alpha's live activity.
     // The BOARD row carries the unquoted title (the rail quotes it) — the
     // matcher must not read the rail's own copy.
-    const betaBoardRow = (g: { rows: string[] }): string => g.rows.find(r => /◆ Beta asker\s{2,}/.test(r)) ?? ''
+    // The row's state word stands between the glyph and the title ("◆ NEEDS
+    // YOU Beta asker"); the tile follows the title.
+    const betaBoardRow = (g: { rows: string[] }): string => g.rows.find(r => /◆ (NEEDS YOU )?Beta asker\s{2,}/.test(r)) ?? ''
     const askAndStream = boardFrames.filter(g => /asks:/.test(betaBoardRow(g)) && /tile-alpha|running Bash/.test(alphaRowText(g)))
     check('§6 needs-you shows FIRST beside a streaming tile', askAndStream.length > 0, `frames: ${askAndStream.map(g => g.atMs).join(',') || 'none'}`)
-    // §5 the peek: needles scope to the LIST BAND (the mirror below shows
-    // the same session's chat lawfully — a whole-frame needle would lie).
+    // §5 the peek is the MIRROR: the live-view pane below the list shows the
+    // selected row's chat (the ask and its transcript rows) while the list
+    // band keeps its rows and the board stays the board — the in-band peek
+    // that displaced the rows is retired with the live pane's own box.
     const listBandRows = (g: { rows: string[] }): string[] => {
       const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
       if (start < 0) return []
@@ -234,18 +247,24 @@ try {
       const end = rest.findIndex(r => /╰/.test(r))
       return rest.slice(0, end < 0 ? undefined : end)
     }
+    const mirrorRows = (g: { rows: string[] }): string[] => {
+      const start = g.rows.findIndex(r => r.includes('STATUS & TITLE'))
+      if (start < 0) return []
+      const rest = g.rows.slice(start + 1)
+      const end = rest.findIndex(r => /╰/.test(r))
+      return end < 0 ? [] : rest.slice(end + 1)
+    }
     const bandText = (g: { rows: string[] }): string => listBandRows(g).join('\n')
-    const peekOpenFrames = grabs.filter(g => g.atMs >= 14000 && g.atMs <= 17000 && text(g).includes('SESSIONS'))
-    const peekClosedFrames = grabs.filter(g => g.atMs >= 20000 && text(g).includes('SESSIONS'))
-    // The peek body is sticky-tail: at small grants the visible rows are
+    const mirrorText = (g: { rows: string[] }): string => mirrorRows(g).join('\n')
+    const peekFrames = grabs.filter(g => g.atMs >= 14000 && g.atMs <= 17000 && text(g).includes('SESSIONS'))
+    // The mirror body is sticky-tail: at small grants the visible rows are
     // the NEWEST (the running-bash card), so any of the session's own
     // transcript needles counts as body evidence.
     const bodyNeedle = (t: string): boolean => /tile-beta prelude|try a cleanup|rm -rf scratchling|Running 1 bash/.test(t)
-    const opened = peekOpenFrames.filter(g => bodyNeedle(bandText(g)) && /asks:/.test(bandText(g)))
-    check('§5 the peek paints in place (ask banner + transcript rows in the list band)', opened.length > 0, `open frames: ${opened.map(g => g.atMs).join(',') || 'none'}`)
+    const opened = peekFrames.filter(g => bodyNeedle(mirrorText(g)) && /asks:/.test(bandText(g)) && /Beta asker/.test(mirrorText(g)))
+    check("§5 the selected row's chat paints in the mirror below the list (the ask on its row, the transcript rows in the pane)", opened.length > 0, `frames: ${opened.map(g => g.atMs).join(',') || 'none'}`)
     check('§5 the peek is not a hop (the board frame stays)', opened.every(g => text(g).includes('SESSIONS')))
-    const closedAgain = peekClosedFrames.filter(g => !bodyNeedle(bandText(g)))
-    check('§5 the same key collapses it (the list band returns to rows)', closedAgain.length > 0, `closed frames: ${closedAgain.map(g => g.atMs).join(',') || 'none'}`)
+    check('§5 the list band keeps its rows under the mirror (nothing displaced)', opened.every(g => /Alpha stream/.test(bandText(g)) && /Beta asker/.test(bandText(g))))
     // §9 the selection survives tile updates: the ▸ marker sits on the same
     // titled row across two streaming frames after the tab.
     const selTitle = (g: { rows: string[] }): string => {
