@@ -468,6 +468,10 @@ type ResumeResult = {
   fullPath?: string
 }
 
+export function hasConversationTurn(messages: readonly { type: string }[]): boolean {
+  return messages.some(m => m.type === 'user' || m.type === 'assistant')
+}
+
 export async function loadConversationForResume(
   source: string | LogOption | undefined,
   sourceJsonlFile: string | undefined,
@@ -507,6 +511,7 @@ export async function loadConversationForResume(
     }
 
     const asMessages = (messages ?? []) as unknown as Message[]
+    if (!hasConversationTurn(asMessages)) return null
     restoreSkillStateFromMessages(asMessages)
     const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
     const hookMessages = await processSessionStartHooks('resume', { sessionId })

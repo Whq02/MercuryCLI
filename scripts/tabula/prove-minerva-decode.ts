@@ -47,6 +47,28 @@ process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
+section('(0) a container answers before the config home is enabled')
+{
+  const slots = await import('../../src/utils/model/subModelSlots.ts')
+  let origin: unknown = null
+  let threw = ''
+  try {
+    origin = slots.resolveSubModel('minerva').origin
+  } catch (e) {
+    threw = String(e)
+  }
+  check('the minerva model resolves from the env pin, never a throw through the read guard', origin === 'env' && threw === '', threw)
+  let effort: unknown = 'unread'
+  try {
+    effort = slots.resolveSubModelEffort('minerva')
+  } catch (e) {
+    threw = String(e)
+  }
+  check("the effort dial reads as unset before the home is enabled (the model's own default), never a throw", effort === undefined && threw === '', threw)
+}
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+
 const { decodeModelJson, describeUndecodableModelText } = await import(
   '../../src/utils/messages/modelJson.ts'
 )
