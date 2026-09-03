@@ -379,7 +379,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
               return (
                 <Text key={row.id}>
                   <Text color={active ? accent : FAINT}>{active ? '▸ ' : '  '}</Text>
-                  {tone ? <Text color={tone.color}>{`${tone.glyph} `}</Text> : <Text color={FAINT}>{row.kind === 'action' ? '⚙\uFE0E ' : '· '}</Text>}
+                  {tone ? <Text color={tone.color}>{`${tone.glyph} `}</Text> : <Text color={FAINT}>{row.kind === 'action' ? `${GLYPH.chevronRight} ` : '· '}</Text>}
                   <Text color={row.kind === 'info' ? SECOND : IVORY}>{truncateToWidth(row.label, 70)}</Text>
                 </Text>
               )

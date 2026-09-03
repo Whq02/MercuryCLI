@@ -72,12 +72,13 @@ export const BRIDGE_SPINNER_FRAMES = [
 ]
 
 /**
- * Bridge ready: middle-dot, check mark WITH the text-presentation variation
- * selector (load-bearing — without it a terminal may render the check as a
- * double-width emoji and desync the width arithmetic), middle-dot. The
- * selector is written as an escape so it cannot be silently dropped.
+ * Bridge ready: middle-dot, check mark, middle-dot. The check is U+2713,
+ * which carries no Unicode Emoji property (the heavy U+2714 does), so no
+ * terminal routes it to a colour font and it needs no presentation selector;
+ * the paint census forbids one (a host that ignores the selector paints the
+ * pictograph anyway, and a stray selector is a droppable invisible cell).
  */
-export const BRIDGE_READY_INDICATOR = '\u00B7\u2713\uFE0E\u00B7'
+export const BRIDGE_READY_INDICATOR = '\u00B7\u2713\u00B7'
 
 /**
  * Bridge failed: the multiplication-X codepoint the design kit standardized

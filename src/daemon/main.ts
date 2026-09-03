@@ -128,6 +128,7 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 /**
  * Resolve the project directory the daemon schedules for. Optional first
@@ -524,7 +525,7 @@ async function daemonRun(args: string[]): Promise<void> {
         // degraded marker (the /substrate snapshot reads getSupervisorState).
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
-          console.error(`[daemon] ⚠️  SUPERVISOR DEGRADED — ${reason}`)
+          console.error(`[daemon] ${GLYPH.warn} SUPERVISOR DEGRADED — ${reason}`)
           // R7 C-LOW-1: a Concourse worker that exhausts its respawn budget
           // must settle its durable record — otherwise the board paints
           // 'starting' forever and the seat stays consumed. The storm note
@@ -1465,7 +1466,7 @@ async function daemonRun(args: string[]): Promise<void> {
       // the daemon is degraded.
       // eslint-disable-next-line no-console
       console.error(
-        `[daemon] ⚠️  control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
+        `[daemon] ${GLYPH.warn} control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
       )
       logForDebugging(`[daemon] control layer failed to start (continuing as pure cron daemon): ${e}`)
       controlServer = null

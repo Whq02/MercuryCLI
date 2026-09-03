@@ -1,4 +1,3 @@
-import figures from 'figures';
 import * as React from 'react';
 import { Suspense, use } from 'react';
 import { getSessionId } from '../../bootstrap/state.js';
@@ -10,7 +9,7 @@ import { useCwdState } from '../../hooks/useCwdState.js';
 import { getCurrentSessionTitle } from '../../utils/sessionStorage.js';
 import { buildAPIProviderProperties, buildIDEProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMcpProperties, buildMemoryDiagnostics, buildProviderAccountBlocks, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
 import type { ThemeName } from '../../utils/theme.js';
-import { displayWidth } from '../mercury-ui/glyphs.js';
+import { GLYPH, displayWidth } from '../mercury-ui/glyphs.js';
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
@@ -167,7 +166,7 @@ function Diagnostics({ promise }: { promise: Promise<Diagnostic[]> }) {
       <Text color={tokens.textMuted}>diagnostics</Text>
       {diagnostics.map((diagnostic, i) => (
         <Box key={i} flexDirection="row" gap={1} paddingLeft={1}>
-          <Text color={tokens.warning}>{figures.warning}</Text>
+          <Text color={tokens.warning}>{GLYPH.warn}</Text>
           {typeof diagnostic === 'string' ? <Text wrap="wrap">{diagnostic}</Text> : diagnostic}
         </Box>
       ))}

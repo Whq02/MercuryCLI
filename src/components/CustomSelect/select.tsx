@@ -5,6 +5,7 @@
 // image-selection mode, and the submit/cancel decision for input options.
 
 import figures from 'figures'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
@@ -447,7 +448,7 @@ export function Select<T = string>({
             ? ''
             : rowPrefix(option, option.index + 1, indexWidth)
           const label = typeof option.label === 'string' ? option.label : ''
-          const tick = isSelected ? ` ${figures.tick}` : ''
+          const tick = isSelected ? ` ${GLYPH.check}` : ''
           const bare = `${prefix}${label}${tick}`
           const pad = Math.max(
             0,
