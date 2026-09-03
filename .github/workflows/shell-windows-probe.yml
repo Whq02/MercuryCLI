@@ -120,7 +120,7 @@ jobs:
           bun run scripts/vendor/fetch-node.ts --platform win-x64
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      - name: Lay the engine pack (vendor/brush/win32-x64) when the tree carries the pack script
+      - name: Lay the engine pack (vendor/brush/win-x64) when the tree carries the pack script
         run: |
           if (Test-Path scripts/vendor/build-brush.ts) {
             bun run scripts/vendor/build-brush.ts
