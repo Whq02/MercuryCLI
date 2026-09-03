@@ -3,7 +3,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import { workRowRuns } from '../services/engine-connector/workCounts.js'
+import { crewAgentsOf, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
+import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
 import { Box, Text } from '../ink.js'
@@ -11,10 +12,9 @@ import { TERRA } from './mercuryPalette.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { isTerminalTaskStatus, type TaskStatus } from '../Task.js'
 import { useAppState } from '../state/AppState.js'
-import { getAllInProcessTeammateTasks } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
-import { isLocalAgentTask, isPanelAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
-import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { MAIN_CONVERSATION_ID } from '../services/crew/conversations.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import type { TaskState } from '../tasks/types.js'
@@ -86,7 +86,7 @@ import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
 
-type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean }
+type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
 
 type CrewEntry =
   | { kind: 'task'; row: CrewRow }
@@ -448,19 +448,18 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const viewingAgentTaskId = useAppState(s => s.viewingAgentTaskId)
   const roster = useFocusedWorkRoster()
 
-  const ipRows: CrewRow[] = getAllInProcessTeammateTasks(tasks).map(t => ({
-    id: t.id,
-    label: t.identity.agentName,
-    status: t.status,
+  const sessionId = focusedSessionIdOrNull()
+  const localRows: CrewRow[] = crewAgentsOf(projectWorkRoster(tasks), sessionId).map(f => ({
+    id: f.id,
+    label: f.name,
+    status: tasks[f.id]?.status ?? (f.status as TaskStatus),
+    facts: f,
   }))
-  const laRows: CrewRow[] = Object.values(tasks)
-    .filter(isPanelAgentTask)
-    .map(t => ({ id: t.id, label: t.description || t.agentType, status: t.status }))
-  const hostedRows: CrewRow[] = roster.rows
-    .filter(r => (r.kind === 'agent' || r.kind === 'teammate') && workRowRuns(r))
-    .map(r => ({ id: r.id, label: r.name, status: r.status === 'pending' ? 'pending' : 'running', hosted: true }))
+  const hostedRows: CrewRow[] = crewAgentsOf(roster.rows, sessionId)
+    .filter(f => f.running)
+    .map(f => ({ id: f.id, label: f.name, status: f.status === 'pending' ? 'pending' : 'running', hosted: true, facts: f }))
   const crewById = new Map<string, CrewRow>()
-  for (const r of [...ipRows, ...laRows, ...hostedRows]) {
+  for (const r of [...localRows, ...hostedRows]) {
     if (!crewById.has(r.id)) crewById.set(r.id, r)
   }
   const crewAll = [...crewById.values()].sort((a, b) => {
@@ -817,14 +816,15 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           verb={unreadVerb}
           verbColor={entry.unread > 0 ? tok.warning : entry.online ? tok.textSecondary : tok.textMuted}
           verbPulse={entry.unread > 0}
-          {...railRowProps(isOn, sel, { kind: 'command', command: '/teammates', label: `crew:d:${entry.name}` })}
+          {...railRowProps(isOn, sel, { kind: 'command', command: `/teammates ${entry.name}`, label: `crew:d:${entry.name}` })}
         />
       )
     }
     const c = entry.row
     const isViewing = viewingAgentTaskId != null && c.id === viewingAgentTaskId
     const base = statusTone(c.status, tok)
-    const verbLabel = isViewing ? 'viewing' : base.label
+    const tokensVerb = c.status === 'running' && c.facts !== undefined ? crewTokensLabel(c.facts) : null
+    const verbLabel = isViewing ? 'viewing' : (tokensVerb ?? base.label)
     const tone = isViewing ? accent : base.tone
     const g = c.status === 'running' ? GLYPH.busy : GLYPH.idle
     const gColor = isViewing ? accent : c.status === 'running' ? tok.success : tok.textMuted
@@ -856,7 +856,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         key="crew:more"
         n={crewMore}
         width={rowW}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/fleet', label: 'crew:more' })}
+        {...railRowProps(isOn, sel, { kind: 'command', command: '/teammates', label: 'crew:more' })}
       />,
     )
 

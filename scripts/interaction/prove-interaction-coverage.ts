@@ -201,6 +201,7 @@ reg(
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',
     'src/components/mercury-ui/parity/DaemonSupervisorView.tsx',
     'src/components/mercury-ui/screens/TeammateChatsView.tsx',
+    'src/components/mercury-ui/screens/CrewView.tsx',
     'src/components/RouterKeyEntry.tsx',
     'src/components/RouterOpenaiConnect.tsx',
 
