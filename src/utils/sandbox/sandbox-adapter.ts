@@ -226,8 +226,12 @@ function buildDenyWrite(): string[] {
 function buildAllowWrite(): string[] {
   const allowWrite = new Set<string>(['.'])
   try {
-    const { getProjectTempDir } = require('../permissions/filesystem.js') as { getProjectTempDir(): string }
+    const { getMercuryTempDir, getProjectTempDir } = require('../permissions/filesystem.js') as {
+      getMercuryTempDir(): string
+      getProjectTempDir(): string
+    }
     allowWrite.add(getProjectTempDir())
+    allowWrite.add(getMercuryTempDir())
   } catch {
   }
   const sessionDir = getCwd()
