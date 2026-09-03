@@ -8,6 +8,7 @@ import { accumulateUsage, updateUsage } from '../services/providers/anthropic/ca
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { ToolUseContext } from '../Tool.js'
+import { withAllowedCommandRules } from '../tools/AgentTool/agentPermissionPosture.js'
 import { GENERAL_PURPOSE_AGENT } from '../tools/AgentTool/built-in/generalPurposeAgent.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
@@ -106,21 +107,7 @@ export function createGetAppStateWithAllowedTools(
   allowedTools: string[],
 ): () => AppState {
   if (allowedTools.length === 0) return baseGetAppState
-  return () => {
-    const state = baseGetAppState()
-    const existing = state.toolPermissionContext.alwaysAllowRules.command ?? []
-    const merged = [...new Set([...existing, ...allowedTools])]
-    return {
-      ...state,
-      toolPermissionContext: {
-        ...state.toolPermissionContext,
-        alwaysAllowRules: {
-          ...state.toolPermissionContext.alwaysAllowRules,
-          command: merged,
-        },
-      },
-    }
-  }
+  return () => withAllowedCommandRules(baseGetAppState(), allowedTools)
 }
 
 
