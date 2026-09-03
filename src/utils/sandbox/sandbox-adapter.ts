@@ -365,8 +365,7 @@ export const SandboxManager: ISandboxManager = {
   isSupportedPlatform: () => isSupportedPlatformMemo(),
   isPlatformInEnabledList(): boolean {
     try {
-      const initial = safeGetSettings('__initial__')
-      const list = getSandboxSection(initial).enabledPlatforms as string[] | undefined
+      const list = getSandboxSection(getMergedSettings()).enabledPlatforms as string[] | undefined
       if (list === undefined) return true
       return list.includes(getPlatform())
     } catch {
