@@ -531,6 +531,7 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
+    latchKey: options.agentId ?? 'main',
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames
