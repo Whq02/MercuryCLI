@@ -81,10 +81,17 @@ export function gitBashCandidatePaths(gitPaths: string[]): string[] {
   return candidates
 }
 
-export const findGitBashPath = memoize((): string => {
+export type GitBashLocation = { path: string } | { absent: true }
+
+export const GIT_BASH_REMEDY =
+  'Mercury on Windows requires git-bash for the Bash tool. Download it from https://git-scm.com/downloads/win — ' +
+  'if it is already installed but not on PATH, set MERCURY_GIT_BASH_PATH=<path to your bash.exe> ' +
+  '(for example C:\\Program Files\\Git\\bin\\bash.exe) — or turn the shell engine on.'
+
+export const locateGitBash = memoize((): GitBashLocation => {
   const override = process.env.MERCURY_GIT_BASH_PATH
   if (override !== undefined && override !== '') {
-    if (pathExists(override)) return override
+    if (pathExists(override)) return { path: override }
     releaseLauncherAltHoldNow()
     try {
       writeSync(2, `Error: unable to find MERCURY_GIT_BASH_PATH at ${override} — the path does not exist.\n`)
@@ -93,26 +100,15 @@ export const findGitBashPath = memoize((): string => {
     process.exit(1)
   }
   for (const candidate of gitBashCandidatePaths(findExecutableCandidates('git'))) {
-    if (pathExists(candidate)) return candidate
+    if (pathExists(candidate)) return { path: candidate }
   }
-  releaseLauncherAltHoldNow()
-  try {
-    writeSync(
-      2,
-      'Error: Mercury on Windows requires git-bash. Download it from https://git-scm.com/downloads/win — ' +
-        'if it is already installed but not on PATH, set MERCURY_GIT_BASH_PATH=<path to your bash.exe> ' +
-        '(for example C:\\Program Files\\Git\\bin\\bash.exe).\n',
-    )
-  } catch {
-  }
-  process.exit(1)
+  return { absent: true }
 })
 
-export function setShellIfWindows(): void {
-  if (process.platform !== 'win32') return
-  const bashPath = findGitBashPath()
-  process.env.SHELL = bashPath
-  logForDebugging(`windowsPaths: SHELL set to ${bashPath}`)
+export function findGitBashPath(): string {
+  const location = locateGitBash()
+  if ('path' in location) return location.path
+  throw new Error(GIT_BASH_REMEDY)
 }
 
 export const windowsPathToPosixPath = memoizeWithLRU(

@@ -219,6 +219,7 @@ import { getRunningTasks } from '../utils/task/framework.js'
 import { stopRunningAgentTasks } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
+import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { getTaskListId as missionListId, listTasks as listMissionTasks } from '../utils/tasks.js'
@@ -365,6 +366,8 @@ export async function runHeadless(
   options: HeadlessOptions,
 ): Promise<void> {
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
+  const shellRoadNotice = windowsShellRoadNotice()
+  if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   const streamingInput = typeof inputPrompt !== 'string'
   noteHeadlessActivity(
     options.outputFormat === 'stream-json' && streamingInput ? 'sdk' : 'print',
