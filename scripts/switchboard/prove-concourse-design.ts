@@ -300,6 +300,13 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   // hands the fact from the one draft owner.
   const pane = read('src/components/concourse/CoordinatorPane.tsx')
   check('the example walk\'s ↵ yields to a held draft (typed words outrank the example — the one precedence law)', pane.includes('&& !pending && !draftHeld) {') && screen.includes('draftHeld={draft.text.trim().length > 0}'))
+  // THE EXAMPLE FILLS THE BOX, NEVER SENDS (field TASK-E001, item 7): a bare ↵
+  // on the empty coordinator composer dispatched the ghost example as a real
+  // message. The pick handler places the words in the composer and calls no
+  // send; the next ↵ (words held) is the operator's own send.
+  const pickAt = screen.indexOf('onPickExample={text => {')
+  const pickBody = pickAt === -1 ? '' : screen.slice(pickAt, screen.indexOf('}}', pickAt))
+  check('the example walk\'s ↵ (and a click) FILLS the composer and never sends — the pick handler calls no send', pickAt !== -1 && pickBody.includes('setDraft(draftRef.current)') && !pickBody.includes('sendCoordinator(') && !pane.includes('onSendExample') && pane.includes('onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)') && pane.includes('· ↵ fills the box'), pickBody.slice(0, 160))
   // THE ONE MODAL OWNER reaches the pane (the driven cross-project red: the
   // repo picker painted while the pane's ↓/↵ walked the ghost example — a
   // pairwise settingsOpen/gitOffer guard is the fossil class boardModalOwner

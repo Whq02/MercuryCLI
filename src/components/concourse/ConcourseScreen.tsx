@@ -2923,11 +2923,15 @@ export function ConcourseScreen({
             settingsOpen={settingsOpen && geo.profile === 'wide'}
             onCloseSettings={() => closeCoordinatorSettings()}
             onFocus={() => setRegion('coordinator')}
-            onSendExample={text => {
+            // THE EXAMPLE FILLS THE BOX, NEVER SENDS (field TASK-E001, item 7): a
+            // bare ↵ on the empty coordinator composer dispatched the ghost
+            // example as a real message — words the operator never typed,
+            // tokens spent. ↵ (or a click) places the example in the composer
+            // with the caret at its end; the next ↵, words held, is the send.
+            onPickExample={text => {
               draftEditedRef.current = true
               draftRef.current = { text, caret: text.length }
               setDraft(draftRef.current)
-              sendCoordinator()
             }}
             collapsed={geo.profile === 'stacked' && focusTall !== 'coordinator'}
             tailNote={note}

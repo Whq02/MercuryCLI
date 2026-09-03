@@ -242,7 +242,7 @@ export function CoordinatorPane({
   pending,
   settingsOpen,
   onCloseSettings,
-  onSendExample,
+  onPickExample,
   draftHeld = false,
   modalUp = false,
   gitOffer,
@@ -272,7 +272,9 @@ export function CoordinatorPane({
   settingsOpen: boolean
   onCloseSettings: () => void
   /** The examples ride the ONE send path the composer owns. */
-  onSendExample: (text: string) => void
+  /** ↵ or a click on an example PLACES it in the composer — never a send
+   *  (the example is a lesson, not a dispatch). */
+  onPickExample: (text: string) => void
   /** The composer holds typed words — the example walk's ↵ YIELDS (typed
    *  words outrank the example, the estate's one precedence law: without
    *  this the ghost example dispatched over the operator's own ask). */
@@ -420,7 +422,7 @@ export function CoordinatorPane({
     // dispatch over the operator's own ask.
     if (key.return && entries !== null && entries.length === 0 && !pending && !draftHeld) {
       event.stopImmediatePropagation()
-      onSendExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)
+      onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)
       return
     }
   })
@@ -527,7 +529,7 @@ export function CoordinatorPane({
                 id={`coordinator:example:${ex.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()}`}
                 directActivate
                 hoverStyle="row-fill"
-                onActivate={() => onSendExample(ex)}
+                onActivate={() => onPickExample(ex)}
               >
                 {hover => (
                   <Text wrap="truncate-end">
@@ -543,7 +545,7 @@ export function CoordinatorPane({
                     <Text color={(focused && exampleIdx === i) || hover ? t.textPrimary : t.textMuted}>
                       {ex}
                     </Text>
-                    {focused && exampleIdx === i ? <Text color={t.textMuted}> · ↵ sends</Text> : null}
+                    {focused && exampleIdx === i ? <Text color={t.textMuted}> · ↵ fills the box</Text> : null}
                   </Text>
                 )}
               </InteractiveRow>
