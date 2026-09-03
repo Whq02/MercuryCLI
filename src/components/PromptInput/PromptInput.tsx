@@ -207,8 +207,10 @@ import {
   decideCapAction,
   decideCapReturn,
   decideSlotWallAction,
+  liveCapFailoverCandidates,
   liveCapFailoverTarget,
   noteCapHandoff,
+  type CapFailoverListedFamily,
   noteCapOfferAnswered,
   noteCapReturn,
   noteCapWindowObserved,
@@ -667,6 +669,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     /** The target's own declared lane — stamped at creation (an offer only
      *  ever lands on a declared lane; the null-guard refuses otherwise). */
     targetRoute: CallModelRoute
+    /** The handoff's LIST — every other signed-in family with a row to land
+     *  on (offerable first, in sign-in order; the lanes at their own cap
+     *  last, marked). Empty on the way home. */
+    rows: CapFailoverListedFamily[]
     /** The HOME family — the lane whose window walled (a handoff) or reset
      *  (the way home); any family, the card names it. */
     homeRoute: CallModelRoute
@@ -973,7 +979,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     // The ONE per-family window resolver: 'unknown' (nothing observed, a
     // credential that just changed) is a state — it never reads as
     // headroom for a handoff, nor as a reset for the way home.
-    const window = observedFamilyWindow(homeFamily)
+    // The window is read FOR the seat that runs (or ran) on the home family:
+    // on the first-party family the per-model weekly pool that model binds
+    // is the window that matters (a Fable seat at 87% of the Fable pool is
+    // approaching its cap while the shared 5h/7d read low).
+    const window = observedFamilyWindow(homeFamily, undefined, {
+      model: onFailoverLane ? (noted?.homeModel ?? null) : effective,
+    })
     // The armed-state re-arm runs EVERY commit (before the none-return): a
     // real reset re-arms the handoff, a window that caps again re-arms the
     // return. Keeps the answered latch stable across the state/reset jitter
@@ -998,12 +1010,17 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       // never over another open surface.
       if (modalOverlayUp) return
       let target: string | null
+      let rows: CapFailoverListedFamily[] = []
       if (direction === 'return') {
         target = noted?.homeModel ?? getFocusedSessionConnector().modelFacts().main
       } else {
-        // The neutral candidate law: the readiest usable lane of the OTHER
-        // signed-in families (most recent sign-in first), from the one owner.
-        target = liveCapFailoverTarget(homeFamily)?.model ?? null
+        // The neutral candidate law: every OTHER signed-in family with a row
+        // to land on, from the one owner — the offerable lanes in sign-in
+        // order (the first is the default highlight), the lanes at their own
+        // cap after them, marked. No offerable lane ⇒ no card.
+        const set = liveCapFailoverCandidates(homeFamily)
+        target = set.candidates[0]?.model ?? null
+        rows = set.listed
       }
       if (target === null) return
       // An offer only ever lands on (and leaves) a DECLARED lane: an
@@ -1019,6 +1036,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         resetText,
         targetModel: target,
         targetRoute,
+        rows,
         homeRoute: homeFamily as CallModelRoute,
         awayRoute: awayRouteResolved,
       })
@@ -2933,7 +2951,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         awayRoute={offer.awayRoute}
         homeUsability={usabilityForRoute(offer.homeRoute)}
         awayUsability={usabilityForRoute(offer.awayRoute)}
-        onAccept={() => {
+        rows={offer.direction === 'handoff' ? offer.rows : undefined}
+        onAccept={chosen => {
           setCapOffer(null)
           setOverlay(null)
           // An answered card never re-fires for the same wall: accept
@@ -2951,8 +2970,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
           }
           // Accept re-enters the FULL selection path — the preview gate
-          // included.
-          handleModelSelect(offer.targetModel)
+          // included — for the row the operator CHOSE (the highlighted lane
+          // of the list; the one target otherwise).
+          handleModelSelect(chosen.model)
         }}
         onDismiss={() => {
           noteCapOfferAnswered(offer.direction, offer.homeRoute)
