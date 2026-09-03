@@ -38,7 +38,8 @@
 //       Y, Z is live at the end — nothing paused, parked, retired, released.
 //   D2  THE LINE IS A DOOR + THE FACE: ↓ ↵ on P's line switches the view to
 //       P — X and Y as plain live rows, Z with "✦ from Q"; ⇧← the face's
-//       Projects row reads "(N running)" for the other project.
+//       Sessions · Projects row counts the repos it knows ("N repos · pick a
+//       session"); the running count is the board's line.
 //   D3  THE PING IS A DOOR: words sent into Z (Q), the view switched to P
 //       before its turn settles → the rail rows "switch to Q · finished";
 //       ↵ on it switches the view to Q and opens Z's chat. TIMING: the
@@ -150,6 +151,10 @@ const FROM_Q = `✦ from ${basename(OTHER)}`
 /** The count line's words. */
 const LINE_P = `running in ${basename(CWD)}`
 const LINE_Q = `running in ${basename(OTHER)}`
+// The line's project label is the path's tail behind a leading ellipsis when
+// the row is narrower than the path ("2 running in …proj-p"): the needles
+// read the count, the verb and the basename, and let the ellipsis stand.
+const lineRe = (count: number | null, project: string): RegExp => new RegExp(`${count === null ? '\\d+' : String(count)} running in …?${basename(project)}\\b`)
 const DOOR = 'switch to see them'
 const GROUP = 'OTHER PROJECTS'
 /** The rail row of a finish elsewhere. */
@@ -342,10 +347,10 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
   const handedBack = markText(c, 'q-board-handed-back')
   check('D1 the pick landed Q\'s board', isBoard(carried), firstRows(carried))
   check(`D1 the focused chat (Y, of P) rides Q's board with the star (the glyph leads; the row names its home)`, carried.split('\n').some(l => l.includes('✦') && l.includes('proj-p')), rowsWith(carried, '✦'))
-  check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P} · ${DOOR}" under ${GROUP}`, carried.includes(GROUP) && carried.includes(`1 ${LINE_P}`) && carried.includes(DOOR), rowsWith(carried, LINE_P))
-  check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('PARKED') && carried.includes('an old chat in q'), rowsWith(carried, 'PARKED'))
+  check(`D1 P's other session is a LINE, not a row: "1 ${LINE_P} · ${DOOR}" under ${GROUP}`, carried.includes(GROUP) && lineRe(1, CWD).test(carried) && carried.includes(DOOR), rowsWith(carried, 'running in'))
+  check('D1 Q\'s old chat is a parked row of Q (the current project\'s chats)', carried.includes('PARKED') && carried.split('\n').some(l => l.includes('an old chat i') && l.includes(basename(OTHER))), rowsWith(carried, 'an old chat'))
   check('D1 after n births Z in Q, Y is HANDED BACK — no star on Q\'s board, no notice', isBoard(handedBack) && !handedBack.includes('✦') && !handedBack.includes('NEEDS YOU'), rowsWith(handedBack, '✦'))
-  check(`D1 P's line now counts both: "2 ${LINE_P}"`, handedBack.includes(`2 ${LINE_P}`), rowsWith(handedBack, LINE_P))
+  check(`D1 P's line now counts both: "2 ${LINE_P}"`, lineRe(2, CWD).test(handedBack), rowsWith(handedBack, 'running in'))
   const live = liveRecords(home)
   const homes = Object.values(live).map(r => r.workspaceId)
   check('D1 three sessions live — two in P, one in Q — and none paused, parked, stopped, retired or released by any switch', Object.keys(live).length === 3 && homes.filter(w => w === CWD).length === 2 && homes.filter(w => w === OTHER).length === 1 && Object.values(live).every(r => r.pausedAt === undefined && r.stoppedAt === undefined && r.retired === undefined), JSON.stringify(homes.map(w => basename(w))))
@@ -388,11 +393,11 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
   const qBoard = markText(c, 'q-board')
   const pBoard = markText(c, 'p-board-via-door')
   const face = markText(c, 'face')
-  check(`D2 Q's board carried P's line ("2 ${LINE_P}") for the door`, isBoard(qBoard) && qBoard.includes(`2 ${LINE_P}`), rowsWith(qBoard, LINE_P))
+  check(`D2 Q's board carried P's line ("2 ${LINE_P}") for the door`, isBoard(qBoard) && lineRe(2, CWD).test(qBoard), rowsWith(qBoard, 'running in'))
   check('D2 ↵ on the line switched the VIEW to P: the board (no chat opened by the door)', isBoard(pBoard) && !isChat(pBoard), firstRows(pBoard))
-  check(`D2 P's sessions are plain live rows now (no line for P, no star on them); Z (focused, of Q) is the star (glyph + home)`, !pBoard.includes(LINE_P) && pBoard.split('\n').some(l => l.includes('✦') && l.includes('proj-q')), rowsWith(pBoard, '✦'))
-  check('D2 Q has no line (its one session is on this board as the star — the line counts what you do not see)', !pBoard.includes(LINE_Q))
-  check('D2 ⇧← is the face; its Projects row reads the running count of the other project from the same owner ("(1 running)" beside q, or the card\'s single form)', isFace(face) && /\(\d+ running\)|· \d+ running/.test(face), rowsWith(face, 'running'))
+  check(`D2 P's sessions are plain live rows now (no line for P, no star on them); Z (focused, of Q) is the star (glyph + home)`, !lineRe(null, CWD).test(pBoard) && pBoard.split('\n').some(l => l.includes('✦') && l.includes('proj-q')), rowsWith(pBoard, '✦'))
+  check('D2 Q has no line (its one session is on this board as the star — the line counts what you do not see)', !lineRe(null, OTHER).test(pBoard))
+  check('D2 ⇧← is the face; its Sessions · Projects row counts the repos it knows ("1 repo · pick a session" — the running count is the board\'s line, never the face\'s)', isFace(face) && /\b[1-9]\d* repos? · pick a session/.test(face), rowsWith(face, 'pick a session'))
   reapHome(home)
 }
 
