@@ -657,6 +657,37 @@ export function updateAgentProgress(
   })
 }
 
+/** One pending deferred re-publish per task (coalesced). */
+const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
+
+/** The wire settles a response's usage onto its message AFTER the yield —
+ *  Anthropic's message_delta, the Responses completion — so a snapshot
+ *  taken at the yield carries the start usage or none. This grace period
+ *  covers every wire's settle: a tool_use turn's tokens reach the record
+ *  while the tool still runs, not at the next message. */
+const USAGE_SETTLE_GRACE_MS = 750
+
+/**
+ * Publish the tracker's snapshot now, and once more after the usage-settle
+ * grace (the re-read folds the message's settled usage) — the record
+ * carries the wire's final numbers while the agent still runs.
+ */
+export function publishAgentProgressSoon(
+  taskId: string,
+  tracker: ProgressTracker,
+  setAppState: SetAppState,
+): void {
+  updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  const pending = deferredPublishes.get(taskId)
+  if (pending !== undefined) clearTimeout(pending)
+  const timer = setTimeout(() => {
+    deferredPublishes.delete(taskId)
+    updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  }, USAGE_SETTLE_GRACE_MS)
+  timer.unref?.()
+  deferredPublishes.set(taskId, timer)
+}
+
 /**
  * Apply a prose summary to a running task, defaulting the counters. The SDK
  * task-progress event is emitted only when the caller opted in — otherwise
