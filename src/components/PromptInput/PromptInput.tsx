@@ -199,8 +199,10 @@ import {
   decideCapAction,
   decideCapReturn,
   decideSlotWallAction,
+  liveCapFailoverCandidates,
   liveCapFailoverTarget,
   noteCapHandoff,
+  type CapFailoverListedFamily,
   noteCapOfferAnswered,
   noteCapReturn,
   noteCapWindowObserved,
@@ -562,6 +564,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     resetText: string | null
     targetModel: string
     targetRoute: CallModelRoute
+    rows: CapFailoverListedFamily[]
     homeRoute: CallModelRoute
     awayRoute: CallModelRoute
   } | null>(null)
@@ -779,7 +782,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       noteCapReturn()
       return
     }
-    const window = observedFamilyWindow(homeFamily)
+    const window = observedFamilyWindow(homeFamily, undefined, {
+      model: onFailoverLane ? (noted?.homeModel ?? null) : effective,
+    })
     noteCapWindowObserved(homeFamily, window.state)
     const action =
       onFailoverLane && homeUsability !== null
@@ -795,10 +800,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (capOfferAnswered(direction, homeFamily)) return
       if (modalOverlayUp) return
       let target: string | null
+      let rows: CapFailoverListedFamily[] = []
       if (direction === 'return') {
         target = noted?.homeModel ?? getFocusedSessionConnector().modelFacts().main
       } else {
-        target = liveCapFailoverTarget(homeFamily)?.model ?? null
+        const set = liveCapFailoverCandidates(homeFamily)
+        target = set.candidates[0]?.model ?? null
+        rows = set.listed
       }
       if (target === null) return
       const targetRoute = declaredRouteOf(target)
@@ -812,6 +820,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         resetText,
         targetModel: target,
         targetRoute,
+        rows,
         homeRoute: homeFamily as CallModelRoute,
         awayRoute: awayRouteResolved,
       })
@@ -2487,7 +2496,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         awayRoute={offer.awayRoute}
         homeUsability={usabilityForRoute(offer.homeRoute)}
         awayUsability={usabilityForRoute(offer.awayRoute)}
-        onAccept={() => {
+        rows={offer.direction === 'handoff' ? offer.rows : undefined}
+        onAccept={chosen => {
           setCapOffer(null)
           setOverlay(null)
           noteCapOfferAnswered(offer.direction, offer.homeRoute)
@@ -2495,7 +2505,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             const stateNow = appStateStore.getState()
             noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
           }
-          handleModelSelect(offer.targetModel)
+          handleModelSelect(chosen.model)
         }}
         onDismiss={() => {
           noteCapOfferAnswered(offer.direction, offer.homeRoute)
