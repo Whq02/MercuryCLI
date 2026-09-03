@@ -17,10 +17,24 @@
 //      · the census was taken at reallyExit (not a natural drain)
 //      · ZERO pending product-owned requests at the cliff — the transcript
 //        writer's append/close — none in flight
+//      · no handle of the run's own listed at the cliff — a closed watcher
+//        is torn down in the loop's closing phase, and the drain owes the
+//        cliff that loop turn (the shutdown tail from the last completion
+//        to process.exit ran on ONE microtask chain, never yielding)
 //      · the session transcript on disk carries the settled text
-//    the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0, one tool case): the pre-fix
-//      shape — a product-owned request pending at the cliff (the writer's
-//      append cut by process.exit within its own duration).
+//    the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0, the no-tool control): the
+//      pre-fix shape — the landed append's close still LISTED at the cliff
+//      and the closed watchers still alive (the loop turn skipped).
+//
+//  WHAT THE INSTRUMENT CAN SEE: a request is listed until the runtime frees
+//  it, which happens only after its resolution's microtasks return. The
+//  cleanup's flush lands the last append, and its completion is the chain
+//  the exit runs on — so the before-drain dump lists that append's close
+//  exactly when the WRITER's completion came last. The Bash arms end on the
+//  Bash tool's own snapshot cleanup instead (an unlink, later in the same
+//  cleanup fan-out), so there the writer's close is already gone before the
+//  drain: those arms carry the tool round on disk as their evidence, not a
+//  request in the before dump.
 //
 //  Requires the prebuilt dist. Bounded: ≤90s per run, exact-pid kill.
 //  Run: ~/.bun/bin/bun run scripts/exit-handle/prove-exit-cliff-census.ts
@@ -200,7 +214,10 @@ for (const script of [ANSWER_TEXT_SCRIPT, ...ONE_TOOL_SCRIPTS]) {
 // write script with Bash outside --allowedTools is that shape (a read-only
 // echo is auto-allowed and would run regardless of the allow list).
 drainRuns.push(await runCase('tool-bash-write', 'drain', ['Read', 'Glob']))
-const poison = await runCase('tool-bash', 'poison')
+// The poison arm rides the no-tool control: the writer's completion is the
+// chain the exit runs on there, so the instrument sees the seam the drain's
+// loop turn empties (a Bash arm ends on the tool's own cleanup instead).
+const poison = await runCase(ANSWER_TEXT_SCRIPT, 'poison')
 
 section('§1 — the DRAIN arm: six -p runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch), the census BEFORE the drain and AT the cliff')
 for (const run of drainRuns) {
@@ -214,11 +231,19 @@ for (const run of drainRuns) {
   const owned = pendingProductOwned(run.census)
   const ownedBefore = run.beforeDrain ? pendingProductOwned(run.beforeDrain) : []
   console.log(`    before-drain product-owned (${ownedBefore.length}): ${describeOwned(ownedBefore).join(' ‖ ') || '(none)'}`)
-  check(
-    `${tag} THE DELTA: product-owned persistence was in flight BEFORE the drain (the seams existed — this is the census's evidence, not an absence)`,
-    ownedBefore.length >= 1,
-    j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
-  )
+  // THE DELTA is observable only where the writer's completion is the
+  // chain the exit runs on (see the header): the no-tool control, the
+  // Read and Glob rounds, and the DENIED Bash write (Bash never ran).
+  const bashRan = run.script.startsWith('tool-bash') && !denied
+  if (bashRan) {
+    console.log(`    ${tag} the Bash tool's own cleanup completes last here — the writer's close is torn down before the drain; the tool round on disk is this arm's evidence`)
+  } else {
+    check(
+      `${tag} THE DELTA: the writer's last append was still listed BEFORE the drain (the seam existed — this is the census's evidence, not an absence)`,
+      ownedBefore.length >= 1,
+      j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
+    )
+  }
   check(
     `${tag} …and ZERO pending product-owned requests at the cliff after it (writer append/close) — drained by name, not raced`,
     owned.length === 0,
@@ -263,16 +288,23 @@ for (const run of drainRuns) {
 section('§2 — the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0): the pre-fix cut, seen by the same instrument')
 {
   cleanups.push(poison.home, poison.fix)
-  check('[poison tool-bash] the run still exits 0 with the settled text (the poison only skips the drain)', poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
-  check('[poison tool-bash] the channel still speaks at the same moment — the BEFORE dump says the drain was skipped', poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
+  const ptag = `[poison ${poison.script}]`
+  check(`${ptag} the run still exits 0 with the settled text (the poison only skips the drain)`, poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
+  check(`${ptag} the channel still speaks at the same moment — the BEFORE dump says the drain was skipped`, poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
   const owned = poison.census ? pendingProductOwned(poison.census) : []
   console.log(`    poison cliff product-owned (${owned.length}): ${describeOwned(owned).join(' ‖ ') || '(none)'}`)
   check(
-    '[poison tool-bash] a product-owned request is PENDING at the cliff (the writer append/close cut by process.exit) — the census sees the seam the drain empties',
+    `${ptag} the landed append's close is still LISTED at the cliff (the exit ran on its completion's own microtask chain; the runtime never got the turn that frees it) — the seam the drain's loop turn empties`,
     owned.length >= 1,
     j(poison.census?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
   )
-  check('[poison tool-bash] the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)', readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
+  const poisonWatchers = (poison.census?.handles ?? []).filter(h => h.kind === 'FSWatcher')
+  check(
+    `${ptag} the closed watchers are still alive at the cliff (closed by the cleanup, never torn down — the loop's closing phase never ran) — the handle half of the same delta`,
+    poisonWatchers.length >= 1,
+    j((poison.census?.handles ?? []).map(h => h.kind)),
+  )
+  check(`${ptag} the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)`, readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
 }
 
 for (const dir of cleanups) {
