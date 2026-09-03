@@ -218,7 +218,7 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
   [docs/ASEPRITE-BRIDGE.md](docs/ASEPRITE-BRIDGE.md)).
 - **Memory**: experience cards, a project notepad, and Minerva's room over
   your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
-- **Voice input**: `/speak on`, then `v` in an empty composer dictates
+- **Voice input**: `/speak on`, then space in an empty composer dictates
   into it through the family you signed into; audio leaves only after you
   stop, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
