@@ -45,7 +45,7 @@ import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
-import { HEADLESS_PERMISSION_MODES, type HeadlessPermissionMode } from './headlessRun.js'
+import { HEADLESS_PERMISSION_MODES, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import { decodePermissionModeSpelling, type PermissionMode } from '../types/permissions.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
@@ -768,14 +768,25 @@ export function concourseWorkerStripEnv(): string[] {
  *  default, nothing carried — the fallback stays today's 'flow' for
  *  board-spawned workers. Only a mode that is a valid HEADLESS posture crosses;
  *  anything else (e.g. a saved 'plan') falls back to 'flow' rather than boot a
- *  seat in an unintended posture. Fail-soft: an unreadable settings store is
- *  the 'flow' fallback, never a boot block. */
-export function seatInitialPermissionMode(override?: PermissionMode): HeadlessPermissionMode {
+ *  seat in an unintended posture. ONE exception, on the CARRIED road alone:
+ *  'apollo' — the operator's own explicit mode for a cockpit-attached seat
+ *  (a birth from the Boot face in Apollo Mode, a resume that carries it).
+ *  The seat runner wears the concourse worker role stamp and serves the
+ *  operator's face — its polls and review card ride the seat ask stream, and
+ *  its control door already accepts apollo under the stamp — so the
+ *  admission carries the mode through instead of dropping the seat to flow
+ *  while the screen believes apollo (the roster never shipped ApolloReview,
+ *  the review card never painted). The saved default and the daemon's env
+ *  road keep the strict headless list: a headless worker has no face.
+ *  Fail-soft: an unreadable settings store is the 'flow' fallback, never a
+ *  boot block. */
+export function seatInitialPermissionMode(override?: PermissionMode): SeatPermissionMode {
   const asHeadless = (mode: string | undefined): HeadlessPermissionMode | undefined => {
     if (mode === undefined || mode.length === 0) return undefined
     const decoded = decodePermissionModeSpelling(mode)
     return (HEADLESS_PERMISSION_MODES as readonly string[]).includes(decoded) ? (decoded as HeadlessPermissionMode) : undefined
   }
+  if (override !== undefined && override.length > 0 && decodePermissionModeSpelling(override) === 'apollo') return 'apollo'
   const carried = asHeadless(override)
   if (carried !== undefined) return carried
   try {
