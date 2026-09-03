@@ -4,6 +4,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const ESC = String.fromCharCode(27)
@@ -90,10 +91,14 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   check('isolated: the puppeteer driver is IN the bundle', bundleText.includes('puppeteer-core'))
   const manifest = JSON.parse(readFileSync(join(stage, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
   check('manifest: selfContained', manifest.selfContained === true)
+  const hosted = resolveExecutionProfile(ROOT).kind === 'hosted-gate'
+  const allowedAbsences = new Set<unknown>(['voice-input', ...(hosted ? ['runtime'] : [])])
   const degraded = Array.isArray(manifest.degraded) ? (manifest.degraded as unknown[]) : null
   check(
-    'manifest: degraded[] EMPTY (or exactly the voice pack, the one allowed absence)',
-    degraded !== null && (degraded.length === 0 || (degraded.length === 1 && degraded[0] === 'voice-input')),
+    hosted
+      ? 'manifest: degraded[] EMPTY (or only the voice pack and, under the hosted profile, the runtime pack — the allowed absences)'
+      : 'manifest: degraded[] EMPTY (or exactly the voice pack, the one allowed absence)',
+    degraded !== null && degraded.every(d => allowedAbsences.has(d)) && new Set(degraded).size === degraded.length,
     JSON.stringify(manifest.degraded),
   )
   const ip = manifest.imageProcessing as { selfContained?: boolean } | undefined

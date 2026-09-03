@@ -87,6 +87,14 @@ export async function drainNamedSeams(
   return report
 }
 
+export const EXIT_CLIFF_LOOP_TURNS = 2
+async function turnLoopForTeardown(deadline: number): Promise<void> {
+  for (let hop = 0; hop < EXIT_CLIFF_LOOP_TURNS; hop++) {
+    if (Date.now() >= deadline) return
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  }
+}
+
 export async function drainExitCliffSeams(
   graceMs: number = EXIT_CLIFF_DRAIN_MS,
 ): Promise<ExitCliffDrainReport> {
@@ -98,7 +106,10 @@ export async function drainExitCliffSeams(
     drainChannel.publish({ phase: 'after', report })
     return report
   }
+  const started = Date.now()
   const report = await drainNamedSeams(listExitCliffSeams(), graceMs)
+  await turnLoopForTeardown(started + graceMs)
+  report.elapsedMs = Date.now() - started
   if (report.settled.length + report.failed.length + report.abandoned.length > 0) {
     logForDebugging(
       `exit-cliff drain: settled=[${report.settled.join(',')}] failed=[${report.failed.join(',')}] abandoned=[${report.abandoned.join(',')}] in ${report.elapsedMs}ms`,

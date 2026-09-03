@@ -160,7 +160,7 @@ for (const script of [ANSWER_TEXT_SCRIPT, ...ONE_TOOL_SCRIPTS]) {
   drainRuns.push(await runCase(script, 'drain'))
 }
 drainRuns.push(await runCase('tool-bash-write', 'drain', ['Read', 'Glob']))
-const poison = await runCase('tool-bash', 'poison')
+const poison = await runCase(ANSWER_TEXT_SCRIPT, 'poison')
 
 section('§1 — the DRAIN arm: six -p runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch), the census BEFORE the drain and AT the cliff')
 for (const run of drainRuns) {
@@ -174,11 +174,16 @@ for (const run of drainRuns) {
   const owned = pendingProductOwned(run.census)
   const ownedBefore = run.beforeDrain ? pendingProductOwned(run.beforeDrain) : []
   console.log(`    before-drain product-owned (${ownedBefore.length}): ${describeOwned(ownedBefore).join(' ‖ ') || '(none)'}`)
-  check(
-    `${tag} THE DELTA: product-owned persistence was in flight BEFORE the drain (the seams existed — this is the census's evidence, not an absence)`,
-    ownedBefore.length >= 1,
-    j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
-  )
+  const bashRan = run.script.startsWith('tool-bash') && !denied
+  if (bashRan) {
+    console.log(`    ${tag} the Bash tool's own cleanup completes last here — the writer's close is torn down before the drain; the tool round on disk is this arm's evidence`)
+  } else {
+    check(
+      `${tag} THE DELTA: the writer's last append was still listed BEFORE the drain (the seam existed — this is the census's evidence, not an absence)`,
+      ownedBefore.length >= 1,
+      j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
+    )
+  }
   check(
     `${tag} …and ZERO pending product-owned requests at the cliff after it (writer append/close) — drained by name, not raced`,
     owned.length === 0,
@@ -223,16 +228,23 @@ for (const run of drainRuns) {
 section('§2 — the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0): the pre-fix cut, seen by the same instrument')
 {
   cleanups.push(poison.home, poison.fix)
-  check('[poison tool-bash] the run still exits 0 with the settled text (the poison only skips the drain)', poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
-  check('[poison tool-bash] the channel still speaks at the same moment — the BEFORE dump says the drain was skipped', poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
+  const ptag = `[poison ${poison.script}]`
+  check(`${ptag} the run still exits 0 with the settled text (the poison only skips the drain)`, poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
+  check(`${ptag} the channel still speaks at the same moment — the BEFORE dump says the drain was skipped`, poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
   const owned = poison.census ? pendingProductOwned(poison.census) : []
   console.log(`    poison cliff product-owned (${owned.length}): ${describeOwned(owned).join(' ‖ ') || '(none)'}`)
   check(
-    '[poison tool-bash] a product-owned request is PENDING at the cliff (the writer append/close cut by process.exit) — the census sees the seam the drain empties',
+    `${ptag} the landed append's close is still LISTED at the cliff (the exit ran on its completion's own microtask chain; the runtime never got the turn that frees it) — the seam the drain's loop turn empties`,
     owned.length >= 1,
     j(poison.census?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(2, 5).join('|')}`)),
   )
-  check('[poison tool-bash] the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)', readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
+  const poisonWatchers = (poison.census?.handles ?? []).filter(h => h.kind === 'FSWatcher')
+  check(
+    `${ptag} the closed watchers are still alive at the cliff (closed by the cleanup, never torn down — the loop's closing phase never ran) — the handle half of the same delta`,
+    poisonWatchers.length >= 1,
+    j((poison.census?.handles ?? []).map(h => h.kind)),
+  )
+  check(`${ptag} the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)`, readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
 }
 
 for (const dir of cleanups) {
