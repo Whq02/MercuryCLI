@@ -145,6 +145,51 @@ if (!ready) {
   }
 }
 
+// ── the plain seams (no sandbox) ─────────────────────────────────────────────
+interface Plain {
+  code: number
+  out: string
+  stderr: string
+  interrupted: boolean
+  ms: number
+  cwd: string
+}
+async function plain(command: string, opts: { timeout?: number } = {}): Promise<Plain> {
+  const started = Date.now()
+  const handle = await exec(command, new AbortController().signal, 'bash', {
+    timeout: opts.timeout ?? 20_000,
+    shouldUseSandbox: false,
+    shouldAutoBackground: false,
+  })
+  const result = await handle.result
+  return { code: result.code, out: result.stdout, stderr: result.stderr, interrupted: result.interrupted, ms: Date.now() - started, cwd: getCwd() }
+}
+const trimmed = (p: Plain): string => p.out.trimEnd()
+
+section('§2 a pipe keeps the special parameters and ANSI-C quoting')
+{
+  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const status = await plain('false | true; echo "$?"')
+  check('`false | true; echo "$?"` prints the status, not the text $?', status.code === 0 && trimmed(status) === '0', JSON.stringify(status.out.slice(0, 80)))
+  const rc = await plain('cat | head -1; echo "rc=$?"')
+  check('`cat | head -1; echo "rc=$?"` expands $? after the pipeline', rc.code === 0 && trimmed(rc) === 'rc=0', JSON.stringify(rc.out.slice(0, 80)))
+  const pid = await plain('echo "$$" | cat')
+  check('`echo "$$" | cat` prints the shell pid', /^\d+$/.test(trimmed(pid)), JSON.stringify(pid.out.slice(0, 80)))
+  const positional = await plain(`sh -c 'echo "$1-$#"' _ one two | cat`)
+  check('positional parameters survive a pipe', trimmed(positional) === 'one-2', JSON.stringify(positional.out.slice(0, 80)))
+  const ansi = await plain(`printf '%s' $'a\\tb' | cat`)
+  check("ANSI-C quoting in a piped command carries the tab byte", ansi.out === 'a\tb', JSON.stringify(ansi.out.slice(0, 80)))
+  const count = await plain(`printf '%s' $'a\\tb' | wc -c | tr -d ' '`)
+  check('…and counts three bytes', trimmed(count) === '3', JSON.stringify(count.out.slice(0, 80)))
+  const named = await plain('X=1; echo "$X" | cat')
+  check('a named variable in a piped command still expands (the whole-command form)', trimmed(named) === '1', JSON.stringify(named.out.slice(0, 80)))
+  const plainPipe = await plain('printf "a\\nb\\n" | head -1')
+  check('a pipeline without parameters still works', trimmed(plainPipe) === 'a', JSON.stringify(plainPipe.out.slice(0, 80)))
+  check('the rearrangement takes the whole-command form for a special parameter', rearrangePipeCommand('false | true; echo "$?"').endsWith(" < /dev/null") && rearrangePipeCommand('false | true; echo "$?"').includes('"$?"'), rearrangePipeCommand('false | true; echo "$?"'))
+  check('…and for ANSI-C quoting', rearrangePipeCommand(`printf '%s' $'a\\tb' | cat`).includes(`$'a\\tb'`), rearrangePipeCommand(`printf '%s' $'a\\tb' | cat`))
+  check('…while a parameter-free pipeline is still rearranged onto its first stage', /^'ls < \/dev\/null \| head -1'$/.test(rearrangePipeCommand('ls | head -1')), rearrangePipeCommand('ls | head -1'))
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')

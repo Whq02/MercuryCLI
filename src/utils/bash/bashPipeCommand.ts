@@ -74,8 +74,12 @@ function requiresFallback(original: string, joined: string): {
 } {
   if (original.includes('`')) return { fallback: true }
   if (original.includes('$(')) return { fallback: true }
-  // A variable reference: `$` then a letter, underscore or `{`.
-  if (/\$[A-Za-z_{]/.test(original)) return { fallback: true }
+  // A parameter reference: `$` then a letter, underscore or `{` (a named
+  // variable), a digit or one of `? $ ! # @ * -` (the special parameters),
+  // or a quote (ANSI-C quoting). The re-emission below single-quotes every
+  // token, which would turn any of these into literal text; the fallback
+  // form keeps the original spelling under eval instead.
+  if (/\$[A-Za-z_{0-9?$!#@*'-]/.test(original)) return { fallback: true }
   if (CONTROL_STRUCTURE_RE.test(original)) return { fallback: true }
   if (joined.includes('\n')) return { fallback: true }
   if (hasShellQuoteSingleQuoteBug(joined)) return { fallback: true }
