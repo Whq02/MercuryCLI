@@ -234,9 +234,20 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const replSrc = readFileSync('src/screens/REPL.tsx', 'utf8')
   const hopBlock = replSrc.slice(replSrc.indexOf('rekeyedSessionRef.current !== focusedSessionId'))
   check('rekey: the REPL hop effect re-keys the queue beside pending-input, inside the same guard',
-    hopBlock.slice(0, 600).includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId)") &&
-      hopBlock.includes('pendingInput.rekeyToSession') &&
+    hopBlock.slice(0, 600).includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
+      hopBlock.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
       hopBlock.indexOf('pendingInput.rekeyToSession') < hopBlock.indexOf('rekeyCommandQueueToSession(focusedSessionId'))
+  check('rekey: the landing word is the slot-fill fact, computed once for both owners',
+    replSrc.includes("const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';"))
+  q.resetCommandQueue()
+  q.rekeyCommandQueueToSession(null)
+  q.enqueue(cmd('queued while landing'))
+  q.rekeyCommandQueueToSession('landed-A', { landing: true })
+  check('rekey: a landing keeps the entries queued while it landed', q.getCommandQueue().map(c => c.value).join(',') === 'queued while landing')
+  q.rekeyCommandQueueToSession('hop-B')
+  check('rekey: a hop after the landing still parks them whole', q.getCommandQueue().length === 0)
+  q.rekeyCommandQueueToSession('landed-A')
+  check('rekey: …and the return restores them', q.getCommandQueue().map(c => c.value).join(',') === 'queued while landing')
 
   q.resetCommandQueue()
 }
