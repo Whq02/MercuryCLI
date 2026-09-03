@@ -33,6 +33,7 @@ import { getMercuryHome } from '../envUtils.js'
 import { expandPath } from '../path.js'
 import { getPlatform } from '../platform.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
+import { subprocessEnv } from '../subprocessEnv.js'
 
 export type {
   FsReadRestrictionConfig,
@@ -319,7 +320,7 @@ function buildDenyWrite(): string[] {
 const platformUserTempDir = memoize((): string | null => {
   if (getPlatform() !== 'macos') return null
   try {
-    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000, windowsHide: true, env: process.env }).trim()
+    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000, windowsHide: true, env: subprocessEnv() }).trim()
     return dir === '' ? null : realpathSync(dir)
   } catch {
     return null
