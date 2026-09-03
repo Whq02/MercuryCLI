@@ -34,24 +34,6 @@ export function currentProcStart(): string | undefined {
   return procStartToken(process.pid)
 }
 
-export function procLiveToken(pid: number): string | null | undefined {
-  if (process.platform !== 'linux') return undefined
-  let stat: string
-  try {
-    stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
-  } catch (e) {
-    const code = (e as NodeJS.ErrnoException).code
-    return code === 'ENOENT' || code === 'ESRCH' ? '' : null
-  }
-  const closeParen = stat.lastIndexOf(')')
-  if (closeParen === -1) return null
-  const tail = stat.slice(closeParen + 2).split(' ')
-  const state = tail[0]
-  if (state === 'Z' || state === 'X' || state === 'x') return ''
-  const token = tail[19]
-  return token && token.length > 0 ? token : null
-}
-
 const ANCESTOR_TIMEOUT_MS = 3000
 
 export async function getAncestorPidsAsync(pid: number, maxDepth: number = 10): Promise<number[]> {

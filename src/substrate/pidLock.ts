@@ -9,7 +9,7 @@ import {
 } from './durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode } from '../utils/errors.js'
-import { procLiveToken, currentProcStart } from '../utils/genericProcessUtils.js'
+import { procStartToken, currentProcStart } from '../utils/genericProcessUtils.js'
 import { getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '../daemon/ownerWatch.js'
 import { safeParseJSON } from '../utils/json.js'
 import { sleep } from '../utils/sleep.js'
@@ -92,7 +92,7 @@ export function holderAlive(
   }
   if (holder.procStart) {
     const current =
-      liveToken !== undefined ? liveToken : (procLiveToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid))
+      liveToken !== undefined ? liveToken : (procStartToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid))
     if (current === '') return false
     if (current !== null && current !== undefined && current !== holder.procStart) return false
   }
