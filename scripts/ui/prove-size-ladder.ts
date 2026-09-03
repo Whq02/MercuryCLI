@@ -128,7 +128,7 @@ console.log('§3 the refusal-frame roster: the concourse alone, way out live')
 console.log('§4 split, chrome and overlay commitments hold at the ladder')
 {
   const split = await import('../../src/components/concourse/splitView.ts')
-  check('split: 121×24 exactly', !split.splitAvailableAt(120, 24) && !split.splitAvailableAt(121, 23) && split.splitAvailableAt(121, 24))
+  check(`split: 121×${split.SPLIT_MIN_ROWS} exactly (the rows floor is the viewport floor's)`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS))
   const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
   check(
     'chrome: the ratified numbers stand (cockpit 100×26 · deck 22 rows · the 64 frame floor)',
