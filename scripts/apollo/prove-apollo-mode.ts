@@ -256,8 +256,8 @@ try {
     "modeSuggestion counts apollo with the ask-posture modes (the session tier moves apollo → implement)",
     /context\.mode === 'default' \|\| context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
-  const streamCore = src('services', 'providers', 'anthropic', 'streamCore.ts')
-  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(streamCore))
+  const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
+  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(toolEconomy))
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
