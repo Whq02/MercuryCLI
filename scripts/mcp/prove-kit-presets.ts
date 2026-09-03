@@ -31,6 +31,7 @@ watchdog.unref?.()
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
+const wireKeys = (src: string, name: string): string => (src.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
 
 console.log('============================================================')
 console.log(' KIT-PRESETS — named kit snapshots at both doors')
@@ -242,7 +243,6 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   const hopSrc = read('src/services/switchboard/hopIntoSession.ts')
   t('P3-15 the birth door consumes at entry and spreads worn-else-carried', born.includes('const worn = takeWornPresetKit()') && born.includes('...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),'))
   t('P3-16 the resume door PEEKS, spreads worn-else-carried, and spends only when applied (liveHop gates the take)', hopSrc.includes('const worn = peekWornPresetKit()') && hopSrc.includes('worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())') && hopSrc.includes('if (worn !== null && reply.liveHop !== true) takeWornPresetKit()'))
-  const wireKeys = (src: string, name: string): string => (src.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
   t('P3-17 the wire carries the pure-hop fact end to end (supervisor answer → protocol row → controlServer pass-through)', read('src/daemon/concourseSupervisor.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
 }
 
