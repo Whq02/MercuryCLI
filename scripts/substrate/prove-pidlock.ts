@@ -86,6 +86,20 @@ const L = (name: string) => join(tmp, name)
   const reclaimed = await acquirePidLock(L('recycled.lock'), 'owner-u', { liveness: 'assume-alive' })
   ok(reclaimed.held === true, '§6 a live pid whose recorded token mismatches the LIVE token is reclaimed end to end (the async pre-fetch through the one owner)')
 }
+
+{
+  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'pidLock.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('async function liveTokenFor('), src.indexOf('export interface PidLockHolder'))
+  ok(/\/\^\\d\+\$\/\.test\(holder\.procStart\)/.test(fn) && fn.includes('procStartToken(holder.pid)'), '§7 liveTokenFor reads a digits record through /proc first (the record\'s own vocabulary)')
+  ok(/return probed === '' \? '' : null/.test(fn), "§7 a ps token against a /proc record is unknowable (null ⇒ alive), a gone answer ('') stays gone")
+  writeFileSync(L('digits.lock'), JSON.stringify({ owner: 'ghost', pid: process.pid, acquiredAt: Date.now() - 60_000, procStart: '424242' }))
+  const digits = await acquirePidLock(L('digits.lock'), 'owner-v', { liveness: 'assume-alive' })
+  if (process.platform === 'linux') {
+    ok(digits.held === true, '§7 linux: a /proc-vocabulary record naming our pid with a WRONG start time is reclaimed (the compare reads /proc)')
+  } else {
+    ok(digits.held === false, '§7 no /proc here: a /proc-vocabulary record cannot be compared with a ps token ⇒ alive ⇒ blocked (never a death verdict across vocabularies)')
+  }
+}
 rmSync(tmp, { recursive: true, force: true })
 if (failures > 0) {
   console.error(`prove-pidlock: ${failures} FAILURE(S)`)
