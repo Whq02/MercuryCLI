@@ -77,14 +77,21 @@ function isSupportedPlatformSync(): boolean {
 }
 
 let cachedDepCheck: SandboxDependencyCheck = { warnings: [], errors: [] }
+let dependenciesChecked = false
 
-async function warmDependencyCheck(): Promise<void> {
+function ensureDependencyCheck(): void {
+  if (dependenciesChecked) return
+  dependenciesChecked = true
   try {
     const result = RuntimeSandboxManager.checkDependencies()
     cachedDepCheck = result
     dependenciesOk = result.errors.length === 0
   } catch {
   }
+}
+
+async function warmDependencyCheck(): Promise<void> {
+  ensureDependencyCheck()
 }
 
 export function shouldAllowManagedSandboxDomainsOnly(): boolean {
@@ -390,6 +397,7 @@ export const SandboxManager: ISandboxManager = {
 
   isSandboxingEnabled(): boolean {
     if (!isSupportedPlatformSync()) return false
+    ensureDependencyCheck()
     if (!dependenciesOk) return false
     if (!SandboxManager.isPlatformInEnabledList()) return false
     return SandboxManager.isSandboxEnabledInSettings()
@@ -404,7 +412,10 @@ export const SandboxManager: ISandboxManager = {
     }
   },
 
-  checkDependencies: () => cachedDepCheck,
+  checkDependencies: () => {
+    ensureDependencyCheck()
+    return cachedDepCheck
+  },
 
   isAutoAllowBashIfSandboxedEnabled(): boolean {
     const value = getSandboxSection(getMergedSettings()).autoAllowBashIfSandboxed
@@ -513,6 +524,8 @@ export const SandboxManager: ISandboxManager = {
     scrubList = []
     isSupportedPlatformMemo.cache.clear?.()
     cachedDepCheck = { warnings: [], errors: [] }
+    dependenciesOk = true
+    dependenciesChecked = false
     initPromise = null
     void RuntimeSandboxManager.reset()
   },
