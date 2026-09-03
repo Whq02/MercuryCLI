@@ -14,7 +14,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
+const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 const SEAM = 'MERCURY_WINDOWS_SHELL_ROAD'
 const PIN = 'MERCURY_GIT_BASH_PATH'
 
