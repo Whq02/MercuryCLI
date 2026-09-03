@@ -66,9 +66,11 @@ build-and-run guide; [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 
 ## The first run
 
-The first interactive run is a short walk: pick a theme (the screen re-tints
-as you move), then sign in to a provider or choose "sign in later" and look
-around logged-out. After the walk, Mercury asks whether you trust the folder
+The first interactive run is a short walk: pick an appearance (the screen
+re-tints as you move; True Black is the default, the oasis dark ground is the
+other row, and `/appearance` changes it later), then sign in to a provider or
+choose "sign in later" and look around logged-out. After the walk, Mercury
+asks whether you trust the folder
 you started in. Nothing a workspace config asks for runs before you trust
 the folder, a grant covers the whole repository, and declining exits
 ([docs/TRUST.md](docs/TRUST.md)).

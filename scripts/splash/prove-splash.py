@@ -271,8 +271,8 @@ print("\n── echo-guard (task #6: the leaked-'p' flash): the hold screen park
 hold_seg = raw_cov[raw_cov.rindex('starting'):]
 check('hold screen ends with the cursor HIDDEN (no ?25h after the hold line)',
       '\x1b[?25h' not in hold_seg and '\x1b[?25l' in hold_seg)
-check('hold screen parks the SGR ink (echoed keys land invisible)',
-      '\x1b[38;2;13;24;27m\x1b[48;2;13;24;27m' in hold_seg or '\x1b[8m' in hold_seg)
+check('hold screen parks the SGR ink in the default ground (echoed keys land invisible)',
+      '\x1b[38;2;0;0;0m\x1b[48;2;0;0;0m' in hold_seg or '\x1b[8m' in hold_seg)
 check('the escape-hatch hint stays readable (written BEFORE the park)',
       'stuck? type: reset' in raw_cov)
 
@@ -1017,11 +1017,11 @@ for _label, _rawx in (('NO_COLOR', plainraw), ('256-fallback', raw256)):
     check(f'{_label}: stripped frame text identical to truecolor (colour-only across tiers)',
           _txt == _base_txt, f'{len(_txt)} vs {len(_base_txt)} lines')
 
-print('\n── ROUND 7: the flat-ground law (no field background; OSC 11 = the shared NIGHT)')
+print('\n── ROUND 7: the flat-ground law (no field background; OSC 11 = the shared family ground)')
 raw_ground = run_pty(172, 42)
 raw_expl = run_pty(172, 42, {'MERCURY_OASIS_BG': '0'})
-check('ground run: OSC 11 sets the SHARED NIGHT ground (#0D181B — the oasisBg pair value)',
-      '\x1b]11;#0D181B' in raw_ground)
+check('ground run (no stored theme): OSC 11 sets the True Black default ground (#000000 — the oasisBg pair value of the default appearance)',
+      '\x1b]11;#000000' in raw_ground and '\x1b]11;#0D181B' not in raw_ground)
 check('ground run: the retired wash never paints (no vignette edge/band bg, no SGR 49)',
       '48;2;7;13;18' not in raw_ground and '48;2;22;48;60' not in raw_ground
       and '\x1b[49m' not in raw_ground)
@@ -1074,9 +1074,15 @@ check('true-black home: OSC 11 sets the pure-black ground (#000000)',
 check('true-black home: no oasis ground byte anywhere (no #0D181B OSC, no 13;24;27 SGR)',
       '\x1b]11;#0D181B' not in raw_tb and '38;2;13;24;27' not in raw_tb
       and '48;2;13;24;27' not in raw_tb)
-raw_tb_pin = run_pty(172, 42, {'MERCURY_THEME_PIN': 'true-black'})
-check('MERCURY_THEME_PIN=true-black selects the family with no stored theme (the pin rung)',
-      '\x1b]11;#000000' in raw_tb_pin)
+oasis_home = tempfile.mkdtemp(prefix='splash-proof-home-oasis.')
+with open(os.path.join(oasis_home, '.mercury.json'), 'w') as f:
+    json.dump({'theme': 'dark'}, f)
+raw_oasis = run_pty(172, 42, {'MERCURY_HOME': oasis_home})
+check('oasis home (a saved dark choice): OSC 11 sets the oasis NIGHT ground (#0D181B) — the saved choice outranks the default',
+      '\x1b]11;#0D181B' in raw_oasis and '\x1b]11;#000000' not in raw_oasis)
+raw_pin = run_pty(172, 42, {'MERCURY_THEME_PIN': 'dark'})
+check('MERCURY_THEME_PIN=dark selects the oasis family with no stored theme (the pin rung outranks the default)',
+      '\x1b]11;#0D181B' in raw_pin and '\x1b]11;#000000' not in raw_pin)
 raw_tb_bad = run_pty(172, 42, {'MERCURY_HOME': tb_home, 'MERCURY_THEME_PIN': 'dark'})
 check('the pin outranks the stored theme (dark pin over a true-black home)',
       '\x1b]11;#0D181B' in raw_tb_bad and '\x1b]11;#000000' not in raw_tb_bad)
