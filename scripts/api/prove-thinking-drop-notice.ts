@@ -184,11 +184,6 @@ section('§1 the classifier')
   const twoOwners = classifyThinkingDrops('other-owner', [DROP('messages.1.content.0')], mark())
   check('another conversation is untouched by the declaration', twoOwners.kind === 'first' && pendingLawfulPrefixChange('seam') === 'newest clause')
   resetLawfulPrefixChanges()
-  const { recordThinkingDropLedger: recordDeclared, readThinkingDropLedger: readDeclared, preservedThinkingHealth: healthDeclared } = binding
-  recordDeclared(declaredDrop, 'claude-fable-5-1')
-  const ld = readDeclared()
-  const rd = healthDeclared(ld)
-  check('the ledger and the doctor row name the declared change', ld?.last.lawful === 'declared' && ld.last.detail === 'sub-agents were turned on' && rd.status === 'info' && rd.evidence.includes('a change you asked for (sub-agents were turned on)'), j(rd))
 }
 
 // ============================================================================
@@ -308,6 +303,15 @@ section('§3 the ledger and the doctor row')
   const ls = readThinkingDropLedger()
   const rs = preservedThinkingHealth(ls)
   check('an operator-setting drop is recorded with its detail and reads as an info row naming the setting', ls?.last.lawful === 'operator-setting' && ls.last.detail === 'the permission mode (default → apollo)' && rs.status === 'info' && rs.evidence.includes('a setting change (the permission mode (default → apollo))'), j(rs))
+  const { declareLawfulPrefixChange: declareForLedger, resetLawfulPrefixChanges: resetForLedger } = await import('../../src/services/providers/lawfulPrefixChange.ts')
+  classifyThinkingDrops('ld', [], mark())
+  declareForLedger('ld', 'sub-agents were turned on')
+  const declaredForLedger = classifyThinkingDrops('ld', [DROP('messages.1.content.0')], mark())
+  recordThinkingDropLedger(declaredForLedger, 'claude-fable-5-1')
+  const ld = readThinkingDropLedger()
+  const rd = preservedThinkingHealth(ld)
+  check('a declared-change drop is recorded with its clause and reads as an info row naming it', ld?.last.lawful === 'declared' && ld.last.detail === 'sub-agents were turned on' && rd.status === 'info' && rd.evidence.includes('a change you asked for (sub-agents were turned on)'), j(rd))
+  resetForLedger()
 
   writeFileSync(thinkingDropLedgerPath(), '{not json')
   check('a corrupt ledger reads as null (the ok row), never a throw', readThinkingDropLedger() === null)
