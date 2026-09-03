@@ -121,10 +121,10 @@ if (!ready) {
   await run(`cd "${PROJECT}"`, true)
   const inside = await run(`echo in > "${PROJECT}/in.txt"`, true)
   check('a write inside the session directory lands with status 0', inside.code === 0 && existsSync(join(PROJECT, 'in.txt')), `code ${inside.code} ${JSON.stringify(inside.out.slice(0, 120))}`)
-  // Observed, not pinned: the sandboxed child's TMPDIR reads the login
-  // shell's own temp directory rather than the executor's override, so
-  // mktemp lands outside the allow-write set — a seam of its own, recorded
-  // here with the value the child saw.
+  // Observed, not pinned: the vendored runtime hands the sandboxed child a
+  // TMPDIR of its own (/tmp/claude) that nothing creates, so mktemp falls
+  // back to the system temp directory outside the allow-write set — a seam
+  // of its own, recorded here with the value the child saw.
   const temp = await run('f=$(mktemp) && echo "$f" && rm -f "$f"; echo "TMPDIR=$TMPDIR"', true)
   note(`mktemp under the sandbox: code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
   const outside = await run(`echo out > "${OUTSIDE}/out.txt"`, true)
@@ -187,7 +187,8 @@ section('§2 a pipe keeps the special parameters and ANSI-C quoting')
   const plainPipe = await plain('printf "a\\nb\\n" | head -1')
   check('a pipeline without parameters still works', trimmed(plainPipe) === 'a', JSON.stringify(plainPipe.out.slice(0, 80)))
   check('the rearrangement takes the whole-command form for a special parameter', rearrangePipeCommand('false | true; echo "$?"').endsWith(" < /dev/null") && rearrangePipeCommand('false | true; echo "$?"').includes('"$?"'), rearrangePipeCommand('false | true; echo "$?"'))
-  check('…and for ANSI-C quoting', rearrangePipeCommand(`printf '%s' $'a\\tb' | cat`).includes(`$'a\\tb'`), rearrangePipeCommand(`printf '%s' $'a\\tb' | cat`))
+  const ansiForm = rearrangePipeCommand(`printf '%s' $'a\\tb' | cat`)
+  check('…and for ANSI-C quoting (the original text, single-quoted whole, the redirect outside)', ansiForm.startsWith("'") && ansiForm.endsWith("' < /dev/null") && ansiForm.includes('a\\tb') && !ansiForm.includes('< /dev/null |'), ansiForm)
   check('…while a parameter-free pipeline is still rearranged onto its first stage', /^'ls < \/dev\/null \| head -1'$/.test(rearrangePipeCommand('ls | head -1')), rearrangePipeCommand('ls | head -1'))
 }
 
@@ -253,7 +254,12 @@ if (!ready) {
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
-    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
+    // The kill path: a command whose FIRST subcommand is the bare word the
+    // tool never auto-backgrounds keeps the whole call in the foreground,
+    // so the timeout kills it instead of moving it to the background — the
+    // path on which the note used to be lost.
+    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep; sleep 30', timeout: 3000, description: 'a command past its timeout on the kill path' }, whenModel: MODEL },
+    { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
   ]
   const fixture = await startFixtureApi(turns)
@@ -270,9 +276,13 @@ if (!ready) {
     MERCURY_VERIFY_EVIDENCE: '0',
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+    // The default Bash timeout for this boot: the fourth call sleeps past
+    // it, so the note is pinned on the kill path the default takes.
+    BASH_DEFAULT_TIMEOUT_MS: '3000',
   }
-  const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string }>(resolveRun => {
-    const child = spawn(nodeBin, [DIST, '-p', 'sandbox-probe: run the three', '--model', MODEL, '--dangerously-skip-permissions'], { cwd, env, detached: true })
+  const startedAt = Date.now()
+  const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
+    const child = spawn(nodeBin, [DIST, '-p', 'sandbox-probe: run the four', '--model', MODEL, '--dangerously-skip-permissions'], { cwd, env, detached: true })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', d => (stdout += d))
@@ -286,7 +296,7 @@ if (!ready) {
     }, 90_000)
     child.on('close', exit => {
       clearTimeout(deadline)
-      resolveRun({ exit, stdout, stderr })
+      resolveRun({ exit, stdout, stderr, ms: Date.now() - startedAt })
     })
   })
   await fixture.close()
@@ -306,11 +316,18 @@ if (!ready) {
       }
     }
   }
-  note(`print mode exit ${outcome.exit}; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
+  note(`print mode exit ${outcome.exit} after ${outcome.ms}ms; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
+  for (const [index, request] of fixture.messageRequests().entries()) {
+    const messages = (request.body as { messages?: Array<{ role?: string; content?: unknown }> })?.messages ?? []
+    const last = messages[messages.length - 1]
+    const blocks = Array.isArray(last?.content) ? (last?.content as Array<{ type?: string; content?: unknown; is_error?: boolean }>) : []
+    const result = blocks.find(b => b.type === 'tool_result')
+    if (result) note(`request ${index + 1} carried a tool result${result.is_error ? ' (error)' : ''}: ${JSON.stringify(typeof result.content === 'string' ? result.content.slice(0, 120) : JSON.stringify(result.content).slice(0, 120))}`)
+  }
   check('the artifact ran the four calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
   check('the artifact showed the model four tool results', results.length === 4, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth] = results
-  check('artifact: the timed-out command tells the model it timed out', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
+  check('artifact: the killed command tells the model it timed out (an error result carrying the note)', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text) && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
