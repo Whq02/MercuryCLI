@@ -2,7 +2,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE } from './voicePack.js'
+import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
@@ -16,6 +16,19 @@ export function captureBoundMs(): number {
 
 export const NO_BACKEND_RECEIPT =
   'no microphone backend — the voice pack is absent on this install; run `bun run setup` (needs cargo) or put sox/ffmpeg on PATH'
+
+export function recorderInstallHint(platform: string = process.platform): string {
+  if (platform === 'darwin') return 'brew install ffmpeg'
+  if (platform === 'win32') return 'winget install ffmpeg'
+  return 'apt install ffmpeg, or your package manager'
+}
+
+export const NO_BACKEND_RECEIPT_RELEASE =
+  'no microphone backend — this install carries no voice pack; put ffmpeg or sox on PATH'
+
+export function noBackendReceipt(checkoutRoot: string | null = voiceCheckoutRoot(), platform: string = process.platform): string {
+  return checkoutRoot !== null ? NO_BACKEND_RECEIPT : `${NO_BACKEND_RECEIPT_RELEASE} (${recorderInstallHint(platform)})`
+}
 
 export type CaptureBackendKind = 'vendored' | 'sox' | 'arecord' | 'ffmpeg' | 'fixture'
 
@@ -89,7 +102,7 @@ export function resolveCaptureBackend(env: NodeJS.ProcessEnv = process.env): Cap
     tried.push(kind)
     notes.push(`${kind}: ${resolved.note}`)
   }
-  return { state: 'none', note: `${NO_BACKEND_RECEIPT} (${notes.join('; ')})`, tried }
+  return { state: 'none', note: `${noBackendReceipt()} (${notes.join('; ')})`, tried }
 }
 
 export class CaptureError extends Error {

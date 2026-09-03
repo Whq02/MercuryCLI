@@ -1,5 +1,4 @@
 
-import { isEqual } from 'lodash-es'
 import { useCallback, useRef, useState } from 'react'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
 import useInput from '../../ink/hooks/use-input.js'
@@ -9,6 +8,7 @@ import {
 } from '../../utils/stringUtils.js'
 import {
   isInputOption,
+  optionsEquivalent,
   optionValueOf,
   type OptionWithDescription,
 } from './option-map.js'
@@ -33,6 +33,9 @@ export type UseMultiSelectStateProps<T> = {
   isDisabled?: boolean
   onDownFromLastItem?: () => void
   onUpFromFirstItem?: () => void
+  onEmptyInputSubmit?: (value: T) => void
+  onTabOut?: (direction: 'next' | 'previous') => void
+  onSubmitFocusChange?: (focused: boolean) => void
 }
 
 export type MultiSelectState<T> = SelectNavigation<T> & {
@@ -41,6 +44,7 @@ export type MultiSelectState<T> = SelectNavigation<T> & {
   isSubmitFocused: boolean
   updateInputValue: (value: T, text: string) => void
   toggleValue: (value: T) => void
+  activateInputValue: (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string) => void
   onCancel: () => void
 }
 
@@ -59,6 +63,9 @@ export function useMultiSelectState<T>({
   isDisabled = false,
   onDownFromLastItem,
   onUpFromFirstItem,
+  onEmptyInputSubmit,
+  onTabOut,
+  onSubmitFocusChange,
 }: UseMultiSelectStateProps<T>): MultiSelectState<T> {
   useRegisterOverlay('multi-select')
 
@@ -84,12 +91,22 @@ export function useMultiSelectState<T>({
     }
     return seeded
   })
-  const [isSubmitFocused, setSubmitFocused] = useState(false)
+  const [isSubmitFocused, setSubmitFocusedState] = useState(false)
+  const submitFocusedRef = useRef(isSubmitFocused)
+  submitFocusedRef.current = isSubmitFocused
+  const onSubmitFocusChangeRef = useRef(onSubmitFocusChange)
+  onSubmitFocusChangeRef.current = onSubmitFocusChange
+  const setSubmitFocused = useCallback((next: boolean): void => {
+    if (submitFocusedRef.current === next) return
+    submitFocusedRef.current = next
+    setSubmitFocusedState(next)
+    onSubmitFocusChangeRef.current?.(next)
+  }, [])
 
   const previousOptionsRef = useRef(options)
   if (
     previousOptionsRef.current !== options &&
-    !isEqual(previousOptionsRef.current, options)
+    !optionsEquivalent(previousOptionsRef.current, options)
   ) {
     previousOptionsRef.current = options
     setSelectedValues(defaultValue ?? [])
@@ -99,6 +116,8 @@ export function useMultiSelectState<T>({
 
   const selectedValuesRef = useRef(selectedValues)
   selectedValuesRef.current = selectedValues
+  const inputValuesRef = useRef(inputValues)
+  inputValuesRef.current = inputValues
 
   const toggleValue = useCallback(
     (value: T): void => {
@@ -115,11 +134,10 @@ export function useMultiSelectState<T>({
 
   const updateInputValue = useCallback(
     (value: T, text: string): void => {
-      setInputValues(current => {
-        const next = new Map(current)
-        next.set(value, text)
-        return next
-      })
+      const texts = new Map(inputValuesRef.current)
+      texts.set(value, text)
+      inputValuesRef.current = texts
+      setInputValues(texts)
       const option = options.find(o => o.value === value)
       if (isInputOption(option)) option.onChange?.(text)
       const current = selectedValuesRef.current
@@ -143,6 +161,22 @@ export function useMultiSelectState<T>({
     onSubmit?.(selectedValues)
   }
 
+  const { focusValue: focusByValue } = navigation
+  const activateInputValue = useCallback(
+    (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string): void => {
+      const text = (submitted ?? inputValuesRef.current.get(value) ?? '').trim()
+      if (text === '') {
+        focusByValue(value)
+        if (via === 'enter') onEmptyInputSubmit?.(value)
+        return
+      }
+      if (!selectedValuesRef.current.includes(value)) toggleValue(value)
+      if (via === 'enter' && hasSubmitButton) setSubmitFocused(true)
+      else focusByValue(value)
+    },
+    [focusByValue, toggleValue, hasSubmitButton, onEmptyInputSubmit, setSubmitFocused],
+  )
+
   useInput(
     (input, key, event) => {
       if (navigation.isInInput && !isSubmitFocused) {
@@ -156,6 +190,11 @@ export function useMultiSelectState<T>({
         if (!allowed) return
       }
 
+      if (key.tab && onTabOut) {
+        onTabOut(key.shift ? 'previous' : 'next')
+        event.stopImmediatePropagation()
+        return
+      }
       if (key.tab && key.shift) {
         if (isSubmitFocused) {
           setSubmitFocused(false)
@@ -230,6 +269,8 @@ export function useMultiSelectState<T>({
           submit()
         } else if (key.return && !hasSubmitButton && onSubmit) {
           submit()
+        } else if (key.return && navigation.isInInput && navigation.focusedValue !== undefined) {
+          activateInputValue(navigation.focusedValue, 'enter')
         } else if (navigation.focusedValue !== undefined) {
           toggleValue(navigation.focusedValue)
         }
@@ -237,13 +278,18 @@ export function useMultiSelectState<T>({
         return
       }
 
+      const activateOrdinalTarget = (target: OptionWithDescription<T>): void => {
+        if (isInputOption(target)) activateInputValue(optionValueOf(target), 'ordinal')
+        else toggleValue(optionValueOf(target))
+        event.stopImmediatePropagation()
+      }
+
       const digits = normalizeFullWidthDigits(input)
       if (/^\d+$/.test(digits)) {
         if (hideIndexes) return
         const target = options[parseInt(digits, 10) - 1]
         if (target) {
-          toggleValue(optionValueOf(target))
-          event.stopImmediatePropagation()
+          activateOrdinalTarget(target)
           return
         }
       }
@@ -252,8 +298,7 @@ export function useMultiSelectState<T>({
         const pressed = input.toUpperCase()
         const lettered = options.find(o => letterOrdinalOf(o) === pressed)
         if (lettered) {
-          toggleValue(optionValueOf(lettered))
-          event.stopImmediatePropagation()
+          activateOrdinalTarget(lettered)
           return
         }
       }
@@ -273,6 +318,7 @@ export function useMultiSelectState<T>({
     isSubmitFocused,
     updateInputValue,
     toggleValue,
+    activateInputValue,
     onCancel,
   }
 }

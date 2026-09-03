@@ -121,7 +121,6 @@ import {
   getResolvedTeammateMode,
   isInProcessEnabled,
 } from './swarm/backends/registry.js'
-import { isTmuxAvailable } from './swarm/backends/detection.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
@@ -1554,7 +1553,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'team-rosters',
-          label: 'Team roster cwds',
+          label: 'Agent group roster cwds',
           run: async () => {
             const { existsSync, readdirSync, readFileSync } = await import('node:fs')
             const { join } = await import('node:path')
@@ -1757,6 +1756,16 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             return { status: 'ok', evidence }
+          },
+        },
+        {
+          id: 'preserved-thinking',
+          label: 'Preserved thinking',
+          run: async () => {
+            const { preservedThinkingHealth, readThinkingDropLedger } = await import(
+              '../services/providers/anthropic/thinkingBinding.js'
+            )
+            return preservedThinkingHealth(readThinkingDropLedger())
           },
         },
       ],
@@ -2259,14 +2268,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Terminal profile',
           run: () => {
             const { resolveTerminalProfile } = require('../ink/session/terminalProfile.js') as typeof import('../ink/session/terminalProfile.js')
+            const { describeTerminalHandback } = require('./terminalHandback.js') as typeof import('./terminalHandback.js')
+            const handback = describeTerminalHandback()
             const p = resolveTerminalProfile()
             const cols = process.stdout.columns ?? 0
             const rows = process.stdout.rows ?? 0
             const color = process.env.NO_COLOR ? 'no-color' : (flagEnv('MERCURY_TRUECOLOR') ?? '1') !== '0' ? 'truecolor' : 'reduced'
             const missing = p.checks.filter(c => !c.ok)
-            const detail = p.checks
-              .map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`)
-              .join('\n')
+            const detail = [
+              ...p.checks.map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`),
+              handback.line,
+            ].join('\n')
             if (!process.stdout.isTTY) {
               return {
                 status: 'info' as const,
@@ -2276,7 +2288,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: p.verdict === 'unsupported' ? 'fail' : p.verdict === 'capable' ? 'info' : 'ok',
-              evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''}`,
+              evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''} · hand-back: ${handback.native ? 'native' : 'stop + fg'}`,
               detail,
               ...(p.verdict === 'unsupported'
                 ? { fix: missing.find(c => c.requirement === 'required')?.remediation }
@@ -3128,7 +3140,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'fail' as const,
                 evidence: `${evidence} — unresolved: ${unresolved.map(a => a.agentType).join(',') || 'none'}; dead aliases: ${badAlias.map(([l]) => l).join(',') || 'none'}; haiku pins: ${haiku.map(a => a.agentType).join(',') || 'none'}`,
-                fix: 'A built-in agent role fails normalization — teammates spawned with it would degrade to generic agents. Report this.',
+                fix: 'A built-in agent role fails normalization — sub-agents spawned with it would degrade to generic agents. Report this.',
               }
             }
             return { status: 'ok' as const, evidence }
@@ -3136,15 +3148,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'team-launch',
-          label: 'Team launch backend',
-          run: async () => {
+          label: 'Sub-agent launch',
+          run: () => {
             const mode = getResolvedTeammateMode()
             const inProc = isInProcessEnabled()
-            const tmux = await isTmuxAvailable()
             const evidence = inProc
-              ? `in-process — TeamCreate spawns share this process (tmux ${tmux ? 'also available' : 'not installed'})`
-              : `${mode} panes — TeamCreate spawns open terminal panes (falls back to in-process if the pane backend fails)`
-            return { status: 'info' as const, evidence, link: '/team' }
+              ? "in-process — named sub-agents run inside this session's runner"
+              : `${mode} panes — named sub-agents open terminal panes (in-process if the pane backend fails)`
+            return { status: 'info' as const, evidence, link: '/teammates' }
           },
         },
       ],

@@ -18,6 +18,7 @@ type ScriptedTurnBody =
       usage?: FixtureUsage
       thinking?: string
       inputTransformations?: unknown[]
+      model?: string
     }
   | {
       kind: 'tool_use'
@@ -27,6 +28,8 @@ type ScriptedTurnBody =
       preText?: string
       thinking?: string
       inputTransformations?: unknown[]
+      model?: string
+      usage?: FixtureUsage
     }
   | { kind: 'error'; status: number; errorType: string; message: string }
   | { kind: 'hang'; deltas: string[] }
@@ -81,14 +84,14 @@ function sseEvent(event: string, data: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
 }
 
-function messageStart(id: string, usage?: FixtureUsage, inputTransformations?: unknown[]): string {
+function messageStart(id: string, usage?: FixtureUsage, inputTransformations?: unknown[], model?: string): string {
   return sseEvent('message_start', {
     type: 'message_start',
     message: {
       id,
       type: 'message',
       role: 'assistant',
-      model: 'claude-opus-4-8',
+      model: model ?? 'claude-opus-4-8',
       content: [],
       stop_reason: null,
       stop_sequence: null,
@@ -191,7 +194,7 @@ export function renderTurn(turn: ScriptedTurn, msgSeq: number): string {
   const id = `msg_fixture_${msgSeq}`
   switch (turn.kind) {
     case 'text': {
-      let body = messageStart(id, turn.usage, turn.inputTransformations)
+      let body = messageStart(id, turn.usage, turn.inputTransformations, turn.model)
       let index = 0
       if (turn.thinking !== undefined) {
         body += signedThinkingBlock(index, turn.thinking)
@@ -202,7 +205,7 @@ export function renderTurn(turn: ScriptedTurn, msgSeq: number): string {
       return body
     }
     case 'tool_use': {
-      let body = messageStart(id, undefined, turn.inputTransformations)
+      let body = messageStart(id, turn.usage, turn.inputTransformations, turn.model)
       let index = 0
       if (turn.thinking !== undefined) {
         body += signedThinkingBlock(index, turn.thinking)
@@ -218,7 +221,7 @@ export function renderTurn(turn: ScriptedTurn, msgSeq: number): string {
         turn.input,
         index,
       )
-      body += messageEnd('tool_use')
+      body += messageEnd('tool_use', turn.usage)
       return body
     }
     case 'error':
