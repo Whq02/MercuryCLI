@@ -225,6 +225,17 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
     row = readObligation()
   }
   t('the obligation row settles withdrawn with the expiry named', row?.status === 'withdrawn' && /expired unanswered/.test(row?.settlement?.by ?? ''), row === undefined ? 'no obligation row appeared' : JSON.stringify(row))
+  // THE MINT IS AWAITED (gate run 11): the settle sites route through ONE
+  // owner that waits for the obligation write to land before resolving —
+  // a settle that read `obligationId` alone settled nothing when the
+  // expiry outran the mint, and the row stayed open for good.
+  const asksSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'daemon', 'permissionAsks.ts'), 'utf8')
+  t('every mint keeps its promise on the ask (obligationLanded) and every settle site awaits it through settleAskObligation',
+    (asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length === 2 &&
+      (asksSource.match(/settleAskObligation\(ask, /g) ?? []).length === 4 &&
+      (asksSource.match(/o\.resolveObligation\(/g) ?? []).length === 1 &&
+      /const landed = ask\.obligationLanded \?\? Promise\.resolve\(ask\.obligationId\)/.test(asksSource),
+    `mints=${(asksSource.match(/ask\.obligationLanded = upsertObligation\(/g) ?? []).length} settles=${(asksSource.match(/settleAskObligation\(ask, /g) ?? []).length}`)
 
   // Answered in time: the deadline disarms (no late denial arrives).
   onWorkerControlRequest('concourse-w2', askFrame('req-answer', 'Edit'), daemonDir, channel, 60)

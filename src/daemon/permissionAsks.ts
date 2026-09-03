@@ -139,6 +139,12 @@ interface PendingAsk {
   decisionReasonDetail?: DecisionReasonWireV1
   description?: string
   obligationId?: string
+  /** The mint's own promise: the needs-you row is written in the
+   *  background, and a settle that fires before the write lands (a short
+   *  expiry on a loaded box; an eviction right after the park) awaits it —
+   *  a settle that read only `obligationId` settled nothing and left the
+   *  row open for good. */
+  obligationLanded?: Promise<string | undefined>
   askedAt?: number
   deadline?: InactivityDeadline
   /** The child's return path, carried BY the ask so any evictor — the
@@ -152,6 +158,24 @@ interface PendingAsk {
 }
 
 const pending = new Map<string, PendingAsk>()
+
+/** Settle the ask's obligation AFTER its mint has landed. The mint is a
+ *  background write (upsertObligation); an expiry, an eviction, a cancel or
+ *  an answer can outrun it — the four settle sites read `obligationId`
+ *  alone and, finding nothing yet, settled nothing: the needs-you row stayed
+ *  open for good (gate run 11's 40 ms expiry on a loaded box; the field's
+ *  table-full eviction right after a park). One owner: await the mint, then
+ *  resolve by id; a mint that failed settles nothing (its debug line stands). */
+function settleAskObligation(ask: PendingAsk, outcome: { kind: 'withdrawn' | 'answered'; by: string }): void {
+  const landed = ask.obligationLanded ?? Promise.resolve(ask.obligationId)
+  void landed
+    .then(async obligationId => {
+      if (obligationId === undefined) return
+      const o = await import('../services/crew/obligations.js')
+      await o.resolveObligation(obligationId, { ...outcome, scope: 'switchboard' } as Parameters<typeof o.resolveObligation>[1])
+    })
+    .catch(() => {})
+}
 const MAX_PENDING = 200
 
 /** The session's parked asks, FULL payload, published for the focused
@@ -228,18 +252,10 @@ function settleUnanswered(
   console.error(
     `[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} after ${waited}${delivered ? ' — the child was told' : ' — no live control channel to tell'}`,
   )
-  const obligationId = ask.obligationId
-  if (obligationId !== undefined) {
-    void import('../services/crew/obligations.js')
-      .then(o =>
-        o.resolveObligation(obligationId, {
-          kind: 'withdrawn',
-          by: cause === 'expired' ? `daemon: expired unanswered after ${formatLimit(limitMs)}` : 'daemon: dropped unanswered (parked-ask table full)',
-          scope: 'switchboard',
-        } as Parameters<typeof o.resolveObligation>[1]),
-      )
-      .catch(() => {})
-  }
+  settleAskObligation(ask, {
+    kind: 'withdrawn',
+    by: cause === 'expired' ? `daemon: expired unanswered after ${formatLimit(limitMs)}` : 'daemon: dropped unanswered (parked-ask table full)',
+  })
 }
 
 /** The roster drain's hook: mint the needs-you obligation for a switchboard
@@ -305,7 +321,7 @@ export function onWorkerControlRequest(
   // ONE STORE (operator drive-10 root cause): the board reads the DEFAULT
   // crew store only — a workspace-rooted dir minted rows into a file no
   // surface ever read (they sat invisible in the project folder).
-  void upsertObligation({
+  ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: rec.sessionId,
     question: `"${rec.title ?? short}" asks to run ${toolName} — allow?`,
@@ -314,9 +330,11 @@ export function onWorkerControlRequest(
   })
     .then(res => {
       ask.obligationId = res.obligationId
+      return res.obligationId
     })
     .catch(err => {
       logForDebugging(`[daemon] permission-ask obligation write failed: ${err}`)
+      return undefined
     })
 }
 
@@ -356,7 +374,7 @@ export function mintGitInitAsk(folder: string): { requestId: string } {
   }
   pending.set(requestId, ask)
   // ONE STORE (drive-10): the DEFAULT crew store — the board's only read.
-  void upsertObligation({
+  ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: ask.sessionId,
     question: `this folder has no git — start one in ${folder} so sessions can fork it?`,
@@ -365,9 +383,11 @@ export function mintGitInitAsk(folder: string): { requestId: string } {
   })
     .then(res => {
       ask.obligationId = res.obligationId
+      return res.obligationId
     })
     .catch(err => {
       logForDebugging(`[daemon] git-init ask obligation write failed: ${err}`)
+      return undefined
     })
   return { requestId }
 }
@@ -384,18 +404,7 @@ export function onWorkerControlCancel(requestId: string, dir?: string): void {
   pending.delete(requestId)
   ask.deadline?.cancel()
   publishAsksFor(ask.sessionId, dir)
-  const obligationId = ask.obligationId
-  if (obligationId !== undefined) {
-    void import('../services/crew/obligations.js')
-      .then(o =>
-        o.resolveObligation(obligationId, {
-          kind: 'withdrawn',
-          by: 'daemon: the session moved on (its ask was cancelled)',
-          scope: 'switchboard',
-        } as Parameters<typeof o.resolveObligation>[1]),
-      )
-      .catch(() => {})
-  }
+  settleAskObligation(ask, { kind: 'withdrawn', by: 'daemon: the session moved on (its ask was cancelled)' })
 }
 
 /** Answer a parked ask: control_response into the child (allow carries
@@ -444,20 +453,7 @@ export function answerPermissionAsk(
   }
   if (!ask) return { outcome: 'refused', detail: 'unknown or already-answered permission request' }
   if (ask.local === 'git-init') {
-    const settleObligation = (): void => {
-      const obligationId = ask.obligationId
-      if (obligationId !== undefined) {
-        void import('../services/crew/obligations.js')
-          .then(o =>
-            o.resolveObligation(obligationId, {
-              kind: 'answered',
-              by,
-              scope: 'switchboard',
-            } as Parameters<typeof o.resolveObligation>[1]),
-          )
-          .catch(() => {})
-      }
-    }
+    const settleObligation = (): void => settleAskObligation(ask, { kind: 'answered', by })
     const dropSidecar = (): void => {
       const map = readGitInitAsks()
       if (map[requestId] !== undefined) {
@@ -540,18 +536,7 @@ export function answerPermissionAsk(
   pending.delete(requestId)
   ask.deadline?.cancel()
   publishAsksFor(ask.sessionId)
-  const obligationId = ask.obligationId
-  if (obligationId !== undefined) {
-    void import('../services/crew/obligations.js')
-      .then(o =>
-        o.resolveObligation(obligationId, {
-          kind: 'answered',
-          by,
-          scope: 'switchboard',
-        } as Parameters<typeof o.resolveObligation>[1]),
-      )
-      .catch(() => {})
-  }
+  settleAskObligation(ask, { kind: 'answered', by })
   return {
     outcome: 'applied',
     detail: `${allow ? 'allowed' : 'denied'} ${ask.toolName} for ${ask.workerId}`,
