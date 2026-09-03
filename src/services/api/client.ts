@@ -19,6 +19,7 @@ import {
   isFirstPartyAnthropicBaseUrl,
 } from '../../utils/model/providers.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
+import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
 
 
@@ -63,7 +64,7 @@ function buildFetchWrapper(
   injectCorrelationId: boolean,
   source: string | undefined,
 ): typeof globalThis.fetch {
-  const baseFetch = fetchOverride ?? getApiFetch()
+  const baseFetch = wrapFetchWithWireDump(fetchOverride ?? getApiFetch(), source)
   return async (input, init) => {
     const headers = new Headers((init as { headers?: HeadersInit } | undefined)?.headers)
     let correlationId: string | undefined
