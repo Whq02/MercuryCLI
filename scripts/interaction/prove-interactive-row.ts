@@ -356,8 +356,8 @@ if (process.env.IROW_CHILD) {
           { atTick: 22, data: click(4, aRow + 1) },
         ],
         30,
-        60,
-        12,
+        80,
+        22,
       )
       if (d3) {
         check(
@@ -403,8 +403,8 @@ if (process.env.IROW_CHILD) {
         'rows',
         [{ atTick: 16, data: motion(4, aRow + 1) }],
         26,
-        60,
-        12,
+        80,
+        22,
         { IROW_THEME: family },
       )
       if (e1) {

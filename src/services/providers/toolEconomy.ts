@@ -64,11 +64,13 @@ export interface ToolPayloadPlanInput {
  * every thinking block is bound to, so the roster may not move on a
  * request's own initiative — a threshold crossed because an MCP server
  * landed, a server no longer pending — only on a lawful change: a
- * compaction or /clear clears the latches (the conversation-reset seam; the
- * summary row is a new first row too), a model or mode change keys a new
- * latch (the operator's action; the drop receipt names it), and every
- * conversation in a process — each chat, fork and agent — keys its own by
- * its first row. A tool that joins after the latch is deferrable under
+ * compaction or /clear gives the conversation a new first row (a new key), a
+ * model or mode change keys a new latch (the operator's action; the drop
+ * receipt names it), an operator's in-session change clears the
+ * conversation's latch through the lawful-change seam
+ * (./lawfulPrefixChange.ts), and every conversation in a process — each
+ * chat, fork and agent — keys its own by its first row. A tool that joins
+ * after the latch is deferrable under
  * a deferring latch (it rides the announcement row, never the tools array)
  * and is HELD out of the roster under a non-deferring one until the next
  * lawful boundary.
@@ -80,9 +82,17 @@ interface RosterLatch {
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
-/** The conversation-reset seam (a compaction, /clear): every roster re-decides. */
-export function clearToolRosterLatches(): void {
-  rosterLatches.clear()
+/** Clear the latches: with an owner, that conversation's only (the
+ *  lawful-change seam — services/providers/lawfulPrefixChange.ts); without,
+ *  every roster in the process re-decides (a test seam). */
+export function clearToolRosterLatches(owner?: string): void {
+  if (owner === undefined) {
+    rosterLatches.clear()
+    return
+  }
+  for (const key of [...rosterLatches.keys()]) {
+    if (key.startsWith(`${owner}|`)) rosterLatches.delete(key)
+  }
 }
 
 /** The conversation a history belongs to: its first user or assistant row
