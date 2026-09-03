@@ -469,6 +469,43 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
   check('the mode chip reads the connector facts (the surface the old refusal snapped back)', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
 }
 
+// ── 8b · the seat's initial posture (the birth road) ────────────────────────
+// A session born from the Boot face in Apollo Mode carries the operator's
+// mode into the admission; the seat's initial posture used to admit only
+// the headless postures and fell back to flow — the screen believed apollo
+// while the seat ran flow, the roster never shipped ApolloReview, the review
+// card never painted. The law: the CARRIED override may be 'apollo' (a
+// cockpit-attached seat has a face; its control door accepts apollo under
+// the role stamp); the saved default and the daemon's env road keep the
+// strict headless list; the spec carries the posture to the argv.
+section("the seat's initial posture: a carried 'apollo' crosses the admission; the strict list holds elsewhere")
+{
+  const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseSupervisor.js')) as typeof import('../../src/daemon/concourseSupervisor.js')
+  const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
+  const headless = HEADLESS_PERMISSION_MODES as readonly string[]
+  check("a carried 'apollo' crosses the admission as apollo", seatInitialPermissionMode('apollo' as never) === 'apollo')
+  check("a carried headless posture crosses as itself ('flow', 'implement')", seatInitialPermissionMode('flow' as never) === 'flow' && seatInitialPermissionMode('implement' as never) === 'implement')
+  check("a carried interactive-only posture that is not apollo ('strategy') never crosses — the seat falls to a headless posture", headless.includes(seatInitialPermissionMode('strategy' as never)))
+  check('nothing carried ⇒ a headless posture (the saved default, else flow)', headless.includes(seatInitialPermissionMode()))
+  const priorEnv = process.env.MERCURY_DAEMON_PERMISSION_MODE
+  try {
+    delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+    check("the spec's carried apollo reaches the child's posture when the daemon env is unset", getHeadlessPermissionMode('apollo') === 'apollo')
+    check("…spelled on the argv as --permission-mode apollo", JSON.stringify(headlessPermissionArgv('apollo')) === JSON.stringify(['--permission-mode', 'apollo']))
+    process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
+    check("the operator's daemon env still wins over the carried posture (the strict road)", getHeadlessPermissionMode('apollo') === 'implement')
+    process.env.MERCURY_DAEMON_PERMISSION_MODE = 'apollo'
+    check("the daemon env never spells apollo — an invalid value falls to the spec default", getHeadlessPermissionMode('flow') === 'flow')
+  } finally {
+    if (priorEnv === undefined) delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+    else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
+  }
+  const supervisor = src('daemon', 'concourseSupervisor.ts')
+  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.permissions\?\.defaultMode\)/.test(supervisor))
+  const hop = src('services', 'switchboard', 'hopIntoSession.ts')
+  check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
+}
+
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL APOLLO STATION PROOFS PASS')
 else console.log(`❌ ${failures} APOLLO PROOF(S) FAILED`)
