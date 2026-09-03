@@ -121,9 +121,10 @@ if (!ready) {
   await run(`cd "${PROJECT}"`, true)
   const inside = await run(`echo in > "${PROJECT}/in.txt"`, true)
   check('a write inside the session directory lands with status 0', inside.code === 0 && existsSync(join(PROJECT, 'in.txt')), `code ${inside.code} ${JSON.stringify(inside.out.slice(0, 120))}`)
-  // Observed, not pinned: the shell snapshot sourced ahead of the command
-  // restores the login shell's own TMPDIR over the sandbox's, so mktemp
-  // lands outside the allow-write set — a seam of its own, recorded here.
+  // Observed, not pinned: the sandboxed child's TMPDIR reads the login
+  // shell's own temp directory rather than the executor's override, so
+  // mktemp lands outside the allow-write set — a seam of its own, recorded
+  // here with the value the child saw.
   const temp = await run('f=$(mktemp) && echo "$f" && rm -f "$f"; echo "TMPDIR=$TMPDIR"', true)
   note(`mktemp under the sandbox: code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
   const outside = await run(`echo out > "${OUTSIDE}/out.txt"`, true)
@@ -224,6 +225,14 @@ section("§4 the cwd record never replaces the command's status")
   check('the record step is grouped with || true on the POSIX leg', /\{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\} 2>\/dev\/null \|\| true; \}/.test(provider))
 }
 
+section('§5 the timed-out note reaches the result')
+{
+  const killed = await plain('sleep 3', { timeout: 400 })
+  check('a command past its timeout is killed (143) with the note on the result', killed.code === 143 && !killed.interrupted && /Command timed out after/.test(killed.stderr) && killed.ms < 4000, `code ${killed.code} interrupted ${killed.interrupted} stderr ${JSON.stringify(killed.stderr.slice(0, 80))} ${killed.ms}ms`)
+  const tool = readFileSync(join(ROOT, 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
+  check("the tool folds the result's note into the text the model reads (the error path throws that text)", /accumulator\.append\(result\.stderr\.trimEnd\(\) \+ '\\n'\)/.test(tool))
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
@@ -244,6 +253,7 @@ if (!ready) {
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
   ]
   const fixture = await startFixtureApi(turns)
@@ -292,14 +302,15 @@ if (!ready) {
       for (const block of message.content as Array<{ type?: string; content?: unknown; is_error?: boolean }>) {
         if (block.type !== 'tool_result') continue
         const text = typeof block.content === 'string' ? block.content : Array.isArray(block.content) ? (block.content as Array<{ text?: string }>).map(b => b.text ?? '').join('') : ''
-        if (results.length < 3 && !results.some(r => r.text === text && r.isError === (block.is_error === true))) results.push({ text, isError: block.is_error === true })
+        if (results.length < 4 && !results.some(r => r.text === text && r.isError === (block.is_error === true))) results.push({ text, isError: block.is_error === true })
       }
     }
   }
   note(`print mode exit ${outcome.exit}; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
-  check('the artifact ran the three calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
-  check('the artifact showed the model three tool results', results.length === 3, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
-  const [first, second, third] = results
+  check('the artifact ran the four calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
+  check('the artifact showed the model four tool results', results.length === 4, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
+  const [first, second, third, fourth] = results
+  check('artifact: the timed-out command tells the model it timed out', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
