@@ -19,6 +19,7 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  publishAgentProgressSoon,
   updateAgentProgress,
   updateProgressFromMessage,
   type ProgressTracker,
@@ -573,7 +574,7 @@ export async function runAsyncAgentLifecycle(args: {
         resolveActivity,
         toolUseContext.options.tools,
       )
-      updateAgentProgress(taskId, getProgressUpdate(tracker), rootSetAppState)
+      publishAgentProgressSoon(taskId, tracker, rootSetAppState)
       const lastToolName = getLastToolUseName(message)
       if (lastToolName) {
         emitTaskProgress(

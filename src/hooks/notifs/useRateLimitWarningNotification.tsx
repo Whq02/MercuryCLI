@@ -1,14 +1,16 @@
 
 import * as React from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
 import { useSessionConnector } from '../useSessionConnector.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
 import { preferSessionLimitWarning, providerLimitWarning } from '../../services/providers/limitWarning.js'
+import { getOpenaiObservedVersion, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
 import { getUsingOverageText } from '../../services/rateLimitMessages.js'
 import { getSubscriptionType } from '../../utils/auth.js'
 import { hasConsoleBillingAccess } from '../../utils/billing.js'
@@ -23,6 +25,8 @@ export function useRateLimitWarningNotification(model: string): void {
   const limits = useClaudeAiLimits()
   const tick = useNowTick(ENGINE_FEEDER_REREAD_MS)
   const connector = useSessionConnector()
+  const usageRecordVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  const openaiObservedVersion = useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   const overageShownRef = useRef(false)
   const lastWarningRef = useRef<string | null>(null)
 
@@ -65,5 +69,5 @@ export function useRateLimitWarningNotification(model: string): void {
         </Text>
       ),
     })
-  }, [limits, model, tick, connector, addNotification])
+  }, [limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion])
 }

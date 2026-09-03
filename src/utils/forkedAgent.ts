@@ -6,8 +6,10 @@ import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { query } from '../query.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
+import { rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { ToolUseContext } from '../Tool.js'
+import { withAllowedCommandRules } from '../tools/AgentTool/agentPermissionPosture.js'
 import { GENERAL_PURPOSE_AGENT } from '../tools/AgentTool/built-in/generalPurposeAgent.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
@@ -106,21 +108,7 @@ export function createGetAppStateWithAllowedTools(
   allowedTools: string[],
 ): () => AppState {
   if (allowedTools.length === 0) return baseGetAppState
-  return () => {
-    const state = baseGetAppState()
-    const existing = state.toolPermissionContext.alwaysAllowRules.command ?? []
-    const merged = [...new Set([...existing, ...allowedTools])]
-    return {
-      ...state,
-      toolPermissionContext: {
-        ...state.toolPermissionContext,
-        alwaysAllowRules: {
-          ...state.toolPermissionContext.alwaysAllowRules,
-          command: merged,
-        },
-      },
-    }
-  }
+  return () => withAllowedCommandRules(baseGetAppState(), allowedTools)
 }
 
 
@@ -253,7 +241,10 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     skipCacheWrite,
   } = params
   const startedAt = Date.now()
-  const context = createSubagentContext(cacheSafeParams.toolUseContext, overrides)
+  const context: ToolUseContext = {
+    ...createSubagentContext(cacheSafeParams.toolUseContext, overrides),
+    rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext),
+  }
   const messages: Message[] = [...cacheSafeParams.forkContextMessages, ...promptMessages]
   const collected: Message[] = []
   let fold: ForkUsageFold = EMPTY_FORK_USAGE_FOLD

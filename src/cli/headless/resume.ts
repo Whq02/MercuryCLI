@@ -17,6 +17,7 @@ import { asSessionId } from 'src/types/ids.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'
 import { binaryName } from 'src/utils/config.js'
 import {
+  hasConversationTurn,
   loadConversationForResume,
   type TurnInterruptionState,
 } from 'src/utils/conversationRecovery.js'
@@ -99,7 +100,7 @@ export async function loadInitialMessages(
         undefined ,
         undefined ,
       )
-      if (result && result.messages.length > 0) {
+      if (result && hasConversationTurn(result.messages)) {
         if (!options.forkSession) {
           if (result.sessionId) {
             switchSession(
@@ -164,7 +165,7 @@ export async function loadInitialMessages(
             : undefined),
       )
 
-      if (!result || result.messages.length === 0) {
+      if (!result || !hasConversationTurn(result.messages)) {
         emitLoadError(
           parsedSessionId.isJsonlFile || parsedSessionId.isUrl
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
