@@ -54,6 +54,7 @@ const FILES = [
   'src/components/tasks/taskStatusUtils.tsx',
   'src/components/TaskListV2.tsx',
   'src/components/AgentProgressLine.tsx',
+  'src/tools/AgentTool/UI.tsx',
   'src/components/Spinner/TeammateSpinnerLine.tsx',
   'src/components/Spinner/TeammateSpinnerTree.tsx',
   'src/components/MercuryFleetChat.tsx',

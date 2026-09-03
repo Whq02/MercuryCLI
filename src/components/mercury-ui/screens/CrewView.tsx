@@ -12,6 +12,7 @@ import {
   crewCountLabel,
   crewElapsedLabel,
   crewModelLabel,
+  crewStateLabel,
   crewTokensLabel,
   type CrewAgentFacts,
 } from '../../../services/engine-connector/crewFacts.js'
@@ -253,10 +254,11 @@ function AgentRow({
   billed: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const failed = facts.status === 'failed' || facts.status === 'killed'
+  const failed = facts.state === 'failed'
+  const stopped = facts.state === 'stopped'
   const pending = facts.status === 'pending'
-  const tone = facts.running ? tokens.success : failed ? tokens.failure : pending ? tokens.warning : tokens.textMuted
-  const glyph = failed ? GLYPH.fail : pending ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
+  const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped ? tokens.warning : tokens.textMuted
+  const glyph = failed || stopped ? GLYPH.fail : pending ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
   const spend = billed ? crewCostLabel(facts) : null
   return (
     <Box width={width}>
@@ -268,7 +270,7 @@ function AgentRow({
           {padTo(truncateToWidth(facts.name, NAME_W), NAME_W)}
         </Text>
         <Text color={tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
-        <Text color={tone}> {padTo(truncateToWidth(facts.status, STATUS_W), STATUS_W)}</Text>
+        <Text color={tone}> {padTo(truncateToWidth(crewStateLabel(facts), STATUS_W), STATUS_W)}</Text>
         <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
         <Text color={tokens.textMuted}>
           {' '}

@@ -286,6 +286,15 @@ export type WorkRowV1 = {
   outputTokens?: number
   costUSD?: number
   unpricedTurns?: number
+  /** Agent and named-agent rows: the tracker's tool-use count and its
+   *  latest activity line (the running tool's own description) — the
+   *  transcript's agent card paints them. ADDITIVE like the counters. */
+  toolUses?: number
+  activity?: string
+  /** The tool-use id of the launch that registered the row (an Agent tool
+   *  call): the transcript's tool card joins its rows to the roster by it.
+   *  Absent for a row no tool call minted (a named agent's spawn). */
+  toolUseId?: string
   /** Workflow rows: the run identity + the board's list-level facts. */
   workflowRunId?: string
   phases?: WorkPhaseV1[]
