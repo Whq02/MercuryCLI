@@ -193,10 +193,14 @@ export async function flushHistoryNow(): Promise<void> {
  *  reads them). */
 export function getHistoryFlushHealth(): {
   pending: number
+  /** A flush is running: the buffer may read empty while its append is
+   *  still in flight (the clear point is under the lock, before the write) —
+   *  quiet means pending 0 AND nothing in flight. */
+  inFlight: boolean
   streak: number
   lastFailure: { at: number; message: string } | null
 } {
-  return { pending: pendingEntries.length, streak: flushFailureStreak, lastFailure }
+  return { pending: pendingEntries.length, inFlight: inFlightFlush !== null, streak: flushFailureStreak, lastFailure }
 }
 
 // ── append / retract ────────────────────────────────────────────────────────
