@@ -140,6 +140,7 @@ import {
   landingInFlight,
   subscribeFocusedSessionConnector,
   subscribeThroughFocused,
+  conversationIdHere,
 } from '../services/engine-connector/focusedConnector.js';
 import {
   enteringWarmth,
@@ -756,7 +757,7 @@ export function REPL({
   }, [addNotification]);
 
   useState(() => {
-    pendingInput.initSession(getSessionId(), consumeEarlyInput());
+    pendingInput.initSession(conversationIdHere(), consumeEarlyInput());
     return null;
   });
   const setInputValue = useCallback((value: string) => {

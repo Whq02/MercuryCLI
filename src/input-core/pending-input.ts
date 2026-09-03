@@ -3,7 +3,8 @@ import type {
   EditablePromptInputMode,
   PromptInputMode,
 } from '../types/textInputTypes.js'
-import { getSessionId, updateLastInteractionTime } from '../bootstrap/state.js'
+import { getSessionId, onSessionSwitch, updateLastInteractionTime } from '../bootstrap/state.js'
+import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { activityManager } from '../utils/activityManager.js'
 import {
   cancelPendingDraftSave,
@@ -11,6 +12,7 @@ import {
   flushDraftSaves,
   readDraftSync,
   saveDraftDebounced,
+  migrateOrphanedDraft,
 } from '../utils/promptDraft.js'
 import { createSignal } from '../utils/signal.js'
 import { noteCompanionTyping } from '../utils/cockpit/companionEngine.js'
@@ -146,6 +148,7 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   const typedWhileLanding = opts?.landing === true ? draft.text : ''
   await flushDraftSaves()
   owningSessionId = sessionId
+  if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId)
   const saved = readDraftSync(sessionId)
   if (editSeq !== fence) return
   if (typedWhileLanding !== '' && (!saved || saved.text === '')) return
@@ -159,6 +162,11 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   }
   commit()
 }
+
+onSessionSwitch(id => {
+  if (getFocusedSessionConnector().sessionId() !== '') return
+  void rekeyToSession(String(id), { landing: true })
+})
 
 export function registerInterceptors(next: EditInterceptors): () => void {
   interceptors = next

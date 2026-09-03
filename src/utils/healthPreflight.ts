@@ -118,6 +118,10 @@ export async function runPreflight(): Promise<PreflightSummary> {
 
 let bootPreflight: Promise<PreflightSummary> | null = null
 
+export function _resetBootPreflightForTesting(): void {
+  bootPreflight = null
+}
+
 export async function runAndRecordPreflight(): Promise<PreflightSummary> {
   if (bootPreflight !== null) return bootPreflight
   bootPreflight = (async () => {
