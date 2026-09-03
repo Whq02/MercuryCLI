@@ -2131,11 +2131,10 @@ export function ConcourseScreen({
             settingsOpen={settingsOpen && geo.profile === 'wide'}
             onCloseSettings={() => closeCoordinatorSettings()}
             onFocus={() => setRegion('coordinator')}
-            onSendExample={text => {
+            onPickExample={text => {
               draftEditedRef.current = true
               draftRef.current = { text, caret: text.length }
               setDraft(draftRef.current)
-              sendCoordinator()
             }}
             collapsed={geo.profile === 'stacked' && focusTall !== 'coordinator'}
             tailNote={note}

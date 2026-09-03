@@ -186,7 +186,7 @@ export function CoordinatorPane({
   pending,
   settingsOpen,
   onCloseSettings,
-  onSendExample,
+  onPickExample,
   draftHeld = false,
   modalUp = false,
   gitOffer,
@@ -208,7 +208,7 @@ export function CoordinatorPane({
   pending: boolean
   settingsOpen: boolean
   onCloseSettings: () => void
-  onSendExample: (text: string) => void
+  onPickExample: (text: string) => void
   draftHeld?: boolean
   modalUp?: boolean
   gitOffer?: GitOfferV1
@@ -306,7 +306,7 @@ export function CoordinatorPane({
     }
     if (key.return && entries !== null && entries.length === 0 && !pending && !draftHeld) {
       event.stopImmediatePropagation()
-      onSendExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)
+      onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)
       return
     }
   })
@@ -402,7 +402,7 @@ export function CoordinatorPane({
                 id={`coordinator:example:${ex.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase()}`}
                 directActivate
                 hoverStyle="row-fill"
-                onActivate={() => onSendExample(ex)}
+                onActivate={() => onPickExample(ex)}
               >
                 {hover => (
                   <Text wrap="truncate-end">
@@ -416,7 +416,7 @@ export function CoordinatorPane({
                     <Text color={(focused && exampleIdx === i) || hover ? t.textPrimary : t.textMuted}>
                       {ex}
                     </Text>
-                    {focused && exampleIdx === i ? <Text color={t.textMuted}> · ↵ sends</Text> : null}
+                    {focused && exampleIdx === i ? <Text color={t.textMuted}> · ↵ fills the box</Text> : null}
                   </Text>
                 )}
               </InteractiveRow>

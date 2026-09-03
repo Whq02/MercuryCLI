@@ -236,6 +236,9 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   check('the armed row SHOWS the arm on its granted line — the words road is tab (the composer’s own focus), advertised only where the gate takes words (G4; the broadcast face suppresses it too), and a held draft says send', screen.includes("'armed — ↵ again enters'") && screen.includes("liveDraft.text.trim().length === 0 && liveComposerGate(sel).ok && broadcastFaceOf(markedRows.length) === null ? ' · tab to message' : ''") && screen.includes("'armed — ↵ sends the draft · → enters'"))
   const pane = read('src/components/concourse/CoordinatorPane.tsx')
   check('the example walk\'s ↵ yields to a held draft (typed words outrank the example — the one precedence law)', pane.includes('&& !pending && !draftHeld) {') && screen.includes('draftHeld={draft.text.trim().length > 0}'))
+  const pickAt = screen.indexOf('onPickExample={text => {')
+  const pickBody = pickAt === -1 ? '' : screen.slice(pickAt, screen.indexOf('}}', pickAt))
+  check('the example walk\'s ↵ (and a click) FILLS the composer and never sends — the pick handler calls no send', pickAt !== -1 && pickBody.includes('setDraft(draftRef.current)') && !pickBody.includes('sendCoordinator(') && !pane.includes('onSendExample') && pane.includes('onPickExample(COORDINATOR_EXAMPLE_PROMPTS[exampleIdxRef.current]!)') && pane.includes('· ↵ fills the box'), pickBody.slice(0, 160))
   check('the pane\'s own verbs park under ANY board modal owner (modalUp = the one boardModalOwner read, never a pairwise guard)', pane.includes('if (modalUp || settingsOpen) return') && screen.includes('modalUp={') && screen.split('boardModalOwner({').length - 1 >= 2)
   check('the legend says the truth in both states (↵↵ unarmed · ↵ enters while armed)', layout.includes("{ keys: '↵', label: 'enters (armed)' }") && layout.includes("{ keys: '↵↵', label: 'enter session' }"))
 }
