@@ -271,7 +271,8 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
   check('settings: the API-key slot component mounts for every section', (usageTab.match(/<ApiKeySlot/g) ?? []).length >= 3)
   check(
     'settings: an absent key renders the honest none/n-a body (never a vanished slot)',
-    usageTab.includes('none attached — n/a · 0 this session'),
+    usageTab.includes('return `none — ${route} · n/a`') &&
+      usageTab.includes("<Text dimColor>{absentSlotLine('a pasted key attaches one')}</Text>"),
   )
   check(
     'settings: the OpenAI meters derive from the ONE owner (openaiObservedWindowViews)',
