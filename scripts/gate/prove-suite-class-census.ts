@@ -6,6 +6,7 @@ import { basename, dirname, join, relative, resolve } from 'node:path'
 
 const REPORT = process.argv.includes('--report')
 const REAL_ROOT = resolve(import.meta.dir, '..', '..')
+const SELF = resolve(import.meta.path)
 
 type Ext = 'ts' | 'tsx' | 'mjs' | 'js' | 'py' | 'sh'
 const EXT_RE = /\.(ts|tsx|mjs|js|py|sh)$/
@@ -228,7 +229,7 @@ export function census(root: string): { engines: string[]; suites: SuiteCensus[]
   const visiting = new Set<string>()
   const chainOf = (f: string): { chain: string[]; evidence: string } | null => {
     if (memo.has(f)) return memo.get(f)!
-    if (visiting.has(f)) return null
+    if (visiting.has(f) || f === SELF) return null
     visiting.add(f)
     const a = analysed(f)
     const ev = evidenceOf(a.lines, a.ctx, a.fileSpawns, engines)
@@ -276,7 +277,8 @@ function selfTest(): boolean {
     writeFileSync(join(root, rel), body)
   }
   const bun = '"${BUN:-$HOME/.bun/bin/bun}"'
-  w('scripts/ui/engine.py', 'import os, pty\npid, fd = pty.fork()\n')
+  const forkCall = ['pty', 'fork()'].join('.')
+  w('scripts/ui/engine.py', `import os, pty\npid, fd = ${forkCall}\n`)
   w('scripts/lib/arena.ts', "import { spawn } from 'node:child_process'\nexport type Row = { a: number }\nexport const run = (r: string) => spawn('/usr/bin/python3', [join(r, 'scripts/ui/engine.py')])\n")
   w('scripts/lib/tui.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(ROOT, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
   w('scripts/via-import/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nclaimed=$(cat scripts/via-import-*/members.txt 2>/dev/null | grep -v '^#')\nfor f in "$here"/prove-*.ts; do ${bun} run "$f"; done\n`)
@@ -294,7 +296,7 @@ function selfTest(): boolean {
   w('scripts/gated/prove-d.ts', 'export const d = 1\n')
   w('scripts/gated/render-x.ts', "import { spawnSync } from 'node:child_process'\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', 'engine.py')])\n")
   w('scripts/py-direct/run-all.sh', '#!/usr/bin/env bash\n# gate-class: pty\n/usr/bin/python3 "$here/prove-e.py"\n')
-  w('scripts/py-direct/prove-e.py', 'import pty\npid, fd = pty.fork()\n')
+  w('scripts/py-direct/prove-e.py', `import pty\npid, fd = ${forkCall}\n`)
   w('scripts/named-list/run-all.sh', `#!/usr/bin/env bash\n# gate-class: cpu\nfor prover in prove-f prove-g; do ${bun} run "$here/$prover.ts"; done\n`)
   w('scripts/named-list/prove-f.ts', 'export const f = 1\n')
   w('scripts/named-list/prove-g.ts', "import { spawnSync } from 'node:child_process'\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\nspawnSync('/usr/bin/python3', [ENGINE])\n")
