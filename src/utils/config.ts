@@ -39,6 +39,7 @@ export {
   getGlobalConfig,
   getGlobalConfigWriteCount,
   hasPendingDeferredGlobalConfigSaves,
+  isConfigReadingAllowed,
   saveGlobalConfig,
   saveGlobalConfigDeferred,
 } from './config/globalConfig.js'

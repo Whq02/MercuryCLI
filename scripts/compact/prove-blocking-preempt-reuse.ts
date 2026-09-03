@@ -131,21 +131,23 @@ section('R3 · the wiring reads the carried count first (source pins)')
   )
   check(
     'the advance branch reuses the measured count and recounts only as fallback',
-    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation(messages)) - snipTokensFreed'),
+    auto.includes('(measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed'),
   )
   const tm = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   // The carried count is read FIRST and the recount is the fallback; the
   // number is bound once (estimatedTokens) because the overflow ladder's
   // estimate-side signal reads the same count the level was computed from.
   // An over-limit fold's own estimate leads (FN-015 rank 26); the carried
-  // count follows; the recount is the fallback.
+  // count follows; the recount is the fallback. The recount is model-aware
+  // (the gauge's one owner counts against the main-loop model's own window),
+  // so the fallback names the model beside the view.
   check(
     'the blocking preempt reuses the carried count and recounts only as fallback',
-    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\? measuredRawTokenCount \?\? tokenCountWithEstimation\(messagesForQuery\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
+    /const estimatedTokens =\s*compactionResult\?\.truePostCompactTokenCount \?\?\s*measuredRawTokenCount \?\?\s*tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.mainLoopModel\)[\s\S]{0,80}calculateTokenWarningState\(\s*estimatedTokens,/.test(tm),
   )
   check(
     'the preempt stays gated on the just-compacted exemption (a compaction-changed view never reuses a stale number; the exemption holds only under the limit)',
-    /const justCompactedUnderLimit =\s*compactionResult !== undefined &&[\s\S]{0,400}!justCompactedUnderLimit &&[\s\S]{0,220}querySource !== 'session_memory'[\s\S]{0,900}?measuredRawTokenCount \?\? tokenCountWithEstimation/.test(tm),
+    /const justCompactedUnderLimit =\s*compactionResult !== undefined &&[\s\S]{0,400}!justCompactedUnderLimit &&[\s\S]{0,220}querySource !== 'session_memory'[\s\S]{0,900}?measuredRawTokenCount \?\?\s*tokenCountWithEstimation\(messagesForQuery, toolUseContext\.options\.mainLoopModel\)/.test(tm),
   )
 }
 
