@@ -152,7 +152,14 @@ console.log('§3 the refusal-frame roster: the concourse alone, way out live')
   const layout = read('src/components/concourse/ConcourseLayout.tsx')
   check('the registered refusal keeps its way out on the frame', layout.includes('esc returns to the focused chat') && layout.includes('esc returns to the boot face'))
   const { resolveConcourseProfile } = await import('../../src/components/concourse/ConcourseLayout.tsx')
-  check('its boundary is exact: refuses at 79×24 and 80×23, stands at 80×24', resolveConcourseProfile(79, 24) === 'too-small' && resolveConcourseProfile(80, 23) === 'too-small' && resolveConcourseProfile(80, 24) !== 'too-small')
+  // The too-small floor IS the viewport floor (one owner): below it the
+  // alternate-screen host paints the resize line, so a fitting window never
+  // meets a too-small pane.
+  const { VIEWPORT_FLOOR_COLS: FC, VIEWPORT_FLOOR_ROWS: FR } = await import('../../src/ink/viewportFloor.ts')
+  check(
+    `its boundary is the viewport floor: refuses at ${FC - 1}×${FR} and ${FC}×${FR - 1}, stands at ${FC}×${FR}`,
+    resolveConcourseProfile(FC - 1, FR) === 'too-small' && resolveConcourseProfile(FC, FR - 1) === 'too-small' && resolveConcourseProfile(FC, FR) !== 'too-small',
+  )
 }
 
 // ── §4 the frame laws: split · chrome · overlays ───────────────────────────
