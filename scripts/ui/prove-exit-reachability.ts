@@ -329,7 +329,6 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
-    'src/components/SubModelPicker.tsx': { reason: 'the /submodels wrapper mounts the shell and its footer', witness: 'src/commands/submodels/submodels.tsx' },
   }
 
   const routeMissing: string[] = []
