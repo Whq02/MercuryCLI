@@ -783,7 +783,9 @@ async function* streamModel(
               const outcome = classifyThinkingDrops(
                 String(ownerFromToolUseContext(toolUseContext)),
                 drops,
-                prefixMarkOf(iter.messagesForQuery, iter.currentModel),
+                prefixMarkOf(iter.messagesForQuery, iter.currentModel, {
+                  permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
+                }),
               )
               const dropNotice = describeThinkingDrops(drops, outcome)
               if (dropNotice !== null) {
