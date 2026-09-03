@@ -501,7 +501,7 @@ if (!existsSync(DIST)) {
   }
 
   // --------------------------------------------------------------------------
-  section('§8b the wire — the in-session toggle moves the roster at the next request, the prefix holds, the receipt names the toggle')
+  section('§8b the wire — the in-session toggle leaves the frozen roster on the wire (the valve refuses at launch), the prefix holds, the receipt names the toggle')
   // --------------------------------------------------------------------------
   {
     const DROP = { type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }
@@ -527,8 +527,14 @@ if (!existsSync(DIST)) {
       const b2 = reqs[1]!.body as Body
       const b3 = reqs[2]!.body as Body
       check('request 1 carries the Agent tool', toolNames(b1).includes(AgentTool.name), toolNames(b1).join(','))
-      check('request 2 (the next request after the toggle) carries no Agent tool — the roster changed on the wire', !toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
-      check('…and nothing else left the tools array', j(toolNames(b1).filter(n => n !== AgentTool.name)) === j(toolNames(b2)))
+      // THE FREEZE (PREFIX-6, fb5995c; prove-sent-prefix-frozen §1b): for the
+      // conversation's life the tools array never shrinks on a request's own
+      // initiative — a tool the toggle's valve closes STILL RIDES, its deferral
+      // mark kept, so the sent prefix stays byte-identical and the thinking
+      // replays; the switch is enforced at the launch (AgentTool reads
+      // evaluateLaunchAuthority and refuses typed), never by a roster rewrite.
+      check('request 2 (the next request after the toggle) STILL carries the Agent tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
+      check('…and the tools array is byte-identical to request 1 (nothing left, nothing moved)', j(toolNames(b1)) === j(toolNames(b2)))
       const pm = (b1.messages ?? []) as unknown[]
       const cm = (b2.messages ?? []) as unknown[]
       const prefixSame = pm.every((m, i) => j(withoutCacheControl(m)) === j(withoutCacheControl(cm[i])))
@@ -537,7 +543,7 @@ if (!existsSync(DIST)) {
       // the roster, so the top-level system may move WITH the toggle — once:
       // request 3 (no further change) is byte-identical to request 2.
       check('the top-level system moves at most at the toggle: request 3 is byte-identical to request 2', j(withoutCacheControl(b2.system)) === j(withoutCacheControl(b3.system)))
-      check('request 3 keeps the toggled roster (sticky)', !toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
+      check('request 3 keeps the same roster (frozen)', toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
     }
     const notices = transcriptNotices(arena, SID)
     check('the scripted drop paints exactly one receipt', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
