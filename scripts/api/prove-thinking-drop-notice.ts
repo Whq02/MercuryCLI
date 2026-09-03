@@ -138,7 +138,7 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1')
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, and the model', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', model: 'claude-fable-5-1' }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, and the model', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1' }), j(m))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null)
 }

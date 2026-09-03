@@ -34,6 +34,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
+import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -148,22 +149,28 @@ export function describeInputTransformations(list: readonly InputTransformation[
 // changed path, the doctor row that carries the evidence and the bug-report
 // road — never a model switch, which does not touch the cause.
 
-/** The two lawful prefix changes the history can show. (An operator's
- *  transcript edit is the third; it leaves no row, so a drop after it reads
- *  as a single client-side edit.) */
-export type LawfulPrefixChange = 'compaction' | 'model-switch'
+/** The lawful prefix changes the history can show: a compaction, a
+ *  deliberate model switch, and the operator's spawn-switch toggle (the
+ *  tools array moves when the Agent or Workflow tool leaves or rejoins the
+ *  roster). (An operator's transcript edit leaves no row, so a drop after
+ *  it reads as a single client-side edit.) */
+export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'roster-switch'
 
 /**
  * The marks of a request's history that move only on a lawful change: the
  * first conversation row (a compaction replaces it with the summary), the
- * newest compact boundary and model-transition rows, and the model itself.
- * Two consecutive requests whose marks agree had no lawful change between
- * them.
+ * newest compact boundary, model-transition and roster-transition rows, and
+ * the model itself. Two consecutive requests whose marks agree had no
+ * lawful change between them.
  */
 export interface PrefixMark {
   firstRow: string | null
   compactBoundary: string | null
   modelTransition: string | null
+  rosterTransition: string | null
+  /** The newest roster transition's word ("sub-agents off") — the notice
+   *  names the toggle. */
+  rosterChange: string | null
   model: string
 }
 
@@ -171,6 +178,8 @@ export function prefixMarkOf(messages: readonly Message[], model: string): Prefi
   let firstRow: string | null = null
   let compactBoundary: string | null = null
   let modelTransition: string | null = null
+  let rosterTransition: string | null = null
+  let rosterChange: string | null = null
   for (const message of messages) {
     if (message.type === 'user' || message.type === 'assistant') {
       firstRow = message.uuid
@@ -183,9 +192,14 @@ export function prefixMarkOf(messages: readonly Message[], model: string): Prefi
     const subtype = (message as { subtype?: string }).subtype
     if (compactBoundary === null && subtype === 'compact_boundary') compactBoundary = message.uuid
     if (modelTransition === null && subtype === 'model_transition') modelTransition = message.uuid
-    if (compactBoundary !== null && modelTransition !== null) break
+    if (rosterTransition === null && subtype === 'roster_transition') {
+      rosterTransition = message.uuid
+      const row = message as { toggle?: 'subagents' | 'workflows'; on?: boolean }
+      rosterChange = row.toggle !== undefined ? `${SPAWN_SWITCH_LABEL[row.toggle]} ${row.on === false ? 'off' : 'on'}` : null
+    }
+    if (compactBoundary !== null && modelTransition !== null && rosterTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, model }
+  return { firstRow, compactBoundary, modelTransition, rosterTransition, rosterChange, model }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -193,6 +207,8 @@ export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
 export interface DropOutcome {
   kind: DropKind
   lawful: LawfulPrefixChange | null
+  /** The toggle a lawful roster switch names ("sub-agents off"). */
+  rosterChange: string | null
   /** The unlawful run this drop extends (1 for a first drop). */
   consecutive: number
   count: number
@@ -230,7 +246,7 @@ export function classifyThinkingDrops(
   const previous = dropStates.get(owner)
   if (dropped.length === 0) {
     dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
-    return { kind: 'none', lawful: null, consecutive: 0, count: 0, path: null, reason: null }
+    return { kind: 'none', lawful: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null }
   }
   let lawful: LawfulPrefixChange | null = null
   if (previous !== undefined) {
@@ -238,6 +254,8 @@ export function classifyThinkingDrops(
       lawful = 'compaction'
     } else if (previous.mark.model !== mark.model || previous.mark.modelTransition !== mark.modelTransition) {
       lawful = 'model-switch'
+    } else if (previous.mark.rosterTransition !== mark.rosterTransition) {
+      lawful = 'roster-switch'
     }
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
@@ -257,7 +275,15 @@ export function classifyThinkingDrops(
   }
   dropStates.set(owner, { mark, kind, consecutive })
   const first = dropped[0]!
-  return { kind, lawful, consecutive, count: dropped.length, path: first.path, reason: first.reason }
+  return {
+    kind,
+    lawful,
+    rosterChange: lawful === 'roster-switch' ? mark.rosterChange : null,
+    consecutive,
+    count: dropped.length,
+    path: first.path,
+    reason: first.reason,
+  }
 }
 
 /** Where the change sits, read off the dropped block's path. */
@@ -288,6 +314,9 @@ export function describeThinkingDrops(
     case 'lawful':
       if (outcome.lawful === 'compaction') {
         return `Preserved thinking: the API dropped ${count} ${noun} after the compaction — the history before ${path} was folded into the summary, so the model re-plans without that reasoning this turn (expected once).`
+      }
+      if (outcome.lawful === 'roster-switch') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after the operator toggled ${outcome.rosterChange ?? 'a spawn switch'} — the tool roster changed with it, so the model re-plans without that reasoning this turn (expected once).`
       }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
@@ -409,7 +438,7 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   if (last.kind === 'lawful') {
     return {
       status: 'info',
-      evidence: `last drop ${last.at}: ${blocks} after ${last.lawful === 'compaction' ? 'a compaction' : 'a model switch'} (${where}, model ${last.model}) — expected once`,
+      evidence: `last drop ${last.at}: ${blocks} after ${last.lawful === 'compaction' ? 'a compaction' : last.lawful === 'roster-switch' ? "the operator's spawn-switch toggle" : 'a model switch'} (${where}, model ${last.model}) — expected once`,
     }
   }
   if (last.kind === 'first') {
