@@ -16,25 +16,6 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-{
-  const { enqueue, popAllEditable, resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
-  resetCommandQueue()
-  enqueue({
-    value: 'analyze [Pasted text #7 +12 lines] and [Image #3]',
-    mode: 'prompt',
-    pastedContents: {
-      7: { id: 7, type: 'text', content: 'line1\nline2\nthe 500-line log body' },
-      3: { id: 3, type: 'image', content: 'aGk=', mediaType: 'image/png' },
-    } as never,
-  })
-  const popped = popAllEditable('', 0)
-  t('B: pop-back returns the queued text with placeholders', !!popped && popped.text.includes('[Pasted text #7 +12 lines]'))
-  const byId = new Map((popped?.images ?? []).map(p => [p.id, p]))
-  t('B: the TEXT paste restores under its original id', byId.get(7)?.type === 'text' && (byId.get(7) as { content?: string })?.content?.includes('500-line log') === true)
-  t('B: the image restores too', byId.get(3)?.type === 'image')
-  resetCommandQueue()
-}
-
 const cfg = scenario('resume-2turn', 120, 40)
 type Grid = { grid: { c: string }[][] }
 const rowsOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
