@@ -424,5 +424,36 @@ section('§I the within-family slot rung: a stable wall key, re-armed only by an
   check('the slot key no longer carries the reset moment', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
 }
 
+// ── §J the offer follows the usage records' own change signals ─────────────
+section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals")
+{
+  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  openai.__resetOpenaiLimitStateForTest()
+  let fired = 0
+  const off = openai.subscribeOpenaiObserved(() => {
+    fired++
+  })
+  const v0 = openai.getOpenaiObservedVersion()
+  const now = Date.now()
+  openai.adoptOpenaiObservedUsage({ primary: { usedPct: 92, windowMinutes: 300, resetsAtMs: now + 3600_000, observedAtMs: now - 5_000 } })
+  check('a band adopted from the facts feed bumps the version and wakes the subscriber', openai.getOpenaiObservedVersion() === v0 + 1 && fired === 1)
+  openai.adoptOpenaiObservedUsage({ primary: { usedPct: 11, observedAtMs: now - 60_000 } })
+  check('a STALE adoption (older than the held band) changes nothing and signals nothing', openai.getOpenaiObservedVersion() === v0 + 1 && fired === 1)
+  openai.recordOpenaiRateHeaders(new Headers({ 'x-codex-primary-used-percent': '93', 'x-codex-primary-window-minutes': '300', 'x-codex-primary-reset-after-seconds': '3595' }), () => now)
+  check("a response's usage headers bump the version", openai.getOpenaiObservedVersion() === v0 + 2 && fired === 2)
+  openai.recordOpenaiRateHeaders(new Headers({ 'content-type': 'text/event-stream' }), () => now)
+  check('headers that state no band change nothing and signal nothing', openai.getOpenaiObservedVersion() === v0 + 2)
+  openai.recordOpenaiUsageLimit(now + 60_000, 'chatgpt-subscription', () => now)
+  check('an observed wall (a 429 with its reset) bumps the version', openai.getOpenaiObservedVersion() === v0 + 3)
+  openai.forgetOpenaiLimitSource('chatgpt-subscription')
+  check('forgetting a source (a sign-out) bumps the version', openai.getOpenaiObservedVersion() === v0 + 4)
+  off()
+  openai.recordOpenaiUsageLimit(now + 60_000, 'api-key', () => now)
+  check('an unsubscribed listener hears nothing more', fired === 4)
+  openai.__resetOpenaiLimitStateForTest()
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check("the composer follows the anthropic record's version and the OpenAI record's version (the cap effect re-runs on either)", composer.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && composer.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)'))
+}
+
 console.log(`\n${failures === 0 ? 'CAP OFFER SETTLES: ALL PASS' : `FAILURES: ${failures}`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -226,7 +226,8 @@ import {
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
-import { openaiLimitWindow } from '../../services/providers/openai/openaiLimitState.js'
+import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
 import { SlotOfferCard } from '../SlotOfferCard.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
 import { formatResetTime } from '../../utils/format.js'
@@ -694,6 +695,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     resetText: string | null
   } | null>(null)
   const limits = useClaudeAiLimits()
+  // The cap-failover effect below reads every family's usage record at
+  // render and runs on commits: it follows the records' own change signals
+  // (the anthropic record's version, the OpenAI lane's observed version) so
+  // a band that lands through a facts read re-runs it at once — on a still
+  // screen nothing else would, and the offer waited for a keystroke.
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
 
   /** The apply tail: the verdict from the settlement owner → patch + toast. */
   const applyModelSelection = (value: string | null): void => {
