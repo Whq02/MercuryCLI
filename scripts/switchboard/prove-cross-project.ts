@@ -306,6 +306,11 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
 console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by project, then always adds the one focused session, ★ from its own project')
 {
   const { registerChatPresence, presentStripStops, stripKeyMapHintOf, _resetSurfaceRouteForTesting } = await import('../../src/context/surfaceRoute.ts')
+// THE HOST'S OWN KEY WORDS (faad4c8): a chord hint is spelled per platform at
+// paint time — '⇧→' on macOS, 'shift+→' elsewhere; '⌃g' / 'ctrl+g' — so a
+// pin reads the spelling from the one owner, never a Mac literal (the
+// hosted Linux gate red the literal twice a run).
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   // The presence seam exactly as the router registers it (SurfaceRouter's
@@ -332,7 +337,7 @@ console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by proj
   check('the OTHER A session (unfocused) is NOT on B\'s board — only the focused one carries over', !flatB.some(r => r.sessionId === S_A2))
   check('B\'s own session is a plain row (no mark)', flatB.find(r => r.sessionId === S_B1)?.foreignProject === undefined)
   check('hasFocusedSession() stays true across the switch (the slot never moved)', slot.hasFocusedSession() && slot.getFocusedSessionConnector().sessionId() === S_A1)
-  check('the chat stop is present on the strip — shift+→ still enters it (the router untouched)', presentStripStops().includes('repl') && stripKeyMapHintOf('concourse', presentStripStops()).includes('⇧→ chat'))
+  check('the chat stop is present on the strip — shift+→ still enters it (the router untouched)', presentStripStops().includes('repl') && stripKeyMapHintOf('concourse', presentStripStops()).includes(`${keyHintLabel('⇧→')} chat`))
   check('the seats stay GLOBAL under the view: counts.live counts every live record (3) while the board shows two live CHAT rows (the elsewhere door is a door, never a chat)', atB.counts.live === 3 && flatB.filter(r => r.state !== 'parked' && r.door === undefined).length === 2, `${atB.counts.live} / ${flatB.length}`)
   check('the peek lands on a board row (never on a hidden session)', atB.peek !== null && flatB.some(r => r.sessionId === atB.peek?.sessionId))
   // The ★ row with NO live record: a parked chat brought back and not yet
@@ -472,7 +477,7 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
   seedWorkers([...roster(), liveRecord('concourse-w10', S_F1, P_F)])
   const four = await build()
   const fourRows = four.groups.find(g => g.id === 'elsewhere')?.rows ?? []
-  check('four active projects: three lines by activity (B, C, E — the tie E/F breaks by name) painted in name order, then "+1 more"', fourRows.map(r => r.projectLabel).join(',') === 'proj-beta,proj-epsilon,proj-gamma,—' && fourRows[3]?.door?.kind === 'pick-project' && (fourRows[3]?.door as { more?: number }).more === 1 && fourRows[3]?.title === '+1 more project with activity' && fourRows[3]?.nowLabel === '⌃g picks one' && (four.elsewhere?.length ?? 0) === 4, fourRows.map(r => r.title).join(' ; '))
+  check('four active projects: three lines by activity (B, C, E — the tie E/F breaks by name) painted in name order, then "+1 more"', fourRows.map(r => r.projectLabel).join(',') === 'proj-beta,proj-epsilon,proj-gamma,—' && fourRows[3]?.door?.kind === 'pick-project' && (fourRows[3]?.door as { more?: number }).more === 1 && fourRows[3]?.title === '+1 more project with activity' && fourRows[3]?.nowLabel === `${keyHintLabel('⌃g')} picks one` && (four.elsewhere?.length ?? 0) === 4, fourRows.map(r => r.title).join(' ; '))
   // THE CALM LAW: a count moves, the row keeps its id and its place.
   seedWorkers([...roster(), liveRecord('concourse-w10', S_F1, P_F), liveRecord('concourse-w11', S_E2, P_E)])
   const moved = await build()
