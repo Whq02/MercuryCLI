@@ -807,6 +807,9 @@ export function enqueueAgentNotification(args: {
   worktreeBranch?: string
   /** A pre-built result-envelope block supplied by the caller. */
   envelopeBlock?: string
+  /** The summary line, when the caller's word is truer than the status's
+   *  own (a launch a runner restart orphaned names the restart). */
+  summary?: string
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
@@ -819,11 +822,12 @@ export function enqueueAgentNotification(args: {
   abortSpeculation(args.setAppState)
 
   const summary =
-    args.status === 'completed'
+    args.summary ??
+    (args.status === 'completed'
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
         ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}`
-        : `Agent "${args.description}" was stopped`
+        : `Agent "${args.description}" was stopped`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
