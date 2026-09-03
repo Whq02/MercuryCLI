@@ -226,112 +226,20 @@ try {
   // process.stdout.isTTY, so `> doctor.json` used to flip the certificate to
   // FAULT on redirection alone. Environmental ⇒ neutral: the piped row reads
   // 'info' with the honest line, and the verdict equals the SAME host's
-  // THE PTY DRIVER is python's pty.spawn — one dialect on every host, and it
-  // drains the master until the child EXITS. script(1) differed by platform
-  // and util-linux's closed the session on stdin's EOF, so on the hosted
-  // runner the record came back truncated mid-document (gate run 11: a
-  // SyntaxError where a verdict should be). The exit status is the child's.
-  const PTY_DRIVER = 'import os, pty, sys; st = pty.spawn(sys.argv[1:]); sys.exit(os.waitstatus_to_exitcode(st) if hasattr(os, "waitstatus_to_exitcode") else (st >> 8))'
-  // The record is the FIRST balanced JSON object in the pty transcript —
-  // never a first-brace-to-last-brace slice (a trailing line, a fold of the
-  // streams, or a cut stream broke that). A parse failure is a typed null,
-  // never a crash: the check below names the transcript's tail.
-  const firstJsonObject = (text: string): Cert | null => {
-    const out = text.replace(/\r/g, '')
-    const first = out.indexOf('{')
-    if (first === -1) return null
-    let depth = 0
-    let inString = false
-    let escaped = false
-    for (let i = first; i < out.length; i++) {
-      const c = out[i] as string
-      if (inString) {
-        if (escaped) escaped = false
-        else if (c === '\\') escaped = true
-        else if (c === '"') inString = false
-        continue
-      }
-      if (c === '"') inString = true
-      else if (c === '{') depth++
-      else if (c === '}' && --depth === 0) {
-        try {
-          return JSON.parse(out.slice(first, i + 1)) as Cert
-        } catch {
-          return null
-        }
-      }
-    }
-    return null
-  }
-  let ttyTail = ''
-  // TTY-run verdict (driven under a real PTY).
+  // The real-terminal half of this leg (the same record driven under a
+  // pseudo-terminal, compared with the piped one) lives in
+  // prove-health-json-tty.ts, a member of the health drives suite — the
+  // suite-class census reads a terminal spawn as a drive, whatever the
+  // header says. This leg keeps the piped record.
   {
     const dir = join(scratch, 'piped-vs-tty')
     mkdirSync(dir, { recursive: true })
-    // ONE credential state for both runs: an interactive (TTY) run honours an
-    // env key only once the operator approved it (isCustomApiKeyApproved),
-    // while a piped run and a CI run honour it outright — so with a key in
-    // the environment the two verdicts split on AUTH, not on the profile row
-    // this leg pins. The credential variables are stripped from both runs
-    // (the auth rows read 'absent' alike on every box, CI or not).
-    const NO_CREDENTIAL = { ANTHROPIC_API_KEY: undefined, ANTHROPIC_AUTH_TOKEN: undefined, MERCURY_OAUTH_TOKEN: undefined }
-    const piped = runHealth(dir, NO_CREDENTIAL)
+    const piped = runHealth(dir)
     const pipedCert = piped.json as Cert
     const pipedRow = byId(pipedCert, 'iface-terminal')
     check('piped: the profile row is NEVER a fault', pipedRow !== undefined && pipedRow.status !== 'fail', JSON.stringify(pipedRow))
     check("piped: the row reads neutral 'info'", pipedRow?.status === 'info', pipedRow?.status)
     check('piped: the evidence names the environmental condition', /environmental/.test(String(pipedRow?.evidence)), String(pipedRow?.evidence))
-    // The PTY drive: the child runs with stdio on a real pty; stdout is a
-    // TTY inside. The record is the first balanced object in the transcript.
-    let ttyCert: Cert | null = null
-    try {
-      const out = execFileSync(
-        'python3',
-        ['-c', PTY_DRIVER, 'node', BIN, 'health', '--json'],
-        {
-          cwd: dir,
-          env: {
-            ...process.env,
-            MERCURY_CONFIG_DIR: join(scratchHome, '.mercury'),
-            TERM: 'xterm-256color',
-            COLORTERM: 'truecolor',
-            ...NO_CREDENTIAL,
-          },
-          encoding: 'utf8',
-          timeout: 60_000,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        },
-      )
-      ttyTail = out.slice(-300)
-      ttyCert = firstJsonObject(out)
-    } catch (error) {
-      // A fault verdict exits 3 (FC-044) and execFileSync throws on any
-      // nonzero — the record is still on the thrown error's stdout.
-      const out = String((error as { stdout?: unknown }).stdout ?? '')
-      ttyTail = out.slice(-300)
-      ttyCert = firstJsonObject(out)
-    }
-    if (ttyCert === null) {
-      check('tty drive produced a certificate (a python pty)', false, `no balanced record in the transcript — tail: ${JSON.stringify(ttyTail)}`)
-    } else {
-      const ttyRow = byId(ttyCert, 'iface-terminal')
-      check('tty: the profile row is NOT the environmental form', !/environmental/.test(String(ttyRow?.evidence)), String(ttyRow?.evidence))
-      // On a mismatch the detail names every non-pass row of both runs, so a
-      // hosted runner's flip is attributable from the log alone.
-      // The certificate carries sections[].checks (never rows): every row
-      // that can raise the verdict is named, so a hosted flip is
-      // attributable from the log alone.
-      const nonPass = (cert: Cert): string =>
-        allChecks(cert)
-          .filter(r => r.status !== 'ok' && r.status !== 'info' && r.status !== 'off')
-          .map(r => `${r.id}:${r.status}`)
-          .join(' ')
-      check(
-        "the piped run's verdict equals the TTY run's (the profile row no longer flips it)",
-        pipedCert.verdict === ttyCert.verdict,
-        `piped=${pipedCert.verdict} [${nonPass(pipedCert)}] tty=${ttyCert.verdict} [${nonPass(ttyCert)}]`,
-      )
-    }
   }
   // ── run 8: `--only <id>` is live on the json path ────────────────────────
   // (small-fix bundle item 8): healthAction dropped --only outside --fix —
@@ -358,7 +266,7 @@ try {
 
   // ── run 9: `--only <id>` on the PLAIN path prints the one check and exits —
   // never the interactive view. Piped: the text presentation, one row.
-  // Under a REAL PTY (both stdio TTY — the shape that used to mount the
+  // Under a real terminal (both stdio TTY — the shape that used to mount the
   // interactive certificate view and park), the process must exit UNAIDED
   // with the single row.
   {
@@ -384,28 +292,8 @@ try {
     check('…and ONLY that row', (pipedOut.match(/^\s*\[[A-Z]+\]/gm) ?? []).length === 1, pipedOut.slice(0, 300))
     check('…with the verdict line', /verdict: [A-Z]+/.test(pipedOut))
 
-    let ptyOut: string | null = null
-    try {
-      ptyOut = execFileSync(
-        'python3',
-        ['-c', PTY_DRIVER, 'node', BIN, 'doctor', '--only', 'build-identity'],
-        {
-          cwd: dir,
-          env: {
-            ...process.env,
-            MERCURY_CONFIG_DIR: join(scratchHome, '.mercury'),
-            TERM: 'xterm-256color',
-          },
-          encoding: 'utf8',
-          timeout: 60_000,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        },
-      ).replace(/\r/g, '')
-    } catch {
-      ptyOut = null
-    }
-    check('PTY --only exits unaided (no parked interactive view)', ptyOut !== null)
-    check('…printing the one check, not the panel', ptyOut !== null && ptyOut.includes('Mercury build'), (ptyOut ?? '').slice(0, 200))
+    // The real-terminal --only leg (the process exits unaided, one row, no
+    // parked interactive view) lives in prove-health-json-tty.ts (health drives).
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
