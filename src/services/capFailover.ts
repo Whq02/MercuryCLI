@@ -182,7 +182,64 @@ export function noteOfferAutoDone(key: string): void {
 export function _resetOfferMemoriesForTesting(): void {
   offerDismissals.clear()
   offerAutoActions.clear()
+  answeredCapOffers.clear()
   capHandoff = null
+}
+
+// ── the CROSS-FAMILY offer's armed state (ONE stable owner) ─────────────────
+//  The set above keys on the caller's own string. The cross-family rung's
+//  string carried the window STATE and the stated RESET moment
+//  ('direction|family|state|reset') — both VOLATILE: a window fills from
+//  'warning' to 'rejected', and its stated reset shifts by seconds as each
+//  fresh usage header is re-observed (the facts read a confirm triggers
+//  re-adopts the OpenAI bands). Every drift minted a NEW key the answer had
+//  never latched, so the answered offer re-fired on the very next commit —
+//  offer → preview → confirm → offer, forever, the switch never settling
+//  because the card kept returning over it.
+//
+//  This owner latches the answered/actioned state on the STABLE facts alone —
+//  the direction and the family. An offer ANSWERED (accepted or Esc) or an
+//  auto action taken disarms for that (direction, family) until the facts
+//  MATERIALLY change, never on a state/reset jitter:
+//    · the home family's window is OBSERVED RECOVERED ('allowed', a real
+//      reset) — the HANDOFF re-arms (a genuinely new wall may re-offer);
+//    · the window caps AGAIN ('warning'/'rejected') — the RETURN re-arms (a
+//      later reset may re-offer the way home).
+//  'unknown' (nothing observed) is not a transition and re-arms neither, so a
+//  credential that just changed never re-nags. Session-scoped like the
+//  memories above: a fresh boot fairly re-offers a still-standing wall.
+
+export type CapOfferDirection = 'handoff' | 'return'
+const answeredCapOffers = new Set<string>()
+const capOfferArmKey = (direction: CapOfferDirection, family: string): string =>
+  `${direction}|${family}`
+
+/** Has the cross-family offer for this (direction, family) already been
+ *  answered — accepted, dismissed, or its auto action taken — for the wall
+ *  that still stands? While true the card never re-fires, whatever the
+ *  selection path then decides (applied, previewed, refused). */
+export function capOfferAnswered(direction: CapOfferDirection, family: string): boolean {
+  return answeredCapOffers.has(capOfferArmKey(direction, family))
+}
+
+/** Latch the cross-family offer's answered state (an accept, an Esc, or an
+ *  auto handoff/return). The next material change re-arms it. */
+export function noteCapOfferAnswered(direction: CapOfferDirection, family: string): void {
+  answeredCapOffers.add(capOfferArmKey(direction, family))
+}
+
+/** The family's window was OBSERVED this commit — re-arm the offer whose wall
+ *  the observation ended. A real reset ('allowed') re-arms the HANDOFF; a
+ *  window that caps again ('warning'/'rejected') re-arms the RETURN. 'unknown'
+ *  is nothing observed and re-arms neither (state/reset jitter within one wall
+ *  never reaches 'allowed', so the answered handoff stays disarmed — the loop
+ *  cannot re-open). */
+export function noteCapWindowObserved(family: string, state: CapWindowState): void {
+  if (state === 'allowed') {
+    answeredCapOffers.delete(capOfferArmKey('handoff', family))
+  } else if (state === 'warning' || state === 'rejected') {
+    answeredCapOffers.delete(capOfferArmKey('return', family))
+  }
 }
 
 /** What the RETURN decision knows about the home family. */
@@ -556,6 +613,42 @@ export function deriveCapFailoverCandidates(
  *  (openai: the qualified seat catalogue; elsewhere: the recorded frontier
  *  fact) × the sign-in ledger's recency. Late requires — the decision core
  *  stays import-light for the pure fence above. */
+/** The EXACT id of the newest first-party frontier MEMBER — the id the seat
+ *  and the catalogue persist (e.g. claude-fable-5-1), never the generation's
+ *  base member. The first-party frontier fact answers the family DEFAULT
+ *  (getDefaultFableModel → claude-fable-5; the canonicaliser collapses every
+ *  'fable-5' spelling onto it), so an offer built from it would hand the
+ *  session the OLDER model when a newer frontier member exists — the switch
+ *  target must be the frontier the operator actually runs. The model-config
+ *  table is the exact-id owner: among the registered fable members the
+ *  highest generation wins (claude-fable-5-1 over claude-fable-5), read live
+ *  so a later member needs no touch here. Falls back to the passed id when the
+ *  table cannot be read or names no fable member. */
+function newestFirstPartyFrontierMember(fallback: string): string {
+  try {
+    const { CANONICAL_MODEL_IDS } =
+      require('../utils/model/configs.js') as typeof import('../utils/model/configs.js')
+    const rank = (id: string): number => {
+      const m = /^claude-fable-(\d+)(?:-(\d+))?$/.exec(id)
+      return m === null ? -1 : Number(m[1]) * 1000 + (m[2] !== undefined ? Number(m[2]) : 0)
+    }
+    let best: { id: string; rank: number } | undefined
+    for (const id of CANONICAL_MODEL_IDS) {
+      const r = rank(id)
+      if (r >= 0 && (best === undefined || r > best.rank)) best = { id, rank: r }
+    }
+    return best?.id ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+/** TEST-ONLY: the exact-id resolver, so a prover pins the newest-member
+ *  upgrade without seeding a whole live credential estate. */
+export function _firstPartyFrontierMemberForTest(fallback: string): string {
+  return newestFirstPartyFrontierMember(fallback)
+}
+
 export function liveCapFailoverCandidates(home: string | null): CapFailoverCandidateSet {
   const { resolveProviderUsability } =
     require('./providers/providerUsability.js') as typeof import('./providers/providerUsability.js')
@@ -580,7 +673,12 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
         const seat = getGptSeatAvailability()
         return seat.state === 'ready' ? seat.ids[0] : undefined
       }
-      return providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+      const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+      // The first-party frontier fact answers the family default; the offer
+      // switches to the NEWEST frontier member the picker/seat persist.
+      return route === 'anthropic' && fact !== undefined
+        ? newestFirstPartyFrontierMember(fact)
+        : fact
     },
     family => ledger[family]?.at,
   )
