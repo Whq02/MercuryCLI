@@ -195,12 +195,15 @@ import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
   capHandoffState,
+  capOfferAnswered,
   decideCapAction,
   decideCapReturn,
   decideSlotWallAction,
   liveCapFailoverTarget,
   noteCapHandoff,
+  noteCapOfferAnswered,
   noteCapReturn,
+  noteCapWindowObserved,
   noteOfferAutoDone,
   noteOfferDismissal,
   observedFamilyWindow,
@@ -555,7 +558,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const [capOffer, setCapOffer] = useState<{
     trigger: 'warning' | 'rejected' | 'reset'
     direction: 'handoff' | 'return'
-    key: string
     windowName: string | null
     resetText: string | null
     targetModel: string
@@ -778,19 +780,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       return
     }
     const window = observedFamilyWindow(homeFamily)
+    noteCapWindowObserved(homeFamily, window.state)
     const action =
       onFailoverLane && homeUsability !== null
         ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
         : decideCapAction(posture, window.state)
     if (action.kind === 'none') return
     const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
-    const decisionKey = `${direction}|${homeFamily}|${window.state}|${window.resetsAtMs ?? ''}`
     const windowName = window.windowName ?? null
     const resetText =
       window.resetsAtMs !== undefined ? (formatResetTime(window.resetsAtMs / 1000) ?? null) : null
     const homeName = providerDisplayName(homeFamily)
     if (action.kind === 'offer') {
-      if (offerDismissed(decisionKey)) return
+      if (capOfferAnswered(direction, homeFamily)) return
       if (modalOverlayUp) return
       let target: string | null
       if (direction === 'return') {
@@ -806,7 +808,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setCapOffer({
         trigger: action.trigger,
         direction,
-        key: decisionKey,
         windowName,
         resetText,
         targetModel: target,
@@ -817,8 +818,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setOverlay('cap-offer')
       return
     }
-    if (offerAutoDone(decisionKey)) return
-    noteOfferAutoDone(decisionKey)
+    if (capOfferAnswered(direction, homeFamily)) return
+    noteCapOfferAnswered(direction, homeFamily)
     if (direction === 'handoff') {
       const target = liveCapFailoverTarget(homeFamily)?.model
       if (target === undefined) return
@@ -2489,7 +2490,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         onAccept={() => {
           setCapOffer(null)
           setOverlay(null)
-          noteOfferDismissal(offer.key)
+          noteCapOfferAnswered(offer.direction, offer.homeRoute)
           if (offer.direction === 'handoff') {
             const stateNow = appStateStore.getState()
             noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
@@ -2497,7 +2498,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           handleModelSelect(offer.targetModel)
         }}
         onDismiss={() => {
-          noteOfferDismissal(offer.key)
+          noteCapOfferAnswered(offer.direction, offer.homeRoute)
           setCapOffer(null)
           setOverlay(null)
         }}
