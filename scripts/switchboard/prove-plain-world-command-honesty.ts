@@ -49,7 +49,7 @@ const sends = [
   'after:↑↓ choose:1500:\r',
   'after:↑↓ choose:4500:hello plain world',
   'after:↑↓ choose:5700:\r',
-  'after:↑↓ choose:10500:/party',
+  'after:↑↓ choose:10500:/fleet',
   'after:↑↓ choose:11700:\r',
 ]
 const WALL_S = driveWallSeconds(sends)
@@ -144,15 +144,15 @@ if (existsSync(projectsDir)) {
 check('§3 a transcript exists (the seeded turn persisted)', transcriptBytes.includes('hello plain world'))
 check(
   '§3 NO transcript byte carries the gated command or a refusal sentence',
-  !transcriptBytes.includes('/party') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
+  !transcriptBytes.includes('/fleet') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
 )
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
 const statusRows = joined.split('\n').filter(r => /· ready|· thinking|· running a tool|· replying|esc interrupts/.test(r))
 check('§3c after the first words the status row names them (stage 2), not "new session"', statusRows.length > 0 && statusRows.some(r => /hello plain world/.test(r)) && !statusRows.some(r => /new session ·/.test(r)), statusRows.map(r => r.trim().slice(0, 100)).slice(0, 2).join(' | ') || 'no status row')
-const typedNeedle = /(?<![:/\w])\/party\b/
+const typedNeedle = /(?<![:/\w])\/fleet\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
-check('§4 the wire never saw /party', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
+check('§4 the wire never saw /fleet', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
 for (const hit of wireHits.slice(0, 2)) {
   const raw = (hit as { raw: string }).raw
   const idx = raw.search(typedNeedle)
