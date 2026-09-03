@@ -242,9 +242,10 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const p4 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-b' })
   check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'mcp__srv__late']), names(p4))
 
-  // Search off by policy: everything rides in full from the first request
-  // (no ToolSearch); a joiner is HELD out of the frozen roster.
-  process.env.MERCURY_TOOL_SEARCH = 'standard'
+  // Search off by policy (a defined-falsy MERCURY_TOOL_SEARCH is the
+  // standard mode): everything rides in full from the first request (no
+  // ToolSearch); a joiner is HELD out of the frozen roster.
+  process.env.MERCURY_TOOL_SEARCH = '0'
   const s1 = await plan([search, readTool, deferrable], { key: 'conv-c' })
   const late = fakeTool('LateBuiltin')
   const s2 = await plan([search, readTool, deferrable, late], { key: 'conv-c' })
@@ -330,7 +331,7 @@ if (!existsSync(DIST)) {
      * prompt is written after the previous turn's result envelope, with an
      * optional hook between turns (the operator editing a file on disk).
      */
-    function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void }>): Promise<RunResult> {
+    function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void; controls?: Record<string, unknown>[] }>): Promise<RunResult> {
       return new Promise(resolvePromise => {
         const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
         let stdout = ''
@@ -345,6 +346,11 @@ if (!existsSync(DIST)) {
           const turn = turns[sent]!
           sent++
           turn.before?.()
+          // Control requests (a mode change, a spawn switch, an effort change)
+          // ride the same stdin ahead of the turn's prompt.
+          for (const [index, request] of (turn.controls ?? []).entries()) {
+            child.stdin.write(j({ type: 'control_request', request_id: `ctl-${sent}-${index}`, request }) + '\n')
+          }
           child.stdin.write(j({ type: 'user', message: { role: 'user', content: turn.prompt } }) + '\n')
         }
         child.stdout.on('data', d => {
@@ -684,6 +690,168 @@ if (!existsSync(DIST)) {
       // ToolSearch admits it — either way it is offered on every request.
       const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
       check('§6b the section rides every request (present at the first one), the Godot tool offered on every request', reqs.length === 3 && reqs.every(q => systemTextOf(q.body as Body).includes('Godot control surface') && offersGodot(q)), reqs.map(q => `${systemTextOf(q.body as Body).includes('Godot control surface')}/${offersGodot(q)}`).join(','))
+      await fixture.close()
+    }
+
+    // ------------------------------------------------------------------------
+    section('§7 the six-request proof — two admissions, apollo→flow, sub-agents off, an effort change, then a compaction: the prefix never moves until the fold')
+    // ------------------------------------------------------------------------
+    {
+      const summary = 'S7 SUMMARY needle: the session found the fetch and browser tools, switched to flow, turned sub-agents off and lowered the effort.'
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S7-T1', thinking: 's7 one' },
+        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'WebFetch' }, thinking: 's7 lookup one' },
+        { kind: 'text', text: 'S7-T2', thinking: 's7 two' },
+        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'Browser' }, thinking: 's7 lookup two' },
+        { kind: 'text', text: 'S7-T3', thinking: 's7 three' },
+        { kind: 'text', text: 'S7-T4', thinking: 's7 four (flow)' },
+        { kind: 'text', text: 'S7-T5', thinking: 's7 five (no sub-agents)' },
+        { kind: 'text', text: 'S7-T6', thinking: 's7 six (low effort)', usage: { input_tokens: 97_000 } },
+        { kind: 'text', text: summary },
+        { kind: 'text', text: 'S7-T7', thinking: 's7 seven (after the fold)' },
+      ]
+      // The fixture replays the API's own binding check on every response.
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const arena = makeArena(fixture, {
+        MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9',
+        // The apollo entry rides the concourse-worker door (the SDK door
+        // refuses apollo; the worker role accepts it — the field's road).
+        MERCURY_CONCOURSE_WORKER: '1',
+        // The block form on the fixture host: an explicit search value is
+        // the operator's assertion that the gateway carries the beta form —
+        // the first-party wire's shape (deferred tools, tool_reference).
+        MERCURY_TOOL_SEARCH: 'tst',
+      })
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0fa'
+      const debugFile = join(arena.home, 's7.debug.log')
+      const r = await runStreaming(
+        arena,
+        ['-p', '--input-format', 'stream-json', '--model', 'claude-opus-4-8', '--allowedTools', 'ToolSearch,Read', '--permission-mode', 'apollo', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        [
+          { prompt: 'start the interview' },
+          { prompt: 'find the fetch tool' },
+          { prompt: 'and the browser tool' },
+          { prompt: 'carry on in flow', controls: [{ subtype: 'set_permission_mode', mode: 'flow' }] },
+          { prompt: 'keep going without sub-agents', controls: [{ subtype: 'spawn_switch', switch: 'subagents', on: false }] },
+          { prompt: 'and now at low effort', controls: [{ subtype: 'set_effort', effort: 'low' }] },
+          { prompt: 'after the fold' },
+        ],
+      )
+      check('§7 the seven-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('§7 every turn answered around the lookups and the fold', ['S7-T1', 'S7-T2', 'S7-T3', 'S7-T4', 'S7-T5', 'S7-T6', 'S7-T7'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
+      const reqs = fixture.messageRequests()
+      check('§7 ten message requests (seven turns, two lookup rounds, one summary)', reqs.length === 10, String(reqs.length))
+      // Every pair before the fold: byte-identical system, tools and prefix.
+      const beforeFold = reqs.slice(0, 9)
+      census('§7 before the fold', beforeFold, true)
+      const foldPair = reqs.slice(8, 10)
+      const foldDiffs = census('§7 the fold', foldPair, false)
+      check('§7 the post-compaction request starts from a rewritten messages[0] (the one lawful change)', foldDiffs[0] === 0, j(foldDiffs))
+      // The fixture's replayed binding check: nothing dropped on ANY request —
+      // the prefix never moved before the fold, and the fold leaves no
+      // earlier thinking block behind to drop (the summary carries none).
+      const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
+      const dropLines = debug.split('\n').filter(l => l.includes('preserved thinking: [{"type":"thinking_dropped"'))
+      check('§7 the API-faithful fixture dropped nothing on any request of the session (zero drop lists)', dropLines.length === 0 && !r.stdout.includes('thinking_dropped'), `${dropLines.length} drop line(s)`)
+      const notices = transcriptNotices(arena, SID)
+      check('§7 no receipt at all — no defect row, no mode row, nothing lawful to report either', notices.length === 0, j(notices))
+      // Ruling 3's detail: the apollo-born conversation lists the review
+      // tool from its FIRST request and the mode switch leaves the array
+      // byte-identical (the census above); a tool the mode forbids is
+      // listed and refuses at call time.
+      check('§7 the apollo-born first request lists ApolloReview (deferred, like every deferrable tool)', toolNamesOf(reqs[0]!.body as Body).includes('ApolloReview'), toolNamesOf(reqs[0]!.body as Body).join(','))
+      // The roster law on the wire: the admitted tools sat deferred in the
+      // tools array from the first request; the array is the same object
+      // shape on every request before the fold.
+      const toolsOf = (q: { body: unknown }): Array<{ name?: string; defer_loading?: boolean }> => (Array.isArray((q.body as Body).tools) ? ((q.body as Body).tools as Array<{ name?: string; defer_loading?: boolean }>) : [])
+      const first = toolsOf(reqs[0]!)
+      check('§7 WebFetch and Browser rode the FIRST request deferred (defer_loading) — nothing to add on admission', first.some(t => t.name === 'WebFetch' && t.defer_loading === true) && first.some(t => t.name === 'Browser' && t.defer_loading === true), j(first.filter(t => t.name === 'WebFetch' || t.name === 'Browser')))
+      check('§7 the Agent tool stays in the tools array with sub-agents off (the valve refuses; the array never moves)', toolsOf(reqs[8]!).some(t => t.name === 'Agent') === toolsOf(reqs[0]!).some(t => t.name === 'Agent'))
+      const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
+      check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
+      // The mode pack rode rows: the pack in the first turn, an exit row after the switch.
+      const rows = (() => {
+        const dir = join(arena.home, '.claude', 'projects')
+        const files: string[] = []
+        const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }
+        if (existsSync(dir)) walk(dir)
+        return files.map(f => readFileSync(f, 'utf8')).join('\n')
+      })()
+      check('§7 the apollo pack rode a persisted mode_pack row and left through a mode_pack_exit row (never the system prompt)', rows.includes('"attachmentType":"mode_pack"') && rows.includes('"attachmentType":"mode_pack_exit"') && !systemTextOf(reqs[0]!.body as Body).includes('Apollo Mode'), `${rows.includes('"attachmentType":"mode_pack"')}/${rows.includes('"attachmentType":"mode_pack_exit"')}`)
+      await fixture.close()
+    }
+
+    // ------------------------------------------------------------------------
+    section('§8 a model switch mid-conversation continues — Fable 5.1 → Opus 5 → Fable 5.1 with thinking and tool turns between: every request legal, one quiet receipt per switch, prefixes frozen')
+    // ------------------------------------------------------------------------
+    {
+      const FABLE = 'claude-fable-5-1'
+      const OPUS = 'claude-opus-5'
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S8-F1', thinking: 'fable one', model: FABLE },
+        { kind: 'tool_use', name: 'Read', input: {}, thinking: 'fable reads', model: FABLE },
+        { kind: 'text', text: 'S8-F2', thinking: 'fable two', model: FABLE },
+        { kind: 'text', text: 'S8-O1', thinking: 'opus one', model: OPUS },
+        { kind: 'tool_use', name: 'Read', input: {}, thinking: 'opus reads', model: OPUS },
+        { kind: 'text', text: 'S8-O2', thinking: 'opus two', model: OPUS },
+        { kind: 'text', text: 'S8-F3', thinking: 'fable three', model: FABLE },
+        { kind: 'text', text: 'S8-F4', thinking: 'fable four', model: FABLE },
+      ]
+      // The fixture replays the API's refusals AND its binding check.
+      const fixture = await startFixtureApi(turns, { bindingCheck: true, apiChecks: true })
+      const arena = makeArena(fixture, { MERCURY_TOOL_SEARCH: 'tst' })
+      const notePath = join(arena.cwd, 'note.txt')
+      writeFileSync(notePath, 'switch leg note\n')
+      ;(turns[1] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
+      ;(turns[4] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0fb'
+      const debugFile = join(arena.home, 's8.debug.log')
+      const r = await runStreaming(
+        arena,
+        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        [
+          { prompt: 'first on fable' },
+          { prompt: 'read the note' },
+          { prompt: 'now on opus', controls: [{ subtype: 'set_model', model: OPUS }] },
+          { prompt: 'read it again on opus' },
+          { prompt: 'back on fable', controls: [{ subtype: 'set_model', model: FABLE }] },
+          { prompt: 'still on fable' },
+        ],
+      )
+      check('§8 the six-turn process exits 0 (no stall: every turn answered within the run budget)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('§8 every turn answered on both models', ['S8-F1', 'S8-F2', 'S8-O1', 'S8-O2', 'S8-F3', 'S8-F4'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
+      const reqs = fixture.messageRequests()
+      check('§8 eight message requests (two tool rounds) and NOT ONE refused by the API\'s own checks', reqs.length === 8 && fixture.refusals.length === 0, `${reqs.length} requests; refusals=${j(fixture.refusals)}`)
+      const bodies = reqs.map(q => q.body as Body)
+      check('§8 the wire model follows the switch: fable · fable · fable · opus · opus · opus · fable · fable', j(bodies.map(b => b.model)) === j([FABLE, FABLE, FABLE, OPUS, OPUS, OPUS, FABLE, FABLE]), j(bodies.map(b => b.model)))
+      // THE CAPTURE — the request Opus received (for the receipt).
+      const opusFirst = reqs[3]!
+      const opusBody = opusFirst.body as Body & { max_tokens?: number; output_config?: unknown; betas?: unknown }
+      const assistantShapes = ((opusBody.messages ?? []) as Array<{ role?: string; content?: unknown }>).filter(m => m.role === 'assistant').map(m => (Array.isArray(m.content) ? (m.content as Block[]).map(b => b.type).join('+') : typeof m.content))
+      console.log(`    §8 capture — the first Opus request: model=${opusBody.model} max_tokens=${String(opusBody.max_tokens)} thinking=${j(opusBody.thinking)} output_config=${j(opusBody.output_config)} betas=${opusFirst.headers['anthropic-beta'] ?? ''} assistant turns=${j(assistantShapes)}`)
+      check('§8 the first Opus request carries NONE of the Fable thinking (stripped) and every assistant turn keeps legal content (text or tool_use, never empty)', thinkingBlocksOf(opusBody) === 0 && assistantShapes.length === 3 && assistantShapes.every(s => s.length > 0 && !s.includes('thinking')), j(assistantShapes))
+      check('§8 max_tokens on the Opus request is within its cap (the switch re-resolves the target\'s limits)', typeof opusBody.max_tokens === 'number' && opusBody.max_tokens <= 128_000, String(opusBody.max_tokens))
+      const fableBack = reqs[6]!.body as Body
+      check('§8 back on Fable: the Opus thinking is stripped and the Fable blocks from before the switch replay (three: two turns plus the tool round)', thinkingBlocksOf(fableBack) === 3 && j(fableBack.messages).includes('fable one') && j(fableBack.messages).includes('fable reads') && !j(fableBack.messages).includes('opus one'), String(thinkingBlocksOf(fableBack)))
+      // Prefixes: byte-identical on the same model, stable across the switch
+      // too (system and tools frozen; only the thinking strip differs, and
+      // thinking is not part of the prefix — the fixture's binding check).
+      census('§8 fable', reqs.slice(0, 3), true)
+      census('§8 opus', reqs.slice(3, 6), true)
+      census('§8 fable again', reqs.slice(6, 8), true)
+      // Across the switch the system prompt moves (the identity line names
+      // the model — the deliberate switch) and the thinking strip differs;
+      // thinking is not part of the prefix, so the API-faithful fixture
+      // drops nothing: the Fable blocks were minted under the Fable prefix
+      // and come back to it byte-identical.
+      const crossSwitch = census('§8 across the switch', [reqs[2]!, reqs[3]!], false)
+      console.log(`    §8 across the switch: first messages diff at ${j(crossSwitch)} (the thinking strip; not prefix)`)
+      const debug = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
+      const switchReceipts = debug.split('\n').filter(l => l.includes('preserved thinking: Preserved thinking') && l.includes('switched models'))
+      check('§8 exactly two quiet switch receipts (one per real switch)', switchReceipts.length === 2, `${switchReceipts.length} receipt(s)`)
+      check('§8 the API-faithful fixture dropped nothing across both switches (the foreign blocks left before the wire; the returning blocks bind to their own prefix)', !debug.includes('thinking_dropped') && !r.stdout.includes('thinking_dropped'))
+      const problemRows = transcriptNotices(arena, SID).filter(t => t.includes('dropped') || /error/i.test(t)).length
+      check('§8 no drop notice, no API error row and no stall words in the transcript', problemRows === 0 && !r.stdout.includes('no stream events'), String(problemRows))
       await fixture.close()
     }
   }
