@@ -9,6 +9,11 @@
 //      live pid no longer carries is a recycled pid ⇒ reclaimed; a matching
 //      token ⇒ blocked; a gone/unknown live token keeps the fail-safe polarity
 //      (TASK-017 S2, pidlock-reuse-guard-inert-on-win32)
+//   §7 ONE token family per platform: the token a claim records and the
+//      token the live probe answers are the same string (judged against
+//      ps(1)'s lstart on linux, a /proc clock-tick token read as a REUSED
+//      pid and a live holder's lock was reclaimed from under it); a stopped
+//      holder is alive; a gone pid answers ''.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -111,6 +116,42 @@ const L = (name: string) => join(tmp, name)
   const reclaimed = await acquirePidLock(L('recycled.lock'), 'owner-u', { liveness: 'assume-alive' })
   ok(reclaimed.held === true, '§6 a live pid whose recorded token mismatches the LIVE token is reclaimed end to end (the async pre-fetch through the one owner)')
 }
+// ── §7 one token family per platform ────────────────────────────────────────
+{
+  const { getProcessStartToken, getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+  const { procLiveToken, currentProcStart } = await import('../../src/utils/genericProcessUtils.ts')
+  const mine = await acquirePidLock(L('family.lock'), 'owner-f', { liveness: 'assume-alive' })
+  const raw = JSON.parse(readFileSync(L('family.lock'), 'utf8')) as { procStart?: string }
+  const liveAsync = await getProcessStartTokenAsync(process.pid)
+  const liveSync = getProcessStartToken(process.pid)
+  ok(mine.held && typeof raw.procStart === 'string' && raw.procStart === liveAsync, '§7 the recorded token and the async live probe are ONE family (a mismatch reads as a reused pid)', `platform=${process.platform} recorded=${raw.procStart} live=${liveAsync}`)
+  ok(raw.procStart === liveSync, '§7 the sync probe answers the same family', `recorded=${raw.procStart} live=${liveSync}`)
+  const again = await probePidLock(L('family.lock'), { liveness: 'assume-alive' })
+  ok(again?.owner === 'owner-f' && again.pid === process.pid, '§7 the probe reads the live claimer as the holder (never reclaimed from under a live process)', JSON.stringify(again))
+  // A STOPPED holder is alive: its token stands, the lock stays blocked.
+  const child = spawn('sleep', ['30'], { stdio: 'ignore' })
+  await new Promise(r => setTimeout(r, 150))
+  const before = await getProcessStartTokenAsync(child.pid!)
+  process.kill(child.pid!, 'SIGSTOP')
+  await new Promise(r => setTimeout(r, 100))
+  const stopped = await getProcessStartTokenAsync(child.pid!)
+  ok(typeof before === 'string' && before !== '' && stopped === before, '§7 a stopped holder keeps its token (SIGSTOP is not death)', `before=${before} stopped=${stopped}`)
+  writeFileSync(L('stopped.lock'), JSON.stringify({ owner: 'stopped-owner', pid: child.pid, acquiredAt: Date.now(), procStart: before }))
+  const contender = await acquirePidLock(L('stopped.lock'), 'contender', { liveness: 'assume-dead' })
+  ok(!contender.held && contender.by?.pid === child.pid, '§7 …so a contender is BLOCKED by the stopped holder and the refusal names its pid', JSON.stringify(contender))
+  process.kill(child.pid!, 'SIGKILL')
+  await new Promise<void>(r => child.on('exit', () => r()))
+  const gone = await getProcessStartTokenAsync(child.pid!)
+  ok(gone === '', '§7 the dead pid answers gone (\'\')', `gone=${JSON.stringify(gone)}`)
+  if (process.platform === 'linux') {
+    ok(procLiveToken(process.pid) === currentProcStart(), '§7 linux: the procfs liveness read is the /proc start-time token the claim stamps')
+    ok(procLiveToken(4_194_301) === '', '§7 linux: a pid with no stat file answers gone')
+  } else {
+    ok(procLiveToken(process.pid) === undefined, '§7 off linux the procfs read is undefined (the ps road stands)')
+  }
+  await releasePidLock(L('family.lock'), 'owner-f')
+}
+
 rmSync(tmp, { recursive: true, force: true })
 if (failures > 0) {
   console.error(`prove-pidlock: ${failures} FAILURE(S)`)
