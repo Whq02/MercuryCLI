@@ -20,6 +20,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const ESC = String.fromCharCode(27)
@@ -117,12 +118,19 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   check('manifest: selfContained', manifest.selfContained === true)
   // The voice pack is the ONE pack a builder may lack (it needs cargo; a
   // build without it ships an honest `voice-input` row and every other
-  // sidecar whole). Any other member — or a second one — is a degraded
-  // artifact this proof refuses.
+  // sidecar whole). Under the HOSTED profile the runtime pack is a second
+  // allowed absence: the gate's runner vendors no Node runtime (the
+  // launchers run the PATH node there), and its manifest says so. Any
+  // other member — or either one off its profile — is a degraded artifact
+  // this proof refuses; the local law is unchanged.
+  const hosted = resolveExecutionProfile(ROOT).kind === 'hosted-gate'
+  const allowedAbsences = new Set<unknown>(['voice-input', ...(hosted ? ['runtime'] : [])])
   const degraded = Array.isArray(manifest.degraded) ? (manifest.degraded as unknown[]) : null
   check(
-    'manifest: degraded[] EMPTY (or exactly the voice pack, the one allowed absence)',
-    degraded !== null && (degraded.length === 0 || (degraded.length === 1 && degraded[0] === 'voice-input')),
+    hosted
+      ? 'manifest: degraded[] EMPTY (or only the voice pack and, under the hosted profile, the runtime pack — the allowed absences)'
+      : 'manifest: degraded[] EMPTY (or exactly the voice pack, the one allowed absence)',
+    degraded !== null && degraded.every(d => allowedAbsences.has(d)) && new Set(degraded).size === degraded.length,
     JSON.stringify(manifest.degraded),
   )
   const ip = manifest.imageProcessing as { selfContained?: boolean } | undefined

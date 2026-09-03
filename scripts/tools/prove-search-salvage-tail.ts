@@ -14,9 +14,15 @@
 //  salvage line with the timeout and overflow arms, so the newline
 //  discriminator is proven for all three without a 20-second wait.
 //
+//  The salvage is read at the completeness-bearing door (ripGrepAnswer:
+//  lines + complete:false + the operator-facing reason); the plain door
+//  (ripGrep) never returns a cut walk silently — it throws, carrying the
+//  same salvaged lines as partialResults.
+//
 //  §0 the controlled rg is actually the one resolved (loud, not silent).
 //  §1 a newline-terminated tail survives whole.
 //  §2 a mid-line tail still drops exactly the partial line.
+//  §3 the plain door throws on the cut walk, carrying the salvage.
 //
 //  Run: ~/.bun/bin/bun run scripts/tools/prove-search-salvage-tail.ts
 // ============================================================================
@@ -56,12 +62,12 @@ writeFileSync(
 )
 chmodSync(join(BIN, 'rg'), 0o755)
 
-const { ripGrep } = await import('../../src/utils/ripgrep.js')
+const { ripGrep, ripGrepAnswer, RipgrepTimeoutError } = await import('../../src/utils/ripgrep.js')
 
-const abortedSearch = async (): Promise<string[]> => {
+const abortedSearch = async (): Promise<{ lines: string[]; complete: boolean; reason?: string }> => {
   const controller = new AbortController()
   setTimeout(() => controller.abort(), 500)
-  return ripGrep(['--files'], WORK, controller.signal)
+  return ripGrepAnswer(['--files'], WORK, controller.signal)
 }
 
 section('§0 THE CONTROLLED RG IS THE RESOLVED ONE')
@@ -78,22 +84,53 @@ section('§0 THE CONTROLLED RG IS THE RESOLVED ONE')
 section('§1 A NEWLINE-TERMINATED TAIL SURVIVES WHOLE')
 {
   writeFileSync(MODE, 'complete')
-  const salvaged = await abortedSearch()
+  const answer = await abortedSearch()
+  const salvaged = answer.lines
   check(
     'both received lines are reported — the newline proves the tail arrived complete',
     salvaged.length === 2 && salvaged[0] === 'alpha.txt' && salvaged[1] === 'beta.txt',
     salvaged.join(', '),
+  )
+  check(
+    'the answer says it is PARTIAL — an interrupted walk never reads complete',
+    answer.complete === false && /interrupted before it finished/.test(answer.reason ?? '') && /2 line\(s\) kept/.test(answer.reason ?? ''),
+    `complete=${answer.complete} reason=${answer.reason ?? '(none)'}`,
   )
 }
 
 section('§2 A MID-LINE TAIL STILL DROPS EXACTLY THE PARTIAL LINE')
 {
   writeFileSync(MODE, 'partial')
-  const salvaged = await abortedSearch()
+  const answer = await abortedSearch()
+  const salvaged = answer.lines
   check(
     'the incomplete third line is dropped, the two whole ones stay',
     salvaged.length === 2 && salvaged[1] === 'beta.txt' && !salvaged.includes('gamma-partial'),
     salvaged.join(', '),
+  )
+  check('…and the answer still says PARTIAL', answer.complete === false, `complete=${answer.complete}`)
+}
+
+section('§3 THE PLAIN DOOR THROWS ON THE CUT WALK, CARRYING THE SALVAGE')
+{
+  writeFileSync(MODE, 'complete')
+  const controller = new AbortController()
+  setTimeout(() => controller.abort(), 500)
+  let thrown: unknown = null
+  try {
+    await ripGrep(['--files'], WORK, controller.signal)
+  } catch (e) {
+    thrown = e
+  }
+  check(
+    'ripGrep throws the typed timeout error (a caller that reads no completeness can never mistake a cut walk for a finished one)',
+    thrown instanceof RipgrepTimeoutError,
+    thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown),
+  )
+  check(
+    'the thrown error carries the two whole lines as partialResults',
+    thrown instanceof RipgrepTimeoutError && thrown.partialResults.length === 2 && thrown.partialResults[0] === 'alpha.txt' && thrown.partialResults[1] === 'beta.txt',
+    thrown instanceof RipgrepTimeoutError ? thrown.partialResults.join(', ') : '(no partialResults)',
   )
 }
 

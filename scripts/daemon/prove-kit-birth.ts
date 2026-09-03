@@ -378,7 +378,18 @@ if (ENSURE_SKIP !== '') {
   const mgr = read('src/services/concourse/managerMode.ts')
   check('A4 the manager lane receipt speaks it too', mgr.includes('kit ${laneKitSource}'))
   const server = read('src/daemon/controlServer.ts')
-  check('A4 the server forwards kitSource on the admit AND dispatch answers', server.split('r.kitSource !== undefined').length === 3)
+  // The wire-pick law: a relayed result crosses the socket through a key
+  // list (pickDefined) — a hand-typed spread once dropped a field the
+  // result grew — so the forward is proven by BOTH lists carrying the key
+  // and BOTH answers spreading their list.
+  const wireList = (name: string): string => (server.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
+  check(
+    'A4 the server forwards kitSource on the admit AND dispatch answers (the wire-pick key lists carry it; both answers spread their list)',
+    /'kitSource'/.test(wireList('ADMIT_WIRE_KEYS')) &&
+      /'kitSource'/.test(wireList('DISPATCH_WIRE_KEYS')) &&
+      server.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') &&
+      server.includes('...pickDefined(r, DISPATCH_WIRE_KEYS)'),
+  )
 }
 
 // ── §C: the non-session strays (the one-law's census, extended) ─────────────

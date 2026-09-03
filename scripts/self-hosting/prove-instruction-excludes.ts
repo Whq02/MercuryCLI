@@ -7,8 +7,11 @@
 //
 //  Laws pinned here:
 //    · THE SETTING is `instructionExcludes` — a settings.json carrying it
-//      excludes; one carrying the retired `claudeMdExcludes` spelling
-//      excludes NOTHING and still parses (root passthrough, no alias).
+//      excludes; one carrying the retired `claudeMdExcludes` spelling is
+//      ADOPTED by the loader for the run (the operator's intent lands, the
+//      supercode precedent) and the rename is NAMED as a settings warning;
+//      the schema itself neither fails nor aliases the old key, and the
+//      current key wins when both are present.
 //    · SYMLINK-HONEST IN BOTH DIRECTIONS, file level included:
 //        (a) a pattern naming a symlinked rules FILE by its symlink
 //            spelling excludes the file the engine walks under its target
@@ -93,11 +96,13 @@ import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
 enableConfigs()
 const { getInstructionFiles } = await import('${repo}/src/services/instructions/engine.js')
 const { mercuryNativeConvention } = await import('${repo}/src/services/instructions/adapters/mercuryNative.js')
+const { getSettingsWithErrors } = await import('${repo}/src/utils/settings/settings.js')
 const files = await getInstructionFiles()
 const probes = JSON.parse(process.env.EXCL_PROBES ?? '[]')
 console.log(JSON.stringify({
   paths: files.map(f => f.path),
   probes: probes.map(([p, t]) => mercuryNativeConvention.isExcluded(p, t)),
+  warnings: getSettingsWithErrors().errors.map(e => ({ path: String(e.path), message: e.message })),
 }))
 `
 const driverDir = mkdtempSync(join(tmpdir(), 'excl-prove-drv-'))
@@ -107,7 +112,7 @@ writeFileSync(driverPath, driverSrc)
 function drive(
   settings: Record<string, unknown>,
   probes: [string, string][] = [],
-): { paths: string[]; probes: boolean[] } {
+): { paths: string[]; probes: boolean[]; warnings: Array<{ path: string; message: string }> } {
   const home = mkdtempSync(join(tmpdir(), 'excl-prove-home-'))
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings))
   const env: Record<string, string | undefined> = {}
@@ -133,6 +138,7 @@ function drive(
   return JSON.parse(lines[lines.length - 1]!) as {
     paths: string[]
     probes: boolean[]
+    warnings: Array<{ path: string; message: string }>
   }
 }
 
@@ -190,11 +196,18 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
   check(r.paths.includes(spelling.real), '(d) the plain rule still composes')
 }
 
-// ── the retired spelling excludes NOTHING ───────────────────────────────────
+// ── the retired spelling is ADOPTED and the rename is NAMED ──────────────────
+// The loader adopts the legacy value for the run (the key parsed with zero
+// errors and excluded nothing before) and names the rename as a warning.
 {
-  const r = drive({ claudeMdExcludes: [join(rulesDir, 'linked-file.md'), '**/*.md'] })
-  check(r.paths.includes(spelling.linkedFileTarget) && r.paths.includes(spelling.real), 'the retired claudeMdExcludes key is dead: nothing is excluded')
-  check(r.paths.includes(spelling.root), 'a settings file carrying only the retired key still parses (composition ran)')
+  const r = drive({ claudeMdExcludes: [join(rulesDir, 'linked-file.md')] })
+  check(!r.paths.includes(spelling.linkedFileTarget), 'the retired claudeMdExcludes key is ADOPTED: its pattern excludes exactly as the current key would')
+  check(r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'a settings file carrying only the retired key still parses (composition ran; the unmatched rules compose)')
+  const rename = r.warnings.find(w => w.path.includes('claudeMdExcludes'))
+  check(rename !== undefined && rename.message.includes("renamed 'instructionExcludes'"), 'the rename is NAMED as a settings warning (the adoption is never silent)')
+  const both = drive({ claudeMdExcludes: ['**/*.md'], instructionExcludes: [join(rulesDir, 'secret-skip.md')] })
+  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real) && both.paths.includes(spelling.root), 'when both keys are present the current key wins (the legacy value never overrides it)')
+  check(!drive({ instructionExcludes: [join(rulesDir, 'secret-skip.md')] }).warnings.some(w => w.path.includes('claudeMdExcludes')), 'the current key alone raises no rename warning')
 }
 
 // ── in-process mechanism pins: schema shape + the tilde law ────────────────

@@ -803,6 +803,14 @@ export function saveConfigWithLock<A extends object>(
 // its module scope before the file was even validated.
 let configReadingAllowed = false
 
+/** Whether a config read would be served now: the boot's enableConfigs
+ *  latch, or the test bypass the read guard itself honours. A road an
+ *  embed may walk before the boot — a container resolution, a dial read —
+ *  asks this and serves its own default instead of tripping the guard. */
+export function isConfigReadingAllowed(): boolean {
+  return configReadingAllowed || process.env.NODE_ENV === 'test'
+}
+
 export function enableConfigs(): void {
   if (configReadingAllowed) {
     // Idempotent: only the first call validates.

@@ -25,6 +25,7 @@ import { asSessionId } from 'src/types/ids.js'
 import type { Message, NormalizedUserMessage } from 'src/types/message.js'
 import { binaryName } from 'src/utils/config.js'
 import {
+  hasConversationTurn,
   loadConversationForResume,
   type TurnInterruptionState,
 } from 'src/utils/conversationRecovery.js'
@@ -127,8 +128,10 @@ export async function loadInitialMessages(
         undefined /* file path */,
       )
       // Null and empty are one truth (the --resume leg's own law): an empty
-      // load "continues" nothing.
-      if (result && result.messages.length > 0) {
+      // load "continues" nothing. A transcript without a turn (attachment
+      // and system rows only — the metadata-only shape) continues nothing
+      // either: hasConversationTurn is the one predicate on both doors.
+      if (result && hasConversationTurn(result.messages)) {
         // Adopt the resumed session's identity — unless --fork-session,
         // which keeps the fresh boot id and lets the old transcript stand.
         if (!options.forkSession) {
@@ -219,7 +222,7 @@ export async function loadInitialMessages(
       // now SKIPS an empty write so it can't clobber a populated local file), so
       // loadConversationForResume returns null; an already-empty file would return
       // {messages: []}. Treat null and empty the same so SessionStart still fires.
-      if (!result || result.messages.length === 0) {
+      if (!result || !hasConversationTurn(result.messages)) {
         // Name what the OPERATOR supplied (FC-039): for a .jsonl path or a
         // URL the parsed sessionId is a freshly minted random UUID — the
         // refusal named an id the operator never typed, different every run.

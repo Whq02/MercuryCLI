@@ -423,7 +423,11 @@ section('A6 — gen.throw() at the attachment yield still consumes the yielded c
 }
 
 // ── A7 — the notice-level census ────────────────────────────────────────────
-section("A7 — every turn-machine notice is 'warning' or 'error' (the record gate)")
+section("A7 — every turn-machine notice is 'warning', 'error' or 'suggestion' (the record gate)")
+// The record gate is the renderer's: an 'info' notice paints only under
+// verbose, so an info-level stop notice would vanish from the glass; every
+// other level paints unconditionally. The model-switch receipt (preserved
+// thinking) is the one quiet line — 'suggestion' — visible and persisted.
 {
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src/run-core/turn-machine.ts'), 'utf8')
   const parts = src.split('createSystemMessage(')
@@ -433,7 +437,7 @@ section("A7 — every turn-machine notice is 'warning' or 'error' (the record ga
     const line = src.slice(0, src.indexOf('createSystemMessage(') + parts.slice(1, i).join('createSystemMessage(').length).split('\n').length
     check(
       `notice #${i} carries an operator-visible level (an info-level stop notice would never persist)`,
-      /'(warning|error)'/.test(window),
+      /'(warning|error|suggestion)'/.test(window),
       `near line ${line}: ${window.slice(0, 80).replace(/\n/g, ' ')}`,
     )
   }

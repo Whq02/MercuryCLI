@@ -393,7 +393,12 @@ section('§5 the session — the refusals before a take, v/v, the landing, esc, 
   outcome = await session.toggleVoiceCapture({ env: noTools() })
   await session.toggleVoiceCapture({ env: noTools() })
   await until(() => session.voiceSnapshot().phase === 'idle')
-  check('a silent take is refused with the permission words, no request', (session.voiceSnapshot().receipt?.text ?? '').startsWith('only silence reached the microphone') && (session.voiceSnapshot().receipt?.text ?? '').includes('Microphone') && fetchCalls.length === 1, session.voiceSnapshot().receipt?.text ?? '')
+  // The permission words are the owner's own for the running platform: the
+  // macOS and Windows arms name the Settings → Microphone path, the other
+  // arm is its own honest sentence — the receipt carries whichever this box
+  // speaks, and the arms are pinned by name below.
+  check('a silent take is refused with the permission words, no request', (session.voiceSnapshot().receipt?.text ?? '').startsWith('only silence reached the microphone') && (session.voiceSnapshot().receipt?.text ?? '').includes(capture.microphonePermissionHint()) && fetchCalls.length === 1, session.voiceSnapshot().receipt?.text ?? '')
+  check('the permission words per platform: macOS and Windows name the Settings → Microphone path, the other arm names the operating system permission for the terminal', capture.microphonePermissionHint('darwin').includes('Privacy & Security → Microphone') && capture.microphonePermissionHint('win32').includes('Privacy & security → Microphone') && capture.microphonePermissionHint('linux').includes('microphone permission for your terminal'))
   process.env.MERCURY_VOICE_FIXTURE_WAV = TONE
 
   // The bound through the session: the owner stops the take by itself, the

@@ -43,6 +43,7 @@ const { liveGlyphsEnabled } = await import('../../src/utils/cockpit/liveGlyphs.t
 const { fsyncEnabled } = await import('../../src/substrate/durablePublish.ts')
 const { decideSplashReceipt } = await import('../../src/substrate/splashHandover.ts')
 const { resolveConcoursePolicy } = await import('../../src/context/surfaceRoute.ts')
+const { bornSpawnSwitch } = await import('../../src/services/switchboard/spawnSwitches.ts')
 
 const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
 
@@ -154,6 +155,11 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_STREAM_CARET: ['', '0'],
   MERCURY_MEMORY_OBSERVE: ['', '1', '0'],
   MERCURY_MNEME: ['', '1', '0'],
+  // The session's spawn switches (default-on sweeps unset/=0): ONE owner
+  // (services/switchboard/spawnSwitches.ts) reads both at the session's
+  // birth, and each row declares the other as its interacting pair.
+  MERCURY_SESSION_SUBAGENTS: ['', '0'],
+  MERCURY_SESSION_WORKFLOWS: ['', '0'],
 }
 
 const CLUSTERS: Record<string, string[]> = {
@@ -165,6 +171,7 @@ const CLUSTERS: Record<string, string[]> = {
   'splash-motion': ['MERCURY_LAUNCH_RIPPLE', 'MERCURY_REDUCED_MOTION'],
   'splash-handover': ['MERCURY_SPLASH_HANDOFF', 'MERCURY_LAUNCH_ID'],
   concourse: ['MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_WORKER'],
+  'spawn-switches': ['MERCURY_SESSION_SUBAGENTS', 'MERCURY_SESSION_WORKFLOWS'],
 }
 
 /** Is a flag ON/present under `value` per its registry kind? */
@@ -271,6 +278,22 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     if (resolveConcoursePolicy() !== want) {
       assertionFailures++
       console.log(`     resolveConcoursePolicy ≠ '${want}' under ${JSON.stringify(vec)}`)
+    }
+  }
+  if (clusterName === 'spawn-switches') {
+    // ONE owner reads both switches at the session's birth: an unset row is
+    // the default (on); '=0' is off, attributed to the environment (the
+    // sweep sets the real env, never the boot's own copy of a saved default).
+    for (const [kind, env] of [
+      ['subagents', 'MERCURY_SESSION_SUBAGENTS'],
+      ['workflows', 'MERCURY_SESSION_WORKFLOWS'],
+    ] as const) {
+      const born = bornSpawnSwitch(kind)
+      const wantSource = val(env) === '' ? 'default' : 'env'
+      if (born.on !== expectOn(env) || born.source !== wantSource) {
+        assertionFailures++
+        console.log(`     bornSpawnSwitch(${kind}) = ${JSON.stringify(born)} ≠ on:${expectOn(env)} source:${wantSource} under ${JSON.stringify(vec)}`)
+      }
     }
   }
   if (clusterName === 'splash-handover') {

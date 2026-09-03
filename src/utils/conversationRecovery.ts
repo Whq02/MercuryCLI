@@ -599,6 +599,19 @@ type ResumeResult = {
  * id; then an already-loaded log. Any thrown error is logged and
  * re-thrown.
  */
+/**
+ * A loaded transcript is a CONVERSATION to continue only when it carries a
+ * turn — a user or an assistant message. The chain admits attachment and
+ * system rows too (the request renders them, so they persist and replay),
+ * but a file holding only those is the metadata-only shape a kill inside an
+ * unflushed window leaves: context rows bound to a prompt that never
+ * landed. Continuing it answered the next prompt as if a conversation
+ * stood; the honest floor refuses it, on every door.
+ */
+export function hasConversationTurn(messages: readonly { type: string }[]): boolean {
+  return messages.some(m => m.type === 'user' || m.type === 'assistant')
+}
+
 export async function loadConversationForResume(
   source: string | LogOption | undefined,
   sourceJsonlFile: string | undefined,
@@ -648,6 +661,12 @@ export async function loadConversationForResume(
     }
 
     const asMessages = (messages ?? []) as unknown as Message[]
+    // Judged BEFORE the interruption heal: a transcript that ends without a
+    // completed turn is healed with an interruption pair (a user row and an
+    // assistant row), which is right for a prompt whose reply never landed
+    // and invents a conversation for a file that never held one. A turnless
+    // transcript is nothing to continue — the doors refuse it as absent.
+    if (!hasConversationTurn(asMessages)) return null
     // Before deserialisation, so skills survive repeated compaction cycles.
     restoreSkillStateFromMessages(asMessages)
     const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
