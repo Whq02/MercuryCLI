@@ -80,7 +80,30 @@ export function noteOfferAutoDone(key: string): void {
 export function _resetOfferMemoriesForTesting(): void {
   offerDismissals.clear()
   offerAutoActions.clear()
+  answeredCapOffers.clear()
   capHandoff = null
+}
+
+
+export type CapOfferDirection = 'handoff' | 'return'
+const answeredCapOffers = new Set<string>()
+const capOfferArmKey = (direction: CapOfferDirection, family: string): string =>
+  `${direction}|${family}`
+
+export function capOfferAnswered(direction: CapOfferDirection, family: string): boolean {
+  return answeredCapOffers.has(capOfferArmKey(direction, family))
+}
+
+export function noteCapOfferAnswered(direction: CapOfferDirection, family: string): void {
+  answeredCapOffers.add(capOfferArmKey(direction, family))
+}
+
+export function noteCapWindowObserved(family: string, state: CapWindowState): void {
+  if (state === 'allowed') {
+    answeredCapOffers.delete(capOfferArmKey('handoff', family))
+  } else if (state === 'warning' || state === 'rejected') {
+    answeredCapOffers.delete(capOfferArmKey('return', family))
+  }
 }
 
 export interface CapReturnHomeFacts {
@@ -365,6 +388,29 @@ export function deriveCapFailoverCandidates(
   return { home, candidates, excluded }
 }
 
+function newestFirstPartyFrontierMember(fallback: string): string {
+  try {
+    const { CANONICAL_MODEL_IDS } =
+      require('../utils/model/configs.js') as typeof import('../utils/model/configs.js')
+    const rank = (id: string): number => {
+      const m = /^claude-fable-(\d+)(?:-(\d+))?$/.exec(id)
+      return m === null ? -1 : Number(m[1]) * 1000 + (m[2] !== undefined ? Number(m[2]) : 0)
+    }
+    let best: { id: string; rank: number } | undefined
+    for (const id of CANONICAL_MODEL_IDS) {
+      const r = rank(id)
+      if (r >= 0 && (best === undefined || r > best.rank)) best = { id, rank: r }
+    }
+    return best?.id ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function _firstPartyFrontierMemberForTest(fallback: string): string {
+  return newestFirstPartyFrontierMember(fallback)
+}
+
 export function liveCapFailoverCandidates(home: string | null): CapFailoverCandidateSet {
   const { resolveProviderUsability } =
     require('./providers/providerUsability.js') as typeof import('./providers/providerUsability.js')
@@ -389,7 +435,10 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
         const seat = getGptSeatAvailability()
         return seat.state === 'ready' ? seat.ids[0] : undefined
       }
-      return providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+      const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+      return route === 'anthropic' && fact !== undefined
+        ? newestFirstPartyFrontierMember(fact)
+        : fact
     },
     family => ledger[family]?.at,
   )
