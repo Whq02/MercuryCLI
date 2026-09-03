@@ -3,6 +3,7 @@ import { Box, Text, paletteCollapsed } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { GLYPH, padStartTo } from '../mercury-ui/glyphs.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 import { truncateToWidth } from '../../utils/truncate.js'
 import { caretLens } from './lineDraft.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
@@ -57,9 +58,11 @@ export type ConcourseProfile = 'too-small' | 'stacked' | 'wide'
  *  session's last ~8 lines"; geometry grants what the bands can give. */
 export const ROW_PEEK_DESIRED_ROWS = 8
 
-/** The switchboard responsive ladder: wide ≥120 cols. */
+/** The switchboard responsive ladder: wide ≥120 cols. The too-small floor IS
+ *  the viewport floor (one owner): below it the alternate-screen host paints
+ *  the resize line, so a fitting window never meets a too-small pane. */
 export function resolveConcourseProfile(cols: number, rows: number): ConcourseProfile {
-  if (cols < 80 || rows < 24) return 'too-small'
+  if (cols < VIEWPORT_FLOOR_COLS || rows < VIEWPORT_FLOOR_ROWS) return 'too-small'
   if (cols >= 120 && rows >= 24) return 'wide'
   return 'stacked'
 }

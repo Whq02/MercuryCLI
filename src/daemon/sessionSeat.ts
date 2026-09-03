@@ -49,6 +49,13 @@ import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, updateConcourseWorkers, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import { resolveSessionKitOnRecord, validateSessionKit, type SessionKitEditV1 } from './sessionKit.js'
+import {
+  SPAWN_SWITCH_KINDS,
+  spawnSwitchFactsOfRecord,
+  spawnSwitchOfRecord,
+  spawnSwitchToggleReceipt,
+  type SpawnSwitchKind,
+} from '../services/switchboard/spawnSwitches.js'
 import { applyConcourseScheduleOp, saturnFactsOf, SATURN_EDIT_BURST_CAP } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { applyConcourseKitOp } from './sessionKitOp.js'
@@ -525,6 +532,14 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
     },
     pendingModel: rec.pendingModelKey ?? null,
+    // THE SPAWN SWITCHES: the record's view is the durable truth — an
+    // in-session toggle it carries, else the admission snapshot's Agents
+    // rows — stamped over the child's own answer; a parked toggle rides
+    // beside it so the screen can say "queued".
+    spawnSwitches: spawnSwitchFactsOfRecord(rec),
+    ...(rec.pendingSpawnSwitches !== undefined && rec.pendingSpawnSwitches.length > 0
+      ? { pendingSpawnSwitches: rec.pendingSpawnSwitches.map(p => ({ kind: p.kind, on: p.on })) }
+      : {}),
     // The settle receipt rides EVERY publish once stamped (FN-016 R15) —
     // the screen's edge fires on the stamp's atMs moving, so a publish the
     // watcher missed can never lose the settle note.
@@ -954,6 +969,9 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
   // The parked kit dials' lawful beat (KIT-DIALS; the operator's mid-turn
   // ruling): the turn ended — apply through the one writer, forward once.
   drainPendingKitDials(short, roster, dir)
+  // The parked spawn-switch toggles ride the same beat: the turn ended,
+  // the roster may change from the next request.
+  drainPendingSpawnSwitches(short, roster, dir)
   publishSeatFacts(short, dir, roster)
   requestSessionFacts(short, roster, { immediate: true })
 }
@@ -993,6 +1011,11 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   // A child that died mid-turn boots on the pre-edit spec; parked dials
   // apply here — the respawn IS a lawful beat (KIT-DIALS).
   drainPendingKitDials(short, roster, dir)
+  // The fresh child is born on its env alone: the record's in-session
+  // spawn-switch toggles are re-forwarded so the process agrees with the
+  // durable truth, then any parked toggle lands on the same beat.
+  forwardRecordSpawnSwitches(short, roster, dir)
+  drainPendingSpawnSwitches(short, roster, dir)
   // SATURN: a fresh (or respawned) child starts with an empty roster latch
   // — push the record's schedule roster so its list/remove tools speak
   // real ids from the first turn.
@@ -1341,6 +1364,114 @@ function forwardSessionKit(short: string, roster: SeatRosterPort, dir?: string):
       request: { subtype: 'kit_edit', kit: rec.kit },
     }),
   )
+}
+
+// ── the spawn switches (services/switchboard/spawnSwitches.ts) ──────────────
+
+/**
+ * THE SPAWN-SWITCH TOGGLE's seat half (the sessionControl 'set-spawn-switch'
+ * arm): the record write and the live forward are ONE operation, on the
+ * kit dial's beat. Idle: the record carries the toggle (the durable truth a
+ * respawn re-forwards) and the child hears it now (the spawn_switch verb —
+ * it moves its own switch, the Agent or Workflow tool leaves or rejoins the
+ * roster from the next request, and a roster-transition row marks the
+ * lawful prefix change). Busy: the toggle PARKS on the record with its
+ * asker (pendingSpawnSwitches — the last toggle per switch wins) and the
+ * next lawful beat drains it — the idle edge, or the seat's respawn; the
+ * caller hears the honest 'queued' line, never silence. A spawn already
+ * running is never touched: the toggle changes what the NEXT request may
+ * launch. The same state no-ops.
+ */
+export function setSessionSpawnSwitch(
+  sessionId: string,
+  toggle: { kind: SpawnSwitchKind; on: boolean },
+  by: string,
+  roster: SeatRosterPort,
+  dir?: string,
+): SeatVerbOutcome {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const parkedForKind = (rec.pendingSpawnSwitches ?? []).filter(p => p.kind === toggle.kind)
+  const parked = parkedForKind[parkedForKind.length - 1]
+  const effectiveOn = parked !== undefined ? parked.on : spawnSwitchOfRecord(rec, toggle.kind).on
+  if (effectiveOn === toggle.on) return { outcome: 'noop', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'noop') }
+  if (seatBusy(rec.runnerId, roster)) {
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (w && w.endedAt === undefined) {
+        w.pendingSpawnSwitches = [...(w.pendingSpawnSwitches ?? []).filter(p => p.kind !== toggle.kind), { kind: toggle.kind, on: toggle.on, by }]
+      }
+    }, dir)
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat set-spawn-switch parked (the session is mid-turn): ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
+    publishSeatFacts(rec.runnerId, dir, roster)
+    return { outcome: 'queued', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'queued') }
+  }
+  return applySpawnSwitchNow(rec, toggle, roster, dir)
+}
+
+function applySpawnSwitchNow(
+  rec: ConcourseWorkerRecordV1,
+  toggle: { kind: SpawnSwitchKind; on: boolean },
+  roster: SeatRosterPort,
+  dir?: string,
+): SeatVerbOutcome {
+  updateConcourseWorkers(workers => {
+    const w = workers[rec.runnerId]
+    if (w && w.endedAt === undefined) w.spawnSwitches = { ...(w.spawnSwitches ?? {}), [toggle.kind]: toggle.on ? 'on' : 'off' }
+  }, dir)
+  const delivered = forwardSpawnSwitch(rec.runnerId, toggle, roster)
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] seat set-spawn-switch applied: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}${delivered ? '' : ' (no live control channel; the record holds it)'}`)
+  publishSeatFacts(rec.runnerId, dir, roster)
+  requestSessionFacts(rec.runnerId, roster, { immediate: true })
+  const receipt = spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'applied')
+  return delivered
+    ? { outcome: 'applied', detail: receipt }
+    : { outcome: 'applied', detail: `${receipt} — no live control channel; the record holds the switch and the session's next boot applies it` }
+}
+
+/** Deliver one toggle to the live child (the spawn_switch verb). False
+ *  when no channel stands. */
+function forwardSpawnSwitch(short: string, toggle: { kind: SpawnSwitchKind; on: boolean }, roster: SeatRosterPort): boolean {
+  return roster.control(
+    short,
+    JSON.stringify({
+      type: 'control_request',
+      request_id: verbRequestId(short, `spawn-switch-${toggle.kind}`),
+      request: { subtype: 'spawn_switch', switch: toggle.kind, on: toggle.on },
+    }),
+  )
+}
+
+/** A fresh child (the respawn) is born on its env alone: the record's
+ *  in-session toggles are re-forwarded so process and record agree. */
+function forwardRecordSpawnSwitches(short: string, roster: SeatRosterPort, dir?: string): void {
+  const rec = liveRecordByShort(short, dir)
+  if (!rec?.spawnSwitches) return
+  for (const kind of SPAWN_SWITCH_KINDS) {
+    const held = rec.spawnSwitches[kind]
+    if (held !== undefined) forwardSpawnSwitch(short, { kind, on: held === 'on' }, roster)
+  }
+}
+
+/** The parked toggles' drain at the NEXT LAWFUL BEAT (the idle edge; the
+ *  seat's respawn): each lands through the one apply, in arrival order. */
+function drainPendingSpawnSwitches(short: string, roster: SeatRosterPort, dir?: string): void {
+  const rec = liveRecordByShort(short, dir)
+  if (!rec) return
+  const parked = rec.pendingSpawnSwitches ?? []
+  if (parked.length === 0) return
+  updateConcourseWorkers(workers => {
+    const w = workers[short]
+    if (w && w.endedAt === undefined) delete w.pendingSpawnSwitches
+  }, dir)
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] seat set-spawn-switch applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
+  for (const entry of parked) {
+    const fresh = liveRecordByShort(short, dir)
+    if (fresh) applySpawnSwitchNow(fresh, { kind: entry.kind, on: entry.on }, roster, dir)
+  }
 }
 
 /** The parked dials' drain at the NEXT LAWFUL BEAT (the idle edge; the

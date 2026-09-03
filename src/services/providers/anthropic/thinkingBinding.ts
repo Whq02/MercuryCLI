@@ -35,6 +35,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
+import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
@@ -153,23 +154,31 @@ export function describeInputTransformations(list: readonly InputTransformation[
 /** The lawful prefix changes the history and the live settings can show:
  *  a compaction, a deliberate model switch, an explicit operator setting
  *  the system prompt or the tool roster reads (the permission mode's packs
- *  and mode-exempt tools, the response profile). (An operator's transcript
- *  edit leaves no row, so a drop after it reads as a single client-side
- *  edit.) */
-export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting' | 'declared'
+ *  and mode-exempt tools, the response profile), a change the operator
+ *  asked for that an owner DECLARED through the lawful-change seam
+ *  (lawfulPrefixChange.ts — the spawn-switch toggles declare there), and
+ *  the roster-transition row a landed spawn-switch toggle leaves in the
+ *  history (the fallback reading when no declaration stands — a resumed
+ *  conversation). (An operator's transcript edit leaves no row, so a drop
+ *  after it reads as a single client-side edit.) */
+export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting' | 'declared' | 'roster-switch'
 
 /**
  * The marks of a request's history that move only on a lawful change: the
  * first conversation row (a compaction replaces it with the summary), the
- * newest compact boundary and model-transition rows, the model itself, and
- * the operator settings the prompt build reads live (spelled as one string
- * so a change names the key that moved). Two consecutive requests whose
- * marks agree had no lawful change between them.
+ * newest compact boundary, model-transition and roster-transition rows, the
+ * model itself, and the operator settings the prompt build reads live
+ * (spelled as one string so a change names the key that moved). Two
+ * consecutive requests whose marks agree had no lawful change between them.
  */
 export interface PrefixMark {
   firstRow: string | null
   compactBoundary: string | null
   modelTransition: string | null
+  rosterTransition: string | null
+  /** The newest roster transition's word ("sub-agents off") — the notice
+   *  names the toggle. */
+  rosterChange: string | null
   model: string
   settings: string
 }
@@ -225,6 +234,8 @@ export function prefixMarkOf(
   let firstRow: string | null = null
   let compactBoundary: string | null = null
   let modelTransition: string | null = null
+  let rosterTransition: string | null = null
+  let rosterChange: string | null = null
   for (const message of messages) {
     if (message.type === 'user' || message.type === 'assistant') {
       firstRow = message.uuid
@@ -237,9 +248,14 @@ export function prefixMarkOf(
     const subtype = (message as { subtype?: string }).subtype
     if (compactBoundary === null && subtype === 'compact_boundary') compactBoundary = message.uuid
     if (modelTransition === null && subtype === 'model_transition') modelTransition = message.uuid
-    if (compactBoundary !== null && modelTransition !== null) break
+    if (rosterTransition === null && subtype === 'roster_transition') {
+      rosterTransition = message.uuid
+      const row = message as { toggle?: 'subagents' | 'workflows'; on?: boolean }
+      rosterChange = row.toggle !== undefined ? `${SPAWN_SWITCH_LABEL[row.toggle]} ${row.on === false ? 'off' : 'on'}` : null
+    }
+    if (compactBoundary !== null && modelTransition !== null && rosterTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, model, settings: spellOperatorSettings(live) }
+  return { firstRow, compactBoundary, modelTransition, rosterTransition, rosterChange, model, settings: spellOperatorSettings(live) }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -249,17 +265,25 @@ export interface DropOutcome {
   lawful: LawfulPrefixChange | null
   /** The operator setting that moved, when `lawful` is 'operator-setting'. */
   detail: string | null
+  /** The toggle a lawful roster switch names ("sub-agents off"). */
+  rosterChange: string | null
   /** The unlawful run this drop extends (1 for a first drop). */
   consecutive: number
   count: number
   path: string | null
   reason: string | null
+  /** Whether the operator sees a row for it: every drop is recorded (the
+   *  ledger keeps each occurrence), but the "Mercury defect" arm paints
+   *  ONCE per conversation — never a row per request. */
+  paint: boolean
 }
 
 interface OwnerDropState {
   mark: PrefixMark
   kind: DropKind
   consecutive: number
+  /** The defect arm has painted for this conversation. */
+  defectNoticed: boolean
 }
 
 /** Per conversation owner: the previous response's mark and verdict. */
@@ -288,8 +312,8 @@ export function classifyThinkingDrops(
   // response — taken whether or not anything dropped.
   const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
-    dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
-    return { kind: 'none', lawful: null, detail: null, consecutive: 0, count: 0, path: null, reason: null }
+    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false })
+    return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null, paint: false }
   }
   let lawful: LawfulPrefixChange | null = null
   let detail: string | null = null
@@ -301,6 +325,8 @@ export function classifyThinkingDrops(
       lawful = 'compaction'
     } else if (previous.mark.model !== mark.model || previous.mark.modelTransition !== mark.modelTransition) {
       lawful = 'model-switch'
+    } else if (previous.mark.rosterTransition !== mark.rosterTransition) {
+      lawful = 'roster-switch'
     } else {
       const moved = describeSettingsMove(previous.mark.settings, mark.settings)
       if (moved !== null) {
@@ -324,9 +350,23 @@ export function classifyThinkingDrops(
     kind = 'first'
     consecutive = 1
   }
-  dropStates.set(owner, { mark, kind, consecutive })
+  // The defect arm paints once per conversation; every later recurrent drop
+  // is ledger-only (the doctor row keeps the run and the last drop).
+  const defectNoticed = previous?.defectNoticed ?? false
+  const paint = kind !== 'recurrent' || !defectNoticed
+  dropStates.set(owner, { mark, kind, consecutive, defectNoticed: defectNoticed || kind === 'recurrent' })
   const first = dropped[0]!
-  return { kind, lawful, detail, consecutive, count: dropped.length, path: first.path, reason: first.reason }
+  return {
+    kind,
+    lawful,
+    detail,
+    rosterChange: lawful === 'roster-switch' ? mark.rosterChange : null,
+    consecutive,
+    count: dropped.length,
+    path: first.path,
+    reason: first.reason,
+    paint,
+  }
 }
 
 /** Where the change sits, read off the dropped block's path. */
@@ -344,12 +384,14 @@ function issuesUrl(): string {
   return `${base.replace(/\/$/, '')}/issues`
 }
 
-/** The operator's sentence for a classified drop, or null when nothing dropped. */
+/** The operator's sentence for a classified drop, or null when nothing
+ *  dropped — or when the defect arm already painted for this conversation
+ *  (the ledger still records the drop). */
 export function describeThinkingDrops(
   list: readonly InputTransformation[],
   outcome: DropOutcome,
 ): string | null {
-  if (outcome.kind === 'none') return null
+  if (outcome.kind === 'none' || !outcome.paint) return null
   const count = outcome.count
   const noun = count === 1 ? 'thinking block' : 'thinking blocks'
   const path = outcome.path ?? 'an earlier turn'
@@ -357,6 +399,9 @@ export function describeThinkingDrops(
     case 'lawful':
       if (outcome.lawful === 'compaction') {
         return `Preserved thinking: the API dropped ${count} ${noun} after the compaction — the history before ${path} was folded into the summary, so the model re-plans without that reasoning this turn (expected once).`
+      }
+      if (outcome.lawful === 'roster-switch') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after the operator toggled ${outcome.rosterChange ?? 'a spawn switch'} — the tool roster changed with it, so the model re-plans without that reasoning this turn (expected once).`
       }
       if (outcome.lawful === 'operator-setting') {
         return `Preserved thinking: the API dropped ${count} ${noun} after you changed ${outcome.detail ?? 'a setting'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
@@ -369,7 +414,11 @@ export function describeThinkingDrops(
     case 'first':
       return describeInputTransformations(list)
     case 'recurrent':
-      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} on ${outcome.consecutive} consecutive requests with no compaction, model switch or transcript edit between them (${describePathClass(outcome.path)}). This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+      // One rewrite poisons every earlier block for the rest of the
+      // conversation, and each new block re-drops on the next request
+      // (the API's chain law) — so the count keeps growing without a new
+      // rewrite. Said once; the ledger keeps every occurrence.
+      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} at an earlier request with no compaction, model switch or transcript edit to explain it (${describePathClass(outcome.path)}); every thinking block after that point keeps dropping on each request until the conversation compacts. This row paints once. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
   }
 }
 
@@ -491,7 +540,9 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
           ? `a setting change (${last.detail ?? 'unnamed'})`
           : last.lawful === 'declared'
             ? `a change you asked for (${last.detail ?? 'unnamed'})`
-            : 'a model switch'
+            : last.lawful === 'roster-switch'
+              ? "the operator's spawn-switch toggle"
+              : 'a model switch'
     return {
       status: 'info',
       evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,

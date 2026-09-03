@@ -28,6 +28,7 @@ export interface FireOutcomeSummary {
 }
 import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict } from './handshake.js'
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 /** The flat snapshot handed to consumers; failed probes degrade their fields. */
 export interface MercuryDaemonStatus {
@@ -236,7 +237,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   // The loud line: some long-lived worker spent its respawn budget and will
   // not return on its own.
   if (status.degraded) {
-    lines.push(`  supervisor:   ⚠️  DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
+    lines.push(`  supervisor:   ${GLYPH.warn} DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
   }
   if (status.leaseCount !== null) {
     lines.push(`  leases:       ${status.leaseCount}`)

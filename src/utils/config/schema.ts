@@ -648,7 +648,7 @@ export type GlobalConfig = {
   // PR review status in the footer (default on; feature-gate can override).
   prStatusFooterEnabled?: boolean
 
-  // Voice input (/speak on|off): v in an empty composer captures the
+  // Voice input (/speak on|off): space in an empty composer captures the
   // microphone and the transcript lands in the composer. Default off.
   voiceInputEnabled?: boolean
 

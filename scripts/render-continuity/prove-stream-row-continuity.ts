@@ -259,7 +259,7 @@ for (const scene of scenes) {
   let elapsedLawHolds = true
   let monotonic = true
   let prev = -1
-  const spinnerFrames = timed.filter(f => f.rows.some(r => /\b\d+s\b/.test(r) && /esc|interrupt|thinking|✳|✶/i.test(r)))
+  const spinnerFrames = timed.filter(f => f.rows.some(r => /\b\d+s\b/.test(r) && /esc|interrupt|thinking|✻|✶/i.test(r)))
   // The first turn's frames run contiguously from the first spinner frame;
   // a gap (settled frames) followed by more spinner frames is the next turn.
   const turnFrames: typeof timed = []
@@ -274,7 +274,7 @@ for (const scene of scenes) {
     else if (!hasSpinner) seenGap = true
   }
   for (const f of turnFrames) {
-    const elapsedRows = f.rows.filter(r => /\b\d+s\b/.test(r) && /esc|interrupt|thinking|✳|✶/i.test(r))
+    const elapsedRows = f.rows.filter(r => /\b\d+s\b/.test(r) && /esc|interrupt|thinking|✻|✶/i.test(r))
     if (elapsedRows.length > 1) elapsedLawHolds = false
     // The TURN counter is the integer-seconds value (the phase timer renders
     // decimals like 0.4s — `(\d+)s` on it would read the "4s" tail and

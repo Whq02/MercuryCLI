@@ -201,6 +201,18 @@ export type SDKControlKitEditRequest = {
   kit: unknown
 }
 
+/** Mercury: the session's SPAWN-SWITCH toggle (daemon → child; the
+ *  kit_edit family): the seat's settlement owner landed the operator's
+ *  /subagents or /workflows toggle on the record and forwards it — the
+ *  child moves its own switch (services/switchboard/spawnSwitches.ts),
+ *  the Agent or Workflow tool leaves or rejoins the roster from the next
+ *  request, and a roster-transition row marks the lawful prefix change. */
+export type SDKControlSpawnSwitchRequest = {
+  subtype: 'spawn_switch'
+  switch: 'subagents' | 'workflows'
+  on: boolean
+}
+
 /** SATURN's roster push (the kit_edit family — daemon → child): after the
  *  seat applies the session's own schedule edits, the post-apply roster
  *  rides down so the list/remove tools speak real ids. Rows narrowed by
@@ -365,6 +377,7 @@ export type SDKControlRequestInner =
   | SDKControlMcpReconnectRequest
   | SDKControlMcpToggleRequest
   | SDKControlKitEditRequest
+  | SDKControlSpawnSwitchRequest
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
   | SDKControlApplyFlagSettingsRequest

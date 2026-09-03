@@ -41,6 +41,7 @@ import {
 } from '../utils/cockpit/index.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { CompanionSpeechLine, DeckCompanion, DeckCompanionChip } from './mercury-ui/DeckCompanion.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
@@ -158,7 +159,20 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   // The ACTIVE source's window meters from the ONE usage owner — the shape
   // follows the source (Anthropic 5h/7d · OpenAI observed bands · api-key /
   // logged-out: no meters); absent facts render nothing, never a fake bar.
+  // Repaint the instant the first-party record changes (a /usage sample, a
+  // reply's headers, a reset) — never a stale "5h —" over a filled record.
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const sourceUsage = activeSourceUsage()
+  // The strip's two chips: the pair's first window, then the BINDING window
+  // for the session model — the highest-used window that applies to it,
+  // with its own label (a per-model weekly pool surfaces here by name) —
+  // unless the first window is itself the binding one, when the pair's
+  // second window keeps the chip.
+  const stripFirst = sourceUsage.windows[0]
+  const stripSecond =
+    sourceUsage.binding !== undefined && stripFirst !== undefined && sourceUsage.binding.window.key !== stripFirst.key
+      ? sourceUsage.binding.window
+      : sourceUsage.windows[1]
   // A slow 30s tick keeps the reset countdowns moving between bus refreshes
   // (Date.now() at render froze them) — and doubles as a convergence tick for
   // the render-read vitals (cost / +/- lines / ctx) the memo boundary let
@@ -443,13 +457,13 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           </>
         )}
         {sourceUsage.windows.length > 0 ? <Text color={tok.textMuted}>{'   ·   '}</Text> : null}
-        {sourceUsage.windows[0] !== undefined ? (
-          <UsageMeter compact window={sourceUsage.windows[0].label} state={sourceUsage.windows[0].state} value={sourceUsage.windows[0].usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: sourceUsage.windows[0].resetsAtMs ?? null })} />
+        {stripFirst !== undefined ? (
+          <UsageMeter compact window={stripFirst.label} state={stripFirst.state} value={stripFirst.usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: stripFirst.resetsAtMs ?? null })} />
         ) : null}
-        {sourceUsage.windows[1] !== undefined && cols >= LAYOUT_BREAKPOINTS.cockpitMin ? (
+        {stripSecond !== undefined && cols >= LAYOUT_BREAKPOINTS.cockpitMin ? (
           <>
             <Text color={tok.textMuted}> {GLYPH.dot} </Text>
-            <UsageMeter compact window={sourceUsage.windows[1].label} state={sourceUsage.windows[1].state} value={sourceUsage.windows[1].usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: sourceUsage.windows[1].resetsAtMs ?? null })} />
+            <UsageMeter compact window={stripSecond.label} state={stripSecond.state} value={stripSecond.usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: stripSecond.resetsAtMs ?? null })} />
           </>
         ) : null}
         {((): React.ReactNode => {

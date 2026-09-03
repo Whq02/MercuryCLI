@@ -225,7 +225,7 @@ try {
     // (the FollowBanner is the follow grammar; the LIFT is the spinner row
     // above the composer with the elapsed seconds — present only when
     // isLoading is up).
-    const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✳|✶|responding/i.test(text(g)))
+    const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✻|✶|responding/i.test(text(g)))
     check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`)
     // §3 the record never reads PAUSED during the drain.
     const recDuring = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)

@@ -565,17 +565,35 @@ export function renderToolUseErrorMessage(
 
 // ── Grouped rendering ──────────────────────────────────────────────
 
+/** A grouped-card member. The group content hands the member's tool_use
+ *  block itself (`toolUse` — its id and input) with its raw result; the
+ *  older flat spelling (`toolUseID` · `input` · `output`) stays readable.
+ *  Reading only the flat spelling left every hosted row nameless and
+ *  status-less: the card painted "agent · 0 tool uses" for its whole run. */
 type GroupedToolUse = {
   toolUseID?: string
+  toolUse?: { id?: string; input?: unknown }
   input?: AgentUiInput | string
   progressMessages?: ProgressMessage[]
   output?: AgentToolOutput | { status?: string }
+  rawResult?: unknown
   isResolved?: boolean
   isErrored?: boolean
 }
 
+/** The member's tool-use id — the crew record's join key. */
+function groupToolUseId(entry: GroupedToolUse): string | undefined {
+  return entry.toolUseID ?? entry.toolUse?.id
+}
+
+/** The member's settled output (the status word rides it). */
+function groupOutput(entry: GroupedToolUse): { status?: string } | undefined {
+  const raw = entry.output ?? entry.rawResult
+  return typeof raw === 'object' && raw !== null ? (raw as { status?: string }) : undefined
+}
+
 function parseGroupInput(entry: GroupedToolUse): AgentUiInput {
-  const raw = entry.input
+  const raw = entry.input ?? (entry.toolUse?.input as AgentUiInput | string | undefined)
   if (!raw) return {}
   if (typeof raw === 'string') {
     try {
@@ -669,6 +687,9 @@ type GroupedEntry = {
   toolUseCount: number
   tokens: number
   lastTool: string | null
+  /** The settled result's own totals (the tool's receipt) — the fallback
+   *  once the roster evicted the record. */
+  output?: { totalToolUseCount?: number; totalTokens?: number }
   isTeammateSpawn: boolean
   resolved: boolean
   isErrored: boolean
@@ -709,9 +730,13 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
       {entries.map((entry, index) => {
         const facts = factsForEntry(agents, entry)
         const resolved = entry.resolved || (facts !== null && !facts.running)
-        // A zero from a carrier that reported no usage is not a measurement.
-        const tokens = facts !== null ? facts.tokens?.total : entry.tokens > 0 ? entry.tokens : undefined
-        const statusLine = facts !== null ? factsStatusLine(facts, now) : entry.lastTool
+        // The record first; a settled row the roster evicted reads the tool
+        // result's own totals; a zero from a carrier that reported no usage
+        // is not a measurement.
+        const receiptTokens = (entry.output?.totalTokens ?? 0) > 0 ? entry.output!.totalTokens : undefined
+        const tokens = facts !== null ? facts.tokens?.total : (receiptTokens ?? (entry.tokens > 0 ? entry.tokens : undefined))
+        const toolUses = facts?.toolUses ?? entry.output?.totalToolUseCount ?? entry.toolUseCount
+        const statusLine = facts !== null ? factsStatusLine(facts, now) : null
         return (
           <AgentProgressLine
             key={entry.toolUseID ?? index}
@@ -720,8 +745,9 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
             {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
             {...(entry.input.subagent_type ? { color: getAgentColor(entry.input.subagent_type) } : {})}
             {...(facts !== null ? { model: crewModelLabel(facts) } : {})}
-            {...(statusLine !== null ? { lastToolInfo: statusLine } : {})}
-            toolUseCount={facts?.toolUses ?? entry.toolUseCount}
+            {...(statusLine !== null ? { statusLine } : {})}
+            {...(statusLine === null && entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}
+            toolUseCount={toolUses}
             {...(tokens !== undefined ? { tokens } : {})}
             isLast={index === entries.length - 1}
             isResolved={resolved}
@@ -792,7 +818,8 @@ export function renderGroupedAgentToolUse(
     }
     const tokens = latestTokenTotal(progress)
     const lastTool = extractLastToolInfo(progress, tools)
-    const status = (entry.output as { status?: string } | undefined)?.status
+    const output = groupOutput(entry) as { status?: string; totalToolUseCount?: number; totalTokens?: number } | undefined
+    const status = output?.status
     const isTeammateSpawn = Boolean(input.name && input.team_name)
     const isBackground =
       input.run_in_background === true ||
@@ -800,11 +827,12 @@ export function renderGroupedAgentToolUse(
       isTeammateSpawn
     const resolved = entry.isResolved === true || status !== undefined
     return {
-      toolUseID: entry.toolUseID,
+      toolUseID: groupToolUseId(entry),
       input,
       toolUseCount,
       tokens,
       lastTool,
+      ...(output !== undefined ? { output } : {}),
       status,
       isTeammateSpawn,
       isBackground,

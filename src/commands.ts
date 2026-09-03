@@ -98,6 +98,7 @@ import tasks from './commands/tasks/index.js'
 import team from './commands/team/index.js'
 import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
+import subagents from './commands/subagents/index.js'
 import accent from './commands/accent/index.js'
 import authority from './commands/authority/index.js'
 import mouse from './commands/mouse/index.js'
@@ -313,6 +314,7 @@ const COMMANDS = memoize((): Command[] => [
   team,
   appearance,
   workflows,
+  subagents,
   accent,
   authority,
   mouse,

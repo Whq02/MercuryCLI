@@ -788,10 +788,15 @@ async function* streamModel(
                   permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
                 }),
               )
-              const dropNotice = describeThinkingDrops(drops, outcome)
-              if (dropNotice !== null) {
+              // Every drop reaches the ledger and the debug log; the operator's
+              // row paints when the words say so (the defect arm once per
+              // conversation).
+              if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
+              }
+              const dropNotice = describeThinkingDrops(drops, outcome)
+              if (dropNotice !== null) {
                 yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
               }
             }

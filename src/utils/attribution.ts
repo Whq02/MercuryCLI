@@ -34,7 +34,7 @@ export type AttributionTexts = {
 
 // User-visible text that lands verbatim in commit bodies and PR
 // descriptions.
-const DEFAULT_PR_ATTRIBUTION = '🤖 Generated with [Mercury CLI](https://mercury-cli.ai)'
+const DEFAULT_PR_ATTRIBUTION = 'Generated with [Mercury CLI](https://mercury-cli.ai)'
 const DEFAULT_COMMIT_TRAILER = 'Co-Authored-By: Mercury'
 
 /**

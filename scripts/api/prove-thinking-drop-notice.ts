@@ -99,6 +99,12 @@ section('§1 the classifier')
   check('a drop after a drop with unchanged marks is recurrent (run 2, the count is this response\'s)', second.kind === 'recurrent' && second.consecutive === 2 && second.count === 2, j(second))
   const third = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
   check('…and the run keeps counting (3)', third.kind === 'recurrent' && third.consecutive === 3, j(third))
+  // The defect arm paints ONCE per conversation: the first recurrent drop
+  // carries the row, every later one is ledger-only.
+  check('the first recurrent drop paints; the next does not (once per conversation)', second.paint === true && third.paint === false, `${second.paint} ${third.paint}`)
+  check('…the words follow: a sentence for the first, null for the next', (describeThinkingDrops([DROP('messages.1.content.0')], second) ?? '').includes('Mercury rewrote') && describeThinkingDrops([DROP('messages.1.content.0')], third) === null)
+  const fourth = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
+  check('…and the run keeps counting for the ledger while nothing paints (4)', fourth.kind === 'recurrent' && fourth.consecutive === 4 && fourth.paint === false, j(fourth))
   const quiet = classifyThinkingDrops('main', [], mark())
   const again = classifyThinkingDrops('main', [DROP('messages.5.content.0')], mark())
   check('a no-drop response resets the run; the next drop is a first drop again', quiet.kind === 'none' && again.kind === 'first' && again.consecutive === 1, j(again))
@@ -139,7 +145,7 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
 
@@ -204,13 +210,16 @@ section('§2 the words')
 
   const two = [DROP('messages.1.content.0'), DROP('messages.3.content.0')]
   const recurrent = describeThinkingDrops(two, classifyThinkingDrops('w', two, mark())) ?? ''
-  check('consecutive unlawful drops name Mercury and the run', recurrent.includes('Mercury rewrote already-sent history before messages.1.content.0 on 2 consecutive requests'), recurrent)
+  check('consecutive unlawful drops name Mercury, the earlier rewrite and the cascade until compaction', recurrent.includes('Mercury rewrote already-sent history before messages.1.content.0 at an earlier request') && recurrent.includes('keeps dropping on each request until the conversation compacts') && recurrent.includes('This row paints once'), recurrent)
   check('…name the block class (the first exchange)', recurrent.includes('the first exchange changed: the top-level system prompt, the tools array or the first user turn'), recurrent)
   check('…point at the doctor row and the bug-report road', recurrent.includes('mercury doctor') && recurrent.includes('"Preserved thinking" row') && recurrent.includes('https://github.com/example/mercury/issues'), recurrent)
   check('…and never at switching models', !/switch(ing)? (the )?model/i.test(recurrent) && !recurrent.includes('/model'), recurrent)
   check('…the plural counts this response\'s blocks', recurrent.includes('dropped 2 thinking blocks again'), recurrent)
 
-  const deep = describeThinkingDrops([DROP('messages.7.content.0')], classifyThinkingDrops('w', [DROP('messages.7.content.0')], mark())) ?? ''
+  // A fresh conversation (the defect arm paints once per conversation, and
+  // 'w' has painted): its second unlawful drop names the earlier turn class.
+  classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
+  const deep = describeThinkingDrops([DROP('messages.7.content.0')], classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())) ?? ''
   check('a later path names the earlier turn class', deep.includes('a turn before messages.7 changed, or the system prompt or the tools array'), deep)
 
   resetThinkingDropStates()

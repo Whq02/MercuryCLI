@@ -6,7 +6,7 @@
 //
 //  Legs, each a REAL boot of dist/mercury.mjs on a seeded scratch home:
 //    §A the journey: /speak (status OFF) → /speak on → v (the footer:
-//       ● recording · v or esc to stop) → v (transcribing…) → the canned
+//       ● recording · space or esc to stop) → v (transcribing…) → the canned
 //       words are in the composer with the cursor at the END (a typed
 //       character lands after them) → /speak off → v types the letter v.
 //    §B a keyless home: /speak on → v answers the no-transcriber receipt
@@ -18,7 +18,7 @@
 //    §E the other family: a Gemini API key alone transcribes through the
 //       generateContent wire (the WAV inline, the verbatim instruction).
 //    §F the roads between the keys: /speak on twice is one receipt; v in a
-//       NON-empty composer types the letter; a resize mid-capture keeps the
+//       NON-empty composer types a space; a resize mid-capture keeps the
 //       footer's recording line; two takes back to back both land; a quit
 //       mid-capture exits cleanly.
 //    §G the bound: with the proof seam at 1.5 s the take stops by itself,
@@ -310,14 +310,14 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'voice input OFF — /speak on turns it on', awaitStableTicks: 2, mark: 'status-off', data: '/speak on' },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: 'v' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
       { requireAwait: true, awaitText: 'transcribing…', mark: 'transcribing', data: '' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: ' z' },
       { afterPrevTicks: 3, mark: 'typed-after', data: '\x15' },
       { afterPrevTicks: 3, data: '/speak off' },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'voice input OFF — v is the letter v', awaitStableTicks: 2, mark: 'off', data: 'v' },
+      { requireAwait: true, awaitText: 'voice input OFF — space is a space', awaitStableTicks: 2, mark: 'off', data: ' ' },
       { afterPrevTicks: 4, mark: 'letter', data: '' },
     ],
     160,
@@ -326,15 +326,15 @@ console.log('[A] /speak → /speak on → v → v → the words land, cursor at 
   fx.child.kill('SIGTERM')
   check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   check('bare /speak reports OFF with the backend and the transcriber', (res.marks['status-off'] ?? '').includes('backend: fixture WAV') && (res.marks['status-off'] ?? '').includes('transcriber: OpenAI'), (res.marks['status-off'] ?? '').split('\n').filter(l => l.includes('backend') || l.includes('transcriber')).join(' · '))
-  check('/speak on says ON and teaches the key', (res.marks.on ?? '').includes('voice input ON — press v in an empty composer'))
-  check('v: the footer paints ● recording · v or esc to stop', (res.marks.recording ?? '').includes('● recording · v or esc to stop'))
+  check('/speak on says ON and teaches the key', (res.marks.on ?? '').includes('voice input ON — press space in an empty composer'))
+  check('space: the footer paints ● recording · space or esc to stop', (res.marks.recording ?? '').includes('● recording · space or esc to stop'))
   check('v again: the footer paints transcribing…', (res.marks.transcribing ?? '').includes('transcribing…'))
   check('the canned words land in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT))
   check('the cursor sat at the END: a typed character lands after the words', (res.marks['typed-after'] ?? '').includes('lazy dog z'))
   check('the transcribing receipt names the family and the row', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes('transcribed by OpenAI (gpt-4o-transcribe)'))
-  check('/speak off says OFF', (res.marks.off ?? '').includes('voice input OFF — v is the letter v'))
+  check('/speak off says OFF', (res.marks.off ?? '').includes('voice input OFF — space is a space'))
   const letter = res.marks.letter ?? ''
-  check('with voice input off, v is the letter v in the composer', /❯ v\b/.test(letter) && !letter.includes('recording ·'), letter.split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('with voice input off, space is a space in the composer (no capture starts)', !letter.includes('recording ·'), letter.split('\n').filter(l => l.includes('❯')).join(' · '))
   const served = ledgerPosts(fx.ledger)
   check('the loopback transcriber served exactly ONE take (a multipart WAV, the first row)', served.length === 1 && served[0]!.includes('/audio/transcriptions') && served[0]!.includes('wav=yes') && served[0]!.includes('model=gpt-4o-transcribe'), served.join(' | '))
   const stray = nonLoopback(netlines(netlog))
@@ -351,7 +351,7 @@ console.log('[B] a keyless home — v answers the no-transcriber receipt before 
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
       // The needle is the notification's ONE-ROW spelling: the /speak
       // receipt above wraps the same words across two rows of its box.
       { requireAwait: true, awaitText: 'or /logins gemini', awaitStableTicks: 1, mark: 'receipt', data: '' },
@@ -377,7 +377,7 @@ console.log('[C] no pack, no recorder — v answers the no-backend receipt')
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
       // The notification's one-row spelling keeps the backticked command
       // whole; the /speak receipt's box wraps inside it.
       { requireAwait: true, awaitText: 'run `bun run setup` (needs cargo)', awaitStableTicks: 1, mark: 'receipt', data: '' },
@@ -409,8 +409,8 @@ console.log('[D] v then esc — the take is cancelled and NO request is made')
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 2, mark: 'cancelled', data: '' },
       { afterPrevTicks: 5, data: '' },
     ],
@@ -444,8 +444,8 @@ console.log('[E] a Gemini API key alone — the take rides generateContent with 
       { atTick: 70, awaitText: '2.5 Flash', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 140, data: '/speak on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
       { afterPrevTicks: 3, data: '\r' },
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: 'v' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: ' ' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
       { afterPrevTicks: 3, data: '' },
     ],
@@ -481,22 +481,22 @@ console.log('[F] /speak on twice · v in a non-empty composer · a resize mid-ca
       ...OPENING,
       { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: '/speak on' },
       { afterPrevTicks: 3, data: '\r' },
-      // A non-empty composer: the letter x, then v — v must type.
+      // A non-empty composer: the letter x, then space — space must type a space.
       { requireAwait: true, awaitText: 'voice input already on', awaitStableTicks: 2, mark: 'again', data: 'x' },
-      { afterPrevTicks: 2, data: 'v' },
+      { afterPrevTicks: 2, data: ' ' },
       { afterPrevTicks: 3, mark: 'typed-xv', data: '\x15' },
       // Take 1: the resize lands while recording (see `resizes` below).
-      { afterPrevTicks: 2, data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording-1', data: '' },
-      { afterPrevTicks: 8, mark: 'resized-recording', data: 'v' },
+      { afterPrevTicks: 2, data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording-1', data: '' },
+      { afterPrevTicks: 8, mark: 'resized-recording', data: ' ' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-1', data: '\x15' },
       // Take 2, back to back.
-      { afterPrevTicks: 2, data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording-2', data: 'v' },
+      { afterPrevTicks: 2, data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording-2', data: ' ' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed-2', data: '\x15' },
       // Take 3: quit while it records — the LAST sends; the child exits.
-      { afterPrevTicks: 2, data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording-3', data: '/exit' },
+      { afterPrevTicks: 2, data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording-3', data: '/exit' },
       { afterPrevTicks: 3, data: '\r' },
     ],
     220,
@@ -507,10 +507,10 @@ console.log('[F] /speak on twice · v in a non-empty composer · a resize mid-ca
   check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
   check('/speak on again is one receipt: already on', (res.marks.again ?? '').includes('voice input already on'), (res.marks.again ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
   const typed = res.marks['typed-xv'] ?? ''
-  check('v in a NON-empty composer types the letter (no take)', /❯ xv\b/.test(typed) && !typed.includes('recording ·'), typed.split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('space in a NON-empty composer is a space (no take)', /❯ x \s/.test(typed) && !typed.includes('recording ·'), typed.split('\n').filter(l => l.includes('❯')).join(' · '))
   const resized = res.marks['resized-recording'] ?? ''
   const resizedCols = resized.split('\n')[0]?.length ?? 0
-  check('a resize mid-capture keeps the footer recording line (the take survives)', resizedCols === 110 && resized.includes('● recording · v or esc to stop'), `${resizedCols} cols · ${resized.split('\n').filter(l => l.includes('recording')).join(' · ')}`)
+  check('a resize mid-capture keeps the footer recording line (the take survives)', resizedCols === 110 && resized.includes('● recording · space or esc to stop'), `${resizedCols} cols · ${resized.split('\n').filter(l => l.includes('recording')).join(' · ')}`)
   check('the first take lands after the resize', (res.marks['landed-1'] ?? '').includes(TRANSCRIPT))
   check('the second take, back to back, lands too', (res.marks['landed-2'] ?? '').includes(TRANSCRIPT) && (res.marks['recording-2'] ?? '').includes('● recording'))
   check('the third take was recording when /exit was typed', (res.marks['recording-3'] ?? '').includes('● recording'))
@@ -533,8 +533,8 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
     netlog,
     [
       ...OPENING,
-      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '' },
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '' },
       // No key from here on: the owner stops the take at the bound.
       { requireAwait: true, awaitText: 'bound — transcribing', mark: 'bound', data: '' },
       { requireAwait: true, awaitText: 'lazy dog', awaitStableTicks: 2, mark: 'landed', data: '' },
@@ -573,7 +573,7 @@ console.log('[H] voice input on, v on the Session Concourse — nothing; shift+�
     home,
     netlog,
     [
-      { atTick: 30, data: 'v' },
+      { atTick: 30, data: ' ' },
       { afterPrevTicks: 6, mark: 'after-v', data: '\x1b[1;2D' },
       { afterPrevTicks: 10, mark: 'home', data: '' },
     ],
@@ -608,8 +608,8 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
       { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette', data: '\x1b' },
       { afterPrevTicks: 4, mark: 'palette-closed', data: '\x1b[1;2D' },
       { requireAwait: true, awaitText: '↑↓ choose', awaitStableTicks: 2, mark: 'face', data: '\x1b[1;2C' },
-      { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat', data: 'v' },
-      { requireAwait: true, awaitText: 'recording · v or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
+      { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat', data: ' ' },
+      { requireAwait: true, awaitText: 'recording · space or esc to stop', awaitStableTicks: 1, mark: 'recording', data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 1, mark: 'cancelled', data: '' },
       { afterPrevTicks: 2, data: '' },
     ],

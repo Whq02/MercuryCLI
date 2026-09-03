@@ -49,6 +49,10 @@ export interface TeeWrite {
   content?: string
 }
 
+/** The Boot face's ready line — the needle the arena's own New Session press
+ *  is armed on; the driver records it beside the send. */
+const FACE_READY_NEEDLE = '↑↓ choose'
+
 export interface SendRecord {
   sent: number
   atMs: number
@@ -214,7 +218,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   // instant (the artifact arena's record: 900 ms after the hint's first
   // paint, so the face's keybinding mount is up before the key lands) —
   // then the scene's own sends follow.
-  sendArgs.push('--send', 'after:↑↓ choose:900:\\r')
+  sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
   for (const s of opts.sends) sendArgs.push('--send', s)
   // THE STATE ANCHOR (the artifact arena's law): a rider's fixed-ms prompt
   // authored for a nominal world fires into the FACE when the birth is
@@ -308,8 +312,13 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
       ? (row as TeeWrite)
       : null,
   )
+  // The arena's own New Session press is a HARNESS send, never the scene's:
+  // the driver records an observed-ready send with the needle that armed it
+  // (`after`), and the face ↵ is the one armed by the face's ready line — it
+  // leaves the scene's send log, so every "N sends delivered" count and every
+  // Enter tally (enterSends) stays authored.
   const sendLog = readJsonl<SendRecord>(drive, row =>
-    row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number'
+    row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number' && (row as { after?: string }).after !== FACE_READY_NEEDLE
       ? (row as SendRecord)
       : null,
   )

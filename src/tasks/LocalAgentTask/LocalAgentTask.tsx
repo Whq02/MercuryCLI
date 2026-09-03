@@ -109,6 +109,12 @@ export type ProgressTracker = {
   recentActivities: ToolActivity[]
   /** The per-response ledger fold (see AgentLedger). */
   ledger: AgentLedger
+  /** The newest assistant message: the wire settles a response's usage
+   *  onto the message object AFTER it was yielded (the stream's final
+   *  usage lands on the last block's message), so the fold re-reads it at
+   *  the next message and at every snapshot — replace-by-id keeps that
+   *  idempotent. */
+  lastAssistant?: AssistantMessage
 }
 
 export function createAgentLedger(): AgentLedger {
@@ -211,6 +217,10 @@ export function updateProgressFromMessage(
 ): void {
   if (message.type !== 'assistant') return
   const assistant = message as AssistantMessage
+  if (tracker.lastAssistant !== undefined && tracker.lastAssistant !== assistant) {
+    foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  }
+  tracker.lastAssistant = assistant
   const usage = assistant.message.usage
   if (usage) {
     const latest =
@@ -245,6 +255,7 @@ export function updateProgressFromMessage(
 }
 
 export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
+  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
   const ledger = tracker.ledger
   const settled = ledger.inputTokens + ledger.outputTokens > 0
   return {
@@ -481,6 +492,34 @@ export function unregisterAgentForeground(taskId: string, setAppState: SetAppSta
   cleanupToRun?.()
 }
 
+/**
+ * Settle a foreground agent's record in place of removing it: the status
+ * word the SDK bookend derives (completed · failed · stopped — the store's
+ * own word for a stop is killed), so the crew record stays readable through
+ * the panel grace with its fold intact. A landed agent is a fact until the
+ * runner evicts it; removing the record at the settle left every crew
+ * surface reading "no sub-agents" the instant the agents landed.
+ */
+export function settleAgentForeground(
+  taskId: string,
+  status: 'completed' | 'failed' | 'stopped',
+  setAppState: SetAppState,
+  /** The tracker's final snapshot — the wire settles a response's usage
+   *  onto its message after the yield, so the last fold lands HERE, and it
+   *  lands even on a record an interrupt already marked killed. */
+  progress?: AgentProgress,
+): void {
+  let settled = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.isBackgrounded) return task
+    if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
+    settled = true
+    return terminalPatch(task, status === 'stopped' ? 'killed' : status, progress !== undefined ? { progress } : {})
+  })
+  backgroundSignalResolvers.delete(taskId)
+  if (settled) void evictTaskOutput(taskId)
+}
+
 // ── terminal transitions ─────────────────────────────────────────────────────
 
 function terminalPatch(
@@ -616,6 +655,37 @@ export function updateAgentProgress(
       lastReportedTokenCount: progress.tokenCount,
     }
   })
+}
+
+/** One pending deferred re-publish per task (coalesced). */
+const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
+
+/** The wire settles a response's usage onto its message AFTER the yield —
+ *  Anthropic's message_delta, the Responses completion — so a snapshot
+ *  taken at the yield carries the start usage or none. This grace period
+ *  covers every wire's settle: a tool_use turn's tokens reach the record
+ *  while the tool still runs, not at the next message. */
+const USAGE_SETTLE_GRACE_MS = 750
+
+/**
+ * Publish the tracker's snapshot now, and once more after the usage-settle
+ * grace (the re-read folds the message's settled usage) — the record
+ * carries the wire's final numbers while the agent still runs.
+ */
+export function publishAgentProgressSoon(
+  taskId: string,
+  tracker: ProgressTracker,
+  setAppState: SetAppState,
+): void {
+  updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  const pending = deferredPublishes.get(taskId)
+  if (pending !== undefined) clearTimeout(pending)
+  const timer = setTimeout(() => {
+    deferredPublishes.delete(taskId)
+    updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  }, USAGE_SETTLE_GRACE_MS)
+  timer.unref?.()
+  deferredPublishes.set(taskId, timer)
 }
 
 /**
