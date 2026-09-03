@@ -610,8 +610,18 @@ export async function getSystemPrompt(
   // next-turn boundary is the build itself.
   pushPack('mode-autopilot', getAutopilotModeSections(permissionMode))
   pushPack('mode-apollo', getApolloModeSections(permissionMode))
-  const vulcan = getVulcanSection()
-  if (vulcan !== null) modeSections.push({ name: 'mode-vulcan', text: vulcan })
+  // The Godot control section reads the filesystem (the project.godot walk)
+  // and a live flag on every build. It is FROZEN per conversation through
+  // the section cache: the top-level system is part of the prefix every
+  // thinking block is bound to, and a project file appearing mid-session or
+  // a directory change is not an operator action — a fresh fact rides a new
+  // row (the harness-map delta announces the flag flip), never a rewrite of
+  // what was sent. A compaction or /clear clears the cache: the lawful
+  // boundaries re-evaluate it. The composer's group order is unchanged.
+  const [vulcan] = await resolveSystemPromptSections([
+    systemPromptSection('mode-vulcan', () => getVulcanSection()),
+  ])
+  if (vulcan !== null && vulcan !== undefined) modeSections.push({ name: 'mode-vulcan', text: vulcan })
 
   const antiSycSections = getAntiSycophancyAlwaysOnSection()
   const reconcileTailSections =
