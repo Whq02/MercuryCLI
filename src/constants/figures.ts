@@ -35,6 +35,6 @@ export const BRIDGE_SPINNER_FRAMES = [
   '·\\·',
 ]
 
-export const BRIDGE_READY_INDICATOR = '\u00B7\u2713\uFE0E\u00B7'
+export const BRIDGE_READY_INDICATOR = '\u00B7\u2713\u00B7'
 
 export const BRIDGE_FAILED_INDICATOR = '\u00B7\u2715\u00B7'

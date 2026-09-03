@@ -794,6 +794,20 @@ Flow is off — the user likely wants a more interactive pace again. Where the a
         createUserMessage({ content, isMeta: true }),
       ])
     }
+    case 'mode_pack': {
+      return wrapMessagesInSystemReminder([
+        createUserMessage({ content: attachment.text, isMeta: true }),
+      ])
+    }
+    case 'mode_pack_exit': {
+      const label = attachment.mode === 'apollo' ? 'Apollo mode' : 'Autopilot'
+      const content = `## Exited ${label}
+
+${label} is off: its instructions above no longer apply, and the session's standing instructions govern again.`
+      return wrapMessagesInSystemReminder([
+        createUserMessage({ content, isMeta: true }),
+      ])
+    }
     case 'repo_surface_map': {
       const content = `This repository has no CLAUDE.md, so here is an auto-derived surface map (a structure-only scan: languages, entry points, layout). Use it to orient instead of broad exploratory listing; verify anything load-bearing before relying on it, and prefer reading the repo's own docs where they exist.
 
@@ -1126,7 +1140,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       }
       if (attachment.removedNames.length > 0) {
         parts.push(
-          `The following deferred tools are no longer available (their MCP server disconnected). Do not search for them — ToolSearch will return no match:\n${attachment.removedNames.join('\n')}`,
+          `The following deferred tools are no longer available in this session (their server disconnected or the operator turned them off). Do not search for them — ToolSearch will return no match:\n${attachment.removedNames.join('\n')}`,
         )
       }
       return wrapMessagesInSystemReminder([

@@ -306,6 +306,15 @@ export type Attachment =
       type: 'auto_mode_exit'
     }
   | {
+      type: 'mode_pack'
+      mode: 'apollo' | 'autopilot'
+      text: string
+    }
+  | {
+      type: 'mode_pack_exit'
+      mode: 'apollo' | 'autopilot'
+    }
+  | {
       type: 'repo_surface_map'
       markdown: string
     }

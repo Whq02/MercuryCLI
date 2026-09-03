@@ -28,7 +28,7 @@ pulse	850
 core-runtime	500
 interview	800
 golden-journeys	700
-interaction	1300
+interaction	1800
 cockpit-interaction	700
 diffws	1100
 prompts-panel	460
@@ -61,7 +61,7 @@ critters	250
 orphans	56
 switchboard	850
 switchboard-2	850
-switchboard-3	1300
+switchboard-3	1800
 switchboard-4	800
 switchboard-5	700
 switchboard-6	800
