@@ -209,6 +209,21 @@ section('§3 a here-string feeds stdin')
   check('a bare stdin reader still meets EOF at once', bare.code === 0 && bare.out === '' && bare.ms < 5000, `${bare.ms}ms ${JSON.stringify(bare.out.slice(0, 40))}`)
 }
 
+section("§4 the cwd record never replaces the command's status")
+{
+  const gone = await plain(`mkdir -p "${SCRATCH}/gone" && cd "${SCRATCH}/gone" && rm -rf "${SCRATCH}/gone"; echo done`)
+  check('a command that deletes its own directory keeps its status and prints its text', gone.code === 0 && trimmed(gone) === 'done', `code ${gone.code} ${JSON.stringify(gone.out.slice(0, 120))}`)
+  check('…and the session stays in an existing directory', existsSync(gone.cwd) && gone.cwd === PROJECT, gone.cwd)
+  const failing = await plain('echo before; exit 3')
+  check('a failing command keeps its own status', failing.code === 3 && trimmed(failing) === 'before', `code ${failing.code}`)
+  const moved = await plain(`cd "${PROJECT}/sub" && echo moved`)
+  check('a successful cd is still recorded', moved.code === 0 && moved.cwd === join(PROJECT, 'sub'), moved.cwd)
+  const back = await plain(`cd "${PROJECT}"`)
+  check('…and back', back.cwd === PROJECT, back.cwd)
+  const provider = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'), 'utf8')
+  check('the record step is grouped with || true on the POSIX leg', /\{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\} 2>\/dev\/null \|\| true; \}/.test(provider))
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')

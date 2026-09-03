@@ -109,7 +109,11 @@ export async function createBashShellProvider(
       const preamble = getGlobPreambleCommand(shellPath)
       if (preamble) parts.push(preamble)
       parts.push(`eval ${quotedCommand}`)
-      parts.push(`pwd -P >| ${quote([cwdFileInShell])}`)
+      // The record is grouped like the Win32 leg below so its own failure
+      // never replaces the user command's status: a command that deletes
+      // the directory it runs in leaves pwd nothing to report, and the
+      // engine already treats a missing record as "the session stays put".
+      parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       if (isWindows) {
         // git-bash: a second line with the shell's OWN Win32 spelling of the
         // directory. pwd -P under MSYS reports a virtual root (/tmp,
