@@ -130,8 +130,13 @@ if (!ready) {
   // lands inside the allow-write set.
   const tempVar = await run('echo "$TMPDIR"', true)
   check("the sandboxed child's TMPDIR is the product temp root", tempVar.code === 0 && tempVar.out.trim() === tempRoot, `${JSON.stringify(tempVar.out.trim())} vs ${tempRoot}`)
-  const temp = await run('f=$(mktemp) && echo "$f" && rm -f "$f"', true)
-  check('mktemp succeeds under the sandbox, inside the root', temp.code === 0 && temp.out.trim().startsWith(`${tempRoot}/`), `code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
+  const temp = await run('f=$(mktemp "$TMPDIR/probe.XXXXXX") && echo "$f" && rm -f "$f"', true)
+  check('a temp file made under $TMPDIR succeeds inside the sandbox', temp.code === 0 && temp.out.trim().startsWith(`${tempRoot}/probe.`), `code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
+  // The bare form is the platform's: macOS mktemp prefers the Darwin
+  // per-user temp directory to TMPDIR (TMPDIR is its fallback), so a bare
+  // mktemp under the sandbox lands wherever that directory is — observed.
+  const bare = await run('f=$(mktemp) && echo "$f" && rm -f "$f"', true)
+  note(`bare mktemp under the sandbox: code ${bare.code} ${JSON.stringify(bare.out.trim().slice(0, 160))}`)
   const outside = await run(`echo out > "${OUTSIDE}/out.txt"`, true)
   check('a write outside the allow-write set is refused and the file never appears', outside.code !== 0 && !existsSync(join(OUTSIDE, 'out.txt')), `code ${outside.code} ${JSON.stringify(outside.out.slice(0, 160))}`)
   note(`refusal text: ${JSON.stringify((outside.out + outside.stderr).trim().slice(0, 160))}`)
@@ -264,7 +269,7 @@ if (!ready) {
     // so the timeout kills it instead of moving it to the background — the
     // path on which the note used to be lost.
     { kind: 'tool_use', name: 'Bash', input: { command: 'sleep; sleep 30', timeout: 3000, description: 'a command past its timeout on the kill path' }, whenModel: MODEL },
-    { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp) && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp "$TMPDIR/probe.XXXXXX") && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
   ]
@@ -333,7 +338,7 @@ if (!ready) {
   check('the artifact ran the five calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
   check('the artifact showed the model five tool results', results.length === 5, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth, fifth] = results
-  check("artifact: mktemp lands inside the product temp root and the child's TMPDIR reads it", fifth !== undefined && !fifth.isError && fifth.text.trim().startsWith(`${tempRoot}/`) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
+  check("artifact: a temp file under $TMPDIR lands inside the product temp root and the child's TMPDIR reads it", fifth !== undefined && !fifth.isError && fifth.text.trim().startsWith(`${tempRoot}/probe.`) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
   check('artifact: the killed command tells the model it timed out (an error result carrying the note)', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text) && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
