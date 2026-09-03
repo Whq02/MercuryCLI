@@ -469,8 +469,10 @@ export const SandboxManager: ISandboxManager = {
   isSupportedPlatform: () => isSupportedPlatformMemo(),
   isPlatformInEnabledList(): boolean {
     try {
-      const initial = safeGetSettings('__initial__')
-      const list = getSandboxSection(initial).enabledPlatforms as string[] | undefined
+      // The merged settings: the list is an operator setting like the rest of
+      // the sandbox section. It was read from a source name that does not
+      // exist, which answered empty, so the list never applied anywhere.
+      const list = getSandboxSection(getMergedSettings()).enabledPlatforms as string[] | undefined
       if (list === undefined) return true // absent ⇒ all allowed
       return list.includes(getPlatform())
     } catch {
