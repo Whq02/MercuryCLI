@@ -495,6 +495,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'coordination',
     cancellation: 'not-applicable',
     latency: 'fast',
+    conditions: ['the task list off — an interactive session (or MERCURY_TASKS=1) serves the task list in its place'],
   },
   ToolSearch: {
     intents: ['find the right tool for a job', 'load a deferred tool schema', 'discover capability by intent'],

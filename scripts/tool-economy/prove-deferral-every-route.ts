@@ -24,7 +24,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'deferral-route-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { planToolPayload, deferredToolsAnnouncement, announcementMessage, foldAnnouncementIntoFirstUserTurn } = await import('../../src/services/providers/toolEconomy.ts')
+const { planToolPayload, deferredToolsAnnouncement, announcementMessage, foldAnnouncementIntoFirstUserTurn, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { gateToolCall, toolCallRefusalNote, toolCallRefusalCorrection, schemaNotSentSentence } = await import('../../src/services/providers/toolCallGate.ts')
 const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
@@ -82,7 +82,7 @@ const POOL: Tool[] = [...NON_DEFERRED, ToolSearchTool as never, ...DEFERRED_BUIL
 const DEFERRED_NAMES = [...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B].map(t => t.name)
 
 const permissionContext = getEmptyToolPermissionContext()
-const planFor = (model: string, messages: Message[], extra: { tools?: Tool[]; hasPendingMcpServers?: boolean } = {}) =>
+const planFor = (model: string, messages: Message[], extra: { tools?: Tool[]; hasPendingMcpServers?: boolean; latchKey?: string } = {}) =>
   planToolPayload({
     model,
     tools: extra.tools ?? POOL,
@@ -91,6 +91,7 @@ const planFor = (model: string, messages: Message[], extra: { tools?: Tool[]; ha
     agents: [],
     hasPendingMcpServers: extra.hasPendingMcpServers ?? false,
     source: 'proof',
+    ...(extra.latchKey !== undefined ? { latchKey: extra.latchKey } : {}),
   })
 
 const fresh = (): Message[] => [createUserMessage({ content: 'begin' }) as Message]
@@ -120,13 +121,20 @@ section('§1 THE ROSTER LAW — every route, the same roster; the announcement r
   const renderedRows = new Set<string>()
   const oracle = deferredToolsAnnouncement(POOL, new Set(DEFERRED_NAMES))
   const oracleLines = oracle === null ? [] : oracle.split('\n').slice(1, -1)
+  const blockRoutes: string[] = []
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     check(`${route}: ${model} declares the route`, declaredRouteOf(model) === route)
     const plan = await planFor(model, fresh())
     const names = plan.roster.map(t => t.name)
-    check(`${route}: deferral is on`, plan.enabled === true, `wire=${plan.wireForm}/${plan.wireWhy}`)
-    check(`${route}: the roster is the non-deferred tools + ToolSearch, in pool order`, names.join(',') === [...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME].join(','), names.join(','))
-    check(`${route}: nothing deferred rides (no built-in, no MCP tool of either server)`, names.every(n => !DEFERRED_NAMES.includes(n)))
+    if (plan.wireForm === 'block') {
+      blockRoutes.push(route)
+      check(`${route}: the block wire defers (deferral is on)`, plan.enabled === true, `wire=${plan.wireForm}/${plan.wireWhy}`)
+      check(`${route}: the roster is EVERY pool tool in pool order — ToolSearch at its place, the deferrable ones riding marked`, names.join(',') === POOL.map(t => t.name).join(','), names.join(','))
+    } else {
+      check(`${route}: a wire that cannot defer lists everything in full (deferral is off)`, plan.enabled === false, `wire=${plan.wireForm}/${plan.wireWhy}`)
+      check(`${route}: the roster is every pool tool in pool order minus ToolSearch (nothing to search)`, names.join(',') === POOL.filter(t => t.name !== TOOL_SEARCH_TOOL_NAME).map(t => t.name).join(','), names.join(','))
+    }
+    check(`${route}: every deferrable tool rides the request (an economy, never an omission)`, DEFERRED_NAMES.every(n => names.includes(n)))
     check(`${route}: no per-request announcement rides (the persisted delta row is the carrier — FN-020 row 1)`, plan.announcement === null)
     const row = getDeferredToolsDeltaAttachment(POOL, model, fresh())[0]
     check(`${route}: a fresh transcript's delta row names every deferred tool, sorted, names only`, row !== undefined && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...DEFERRED_NAMES].sort().join(',') && row.addedLines.join('\n') === oracleLines.join('\n') && !row.addedLines.join('\n').includes('{'))
@@ -135,8 +143,9 @@ section('§1 THE ROSTER LAW — every route, the same roster; the announcement r
     check(`${route}: …rendered as ONE meta system-reminder user row`, rendered.length === 1 && rendered[0]!.isMeta === true && typeof content === 'string' && content.startsWith('<system-reminder>\n'))
     if (typeof content === 'string') renderedRows.add(content)
     check(`${route}: with the row persisted the next request announces nothing more`, row !== undefined && getDeferredToolsDeltaAttachment(POOL, model, [...fresh(), createAttachmentMessage(row) as Message]).length === 0)
-    check(`${route}: the deferred set is exactly the fixture's deferred tools`, [...plan.deferredNames].sort().join(',') === [...DEFERRED_NAMES].sort().join(','))
+    check(`${route}: the marks — ${plan.wireForm === 'block' ? "exactly the fixture's deferred tools" : 'none on a text wire'}`, [...plan.deferredNames].sort().join(',') === (plan.wireForm === 'block' ? [...DEFERRED_NAMES].sort().join(',') : ''))
   }
+  check("the block wire is the first-party route alone (deferral rides the API's own deferred loading)", blockRoutes.join(',') === 'anthropic', blockRoutes.join(','))
   check('the delta row is byte-identical on every route', renderedRows.size === 1, String(renderedRows.size))
   check('the prepend oracle (the retired per-request shape, kept as the oracle) still spells the sorted name list inside the tag pair', oracle !== null && oracle.startsWith('<available-deferred-tools>\n') && oracle.endsWith('\n</available-deferred-tools>') && oracleLines.join(',') === [...DEFERRED_NAMES].sort().join(','))
   const plan = await planFor('gpt-5.6-sol', fresh())
@@ -144,16 +153,44 @@ section('§1 THE ROSTER LAW — every route, the same roster; the announcement r
   const msgs = fresh()
   check('the chat/Responses spelling folds nothing (the same array by reference — the first user turn is untouched)', foldAnnouncementIntoFirstUserTurn(msgs, plan) === msgs)
 }
-section('§2 ADMISSION MONOTONICITY — N distinct admissions ⇒ exactly N payload changes, never a shrink')
+section('§1b THE FREEZE — the array and every mark byte-identical across consecutive requests; a joiner appends at the end, deferred')
+{
+  const JOINER_DEFERRED = fixtureTool('search_boards', { mcp: 'jira', params: ['project'] })
+  const JOINER_PLAIN = fixtureTool('Later')
+  for (const [route, model] of Object.entries(ROUTE_MODELS)) {
+    clearToolRosterLatches()
+    const convo = fresh()
+    const first = await planFor(model, convo, { latchKey: 'proof' })
+    const firstNames = first.roster.map(t => t.name).join(',')
+    const firstMarks = [...first.deferredNames].sort().join(',')
+    const again = await planFor(model, [...convo, ...admission(`toolu_${route}_freeze`, ['WebFetch'])], { latchKey: 'proof' })
+    check(`${route}: the second request's array is byte-identical — an admission moves nothing`, again.roster.map(t => t.name).join(',') === firstNames, again.roster.map(t => t.name).join(','))
+    check(`${route}: …and every mark is re-sent as first sent`, [...again.deferredNames].sort().join(',') === firstMarks)
+    const shrunk = await planFor(model, convo, { latchKey: 'proof', tools: POOL.filter(t => t.name !== 'WebFetch') })
+    check(`${route}: a tool the pool dropped still rides the frozen array (never a shrink)`, shrunk.roster.map(t => t.name).join(',') === firstNames, shrunk.roster.map(t => t.name).join(','))
+    const grown = await planFor(model, convo, { latchKey: 'proof', tools: [...POOL, JOINER_DEFERRED, JOINER_PLAIN] })
+    const grownNames = grown.roster.map(t => t.name).join(',')
+    if (first.enabled) {
+      check(`${route}: a deferrable joiner is appended at the END, deferred; a non-deferrable joiner is HELD`, grownNames === `${firstNames},${JOINER_DEFERRED.name}` && grown.deferredNames.has(JOINER_DEFERRED.name) && !grownNames.includes(JOINER_PLAIN.name), grownNames)
+    } else {
+      check(`${route}: under a non-deferring latch every joiner is HELD (the array never grows)`, grownNames === firstNames, grownNames)
+    }
+    clearToolRosterLatches()
+  }
+}
+
+section('§2 ADMISSION IS INERT ON THE WIRE — N distinct admissions ⇒ zero payload changes, never a shrink; the admitted set is the transcript\'s')
 {
   const steps: string[][] = [['WebFetch'], ['mcp__filesys__read_file'], ['Browser', 'mcp__github__create_issue'], ['NotebookEdit']]
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     let messages = fresh()
-    let previous = new Set((await planFor(model, messages)).roster.map(t => t.name))
-    let digest = await toolsTermDigest((await planFor(model, messages)).roster, model)
+    const base = await planFor(model, messages)
+    const baseNames = base.roster.map(t => t.name).join(',')
+    let previous = new Set(base.roster.map(t => t.name))
+    let digest = await toolsTermDigest(base.roster, model)
     let changes = 0
     let monotone = true
-    let exact = true
+    let whole = true
     const admittedSoFar = new Set<string>()
     for (let i = 0; i < steps.length; i++) {
       messages = [...messages, ...admission(`toolu_${route}_${i}`, steps[i]!)]
@@ -161,16 +198,15 @@ section('§2 ADMISSION MONOTONICITY — N distinct admissions ⇒ exactly N payl
       const plan = await planFor(model, messages)
       const names = new Set(plan.roster.map(t => t.name))
       if (![...previous].every(n => names.has(n))) monotone = false
-      const expectedNames = new Set([...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME, ...admittedSoFar])
-      if (names.size !== expectedNames.size || ![...expectedNames].every(n => names.has(n))) exact = false
+      if (plan.roster.map(t => t.name).join(',') !== baseNames) whole = false
       const next = await toolsTermDigest(plan.roster, model)
       if (next !== digest) changes++
       digest = next
       previous = names
     }
-    check(`${route}: ${steps.length} distinct admissions changed the tools term exactly ${steps.length} times`, changes === steps.length, String(changes))
+    check(`${route}: ${steps.length} distinct admissions changed the tools term ZERO times (the definition is already on the wire)`, changes === 0, String(changes))
     check(`${route}: the roster never shrank`, monotone)
-    check(`${route}: after each step the roster is exactly base + admitted-so-far`, exact)
+    check(`${route}: after each step the roster is the whole array the first request sent`, whole)
     const repeated = [...messages, ...admission(`toolu_${route}_rep`, ['WebFetch'])]
     const planRep = await planFor(model, repeated)
     check(`${route}: re-admitting an admitted tool changes nothing`, (await toolsTermDigest(planRep.roster, model)) === digest)
@@ -184,7 +220,11 @@ section('§2 ADMISSION MONOTONICITY — N distinct admissions ⇒ exactly N payl
     } as unknown as Message
     const afterCompact = [boundary, createUserMessage({ content: 'summary' }) as Message]
     const planCompact = await planFor(model, afterCompact)
-    check(`${route}: a compaction boundary keeps every admission (the snapshot is the record)`, [...planCompact.admittedNames].sort().join(',') === [...admittedSoFar].sort().join(','))
+    if (base.enabled) {
+      check(`${route}: a compaction boundary keeps every admission (the snapshot is the record)`, [...planCompact.admittedNames].sort().join(',') === [...admittedSoFar].sort().join(','))
+    } else {
+      check(`${route}: a text wire admits nothing — nothing is deferred there (the snapshot is carried, never read)`, planCompact.admittedNames.size === 0 && (await planFor(model, messages)).admittedNames.size === 0)
+    }
     check(`${route}: the admitted set is derived from the transcript, not held in memory`, [...extractDiscoveredToolNames(messages)].sort().join(',') === [...admittedSoFar].sort().join(','))
   }
 }
@@ -194,7 +234,11 @@ section('§3 PENDING-SERVER HONESTY — a connecting server keeps ToolSearch, on
   const nothingDeferred = [...NON_DEFERRED, ToolSearchTool as never]
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const pending = await planFor(model, fresh(), { tools: nothingDeferred, hasPendingMcpServers: true })
-    check(`${route}: nothing deferred + a server still connecting ⇒ ToolSearch stays (the model can discover its tools once they land)`, pending.enabled === true && pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && pending.announcement === null)
+    if (pending.wireForm === 'block') {
+      check(`${route}: nothing deferred + a server still connecting ⇒ ToolSearch stays (the model can discover its tools once they land)`, pending.enabled === true && pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && pending.announcement === null)
+    } else {
+      check(`${route}: a wire that cannot defer keeps ToolSearch aside even with a server connecting (its tools join the array at the next lawful boundary)`, pending.enabled === false && !pending.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && pending.announcement === null)
+    }
     const settled = await planFor(model, fresh(), { tools: nothingDeferred, hasPendingMcpServers: false })
     check(`${route}: nothing deferred + nothing pending ⇒ ToolSearch steps aside`, settled.enabled === false && !settled.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME))
   }
@@ -205,8 +249,10 @@ section('§3 PENDING-SERVER HONESTY — a connecting server keeps ToolSearch, on
 section('§4 TYPED REFUSALS — the discovery path is named, the economy never refuses a real call')
 {
   const messages = fresh()
-  const plan = await planFor('gpt-5.6-sol', messages)
+  const plan = await planFor(ROUTE_MODELS.anthropic!, messages)
   const hints = { deferredUnadmitted: plan.isDeferredUnadmitted }
+  const textPlan = await planFor('gpt-5.6-sol', messages)
+  check('a text wire lists every schema in full: nothing is ever deferred-unadmitted there', textPlan.isDeferredUnadmitted('WebFetch') === false && textPlan.deferredNames.size === 0)
   const unknown = gateToolCall(POOL as never, { id: 'c1', name: 'Nonexistent', argumentsRaw: '{}', malformed: false }, hints)
   check('an unresolvable name refuses typed (unknown-tool)', !unknown.ok && unknown.refusal.code === 'unknown-tool')
   check('…and the note names the discovery path', !unknown.ok && /ToolSearch/.test(toolCallRefusalNote('openai', unknown.refusal)) && /No such tool available: Nonexistent/.test(toolCallRefusalNote('openai', unknown.refusal)))
@@ -218,7 +264,7 @@ section('§4 TYPED REFUSALS — the discovery path is named, the economy never r
   check('one called blind with arguments that miss the schema refuses typed (schema)', !blindMiss.ok && blindMiss.refusal.code === 'schema')
   check('…naming the admission road (ToolSearch select:<name>)', !blindMiss.ok && blindMiss.refusal.reason.includes(schemaNotSentSentence('WebFetch')) && /select:WebFetch/.test(blindMiss.refusal.reason))
   check('…and the model-visible correction carries it', !blindMiss.ok && toolCallRefusalCorrection([blindMiss.refusal]).includes('select:WebFetch'))
-  const admittedPlan = await planFor('gpt-5.6-sol', [...messages, ...admission('toolu_a', ['WebFetch'])])
+  const admittedPlan = await planFor(ROUTE_MODELS.anthropic!, [...messages, ...admission('toolu_a', ['WebFetch'])])
   const admittedMiss = gateToolCall(POOL as never, { id: 'c4', name: 'WebFetch', argumentsRaw: '{"url":"https://x"}', malformed: false }, { deferredUnadmitted: admittedPlan.isDeferredUnadmitted })
   check('once admitted, a schema miss is an ordinary schema refusal (no admission road named)', !admittedMiss.ok && !admittedMiss.refusal.reason.includes('select:WebFetch'))
   const nonDeferredMiss = gateToolCall(POOL as never, { id: 'c5', name: 'Read', argumentsRaw: '{}', malformed: false }, hints)
@@ -238,8 +284,8 @@ section('§5 THE SUBAGENT BOUND — inheriting the whole pool costs the non-defe
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const parent = await planFor(model, [...fresh(), ...admission('toolu_parent', ['Browser', 'mcp__github__list_issues'])])
     const child = await planFor(model, fresh())
-    check(`${route}: the child's roster is the non-deferred set + ToolSearch (no inherited MCP schema rides)`, child.roster.map(t => t.name).join(',') === [...NON_DEFERRED.map(t => t.name), TOOL_SEARCH_TOOL_NAME].join(','))
-    check(`${route}: the parent's admissions do not leak into the child (admission is per conversation)`, child.admittedNames.size === 0 && parent.admittedNames.size === 2)
+    check(`${route}: the child's array is the parent's array (the deferrable entries marked alike, their context cost deferred until referenced)`, child.roster.map(t => t.name).join(',') === parent.roster.map(t => t.name).join(',') && [...child.deferredNames].sort().join(',') === [...parent.deferredNames].sort().join(','))
+    check(`${route}: the parent's admissions do not leak into the child (admission is per conversation)`, child.admittedNames.size === 0 && parent.admittedNames.size === (parent.enabled ? 2 : 0))
     check(`${route}: the child's request carries no announcement bytes (the row is the carrier)`, child.announcement === null)
     const row = getDeferredToolsDeltaAttachment(POOL, model, fresh())[0]
     const lineBytes = DEFERRED_NAMES.reduce((a, n) => a + Buffer.byteLength(n, 'utf8'), 0) + (DEFERRED_NAMES.length - 1)
@@ -256,8 +302,8 @@ section('§6 THE OFF ARM — MERCURY_TOOL_DEFER=0 reproduces the inlined catalog
     check(`${route}: deferral off ⇒ the whole catalogue rides, minus ToolSearch, nothing announced`, plan.enabled === false && plan.roster.length === POOL.length - 1 && !plan.roster.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && plan.announcement === null && plan.deferredNames.size === 0)
   }
   delete process.env.MERCURY_TOOL_DEFER
-  const back = await planFor('gpt-5.6-sol', fresh())
-  check('the flag read is live (deferral returns once the kill lifts)', back.enabled === true)
+  const back = await planFor(ROUTE_MODELS.anthropic!, fresh())
+  check('the flag read is live (deferral returns on the block wire once the kill lifts)', back.enabled === true)
 }
 
 section('§7 THE LANE CENSUS — every tools term is built from the plan')
@@ -277,7 +323,7 @@ section('§7 THE LANE CENSUS — every tools term is built from the plan')
   }
   const core = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
   check('streamCore: consumes the plan owner', /planToolPayload\(\{/.test(core) && /const filteredTools: Tools = plan\.roster/.test(core))
-  check('streamCore: the beta header and defer_loading ride the block form only', /useToolSearch && blockForm \? getToolSearchBetaHeader\(\) : null/.test(core) && /useToolSearch && blockForm && \(deferredToolNames\.has\(t\.name\)/.test(core))
+  check('streamCore: the beta header and defer_loading ride the block form only', /useToolSearch && blockForm \? getToolSearchBetaHeader\(\) : null/.test(core) && /const willDefer = \(t: Tool\) => useToolSearch && blockForm && deferredToolNames\.has\(t\.name\)/.test(core))
   check('streamCore: the text form renders admission records as text', /else if \(!blockForm\) \{[\s\S]*renderAdmissionRecordsAsText\(messagesForAPI\)/.test(core))
   check('streamCore: the announcement is the plan\'s message', /announcementMessage\(plan\)/.test(core) && !/<available-deferred-tools>\\n\$\{deferredToolList\}/.test(core))
   const router = readFileSync(join(ROOT, 'src/services/providers/callModelRouter.ts'), 'utf8')

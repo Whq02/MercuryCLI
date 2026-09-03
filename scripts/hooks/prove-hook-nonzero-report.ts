@@ -78,7 +78,7 @@ console.log('§1 LIVE — the settled turn reports the failed hook')
         MERCURY_COMPAT_BASE_URL: `http://127.0.0.1:${port}/v1`,
         MERCURY_COMPAT_API_KEY: 'fixture',
         NODE_ENV: undefined,
-        ANTHROPIC_API_KEY: undefined,
+        ANTHROPIC_API_KEY: 'proof-key-hook-report-not-a-real-key',
         ANTHROPIC_AUTH_TOKEN: undefined,
         MERCURY_OAUTH_TOKEN: undefined,
       } as NodeJS.ProcessEnv,
