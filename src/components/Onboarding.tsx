@@ -10,6 +10,7 @@ import { getCustomApiKeyStatus } from '../utils/config.js'
 import { env } from '../utils/env.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 import { critterDefForKey, miniArtFor } from '../utils/cockpit/critterData.js'
+import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 import type { ThemeSetting } from '../utils/theme.js'
 import { bootNotes } from '../substrate/bootNotes.js'
 import { ApproveApiKey } from './ApproveApiKey.js'
@@ -51,7 +52,9 @@ type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
 // TWO appearances (the REACHABLE_THEME_SETTINGS vocabulary): the oasis dark
 // identity and True Black — the first-run fitting offers exactly the
 // reachable list; the other families stay dormant behind the
-// MERCURY_THEME_PIN gate, never offered here.
+// MERCURY_THEME_PIN gate, never offered here. The fitting opens focused on
+// the provider's setting, which on a fresh home is the default appearance
+// (True Black); the oasis row sits one row above it.
 const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
   { value: 'dark', label: 'Oasis dark · the oasis ground' },
   { value: 'true-black', label: 'True Black · the same palette on pure black' },
@@ -328,7 +331,7 @@ function TerminalKeys({
           if (r?.id === 'install') {
             // post-fitting the theme is always concrete; 'auto' cannot reach
             // here (savePreview stored a real value) — narrowed for the API.
-            void setupTerminal(theme === 'auto' ? 'dark' : theme)
+            void setupTerminal(theme === 'auto' ? DEFAULT_THEME_SETTING : theme)
               .catch(() => {})
               .finally(onDone)
           } else {

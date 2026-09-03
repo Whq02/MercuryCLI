@@ -86,6 +86,12 @@ deep teal-navy **OASIS ground**:
   Ash-raised `#1A2C31`; hairlines Dune-faint `#233A40`; borders/selection Dune
   `#2F4B52`. The terminal ground itself is painted via OSC 11 (window padding
   included) and **follows the theme** — light families keep the profile ground.
+- **Default appearance: True Black** — the same palette on the pure-black
+  ground family: `#000000` → `#080F11` → `#0B1315` → `#0E181B`; hairlines
+  `#132023`; borders/selection `#1A292D`. The oasis ladder above is the
+  selectable `dark` appearance (`/appearance`, the first-run walk); ink, the
+  identity accent and the status spine are byte-equal across the two, and a
+  saved choice always wins over the default.
 - **Identity accent:** **TERRA** `#DD4444` (Cute-Crab red — the Mercury
   identity; operator retint) with **CLAW** `#7B3232` in shadow and
   **BELLY** `#E58484` as the highlight. Never use terracotta
