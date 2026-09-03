@@ -276,6 +276,10 @@ async function daemonRun(args: string[]): Promise<void> {
   const idleNudges = new Map<string, () => void>()
   let ownerWatch: ReturnType<typeof setInterval> | undefined
   let ready = false
+  let wakeReady: () => void = () => {}
+  const readyPromise = new Promise<void>(resolve => {
+    wakeReady = resolve
+  })
   const startedAt = Date.now()
   let requestShutdown: (signal: string) => void = () => {}
   let supervisorLock: SupervisorLock | null = null
@@ -410,6 +414,7 @@ async function daemonRun(args: string[]): Promise<void> {
         maxInflight: MAX_INFLIGHT,
         controlKey,
         isReady: () => ready,
+        whenReady: () => readyPromise,
         nudgeAgent: agentName => idleNudges.get(agentName)?.(),
         crewSpawn: makeCrewSpawnHandler({
           roster: () => roster ?? undefined,
@@ -895,6 +900,7 @@ async function daemonRun(args: string[]): Promise<void> {
         stopArmedBeat = () => clearInterval(armedBeat)
       }
       ready = true
+      wakeReady()
       // eslint-disable-next-line no-console
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
       stopSaturnTicker = startSaturnTicker(
