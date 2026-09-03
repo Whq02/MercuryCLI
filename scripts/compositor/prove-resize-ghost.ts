@@ -48,7 +48,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { resetViewportFloorForTests, viewportFloorLine, viewportFloorLive } from '../../src/ink/viewportFloor.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -102,11 +102,15 @@ try {
       // THE BURST (a drag): six WINCHes 80 ms apart ending where they
       // started — one storm, one settle.
       { atMs: 21_000, cols: 110, rows: 40 },
-      { afterPrevMs: 80, cols: 100, rows: 36 },
-      { afterPrevMs: 80, cols: 90, rows: 32 },
-      { afterPrevMs: 80, cols: 100, rows: 36 },
-      { afterPrevMs: 80, cols: 110, rows: 40 },
-      { afterPrevMs: 80, cols: 120, rows: 44 },
+      // The burst's 80 ms cadence IS the contract (one storm inside the
+      // compositor's coalescing window — a state criterion, not a schedule):
+      // the driver stretches every relative delay by the hosted scale, so the
+      // cadence is handed over pre-divided and fires at 80 ms on every host.
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 100, rows: 36 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 90, rows: 32 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 100, rows: 36 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 110, rows: 40 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 120, rows: 44 },
     ],
     out: gridPath,
     cwd: SCRATCH,

@@ -281,10 +281,14 @@ try {
     } else {
       const ttyRow = byId(ttyCert, 'iface-terminal')
       check('tty: the profile row is NOT the environmental form', !/environmental/.test(String(ttyRow?.evidence)), String(ttyRow?.evidence))
+      // On a mismatch the detail names every non-pass row of both runs, so a
+      // hosted runner's flip is attributable from the log alone.
+      const nonPass = (cert: Cert): string =>
+        (cert.rows ?? []).filter(r => r.status !== 'pass').map(r => `${r.id}:${r.status}`).join(' ')
       check(
         "the piped run's verdict equals the TTY run's (the profile row no longer flips it)",
         pipedCert.verdict === ttyCert.verdict,
-        `piped=${pipedCert.verdict} tty=${ttyCert.verdict}`,
+        `piped=${pipedCert.verdict} [${nonPass(pipedCert)}] tty=${ttyCert.verdict} [${nonPass(ttyCert)}]`,
       )
     }
   }
