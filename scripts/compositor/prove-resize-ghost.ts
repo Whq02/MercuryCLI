@@ -126,6 +126,11 @@ try {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
     VSHOT_TEE: teePath,
+    // The journey pins the PRODUCT's alternate-screen discipline (G3: zero
+    // ?1049l). A bare direct start first plays the launch splash — its own
+    // program with its own alternate-screen session, closed at the hand-off
+    // — so the splash stays off here; prove-direct-splash owns that road.
+    MERCURY_SPLASH: 'off',
   }
   delete env.VSHOT_ACTIVE
   delete env.MERCURY_FULLSCREEN // unset = the fullscreen default (the policy under proof)

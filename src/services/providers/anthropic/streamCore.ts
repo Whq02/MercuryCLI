@@ -158,6 +158,7 @@ import {
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
 import { stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   getCanonicalName,
   getPublicModelDisplayName,
@@ -275,6 +276,10 @@ export type Options = {
   hasPendingMcpServers?: boolean
   queryTracking?: QueryChainTracking
   agentId?: AgentId // Only set for subagents
+  /** The conversation owner (the run's canonical owner key) — the roster
+   *  freeze and the lawful-change seam key on it; absent ⇒ derived from
+   *  the agent id (the same derivation the turn machine uses). */
+  ownerKey?: string
   outputFormat?: JsonOutputFormat
   advisorModel?: string
   addNotification?: (notif: Notification) => void
@@ -612,8 +617,9 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
-    // The roster freezes per conversation (the main thread or the agent).
-    latchKey: options.agentId ?? 'main',
+    // The roster freezes per conversation, keyed by the run's owner — the
+    // same key the drop classifier and the lawful-change seam use.
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames

@@ -218,6 +218,7 @@ reg(
     'src/components/LogSelector.tsx',
     'src/components/mcp/ElicitationDialog.tsx',
     'src/components/mcp/MCPRemoteServerMenu.tsx',
+    'src/components/mcp/McpRosterCard.tsx', // the /mcp answer card on every seat — failed rows first, the selected reason whole, a window; rows ride useInteractiveList/InteractiveRow (the design-system list owner), esc closes with no footer echo
  'src/components/agents/studio/AgentStudio.tsx', // agent studio: useFlatList (charKeys:false) + type-to-search + uppercase library verbs + inspector/trash/clone/test-drive modes (the MemoryCentre grammar)
  'src/components/agents/studio/StudioEditor.tsx', // create/edit: three views over one codec draft; guided steps + advanced field editors + raw external-editor round-trip
     'src/components/memory/MemoryCentreView.tsx', // the memory centre: useFlatList (charKeys:false) + raw type-to-search/correction capture + detail verbs
