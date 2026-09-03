@@ -68,6 +68,7 @@
     "getUserRulesDir",
     "hasPendingDeferredGlobalConfigSaves",
     "isAutoUpdaterDisabled",
+    "isConfigReadingAllowed",
     "isCopyOnSelectEnabled",
     "isGlobalConfigKey",
     "isMercurySubstrateProfileOn",
