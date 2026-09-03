@@ -12,6 +12,7 @@ import { relative } from 'path'
 import { plural } from '../utils/stringUtils.js'
 import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { MessageResponse } from './MessageResponse.js'
+import { GLYPH } from './mercury-ui/glyphs.js'
 
 /** Contract data — the IDE diff-view URI prefix for the right-hand side. */
 const IDE_RIGHT_PREFIX = '_claude_fs_right:'
@@ -29,8 +30,8 @@ function splitUri(uri: string): { path: string; scheme: string } {
 
 const SEVERITY_SYMBOLS: Record<string, { glyph: string; color?: string }> = {
   Error: { glyph: '✗', color: 'error' },
-  Warning: { glyph: '⚠\uFE0E', color: 'warning' },
-  Info: { glyph: 'ℹ\uFE0E' },
+  Warning: { glyph: GLYPH.warn, color: 'warning' },
+  Info: { glyph: GLYPH.info },
   Hint: { glyph: '·' },
 }
 
