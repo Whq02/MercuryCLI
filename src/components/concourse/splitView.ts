@@ -1,11 +1,12 @@
 
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 
-export const BOARD_PANE_MIN_COLS = 80
+export const BOARD_PANE_MIN_COLS = VIEWPORT_FLOOR_COLS
 
 export const CHAT_PANE_MIN_COLS = 40
 
-export const SPLIT_MIN_ROWS = 24
+export const SPLIT_MIN_ROWS = VIEWPORT_FLOOR_ROWS
 
 export const SPLIT_DIVIDER_COLS = 1
 
