@@ -90,7 +90,12 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   check('isolated: the puppeteer driver is IN the bundle', bundleText.includes('puppeteer-core'))
   const manifest = JSON.parse(readFileSync(join(stage, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
   check('manifest: selfContained', manifest.selfContained === true)
-  check('manifest: degraded[] EMPTY', Array.isArray(manifest.degraded) && (manifest.degraded as unknown[]).length === 0)
+  const degraded = Array.isArray(manifest.degraded) ? (manifest.degraded as unknown[]) : null
+  check(
+    'manifest: degraded[] EMPTY (or exactly the voice pack, the one allowed absence)',
+    degraded !== null && (degraded.length === 0 || (degraded.length === 1 && degraded[0] === 'voice-input')),
+    JSON.stringify(manifest.degraded),
+  )
   const ip = manifest.imageProcessing as { selfContained?: boolean } | undefined
   check('manifest: imageProcessing honesty recorded', !!ip && ip.selfContained === false)
   const tsit = manifest.treeSitter as { grammarPack?: { vendored?: boolean } } | undefined

@@ -80,7 +80,30 @@ export function noteOfferAutoDone(key: string): void {
 export function _resetOfferMemoriesForTesting(): void {
   offerDismissals.clear()
   offerAutoActions.clear()
+  answeredCapOffers.clear()
   capHandoff = null
+}
+
+
+export type CapOfferDirection = 'handoff' | 'return'
+const answeredCapOffers = new Set<string>()
+const capOfferArmKey = (direction: CapOfferDirection, family: string): string =>
+  `${direction}|${family}`
+
+export function capOfferAnswered(direction: CapOfferDirection, family: string): boolean {
+  return answeredCapOffers.has(capOfferArmKey(direction, family))
+}
+
+export function noteCapOfferAnswered(direction: CapOfferDirection, family: string): void {
+  answeredCapOffers.add(capOfferArmKey(direction, family))
+}
+
+export function noteCapWindowObserved(family: string, state: CapWindowState): void {
+  if (state === 'allowed') {
+    answeredCapOffers.delete(capOfferArmKey('handoff', family))
+  } else if (state === 'warning' || state === 'rejected') {
+    answeredCapOffers.delete(capOfferArmKey('return', family))
+  }
 }
 
 export interface CapReturnHomeFacts {
@@ -124,6 +147,7 @@ export interface FamilyWindowFact {
   basis: CapWindowBasis
   resetsAtMs?: number
   windowName?: string
+  usedPct?: number
 }
 
 export interface FamilyWindowReads {
@@ -134,6 +158,8 @@ export interface FamilyWindowReads {
     resetsAtMs?: number
     windowName?: string
   }
+  anthropicWindows?: () => Array<{ key: string; usedPct?: number; resetsAtMs?: number }>
+  anthropicPools?: () => Array<{ key: string; label: string; usedPct?: number; resetsAtMs?: number }>
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
   openaiBands?: () => Array<{ usedPct: number; resetsAtMs?: number; windowName: string }>
@@ -148,6 +174,29 @@ export const CAP_APPROACHING_PCT = 70
 function liveFamilyWindowReads(): Required<FamilyWindowReads> {
   return {
     now: Date.now,
+    anthropicWindows: () => {
+      const { anthropicWindowViews } =
+        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return anthropicWindowViews()
+        .filter(view => view.state === 'live')
+        .map(view => ({
+          key: view.key,
+          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
+          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
+        }))
+    },
+    anthropicPools: () => {
+      const { anthropicPoolWindowViews } =
+        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return anthropicPoolWindowViews()
+        .filter(view => view.state === 'live')
+        .map(view => ({
+          key: view.key,
+          label: view.label,
+          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
+          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
+        }))
+    },
     anthropic: () => {
       const limits = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
       const current = limits.currentLimits
@@ -222,7 +271,28 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
     : { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: wall.resetsAtMs }
 }
 
-export function observedFamilyWindow(family: string, reads?: FamilyWindowReads): FamilyWindowFact {
+export function bindingPoolKeyFor(model: string | null | undefined): string | null {
+  if (model === null || model === undefined || model.trim() === '') return null
+  let canonical = model
+  try {
+    const { getCanonicalName } = require('../utils/model/model.js') as typeof import('../utils/model/model.js')
+    canonical = getCanonicalName(model)
+  } catch {
+  }
+  const lowered = canonical.toLowerCase()
+  if (lowered.includes('fable') || lowered.includes('mythos')) return 'seven_day_fable'
+  if (lowered.includes('opus')) return 'seven_day_opus'
+  if (lowered.includes('sonnet')) return 'seven_day_sonnet'
+  return null
+}
+
+const WINDOW_RANK: Record<CapWindowState, number> = { unknown: 0, allowed: 1, warning: 2, rejected: 3 }
+
+export function observedFamilyWindow(
+  family: string,
+  reads?: FamilyWindowReads,
+  opts?: { model?: string | null },
+): FamilyWindowFact {
   const r: Required<FamilyWindowReads> = { ...liveFamilyWindowReads(), ...stripUndefined(reads) }
   const unknown: FamilyWindowFact = { family, state: 'unknown', basis: 'none' }
   try {
@@ -231,19 +301,61 @@ export function observedFamilyWindow(family: string, reads?: FamilyWindowReads):
       const a = r.anthropic()
       if (!a.observed) return unknown
       const windowName = a.windowName ?? 'usage window'
-      if (a.status === 'rejected' || a.status === 'allowed_warning') {
-        if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
-          return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
+      const sharedViews = ((): Array<{ key: string; usedPct?: number; resetsAtMs?: number }> => {
+        try {
+          return r.anthropicWindows()
+        } catch {
+          return []
         }
-        return {
-          family,
-          state: a.status === 'rejected' ? 'rejected' : 'warning',
-          basis: 'observed',
-          ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
-          windowName,
+      })()
+      const sharedPct = ((): number | undefined => {
+        const stated = sharedViews.filter(view => view.usedPct !== undefined)
+        if (stated.length === 0) return undefined
+        return Math.max(...stated.map(view => view.usedPct as number))
+      })()
+      const shared: FamilyWindowFact = ((): FamilyWindowFact => {
+        if (a.status === 'rejected' || a.status === 'allowed_warning') {
+          if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
+            return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
+          }
+          return {
+            family,
+            state: a.status === 'rejected' ? 'rejected' : 'warning',
+            basis: 'observed',
+            ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
+            windowName,
+            ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}),
+          }
         }
+        return { family, state: 'allowed', basis: 'observed', ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}) }
+      })()
+      const poolKey = bindingPoolKeyFor(opts?.model)
+      if (poolKey === null) return shared
+      const pool = ((): { key: string; label: string; usedPct?: number; resetsAtMs?: number } | undefined => {
+        try {
+          return r.anthropicPools().find(view => view.key === poolKey)
+        } catch {
+          return undefined
+        }
+      })()
+      if (pool === undefined || pool.usedPct === undefined) return shared
+      const poolLive = pool.resetsAtMs === undefined || pool.resetsAtMs > now
+      if (!poolLive) return shared
+      const poolState: CapWindowState =
+        pool.usedPct >= 100 ? 'rejected' : pool.usedPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
+      const poolFact: FamilyWindowFact = {
+        family,
+        state: poolState,
+        basis: 'observed',
+        ...(pool.resetsAtMs !== undefined ? { resetsAtMs: pool.resetsAtMs } : {}),
+        windowName: `weekly ${pool.label} limit`,
+        usedPct: pool.usedPct,
       }
-      return { family, state: 'allowed', basis: 'observed' }
+      const poolRank = WINDOW_RANK[poolFact.state]
+      const sharedRank = WINDOW_RANK[shared.state]
+      if (poolRank !== sharedRank) return poolRank > sharedRank ? poolFact : shared
+      if (shared.usedPct !== undefined && shared.usedPct > pool.usedPct) return shared
+      return poolFact
     }
     if (family === 'openai') {
       const source = r.openaiActiveSource()
@@ -261,9 +373,17 @@ export function observedFamilyWindow(family: string, reads?: FamilyWindowReads):
             basis: 'observed',
             ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
             windowName: worst.windowName,
+            usedPct: worst.usedPct,
           }
         }
-        return { family, state: 'allowed', basis: 'observed' }
+        return {
+          family,
+          state: 'allowed',
+          basis: 'observed',
+          windowName: worst.windowName,
+          usedPct: worst.usedPct,
+          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+        }
       }
       return billingOrUnknown(family, r, unknown)
     }
@@ -313,10 +433,33 @@ export interface CapFailoverExclusion {
   why: string
 }
 
+export interface CapFailoverListedFamily {
+  route: string
+  model: string
+  window: FamilyWindowFact | null
+  atCap: boolean
+  usable: boolean
+  credential?: 'oauth' | 'api-key' | 'keyless' | 'none'
+  blockers: string[]
+}
+
 export interface CapFailoverCandidateSet {
   home: string | null
   candidates: CapFailoverCandidate[]
   excluded: CapFailoverExclusion[]
+  listed: CapFailoverListedFamily[]
+}
+
+export function capUsageWords(window: FamilyWindowFact | null, resetText?: string | null): string {
+  if (window === null || window.state === 'unknown') return 'no usage read'
+  const name = window.windowName ?? 'usage window'
+  if (window.state === 'rejected') {
+    return `at its cap — ${name}${resetText ? ` resets ${resetText}` : ''}`
+  }
+  if (window.usedPct !== undefined) {
+    return `${Math.round(window.usedPct)}% of the ${name}`
+  }
+  return window.state === 'warning' ? `approaching the ${name}` : `${name} clear`
 }
 
 export function orderFamiliesBySignIn(
@@ -336,33 +479,95 @@ export function orderFamiliesBySignIn(
 
 export function deriveCapFailoverCandidates(
   home: string | null,
-  usability: Record<string, { usable: boolean; blockers: string[] }>,
+  usability: Record<string, { usable: boolean; blockers: string[]; credential?: 'oauth' | 'api-key' | 'keyless' | 'none' }>,
   targetModelOf: (route: string) => string | undefined,
   signInAt: (family: string) => number | undefined = () => undefined,
+  windowOf?: (route: string, model: string) => FamilyWindowFact,
 ): CapFailoverCandidateSet {
   const candidates: CapFailoverCandidate[] = []
   const excluded: CapFailoverExclusion[] = []
+  const listed: CapFailoverListedFamily[] = []
+  const capped: CapFailoverListedFamily[] = []
   const families = orderFamiliesBySignIn(
     Object.keys(usability).filter(family => family !== home),
     signInAt,
   )
   for (const route of families) {
     const lane = usability[route]
-    if (lane === undefined || !lane.usable) {
-      excluded.push({
-        route,
-        why: lane !== undefined && lane.blockers.length > 0 ? lane.blockers.join(' · ') : 'lane not usable',
-      })
+    if (lane === undefined) {
+      excluded.push({ route, why: 'lane not usable' })
       continue
     }
     const model = targetModelOf(route)
-    if (model === undefined || model.trim() === '') {
+    const hasModel = model !== undefined && model.trim() !== ''
+    const window = hasModel && windowOf !== undefined ? windowOf(route, model) : null
+    const atCap = window !== null && window.state === 'rejected'
+    if (atCap && hasModel && lane.credential !== 'none') {
+      capped.push({
+        route,
+        model,
+        window,
+        atCap: true,
+        usable: false,
+        ...(lane.credential !== undefined ? { credential: lane.credential } : {}),
+        blockers: lane.blockers,
+      })
+      if (!lane.usable) {
+        excluded.push({
+          route,
+          why: lane.blockers.length > 0 ? lane.blockers.join(' · ') : 'lane at its own usage cap',
+        })
+      } else {
+        excluded.push({ route, why: `the ${route} lane is at its own usage cap` })
+      }
+      continue
+    }
+    if (!lane.usable) {
+      excluded.push({
+        route,
+        why: lane.blockers.length > 0 ? lane.blockers.join(' · ') : 'lane not usable',
+      })
+      continue
+    }
+    if (!hasModel) {
       excluded.push({ route, why: 'no recorded target model fact — never a guessed id' })
       continue
     }
     candidates.push({ route, model })
+    listed.push({
+      route,
+      model,
+      window,
+      atCap: false,
+      usable: true,
+      ...(lane.credential !== undefined ? { credential: lane.credential } : {}),
+      blockers: [],
+    })
   }
-  return { home, candidates, excluded }
+  return { home, candidates, excluded, listed: [...listed, ...capped] }
+}
+
+function newestFirstPartyFrontierMember(fallback: string): string {
+  try {
+    const { CANONICAL_MODEL_IDS } =
+      require('../utils/model/configs.js') as typeof import('../utils/model/configs.js')
+    const rank = (id: string): number => {
+      const m = /^claude-fable-(\d+)(?:-(\d+))?$/.exec(id)
+      return m === null ? -1 : Number(m[1]) * 1000 + (m[2] !== undefined ? Number(m[2]) : 0)
+    }
+    let best: { id: string; rank: number } | undefined
+    for (const id of CANONICAL_MODEL_IDS) {
+      const r = rank(id)
+      if (r >= 0 && (best === undefined || r > best.rank)) best = { id, rank: r }
+    }
+    return best?.id ?? fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function _firstPartyFrontierMemberForTest(fallback: string): string {
+  return newestFirstPartyFrontierMember(fallback)
 }
 
 export function liveCapFailoverCandidates(home: string | null): CapFailoverCandidateSet {
@@ -381,17 +586,22 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
       return {}
     }
   })()
+  const targetOf = (route: string): string | undefined => {
+    if (route === 'openai') {
+      const seat = getGptSeatAvailability()
+      return seat.state === 'ready' ? seat.ids[0] : undefined
+    }
+    const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+    return route === 'anthropic' && fact !== undefined
+      ? newestFirstPartyFrontierMember(fact)
+      : fact
+  }
   return deriveCapFailoverCandidates(
     home,
     resolveProviderUsability(),
-    route => {
-      if (route === 'openai') {
-        const seat = getGptSeatAvailability()
-        return seat.state === 'ready' ? seat.ids[0] : undefined
-      }
-      return providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
-    },
+    targetOf,
     family => ledger[family]?.at,
+    (route, model) => observedFamilyWindow(route, undefined, { model }),
   )
 }
 

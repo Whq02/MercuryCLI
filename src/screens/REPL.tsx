@@ -130,6 +130,7 @@ import { modelDisplayString, renderModelName } from '../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
 import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
+import { crewWaitingWords } from '../services/engine-connector/crewFacts.js';
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
@@ -2080,7 +2081,7 @@ export function REPL({
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
   const viewAgentWait =
-    seatLive.phase === 'waiting' ? `waiting on ${seatLive.agentsWaiting} agent${seatLive.agentsWaiting === 1 ? '' : 's'} · esc stops them` : null;
+    seatLive.phase === 'waiting' ? `${crewWaitingWords(seatLive.agentsWaiting) ?? 'waiting on agents'} · esc stops them` : null;
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
