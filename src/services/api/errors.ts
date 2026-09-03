@@ -361,7 +361,10 @@ export function getAssistantMessageFromError(
   const nonInteractive = getIsNonInteractiveSession()
 
   if (isTimeoutError(error)) {
-    return createAssistantAPIErrorMessage({ content: API_TIMEOUT_ERROR_MESSAGE, error: 'unknown' })
+    return createAssistantAPIErrorMessage({
+      content: /^no first byte from /.test(message) ? `${message} — the turn was aborted` : API_TIMEOUT_ERROR_MESSAGE,
+      error: 'unknown',
+    })
   }
 
   if (error instanceof ImageSizeError || error instanceof ImageResizeError) {
