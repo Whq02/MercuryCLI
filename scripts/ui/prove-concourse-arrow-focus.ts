@@ -272,7 +272,7 @@ const scratches: string[] = []
   const first = COORDINATOR_EXAMPLE_PROMPTS[0]
   const second = COORDINATOR_EXAMPLE_PROMPTS[1]
   const marked = (lines: string[], prompt: string): boolean => lines.some(l => l.includes(prompt) && l.includes('· ↵'))
-  check('zero: the pane paints its example prompts with the first highlighted (· ↵ sends)', marked(before, first) && !marked(before, second), before.find(l => l.includes(first))?.trim().slice(0, 100) ?? '(no example row)')
+  check('zero: the pane paints its example prompts with the first highlighted (· ↵ fills the box)', marked(before, first) && !marked(before, second), before.find(l => l.includes(first))?.trim().slice(0, 100) ?? '(no example row)')
   check('zero: ↓ walked the highlight to the second example — the pane received the key and spent it on its own meaning', marked(after, second) && !marked(after, first), after.find(l => l.includes(second))?.trim().slice(0, 100) ?? '(no example row)')
   check('zero: the ▸ selection stayed on the first session row', selRow(after) === selRow(before) && selRow(before) >= 0, `before=${selRow(before)} after=${selRow(after)}`)
 }
