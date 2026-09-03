@@ -45,8 +45,8 @@ const byId = new Map((profile?.checks ?? []).map(c => [c.id, c]))
 {
   const c = byId.get('team-launch')
   check('team-launch check present', !!c)
-  check('team-launch says what TeamCreate will actually use', !!c && c.evidence.includes('TeamCreate spawns'))
-  check('team-launch links the Team Center', c?.link === '/team')
+  check('team-launch says where named sub-agents run', !!c && c.evidence.includes('named sub-agents'))
+  check('team-launch links the crew surface', c?.link === '/teammates')
 }
 check('the health run never mutated the boot preference', JSON.stringify(menu.readBootEnvChoices()) === bootBefore)
 const { existsSync, readdirSync } = await import('node:fs')

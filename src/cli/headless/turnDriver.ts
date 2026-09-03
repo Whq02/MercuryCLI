@@ -57,6 +57,8 @@ export type TurnDriverPorts = {
 
   hasWaitableBackgroundTasks(): boolean
   hasHoldableBackgroundAgents(): boolean
+  waitableBackgroundTaskCount?(): number
+  onAgentWait?(count: number): void
 
   takePendingSuggestion(): StdoutMessage | null
 
@@ -152,6 +154,13 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
     await ports.beforeCycle()
 
+    let announcedWait = 0
+    const announceWait = (count: number): void => {
+      if (count === announcedWait) return
+      announcedWait = count
+      ports.onAgentWait?.(count)
+    }
+
     try {
       let waitingForAgents = false
       do {
@@ -160,6 +169,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         phase = 'draining_commands'
         let command: QueuedCommand | undefined
         while ((command = ports.dequeue())) {
+          announceWait(0)
           if (
             command.mode !== 'prompt' &&
             command.mode !== 'bash' &&
@@ -178,10 +188,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
           waitingForAgents = true
           if (ports.peek() === undefined) {
             phase = 'waiting_for_agents'
+            announceWait(Math.max(1, ports.waitableBackgroundTaskCount?.() ?? 1))
             await ports.clock.sleep(100)
           }
         }
       } while (waitingForAgents)
+      announceWait(0)
 
       if (heldBackResult) {
         ports.enqueueOutput(heldBackResult)
@@ -199,6 +211,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.shutdown(1)
       return
     } finally {
+      announceWait(0)
       phase = 'finally_flush'
       await ports.flushInternalEvents()
       phase = 'finally_post_flush'
