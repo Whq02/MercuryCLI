@@ -1,11 +1,13 @@
-name: gate
+name: drives
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 1'
 
 concurrency:
-  group: gate-${{ github.ref }}
-  cancel-in-progress: true
+  group: drives-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   LANG: en_US.UTF-8
@@ -23,7 +25,7 @@ env:
 jobs:
   build:
     name: "phase-0 · dist"
-    if: ${{ vars.GATE_DISABLE != '1' }}
+    if: ${{ vars.DRIVES_DISABLE != '1' && (github.event_name != 'schedule' || vars.DRIVES_SCHEDULE == '1') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     outputs:
@@ -67,36 +69,28 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
       - name: Build dist (Phase 0 — once for every shard)
         run: ~/.bun/bin/bun run build.ts
-      - name: Pack dist (+ the vendor cache — prove-pyright-vendor's loud-skip DEMANDS it wherever it runs)
+      - name: Pack dist (+ the vendor cache)
         run: tar -czf dist.tar.gz dist vendor
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dist
           path: dist.tar.gz
           retention-days: 3
-      - name: Qualify artifact (calibration Node — supported)
-        run: bash scripts/node-runtime/qualify-artifact.sh dist/mercury.mjs expect-supported
-      - name: Set up Node 22 (refusal leg)
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        with:
-          node-version: '22'
-      - name: Qualify artifact (Node 22 — concise refusal)
-        run: bash scripts/node-runtime/qualify-artifact.sh dist/mercury.mjs expect-refusal
-      - name: Read darwin straggler list (the release class)
+      - name: Read darwin straggler list (the drives class)
         id: plan
         run: |
-          list=$(bash scripts/gate/ci-shard.sh darwin 12 --class release --plan-only | paste -sd' ' - || true)
+          list=$(bash scripts/gate/ci-shard.sh darwin 10 --class drives --plan-only | paste -sd' ' - || true)
           echo "darwin_suites=$list" >> "$GITHUB_OUTPUT"
 
   shard:
-    name: "suites · shard ${{ matrix.shard }}"
+    name: "drives · shard ${{ matrix.shard }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -126,18 +120,18 @@ jobs:
           ~/.bun/bin/bun install --frozen-lockfile
           sudo apt-get update -q && sudo apt-get install -y -q ripgrep
           /usr/bin/python3 -m pip install --break-system-packages -q pyte pillow
-          /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest  # the .py companion lane, PINNED to the calibration formatter (format output is version-shaped); pytest arms the test-transaction leg
+          /usr/bin/python3 -m pip install --break-system-packages -q ruff==0.15.22 pytest
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: dist
       - name: Unpack dist
         run: tar -xzf dist.tar.gz
-      - name: Run shard suites (the release class)
-        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 12 --class release
+      - name: Run shard suites (the drives class)
+        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 10 --class drives
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: gate-results-shard-${{ matrix.shard }}
+          name: drives-results-shard-${{ matrix.shard }}
           path: |
             ci-gate-out/results.tsv
             ci-gate-out/notes.tsv
@@ -145,11 +139,11 @@ jobs:
           if-no-files-found: error
 
   darwin:
-    name: "suites · darwin stragglers"
+    name: "drives · darwin stragglers"
     needs: build
     if: ${{ needs.build.outputs.darwin_suites != '' }}
     runs-on: macos-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -187,12 +181,12 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
       - name: Build dist (platform-correct vendoring)
         run: ~/.bun/bin/bun run build.ts
-      - name: Run darwin suites (the release class)
-        run: bash scripts/gate/ci-shard.sh darwin 12 --class release
+      - name: Run darwin suites (the drives class)
+        run: bash scripts/gate/ci-shard.sh darwin 10 --class drives
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: gate-results-darwin
+          name: drives-results-darwin
           path: |
             ci-gate-out/results.tsv
             ci-gate-out/notes.tsv
@@ -200,9 +194,9 @@ jobs:
           if-no-files-found: error
 
   verdict:
-    name: "verdict"
+    name: "drives verdict"
     needs: [build, shard, darwin]
-    if: ${{ always() && vars.GATE_DISABLE != '1' }}
+    if: ${{ always() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -211,13 +205,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: gate-results-*
+          pattern: drives-results-*
           path: results
-      - name: Aggregate (release scope — the deferred drives are named, never counted)
-        run: /usr/bin/python3 scripts/gate/ci-verdict.py results --scope release
+      - name: Aggregate (drives scope — per suite, with the driver's first stuck send)
+        run: /usr/bin/python3 scripts/gate/ci-verdict.py results --scope drives
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
-          name: gate-verdict
+          name: drives-verdict
           path: ci-verdict.json
           retention-days: 30
