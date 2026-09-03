@@ -23,8 +23,7 @@ export function mergeAndFilterTools(
   const mcpTools = merged.filter(tool => isMcpTool(tool)).sort(byName)
   const ordered = [...builtinTools, ...mcpTools]
 
-  if (mode !== 'autopilot') {
-    return ordered.filter(tool => tool.name !== SET_TIER_TOOL_NAME)
-  }
+  void mode
+  void SET_TIER_TOOL_NAME
   return ordered
 }

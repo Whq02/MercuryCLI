@@ -17,11 +17,13 @@ const nativeWrapAnsi: NativeWrapAnsi | undefined = (
   globalThis as { Bun?: { wrapAnsi?: NativeWrapAnsi } }
 ).Bun?.wrapAnsi
 
+const VARIATION_SELECTOR_RE = /[\uFE00-\uFE0F]/
+
 export function wrapAnsi(
   input: string,
   columns: number,
   options?: WrapAnsiOptions,
 ): string {
-  if (nativeWrapAnsi) return nativeWrapAnsi(input, columns, options)
+  if (nativeWrapAnsi && !VARIATION_SELECTOR_RE.test(input)) return nativeWrapAnsi(input, columns, options)
   return bundledWrapAnsi(input, columns, options)
 }

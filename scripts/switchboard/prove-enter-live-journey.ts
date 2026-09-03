@@ -165,7 +165,7 @@ try {
       Math.max(-1, ...[...text(g).matchAll(/stage-(\d\d) live-body/g)].map(m => Number(m[1])))
     const maxes = entered.map(tokenMax)
     check('§1 …and keeps painting as the thought grows (later frames carry later stages)', maxes.length >= 2 && maxes[maxes.length - 1]! > maxes[0]!, `stage highs: ${maxes.join(',')}`)
-    const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✳|✶|responding/i.test(text(g)))
+    const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✻|✶|responding/i.test(text(g)))
     check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`)
     const recDuring = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
     const { concourseRecordState } = await import('../../src/services/concourse/concourseSnapshot.ts')

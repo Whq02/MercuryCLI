@@ -1,4 +1,5 @@
 import figures from 'figures'
+import { GLYPH } from '../../mercury-ui/glyphs.js'
 import React from 'react'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { stringWidth } from '../../../ink/stringWidth.js'
@@ -44,7 +45,7 @@ export function QuestionNavigationBar({
 }: Props): React.ReactNode {
   const { columns } = useTerminalSize()
 
-  const submitText = hideSubmitTab ? '' : ` ${figures.tick} Submit `
+  const submitText = hideSubmitTab ? '' : ` ${GLYPH.check} Submit `
   const fixedWidth = stringWidth('← ') + stringWidth(' →') + stringWidth(submitText)
   const texts = chipTexts(questions, currentQuestionIndex, columns - fixedWidth)
   const hideArrows = questions.length === 1 && hideSubmitTab
@@ -73,10 +74,10 @@ export function QuestionNavigationBar({
         <Box key="submit">
           {onSubmitTab ? (
             <Text backgroundColor="permission" color="inverseText">
-              {` ${figures.tick} Submit `}
+              {` ${GLYPH.check} Submit `}
             </Text>
           ) : (
-            <Text>{` ${figures.tick} Submit `}</Text>
+            <Text>{` ${GLYPH.check} Submit `}</Text>
           )}
         </Box>
       )}
