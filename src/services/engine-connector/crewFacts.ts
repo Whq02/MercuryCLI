@@ -215,12 +215,18 @@ export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
   return `${facts.toolUses} tool use${facts.toolUses === 1 ? '' : 's'}`
 }
 
+/** The wait's words from a bare count — the runner's own agent-wait
+ *  count (its status frame) reaches a hosted seat without the roster rows,
+ *  and speaks the same spelling. Null for no agents. */
+export function crewWaitingWords(running: number): string | null {
+  if (!(running > 0)) return null
+  return `waiting on ${running} agent${running === 1 ? '' : 's'}`
+}
+
 /** What a parent turn held open by its crew is doing — `waiting on N
  *  agents`; null when none runs (the tail's own word stands). */
 export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
-  const n = crewRunning(agents).length
-  if (n === 0) return null
-  return `waiting on ${n} agent${n === 1 ? '' : 's'}`
+  return crewWaitingWords(crewRunning(agents).length)
 }
 
 /** `12.3k tokens`; null before the first settled response (the surface

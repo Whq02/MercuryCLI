@@ -310,6 +310,15 @@ export interface ConcourseWorkerRecordV1 {
    *  board as 'stopped' until the second x (release) removes it. */
   stoppedAt?: number
   stoppedBy?: string
+  /** A stop REQUESTED on a live runner: the kill is on its way and the
+   *  record reads its live state until the runner's exit is observed —
+   *  stoppedAt is the runner's acknowledgement (completeRequestedStop),
+   *  never the kill's dispatch. A record that says stopped has nothing
+   *  listening in fact; a runner the kill never reached keeps painting
+   *  what it does. The retirement reason waits with the request. */
+  stopRequestedAt?: number
+  stopRequestedBy?: string
+  stopRequestedRetired?: ConcourseWorkerRecordV1['retired']
   /** Sweep #2 rider R5: the stop was the daemon's idle retirement of
    *  an EMPTY session (no conversation, no pending work, no attachment or
    *  pause, idle past the registered threshold) — a typed settlement fact
@@ -2745,14 +2754,43 @@ export async function reactivateConcourseSession(
 }
 
 export type ConcourseStopOutcome =
-  | { outcome: 'applied'; runnerId: string }
+  | {
+      outcome: 'applied'
+      runnerId: string
+      /** True when the record already reads stopped (the child was gone);
+       *  false when the kill is on its way and the record waits for the
+       *  runner's exit (completeRequestedStop) before it says so. */
+      acknowledged: boolean
+    }
   | { outcome: 'noop'; reason: 'already-stopped' }
   | { outcome: 'refused'; reason: 'unknown-session' | 'no-kill-channel'; detail?: string }
 
+/** The stop's acknowledgement stamp — the one writer of stoppedAt. */
+function stampStopped(rec: ConcourseWorkerRecordV1, by: string, retired?: ConcourseWorkerRecordV1['retired']): void {
+  rec.stoppedAt = Date.now()
+  rec.stoppedBy = by
+  if (retired !== undefined) rec.retired = retired
+  delete rec.stopRequestedAt
+  delete rec.stopRequestedBy
+  delete rec.stopRequestedRetired
+  // The operator's own stop outranks a standing crash fact — the row
+  // paints ◇ STOPPED with their reason, not a stale crash line.
+  delete rec.crash
+}
+
 /** Operator x-gesture, first press: STOP the session — kill its child
- *  (intentional, never respawned), stamp stoppedAt; the record STAYS on
- *  the board so the operator sees what they stopped (the second x
- *  releases it through the existing concourseRelease door). */
+ *  (intentional, never respawned); the record STAYS on the board so the
+ *  operator sees what they stopped (the second x releases it through the
+ *  existing concourseRelease door).
+ *
+ *  THE ACKNOWLEDGEMENT LAW: a record reads stopped only once its runner is
+ *  gone. A live child gets the kill and a standing stop REQUEST; the
+ *  runner's observed exit (the roster's intentional-stop settle →
+ *  completeRequestedStop) stamps stoppedAt. Stamping at the kill's
+ *  dispatch let the board say "stopped · nothing listens · 0 live" over a
+ *  runner the kill never reached — its turn streaming on, its agents
+ *  running — because the roster's kill is fire-and-forget and observes
+ *  nothing. A child already dead acknowledges at once. */
 export function stopConcourseSession(
   sessionId: string,
   by: string,
@@ -2787,16 +2825,40 @@ export function stopConcourseSession(
         }
         return
       }
+      // The kill is dispatched, not observed: the request stands until the
+      // runner's exit acknowledges it. A repeated press re-kills and keeps
+      // the first request's stamp.
+      if (rec.stopRequestedAt === undefined) {
+        rec.stopRequestedAt = Date.now()
+        rec.stopRequestedBy = by
+        if (retired !== undefined) rec.stopRequestedRetired = retired
+      }
+      out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: false }
+      return
     }
-    rec.stoppedAt = Date.now()
-    rec.stoppedBy = by
-    if (retired !== undefined) rec.retired = retired
-    // The operator's own stop outranks a standing crash fact — the row
-    // paints ◇ STOPPED with their reason, not a stale crash line.
-    delete rec.crash
-    out = { outcome: 'applied', runnerId: rec.runnerId }
+    stampStopped(rec, by, retired)
+    out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: true }
   }, dir)
   return out
+}
+
+/** The runner's exit under a standing stop request acknowledges the stop:
+ *  stoppedAt lands now, with the request's own actor and retirement
+ *  reason. Called from the roster's intentional-stop settle; a request
+ *  standing over a runner already found dead converges here too. False
+ *  when no request stands or the child still lives. */
+export function completeRequestedStop(runnerId: string, dir?: string): boolean {
+  const standing = readSessionWorkers(dir)[runnerId]
+  if (!standing || standing.endedAt !== undefined || standing.stoppedAt !== undefined || standing.stopRequestedAt === undefined) return false
+  let completed = false
+  updateConcourseWorkers(workers => {
+    const rec = workers[runnerId]
+    if (!rec || rec.endedAt !== undefined || rec.stoppedAt !== undefined || rec.stopRequestedAt === undefined) return
+    if (workerPidAlive(rec)) return
+    stampStopped(rec, rec.stopRequestedBy ?? 'daemon', rec.stopRequestedRetired)
+    completed = true
+  }, dir)
+  return completed
 }
 
 // ── park: the CLOSE state (the control-plane model) ─────────────

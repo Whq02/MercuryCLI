@@ -78,24 +78,24 @@ export function extractSites(file: string, text: string): Site[] {
 
 // ── the registry (one row per site; sorted; amend WITH the site's commit) ───
 const REGISTRY = `
-src/commands.ts :: builtInCommandNames :: static-for-process
 src/commands.ts :: COMMANDS :: static-for-process
+src/commands.ts :: builtInCommandNames :: static-for-process
 src/commands.ts :: getSkillToolCommands :: invalidator=clearCommandMemoizationCaches
 src/commands.ts :: getSlashCommandToolSkills :: invalidator=clearCommandMemoizationCaches
 src/commands.ts :: loadAllCommands :: invalidator=clearCommandMemoizationCaches
-src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownRecent :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownTabulaOpenByDir :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownWakeGlance :: subscription-fed
 src/components/HelmLanesRail.tsx :: lastKnownWorkShape :: subscription-fed
 src/components/HighlightedCode/Fallback.tsx :: highlightCache :: keyed-by-truth
 src/components/Markdown.tsx :: tokenCache :: keyed-by-truth
-src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
-src/components/mercury-ui/SessionTabs.tsx :: lastKnownTabs :: subscription-fed
-src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
 src/components/Spinner/utils.ts :: parseCache :: keyed-by-truth
 src/components/StructuredDiff.tsx :: hunkCache :: keyed-by-truth
 src/components/VirtualMessageList.tsx :: realPromptCache :: keyed-by-truth
+src/components/concourse/ConcourseRoute.tsx :: lastCoherentSnapshot :: subscription-fed
+src/components/mercury-ui/SessionTabs.tsx :: lastKnownTabs :: subscription-fed
+src/components/mercury-ui/sessionAccent.ts :: snapshotMemo :: keyed-by-truth
+src/components/messages/TranscriptNameplate.tsx :: cachedHandle :: static-for-process
 src/constants/common.ts :: getSessionStartDate :: static-for-process
 src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
@@ -186,6 +186,7 @@ src/services/workbench/projection.ts :: snapshot :: subscription-fed
 src/services/workshop/runtime.ts :: cachedTs :: keyed-by-truth
 src/skills/loadSkillsDir.ts :: loadAllSkillsMemo :: invalidator=clearSkillCaches
 src/state/telemetryBus.ts :: snapshots :: subscription-fed
+src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache
 src/tools/BashTool/readOnlyValidation.ts :: allowlistCache :: static-for-process
@@ -193,13 +194,15 @@ src/tools/FileReadTool/limits.ts :: getDefaultFileReadingLimits :: static-for-pr
 src/tools/REPLTool/primitiveTools.ts :: cached :: static-for-process
 src/tools/SkillTool/prompt.ts :: promptForRoot :: keyed-by-truth
 src/tools/SyntheticOutputTool/SyntheticOutputTool.ts :: schemaBoundCache :: keyed-by-truth
-src/tools/ToolSearchTool/cooccurPrior.ts :: tableCache :: static-for-process
 src/tools/ToolSearchTool/ToolSearchTool.ts :: deferredSetCacheKey :: keyed-by-truth
 src/tools/ToolSearchTool/ToolSearchTool.ts :: getToolDescriptionMemoized :: keyed-by-truth
+src/tools/ToolSearchTool/cooccurPrior.ts :: tableCache :: static-for-process
 src/tools/WebFetchTool/utils.ts :: domainCheckCache :: ttl-bounded
 src/tools/WebFetchTool/utils.ts :: urlCache :: ttl-bounded
 src/tools/WorkflowTool/runManifest.ts :: manifestParseCache :: keyed-by-truth
 src/tools/WorkflowTool/structuredOutputTool.ts :: boundToolCache :: keyed-by-truth
+src/utils/Shell.ts :: getPsProvider :: static-for-process
+src/utils/Shell.ts :: getShellConfig :: static-for-process
 src/utils/accounts/accountIdentity.ts :: cache :: ttl-bounded
 src/utils/ansiToPng.ts :: fallbackGlyphCache :: static-for-process
 src/utils/ansiToPng.ts :: fontCache :: static-for-process
@@ -305,20 +308,18 @@ src/utils/settings/settingsCache.ts :: parsedFileCache :: invalidator=resetSetti
 src/utils/settings/settingsCache.ts :: perSourceCache :: invalidator=resetSettingsCache
 src/utils/settings/settingsCache.ts :: sessionSettingsCache :: invalidator=resetSettingsCache
 src/utils/settings/snapshot.ts :: lastSnapshot :: keyed-by-truth
-src/utils/Shell.ts :: getPsProvider :: static-for-process
-src/utils/Shell.ts :: getShellConfig :: static-for-process
 src/utils/shell/powershellDetection.ts :: cachedPowerShellPath :: static-for-process
 src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
 src/utils/suggestions/shellHistoryCompletion.ts :: corpusCache :: ttl-bounded
 src/utils/suggestions/slackChannelSuggestions.ts :: responseCache :: keyed-by-truth
+src/utils/swarm/backends/TmuxBackend.ts :: cachedLeaderWindowId :: static-for-process
 src/utils/swarm/backends/detection.ts :: insideITerm2Memo :: static-for-process
 src/utils/swarm/backends/detection.ts :: insideTmuxMemo :: static-for-process
 src/utils/swarm/backends/registry.ts :: cachedBackend :: static-for-process
 src/utils/swarm/backends/registry.ts :: cachedDetection :: static-for-process
 src/utils/swarm/backends/registry.ts :: cachedInProcessExecutor :: static-for-process
 src/utils/swarm/backends/registry.ts :: cachedPaneExecutor :: static-for-process
-src/utils/swarm/backends/TmuxBackend.ts :: cachedLeaderWindowId :: static-for-process
 src/utils/systemTheme.ts :: cachedSystemTheme :: static-for-process
 src/utils/task/diskOutput.ts :: memoizedTasksDir :: static-for-process
 src/utils/toolSchemaCache.ts :: toolSchemaCache :: keyed-by-truth

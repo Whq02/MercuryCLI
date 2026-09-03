@@ -807,7 +807,14 @@ function LiveConcourse(): React.ReactNode {
               const runnerAlive = rec?.pid !== undefined && isProcessAlive(rec.pid)
               if (rec !== undefined && !runnerAlive) {
                 const out = supervisor.stopConcourseSession(sessionId, 'operator', undefined)
-                noteControl('strip:composer', out.outcome === 'refused' ? { state: 'refused', reason: out.detail ?? out.reason } : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` })
+                noteControl(
+                  'strip:composer',
+                  out.outcome === 'refused'
+                    ? { state: 'refused', reason: out.detail ?? out.reason }
+                    : out.outcome === 'applied' && !out.acknowledged
+                      ? { state: 'applied', reason: `stop sent — ${out.runnerId} ends its turn; the row reads stopped once it is gone` }
+                      : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` },
+                )
               } else {
                 noteControl('strip:composer', { state: 'failed', reason: 'the daemon that hosts sessions is not reachable and the runner is alive', next: `${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` })
               }
@@ -822,11 +829,20 @@ function LiveConcourse(): React.ReactNode {
             // The refusal paints the daemon's OWN sentence — the handler's
             // detail, else the wire's error and code — never a bare "stop
             // refused" that hides why (the operator's x-x on their only
-            // session read exactly that).
+            // session read exactly that). An applied stop paints the verb's
+            // detail too: a stop still on its way ("stop sent — …") says so
+            // while the runner is going, and the removal hint appears only
+            // once the record's stamp has landed (the runner is gone) —
+            // the record reads stopped on the runner's acknowledgement,
+            // never on the kill's dispatch.
+            const acknowledged = reply.ok === true && reply.outcome === 'applied' && /^stopped /.test(reply.detail ?? '')
             noteControl(
               'strip:composer',
               reply.ok === true && reply.outcome !== 'refused'
-                ? { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` }
+                ? {
+                    state: 'applied',
+                    reason: acknowledged || reply.outcome === 'noop' || reply.detail === undefined ? `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` : reply.detail,
+                  }
                 : { state: 'refused', reason: reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
             )
           } catch {
