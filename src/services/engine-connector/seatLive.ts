@@ -1,5 +1,6 @@
 import type { EngineConnectorV1 } from './types.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
+import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 
 export interface SessionLiveV1 {
   inFlight: boolean
@@ -14,6 +15,7 @@ export interface SeatStatusV1 {
   projectLabel: string
   interrupting: boolean
   hardStopping: boolean
+  wait: RequestWaitV1 | null
   quietMs: number | null
   watchdogMs: number | null
   phaseMs: number | null

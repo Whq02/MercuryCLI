@@ -520,6 +520,7 @@ async function* streamModel(
             onStreamingFallback: () => {
               streamingFallbackOccured = true
             },
+            onWait: wait => toolUseContext.setSDKStatus?.({ wait }),
             querySource: run.querySource,
             agents: toolUseContext.options.agentDefinitions.activeAgents,
             allowedAgentTypes:
