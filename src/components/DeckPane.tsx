@@ -99,6 +99,11 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
     : null
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
   const sourceUsage = activeSourceUsage()
+  const stripFirst = sourceUsage.windows[0]
+  const stripSecond =
+    sourceUsage.binding !== undefined && stripFirst !== undefined && sourceUsage.binding.window.key !== stripFirst.key
+      ? sourceUsage.binding.window
+      : sourceUsage.windows[1]
   const now = useNowTick(30_000)
   const resetIn = (w: { resetsAtMs: number | null }): string | undefined =>
     w.resetsAtMs != null ? formatCountdown(w.resetsAtMs - now) : undefined
@@ -319,13 +324,13 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           </>
         )}
         {sourceUsage.windows.length > 0 ? <Text color={tok.textMuted}>{'   ·   '}</Text> : null}
-        {sourceUsage.windows[0] !== undefined ? (
-          <UsageMeter compact window={sourceUsage.windows[0].label} state={sourceUsage.windows[0].state} value={sourceUsage.windows[0].usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: sourceUsage.windows[0].resetsAtMs ?? null })} />
+        {stripFirst !== undefined ? (
+          <UsageMeter compact window={stripFirst.label} state={stripFirst.state} value={stripFirst.usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: stripFirst.resetsAtMs ?? null })} />
         ) : null}
-        {sourceUsage.windows[1] !== undefined && cols >= LAYOUT_BREAKPOINTS.cockpitMin ? (
+        {stripSecond !== undefined && cols >= LAYOUT_BREAKPOINTS.cockpitMin ? (
           <>
             <Text color={tok.textMuted}> {GLYPH.dot} </Text>
-            <UsageMeter compact window={sourceUsage.windows[1].label} state={sourceUsage.windows[1].state} value={sourceUsage.windows[1].usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: sourceUsage.windows[1].resetsAtMs ?? null })} />
+            <UsageMeter compact window={stripSecond.label} state={stripSecond.state} value={stripSecond.usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: stripSecond.resetsAtMs ?? null })} />
           </>
         ) : null}
         {((): React.ReactNode => {

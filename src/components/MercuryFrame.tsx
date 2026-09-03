@@ -225,7 +225,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     const numberOnly = tier.numberOnlyGauges
     const showSecond = tier.show7dGauge
     const first = usage.windows[0]
-    const second = usage.windows[1]
+    const second =
+      usage.binding !== undefined && first !== undefined && usage.binding.window.key !== first.key
+        ? usage.binding.window
+        : usage.windows[1]
     const limited = usage.limited
     usageNode =
       first !== undefined || limited !== undefined ? (

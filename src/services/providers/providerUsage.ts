@@ -32,6 +32,7 @@ import {
   USAGE_RESPONSE_FRESH_MS,
   usageFreshness,
   usageSourceWords,
+  usageStaleTail,
   type UsageFeed,
 } from './usageFreshness.js'
 import {
@@ -263,6 +264,7 @@ export interface UsageBindingView {
 export interface UsageCreditsView {
   state: 'reported' | 'unreported'
   display?: string
+  compact?: string
   source?: UsageFeed
   observedAtMs?: number
   freshForMs?: number
@@ -563,11 +565,31 @@ export function usageResetWords(resetsAtMs: number | undefined, now: number = Da
   return `resets ${formatClock(resetsAtMs)} (in ${formatCountdown(resetsAtMs - now)})`
 }
 
-export function usageCreditsLine(credits: UsageCreditsView | undefined, now: number = Date.now()): string | undefined {
+export function usageCreditsWords(
+  credits: UsageCreditsView | undefined,
+  now: number = Date.now(),
+  style: 'prose' | 'compact' = 'prose',
+): string | undefined {
   if (credits === undefined) return undefined
-  if (credits.state === 'unreported') return `credits: ${credits.reason ?? CREDITS_UNREPORTED_WORDS}`
+  if (credits.state === 'unreported') {
+    return style === 'compact' ? (credits.compact ?? 'not reported') : (credits.reason ?? CREDITS_UNREPORTED_WORDS)
+  }
+  if (style === 'compact') {
+    const stale = usageStaleTail(credits, now)
+    return `${credits.compact ?? credits.display ?? ''}${stale !== undefined ? ` ${stale}` : ''}`
+  }
   const words = usageSourceWords(credits, now)
-  return `credits: ${credits.display ?? ''}${words !== undefined ? ` · ${words}` : ''}`
+  return `${credits.display ?? ''}${words !== undefined ? ` · ${words}` : ''}`
+}
+
+export function usageCreditsLine(
+  credits: UsageCreditsView | undefined,
+  now: number = Date.now(),
+  style: 'prose' | 'compact' = 'prose',
+): string | undefined {
+  const words = usageCreditsWords(credits, now, style)
+  if (words === undefined) return undefined
+  return style === 'compact' ? `credits ${words}` : `credits: ${words}`
 }
 
 export function freshestUsageView(views: readonly UsageWindowView[]): UsageWindowView | undefined {
@@ -636,36 +658,37 @@ export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWi
 function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastError?: string }): UsageCreditsView {
   const usage = observed.usage
   if (usage === null) {
-    return {
-      state: 'unreported',
-      reason:
-        observed.lastError !== undefined
-          ? `not read — ${observed.lastError}`
-          : 'not read yet — /usage samples the key endpoint',
-    }
+    return observed.lastError !== undefined
+      ? { state: 'unreported', reason: `not read — ${observed.lastError}`, compact: 'not read' }
+      : { state: 'unreported', reason: 'not read yet — /usage samples the key endpoint', compact: 'not read yet' }
   }
   if (typeof usage.limitRemaining === 'number') {
     return {
       state: 'reported',
       display: `${usage.limitRemaining.toFixed(2)} remaining under the key cap`,
+      compact: `cap ${usage.limitRemaining.toFixed(2)}`,
       source: 'endpoint',
       observedAtMs: usage.observedAtMs,
       freshForMs: USAGE_POLL_TTL_MS,
     }
   }
   if (usage.limit === null) {
-    return { state: 'unreported', reason: 'the key endpoint states no balance for an uncapped key — the OpenRouter dashboard is the view' }
+    return {
+      state: 'unreported',
+      reason: 'the key endpoint states no balance for an uncapped key — the OpenRouter dashboard is the view',
+      compact: 'not stated',
+    }
   }
-  return { state: 'unreported', reason: 'the key endpoint stated no cap or balance' }
+  return { state: 'unreported', reason: 'the key endpoint stated no cap or balance', compact: 'not stated' }
 }
 
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
   return balance !== undefined
-    ? { state: 'reported', display: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: USAGE_POLL_TTL_MS }
-    : { state: 'unreported', reason: 'not read yet — /usage samples the balance endpoint' }
+    ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: USAGE_POLL_TTL_MS }
+    : { state: 'unreported', reason: 'not read yet — /usage samples the balance endpoint', compact: 'not read yet' }
 }
 
-const CREDITS_UNREPORTED: UsageCreditsView = { state: 'unreported', reason: CREDITS_UNREPORTED_WORDS }
+const CREDITS_UNREPORTED: UsageCreditsView = { state: 'unreported', reason: CREDITS_UNREPORTED_WORDS, compact: 'not reported' }
 
 export function openrouterCreditFacts(reads?: ActiveUsageReads): {
   usage: OpenrouterKeyUsage | null

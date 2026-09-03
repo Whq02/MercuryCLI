@@ -20,8 +20,9 @@ import {
 } from '../utils/cockpit/index.js'
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
-import { formatCountdown } from '../utils/cockpit/quota.js'
-import { windowSourceUsages } from '../services/providers/providerUsage.js'
+import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
+import { usageCreditsLine, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { NO_USAGE_READ_WORDS, usageStaleTail } from '../services/providers/usageFreshness.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -185,8 +186,12 @@ function HelmTelemetryRailImpl({
   const consoleCount = consoleOn ? getConsoleAskCount() : 0
   const { rows: termRows } = useTerminalSize()
   const now = useNowTick(consolePending ? 1000 : 30_000)
-  const resetIn = (resetsAtMs?: number): string | undefined =>
-    resetsAtMs != null ? formatCountdown(resetsAtMs - now) : undefined
+  const meterTail = (w: UsageWindowView, pool: boolean): string | undefined => {
+    const stale = usageStaleTail(w, now)
+    if (stale !== undefined) return stale
+    if (w.resetsAtMs == null) return undefined
+    return pool ? formatCountdownCoarse(w.resetsAtMs - now) : formatCountdown(w.resetsAtMs - now)
+  }
   const usageEmpty = usage.shape !== 'api-spend' && liveWindows.length === 0
 
   useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
@@ -234,15 +239,29 @@ function HelmTelemetryRailImpl({
         )
       })(),
     )
+    const credits = usageCreditsLine(usage.credits, now, 'compact')
+    if (credits !== undefined) {
+      usageNodes.push(
+        <Box key="usage:credits" width={rowW}>
+          <Text wrap="truncate-end">
+            <Text color={tok.textMuted}>{`  ${credits}`}</Text>
+          </Text>
+        </Box>,
+      )
+    }
   } else if (usageEmpty && usage.sourceKind === 'none') {
     usageNodes.push(<EmptyHint key="usage:whynot" text={usage.whyNot ?? 'not connected'} width={rowW} />)
   } else if (usageEmpty && usage.absence) {
     usageNodes.push(<EmptyHint key="usage:absence" text={usage.absence} width={rowW} />)
   } else if (usageEmpty) {
-    usageNodes.push(<EmptyHint key="usage:none" text="fills after first reply" width={rowW} />)
+    usageNodes.push(<EmptyHint key="usage:none" text={`${NO_USAGE_READ_WORDS} · fills after first reply`} width={rowW} />)
   } else {
     const windowCommand = usage.provider === 'anthropic' ? '/deck' : '/usage'
-    for (const w of liveWindows) {
+    const meterRows: Array<{ w: UsageWindowView; pool: boolean }> = [
+      ...liveWindows.map(w => ({ w, pool: false })),
+      ...usage.pools.filter(w => w.state === 'live').map(w => ({ w, pool: true })),
+    ]
+    for (const { w, pool } of meterRows) {
       usageNodes.push(
         ((): React.ReactNode => {
           const i = sel({ kind: 'command', command: windowCommand, label: `usage:${w.key}` })
@@ -255,7 +274,7 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={resetIn(w.resetsAtMs)}
+                  resetIn={meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
@@ -284,7 +303,11 @@ function HelmTelemetryRailImpl({
         </Text>
       </Box>,
     )
-    for (const w of other.windows.filter(x => x.state === 'live')) {
+    const otherRows: Array<{ w: UsageWindowView; pool: boolean }> = [
+      ...other.windows.filter(x => x.state === 'live').map(w => ({ w, pool: false })),
+      ...other.pools.filter(x => x.state === 'live').map(w => ({ w, pool: true })),
+    ]
+    for (const { w, pool } of otherRows) {
       usageNodes.push(
         ((): React.ReactNode => {
           const i = sel({ kind: 'command', command: otherCommand, label: `usage:${other.provider}:${w.key}` })
@@ -297,7 +320,7 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={resetIn(w.resetsAtMs)}
+                  resetIn={meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
