@@ -54,40 +54,6 @@ export function currentProcStart(): string | undefined {
   return procStartToken(process.pid)
 }
 
-/**
- * The procfs LIVENESS read (linux only) — the same start-time token as
- * procStartToken, judged with the process STATE: a token when the pid still
- * holds a live process (a stopped one included — SIGSTOP is not death); ''
- * when the pid holds nothing — no stat file, or a zombie/dead state whose
- * process has already exited and merely awaits its parent's wait(2); null
- * when the stat file exists but cannot be read (another user's process
- * under hidepid — unknowable here, the caller's other roads decide).
- * Undefined off linux, so a caller can fall through to its own road.
- *
- * ONE token family per platform is the whole point: a record stamped from
- * this file must be judged against this file. Judged against ps(1)'s lstart
- * string instead, a clock-tick token always differs, the pid reads as
- * REUSED, and a LIVE holder's lock is reclaimed from under it — the
- * contender is co-admitted and the busy error names no holder.
- */
-export function procLiveToken(pid: number): string | null | undefined {
-  if (process.platform !== 'linux') return undefined
-  let stat: string
-  try {
-    stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
-  } catch (e) {
-    const code = (e as NodeJS.ErrnoException).code
-    return code === 'ENOENT' || code === 'ESRCH' ? '' : null
-  }
-  const closeParen = stat.lastIndexOf(')')
-  if (closeParen === -1) return null
-  const tail = stat.slice(closeParen + 2).split(' ')
-  const state = tail[0]
-  if (state === 'Z' || state === 'X' || state === 'x') return ''
-  const token = tail[19]
-  return token && token.length > 0 ? token : null
-}
-
 const ANCESTOR_TIMEOUT_MS = 3000
 
 /**

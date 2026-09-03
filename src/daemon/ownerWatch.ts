@@ -28,7 +28,6 @@
 // ============================================================================
 
 import { execFile, spawnSync } from 'node:child_process'
-import { procLiveToken } from '../utils/genericProcessUtils.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { existsSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
@@ -123,12 +122,6 @@ export function getProcessStartToken(pid: number): string | null {
       })
       return win32StartTokenVerdict({ ran: !r.error, exitCode: r.status, stdout: r.stdout, stderr: r.stderr })
     }
-    // Linux answers from procfs — the SAME family the claim stamps
-    // (currentProcStart), read with the process state so a zombie is gone
-    // and a stopped holder is alive; ps(1) is the road only where the stat
-    // file cannot be read.
-    const local = procLiveToken(pid)
-    if (local !== undefined && local !== null) return local
     const r = spawnSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
       windowsHide: true,
       encoding: 'utf-8',
@@ -175,12 +168,6 @@ export function getProcessStartTokenAsync(pid: number): Promise<string | null> {
             resolve(win32StartTokenVerdict({ ran: true, exitCode, stdout, stderr }))
           },
         )
-        return
-      }
-      // The procfs family on linux (see the sync form) — no spawn at all.
-      const local = procLiveToken(pid)
-      if (local !== undefined && local !== null) {
-        resolve(local)
         return
       }
       execFile(

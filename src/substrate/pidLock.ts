@@ -44,7 +44,7 @@ import {
 } from './durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode } from '../utils/errors.js'
-import { procLiveToken, currentProcStart } from '../utils/genericProcessUtils.js'
+import { procStartToken, currentProcStart } from '../utils/genericProcessUtils.js'
 import { getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '../daemon/ownerWatch.js'
 import { safeParseJSON } from '../utils/json.js'
 import { sleep } from '../utils/sleep.js'
@@ -55,10 +55,7 @@ export type LivenessPolarity = 'assume-alive' | 'assume-dead'
 /** The claimer's own start token for the record — linux /proc first (free),
  *  else the cross-platform owner's async probe (one spawn per CLAIM, never
  *  per probe); a gone/unknown answer records no field, which keeps today's
- *  pid-only behavior for that record. The probe that later judges the
- *  record (liveTokenFor) answers the SAME family on every platform — the
- *  owner reads procfs on linux too — so a live holder never reads as a
- *  reused pid. */
+ *  pid-only behavior for that record. */
 async function currentProcStartAnyPlatform(): Promise<{ procStartField: { procStart: string } | Record<string, never> }> {
   const local = currentProcStart()
   if (local) return { procStartField: { procStart: local } }
@@ -171,13 +168,12 @@ export function holderAlive(
     // LIVE forever — the scheduler seat never fired again and the daemon
     // seat refused every start. Async callers pre-fetch the live token
     // through the one cross-platform owner (ownerWatch: ps lstart / win32
-    // CIM CreationDate; linux /proc — the family the claim stamps) and pass
-    // it here; the sync fallback reads linux /proc with the process state,
-    // else the cached-or-refresh form that NEVER spawns on the loop.
+    // CIM CreationDate) and pass it here; the sync fallback reads linux
+    // /proc, else the cached-or-refresh form that NEVER spawns on the loop.
     // Vocabulary: '' = the pid is GONE, a token = compare, null/undefined =
     // unknowable ⇒ alive (never a death verdict from a probe glitch).
     const current =
-      liveToken !== undefined ? liveToken : (procLiveToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid))
+      liveToken !== undefined ? liveToken : (procStartToken(holder.pid) ?? getProcessStartTokenCachedOrRefresh(holder.pid))
     if (current === '') return false
     if (current !== null && current !== undefined && current !== holder.procStart) return false
   }
