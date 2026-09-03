@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -48,14 +49,15 @@ const sends = [
   'after:↑↓ choose:1500:\r',
   'after:↑↓ choose:4500:hello plain world',
   'after:↑↓ choose:5700:\r',
-  'after:↑↓ choose:10500:/party',
+  'after:↑↓ choose:10500:/fleet',
   'after:↑↓ choose:11700:\r',
 ]
+const WALL_S = driveWallSeconds(sends)
 const child = spawn(
   '/usr/bin/python3',
   [
     join(REPO, 'scripts', 'streaming', 'ptydrive.py'),
-    '--cols', '110', '--rows', '32', '--seconds', '17', '--out', drive,
+    '--cols', '110', '--rows', '32', '--seconds', String(WALL_S), '--out', drive,
     ...sends.flatMap(s => ['--send', s]),
     '--', nodeBin, DIST, '--chat',
   ],
@@ -83,8 +85,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 17_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 await api.close()
 
@@ -109,7 +111,7 @@ type Rec = { sent?: number; ts?: number }
 const recs: Rec[] = readFileSync(drive, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
-check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}`)
+check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 const submitAt = Math.round((sendRecs[4]?.sent ?? firstOut) - firstOut)
 
 const res = spawnSync(
@@ -142,15 +144,15 @@ if (existsSync(projectsDir)) {
 check('§3 a transcript exists (the seeded turn persisted)', transcriptBytes.includes('hello plain world'))
 check(
   '§3 NO transcript byte carries the gated command or a refusal sentence',
-  !transcriptBytes.includes('/party') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
+  !transcriptBytes.includes('/fleet') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
 )
 const doubled = /· ready · [^\n·]+ · ready/
 check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
 const statusRows = joined.split('\n').filter(r => /· ready|· thinking|· running a tool|· replying|esc interrupts/.test(r))
 check('§3c after the first words the status row names them (stage 2), not "new session"', statusRows.length > 0 && statusRows.some(r => /hello plain world/.test(r)) && !statusRows.some(r => /new session ·/.test(r)), statusRows.map(r => r.trim().slice(0, 100)).slice(0, 2).join(' | ') || 'no status row')
-const typedNeedle = /(?<![:/\w])\/party\b/
+const typedNeedle = /(?<![:/\w])\/fleet\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
-check('§4 the wire never saw /party', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
+check('§4 the wire never saw /fleet', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
 for (const hit of wireHits.slice(0, 2)) {
   const raw = (hit as { raw: string }).raw
   const idx = raw.search(typedNeedle)

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -54,17 +55,17 @@ const sends = [
   after(8800, 'n'),
   after(10200, ESC),
   after(13600, `${ESC}[1;2D`),
-  after(14600, '\t'),
   after(15400, 'n'),
   after(16600, '\r'),
   after(17600, CONTRACT_WORDS),
   after(19000, '\r'),
 ]
+const WALL_S = driveWallSeconds(sends, { tailMs: 2500 })
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
   '/usr/bin/python3',
-  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '24', '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
+  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
     env: {
@@ -72,6 +73,7 @@ const child = spawn(
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'xterm-256color',
+      MERCURY_SPLASH: 'off',
       MERCURY_CONFIG_DIR: configDir,
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
@@ -89,8 +91,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 24_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 await api.close()
 const reaped: number[] = []
@@ -112,7 +114,7 @@ type Rec = { sent?: number; ts?: number }
 const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : []
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
-check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-250)}` : ''}`)
+check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
   const at = (i: number): number => Math.round(sendRecs[i]!.sent! - firstOut)
   const res = spawnSync(
@@ -125,9 +127,9 @@ if (sendRecs.length === sends.length) {
       String(at(2) + 3000),
       String(at(5) + 900),
       String(at(6) + 2500),
+      String(at(9) + 900),
       String(at(10) + 900),
-      String(at(11) + 900),
-      String(at(12) + 2500),
+      String(at(11) + 2500),
       '-1',
     ],
     { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
@@ -141,7 +143,7 @@ if (sendRecs.length === sends.length) {
   check('§1 the n tab raises the offer card in the live-view pane', /Start with a contract\?/.test(cardFrame!) && /No, start it plain \(esc\)/.test(cardFrame!))
   check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (stage-1 tag)', /new session ·/.test(afterEsc!) && /· ready/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /· ready|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check("§2c POISON: it is never the OLD chat (the pre-fix esc landed the first session's transcript)", !/first words here/.test(afterEsc!))
-  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').find(r => /contract/i.test(r))?.trim().slice(0, 110) ?? '')
+  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
   check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!))
   check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!))
   check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!))
