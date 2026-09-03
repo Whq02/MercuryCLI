@@ -46,9 +46,16 @@ bun run verify                     # every suite, pooled; exit 0 is green
 ```
 
 Run the suite nearest to what you changed while iterating; `bun run verify`
-is the closing check, and its exit status is the verdict. [AGENTS.md](AGENTS.md)
-is the one-screen build guide, and [BUILD-NOTES.md](BUILD-NOTES.md) covers the
-build itself.
+is the closing check, and its exit status is the verdict. Hosted, the gate is
+two verdicts split by each suite's `# gate-class:` header: `gate.yml` plans the
+deterministic suites (pure, cpu, exclusive) and is the verdict a release
+carries; `drives.yml` plans the real-terminal suites (pty), which report on
+their own with the flake retry and never block a release. A suite whose
+provers boot the built bundle in a pseudo-terminal is a pty suite whatever
+its header says — the gate suite's census reds the mismatch — and a mixed
+suite keeps its deterministic provers and moves the drives into a
+`<suite>-drives` member suite. [AGENTS.md](AGENTS.md) is the one-screen build
+guide, and [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 
 ## Conventions
 
