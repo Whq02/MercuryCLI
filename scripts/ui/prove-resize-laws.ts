@@ -254,14 +254,14 @@ console.log('§9 D5 — the collapse notice dies when the frame affords again')
     screen.includes('else if (splitAvailableAt(termCols, termRows)) {') &&
       screen.includes("prev.text.startsWith('split collapsed') ? null : prev"),
   )
-  const { collapseSplitForFrame, toggleSplitView, _resetSplitViewForTesting, splitAvailableAt } = await import(
+  const { collapseSplitForFrame, toggleSplitView, _resetSplitViewForTesting, splitAvailableAt, SPLIT_MIN_ROWS } = await import(
     '../../src/components/concourse/splitView.ts'
   )
   _resetSplitViewForTesting()
   toggleSplitView(200, 50)
-  const c = collapseSplitForFrame(130, 23)
+  const c = collapseSplitForFrame(130, SPLIT_MIN_ROWS - 1)
   check('the collapse line the clearer keys on is the one the store speaks', c.collapsed === true && c.line.startsWith('split collapsed'))
-  check('affordance is the same predicate the effect reads', splitAvailableAt(200, 50) && !splitAvailableAt(130, 23))
+  check('affordance is the same predicate the effect reads', splitAvailableAt(200, 50) && !splitAvailableAt(130, SPLIT_MIN_ROWS - 1))
   _resetSplitViewForTesting()
 }
 
@@ -459,7 +459,10 @@ console.log('§15 — the viewport floor: one verdict, one line, one latch')
   const router = read('src/components/SurfaceRouter.tsx')
   check(
     'the route surface host reads the same floor on the live size and yields the frame under it',
-    router.includes('const floor = useViewportFloor(useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext), true)') &&
+    // 74f9fb4: both size contexts are read on every render into named
+    // consts (hooks run unconditionally); the floor reads the live one and
+    // falls back to the base — the same law, the spelling moved.
+    router.includes('const floor = useViewportFloor(hostLiveSize ?? hostBaseSize, true)') &&
       router.includes("display={floor.fits ? 'flex' : 'none'}") &&
       router.includes('<TerminalSizeContext.Provider value={floor.surfaceSize}>'),
   )

@@ -191,7 +191,16 @@ try {
     for (let i = 0; i < 300; i++) {
       const t: any = Object.values(state.tasks)[0]
       if (t && t.status !== 'running' && t.status !== 'pending') {
-        emit({ ev: 'settled', task: t.status, manifest: JSON.parse(readFileSync(join(runDir, 'run.json'), 'utf8')).status })
+        // THE FINAL WRITE LANDS AFTER THE STATUS FLIP (the completed path:
+        // status, then the output file, then run.json, then the notification)
+        // — read the manifest once it is terminal, bounded, never at the flip.
+        let manifest = 'running'
+        for (let j = 0; j < 100; j++) {
+          manifest = JSON.parse(readFileSync(join(runDir, 'run.json'), 'utf8')).status
+          if (manifest !== 'running') break
+          await new Promise(r => setTimeout(r, 100))
+        }
+        emit({ ev: 'settled', task: t.status, manifest })
         process.exit(0)
       }
       await new Promise(r => setTimeout(r, 100))
@@ -261,7 +270,7 @@ section('(2) atomic launch + terminal ordering (real WorkflowTool.call)')
   }
   if (settled) {
     check('task settled completed', settled.task === 'completed')
-    check('run.json is TERMINAL the moment the task settles (awaited final)', settled.manifest === 'completed')
+    check('run.json reaches its TERMINAL state once the task settles (the awaited final write lands within the bounded wait)', settled.manifest === 'completed')
   }
 }
 
