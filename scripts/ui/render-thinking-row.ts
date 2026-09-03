@@ -20,8 +20,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const ROW = /✳︎? thinking…/
-const ROW_WITH_CUE = /✳︎? thinking…\s*⌄/
+const ROW = /✻ thinking…/
+const ROW_WITH_CUE = /✻ thinking…\s*⌄/
 
 for (const cols of [120, 100]) {
   console.log(`\n── thinking-row @ ${cols} cols ──`)
