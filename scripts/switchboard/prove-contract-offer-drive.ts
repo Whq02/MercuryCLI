@@ -86,14 +86,17 @@ const sends = [
   after(10200, ESC), // 6 esc = "No, start it plain" → the SECOND birth
   // The second birth lands its chat by ~+2500 (§2's own frame); the next
   // chord waits a full second past that so it never races the landing.
-  after(13600, `${ESC}[1;2D`), // 7 ⇧← the board again (from the new chat)
-  after(14600, '\t'), // 8 → list
-  after(15400, 'n'), // 9 the New Session tab → the card again
-  after(16600, '\r'), // 10 ↵ = "Yes — write it here" (the focused first row) → the field opens IN the card
-  after(17600, CONTRACT_WORDS), // 11 the words, typed into the card's own field
-  after(19000, '\r'), // 12 ↵ births the THIRD session under the words
+  // The board comes back in the LIST region: the capsule restores the region
+  // the board was left from, and the n that raised the first card fired from
+  // the list — a tab here would move on to the live composer and the next
+  // keys would type a prompt into the first session instead.
+  after(13600, `${ESC}[1;2D`), // 7 ⇧← the board again (from the new chat) — the list, by the capsule
+  after(15400, 'n'), // 8 the New Session tab → the card again
+  after(16600, '\r'), // 9 ↵ = "Yes — write it here" (the focused first row) → the field opens IN the card
+  after(17600, CONTRACT_WORDS), // 10 the words, typed into the card's own field
+  after(19000, '\r'), // 11 ↵ births the THIRD session under the words
 ]
-const WALL_S = driveWallSeconds(sends, { tailMs: 2500 }) // the last grab is at(12) + 2500
+const WALL_S = driveWallSeconds(sends, { tailMs: 2500 }) // the last grab is at(11) + 2500
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
@@ -164,9 +167,9 @@ if (sendRecs.length === sends.length) {
       String(at(2) + 3000), // the first chat, its answer settled (the transcript needle's own proof)
       String(at(5) + 900), // the card
       String(at(6) + 2500), // after esc: the second (blank) chat
-      String(at(10) + 900), // after Yes: the field open INSIDE the card
-      String(at(11) + 900), // the words typed into the card
-      String(at(12) + 2500), // after ↵: the third chat
+      String(at(9) + 900), // after Yes: the field open INSIDE the card
+      String(at(10) + 900), // the words typed into the card
+      String(at(11) + 2500), // after ↵: the third chat
       '-1',
     ],
     { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
@@ -190,7 +193,7 @@ if (sendRecs.length === sends.length) {
   // the card, painted the FIRST session's transcript in the pane and put
   // the compose context under the live box — the sibling's answer tail
   // and the retired context line are the two poisons.
-  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').find(r => /contract/i.test(r))?.trim().slice(0, 110) ?? '')
+  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
   check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!))
   check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!))
   check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!))
