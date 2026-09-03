@@ -136,6 +136,15 @@ for (;;) {
   if (Date.now() > deadline) { emit({ ev: 'timeout', status: task?.status }); process.exit(1) }
   await new Promise(r => setTimeout(r, 80))
 }
+// THE CONTRACT IS THE NOTIFICATION: the task's live status flips first, the
+// output file and run.json's terminal write follow, and the notification is
+// enqueued LAST so whoever hears the run ended finds a run.json that agrees
+// (WorkflowTool.tsx's completed path). A read at the status flip raced those
+// writes on a loaded box (pool run 7) — settle on the notification, bounded.
+const noteDeadline = Date.now() + 10_000
+while (Date.now() < noteDeadline && !getCommandQueueSnapshot().some((c: any) => c.mode === 'task-notification' && String(c.value ?? '').includes(d.taskId))) {
+  await new Promise(r => setTimeout(r, 50))
+}
 const manifest = JSON.parse(readFileSync(join(d.transcriptDir, 'run.json'), 'utf8'))
 const agentFrames = (task.workflowProgress ?? []).filter((e: any) => e.type === 'workflow_agent')
 // Task notifications are 'task-notification' rows in the ONE command queue
