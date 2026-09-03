@@ -66,7 +66,7 @@ import { applyMarkdown } from '../../../utils/markdown.js'
 import { isPlanModeInterviewPhaseEnabled } from '../../../utils/planModeV2.js'
 import { getPlanFilePath } from '../../../utils/plans.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
-import { OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
+import { composeAnswer, OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
 import { QuestionView } from './QuestionView.js'
 import { SubmitQuestionsView } from './SubmitQuestionsView.js'
 
@@ -316,31 +316,21 @@ function AskUserQuestionPermissionRequestBody(
       if (!q) return
       const isMulti = Array.isArray(label)
       const labels = isMulti ? label : [label]
-      const optionIds = labels
-        .filter(l => l !== OTHER_OPTION_VALUE)
-        .map(l => q.options.find(o => o.label === l)?.id)
-        .filter((id): id is string => !!id)
       // The Other row in the answer means its text is in the answer: the
       // text the view hands over (the field as it stands), else the newest
       // text the authority holds.
-      const other = labels.includes(OTHER_OPTION_VALUE)
       const live = interviewSnapshot().questions[q.id]
-      const typed = (textInput ?? live?.draft?.freeText ?? live?.committed?.freeText ?? '').trim()
+      const typed = textInput ?? live?.draft?.freeText ?? live?.committed?.freeText ?? ''
       const hasImage = session.context.some(
         c =>
           c.kind === 'image' &&
           (session.contextScope[c.refId] === undefined || session.contextScope[c.refId] === q.id),
       )
-      const freeText = other
-        ? typed
-          ? hasImage
-            ? `${typed} (Image attached)`
-            : typed
-          : hasImage
-            ? '(Image attached)'
-            : undefined
-        : undefined
-      commitAnswer(q.id, { optionIds, ...(freeText ? { freeText } : {}) })
+      const { commit, keptDraft } = composeAnswer({ question: q, labels, typed, hasImage })
+      commitAnswer(q.id, commit)
+      // The commit fold clears the draft; a single-select answered by a row
+      // re-drafts the typed Other text so it stays in the question state.
+      if (keptDraft) draftAnswer(q.id, keptDraft)
       const isSingleQuestion = questions.length === 1
       if (!isMulti && isSingleQuestion && shouldAdvance) {
         handleSubmit().catch(logError)

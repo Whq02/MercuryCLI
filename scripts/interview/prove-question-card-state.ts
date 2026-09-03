@@ -40,7 +40,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { OTHER_OPTION_VALUE, projectQuestionState } = await import(
+const { OTHER_OPTION_VALUE, composeAnswer, projectQuestionState } = await import(
   '../../src/components/permissions/AskUserQuestionPermissionRequest/questionState.ts'
 )
 const { focusSeedAfterOptionsChange } = await import('../../src/components/CustomSelect/use-select-navigation.ts')
@@ -107,6 +107,36 @@ const answer = (optionIds: string[], freeText?: string): Answer => ({ optionIds,
 {
   const p = projectQuestionState(state(single, { committed: answer(['io_b']), note: 'keep it small' }))
   check('preview: the note is the projected text', p.textInputValue === 'keep it small' && p.selectedValue === 'In-memory')
+}
+
+// ── §1b the answer composition ─────────────────────────────────────────────
+section('§1b composeAnswer: a row keeps the typed Other text as an uncommitted draft; a submit carries the row')
+{
+  const r = composeAnswer({ question: single, labels: ['In-memory'], typed: 'orchard', hasImage: false })
+  check('single, a row chosen with text typed under Other: the commit is the row alone', r.commit.optionIds.join(',') === 'io_b' && r.commit.freeText === undefined)
+  check('…and the typed text is KEPT as a draft (the lost-input law)', r.keptDraft !== undefined && r.keptDraft.freeText === 'orchard' && r.keptDraft.optionIds.join(',') === 'io_b')
+  const p = projectQuestionState(state(single, { committed: r.commit, draft: r.keptDraft }))
+  check('…so the projection selects the row and shows the text under Other (the highlight back on E finds it)', p.selectedValue === 'In-memory' && p.textInputValue === 'orchard')
+}
+{
+  const r = composeAnswer({ question: single, labels: [OTHER_OPTION_VALUE], typed: 'orchard', hasImage: false })
+  check('single, Other chosen: the commit is the text, nothing kept aside', r.commit.optionIds.length === 0 && r.commit.freeText === 'orchard' && r.keptDraft === undefined)
+}
+{
+  const r = composeAnswer({ question: single, labels: ['In-memory'], typed: '', hasImage: false })
+  check('single, a row chosen with an EMPTY field: nothing to keep', r.keptDraft === undefined && r.commit.freeText === undefined)
+}
+{
+  const r = composeAnswer({ question: single, labels: [OTHER_OPTION_VALUE], typed: '', hasImage: true })
+  check('single, Other chosen with only an image attached: the commit says so', r.commit.freeText === '(Image attached)')
+}
+{
+  const r = composeAnswer({ question: multi, labels: ['Redis', OTHER_OPTION_VALUE], typed: 'plums', hasImage: false })
+  check('multi, the Other row in the answer: the commit carries the rows AND the text', r.commit.optionIds.join(',') === 'io_a' && r.commit.freeText === 'plums' && r.keptDraft === undefined)
+}
+{
+  const r = composeAnswer({ question: multi, labels: ['Redis'], typed: 'stale', hasImage: false })
+  check('multi, the Other row NOT in the answer: no text rides the commit', r.commit.freeText === undefined && r.keptDraft === undefined)
 }
 
 // ── §2 the focus seed ──────────────────────────────────────────────────────
