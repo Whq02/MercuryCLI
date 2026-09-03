@@ -454,9 +454,14 @@ export function getAssistantMessageFromError(
   const status = statusOf(error)
   const nonInteractive = getIsNonInteractiveSession()
 
-  // 1. Timeout.
+  // 1. Timeout. The first-byte budget's own timeout carries the typed line
+  // naming the wait (the model, the budget, the uncached ingest) — the row
+  // keeps it; the generic sentence is for the SDK's own bare timeout.
   if (isTimeoutError(error)) {
-    return createAssistantAPIErrorMessage({ content: API_TIMEOUT_ERROR_MESSAGE, error: 'unknown' })
+    return createAssistantAPIErrorMessage({
+      content: /^no first byte from /.test(message) ? `${message} — the turn was aborted` : API_TIMEOUT_ERROR_MESSAGE,
+      error: 'unknown',
+    })
   }
 
   // 2. Local image validation/resize failures (thrown before the call).
