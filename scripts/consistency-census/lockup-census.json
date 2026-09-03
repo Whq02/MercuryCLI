@@ -28,7 +28,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 307,
+      "line": 321,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -36,7 +36,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 358,
+      "line": 372,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -52,7 +52,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 631,
+      "line": 645,
       "kind": "crab",
       "excerpt": "// crab here; a crab session renders byte-identically to the old <Crab/>.",
       "role": "compact-status-inline",
@@ -60,7 +60,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 638,
+      "line": 652,
       "kind": "session-mark",
       "excerpt": "<SessionMark />",
       "role": "compact-status-inline",
