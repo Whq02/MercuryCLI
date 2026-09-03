@@ -148,6 +148,7 @@ import {
   landingInFlight,
   subscribeFocusedSessionConnector,
   subscribeThroughFocused,
+  conversationIdHere,
 } from '../services/engine-connector/focusedConnector.js';
 import {
   enteringWarmth,
@@ -896,7 +897,12 @@ export function REPL({
     // keystrokes typed while Mercury was starting land in the composer —
     // initSession's "early input wins" resolution was designed for exactly
     // this argument, and a hardcoded '' silently discarded the buffer.
-    pendingInput.initSession(getSessionId(), consumeEarlyInput());
+    // The owner is THE CONVERSATION THE OPERATOR IS IN: a boot-flag resume
+    // seats the adopted chat before this screen mounts, so the slot may
+    // already hold a session here — the re-key effect below sees no
+    // transition then, and a seed under the boot's own id would key every
+    // persisted draft by an id no transcript carries.
+    pendingInput.initSession(conversationIdHere(), consumeEarlyInput());
     return null;
   });
   const setInputValue = useCallback((value: string) => {
