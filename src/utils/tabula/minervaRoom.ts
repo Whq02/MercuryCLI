@@ -42,7 +42,7 @@ import {
   refineSavedPrompt,
   type SavedPromptV1,
 } from '../savedPrompts/savedPromptsStore.js'
-import { minervaIdentityLine } from './minerva.js'
+import { minervaEffort, minervaIdentityLine } from './minerva.js'
 import { isTabulaEnabled } from './tabulaGates.js'
 
 // ── caps ────────────────────────────────────────────────────────────────────
@@ -426,6 +426,7 @@ export async function runMinervaRoomMessage(
       signal: opts?.signal ?? new AbortController().signal,
       options: {
         model: slot.model,
+        ...minervaEffort(slot.model),
         querySource: 'tabula_minerva_chat',
         agents: [],
         isNonInteractiveSession: true,
