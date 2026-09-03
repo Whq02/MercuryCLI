@@ -39,6 +39,7 @@ import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIE
 import { interpretCommandResult } from './commandSemantics.js'
 import { getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
+import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
 import { checkReadOnlyConstraints } from './readOnlyValidation.js'
 import { bashToolHasPermission } from './bashPermissions.js'
@@ -309,7 +310,7 @@ async function* runBash(
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
   const useSandbox = shouldUseSandbox(input)
   const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
-  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstSubcommand)
+  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
 
   let progressResolve: (() => void) | null = null
   let latest: { recent: string; all: string; lines: number; bytes: number; incomplete: boolean } = {
@@ -530,6 +531,7 @@ async function* runBash(
 
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
+    if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
     const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
     const returnCodeInterpretation = interpretation.message
     const noOutputExpected = isSilentCommand(input.command)
