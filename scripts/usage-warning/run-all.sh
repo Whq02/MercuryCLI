@@ -7,7 +7,7 @@ set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 overall=0
-for suite in prove-provider-limit-warning prove-limit-warning-relay prove-warning-strip-captures; do
+for suite in prove-provider-limit-warning prove-limit-warning-relay prove-warning-strip-captures prove-usage-pools-captures; do
   echo "── $suite"
   "$bun" run "$here/$suite.ts"
   rc=$?

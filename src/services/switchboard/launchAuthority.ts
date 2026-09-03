@@ -31,19 +31,28 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { readSessionWorkers, stampedTerminalPid } from '../../daemon/concourseSupervisor.js'
 import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchState } from './spawnSwitches.js'
 
 export type LaunchAuthority =
   | { allowed: true; posture: 'attached-or-plain' | 'focused' | 'tagged-background' }
-  | { allowed: false; reason: string }
+  | { allowed: false; reason: string; cause: 'session-switch' | 'backgrounded' }
 
 /**
  * Decide whether THIS process may launch subagents/workflows right now.
  * `probe` exists for provers only — production callers pass nothing.
+ *
+ * THE SESSION'S OWN SWITCH is read first (spawnSwitches — the boot menu's
+ * Agents rows at birth, the in-session toggle afterwards): a switch that is
+ * off refuses with the one receipt every spawn road answers, whatever the
+ * seat's posture; the record's focus and grant arms decide only while the
+ * switch is on.
  */
 export function evaluateLaunchAuthority(
   kind: 'subagents' | 'workflows',
-  probe?: { dir?: string; sessionId?: string; roleEnvOn?: boolean },
+  probe?: { dir?: string; sessionId?: string; roleEnvOn?: boolean; spawnSwitch?: SpawnSwitchState },
 ): LaunchAuthority {
+  const sessionSwitch = probe?.spawnSwitch ?? spawnSwitch(kind)
+  if (!sessionSwitch.on) return { allowed: false, reason: spawnSwitchOffReceipt(kind), cause: 'session-switch' }
   // MERCURY_CONCOURSE_WORKER is a VALUE-kind registry row (the role stamp
   // is '1') — flagEnabled() refuses value flags by contract, so the read
   // is flagEnv === '1' (the composedRoleFromEnv convention).
@@ -70,5 +79,6 @@ export function evaluateLaunchAuthority(
   return {
     allowed: false,
     reason: `this session is backgrounded — ${kind} wait until the operator visits it, or until it holds the workflows-allowed tag (granted by asking the coordinator, choosing keep-and-background on leave, or the manual-start option). Keep working on the task single-handed.`,
+    cause: 'backgrounded',
   }
 }

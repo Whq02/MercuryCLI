@@ -20,6 +20,7 @@ import {
   getFocusedSessionConnector,
   hasFocusedSession,
 } from '../../../services/engine-connector/focusedConnector.js'
+import { spawnSwitchOffReceipt } from '../../../services/switchboard/spawnSwitches.js'
 import { pokeTelemetry, useTelemetry, type CrewGlanceMember } from '../../../state/telemetryBus.js'
 import { RosterWorkDetail } from '../../tasks/BackgroundTasksDialog.js'
 import {
@@ -105,10 +106,17 @@ export function CrewView({
   // spawn — the selected row follows its id, never a stale position.
   const cursor = useStableSelection(rows, r => r.id)
   const sel = cursor.index
+  // THE SPAWN ROAD's gate: a named agent spawned from this view is a
+  // sub-agent of the focused session, so the session's sub-agents switch
+  // (read through its connector — the launch-authority valve's own fact)
+  // closes the wizard with the one receipt every spawn road answers.
+  const spawnGate = (): string | null =>
+    getFocusedSessionConnector().spawnSwitches().subagents.on ? null : spawnSwitchOffReceipt('subagents')
+  const [spawnNote, setSpawnNote] = useState<string | null>(() => (initialSpawn ? spawnGate() : null))
   const [mode, setMode] = useState<Mode>(() =>
     initialChat !== undefined
       ? { view: 'chat', name: initialChat, fromDoor: true }
-      : initialSpawn
+      : initialSpawn && spawnGate() === null
         ? { view: 'chat', spawn: true, fromDoor: false }
         : { view: 'list' },
   )
@@ -147,7 +155,14 @@ export function CrewView({
       else setMode({ view: 'chat', name: row.member.name, fromDoor: false })
       return
     }
-    if (input === 'n' && namedOn) setMode({ view: 'chat', spawn: true, fromDoor: false })
+    if (input === 'n' && namedOn) {
+      const gate = spawnGate()
+      if (gate !== null) {
+        setSpawnNote(gate)
+        return
+      }
+      setMode({ view: 'chat', spawn: true, fromDoor: false })
+    }
   })
 
   if (mode.view === 'chat') {
@@ -234,6 +249,7 @@ export function CrewView({
             </Text>
           </>
         ) : null}
+        {spawnNote !== null ? <Text color={tokens.warning}>· {spawnNote}</Text> : null}
       </Box>
     </CommandCenter>
   )

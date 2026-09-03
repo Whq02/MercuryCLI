@@ -25,10 +25,11 @@
 //                   allowed_warning + utilization≥0.7 gate), and the window
 //                   METERS — the 5h/7d pair (headers first, the subscription
 //                   usage endpoint filling absence) AND the per-model weekly
-//                   POOLS the endpoint states (Fable · Opus · Sonnet, the
-//                   pools claude.ai meters) — at the shared threshold, the
-//                   worst window named in the wire's own claim vocabulary
-//                   ("Anthropic: 99% of Fable limit used");
+//                   POOL of the session model's own family (the endpoint
+//                   states Fable · Opus · Sonnet; only the model's pool
+//                   binds it) — at the shared threshold, the BINDING window
+//                   named in the wire's own claim vocabulary ("Anthropic:
+//                   99% of Fable limit used");
 //    · openai     — the observed x-codex usage bands (openaiLimitState);
 //    · openrouter — the polled per-key credit cap (openrouterUsageState —
 //                   the 402/exhaustion honesty exists on the dispatch path;
@@ -40,20 +41,17 @@
 //      no metering; zai · compat — nothing; deepseek · moonshot key —
 //      balance only, no denominator) ⇒ null, honestly.
 //
-//  The engine feeders read through activeSourceUsage's window views (the
-//  ONE derivation the settings tab and the rail meters already read), so
-//  the strip warning and the meters can never disagree about a percent.
+//  Every meter feeder reads the ONE binding-window pick the usage owner
+//  attaches to the active-source view (providerUsage.bindingWindowOf — the
+//  same derivation the settings tab, the rail meters, the frame band and
+//  the cap offer read), so the strip warning, the offer and the meters can
+//  never name different windows or disagree about a percent.
 // ============================================================================
 import { formatResetTime } from '../../utils/format.js'
-import { currentLimits, type ClaudeAILimits, type RateLimitType } from '../claudeAiLimits.js'
+import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
-import {
-  activeSourceUsage,
-  anthropicPoolWindowViews,
-  type ActiveUsageReads,
-  type UsageWindowView,
-} from './providerUsage.js'
+import { activeSourceUsage, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
 
 /** The approaching threshold, one spelling for every lane: the Anthropic
  *  warning gate (utilization ≥ 0.7) and the Usage tab's WARN_PCT band. */
@@ -70,16 +68,6 @@ export interface ProviderLimitWarningView {
 export interface LimitWarningReads extends ActiveUsageReads {
   /** The anthropic limits record (the live singleton otherwise). */
   anthropicLimits?: () => ClaudeAILimits
-}
-
-/** The window word for an engine window view's label — the label the view
- *  derived from the provider's OWN statement, worded for the grammar. */
-function windowWord(view: UsageWindowView): string {
-  if (view.key === 'cap' || view.label === 'cap') return 'credit cap'
-  if (view.label === 'quota') return 'quota'
-  if (view.label === 'wk') return 'weekly window'
-  if (view.label === 'win') return 'usage window'
-  return `${view.label} window`
 }
 
 /** The optional reset tail — present exactly when the provider stated one. */
@@ -165,28 +153,32 @@ export function providerLimitWarning(opts?: {
     // THE METER FEEDER (the operator's ruled signal set: "the existing
     // meters"): the 5h/7d window views — response headers first, the
     // subscription usage endpoint filling absence (the one claudeAiLimits
-    // record) — AND the per-model weekly pools the endpoint states beside
-    // them (Fable · Opus · Sonnet: the pools claude.ai meters, which the
-    // headers never carry as a warning claim) — warn at the same threshold
-    // as every lane, the WORST window named in the wire's own claim
-    // vocabulary so one window never has two names: Fable at 99% beside a
-    // calm all-models week paints "99% of Fable limit used", not silence.
-    const meterWorst = worstLiveWindow([...view.windows, ...anthropicPoolWindowViews(reads)])
-    if (meterWorst === null) return null
-    const pct = flooredPct(meterWorst)
+    // record) — AND the per-model weekly pool of the session model's own
+    // family (the endpoint states Fable · Opus · Sonnet beside the pair;
+    // the headers never carry them as a warning claim) — warn at the same
+    // threshold as every lane, the BINDING window named in the wire's own
+    // claim vocabulary so one window never has two names: Fable at 99%
+    // beside a calm all-models week paints "99% of Fable limit used" for a
+    // Fable session, and nothing for a Sonnet session the Fable week never
+    // caps. The pick is the usage owner's (view.binding), shared with the
+    // meters and the cap offer.
+    const binding = view.binding
+    if (binding === undefined) return null
+    const pct = flooredPct(binding.window)
     if (pct < APPROACHING_LIMIT_PCT) return null
-    const window = rateLimitWindowName(anthropicClaimOf(meterWorst))
+    const window = binding.claim !== undefined ? rateLimitWindowName(binding.claim) : binding.windowName
     return {
       provider: 'anthropic',
-      text: composeLine(providerDisplayName('anthropic'), pct, window, resetSecondsOf(meterWorst)),
+      text: composeLine(providerDisplayName('anthropic'), pct, window, resetSecondsOf(binding.window)),
     }
   }
 
-  // Engine lanes: the worst provider-stated percent window. A lane whose
-  // wire stated nothing has no windows here — and therefore no warning.
-  const worst = worstLiveWindow(view.windows)
-  if (worst === null) return null
-  const pct = flooredPct(worst)
+  // Engine lanes: the binding (worst provider-stated percent) window. A
+  // lane whose wire stated nothing has no windows here — and therefore no
+  // warning.
+  const binding = view.binding
+  if (binding === undefined) return null
+  const pct = flooredPct(binding.window)
   if (pct < APPROACHING_LIMIT_PCT) return null
   // The provider word: the active source's own label where it names one
   // (Kimi sign-in says Kimi), else the family's display name.
@@ -197,7 +189,7 @@ export function providerLimitWarning(opts?: {
       : providerDisplayName(view.provider)
   return {
     provider: view.provider,
-    text: composeLine(word, pct, windowWord(worst), resetSecondsOf(worst)),
+    text: composeLine(word, pct, binding.windowName, resetSecondsOf(binding.window)),
   }
 }
 
@@ -217,24 +209,6 @@ export function preferSessionLimitWarning(
   local: ProviderLimitWarningView | null,
 ): ProviderLimitWarningView | null {
   return fromSession ?? local
-}
-
-/** An Anthropic window view's wire claim: the shared pair by its meter key,
- *  a per-model pool by the claim it is keyed on. */
-function anthropicClaimOf(view: UsageWindowView): RateLimitType {
-  if (view.key === '5h') return 'five_hour'
-  if (view.key === '7d') return 'seven_day'
-  return view.key as RateLimitType
-}
-
-/** The worst live provider-stated percent window, or null when the wire
- *  stated none (absence is never a 0%). */
-function worstLiveWindow(windows: UsageWindowView[]): UsageWindowView | null {
-  const live = windows.filter(
-    w => w.state === 'live' && typeof w.usedPct === 'number' && Number.isFinite(w.usedPct),
-  )
-  if (live.length === 0) return null
-  return live.reduce((a, b) => ((b.usedPct ?? 0) > (a.usedPct ?? 0) ? b : a))
 }
 
 function flooredPct(view: UsageWindowView): number {

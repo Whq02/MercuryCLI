@@ -290,7 +290,7 @@ section('§7 the shape: the tab reads only the owner')
     check(`the ${family} section rides useOwnerUsage`, tab.includes(`useOwnerUsage('${family}'`))
   }
   check('the generic engine body rides useOwnerUsage(section.id)', tab.includes('useOwnerUsage(section.id, section.family.credentialed)'))
-  check('the credit line, the rate line and the balance lines come from the owner\'s figures and balance', tab.includes('figuresLine(usage)') && tab.includes('usage.balance.display'))
+  check('the credit line, the rate line and the credits lines come from the owner\'s figures and credits view', tab.includes('figuresLine(usage)') && tab.includes('usageCreditsLine(usage.credits)') && !tab.includes('usage.balance.display'))
   check('the absence lines come from the owner (never a tab-only constant)', tab.includes('usage.absence ?? section.limitsNote') && tab.includes("usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote") && !tab.includes('GEMINI_USAGE_ABSENCE_NOTE') && !tab.includes('HUGGINGFACE_USAGE_ABSENCE_NOTE'))
   const ownerSrc = readFileSync(join(ROOT, 'src/services/providers/providerUsage.ts'), 'utf8')
   check('the owner walks every declared family for the beside-rows (no hand-kept window-capable list)', ownerSrc.includes("['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)]") && !ownerSrc.includes('WINDOW_CAPABLE_PROVIDERS'))

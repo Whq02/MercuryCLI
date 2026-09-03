@@ -17,6 +17,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveDeepseekApiKey } from './deepseekAccounts.js'
 import { deepseekBalanceUrl } from './deepseekAccounts.js'
 
@@ -139,7 +140,9 @@ export async function fetchDeepseekBalance(
   }
 }
 
-const REFRESH_TTL_MS = 60_000
+/** The poll cadence is the ONE usage-freshness TTL — the words that call a
+ *  read stale and the refresh that would renew it share the number. */
+const REFRESH_TTL_MS = USAGE_POLL_TTL_MS
 let inFlight: Promise<DeepseekObservedBalance | null> | null = null
 
 /**

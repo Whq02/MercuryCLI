@@ -197,6 +197,15 @@ export const HEADLESS_PERMISSION_MODES = [
 ] as const
 export type HeadlessPermissionMode = (typeof HEADLESS_PERMISSION_MODES)[number]
 
+/** A SEAT's initial posture: the headless postures, plus 'apollo' for a
+ *  cockpit-attached seat only — the operator's own explicit mode, carried by
+ *  the admission (the birth from the Boot face, a resume). A seat runner
+ *  wears the concourse worker role stamp and serves an operator's face, so
+ *  its polls and review card ride the seat ask stream (the control door
+ *  already accepts apollo under the stamp); a board-spawned headless worker
+ *  and the MERCURY_DAEMON_PERMISSION_MODE road keep the strict list. */
+export type SeatPermissionMode = HeadlessPermissionMode | 'apollo'
+
 /**
  * Resolve the child permission posture. Reads MERCURY_DAEMON_PERMISSION_MODE
  * at call time (live, like every other daemon knob) so the operator can
@@ -212,8 +221,8 @@ export type HeadlessPermissionMode = (typeof HEADLESS_PERMISSION_MODES)[number]
  * the spec default applies only when the env is unset/invalid.
  */
 export function getHeadlessPermissionMode(
-  specDefault?: HeadlessPermissionMode,
-): HeadlessPermissionMode {
+  specDefault?: SeatPermissionMode,
+): SeatPermissionMode {
   const fallback = specDefault ?? HEADLESS_PERMISSION_MODE_DEFAULT
   const raw = (flagEnv('MERCURY_DAEMON_PERMISSION_MODE') ?? '').trim()
   if (!raw) return fallback
@@ -235,7 +244,7 @@ export function getHeadlessPermissionMode(
  * --permission-mode <mode>.
  */
 export function headlessPermissionArgv(
-  mode: HeadlessPermissionMode = getHeadlessPermissionMode(),
+  mode: SeatPermissionMode = getHeadlessPermissionMode(),
 ): string[] {
   if (mode === 'default') return []
   if (mode === 'sovereign') return ['--dangerously-skip-permissions']
@@ -400,8 +409,10 @@ export interface StreamJsonChildSpec {
   /** Per-spec permission-posture DEFAULT for this child. An operator-set
    *  MERCURY_DAEMON_PERMISSION_MODE always wins; this applies only when that
    *  env is unset/invalid (see getHeadlessPermissionMode). Spec-carried so
-   *  supervisor respawns keep it. Absent ⇒ the global daemon default. */
-  permissionMode?: HeadlessPermissionMode
+   *  supervisor respawns keep it. Absent ⇒ the global daemon default. A
+   *  cockpit-attached SEAT may carry 'apollo' (SeatPermissionMode — the
+   *  operator's explicit mode at the admission); no other road spells it. */
+  permissionMode?: SeatPermissionMode
   /** Permission ALLOW rules passed as `--allowedTools` (e.g. the crew seats'
    *  read-only recon set) — rule-allowed calls short-circuit before any
    *  classifier, so routine recon survives a classifier fault. Spec-carried

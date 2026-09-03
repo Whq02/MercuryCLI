@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { getRawUtilization } from '../../services/claudeAiLimits.js'
+import type { UsageFeed } from '../../services/providers/usageFreshness.js'
 import type { SnapshotState } from '../../components/mercury-ui/theme.js'
 
 export type QuotaWindow = {
@@ -23,13 +24,18 @@ export type QuotaWindow = {
   usedPct: number | null
   resetsAtMs: number | null
   state: SnapshotState // 'live' when the window key exists, else 'unavailable'
+  /** The feed that stated the window and when — carried verbatim from the
+   *  record so every renderer can say where its number came from and how
+   *  old it is; absent when the record was placed bare (a proof seam). */
+  source?: UsageFeed
+  observedAtMs?: number
 }
 
 // Map one raw window (or undefined) to the normalized model. Undefined / missing
 // ⇒ unavailable, never 0%. utilization is a 0-1 fraction → percent.
 function normalizeWindow(
   key: '5h' | '7d',
-  raw: { utilization: number; resets_at: number } | undefined,
+  raw: { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number } | undefined,
 ): QuotaWindow {
   // Belt-and-suspenders: a present-but-non-finite window (NaN/Infinity from a
   // garbage header) is treated as ABSENT, never published as live 0%/NaN%.
@@ -41,6 +47,8 @@ function normalizeWindow(
     usedPct: raw.utilization * 100,
     resetsAtMs: raw.resets_at * 1000,
     state: 'live',
+    ...(raw.source !== undefined ? { source: raw.source } : {}),
+    ...(raw.observedAtMs !== undefined ? { observedAtMs: raw.observedAtMs } : {}),
   }
 }
 
@@ -63,6 +71,15 @@ export function formatClock(ms: number): string {
   if (sameDay) return `${hh}:${mm}`
   const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
   return `${wd} ${hh}:${mm}`
+}
+
+// The same countdown for a narrow column (the rail's per-model pool rows,
+// whose labels are longer than '5h'): ≥24h ⇒ "Nd", ≥1h ⇒ "Yh", else the
+// full spelling. Coarser, never wrong — a weekly pool resets days out.
+export function formatCountdownCoarse(deltaMs: number): string {
+  if (deltaMs < 3_600_000) return formatCountdown(deltaMs)
+  const totalHr = Math.floor(deltaMs / 3_600_000)
+  return totalHr < 24 ? `${totalHr}h` : `${Math.floor(totalHr / 24)}d`
 }
 
 // Countdown to a reset: ≤0 ⇒ "now" (the window has reset / is due) · <60s ⇒

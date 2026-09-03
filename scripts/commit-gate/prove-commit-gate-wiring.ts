@@ -23,11 +23,14 @@ const src = (...p: string[]) =>
 
 console.log('=== PROOF — commit-gate wiring (the one chokepoint) ===')
 const engine = src('QueryEngine.ts')
-check('QueryEngine engages the gate', /engageCommitGate\(setAppState, getSessionId\(\)\)/.test(engine))
+// The per-run block passes the engine's config-borne setter (the same one the
+// wards registration takes).
+check('QueryEngine engages the gate', /engageCommitGate\(config\.setAppState, getSessionId\(\)\)/.test(engine))
 check(
   'the engagement rides the per-run hook block that serves EVERY session kind (beside the wards registration)',
   engine.indexOf('registerWardsHook(config.setAppState, sessionId)') !== -1 &&
-    engine.indexOf('engageCommitGate(setAppState, getSessionId())') >
+    engine.indexOf('engageCommitGate(config.setAppState, getSessionId())') !== -1 &&
+    engine.indexOf('engageCommitGate(config.setAppState, getSessionId())') >
       engine.indexOf('registerWardsHook(config.setAppState, sessionId)'),
 )
 check('engage is per-session (a new session id re-arms)', src('utils', 'hooks', 'commitGate.ts').includes('commitGateEngagedSessions.has(sessionId)) return false'))
