@@ -426,7 +426,7 @@ if (!existsSync(DIST)) {
     await fixture.close()
   }
 
-  section('§8b the wire — the in-session toggle moves the roster at the next request, the prefix holds, the receipt names the toggle')
+  section('§8b the wire — the in-session toggle leaves the frozen roster on the wire (the valve refuses at launch), the prefix holds, the receipt names the toggle')
   {
     const DROP = { type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }
     const turns: ScriptedTurn[] = [
@@ -451,14 +451,14 @@ if (!existsSync(DIST)) {
       const b2 = reqs[1]!.body as Body
       const b3 = reqs[2]!.body as Body
       check('request 1 carries the Agent tool', toolNames(b1).includes(AgentTool.name), toolNames(b1).join(','))
-      check('request 2 (the next request after the toggle) carries no Agent tool — the roster changed on the wire', !toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
-      check('…and nothing else left the tools array', j(toolNames(b1).filter(n => n !== AgentTool.name)) === j(toolNames(b2)))
+      check('request 2 (the next request after the toggle) STILL carries the Agent tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
+      check('…and the tools array is byte-identical to request 1 (nothing left, nothing moved)', j(toolNames(b1)) === j(toolNames(b2)))
       const pm = (b1.messages ?? []) as unknown[]
       const cm = (b2.messages ?? []) as unknown[]
       const prefixSame = pm.every((m, i) => j(withoutCacheControl(m)) === j(withoutCacheControl(cm[i])))
       check('the shared messages prefix is byte-identical and the turn is appended (the toggle is a roster change, never a history rewrite)', prefixSame && cm.length > pm.length, `${pm.length}→${cm.length}`)
       check('the top-level system moves at most at the toggle: request 3 is byte-identical to request 2', j(withoutCacheControl(b2.system)) === j(withoutCacheControl(b3.system)))
-      check('request 3 keeps the toggled roster (sticky)', !toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
+      check('request 3 keeps the same roster (frozen)', toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
     }
     const notices = transcriptNotices(arena, SID)
     check('the scripted drop paints exactly one receipt', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
