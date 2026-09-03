@@ -232,9 +232,15 @@ try {
   {
     const route = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseRoute.tsx'), 'utf8')
     check("the route's stop note paints the verb's detail for a stop on its way, and the removal hint only for an acknowledged stop", /const acknowledged = reply\.ok === true && reply\.outcome === 'applied' && \/\^stopped \/\.test\(reply\.detail \?\? ''\)/.test(route) && /acknowledged \|\| reply\.outcome === 'noop' \|\| reply\.detail === undefined \? `stopped — \$\{keyHintLabel\('⌃x ⌃x'\)\} archives it \(the chat stands parked\)` : reply\.detail/.test(route))
-    check('the no-daemon arm speaks the same law from the verb\'s acknowledged flag', /out\.outcome === 'applied' && !out\.acknowledged\s*\n\s*\? \{ state: 'applied', reason: `stop sent — \$\{out\.runnerId\} ends its turn; the row reads stopped once it is gone` \}/.test(route))
+    // A stop still on its way joins the ids whose receipt waits for the row's
+    // stamp (the receipt follows the row), then speaks the same words.
+    check('the no-daemon arm speaks the same law from the verb\'s acknowledged flag', /out\.outcome === 'applied' && !out\.acknowledged\s*\n\s*\? \(stopAwaitingStampRef\.current\.add\(sessionId\), \{ state: 'applied', reason: `stop sent — \$\{out\.runnerId\} ends its turn; the row reads stopped once it is gone` \}\)/.test(route))
     const screen = readFileSync(join(REPO, 'src', 'components', 'concourse', 'ConcourseScreen.tsx'), 'utf8')
-    check("the close chord removes a row only when it reads stopped; a staged press over a live runner re-sends the stop and says where it stands", /if \(sel\.state === 'stopped'\) \{[\s\S]{0,500}callbacks\.removeSession\?\.\(sel\.sessionId\)/.test(screen) && /if \(staged\) \{[\s\S]{0,800}stop is on its way — the row reads stopped once its runner is gone[\s\S]{0,300}callbacks\.stopSession\?\.\(sel\.sessionId\)/.test(screen) && !/if \(staged \|\| sel\.state === 'stopped'\)/.test(screen))
+    // THE LADDER: a row that reads stopped ARCHIVES (parks — the record
+    // stands); a parked row inside the stage window DELETES (the record
+    // ends); a staged press over a live runner re-sends the stop and says
+    // where it stands.
+    check("the close chord archives a row only when it reads stopped and deletes only a parked one; a staged press over a live runner re-sends the stop and says where it stands", /if \(sel\.state === 'stopped'\) \{[\s\S]{0,700}callbacks\.archiveSession\?\.\(sel\.sessionId\)/.test(screen) && /if \(sel\.state === 'parked'\) \{[\s\S]{0,700}if \(staged\) \{[\s\S]{0,120}callbacks\.removeSession\?\.\(sel\.sessionId\)/.test(screen) && /if \(staged\) \{[\s\S]{0,800}stop is on its way — the row reads stopped once its runner is gone[\s\S]{0,300}callbacks\.stopSession\?\.\(sel\.sessionId\)/.test(screen))
   }
 
   console.log('\nS4 the row and the live count read one set of facts')
