@@ -329,7 +329,8 @@ t.section('§3b — a CONTRACTED launch rides the manager road: born blank → c
   t.check(
     'controlServer’s sessionAdmit answer carries branchName · mainHolderTitle · modelId · modelDisplayName from the admit result (the dispatch door’s four receipt facts)',
     admitAt !== -1 &&
-      ['branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName'].every(f => admitBody.includes(`...(r.${f} !== undefined ? { ${f}: r.${f} } : {})`)),
+      admitBody.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') &&
+      ['branchName', 'mainHolderTitle', 'modelId', 'modelDisplayName'].every(f => new RegExp(`const ADMIT_WIRE_KEYS = \\[[^\\]]*'${f}'`).test(server)),
   )
   t.check('…and the manager’s own road reads the same three doors (one law, two callers)', readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'managerMode.ts'), 'utf8').includes('bornBlank: true') && readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'concourse', 'coordinatorTools.ts'), 'utf8').includes("op: 'sessionAdmit',\n        workspaceDir: args.workspaceDir,\n        bornBlank: true,"))
 }
