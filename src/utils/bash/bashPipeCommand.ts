@@ -54,7 +54,7 @@ function requiresFallback(original: string, joined: string): {
 } {
   if (original.includes('`')) return { fallback: true }
   if (original.includes('$(')) return { fallback: true }
-  if (/\$[A-Za-z_{]/.test(original)) return { fallback: true }
+  if (/\$[A-Za-z_{0-9?$!#@*'-]/.test(original)) return { fallback: true }
   if (CONTROL_STRUCTURE_RE.test(original)) return { fallback: true }
   if (joined.includes('\n')) return { fallback: true }
   if (hasShellQuoteSingleQuoteBug(joined)) return { fallback: true }
