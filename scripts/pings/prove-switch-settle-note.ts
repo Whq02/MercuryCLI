@@ -326,7 +326,9 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
   const composerSrc = readFileSync(join(ROOT, 'src', 'components', 'PromptInput', 'PromptInput.tsx'), 'utf8')
   check(
     "the composer's daemon arm reads the from-model before the door",
-    /const effectiveBefore = focused\.modelFacts\(\)\.effective\s*\n\s*const receipt = focused\.setModel\(value\)/.test(composerSrc),
+    // (the receipt is awaited — the daemon's word — so the read precedes the
+    // async setModel call rather than a synchronous receipt)
+    /const effectiveBefore = focused\.modelFacts\(\)\.effective[\s\S]{0,400}?void focused\.setModel\(value\)\.then\(receipt =>/.test(composerSrc),
   )
   check(
     "…previews loss against THAT model and carries the note",

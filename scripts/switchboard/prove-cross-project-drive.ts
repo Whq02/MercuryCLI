@@ -134,14 +134,16 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
   utimesSync(file, at, at)
 }
 
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 /** The face's canon ready line (the boot menu is on screen). */
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
 /** The composer's placeholder (a chat is on screen). */
 const COMPOSER = 'Type a prompt'
 /** The board's header lockup (the concourse is on screen). */
 const BOARD = 'SESSION CONCOURSE'
-/** The focused chat's status row (a session holds the slot). */
-const TAG = '⇧← back'
+/** The focused chat's status row (a session holds the slot) — spelled by
+ *  the ONE platform-aware owner (off macOS the product paints "shift+←"). */
+const TAG = keyHintLabel('⇧← back')
 /** The ★ mark's words on a carried-over row. */
 const FROM_P = `✦ from ${basename(CWD)}`
 const FROM_Q = `✦ from ${basename(OTHER)}`
