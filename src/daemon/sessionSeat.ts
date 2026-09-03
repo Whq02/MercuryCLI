@@ -321,6 +321,15 @@ function seatBusy(short: string, roster: SeatRosterPort): boolean {
   return seatTurnOpen(roster.list().find(j => j.short === short))
 }
 
+export function switchAppliesWhileAgentsHold(turnOpen: boolean, stateWord: SeatState['stateWord']): boolean {
+  if (!turnOpen) return true
+  return stateWord === 'waiting-on-agents'
+}
+
+function seatBusyForSwitch(short: string, roster: SeatRosterPort): boolean {
+  return !switchAppliesWhileAgentsHold(seatBusy(short, roster), seatOf(short).stateWord)
+}
+
 
 const ZERO_USAGE: SessionFactsAnswerV1['usage'] = {
   totalCostUSD: 0,
@@ -874,7 +883,7 @@ export function setSessionModel(sessionId: string, model: string, roster: SeatRo
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.modelKey === model && rec.pendingModelKey === undefined) return { outcome: 'noop', detail: `already on ${model}` }
-  if (seatBusy(rec.runnerId, roster)) {
+  if (seatBusyForSwitch(rec.runnerId, roster)) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) {
@@ -928,7 +937,7 @@ export function setSessionEffort(sessionId: string, effort: string, roster: Seat
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.effort === effort && rec.pendingEffort === undefined) return { outcome: 'noop', detail: `already on ${effort}` }
-  if (seatBusy(rec.runnerId, roster)) {
+  if (seatBusyForSwitch(rec.runnerId, roster)) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) {
