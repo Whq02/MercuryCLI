@@ -46,6 +46,16 @@ import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { computeSessionWindow } from '../mercury-ui/screens/SessionManagerView.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
+import {
+  crewAgentFactsOf,
+  crewCostLabel,
+  crewModelLabel,
+  crewStateLabel,
+  crewTokensBreakdown,
+  crewTokensLabel,
+  crewToolUsesLabel,
+} from '../../services/engine-connector/crewFacts.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import {
   focusedRunnerPresence,
@@ -122,6 +132,8 @@ export function rosterRowsOf(
 
 function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const crew = crewAgentFactsOf(work, null)
+  const crewTokens = crew === null ? null : crewTokensLabel(crew)
   const running = work.status === 'running'
   const pending = work.status === 'pending'
   const failed = work.status === 'failed' || work.status === 'killed'
@@ -135,7 +147,12 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
         </Text>
       )}
       <Text> {work.name}</Text>
-      <Text color={tokens.textMuted}> · {work.status}</Text>
+      <Text color={tokens.textMuted}> · {crew !== null ? crewStateLabel(crew) : work.status}</Text>
+      {crew !== null ? (
+        <Text color={tokens.textMuted}>
+          {' · '}{crewModelLabel(crew)}{crewTokens !== null ? ` · ${crewTokens}` : ''}
+        </Text>
+      ) : null}
       {work.kind === 'workflow' && (work.agentCount ?? 0) > 0 ? (
         <Text color={tokens.textMuted}> · {work.agentCount} agents</Text>
       ) : null}
@@ -146,7 +163,7 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
   )
 }
 
-function RosterWorkDetail({
+export function RosterWorkDetail({
   work,
   now,
   onBack,
@@ -164,15 +181,32 @@ function RosterWorkDetail({
     },
     { context: 'Confirmation', isActive: true },
   )
+  const crew = crewAgentFactsOf(work, null)
   const rows: KVRow[] = [
-    { k: 'state', v: work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
+    { k: 'state', v: crew !== null ? crewStateLabel(crew) : work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
     { k: 'started', v: `${formatDuration(Math.max(0, now - work.startTime))} ago`, tone: tokens.textMuted },
   ]
   if (work.endTime !== undefined) rows.push({ k: 'ran', v: formatDuration(Math.max(0, work.endTime - work.startTime)), tone: tokens.textMuted })
-  if (work.model !== undefined) rows.push({ k: 'model', v: work.model, tone: tokens.textPrimary })
-  if (work.agentType !== undefined) rows.push({ k: 'agent', v: work.agentType, tone: tokens.textPrimary })
-  if (work.team !== undefined) rows.push({ k: 'team', v: work.team, tone: tokens.textPrimary })
-  if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)}`, tone: tokens.textPrimary })
+  if (crew !== null) {
+    rows.push({ k: 'model', v: crewModelLabel(crew), tone: tokens.textPrimary })
+    const toolUses = crewToolUsesLabel(crew)
+    if (toolUses !== null) rows.push({ k: 'tools', v: toolUses, tone: tokens.textPrimary })
+    if (crew.activity !== null) rows.push({ k: 'doing', v: crew.activity, tone: tokens.textSecondary })
+    if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
+    if (crew.team !== null) rows.push({ k: 'team', v: crew.team, tone: tokens.textPrimary })
+    const crewTokens = crewTokensLabel(crew)
+    if (crewTokens !== null) {
+      const breakdown = crewTokensBreakdown(crew)
+      rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}${breakdown !== null ? ` (${breakdown})` : ''}`, tone: tokens.textPrimary })
+    }
+    const spend = crewCostLabel(crew)
+    if (spend !== null && getFocusedSessionConnector().identity().consoleBilling) {
+      rows.push({ k: 'spend', v: spend, tone: tokens.textPrimary })
+    }
+  } else {
+    if (work.model !== undefined) rows.push({ k: 'model', v: work.model, tone: tokens.textPrimary })
+    if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)}`, tone: tokens.textPrimary })
+  }
   if (work.kind === 'workflow' && (work.agentCount ?? 0) > 0) rows.push({ k: 'agents', v: String(work.agentCount), tone: tokens.textPrimary })
   return (
     <Box flexDirection="column">
@@ -472,7 +506,7 @@ export function BackgroundTasksDialog({
       const teammate = detailTask
       return (
         <CommandCenter
-          view={`teammate › @${teammate.identity.agentName}`}
+          view={`named agent › @${teammate.identity.agentName}`}
           onClose={onDone}
           captureInput={false}
         >
@@ -686,7 +720,7 @@ export function BackgroundTasksDialog({
             {teammateItems.length > 0 || leaderItem !== null ? (
               <Box flexDirection="column">
                 <SectionHeader count={teammateItems.length}>
-                  Teammates
+                  Named agents
                 </SectionHeader>
                 {leaderItem !== null && inWin(leaderItem)
                   ? rowFor(leaderItem)
@@ -694,7 +728,7 @@ export function BackgroundTasksDialog({
                 {[...teamGroups.entries()].map(([team, members]) => (
                   <Box key={team} flexDirection="column">
                     <Text dimColor>
-                      {team} ({members.length + 1} members)
+                      {team} · {members.length + 1} named
                     </Text>
                     {teammateItems
                       .filter(item =>
@@ -707,7 +741,7 @@ export function BackgroundTasksDialog({
                 {[...rosterTeamGroups.entries()].map(([team, items]) => (
                   <Box key={`roster-${team}`} flexDirection="column">
                     <Text dimColor>
-                      {team} ({items.length} members)
+                      {team} · {items.length} named
                     </Text>
                     {items.filter(inWin).map(rowFor)}
                   </Box>

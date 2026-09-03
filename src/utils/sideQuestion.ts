@@ -5,6 +5,8 @@ import type { Message, SystemMessage } from '../types/message.js'
 import { createUserMessage } from './messages.js'
 import type { CacheSafeParams } from './forkedAgent.js'
 import { runForkedAgent } from './forkedAgent.js'
+import type { AppState } from '../state/AppStateStore.js'
+import type { EffortValue } from './effort.js'
 
 
 export type SideQuestionResult = {
@@ -92,6 +94,16 @@ export function extractResponse(messages: Message[]): string | null {
   return null
 }
 
+export function sideQuestionAppState(parent: AppState, effortValue: EffortValue | null): AppState {
+  return {
+    ...parent,
+    toolPermissionContext: parent.toolPermissionContext.shouldAvoidPermissionPrompts
+      ? parent.toolPermissionContext
+      : { ...parent.toolPermissionContext, shouldAvoidPermissionPrompts: true },
+    effortValue: effortValue ?? undefined,
+  }
+}
+
 export async function runSideQuestion({
   question,
   cacheSafeParams,
@@ -99,11 +111,13 @@ export async function runSideQuestion({
   originRef,
   modelOverride,
   framing,
+  effortValue,
 }: {
   question: string
   cacheSafeParams: CacheSafeParams
   abortController?: AbortController
   originRef?: string
+  effortValue?: EffortValue | null
   modelOverride?: string
   framing?: string
 }): Promise<SideQuestionResult> {
@@ -115,6 +129,12 @@ export async function runSideQuestion({
             ...cacheSafeParams.toolUseContext.options,
             mainLoopModel: modelOverride,
           },
+        }
+      : {}),
+    ...(effortValue !== undefined
+      ? {
+          getAppState: (): AppState =>
+            sideQuestionAppState(cacheSafeParams.toolUseContext.getAppState(), effortValue),
         }
       : {}),
   }

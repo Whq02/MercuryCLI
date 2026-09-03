@@ -132,8 +132,8 @@ function view(opts: { suppressed?: boolean; mode?: SpinnerMode; fallbackLastEven
   check('the old universal 3s red bar is gone', !/3000/.test(stall) && !/ERROR_RED/.test(glyph) && !/ERROR_RED/.test(glimmer))
   const hold = readFileSync(join(root, 'src/components/Spinner/StreamingHoldRow.tsx'), 'utf8')
   check(
-    'the streaming hold carries the SAME phase-aware quiet suffix (prose-stall visibility)',
-    hold.includes('MID_STREAM_STILL_WAITING_MS') && hold.includes('still waiting') && /snap\.phase === 'responding'/.test(hold),
+    'the streaming hold carries the SAME quiet suffix, read from the count\'s own movement (prose-stall visibility)',
+    hold.includes('MID_STREAM_STILL_WAITING_MS') && hold.includes('still waiting') && /const stillWaiting = now - movementRef\.current\.lastMovedAt >= MID_STREAM_STILL_WAITING_MS/.test(hold),
   )
 }
 

@@ -1,12 +1,25 @@
 
-import { isEqual } from 'lodash-es'
 import React, { useCallback, useEffect, useReducer, useRef } from 'react'
 import OptionMap, {
   isInputOption,
+  optionsEquivalent,
   type OptionMapItem,
   type OptionValue,
   type OptionWithDescription,
 } from './option-map.js'
+
+export function focusSeedAfterOptionsChange<T>(input: {
+  focusedValue: OptionValue<T> | undefined
+  options: readonly OptionWithDescription<T>[]
+  focusValue: T | undefined
+  initialFocusValue: T | undefined
+}): OptionValue<T> | undefined {
+  const { focusedValue, options, focusValue, initialFocusValue } = input
+  if (focusedValue !== undefined && options.some(o => o.value === focusedValue)) {
+    return focusedValue
+  }
+  return focusValue !== undefined ? focusValue : initialFocusValue
+}
 
 type NavigationState<T> = {
   optionMap: OptionMap<T>
@@ -322,7 +335,7 @@ export function useSelectNavigation<T>({
   const previousOptionsRef = useRef(options)
   if (
     previousOptionsRef.current !== options &&
-    !isEqual(previousOptionsRef.current, options)
+    !optionsEquivalent(previousOptionsRef.current, options)
   ) {
     previousOptionsRef.current = options
     dispatch({
@@ -330,12 +343,12 @@ export function useSelectNavigation<T>({
       state: createNavigationState({
         options,
         visibleOptionCount,
-        initialFocusValue:
-          focusValue !== undefined
-            ? focusValue
-            : state.focusedValue !== undefined
-              ? state.focusedValue
-              : initialFocusValue,
+        initialFocusValue: focusSeedAfterOptionsChange({
+          focusedValue: state.focusedValue,
+          options,
+          focusValue,
+          initialFocusValue,
+        }),
         currentViewport: [state.visibleFromIndex, state.visibleToIndex],
       }),
     })

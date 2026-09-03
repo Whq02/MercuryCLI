@@ -32,7 +32,9 @@ import {
   subscribeInterview,
 } from '../../../services/interview/store.js'
 import type {
+  InterviewAnswerValue,
   InterviewQuestion,
+  InterviewQuestionState,
   InterviewSessionState,
 } from '../../../services/interview/contracts.js'
 import type { AppState } from '../../../state/AppState.js'
@@ -47,10 +49,22 @@ import { applyMarkdown } from '../../../utils/markdown.js'
 import { isPlanModeInterviewPhaseEnabled } from '../../../utils/planModeV2.js'
 import { getPlanFilePath } from '../../../utils/plans.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
+import { composeAnswer, OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
 import { QuestionView } from './QuestionView.js'
 import { SubmitQuestionsView } from './SubmitQuestionsView.js'
 
 const MIN_CONTENT_HEIGHT = 12
+
+function sameAnswer(a: InterviewAnswerValue | undefined, b: InterviewAnswerValue): boolean {
+  if (!a) return false
+  if ((a.freeText ?? '') !== (b.freeText ?? '')) return false
+  return a.optionIds.length === b.optionIds.length && a.optionIds.every((id, i) => id === b.optionIds[i])
+}
+
+function draftIfChanged(questionId: string, live: InterviewQuestionState | undefined, value: InterviewAnswerValue): void {
+  if (sameAnswer(live?.draft, value)) return
+  draftAnswer(questionId, value)
+}
 const MIN_CONTENT_WIDTH = 40
 const CONTENT_CHROME_OVERHEAD = 15
 
@@ -159,21 +173,12 @@ function AskUserQuestionPermissionRequestBody(
   const currentQuestion = isInSubmitView ? null : (questions[currentQuestionIndex] ?? null)
 
   const answers: Record<string, string> = {}
-  const questionStates: Record<string, { selectedValue?: string | string[]; textInputValue: string }> = {}
+  const questionStates: Record<string, QuestionState> = {}
   for (const q of questions) {
     const qs = session.questions[q.id]
     if (!qs) continue
-    const value = qs.committed ?? qs.draft
-    if (value && qs.committed) {
-      answers[q.text] = displayAnswer(qs.committed, q)
-    }
-    const labels = value
-      ? value.optionIds.map(id => q.options.find(o => o.id === id)?.label).filter((l): l is string => !!l)
-      : []
-    questionStates[q.text] = {
-      selectedValue: q.multiSelect ? labels : labels[0],
-      textInputValue: qs.note ?? value?.freeText ?? '',
-    }
+    if (qs.committed) answers[q.text] = displayAnswer(qs.committed, q)
+    questionStates[q.text] = projectQuestionState(qs)
   }
   const allQuestionsAnswered = questions.every(q => !!answers[q.text])
   const hideSubmitTab = questions.length === 1 && !questions[0]?.multiSelect
@@ -232,27 +237,29 @@ function AskUserQuestionPermissionRequestBody(
     ) => {
       const q = byText(questionText)
       if (!q) return
+      const live = interviewSnapshot().questions[q.id]
+      const prior = live?.draft ?? live?.committed
       if (updates.textInputValue !== undefined) {
         const hasPreview = !q.multiSelect && q.options.some(o => o.preview)
         if (hasPreview) {
           setNote(q.id, updates.textInputValue)
         } else {
-          const prior = session.questions[q.id]?.draft ?? session.questions[q.id]?.committed
-          draftAnswer(q.id, { optionIds: prior?.optionIds ?? [], freeText: updates.textInputValue })
+          draftIfChanged(q.id, live, { optionIds: prior?.optionIds ?? [], freeText: updates.textInputValue })
         }
       }
       if (updates.selectedValue !== undefined) {
         const labels = Array.isArray(updates.selectedValue) ? updates.selectedValue : [updates.selectedValue]
         const optionIds = labels
-          .filter(l => l !== '__other__')
+          .filter(l => l !== OTHER_OPTION_VALUE)
           .map(l => q.options.find(o => o.label === l)?.id)
           .filter((id): id is string => !!id)
-        const prior = session.questions[q.id]?.draft ?? session.questions[q.id]?.committed
-        draftAnswer(q.id, { optionIds, ...(prior?.freeText ? { freeText: prior.freeText } : {}) })
+        const carriesText = !q.multiSelect || labels.includes(OTHER_OPTION_VALUE)
+        const freeText = carriesText ? prior?.freeText : undefined
+        draftIfChanged(q.id, live, { optionIds, ...(freeText ? { freeText } : {}) })
       }
       void isMultiSelect
     },
-    [byText, session],
+    [byText],
   )
 
   const handleQuestionAnswer = useCallback(
@@ -261,23 +268,16 @@ function AskUserQuestionPermissionRequestBody(
       if (!q) return
       const isMulti = Array.isArray(label)
       const labels = isMulti ? label : [label]
-      const optionIds = labels
-        .filter(l => l !== '__other__')
-        .map(l => q.options.find(o => o.label === l)?.id)
-        .filter((id): id is string => !!id)
+      const live = interviewSnapshot().questions[q.id]
+      const typed = textInput ?? live?.draft?.freeText ?? live?.committed?.freeText ?? ''
       const hasImage = session.context.some(
         c =>
           c.kind === 'image' &&
           (session.contextScope[c.refId] === undefined || session.contextScope[c.refId] === q.id),
       )
-      const freeText = textInput?.trim()
-        ? hasImage
-          ? `${textInput} (Image attached)`
-          : textInput
-        : !isMulti && label === '__other__' && hasImage
-          ? '(Image attached)'
-          : undefined
-      commitAnswer(q.id, { optionIds, ...(freeText ? { freeText } : {}) })
+      const { commit, keptDraft } = composeAnswer({ question: q, labels, typed, hasImage })
+      commitAnswer(q.id, commit)
+      if (keptDraft) draftAnswer(q.id, keptDraft)
       const isSingleQuestion = questions.length === 1
       if (!isMulti && isSingleQuestion && shouldAdvance) {
         handleSubmit().catch(logError)
@@ -410,6 +410,7 @@ function AskUserQuestionPermissionRequestBody(
     const legacyQuestions = questions.map(toLegacyQuestion)
     return (
       <QuestionView
+        key={currentQuestion.id}
         question={legacyQuestion}
         questions={legacyQuestions}
         currentQuestionIndex={currentQuestionIndex}

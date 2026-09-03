@@ -4,6 +4,7 @@ import {
   setSystemPromptSectionCacheEntry,
   clearSystemPromptSectionState,
 } from '../bootstrap/state.js'
+import { clearToolRosterLatches } from '../services/providers/toolEconomy.js'
 
 type SectionValue = string | null
 
@@ -59,4 +60,5 @@ export function resolveSystemPromptSections(
 export function clearSystemPromptSections(): void {
   clearSystemPromptSectionState()
   clearBetaHeaderLatches()
+  clearToolRosterLatches()
 }

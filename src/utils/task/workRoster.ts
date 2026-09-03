@@ -80,6 +80,49 @@ function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkR
     ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
     ...(typeof t.model === 'string' ? { model: t.model } : {}),
     ...(typeof t.error === 'string' ? { error: clip(t.error, MAX_ERROR) } : {}),
+    ...(typeof task.toolUseId === 'string' && task.toolUseId !== '' ? { toolUseId: task.toolUseId } : {}),
+  }
+}
+
+const finite = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) ? v : undefined
+
+function agentCounters(task: TaskState): Partial<WorkRowV1> {
+  const progress = (task as { progress?: unknown }).progress
+  if (typeof progress !== 'object' || progress === null) return {}
+  const p = progress as {
+    model?: unknown
+    inputTokens?: unknown
+    outputTokens?: unknown
+    costUSD?: unknown
+    unpricedTurns?: unknown
+    toolUseCount?: unknown
+    lastActivity?: unknown
+  }
+  const input = finite(p.inputTokens)
+  const output = finite(p.outputTokens)
+  const cost = finite(p.costUSD)
+  const unpriced = finite(p.unpricedTurns)
+  const toolUses = finite(p.toolUseCount)
+  const last = (typeof p.lastActivity === 'object' && p.lastActivity !== null ? p.lastActivity : {}) as {
+    activityDescription?: unknown
+    toolName?: unknown
+  }
+  const activity =
+    typeof last.activityDescription === 'string' && last.activityDescription !== ''
+      ? last.activityDescription
+      : typeof last.toolName === 'string' && last.toolName !== ''
+        ? last.toolName
+        : undefined
+  return {
+    ...(typeof p.model === 'string' && p.model !== '' ? { model: p.model } : {}),
+    ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
+    ...(activity !== undefined ? { activity: clip(activity, MAX_NAME) } : {}),
+    ...(input !== undefined && output !== undefined && input + output > 0
+      ? { inputTokens: input, outputTokens: output, totalTokens: input + output }
+      : {}),
+    ...(cost !== undefined && cost > 0 ? { costUSD: cost } : {}),
+    ...(unpriced !== undefined && unpriced > 0 ? { unpricedTurns: unpriced } : {}),
   }
 }
 
@@ -91,13 +134,15 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
     } else if (isLocalAgentTask(task)) {
       if (task.agentType === 'main-session') continue
       rows.push({
-        ...plainRow(task, 'agent', task.description),
+        ...plainRow(task, 'agent', task.description || task.agentType),
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
+        ...agentCounters(task),
       })
     } else if (isInProcessTeammateTask(task)) {
       rows.push({
         ...plainRow(task, 'teammate', task.identity.agentName),
         team: clip(task.identity.teamName, MAX_NAME),
+        ...agentCounters(task),
       })
     } else if (isLocalShellTask(task)) {
       rows.push(plainRow(task, 'shell', task.command))
