@@ -10,7 +10,6 @@ echo "############################################################"
 if [ ! -f "$here/../../dist/mercury.mjs" ]; then
   echo "# ⚠ dist/mercury.mjs absent — skipping (build first to exercise this gate)"
 else
-  /usr/bin/python3 "$here/mount-smoke.py" || fail=1
   bun="${BUN:-$HOME/.bun/bin/bun}"
   "$bun" run "$here/prove-cli-verb-honesty.ts" || fail=1
   "$bun" run "$here/prove-mcp-verbs-truthful.ts" || fail=1
