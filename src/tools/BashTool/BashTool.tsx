@@ -530,6 +530,7 @@ async function* runBash(
 
     const accumulator = new EndTruncatingAccumulator()
     accumulator.append(result.stdout.trimEnd() + '\n')
+    if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
     const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
     const returnCodeInterpretation = interpretation.message
     const noOutputExpected = isSilentCommand(input.command)

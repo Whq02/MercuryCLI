@@ -86,7 +86,7 @@ export async function createBashShellProvider(
       const preamble = getGlobPreambleCommand(shellPath)
       if (preamble) parts.push(preamble)
       parts.push(`eval ${quotedCommand}`)
-      parts.push(`pwd -P >| ${quote([cwdFileInShell])}`)
+      parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       if (isWindows) {
         parts.push(`{ pwd -W >> ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       }
