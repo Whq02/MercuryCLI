@@ -21,7 +21,7 @@ export type AttributionTexts = {
   pr: string
 }
 
-const DEFAULT_PR_ATTRIBUTION = '🤖 Generated with [Mercury CLI](https://mercury-cli.ai)'
+const DEFAULT_PR_ATTRIBUTION = 'Generated with [Mercury CLI](https://mercury-cli.ai)'
 const DEFAULT_COMMIT_TRAILER = 'Co-Authored-By: Mercury'
 
 export function getAttributionTexts(): AttributionTexts {
