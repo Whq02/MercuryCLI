@@ -21,6 +21,8 @@ import { apiTimeoutMsOverride } from './envValidation.js'
 import { getCACertificates } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
+import { Agent as HttpsAgent } from 'node:https'
+import { connect as tlsConnect } from 'node:tls'
 
 // ---------------------------------------------------------------------------
 // Proxy URL + NO_PROXY resolution
@@ -576,4 +578,31 @@ export function clearProxyCache(): void {
   proxyDispatcherCache = new Map()
   tunnelAgentCache = new Map()
   logForDebugging('proxy: cache cleared')
+}
+
+// ── the background agent ─────────────────────────────────────────────────────
+
+/** An https agent whose sockets never hold the process open. The boot-time
+ *  probes (policy limits, managed settings) are background work: a print run
+ *  that finishes its turn while a probe is still connecting must exit at the
+ *  cliff, not wait on api.anthropic.com (the exit-cliff census: a ref'd
+ *  TLSSocket to 2607:6bc0::10:443 at reallyExit, pool run 6). Every socket
+ *  the agent opens is unref'd the moment it exists; a probe that has not
+ *  answered by exit simply never answers. One owner, memoized. */
+class BackgroundHttpsAgent extends HttpsAgent {
+  override createConnection(options: unknown, callback?: unknown): ReturnType<HttpsAgent['createConnection']> {
+    // node's https.Agent opens the TLS socket itself; a host whose agent
+    // lacks the method (bun's shim, under a prover) connects directly.
+    const inherited = (HttpsAgent.prototype as unknown as { createConnection?: (o: unknown, cb?: unknown) => unknown }).createConnection
+    const socket = (typeof inherited === 'function'
+      ? inherited.call(this, options, callback)
+      : tlsConnect(options as never, callback as never)) as ReturnType<HttpsAgent['createConnection']>
+    ;(socket as { unref?: () => unknown } | undefined)?.unref?.()
+    return socket
+  }
+}
+let backgroundAgent: HttpsAgent | null = null
+export function backgroundHttpsAgent(): HttpsAgent {
+  if (backgroundAgent === null) backgroundAgent = new BackgroundHttpsAgent({ keepAlive: false })
+  return backgroundAgent
 }
