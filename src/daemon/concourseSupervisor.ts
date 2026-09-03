@@ -138,6 +138,9 @@ export interface ConcourseWorkerRecordV1 {
   lastAttachGrantAt?: number
   stoppedAt?: number
   stoppedBy?: string
+  stopRequestedAt?: number
+  stopRequestedBy?: string
+  stopRequestedRetired?: ConcourseWorkerRecordV1['retired']
   retired?: { reason: 'idle-empty'; idleMs: number; thresholdMs: number; at: number }
   crash?: { at: number; reason: string; respawning: boolean }
   runnerArgv?: string[]
@@ -1783,9 +1786,23 @@ export async function reactivateConcourseSession(
 }
 
 export type ConcourseStopOutcome =
-  | { outcome: 'applied'; runnerId: string }
+  | {
+      outcome: 'applied'
+      runnerId: string
+      acknowledged: boolean
+    }
   | { outcome: 'noop'; reason: 'already-stopped' }
   | { outcome: 'refused'; reason: 'unknown-session' | 'no-kill-channel'; detail?: string }
+
+function stampStopped(rec: ConcourseWorkerRecordV1, by: string, retired?: ConcourseWorkerRecordV1['retired']): void {
+  rec.stoppedAt = Date.now()
+  rec.stoppedBy = by
+  if (retired !== undefined) rec.retired = retired
+  delete rec.stopRequestedAt
+  delete rec.stopRequestedBy
+  delete rec.stopRequestedRetired
+  delete rec.crash
+}
 
 export function stopConcourseSession(
   sessionId: string,
@@ -1814,14 +1831,32 @@ export function stopConcourseSession(
         }
         return
       }
+      if (rec.stopRequestedAt === undefined) {
+        rec.stopRequestedAt = Date.now()
+        rec.stopRequestedBy = by
+        if (retired !== undefined) rec.stopRequestedRetired = retired
+      }
+      out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: false }
+      return
     }
-    rec.stoppedAt = Date.now()
-    rec.stoppedBy = by
-    if (retired !== undefined) rec.retired = retired
-    delete rec.crash
-    out = { outcome: 'applied', runnerId: rec.runnerId }
+    stampStopped(rec, by, retired)
+    out = { outcome: 'applied', runnerId: rec.runnerId, acknowledged: true }
   }, dir)
   return out
+}
+
+export function completeRequestedStop(runnerId: string, dir?: string): boolean {
+  const standing = readSessionWorkers(dir)[runnerId]
+  if (!standing || standing.endedAt !== undefined || standing.stoppedAt !== undefined || standing.stopRequestedAt === undefined) return false
+  let completed = false
+  updateConcourseWorkers(workers => {
+    const rec = workers[runnerId]
+    if (!rec || rec.endedAt !== undefined || rec.stoppedAt !== undefined || rec.stopRequestedAt === undefined) return
+    if (workerPidAlive(rec)) return
+    stampStopped(rec, rec.stopRequestedBy ?? 'daemon', rec.stopRequestedRetired)
+    completed = true
+  }, dir)
+  return completed
 }
 
 
