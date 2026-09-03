@@ -55,7 +55,7 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     owner: 'conversation OwnerKey',
     resourceKind: 'workshop',
     notes:
-      'Runtime = execution; cells = ready↔running transitions + bounded ring (Δ2); ts cells share the js lane kind.',
+      'Runtime = execution; cells = ready ⇄ running transitions + bounded ring (Δ2); ts cells share the js lane kind.',
   },
   {
     domain: 'workshop-python',

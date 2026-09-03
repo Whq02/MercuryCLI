@@ -448,7 +448,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     getFocusedComposerMainModel,
   )
   void editGen
-  // Voice input: the capture phase drives `v`/esc in the raw-key ladder;
+  // Voice input: the capture phase drives space/esc in the raw-key ladder;
   // each receipt (a refusal, a cancel, the transcribing family) paints once
   // through the notification queue.
   const voice = useSyncExternalStore(subscribeVoice, voiceSnapshot, voiceSnapshot)
@@ -2749,15 +2749,15 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   // Voice input rides the text input's own filter — the one place a
   // keystroke can be swallowed before it types (the text input subscribes
   // ahead of the raw-key ladder). A terminal sees no key-up, so `v` is
-  // press-to-start / press-to-stop: with /speak on, `v` in an empty plain
+  // press-to-start / press-to-stop: with /speak on, space in an empty plain
   // composer starts a take; while one runs (or its transcription is in
   // flight) `v` stops it — neither types. Read LIVE, never the render's
   // snapshot: the second press must see the first press's phase. With
-  // /speak off, v is the letter v — even while the last take's
+  // /speak off, space is a space — even while the last take's
   // transcription is still in flight (a running take is always stoppable,
   // and /speak off drops it).
   const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
-    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    if (rawInput !== ' ' || key.ctrl || key.meta) return rawInput
     const live = voiceSnapshot()
     if (live.phase === 'recording' || (live.phase === 'transcribing' && live.enabled)) {
       void toggleVoiceCapture()

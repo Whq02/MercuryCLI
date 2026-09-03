@@ -10,14 +10,14 @@ capture is the composer.
 - `/speak on` turns voice input on for this machine; `/speak off` turns it
   off (the default); bare `/speak` shows the status, the capture backend and
   the transcribing sign-in the next take would use.
-- With voice input on, press `v` in an empty composer to start a capture.
+- With voice input on, press space in an empty composer to start a capture.
   A terminal sees no key-up, so a capture is press-to-start, press-to-stop:
   press `v` again to stop it and send the take to the transcriber, or press
   `esc` to cancel it (nothing leaves the machine). With voice input off,
   `v` is the letter v.
-- `/voice` is the same action as pressing `v`: start a capture, or stop
+- `/voice` is the same action as pressing space: start a capture, or stop
   the one running.
-- The footer says `● recording · v or esc to stop` while a take runs and
+- The footer says `● recording · space or esc to stop` while a take runs and
   `transcribing…` while it is in flight. Every refusal is a receipt with
   its reason: no backend, no transcribing sign-in, a microphone that could
   not be opened, a take that carried only silence, a transcriber that
@@ -44,7 +44,7 @@ one that is live:
 2. **A recorder already on PATH**: `sox`, `arecord` (Linux) or `ffmpeg`.
    These are used only when you have installed them yourself; Mercury never
    vendors them.
-3. **No backend**: pressing `v` answers the receipt "no microphone backend",
+3. **No backend**: pressing space answers the receipt "no microphone backend",
    naming the remedy that fits the install: on a source checkout the pack
    build (`bun run setup`) or a recorder on PATH; on a release install — no
    checkout to build from — a recorder on PATH (ffmpeg or sox), with the
@@ -70,7 +70,7 @@ model):
   sign-in does not transcribe here.
 - **Anthropic** offers no speech-to-text endpoint.
 
-With no transcribing sign-in, pressing `v` answers "no sign-in transcribes
+With no transcribing sign-in, pressing space answers "no sign-in transcribes
 yet — /logins openai (API key) or /logins gemini" before any audio is
 captured. On-device transcription is a possible follow-up; it is not part of
 this release.

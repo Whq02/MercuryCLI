@@ -6,6 +6,8 @@
 
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
+import { getApolloModeSections } from '../../prompt/apolloMode.js'
+import { getAutopilotModeSections } from '../autopilot/autopilotPrompt.js'
 import {
   getIsNonInteractiveSession,
   getLastEmittedDate,
@@ -532,4 +534,43 @@ export function getDeepthinkEffortAttachment(
   // — no effort, budget, or wire change. Contract + research citations:
   // src/utils/effort.ts (DEEPTHINK block).
   return [{ type: 'deepthink_effort' }]
+}
+
+// ── the mode packs (apollo, autopilot) ───────────────────────────────────────
+//
+// A mode pack is behavioural guidance the operator's mode change asks for.
+// It never composes into the top-level system prompt — that is part of the
+// prefix every thinking block is bound to, and a mode change would rewrite
+// it — so it rides the conversation as a persisted row: the pack on entry
+// (its bytes captured then, replayed unchanged), an exit row on leaving.
+// Main thread only (the ruled main-agent-only law for the packs).
+
+function latestModePack(messages: readonly Message[]): 'apollo' | 'autopilot' | null {
+  let current: 'apollo' | 'autopilot' | null = null
+  for (const message of messages) {
+    if (message.type !== 'attachment') continue
+    if (message.attachment.type === 'mode_pack') current = message.attachment.mode
+    else if (message.attachment.type === 'mode_pack_exit') current = null
+  }
+  return current
+}
+
+export function getModePackAttachments(
+  messages: Message[] | undefined,
+  toolUseContext: ToolUseContext,
+): Attachment[] {
+  if (toolUseContext.agentId) return []
+  const mode = toolUseContext.getAppState().toolPermissionContext.mode
+  const wanted: 'apollo' | 'autopilot' | null = mode === 'apollo' || mode === 'autopilot' ? mode : null
+  const current = latestModePack(messages ?? [])
+  if (wanted === current) return []
+  const out: Attachment[] = []
+  if (current !== null) out.push({ type: 'mode_pack_exit', mode: current })
+  if (wanted !== null) {
+    const sections =
+      wanted === 'apollo' ? getApolloModeSections('apollo') : getAutopilotModeSections('autopilot')
+    // A pack that renders nothing (autopilot with its gate off) emits no row.
+    if (sections.length > 0) out.push({ type: 'mode_pack', mode: wanted, text: sections.join('\n\n') })
+  }
+  return out
 }

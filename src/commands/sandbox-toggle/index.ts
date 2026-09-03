@@ -1,6 +1,7 @@
 import type { Command } from '../../types/command.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { getPlatform } from '../../utils/platform.js'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 
 /** Sandboxing runs on macOS, Linux and WSL2 (WSL1 is refused at invocation,
  *  where the version can be probed asynchronously). */
@@ -22,7 +23,7 @@ const sandboxToggle = {
   get description() {
     const check = SandboxManager.checkDependencies()
     const enabled = SandboxManager.isSandboxingEnabled()
-    const glyph = check.errors.length > 0 ? '⚠\uFE0E' : enabled ? '✓' : '◯'
+    const glyph = check.errors.length > 0 ? GLYPH.warn : enabled ? '✓' : '◯'
     let phrase = 'Sandboxing disabled'
     if (enabled) {
       phrase = SandboxManager.isAutoAllowBashIfSandboxedEnabled()
