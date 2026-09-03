@@ -463,7 +463,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
     (t.error ?? '').includes('compaction fixture refusal') || (t.error ?? '').toLowerCase().includes('api error'),
     t.error,
   )
-  check('failed rows read as idle (Team Center contract)', t.isIdle === true)
+  check('failed rows read as idle (crew board contract)', t.isIdle === true)
   check('no-orphan sweep on failure: controllers + cleanup cleared', t.abortController === undefined && t.currentWorkAbortController === undefined && t.unregisterCleanup === undefined)
   const bookends = bookendsFor(s.taskId)
   check("EXACTLY-ONCE: one 'failed' SDK bookend", bookends.length === 1 && bookends[0]?.status === 'failed', JSON.stringify(bookends))

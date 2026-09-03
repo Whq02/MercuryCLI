@@ -912,9 +912,12 @@ export const AgentTool = buildTool({
         prompt: input.prompt,
         setAppState: rootSetAppState,
         selectedAgent: agentDef,
-        // The task record shows the launch intent: the caller's model
-        // parameter, else the definition's own model.
-        model: model ?? agentDef?.model,
+        // The task record names the model the agent RUNS — the plan's
+        // resolved id (an inherited launch resolved to the parent's model;
+        // the served id replaces it in the progress fold once a response
+        // lands). The launch intent alone left an inheriting agent's row
+        // model-less on every crew surface.
+        model: plan.model,
         toolUseId: context.toolUseId,
       })
 
