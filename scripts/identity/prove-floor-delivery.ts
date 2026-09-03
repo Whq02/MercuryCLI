@@ -282,7 +282,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     // the interactive and the SDK turns alike.
     ['every session turn — interactive (the concourse runner) and SDK alike (custom prompt)', 'src/QueryEngine.ts', '? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt]'],
     ['bare MERCURY_SIMPLE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
-    ['default prompt contract splice', 'src/constants/prompts.ts', 'wrapperSections: getMercuryContractSections(),'],
+    ['default prompt contract splice (frozen per conversation through the section cache)', 'src/constants/prompts.ts', "systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections()))"],
     // The manager addendum sits BEHIND the contract —
     // same order law: floor, engine line, contract; manager bits after.
     ['switchboard coordinator seat (its own floor, then its engine line)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          input.contract,'],
