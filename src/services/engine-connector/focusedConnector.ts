@@ -1,3 +1,4 @@
+import { getSessionId } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { noSessionConnector } from './noSessionConnector.js'
 import type { EngineConnectorV1 } from './types.js'
@@ -28,6 +29,11 @@ function emit(): void {
 
 export function getFocusedSessionConnector(): EngineConnectorV1 {
   return focused ?? noSessionConnector()
+}
+
+export function conversationIdHere(): string {
+  const focused = getFocusedSessionConnector().sessionId()
+  return focused !== '' ? focused : String(getSessionId())
 }
 
 export function hasFocusedSession(): boolean {

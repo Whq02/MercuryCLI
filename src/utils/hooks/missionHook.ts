@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../messageQueueManager.js'
-import { getSessionId } from '../../bootstrap/state.js'
+import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
 import { logForDebugging } from '../debug.js'
 import {
   claimContinuation,
@@ -109,7 +109,7 @@ export function isMissionClearKeyword(text: string): boolean {
   return CLEAR_WORDS.has(text.trim().toLowerCase())
 }
 
-export function getActiveMission(sessionId: string = getSessionId()): ActiveMission | undefined {
+export function getActiveMission(sessionId: string = conversationIdHere()): ActiveMission | undefined {
   return missionsBySession.get(sessionId)
 }
 
@@ -175,7 +175,7 @@ export function setActiveMission(
   condition: string,
   options?: { maxBlocks?: number; sessionId?: string },
 ): string {
-  const sessionId = options?.sessionId ?? getSessionId()
+  const sessionId = options?.sessionId ?? conversationIdHere()
   const maxBlocks = options?.maxBlocks ?? DEFAULT_MISSION_MAX_BLOCKS
 
   const prior = missionsBySession.get(sessionId)
@@ -259,7 +259,7 @@ export function setActiveMission(
 
 export function clearActiveMission(
   setAppState: SetAppState,
-  sessionId: string = getSessionId(),
+  sessionId: string = conversationIdHere(),
 ): string | null {
   const mission = missionsBySession.get(sessionId)
   if (!mission) return null
@@ -270,13 +270,27 @@ export function clearActiveMission(
   return mission.condition
 }
 
+export function syncMissionFromCard(setAppState: SetAppState, sessionId: string): void {
+  const card = readMissionCard(sessionId)
+  const live = missionsBySession.get(sessionId)
+  if (card?.state === 'armed' && live === undefined) {
+    rearmMissionFromCard(setAppState, { cardSessionId: sessionId, armSessionId: sessionId })
+    return
+  }
+  if (live !== undefined && card !== null && card.state !== 'armed') {
+    removeFunctionHook(setAppState, sessionId, 'Stop', live.hookId)
+    missionsBySession.delete(sessionId)
+    logForDebugging(`[mission] released the standing mission for session ${sessionId} (the card reads ${card.state})`)
+  }
+}
+
 export function rearmMissionFromCard(
   setAppState: SetAppState,
   target: string | { cardSessionId?: string; armSessionId?: string } = {},
 ): boolean {
   const normalized = typeof target === 'string' ? { cardSessionId: target, armSessionId: target } : target
-  const cardSessionId = normalized.cardSessionId ?? getSessionId()
-  const armSessionId = normalized.armSessionId ?? getSessionId()
+  const cardSessionId = normalized.cardSessionId ?? conversationIdHere()
+  const armSessionId = normalized.armSessionId ?? conversationIdHere()
   if (missionsBySession.has(armSessionId)) return false
   const card = readMissionCard(cardSessionId)
   if (!card || card.state !== 'armed') return false

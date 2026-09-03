@@ -25,6 +25,7 @@ import { logForDebugging } from './debug.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { rearmMissionFromCard } from './hooks/missionHook.js'
+import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
 import { getPlansDirectory } from './plans.js'
 import { restoreSessionMetadata, saveWorktreeState } from './sessionStorage/logs.js'
@@ -119,8 +120,9 @@ export function restoreMissionContinuity(
       (m): m is Message & { sessionId: string } =>
         typeof (m as { sessionId?: unknown }).sessionId === 'string',
     ) as { sessionId?: string } | undefined
-    const cardSessionId = result.sessionId ?? fromMessages?.sessionId ?? getSessionId()
-    return rearmMissionFromCard(setAppState, { cardSessionId, armSessionId: getSessionId() })
+    const adopted = String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
+    migrateOrphanedMissionCard(adopted)
+    return rearmMissionFromCard(setAppState, { cardSessionId: adopted, armSessionId: adopted })
   } catch (error) {
     logForDebugging(`resume: mission re-arm failed: ${String(error)}`)
     return false

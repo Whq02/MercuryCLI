@@ -17,7 +17,9 @@ import {
 } from '../../utils/hooks/missionHook.js'
 
 
-function MissionStatusPanel({ mission }: { mission: ActiveMission }): React.ReactNode {
+type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'gaveUp'> & { seat?: boolean }
+
+function MissionStatusPanel({ mission }: { mission: MissionView }): React.ReactNode {
   const iterationsLabel =
     mission.iterations === 0
       ? 'not yet evaluated'
@@ -26,7 +28,7 @@ function MissionStatusPanel({ mission }: { mission: ActiveMission }): React.Reac
     ? '✓ Mission met — stops are allowed; a new /mission replaces it'
     : mission.gaveUp
       ? `${GLYPH.warn} Mission DISARMED (block cap reached, not met — set it again to re-arm)`
-      : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}`
+      : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}${mission.seat ? " · the hook rides the session's seat" : ''}`
   return (
     <Box flexDirection="column">
       <Text bold>Standing mission</Text>
@@ -52,13 +54,23 @@ export async function call(
   const { setAppState } = context
 
   if (arg === '') {
-    const mission = getActiveMission()
+    const { conversationIdHere, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
+    const hosted = hasFocusedSession()
+    const mission = hosted ? undefined : getActiveMission()
     if (!mission) {
       try {
         const { readMissionCard } = await import('../../services/mission/missionCard.js')
-        const { getSessionId } = await import('../../bootstrap/state.js')
-        const card = readMissionCard(getSessionId())
+        const card = readMissionCard(conversationIdHere())
         if (card) {
+          if (card.state === 'armed' && hosted) {
+            const output = await renderToString(
+              <MissionStatusPanel
+                mission={{ condition: card.goal, iterations: card.iterations, ...(card.nextStep ? { lastReason: card.nextStep } : {}), seat: true }}
+              />,
+            )
+            onDone(output)
+            return null
+          }
           const stateLine =
             card.state === 'armed'
               ? 'Mission card ARMED (no live hook in this process — a resume re-arms it)'

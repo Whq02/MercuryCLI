@@ -67,3 +67,30 @@ export function listMissionCards(cwd?: string): MissionCard[] {
     return []
   }
 }
+
+export function migrateOrphanedMissionCard(conversationId: string, cwd?: string): boolean {
+  try {
+    if (readMissionCard(conversationId, cwd) !== null) return false
+    const dir = missionCardsDir(cwd)
+    if (!existsSync(dir)) return false
+    const projectDir = getProjectDir(cwd ?? getOriginalCwd())
+    const orphans: MissionCard[] = []
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.json')) continue
+      const card = readMissionCard(name.slice(0, -'.json'.length), cwd)
+      if (card === null || card.state !== 'armed') continue
+      if (existsSync(join(projectDir, `${card.sessionId}.jsonl`))) continue
+      orphans.push(card)
+    }
+    if (orphans.length !== 1) return false
+    const orphan = orphans[0]!
+    const now = new Date().toISOString()
+    writeMissionCard({ ...orphan, sessionId: conversationId, updatedAt: now }, cwd)
+    writeMissionCard({ ...orphan, state: 'continued', nextStep: `continued in session ${conversationId}`, updatedAt: now }, cwd)
+    logForDebugging(`[mission] migrated the card keyed by a process id (${orphan.sessionId}) to the conversation ${conversationId}`)
+    return true
+  } catch (error) {
+    logForDebugging(`missionCard: migration failed: ${String(error)}`)
+    return false
+  }
+}
