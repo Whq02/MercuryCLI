@@ -231,7 +231,7 @@ section('§5 the shape')
 {
   const src = readFileSync(join(ROOT, 'src/services/projectServices/serviceManager.ts'), 'utf8')
   const restart = src.slice(src.indexOf('export async function restartService'), src.indexOf('export function sendInput'))
-  check('restartService consults the stop\'s refusal note before starting', /stopped\.note !== undefined/.test(restart) && restart.indexOf('stopped.note') < restart.indexOf('await startService('))
+  check('restartService consults the stop\'s refusal note before starting', /stopped\.note !== undefined/.test(restart) && restart.indexOf('stopped.note') !== -1 && restart.indexOf('stopped.note') < restart.indexOf('await startService('))
   check('…and answers a restart failure', /restart failed:/.test(restart))
   check('the strike decision takes the held handle as identity', /ownedHandle/.test(src) && /liveChildren\.get\(childKey\(cwd, name\)\)/.test(src))
   check('the backfill has a bounded retry ladder', /TOKEN_BACKFILL_RETRY_MS/.test(src))

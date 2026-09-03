@@ -3,7 +3,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react'
 import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
-import { crewAgentsOf, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
+import { crewAgentsOf, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
@@ -1151,7 +1151,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     // (the same figure the Crew view and the card spell); the status word
     // stands until its first response settles.
     const tokensVerb = c.status === 'running' && c.facts !== undefined ? crewTokensLabel(c.facts) : null
-    const verbLabel = isViewing ? 'viewing' : (tokensVerb ?? base.label)
+    const verbLabel = isViewing ? 'viewing' : (tokensVerb ?? (c.facts !== undefined ? crewStateLabel(c.facts) : base.label))
     const tone = isViewing ? accent : base.tone
     const g = c.status === 'running' ? GLYPH.busy : GLYPH.idle
     const gColor = isViewing ? accent : c.status === 'running' ? tok.success : tok.textMuted

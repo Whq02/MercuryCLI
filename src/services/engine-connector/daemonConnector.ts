@@ -531,7 +531,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   /** The runner's live state word from the tail projection ('compacting'
    *  while the fold runs); folded into the live phase. */
-  private liveStateWord: 'compacting' | null = null
+  private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
+  /** The agent wait's count (SessionTailV1.waitingOnAgents); 0 otherwise. */
+  private liveAgentsWaiting = 0
+  /** The second esc — the hard stop is on its way through the daemon. */
+  private hardStopping = false
 
   // ── the liveness owner (LIVENESS) ──
   /** The seat's stamp of the runner's last frame of any kind
@@ -715,7 +719,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveTurnChars = tail.turnChars ?? 0
     // The runner's state word rides the same read (absent means none — the
     // mixed-version law); a flip repaints the live phase at once.
-    this.setLiveStateWord(tail.stateWord === 'compacting' ? 'compacting' : null)
+    this.setLiveStateWord(
+      tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
+      tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
+    )
     // LIVENESS: the seat's stamp of the runner's last frame and the block
     // in flight ride the same read (absent means unspoken / an old daemon —
     // the row then claims nothing); a block flip repaints the phase.
@@ -742,9 +749,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   /** The runner's live state word from the tail projection ('compacting'
    *  while the fold call runs). A flip recomputes the live view — the phase
    *  is the reader-visible fact that moves. */
-  private setLiveStateWord(word: 'compacting' | null): void {
-    if (this.liveStateWord === word) return
+  private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
+    const count = word === 'waiting-on-agents' ? agentsWaiting : 0
+    if (this.liveStateWord === word && this.liveAgentsWaiting === count) return
     this.liveStateWord = word
+    this.liveAgentsWaiting = count
     this.recomputeLive()
   }
 
@@ -1000,14 +1009,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     // canvas) outranks a stale block stamp: the stream is closed then.
     const streaming: SessionLiveV1['phase'] | null =
       this.streamBlock === 'thinking' ? 'thinking' : this.streamBlock !== null ? 'responding' : null
+    // The agent wait outranks everything but a running tool: the runner's
+    // own word says its stream is over and only its background agents
+    // hold the turn open — 'thinking' there is the lie the operator saw.
     const phase: SessionLiveV1['phase'] =
       inFlight && this.liveStateWord === 'compacting'
         ? 'compacting'
-        : inFlight && this.liveState.phase !== 'tool' && streaming !== null
-          ? streaming
-          : inFlight && this.liveState.phase === 'idle'
-            ? 'thinking'
-            : this.liveState.phase
+        : inFlight && this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'
+          ? 'waiting'
+          : inFlight && this.liveState.phase !== 'tool' && streaming !== null
+            ? streaming
+            : inFlight && this.liveState.phase === 'idle'
+              ? 'thinking'
+              : this.liveState.phase
+    const agentsWaiting = phase === 'waiting' ? this.liveAgentsWaiting : 0
     // The published in-progress set rests on the idle edge exactly like the
     // four artifacts below (FN-016 R5): the transcript's unanswered
     // tool_use ids are a fact about the RECORDS, not about a running turn —
@@ -1024,10 +1039,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const changed =
       inFlight !== prev.inFlight ||
       phase !== prev.phase ||
+      agentsWaiting !== prev.agentsWaiting ||
       this.liveState.turnStartedAtMs !== prev.turnStartedAtMs ||
       inProgressToolUseIDs.size !== prev.inProgressToolUseIDs.size ||
       [...inProgressToolUseIDs].some(id => !prev.inProgressToolUseIDs.has(id))
     if (!inFlight && this.interrupting) this.interrupting = false
+    if (!inFlight && this.hardStopping) this.hardStopping = false
     // A settled turn never leaves a tail behind (the settled row paints),
     // and the live token count rests with it.
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
@@ -1049,6 +1066,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.effectiveLive = {
       inFlight,
       phase,
+      agentsWaiting,
       inProgressToolUseIDs,
       turnStartedAtMs: this.liveState.turnStartedAtMs ?? (inFlight ? Date.now() : null),
     }
@@ -1716,30 +1734,37 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     emitAll(this.askListeners, 'asks')
   }
 
-  /** esc: the session's turn stops through the daemon (one request until
-   *  the live state falls idle); its parked asks retire with the turn (the
-   *  session cancels them itself). True when something was running. */
+  /** esc: the session's turn stops through the daemon — the runner aborts
+   *  its in-flight request and every background agent the turn waits on;
+   *  its parked asks retire with the turn (the session cancels them
+   *  itself). A SECOND esc while the first is still on its way is the HARD
+   *  stop: the daemon delivers the interrupt again and cuts the runner if
+   *  the turn is still open a second later (the session survives; its next
+   *  words revive it). True when something was running. */
   interrupt(): boolean {
     const wasRunning = this.effectiveLive.inFlight || this.askEntries.length > 0
     if (!wasRunning) return false
     for (const entry of this.askEntries) this.confirms.delete(entry.id)
     this.askEntries = []
     emitAll(this.askListeners, 'asks')
-    if (!this.interrupting) {
-      this.interrupting = true
-      emitAll(this.liveListeners, 'live')
-      void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator' })
-        .then(reply => {
-          if (!(reply.ok === true && reply.outcome === 'applied')) {
-            this.interrupting = false
-            emitAll(this.liveListeners, 'live')
-          }
-        })
-        .catch(() => {
-          this.interrupting = false
+    if (this.interrupting && this.hardStopping) return true
+    const hard = this.interrupting
+    if (hard) this.hardStopping = true
+    else this.interrupting = true
+    emitAll(this.liveListeners, 'live')
+    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', ...(hard ? { hard: true } : {}) })
+      .then(reply => {
+        if (!(reply.ok === true && reply.outcome === 'applied')) {
+          if (hard) this.hardStopping = false
+          else this.interrupting = false
           emitAll(this.liveListeners, 'live')
-        })
-    }
+        }
+      })
+      .catch(() => {
+        if (hard) this.hardStopping = false
+        else this.interrupting = false
+        emitAll(this.liveListeners, 'live')
+      })
     return true
   }
 
@@ -2009,6 +2034,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       title: liveTitleDeriver?.(this.record) ?? this.record.title,
       projectLabel: this.record.projectLabel,
       interrupting: this.interrupting,
+      hardStopping: this.hardStopping,
       quietMs,
       watchdogMs,
       phaseMs,

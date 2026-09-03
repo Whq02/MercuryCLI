@@ -29,6 +29,10 @@ const CFG_KEYS = [
   '"readyText"', '"readySettleTicks"', '"stableTicks"', '"resizes"', '"cwd"',
   '"stableRegion"', '"requireStable"',
 ]
+// A resize step's moment: the tick schedule, or the sub-tick/observed forms
+// (ms after start · ms after a named mark's send · ms after the previous
+// resize). Both drivers read every one.
+const RESIZE_KEYS = ['"atTick"', '"atMs"', '"afterMark"', '"afterMs"', '"afterPrevMs"']
 const SEND_KEYS = [
   '"atTick"', '"afterPrevTicks"', '"awaitText"', '"awaitRaw"',
   '"minTick"', '"awaitSettleTicks"', '"awaitStableTicks"', '"data"', '"mark"',
@@ -47,7 +51,7 @@ const PAYLOAD_KEYS = [
 
 t.section('every vshot.py grammar token is handled by vshot-win.py')
 {
-  for (const k of [...CFG_KEYS, ...SEND_KEYS]) {
+  for (const k of [...CFG_KEYS, ...SEND_KEYS, ...RESIZE_KEYS]) {
     t.check(`posix driver reads ${k}`, posix.includes(k), 'grammar source of truth')
     t.check(`windows driver reads ${k}`, win.includes(k), win.includes(k) ? 'ok' : 'MISSING')
   }
@@ -112,7 +116,7 @@ t.section('vshot.py did NOT grow tokens this prover does not pin')
     .join('\n')
   for (const m of code.matchAll(/(?:cfg|nxt|step)\.get\("([A-Za-z]+)"/g)) seen.add(`"${m[1]}"`)
   for (const m of code.matchAll(/cfg\["([A-Za-z]+)"\]/g)) seen.add(`"${m[1]}"`)
-  const pinned = new Set([...CFG_KEYS, ...SEND_KEYS, '"cols"', '"rows"'])
+  const pinned = new Set([...CFG_KEYS, ...SEND_KEYS, ...RESIZE_KEYS, '"cols"', '"rows"'])
   const unpinned = [...seen].filter(k => !pinned.has(k))
   t.check(
     'no unpinned grammar token in vshot.py',

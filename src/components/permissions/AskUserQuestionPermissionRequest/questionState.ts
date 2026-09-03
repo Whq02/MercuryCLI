@@ -9,7 +9,10 @@
  * state is retired — the type is the only survivor.
  */
 
-import type { InterviewQuestionState } from '../../../services/interview/contracts.js'
+import type {
+  InterviewAnswerValue,
+  InterviewQuestionState,
+} from '../../../services/interview/contracts.js'
 
 export type QuestionState = {
   selectedValue?: string | string[]
@@ -56,4 +59,46 @@ export function projectQuestionState(qs: InterviewQuestionState): QuestionState 
     ? (committedLabels[0] ?? (committed.freeText?.trim() ? OTHER_OPTION_VALUE : undefined))
     : undefined
   return { selectedValue, textInputValue: text }
+}
+
+/**
+ * One answer as the card commits it. `labels` are the view's labels (the
+ * Other row rides as OTHER_OPTION_VALUE); `typed` is the Other field's text
+ * as it stands; `hasImage` says an image is attached to the decision.
+ *
+ * The COMMIT carries the chosen options and, when the Other row is in the
+ * answer, its text. A single-select answered by a ROW while text is typed
+ * under Other also returns the draft that KEEPS that text uncommitted — the
+ * lost-input law: choosing A–D never discards what was typed under E; the
+ * highlight back on E shows it again to pick or edit; only emptying the
+ * field drops it, and a submit carries the committed row, never the draft
+ * (the authority answers from the committed value). A multi-select's text
+ * rides with its Other row and needs no keeping.
+ */
+export function composeAnswer(input: {
+  question: { multiSelect: boolean; options: ReadonlyArray<{ id: string; label: string }> }
+  labels: readonly string[]
+  typed: string
+  hasImage: boolean
+}): { commit: InterviewAnswerValue; keptDraft?: InterviewAnswerValue } {
+  const { question, labels, typed, hasImage } = input
+  const optionIds = labels
+    .filter(l => l !== OTHER_OPTION_VALUE)
+    .map(l => question.options.find(o => o.label === l)?.id)
+    .filter((id): id is string => typeof id === 'string')
+  const other = labels.includes(OTHER_OPTION_VALUE)
+  const text = typed.trim()
+  const freeText = other
+    ? text
+      ? hasImage
+        ? `${text} (Image attached)`
+        : text
+      : hasImage
+        ? '(Image attached)'
+        : undefined
+    : undefined
+  const commit: InterviewAnswerValue = { optionIds, ...(freeText ? { freeText } : {}) }
+  const keptDraft =
+    !question.multiSelect && !other && text ? { optionIds, freeText: text } : undefined
+  return { commit, ...(keptDraft ? { keptDraft } : {}) }
 }

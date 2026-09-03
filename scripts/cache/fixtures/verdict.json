@@ -1,9 +1,9 @@
 {
   "v": 1,
   "benchmark": "cache-clock-sim-v1",
-  "generatedIso": "2026-07-05T04:40:24.574Z",
-  "corpusSha256": "fb3497719c592595fbfd0f1456f7ca730a22f1aeb7a34688987a218588097cea",
-  "method": "deterministic replay of real shape-only session traces through the PRODUCTION cacheClockCore decision table (prior evolving chronologically) vs the flat all-5m baseline; arrival-time correction (completion \u2212 generous 30tok/s generation estimate); API-multiplier pricing (0.1 read / 1.25 5m write / 2.0 1h write); all sessions classed interactive (conservative)",
+  "generatedIso": "2026-09-03T00:57:48.937Z",
+  "corpusSha256": "fbaef0c94565153817d72a586a20c08e6c82ffec8ccf26cca77c81cdb3c38c65",
+  "method": "deterministic replay of real shape-only session traces through the PRODUCTION cacheClockCore decision table (prior evolving chronologically) vs the flat all-5m baseline; arrival-time correction (completion − generous 30tok/s generation estimate); API-multiplier pricing (0.1 read / 1.25 5m write / 2.0 1h write); all sessions classed interactive (conservative)",
   "result": {
     "corpus": {
       "sessions": 82,

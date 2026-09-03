@@ -128,6 +128,16 @@ export type TurnDriverPorts = {
   /** Background agents/workflows whose completion the result must wait on
    *  (the hold-back rule's narrower census). */
   hasHoldableBackgroundAgents(): boolean
+  /** The count behind hasWaitableBackgroundTasks — what the agent wait
+   *  speaks (below). Absent ⇒ the wait is announced as one. */
+  waitableBackgroundTaskCount?(): number
+  /** The agent wait spoken to the host: called with the running count when
+   *  the drain parks on background tasks (nothing queued, agents still
+   *  running) and again with 0 when that wait ends — the turn's own stream
+   *  is over by then, so a seat painting "thinking" over this wait would
+   *  lie; the host relays the count as the session's state word. Called
+   *  only when the announced count changes. */
+  onAgentWait?(count: number): void
 
   // ── the deferred-suggestion slot (feature-side state, driver-timed) ─────
   takePendingSuggestion(): StdoutMessage | null
@@ -253,6 +263,15 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
     await ports.beforeCycle()
 
+    // The announced agent wait (0 = none announced): the host hears every
+    // change, and the exit of the cycle always speaks 0.
+    let announcedWait = 0
+    const announceWait = (count: number): void => {
+      if (count === announcedWait) return
+      announcedWait = count
+      ports.onAgentWait?.(count)
+    }
+
     try {
       // The drain loop: empty the command queue, then stay in the loop while
       // background agents run — their completion notifications enqueue as
@@ -266,6 +285,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         phase = 'draining_commands'
         let command: QueuedCommand | undefined
         while ((command = ports.dequeue())) {
+          // A command drains as a turn of its own: the wait it may have
+          // interrupted is over (a fresh stream speaks for itself).
+          announceWait(0)
           // A bash line is a turn like any other: it runs one at a time
           // (never batched), under the same in-flight fact and abort
           // controller as a model turn — so the seat's busy edge spans the
@@ -289,12 +311,17 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
           waitingForAgents = true
           if (ports.peek() === undefined) {
             phase = 'waiting_for_agents'
+            // The turn is held open by its background agents alone — say
+            // so (the count), so the seat's row reads the wait, not a
+            // thinking phase that ended with the stream.
+            announceWait(Math.max(1, ports.waitableBackgroundTaskCount?.() ?? 1))
             // Nothing queued yet — give the background tasks a tick.
             await ports.clock.sleep(100)
           }
           // Re-enter the loop: anything newly queued drains next pass.
         }
       } while (waitingForAgents)
+      announceWait(0)
 
       if (heldBackResult) {
         ports.enqueueOutput(heldBackResult)
@@ -315,6 +342,9 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.shutdown(1)
       return
     } finally {
+      // Every exit of the cycle — settled, thrown, shut down — ends the
+      // announced wait: a state word must never outlive the turn it spoke for.
+      announceWait(0)
       phase = 'finally_flush'
       await ports.flushInternalEvents()
       phase = 'finally_post_flush'

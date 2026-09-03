@@ -391,7 +391,7 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
   // tail thinking stay), no resume synthesis — deserializeLiveMessages,
   // never deserializeMessages — and folds the ONE thinking lift from them.
   check('the connector paints the LIVE deserializer (no resume synthesis)', seatSrc.includes('deserializeLiveMessages(') && !seatSrc.includes('deserializeMessages('))
-  check('the connector folds the ONE thinking lift from its records', seatSrc.includes('liveTurnStateOf('))
+  check('the connector folds the ONE thinking lift from its records (the incremental fold over its own chain)', seatSrc.includes('createLiveTurnFold()') && seatSrc.includes('this.liveFold.fold(this.rawRecords, chain.since)'))
   check('the REPL paints the lift from the focused connector (the one loading truth)', replSrc.includes('const isLoading = seatLive.inFlight;') && replSrc.includes('viewInProgressToolUseIDs'))
   // The stale-tag law: the hop hands the record's model + effort to the
   // connector and the frame band names the focused session's OWN model.
@@ -401,7 +401,7 @@ console.log('\n§ drive-12 — the live view, the one lift, the stale-tag law, P
   // glance reads the focused connector's own usage, never the process
   // ledger under a hop (the $2.54-under-Alpha class).
   const railSrc = readFileSync(join(import.meta.dirname, '../../src/components/HelmLanesRail.tsx'), 'utf8')
-  check("the rail's spend glance reads the FOCUSED connector's own usage", railSrc.includes('getFocusedSessionConnector().usage().totalCostUSD'))
+  check("the rail's spend glance reads the FOCUSED connector's own usage", railSrc.includes('const focusedUsage = getFocusedSessionConnector().usage()') && railSrc.includes('focusedUsage.totalCostUSD'))
   check("the rail's spend glance no longer prints the process ledger's number", !railSrc.includes('glanceUsage.spend.costUSD.toFixed'))
   const hopSrc = readFileSync(join(import.meta.dirname, '../../src/services/switchboard/hopIntoSession.ts'), 'utf8')
   const routeSrc = readFileSync(join(import.meta.dirname, '../../src/components/concourse/ConcourseRoute.tsx'), 'utf8')

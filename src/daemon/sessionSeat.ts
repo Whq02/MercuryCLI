@@ -120,7 +120,10 @@ interface SeatState {
   /** The runner's live state word (SessionTailV1.stateWord): 'compacting'
    *  while the fold call runs — set by the child's system/status frame,
    *  cleared by its null stamp, the turn's result and a respawn. */
-  stateWord: 'compacting' | null
+  stateWord: 'compacting' | 'waiting-on-agents' | null
+  /** The agent wait's count behind the 'waiting-on-agents' word
+   *  (SessionTailV1.waitingOnAgents); 0 with any other word. */
+  waitingOnAgents: number
   /** The running tools' latest ephemeral lines (LIVEPAINT), keyed by the
    *  PARENT tool-use id, and the publish throttle twin of the tail's. */
   progress: Map<string, SessionProgressEntryV1>
@@ -155,7 +158,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -181,6 +184,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         ...(seat.turnChars > 0 ? { turnChars: seat.turnChars } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
+        ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
         ...(seat.lastEventAtMs !== null ? { lastEventAtMs: seat.lastEventAtMs } : {}),
         ...(seat.streamBlock !== null ? { streamBlock: seat.streamBlock } : {}),
         ...(seat.blockSinceMs !== null ? { blockSinceMs: seat.blockSinceMs } : {}),
@@ -855,12 +859,27 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       if (frame.type === 'system' && frame.subtype === 'status') {
         const seat = seatOf(short)
         if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
-        const next = frame.status === 'compacting' ? ('compacting' as const) : null
+        // The runner's two state words: the fold's 'compacting', and the
+        // drain's agent wait ({ waitingOnAgents: n } — the turn's stream is
+        // over, only its background agents hold the turn open); null
+        // clears either.
+        const waiting =
+          frame.status !== null && typeof frame.status === 'object'
+            ? (frame.status as { waitingOnAgents?: unknown }).waitingOnAgents
+            : undefined
+        const next =
+          frame.status === 'compacting'
+            ? ('compacting' as const)
+            : typeof waiting === 'number' && Number.isFinite(waiting) && waiting > 0
+              ? ('waiting-on-agents' as const)
+              : null
+        const count = next === 'waiting-on-agents' ? Math.floor(waiting as number) : 0
         // LIVENESS: a status word is the runner speaking; a flip publishes
         // the stamp with the word at once.
         noteSeatEvent(seat, dir)
-        if (seat.stateWord !== next) {
+        if (seat.stateWord !== next || seat.waitingOnAgents !== count) {
           seat.stateWord = next
+          seat.waitingOnAgents = count
           publishTailNow(seat, dir)
         }
         return
@@ -926,6 +945,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.turnChars = 0
       seat.tailMessageId = null
       seat.stateWord = null
+      seat.waitingOnAgents = 0
       // LIVENESS: the result is the runner's last word of the turn; no
       // block stands past it. The stamp itself stays (the connector reads
       // liveness only while a turn is in flight).
@@ -972,6 +992,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.tailMessageId = null
   const hadWord = seat.stateWord !== null
   seat.stateWord = null
+  seat.waitingOnAgents = 0
   // LIVENESS: the dead child's clock and block are its own; the new child
   // starts unspoken (null — the row claims nothing until it speaks).
   const hadLiveness = seat.lastEventAtMs !== null || seat.streamBlock !== null
