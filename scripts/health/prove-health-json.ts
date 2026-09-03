@@ -181,7 +181,8 @@ try {
   {
     const dir = join(scratch, 'piped-vs-tty')
     mkdirSync(dir, { recursive: true })
-    const piped = runHealth(dir)
+    const NO_CREDENTIAL = { ANTHROPIC_API_KEY: undefined, ANTHROPIC_AUTH_TOKEN: undefined, MERCURY_OAUTH_TOKEN: undefined }
+    const piped = runHealth(dir, NO_CREDENTIAL)
     const pipedCert = piped.json as Cert
     const pipedRow = byId(pipedCert, 'iface-terminal')
     check('piped: the profile row is NEVER a fault', pipedRow !== undefined && pipedRow.status !== 'fail', JSON.stringify(pipedRow))
@@ -199,6 +200,7 @@ try {
             MERCURY_CONFIG_DIR: join(scratchHome, '.mercury'),
             TERM: 'xterm-256color',
             COLORTERM: 'truecolor',
+            ...NO_CREDENTIAL,
           },
           encoding: 'utf8',
           timeout: 60_000,
