@@ -99,6 +99,12 @@ section('§1 the classifier')
   check('a drop after a drop with unchanged marks is recurrent (run 2, the count is this response\'s)', second.kind === 'recurrent' && second.consecutive === 2 && second.count === 2, j(second))
   const third = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
   check('…and the run keeps counting (3)', third.kind === 'recurrent' && third.consecutive === 3, j(third))
+  // The defect arm paints ONCE per conversation: the first recurrent drop
+  // carries the row, every later one is ledger-only.
+  check('the first recurrent drop paints; the next does not (once per conversation)', second.paint === true && third.paint === false, `${second.paint} ${third.paint}`)
+  check('…the words follow: a sentence for the first, null for the next', (describeThinkingDrops([DROP('messages.1.content.0')], second) ?? '').includes('Mercury rewrote') && describeThinkingDrops([DROP('messages.1.content.0')], third) === null)
+  const fourth = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
+  check('…and the run keeps counting for the ledger while nothing paints (4)', fourth.kind === 'recurrent' && fourth.consecutive === 4 && fourth.paint === false, j(fourth))
   const quiet = classifyThinkingDrops('main', [], mark())
   const again = classifyThinkingDrops('main', [DROP('messages.5.content.0')], mark())
   check('a no-drop response resets the run; the next drop is a first drop again', quiet.kind === 'none' && again.kind === 'first' && again.consecutive === 1, j(again))
