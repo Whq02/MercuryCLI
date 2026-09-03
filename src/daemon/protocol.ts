@@ -56,8 +56,14 @@ import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
  *       — the daemon awaits the child's own typed answer and relays it. A
  *       v4 daemon answers the unknown-verb refusal, which the client speaks
  *       as the typed 'daemon-older' outcome.
+ *   v6  the sessionControl action set-spawn-switch (a NEW verb — no alias):
+ *       the session's sub-agents / workflows switch, landed on the record and
+ *       forwarded to the live child at a turn boundary (sessionSeat.ts —
+ *       services/switchboard/spawnSwitches.ts). A v5 daemon answers the
+ *       unknown-action refusal, which the connector speaks as a typed
+ *       'refused' receipt.
  */
-export const MERCURY_DAEMON_PROTO = 5
+export const MERCURY_DAEMON_PROTO = 6
 
 /** The floor: clients older than this are refused. */
 export const MIN_PROTO = 1
@@ -69,7 +75,7 @@ export const MIN_PROTO = 1
  * prints the value to paste). Poison: a verb added or renamed without a
  * proto bump.
  */
-export const DAEMON_PROTO_SHAPE = 'sha256:8e5c3eff0b131120135bb5cee5a3d90f658c8e91b5a6e1eec7597083e98746df'
+export const DAEMON_PROTO_SHAPE = 'sha256:24e4456f6195d853497e746fc89136503c3a0d49f113d9768538a8ae084b9d5e'
 
 /**
  * Byte ceiling for one newline-framed request (1 MiB). Prompts that would
