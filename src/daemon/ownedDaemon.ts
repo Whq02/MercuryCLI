@@ -19,7 +19,7 @@
 //  owner-watch never arms ⇒ it persists for cron. Opt out of the parent reaper with
 //  MERCURY_DAEMON_PERSIST=1 (the daemon-side owner-watch still self-reaps).
 // ============================================================================
-import { adoptiveProjectPath } from '../utils/projectStoreAdoption.js'
+import { daemonDir } from './controlSocket.js'
 import { spawn } from 'node:child_process'
 import { closeSync, mkdirSync, openSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -304,7 +304,7 @@ export function spawnOwnedDaemon(
   if (verdict !== 'spawn') {
     logForDebugging(
       verdict === 'capped'
-        ? `[${label}] spawnOwnedDaemon: session cap ${OWNED_SPAWN_SESSION_CAP} reached — the daemon keeps dying at boot; read ${join(adoptiveProjectPath(projectDir, 'daemon'), 'daemon.log')}`
+        ? `[${label}] spawnOwnedDaemon: session cap ${OWNED_SPAWN_SESSION_CAP} reached — the daemon keeps dying at boot; read ${join(daemonDir(), 'daemon.log')}`
         : `[${label}] spawnOwnedDaemon: cooling down (${Math.round((now - (history?.lastAt ?? 0)) / 1000)}s since the last spawn) — skipped`,
     )
     return undefined
@@ -356,11 +356,15 @@ export function spawnOwnedDaemon(
     // child's stderr (they share the daemon's stderr) — including the seat
     // boot self-checks built precisely to make mis-wiring observable — a
     // failed run would otherwise leave ZERO recoverable evidence. Append to
-    // <project>/.mercury/daemon/daemon.log instead; open failures degrade to
-    // 'ignore' (a log must never block the engage).
+    // <daemon plane>/daemon.log — the config home's daemon dir (the
+    // supervisor record's own home, MERCURY_DAEMON_DIR's seam), never the
+    // project's estate: the pre-warm spawns this daemon beneath the Boot
+    // face, and a bare boot in a plain folder writes nothing into it (the
+    // folder-as-project law — the first chat is the estate's one creator).
+    // Open failures degrade to 'ignore' (a log must never block the engage).
     let outFd: number | 'ignore' = 'ignore'
     try {
-      const logDir = adoptiveProjectPath(projectDir, 'daemon')
+      const logDir = daemonDir()
       mkdirSync(logDir, { recursive: true })
       const logPath = join(logDir, 'daemon.log')
       // Size-gated single rotation (RESOURCE: this is the ONLY open of

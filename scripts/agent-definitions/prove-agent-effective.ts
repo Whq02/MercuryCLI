@@ -11,7 +11,8 @@
  *    built-ins cannot be disabled.
  * E5 estate shadow chains name their reasons.
  * E6 dispatch seam pins: runAgent consumes definition-effort-over-session;
- *    AgentTool consumes agentDef.model — the same inputs this resolver uses.
+ *    AgentTool records the plan-resolved model, which the plan derives from
+ *    agentDef.model — the same inputs this resolver uses.
  */
 import {
   mkdirSync,
@@ -227,10 +228,20 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
       runAgent,
     ),
   )
+  // The task record names the model the agent RUNS: the launch plan's
+  // resolved id, which the plan derives from the definition's own model
+  // under the caller's parameter (an inheriting launch resolves to the
+  // parent's model; the launch intent alone left such a row model-less).
   const agentTool = readFileSync('src/tools/AgentTool/AgentTool.tsx', 'utf-8')
   check(
-    'AgentTool consumes agentDef.model at launch',
-    /model:\s*model\s*\?\?\s*agentDef\?\.model/.test(agentTool),
+    'AgentTool records the plan-resolved model at launch (the task record names what runs)',
+    /selectedAgent:\s*agentDef,[\s\S]{0,600}?model:\s*plan\.model,/.test(agentTool) &&
+      !/model:\s*model\s*\?\?\s*agentDef\?\.model/.test(agentTool),
+  )
+  const launchPlan = readFileSync('src/utils/swarm/agentLaunchPlan.ts', 'utf-8')
+  check(
+    "the plan resolves the definition's model under the caller's parameter (the one floor-noted ladder)",
+    /getAgentModelWithFloorNote\(\s*definition\.model,\s*i\.mainLoopModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
   )
 }
 

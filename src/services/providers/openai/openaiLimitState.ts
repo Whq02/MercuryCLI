@@ -41,6 +41,40 @@ const observedBySource: Record<OpenaiLimitSource, { resetsAtMs: number; observed
   'api-key': null,
 }
 
+// ── The record's CHANGE SIGNAL ───────────────────────────────────────────────
+//  A band or wall that lands here must reach every reader that decides on it
+//  at once — the cap-failover offer above all: its effect reads this record
+//  at render, and on the daemon road the bands arrive through a facts read
+//  that re-renders nothing of the composer, so the offer waited for an
+//  unrelated repaint (a keystroke, a clock) that a still screen never gave
+//  it. One version counter, bumped by every writer, subscribed through
+//  useSyncExternalStore — the anthropic record's own signal, mirrored for
+//  this lane so a surface can follow every family's usage the same way.
+let observedVersion = 0
+const observedListeners = new Set<() => void>()
+function noteObservedChanged(): void {
+  observedVersion++
+  for (const listener of observedListeners) {
+    try {
+      listener()
+    } catch {
+      /* a renderer's listener must never break a fold */
+    }
+  }
+}
+/** The record's change counter (a useSyncExternalStore snapshot). */
+export function getOpenaiObservedVersion(): number {
+  return observedVersion
+}
+/** Subscribe to record changes (a band, a wall, a forget); returns the
+ *  unsubscribe. */
+export function subscribeOpenaiObserved(listener: () => void): () => void {
+  observedListeners.add(listener)
+  return () => {
+    observedListeners.delete(listener)
+  }
+}
+
 /** Record a usage-limit fault's reset fact against the source that answered
  *  it (no-op without one — a reset-less 429 carries no window to publish). */
 export function recordOpenaiUsageLimit(
@@ -50,6 +84,7 @@ export function recordOpenaiUsageLimit(
 ): void {
   if (resetsAtMs === undefined || !Number.isFinite(resetsAtMs)) return
   observedBySource[source] = { resetsAtMs, observedAtMs: now() }
+  noteObservedChanged()
 }
 
 /** ONE source's window: 'limited' only while ITS observed reset is ahead.
@@ -79,6 +114,7 @@ export function openaiObservedWall(source: OpenaiLimitSource): { resetsAtMs: num
 export function forgetOpenaiLimitSource(source: OpenaiLimitSource): void {
   observedBySource[source] = null
   if (source === 'chatgpt-subscription') observedUsage = {}
+  noteObservedChanged()
 }
 
 // ── observed usage windows (the live weekly-meter surface) ──────────────────
@@ -122,9 +158,11 @@ export function recordOpenaiRateHeaders(
   if (!headers || typeof headers.get !== 'function') return
   try {
     const next: OpenaiObservedUsage = { ...observedUsage }
+    let stated = false
     for (const band of ['primary', 'secondary'] as const) {
       const usedPct = finiteOrUndefined(headers.get(`x-codex-${band}-used-percent`))
       if (usedPct === undefined || usedPct < 0 || usedPct > 100) continue
+      stated = true
       const windowMinutes = finiteOrUndefined(headers.get(`x-codex-${band}-window-minutes`))
       const resetAfterSeconds = finiteOrUndefined(
         headers.get(`x-codex-${band}-reset-after-seconds`),
@@ -139,6 +177,7 @@ export function recordOpenaiRateHeaders(
       }
     }
     observedUsage = next
+    if (stated) noteObservedChanged()
   } catch {
     /* usage observation must never fail a request */
   }
@@ -187,7 +226,10 @@ export function adoptOpenaiObservedUsage(
       }
       moved = true
     }
-    if (moved) observedUsage = next
+    if (moved) {
+      observedUsage = next
+      noteObservedChanged()
+    }
   } catch {
     /* usage adoption must never fail a facts read */
   }

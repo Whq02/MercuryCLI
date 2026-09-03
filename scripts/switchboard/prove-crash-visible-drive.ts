@@ -247,6 +247,19 @@ await killLeg
 
 // ── leg B: whole-tree crash + reboot — the rows survive the reconcile ──────
 console.log('leg B — reboot reconcile keeps the rows as NEEDS YOU; only release removes')
+// The daemon dies FIRST: a daemon that outlives its screen parks every
+// record on its owner-orphaned road (the operator closed the screen —
+// nothing about that is a crash), and on a slow runner that park landed
+// between leg A's capture ending and this kill, so the reboot read the
+// records parked. A whole-tree crash kills the daemon with its workers;
+// the order here makes the crash the only fact the reconcile can find.
+if (daemon?.pid !== undefined) {
+  try {
+    process.kill(daemon.pid, 'SIGKILL')
+  } catch {
+    /* down */
+  }
+}
 for (const w of workerPids()) {
   if (w.pid !== undefined) {
     try {
@@ -254,13 +267,6 @@ for (const w of workerPids()) {
     } catch {
       /* down */
     }
-  }
-}
-if (daemon?.pid !== undefined) {
-  try {
-    process.kill(daemon.pid, 'SIGKILL')
-  } catch {
-    /* down */
   }
 }
 await new Promise(r => setTimeout(r, 800))

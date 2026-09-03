@@ -21,7 +21,7 @@
 import { execSync, spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 
 // W6-C: one resolved interpreter for every capture in this run — the
@@ -37,7 +37,7 @@ function baselineDriverPython(): string {
 }
 import {
   CaptureSpec, DEFAULT_MASKS, GRIDS_DIR, LIVE_DIR, MANIFEST_PATH, RawGrid,
-  VisualBaselineEntry, VisualManifest, compactGrid, entryId, firstDivergence,
+  VisualBaselineEntry, VisualManifest, canonicalizeCheckoutRows, compactGrid, entryId, firstDivergence,
   gridDigest, readManifest, readStoredGrid, styleDigest, StoredGrid,
 } from './visualBaseline.ts'
 
@@ -221,12 +221,24 @@ function captureSpec(
         lastReason = verdict.reason
         continue
       }
-      return { grid: compactGrid(raw), plainText: res.stdout }
+      return { grid: canonicalizeCheckoutRows(compactGrid(raw), recordingCheckout()), plainText: res.stdout }
     }
     throw new Error(`[${entryId(spec)}] capture rejected: ${lastReason}`)
   } finally {
     mods.scenarios.cleanupScenario(spec.scenario)
   }
+}
+
+// The checkout the recording runs in — its basename and branch paint into
+// the frame's checkout rows; the stored text canonicalizes them.
+function recordingCheckout(): { basename: string; branch: string } {
+  let branch = 'HEAD'
+  try {
+    branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: REPO, encoding: 'utf8' }).trim() || 'HEAD'
+  } catch {
+    // a detached or absent checkout keeps the captured spelling
+  }
+  return { basename: basename(REPO), branch }
 }
 
 function currentShas(): { sourceSha: string; buildDigest: string } {

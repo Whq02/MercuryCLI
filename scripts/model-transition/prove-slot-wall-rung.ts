@@ -258,6 +258,41 @@ section('§H the switch receipt is durable (FN-016 R20)')
   check('the seat_receipt row renders above the verbose gate (a receipt is never quiet)', /case 'seat_receipt':\s*\n\s*return \(/.test(renderer))
 }
 
+section('§H the wall key is stable: a reset-moment shift never re-arms; an observed clear does')
+{
+  // The rung's memories used to key on the wall's stated reset moment — and a
+  // re-observed wall re-states that moment by seconds, so an answered wall
+  // could re-offer (or the auto arm switch twice) on the next observation.
+  // The key is now the family and the seat that walled; only a material
+  // change — the seat's wall observed CLEAR — re-arms, through the one owner.
+  const { slotWallKey, noteSlotWallObserved, offerDismissed, noteOfferDismissal, offerAutoDone, noteOfferAutoDone, _resetOfferMemoriesForTesting } =
+    await import('../../src/services/capFailover.ts')
+  _resetOfferMemoriesForTesting()
+  const key = slotWallKey('anthropic', 'subscription')
+  check('the wall key is the family and the walled seat — it carries no reset moment', key === 'slot|anthropic|subscription' && !/\d/.test(key))
+  check('the same wall re-stated with a shifted reset is the SAME key', slotWallKey('anthropic', 'subscription') === key)
+  noteOfferDismissal(key)
+  noteOfferAutoDone(key)
+  // The wall re-observed, its reset shifted by seconds: still walled — no material change.
+  noteSlotWallObserved('anthropic', 'subscription', true)
+  check('a reset-moment shift without a material change does not re-arm the answered offer', offerDismissed(key))
+  check('…nor the auto latch', offerAutoDone(key))
+  // A real reset: the seat's wall observed CLEAR — the rung re-arms for the next wall.
+  noteSlotWallObserved('anthropic', 'subscription', false)
+  check('a real reset (the wall observed clear) re-arms the offer', !offerDismissed(key))
+  check('…and the auto latch', !offerAutoDone(key))
+  // The other seat's clear is not this seat's reset.
+  noteOfferDismissal(key)
+  noteSlotWallObserved('anthropic', 'api-key', false)
+  check("the other seat's clear leaves this seat's answered wall alone", offerDismissed(key))
+  // A seat flip is a genuinely new wall — a different key.
+  check('a seat flip keys a new wall', slotWallKey('anthropic', 'api-key') !== key)
+  _resetOfferMemoriesForTesting()
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check('the composer keys the rung on the owner and feeds it the observed wall every commit', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
+  check('the composer no longer embeds the reset moment in the slot key', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
+}
+
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('SLOT WALL RUNG: ALL GREEN')
 else console.log(`❌ ${failures} SLOT-WALL LAW(S) BROKEN`)

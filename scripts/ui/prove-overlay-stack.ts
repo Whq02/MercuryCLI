@@ -138,5 +138,36 @@ check('second esc closed the remaining layer', strip(written).includes('a=closed
 check('stack empty after both closes', !anyOverlayActive())
 
 instance.unmount?.()
+
+// ── SOURCE: the composer's typeahead bridge yields to a modal overlay ──────
+// The bridge re-dispatches every REPL keypress into the suggestion arms; the
+// empty-prompt Tab arm consumes Tab (it paints the thinking-toggle hint)
+// whenever the cockpit rails are not mounted. A modal overlay — a board, a
+// select, a dialog — owns the keys while it is up, so the bridge must
+// stand aside at EVENT time (its is-active flag is frozen across pushes):
+// under 100 columns Tab on the /workflows board never reached the section
+// strip because the hint arm swallowed it first.
+{
+  const { readFileSync } = await import('node:fs')
+  const typeahead = readFileSync(new URL('../../src/hooks/useTypeahead.tsx', import.meta.url), 'utf8')
+  const bridgeAt = typeahead.indexOf("if (currentSurfaceRoute().kind !== 'repl') return")
+  const bridge = bridgeAt === -1 ? '' : typeahead.slice(bridgeAt, bridgeAt + 600)
+  check(
+    'the typeahead bridge reads the modal overlay stack at event time (anyModalOverlayActive)',
+    typeahead.includes("import { anyModalOverlayActive } from '../context/overlayStack.js'") &&
+      /if \(anyModalOverlayActive\(\)\) return/.test(bridge),
+  )
+  check(
+    'the modal check sits BEFORE the keypress is re-dispatched into the suggestion arms',
+    bridge.indexOf('if (anyModalOverlayActive()) return') !== -1 &&
+      bridge.indexOf('if (anyModalOverlayActive()) return') < bridge.indexOf('new KeyboardEvent(event.keypress)'),
+  )
+  const overlayCtx = readFileSync(new URL('../../src/context/overlayContext.tsx', import.meta.url), 'utf8')
+  check(
+    "a board registers as a MODAL overlay (only 'autocomplete' is non-modal)",
+    /NON_MODAL_OVERLAYS = new Set\(\['autocomplete'\]\)/.test(overlayCtx),
+  )
+}
+
 console.log(failures === 0 ? '\n✓ prove-overlay-stack: all green' : `\n✗ prove-overlay-stack: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

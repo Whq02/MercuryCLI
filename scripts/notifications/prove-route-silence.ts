@@ -72,11 +72,36 @@ const LAYER_ESC_AT = 10000
 const ESC_AT = 11500
 const WINDOW_FROM = 7600
 
+//  THE HEAL FENCE: the app re-asserts its modes on the first stdin byte after
+//  a quiet spell longer than STDIN_GAP_REASSERT_MS (App.tsx, 5 s — the
+//  session-wide tmux-attach / laptop-wake heal, adjudicated NOT route bytes;
+//  its bytes are exactly the 1004/2004/mouse/1007 family this census counts).
+//  The engine stretches every authored gap under the hosted profile (×3 on
+//  the gate), so an authored 2 s station gap is 6 s there and the heal fired
+//  inside the window on every later station — one full re-assert per station,
+//  the hosted red. A focus-in report between stations keeps every quiet spell
+//  under the threshold on every profile (1.4 s authored ⇒ 4.2 s at ×3); the
+//  app's focus-in road stamps a time and emits its focus event — it writes
+//  nothing to the terminal, and it is not a key on any surface.
+const HEAL_FENCE_EVERY_MS = 1400
+const healFence = (fromMs: number, toMs: number): string[] => {
+  const out: string[] = []
+  for (let at = fromMs; at < toMs; at += HEAL_FENCE_EVERY_MS) out.push(`${at}:\x1b[I`)
+  return out
+}
+
 const run: ArenaRun = await runArtifactArena({
   turns: [],
   // Send specs carry the runtime CR/ESC bytes (TS escapes in source;
   // ptydrive's unescape passes raw control bytes through unchanged).
-  sends: [`${OPEN_AT}:/bootmenu`, `${SUBMIT_AT}:\r`, `${LAYER_ESC_AT}:\x1b`, `${ESC_AT}:\x1b`, `${ESC_AT + 1500}:\x1b`],
+  sends: [
+    `${OPEN_AT}:/bootmenu`,
+    `${SUBMIT_AT}:\r`,
+    `${LAYER_ESC_AT}:\x1b`,
+    `${ESC_AT}:\x1b`,
+    `${ESC_AT + 1500}:\x1b`,
+    ...healFence(OPEN_AT + 850, ESC_AT + 1500),
+  ],
   seconds: 16,
   cols: 120,
   rows: 36,
@@ -240,6 +265,9 @@ const crun: ArenaRun = await runArtifactArena({
     `${ESC3_AT - 800}:\x1b[B`,
     `${ESC3_AT}:\x1b`,
     `${ESC3_AT + 900}:\x1b`,
+    // The heal fence (see the first leg): every quiet spell between the
+    // stations stays under the app's re-assert threshold on every profile.
+    ...healFence(B_AT + 350, ESC3_AT + 900),
   ],
   seconds: 26,
   cols: 142,
