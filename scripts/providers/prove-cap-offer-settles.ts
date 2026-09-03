@@ -353,6 +353,8 @@ section("§J a band that lands re-runs the offer at once: the OpenAI record's ch
   openai.__resetOpenaiLimitStateForTest()
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
   check("the composer follows the anthropic record's version and the OpenAI record's version (the cap effect re-runs on either)", composer.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && composer.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)'))
+  const strip = readFileSync(join(ROOT, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
+  check("the strip warning follows both records' versions and re-derives on them", strip.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && strip.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)') && /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(strip))
 }
 
 console.log(`\n${failures === 0 ? 'CAP OFFER SETTLES: ALL PASS' : `FAILURES: ${failures}`}`)
