@@ -27,6 +27,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -194,11 +196,12 @@ const sends = [
   after(25000, CTRL_X), // 23 arm — the hint now speaks the REMOVE stage
   after(25900, CTRL_X), // 24 complete — THE REMOVE STAGE (exactly this row leaves)
 ]
+const WALL_S = driveWallSeconds(sends, { tailMs: 2500 }) // the last grab is at(24) + 2500
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
   '/usr/bin/python3',
-  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '31', '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
+  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
     env: {
@@ -210,6 +213,7 @@ const child = spawn(
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'xterm-256color',
+      MERCURY_SPLASH: 'off',
       MERCURY_CONFIG_DIR: configDir,
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
@@ -227,8 +231,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 31_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 await api.close()
 // exact-pid reap: runners from the records file, then the owned daemon.
@@ -252,7 +256,7 @@ const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
-check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-300)}` : ''}`)
+check('every send fired (the face, both chats and the board all painted)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
   // The capture offsets ride the RUNTIME send indices (the focus tab at
   // index 9 shifted every later send by one): x=10, arm=19, disarm=20,

@@ -212,7 +212,7 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
   let driverOut = ''
   child.stdout.on('data', d => (driverOut += d))
   child.stderr.on('data', d => (driverOut += d))
-  const killer = setTimeout(() => child.kill('SIGKILL'), opts.seconds * 1000 + 22_000)
+  const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(opts.seconds * 1000) + 22_000)
   await new Promise<void>(resolve => child.on('exit', () => resolve()))
   clearTimeout(killer)
 

@@ -41,6 +41,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -199,11 +200,12 @@ const sends = [
   after(13000, `${ESC}[1;2D`), // 2 ⇧← the face
   after(14500, '\r'), // 3 ↵ again — the one seat is taken: refused after the flip, the face returns with the receipt
 ]
+const WALL_S = driveWallSeconds(sends, { tailMs: 4500 }) // the last grab is at(3) + 4500
 const drive = join(captureHome, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
   driver.python,
-  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', '21', '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
+  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '120', '--rows', '40', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
     env: {
@@ -211,6 +213,7 @@ const child = spawn(
       HOME: captureHome,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'xterm-256color',
+      MERCURY_SPLASH: 'off',
       MERCURY_CONFIG_DIR: configDir,
       MERCURY_DAEMON_DIR: daemonDir,
       MERCURY_TEAMS_DIR: join(captureHome, 'teams'),
@@ -232,8 +235,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 21_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 // exact-pid reap: runners from the records file, then the owned daemon.
 const reaped: number[] = []
@@ -258,7 +261,7 @@ const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
-check('every send fired (the face painted and took every ↵ and ⇧←)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-300)}` : ''}`)
+check('every send fired (the face painted and took every ↵ and ⇧←)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
   const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(0) + 9500), String(at(3) + 4500), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
@@ -388,8 +391,8 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
   let driverOut2 = ''
   child2.stdout.on('data', d => (driverOut2 += d))
   child2.stderr.on('data', d => (driverOut2 += d))
-  const killer2 = setTimeout(() => child2.kill('SIGKILL'), 24_000 + 22_000)
-  await new Promise<void>(r => child2.on('exit', () => r()))
+  const killer2 = setTimeout(() => child2.kill('SIGKILL'), vshotBudgetMs(24_000) + 22_000)
+  await driverClosed(child2)
   clearTimeout(killer2)
   let workersAfter: Record<string, Worker & { keyless?: boolean; modelKey?: string }> = {}
   try {
@@ -408,7 +411,7 @@ section('§6 THE RESUME SIBLING — a resumed session whose retained model has n
   const firstOut2 = recs2.find(r => r.ts !== undefined)?.ts ?? 0
   const sendRecs2 = recs2.filter(r => r.sent !== undefined)
   const at2 = (i: number): number => Math.round((sendRecs2[i]?.sent ?? firstOut2) - firstOut2)
-  check('the resumed chat painted its cockpit and took the shell line (every send fired)', sendRecs2.length === sends2.length, `${sendRecs2.length}/${sends2.length}${sendRecs2.length < sends2.length ? ` · ${driverOut2.slice(-300)}` : ''}`)
+  check('the resumed chat painted its cockpit and took the shell line (every send fired)', sendRecs2.length === sends2.length, `${sendRecs2.length}/${sends2.length}${sendRecs2.length < sends2.length ? ` · ${unfiredDetail(driverOut2)}` : ''}`)
   if (sendRecs2.length === sends2.length) {
     const res2 = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive2, '120', '40', String(at2(0) - 200), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
     if (res2.status !== 0) {

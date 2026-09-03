@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -67,11 +68,12 @@ const sends = [
   'after:↑↓ choose:10500:/party',
   'after:↑↓ choose:11700:\r',
 ]
+const WALL_S = driveWallSeconds(sends)
 const child = spawn(
   '/usr/bin/python3',
   [
     join(REPO, 'scripts', 'streaming', 'ptydrive.py'),
-    '--cols', '110', '--rows', '32', '--seconds', '17', '--out', drive,
+    '--cols', '110', '--rows', '32', '--seconds', String(WALL_S), '--out', drive,
     ...sends.flatMap(s => ['--send', s]),
     '--', nodeBin, DIST, '--chat',
   ],
@@ -103,8 +105,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 17_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 await api.close()
 
@@ -130,7 +132,7 @@ type Rec = { sent?: number; ts?: number }
 const recs: Rec[] = readFileSync(drive, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
-check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}`)
+check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 const submitAt = Math.round((sendRecs[4]?.sent ?? firstOut) - firstOut)
 
 const res = spawnSync(
