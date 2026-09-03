@@ -16,7 +16,7 @@ import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
-import { HEADLESS_PERMISSION_MODES, type HeadlessPermissionMode } from './headlessRun.js'
+import { HEADLESS_PERMISSION_MODES, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import { decodePermissionModeSpelling, type PermissionMode } from '../types/permissions.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
@@ -404,12 +404,13 @@ export function concourseWorkerStripEnv(): string[] {
   ].flatMap(flagSpellings)
 }
 
-export function seatInitialPermissionMode(override?: PermissionMode): HeadlessPermissionMode {
+export function seatInitialPermissionMode(override?: PermissionMode): SeatPermissionMode {
   const asHeadless = (mode: string | undefined): HeadlessPermissionMode | undefined => {
     if (mode === undefined || mode.length === 0) return undefined
     const decoded = decodePermissionModeSpelling(mode)
     return (HEADLESS_PERMISSION_MODES as readonly string[]).includes(decoded) ? (decoded as HeadlessPermissionMode) : undefined
   }
+  if (override !== undefined && override.length > 0 && decodePermissionModeSpelling(override) === 'apollo') return 'apollo'
   const carried = asHeadless(override)
   if (carried !== undefined) return carried
   try {
