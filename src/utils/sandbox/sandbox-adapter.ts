@@ -296,8 +296,17 @@ function buildDenyWrite(): string[] {
 function buildAllowWrite(): string[] {
   const allowWrite = new Set<string>(['.']) // the cwd as the literal single-dot
   try {
-    const { getProjectTempDir } = require('../permissions/filesystem.js') as { getProjectTempDir(): string }
+    const { getMercuryTempDir, getProjectTempDir } = require('../permissions/filesystem.js') as {
+      getMercuryTempDir(): string
+      getProjectTempDir(): string
+    }
     allowWrite.add(getProjectTempDir())
+    // The product temp root (the resolved /tmp/mercury-<uid>/): the shell
+    // provider writes its cwd-tracking record there and the executor hands
+    // it to the sandboxed child as TMPDIR, so a write there must be allowed
+    // or every sandboxed command ends on the record's refusal (status 1, no
+    // cd ever recorded) and mktemp-class commands fail inside the sandbox.
+    allowWrite.add(getMercuryTempDir())
   } catch {
     // filesystem helper unavailable
   }

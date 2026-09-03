@@ -89,9 +89,14 @@ export function hasStdinRedirect(command: string): boolean {
   return /(?:^|[\s;&|])<(?![<(])\s*\S/.test(command)
 }
 
-/** Whether a stdin redirect should be added: not for heredocs, not if one exists. */
+/** A here-string: `<<<` then a word — its own stdin source, applied by the
+ *  shell in redirection order, so a redirect appended after it would win. */
+const HERE_STRING_RE = /(?:^|[\s;&|])<<<\s*\S/
+
+/** Whether a stdin redirect should be added: not for heredocs or here-strings, not if one exists. */
 export function shouldAddStdinRedirect(command: string): boolean {
   if (containsHeredoc(command)) return false
+  if (HERE_STRING_RE.test(command)) return false
   if (hasStdinRedirect(command)) return false
   return true
 }
