@@ -97,6 +97,27 @@ export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefi
 
 let rawUtilization: RawUtilization = {}
 
+let usageRecordVersion = 0
+const usageRecordListeners = new Set<() => void>()
+function noteUsageRecordChanged(): void {
+  usageRecordVersion++
+  for (const listener of usageRecordListeners) {
+    try {
+      listener()
+    } catch {
+    }
+  }
+}
+export function getUsageRecordVersion(): number {
+  return usageRecordVersion
+}
+export function subscribeUsageRecord(listener: () => void): () => void {
+  usageRecordListeners.add(listener)
+  return () => {
+    usageRecordListeners.delete(listener)
+  }
+}
+
 let observedOwner: string | null = null
 
 const OWNER_CACHE_MS = 2_000
@@ -143,6 +164,7 @@ function recomputeRawUtilization(headers: Headers): void {
   }
   rawUtilization = next
   observedOwner = resolveOwner()
+  noteUsageRecordChanged()
 }
 
 const SEED_DEFAULT_TTL_SECONDS = 2820
@@ -181,6 +203,7 @@ export function foldUtilizationFromEndpoint(
   }
   endpointUtilization = next
   observedOwner = resolveOwner()
+  noteUsageRecordChanged()
 }
 
 export function getRawUtilization(): RawUtilization {
@@ -366,6 +389,7 @@ function handleGateClosed(): void {
   endpointUtilization = {}
   observedOwner = null
   windowObserved = false
+  noteUsageRecordChanged()
   if (currentLimits.status !== 'allowed' || currentLimits.resetsAt !== undefined) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }
@@ -439,6 +463,7 @@ export async function checkQuotaStatus(): Promise<void> {
 
 export function __setRawUtilizationForTest(record: RawUtilization): void {
   rawUtilization = record
+  noteUsageRecordChanged()
 }
 
 export function resetLimitsForCredentialSwitch(): void {
@@ -447,6 +472,7 @@ export function resetLimitsForCredentialSwitch(): void {
   observedOwner = null
   endpointUtilization = {}
   windowObserved = false
+  noteUsageRecordChanged()
   if (!limitsEqual(currentLimits, DEFAULT_LIMITS)) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }

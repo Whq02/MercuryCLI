@@ -41,6 +41,7 @@ import {
 } from '../utils/cockpit/index.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { CompanionSpeechLine, DeckCompanion, DeckCompanionChip } from './mercury-ui/DeckCompanion.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
@@ -98,6 +99,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
     ? getDisplayedEffortLabel(rawModel, effortValue)
     : null
   const killCount = Object.values(listCapabilityKills()).reduce((n, arr) => n + arr.length, 0)
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const sourceUsage = activeSourceUsage()
   const stripFirst = sourceUsage.windows[0]
   const stripSecond =
