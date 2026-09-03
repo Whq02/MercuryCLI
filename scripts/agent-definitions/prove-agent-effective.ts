@@ -205,8 +205,14 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   )
   const agentTool = readFileSync('src/tools/AgentTool/AgentTool.tsx', 'utf-8')
   check(
-    'AgentTool consumes agentDef.model at launch',
-    /model:\s*model\s*\?\?\s*agentDef\?\.model/.test(agentTool),
+    'AgentTool records the plan-resolved model at launch (the task record names what runs)',
+    /selectedAgent:\s*agentDef,[\s\S]{0,600}?model:\s*plan\.model,/.test(agentTool) &&
+      !/model:\s*model\s*\?\?\s*agentDef\?\.model/.test(agentTool),
+  )
+  const launchPlan = readFileSync('src/utils/swarm/agentLaunchPlan.ts', 'utf-8')
+  check(
+    "the plan resolves the definition's model under the caller's parameter (the one floor-noted ladder)",
+    /getAgentModelWithFloorNote\(\s*definition\.model,\s*i\.mainLoopModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
   )
 }
 
