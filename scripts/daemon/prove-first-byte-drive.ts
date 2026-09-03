@@ -207,12 +207,14 @@ try {
   const dropGaps = drops.map((d, i) => d.at - (holds[i]?.at ?? d.at))
   check(`each drop landed within the budget + 2 s of its request (measured ${dropGaps.map(g => `${g} ms`).join(', ')})`, dropGaps.length === 2 && dropGaps.every(g => g >= bBudget - 500 && g <= bBudget + 2_000), JSON.stringify({ dropGaps, bBudget }))
 
-  console.log('\nD the daemon door: the named model rides, an unknown one refuses, a misspelled field refuses; the switched turn waits cold on Opus')
+  console.log('\nD the daemon door: the named model rides, an unknown one refuses, the record\'s spelling is read; the switched turn waits cold on Opus')
   {
     const nonesuch = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-nonesuch', prompt: 'hello', workspaceDir: work, title: 'nonesuch', model: 'claude-nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
     check('an unknown model id refuses typed (unknown-model, the way out named) — never a substitute', nonesuch.ok === false && /unknown-model/.test(nonesuch.error ?? '') && /(did you mean|pick one of)/.test(nonesuch.error ?? ''), JSON.stringify(nonesuch))
-    const misspelt = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-misspelt', prompt: 'hello', workspaceDir: work, title: 'misspelt', modelKey: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; error?: string }
-    check("a dispatch spelling the model as `modelKey` refuses typed (the door reads `model`) — never the registry default in silence", misspelt.ok === false && /`modelKey` is not a field of this door/.test(misspelt.error ?? ''), JSON.stringify(misspelt))
+    const aliased = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-aliased', prompt: 'hello', workspaceDir: work, title: 'aliased', modelKey: 'claude-nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
+    check('a dispatch spelling the model as `modelKey` is READ (an unknown id under it refuses unknown-model) — never the registry default in silence', aliased.ok === false && /unknown-model/.test(aliased.error ?? ''), JSON.stringify(aliased))
+    const twoSpelt = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-two-spelt', prompt: 'hello', workspaceDir: work, title: 'two spelt', model: 'claude-opus-5', modelKey: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; error?: string }
+    check('`model` and `modelKey` naming different models refuse typed as an ambiguity (nothing dispatched)', twoSpelt.ok === false && /name different models/.test(twoSpelt.error ?? ''), JSON.stringify(twoSpelt))
   }
   const d = await dispatch('fb-switch', 'hello there', 'claude-sonnet-5')
   check('the Sonnet turn answered on Sonnet (the fixture saw claude-sonnet-5; the record names it)', await untilAsync(() => transcriptOf(d).includes('fixture answers'), 30_000) && wire().some(x => x.kind === 'answered' && x.arm === 'canned') && wire().filter(x => x.kind === 'anthropic' && x.arm === 'canned').every(x => (x.model ?? '').startsWith('claude-sonnet-5')) && readRec(d)?.modelKey === 'claude-sonnet-5', JSON.stringify({ rec: readRec(d)?.modelKey, models: wire().filter(x => x.arm === 'canned').map(x => x.model) }))
