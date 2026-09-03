@@ -39,6 +39,12 @@
 #    9. registry    — every REAL scripts/*/run-all.sh declares a valid
 #                     `# gate-class:` header; the engine reads its duration
 #                     rows from the ONE project store.
+#   10. the split   — on the REAL estate, the hosted planner's release plan
+#                     (pure · cpu · exclusive) and drives plan (pty), each
+#                     over its workflow's matrix, cover every suite exactly
+#                     once; gate.yml plans and judges the release scope,
+#                     drives.yml the drives scope, neither on push, both on
+#                     the same toolchain pins.
 #  Bash-3.2 portable (macOS /bin/bash).
 # ============================================================================
 set -u
@@ -651,6 +657,65 @@ if [ -z "$unseeded" ]; then
   echo "  ✓ seed: every real suite has a duration row in scripts/gate/duration-seed.tsv"
 else
   echo "  ✗ seed: suite(s) without a duration row:$unseeded"; fail=1
+fi
+# --- 10: THE SPLIT on the real estate — one planner, two plans, every suite once
+gate_yml="$repo/.github/workflows/gate.yml"; drives_yml="$repo/.github/workflows/drives.yml"
+rel_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class release' "$gate_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)
+drv_n=$(grep -oE 'ci-shard\.sh "\$\{\{ matrix\.shard \}\}" [0-9]+ --class drives' "$drives_yml" | grep -oE '[0-9]+ --class' | grep -oE '[0-9]+' | head -1)
+plan_all() { # $1=class $2=shard-count → every suite that plan holds (every shard + the darwin lane)
+  local i=0
+  while [ "$i" -lt "$2" ]; do
+    (cd "$repo" && bash scripts/gate/ci-shard.sh "$i" "$2" --class "$1" --plan-only 2>/dev/null)
+    i=$(( i + 1 ))
+  done
+  (cd "$repo" && bash scripts/gate/ci-shard.sh darwin "$2" --class "$1" --plan-only 2>/dev/null)
+}
+if [ -n "$rel_n" ] && [ -n "$drv_n" ]; then
+  rel_plan=$(plan_all release "$rel_n" | sort)
+  drv_plan=$(plan_all drives "$drv_n" | sort)
+  estate=$(for runner in "$repo"/scripts/*/run-all.sh; do basename "$(dirname "$runner")"; done | sort)
+  both=$(printf '%s\n%s\n' "$rel_plan" "$drv_plan" | grep . | sort)
+  if [ "$both" = "$estate" ]; then
+    echo "  ✓ split coverage: the release plan ($(printf '%s\n' "$rel_plan" | grep -c .) suites over $rel_n shards) and the drives plan ($(printf '%s\n' "$drv_plan" | grep -c .) over $drv_n) cover every real suite exactly once"
+  else
+    echo "  ✗ split coverage: suites outside the two plans, or in both:"
+    printf '%s\n%s\n' "$both" "$estate" | grep . | sort | uniq -u | sed 's/^/      /'; fail=1
+  fi
+  misplanned=""
+  for dom in $rel_plan; do
+    case "$(sed -n 's/^# gate-class:[[:space:]]*//p' "$repo/scripts/$dom/run-all.sh" | head -1 | tr -d '[:space:]')" in (pure | cpu | exclusive) ;; (*) misplanned="$misplanned $dom" ;; esac
+  done
+  for dom in $drv_plan; do
+    case "$(sed -n 's/^# gate-class:[[:space:]]*//p' "$repo/scripts/$dom/run-all.sh" | head -1 | tr -d '[:space:]')" in (pty) ;; (*) misplanned="$misplanned $dom" ;; esac
+  done
+  if [ -z "$misplanned" ]; then
+    echo "  ✓ split classes: no pty suite in the release plan; only pty suites in the drives plan"
+  else
+    echo "  ✗ split classes: misplanned:$misplanned"; fail=1
+  fi
+else
+  echo "  ✗ workflows: the shard step's matrix size and class could not be read (gate.yml: '$rel_n', drives.yml: '$drv_n')"; fail=1
+fi
+# The workflow text: each plans by its class and judges by its scope; neither runs on push; the toolchain pins agree.
+if grep -q "ci-shard.sh darwin $rel_n --class release" "$gate_yml" && grep -q -- '--scope release' "$gate_yml" \
+   && grep -q 'name: gate-verdict' "$gate_yml" && grep -q 'workflow_dispatch:' "$gate_yml" && ! grep -qE '^  push:' "$gate_yml"; then
+  echo "  ✓ gate.yml: plans the release class (shards + darwin), judges the release scope, keeps the gate-verdict artifact, dispatch-only"
+else
+  echo "  ✗ gate.yml: release class/scope/artifact/trigger pins broken"; fail=1
+fi
+if grep -q "ci-shard.sh darwin $drv_n --class drives" "$drives_yml" && grep -q -- '--scope drives' "$drives_yml" \
+   && grep -q 'name: drives-verdict' "$drives_yml" && grep -q 'workflow_dispatch:' "$drives_yml" && grep -q 'schedule:' "$drives_yml" \
+   && ! grep -qE '^  push:' "$drives_yml"; then
+  echo "  ✓ drives.yml: plans the drives class (shards + darwin), judges the drives scope, writes drives-verdict, manual + schedule, never on push"
+else
+  echo "  ✗ drives.yml: drives class/scope/artifact/trigger pins broken"; fail=1
+fi
+gate_bun=$(grep -o 'bun-version: [0-9.]*' "$gate_yml" | sort -u | paste -sd' ' -)
+drv_bun=$(grep -o 'bun-version: [0-9.]*' "$drives_yml" | sort -u | paste -sd' ' -)
+if [ -n "$gate_bun" ] && [ "$gate_bun" = "$drv_bun" ] && [ "$(grep -c 'node-version-file: .node-version' "$drives_yml")" = "3" ]; then
+  echo "  ✓ toolchain: both workflows pin the same bun ($gate_bun); drives.yml selects the calibration Node in build, shard and darwin"
+else
+  echo "  ✗ toolchain: gate '$gate_bun' vs drives '$drv_bun'; drives node-version-file uses: $(grep -c 'node-version-file: .node-version' "$drives_yml")"; fail=1
 fi
 # The engine reads the verdict from the ONE project store.
 if grep -q '\.claude/gate' "$repo/scripts/run-all-suites.sh"; then
