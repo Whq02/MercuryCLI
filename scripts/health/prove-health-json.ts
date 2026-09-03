@@ -226,15 +226,45 @@ try {
   // process.stdout.isTTY, so `> doctor.json` used to flip the certificate to
   // FAULT on redirection alone. Environmental ⇒ neutral: the piped row reads
   // 'info' with the honest line, and the verdict equals the SAME host's
-  // script(1) speaks two dialects: BSD (darwin) takes the command as the
-  // trailing argv after the typescript file; util-linux (linux) takes it as
-  // ONE -c string and needs -e to return the child's exit status. Both put
-  // the child on a real pty.
-  const scriptArgv = (argv: string[]): string[] =>
-    process.platform === 'linux'
-      ? ['-q', '-e', '-c', argv.map(a => `'${a.replace(/'/g, `'\\''`)}'`).join(' '), '/dev/null']
-      : ['-q', '/dev/null', ...argv]
-  // TTY-run verdict (driven under a real PTY via script(1)).
+  // THE PTY DRIVER is python's pty.spawn — one dialect on every host, and it
+  // drains the master until the child EXITS. script(1) differed by platform
+  // and util-linux's closed the session on stdin's EOF, so on the hosted
+  // runner the record came back truncated mid-document (gate run 11: a
+  // SyntaxError where a verdict should be). The exit status is the child's.
+  const PTY_DRIVER = 'import os, pty, sys; st = pty.spawn(sys.argv[1:]); sys.exit(os.waitstatus_to_exitcode(st) if hasattr(os, "waitstatus_to_exitcode") else (st >> 8))'
+  // The record is the FIRST balanced JSON object in the pty transcript —
+  // never a first-brace-to-last-brace slice (a trailing line, a fold of the
+  // streams, or a cut stream broke that). A parse failure is a typed null,
+  // never a crash: the check below names the transcript's tail.
+  const firstJsonObject = (text: string): Cert | null => {
+    const out = text.replace(/\r/g, '')
+    const first = out.indexOf('{')
+    if (first === -1) return null
+    let depth = 0
+    let inString = false
+    let escaped = false
+    for (let i = first; i < out.length; i++) {
+      const c = out[i] as string
+      if (inString) {
+        if (escaped) escaped = false
+        else if (c === '\\') escaped = true
+        else if (c === '"') inString = false
+        continue
+      }
+      if (c === '"') inString = true
+      else if (c === '{') depth++
+      else if (c === '}' && --depth === 0) {
+        try {
+          return JSON.parse(out.slice(first, i + 1)) as Cert
+        } catch {
+          return null
+        }
+      }
+    }
+    return null
+  }
+  let ttyTail = ''
+  // TTY-run verdict (driven under a real PTY).
   {
     const dir = join(scratch, 'piped-vs-tty')
     mkdirSync(dir, { recursive: true })
@@ -251,14 +281,13 @@ try {
     check('piped: the profile row is NEVER a fault', pipedRow !== undefined && pipedRow.status !== 'fail', JSON.stringify(pipedRow))
     check("piped: the row reads neutral 'info'", pipedRow?.status === 'info', pipedRow?.status)
     check('piped: the evidence names the environmental condition', /environmental/.test(String(pipedRow?.evidence)), String(pipedRow?.evidence))
-    // The PTY drive: script(1) runs the command with stdio on a real pty;
-    // stdout is a TTY inside. The JSON is extracted brace-to-brace (the pty
-    // adds \r and may fold streams).
+    // The PTY drive: the child runs with stdio on a real pty; stdout is a
+    // TTY inside. The record is the first balanced object in the transcript.
     let ttyCert: Cert | null = null
     try {
       const out = execFileSync(
-        '/usr/bin/script',
-        scriptArgv(['node', BIN, 'health', '--json']),
+        'python3',
+        ['-c', PTY_DRIVER, 'node', BIN, 'health', '--json'],
         {
           cwd: dir,
           env: {
@@ -272,20 +301,18 @@ try {
           timeout: 60_000,
           stdio: ['ignore', 'pipe', 'pipe'],
         },
-      ).replace(/\r/g, '')
-      const first = out.indexOf('{')
-      const last = out.lastIndexOf('}')
-      if (first !== -1 && last > first) ttyCert = JSON.parse(out.slice(first, last + 1)) as Cert
+      )
+      ttyTail = out.slice(-300)
+      ttyCert = firstJsonObject(out)
     } catch (error) {
       // A fault verdict exits 3 (FC-044) and execFileSync throws on any
       // nonzero — the record is still on the thrown error's stdout.
-      const out = String((error as { stdout?: unknown }).stdout ?? '').replace(/\r/g, '')
-      const first = out.indexOf('{')
-      const last = out.lastIndexOf('}')
-      ttyCert = first !== -1 && last > first ? (JSON.parse(out.slice(first, last + 1)) as Cert) : null
+      const out = String((error as { stdout?: unknown }).stdout ?? '')
+      ttyTail = out.slice(-300)
+      ttyCert = firstJsonObject(out)
     }
     if (ttyCert === null) {
-      check('tty drive produced a certificate (script(1) PTY)', false)
+      check('tty drive produced a certificate (a python pty)', false, `no balanced record in the transcript — tail: ${JSON.stringify(ttyTail)}`)
     } else {
       const ttyRow = byId(ttyCert, 'iface-terminal')
       check('tty: the profile row is NOT the environmental form', !/environmental/.test(String(ttyRow?.evidence)), String(ttyRow?.evidence))
