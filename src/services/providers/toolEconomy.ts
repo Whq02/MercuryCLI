@@ -29,8 +29,14 @@ interface RosterLatch {
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
-export function clearToolRosterLatches(): void {
-  rosterLatches.clear()
+export function clearToolRosterLatches(owner?: string): void {
+  if (owner === undefined) {
+    rosterLatches.clear()
+    return
+  }
+  for (const key of [...rosterLatches.keys()]) {
+    if (key.startsWith(`${owner}|`)) rosterLatches.delete(key)
+  }
 }
 
 function firstConversationRow(messages: readonly Message[]): string {
