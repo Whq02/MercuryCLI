@@ -32,11 +32,13 @@
 // ============================================================================
 
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
+import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 
-/** The board pane's lawful minimum — the concourse's own too-small floor
- *  (resolveConcourseProfile refuses below 80 columns; the board pane must
- *  never be a frame the board itself calls too small). */
-export const BOARD_PANE_MIN_COLS = 80
+/** The board pane's lawful minimum — the concourse's own too-small floor,
+ *  read from its one owner (resolveConcourseProfile refuses below the
+ *  viewport floor's columns; the board pane must never be a frame the board
+ *  itself calls too small). */
+export const BOARD_PANE_MIN_COLS = VIEWPORT_FLOOR_COLS
 
 /** The chat pane's floor: the mirror pipeline stays legible here (the row
  *  peek already renders it near this width); the DEFAULT ratio gives the
@@ -44,15 +46,15 @@ export const BOARD_PANE_MIN_COLS = 80
  *  never the usual one. */
 export const CHAT_PANE_MIN_COLS = 40
 
-/** THE ROWS LEG of the same law: the board pane keeps its 80
- *  columns at ANY frame width, but the concourse profile refuses under 24
- *  ROWS too (resolveConcourseProfile) — a split that stands on a 130×23
- *  frame paints the board pane's too-small refusal INSIDE a live split: half
- *  a refusal, half a chat (the SP-9 half-frame class). The constant mirrors
- *  the profile's row floor the same way BOARD_PANE_MIN_COLS mirrors its
- *  column floor (importing ConcourseLayout here would cycle); the agreement
+/** THE ROWS LEG of the same law: the board pane keeps its columns at ANY
+ *  frame width, but the concourse profile refuses under the viewport floor's
+ *  ROWS too (resolveConcourseProfile) — a split that stands on a frame one
+ *  row short paints the board pane's too-small refusal INSIDE a live split:
+ *  half a refusal, half a chat (the SP-9 half-frame class). The floor is
+ *  read from its one owner (ink/viewportFloor — 6cb0eaa made the profile
+ *  read it too; importing ConcourseLayout here would cycle); the agreement
  *  is PINNED in scripts/switchboard/prove-split-view.ts leg F. */
-export const SPLIT_MIN_ROWS = 24
+export const SPLIT_MIN_ROWS = VIEWPORT_FLOOR_ROWS
 
 /** The divider between the panes — one column of rule glyphs. */
 export const SPLIT_DIVIDER_COLS = 1

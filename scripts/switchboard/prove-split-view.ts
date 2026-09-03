@@ -217,29 +217,33 @@ console.log('E — the collapse line')
 
 // ── F: THE ROWS LAW (the SP-9 half-frame class closed) ────────
 //  A split standing on a frame whose ROWS the board pane's own profile
-//  refuses painted the 80×24 too-small refusal INSIDE a live split (130×23:
+//  refuses painted the too-small refusal INSIDE a live split (one row short:
 //  half a refusal, half a chat). The law: availability, the toggle, and the
 //  resize collapse all read the WHOLE frame.
 console.log('F — the rows law (the half-frame class)')
 {
   const layout = await import('../../src/components/concourse/ConcourseLayout.tsx')
+  // The rows floor is the viewport floor's (6cb0eaa: the profile reads the
+  // one owner; the split constant reads it too) — the legs spell the frames
+  // from the constant, never a literal.
+  const R = split.SPLIT_MIN_ROWS
   check(
-    'F1 availability refuses at 130×23 and affords at 130×24',
-    !split.splitAvailableAt(130, 23) && split.splitAvailableAt(130, 24),
+    `F1 availability refuses at 130×${R - 1} and affords at 130×${R}`,
+    !split.splitAvailableAt(130, R - 1) && split.splitAvailableAt(130, R),
   )
   check(
     'F2 SPLIT_MIN_ROWS agrees with the profile floor by construction (the mirrored-constant pin)',
     layout.resolveConcourseProfile(split.BOARD_PANE_MIN_COLS, split.SPLIT_MIN_ROWS) !== 'too-small' &&
       layout.resolveConcourseProfile(split.BOARD_PANE_MIN_COLS, split.SPLIT_MIN_ROWS - 1) === 'too-small',
   )
-  const short = split.splitToggleDecisionOf({ on: false, cols: 130, rows: 23, plainWorld: false })
+  const short = split.splitToggleDecisionOf({ on: false, cols: 130, rows: R - 1, plainWorld: false })
   check(
-    'F3 the toggle at 130×23 refuses as too-short, naming the rows floor and the frame',
-    !short.ok && short.code === 'too-short' && short.reason.includes(String(split.SPLIT_MIN_ROWS)) && short.reason.includes('130×23'),
+    `F3 the toggle at 130×${R - 1} refuses as too-short, naming the rows floor and the frame`,
+    !short.ok && short.code === 'too-short' && short.reason.includes(String(split.SPLIT_MIN_ROWS)) && short.reason.includes(`130×${R - 1}`),
   )
   split._resetSplitViewForTesting()
   split.toggleSplitView(200, 50)
-  const collapsed = split.collapseSplitForFrame(130, 23)
+  const collapsed = split.collapseSplitForFrame(130, R - 1)
   check(
     'F4 a live split on a shortened frame collapses with the honest rows line; the store turns off',
     collapsed.collapsed === true && collapsed.line.includes('split collapsed') && collapsed.line.includes(String(split.SPLIT_MIN_ROWS)) && !split.splitViewOn(),
@@ -253,7 +257,7 @@ console.log('F — the rows law (the half-frame class)')
   const both = split.splitToggleDecisionOf({ on: false, cols: 100, rows: 20, plainWorld: false })
   check(
     'F7 both failing names both dimensions in one sentence',
-    !both.ok && both.reason.includes('121 columns and 24 rows') && both.reason.includes('100×20'),
+    !both.ok && both.reason.includes(`121 columns and ${R} rows`) && both.reason.includes('100×20'),
   )
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   check(
