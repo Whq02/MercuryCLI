@@ -4,7 +4,7 @@
 //  commands (/speak · /voice) and the doctor read.
 //
 //  The master toggle is the persisted `voiceInputEnabled` setting (/speak
-//  on|off). With it ON, `v` in an empty composer (or /voice) starts a
+//  on|off). With it ON, space in an empty composer (or /voice) starts a
 //  capture; `v` again stops it and the take goes to the transcriber; esc
 //  cancels the take — nothing leaves the box before a take STOPS, by
 //  construction: the transcriber is only ever handed a finished take. The
@@ -50,10 +50,10 @@ export interface VoiceSnapshot {
 }
 
 /** The footer words (the footer paints the ● before the recording line). */
-export const RECORDING_FOOTER = 'recording · v or esc to stop'
+export const RECORDING_FOOTER = 'recording · space or esc to stop'
 export const TRANSCRIBING_FOOTER = 'transcribing…'
 
-export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then v in an empty composer starts a capture'
+export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then space in an empty composer starts a capture'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
 
@@ -170,7 +170,7 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
 export type VoiceToggleOutcome = { kind: 'started' | 'stopping' | 'busy' | 'refused'; text: string }
 
 /**
- * The one action behind `v` and /voice: start a capture, or stop the one
+ * The one action behind space and /voice: start a capture, or stop the one
  * running (its take goes to the transcriber). Every refusal answers its
  * words AND publishes them as a receipt.
  */
@@ -209,7 +209,7 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   active = handle
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
   logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${transcriber.choice.family} (${transcriber.choice.label})`)
-  return { kind: 'started', text: `recording — v or esc stops it (${transcriber.choice.label} transcribes)` }
+  return { kind: 'started', text: `recording — space or esc stops it (${transcriber.choice.label} transcribes)` }
 }
 
 /** Esc during a capture: the take is dropped; no request is made. */
@@ -263,7 +263,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
   const on = voiceInputEnabled()
   const transcriber = resolveTranscriber(env)
   return [
-    `voice input ${on ? 'ON — v in an empty composer starts a capture, v or esc stops it' : 'OFF — /speak on turns it on'}`,
+    `voice input ${on ? 'ON — space in an empty composer starts a capture, space or esc stops it' : 'OFF — /speak on turns it on'}`,
     `transcriber: ${transcriber.state === 'ok' ? `${providerDisplayName(transcriber.choice.family)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
   ].join('\n')
