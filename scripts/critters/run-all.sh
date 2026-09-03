@@ -71,11 +71,6 @@ __t=$SECONDS; if ! "$BUN" run scripts/critters/prove-critter-gaze.ts; then
 fi
 prover_mark scripts/critters/prove-critter-gaze.ts "$__t"
 
-__t=$SECONDS; if ! "$BUN" run scripts/critters/prove-critter-gaze-live.ts; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-critter-gaze-live.ts "$__t"
-
 # THE LOOK CENSUS: the gaze law — one gaze
 # source feeds every eye, offsets clamp inside the aperture, sweeps step
 # adjacent — swept per frame over every critter × every animation state,
@@ -84,11 +79,6 @@ __t=$SECONDS; if ! "$BUN" run scripts/critters/prove-critter-look-census.ts; the
   fail=1
 fi
 prover_mark scripts/critters/prove-critter-look-census.ts "$__t"
-
-__t=$SECONDS; if ! "$BUN" run scripts/critters/prove-berth-hero.ts; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-berth-hero.ts "$__t"
 
 # The accent EPOCH: a /critter pick must repaint theme-KEY
 # consumers (ThemedBox/ThemedText) — the stale-prompt-box class.
@@ -141,15 +131,10 @@ __t=$SECONDS; if ! "$BUN" run scripts/critters/prove-ghost-wipe.ts; then
 fi
 prover_mark scripts/critters/prove-ghost-wipe.ts "$__t"
 
-__t=$SECONDS; if ! "$BUN" run scripts/critters/prove-ghost-wipe-live.ts; then
-  fail=1
-fi
-prover_mark scripts/critters/prove-ghost-wipe-live.ts "$__t"
-
 __t=$SECONDS; if ! "$BUN" run scripts/critters/prove-square-berths.ts; then
   fail=1
 fi
 prover_mark scripts/critters/prove-square-berths.ts "$__t"
 
-[ "$fail" -eq 0 ] && echo "✅ critters — hero-art integrity + persistent-hero + gaze + berth-hero + accent-epoch + sleep/flow contracts hold"
+[ "$fail" -eq 0 ] && echo "✅ critters — hero-art integrity + persistent-hero + gaze + accent-epoch + sleep/flow contracts hold"
 exit "$fail"

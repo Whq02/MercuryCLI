@@ -20,6 +20,17 @@
 #                     whose rule-budget is below its generous ceiling still
 #                     dies at the rule; a pure-class hang draws the loud
 #                     HANG line too (no retry lane involved).
+#    C.  the split  — ONE planner, TWO plans: `--class release` holds no pty
+#                     suite, `--class drives` holds only pty suites, together
+#                     they cover every declared suite exactly once, an
+#                     undeclared suite falls in neither and is NAMED,
+#                     `--class all` keeps the whole estate; the flake
+#                     doctrine is unchanged per class (a cpu red fails
+#                     directly in the release run, a pty red earns its
+#                     recorded solo re-run in the drives run); notes.tsv
+#                     carries the driver's first stuck send; `--plan-only`
+#                     prints a bucket and runs nothing; an unknown class is
+#                     refused.
 #  Bash-3.2 portable (macOS /bin/bash). Fast: ceilings of 1–8 s.
 # ============================================================================
 set -u
@@ -142,6 +153,93 @@ if printf '%s' "$outB" | grep -q 'capped.*HANG — tree-killed'; then
   echo "  ✓ pure hang: the loud HANG line prints for a non-pty class too"
 else
   echo "  ✗ pure hang line missing:"; printf '%s\n' "$outB" | grep capped | sed 's/^/      /'; fail=1
+fi
+
+# --- estate C: the split — one planner, two plans -----------------------------
+# r1 (pure) · r2 (cpu, RED) · x1 (exclusive)  → the release plan
+# d1 (pty) · d2 (pty, RED once, then green)   → the drives plan
+# u1 (no header)                              → neither split plan, NAMED
+rm -rf "$work/suites" "$work/planC"
+mk_suite r1 '# gate-class: pure' 'exit 0'
+mk_suite r2 '# gate-class: cpu' 'echo cpu-red >&2; exit 3'
+mk_suite x1 '# gate-class: exclusive' 'exit 0'
+mk_suite d1 '# gate-class: pty' 'exit 0'
+mk_suite d2 '# gate-class: pty' "if [ -f '$work/d2.once' ]; then exit 0; else touch '$work/d2.once'; echo '[ptydrive] UNFIRED-SENDS: 1 of 3 sends never became due — first stuck: 4500:hello' >&2; exit 5; fi"
+mk_suite u1 '' 'exit 0'
+printf 'r1\t1\nr2\t2\nx1\t1\nd1\t3\nd2\t4\nu1\t1\n' >"$work/seed.tsv"
+: >"$work/ceilings.tsv"
+plan_of() { # $1=class → shard 0/1's bucket for that class, stderr parked
+  (
+    cd "$repo" && MERCURY_CI_SHARD_SUITES_DIR="$work/suites" MERCURY_CI_SHARD_SEED_FILE="$work/seed.tsv" \
+      MERCURY_CI_SHARD_CEILING_FILE="$work/ceilings.tsv" MERCURY_CI_SHARD_OUT="$work/planC" \
+      bash scripts/gate/ci-shard.sh 0 1 --class "$1" --plan-only 2>"$work/plan-$1.err"
+  )
+}
+shard_class() { # $1=out-subdir $2=class, then env pins; runs the estate as shard 0/1 of that class
+  local out=$1 cls=$2; shift 2
+  (
+    cd "$repo" && env -u MERCURY_SUITE_TIMEOUT -u MERCURY_SUITE_TIMEOUT_FLOOR -u MERCURY_SUITE_CEILING \
+      MERCURY_CI_SHARD_SUITES_DIR="$work/suites" \
+      MERCURY_CI_SHARD_SEED_FILE="$work/seed.tsv" \
+      MERCURY_CI_SHARD_CEILING_FILE="$work/ceilings.tsv" \
+      MERCURY_CI_SHARD_OUT="$work/$out" \
+      "$@" bash scripts/gate/ci-shard.sh 0 1 --class "$cls"
+  ) 2>&1
+}
+rel=$(plan_of release | sort | paste -sd' ' -)
+drv=$(plan_of drives | sort | paste -sd' ' -)
+all=$(plan_of all | sort | paste -sd' ' -)
+if [ "$rel" = "r1 r2 x1" ] && [ "$drv" = "d1 d2" ]; then
+  echo "  ✓ split plans: --class release = {r1 r2 x1} (no pty) · --class drives = {d1 d2} (only pty)"
+else
+  echo "  ✗ split plans: release='$rel' drives='$drv'"; fail=1
+fi
+if [ "$(printf '%s %s\n' "$rel" "$drv" | tr ' ' '\n' | sort | paste -sd' ' -)" = "d1 d2 r1 r2 x1" ]; then
+  echo "  ✓ union law: release ∪ drives = every declared suite, each exactly once"
+else
+  echo "  ✗ union law: '$rel' + '$drv'"; fail=1
+fi
+if [ "$all" = "d1 d2 r1 r2 u1 x1" ]; then
+  echo "  ✓ whole plan: --class all keeps every suite, the undeclared one included"
+else
+  echo "  ✗ whole plan: '$all'"; fail=1
+fi
+if grep -q 'UNCLASSED suite u1' "$work/plan-release.err" && grep -q 'UNCLASSED suite u1' "$work/plan-drives.err" && [ ! -d "$work/planC" ]; then
+  echo "  ✓ unclassed: u1 falls in neither split plan and is NAMED on stderr by both; --plan-only wrote no output dir"
+else
+  echo "  ✗ unclassed/plan-only: $(cat "$work/plan-release.err" 2>/dev/null | head -2) dir=$([ -d "$work/planC" ] && echo present || echo absent)"; fail=1
+fi
+( cd "$repo" && bash scripts/gate/ci-shard.sh 0 1 --class bogus --plan-only >/dev/null 2>&1 ); rcBogus=$?
+if [ "$rcBogus" = "2" ]; then
+  echo "  ✓ class law: an unknown --class is refused (exit 2)"
+else
+  echo "  ✗ class law: --class bogus exited $rcBogus"; fail=1
+fi
+# The release run: only release rows land; the cpu red fails DIRECTLY.
+outC1=$(shard_class outC1 release MERCURY_SUITE_CEILING=20); rcC1=$?
+tsvC1="$work/outC1/results.tsv"
+if [ "$rcC1" != "0" ] && [ "$(cut -f1 "$tsvC1" | sort | paste -sd' ' -)" = "r1 r2 x1" ] \
+   && grep -q '^r2	cpu	3	[0-9]*	-	-$' "$tsvC1" && ! printf '%s' "$outC1" | grep -q 'recorded solo re-run' \
+   && printf '%s' "$outC1" | grep -q 'shard 0/1 (release): 3 suites'; then
+  echo "  ✓ release run: rows r1 r2 x1 only · the cpu red failed directly (rc 3, retry '-') · the banner names the class · shard red"
+else
+  echo "  ✗ release run: rc=$rcC1 rows='$(cut -f1 "$tsvC1" 2>/dev/null | paste -sd' ' -)'"; printf '%s\n' "$outC1" | sed 's/^/      /' | head -12; fail=1
+fi
+# The drives run: only pty rows land; the pty red earns its recorded solo
+# re-run and recovers; notes.tsv names attempt 1's stuck send.
+outC2=$(shard_class outC2 drives MERCURY_SUITE_CEILING=20); rcC2=$?
+tsvC2="$work/outC2/results.tsv"
+if [ "$rcC2" = "0" ] && [ "$(cut -f1 "$tsvC2" | sort | paste -sd' ' -)" = "d1 d2" ] \
+   && grep -q '^d2	pty	5	[0-9]*	0	[0-9]*$' "$tsvC2" && printf '%s' "$outC2" | grep -q 'd2.*re-run GREEN — runner flake RECORDED'; then
+  echo "  ✓ drives run: rows d1 d2 only · the pty red re-ran solo once and recovered (rc 5 → 0, RECORDED) · shard green"
+else
+  echo "  ✗ drives run: rc=$rcC2 rows='$(cut -f1 "$tsvC2" 2>/dev/null | paste -sd' ' -)'"; printf '%s\n' "$outC2" | sed 's/^/      /' | head -12; fail=1
+fi
+if grep -q '^d2	attempt 1: \[ptydrive\] UNFIRED-SENDS: 1 of 3 sends never became due — first stuck: 4500:hello' "$work/outC2/notes.tsv" 2>/dev/null \
+   && ! grep -q '^d1	' "$work/outC2/notes.tsv"; then
+  echo "  ✓ notes: d2's first stuck send is recorded (from attempt 1, the re-run had none); the clean suite has no note"
+else
+  echo "  ✗ notes.tsv wrong:"; sed 's/^/      /' "$work/outC2/notes.tsv" 2>/dev/null; fail=1
 fi
 
 exit "$fail"

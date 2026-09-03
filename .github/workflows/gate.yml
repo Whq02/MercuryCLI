@@ -1,37 +1,49 @@
 # ============================================================================
-#  .github/workflows/gate.yml — the full pooled gate, relocated to CI.
+#  .github/workflows/gate.yml — the RELEASE verdict: the deterministic suites.
+#
+#  TWO VERDICTS, ONE PLANNER. The suite estate splits by each suite's
+#  `# gate-class:` header. This workflow plans ONLY the release set — pure ·
+#  cpu · exclusive, the in-process suites whose result is a fact about the
+#  code — and its verdict is the one a tag may carry (scripts/gate/ledger.ts
+#  `record --kind hosted`). The pty suites — real terminals booted through the
+#  capture engines, whose wall follows the runner — are DEFERRED to
+#  .github/workflows/drives.yml, which reports on its own with the flake
+#  retry and never blocks a release. The verdict names what it deferred, so
+#  `ok` is honest about what it covers.
 #
 #  SHAPE — mirrors scripts/run-all-suites.sh 1:1 where it matters:
 #    · build job  = Phase 0 (dist built ONCE; every shard tests the SAME build,
 #      MERCURY_GATE_PREBUILT=1 reaches suites exactly as locally).
-#    · shard jobs = a suite-sharded matrix over scripts/*/run-all.sh. Each shard
-#      runs its bucket SEQUENTIALLY through scripts/gate/run-suite.sh (the same
-#      per-suite watchdog + tree-kill unit as the local pool) — one suite at a
-#      time per runner, so pty contention and the exclusive class are satisfied
-#      by construction (every suite is effectively solo).
+#    · shard jobs = a suite-sharded matrix over scripts/gate/ci-shard.sh
+#      --class release. Each shard runs its bucket SEQUENTIALLY through
+#      scripts/gate/run-suite.sh (the same per-suite watchdog + tree-kill
+#      unit as the local pool) — one suite at a time per runner, so the
+#      exclusive class is satisfied by construction (every suite is
+#      effectively solo).
 #    · darwin job = the one mac straggler lane. scripts/gate/ci-darwin-suites.txt
-#      names suites that PROVED darwin-only; empty file ⇒ the job is skipped
-#      (macOS minutes bill at 10× — keep this list honest and short).
+#      names suites that PROVED darwin-only; an empty release-class list ⇒
+#      the job is skipped (macOS minutes bill at 10× — keep it honest and short).
 #    · verdict job = the aggregate: per-suite table in the step summary + a
-#      verdict artifact in the local verdict.json schema. Exit code is the law.
+#      verdict artifact (gate-verdict/ci-verdict.json) in the local
+#      verdict.json schema with scope "release" and the deferred drives.
+#      Exit code is the law.
 #
 #  LOCAL POLICY (AGENTS.md §Checks): the suite nearest the change while
 #  iterating; the FULL LOCAL POOL (`bun run verify` = scripts/run-all-suites.sh)
-#  to green at every closure. This workflow is the ASYNC full-gate verdict,
+#  to green at every closure. This workflow is the ASYNC release verdict,
 #  DISPATCHED on the operator's cadence.
 #
-#  TRIGGER CONTRACT: the
-#  every-push trigger is REMOVED — at ~7/day it exhausted the
-#  Pro plan's 3,000 private-repo minutes in ~2 days and GitHub froze runner
-#  provisioning account-wide mid-round ("spending limit" annotation). CI runs
-#  by `gh workflow run gate.yml` ONLY — the operator fires it every 3-4
-#  (~every other day), which fits inside free minutes. Do NOT
-#  re-add the push trigger without an explicit operator ask.
+#  TRIGGER CONTRACT: the every-push trigger is REMOVED — at ~7/day it
+#  exhausted the Pro plan's 3,000 private-repo minutes in ~2 days and GitHub
+#  froze runner provisioning account-wide mid-round ("spending limit"
+#  annotation). CI runs by `gh workflow run gate.yml` ONLY. Do NOT re-add the
+#  push trigger without an explicit operator ask.
 #
-#  COST MATH: ~16 ubuntu shards × ~6-12 min + build ~6 min ≈ 130-200
-#  runner-minutes per round. Private-repo Actions minutes apply;
-#  flip vars.GATE_DISABLE=1 to pause the workflow, or move the labels to a
-#  self-hosted runner if quota bites.
+#  COST MATH: the release set is ~2,100 seed-seconds (~35 local minutes);
+#  12 ubuntu shards × (~4 min setup + ~3-6 min suites) + build ~6 min ≈
+#  90-120 runner-minutes per round, with the per-shard setup the larger
+#  part — which is why the matrix is 12 and not 16. Private-repo Actions
+#  minutes apply; flip vars.GATE_DISABLE=1 to pause the workflow.
 # ============================================================================
 name: gate
 
@@ -167,27 +179,26 @@ jobs:
           node-version: '22'
       - name: Qualify artifact (Node 22 — concise refusal)
         run: bash scripts/node-runtime/qualify-artifact.sh dist/mercury.mjs expect-refusal
-      - name: Read darwin straggler list
+      - name: Read darwin straggler list (the release class)
         id: plan
         run: |
-          list=$(grep -v '^#' scripts/gate/ci-darwin-suites.txt 2>/dev/null | tr -d ' ' | grep -v '^$' | paste -sd' ' - || true)
+          list=$(bash scripts/gate/ci-shard.sh darwin 12 --class release --plan-only | paste -sd' ' - || true)
           echo "darwin_suites=$list" >> "$GITHUB_OUTPUT"
 
   shard:
     name: "suites · shard ${{ matrix.shard }}"
     needs: build
     runs-on: ubuntu-latest
-    # 90: under the movie-scaled capture profile the
-    # drive-heavy estates legitimately run ~scale× their authored seconds,
-    # and three shards were window-cancelled UNREPORTED at 60 — a shard
-    # that cannot REPORT is worse than a slow one. Billing follows actual
-    # minutes, so the wider window costs nothing when shards finish early;
-    # the re-seeded duration-seed.tsv balances buckets to ~35-45 min P50.
-    timeout-minutes: 90
+    # 60: the release buckets are ~200 seed-seconds each and every suite is
+    # capped by the 900 s hang-law ceiling, so two wedged suites in one
+    # bucket still REPORT inside the window — a shard that cannot report is
+    # worse than a slow one. Billing follows actual minutes, so the window
+    # costs nothing when shards finish early.
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -236,13 +247,15 @@ jobs:
           name: dist
       - name: Unpack dist
         run: tar -xzf dist.tar.gz
-      - name: Run shard suites
-        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 16
+      - name: Run shard suites (the release class)
+        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 12 --class release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: gate-results-shard-${{ matrix.shard }}
-          path: ci-gate-out/results.tsv
+          path: |
+            ci-gate-out/results.tsv
+            ci-gate-out/notes.tsv
           retention-days: 7
           # a shard that produced no rows is an ERROR at the source, not a warning
           # (the verdict still refuses the gap either way)
@@ -304,13 +317,15 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
       - name: Build dist (platform-correct vendoring)
         run: ~/.bun/bin/bun run build.ts
-      - name: Run darwin suites
-        run: bash scripts/gate/ci-shard.sh darwin 16
+      - name: Run darwin suites (the release class)
+        run: bash scripts/gate/ci-shard.sh darwin 12 --class release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: gate-results-darwin
-          path: ci-gate-out/results.tsv
+          path: |
+            ci-gate-out/results.tsv
+            ci-gate-out/notes.tsv
           retention-days: 7
           # same law as the shard uploads: zero rows = a loud source-job error
           if-no-files-found: error
@@ -332,8 +347,8 @@ jobs:
         with:
           pattern: gate-results-*
           path: results
-      - name: Aggregate
-        run: /usr/bin/python3 scripts/gate/ci-verdict.py results
+      - name: Aggregate (release scope — the deferred drives are named, never counted)
+        run: /usr/bin/python3 scripts/gate/ci-verdict.py results --scope release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:

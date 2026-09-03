@@ -34,7 +34,12 @@ echo "############################################################"
 echo "# notifications — the Session Concourse lane"
 echo "############################################################"
 
+# Provers named by a sibling member list (scripts/notifications-*/members.txt) run in
+# that sibling suite — the real-terminal drives — never here.
+claimed=$(cat scripts/notifications-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for proof in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   [ -e "$proof" ] || continue
   echo
   echo "── $(basename "$proof") ──"
@@ -45,6 +50,7 @@ done
 # exit 0; a non-zero exit means the defect is back (or the reproducer itself
 # rotted), and either fails the suite.
 for repro in "$here"/repro-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")"; then continue; fi
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"

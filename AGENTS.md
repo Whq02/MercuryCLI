@@ -67,7 +67,7 @@ bun run verify                     # every suite, pooled; exit 0 is green
 bun run artifact:smoke             # the built bundle, isolated, outside the repo
 ```
 
-Run the suite nearest your change; `bun run verify` closes — read its exit status.
+Run the suite nearest your change; `bun run verify` closes — read its exit status. Hosted, the gate is two verdicts: `gate.yml` runs the deterministic suites and is the verdict a release carries; `drives.yml` runs the real-terminal suites and reports on its own.
 
 ## Reporting a problem
 

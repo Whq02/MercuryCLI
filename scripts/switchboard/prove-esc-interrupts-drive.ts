@@ -89,7 +89,7 @@ const hoppedLeg = async (
         prompt: 'think for a long while',
         workspaceDir: _cwd,
         title: 'Alpha think',
-        modelKey: 'claude-opus-5',
+        model: 'claude-opus-5',
         effort: 'xhigh',
       } as never)) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))

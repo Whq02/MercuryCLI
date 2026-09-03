@@ -15,7 +15,12 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 fail=0
 echo "── transcript-rows proofs ──"
+# Provers named by a sibling member list (scripts/transcript-rows-*/members.txt) run in
+# that sibling suite — the real-terminal drives — never here.
+claimed=$(cat scripts/transcript-rows-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for f in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$f")"; then continue; fi
   [ -e "$f" ] || continue
   __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$f" || fail=1; prover_mark "$f" "$__t"
 done

@@ -20,7 +20,12 @@
 //      toolchain;
 //   §8 a malformed ledger line is an ERROR, never a silent "unverified";
 //   §9 the exclusion list is exactly the ledger — one extra entry would be a
-//      hole an unverified change could reach a release through.
+//      hole an unverified change could reach a release through;
+//  §10 THE SPLIT — a drives-scope verdict records only as the advisory kind
+//      hosted-drives and verifies nothing (no kind, not even by name); a
+//      release-scope verdict records as hosted with its deferred drives and
+//      is the verdict a tag may carry; the release bind's reader drops the
+//      advisory rows the same way.
 //
 //  Hermetic: every check runs against a scratch git repository under a
 //  mkdtemp root, driving the real CLI as a subprocess. This repository's own
@@ -243,6 +248,85 @@ section('§9 — the codeTree exclusion list is exactly the ledger')
     'the ledger lives at a committed, non-ignored path',
     spawnSync('git', ['check-ignore', '-q', mod.LEDGER_PATH], { cwd: REPO }).status !== 0,
     mod.LEDGER_PATH,
+  )
+}
+
+// ── §10 the split ──────────────────────────────────────────────────────────
+section('§10 — a drives-scope verdict reports and never verifies; a release-scope verdict is the tag\'s')
+{
+  const ledgerPath = join(SCRATCH, 'scripts/gate/gate-ledger.jsonl')
+  const lastRow = (): Record<string, unknown> => {
+    const rows = readFileSync(ledgerPath, 'utf8').split('\n').filter(Boolean)
+    return JSON.parse(rows[rows.length - 1]!) as Record<string, unknown>
+  }
+  write('src/a.ts', 'export const a = 3\n')
+  const head = commitAll('src: a tree no release verdict has covered')
+  check('the new tree starts unverified', ledger('check', '--kind', 'hosted').code === 1)
+
+  const drives = (): string =>
+    verdictFile(head, {
+      scope: 'drives',
+      pass: ['ui', 'journey'],
+      fail: [],
+      deferred: { release: ['alpha', 'beta'] },
+      durations: { ui: 900, journey: 2000 },
+    })
+  const asHosted = ledger('record', '--kind', 'hosted', '--run-id', '900010', '--verdict', drives())
+  check(
+    'a drives-scope verdict is refused as the release verdict (--kind hosted)',
+    asHosted.code === 2 && asHosted.out.includes('hosted-drives'),
+    asHosted.out.trim().split('\n')[0] ?? '',
+  )
+  const relAsDrives = ledger(
+    'record', '--kind', 'hosted-drives', '--run-id', '900011', '--verdict',
+    verdictFile(head, { scope: 'release', deferred: { drives: ['ui', 'journey'] } }),
+  )
+  check('--kind hosted-drives refuses a release-scope verdict', relAsDrives.code === 2, relAsDrives.out.trim().split('\n')[0] ?? '')
+  const bogus = ledger('record', '--kind', 'bogus', '--run-id', '900012', '--verdict', drives())
+  check('an unknown --kind is refused', bogus.code === 2, bogus.out.trim().split('\n')[0] ?? '')
+
+  const rec = ledger('record', '--kind', 'hosted-drives', '--run-id', '900013', '--verdict', drives())
+  check('a drives-scope verdict records as hosted-drives', rec.code === 0 && rec.out.includes('(drives scope)'), rec.out.trim())
+  const drow = lastRow()
+  check(
+    'the row carries kind hosted-drives, scope drives, the deferred release set',
+    drow.kind === 'hosted-drives' && drow.scope === 'drives' && JSON.stringify(drow.deferred) === JSON.stringify({ release: ['alpha', 'beta'] }),
+    JSON.stringify({ kind: drow.kind, scope: drow.scope, deferred: drow.deferred }),
+  )
+  commitAll('gate: record the drives verdict')
+  check('the tree stays unverified for --kind hosted', ledger('check', '--kind', 'hosted').code === 1)
+  check('…and for any kind', ledger('check').code === 1)
+  const byName = ledger('check', '--kind', 'hosted-drives')
+  check('an advisory kind never verifies, even asked for by name', byName.code === 1 && byName.out.includes('advisory'), byName.out.trim())
+
+  const rel = ledger(
+    'record', '--kind', 'hosted', '--run-id', '900014', '--verdict',
+    verdictFile(head, { scope: 'release', deferred: { drives: ['ui', 'journey'] } }),
+  )
+  check(
+    'a release-scope verdict records as hosted with its deferred drives named',
+    rel.code === 0 && rel.out.includes('(release scope)') && rel.out.includes('deferred 2 to drives'),
+    rel.out.trim(),
+  )
+  const rrow = lastRow()
+  check(
+    'the row carries scope release + deferred.drives',
+    rrow.kind === 'hosted' && rrow.scope === 'release' && JSON.stringify(rrow.deferred) === JSON.stringify({ drives: ['ui', 'journey'] }),
+  )
+  commitAll('gate: record the release verdict')
+  check('the release verdict verifies the tree (--kind hosted --require-toolchain)', ledger('check', '--kind', 'hosted', '--require-toolchain').code === 0)
+
+  const bind = (await import('../release/verifyReceiptBind.mjs')) as { readLedgerRows: (t: string) => Array<{ kind: string }> }
+  const kept = bind.readLedgerRows(readFileSync(ledgerPath, 'utf8'))
+  check(
+    'the release bind reads only verifying rows — the advisory row is dropped',
+    kept.length > 0 && kept.every(r => r.kind !== 'hosted-drives') && kept.some(r => r.kind === 'hosted'),
+    kept.map(r => r.kind).join(','),
+  )
+  const mod = await import('./ledger.ts')
+  check(
+    'ADVISORY_KINDS is exactly [hosted-drives] and isAdvisoryKind agrees',
+    mod.ADVISORY_KINDS.length === 1 && mod.ADVISORY_KINDS[0] === 'hosted-drives' && mod.isAdvisoryKind('hosted-drives') && !mod.isAdvisoryKind('hosted'),
   )
 }
 

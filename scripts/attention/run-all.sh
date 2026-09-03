@@ -34,7 +34,12 @@ echo "############################################################"
 echo "# attention — the operator command surface"
 echo "############################################################"
 
+# Provers named by a sibling member list (scripts/attention-*/members.txt) run in
+# that sibling suite — the real-terminal drives — never here.
+claimed=$(cat scripts/attention-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for proof in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   echo
   echo "── $(basename "$proof") ──"
   __t=$SECONDS; (cd "$repo" && "$bun" run "$proof") || fail=1; prover_mark "$proof" "$__t"
@@ -44,6 +49,7 @@ done
 # machine cannot run the journey — the gate is honoured, loudly". 0 = ran and
 # passed; anything else is a real failure.
 for journey in "$here"/journey-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$journey")"; then continue; fi
   [ -e "$journey" ] || continue
   echo
   echo "── $(basename "$journey") (machine-gated) ──"
@@ -61,6 +67,7 @@ done
 # exit 0; a non-zero exit means the defect is back (or the reproducer itself
 # rotted), and either fails the suite.
 for repro in "$here"/repro-journey-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")"; then continue; fi
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"

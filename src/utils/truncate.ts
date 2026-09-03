@@ -52,6 +52,61 @@ export function truncateStartToWidth(text: string, maxWidth: number): string {
   return ELLIPSIS + result
 }
 
+/**
+ * Middle-truncates to the width budget, KEEPING THE TAIL: the head is cut
+ * and an ellipsis marks the cut; the tail (the last `keepTail` display
+ * columns, or the whole text past the last ` — ` when `keepTail` is
+ * absent) survives intact. The status row's wait line reads "ingesting a
+ * 26k-token prompt on Opus 5 — first byte expected within 90 s": the budget
+ * is the one word that must survive a narrow terminal, and an end cut took
+ * exactly that word first.
+ */
+export function truncateKeepingTail(text: string, maxWidth: number, keepTail?: number): string {
+  if (stringWidth(text) <= maxWidth) return text
+  if (maxWidth <= 1) return ELLIPSIS
+  const parts = graphemes(text)
+  // The tail: the requested columns, else the clause after the last ' — '
+  // (the wait line's budget clause), else nothing special (an end cut).
+  let tailStart = parts.length
+  if (keepTail !== undefined) {
+    let width = 0
+    for (let index = parts.length - 1; index >= 0; index--) {
+      const w = stringWidth(parts[index] as string)
+      if (width + w > keepTail) break
+      width += w
+      tailStart = index
+    }
+  } else {
+    const dash = text.lastIndexOf(' — ')
+    if (dash !== -1) {
+      // The clause starts after the separator; the separator itself leads
+      // the tail so the line still reads as two clauses.
+      const clauseAt = dash
+      let seen = 0
+      for (let index = 0; index < parts.length; index++) {
+        if (seen >= clauseAt) {
+          tailStart = index
+          break
+        }
+        seen += (parts[index] as string).length
+      }
+    }
+  }
+  const tail = parts.slice(tailStart).join('')
+  const tailWidth = stringWidth(tail)
+  if (tailWidth + 1 >= maxWidth) return truncateStartToWidth(tail, maxWidth)
+  const headBudget = maxWidth - tailWidth - 1
+  let head = ''
+  let width = 0
+  for (const grapheme of parts.slice(0, tailStart)) {
+    const graphemeWidth = stringWidth(grapheme)
+    if (width + graphemeWidth > headBudget) break
+    head += grapheme
+    width += graphemeWidth
+  }
+  return `${head.trimEnd()}${ELLIPSIS}${tail}`
+}
+
 /** End-truncates using the full budget, for callers that supply their own separator. */
 export function truncateToWidthNoEllipsis(text: string, maxWidth: number): string {
   if (stringWidth(text) <= maxWidth) return text
