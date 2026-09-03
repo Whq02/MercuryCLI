@@ -25,7 +25,7 @@ export interface ToolPayloadPlanInput {
 
 interface RosterLatch {
   enabled: boolean
-  names: ReadonlySet<string>
+  names: readonly string[]
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
@@ -46,17 +46,16 @@ function firstConversationRow(messages: readonly Message[]): string {
   return 'empty'
 }
 
-function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string, mode: string): string {
-  return `${latchKey}|${firstConversationRow(messages)}|${model}|${mode}`
+function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string): string {
+  return `${latchKey}|${firstConversationRow(messages)}|${model}`
 }
 
 export function toolRosterLatchFor(
   latchKey: string,
   messages: readonly Message[],
   model: string,
-  mode: string,
 ): RosterLatch | undefined {
-  return rosterLatches.get(rosterLatchKey(latchKey, messages, model, mode))
+  return rosterLatches.get(rosterLatchKey(latchKey, messages, model))
 }
 
 export interface ToolPayloadPlan {
@@ -86,9 +85,7 @@ export function deferredToolsAnnouncement(tools: Tools, deferredNames: ReadonlyS
 export async function planToolPayload(input: ToolPayloadPlanInput): Promise<ToolPayloadPlan> {
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
-  const rosterPermissionMode = (await input.getToolPermissionContext()).mode
-  const latchKey =
-    input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model, rosterPermissionMode)
+  const latchKey = input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model)
   const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
 
   let enabled: boolean
@@ -103,12 +100,13 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
       input.source,
       wire.form,
     )
+    if (enabled && wire.form !== 'block') enabled = false
   }
 
   const deferredNames = new Set<string>()
   if (enabled) {
     for (const t of tools) {
-      if (isDeferredTool(t, rosterPermissionMode)) deferredNames.add(t.name)
+      if (isDeferredTool(t)) deferredNames.add(t.name)
     }
   }
 
@@ -117,28 +115,33 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   if (latchKey !== null && latched === undefined) {
-    rosterLatches.set(latchKey, { enabled, names: new Set(tools.map(t => t.name)) })
+    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name) })
   }
-  const held = new Set<string>()
-  if (latched !== undefined && !latched.enabled) {
-    for (const t of tools) {
-      if (!latched.names.has(t.name)) held.add(t.name)
+
+  const byName = new Map(tools.map(t => [t.name, t] as const))
+  const ordered: Tool[] = []
+  const held: string[] = []
+  if (latched !== undefined) {
+    for (const name of latched.names) {
+      const tool = byName.get(name)
+      if (tool !== undefined) ordered.push(tool)
     }
-    if (held.size > 0) {
+    for (const tool of tools) {
+      if (latched.names.includes(tool.name)) continue
+      if (latched.enabled && deferredNames.has(tool.name)) ordered.push(tool)
+      else held.push(tool.name)
+    }
+    if (held.length > 0) {
       logForDebugging(
-        `tool roster frozen: ${held.size} tool(s) joined after the first request and stay out until the next compaction or /clear (${[...held].join(', ')})`,
+        `tool roster frozen: ${held.length} tool(s) joined after the first request and stay out until the next compaction or /clear (${held.join(', ')})`,
       )
     }
+  } else {
+    ordered.push(...tools)
   }
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-  const roster: Tool[] = enabled
-    ? tools.filter(tool => {
-        if (!deferredNames.has(tool.name)) return true
-        if (toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME)) return true
-        return admittedNames.has(tool.name)
-      })
-    : tools.filter(t => !toolMatchesName(t, TOOL_SEARCH_TOOL_NAME) && !held.has(t.name))
+  const roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
 
   const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(tools, deferredNames) : null
 

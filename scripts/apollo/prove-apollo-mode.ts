@@ -92,7 +92,9 @@ try {
 }
 {
   const prompts = src('constants', 'prompts.ts')
-  check("prompts.ts pushes pushPack('mode-apollo', …) beside mode-autopilot", /pushPack\('mode-apollo', getApolloModeSections\(permissionMode\)\)/.test(prompts))
+  check('prompts.ts never pushes the apollo pack into the system prompt (the pack rides a mode_pack row)', !/pushPack\('mode-apollo'/.test(prompts) && !/getApolloModeSections\(/.test(prompts))
+  const lifecycles = src('utils', 'attachments', 'modeLifecycles.ts')
+  check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
   check(
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('QueryEngine.ts')) &&
