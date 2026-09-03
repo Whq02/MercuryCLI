@@ -328,7 +328,7 @@ function pickDefined<R extends object, K extends keyof R>(r: R, keys: readonly K
  *  the model the caller named rides — never the registry default in silence
  *  under a name nobody chose. Both spelled and different is an ambiguity
  *  the door refuses typed. */
-function requestedModel(raw: { model?: unknown; modelKey?: unknown }): { model?: string; conflict?: string } {
+function requestedModel(raw: Record<string, unknown>): { model?: string; conflict?: string } {
   const model = typeof raw.model === 'string' && raw.model !== '' ? raw.model : undefined
   const alias = typeof raw.modelKey === 'string' && raw.modelKey !== '' ? raw.modelKey : undefined
   if (model !== undefined && alias !== undefined && model !== alias) {
