@@ -26,6 +26,19 @@ import { buildSubagentLookups } from '../../utils/messages.js'
 import { renderModelName, getMainLoopModel } from '../../utils/model/model.js'
 import { Markdown } from '../../components/Markdown.js'
 import { getAgentColor } from './agentColorManager.js'
+import { useNowTick } from '../../components/mercury-ui/components.js'
+import { useFocusedWorkRoster } from '../../components/tasks/useFocusedWork.js'
+import {
+  crewAgentByName,
+  crewAgentByToolUse,
+  crewAgentsOf,
+  crewElapsedLabel,
+  crewModelLabel,
+  crewStateLabel,
+  crewTokensLabel,
+  crewToolUsesLabel,
+  type CrewAgentFacts,
+} from '../../services/engine-connector/crewFacts.js'
 import type { AgentToolOutput } from './AgentTool.js'
 
 /** The shared expand hint (transcript toggle), parenthesised where inline. */
@@ -257,6 +270,8 @@ export function renderToolUseProgressMessage(
     terminalSize?: { columns: number; rows: number }
     inProgressToolCallCount?: number
     isTranscriptMode?: boolean
+    /** The row's own tool-use id — the crew record's join key. */
+    toolUseID?: string
   },
 ): React.ReactNode {
   const { tools, verbose, terminalSize, inProgressToolCallCount } = options
@@ -264,11 +279,9 @@ export function renderToolUseProgressMessage(
   const rows = displayRows(progressMessages)
 
   if (messagesOf(progressMessages).length === 0) {
-    return (
-      <MessageResponse height={1}>
-        <Text dimColor>Initializing agent…</Text>
-      </MessageResponse>
-    )
+    // No progress row yet (the daemon-hosted feed projects none for an
+    // agent at all): the crew record paints when the roster has the launch.
+    return <AgentFactsOrInitialising {...(options.toolUseID !== undefined ? { toolUseID: options.toolUseID } : {})} />
   }
 
   // Condensed mode: short terminals get exactly one line. The default
@@ -649,6 +662,110 @@ export function extractLastToolInfo(
   return null
 }
 
+/** One grouped-card entry as the row builder folded it. */
+type GroupedEntry = {
+  toolUseID?: string
+  input: AgentUiInput
+  toolUseCount: number
+  tokens: number
+  lastTool: string | null
+  isTeammateSpawn: boolean
+  resolved: boolean
+  isErrored: boolean
+}
+
+/** The entry's crew record: an Agent tool launch joins by its tool-use id,
+ *  a named spawn by its name; null when the roster carries no row (the
+ *  in-process world, or an older runner). */
+function factsForEntry(agents: readonly CrewAgentFacts[], entry: GroupedEntry): CrewAgentFacts | null {
+  if (entry.toolUseID !== undefined) {
+    const byId = crewAgentByToolUse(agents, entry.toolUseID)
+    if (byId !== null) return byId
+  }
+  if (entry.isTeammateSpawn && entry.input.name) return crewAgentByName(agents, entry.input.name)
+  return null
+}
+
+/** The status line a joined row carries: what the agent is doing (its
+ *  state word once it settled) beside its elapsed time. */
+function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
+  const doing = facts.running ? (facts.activity ?? crewStateLabel(facts)) : crewStateLabel(facts)
+  return `${doing} · ${crewElapsedLabel(facts, nowMs)}`
+}
+
+/** The grouped card's rows, each joined to the ONE crew record (the
+ *  session's work roster over the focused connector): a joined row paints
+ *  the runner's own facts — model · tool uses · tokens · activity ·
+ *  elapsed — and an unjoined one what the tool's own progress rows
+ *  carried. The daemon-hosted feed projects no agent progress rows, so
+ *  without the join a hosted agent's row read "0 tool uses · 0 tokens ·
+ *  initialising…" for its whole run. */
+function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
+  const roster = useFocusedWorkRoster()
+  const agents = React.useMemo(() => crewAgentsOf(roster.rows, null), [roster])
+  const now = useNowTick(animate ? 1000 : null)
+  return (
+    <>
+      {entries.map((entry, index) => {
+        const facts = factsForEntry(agents, entry)
+        const resolved = entry.resolved || (facts !== null && !facts.running)
+        // A zero from a carrier that reported no usage is not a measurement.
+        const tokens = facts !== null ? facts.tokens?.total : entry.tokens > 0 ? entry.tokens : undefined
+        const statusLine = facts !== null ? factsStatusLine(facts, now) : entry.lastTool
+        return (
+          <AgentProgressLine
+            key={entry.toolUseID ?? index}
+            agentType={userFacingName(entry.input)}
+            {...(entry.isTeammateSpawn && entry.input.name ? { name: `@${entry.input.name}` } : {})}
+            {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
+            {...(entry.input.subagent_type ? { color: getAgentColor(entry.input.subagent_type) } : {})}
+            {...(facts !== null ? { model: crewModelLabel(facts) } : {})}
+            {...(statusLine !== null ? { lastToolInfo: statusLine } : {})}
+            toolUseCount={facts?.toolUses ?? entry.toolUseCount}
+            {...(tokens !== undefined ? { tokens } : {})}
+            isLast={index === entries.length - 1}
+            isResolved={resolved}
+            isError={entry.isErrored || facts?.state === 'failed'}
+            shouldAnimate={animate}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+/** The single card before any progress row: the crew record when the
+ *  roster carries the launch (joined by the row's tool-use id), else the
+ *  honest initialising line. */
+function AgentFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.ReactNode {
+  const roster = useFocusedWorkRoster()
+  const facts = React.useMemo(
+    () => (toolUseID === undefined ? null : crewAgentByToolUse(crewAgentsOf(roster.rows, null), toolUseID)),
+    [roster, toolUseID],
+  )
+  const now = useNowTick(facts !== null && facts.running ? 1000 : null)
+  if (facts === null) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor>Initializing agent…</Text>
+      </MessageResponse>
+    )
+  }
+  const parts = [
+    crewModelLabel(facts),
+    crewStateLabel(facts),
+    crewToolUsesLabel(facts) ?? undefined,
+    crewTokensLabel(facts) ?? undefined,
+    crewElapsedLabel(facts, now),
+    facts.activity ?? undefined,
+  ].filter((part): part is string => part !== undefined)
+  return (
+    <MessageResponse height={1}>
+      <Text dimColor>{parts.join(' · ')}</Text>
+    </MessageResponse>
+  )
+}
+
 /** Grouped multi-agent row. */
 export function renderGroupedAgentToolUse(
   toolUses: GroupedToolUse[],
@@ -683,6 +800,7 @@ export function renderGroupedAgentToolUse(
       isTeammateSpawn
     const resolved = entry.isResolved === true || status !== undefined
     return {
+      toolUseID: entry.toolUseID,
       input,
       toolUseCount,
       tokens,
@@ -745,24 +863,7 @@ export function renderGroupedAgentToolUse(
           ) : null}
         </Text>
       </Box>
-      {entries.map((entry, index) => (
-        <AgentProgressLine
-          key={index}
-          agentType={userFacingName(entry.input)}
-          {...(entry.isTeammateSpawn && entry.input.name ? { name: `@${entry.input.name}` } : {})}
-          {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
-          {...(entry.input.subagent_type
-            ? { color: getAgentColor(entry.input.subagent_type) }
-            : {})}
-          {...(entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}
-          toolUseCount={entry.toolUseCount}
-          tokens={entry.tokens}
-          isLast={index === entries.length - 1}
-          isResolved={entry.resolved}
-          isError={entry.isErrored}
-          shouldAnimate={animate}
-        />
-      ))}
+      <CrewAgentRows entries={entries} animate={animate} />
     </Box>
   )
 }
