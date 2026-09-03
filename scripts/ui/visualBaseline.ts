@@ -114,6 +114,12 @@ export const DEFAULT_MASKS = [
   'row:│ \\S+ │ ⤳',
   // Statusbar git branch + dirty-star ("⌥main*" — the star flips with the tree).
   '⌥\\S+ *',
+  // The session tag bar ("◐ first task · <checkout-basename> · ready … ⇧←
+  // back"): the middle chip is the session's project, the checkout's
+  // basename again, and the right-aligned back hint rides a padding run
+  // that encodes the chip's width. Same volatility as the statusbar rows,
+  // same row-level grain.
+  'row: · \\S+ · \\S+ +⇧← back',
   // ROW-level (the 'row:' prefix): the whole row canonicalizes when matched —
   // for live-state chips whose LENGTH shifts move a truncation ellipsis or
   // spacing no span mask can stabilize. The telemetry gate line reads the
@@ -158,6 +164,44 @@ export function neutralizeGrid(grid: StoredGrid, masks: string[]): {
     styles.push(masked === grid.text[y] ? grid.styles[y] : [])
   }
   return { text, styles }
+}
+
+/** The recording checkout's own name paints into the frame twice — the
+ *  statusbar's repo chip (basename ⌥branch, the narrow variant's bare
+ *  basename) and the session tag bar's project chip — on exactly the rows
+ *  the row masks neutralize at compare time. The STORED text takes one
+ *  fixed spelling so a recording reads the same from any checkout; every
+ *  row keeps its width (the padding run is part of the row), and a name
+ *  the fixed spelling would not fit is left as captured. Digests are
+ *  unaffected: these rows are row-masked. */
+export function canonicalizeCheckoutRows(
+  grid: StoredGrid,
+  checkout: { basename: string; branch: string },
+): StoredGrid {
+  const swaps: Array<[string, string]> = [
+    [`${checkout.basename} ⌥${checkout.branch}*`, 'mercury ⌥main'],
+    [`${checkout.basename} ⌥${checkout.branch}`, 'mercury ⌥main'],
+    [`│ ${checkout.basename} │ ⤳`, '│ mercury │ ⤳'],
+    [` · ${checkout.basename} · `, ' · mercury · '],
+  ]
+  // The cells the shorter spelling frees go to the row's padding run (the
+  // last run of two or more blanks — the gap before a right-aligned hint or
+  // a closing border), where the product itself would have put them.
+  const restore = (row: string, delta: number): string => {
+    const runs = [...row.matchAll(/ {2,}/g)]
+    const last = runs[runs.length - 1]
+    if (!last || last.index === undefined) return row + ' '.repeat(delta)
+    return row.slice(0, last.index) + ' '.repeat(delta) + row.slice(last.index)
+  }
+  const text = grid.text.map(row => {
+    for (const [from, to] of swaps) {
+      if (!row.includes(from)) continue
+      if (to.length > from.length) return row
+      return restore(row.replace(from, to), from.length - to.length)
+    }
+    return row
+  })
+  return { ...grid, text }
 }
 
 export function compactGrid(raw: RawGrid): StoredGrid {
