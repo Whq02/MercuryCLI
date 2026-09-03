@@ -114,11 +114,30 @@ section('server B — no crewSpawn dep: honest ENOTSUP')
   await server.close()
 }
 
-section('server C — not ready: ESTARTING (the client retry key)')
+section('server C — not ready: the work door HOLDS for the adoption budget, then refuses ESTARTING (the client retry key)')
 {
-  const server = await startControlServer({ ...baseDeps, isReady: () => false, crewSpawn: async () => ({ ok: true, pid: 1 }) })
+  // The hold is the adoption's budget (ESTARTING_HOLD_MS in the product); the
+  // proof seam shortens it so an adoption that outlives the hold refuses
+  // inside the client's own deadline — typed, naming the wait.
+  const server = await startControlServer({ ...baseDeps, isReady: () => false, startingHoldMs: 200, crewSpawn: async () => ({ ok: true, pid: 1 }) })
+  const t0 = Date.now()
   const r = await daemonControlRpc({ op: 'crewSpawn', name: 'atlas', model: 'sonnet' } as DaemonRequest, { timeoutMs: 3000 })
-  check('boot race ⇒ ESTARTING (spawnCrewTeammate retries on exactly this)', !r.ok && 'code' in r && r.code === 'ESTARTING')
+  const waited = Date.now() - t0
+  check('an adoption that outlives the hold ⇒ ESTARTING, typed, naming the wait (spawnCrewTeammate retries on exactly this)', !r.ok && 'code' in r && r.code === 'ESTARTING' && /held 200ms for readiness/.test(r.error ?? ''), JSON.stringify(r))
+  check('…answered after the hold, never on the spot', waited >= 180, `${waited}ms`)
+  await server.close()
+}
+
+section('server D — a boot race inside the hold: the dispatch is held and admitted once ready')
+{
+  let ready = false
+  const flip = setTimeout(() => {
+    ready = true
+  }, 150)
+  const server = await startControlServer({ ...baseDeps, isReady: () => ready, crewSpawn: async () => ({ ok: true, pid: 7 }) })
+  const r = await daemonControlRpc({ op: 'crewSpawn', name: 'atlas', model: 'sonnet' } as DaemonRequest, { timeoutMs: 3000 })
+  clearTimeout(flip)
+  check('a dispatch during adoption is admitted once ready (never refused on the spot)', r.ok === true && (r as { pid?: number }).pid === 7, JSON.stringify(r))
   await server.close()
 }
 
