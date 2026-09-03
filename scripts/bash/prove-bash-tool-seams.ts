@@ -49,9 +49,8 @@ const platformTemp: string | null = process.platform === 'darwin' ? realpathSync
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-')))
 const PROJECT = join(SCRATCH, 'project')
-const OUTSIDE = join(SCRATCH, 'outside')
+const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))
 mkdirSync(join(PROJECT, 'sub'), { recursive: true })
-mkdirSync(OUTSIDE)
 process.chdir(PROJECT)
 setCwd(PROJECT)
 
@@ -244,7 +243,7 @@ if (!ready) {
 } else {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-cwd-')))
-  const away = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-away-')))
+  const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))
   mkdirSync(join(cwd, 'sub'))
   const configDir = join(home, '.mercury')
   seedFirstRun(configDir, [cwd])
@@ -333,6 +332,7 @@ if (!ready) {
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
+rmSync(OUTSIDE, { recursive: true, force: true })
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL BASH TOOL SEAM PROOFS PASS')
