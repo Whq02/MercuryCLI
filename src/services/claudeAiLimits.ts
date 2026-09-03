@@ -9,6 +9,7 @@ import { isEssentialTrafficOnly } from '../utils/privacyLevel.js'
 import { getAnthropicClient } from './api/client.js'
 import { getAPIMetadata } from './providers/anthropic/index.js'
 import { APIError } from './api/sdkErrors.js'
+import type { UsageFeed } from './providers/usageFreshness.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 
 
@@ -81,10 +82,18 @@ export function getRateLimitDisplayName(type: string): string {
 }
 
 
-type RawWindow = { utilization: number; resets_at: number }
+type RawWindow = { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number }
 export type WeeklyPoolClaim = 'seven_day_fable' | 'seven_day_opus' | 'seven_day_sonnet'
 export const WEEKLY_POOL_CLAIMS: readonly WeeklyPoolClaim[] = ['seven_day_fable', 'seven_day_opus', 'seven_day_sonnet']
 type RawUtilization = { five_hour?: RawWindow; seven_day?: RawWindow } & Partial<Record<WeeklyPoolClaim, RawWindow>>
+
+export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefined {
+  const id = model.toLowerCase()
+  if (id.includes('fable')) return 'seven_day_fable'
+  if (id.includes('opus')) return 'seven_day_opus'
+  if (id.includes('sonnet')) return 'seven_day_sonnet'
+  return undefined
+}
 
 let rawUtilization: RawUtilization = {}
 
@@ -130,7 +139,7 @@ function recomputeRawUtilization(headers: Headers): void {
     const resetsAt = Number(resetRaw)
     if (!Number.isFinite(utilization) || !Number.isFinite(resetsAt)) continue
     if (utilization < 0 || resetsAt < 0) continue
-    next[key] = { utilization, resets_at: resetsAt }
+    next[key] = { utilization, resets_at: resetsAt, source: 'headers', observedAtMs: Date.now() }
   }
   rawUtilization = next
   observedOwner = resolveOwner()
@@ -157,16 +166,18 @@ export function foldUtilizationFromEndpoint(
     seven_day?: { utilization: number | null; resets_at: string | null } | null
   } & Partial<Record<WeeklyPoolClaim, { utilization: number | null; resets_at: string | null } | null>>,
   issuedEpoch?: number,
+  observedAtMs: number = Date.now(),
 ): void {
   if (issuedEpoch !== undefined && issuedEpoch !== usageCredentialEpoch) return
   const next: RawUtilization = {}
+  const stamp = (w: RawWindow): RawWindow => ({ ...w, source: 'endpoint', observedAtMs })
   const fiveHour = normalizeEndpointWindow(u.five_hour)
   const sevenDay = normalizeEndpointWindow(u.seven_day)
-  if (fiveHour) next.five_hour = fiveHour
-  if (sevenDay) next.seven_day = sevenDay
+  if (fiveHour) next.five_hour = stamp(fiveHour)
+  if (sevenDay) next.seven_day = stamp(sevenDay)
   for (const claim of WEEKLY_POOL_CLAIMS) {
     const pool = normalizeEndpointWindow(u[claim])
-    if (pool) next[claim] = pool
+    if (pool) next[claim] = stamp(pool)
   }
   endpointUtilization = next
   observedOwner = resolveOwner()
@@ -196,6 +207,7 @@ export function getRawUtilization(): RawUtilization {
     copy[key] = {
       utilization: Number(match[2]),
       resets_at: match[3] !== undefined ? Number(match[3]) : Math.floor(Date.now() / 1000) + SEED_DEFAULT_TTL_SECONDS,
+      source: 'seed',
     }
   }
   return copy
