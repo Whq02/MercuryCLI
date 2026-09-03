@@ -128,6 +128,25 @@ section('B5 · the wiring (structural)')
   check("the spinner's byline heads with the wait's words", /const waitHeads = detail\.wait \? \[verb \? `\$\{verb\} · \$\{detail\.wait\}` : detail\.wait\] : \[\]/.test(byline))
 }
 
+section('F · the status row keeps the budget word on a narrow terminal (100 · 110 · 120 columns)')
+{
+  const { fitStatusLine } = await import('../../src/components/SwitchboardTagBar.tsx')
+  const { truncateKeepingTail } = await import('../../src/utils/truncate.ts')
+  const { stringWidth } = await import('../../src/ink/stringWidth.ts')
+  const line = 'ingesting a 60k-token prompt on Opus 5 — first byte expected within 61 s'
+  // The row as the cold-ingest drive painted it: glyph + ' hello sol · fixture-repo · ' + the words + ' esc interrupts · ⇧← back '.
+  const fixedWidth = 2 + stringWidth('hello sol') + stringWidth(' · fixture-repo · ') + 2 + stringWidth('esc interrupts · ⇧← back')
+  for (const columns of [100, 110, 120]) {
+    const fitted = fitStatusLine(line, columns, fixedWidth)
+    const budget = columns - fixedWidth
+    check(`${columns} columns: the fitted words end with the budget clause and fit the row (${stringWidth(fitted)} ≤ ${budget})`, fitted.endsWith('— first byte expected within 61 s') && stringWidth(fitted) <= budget, fitted)
+  }
+  check('a wide row paints the whole line', fitStatusLine(line, 150, fixedWidth) === line)
+  check('the cut is in the middle: the head survives with an ellipsis, the clause follows whole — never an end cut', /^ingesting[^…]*… — first byte expected within 61 s$/.test(fitStatusLine(line, 100, fixedWidth)), fitStatusLine(line, 100, fixedWidth))
+  check('a line without a tail clause is left to the row (an end cut is honest there)', fitStatusLine('thinking for 12s', 30, 25) === 'thinking for 12s')
+  check('truncateKeepingTail: a short line is untouched; a long one keeps the tail clause under the budget; a requested tail width keeps exactly that tail', truncateKeepingTail('a — b', 40) === 'a — b' && truncateKeepingTail('a very long head that overflows — kept', 20) === 'a very long… — kept' && truncateKeepingTail('abcdefghij', 6, 3) === 'ab…hij', JSON.stringify([truncateKeepingTail('a very long head that overflows — kept', 20), truncateKeepingTail('abcdefghij', 6, 3)]))
+}
+
 section('N1 · the flow-default notice')
 {
   const notice = await import('../../src/utils/permissions/shouldShowAutoDefaultNotice.ts')

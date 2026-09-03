@@ -320,10 +320,25 @@ await gracefulShutdown(0)
   t('the retirement stops the child through the roster', killed.length === 1 && killed[0] === 'concourse-w1')
   const after = readSessionWorkers(daemonDir)
   const w1 = after['concourse-w1']!
-  t('the record stays on the board as stopped with the typed retired fact', w1.stoppedAt !== undefined && w1.retired?.reason === 'idle-empty' && w1.retired.thresholdMs === T && /retired — empty and idle/.test(w1.stoppedBy ?? ''))
+  // THE STOP LAW (GATE-TRIAGE 6, 82e7913 — the daemon suite's newborn-grace
+  // control reads the same): the sweep REQUESTS the stop — the kill goes to
+  // the roster and the record stamps stopRequestedAt with the typed retired
+  // fact beside it — and the record reads stopped on the runner's
+  // acknowledgement (its exit), never on the kill's dispatch. The control's
+  // runner is this process (alive): its exit is played by re-pointing the
+  // record at a dead pid and completing the requested stop.
+  t('the sweep requests the stop with the typed retired fact beside the request', w1.stopRequestedAt !== undefined && w1.stopRequestedRetired?.reason === 'idle-empty' && w1.stopRequestedRetired.thresholdMs === T, JSON.stringify(w1))
+  const { updateConcourseWorkers, completeRequestedStop } = await import('../../src/daemon/concourseSupervisor.ts')
+  updateConcourseWorkers(workers => {
+    const w = workers['concourse-w1']
+    if (w) w.pid = 999_999
+  }, daemonDir)
+  const completed = completeRequestedStop('concourse-w1', daemonDir)
+  const w1Done = readSessionWorkers(daemonDir)['concourse-w1']!
+  t("the record reads stopped on the runner's exit with the typed retired fact", completed && w1Done.stoppedAt !== undefined && w1Done.retired?.reason === 'idle-empty' && w1Done.retired.thresholdMs === T && /retired — empty and idle/.test(w1Done.stoppedBy ?? ''), JSON.stringify(w1Done))
   t('the worker with conversation, the young one and the paused one are untouched', after['concourse-w2']!.stoppedAt === undefined && after['concourse-w3']!.stoppedAt === undefined && after['concourse-w4']!.stoppedAt === undefined)
   t('the huge-first-message session survives the sweep (truncated-window class)', after['concourse-w5']!.stoppedAt === undefined)
-  t('the session list sentence derives from the fact', retiredNowLabel(w1.retired!) === `retired — empty and idle for ${(await import('../../src/utils/deadline.ts')).formatLimit(w1.retired!.idleMs)}`)
+  t('the session list sentence derives from the fact', w1Done.retired !== undefined && retiredNowLabel(w1Done.retired) === `retired — empty and idle for ${(await import('../../src/utils/deadline.ts')).formatLimit(w1Done.retired.idleMs)}`)
   const again = sweepIdleEmptyConcourseSessions(roster, { dir: daemonDir })
   t('a second sweep is idempotent (a retired row refuses again)', again.length === 0 && killed.length === 1)
 

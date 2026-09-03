@@ -295,7 +295,11 @@ section('§3 — black-holed socket, belt disabled: transport budgets alone end 
   const text = j(errorResult ?? {})
   check('the run ENDS non-zero on transport budgets alone', run.exit !== null && run.exit !== 0, `exit=${run.exit} stderr=${run.stderr.slice(0, 200)}`)
   check('a typed error envelope lands (no silent abort)', errorResult !== undefined, j(run.envelopes.map(e => `${e.type}:${e.subtype ?? ''}`)))
-  check('the fault names the timeout', /timed out|timeout/i.test(text), text.slice(0, 300))
+  // The black-hole floor dies on the FIRST-BYTE budget since INTERRUPT-3
+  // (c8e3fa5): the fault reads "no first byte from <family> after N s (…)
+  // — the turn was aborted" — the budget that fired, named with its
+  // seconds; the older transports still say "timed out".
+  check('the fault names the timeout', /timed out|timeout|no first byte from .+ after \d+ s/i.test(text), text.slice(0, 300))
   check('the retry ladder ran dry inside the wall bound', run.wallMs < 90_000, `${run.wallMs}ms`)
   for (const s of sockets) s.destroy()
   await new Promise<void>(r => blackhole.close(() => r()))

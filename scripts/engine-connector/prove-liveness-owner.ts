@@ -9,7 +9,7 @@
 //  is doing and for how long. The connector folds the seat's stamps (the
 //  tail projection's lastEventAtMs / streamBlock / blockSinceMs, the
 //  progress projection's budgetMs, the facts' streamIdleTimeoutMs) into
-//  SeatStatusV1 {quietMs, watchdogMs, phaseMs, toolBudgetMs, stuck}; the
+//  SeatStatusV1 {quietMs, watchdogMs, phaseMs, toolBudgetMs, stuck, wait}; the
 //  row's copy is the exported statusLine. Transcript growth feeds none of
 //  it.
 //
@@ -192,7 +192,7 @@ section('§5 a tool running under its deadline = alive, whatever the stream’s 
 section('§6 interrupting wins over every other sentence')
 {
   const live: SessionLiveV1 = { inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set(), turnStartedAtMs: Date.now() - 1000 }
-  const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 50_000, watchdogMs: 90_000, phaseMs: 50_000, toolBudgetMs: null, stuck: true }
+  const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 50_000, watchdogMs: 90_000, phaseMs: 50_000, toolBudgetMs: null, stuck: true, wait: null }
   // The interrupt's words claim exactly what the road does: the request
   // is torn down and every agent the turn waits on is stopped; a second
   // esc is the hard stop that cuts the runner if the turn is still open.

@@ -147,7 +147,7 @@ try {
     prompt: 'overloaded twice then answer',
     workspaceDir: work,
     title: 'reissue rows',
-    modelKey: 'claude-opus-5',
+    model: 'claude-opus-5',
     effort: 'high',
   } as never)) as { ok?: boolean; sessionId?: string }
   check('the session dispatched', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))

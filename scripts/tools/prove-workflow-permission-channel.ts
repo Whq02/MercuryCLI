@@ -305,9 +305,20 @@ section('mode-follow: workflow agents ride the MAIN session permission mode')
     join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'runAgent.ts'),
     'utf-8',
   )
+  // The derivation lives in the posture owner (agentPermissionPosture.ts):
+  // the runner hands the definition's mode to composeAgentAppState, and the
+  // owner overrides the parent's mode ONLY when the definition names one —
+  // no definition mode ⇒ the parent's live mode rides through unchanged.
+  const posture = readFileSync(
+    join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'agentPermissionPosture.ts'),
+    'utf-8',
+  )
   check(
     'runner derives the agent mode from the PARENT state when no definition mode',
-    /const parentGetAppState = toolUseContext.getAppState/.test(runner) && /definitionMode &&/.test(runner),
+    /const parentGetAppState = toolUseContext.getAppState/.test(runner) &&
+      /composeAgentAppState\(state, \{\s*definitionMode,/.test(runner) &&
+      /facts\.definitionMode &&/.test(posture) &&
+      /mode: facts\.definitionMode/.test(posture),
   )
   check(
     'a pending ask heartbeats the inactivity watchdog (ask ≠ silence)',
