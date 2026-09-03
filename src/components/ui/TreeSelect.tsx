@@ -3,9 +3,10 @@ import React, { useRef, useState } from 'react'
 import { Box } from '../../ink.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
 import { Select } from '../CustomSelect/select.js'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 
-const EXPANDED_MARKER = '▼ '
-const COLLAPSED_MARKER = '▶\uFE0E '
+const EXPANDED_MARKER = `${GLYPH.chevronDown} `
+const COLLAPSED_MARKER = `${GLYPH.chevronRight} `
 const CHILD_MARKER = '  ▸ '
 
 export type TreeNode<T> = {

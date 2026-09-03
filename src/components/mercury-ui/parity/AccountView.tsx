@@ -45,6 +45,7 @@ import { getMainLoopModel, renderModelName } from '../../../utils/model/model.js
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'
 import { InteractiveRow } from '../InteractiveRow.js'
+import { GLYPH } from '../glyphs.js'
 
 
 type BoardRow =
@@ -355,7 +356,7 @@ export function AccountView({
             <SectionHeader {...(ceiling === undefined ? { count: signedIn } : {})}>{`${familyDisplayName(group.family.id)} accounts${capacity}`}</SectionHeader>
             {healthLine !== null ? (
               <Box paddingLeft={2}>
-                <Text color={AMBER}>{`⚠\uFE0E ${healthLine}`}</Text>
+                <Text color={AMBER}>{`${GLYPH.warn} ${healthLine}`}</Text>
               </Box>
             ) : null}
             {hiddenAbove > 0 ? <Text color={FAINT}>{`  +${hiddenAbove} above`}</Text> : null}
