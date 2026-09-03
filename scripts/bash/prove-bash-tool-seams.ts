@@ -258,6 +258,20 @@ if (!ready) {
   check("…and the allow carries the model's timeout, description and background flag", updated.timeout === 3000 && updated.description === 'a sleep' && updated.run_in_background === false && updated.command === 'sleep 30', JSON.stringify(updated))
 }
 
+section('§7 the never-auto-background list matches the command word')
+{
+  const { firstCommandWord } = await import('../../src/utils/shell/shellToolUtils.ts')
+  check("'sleep 30' → sleep", firstCommandWord('sleep 30') === 'sleep')
+  check("'  sleep ' → sleep", firstCommandWord('  sleep ') === 'sleep')
+  check("'sleeper 1' → sleeper (no prefix match)", firstCommandWord('sleeper 1') === 'sleeper')
+  check("'Start-Sleep -Seconds 5' → Start-Sleep", firstCommandWord('Start-Sleep -Seconds 5') === 'Start-Sleep')
+  check("'' → ''", firstCommandWord('') === '')
+  const bashTool = readFileSync(join(ROOT, 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
+  check('the Bash tool compares the command word of the first subcommand', /NEVER_AUTO_BACKGROUND\.has\(firstCommandWord\(firstSubcommand\)\)/.test(bashTool))
+  const psTool = readFileSync(join(ROOT, 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
+  check('the PowerShell tool takes its first token from the same owner', /const firstToken = firstCommandWord\(/.test(psTool) && /NEVER_AUTO_BACKGROUND\.has\(resolveToCanonical\(firstToken\)\)/.test(psTool))
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
@@ -349,6 +363,7 @@ if (!ready) {
   const [first, second, third, fourth, fifth] = results
   check("artifact: a temp file under $TMPDIR lands inside the product temp root and the child's TMPDIR reads it", fifth !== undefined && !fifth.isError && fifth.text.trim().startsWith(`${tempRoot}/probe.`) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
   check("artifact: the model's timeout is honoured under the sandbox — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
+  check('artifact: …on the kill path — an error result, never moved to the background', fourth !== undefined && fourth.isError && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
