@@ -1024,6 +1024,14 @@ export class TaskRoster {
         h.entry.state = 'settled'
         h.entry.outcome = 'killed'
         ledgerExit('killed')
+        // The runner is gone: a stop requested on its session is
+        // acknowledged NOW — the record says stopped only from here (the
+        // kill's dispatch stamped nothing; see completeRequestedStop).
+        if (short.startsWith('concourse-w')) {
+          void import('./concourseSupervisor.js')
+            .then(sup => sup.completeRequestedStop(short))
+            .catch(() => {})
+        }
         return
       }
       // Deliberate retarget bounce — not a crash. Relaunch at once on the
