@@ -45,6 +45,8 @@ export function runJobControlHost(opts: {
   steps: HostStep[]
   env: NodeJS.ProcessEnv
   budgetSeconds?: number
+  bundleMarker?: string
+  bundleTitle?: string
 }): HostRun {
   const base = join(tmpdir(), `jobcontrol-${opts.tag}-${process.pid}`)
   const cfgPath = `${base}.cfg.json`
@@ -62,6 +64,8 @@ export function runJobControlHost(opts: {
       steps: opts.steps,
       tee: teePath,
       budgetSeconds: opts.budgetSeconds ?? 150,
+      ...(opts.bundleMarker ? { bundleMarker: opts.bundleMarker } : {}),
+      ...(opts.bundleTitle ? { bundleTitle: opts.bundleTitle } : {}),
     }),
   )
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'jobcontrol-host.py'), cfgPath, reportPath], {
