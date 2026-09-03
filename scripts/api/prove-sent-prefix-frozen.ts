@@ -264,6 +264,11 @@ if (!existsSync(DIST)) {
     /** The docs' step-1 capture: consecutive pairs, byte-identical up to the appended turns. */
     function census(label: string, reqs: ReturnType<FixtureApi['messageRequests']>, expectPrefix: boolean): number[] {
       const diffs: number[] = []
+      // The model id on the wire is byte-stable across a seat's requests: a
+      // moving spelling (an alias one turn, the canonical id the next, a
+      // suffix, a variant) would read as a model switch on every request.
+      const models = [...new Set(reqs.map(r => String((r.body as Body).model ?? '')))]
+      if (expectPrefix) check(`${label}: one model id on the wire across every request (${models.join(' · ') || 'none'})`, reqs.length > 0 && models.length === 1 && models[0] !== '', models.join(' · '))
       for (let i = 1; i < reqs.length; i++) {
         const prev = reqs[i - 1]!.body as Body
         const cur = reqs[i]!.body as Body
@@ -442,6 +447,88 @@ if (!existsSync(DIST)) {
       const ledger = join(arena.home, '.claude', 'preserved-thinking.json')
       check('the doctor ledger records the drop with its lawful cause', existsSync(ledger) && readFileSync(ledger, 'utf8').includes('"compaction"') && readFileSync(ledger, 'utf8').includes('messages.1.content.0'), existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent')
       await fixture.close()
+    }
+
+    // ------------------------------------------------------------------------
+    section('§5 a model switch — the previous model\'s thinking leaves the requests, one quiet receipt; same-model spellings never read as a switch')
+    // ------------------------------------------------------------------------
+    const thinkingBlocksOf = (body: Body): number =>
+      ((body.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
+    const switchArgs = (model: string): string[] => ['--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose']
+    {
+      // Opus 4.8 wrote two turns; the seat switches to Claude Fable 5.1.
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S5-OPUS-1', thinking: 'opus one', model: 'claude-opus-4-8' },
+        { kind: 'text', text: 'S5-OPUS-2', thinking: 'opus two', model: 'claude-opus-4-8' },
+        { kind: 'text', text: 'S5-FABLE-1', thinking: 'fable one', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S5-FABLE-2', thinking: 'fable two', model: 'claude-fable-5-1' },
+      ]
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture)
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f5'
+      const r1 = await run(arena, ['-p', 'first on opus', ...switchArgs('claude-opus-4-8'), '--session-id', SID])
+      const r2 = await run(arena, ['-p', 'second on opus', ...switchArgs('claude-opus-4-8'), '--resume', SID])
+      const debug3 = join(arena.home, 's5-switch-3.debug.log')
+      const debug4 = join(arena.home, 's5-switch-4.debug.log')
+      const r3 = await run(arena, ['-p', 'now on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug3])
+      const r4 = await run(arena, ['-p', 'still on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug4])
+      check('four turns exit 0', [r1, r2, r3, r4].every(r => r.exit === 0), [r1, r2, r3, r4].map(r => `${r.exit}:${r.stderr.slice(0, 120)}`).join(' | '))
+      const reqs = fixture.messageRequests()
+      check('four message requests', reqs.length === 4, String(reqs.length))
+      const [q1, q2, q3, q4] = reqs.map(r => r.body as Body)
+      check('the opus turns replay their thinking to opus (request 2 carries one block)', q2 !== undefined && thinkingBlocksOf(q2) === 1, String(q2 && thinkingBlocksOf(q2)))
+      check('the first fable request carries NONE of the opus thinking (stripped at the assembler)', q3 !== undefined && thinkingBlocksOf(q3) === 0 && q3.model === 'claude-fable-5-1', `${q3?.model} blocks=${q3 && thinkingBlocksOf(q3)}`)
+      check('…and its text and tool turns are intact (the opus answers still ride)', q3 !== undefined && j(q3.messages).includes('S5-OPUS-1') && j(q3.messages).includes('S5-OPUS-2'))
+      check('the second fable request carries only the fable thinking (one block), the opus blocks still out', q4 !== undefined && thinkingBlocksOf(q4) === 1 && j(q4.messages).includes('fable one'), String(q4 && thinkingBlocksOf(q4)))
+      check('the fable requests keep the shared prefix byte-identical (the strip is stable across requests)', q3 !== undefined && q4 !== undefined && j(withoutCacheControl((q3.messages ?? []).slice(0, (q3.messages ?? []).length))) === j(withoutCacheControl((q4.messages ?? []).slice(0, (q3.messages ?? []).length))))
+      // The receipt is an info-level system row: the operator's transcript
+      // paints it; the debug log carries its text on the headless road.
+      const debugLines = (file: string): string[] => { try { return readFileSync(file, 'utf8').split('\n').filter(l => l.includes('preserved thinking: Preserved thinking')) } catch { return [] } }
+      const receipts3 = debugLines(debug3)
+      const receipts4 = debugLines(debug4)
+      check('the first fable turn paints exactly one quiet receipt naming the switch (the writer and the new model), never a drop', receipts3.length === 1 && receipts3[0]!.includes('written by') && receipts3[0]!.includes('stay out of the requests to') && receipts3[0]!.includes('switched models') && !receipts3[0]!.includes('dropped'), j(receipts3))
+      check('the second fable turn (a new process) paints it once more, never twice (once per switch per process)', receipts4.length === 1, j(receipts4))
+      check('no drop notice painted on any turn (the API never saw a foreign block)', !transcriptNotices(arena, SID).some(t => t.includes('dropped')) && !(readFileSync(debug3, 'utf8') + readFileSync(debug4, 'utf8')).includes('thinking_dropped'))
+      check('the fixture\'s drop lists stayed empty end to end (nothing for the API to drop)', !(r3.stdout + r4.stdout).includes('thinking_dropped'))
+      await fixture.close()
+    }
+    {
+      // The same model under its alias spellings: no strip, no receipt, the
+      // wire id is the canonical one on every request and the whole prefix
+      // holds — Claude Fable 5.1 and Claude Opus 5. The context-window
+      // spelling (`[1m]`) is a deliberate operator switch: the wire id and
+      // the replayed thinking hold (the API reads the same model), but the
+      // system prompt's identity line names the 1M context, so that pair is
+      // a lawful prefix change, reported rather than pinned identical.
+      const legs: Array<{ label: string; spellings: string[]; wire: string }> = [
+        { label: 'Claude Fable 5.1', spellings: ['claude-fable-5-1', 'fable51', 'claude-fable-5-1[1m]'], wire: 'claude-fable-5-1' },
+        { label: 'Claude Opus 5', spellings: ['claude-opus-5', 'opus5', 'claude-opus-5[1m]'], wire: 'claude-opus-5' },
+      ]
+      for (const leg of legs) {
+        const turns: ScriptedTurn[] = leg.spellings.map((_, i) => ({ kind: 'text' as const, text: `S5-${leg.wire}-${i + 1}`, thinking: `${leg.wire} ${i + 1}`, model: leg.wire }))
+        const fixture = await startFixtureApi(turns)
+        const arena = makeArena(fixture)
+        const SID = `c0ffee00-0000-4000-8000-0000000${leg.wire.includes('fable') ? '0c0f6' : '0c0f7'}`
+        const runs: RunResult[] = []
+        for (let i = 0; i < leg.spellings.length; i++) {
+          runs.push(await run(arena, ['-p', `turn ${i + 1}`, ...switchArgs(leg.spellings[i]!), ...(i === 0 ? ['--session-id', SID] : ['--resume', SID])]))
+        }
+        check(`${leg.label}: every spelling's turn exits 0`, runs.every(r => r.exit === 0), runs.map(r => `${r.exit}:${r.stderr.slice(0, 100)}`).join(' | '))
+        const reqs = fixture.messageRequests()
+        check(`${leg.label}: three requests, one wire id (${leg.wire}) whatever the spelling`, reqs.length === 3 && reqs.every(r => (r.body as Body).model === leg.wire), reqs.map(r => String((r.body as Body).model)).join(' · '))
+        const last = reqs[2]?.body as Body | undefined
+        check(`${leg.label}: the last request replays both earlier thinking blocks (no spelling read as a switch)`, last !== undefined && thinkingBlocksOf(last) === 2, String(last && thinkingBlocksOf(last)))
+        // The exact id and its alias: the whole prefix holds.
+        census(`§5 ${leg.wire}`, reqs.slice(0, 2), true)
+        // The 1M-context spelling: the wire id, tools and messages hold; the
+        // system prompt moves only in its identity line (reported).
+        const diffs = census(`§5 ${leg.wire} [1m]`, reqs.slice(1, 3), false)
+        const q2 = reqs[1]?.body as Body | undefined
+        const q3 = reqs[2]?.body as Body | undefined
+        check(`${leg.label} [1m]: the tools array and the shared messages prefix are byte-identical (only the identity line moved)`, q2 !== undefined && q3 !== undefined && j(withoutCacheControl(q2.tools)) === j(withoutCacheControl(q3.tools)) && diffs[0] === -1, j(diffs))
+        check(`${leg.label}: no switch receipt, no drop notice`, transcriptNotices(arena, SID).length === 0, j(transcriptNotices(arena, SID)))
+        await fixture.close()
+      }
     }
   }
 }
