@@ -2505,8 +2505,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           setOverlay(null)
           noteCapOfferAnswered(offer.direction, offer.homeRoute)
           if (offer.direction === 'handoff') {
-            const stateNow = appStateStore.getState()
-            noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
+            const seat = getFocusedSessionConnector().modelFacts()
+            noteCapHandoff(seat.sessionPin ?? seat.setting ?? seat.effective, offer.homeRoute)
           }
           handleModelSelect(chosen.model)
         }}
