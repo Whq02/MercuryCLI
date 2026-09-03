@@ -48,6 +48,8 @@ import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessio
 import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
+import { setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
+import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
@@ -758,6 +760,20 @@ export async function runHeadless(
   // was already running, and every later request replayed that order
   // (FN-015 rank 69). The newest requested model wins the boundary.
   let deferredModelBreadcrumb: string | null = null
+  // THE SPAWN-SWITCH TOGGLE's landing (services/switchboard/spawnSwitches
+  // — the daemon's spawn_switch verb): the switch moves, and a
+  // roster-transition row marks the lawful prefix change (the Agent or
+  // Workflow tool leaves or rejoins the roster from the next request; the
+  // preserved-thinking reading names the toggle instead of a client-side
+  // edit). A toggle that still arrives mid-turn (the daemon parks them,
+  // but a release can race a turn's start) defers to the turn's end the
+  // way the /model breadcrumb does: a spawn already running finishes.
+  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean }> = []
+  const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
+    const landed = setSpawnSwitch(kind, on)
+    if (!landed.changed) return
+    messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
+  }
 
   const dynamicMcp: DynamicMcpState = {
     configs: {},
@@ -1351,6 +1367,11 @@ export async function runHeadless(
         const toModel = deferredModelBreadcrumb
         deferredModelBreadcrumb = null
         await injectModelSwitchBreadcrumbs(toModel)
+      }
+      if (deferredSpawnSwitches.length > 0) {
+        const toggles = deferredSpawnSwitches
+        deferredSpawnSwitches = []
+        for (const toggle of toggles) landSpawnSwitch(toggle.kind, toggle.on)
       }
     }
     if (turnWatchdog.fired) {
@@ -2081,6 +2102,9 @@ export async function runHeadless(
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
             permissionMode: state.toolPermissionContext.mode,
+            // The session's own spawn switches (the daemon's publish stamps
+            // the record's view over them — one durable truth).
+            spawnSwitches: spawnSwitchFacts(),
             workspace: {
               cwd: getCwd(),
               originalCwd: getOriginalCwd(),
@@ -2401,6 +2425,21 @@ export async function runHeadless(
               respondError(requestId, `failed to enable ${serverName}`)
             }
           }
+          return
+        }
+        case 'spawn_switch': {
+          // THE DAEMON'S SPAWN-SWITCH FORWARD (the kit_edit family): the
+          // seat landed the operator's toggle on the record and forwards
+          // it; this process's switch moves at a turn boundary — now when
+          // idle, at this turn's end otherwise. The runner answers as soon
+          // as the toggle is held.
+          const toggle = { kind: request.switch, on: request.on }
+          if (inFlightAbort !== null) {
+            deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), toggle]
+          } else {
+            landSpawnSwitch(toggle.kind, toggle.on)
+          }
+          respondSuccess(requestId)
           return
         }
         case 'kit_edit': {

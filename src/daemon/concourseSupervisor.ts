@@ -219,6 +219,16 @@ export interface ConcourseWorkerRecordV1 {
    *  their asker and drain at the idle edge or the seat's respawn, each
    *  through the record's one writer, then ONE forward to the child. */
   pendingKitEdits?: Array<{ edit: import('./sessionKit.js').SessionKitEditV1; by: string }>
+  /** THE SPAWN SWITCHES the operator toggled inside this session
+   *  (services/switchboard/spawnSwitches.ts — /subagents, /workflows, the
+   *  boot menu opened in-session): the durable truth a respawn re-forwards
+   *  to the fresh child. Absent = never toggled — the admission's settings
+   *  snapshot (the boot menu's Agents rows at birth) decides. */
+  spawnSwitches?: Partial<Record<'subagents' | 'workflows', 'on' | 'off'>>
+  /** A toggle asked mid-turn parks here with its asker and lands at the
+   *  idle edge or the seat's respawn (the kit dial's beat) — the last
+   *  toggle per switch wins. */
+  pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean; by: string }>
   /** Last positively-observed liveness (spawn pid check / reconcile pass). */
   lastLiveAt: number
   pid?: number

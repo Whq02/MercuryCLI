@@ -58,6 +58,13 @@ import type { ToolUseConfirm } from '../../components/permissions/PermissionRequ
 import { logForDebugging } from '../../utils/debug.js'
 import { randomUUID } from 'node:crypto'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
+import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
+
+/** An older daemon's facts carry no switches: both read on, the default. */
+const BOTH_SWITCHES_ON: SpawnSwitchFacts = Object.freeze({
+  subagents: Object.freeze({ on: true, source: 'default' as const }),
+  workflows: Object.freeze({ on: true, source: 'default' as const }),
+})
 import { createAssistantMessage, createUserMessage } from '../../utils/messages/factories.js'
 import { createModelTransitionMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
@@ -100,6 +107,7 @@ import type {
   CheckpointFactsV1,
   EngineConnectorV1,
   KitDialReceiptV1,
+  SpawnSwitchReceiptV1,
   McpRosterV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
@@ -1858,6 +1866,39 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     } catch (e) {
       logForDebugging(`[engine-connector] daemon set-kit failed: ${e}`)
       return { outcome: 'refused', detail: 'the daemon is not answering — the dial did not land' }
+    }
+  }
+
+  /** THIS session's spawn switches — the daemon's stamp of the record's
+   *  view (the durable truth); an older daemon's facts lack it and read as
+   *  both on. */
+  spawnSwitches(): SpawnSwitchFacts {
+    return this.facts?.spawnSwitches ?? BOTH_SWITCHES_ON
+  }
+
+  /** THIS session's spawn-switch toggle — the sessionControl
+   *  'set-spawn-switch' door; the receipt is the daemon's word (applied ·
+   *  queued · noop · refused), never the screen's guess. */
+  async setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): Promise<SpawnSwitchReceiptV1> {
+    try {
+      const reply = await this.chainRpc({
+        op: 'sessionControl',
+        action: 'set-spawn-switch',
+        sessionId: this.record.sessionId,
+        by: 'operator',
+        spawnSwitch: { kind, on },
+      })
+      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the toggle') }
+      const outcome = reply.outcome
+      if (outcome === 'applied' || outcome === 'queued' || outcome === 'noop' || outcome === 'refused') {
+        // The facts re-read repaints the switches to the daemon's word.
+        this.readFacts()
+        return { outcome, ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}) }
+      }
+      return { outcome: 'refused', detail: `unexpected outcome ${String(outcome)}` }
+    } catch (e) {
+      logForDebugging(`[engine-connector] daemon set-spawn-switch failed: ${e}`)
+      return { outcome: 'refused', detail: 'the daemon is not answering — the toggle did not land' }
     }
   }
 

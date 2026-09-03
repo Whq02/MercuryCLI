@@ -447,6 +447,7 @@ export type DaemonRequest =
         | 'contract'
         | 'set-kit'
         | 'set-schedule'
+        | 'set-spawn-switch'
       sessionId: string
       by: string
       reason?: string
@@ -487,6 +488,11 @@ export type DaemonRequest =
        *  is validated at the server and refuses typed. Rides OUTSIDE the
        *  action window like `contract`/`kitEdit`; additive on proto 3. */
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
+      /** set-spawn-switch: the session's sub-agents or workflows switch and
+       *  its new state (services/switchboard/spawnSwitches.ts) — landed on
+       *  the record and forwarded to the live child at a turn boundary.
+       *  Rides OUTSIDE the action window like `kitEdit`; additive. */
+      spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
       /** Durable op identity: replaying an id yields the stored receipt
        *  instead of running again — interrupt mutates state, so surviving a
        *  lost response depends on this. */

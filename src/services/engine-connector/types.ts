@@ -38,6 +38,7 @@ import type { PastedContent } from '../../utils/config/schema.js'
 import type { MCPServerConnection } from '../mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
+import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 
 /** Which engine carries the session behind this connector. */
@@ -241,6 +242,14 @@ export type KitDialReceiptV1 = {
   detail?: string
 }
 
+// ── the spawn switches (services/switchboard/spawnSwitches.ts) ──────────────
+
+/** The toggle's typed receipt — the daemon's adjudication verbatim (the
+ *  kit dial's vocabulary): applied (the record and the live runner, at this
+ *  boundary) · queued (mid-turn — lands when the turn ends) · noop (already
+ *  so) · refused (typed detail). The detail carries the operator's sentence. */
+export type SpawnSwitchReceiptV1 = KitDialReceiptV1
+
 /** One agent inside a workflow row — the strip/rail's need (index keeps the
  *  stable per-agent identity hue; state is the runner's own word). */
 export type WorkAgentV1 = {
@@ -428,6 +437,18 @@ export interface EngineConnectorV1 {
    *  says so honestly. Never the menu record, never a config file, never a
    *  sibling — the session owns its dials. */
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>
+
+  // ── the spawn switches (services/switchboard/spawnSwitches.ts) ──
+  /** THIS session's sub-agents and workflows switches, with their sources
+   *  (the boot menu's Agents rows at birth · the in-session toggle · the
+   *  environment · the default). Absent facts read as both on. */
+  spawnSwitches(): SpawnSwitchFacts
+  /** Flip one switch for THIS session — /subagents on|off, /workflows
+   *  on|off and the boot menu opened in-session ride this one verb: the
+   *  daemon lands it on the record and the live runner obeys at the next
+   *  turn boundary (a mid-turn toggle queues for the turn's end; a spawn
+   *  already running finishes). The receipt is the settlement owner's word. */
+  setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): Promise<SpawnSwitchReceiptV1>
 
   // ── the /rewind safety net (FN-015 rank 8) ──
   /** The runner's checkpoint truth (its facts) — the surface offers a code
