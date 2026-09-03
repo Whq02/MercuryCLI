@@ -230,15 +230,19 @@ async function runOp(
 
   switch (input.op) {
     case 'query': {
-      if (input.pattern !== undefined && input.select !== undefined) {
-        return { result: 'query takes select OR pattern, never both', outcome: 'failed' }
+      const pattern = typeof input.pattern === 'string' && input.pattern.trim() === '' ? undefined : input.pattern
+      if (pattern !== undefined && input.select !== undefined) {
+        return {
+          result: 'query takes select OR pattern, never both — a symbol query is select + name (select: function, name: nextHigh); a pattern query is pattern alone, with no select',
+          outcome: 'failed',
+        }
       }
-      if (input.pattern !== undefined) {
+      if (pattern !== undefined) {
         if (!structurePolyglotEnabled()) {
           return { result: 'pattern queries are disabled (MERCURY_STRUCTURE_POLYGLOT=0) — use select', outcome: 'failed' }
         }
         const query: StructureQuery = {
-          pattern: input.pattern,
+          pattern,
           ...(input.lang !== undefined && { lang: input.lang }),
           ...(input.files !== undefined && { files: input.files }),
           ...(input.limit !== undefined && { limit: input.limit }),

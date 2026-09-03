@@ -643,6 +643,11 @@ export class TaskRoster {
         h.entry.state = 'settled'
         h.entry.outcome = 'killed'
         ledgerExit('killed')
+        if (short.startsWith('concourse-w')) {
+          void import('./concourseSupervisor.js')
+            .then(sup => sup.completeRequestedStop(short))
+            .catch(() => {})
+        }
         return
       }
       if (ll.reconfiguring) {

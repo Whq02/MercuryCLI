@@ -39,6 +39,7 @@ check('C18/C14: zero references to the deleted probes/helpers in src', offenders
 
 const logs = readFileSync(join(ROOT, 'src/utils/sessionStorage/logs.ts'), 'utf8')
 const loading = readFileSync(join(ROOT, 'src/utils/sessionStorage/loading.ts'), 'utf8')
+const reader = readFileSync(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
 check('C21: logs.ts carries no orphaned pre-filter doc', !logs.includes('Byte-level pre-filter'))
 check(
   'C21: no legacy-layout pre-filter residue in loading.ts',
@@ -49,8 +50,8 @@ check(
 check(
   'C21: the canonical pruner keys on the record envelope and parses its links',
   loading.includes('pruneRecordBranchesBeforeParse') &&
-    loading.includes('{"schemaVersion":1,"recordId":"') &&
-    loading.includes('LINK TRUTH COMES FROM THE PARSED LINE'),
+    reader.includes('{"schemaVersion":1,"recordId":"') &&
+    reader.includes('LINK TRUTH COMES FROM THE PARSED LINE'),
 )
 
 const coordProver = readFileSync(join(ROOT, 'scripts/substrate/prove-coordination-server.ts'), 'utf8')

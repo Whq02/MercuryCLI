@@ -108,6 +108,13 @@
       "modules": [
         "wrap-text"
       ]
+    },
+    "viewport-floor": {
+      "why": "the ONE viewport-floor latch (80 × 22): the surface router freezes the size the REPL subtree sees from it, and the screen hosts outside the runtime judge the floor on the live size — one owner for the floor, read where the surfaces mount",
+      "modules": [
+        "hooks/use-viewport-floor",
+        "viewportFloor"
+      ]
     }
   }
 }
