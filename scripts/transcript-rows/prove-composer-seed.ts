@@ -148,7 +148,11 @@ console.log('── composer type-through (shipped artifact) ──')
     // window (a state criterion, not a schedule): the driver stretches every
     // fixed moment by the hosted scale, so the gap is handed over pre-divided
     // and lands authored (600 ms) on every host.
-    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', '12000:w', `${12000 + 600 / vshotBudgetScale()}:atch`],
+    // The seed keys ride the CARD's own arrival (an observed-ready send on the
+    // consent question), never a fixed instant the boot and the turn can
+    // outrun; the 'w'…'atch' gap is the card's suppression window, handed
+    // to the driver pre-divided so it lands authored (600 ms) on every host.
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', 'after:Do you want to:300:w', `after:Do you want to:${300 + 600 / vshotBudgetScale()}:atch`],
     seconds: 20,
     probe: true,
     keep: true,

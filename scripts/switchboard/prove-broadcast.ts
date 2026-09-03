@@ -293,7 +293,7 @@ console.log('§3 — honest partial delivery (item 3): the ONE gate types every 
   check('a door row skips with its line', gate(row({ door: { kind: 'pick-project', more: 2 } })).ok === false && gate(row({ door: { kind: 'pick-project', more: 2 } })).line === 'a door — ↵ opens it; nothing to message')
   check('the older line skips with its line', gate(row({ sessionId: 'older:/tmp/p' })).ok === false && gate(row({ sessionId: 'older:/tmp/p' })).line === 'older chats — ↵ unfolds the list')
   check('attached (with you) skips with its line', gate(row({ state: 'attached' })).ok === false && gate(row({ state: 'attached' })).line === 'with you — type in its own chat')
-  check('stopped skips with its line', gate(row({ state: 'stopped' })).ok === false && gate(row({ state: 'stopped' })).line === `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} removes it`)
+  check('stopped skips with its line', gate(row({ state: 'stopped' })).ok === false && gate(row({ state: 'stopped' })).line === `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} archives it`)
   check('a working row DELIVERS (the fan’s ok side)', gate(row({})).ok === true)
   check('a PAUSED row DELIVERS — the valve holds typed words for resume (the redirect contract, not a skip)', gate(row({ state: 'paused' })).ok === true)
   check('ready-to-review and starting DELIVER (live targets of the landed gate)', gate(row({ state: 'ready-to-review' })).ok === true && gate(row({ state: 'starting' })).ok === true)

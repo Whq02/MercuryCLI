@@ -214,10 +214,11 @@ export const CONCOURSE_REGION_KEYS = {
     { keys: 'r', label: 'rename' },
     { keys: '→', label: 'peek' },
     { keys: '/', label: 'filter' },
-    // THE CLOSE CHORD (the operator's word — plain x retired to typing):
-    // one gesture, staged — the first completed chord stops the running
-    // row (it stays, wearing stopped), the same gesture again removes it.
-    { keys: '⌃x ⌃x', label: 'stop · again removes' },
+    // THE CLOSE CHORD IS A LADDER (the operator's ruling): the first
+    // completed chord STOPS the running row (it stays, wearing stopped), the
+    // same gesture again ARCHIVES it (the record parks and stands), and a
+    // third time DELETES it (the record ends) — each rung its own receipt.
+    { keys: '⌃x ⌃x', label: 'stop · archive · delete' },
     { keys: 'm', label: 'message queued' },
     // THE BROADCAST MARK (item 1): the key-map row teaches space only where
     // it fires — the list on the full stage (stageFilter drops it with the
@@ -431,9 +432,9 @@ export function regionKeysFor(
       case 'parked':
         // The ruled dim reason IS the row-controls cluster here — the
         // legend's instruction ink is the dim; ↵ is the one move.
-        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'clear' }, ...keep('space', 's')])
+        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'delete' }, ...keep('space', 's')])
       case 'stopped':
-        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'remove' }, ...keep('space', 's')])
+        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'archive' }, ...keep('space', 's')])
       case 'door':
         return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
       case 'none':

@@ -114,23 +114,27 @@ if (POISON_DIST === undefined) {
   check('the board claims the slot at mount and releases by unmount cleanup', screen.includes('useEffect(() => claimConcourseCloseChord(() => closeChordRoutineRef.current()), [])'))
   check('the hint reads the MIRROR, never a provider of its own (the covered-provider truth)', screen.includes('useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)'))
   check('the routine dispatches the queued withdraw FIRST (one completed gesture, the landed removeSession door)', /startsWith\('dispatch:'\)\)\s*\{\s*\/\/[^]*?one completed chord withdraws[^]*?callbacks\.removeSession\?\.\(sel\.sessionId\)/.test(screen))
-  // The stage matrix under the stop law: only a row that READS stopped (the
-  // runner's acknowledgement, never the kill's dispatch) advances to remove;
-  // a standing receipt over a row still going down re-sends the stop and
-  // says where it stands. The fresh window alone never removes.
+  // THE LADDER (the operator's ruling): a row that READS stopped (the
+  // runner's acknowledgement, never the kill's dispatch) ARCHIVES — parks,
+  // the record stands; a parked row inside the stage window DELETES — the
+  // record ends; a standing receipt over a row still going down re-sends
+  // the stop and says where it stands. The fresh window alone never ends.
+  const parkedArm = screen.indexOf("if (sel.state === 'parked') {")
   const stoppedArm = screen.indexOf("if (sel.state === 'stopped') {")
+  const parkedBlock = parkedArm !== -1 && stoppedArm !== -1 ? screen.slice(parkedArm, stoppedArm) : ''
+  const stoppedBlock = stoppedArm !== -1 ? screen.slice(stoppedArm, screen.indexOf('if (staged) {', stoppedArm)) : ''
   const stagedArm = screen.indexOf('if (staged) {', stoppedArm)
   const stopStage = screen.indexOf('lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }', stagedArm)
   const stagedBlock = stagedArm !== -1 && stopStage !== -1 ? screen.slice(stagedArm, stopStage) : ''
-  check('the stage matrix reads the row: the settled stopped class advances to remove; the fresh window over a row still going down re-sends the stop and never removes', stoppedArm !== -1 && stagedArm !== -1 && screen.slice(stoppedArm, stagedArm).includes('callbacks.removeSession?.(sel.sessionId)') && stagedBlock.includes('callbacks.stopSession?.(sel.sessionId)') && !stagedBlock.includes('removeSession'))
+  check('the stage matrix is the ladder: stopped ARCHIVES (the record stands), parked inside the window DELETES (the record ends), a row still going down gets its stop re-sent and never ends', stoppedBlock.includes('callbacks.archiveSession?.(sel.sessionId)') && !stoppedBlock.includes('removeSession') && parkedBlock.includes('callbacks.removeSession?.(sel.sessionId)') && stagedBlock.includes('callbacks.stopSession?.(sel.sessionId)') && !stagedBlock.includes('removeSession'))
   const { regionKeysFor } = await import('../../src/components/concourse/controlManifest.js')
   const live = regionKeysFor('list', { newSession: true, selection: 'live' })
-  check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
+  check("the live row's legend advertises the chord with the staged truth", live.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const armed = regionKeysFor('list', { newSession: true, selection: 'live', armed: true })
   // Re-trued (the board-letters law): an armed row changes nothing about
   // what the letters and the chord do — the chord row keeps its STAGE-TRUE
   // label while armed (the old armed legend relabelled it 'close').
-  check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · again removes'))
+  check('the ARMED legend keeps the chord row with its stage-true label — no letter, no relabel', armed.some(k => k.keys === '⌃x ⌃x' && k.label === 'stop · archive · delete'))
   const docs = readFileSync(join(REPO, 'docs', 'SESSIONS.md'), 'utf8')
   check('docs/SESSIONS.md teaches the chord and the typing truth in the same breath', docs.includes('ctrl+x ctrl+x stops the selected') && docs.includes('typing is never a control'))
   check('docs/SESSIONS.md no longer advertises a bare-x board verb', !/`x` on a|`x` stops|second `x`/.test(docs))
@@ -201,10 +205,12 @@ const sends = [
   after(19300, 'q'), // 20 other input disarms (the chord eats the suffix; the draft stays whole)
   after(21000, CTRL_X), // 21 arm again
   after(21450, CTRL_X), // 22 complete — THE STOP STAGE (the row stays, wearing stopped)
-  after(25000, CTRL_X), // 23 arm — the hint now speaks the REMOVE stage
-  after(25900, CTRL_X), // 24 complete — THE REMOVE STAGE (exactly this row leaves)
+  after(25000, CTRL_X), // 23 arm — the hint now speaks the ARCHIVE rung
+  after(25900, CTRL_X), // 24 complete — THE ARCHIVE RUNG (the row stays, parked; the record stands)
+  after(28400, CTRL_X), // 25 arm — the hint now speaks the DELETE rung
+  after(28850, CTRL_X), // 26 complete — THE DELETE RUNG (exactly this row leaves; the record ends)
 ]
-const WALL_S = driveWallSeconds(sends, { tailMs: 2500 }) // the last grab is at(24) + 2500
+const WALL_S = driveWallSeconds(sends, { tailMs: 2500 }) // the last grab is at(26) + 2500
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
@@ -274,7 +280,7 @@ if (sendRecs.length === sends.length) {
   // are plain real-time offsets after the completed chord, never stretched.
   const stopAt = at(22)
   const receiptAt = [1000, 2000, 3000].map(o => stopAt + o)
-  const times = [at(10) + 1800, at(19) + 500, at(20) + 600, ...receiptAt, at(23) + 400, at(24) + 2500]
+  const times = [at(10) + 1800, at(19) + 500, at(20) + 600, ...receiptAt, at(23) + 400, at(24) + 2500, at(25) + 400, at(26) + 2500]
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
@@ -287,8 +293,10 @@ if (sendRecs.length === sends.length) {
   const disarmFrame = frameAt(at(20) + 600)
   const receiptFrames = receiptAt.map(frameAt)
   const stopFrame = frameAt(stopAt + 3000)
-  const removeArmFrame = frameAt(at(23) + 400)
-  const goneFrame = frameAt(at(24) + 2500)
+  const archiveArmFrame = frameAt(at(23) + 400)
+  const parkedFrame = frameAt(at(24) + 2500)
+  const deleteArmFrame = frameAt(at(25) + 400)
+  const goneFrame = frameAt(at(26) + 2500)
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
   // The painted chord is host-spelled (off macOS "ctrl+x"): every frame
   // needle reads through the ONE platform-aware owner.
@@ -297,29 +305,32 @@ if (sendRecs.length === sends.length) {
     check('POISON LETTER: plain x TYPED into the live composer (the defect retired)', xFrame.rows.some(r => /❯\s+x\b/.test(r)), xFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
     check('…and stopped NOTHING (the stream runs on, no stop receipt)', !/STOPPED|stopped —/i.test(t(xFrame)))
     check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armFrame).includes(keyHintLabel('⌃x again stops — esc keeps it')), t(armFrame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)')
-    check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(disarmFrame).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(disarmFrame)) && disarmFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)), disarmFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
-    const stopWords = (g: { rows: string[] }): string => g.rows.filter(r => /stopp|⌃x|ctrl\+x|stream slowly/i.test(r)).map(r => r.trim().slice(0, 150)).join(' | ')
+    check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(disarmFrame).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(disarmFrame)) && disarmFrame.rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), disarmFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
+    const stopWords = (g: { rows: string[] }): string => g.rows.filter(r => /stopp|park|⌃x|ctrl\+x|stream slowly/i.test(r)).map(r => r.trim().slice(0, 150)).join(' | ')
     // The row's OWN state word beside its title (never the note's prose, which
     // says "stopped" while the row still runs): the record read stopped on
     // the runner's acknowledgement.
     check('STOP STAGE: the completed chord stopped the highlighted row — it STAYS, wearing stopped', /\bstopped\s+stream slowly/.test(t(stopFrame)), stopWords(stopFrame))
     // The stop law: the receipt speaks the verb's detail — "stop sent — <runner>
-    // ends its turn…" while the kill is on its way, "stopped — ⌃x ⌃x removes it
+    // ends its turn…" while the kill is on its way, "stopped — ⌃x ⌃x archives it
     // from the board" once the daemon answers with the stamp — inside its own
     // 4 s beat; the removal step itself is the list legend's and the armed
     // chord's, not a standing composer line.
-    const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x removes it'))
+    const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it'))
     check("…and the composer's receipt spoke the stop verb's detail inside its beat", receiptFrames.some(receiptWords), receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | '))
     // …and the receipt FOLLOWS THE ROW: once the record reads stopped the
     // words advance to the removal hint (a stop answered "sent" is not the
     // end of the story; the stamp is).
     const receiptRows = receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | ')
-    check('…and once the row reads stopped the receipt advances to the removal hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x removes it')) && /\bstopped\s+stream slowly/.test(t(g))), receiptRows)
-    check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))
-    check('REMOVE ARM: the hint now speaks the remove stage', t(removeArmFrame).includes(keyHintLabel('⌃x again removes it from the board')), stopWords(removeArmFrame))
-    check('REMOVE: exactly the highlighted session left the board', !/stream slowly/.test(t(goneFrame)))
+    check('…and once the row reads stopped the receipt advances to the removal hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it')) && /\bstopped\s+stream slowly/.test(t(g))), receiptRows)
+    const draftRows = (g: { rows: string[] }): string => g.rows.filter(r => /❯|keep me|tab or click/.test(r)).map(r => r.trim().slice(0, 120)).join(' | ')
+    check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(stopFrame))
+    check('ARCHIVE ARM: the hint now speaks the archive rung', t(archiveArmFrame).includes(keyHintLabel('⌃x again archives it (the chat stands parked)')), stopWords(archiveArmFrame))
+    check('ARCHIVE: the row STAYS on the board, parked — the record stands', /stream slowly/.test(t(parkedFrame)) && /parked/i.test(t(parkedFrame)), stopWords(parkedFrame))
+    check('DELETE ARM: the hint now speaks the delete rung', t(deleteArmFrame).includes(keyHintLabel('⌃x again deletes it (the record ends)')), stopWords(deleteArmFrame))
+    check('DELETE: exactly the highlighted session left the board', !/stream slowly/.test(t(goneFrame)))
     check('…the NEIGHBOR survives untouched (its row still stands)', /●\s+new session/.test(t(goneFrame)) && !/no sessions running/.test(t(goneFrame)))
-    check('…and the draft survives the whole ladder un-mangled', goneFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))
+    check('…and the draft survives the whole ladder un-mangled', goneFrame.rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(goneFrame))
   } else {
     check(
       'POISON (pre-fix bundle): the bare x was a VERB — it stopped the streaming session instead of typing',

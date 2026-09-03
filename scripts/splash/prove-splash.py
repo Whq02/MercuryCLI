@@ -38,6 +38,12 @@ import sys
 import tempfile
 import termios
 import time
+
+# THE HOSTED CAPTURE PROFILE: every timed key and deadline below is authored
+# for a local run; MERCURY_VSHOT_BUDGET_SCALE (the movie-scaled hosted profile)
+# stretches them the way the capture drivers stretch theirs, so a slow runner
+# sends the menu keys once the menu is up instead of into the splash's boot.
+SCALE = max(1.0, float(os.environ.get('MERCURY_VSHOT_BUDGET_SCALE', '1') or 1))
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -94,7 +100,9 @@ def run_pty(cols, rows, env_extra=None, send=None, send_after=0.6, oneshot=True,
         steps = [(send_after, send)]
     elif send:
         steps = list(send)
-    resizes = list(resize) if resize else []
+    steps = [(t * SCALE, b) for t, b in steps]
+    resizes = [(t * SCALE, c, r) for t, c, r in (resize or [])]
+    run_for = run_for * SCALE if run_for else None
     pid, fd = pty.fork()
     if pid == 0:
         if oneshot:
@@ -128,7 +136,7 @@ def run_pty(cols, rows, env_extra=None, send=None, send_after=0.6, oneshot=True,
     t0 = time.time()
     sent = 0
     resized = 0
-    while time.time() - t0 < (run_for if run_for else 15):
+    while time.time() - t0 < (run_for if run_for else 15 * SCALE):
         if sent < len(steps) and time.time() - t0 >= steps[sent][0]:
             os.write(fd, steps[sent][1])
             sent += 1
@@ -885,7 +893,8 @@ def run_corpus(cols, rows, env_extra=None, steps=None, settle=1.4, resize=None):
     settle window, and the exit code when the child left on its own.
     The corpus laws bind the WAITING deck, which is the inline
     world now — the default pin; a leg may override to the cinematic world."""
-    steps = list(steps or [])
+    steps = [(t * SCALE, b) for t, b in (steps or [])]
+    settle = settle * SCALE
     resizes = list(resize or [])
     pid, fd = pty.fork()
     if pid == 0:
