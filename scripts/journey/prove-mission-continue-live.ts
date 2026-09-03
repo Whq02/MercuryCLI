@@ -153,8 +153,23 @@ function drive(
     check(`${name}: capture produced a grid`, false, `vshot: ${String(res.stderr).slice(0, 300)}`)
     return ''
   }
-  const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>> }
-  return payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+  const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
+  const grid = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+  for (const m of payload.marks ?? []) {
+    writeFileSync(path.join(world.home, `mark-${name}-${m.label}.txt`), m.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n'))
+  }
+  if (readyText.length > 0 && !readyText.some(t => grid.includes(t))) {
+    console.log(`  [vshot ${name}] ${String(res.stderr ?? '').trim().replace(/\s+/g, ' ').slice(-700)}`)
+  }
+  return grid
+}
+
+function markText(world: World, name: string, label: string): string {
+  try {
+    return readFileSync(path.join(world.home, `mark-${name}-${label}.txt`), 'utf8')
+  } catch {
+    return ''
+  }
 }
 
 interface CardOnDisk {
@@ -163,6 +178,7 @@ interface CardOnDisk {
   goal: string
   state: string
   nextStep: string | null
+  iterations: number
 }
 function readCards(world: World): CardOnDisk[] {
   const out: CardOnDisk[] = []
@@ -175,7 +191,7 @@ function readCards(world: World): CardOnDisk[] {
       else if (dir.endsWith('/missions') && name.name.endsWith('.json')) {
         try {
           const parsed = JSON.parse(readFileSync(full, 'utf8')) as CardOnDisk & { schema: number }
-          out.push({ file: name.name, sessionId: parsed.sessionId, goal: parsed.goal, state: parsed.state, nextStep: parsed.nextStep })
+          out.push({ file: name.name, sessionId: parsed.sessionId, goal: parsed.goal, state: parsed.state, nextStep: parsed.nextStep, iterations: typeof parsed.iterations === 'number' ? parsed.iterations : 0 })
         } catch {
         }
       }
@@ -207,12 +223,12 @@ const ARM_TURN = 'mission arm turn one'
 const ARM_SENDS = [
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM_TURN}\r` },
-  { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM_TURN}`, data: `/mission ${GOAL}\r` },
+  { atTick: 150, minTick: 30, awaitText: 'esc interrupts', awaitSettleTicks: 2, data: `/mission ${GOAL}\r` },
 ]
 
 function stageA(world: World, label: string): { armedSessionId: string | null } {
   section(`${label} — stage A: arm on a fresh boot; the armed card lands`)
-  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 240)
+  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 200)
   check('the arm confirmation painted', grid.includes('Mission set'), grid.slice(-400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
@@ -231,19 +247,22 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
-      { atTick: 110, minTick: 10, awaitText: '? for shortcuts', data: '/mission\r' }],
+      { atTick: 140, minTick: 15, awaitText: '· ready', awaitSettleTicks: 3, data: '/mission\r' },
+      { data: '', afterPrevTicks: 15, mark: 'after-mission' }],
     ['Standing mission'],
     240,
   )
+  const asked = markText(world, `resume-${argvTail[0]!.replace(/^--/, '')}`, 'after-mission')
+  const shown = `${grid}\n${asked}`
   const after = debugText(world)
   check(
     'the debug log records the RE-ARM',
     !before.includes('[mission] re-armed from card') && after.includes('[mission] re-armed from card'),
     after.slice(-300) || '(no debug lines)',
   )
-  check('/mission paints the standing mission', grid.includes('Standing mission'), grid.slice(-600))
-  check('the panel carries the goal', grid.includes(GOAL))
-  check('the panel names the resume re-arm', grid.includes('re-armed on resume'), grid.slice(-600))
+  check('/mission paints the standing mission', shown.includes('Standing mission'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'))
+  check('the panel carries the goal', shown.includes(GOAL))
+  check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
   check('exactly one ARMED card store-wide after the resume', armed.length === 1, JSON.stringify(cards))
@@ -384,6 +403,56 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       first.includes('standing reply to [[continuity turn one'),
       first.slice(0, 400),
     )
+
+    section('WORLD 4 — a mission armed on a hosted chat fires its Stop hook in the seat')
+    const world4 = makeWorld('world-seat-hook')
+    const ARM4 = 'seat hook turn one'
+    const AFTER4 = 'seat hook turn two'
+    const grid4 = drive(
+      world4,
+      'seat-hook',
+      [],
+      [
+        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM4}\r` },
+        { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM4}`, data: `/mission ${GOAL}\r` },
+        { atTick: 240, minTick: 40, awaitText: 'Mission set', data: `${AFTER4}\r` },
+      ],
+      [`reply to [[${AFTER4}`],
+      360,
+      { base: fastBase, rows: 44 },
+    )
+    const transcript4 = (() => {
+      const dir = path.join(world4.home, 'projects')
+      const found: string[] = []
+      const walk = (d: string): void => {
+        if (!existsSync(d)) return
+        for (const name of readdirSync(d, { withFileTypes: true })) {
+          const full = path.join(d, name.name)
+          if (name.isDirectory()) walk(full)
+          else if (name.name.endsWith('.jsonl')) found.push(readFileSync(full, 'utf8'))
+        }
+      }
+      walk(dir)
+      return found.join('\n')
+    })()
+    check('WORLD 4 the turn after the arm settled (the transcript carries the prompt and its reply)', transcript4.includes(AFTER4) && transcript4.includes(`reply to [[${AFTER4}`), grid4.slice(-400))
+    const cards4 = readCards(world4)
+    const card4 = cards4.find(c => c.iterations >= 1) ?? cards4.find(c => c.state === 'armed') ?? cards4[0]
+    const transcripts4: string[] = []
+    const walk4 = (dir: string): void => {
+      if (!existsSync(dir)) return
+      for (const name of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, name.name)
+        if (name.isDirectory()) walk4(full)
+        else if (name.name.endsWith('.jsonl') && !name.name.endsWith('.receipts.jsonl')) transcripts4.push(name.name.slice(0, -'.jsonl'.length))
+      }
+    }
+    walk4(path.join(world4.home, 'projects'))
+    check('WORLD 4 the card is keyed by the CONVERSATION (a transcript on disk carries the same id)', card4 !== undefined && transcripts4.includes(card4.sessionId), `card ${card4?.sessionId ?? '(none)'} · transcripts ${transcripts4.join(',')}`)
+    check("WORLD 4 the mission's Stop hook fired in the seat (the card counts a check)", (card4?.iterations ?? 0) >= 1, JSON.stringify(cards4))
+    const seatLines = debugText(world4).split('\n').filter(l => l.includes('[mission]'))
+    check('WORLD 4 the seat armed from the card and logged the check', seatLines.some(l => l.includes('re-armed from card')) && seatLines.some(l => /Mission not yet met|installed standing mission/.test(l)), seatLines.map(l => l.slice(-110)).join(' | ').slice(-400))
   } finally {
     try {
       fast.kill('SIGTERM')
