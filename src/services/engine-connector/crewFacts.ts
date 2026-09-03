@@ -156,10 +156,13 @@ export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
   return `${facts.toolUses} tool use${facts.toolUses === 1 ? '' : 's'}`
 }
 
+export function crewWaitingWords(running: number): string | null {
+  if (!(running > 0)) return null
+  return `waiting on ${running} agent${running === 1 ? '' : 's'}`
+}
+
 export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
-  const n = crewRunning(agents).length
-  if (n === 0) return null
-  return `waiting on ${n} agent${n === 1 ? '' : 's'}`
+  return crewWaitingWords(crewRunning(agents).length)
 }
 
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
