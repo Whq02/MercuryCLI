@@ -63,7 +63,18 @@ console.log('============================================================')
 // adapter's own rule, so no path list is needed.
 const HOME = process.env.MERCURY_CONFIG_DIR as string
 mkdirSync(HOME, { recursive: true })
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }, null, 2))
+// The sandbox settings for both homes. SEAMS_SANDBOX_UNAVAILABLE=1 (a
+// proof-only knob) empties the enabled-platforms list, so the sandbox is
+// enabled-but-unavailable on every machine — the shape a runner without the
+// platform sandbox binary produces — and the honest degraded rows run.
+const SANDBOX_SETTINGS = {
+  sandbox: {
+    enabled: true,
+    autoAllowBashIfSandboxed: true,
+    ...(process.env.SEAMS_SANDBOX_UNAVAILABLE === '1' ? { enabledPlatforms: [] as string[] } : {}),
+  },
+}
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))
 
 const { exec, setCwd } = await import('../../src/utils/Shell.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
@@ -109,10 +120,27 @@ section('§1 the sandbox law — through exec')
 const platformOk = process.platform === 'darwin' || process.platform === 'linux'
 const enabledInSettings = SandboxManager.isSandboxEnabledInSettings()
 check('the hermetic home turned the sandbox on in settings', enabledInSettings)
+// The availability owner answers first — from a checked dependency set,
+// never a cold default: a runner without the platform sandbox binary must
+// read "unavailable" here, not run the boundary rows against a binary that
+// is not there and grade its absence as a refusal.
 const unavailable = SandboxManager.getSandboxUnavailableReason()
 const ready = platformOk && enabledInSettings && unavailable === null && SandboxManager.isSandboxingEnabled()
+note(`availability: ${ready ? 'the platform sandbox is live' : `unavailable — ${unavailable ?? 'unsupported platform'}`}`)
 if (!ready) {
-  console.log(`  [SKIP] live sandbox — platform ${process.platform}, enabled ${enabledInSettings}, reason ${unavailable ?? 'none'}: the boundary cannot be exercised on this machine`)
+  console.log(`  [SKIP] the live boundary rows — platform ${process.platform}, reason ${unavailable ?? 'unsupported platform'}`)
+  section('§1-degraded the sandbox is enabled but unavailable: honest, never silent')
+  check('the owner names the reason', typeof unavailable === 'string' && unavailable.length > 10, String(unavailable))
+  check('the owner reports the sandbox as not enabled (a cold default never answers "enabled")', SandboxManager.isSandboxingEnabled() === false)
+  check('the tool never claims a sandbox for a command', shouldUseSandbox({ command: 'ls' }) === false)
+  const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
+  check("the tool's description carries no sandbox section", !getSimplePrompt().includes('# Command sandbox'))
+  const doctor = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  check('the doctor row warns with the reason', /getSandboxUnavailableReason\(\)[\s\S]{0,300}status: 'warn'/.test(doctor))
+  const printMode = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
+  check('print mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(printMode) && /isSandboxRequired\(\)/.test(printMode))
+  const degraded = await run('echo degraded-ok', shouldUseSandbox({ command: 'echo degraded-ok' }))
+  check('a command runs unconfined with its own status (never a missing-binary failure graded as a sandbox)', degraded.code === 0 && /degraded-ok/.test(degraded.out), `code ${degraded.code} ${JSON.stringify(degraded.out.slice(0, 120))}`)
 } else {
   check('shouldUseSandbox says yes for a plain command', shouldUseSandbox({ command: 'ls' }) === true)
   check('shouldUseSandbox honours the explicit override', shouldUseSandbox({ command: 'ls', dangerouslyDisableSandbox: true }) === false)
@@ -280,9 +308,7 @@ section('§7 the never-auto-background list matches the command word')
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
-if (!ready) {
-  console.log('  [SKIP] no live sandbox on this machine')
-} else if (!existsSync(DIST) || !nodeBin) {
+if (!existsSync(DIST) || !nodeBin) {
   console.log(`  [SKIP] ${existsSync(DIST) ? 'no node binary on PATH' : 'dist/mercury.mjs absent — build first (the gate prebuilds)'}`)
 } else {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-home-')))
@@ -292,7 +318,7 @@ if (!ready) {
   mkdirSync(join(cwd, 'sub'))
   const configDir = join(home, '.mercury')
   seedFirstRun(configDir, [cwd])
-  writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }, null, 2))
+  writeFileSync(join(configDir, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))
   const MODEL = 'claude-opus-4-8'
   const turns: ScriptedTurn[] = [
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
@@ -368,12 +394,24 @@ if (!ready) {
   check('the artifact showed the model five tool results', results.length === 5, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth, fifth] = results
   const fifthPath = fifth?.text.trim().split('\n')[0] ?? ''
-  check("artifact: a bare mktemp succeeds under the sandbox and the child's TMPDIR reads the product root", fifth !== undefined && !fifth.isError && fifthPath.startsWith('/') && (platformTemp === null || realpathSync(dirname(fifthPath)) === platformTemp) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
-  check("artifact: the model's timeout is honoured under the sandbox — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
+  check("artifact: the model's timeout is honoured — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
   check('artifact: …on the kill path — an error result, never moved to the background', fourth !== undefined && fourth.isError && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
-  check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
+  check('artifact: a cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
-  check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
+  const descriptions = fixture.messageRequests().map(r => ((r.body as { tools?: Array<{ name?: string; description?: string }> })?.tools ?? []).find(t => t.name === 'Bash')?.description ?? '')
+  if (ready) {
+    check("artifact: a bare mktemp succeeds under the sandbox and the child's TMPDIR reads the product root", fifth !== undefined && !fifth.isError && fifthPath.startsWith('/') && (platformTemp === null || realpathSync(dirname(fifthPath)) === platformTemp) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
+    check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied|Read-only file system/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
+    check("artifact: the tool's description tells the model commands run in a sandbox", descriptions.length > 0 && descriptions.every(d => d.includes('# Command sandbox')))
+  } else {
+    // The sandbox is enabled but unavailable on this machine: the product
+    // must say so and run unconfined honestly — never a missing binary's
+    // failure graded as a refusal, never a description that claims a sandbox.
+    check('artifact (unavailable sandbox): print mode says the sandbox is OFF for the session, with the reason', /sandboxing is OFF for this session/.test(outcome.stderr), JSON.stringify(outcome.stderr.slice(0, 300)))
+    check("artifact (unavailable sandbox): the tool's description never claims a sandbox", descriptions.length > 0 && descriptions.every(d => !d.includes('# Command sandbox')))
+    check('artifact (unavailable sandbox): the outside write lands — unconfined, and said so above', third !== undefined && !third.isError && existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
+    check('artifact (unavailable sandbox): a bare mktemp succeeds unconfined', fifth !== undefined && !fifth.isError && fifthPath.startsWith('/'), JSON.stringify(fifth?.text.slice(0, 160)))
+  }
   rmSync(home, { recursive: true, force: true })
   rmSync(cwd, { recursive: true, force: true })
   rmSync(away, { recursive: true, force: true })
