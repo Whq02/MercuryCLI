@@ -221,7 +221,7 @@ try {
   check("the held wire carries the user's refine note verbatim", /the save system/.test(holdWire.content))
 
   const { isDeferredTool } = (await import('../../src/tools/ToolSearchTool/prompt.js')) as typeof import('../../src/tools/ToolSearchTool/prompt.js')
-  check('ApolloReview is force-loaded while the mode is apollo', isDeferredTool(ApolloReviewTool as never, 'apollo') === false)
+  check('ApolloReview is listed deferred in apollo too (never a mode-driven roster change)', isDeferredTool(ApolloReviewTool as never, 'apollo') === true)
   check(
     'ApolloReview stays deferred outside apollo (and for mode-less callers)',
     isDeferredTool(ApolloReviewTool as never, 'default') === true && isDeferredTool(ApolloReviewTool as never) === true,
@@ -259,7 +259,7 @@ try {
     /context\.mode === 'default' \|\| context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
-  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(toolEconomy))
+  check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
