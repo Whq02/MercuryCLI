@@ -29,6 +29,7 @@ import { suggestionForExactCommand, suggestionForPrefix } from '../../utils/perm
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { runAgent } from '../AgentTool/runAgent.js'
+import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../GrepTool/prompt.js'
@@ -347,6 +348,8 @@ export const SkillTool = buildTool({
     const parentToolUseId = getToolUseIDFromParentMessage(parentMessage, SKILL_TOOL_NAME)
 
     if (command.context === 'fork') {
+      const authority = evaluateLaunchAuthority('subagents')
+      if (!authority.allowed) throw new Error(authority.reason)
       const agentId = createAgentId()
       try {
         const prepared = await prepareForkedCommandContext(command, args, context)

@@ -148,6 +148,7 @@ export interface ControlServerDeps {
       | 'contract'
       | 'set-kit'
       | 'set-schedule'
+      | 'set-spawn-switch'
     sessionId: string
     by: string
     reason?: string
@@ -163,6 +164,7 @@ export interface ControlServerDeps {
     contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
     kitEdit?: SessionKitEditV1
     scheduleEdit?: ScheduleOpRequestV1
+    spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
     mintedAtMs?: number
     clientOpId?: string
   }) => { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
@@ -810,13 +812,26 @@ async function routeControlRequest(
         raw.action === 'set-effort' ||
         raw.action === 'contract' ||
         raw.action === 'set-kit' ||
-        raw.action === 'set-schedule'
+        raw.action === 'set-schedule' ||
+        raw.action === 'set-spawn-switch'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch, sessionId, by }' })
+      }
+      let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
+      if (raw.spawnSwitch !== undefined) {
+        const rawSwitch =
+          raw.spawnSwitch && typeof raw.spawnSwitch === 'object' && !Array.isArray(raw.spawnSwitch)
+            ? (raw.spawnSwitch as Record<string, unknown>)
+            : undefined
+        const kind = rawSwitch?.kind === 'subagents' || rawSwitch?.kind === 'workflows' ? rawSwitch.kind : undefined
+        if (kind === undefined || typeof rawSwitch?.on !== 'boolean') {
+          return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'spawnSwitch refused — { kind: subagents|workflows, on: boolean }' })
+        }
+        spawnSwitch = { kind, on: rawSwitch.on }
       }
       const rawAnswer = raw.answer && typeof raw.answer === 'object' && !Array.isArray(raw.answer) ? (raw.answer as Record<string, unknown>) : undefined
       const answerPayload =
@@ -886,6 +901,7 @@ async function routeControlRequest(
         ...(contract !== undefined ? { contract } : {}),
         ...(kitEdit !== undefined ? { kitEdit } : {}),
         ...(scheduleEdit !== undefined ? { scheduleEdit } : {}),
+        ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
         ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
       })
