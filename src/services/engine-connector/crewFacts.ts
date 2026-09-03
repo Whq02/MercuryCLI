@@ -5,6 +5,8 @@ import { formatSessionCost } from '../../utils/spendSpelling.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
+export type CrewAgentState = 'running' | 'landed' | 'stopped' | 'failed'
+
 export interface CrewAgentTokens {
   total: number
   input: number | null
@@ -16,11 +18,15 @@ export interface CrewAgentFacts {
   name: string
   kind: CrewAgentKind
   status: string
+  state: CrewAgentState
   running: boolean
   model: string | null
   tokens: CrewAgentTokens | null
   costUSD: number | null
   unpricedTurns: number
+  toolUses: number | null
+  activity: string | null
+  toolUseId: string | null
   startedAt: number
   endedAt: number | null
   agentType: string | null
@@ -48,6 +54,21 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   return total === null ? null : { total, input: null, output: null }
 }
 
+export function crewStateOf(row: Pick<WorkRowV1, 'status'>): CrewAgentState {
+  if (workRowRuns(row as WorkRowV1)) return 'running'
+  switch (row.status) {
+    case 'failed':
+      return 'failed'
+    case 'killed':
+    case 'stopped':
+    case 'cancelled':
+    case 'interrupted':
+      return 'stopped'
+    default:
+      return 'landed'
+  }
+}
+
 export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): CrewAgentFacts | null {
   if (!isCrewRow(row)) return null
   return {
@@ -55,11 +76,15 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     name: row.name,
     kind: row.kind === 'agent' ? 'agent' : 'named',
     status: row.status,
+    state: crewStateOf(row),
     running: workRowRuns(row),
     model: typeof row.model === 'string' && row.model !== '' ? row.model : null,
     tokens: tokensOf(row),
     costUSD: positive(row.costUSD),
     unpricedTurns: positive(row.unpricedTurns) ?? 0,
+    toolUses: typeof row.toolUses === 'number' && Number.isFinite(row.toolUses) && row.toolUses >= 0 ? row.toolUses : null,
+    activity: typeof row.activity === 'string' && row.activity !== '' ? row.activity : null,
+    toolUseId: typeof row.toolUseId === 'string' && row.toolUseId !== '' ? row.toolUseId : null,
     startedAt: row.startTime,
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
     agentType: row.agentType ?? null,
@@ -88,6 +113,15 @@ export function crewRunning(agents: readonly CrewAgentFacts[]): CrewAgentFacts[]
   return agents.filter(a => a.running)
 }
 
+export function crewAgentByToolUse(agents: readonly CrewAgentFacts[], toolUseId: string): CrewAgentFacts | null {
+  return agents.find(a => a.toolUseId === toolUseId) ?? null
+}
+
+export function crewAgentByName(agents: readonly CrewAgentFacts[], name: string): CrewAgentFacts | null {
+  const bare = name.replace(/^@/, '')
+  return agents.find(a => a.kind === 'named' && a.name === bare) ?? null
+}
+
 export function crewTokenSum(agents: readonly CrewAgentFacts[]): number {
   let sum = 0
   for (const a of agents) sum += a.tokens?.total ?? 0
@@ -111,6 +145,21 @@ export const CREW_MODEL_UNKNOWN = '—'
 
 export function crewModelLabel(facts: CrewAgentFacts): string {
   return facts.model ?? CREW_MODEL_UNKNOWN
+}
+
+export function crewStateLabel(facts: CrewAgentFacts): string {
+  return facts.state
+}
+
+export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
+  if (facts.toolUses === null) return null
+  return `${facts.toolUses} tool use${facts.toolUses === 1 ? '' : 's'}`
+}
+
+export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
+  const n = crewRunning(agents).length
+  if (n === 0) return null
+  return `waiting on ${n} agent${n === 1 ? '' : 's'}`
 }
 
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
@@ -154,7 +203,7 @@ export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {
   return [
     facts.name,
     crewModelLabel(facts),
-    facts.status,
+    crewStateLabel(facts),
     crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN,
     crewElapsedLabel(facts, nowMs),
   ].join(' · ')
