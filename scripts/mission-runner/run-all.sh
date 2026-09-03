@@ -12,7 +12,10 @@ bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 export MERCURY_EVOLUTION_LEDGER=0
 
+claimed=$(cat scripts/mission-runner-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for proof in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   name="$(basename "$proof")"
   echo "── $name"
   __t=$SECONDS; if ! "$bun" run "$proof"; then

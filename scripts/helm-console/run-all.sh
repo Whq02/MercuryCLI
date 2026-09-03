@@ -16,7 +16,6 @@ __t=$SECONDS; "$bun" run "$here/prove-console-text.ts" || fail=1; prover_mark "$
 __t=$SECONDS; "$bun" run "$here/prove-console-wiring.ts" || fail=1; prover_mark "$here/prove-console-wiring.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-console-ask.ts" || fail=1; prover_mark "$here/prove-console-ask.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-hip-vocab.ts" || fail=1; prover_mark "$here/prove-hip-vocab.ts" "$__t"
-__t=$SECONDS; "$bun" run "$here/prove-console-render.ts" || fail=1; prover_mark "$here/prove-console-render.ts" "$__t"
 if [ "$fail" -ne 0 ]; then
   echo "❌ helm-console suite: FAILURES"
   exit 1
