@@ -41,6 +41,7 @@ export interface SessionFactsAnswerV1 {
   pendingScheduleEdits?: import('../../daemon/saturn.js').ScheduleOpRequestV1[]
   fileCheckpoints?: FileCheckpointFactsV1
   streamIdleTimeoutMs?: number
+  spawnSwitches?: import('../switchboard/spawnSwitches.js').SpawnSwitchFacts
 }
 
 export interface FileCheckpointFactsV1 {
@@ -53,6 +54,7 @@ export interface SessionFactsV1 extends SessionFactsAnswerV1 {
   sessionId: string
   atMs: number
   pendingModel: string | null
+  pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
   modelSettled?: { from: string; to: string; atMs: number }
   busy: boolean
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
