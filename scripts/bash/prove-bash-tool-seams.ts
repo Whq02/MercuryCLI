@@ -77,9 +77,12 @@ const platformTemp: string | null = process.platform === 'darwin' ? realpathSync
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-')))
 const PROJECT = join(SCRATCH, 'project')
-const OUTSIDE = join(SCRATCH, 'outside')
+// "Outside" must be outside the allow-write set: a directory under /tmp
+// itself — not the session directory, not the product temp root, and not
+// the platform's per-user temp directory (the OS temp dir this process
+// was given, which the sandbox allows on macOS).
+const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))
 mkdirSync(join(PROJECT, 'sub'), { recursive: true })
-mkdirSync(OUTSIDE)
 // The allow-write set is the PROCESS working directory (the adapter hands
 // the runtime a literal single dot), the way the product's process starts
 // in the session directory: the proof moves both.
@@ -284,7 +287,8 @@ if (!ready) {
 } else {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-cwd-')))
-  const away = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-away-')))
+  // Outside the allow-write set: under /tmp itself (see OUTSIDE above).
+  const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))
   mkdirSync(join(cwd, 'sub'))
   const configDir = join(home, '.mercury')
   seedFirstRun(configDir, [cwd])
@@ -376,6 +380,7 @@ if (!ready) {
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
+rmSync(OUTSIDE, { recursive: true, force: true })
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL BASH TOOL SEAM PROOFS PASS')
