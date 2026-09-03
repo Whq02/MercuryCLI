@@ -77,18 +77,26 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 /** The face's canon ready line (the boot menu is on screen). */
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
 /** The composer's placeholder (a chat is on screen). */
 const COMPOSER = 'Type a prompt'
 /** The board's header lockup (the concourse is on screen). */
 const BOARD = 'SESSION CONCOURSE'
+// Every key hint below is spelled through the ONE platform-aware owner:
+// off macOS the product paints "shift+←", and a needle authored with the
+// Mac glyph never becomes due there.
 /** The focused chat's status row (a session holds the slot). */
-const TAG = '⇧← back'
+const TAG = keyHintLabel('⇧← back')
 /** The face's key-map row: the strip's one present move from a fresh face. */
-const FACE_TO_CONCOURSE = '⇧→ concourse'
+const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 /** The face's key-map row in the plain world with a chat open. */
-const FACE_TO_CHAT = '⇧→ chat'
+const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
+/** The face's key-map row with nothing to the right. */
+const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
+/** The key-map rows of a frame (either spelling), for the detail strings. */
+const hintRows = (text: string): string => text.split('\n').filter(l => /⇧|shift\+/.test(l)).join(' | ')
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
 /** Ticks the face waits before ↵ so the daemon pre-warm (fired from the
@@ -363,10 +371,10 @@ console.log('S4 — --chat: the menu lands, ↵ births, then menu ⇄ chat with 
   const landing = markText(c, 'landing')
   const menu = markText(c, 'menu')
   check('S4 the landing is the boot menu (L15) — no chat born at boot', isFace(landing) && !isChat(landing), firstRows(landing))
-  check('S4 the --chat face carries NO Session Concourse row and its row says "⇧→ no chat open"', !landing.includes('Session Concourse') && landing.includes('⇧→ no chat open'), landing.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
+  check('S4 the --chat face carries NO Session Concourse row and its row says "⇧→ no chat open"', !landing.includes('Session Concourse') && landing.includes(FACE_NO_CHAT), landing.split('\n').filter(l => /Concourse|⇧|shift\+/.test(l)).join(' | '))
   check('S4 ↵ births the chat', isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check('S4 ⇧← from the chat is the BOOT MENU directly — no concourse between (the plain world)', isFace(menu) && !isBoard(menu), firstRows(menu))
-  check(`S4 the menu's row names the chat ("${FACE_TO_CHAT}") — the one stop to its right`, menu.includes(FACE_TO_CHAT) && !menu.includes(FACE_TO_CONCOURSE), menu.split('\n').filter(l => l.includes('⇧')).join(' | '))
+  check(`S4 the menu's row names the chat ("${FACE_TO_CHAT}") — the one stop to its right`, menu.includes(FACE_TO_CHAT) && !menu.includes(FACE_TO_CONCOURSE), hintRows(menu))
   check('S4 ⇧← from the menu is the strip\'s silent end (byte-still)', menu !== '' && markText(c, 'menu-again') === menu)
   check('S4 ⇧→ from the menu is the chat again', isChat(markText(c, 'chat-again')), firstRows(markText(c, 'chat-again')))
   check('S4 exactly ONE session exists — born at ↵, none at boot', Object.keys(liveRecords(home)).length === 1, JSON.stringify(Object.keys(liveRecords(home))))
@@ -395,7 +403,7 @@ console.log('S5 — --concourse-off: the face, then menu ⇄ chat with no live v
   const face = markText(c, 'face')
   const menu = markText(c, 'menu')
   check('S5 the switch boot landed the face, which reads the switch ("live view only")', isFace(face) && face.includes('live view only'), firstRows(face))
-  check(`S5 with no chat the face's row says so ("⇧→ no chat open") — no concourse stop, no chat yet`, face.includes('⇧→ no chat open'), face.split('\n').filter(l => l.includes('⇧')).join(' | '))
+  check(`S5 with no chat the face's row says so ("⇧→ no chat open") — no concourse stop, no chat yet`, face.includes(FACE_NO_CHAT), hintRows(face))
   check('S5 ↵ births the chat', isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check('S5 ⇧← from the chat is the face DIRECTLY — the live view is not a stop', isFace(menu) && !isBoard(menu), firstRows(menu))
   check(`S5 the face's row names the chat ("${FACE_TO_CHAT}")`, menu.includes(FACE_TO_CHAT))
