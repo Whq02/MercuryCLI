@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ============================================================================
-//  scripts/api/prove-wire-prefix-holds.ts — the sent prefix holds on the wire
+//  scripts/journey/prove-wire-prefix-holds.ts — the sent prefix holds on the wire
 //  across every operator action of one real-terminal session.
 //
 //  Claude Fable 5.1 binds every thinking block to the exact prefix that
@@ -43,7 +43,7 @@
 //
 //  Requires dist/mercury.mjs (bun run build.ts) and /usr/bin/python3 with
 //  pyte (the render-verify capture substrate). Run:
-//    ~/.bun/bin/bun run scripts/api/prove-wire-prefix-holds.ts [--report]
+//    ~/.bun/bin/bun run scripts/journey/prove-wire-prefix-holds.ts [--report]
 // ============================================================================
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -68,7 +68,7 @@ import {
   withoutCacheControl,
   type CaptureRow,
   type WireBody,
-} from './wire-prefix-replay.ts'
+} from '../api/wire-prefix-replay.ts'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')

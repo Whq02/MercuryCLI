@@ -22,7 +22,5 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-door
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-binding.ts" || fail=1; prover_mark "scripts/api/prove-transcript-binding.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || fail=1; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-thinking-drop-notice.ts" || fail=1; prover_mark "scripts/api/prove-thinking-drop-notice.ts" "$__t"
-# A PTY drive (the built bundle in a real terminal against the binding-law fixture).
-__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wire-prefix-holds.ts" || fail=1; prover_mark "scripts/api/prove-wire-prefix-holds.ts" "$__t"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi
