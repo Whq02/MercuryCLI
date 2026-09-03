@@ -29,7 +29,8 @@ import {
   type Snapshot,
   type TraceData,
 } from '../utils/cockpit/index.js'
-import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, freshestUsageView, usageCreditsWords } from '../services/providers/providerUsage.js'
+import { NO_USAGE_READ_WORDS, usageSourceWords } from '../services/providers/usageFreshness.js'
 import { mercuryDoctrineEnabled } from '../prompt/mercuryContract.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
@@ -183,23 +184,32 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
               </Text>
             </Text>,
           )
-          if (usage.balance) {
+          // The key's credit balance as the provider states it, with its
+          // feed and age — or the honest "not reported by the provider" —
+          // from the ONE owner (the same words the tab and the doctor carry).
+          const creditsWords = usageCreditsWords(usage.credits, now)
+          if (creditsWords !== undefined) {
             nodes.push(
-              <Text key="balance">
-                <Text color={t.textMuted}>{padTo('balance', 11)}</Text>
-                <Text color={t.textPrimary}>{usage.balance.display}</Text>
-                <Text color={t.textMuted}> · provider-stated</Text>
+              <Text key="credits">
+                <Text color={t.textMuted}>{padTo('credits', 11)}</Text>
+                <Text color={usage.credits?.state === 'reported' ? t.textPrimary : t.textMuted}>{creditsWords}</Text>
               </Text>,
             )
           }
         } else if (usage.windows.length === 0) {
           nodes.push(
             <Text key="warming" color={t.textMuted}>
-              {padTo('', 11)}fills after first reply
+              {padTo('', 11)}{NO_USAGE_READ_WORDS} · fills after first reply
             </Text>,
           )
         } else {
-          for (const w of usage.windows) {
+          // The shared windows, then the per-model weekly pools the family
+          // reports (folded into the same block, their own labels), then
+          // ONE read line — the feed and age of the freshest figure — so a
+          // stale record never paints as live.
+          const meters = [...usage.windows, ...usage.pools]
+          const labelWidth = Math.max(3, ...meters.map(w => w.label.length))
+          for (const w of meters) {
             nodes.push(
               <UsageMeter
                 key={`w:${w.key}`}
@@ -208,8 +218,18 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
                 value={w.usedPct ?? undefined}
                 resetIn={tail(w.resetsAtMs)}
                 hint={w.state !== 'live' ? 'not reported yet' : undefined}
-                labelWidth={3}
+                labelWidth={labelWidth}
               />,
+            )
+          }
+          const freshest = freshestUsageView(meters)
+          const readWords = freshest !== undefined ? usageSourceWords(freshest, now) : undefined
+          if (readWords !== undefined) {
+            nodes.push(
+              <Text key="read">
+                <Text color={t.textMuted}>{padTo('read', 11)}</Text>
+                <Text color={t.textMuted}>{readWords}</Text>
+              </Text>,
             )
           }
         }

@@ -397,5 +397,25 @@ section('§H the card: ↑↓ over the rows, ↵ for the highlighted row, esc st
   check('the composer hands the card the whole list from the one owner and settles the CHOSEN row', composer.includes('rows = set.listed') && composer.includes('handleModelSelect(chosen.model)'))
 }
 
+// ── §I the SLOT rung hardened the same way ─────────────────────────────────
+section('§I the within-family slot rung: a stable wall key, re-armed only by an observed clear')
+{
+  cap._resetOfferMemoriesForTesting()
+  check('the slot wall key is the family and the walled seat — no reset moment', cap.slotWallKey('openai', 'subscription') === 'slot|openai|subscription')
+  const key = cap.slotWallKey('openai', 'subscription')
+  cap.noteOfferDismissal(key)
+  cap.noteOfferAutoDone(key)
+  cap.noteSlotWallObserved('openai', 'subscription', true)
+  check('a standing wall re-observed (its reset re-stated) keeps the answered offer and the auto latch', cap.offerDismissed(key) && cap.offerAutoDone(key))
+  cap.noteSlotWallObserved('openai', 'subscription', false)
+  check('an observed CLEAR ends the wall — the offer and the auto latch re-arm for the next wall', !cap.offerDismissed(key) && !cap.offerAutoDone(key))
+  cap.noteOfferDismissal(key)
+  cap.noteSlotWallObserved('openai', 'api-key', false)
+  check('a clear on the OTHER seat leaves this seat\'s answered wall alone', cap.offerDismissed(key))
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check('the composer keys the slot rung on the stable owner and re-arms from the observed wall', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
+  check('the slot key no longer carries the reset moment', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
+}
+
 console.log(`\n${failures === 0 ? 'CAP OFFER SETTLES: ALL PASS' : `FAILURES: ${failures}`}`)
 process.exit(failures === 0 ? 0 : 1)

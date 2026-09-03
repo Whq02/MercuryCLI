@@ -14,7 +14,6 @@ import {
   setSystemPromptSectionCacheEntry,
   clearSystemPromptSectionState,
 } from '../bootstrap/state.js'
-import { clearToolRosterLatches } from '../services/providers/toolEconomy.js'
 
 type SectionValue = string | null
 
@@ -86,13 +85,14 @@ export function resolveSystemPromptSections(
 }
 
 /**
- * Clears the section cache, the beta-header latches AND the tool-roster
- * latches, so a fresh conversation re-evaluates conditional beta headers
- * and re-decides its roster. Called on /clear and /compact — the lawful
- * prefix boundaries.
+ * Clears the section cache AND the beta-header latches, so a fresh
+ * conversation re-evaluates conditional beta headers. Called on /clear and
+ * /compact — the lawful prefix boundaries. (The tool-roster latches need no
+ * clearing here: they are keyed by the conversation's first row, which a
+ * compaction or /clear replaces; an operator's in-session change clears one
+ * conversation's through the lawful-change seam.)
  */
 export function clearSystemPromptSections(): void {
   clearSystemPromptSectionState()
   clearBetaHeaderLatches()
-  clearToolRosterLatches()
 }

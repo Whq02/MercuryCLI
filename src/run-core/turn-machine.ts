@@ -717,6 +717,7 @@ async function* streamModel(
             advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
             agentId: toolUseContext.agentId,
+            ownerKey: String(ownerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
             ...(run.params.taskBudget && {
               taskBudget: run.budgetGuard.requestBag()!,

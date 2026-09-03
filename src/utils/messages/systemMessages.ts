@@ -67,6 +67,27 @@ export function createSystemMessage(
   }
 }
 
+/** The landed spawn-switch toggle's row: the operator's sentence, and the
+ *  typed mark the preserved-thinking reading counts as a lawful prefix
+ *  change (the tools array moves with the toggle). */
+export function createRosterTransitionMessage(
+  toggle: 'subagents' | 'workflows',
+  on: boolean,
+  content: string,
+): import('../../types/message.js').SystemRosterTransitionMessage {
+  return {
+    type: 'system',
+    subtype: 'roster_transition',
+    toggle,
+    on,
+    content,
+    level: 'info',
+    isMeta: false,
+    timestamp: new Date().toISOString(),
+    uuid: randomUUID(),
+  }
+}
+
 /** one VISIBLE row per applied/timed-out operator seat
  *  reslot. Dedicated subtype — info-level informational rows are quiet-by-
  *  design in the default transcript, and a receipt must never be quiet. */

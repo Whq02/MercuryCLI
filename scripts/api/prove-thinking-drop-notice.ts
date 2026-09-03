@@ -139,7 +139,7 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
 
@@ -159,6 +159,31 @@ section('§1 the classifier')
   check('…and a drop right after it with the settings unchanged is a first drop (the lawful one never seeds a run)', stillApollo.kind === 'first', j(stillApollo))
   const words = describeThinkingDrops([DROP('messages.1.content.0')], modeMove) ?? ''
   check('the words: "after you changed the permission mode (default → apollo) — the system prompt and the tool roster moved with it", expected once', words.includes('after you changed the permission mode (default → apollo)') && words.includes('the system prompt and the tool roster moved with it') && words.includes('expected once') && !words.includes('Mercury') && !words.includes('doctor'), words)
+
+  // The lawful-change seam: a declared change makes the NEXT response's drop
+  // lawful, naming the declared clause; taken once, drop or not.
+  const { declareLawfulPrefixChange, consumeLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/services/providers/lawfulPrefixChange.ts')
+  resetLawfulPrefixChanges()
+  resetThinkingDropStates()
+  classifyThinkingDrops('seam', [], mark())
+  declareLawfulPrefixChange('seam', 'sub-agents were turned on')
+  check('a declaration is pending until the next response', pendingLawfulPrefixChange('seam') === 'sub-agents were turned on')
+  const declaredDrop = classifyThinkingDrops('seam', [DROP('messages.1.content.0'), DROP('messages.3.content.0')], mark())
+  check('a drop after a declared change is lawful and carries the clause (marks unchanged)', declaredDrop.kind === 'lawful' && declaredDrop.lawful === 'declared' && declaredDrop.detail === 'sub-agents were turned on', j(declaredDrop))
+  check('…the declaration is consumed by that response', pendingLawfulPrefixChange('seam') === null && consumeLawfulPrefixChange('seam') === null)
+  const declaredWords = describeThinkingDrops([DROP('messages.1.content.0'), DROP('messages.3.content.0')], declaredDrop) ?? ''
+  check('the words: "after sub-agents were turned on — the system prompt and the tool roster moved with it", expected once', declaredWords.includes('dropped 2 thinking blocks after sub-agents were turned on') && declaredWords.includes('the system prompt and the tool roster moved with it') && declaredWords.includes('expected once') && !declaredWords.includes('Mercury'), declaredWords)
+  const afterDeclared = classifyThinkingDrops('seam', [DROP('messages.1.content.0')], mark())
+  check('the drop after it, nothing declared, is a first drop (the declared one never seeds a run)', afterDeclared.kind === 'first', j(afterDeclared))
+  declareLawfulPrefixChange('seam', 'the workflow set changed')
+  const quietResponse = classifyThinkingDrops('seam', [], mark())
+  check('a declaration followed by a no-drop response is consumed silently', quietResponse.kind === 'none' && pendingLawfulPrefixChange('seam') === null)
+  declareLawfulPrefixChange('seam', 'first clause')
+  declareLawfulPrefixChange('seam', 'newest clause')
+  check('a later declaration before the next response replaces the earlier clause', pendingLawfulPrefixChange('seam') === 'newest clause')
+  const twoOwners = classifyThinkingDrops('other-owner', [DROP('messages.1.content.0')], mark())
+  check('another conversation is untouched by the declaration', twoOwners.kind === 'first' && pendingLawfulPrefixChange('seam') === 'newest clause')
+  resetLawfulPrefixChanges()
 }
 
 // ============================================================================
@@ -278,6 +303,15 @@ section('§3 the ledger and the doctor row')
   const ls = readThinkingDropLedger()
   const rs = preservedThinkingHealth(ls)
   check('an operator-setting drop is recorded with its detail and reads as an info row naming the setting', ls?.last.lawful === 'operator-setting' && ls.last.detail === 'the permission mode (default → apollo)' && rs.status === 'info' && rs.evidence.includes('a setting change (the permission mode (default → apollo))'), j(rs))
+  const { declareLawfulPrefixChange: declareForLedger, resetLawfulPrefixChanges: resetForLedger } = await import('../../src/services/providers/lawfulPrefixChange.ts')
+  classifyThinkingDrops('ld', [], mark())
+  declareForLedger('ld', 'sub-agents were turned on')
+  const declaredForLedger = classifyThinkingDrops('ld', [DROP('messages.1.content.0')], mark())
+  recordThinkingDropLedger(declaredForLedger, 'claude-fable-5-1')
+  const ld = readThinkingDropLedger()
+  const rd = preservedThinkingHealth(ld)
+  check('a declared-change drop is recorded with its clause and reads as an info row naming it', ld?.last.lawful === 'declared' && ld.last.detail === 'sub-agents were turned on' && rd.status === 'info' && rd.evidence.includes('a change you asked for (sub-agents were turned on)'), j(rd))
+  resetForLedger()
 
   writeFileSync(thinkingDropLedgerPath(), '{not json')
   check('a corrupt ledger reads as null (the ok row), never a throw', readThinkingDropLedger() === null)

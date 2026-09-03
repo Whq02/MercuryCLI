@@ -557,6 +557,37 @@ function providerAuthChecks(): CheckSpec[] {
   })
 }
 
+/** The usage readout per SIGNED-IN family — the ONE usage owner's view in
+ *  prose: every shared window and per-model weekly pool the family reports
+ *  with its percent and local reset, the feed + age words (a read older
+ *  than its reader's horizon says stale), the credits line for an api-key
+ *  source, the honest absence for a lane whose provider publishes nothing.
+ *  A fact row (info), never a verdict: the rail, the tab and the strip read
+ *  the same owner, so the doctor can never disagree with them. An absent
+ *  family keeps its auth row alone (nothing to meter). A headless run has
+ *  observed no reply and sampled no endpoint, and the row says so. */
+function providerUsageChecks(): CheckSpec[] {
+  let owner: typeof import('../services/providers/providerUsage.js')
+  let presences: ReturnType<typeof owner.providerFamilyPresences>
+  try {
+    owner = require('../services/providers/providerUsage.js') as typeof import('../services/providers/providerUsage.js')
+    presences = owner.providerFamilyPresences()
+  } catch {
+    return []
+  }
+  const { providerDisplayName } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+  return presences
+    .filter(presence => presence.credentialed)
+    .map((presence): CheckSpec => ({
+      id: `usage-${presence.id}`,
+      label: `${providerDisplayName(presence.id)} usage`,
+      run: () => ({
+        status: 'info' as const,
+        evidence: owner.usageSummaryWords(owner.usageForProvider(presence.id)),
+      }),
+    }))
+}
+
 /** The web-search doors this session's model sees — a FACT row (the
  *  ProviderSearch door when the family has one, the vendored walk, key
  *  presence by source label, never a value), read from the one owner
@@ -1961,6 +1992,29 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'spawn-switches',
+          label: 'Sub-agents & workflows',
+          run: async () => {
+            // The session's two spawn switches with their sources (the boot
+            // menu's Agents rows at birth · the in-session toggle · the
+            // environment · the default): the focused session's when a chat
+            // is open, else this process's own — the switches the next
+            // session is born with.
+            const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
+            const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
+            const focused = hasFocusedSession()
+            const facts = focused ? getFocusedSessionConnector().spawnSwitches() : spawnSwitchFacts()
+            const scope = focused ? 'the focused session' : 'this process — the next session is born with these'
+            const anyOff = !facts.subagents.on || !facts.workflows.on
+            return {
+              status: anyOff ? 'info' : 'ok',
+              evidence: `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — ${scope}`,
+              detail: 'Flip a running session with /subagents on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Agent or Workflow tool is absent from the roster and every spawn road answers one receipt.',
+              link: '/bootmenu',
+            }
+          },
+        },
+        {
           id: 'workflows',
           label: 'Workflows',
           run: async () => {
@@ -2694,8 +2748,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       // Provider-neutral BY CONSTRUCTION: one
       // row per provider family, enumerated from the provider catalogue —
       // never a hand-kept list here. Row semantics live in
-      // providerAuthChecks() above runHealthReport.
-      checks: [...providerAuthChecks(), webSearchDoorCheck(), extraCaCertsCheck()],
+      // providerAuthChecks() above runHealthReport; the usage readouts
+      // (providerUsageChecks) follow, one per signed-in family, from the
+      // one usage owner.
+      checks: [...providerAuthChecks(), ...providerUsageChecks(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',
