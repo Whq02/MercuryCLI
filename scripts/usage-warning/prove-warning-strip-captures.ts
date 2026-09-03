@@ -28,6 +28,7 @@ type Send = {
   minTick?: number
   awaitText?: string
   awaitSettleTicks?: number
+  awaitStableTicks?: number
   afterPrevTicks?: number
   requireAwait?: boolean
   mark?: string
@@ -125,7 +126,7 @@ function baseEnv(home: string): Record<string, string> {
 }
 
 const FACE_THEN_COMPOSER: Send[] = [
-  { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3 },
+  { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
 
 console.log('============================================================')
@@ -151,7 +152,7 @@ for (const cols of [100, 120]) {
     {
       cols,
       rows: 40,
-      total: 200,
+      total: 260,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
@@ -202,7 +203,7 @@ for (const cols of [100, 120]) {
     {
       cols,
       rows: 40,
-      total: 200,
+      total: 260,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
