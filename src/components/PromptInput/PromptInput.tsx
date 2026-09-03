@@ -2971,10 +2971,15 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           // operator hit: confirm → preview → confirm → offer, forever).
           noteCapOfferAnswered(offer.direction, offer.homeRoute)
           if (offer.direction === 'handoff') {
-            // Record the way home at accept time; an abandoned preview
-            // self-heals (the route stays home → the note clears).
-            const stateNow = appStateStore.getState()
-            noteCapHandoff(stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel, offer.homeRoute)
+            // Record the way home at accept time — the SEAT's own effective
+            // model (the connector's facts), never the screen's ambient
+            // state: the return decision reads the home window FOR this
+            // model (the weekly pool a Fable seat binds), and a home recorded
+            // as null read the shared windows alone and offered a false
+            // "window reset" the moment the switch landed. An abandoned
+            // preview self-heals (the route stays home → the note clears).
+            const seat = getFocusedSessionConnector().modelFacts()
+            noteCapHandoff(seat.sessionPin ?? seat.setting ?? seat.effective, offer.homeRoute)
           }
           // Accept re-enters the FULL selection path — the preview gate
           // included — for the row the operator CHOSE (the highlighted lane
