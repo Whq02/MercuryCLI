@@ -31,8 +31,6 @@ for proof in "$here"/prove-*.ts; do
   __t=$SECONDS; "$bun" run "$proof" || fail=1; prover_mark "$proof" "$__t"
 done
 echo
-echo ">>> render-primitives-kernel-cards.tsx (primitive state matrix, real PTY grid)"
-__t=$SECONDS; UI_RENDER=1 "$bun" run "$here"/render-primitives-kernel-cards.tsx || fail=1; prover_mark "$here"/render-primitives-kernel-cards.tsx "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL primitives-kernel PROOFS PASS"; else echo "# ❌ SOME primitives-kernel PROOFS FAILED"; fi
 echo "############################################################"

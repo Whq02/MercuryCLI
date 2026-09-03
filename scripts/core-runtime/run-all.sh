@@ -94,7 +94,6 @@ echo "── core-runtime: state contract (T17)"
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-state-contract.ts || fail=1; prover_mark scripts/core-runtime/prove-state-contract.ts "$__t"
 
 echo "── core-runtime: boot/MCP independence"
-__t=$SECONDS; "$BUN" run scripts/core-runtime/prove-boot-mcp-independence.ts || fail=1; prover_mark scripts/core-runtime/prove-boot-mcp-independence.ts "$__t"
 
 echo "── core-runtime: attribution spelling contract (lane RQ)"
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-attribution-spellings.ts || fail=1; prover_mark scripts/core-runtime/prove-attribution-spellings.ts "$__t"

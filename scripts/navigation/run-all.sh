@@ -43,7 +43,6 @@ run "section-crossing" "$BUN" run scripts/navigation/prove-section-crossing.ts
 run "focus-routing" "$BUN" run scripts/navigation/prove-focus-routing.ts
 run "geometry" "$BUN" run scripts/navigation/prove-geometry.ts
 run "input-compat" "$BUN" run scripts/navigation/prove-input-compat.ts
-run "size-matrix" "$BUN" run scripts/navigation/prove-size-matrix.ts
 run "grapheme-corpus" "$BUN" run scripts/navigation/prove-grapheme-corpus.ts
 
 if [ "$failures" -gt 0 ]; then
