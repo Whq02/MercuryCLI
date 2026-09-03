@@ -36,7 +36,10 @@ export const isReceiptSafeDiff = (paths) => paths.every(isReceiptSafePath)
 
 const short = (tree) => String(tree).slice(0, 12) + '…'
 
-/** The ledger's green rows, newest first (the file appends). */
+/** Kinds that report and never verify (scripts/gate/ledger.ts ADVISORY_KINDS): a drives verdict binds nothing. */
+export const ADVISORY_KINDS = ['hosted-drives']
+
+/** The ledger's green, verifying rows, newest first (the file appends). */
 export function readLedgerRows(text) {
   return text
     .split('\n')
@@ -48,7 +51,7 @@ export function readLedgerRows(text) {
         return null
       }
     })
-    .filter((r) => r && r.ok === true && typeof r.commit === 'string')
+    .filter((r) => r && r.ok === true && typeof r.commit === 'string' && !ADVISORY_KINDS.includes(r.kind))
     .reverse()
 }
 
