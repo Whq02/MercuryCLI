@@ -62,8 +62,11 @@ export function hasStdinRedirect(command: string): boolean {
   return /(?:^|[\s;&|])<(?![<(])\s*\S/.test(command)
 }
 
+const HERE_STRING_RE = /(?:^|[\s;&|])<<<\s*\S/
+
 export function shouldAddStdinRedirect(command: string): boolean {
   if (containsHeredoc(command)) return false
+  if (HERE_STRING_RE.test(command)) return false
   if (hasStdinRedirect(command)) return false
   return true
 }
