@@ -7,6 +7,7 @@ import type { PastedContent } from '../../utils/config/schema.js'
 import type { MCPServerConnection } from '../mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
+import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
@@ -125,6 +126,9 @@ export type KitDialReceiptV1 = {
   detail?: string
 }
 
+
+export type SpawnSwitchReceiptV1 = KitDialReceiptV1
+
 export type WorkAgentV1 = {
   index: number
   label: string
@@ -228,6 +232,9 @@ export interface EngineConnectorV1 {
   mcpRoster(): McpRosterV1
 
   setKit(edit: SessionKitEditV1): Promise<KitDialReceiptV1>
+
+  spawnSwitches(): SpawnSwitchFacts
+  setSpawnSwitch(kind: SpawnSwitchKind, on: boolean): Promise<SpawnSwitchReceiptV1>
 
   checkpointFacts(): CheckpointFactsV1
   subscribeCheckpoints(listener: () => void): () => void

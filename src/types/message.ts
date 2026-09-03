@@ -180,6 +180,18 @@ export type SystemSeatReceiptMessage = {
   timestamp: string
 }
 
+export type SystemRosterTransitionMessage = {
+  type: 'system'
+  subtype: 'roster_transition'
+  toggle: 'subagents' | 'workflows'
+  on: boolean
+  content: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
 export type SystemPermissionRetryMessage = {
   type: 'system'
   subtype: 'permission_retry'
@@ -412,6 +424,7 @@ export type SystemThinkingMessage = {
 export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
+  | SystemRosterTransitionMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage
   | SystemScheduledTaskFireMessage
