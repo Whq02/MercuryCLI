@@ -46,3 +46,11 @@ export function ownerFromToolUseContext(context: {
   if (context.owner) return context.owner
   return processOwnerForLane(context.agentId ?? null)
 }
+
+export function rosterOwnerFromToolUseContext(context: {
+  owner?: OwnerKey
+  agentId?: string
+  rosterOwner?: OwnerKey
+}): OwnerKey {
+  return context.rosterOwner ?? ownerFromToolUseContext(context)
+}

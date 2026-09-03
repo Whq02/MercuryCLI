@@ -57,7 +57,7 @@ import { isInstructionFilePath } from '../../services/instructions/engine.js'
 import { logPermissionContextForAnts } from '../internalLogging.js'
 import { releaseLspDocumentsForContext } from '../lsp/manager.js'
 import { advanceContextEpoch } from '../run/contextEpochs.js'
-import { ownerFromToolUseContext } from '../run/resolveOwner.js'
+import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { roughTokenCountEstimation } from '../tokenEstimation.js'
 import { FileReadTool } from '../../tools/FileReadTool/FileReadTool.js'
@@ -704,6 +704,7 @@ async function streamingFallbackAttempts(
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],
         effortValue: MECHANICAL_FOLD_EFFORT,
+        ownerKey: String(rosterOwnerFromToolUseContext(context)),
       },
     })
     try {
