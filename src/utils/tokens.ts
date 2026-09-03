@@ -3,6 +3,20 @@ import type { AssistantMessage, Message } from '../types/message.js'
 import type { ApiUsage } from '../types/wire.js'
 import { SYNTHETIC_MESSAGES, SYNTHETIC_MODEL } from './messages.js'
 
+function usageFamilyOf(model: string): string | null {
+  const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+  return declaredRouteOf(model)
+}
+
+function usageAnchorForeign(anchor: Message, model: string | undefined): boolean {
+  if (model === undefined || anchor.type !== 'assistant') return false
+  const stamped = (anchor as AssistantMessage).message?.model
+  if (typeof stamped !== 'string' || stamped === '' || stamped === SYNTHETIC_MODEL) return false
+  const stampedFamily = usageFamilyOf(stamped)
+  const seatedFamily = usageFamilyOf(model)
+  return stampedFamily !== null && seatedFamily !== null && stampedFamily !== seatedFamily
+}
+
 
 type ContentBlockLike = {
   type?: string
@@ -154,7 +168,7 @@ function compactUsageFence(
   return { boundaryIndex, rehomedUuids: rehomed }
 }
 
-export function contextFill(messages: readonly Message[]): ContextFill {
+export function contextFill(messages: readonly Message[], model?: string): ContextFill {
   const fence = compactUsageFence(messages)
   let usageIndex = -1
   let usageTotal = 0
@@ -166,6 +180,7 @@ export function contextFill(messages: readonly Message[]): ContextFill {
     }
     const usage = getTokenUsage(messages[index])
     if (usage) {
+      if (usageAnchorForeign(messages[index]!, model)) break
       usageIndex = index
       usageTotal = getTokenCountFromUsage(usage)
       break
@@ -199,6 +214,6 @@ export function contextFill(messages: readonly Message[]): ContextFill {
   return { tokens: usageTotal + roughTokenCountEstimationForMessages(tail as never), source: 'usage' }
 }
 
-export function tokenCountWithEstimation(messages: readonly Message[]): number {
-  return contextFill(messages).tokens
+export function tokenCountWithEstimation(messages: readonly Message[], model?: string): number {
+  return contextFill(messages, model).tokens
 }
