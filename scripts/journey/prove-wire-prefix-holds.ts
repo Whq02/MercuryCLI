@@ -138,6 +138,17 @@ function rowText(row: Row | undefined): string {
     .join('\n')
 }
 
+/** The operator's prompt in a user row: its LAST text block (a slash
+ *  command's local-command rows and the reminders ride the same turn,
+ *  before it). */
+function promptText(row: Row | undefined): string {
+  if (row === undefined) return ''
+  if (typeof row.content === 'string') return row.content
+  if (!Array.isArray(row.content)) return ''
+  const texts = (row.content as Block[]).filter(b => b.type === 'text' && typeof b.text === 'string')
+  return texts.length === 0 ? '' : String(texts[texts.length - 1]!.text)
+}
+
 /** The turn the newest prompt names ("wire-prefix turn N"), 0 when none. */
 function currentTurn(messages: Row[]): number {
   for (let k = messages.length - 1; k >= 0; k--) {
@@ -202,7 +213,7 @@ function route(body: WireBody): Reply {
     const name = toolUseName(messages, String(results[0]!.tool_use_id ?? ''))
     return { kind: 'text', text: `${tag}TURN-${turn}-DONE after ${name}`, thinking: `the ${name} round of turn ${turn} is in` }
   }
-  const lastText = rowText(last).trim()
+  const lastText = promptText(last).trim()
   if (/^continue\b/i.test(lastText)) return { kind: 'text', text: `${tag}CONTINUED`, thinking: 'carrying on' }
   const deferred = announcedDeferredNames(messages)
   switch (turn) {
