@@ -28,7 +28,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 363,
+      "line": 307,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -36,7 +36,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 414,
+      "line": 358,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -52,7 +52,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 647,
+      "line": 631,
       "kind": "crab",
       "excerpt": "// crab here; a crab session renders byte-identically to the old <Crab/>.",
       "role": "compact-status-inline",
@@ -60,7 +60,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 654,
+      "line": 638,
       "kind": "session-mark",
       "excerpt": "<SessionMark />",
       "role": "compact-status-inline",
@@ -76,7 +76,7 @@
     },
     {
       "file": "src/components/MercuryHome.tsx",
-      "line": 467,
+      "line": 466,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "mission-focal-title",
@@ -140,7 +140,7 @@
     },
     {
       "file": "src/components/Onboarding.tsx",
-      "line": 283,
+      "line": 286,
       "kind": "accent-mercury-text",
       "excerpt": "<Text color={IVORY}>Mercury can make mistakes</Text>",
       "role": "compact-status-inline",
@@ -268,7 +268,7 @@
     },
     {
       "file": "src/tools/BriefTool/UI.tsx",
-      "line": 65,
+      "line": 59,
       "kind": "accent-mercury-text",
       "excerpt": "<Text color={TERRA}>Mercury</Text>",
       "role": "session-identity",
@@ -276,7 +276,7 @@
     },
     {
       "file": "src/tools/BriefTool/UI.tsx",
-      "line": 104,
+      "line": 98,
       "kind": "accent-mercury-text",
       "excerpt": "<Text color={TERRA}>Mercury</Text>",
       "role": "session-identity",

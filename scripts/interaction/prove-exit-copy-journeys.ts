@@ -42,6 +42,7 @@ import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from '../ui/renderScenarios.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const CTRL_C = String.fromCharCode(3)
 const ESC = String.fromCharCode(27)
@@ -261,7 +262,8 @@ section('C · busy: one press interrupts AND arms; a second press closes')
       // composer's placeholder paints only on wide screens); the shell-mode
       // footer line is the arm receipt, and a journey whose arm never paints
       // is refused rather than typed blind.
-      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      // (host-spelled through the ONE owner: off macOS the pill reads "shift+← back")
+      { atTick: 130, awaitText: keyHintLabel('⇧← back'), minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // Gated on the RUNNING turn's truthful resting hint — `esc interrupt`
@@ -310,7 +312,8 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
       // composer's placeholder paints only on wide screens); the shell-mode
       // footer line is the arm receipt, and a journey whose arm never paints
       // is refused rather than typed blind.
-      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      // (host-spelled through the ONE owner: off macOS the pill reads "shift+← back")
+      { atTick: 130, awaitText: keyHintLabel('⇧← back'), minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       // A bare ESC lands the moment the truthful busy hint paints.

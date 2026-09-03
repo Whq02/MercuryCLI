@@ -266,15 +266,18 @@ if (sendRecs.length === sends.length) {
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
   const [xFrame, armFrame, disarmFrame, stopFrame, removeArmFrame, goneFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
+  // The painted chord is host-spelled (off macOS "ctrl+x"): every frame
+  // needle reads through the ONE platform-aware owner.
+  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   if (POISON_DIST === undefined) {
     check('POISON LETTER: plain x TYPED into the live composer (the defect retired)', xFrame.rows.some(r => /❯\s+x\b/.test(r)), xFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
     check('…and stopped NOTHING (the stream runs on, no stop receipt)', !/STOPPED|stopped —/i.test(t(xFrame)))
-    check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armFrame).includes('⌃x again stops — esc keeps it'), t(armFrame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)')
-    check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(disarmFrame).includes('⌃x again stops') && !/STOPPED/i.test(t(disarmFrame)) && disarmFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)), disarmFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
+    check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armFrame).includes(keyHintLabel('⌃x again stops — esc keeps it')), t(armFrame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)')
+    check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(disarmFrame).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(disarmFrame)) && disarmFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)), disarmFrame.rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
     check('STOP STAGE: the completed chord stopped the highlighted row — it STAYS, wearing stopped', /STOPPED/i.test(t(stopFrame)) && /stream slowly/.test(t(stopFrame)))
-    check("…and the standing line advertises the next step in the new key's spelling", t(stopFrame).includes('⌃x ⌃x removes it'))
+    check("…and the standing line advertises the next step in the new key's spelling", t(stopFrame).includes(keyHintLabel('⌃x ⌃x removes it')))
     check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))
-    check('REMOVE ARM: the hint now speaks the remove stage', t(removeArmFrame).includes('⌃x again removes it from the board'))
+    check('REMOVE ARM: the hint now speaks the remove stage', t(removeArmFrame).includes(keyHintLabel('⌃x again removes it from the board')))
     check('REMOVE: exactly the highlighted session left the board', !/stream slowly/.test(t(goneFrame)))
     check('…the NEIGHBOR survives untouched (its row still stands)', /●\s+new session/.test(t(goneFrame)) && !/no sessions running/.test(t(goneFrame)))
     check('…and the draft survives the whole ladder un-mangled', goneFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))

@@ -38,7 +38,9 @@ section('headlessRun.ts — daemon spawn seam floors every AUTONOMOUS spec.model
 const hr = src('daemon', 'headlessRun.ts')
 check('buildStreamJsonInvocation floors every autonomous role and passes the operator’s own concourse session through',
   /const model =\s*\n\s*spec\.role === 'MERCURY_CONCOURSE_WORKER'\s*\n\s*\? spec\.model\s*\n\s*: enforceSubagentModelFloor\(spec\.model,\s*`daemon:\$\{spec\.agentName\}`\)/.test(hr))
-check('argv uses the floored model (not spec.model)', /'--model',\s*\n\s*model,/.test(hr))
+// The keyless arm passes no --model at all (the runner's own resolution
+// follows the next sign-in); the keyed arm names the floored model.
+check('argv uses the floored model (not spec.model)', /\['--model', model\]/.test(hr))
 check('ANTHROPIC_MODEL uses the floored model', /ANTHROPIC_MODEL:\s*model,/.test(hr))
 check('imports the floor', /from '\.\.\/utils\/model\/modelFloor\.js'/.test(hr))
 

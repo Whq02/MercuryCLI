@@ -75,8 +75,12 @@ console.log('§2 TI-01 — the typed invocation record')
 console.log('§3 the wire sites + doctor consumers (source pins)')
 {
   const main = src('src/main.tsx')
-  check('runtime-entry + the invocation record land at the interactive-startup fact (beside the beacon clear)',
-    /clearBootAttempts\(\);?[\s\S]{0,700}recordLaunchMilestone\('runtime-entry'\);?[\s\S]{0,300}recordInvocation\(\);?/.test(main))
+  // runtime-entry stamps at the action's ENTRY (ahead of the setup screens
+  // that arm raw mode, so the spine never prints in reverse); the invocation
+  // record keeps its settled home beside the beacon clear.
+  check('runtime-entry stamps at the action entry', /recordLaunchMilestone\('runtime-entry'\)/.test(main))
+  check('the invocation record lands at the interactive-startup fact (beside the beacon clear)',
+    /clearBootAttempts\(\);?[\s\S]{0,700}recordInvocation\(\);?/.test(main))
   const route = src('src/context/surfaceRoute.ts')
   check('route-ready records at the resolver settle (every exit)', /const settle = \([\s\S]{0,400}recordLaunchMilestone\('route-ready'\)/.test(route))
   const app = src('src/ink/components/App.tsx')
