@@ -339,6 +339,19 @@ export type GlobalConfig = {
   subModels?: {
     minerva?: string
     console?: string
+    /** Each container's own persistent effort (the e dial on a /submodels
+     *  row): a level of the one effort ladder, keyed by container. Written
+     *  only through subModelSlots.setSubModelEffort (normalized; a typed
+     *  refusal names the ladder); read through resolveSubModelEffort, which
+     *  answers undefined for an off-ladder stored spelling — never a guess.
+     *  Absent ⇒ the pinned model's own default. Independent of the model
+     *  pick: it survives a model change and rides the wire wherever the
+     *  pinned model offers the level; where it does not, the dispatch
+     *  composer sends no level (the model default) and says so. */
+    effort?: {
+      minerva?: string
+      console?: string
+    }
   }
   /** (the brief's seats law): the one-time first-boot
    *  capacity decision — asked once, never again; declining stores

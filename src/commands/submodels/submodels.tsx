@@ -46,7 +46,7 @@ function SubModelsSurface({
     <CommandCenter
       view="submodels"
       subtitle="the Minerva & Console models"
-      footer="↑↓ browse · ↵ select / sign in · tab container · esc close"
+      footer="↑↓ browse · ↵ select / sign in · e effort · tab container · esc close"
       onClose={close}
       captureInput={false}
       closeKeys="esc"

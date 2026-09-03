@@ -50,6 +50,14 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
 import {
+  EFFORT_LEVELS,
+  NO_EFFORT_CONTROL_LABEL,
+  normalizeEffortLevelString,
+  resolveEffortTruth,
+  type EffortLevel,
+  type EffortTruthContext,
+} from '../effort.js'
+import {
   providerDisplayName,
   declaredRouteOf,
   type CallModelRoute,
@@ -410,8 +418,178 @@ export function setSubModel(
     ...config,
     subModels: { ...config.subModels, [container]: wanted },
   }))
+  // The receipt names the effort beside the model — the level this pick
+  // actually runs, from the one dispatch composer (a standing effort pick
+  // the new model cannot carry is reported here, at the moment it stops
+  // applying, never discovered on a later call).
   return {
     ok: true,
-    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — live on the next ${container === 'minerva' ? 'curator pass' : 'side question'}`,
+    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — ${subModelEffortClause(container, wanted)} — live on the next ${container === 'minerva' ? 'curator pass' : 'side question'}`,
   }
+}
+
+// ── the per-container effort dial ───────────────────────────────────────────
+//
+//  Each container carries its own persistent effort (subModels.effort[role]),
+//  chosen with `e` on a /submodels row. Every level question — which stops a
+//  model offers, what a call carries, what the row says it runs — is asked
+//  of the ONE effort resolution owner (utils/effort.ts resolveEffortTruth)
+//  under the container's own call context: Minerva dispatches with thinking
+//  disabled, so a model whose effort dial is its reasoning dial sends no dial
+//  there; the console rides the session's thinking. No level table lives
+//  here. The pick is independent of the model pick: it survives a model
+//  change, rides the wire wherever the pinned model offers it, and where the
+//  model does not the call carries NO level (the model's own default) with a
+//  receipt — never a foreign level on the wire.
+
+/** The container label the receipts and copy use. */
+function containerLabel(container: SubModelContainer): string {
+  return container === 'minerva' ? 'Minerva' : 'Console'
+}
+
+/** The effort-resolution context of each container's OWN calls: Minerva's
+ *  runners call with thinking disabled (minerva.ts / minervaRoom.ts send
+ *  `thinkingConfig: { type: 'disabled' }`); the console fork inherits the
+ *  session's thinking config. */
+export function subModelEffortContext(container: SubModelContainer): EffortTruthContext {
+  return container === 'minerva' ? { thinkingEnabled: false } : {}
+}
+
+/** A container's own effort pick, validated at read through the same
+ *  normalizer that wrote it: an off-ladder stored spelling (a hand-edited
+ *  file) reads as absent — the model's own default applies; never a guess. */
+export function resolveSubModelEffort(container: SubModelContainer): EffortLevel | undefined {
+  const stored = getGlobalConfig().subModels?.effort?.[container]
+  return stored === undefined ? undefined : normalizeEffortLevelString(stored)
+}
+
+/** The strip `e` opens over a model row: exactly the levels the owner says
+ *  this model offers under the container's call context, with the level the
+ *  container currently runs marked — or the one-line receipt when no level
+ *  can apply (the model takes no effort setting, or its dial is its
+ *  reasoning dial and this container calls with thinking off). */
+export type SubModelEffortStrip =
+  | { kind: 'levels'; levels: readonly EffortLevel[]; current: EffortLevel }
+  | { kind: 'none'; receipt: string }
+
+export function subModelEffortStrip(container: SubModelContainer, model: string): SubModelEffortStrip {
+  const truth = resolveEffortTruth(model, undefined, subModelEffortContext(container))
+  if (!truth.supportsEffort) {
+    return { kind: 'none', receipt: `${model} has ${NO_EFFORT_CONTROL_LABEL}` }
+  }
+  if (truth.suppressedBy === 'thinking-off') {
+    return {
+      kind: 'none',
+      receipt: `${model}: its effort dial is its reasoning dial, and ${containerLabel(container)} calls with thinking off — no level applies`,
+    }
+  }
+  const levels = truth.selectable
+  const chosen = resolveSubModelEffort(container)
+  const current =
+    chosen !== undefined && levels.includes(chosen)
+      ? chosen
+      : truth.applied !== undefined && levels.includes(truth.applied)
+        ? truth.applied
+        : levels.includes('high')
+          ? 'high'
+          : (levels[0] as EffortLevel)
+  return { kind: 'levels', levels, current }
+}
+
+/** What a container's call carries for effort, from the one resolution
+ *  owner. `effortValue` rides the call exactly as the main seat's dial
+ *  rides — the wire builders resolve it through the same owner; undefined
+ *  is the model's own default (no level sent). `fallback` is present when a
+ *  saved pick cannot ride THIS model (no effort control, the level not
+ *  offered, or the dial suppressed by the container's thinking-off call):
+ *  the pick stays saved and the call carries no level. */
+export interface SubModelEffortDispatch {
+  effortValue: EffortLevel | undefined
+  chosen: EffortLevel | undefined
+  fallback?: string
+}
+
+export function subModelDispatchEffort(container: SubModelContainer, model: string): SubModelEffortDispatch {
+  const chosen = resolveSubModelEffort(container)
+  if (chosen === undefined) return { effortValue: undefined, chosen }
+  const truth = resolveEffortTruth(model, chosen, subModelEffortContext(container))
+  const label = containerLabel(container)
+  if (!truth.supportsEffort) {
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} has ${NO_EFFORT_CONTROL_LABEL} — ${chosen} stays saved and applies when ${label} runs an effort-capable model`,
+    }
+  }
+  if (truth.suppressedBy === 'thinking-off') {
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} sends no effort dial on ${label}'s thinking-off calls and runs its provider default — ${chosen} stays saved, not sent`,
+    }
+  }
+  if (!truth.selectable.includes(chosen)) {
+    const runs = resolveEffortTruth(model, undefined, subModelEffortContext(container)).label
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} does not offer ${chosen} — runs @${runs} (the model default); ${chosen} stays saved`,
+    }
+  }
+  return { effortValue: chosen, chosen }
+}
+
+/** The one clause every surface prints for what a container's model runs:
+ *  "runs @high (chosen)", "runs @medium (the model default)", the absence
+ *  word, or the fallback sentence — the label is the owner's word for the
+ *  value the call carries (never the raw pick). */
+export function subModelEffortClause(container: SubModelContainer, model: string): string {
+  const dispatch = subModelDispatchEffort(container, model)
+  if (dispatch.fallback !== undefined) return dispatch.fallback
+  const truth = resolveEffortTruth(model, dispatch.effortValue, subModelEffortContext(container))
+  if (!truth.supportsEffort) return NO_EFFORT_CONTROL_LABEL
+  if (truth.requestedSource === 'env') return `runs @${truth.label} (pinned by MERCURY_EFFORT_LEVEL)`
+  if (dispatch.chosen === undefined) return `runs @${truth.label} (the model default)`
+  return truth.label === dispatch.chosen
+    ? `runs @${truth.label} (chosen)`
+    : `runs @${truth.label} (${dispatch.chosen} chosen — resolved live at dispatch)`
+}
+
+/** Persist a container's effort pick: a ladder word through the one
+ *  normalizer (a typed refusal names the ladder; the config stays
+ *  untouched); `null` clears it — the model's own default again. The
+ *  receipt names what the container's pinned model now runs. */
+export function setSubModelEffort(container: SubModelContainer, effortWord: string | null): SubModelSetResult {
+  const label = containerLabel(container)
+  if (effortWord === null) {
+    const had = getGlobalConfig().subModels?.effort?.[container] !== undefined
+    if (had) {
+      saveGlobalConfig(config => {
+        const effort = { ...config.subModels?.effort }
+        delete effort[container]
+        const next = { ...config.subModels }
+        if (Object.keys(effort).length > 0) next.effort = effort
+        else delete next.effort
+        return { ...config, subModels: Object.keys(next).length > 0 ? next : undefined }
+      })
+    }
+    return { ok: true, receipt: `${label} effort cleared — the model default applies` }
+  }
+  const level = normalizeEffortLevelString(effortWord)
+  if (level === undefined) {
+    return {
+      ok: false,
+      reason: `'${effortWord}' is not on the effort ladder — the levels are ${EFFORT_LEVELS.join(' | ')}`,
+    }
+  }
+  saveGlobalConfig(config => ({
+    ...config,
+    subModels: { ...config.subModels, effort: { ...config.subModels?.effort, [container]: level } },
+  }))
+  const pin = resolveSubModel(container)
+  const clause =
+    pin.origin === 'unset'
+      ? 'applies when a model is pinned'
+      : `${pin.model} ${subModelEffortClause(container, pin.model)}`
+  return { ok: true, receipt: `${label} effort set to ${level} — ${clause}` }
 }
