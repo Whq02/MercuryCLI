@@ -34,7 +34,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 
@@ -168,6 +168,84 @@ section('§1 the projection law — appended rows extend the view, never rewrite
   check('an oversized result is decided on first sight (replaced in the turn it arrives)', first.replacements.length === 1 && !wireOf(first.messages[2]).includes(big), `replacements=${first.replacements.length}`)
   const later = await enforceToolResultBudget([...first.messages, assistant([THINK('x'), TEXT('ok')]), user('next')] as never, state)
   check('the budget never rewrites a result it already decided (the sent turn is byte-identical, nothing new recorded)', wireOf(later.messages[2]) === wireOf(first.messages[2]) && later.replacements.length === 0, `replacements=${later.replacements.length}`)
+}
+
+// ============================================================================
+section('§1b the tool roster freeze (pure) — a latched decision holds; a joiner rides deferred or is held')
+// ============================================================================
+{
+  const { planToolPayload, clearToolRosterLatches, toolRosterLatchFor } = await import('../../src/services/providers/toolEconomy.ts')
+  const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { z } = await import('zod/v4')
+  const fakeTool = (name: string, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    name,
+    isMcp: false,
+    inputSchema: z.object({}).passthrough(),
+    isConcurrencySafe: () => true,
+    isReadOnly: () => true,
+    description: async () => `${name} tool`,
+    prompt: async () => `${name} prompt`,
+    shouldDefer: false,
+    ...over,
+  })
+  const search = fakeTool(TOOL_SEARCH_TOOL_NAME)
+  const readTool = fakeTool('Read')
+  const names = (plan: { roster: Array<{ name: string }> }): string => j(plan.roster.map(t => t.name))
+  const plan = (tools: Record<string, unknown>[], over: { pending?: boolean; key?: string; mode?: string } = {}) =>
+    planToolPayload({
+      model: 'claude-opus-4-8',
+      tools: tools as never,
+      messages: [],
+      getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: (over.mode ?? 'default') as never }),
+      agents: [],
+      hasPendingMcpServers: over.pending,
+      source: 'prove',
+      ...(over.key !== undefined ? { latchKey: over.key } : {}),
+    })
+  const saved = process.env.MERCURY_TOOL_SEARCH
+  delete process.env.MERCURY_TOOL_SEARCH
+  clearToolRosterLatches()
+
+  // The flip the freeze prevents: servers pending at the first request keep
+  // ToolSearch in the roster; once they land with nothing deferred, a plan
+  // with no latch turns search off (ToolSearch leaves — a tools edit).
+  const free1 = await plan([search, readTool], { pending: true })
+  const free2 = await plan([search, readTool], { pending: false })
+  check('control (no latch): pending servers ⇒ search on; landed with nothing deferred ⇒ off — the roster moves', free1.enabled && !free2.enabled && names(free1) !== names(free2), `${names(free1)} → ${names(free2)}`)
+
+  const p1 = await plan([search, readTool], { pending: true, key: 'conv-a' })
+  const p2 = await plan([search, readTool], { pending: false, key: 'conv-a' })
+  check('latched: the first request decided search on; the servers landing leaves the roster byte-identical', p1.enabled && p2.enabled && names(p1) === names(p2), `${names(p1)} → ${names(p2)}`)
+  check('…the latch records the decision and the names it saw', toolRosterLatchFor('conv-a', [], 'claude-opus-4-8', 'default')?.enabled === true && toolRosterLatchFor('conv-a', [], 'claude-opus-4-8', 'default')?.names.has('Read') === true)
+  const mcpTool = fakeTool('mcp__srv__late', { isMcp: true, mcpInfo: { serverName: 'srv' } })
+  const p3 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-a' })
+  check('a tool that joins later under a deferring latch rides deferred: the roster is byte-identical, the joiner in deferredNames', names(p3) === names(p1) && p3.deferredNames.has('mcp__srv__late') && !p3.roster.some(t => t.name === 'mcp__srv__late'), names(p3))
+  // Another conversation of the SAME owner (a different first row — a new
+  // chat in the process, or the summary row after a compaction) decides fresh.
+  const other = [user('another chat')]
+  const o1 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, mcpTool] as never, messages: other as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-a' })
+  check('a different first row under the same owner keys its own latch (a new chat, or the post-compaction summary)', toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8', 'default') !== undefined && toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8', 'default') !== toolRosterLatchFor('conv-a', [], 'claude-opus-4-8', 'default') && o1.deferredNames.has('mcp__srv__late'), names(o1))
+  const p4 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-b' })
+  check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === names(p1), names(p4))
+
+  // Search off by policy: a joiner is HELD out of the frozen roster.
+  process.env.MERCURY_TOOL_SEARCH = 'standard'
+  const s1 = await plan([search, readTool], { key: 'conv-c' })
+  const late = fakeTool('LateBuiltin')
+  const s2 = await plan([search, readTool, late], { key: 'conv-c' })
+  check('search off by policy: the first roster carries Read alone (no ToolSearch)', !s1.enabled && names(s1) === j(['Read']), names(s1))
+  check('…a tool that joins later is held: the roster stays byte-identical', names(s2) === names(s1), names(s2))
+  const s3 = await plan([search, readTool, late], { key: 'conv-c', mode: 'plan' })
+  check('a mode change keys a new latch (a lawful operator action): the joiner enters under the new mode', names(s3) === j(['Read', 'LateBuiltin']), names(s3))
+  clearToolRosterLatches()
+  const s4 = await plan([search, readTool, late], { key: 'conv-c' })
+  check('the conversation-reset seam clears the latches: the joiner enters after a compaction or /clear', names(s4) === j(['Read', 'LateBuiltin']), names(s4))
+  const s5 = await plan([search, readTool, late], {})
+  check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8', 'default') === undefined, names(s5))
+  if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
+  else process.env.MERCURY_TOOL_SEARCH = saved
+  clearToolRosterLatches()
 }
 
 // ============================================================================
@@ -529,6 +607,61 @@ if (!existsSync(DIST)) {
         check(`${leg.label}: no switch receipt, no drop notice`, transcriptNotices(arena, SID).length === 0, j(transcriptNotices(arena, SID)))
         await fixture.close()
       }
+    }
+
+    // ------------------------------------------------------------------------
+    section('§6 the Godot control section — read from the filesystem, frozen for the conversation')
+    // ------------------------------------------------------------------------
+    const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
+    const toolNamesOf = (body: Body): string[] => (Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => String(t.name)) : [])
+    const godotProject = '; Engine configuration file.\nconfig_version=5\n\n[application]\n\nconfig/name="Fixture"\n'
+    {
+      // No project at boot; the model (or the operator) creates one before
+      // turn 2: the system prompt and the tools array must not move.
+      const turns: ScriptedTurn[] = [1, 2, 3].map(n => ({ kind: 'text' as const, text: `S6A-TURN-${n}`, thinking: `godot a ${n}`, inputTransformations: [] }))
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f8'
+      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID], [
+        { prompt: 'start a game' },
+        { prompt: 'the project exists now', before: () => writeFileSync(join(arena.cwd, 'project.godot'), godotProject) },
+        { prompt: 'carry on' },
+      ])
+      check('§6a three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      const reqs = fixture.messageRequests()
+      check('§6a three message requests', reqs.length === 3, String(reqs.length))
+      census('§6a', reqs, true)
+      check('§6a the section stays absent (no project at the first request) and the Godot tool never enters the tools array', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface') && !toolNamesOf(q.body as Body).includes('Godot')), reqs.map(q => toolNamesOf(q.body as Body).includes('Godot')).join(','))
+      // The tool that mounted when the project appeared is deferrable: it may
+      // be OFFERED from then on, and only through a new deferred-tools row
+      // (the first request never carried it; the census above proved the
+      // earlier rows unchanged).
+      check('§6a the first request never offered the Godot tool; a later offer rides a new row only', !/\\nGodot\\n/.test(reqs[0]!.raw), reqs.map(q => /\\nGodot\\n/.test(q.raw)).join(','))
+      await fixture.close()
+    }
+    {
+      // A project at boot: the section and the tool ride every request; the
+      // project file vanishing before turn 2 moves nothing.
+      const turns: ScriptedTurn[] = [1, 2, 3].map(n => ({ kind: 'text' as const, text: `S6B-TURN-${n}`, thinking: `godot b ${n}`, inputTransformations: [] }))
+      const fixture = await startFixtureApi(turns)
+      const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
+      writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0f9'
+      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID], [
+        { prompt: 'inspect the scene' },
+        { prompt: 'the project file is gone', before: () => rmSync(join(arena.cwd, 'project.godot'), { force: true }) },
+        { prompt: 'carry on' },
+      ])
+      check('§6b three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      const reqs = fixture.messageRequests()
+      check('§6b three message requests', reqs.length === 3, String(reqs.length))
+      census('§6b', reqs, true)
+      // The Godot tool is deferrable: it rides the deferred-tools announcement
+      // (a persisted row in the first turn), not the tools array, until a
+      // ToolSearch admits it — either way it is offered on every request.
+      const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
+      check('§6b the section rides every request (present at the first one), the Godot tool offered on every request', reqs.length === 3 && reqs.every(q => systemTextOf(q.body as Body).includes('Godot control surface') && offersGodot(q)), reqs.map(q => `${systemTextOf(q.body as Body).includes('Godot control surface')}/${offersGodot(q)}`).join(','))
+      await fixture.close()
     }
   }
 }

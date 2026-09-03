@@ -411,15 +411,18 @@ try {
     }
   }
 
-  console.log('\n── narrow tiers: 80-col folded summary · 60-col detail frame ─')
+  console.log('\n── narrow tiers: 80-col folded summary · the floor\'s detail frame ─')
   const folded = capture('fold80', OPEN, 56, {}, 80, 30)
   if (folded) {
     check('80-col: the summary FOLDS below the list (path + facts present)', folded.some(l => l.includes('hunks')) && folded.some(l => l.includes('a-multi.ts')))
   }
-  const narrow = capture('narrow60', [...OPEN, { atTick: 58, data: '\r' }], 78, {}, 60, 24)
+  // The detail frame at the viewport floor (80 × 22): below it the product
+  // paints the one resize line and no workspace exists, so the narrowest
+  // detail leg lives AT the floor.
+  const narrow = capture('narrow-floor', [...OPEN, { atTick: 58, data: '\r' }], 78, {}, 80, 22)
   if (narrow) {
-    check('60-col detail: the middle-truncated label keeps the filename', narrow.some(l => l.includes('a-multi.ts')))
-    check('60-col detail: the back path is advertised', narrow.some(l => l.includes('← back')))
+    check('floor detail: the label keeps the filename', narrow.some(l => l.includes('a-multi.ts')))
+    check('floor detail: the back path is advertised', narrow.some(l => l.includes('← back')))
   }
 
   console.log('\n── close path: esc from the list leaves the workspace ───────')

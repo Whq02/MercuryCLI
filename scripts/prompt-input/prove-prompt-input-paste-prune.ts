@@ -11,10 +11,9 @@
 //       effect flush that created it — the placeholder then submitted
 //       literally) is pinned by the structural live-read lock in leg C.
 //
-//    B. QUEUE POP-BACK (module): popAllEditable collected images ONLY —
-//       after the generalized prune deleted live entries at enqueue, a
-//       popped-back [Pasted text #N] placeholder had no backing content.
-//       ALL paste types must restore under their ORIGINAL ids.
+//    (The queue pop-back leg retired with the pen: popAllEditable no longer
+//    exists — prove-parity-tier4-input pins its absence — so no road pops a
+//    queued paste back into the composer; legs A and C carry the law.)
 // ============================================================================
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -31,26 +30,6 @@ let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
-}
-
-// ── B (module, fast): pop-back restores EVERY paste type by original id ─────
-{
-  const { enqueue, popAllEditable, resetCommandQueue } = await import('../../src/input-core/command-queue.ts')
-  resetCommandQueue()
-  enqueue({
-    value: 'analyze [Pasted text #7 +12 lines] and [Image #3]',
-    mode: 'prompt',
-    pastedContents: {
-      7: { id: 7, type: 'text', content: 'line1\nline2\nthe 500-line log body' },
-      3: { id: 3, type: 'image', content: 'aGk=', mediaType: 'image/png' },
-    } as never,
-  })
-  const popped = popAllEditable('', 0)
-  t('B: pop-back returns the queued text with placeholders', !!popped && popped.text.includes('[Pasted text #7 +12 lines]'))
-  const byId = new Map((popped?.images ?? []).map(p => [p.id, p]))
-  t('B: the TEXT paste restores under its original id', byId.get(7)?.type === 'text' && (byId.get(7) as { content?: string })?.content?.includes('500-line log') === true)
-  t('B: the image restores too', byId.get(3)?.type === 'image')
-  resetCommandQueue()
 }
 
 // ── A (PTY, built artifact): paste chip + content survive the prune ────────

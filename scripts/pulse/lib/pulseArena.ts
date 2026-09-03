@@ -208,6 +208,13 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const dump = join(home, 'pulse.jsonl')
 
   const sendArgs: string[] = []
+  // The bare boot lands ON the Boot face and the face's ↵ births the chat
+  // (the flip-first birth): ↵ on New Session the moment the face's ready
+  // line shows — an observed-ready send, state-anchored, never a fixed
+  // instant (the artifact arena's record: 900 ms after the hint's first
+  // paint, so the face's keybinding mount is up before the key lands) —
+  // then the scene's own sends follow.
+  sendArgs.push('--send', 'after:↑↓ choose:900:\\r')
   for (const s of opts.sends) sendArgs.push('--send', s)
   // THE STATE ANCHOR (the artifact arena's law): a rider's fixed-ms prompt
   // authored for a nominal world fires into the FACE when the birth is

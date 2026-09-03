@@ -52,6 +52,7 @@
     "binaryName",
     "checkHasTrustDialogAccepted",
     "enableConfigs",
+    "flushDeferredGlobalConfigSaves",
     "formatAutoUpdaterDisabledReason",
     "getAutoUpdaterDisabledReason",
     "getCurrentProjectConfig",
@@ -65,6 +66,7 @@
     "getProjectPathForConfig",
     "getRemoteControlAtStartup",
     "getUserRulesDir",
+    "hasPendingDeferredGlobalConfigSaves",
     "isAutoUpdaterDisabled",
     "isCopyOnSelectEnabled",
     "isGlobalConfigKey",
@@ -77,6 +79,7 @@
     "resetTrustDialogAcceptedCacheForTesting",
     "saveCurrentProjectConfig",
     "saveGlobalConfig",
+    "saveGlobalConfigDeferred",
     "saveProjectConfigForWorkspace",
     "setPathTrusted",
     "type:AccountInfo",
@@ -553,7 +556,6 @@
     "type:RecompactionInfo"
    ],
    "src/services/compact/autoCompact.ts": [
-    "AUTOCOMPACT_BUFFER_TOKENS",
     "AUTOCOMPACT_THRASH_MESSAGE",
     "ERROR_THRESHOLD_BUFFER_TOKENS",
     "MANUAL_COMPACT_BUFFER_TOKENS",
@@ -744,6 +746,7 @@
     "type:Screen"
    ],
    "src/components/PromptInput/PromptInput.tsx": [
+    "__stripControlsForTest",
     "default",
     "type:PromptInputProps"
    ]

@@ -197,10 +197,13 @@ export type DirectSplashRun =
  * imports no config machinery).
  */
 export function runDirectSplash(opts: { home: string | null }): DirectSplashRun {
+  // child-env law: an own-process env seam — the decision reads this
+  // process's env and spawns nothing.
   const decision = decideDirectSplash({
     args: process.argv.slice(2),
     stdinTTY: Boolean(process.stdin.isTTY),
     stdoutTTY: Boolean(process.stdout.isTTY),
+    // child-env law: an own-process seam — the decision spawns nothing.
     env: process.env,
   })
   if (!decision.run) return { verdict: 'skipped', reason: decision.reason }
@@ -223,8 +226,12 @@ export function runDirectSplash(opts: { home: string | null }): DirectSplashRun 
   try {
     // The asset IS the screen for as long as it runs: it inherits this
     // terminal outright (no pipes, no shell, never hidden on Windows).
+    // child-env law: the asset is this launch's own enter screen — it reads
+    // the launch id minted above and the config-home pins from the same env
+    // the boot will read, before any session or provider child exists.
     const r = spawnSync(process.execPath, [asset.driver], {
       stdio: 'inherit',
+      // child-env law: this launch's own enter screen (the note above).
       env: process.env,
       windowsHide: false,
     })

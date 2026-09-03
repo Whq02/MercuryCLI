@@ -89,6 +89,13 @@ const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; co
     reason: 'the external prompt editor takes over this console (stdio inherit)',
   },
   {
+    path: 'src/substrate/directSplash.ts',
+    callee: 'spawnSync',
+    value: 'false',
+    count: 1,
+    reason: 'the launch splash asset IS the screen on a direct start (stdio inherit); CREATE_NO_WINDOW would sever it from this console',
+  },
+  {
     path: 'src/utils/terminalPanel.ts',
     callee: 'spawnSync',
     value: 'false',

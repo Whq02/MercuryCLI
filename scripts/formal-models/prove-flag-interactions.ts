@@ -87,6 +87,12 @@ const DOMAINS: Record<string, string[]> = {
   // flags sweep unset + one realistic value; each canonical spelling pairs
   // with its tolerated legacy twin, and 0 is a meaningful arm (disable /
   // no-wait), so it joins the domain.
+  // The transcript-read pair (default-on flags sweep unset/=0) and the voice
+  // capture pair (value flags sweep unset + one realistic value).
+  MERCURY_RESUME_SNAPSHOT: ['', '0'],
+  MERCURY_TRANSCRIPT_READER: ['', '0'],
+  MERCURY_VOICE_BACKEND: ['', 'fixture'],
+  MERCURY_VOICE_FIXTURE_WAV: ['', '/tmp/sweep-take.wav'],
   MERCURY_SESSION_IDLE_RETIRE_MINUTES: ['', '10', '0'],
   MERCURY_CONCOURSE_IDLE_RETIRE_MINUTES: ['', '5'],
   MERCURY_SESSION_NEWBORN_GRACE_MINUTES: ['', '15', '0'],

@@ -103,7 +103,7 @@ function walk(root: string): string[] {
   // the boot's).
   check('P2 New Session births a real session through the ONE birth door (the flip-first road)', newBody.includes('flipFirstBirth(bornSession => bornSession({ workspaceDir: getCwd() }))'))
   const road = boot.slice(boot.indexOf('async function flipFirstBirth('), boot.indexOf('export function BootSplashScreen('))
-  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootRepl().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
+  check('P2 the chat flips at once and the birth lands behind; a refusal hands the frame back with its reason (never a chat over a refused birth)', road.indexOf('const flipped = enterRootRepl().ok;') !== -1 && road.indexOf('const flipped = enterRootRepl().ok;') < road.indexOf('const born = await birth;') && road.includes('if (!settleAbsentChat().ok) enterBootSettings();') && road.includes("mintImmediateReceipt(`▲ the chat could not start — ${born.reason}`, 'warning')") && road.includes('return born.reason;'))
   check('P2 no ghost is handed to the slot (the ENTERED law is gone)', !newBody.includes('focusNascentSession') && !newBody.includes('isNascentConnector'))
   check('P2 nothing is handed back to an engine and no /clear is armed', !boot.includes('focusInProcessSession') && !newBody.includes("armRootCommand('/clear')"))
   const hop = read('src/services/switchboard/hopIntoSession.ts')
