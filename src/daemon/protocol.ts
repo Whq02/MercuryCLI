@@ -2,11 +2,11 @@
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 5
+export const MERCURY_DAEMON_PROTO = 6
 
 export const MIN_PROTO = 1
 
-export const DAEMON_PROTO_SHAPE = 'sha256:8e5c3eff0b131120135bb5cee5a3d90f658c8e91b5a6e1eec7597083e98746df'
+export const DAEMON_PROTO_SHAPE = 'sha256:24e4456f6195d853497e746fc89136503c3a0d49f113d9768538a8ae084b9d5e'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
