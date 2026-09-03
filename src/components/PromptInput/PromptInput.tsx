@@ -203,12 +203,15 @@ import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
   capHandoffState,
+  capOfferAnswered,
   decideCapAction,
   decideCapReturn,
   decideSlotWallAction,
   liveCapFailoverTarget,
   noteCapHandoff,
+  noteCapOfferAnswered,
   noteCapReturn,
+  noteCapWindowObserved,
   noteOfferAutoDone,
   noteOfferDismissal,
   observedFamilyWindow,
@@ -658,7 +661,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const [capOffer, setCapOffer] = useState<{
     trigger: 'warning' | 'rejected' | 'reset'
     direction: 'handoff' | 'return'
-    key: string
     windowName: string | null
     resetText: string | null
     targetModel: string
@@ -972,19 +974,26 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     // credential that just changed) is a state — it never reads as
     // headroom for a handoff, nor as a reset for the way home.
     const window = observedFamilyWindow(homeFamily)
+    // The armed-state re-arm runs EVERY commit (before the none-return): a
+    // real reset re-arms the handoff, a window that caps again re-arms the
+    // return. Keeps the answered latch stable across the state/reset jitter
+    // that used to mint a fresh key and re-open the card forever.
+    noteCapWindowObserved(homeFamily, window.state)
     const action =
       onFailoverLane && homeUsability !== null
         ? decideCapReturn(posture, { window: window.state, credentialUsable: homeUsability.usable }, true)
         : decideCapAction(posture, window.state)
     if (action.kind === 'none') return
     const direction: 'handoff' | 'return' = onFailoverLane ? 'return' : 'handoff'
-    const decisionKey = `${direction}|${homeFamily}|${window.state}|${window.resetsAtMs ?? ''}`
     const windowName = window.windowName ?? null
     const resetText =
       window.resetsAtMs !== undefined ? (formatResetTime(window.resetsAtMs / 1000) ?? null) : null
     const homeName = providerDisplayName(homeFamily)
     if (action.kind === 'offer') {
-      if (offerDismissed(decisionKey)) return
+      // The offer stays disarmed once ANSWERED for this (direction, family)
+      // until the window materially changes — never re-fired by a state or
+      // reset-moment jitter within the same wall.
+      if (capOfferAnswered(direction, homeFamily)) return
       // The offer replaces the input only while waiting for its keypress —
       // never over another open surface.
       if (modalOverlayUp) return
@@ -1006,7 +1015,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setCapOffer({
         trigger: action.trigger,
         direction,
-        key: decisionKey,
         windowName,
         resetText,
         targetModel: target,
@@ -1017,10 +1025,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setOverlay('cap-offer')
       return
     }
-    // Automatic handoff: at most once per key; no preview card can
-    // interrupt it.
-    if (offerAutoDone(decisionKey)) return
-    noteOfferAutoDone(decisionKey)
+    // Automatic handoff/return: at most once per wall for this (direction,
+    // family); the same stable latch the offer answers on — no preview card
+    // can interrupt it, and no jitter re-fires it.
+    if (capOfferAnswered(direction, homeFamily)) return
+    noteCapOfferAnswered(direction, homeFamily)
     if (direction === 'handoff') {
       const target = liveCapFailoverTarget(homeFamily)?.model
       if (target === undefined) return
@@ -2928,12 +2937,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           setCapOffer(null)
           setOverlay(null)
           // An answered card never re-fires for the same wall: accept
-          // latches the decision key exactly like a dismissal, whatever
-          // the selection path then decides (applied, previewed, refused
-          // — the apply tail's own footer line carries a refusal's reason).
-          // Before this, a refused accept latched nothing and the effect
-          // re-showed the card on every commit; only Esc removed it.
-          noteOfferDismissal(offer.key)
+          // latches this (direction, family) exactly like a dismissal,
+          // whatever the selection path then decides (applied, previewed,
+          // refused — the apply tail's own footer line carries a refusal's
+          // reason). Keyed on the stable facts, so a state or reset-moment
+          // jitter within the wall can never re-open the card (the loop the
+          // operator hit: confirm → preview → confirm → offer, forever).
+          noteCapOfferAnswered(offer.direction, offer.homeRoute)
           if (offer.direction === 'handoff') {
             // Record the way home at accept time; an abandoned preview
             // self-heals (the route stays home → the note clears).
@@ -2945,7 +2955,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           handleModelSelect(offer.targetModel)
         }}
         onDismiss={() => {
-          noteOfferDismissal(offer.key)
+          noteCapOfferAnswered(offer.direction, offer.homeRoute)
           setCapOffer(null)
           setOverlay(null)
         }}
