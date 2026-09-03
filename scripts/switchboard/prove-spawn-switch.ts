@@ -235,7 +235,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
 
   // Source pins: the roads ride the ONE valve; the valve reads the ONE owner.
   const valve = src('src/services/switchboard/launchAuthority.ts')
-  check('the valve reads the switch owner first (before the role env)', valve.indexOf('spawnSwitch(kind)') < valve.indexOf("flagEnv('MERCURY_CONCOURSE_WORKER')") && valve.includes("cause: 'session-switch'"))
+  check('the valve reads the switch owner first (before the role env)', valve.indexOf('spawnSwitch(kind)') !== -1 && valve.indexOf('spawnSwitch(kind)') < valve.indexOf("flagEnv('MERCURY_CONCOURSE_WORKER')") && valve.includes("cause: 'session-switch'"))
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   check('the Agent tool asks the valve at isEnabled and at call time', agentTool.includes("return evaluateLaunchAuthority('subagents').allowed") && agentTool.includes("const authority = evaluateLaunchAuthority('subagents')"))
   const workflowTool = src('src/tools/WorkflowTool/WorkflowTool.tsx')
