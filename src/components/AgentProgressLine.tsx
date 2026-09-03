@@ -6,7 +6,7 @@
 
 import React from 'react'
 import { Box, Text } from '../ink.js'
-import { formatNumber } from '../utils/format.js'
+import { formatTokens } from '../utils/format.js'
 import { plural } from '../utils/stringUtils.js'
 
 export type AgentProgressLineProps = {
@@ -15,6 +15,8 @@ export type AgentProgressLineProps = {
   name?: string
   descriptionColor?: string
   taskDescription?: string
+  /** The model the agent runs (the crew record's own spelling). */
+  model?: string
   toolUseCount: number
   tokens?: number
   color?: string
@@ -33,6 +35,7 @@ export function AgentProgressLine({
   name,
   descriptionColor,
   taskDescription,
+  model,
   toolUseCount,
   tokens,
   color,
@@ -74,8 +77,9 @@ export function AgentProgressLine({
   const tail = backgrounded ? null : (
     <Text dimColor>
       {' '}
+      {model !== undefined ? `· ${model} ` : ''}
       · {toolUseCount} {plural(toolUseCount, 'tool use')}
-      {tokens !== undefined ? ` · ${formatNumber(tokens)} tokens` : ''}
+      {tokens !== undefined ? ` · ${formatTokens(tokens)} tokens` : ''}
     </Text>
   )
 

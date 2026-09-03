@@ -53,6 +53,29 @@ const binding = await import('../../src/services/providers/anthropic/thinkingBin
 const { classifyThinkingDrops, describeThinkingDrops, prefixMarkOf, resetThinkingDropStates } = binding
 
 type Entry = { type: string; path: string; reason: string }
+type Block = Record<string, unknown>
+const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: 'sig-' + text })
+const TEXT = (text: string): Block => ({ type: 'text', text })
+let seq = 0
+function user(content: Block[] | string): Record<string, unknown> {
+  seq++
+  return { type: 'user', uuid: `00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`, timestamp: '2026-09-01T00:00:00.000Z', message: { role: 'user', content } }
+}
+function assistant(content: Block[]): Record<string, unknown> {
+  seq++
+  return {
+    type: 'assistant',
+    uuid: `00000000-0000-4000-8000-${String(seq).padStart(12, '0')}`,
+    timestamp: '2026-09-01T00:00:00.000Z',
+    requestId: `req_${seq}`,
+    message: { id: `msg_${seq}`, type: 'message', role: 'assistant', model: 'claude-fable-5-1', content, stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+  }
+}
+const blocksOf = (m: unknown): Block[] => {
+  const content = (m as { message?: { content?: unknown } } | undefined)?.message?.content
+  return Array.isArray(content) ? (content as Block[]) : []
+}
+const hasThinking = (m: unknown): boolean => blocksOf(m).some(b => b.type === 'thinking' || b.type === 'redacted_thinking')
 const DROP = (path: string, reason = 'prefix_binding_mismatch'): Entry => ({ type: 'thinking_dropped', path, reason })
 const mark = (over: Partial<ReturnType<typeof prefixMarkOf>> = {}): ReturnType<typeof prefixMarkOf> => ({
   firstRow: 'row-1',
@@ -155,6 +178,40 @@ section('§2 the words')
   const boundWords = describeThinkingDrops(bound, classifyThinkingDrops('w', bound, mark({ model: 'claude-opus-5' }))) ?? ''
   check('a model-binding drop keeps the original switched-models sentence', boundWords === binding.describeInputTransformations(bound) && boundWords.includes('switched models'), boundWords)
   check('nothing dropped ⇒ nothing said', describeThinkingDrops([], classifyThinkingDrops('w', [], mark())) === null)
+}
+
+// ============================================================================
+section('§2b the model-switch receipt — the previous model\'s thinking leaves quietly, once')
+// ============================================================================
+{
+  const { isSameModel, modelSwitchReceipt } = binding
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
+  check('an alias, a suffix and a dated spelling of one model are the same model', isSameModel('claude-fable-5-1', 'claude-fable-5-1[1m]') && isSameModel('claude-opus-4-8', 'claude-opus-4-6') && isSameModel('claude-opus-5', 'claude-opus-5'))
+  check('two families are not', !isSameModel('claude-opus-4-8', 'claude-fable-5-1') && !isSameModel('claude-opus-5', 'claude-fable-5-1'))
+  const withModel = (row: Record<string, unknown>, model: string): Record<string, unknown> => ({ ...row, message: { ...(row.message as Record<string, unknown>), model } })
+  const history = [
+    user('one'),
+    withModel(assistant([THINK('opus one'), TEXT('a')]), 'claude-opus-4-8'),
+    user('two'),
+    withModel(assistant([THINK('opus two')]), 'claude-opus-4-8'),
+    user('three'),
+    withModel(assistant([THINK('fable one'), TEXT('c')]), 'claude-fable-5-1'),
+    user('four'),
+  ]
+  const foreign = thinkingFromOtherModels(history as never, 'claude-fable-5-1', isSameModel)
+  check('the count and the writers of the foreign thinking', foreign.count === 2 && j(foreign.models) === j(['claude-opus-4-8']), j(foreign))
+  const stripped = stripThinkingFromOtherModels(history as never, 'claude-fable-5-1', isSameModel) as unknown as Record<string, unknown>[]
+  check('the previous model\'s thinking is stripped; its text stays', j(blocksOf(stripped[1]).map(b => b.type)) === j(['text']) && j(blocksOf(stripped[1])) === j([TEXT('a')]), j(blocksOf(stripped[1])))
+  check('a thinking-only message keeps a placeholder text block', blocksOf(stripped[3]).length === 1 && blocksOf(stripped[3])[0]!.type === 'text' && String(blocksOf(stripped[3])[0]!.text).includes('another model'), j(blocksOf(stripped[3])))
+  check('the current model\'s thinking stays, by reference', stripped[5] === history[5] && hasThinking(stripped[5]))
+  check('user rows pass by reference; the input is never mutated', stripped[0] === history[0] && hasThinking(history[1]))
+  const opusOnly = [history[0], history[1], history[2], history[3]]
+  check('identity when every block is the current model\'s', stripThinkingFromOtherModels(opusOnly as never, 'claude-opus-4-8', isSameModel) === (opusOnly as never))
+  const receipt = modelSwitchReceipt('main', history as never, 'claude-fable-5-1')
+  check('the receipt names the count, the writer and the new model, and the switch', receipt !== null && receipt.text.includes('2 thinking blocks written by') && receipt.text.includes('stay out of the requests to') && receipt.text.includes('switched models'), j(receipt))
+  check('…keyed by the owner and the new model\'s family (once per switch)', receipt !== null && receipt.key === 'main|claude-fable-5-1')
+  check('…and never as a drop, never pointing at switching models', receipt !== null && !receipt.text.includes('dropped') && !/switch (the )?model/i.test(receipt.text))
+  check('no foreign thinking ⇒ no receipt', modelSwitchReceipt('main', [history[0], history[1]] as never, 'claude-opus-4-8') === null)
 }
 
 // ============================================================================

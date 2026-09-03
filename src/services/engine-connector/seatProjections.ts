@@ -203,7 +203,13 @@ export interface SessionTailV1 {
    *  into the live phase so the glass speaks the fold's own word instead of
    *  the in-flight thinking default. ADDITIVE (the mixed-version law): an
    *  old writer omits it and the reader treats absence as none. */
-  stateWord?: 'compacting'
+  stateWord?: 'compacting' | 'waiting-on-agents'
+  /** The agent wait's count — present with the 'waiting-on-agents' word:
+   *  the turn's own stream is over and the runner holds the turn open only
+   *  for these background agents (its drain's agent wait); the glass speaks
+   *  the wait and the way out (esc stops them) instead of a thinking phase
+   *  that ended with the stream. ADDITIVE: absent means no wait. */
+  waitingOnAgents?: number
   /** LIVENESS — when the runner last spoke: the wall clock of its last
    *  frame of ANY kind (a stream event — an empty thinking delta and a ping
    *  count —, a tool progress tick, an assistant, user or result frame, a

@@ -450,6 +450,10 @@ export type DaemonRequest =
       sessionId: string
       by: string
       reason?: string
+      /** interrupt: the HARD stop (the second esc) — the interrupt is
+       *  delivered again and the runner is cut if its turn is still open a
+       *  second later; the session survives and revives on its next words. */
+      hard?: boolean
       /** answer-permission: which parked ask is being settled. */
       requestId?: string
       /** answer-permission: allow (with the card's input and offered rules) or deny (with its reason). */
