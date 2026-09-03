@@ -10,6 +10,9 @@ import {
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
+import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { stringWidth } from '../ink/stringWidth.js'
+import { truncateKeepingTail } from '../utils/truncate.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
@@ -80,6 +83,21 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
   return `${word}${clock}${budget}`
 }
 
+/** THE STATE WORDS FITTED TO THE ROW: the row's one truncating segment is
+ *  the state words, and an end cut takes a line's LAST word first — for a
+ *  wait line ("ingesting a 26k-token prompt on Opus 5 — first byte expected
+ *  within 90 s") that word is the budget, the one fact the operator must
+ *  keep. A line past its budget that carries a tail clause (after ' — ')
+ *  is cut in the middle with the clause intact; any other line is left to
+ *  the row's own end cut. `fixedWidth` is everything else on the row (the
+ *  glyph, the title and project segments, the way-back hint). Pure — the
+ *  pins drive it at 100, 110 and 120 columns. */
+export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
+  const budget = Math.max(12, columns - fixedWidth)
+  if (stringWidth(line) <= budget) return line
+  return line.includes(' — ') ? truncateKeepingTail(line, budget) : line
+}
+
 /** The session's identity as the attribution bridge keys on it: the slot's
  *  session and its naming — never the live clocks (a per-second key here
  *  would re-render the whole transcript tree's provider). */
@@ -132,6 +150,7 @@ function SwitchboardAttributionBridge({
  *  chat is the session you started at boot (its screen is unchanged). */
 export function FocusedSessionStatusRow(): React.ReactNode {
   const t = useMercuryTokens()
+  const { columns } = useTerminalSize()
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatStatusKey, getFocusedSeatStatusKey)
   const live = useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatLive, getFocusedSeatLive)
   const c = getFocusedSessionConnector()
@@ -145,12 +164,25 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const stalled = status.stuck
   const line = statusLine(live, status)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
+  const backHint = `${live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}${keyHintLabel('⇧← back')}`
   // The stage-1 tag (L16: "new session · <project> · ready") already ends
   // with the project and the state this row paints after it — the row
   // read "new session · X · ready · X · ready — your words go…" on every
   // blank chat. One owner for those two words: the row's own segments.
   const stageOneTail = ` · ${status.projectLabel} · ready`
   const title = status.title.endsWith(stageOneTail) ? status.title.slice(0, -stageOneTail.length) : status.title
+  // Everything on the row that is not the state words: the glyph and its
+  // space, the title and project segments, the worktree tail, the gap and
+  // the way-back hint with its own spaces — the fitted words keep their
+  // tail clause (a wait's budget) within what is left.
+  const fixedWidth =
+    2 +
+    stringWidth(title) +
+    stringWidth(` · ${status.projectLabel} · `) +
+    (worktree !== null ? stringWidth(` · ${GLYPH.branch} ${worktree}`) : 0) +
+    2 +
+    stringWidth(backHint)
+  const fitted = fitStatusLine(line, columns, fixedWidth)
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {/* The glyph and the way back never shrink; the state words are the
@@ -164,7 +196,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
           {title}
         </Text>
         <Text color={t.textMuted}> · {status.projectLabel} · </Text>
-        <Text color={t.textInstruction}>{line}</Text>
+        <Text color={t.textInstruction}>{fitted}</Text>
         {worktree !== null ? (
           <Text>
             <Text color={t.textMuted}> · </Text>
@@ -182,7 +214,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
                   terminal the state words truncate, the way back never
                   touches them. */}
               {' '}
-              {live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}{keyHintLabel('⇧← back')}{' '}
+              {backHint}{' '}
             </Text>
           )}
         </InteractiveRow>

@@ -172,7 +172,7 @@ const tail = () => readSessionTail(sid, dir) as { stateWord?: string; waitingOnA
 // ── A3 the words ────────────────────────────────────────────────────────────
 console.log('\nA3 the words the status row speaks')
 {
-  const base = { title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }
+  const base = { title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false, wait: null }
   const waiting = { ...IDLE_LIVE, inFlight: true, phase: 'waiting' as const, agentsWaiting: 3 }
   const one = { ...waiting, agentsWaiting: 1 }
   const thinking = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const }

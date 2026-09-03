@@ -935,6 +935,13 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
+      // THE MODEL FIELD IS `model`: a dispatch that spells it `modelKey`
+      // (the record's own field name, an easy slip) refuses typed — the
+      // door read no model and would otherwise admit the registry default
+      // in silence under a name the caller never chose.
+      if (raw.modelKey !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was admitted" })
+      }
       const r = await deps.concourseAdmit({
         workspaceDir,
         ...(isolation !== undefined ? { isolation } : {}),
@@ -1046,6 +1053,11 @@ async function routeControlRequest(
       }
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
+      }
+      // The same field law as the admit door: `modelKey` is refused typed,
+      // never read as nothing.
+      if (raw.modelKey !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was dispatched" })
       }
       const r = await deps.concourseDispatch({
         clientMessageId,
