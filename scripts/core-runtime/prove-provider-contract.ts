@@ -666,7 +666,6 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
 
   const MODEL_NAME_CENSUS = [
     'src/commands/model/model.tsx',
-    'src/components/mercury-ui/screens/TeammateChatsView.tsx',
     'src/services/providers/primaryBackend.ts',
     'src/services/rateLimitMocking.ts',
     'src/utils/effort.ts',
