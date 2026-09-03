@@ -64,6 +64,7 @@ type Send = {
   minTick?: number
   awaitText?: string
   awaitSettleTicks?: number
+  awaitStableTicks?: number
   afterPrevTicks?: number
   requireAwait?: boolean
   mark?: string
@@ -174,8 +175,12 @@ function baseEnv(home: string): Record<string, string> {
 // The face-↵ prelude (the landing rule: a bare boot lands on the Boot face)
 // then the composer gate — strict throughout: a frame that never paints is
 // vshot's own undelivered-sends refusal, never blind typing.
+// The ↵ waits for the face to hold STILL (awaitStableTicks) — on a loaded
+// box the face paints its ready line a beat before its key handler arms,
+// and a ↵ delivered into that beat is swallowed (NEVER-READY, the Boot
+// face still on screen at the budget's end).
 const FACE_THEN_COMPOSER: Send[] = [
-  { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3 },
+  { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
 
 console.log('============================================================')
@@ -202,7 +207,7 @@ for (const cols of [100, 120]) {
     {
       cols,
       rows: 40,
-      total: 200,
+      total: 260,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
@@ -262,7 +267,7 @@ for (const cols of [100, 120]) {
     {
       cols,
       rows: 40,
-      total: 200,
+      total: 260,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
