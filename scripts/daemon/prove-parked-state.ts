@@ -265,7 +265,15 @@ console.log('L4 the idle reaper never retires a parked record')
   killed.length = 0
   const swept = idle.sweepIdleEmptyConcourseSessions(roster, { dir, nowMs: now, thresholdMs: T })
   check('the sweep skips the parked record (parked with no runner is still parked)', !swept.some(r => r.runnerId === 'concourse-w1') && rec('concourse-w1')?.parkedAt !== undefined && rec('concourse-w1')?.stoppedAt === undefined)
-  check('POISON CONTROL: the unparked empty idle twin IS retired', swept.some(r => r.runnerId === 'concourse-w2') && rec('concourse-w2')?.stoppedAt !== undefined)
+  // THE STOP LAW (GATE-TRIAGE 6, 82e7913): the sweep REQUESTS the stop and
+  // the record reads stopped on the runner's exit; the control plays the
+  // exit (a dead pid, the requested stop completed).
+  check('POISON CONTROL: the unparked empty idle twin gets its stop requested (the sweep reports it, the request is stamped)', swept.some(r => r.runnerId === 'concourse-w2') && rec('concourse-w2')?.stopRequestedAt !== undefined)
+  sup.updateConcourseWorkers(workers => {
+    const w = workers['concourse-w2']
+    if (w) w.pid = 999_999
+  }, dir)
+  check("POISON CONTROL: …and reads stopped on the runner's exit", sup.completeRequestedStop('concourse-w2', dir) && rec('concourse-w2')?.stoppedAt !== undefined)
 }
 
 // ── L5: admission — a parked record holds no workspace claim ────────────────
