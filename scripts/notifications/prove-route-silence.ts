@@ -21,9 +21,23 @@ const LAYER_ESC_AT = 10000
 const ESC_AT = 11500
 const WINDOW_FROM = 7600
 
+const HEAL_FENCE_EVERY_MS = 1400
+const healFence = (fromMs: number, toMs: number): string[] => {
+  const out: string[] = []
+  for (let at = fromMs; at < toMs; at += HEAL_FENCE_EVERY_MS) out.push(`${at}:\x1b[I`)
+  return out
+}
+
 const run: ArenaRun = await runArtifactArena({
   turns: [],
-  sends: [`${OPEN_AT}:/bootmenu`, `${SUBMIT_AT}:\r`, `${LAYER_ESC_AT}:\x1b`, `${ESC_AT}:\x1b`, `${ESC_AT + 1500}:\x1b`],
+  sends: [
+    `${OPEN_AT}:/bootmenu`,
+    `${SUBMIT_AT}:\r`,
+    `${LAYER_ESC_AT}:\x1b`,
+    `${ESC_AT}:\x1b`,
+    `${ESC_AT + 1500}:\x1b`,
+    ...healFence(OPEN_AT + 850, ESC_AT + 1500),
+  ],
   seconds: 16,
   cols: 120,
   rows: 36,
@@ -137,6 +151,7 @@ const crun: ArenaRun = await runArtifactArena({
     `${ESC3_AT - 800}:\x1b[B`,
     `${ESC3_AT}:\x1b`,
     `${ESC3_AT + 900}:\x1b`,
+    ...healFence(B_AT + 350, ESC3_AT + 900),
   ],
   seconds: 26,
   cols: 142,
