@@ -34,6 +34,7 @@ import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import inkInstances from '../ink/instances.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
@@ -122,6 +123,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const branchMax = tier.branchMax
   useSessionAccent()
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const deckPresent = !routeSurface && isDeckPaneActive() && !helmActive
   const deckOwnsVitals = deckPresent && cols >= LAYOUT_BREAKPOINTS.cockpitMin
   const usageOwnedElsewhere = !routeSurface && (deckOwnsVitals || helmActive)
@@ -225,7 +227,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     const numberOnly = tier.numberOnlyGauges
     const showSecond = tier.show7dGauge
     const first = usage.windows[0]
-    const second = usage.windows[1]
+    const second =
+      usage.binding !== undefined && first !== undefined && usage.binding.window.key !== first.key
+        ? usage.binding.window
+        : usage.windows[1]
     const limited = usage.limited
     usageNode =
       first !== undefined || limited !== undefined ? (

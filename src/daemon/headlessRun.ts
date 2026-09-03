@@ -88,9 +88,11 @@ export const HEADLESS_PERMISSION_MODES = [
 ] as const
 export type HeadlessPermissionMode = (typeof HEADLESS_PERMISSION_MODES)[number]
 
+export type SeatPermissionMode = HeadlessPermissionMode | 'apollo'
+
 export function getHeadlessPermissionMode(
-  specDefault?: HeadlessPermissionMode,
-): HeadlessPermissionMode {
+  specDefault?: SeatPermissionMode,
+): SeatPermissionMode {
   const fallback = specDefault ?? HEADLESS_PERMISSION_MODE_DEFAULT
   const raw = (flagEnv('MERCURY_DAEMON_PERMISSION_MODE') ?? '').trim()
   if (!raw) return fallback
@@ -105,7 +107,7 @@ export function getHeadlessPermissionMode(
 }
 
 export function headlessPermissionArgv(
-  mode: HeadlessPermissionMode = getHeadlessPermissionMode(),
+  mode: SeatPermissionMode = getHeadlessPermissionMode(),
 ): string[] {
   if (mode === 'default') return []
   if (mode === 'sovereign') return ['--dangerously-skip-permissions']
@@ -173,7 +175,7 @@ export interface StreamJsonChildSpec {
   teamName?: string
   cwd?: string
   extraEnv?: Readonly<Record<string, string>>
-  permissionMode?: HeadlessPermissionMode
+  permissionMode?: SeatPermissionMode
   allowedTools?: readonly string[]
   extraArgv?: readonly string[]
   respawnExtraArgv?: readonly string[]
