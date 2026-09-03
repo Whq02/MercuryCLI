@@ -33,7 +33,8 @@ if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 const KEEP = process.env.MERCURY_UNIFY_KEEP === '1'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetScale } = await import('../lib/captureDriver.ts')
+const PACE = vshotBudgetScale()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -132,6 +133,11 @@ async function runDrive(drive: Drive): Promise<DriveResult> {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
       MERCURY_LIVE_GLYPHS: '0',
+      MERCURY_LIVE_CLOCK: '0',
+      MERCURY_CRITTER_IDLE: '0',
+      MERCURY_CRITTER_GAZE: '0',
+      MERCURY_CRITTER_SLEEP: '0',
+      MERCURY_TERMINAL_TITLE: '0',
       ANTHROPIC_API_KEY: 'fixture-key-000',
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
@@ -385,11 +391,12 @@ for (const [cols, rows] of [
       g('· replying', '/concourse\r', { awaitSettleTicks: 8, mark: 'mid-turn-chat' }),
       g('WORKING', '\t', { awaitSettleTicks: 4, mark: 'board' }),
       { afterPrevTicks: 3, data: '\r' },
+      { afterPrevTicks: 3, data: '\r' },
       g('⇧← back', '', { awaitSettleTicks: 3, mark: 'back' }),
     ],
     ready: 'streaming-word-24',
-    total: 700,
-    turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: 400, settleDelayMs: 800 }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }],
+    total: 260,
+    turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: Math.round(400 * PACE), settleDelayMs: Math.round(800 * PACE) }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }],
     assert: async r => {
       printFrame(`u5 ${cols}x${rows} (settled)`, r.lines)
       const marks = (r.payload.marks as Array<{ label: string; grid: Array<Array<{ c: string }>> }> | undefined) ?? []
@@ -402,27 +409,28 @@ for (const [cols, rows] of [
       console.log(`  [PAINT] u5 ${cols}x${rows}: partial reply text visible mid-turn: ${partialOnScreen ? 'YES' : 'NO (the reply lands whole when the runner settles it)'}`)
       check(`u5 ${cols}x${rows}: the reply streams on screen mid-turn (the live tail paints partial words)`, partialOnScreen)
       check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary WORKING row`, board.includes('WORKING'), board === '' ? 'no mark' : '')
-      check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes('⇧← back') && back.includes('concourse-w1'))
+      check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes('⇧← back') && back.includes('stream a long reply please'))
       const backMidTurn = back.includes('· replying')
       console.log(`  [PAINT] u5 ${cols}x${rows}: the hopped-into chat caught the reply ${backMidTurn ? 'MID-TURN (partial words + the live status row)' : 'SETTLED (the hop landed after the settle)'}`)
       check(`u5 ${cols}x${rows}: the hopped-into chat paints the reply's words (the reveal rides the hop)`, /streaming-word-\d\d/.test(back))
       check(`u5 ${cols}x${rows}: the reply settled whole in the chat after the hop`, r.text.includes('streaming-word-24') && r.text.includes('streaming-word-01'))
-      const promptCount = (frame: string): number => (frame.match(/stream a long reply please/g) ?? []).length
+      const promptCount = (frame: string): number => (frame.match(/❯ stream a long reply please/g) ?? []).length
       check(`u5 ${cols}x${rows}: no duplicated rows (the words appear at most once on every frame)`, promptCount(r.text) <= 1 && promptCount(back) <= 1 && promptCount(midTurn) <= 1, `final ${promptCount(r.text)} · back ${promptCount(back)} · mid-turn ${promptCount(midTurn)}`)
       await reapHome(r.home)
     },
   })
 }
 
-const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Doctor / Health Check', 'Session Concourse', 'Resume Session']
-const KEY_MAP = '⇧→ concourse'
-function assertFace(id: string, r: DriveResult): void {
+const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Doctor / Health Check', 'Session Concourse', 'Sessions · Projects']
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const KEY_MAP = keyHintLabel('⇧→ concourse')
+function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {}): void {
   for (const row of FACE_ROWS) check(`${id}: the face carries '${row}'`, r.text.includes(row))
   check(`${id}: the ready line keeps its canon bytes`, r.text.includes(READY_LINE))
   const last = r.lines[r.lines.length - 1] ?? ''
   check(`${id}: the dim key-map row sits on the face's LAST row and names the concourse alone (the strip's one present move from a fresh face)`, last.includes(KEY_MAP) && !last.includes('chat'), last.trim().slice(0, 60))
-  check(`${id}: the key-map row appears exactly once, outside the card`, (r.text.match(/⇧→ concourse/g) ?? []).length === 1)
-  check(`${id}: no session was created by landing on the face`, Object.keys(liveRecords(r.home)).length === 0)
+  check(`${id}: the key-map row appears exactly once, outside the card`, r.text.split(KEY_MAP).length - 1 === 1)
+  if (opts.births !== true) check(`${id}: no session was created by landing on the face (a warm runner's record stands claimless)`, Object.values(liveRecords(r.home)).filter(x => x.warm !== true).length === 0, JSON.stringify(Object.values(liveRecords(r.home)).map(x => ({ id: x.runnerId, warm: x.warm, sid: x.sessionId }))))
 }
 for (const [cols, rows] of [
   [120, 42],
@@ -440,7 +448,7 @@ for (const [cols, rows] of [
       const face = marks.find(m => m.label === 'face')
       const faceLines = (face?.grid ?? []).map(row => row.map(c => c.c).join(''))
       printFrame(`u6 ${cols}x${rows} (the face)`, faceLines)
-      assertFace(`u6 ${cols}x${rows}`, { ...r, text: faceLines.join('\n'), lines: faceLines })
+      assertFace(`u6 ${cols}x${rows}`, { ...r, text: faceLines.join('\n'), lines: faceLines }, { births: true })
       check(`u6 ${cols}x${rows}: ↵ on New Session births the session and enters it (composer ready, ONE record — the poison is the ghost's zero)`, r.text.includes('Type a prompt') && Object.keys(liveRecords(r.home)).length === 1)
       await reapHome(r.home)
     },
@@ -495,7 +503,7 @@ function processCensus(rigPid = 0): { screens: number[]; daemons: number[]; runn
         continue
       }
       if (!cmd.includes(BIN_UNDER_TEST)) continue
-      if (cmd.includes(` daemon ${CWD}`)) {
+      if (cmd.includes(` daemon run ${CWD}`) || cmd.includes(` daemon ${CWD}`)) {
         out.daemons.push(pid)
         continue
       }
@@ -542,7 +550,7 @@ drives.push({
     g('· replying', '', { awaitSettleTicks: 4, mark: 'before-close', signal: 'SIGHUP' }),
   ],
   total: 120,
-  turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: 400, settleDelayMs: 800 }, { kind: 'text', text: 'Spare.' }],
+  turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: Math.round(400 * PACE), settleDelayMs: Math.round(800 * PACE) }, { kind: 'text', text: 'Spare.' }],
   assert: async r => {
     const before = (r.payload.marks as Array<{ label: string }> | undefined)?.some(m => m.label === 'before-close') === true
     check('u9: the session was running when the terminal closed', before)
