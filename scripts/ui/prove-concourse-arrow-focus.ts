@@ -264,7 +264,7 @@ const scratches: string[] = []
   const scratch = newScratch('zero', false)
   scratches.push(scratch)
   capture('zero', scratch, [
-    { ...settle, data: DOWN, mark: 'before' },
+    { ...settle, awaitText: 'launch two sessions', data: DOWN, mark: 'before' },
     { afterPrevTicks: 3, data: '', mark: 'after' },
   ], 60)
   const before = markOf('zero', 'before')
