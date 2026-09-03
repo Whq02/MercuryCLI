@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { existsSync, readFileSync } from 'node:fs'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { join } from 'node:path'
 import {
   type ArenaRun,
@@ -109,7 +110,7 @@ console.log('── composer type-through (shipped artifact) ──')
       },
       { kind: 'text', text: 'Done.' },
     ],
-    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', '12000:w', '12600:atch'],
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', '12000:w', `${12000 + 600 / vshotBudgetScale()}:atch`],
     seconds: 20,
     probe: true,
     keep: true,
