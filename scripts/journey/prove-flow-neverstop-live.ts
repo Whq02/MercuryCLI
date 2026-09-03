@@ -100,8 +100,8 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol', '--permission-mode', 'flow'],
   cwd: FIXTURE_CWD,
   sends: [
-    { requireAwait: true, minTick: 10, awaitText: 'Flow is the default permission mode', data: '\r' },
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, minTick: 10, awaitText: 'Flow is the default permission mode', data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'read both docs then summarize\r' },
   ],
   readyText: [FINAL_TEXT],
