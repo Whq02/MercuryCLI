@@ -62,6 +62,7 @@ export const DEFAULT_MASKS = [
   'row:\\S+ ⌥\\S+',
   'row:│ \\S+ │ ⤳',
   '⌥\\S+ *',
+  'row: · \\S+ · \\S+ +⇧← back',
   'row:gate [✓◓✕·]',
 ]
 
@@ -92,6 +93,33 @@ export function neutralizeGrid(grid: StoredGrid, masks: string[]): {
     styles.push(masked === grid.text[y] ? grid.styles[y] : [])
   }
   return { text, styles }
+}
+
+export function canonicalizeCheckoutRows(
+  grid: StoredGrid,
+  checkout: { basename: string; branch: string },
+): StoredGrid {
+  const swaps: Array<[string, string]> = [
+    [`${checkout.basename} ⌥${checkout.branch}*`, 'mercury ⌥main'],
+    [`${checkout.basename} ⌥${checkout.branch}`, 'mercury ⌥main'],
+    [`│ ${checkout.basename} │ ⤳`, '│ mercury │ ⤳'],
+    [` · ${checkout.basename} · `, ' · mercury · '],
+  ]
+  const restore = (row: string, delta: number): string => {
+    const runs = [...row.matchAll(/ {2,}/g)]
+    const last = runs[runs.length - 1]
+    if (!last || last.index === undefined) return row + ' '.repeat(delta)
+    return row.slice(0, last.index) + ' '.repeat(delta) + row.slice(last.index)
+  }
+  const text = grid.text.map(row => {
+    for (const [from, to] of swaps) {
+      if (!row.includes(from)) continue
+      if (to.length > from.length) return row
+      return restore(row.replace(from, to), from.length - to.length)
+    }
+    return row
+  })
+  return { ...grid, text }
 }
 
 export function compactGrid(raw: RawGrid): StoredGrid {
