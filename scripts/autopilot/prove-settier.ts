@@ -120,7 +120,7 @@ section('§5 pool + wiring (structural)')
 const toolsSrc = src('tools.ts')
 check('registry spread flag-gated (live)', toolsSrc.includes('...(isAutopilotEnabled() ? [SetTierTool] : [])'))
 const poolSrc = src('utils', 'toolPool.ts')
-check("toolPool narrows SetTier when mode !== 'autopilot'", poolSrc.includes("mode !== 'autopilot'") && poolSrc.includes('SET_TIER_TOOL_NAME'))
+check('toolPool keeps SetTier in the pool in every mode (the tool refuses at call time)', poolSrc.includes('The autopilot tier control stays in the pool in every') && !poolSrc.includes("mode !== 'autopilot'"))
 const toolSrc = src('tools', 'SetTierTool', 'SetTierTool.ts')
 check('isEnabled = flag ∧ interactive ', toolSrc.includes('isAutopilotEnabled()') && toolSrc.includes('!getIsNonInteractiveSession()'))
 check('validateInput rejects subagents', toolSrc.includes('if (context.agentId)'))
@@ -138,7 +138,8 @@ check("query.ts reverts in the finally (the ultrathink lifecycle)", querySrc.inc
 const frameSrc = src('components', 'MercuryFrame.tsx')
 check('MercuryFrame modeBand renders the autopilot band + live tier', frameSrc.includes("permMode === 'autopilot'") && frameSrc.includes('describeTurnOverride(undefined)'))
 const promptsSrc = src('constants', 'prompts.ts')
-check('modeSections composes the autopilot appendix', promptsSrc.includes('getAutopilotModeSections(permissionMode)'))
+const lifecyclesSrc = src('utils', 'attachments', 'modeLifecycles.ts')
+check('the autopilot appendix rides a persisted mode_pack row, never the top-level prompt', lifecyclesSrc.includes("wanted === 'apollo' ? getApolloModeSections('apollo') : getAutopilotModeSections('autopilot')") && lifecyclesSrc.includes("out.push({ type: 'mode_pack', mode: wanted, text: sections.join('\\n\\n') })") && !promptsSrc.includes('getAutopilotModeSections(permissionMode)'))
 check(
   'every prompt-build caller threads the LIVE toolPermissionContext.mode (live turn, compact, background)',
   /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('QueryEngine.ts')) &&
