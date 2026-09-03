@@ -337,7 +337,7 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
     let driverOut = ''
     child.stdout.on('data', d => (driverOut += String(d)))
     child.stderr.on('data', d => (driverOut += String(d)))
-    const killer = setTimeout(() => child.kill('SIGKILL'), 200_000)
+    const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(200_000))
     const status = await new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
     clearTimeout(killer)
     await fixture.close()

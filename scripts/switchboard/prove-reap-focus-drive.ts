@@ -107,7 +107,9 @@ function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40)
   }
   return lines
 }
-const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes('⇧← back'))
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const TAG = keyHintLabel('⇧← back')
+const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
 const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
 const isFace = (lines: string[]): boolean => has(lines, 'New Session') && has(lines, '↵ start')
@@ -200,7 +202,7 @@ try {
     'reap-survivor',
     [
       ...enterSelected(firstTitle),
-      { atTick: 999, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT },
+      { atTick: 999, awaitText: TAG, minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT },
       ...REAP_CHORDS,
       { afterPrevTicks: 25, data: SHIFT_RIGHT },
     ],
@@ -218,7 +220,7 @@ try {
     'reap-last',
     [
       ...enterSelected(otherTitle),
-      { atTick: 999, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT },
+      { atTick: 999, awaitText: TAG, minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT },
       ...REAP_CHORDS,
       { afterPrevTicks: 25, data: SHIFT_RIGHT, mark: 'landing' },
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'after-right' },
@@ -236,7 +238,7 @@ try {
 
   console.log('R3 the honesty leg — ⇧← from the board')
   const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 60)
-  const r3Face = has(r3, '↵ start') ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, '⇧← back') ? 'A SESSION TAG BAR' : 'another surface'
+  const r3Face = has(r3, '↵ start') ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
   console.log(`  [INFO] ⇧← from the board lands on: ${r3Face} — first rows: ${r3.filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')}`)
   check('R3 ⇧← from the board never opens a dead session', tagLine(r3) === undefined)
   check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', has(r3, '↵ start') && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '))
