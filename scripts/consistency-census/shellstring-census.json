@@ -707,6 +707,22 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/interaction/prove-question-card-journeys.ts",
+      "line": 53,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/interaction/prove-question-card-journeys.ts",
+      "line": 287,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/interaction/prove-rewind-escape-journeys.ts",
       "line": 155,
       "mechanism": "hardcoded-interpreter",
@@ -779,6 +795,14 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/journey/prove-interrupt-after-switch.ts",
+      "line": 207,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/journey/prove-mission-continue-live.ts",
       "line": 179,
       "mechanism": "hardcoded-interpreter",
@@ -812,7 +836,7 @@
     },
     {
       "file": "scripts/journey/prove-switch-pickup-live.ts",
-      "line": 188,
+      "line": 196,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1908,9 +1932,17 @@
     },
     {
       "file": "scripts/ui/jobcontrolHost.ts",
-      "line": 80,
+      "line": 87,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'jobcontrol-host.py'), cfgPath, reportPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/jobcontrolReclaimDriver.ts",
+      "line": 55,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const thief = spawn('/usr/bin/python3', [thiefPath], { stdio: 'ignore' })",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },

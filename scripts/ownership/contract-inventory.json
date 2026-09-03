@@ -556,7 +556,6 @@
     "type:RecompactionInfo"
    ],
    "src/services/compact/autoCompact.ts": [
-    "AUTOCOMPACT_BUFFER_TOKENS",
     "AUTOCOMPACT_THRASH_MESSAGE",
     "ERROR_THRESHOLD_BUFFER_TOKENS",
     "MANUAL_COMPACT_BUFFER_TOKENS",
