@@ -271,7 +271,11 @@ if (sendRecs.length === sends.length) {
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
   const [chatFrame, refusedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
-  check('the keyless birth ENTERED the chat: the cockpit painted with the composer’s gate naming the logins door (no refusal naming a family)', /\? for shortcuts/.test(t(chatFrame)) && /\/logins/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
+  // A keyless home births the chat OPEN: the neutral default (a keyless
+  // home rides the free row) means no composer gate and no door to name
+  // until a send needs a credential — the composer invites a prompt, and no
+  // refusal names a family.
+  check('the keyless birth ENTERED the chat: the cockpit painted with the composer open (the keyless home rides the neutral default; no gate, no refusal naming a family)', /\? for shortcuts/.test(t(chatFrame)) && /Type a prompt/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)) && !/\/logins/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
   check('the second ↵ was refused after the flip and the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && /↑↓ choose|New Session/.test(t(refusedFrame)), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
   check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? '')
   // THE MILESTONES (each kind recorded once per process): the chat route
