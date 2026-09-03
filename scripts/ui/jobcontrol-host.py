@@ -239,8 +239,19 @@ def run_step(step):
             end_reason = "no-bundle-pid"
             log("signal %s: the bundle's pid was not found" % step["signal"])
             return False
-        log("signal %s -> pid %d" % (step["signal"], me["pid"]))
-        os.kill(me["pid"], getattr(signal, step["signal"]))
+        target = me
+        if step.get("match"):
+            target = next((r for r in descendants(table, me["pid"])
+                           if r["pid"] != me["pid"] and step["match"] in r["cmd"]), None)
+            if target is None:
+                end_reason = "no-child:%s" % step["match"]
+                log("signal %s: no descendant of the bundle matches %r" % (step["signal"], step["match"]))
+                return False
+        log("signal %s -> pid %d%s" % (step["signal"], target["pid"],
+                                       " (child %r)" % step["match"] if step.get("match") else ""))
+        os.kill(target["pid"], getattr(signal, step["signal"]))
+        marks.append({"label": "signal:%s" % step.get("label", step["signal"]), "ms": ms(),
+                      "teeOffset": len(raw), "grid": text()})
     elif "sleep" in step:
         sleep_pumping(float(step["sleep"]))
     elif "mark" in step:

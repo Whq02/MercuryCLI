@@ -654,6 +654,7 @@ export function makeConcourseAdmitHandler(
     const modelKey = admission.entry.modelId
     const modelDisplayName = admission.entry.displayName
     const keyless = admission.keyless === true
+    if (keyless && admission.note !== undefined && retainedNote === undefined) retainedNote = admission.note
     let stat
     try {
       stat = statSync(req.workspaceDir)

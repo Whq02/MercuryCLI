@@ -6,6 +6,7 @@ import { getCwd } from './cwd.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { reclaimTerminalAfterChild } from './terminalHandback.js'
 
 const SESSION_NAME = 'panel'
 const DEFAULT_SHELL = '/bin/bash'
@@ -107,6 +108,7 @@ class TerminalPanel {
         })
       }
     } finally {
+      reclaimTerminalAfterChild('terminal panel')
       ink.exitAlternateScreen()
     }
   }

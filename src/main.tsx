@@ -64,7 +64,7 @@ import { recordInvocation } from './substrate/invocationRecord.js'
 import { recordLaunchMilestone } from './substrate/launchMilestones.js'
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
 import { getCwd } from './utils/cwd.js'
-import { applyBootMenuEnv } from './substrate/startupMenu.js'
+import { applyBootMenuEnv, recordBootAdmissionSnapshot, resolveEffectiveSettingsSnapshot } from './substrate/startupMenu.js'
 import { setAssistantModeActive } from './tasks/LocalShellTask/LocalShellTask.js'
 import { getTools } from './tools.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
@@ -307,6 +307,7 @@ export async function main(): Promise<void> {
   process.argv = process.argv.map(arg => BYPASS_ALIASES[arg] ?? arg)
 
   applyBootMenuEnv();
+  recordBootAdmissionSnapshot(resolveEffectiveSettingsSnapshot({ sessionId: getSessionId() }));
   ensurePrivateConfigHome();
   collectLauncherNotes();
 
