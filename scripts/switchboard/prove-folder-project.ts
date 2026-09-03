@@ -149,7 +149,9 @@ try {
     check('F2 no `.mercury/` appeared in the folder', !existsSync(join(FOO, '.mercury')))
     check('F2 the list is empty — a folder with no chat is not a listed project (it is still the current one, by name)', facts.workedInProjects().length === 0)
     const born = read('src/services/switchboard/bornSession.ts')
-    const refusal = born.indexOf("reason: String(reply.error ?? 'the session could not start')")
+    // 6df55a2: the operator's own door speaks the daemon's refusal — the
+    // composer wraps the reply's error.
+    const refusal = born.indexOf("reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start'))")
     const stamp = born.indexOf('catalogFirstChat(req.workspaceDir, sessionId)')
     const hop = born.indexOf('await hopIntoBoardSession(sessionId')
     check('F2 the birth door stamps AFTER the admission is accepted and before the hop (never on a refusal)', refusal > 0 && stamp > refusal && hop > stamp)

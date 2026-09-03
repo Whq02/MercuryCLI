@@ -181,7 +181,7 @@ section('§2 — a keyless home: no neutral default, no roster, the two-door sen
   check('the daemon admits the unnamed SESSION launch keyless (never a refusal naming a family)', keylessAdmit.ok && keylessAdmit.keyless === true, text(keylessAdmit))
   check('a keyless runner boots with NO --model', read('src/daemon/headlessRun.ts').includes("...(spec.keyless ? [] : ['--model', model]),"))
   const supervisor = read('src/daemon/concourseSupervisor.ts')
-  check('the admission stamps the record keyless, skips the warm claim, and a resume re-validates it unnamed', supervisor.includes('const keyless = validated.keyless === true') && supervisor.includes('!keyless &&') && supervisor.includes('r.keyless !== true'))
+  check('the admission stamps the record keyless, skips the warm claim, and a resume re-validates it unnamed', supervisor.includes('const keyless = admission.keyless === true') && supervisor.includes('!keyless &&') && supervisor.includes('r.keyless !== true'))
   check('a keyless home warms nothing (no runner pinned to the placeholder)', read('src/daemon/warmRunner.ts').includes('validated.keyless === true'))
 }
 
