@@ -163,8 +163,8 @@ export function FleetMonitor({ onClose }: { onClose: () => void }): React.ReactN
       <CommandCenter view="fleet" onClose={onClose} captureInput={false} footer="r refresh">
         <Box marginTop={1}>
           <EmptyState
-            title={snap.reason ?? 'not in a team'}
-            hint="/fleet is the command-center for a swarm. Start or join a team first."
+            title={snap.reason ?? 'not in an agent group'}
+            hint="/fleet follows a shared agent group; this session's own sub-agents are on /teammates."
           />
         </Box>
       </CommandCenter>

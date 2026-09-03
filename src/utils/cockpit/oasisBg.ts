@@ -3,7 +3,7 @@ import { groundFamilyFor, NIGHT } from '../../components/mercuryPalette.js'
 import { launcherHeldAtBoot } from '../../ink/launcherAltHold.js'
 import { getGlobalConfig } from '../config.js'
 import { isDarkThemeFamily } from '../mercuryTokens.js'
-import { resolveThemeSetting } from '../systemTheme.js'
+import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName } from '../theme.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -11,7 +11,7 @@ function concreteTheme(): ThemeName {
   try {
     return resolveThemeSetting(getGlobalConfig().theme)
   } catch {
-    return 'dark'
+    return DEFAULT_THEME_SETTING
   }
 }
 
@@ -26,7 +26,7 @@ export function oasisBgEnabled(
   return true
 }
 
-export function oasisBgEnter(theme: ThemeName = 'dark'): string {
+export function oasisBgEnter(theme: ThemeName = DEFAULT_THEME_SETTING): string {
   return `\x1b]11;${groundFamilyFor(theme).NIGHT}\x07`
 }
 

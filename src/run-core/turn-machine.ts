@@ -10,19 +10,25 @@ import {
 import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
 import {
-  describeInputTransformations,
+  classifyThinkingDrops,
+  describeThinkingDrops,
   inputTransformationsOf,
+  modelSwitchReceipt,
+  prefixMarkOf,
+  recordThinkingDropLedger,
 } from '../services/providers/anthropic/thinkingBinding.js'
 import { logForDebugging } from '../utils/debug.js'
 
-const bindingDropsNoticed = new Set<string>()
-const BINDING_DROPS_NOTICED_CAP = 64
-function rememberBindingDrop(id: string): void {
-  bindingDropsNoticed.add(id)
-  while (bindingDropsNoticed.size > BINDING_DROPS_NOTICED_CAP) {
-    const oldest = bindingDropsNoticed.values().next().value
+const switchReceipts = new Set<string>()
+
+const responsesClassified = new Set<string>()
+const RESPONSES_CLASSIFIED_CAP = 64
+function rememberClassifiedResponse(id: string): void {
+  responsesClassified.add(id)
+  while (responsesClassified.size > RESPONSES_CLASSIFIED_CAP) {
+    const oldest = responsesClassified.values().next().value
     if (oldest === undefined) break
-    bindingDropsNoticed.delete(oldest)
+    responsesClassified.delete(oldest)
   }
 }
 import {
@@ -477,6 +483,18 @@ async function* streamModel(
           effort: effortLabel,
         })
       }
+      {
+        const receipt = modelSwitchReceipt(
+          String(ownerFromToolUseContext(toolUseContext)),
+          iter.messagesForQuery,
+          iter.currentModel,
+        )
+        if (receipt !== null && !switchReceipts.has(receipt.key)) {
+          switchReceipts.add(receipt.key)
+          logForDebugging(`preserved thinking: ${receipt.text}`)
+          yield emit({ kind: 'notice', message: createSystemMessage(receipt.text, 'suggestion') })
+        }
+      }
       try {
         let streamingFallbackOccured = false
         if (pulseMain) pulseMark('model_call_stream_start')
@@ -547,14 +565,20 @@ async function* streamModel(
                 (overflowSignalOf(message) !== null && overflowLadderArmed(run.querySource)),
             })
             iter.assistantMessages.push(message)
-            const dropNotice = describeInputTransformations(inputTransformationsOf(message.message))
-            if (dropNotice !== null && !bindingDropsNoticed.has(message.message.id)) {
-              rememberBindingDrop(message.message.id)
-              logForDebugging(
-                `preserved thinking: ${JSON.stringify(inputTransformationsOf(message.message))}`,
-                { level: 'warn' },
+            if (!responsesClassified.has(message.message.id)) {
+              rememberClassifiedResponse(message.message.id)
+              const drops = inputTransformationsOf(message.message)
+              const outcome = classifyThinkingDrops(
+                String(ownerFromToolUseContext(toolUseContext)),
+                drops,
+                prefixMarkOf(iter.messagesForQuery, iter.currentModel),
               )
-              yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+              const dropNotice = describeThinkingDrops(drops, outcome)
+              if (dropNotice !== null) {
+                recordThinkingDropLedger(outcome, iter.currentModel)
+                logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
+                yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+              }
             }
             if (callId === `${iter.turnId}.c1`) {
               const u = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage

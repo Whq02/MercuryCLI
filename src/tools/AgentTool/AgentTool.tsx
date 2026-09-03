@@ -764,7 +764,7 @@ export const AgentTool = buildTool({
         prompt: input.prompt,
         setAppState: rootSetAppState,
         selectedAgent: agentDef,
-        model: model ?? agentDef?.model,
+        model: plan.model,
         toolUseId: context.toolUseId,
       })
 

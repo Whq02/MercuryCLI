@@ -10,6 +10,8 @@ use cpal::Sample;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 
+pub mod tty;
+
 const TARGET_RATE: u32 = 16_000;
 
 struct Take {
