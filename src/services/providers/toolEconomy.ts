@@ -83,6 +83,10 @@ interface RosterLatch {
   enabled: boolean
   /** The tool names the roster carried when the latch was taken, in order. */
   names: readonly string[]
+  /** The tools themselves: a tool the pool later drops (a mode's filter, a
+   *  toggle, a project file gone) still rides the frozen array from here —
+   *  its call refuses at the permission engine; the array never shrinks. */
+  tools: readonly Tool[]
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
@@ -200,20 +204,21 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   if (latchKey !== null && latched === undefined) {
-    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name) })
+    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name), tools: [...tools] })
   }
 
   // The order the array was first sent in, then any joiner at the END —
-  // never a reorder. A joiner rides only when it is deferrable under a
-  // deferring latch (an unreferenced deferred tool is not part of the
-  // prefix); any other joiner is held until the next compaction or /clear.
+  // never a reorder, never a shrink: a latched tool the pool no longer
+  // carries still rides (its call refuses at the permission engine). A
+  // joiner rides only when it is deferrable under a deferring latch (an
+  // unreferenced deferred tool is not part of the prefix); any other joiner
+  // is held until the next compaction or /clear.
   const byName = new Map(tools.map(t => [t.name, t] as const))
   const ordered: Tool[] = []
   const held: string[] = []
   if (latched !== undefined) {
-    for (const name of latched.names) {
-      const tool = byName.get(name)
-      if (tool !== undefined) ordered.push(tool)
+    for (const latchedTool of latched.tools) {
+      ordered.push(byName.get(latchedTool.name) ?? latchedTool)
     }
     for (const tool of tools) {
       if (latched.names.includes(tool.name)) continue

@@ -210,13 +210,16 @@ section('§2 the words')
 
   const two = [DROP('messages.1.content.0'), DROP('messages.3.content.0')]
   const recurrent = describeThinkingDrops(two, classifyThinkingDrops('w', two, mark())) ?? ''
-  check('consecutive unlawful drops name Mercury and the run', recurrent.includes('Mercury rewrote already-sent history before messages.1.content.0 on 2 consecutive requests'), recurrent)
+  check('consecutive unlawful drops name Mercury, the earlier rewrite and the cascade until compaction', recurrent.includes('Mercury rewrote already-sent history before messages.1.content.0 at an earlier request') && recurrent.includes('keeps dropping on each request until the conversation compacts') && recurrent.includes('This row paints once'), recurrent)
   check('…name the block class (the first exchange)', recurrent.includes('the first exchange changed: the top-level system prompt, the tools array or the first user turn'), recurrent)
   check('…point at the doctor row and the bug-report road', recurrent.includes('mercury doctor') && recurrent.includes('"Preserved thinking" row') && recurrent.includes('https://github.com/example/mercury/issues'), recurrent)
   check('…and never at switching models', !/switch(ing)? (the )?model/i.test(recurrent) && !recurrent.includes('/model'), recurrent)
   check('…the plural counts this response\'s blocks', recurrent.includes('dropped 2 thinking blocks again'), recurrent)
 
-  const deep = describeThinkingDrops([DROP('messages.7.content.0')], classifyThinkingDrops('w', [DROP('messages.7.content.0')], mark())) ?? ''
+  // A fresh conversation (the defect arm paints once per conversation, and
+  // 'w' has painted): its second unlawful drop names the earlier turn class.
+  classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
+  const deep = describeThinkingDrops([DROP('messages.7.content.0')], classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())) ?? ''
   check('a later path names the earlier turn class', deep.includes('a turn before messages.7 changed, or the system prompt or the tools array'), deep)
 
   resetThinkingDropStates()
