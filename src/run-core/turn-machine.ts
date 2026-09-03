@@ -700,6 +700,10 @@ async function* streamModel(
             onStreamingFallback: () => {
               streamingFallbackOccured = true
             },
+            // The request wait (the first byte outstanding, a reissue on
+            // its way) rides the runner's status frame, so a hosting seat
+            // speaks it on the status row with the budget that fires.
+            onWait: wait => toolUseContext.setSDKStatus?.({ wait }),
             querySource: run.querySource,
             agents: toolUseContext.options.agentDefinitions.activeAgents,
             allowedAgentTypes:

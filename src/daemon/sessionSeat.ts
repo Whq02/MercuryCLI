@@ -45,6 +45,7 @@ import {
   type SessionFactsV1,
   type SessionProgressEntryV1,
 } from '../services/engine-connector/seatProjections.js'
+import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, updateConcourseWorkers, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
@@ -124,6 +125,11 @@ interface SeatState {
   /** The agent wait's count behind the 'waiting-on-agents' word
    *  (SessionTailV1.waitingOnAgents); 0 with any other word. */
   waitingOnAgents: number
+  /** The runner's request wait (SessionTailV1.wait) — set by the child's
+   *  status frame `{ wait: … }`, cleared by `{ wait: null }`, the turn's
+   *  result and a respawn. Its own field: the fold's word and the agent
+   *  wait are other phases and never clobber it. */
+  wait: RequestWaitV1 | null
   /** The running tools' latest ephemeral lines (LIVEPAINT), keyed by the
    *  PARENT tool-use id, and the publish throttle twin of the tail's. */
   progress: Map<string, SessionProgressEntryV1>
@@ -158,7 +164,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -185,6 +191,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
         ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
+        ...(seat.wait !== null ? { wait: seat.wait } : {}),
         ...(seat.lastEventAtMs !== null ? { lastEventAtMs: seat.lastEventAtMs } : {}),
         ...(seat.streamBlock !== null ? { streamBlock: seat.streamBlock } : {}),
         ...(seat.blockSinceMs !== null ? { blockSinceMs: seat.blockSinceMs } : {}),
@@ -859,6 +866,19 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       if (frame.type === 'system' && frame.subtype === 'status') {
         const seat = seatOf(short)
         if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
+        // THE REQUEST WAIT rides its own key ({ wait: … } / { wait: null })
+        // and touches no other word: the first byte outstanding under its
+        // budget, or a reissue on its way — the status row's promise.
+        if (frame.status !== null && typeof frame.status === 'object' && 'wait' in (frame.status as object)) {
+          const raw = (frame.status as { wait?: unknown }).wait
+          const next = decodeRequestWait(raw)
+          noteSeatEvent(seat, dir)
+          if (JSON.stringify(seat.wait) !== JSON.stringify(next)) {
+            seat.wait = next
+            publishTailNow(seat, dir)
+          }
+          return
+        }
         // The runner's two state words: the fold's 'compacting', and the
         // drain's agent wait ({ waitingOnAgents: n } — the turn's stream is
         // over, only its background agents hold the turn open); null
@@ -946,6 +966,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.tailMessageId = null
       seat.stateWord = null
       seat.waitingOnAgents = 0
+      seat.wait = null
       // LIVENESS: the result is the runner's last word of the turn; no
       // block stands past it. The stamp itself stays (the connector reads
       // liveness only while a turn is in flight).
@@ -990,9 +1011,10 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   // (a child dead mid-fold must not leak 'compacting' into its next life).
   seat.turnChars = 0
   seat.tailMessageId = null
-  const hadWord = seat.stateWord !== null
+  const hadWord = seat.stateWord !== null || seat.wait !== null
   seat.stateWord = null
   seat.waitingOnAgents = 0
+  seat.wait = null
   // LIVENESS: the dead child's clock and block are its own; the new child
   // starts unspoken (null — the row claims nothing until it speaks).
   const hadLiveness = seat.lastEventAtMs !== null || seat.streamBlock !== null

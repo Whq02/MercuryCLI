@@ -74,16 +74,21 @@ function phaseParts(
       // The SERVING model outranks the requested one on the line (the
       // opt-in refusal fallback is visible, never a silent substitute).
       const who = detail.servedBy ? `${detail.servedBy} (fallback)` : detail.model
+      // THE WAIT'S OWN WORDS head the line while the first byte is
+      // outstanding (or a reissue is on its way): what is being waited on
+      // and the budget that fires — never a silent "waiting" over a slow
+      // uncached ingest. They shed first when the row is narrow.
+      const waitHeads = detail.wait ? [verb ? `${verb} · ${detail.wait}` : detail.wait] : []
       if (verb) {
         return {
           heads: who
-            ? [`${verb} · waiting for ${who}`, `${verb} · waiting`, verb]
-            : [`${verb} · waiting`, verb],
+            ? [...waitHeads, `${verb} · waiting for ${who}`, `${verb} · waiting`, verb]
+            : [...waitHeads, `${verb} · waiting`, verb],
           extras: detail.effort ? [detail.effort] : [],
         }
       }
       return {
-        heads: who ? [`Waiting for ${who}`, 'Waiting'] : ['Waiting'],
+        heads: who ? [...waitHeads, `Waiting for ${who}`, 'Waiting'] : [...waitHeads, 'Waiting'],
         extras: detail.effort ? [detail.effort] : [],
       }
     }

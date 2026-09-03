@@ -9,6 +9,7 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js'
+import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
@@ -55,6 +56,15 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
   if (s.hardStopping) return 'stopping — the runner is cut if the turn is still open in a second'
   if (s.interrupting) return 'interrupting — the request is torn down · esc again forces a stop'
   if (!live.inFlight) return 'ready'
+  // THE REQUEST WAIT speaks for itself: what the runner waits on and the
+  // budget that fires — the first byte of a cold ingest, a reissue after a
+  // refusal. Past its budget the words say the watchdog is late (the lane's
+  // reissue or abort is due), never a silent "thinking".
+  if (s.wait !== null) {
+    const waited = s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
+    const late = s.wait.kind === 'first-byte' && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now (esc stops)' : ''
+    return `${requestWaitLine(s.wait)}${waited}${late}`
+  }
   if (live.phase === 'waiting') {
     // The crew owner spells the wait; the way out is this row's own word.
     return `${crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'} · esc stops them`
@@ -88,7 +98,7 @@ function getFocusedSeatStatusKey(): string {
   if (!hasSeatLive(c)) return ''
   const live = c.live()
   const s = c.status()
-  return `${getFocusedSeatIdentityKey()}|${s.interrupting ? 1 : 0}|${s.hardStopping ? 1 : 0}|${live.inFlight ? 1 : 0}|${s.stuck ? 1 : 0}|${statusLine(live, s)}`
+  return `${getFocusedSeatIdentityKey()}|${s.interrupting ? 1 : 0}|${s.hardStopping ? 1 : 0}|${live.inFlight ? 1 : 0}|${s.stuck ? 1 : 0}|${s.wait?.kind ?? ''}|${statusLine(live, s)}`
 }
 
 /** Coordinator-relayed messages wear their [Coordinator] plate in the chat
