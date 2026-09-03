@@ -1,6 +1,8 @@
 
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
+import { getApolloModeSections } from '../../prompt/apolloMode.js'
+import { getAutopilotModeSections } from '../autopilot/autopilotPrompt.js'
 import {
   getIsNonInteractiveSession,
   getLastEmittedDate,
@@ -426,4 +428,34 @@ export function getDeepthinkEffortAttachment(
     queuedDeepthinkRequested(queuedCommands ?? [], hasDeepthinkKeyword)
   if (!keywordPresent) return []
   return [{ type: 'deepthink_effort' }]
+}
+
+
+function latestModePack(messages: readonly Message[]): 'apollo' | 'autopilot' | null {
+  let current: 'apollo' | 'autopilot' | null = null
+  for (const message of messages) {
+    if (message.type !== 'attachment') continue
+    if (message.attachment.type === 'mode_pack') current = message.attachment.mode
+    else if (message.attachment.type === 'mode_pack_exit') current = null
+  }
+  return current
+}
+
+export function getModePackAttachments(
+  messages: Message[] | undefined,
+  toolUseContext: ToolUseContext,
+): Attachment[] {
+  if (toolUseContext.agentId) return []
+  const mode = toolUseContext.getAppState().toolPermissionContext.mode
+  const wanted: 'apollo' | 'autopilot' | null = mode === 'apollo' || mode === 'autopilot' ? mode : null
+  const current = latestModePack(messages ?? [])
+  if (wanted === current) return []
+  const out: Attachment[] = []
+  if (current !== null) out.push({ type: 'mode_pack_exit', mode: current })
+  if (wanted !== null) {
+    const sections =
+      wanted === 'apollo' ? getApolloModeSections('apollo') : getAutopilotModeSections('autopilot')
+    if (sections.length > 0) out.push({ type: 'mode_pack', mode: wanted, text: sections.join('\n\n') })
+  }
+  return out
 }

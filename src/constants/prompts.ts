@@ -1,14 +1,13 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
+import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
   MERCURY_IDENTITY_FLOOR,
   MERCURY_IDENTITY_RECONCILE,
   getMercuryContractSections,
 } from '../prompt/mercuryContract.js'
 import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
-import { getApolloModeSections } from '../prompt/apolloMode.js'
-import { getAutopilotModeSections } from '../utils/autopilot/autopilotPrompt.js'
 import { isForkSubagentEnabled } from '../tools/AgentTool/forkSubagent.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
@@ -480,7 +479,6 @@ export async function getSystemPrompt(
   const forkSubagentsEnabled = toolNames.has(AGENT_TOOL_NAME) && isForkSubagentEnabled()
   const hasSkills = toolNames.has(SKILL_TOOL_NAME)
   const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'sdk'
-  const dirsKey = (additionalWorkingDirectories ?? []).join('\x1f')
 
   const dynamicSpecs = [
     systemPromptSection('session_guidance', () =>
@@ -489,7 +487,7 @@ export async function getSystemPrompt(
     systemPromptSection('memory', () => loadMemoryPrompt()),
     keyedSystemPromptSection(
       'env_info_simple',
-      () => `${model}\x1f${dirsKey}`,
+      () => model,
       () => computeSimpleEnvInfo(model, additionalWorkingDirectories),
     ),
     systemPromptSection('model_currency', () => getModelCurrencySection()),
@@ -525,14 +523,23 @@ export async function getSystemPrompt(
   const pushPack = (name: string, sections: readonly string[]): void => {
     if (sections.length > 0) modeSections.push({ name, text: sections.join('\n\n') })
   }
-  pushPack('mode-autopilot', getAutopilotModeSections(permissionMode))
-  pushPack('mode-apollo', getApolloModeSections(permissionMode))
+  void permissionMode
+  void pushPack
   const [vulcan] = await resolveSystemPromptSections([
     systemPromptSection('mode-vulcan', () => getVulcanSection()),
   ])
   if (vulcan !== null && vulcan !== undefined) modeSections.push({ name: 'mode-vulcan', text: vulcan })
 
-  const antiSycSections = getAntiSycophancyAlwaysOnSection()
+  const [contractFrozen, antiSycFrozen] = await resolveSystemPromptSections([
+    systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections())),
+    systemPromptSection('anti-sycophancy', () => {
+      const arm = getAntiSycophancyAlwaysOnSection()
+      return arm.length > 0 ? arm.join('\n\n') : null
+    }),
+  ])
+  const wrapperSections: NamedSection[] =
+    typeof contractFrozen === 'string' ? (JSON.parse(contractFrozen) as NamedSection[]) : getMercuryContractSections()
+  const antiSycSections = typeof antiSycFrozen === 'string' ? [antiSycFrozen] : []
   const reconcileTailSections =
     modeSections.length > 0 || antiSycSections.length > 0 ? [MERCURY_IDENTITY_RECONCILE] : []
 
@@ -544,7 +551,7 @@ export async function getSystemPrompt(
       cacheBreak: spec.cacheBreaking,
     })),
     dynamicResolved,
-    wrapperSections: getMercuryContractSections(),
+    wrapperSections,
     modeSections,
     antiSycSections,
     reconcileTailSections,
