@@ -21,3 +21,13 @@ export function isPowerShellToolEnabled(): boolean {
   if (getPlatform() !== 'windows') return false
   return isEnvTruthy(process.env.MERCURY_USE_POWERSHELL_TOOL)
 }
+
+/**
+ * The command word of a subcommand: its first whitespace-delimited token,
+ * the name a never-auto-background list is compared with (`sleep 30` is
+ * `sleep`). The ONE owner for both shell tools; the whole subcommand was
+ * compared once, so a sleep with an argument never matched.
+ */
+export function firstCommandWord(subcommand: string): string {
+  return subcommand.trim().split(/\s+/)[0] ?? ''
+}
