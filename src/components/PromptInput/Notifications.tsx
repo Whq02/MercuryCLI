@@ -41,7 +41,9 @@ import {
 } from '../../utils/auth.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '../../services/wallet/wallet.js'
+import { sessionAccountFamily } from '../../utils/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
+import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
@@ -166,23 +168,30 @@ function NotificationsColumn({
   // — before it, the "No <family> account" steering stood until a NEW
   // session re-mounted the composer.
   const signInEpoch = useSignInEpoch()
+  const catalogueEpoch = useCatalogueEpoch()
   const walletGate = useMemo((): NotLoggedInGate => {
     if (!notAuthenticated) return { state: 'ok' }
     try {
       return notLoggedInGateDecision(
         walletEntries(),
-        // Resolve absence FIRST (the session's actual default), then
-        // classify — never classify no-model-at-all onto a lane.
-        declaredRouteOf(mainLoopModel ?? getMainLoopModel()),
+        // The family the SESSION bills: the main model's route, or — on
+        // the computed default — the family the default landed on or is
+        // being composed for (the one composer the account chip reads).
+        // The main model alone read the keyless placeholder's route and
+        // kept naming Anthropic after the default had moved to another
+        // family's key.
+        sessionAccountFamily(mainLoopModel ?? getMainLoopModel()),
       )
     } catch {
       // An enumeration failure falls back to the pre-wallet behaviour: the
       // Anthropic-state refusal (never a silently-suppressed warning).
       return { state: 'not-logged-in' }
     }
-    // signInEpoch is the re-derive key (the reads inside are live owners).
+    // signInEpoch and catalogueEpoch are the re-derive keys (the reads
+    // inside are live owners): a default that lands when a catalogue
+    // settles moves the family without moving the main model.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notAuthenticated, mainLoopModel, signInEpoch])
+  }, [notAuthenticated, mainLoopModel, signInEpoch, catalogueEpoch])
   // The session is BLOCKED only when its model's provider has no account —
   // the cosmetic rows (token count, editor hint) key on this, not on the
   // Anthropic-only state (an OpenAI session runs fine without Claude).

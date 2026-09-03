@@ -209,7 +209,7 @@ export function evaluateComputedDefault(facts: ComputedDefaultFacts): ComputedDe
         ? facts.keyless.why
         : `no sign-in offers a usable row (${considered
             .map(c => `${name(c.family)}: ${c.verdict.why}`)
-            .join('; ')}) — /logins signs another provider in`
+            .join('; ')}) — /model names a row by id, or /logins signs another provider in`
     return {
       setting: facts.keyless.setting,
       // The row word tells the two keyless states apart: no credential
@@ -437,13 +437,18 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
     const selectable = familyRows.filter(option => option.unavailable === undefined)
     if (selectable.length === 0) {
       const first = familyRows[0]
-      return {
-        usable: false,
-        why:
-          first !== undefined && first.unavailable !== undefined
-            ? `${first.label}: ${first.unavailable}`
-            : 'no selectable row in the catalogue yet',
-      }
+      if (first !== undefined && first.unavailable !== undefined) return { usable: false, why: `${first.label}: ${first.unavailable}` }
+      // No row of the family at all: a catalogue family whose fetch the
+      // traffic door refused composes none (its action row is not a model
+      // row), so the reason is the door's own — the switch, or the missing
+      // credential — never a generic "nothing yet" that hides a posture the
+      // operator set.
+      const { catalogueTrafficVerdict } =
+        require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+      const gate = (['huggingface', 'openrouter', 'gemini', 'openai', 'local'] as const).includes(family as never)
+        ? catalogueTrafficVerdict(family as Parameters<typeof catalogueTrafficVerdict>[0])
+        : null
+      return { usable: false, why: gate !== null && !gate.allowed ? gate.reason : 'no selectable row in the catalogue yet' }
     }
     const fact = providerFrontierFact(family as CallModelRoute)
     const sameId = (value: string, id: string): boolean =>

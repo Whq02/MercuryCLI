@@ -28,6 +28,9 @@
 //    §I the composer's other keys with voice input on: ? opens help, the
 //       ctrl+x p chord opens the palette, shift+← / → walk the strip, and
 //       v still records after all of it.
+//    §J the composer's overlays with voice input on, then off: the external
+//       editor and the palette open and return — the session survives (a
+//       hook below the overlay marker would end it: React error 300).
 // ============================================================================
 import { execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -542,7 +545,9 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the bound receipt names the bound and the transcribing footer follows', (res.marks.bound ?? '').includes('capture stopped at the 1.5-second bound — transcribing') && (res.marks.bound ?? '').includes('transcribing…'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('bound') || l.includes('transcribing')).join(' · '))
+  // The receipt shares the footer's one notice row with the transient phase word, so the frame that carries the
+  // receipt need not carry 'transcribing…' in the same beat; the footer's phase word is §A's pin.
+  check('the bound receipt names the bound and says the take is transcribing', (res.marks.bound ?? '').includes('capture stopped at the 1.5-second bound — transcribing'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('bound') || l.includes('transcribing')).join(' · '))
   check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
   const served = ledgerPosts(fx.ledger)
   check('exactly ONE take reached the transcriber', served.length === 1, served.join(' | '))
@@ -617,6 +622,57 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
   check('the ctrl+x p chord opens the command palette; esc closes it', (res.marks.palette ?? '').includes('fuzzy by name') && !(res.marks['palette-closed'] ?? '').includes('fuzzy by name'))
   check('shift+← walks to the Boot face and shift+→ returns to the chat', (res.marks.face ?? '').includes('↑↓ choose') && (res.marks.chat ?? '').includes('Type a prompt'))
   check('after all that, v still records and esc still cancels', (res.marks.recording ?? '').includes('● recording') && (res.marks.cancelled ?? '').includes('capture cancelled — nothing sent'))
+  check('no take was sent', ledgerPosts(fx.ledger).length === 0)
+  const stray = nonLoopback(netlines(netlog))
+  check('nothing left loopback', stray.length === 0, stray.join(' · '))
+}
+
+// ── §J the composer's overlays with voice input on AND off ─────────────────
+// The regression class the voice key must never reintroduce: a hook
+// declared below the composer's overlay marker is skipped by an overlay's
+// early return, and React ends the session (error 300) the moment one
+// opens. The external editor (a shim that appends a word to the draft file)
+// and the command palette open and return with the toggle on, then off.
+console.log('[J] the overlays with voice input on, then off — the external editor and the palette open and return')
+{
+  const netlog = join(scratch, 'overlays-net.log')
+  const fx = await startFixture('overlays', 0)
+  const editShim = join(shimDir, 'edit-shim')
+  writeFileSync(editShim, `#!/bin/sh\nprintf ' edited' >> "$1"\n`)
+  chmodSync(editShim, 0o755)
+  const res = drive(
+    'overlays',
+    seededHome('home-j'),
+    netlog,
+    [
+      ...OPENING,
+      { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, data: 'hello' },
+      { afterPrevTicks: 2, data: '\x18' },
+      { afterPrevTicks: 2, data: '\x05' },
+      { requireAwait: true, awaitText: 'hello edited', awaitStableTicks: 2, mark: 'editor-on', data: '\x18' },
+      { afterPrevTicks: 2, data: 'p' },
+      { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette-on', data: '\x1b' },
+      { afterPrevTicks: 3, data: '\x15' },
+      { afterPrevTicks: 2, data: '/speak off' },
+      { afterPrevTicks: 3, data: '\r' },
+      { requireAwait: true, awaitText: 'voice input OFF', awaitStableTicks: 2, data: 'again' },
+      { afterPrevTicks: 2, data: '\x18' },
+      { afterPrevTicks: 2, data: '\x05' },
+      { requireAwait: true, awaitText: 'again edited', awaitStableTicks: 2, mark: 'editor-off', data: '\x18' },
+      { afterPrevTicks: 2, data: 'p' },
+      { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette-off', data: '\x1b' },
+      { afterPrevTicks: 3, mark: 'end', data: '' },
+    ],
+    180,
+    { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, VISUAL: editShim, EDITOR: editShim },
+  )
+  fx.child.kill('SIGTERM')
+  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('voice ON: the external editor opened, returned, and the edit landed in the composer', /❯ hello edited/.test(res.marks['editor-on'] ?? ''), (res.marks['editor-on'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('voice ON: the command palette opened', (res.marks['palette-on'] ?? '').includes('fuzzy by name'))
+  check('voice OFF: the external editor opened, returned, and the edit landed', /❯ again edited/.test(res.marks['editor-off'] ?? ''), (res.marks['editor-off'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))
+  check('voice OFF: the command palette opened', (res.marks['palette-off'] ?? '').includes('fuzzy by name'))
+  check('the session survived every overlay (the child never exited; no crash on screen)', res.endReason !== 'eof' && !res.gridText.includes('Mercury exited on an error') && (res.marks.end ?? '').includes('❯'), `ended: ${res.endReason}`)
   check('no take was sent', ledgerPosts(fx.ledger).length === 0)
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
