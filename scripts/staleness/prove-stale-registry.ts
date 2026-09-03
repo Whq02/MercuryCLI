@@ -297,7 +297,8 @@ src/utils/user.ts :: getGitEmail :: static-for-process
 src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation
 src/utils/verification/verificationState.ts :: verifiableCache :: ttl-bounded
-src/utils/windowsPaths.ts :: findGitBashPath :: static-for-process
+src/utils/shell/windowsShellRoad.ts :: windowsBashRoad :: static-for-process
+src/utils/windowsPaths.ts :: locateGitBash :: static-for-process
 src/utils/zodToJsonSchema.ts :: conversionCache :: keyed-by-truth
 `.trim()
 

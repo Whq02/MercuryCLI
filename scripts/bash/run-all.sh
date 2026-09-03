@@ -15,6 +15,8 @@
 # gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/shell/shellProvider*
 # gate-watch: src/tools/BashTool/bashPermissions* src/tools/BashTool/readOnlyValidation* src/tools/BashTool/shouldUseSandbox* src/tools/BashTool/prompt*
 # gate-watch: src/utils/sandbox/sandbox-adapter* src/substrate/flagRegistry* scripts/bash/shell-engine-parity*
+# gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
+# gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
@@ -47,6 +49,8 @@ __t=$SECONDS; "$bun" run "$here/prove-shell-engine-sandbox.ts" || fail=1; prover
 __t=$SECONDS; "$bun" run "$here/prove-shell-engine-census.ts" || fail=1; prover_mark "$here/prove-shell-engine-census.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-engine-drive.ts" || fail=1; prover_mark "$here/prove-shell-engine-drive.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-engine-parity.ts" || fail=1; prover_mark "$here/prove-shell-engine-parity.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-windows-shell-road.ts" || fail=1; prover_mark "$here/prove-windows-shell-road.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-windows-pack-layout.ts" || fail=1; prover_mark "$here/prove-shell-windows-pack-layout.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

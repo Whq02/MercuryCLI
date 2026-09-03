@@ -1,5 +1,6 @@
 import { z } from 'zod/v4'
 import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
+import { bashToolAvailable } from '../../utils/shell/windowsShellRoad.js'
 import { BASH_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
@@ -672,6 +673,7 @@ export const BashTool = buildTool({
   },
   maxResultSizeChars: PERSIST_THRESHOLD_CHARS,
   strict: true,
+  isEnabled: () => bashToolAvailable(),
   async description(input: BashToolInput): Promise<string> {
     return input?.description ?? 'Run a shell command'
   },
