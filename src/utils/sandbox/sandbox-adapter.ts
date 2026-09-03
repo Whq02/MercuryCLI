@@ -319,7 +319,7 @@ function buildDenyWrite(): string[] {
 const platformUserTempDir = memoize((): string | null => {
   if (getPlatform() !== 'macos') return null
   try {
-    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000 }).trim()
+    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000, windowsHide: true }).trim()
     return dir === '' ? null : realpathSync(dir)
   } catch {
     return null
