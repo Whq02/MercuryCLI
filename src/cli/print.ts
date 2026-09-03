@@ -498,6 +498,8 @@ export async function runHeadless(
     const [wards, tabula, crew] = await sessionWiringModules()
     wards.registerWardsHook(setAppState, sid)
     tabula.registerTabulaFireHooks(setAppState, sid)
+    const mission = await import('../utils/hooks/missionHook.js')
+    mission.rearmMissionFromCard(setAppState, { cardSessionId: sid, armSessionId: sid })
     void crew.bootCrewIdentity({ sessionId: sid, worktreeRef: getCwd() }).catch(e => {
       logForDebugging(`[session-runner] crew identity boot failed (non-blocking): ${e}`)
     })
@@ -543,6 +545,15 @@ export async function runHeadless(
       const owner = processMainOwner()
       if (getRunSnapshot(owner) === null) {
         await reconcileOnResume(owner, getCwd())
+      }
+    } catch (error) {
+      logError(error)
+    }
+    try {
+      const { reconcileBackgroundLaunchesOnResume } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState)
+      if (settledLaunches.length > 0) {
+        logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
       }
     } catch (error) {
       logError(error)
@@ -2619,6 +2630,8 @@ export async function runHeadless(
         }
         if (typed.type === 'user') {
           sessionInitialized = true
+          const missionSync = await import('../utils/hooks/missionHook.js')
+          missionSync.syncMissionFromCard(setAppState, String(getSessionId()))
           const uuid = typed.uuid
           if (uuid) {
             const historical = await doesMessageExistInSession(

@@ -110,7 +110,7 @@ const sends: Send[] = [
 ]
 const out = join(OUT_DIR, 'board-controls-120x40.json')
 const cfgPath = join(scratch, 'vshot-cfg.json')
-writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 46, cols: 120, rows: 40, out }))
+writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: REPO, sends, total: 80, cols: 120, rows: 40, out }))
 const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   encoding: 'utf8',
   timeout: vshotBudgetMs(240_000),
@@ -118,6 +118,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     ...(process.env as Record<string, string>),
     MERCURY_CONFIG_DIR: scratch,
     MERCURY_HOME: '',
+    MERCURY_SPLASH: 'off',
     MERCURY_CONCOURSE: 'always',
     MERCURY_CONCOURSE_FIXTURE: fixturePath,
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
@@ -143,7 +144,7 @@ const mk = (label: string): string[] => marks.get(label) ?? []
 
 console.log('L1 — the seat-overload card + the 5/4· chip')
 check('the card is the STANDARD consent frame with the ruled title', has(mk('seat-card'), "Past the machine's reading"))
-check('the reading sentence is capacityCheck\'s own (never a bare number)', has(mk('seat-card'), "this machine's reading: 4 seats"))
+check('the reading sentence is capacityCheck\'s own (never a bare number)', /the consented capacity reading from 2025-07-31: 4[\s\S]{0,160}?\bseats \(stored at the first-boot ask\)/.test(mk('seat-card').join('\n')))
 check('the over line names the next session over the reading', has(mk('seat-card'), 'session 5 over'))
 check('the No leg dispatches nothing, said plainly', has(mk('seat-card'), 'No, dispatch nothing (esc)'))
 check('the rail chip wears the over mark while the demand runs past the reading', has(mk('seat-card'), '5/4· seats'))
