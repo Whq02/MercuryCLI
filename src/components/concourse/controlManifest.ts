@@ -72,7 +72,7 @@ export const CONCOURSE_REGION_KEYS = {
     { keys: 'r', label: 'rename' },
     { keys: '→', label: 'peek' },
     { keys: '/', label: 'filter' },
-    { keys: '⌃x ⌃x', label: 'stop · again removes' },
+    { keys: '⌃x ⌃x', label: 'stop · archive · delete' },
     { keys: 'm', label: 'message queued' },
     { keys: 'space', label: 'mark' },
     { keys: 's', label: 'split' },
@@ -198,9 +198,9 @@ export function regionKeysFor(
       case 'queued':
         return stageFilter([...keep('n', 'm', '/'), { keys: '⌃x ⌃x', label: 'withdraw' }, ...keep('space', 's')])
       case 'parked':
-        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'clear' }, ...keep('space', 's')])
+        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'delete' }, ...keep('space', 's')])
       case 'stopped':
-        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'remove' }, ...keep('space', 's')])
+        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'archive' }, ...keep('space', 's')])
       case 'door':
         return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
       case 'none':

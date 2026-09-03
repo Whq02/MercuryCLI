@@ -232,6 +232,7 @@ export interface ConcourseCallbacks {
   setSessionModel?: (sessionId: string, modelId: string, displayName?: string) => void
   setSessionEffort?: (sessionId: string, effort: string) => void
   stopSession?: (sessionId: string) => void
+  archiveSession?: (sessionId: string) => void
   removeSession?: (sessionId: string) => void
   renameSession?: (sessionId: string, title: string) => void
   redirectSession: (sessionId: string, instruction: string) => void

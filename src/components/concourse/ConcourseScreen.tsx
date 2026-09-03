@@ -123,7 +123,7 @@ export function liveComposerGateOf(
   if (sel.sessionId.startsWith('dispatch:') || sel.state === 'queued') return { ok: false, line: 'queued — m stacks a message for its start' }
   if (sel.state === 'parked') return { ok: false, line: 'parked — ↵↵ brings it back; a sleeping chat takes no queue' }
   if (sel.state === 'attached') return { ok: false, line: 'with you — type in its own chat' }
-  if (sel.state === 'stopped') return { ok: false, line: `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} removes it` }
+  if (sel.state === 'stopped') return { ok: false, line: `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} archives it` }
   if (sel.state === 'needs-you' || openAsk) return { ok: false, line: 'needs you · ↵↵ to answer' }
   if (credentialWall !== undefined) return { ok: false, line: credentialWall }
   return { ok: true, placeholder: `message ${sel.title} · queued for its next turn` }
@@ -693,16 +693,16 @@ export function ConcourseScreen({
         return
       }
       lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }
-      setNote({ tone: 'muted', text: `parked — nothing to stop · ${keyHintLabel('⌃x ⌃x')} again clears it from the board (the chat survives)` })
+      setNote({ tone: 'muted', text: `archived — the chat stands parked · ${keyHintLabel('⌃x ⌃x')} again deletes it (the record ends; the transcript survives on disk)` })
       return
     }
     if (sel.state === 'stopped') {
-      lastStopRef.current = null
-      callbacks.removeSession?.(sel.sessionId)
+      lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }
+      callbacks.archiveSession?.(sel.sessionId)
       return
     }
     if (staged) {
-      setNote({ tone: 'muted', text: `stop is on its way — the row reads stopped once its runner is gone; ${keyHintLabel('⌃x ⌃x')} then removes it` })
+      setNote({ tone: 'muted', text: `stop is on its way — the row reads stopped once its runner is gone; ${keyHintLabel('⌃x ⌃x')} then archives it` })
       callbacks.stopSession?.(sel.sessionId)
       return
     }
@@ -726,7 +726,7 @@ export function ConcourseScreen({
       case 'attached':
         return { reason: 'with you — its own chat carries the controls' }
       case 'stopped':
-        return { reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it` }
+        return { reason: `stopped — ${keyHintLabel('⌃x ⌃x')} archives it` }
       case 'door':
         return { reason: 'a door — ↵ is its move' }
       case 'none':
@@ -1119,15 +1119,15 @@ export function ConcourseScreen({
         return `${keyHintLabel('⌃x')} again withdraws the queued request`
       case 'parked':
         return staged
-          ? `${keyHintLabel('⌃x')} again clears it from the board`
-          : `${keyHintLabel('⌃x')} again — parked, nothing to stop`
+          ? `${keyHintLabel('⌃x')} again deletes it (the record ends)`
+          : `${keyHintLabel('⌃x')} again — archived, nothing to stop`
       case 'stopped':
-        return `${keyHintLabel('⌃x')} again removes it from the board`
+        return `${keyHintLabel('⌃x')} again archives it (the chat stands parked)`
       case 'live':
       case 'paused':
       case 'attached':
         return staged
-          ? `${keyHintLabel('⌃x')} again removes it from the board`
+          ? `${keyHintLabel('⌃x')} again re-sends the stop (the row reads stopped once its runner is gone)`
           : `${keyHintLabel('⌃x')} again stops — esc keeps it`
     }
   })()
