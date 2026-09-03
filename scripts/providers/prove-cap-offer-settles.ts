@@ -256,5 +256,146 @@ section('§E the composer answers on the STABLE owner; the exact-id resolver is 
   check('the exact-id resolver upgrades the anthropic target to the newest member', /route === 'anthropic' && fact !== undefined\s*\?\s*newestFirstPartyFrontierMember\(fact\)/.test(owner))
 }
 
+// ── §F the LIST — every other signed-in family, ledger order, at-cap last ───
+section('§F the offer lists every other signed-in family; at-cap lanes last and marked; the switch lands on the CHOSEN row')
+{
+  cap._resetOfferMemoriesForTesting()
+  const now = Date.now()
+  type Lane = { usable: boolean; blockers: string[]; credential?: 'oauth' | 'api-key' | 'keyless' | 'none' }
+  // Four signed-in families beside the OpenAI home — two at their caps.
+  const map: Record<string, Lane> = {
+    openai: { usable: true, blockers: [], credential: 'oauth' },
+    anthropic: { usable: true, blockers: [], credential: 'oauth' },
+    zai: { usable: true, blockers: [], credential: 'api-key' },
+    deepseek: { usable: true, blockers: [], credential: 'api-key' },
+    gemini: { usable: false, blockers: ['the Gemini usage window is reached — resets later'], credential: 'oauth' },
+    huggingface: { usable: false, blockers: ['the Hugging Face usage window is reached'], credential: 'api-key' },
+    // A signed-OUT lane at a stale cap has no seat to list.
+    openrouter: { usable: false, blockers: ['no OpenRouter credential — /logins'], credential: 'none' },
+  }
+  const targets: Record<string, string> = {
+    anthropic: FABLE_51,
+    zai: 'glm-4.7',
+    deepseek: 'deepseek-chat-v3.4',
+    gemini: 'gemini-3-pro',
+    huggingface: 'huggingface/qwen-3',
+    openrouter: 'openrouter/x',
+  }
+  // The sign-in ledger: zai newest, then gemini, anthropic, huggingface; deepseek untimed.
+  const at: Record<string, number> = { zai: 5000, gemini: 4000, anthropic: 3000, huggingface: 2000 }
+  const windows: Record<string, ReturnType<typeof cap.observedFamilyWindow>> = {
+    anthropic: { family: 'anthropic', state: 'allowed', basis: 'observed', usedPct: 10, windowName: 'session limit' },
+    zai: { family: 'zai', state: 'unknown', basis: 'none' },
+    deepseek: { family: 'deepseek', state: 'warning', basis: 'observed', usedPct: 72, windowName: 'usage window', resetsAtMs: now + 3600_000 },
+    gemini: { family: 'gemini', state: 'rejected', basis: 'observed', resetsAtMs: now + 7200_000, windowName: 'usage window' },
+    huggingface: { family: 'huggingface', state: 'rejected', basis: 'observed', windowName: 'usage window' },
+    openrouter: { family: 'openrouter', state: 'rejected', basis: 'observed', windowName: 'usage window' },
+  }
+  const set = cap.deriveCapFailoverCandidates('openai', map, r => targets[r], f => at[f], r => windows[r] as ReturnType<typeof cap.observedFamilyWindow>)
+  check(
+    'the OFFERABLE candidates are the usable lanes in sign-in order (zai, anthropic, then the untimed deepseek)',
+    JSON.stringify(set.candidates.map(c => c.route)) === JSON.stringify(['zai', 'anthropic', 'deepseek']),
+    JSON.stringify(set.candidates),
+  )
+  check('the LIST is the candidates first, then the lanes at their own cap — in the ledger order within each part', JSON.stringify(set.listed.map(r => r.route)) === JSON.stringify(['zai', 'anthropic', 'deepseek', 'gemini', 'huggingface']), JSON.stringify(set.listed.map(r => r.route)))
+  check('the at-cap lanes are MARKED and never usable', set.listed.filter(r => r.atCap).map(r => r.route).join(',') === 'gemini,huggingface' && set.listed.filter(r => r.atCap).every(r => !r.usable))
+  check('the first candidate (the default highlight, the auto target) is never an at-cap lane', set.candidates[0]?.route === 'zai' && !set.listed[0]?.atCap)
+  check('a signed-OUT lane at a stale cap is not listed (no seat to switch to)', !set.listed.some(r => r.route === 'openrouter'))
+  check('every row lands on the exact id its family persists', set.listed.every(r => r.model === targets[r.route]) && set.listed.find(r => r.route === 'anthropic')?.model === FABLE_51)
+  check('the partition law stands: every non-candidate family is a typed exclusion', set.candidates.length + set.excluded.length === Object.keys(map).length - 1)
+  // The usage words each row prints — the stated utilisation and its window,
+  // the cap with its reset, or the honest absence.
+  const words = Object.fromEntries(set.listed.map(r => [r.route, cap.capUsageWords(r.window, r.route === 'gemini' ? '5:47pm' : null)]))
+  check("a family with a live window prints '<pct>% of the <window>'", words.anthropic === '10% of the session limit' && words.deepseek === '72% of the usage window', JSON.stringify(words))
+  check("a family that reports no usage prints 'no usage read'", words.zai === 'no usage read')
+  check('an at-cap family prints the cap and its reset', words.gemini === 'at its cap — usage window resets 5:47pm' && words.huggingface === 'at its cap — usage window', JSON.stringify(words))
+  // The switch lands on the CHOSEN row — the third row, not the first.
+  const chosen = set.listed[2] as (typeof set.listed)[number]
+  const landed = settleModelSelection({ mainLoopModel: 'gpt-5.6-sol', mainLoopModelForSession: null, pendingModelSwitch: null }, chosen.model, { turnActive: false })
+  check('confirming the highlighted row settles on THAT family, not the first', chosen.route === 'deepseek' && landed.kind === 'applied' && landed.receipt.applied === 'deepseek-chat-v3.4')
+  // …and the offer disarms for the home family whichever row was chosen.
+  cap.noteCapOfferAnswered('handoff', 'openai')
+  cap.noteCapWindowObserved('openai', 'warning')
+  check('the offer disarms for the home family after the choice (a jitter never re-opens it)', cap.capOfferAnswered('handoff', 'openai') === true)
+  // With exactly one other family the set reads as the single-target offer.
+  const single = cap.deriveCapFailoverCandidates('openai', { openai: map.openai as Lane, anthropic: map.anthropic as Lane }, r => targets[r], f => at[f], r => windows[r] as ReturnType<typeof cap.observedFamilyWindow>)
+  check('exactly one other family ⇒ one candidate and one listed row (the card reads as the single-target card)', single.candidates.length === 1 && single.listed.length === 1 && single.listed[0]?.route === 'anthropic')
+  // No window read (the auto/wall-row callers) ⇒ the list mirrors the candidates, nothing reads as at-cap.
+  const blind = cap.deriveCapFailoverCandidates('openai', map, r => targets[r], f => at[f])
+  check('without a window read no lane is at-cap and the list mirrors the candidates', blind.listed.every(r => !r.atCap) && JSON.stringify(blind.listed.map(r => r.route)) === JSON.stringify(blind.candidates.map(c => c.route)))
+}
+
+// ── §G the BINDING window — the per-model weekly pool ──────────────────────
+section('§G the offer fires on the BINDING window: the seat model\'s weekly pool, named — a family without pools reads as before')
+{
+  const now = Date.now()
+  const poolReset = now + (22 * 3600 + 51 * 60) * 1000
+  // The operator's usage page: 5h 36% · weekly (all models) 44% · weekly FABLE 87%.
+  const reads = {
+    now: () => now,
+    anthropic: () => ({ status: 'allowed' as const, observed: true }),
+    anthropicWindows: () => [
+      { key: '5h', usedPct: 36, resetsAtMs: now + 3600_000 },
+      { key: '7d', usedPct: 44, resetsAtMs: now + 5 * 86400_000 },
+    ],
+    anthropicPools: () => [
+      { key: 'seven_day_fable', label: 'Fable', usedPct: 87, resetsAtMs: poolReset },
+      { key: 'seven_day_opus', label: 'Opus', usedPct: 20, resetsAtMs: poolReset },
+      { key: 'seven_day_sonnet', label: 'Sonnet', usedPct: 5, resetsAtMs: poolReset },
+    ],
+  }
+  check('the pool that binds is keyed by the seat model\'s family (fable · opus · sonnet; none for the small tier or another family)', cap.bindingPoolKeyFor(FABLE_51) === 'seven_day_fable' && cap.bindingPoolKeyFor('claude-fable-5[1m]') === 'seven_day_fable' && cap.bindingPoolKeyFor('claude-opus-5') === 'seven_day_opus' && cap.bindingPoolKeyFor('claude-sonnet-5') === 'seven_day_sonnet' && cap.bindingPoolKeyFor('claude-haiku-4-5') === null && cap.bindingPoolKeyFor('gpt-5.6-sol') === null && cap.bindingPoolKeyFor(null) === null)
+  const fableSeat = cap.observedFamilyWindow('anthropic', reads, { model: FABLE_51 })
+  check('running Fable with the Fable pool at 87% ⇒ WARNING, even while 5h/7d read 36%/44%', fableSeat.state === 'warning' && fableSeat.basis === 'observed', JSON.stringify(fableSeat))
+  check("…and the window names the pool: 'weekly Fable limit', with its reset and its utilisation", fableSeat.windowName === 'weekly Fable limit' && fableSeat.resetsAtMs === poolReset && fableSeat.usedPct === 87, JSON.stringify(fableSeat))
+  check('the offer fires on it (offer × warning ⇒ offer)', cap.decideCapAction('offer', fableSeat.state).kind === 'offer')
+  const opusSeat = cap.observedFamilyWindow('anthropic', reads, { model: 'claude-opus-5' })
+  check('the same account on an Opus seat (Opus pool 20%) reads ALLOWED — the binding pool is the seat\'s own', opusSeat.state === 'allowed' && opusSeat.usedPct === 44, JSON.stringify(opusSeat))
+  const haikuSeat = cap.observedFamilyWindow('anthropic', reads, { model: 'claude-haiku-4-5' })
+  check('a seat no pool meters reads the shared windows (allowed, the worst shared utilisation on the usage line)', haikuSeat.state === 'allowed' && haikuSeat.usedPct === 44)
+  const noModel = cap.observedFamilyWindow('anthropic', reads)
+  check('with no seat model the shared windows decide (the wall-row and auto callers)', noModel.state === 'allowed' && noModel.windowName === undefined)
+  // The worse window binds: a shared REJECTED latch outranks a pool warning.
+  const walled = cap.observedFamilyWindow('anthropic', { ...reads, anthropic: () => ({ status: 'rejected' as const, observed: true, resetsAtMs: now + 60_000, windowName: 'weekly limit' }) }, { model: FABLE_51 })
+  check('a reached shared window outranks the pool warning (the worse window binds, its own name)', walled.state === 'rejected' && walled.windowName === 'weekly limit')
+  const poolFull = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [{ key: 'seven_day_fable', label: 'Fable', usedPct: 100, resetsAtMs: poolReset }] }, { model: FABLE_51 })
+  check('a pool at 100% is a reached window (rejected), named', poolFull.state === 'rejected' && poolFull.windowName === 'weekly Fable limit')
+  const poolStale = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [{ key: 'seven_day_fable', label: 'Fable', usedPct: 99, resetsAtMs: now - 1 }] }, { model: FABLE_51 })
+  check('a pool whose stated reset passed is stale — the shared windows decide', poolStale.state === 'allowed')
+  const openaiSeat = cap.observedFamilyWindow('openai', { now: () => now, openaiActiveSource: () => 'chatgpt-subscription' as const, openaiWall: () => null, openaiBands: () => [{ usedPct: 92, resetsAtMs: now + 5 * 3600_000, windowName: '5h window' }] }, { model: 'gpt-5.6-sol' })
+  check('a family without per-model pools reads as before (the neutral grammar)', openaiSeat.state === 'warning' && openaiSeat.windowName === '5h window' && openaiSeat.usedPct === 92)
+  const throwingPools = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => { throw new Error('reader down') } }, { model: FABLE_51 })
+  check('a pool reader that throws never unsettles the latch fact (the shared windows decide)', throwingPools.state === 'allowed')
+
+  // THE LIVE ACCESSOR ROAD: a fixture usage response carrying seven_day_fable
+  // near its cap, folded into the usage record the reader serves — the
+  // resolver reads the pool through providerUsage's own accessors.
+  const limits = await import('../../src/services/claudeAiLimits.ts')
+  limits.__setRawUtilizationForTest({
+    five_hour: { utilization: 0.36, resets_at: Math.floor((now + 3600_000) / 1000) },
+    seven_day: { utilization: 0.44, resets_at: Math.floor((now + 5 * 86400_000) / 1000) },
+    seven_day_fable: { utilization: 0.87, resets_at: Math.floor(poolReset / 1000) },
+  })
+  const live = cap.observedFamilyWindow('anthropic', { now: () => now, anthropic: () => ({ status: 'allowed' as const, observed: true }) }, { model: FABLE_51 })
+  check('the LIVE accessor road: the usage record\'s seven_day_fable at 87% arms the offer, named', live.state === 'warning' && live.windowName === 'weekly Fable limit' && Math.round(live.usedPct ?? 0) === 87, JSON.stringify(live))
+  limits.__setRawUtilizationForTest({})
+}
+
+// ── §H the card lists and names the window (source) ────────────────────────
+section('§H the card: ↑↓ over the rows, ↵ for the highlighted row, esc stays put; the window named in the neutral grammar')
+{
+  const card = readFileSync(join(ROOT, 'src/components/CapOfferCard.tsx'), 'utf8')
+  check('the card lists only with MORE than one other family (one family reads as today)', card.includes('rows !== undefined && rows.length > 1 ? rows : null'))
+  check('↑↓ ride the Confirmation context\'s own previous/next actions', card.includes("'confirm:previous'") && card.includes("'confirm:next'") && card.includes("context: 'Confirmation', isActive: list !== null"))
+  check('↵ hands the HIGHLIGHTED row to the pick site; an at-cap row keeps enter inert', card.includes('if (usable) onAccept(chosen)') && card.includes('highlighted.usable && !highlighted.atCap'))
+  check('the guide says ↑↓ choose only when listing, beside the one true enter line', card.includes('↑↓ choose ${GLYPH.dot} ') && card.includes('`enter opens the transition preview ${GLYPH.dot} ${escKey} stays put`'))
+  check('each row prints the family, the landing row and its usage words; at-cap rows carry the mark', card.includes('capUsageWords(row.window, rowReset)') && card.includes("row.atCap ? `${GLYPH.warn} ` : ''"))
+  check("the binding window is named as the wire named it — never a second 'window' after it", card.includes('`approaching the ${homeName} ${windowNoun}`') && !card.includes("${windowName ?? 'usage'} window"))
+  check('the card owns the keyboard while it stands (esc never doubles as the turn interrupt)', card.includes("useRegisterOverlay('cap-offer')"))
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check('the composer reads the home window FOR the seat model (the pool that binds)', composer.includes('model: onFailoverLane ? (noted?.homeModel ?? null) : effective'))
+  check('the composer hands the card the whole list from the one owner and settles the CHOSEN row', composer.includes('rows = set.listed') && composer.includes('handleModelSelect(chosen.model)'))
+}
+
 console.log(`\n${failures === 0 ? 'CAP OFFER SETTLES: ALL PASS' : `FAILURES: ${failures}`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -316,6 +316,9 @@ export interface FamilyWindowFact {
   /** The window's display name ('weekly limit', 'weekly window',
    *  'credits'), when the wire named one. */
   windowName?: string
+  /** The window's stated utilisation, 0–100, when the family reports one
+   *  (the offer's per-family usage line). Absent ≠ zero. */
+  usedPct?: number
 }
 
 /** Injectable reads for provers; the live bundle reads each family's OWN
@@ -330,6 +333,15 @@ export interface FamilyWindowReads {
     resetsAtMs?: number
     windowName?: string
   }
+  /** The Anthropic subscription's shared 5h/7d windows as the usage reader
+   *  states them (providerUsage.anthropicWindowViews) — the utilisation the
+   *  usage line prints beside the latch's status. */
+  anthropicWindows?: () => Array<{ key: string; usedPct?: number; resetsAtMs?: number }>
+  /** The Anthropic per-model weekly POOLS (providerUsage.anthropicPoolWindowViews:
+   *  key 'seven_day_fable' · label 'Fable' …) — the BINDING window for a seat
+   *  on that model: a Fable seat at 87% of the Fable pool is capped even
+   *  while the shared 5h/7d read low. */
+  anthropicPools?: () => Array<{ key: string; label: string; usedPct?: number; resetsAtMs?: number }>
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
   /** The subscription's observed usage bands (openaiLimitState), each
@@ -351,6 +363,29 @@ export const CAP_APPROACHING_PCT = 70
 function liveFamilyWindowReads(): Required<FamilyWindowReads> {
   return {
     now: Date.now,
+    anthropicWindows: () => {
+      const { anthropicWindowViews } =
+        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return anthropicWindowViews()
+        .filter(view => view.state === 'live')
+        .map(view => ({
+          key: view.key,
+          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
+          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
+        }))
+    },
+    anthropicPools: () => {
+      const { anthropicPoolWindowViews } =
+        require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+      return anthropicPoolWindowViews()
+        .filter(view => view.state === 'live')
+        .map(view => ({
+          key: view.key,
+          label: view.label,
+          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
+          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
+        }))
+    },
     anthropic: () => {
       const limits = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
       const current = limits.currentLimits
@@ -432,7 +467,46 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
  * fixtures); the live default reads each family's own latch. Never throws:
  * a reader that cannot answer reads as 'unknown' (basis 'none').
  */
-export function observedFamilyWindow(family: string, reads?: FamilyWindowReads): FamilyWindowFact {
+/** The per-model weekly POOL that binds a first-party seat — the usage
+ *  endpoint meters Fable, Opus and Sonnet as separate weekly pools beside
+ *  the shared 5h/7d windows. Keyed by the wire's own claim
+ *  (anthropicPoolWindowViews' key); null for a model no pool meters (the
+ *  small tier rides the shared windows only). Pure over the canonical id. */
+export function bindingPoolKeyFor(model: string | null | undefined): string | null {
+  if (model === null || model === undefined || model.trim() === '') return null
+  let canonical = model
+  try {
+    const { getCanonicalName } = require('../utils/model/model.js') as typeof import('../utils/model/model.js')
+    canonical = getCanonicalName(model)
+  } catch {
+    /* the raw spelling still names its family below */
+  }
+  const lowered = canonical.toLowerCase()
+  if (lowered.includes('fable') || lowered.includes('mythos')) return 'seven_day_fable'
+  if (lowered.includes('opus')) return 'seven_day_opus'
+  if (lowered.includes('sonnet')) return 'seven_day_sonnet'
+  return null
+}
+
+const WINDOW_RANK: Record<CapWindowState, number> = { unknown: 0, allowed: 1, warning: 2, rejected: 3 }
+
+/**
+ * THE family window resolver. Pure over injected reads (the prover feeds
+ * fixtures); the live default reads each family's own latch. Never throws:
+ * a reader that cannot answer reads as 'unknown' (basis 'none').
+ *
+ * `opts.model` names the seat the window is read FOR: on the first-party
+ * family the per-model weekly pool that meters that model is the BINDING
+ * window — a Fable seat at 87% of the Fable pool is approaching its cap
+ * even while the shared 5h/7d windows read 36%/44% — so the worse of the
+ * shared latch and the binding pool decides, and the pool names itself
+ * ('weekly Fable limit'). A family without per-model pools reads as before.
+ */
+export function observedFamilyWindow(
+  family: string,
+  reads?: FamilyWindowReads,
+  opts?: { model?: string | null },
+): FamilyWindowFact {
   const r: Required<FamilyWindowReads> = { ...liveFamilyWindowReads(), ...stripUndefined(reads) }
   const unknown: FamilyWindowFact = { family, state: 'unknown', basis: 'none' }
   try {
@@ -441,19 +515,68 @@ export function observedFamilyWindow(family: string, reads?: FamilyWindowReads):
       const a = r.anthropic()
       if (!a.observed) return unknown
       const windowName = a.windowName ?? 'usage window'
-      if (a.status === 'rejected' || a.status === 'allowed_warning') {
-        if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
-          return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
+      // The shared windows' utilisation (the usage reader's views) — the
+      // usage line beside the latch's status. A reader failure prints no
+      // percent; it never unsettles the latch fact.
+      const sharedViews = ((): Array<{ key: string; usedPct?: number; resetsAtMs?: number }> => {
+        try {
+          return r.anthropicWindows()
+        } catch {
+          return []
         }
-        return {
-          family,
-          state: a.status === 'rejected' ? 'rejected' : 'warning',
-          basis: 'observed',
-          ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
-          windowName,
+      })()
+      const sharedPct = ((): number | undefined => {
+        const stated = sharedViews.filter(view => view.usedPct !== undefined)
+        if (stated.length === 0) return undefined
+        return Math.max(...stated.map(view => view.usedPct as number))
+      })()
+      const shared: FamilyWindowFact = ((): FamilyWindowFact => {
+        if (a.status === 'rejected' || a.status === 'allowed_warning') {
+          if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
+            return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
+          }
+          return {
+            family,
+            state: a.status === 'rejected' ? 'rejected' : 'warning',
+            basis: 'observed',
+            ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
+            windowName,
+            ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}),
+          }
         }
+        return { family, state: 'allowed', basis: 'observed', ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}) }
+      })()
+      // The BINDING pool for the seat's model, when the endpoint meters one.
+      const poolKey = bindingPoolKeyFor(opts?.model)
+      if (poolKey === null) return shared
+      const pool = ((): { key: string; label: string; usedPct?: number; resetsAtMs?: number } | undefined => {
+        try {
+          return r.anthropicPools().find(view => view.key === poolKey)
+        } catch {
+          return undefined
+        }
+      })()
+      if (pool === undefined || pool.usedPct === undefined) return shared
+      const poolLive = pool.resetsAtMs === undefined || pool.resetsAtMs > now
+      if (!poolLive) return shared
+      const poolState: CapWindowState =
+        pool.usedPct >= 100 ? 'rejected' : pool.usedPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
+      const poolFact: FamilyWindowFact = {
+        family,
+        state: poolState,
+        basis: 'observed',
+        ...(pool.resetsAtMs !== undefined ? { resetsAtMs: pool.resetsAtMs } : {}),
+        windowName: `weekly ${pool.label} limit`,
+        usedPct: pool.usedPct,
       }
-      return { family, state: 'allowed', basis: 'observed' }
+      // The worse window binds; states tied, the window closer to its cap
+      // (the higher stated utilisation) binds; all tied, the pool — the fact
+      // specific to the seat's own model.
+      const poolRank = WINDOW_RANK[poolFact.state]
+      const sharedRank = WINDOW_RANK[shared.state]
+      if (poolRank !== sharedRank) return poolRank > sharedRank ? poolFact : shared
+      if (shared.usedPct !== undefined && shared.usedPct > pool.usedPct) return shared
+      return poolFact
     }
     if (family === 'openai') {
       const source = r.openaiActiveSource()
@@ -473,9 +596,19 @@ export function observedFamilyWindow(family: string, reads?: FamilyWindowReads):
             basis: 'observed',
             ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
             windowName: worst.windowName,
+            usedPct: worst.usedPct,
           }
         }
-        return { family, state: 'allowed', basis: 'observed' }
+        // Headroom observed: the worst live band's utilisation and window
+        // ride the fact for the offer's per-family usage line.
+        return {
+          family,
+          state: 'allowed',
+          basis: 'observed',
+          windowName: worst.windowName,
+          usedPct: worst.usedPct,
+          ...(worst.resetsAtMs !== undefined ? { resetsAtMs: worst.resetsAtMs } : {}),
+        }
       }
       return billingOrUnknown(family, r, unknown)
     }
@@ -550,11 +683,53 @@ export interface CapFailoverExclusion {
   why: string
 }
 
+/** One row of the offer card's LIST — every other signed-in family with a
+ *  row to land on: the offerable lanes in sign-in order first, then the
+ *  lanes that are themselves at their cap (marked, never offered first). */
+export interface CapFailoverListedFamily {
+  route: string
+  /** The row the switch would land on (the exact id the seat persists). */
+  model: string
+  /** The family's OWN observed window (the usage line); null when the
+   *  derivation was given no window read. */
+  window: FamilyWindowFact | null
+  /** The family is itself at its cap — listed last and marked. */
+  atCap: boolean
+  /** The lane can take the switch right now (credentialed, no live block). */
+  usable: boolean
+  /** The lane's credential kind (the spend line); absent when the usability
+   *  map carried none. */
+  credential?: 'oauth' | 'api-key' | 'keyless' | 'none'
+  /** The lane's own blockers when not usable (the mark's words). */
+  blockers: string[]
+}
+
 export interface CapFailoverCandidateSet {
   /** The family the set was derived for (never a member). */
   home: string | null
+  /** The OFFERABLE lanes in sign-in order — the auto handoff and the
+   *  single-target surfaces take the first; a lane at its own cap never
+   *  enters here. */
   candidates: CapFailoverCandidate[]
   excluded: CapFailoverExclusion[]
+  /** The card's rows: the candidates (same order), then every credentialed
+   *  lane at its own cap, marked. */
+  listed: CapFailoverListedFamily[]
+}
+
+/** The words a listed family's usage state prints on the offer card: the
+ *  stated utilisation and the window it is of, the cap with its reset, or
+ *  the honest absence. Pure; the card colours by the state. */
+export function capUsageWords(window: FamilyWindowFact | null, resetText?: string | null): string {
+  if (window === null || window.state === 'unknown') return 'no usage read'
+  const name = window.windowName ?? 'usage window'
+  if (window.state === 'rejected') {
+    return `at its cap — ${name}${resetText ? ` resets ${resetText}` : ''}`
+  }
+  if (window.usedPct !== undefined) {
+    return `${Math.round(window.usedPct)}% of the ${name}`
+  }
+  return window.state === 'warning' ? `approaching the ${name}` : `${name} clear`
 }
 
 /** The families of a usability map in candidate order: sign-in recency
@@ -579,33 +754,79 @@ export function orderFamiliesBySignIn(
  *  The home family never enters; every other family is judged alike. */
 export function deriveCapFailoverCandidates(
   home: string | null,
-  usability: Record<string, { usable: boolean; blockers: string[] }>,
+  usability: Record<string, { usable: boolean; blockers: string[]; credential?: 'oauth' | 'api-key' | 'keyless' | 'none' }>,
   targetModelOf: (route: string) => string | undefined,
   signInAt: (family: string) => number | undefined = () => undefined,
+  /** The family's OWN observed window (observedFamilyWindow for its landing
+   *  row) — supplied by the card road; the auto/wall-row callers may omit
+   *  it, and then no lane reads as at-cap and `listed` mirrors the
+   *  candidates. */
+  windowOf?: (route: string, model: string) => FamilyWindowFact,
 ): CapFailoverCandidateSet {
   const candidates: CapFailoverCandidate[] = []
   const excluded: CapFailoverExclusion[] = []
+  const listed: CapFailoverListedFamily[] = []
+  const capped: CapFailoverListedFamily[] = []
   const families = orderFamiliesBySignIn(
     Object.keys(usability).filter(family => family !== home),
     signInAt,
   )
   for (const route of families) {
     const lane = usability[route]
-    if (lane === undefined || !lane.usable) {
-      excluded.push({
-        route,
-        why: lane !== undefined && lane.blockers.length > 0 ? lane.blockers.join(' · ') : 'lane not usable',
-      })
+    if (lane === undefined) {
+      excluded.push({ route, why: 'lane not usable' })
       continue
     }
     const model = targetModelOf(route)
-    if (model === undefined || model.trim() === '') {
+    const hasModel = model !== undefined && model.trim() !== ''
+    const window = hasModel && windowOf !== undefined ? windowOf(route, model) : null
+    const atCap = window !== null && window.state === 'rejected'
+    // A lane at its OWN cap is listed last and marked — never a candidate,
+    // whatever its usability map says — when it is signed in and has a row
+    // to land on (a signed-out lane has no seat to list).
+    if (atCap && hasModel && lane.credential !== 'none') {
+      capped.push({
+        route,
+        model,
+        window,
+        atCap: true,
+        usable: false,
+        ...(lane.credential !== undefined ? { credential: lane.credential } : {}),
+        blockers: lane.blockers,
+      })
+      if (!lane.usable) {
+        excluded.push({
+          route,
+          why: lane.blockers.length > 0 ? lane.blockers.join(' · ') : 'lane at its own usage cap',
+        })
+      } else {
+        excluded.push({ route, why: `the ${route} lane is at its own usage cap` })
+      }
+      continue
+    }
+    if (!lane.usable) {
+      excluded.push({
+        route,
+        why: lane.blockers.length > 0 ? lane.blockers.join(' · ') : 'lane not usable',
+      })
+      continue
+    }
+    if (!hasModel) {
       excluded.push({ route, why: 'no recorded target model fact — never a guessed id' })
       continue
     }
     candidates.push({ route, model })
+    listed.push({
+      route,
+      model,
+      window,
+      atCap: false,
+      usable: true,
+      ...(lane.credential !== undefined ? { credential: lane.credential } : {}),
+      blockers: [],
+    })
   }
-  return { home, candidates, excluded }
+  return { home, candidates, excluded, listed: [...listed, ...capped] }
 }
 
 /** The LIVE candidate set for a home family: the composed usability
@@ -665,22 +886,27 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
       return {}
     }
   })()
+  const targetOf = (route: string): string | undefined => {
+    if (route === 'openai') {
+      const seat = getGptSeatAvailability()
+      return seat.state === 'ready' ? seat.ids[0] : undefined
+    }
+    const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
+    // The first-party frontier fact answers the family default; the offer
+    // switches to the NEWEST frontier member the picker/seat persist.
+    return route === 'anthropic' && fact !== undefined
+      ? newestFirstPartyFrontierMember(fact)
+      : fact
+  }
   return deriveCapFailoverCandidates(
     home,
     resolveProviderUsability(),
-    route => {
-      if (route === 'openai') {
-        const seat = getGptSeatAvailability()
-        return seat.state === 'ready' ? seat.ids[0] : undefined
-      }
-      const fact = providerFrontierFact(route as Parameters<typeof providerFrontierFact>[0])?.modelId
-      // The first-party frontier fact answers the family default; the offer
-      // switches to the NEWEST frontier member the picker/seat persist.
-      return route === 'anthropic' && fact !== undefined
-        ? newestFirstPartyFrontierMember(fact)
-        : fact
-    },
+    targetOf,
     family => ledger[family]?.at,
+    // Each family's OWN window, read for the row it would land on (the
+    // first-party pool that model binds) — the card's usage line and the
+    // at-cap mark.
+    (route, model) => observedFamilyWindow(route, undefined, { model }),
   )
 }
 
