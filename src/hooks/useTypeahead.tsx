@@ -18,6 +18,7 @@ import { getSelectedSuggestion } from '../components/PromptInput/suggestionSelec
 import { useNotifications } from '../context/notifications.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useIsModalOverlayActive, useRegisterOverlay } from '../context/overlayContext.js'
+import { anyModalOverlayActive } from '../context/overlayStack.js'
 import { currentSurfaceRoute } from '../context/surfaceRoute.js'
 import { useInput } from '../ink.js'
 import { KeyboardEvent } from '../ink/events/keyboard-event.js'
@@ -1324,6 +1325,11 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       void input_
       void key
       if (currentSurfaceRoute().kind !== 'repl') return
+      // A modal overlay (a board, a select, a dialog) owns the keys while it
+      // is up: none of the suggestion arms — the empty-prompt Tab hint
+      // included — may consume a key aimed at it. Read at event time like
+      // the route, for the same reason.
+      if (anyModalOverlayActive()) return
       const adapter = new KeyboardEvent(event.keypress)
       handleKeyboardEvent(adapter)
       if (adapter.didStopImmediatePropagation()) {
