@@ -9,6 +9,7 @@ import { isEssentialTrafficOnly } from '../utils/privacyLevel.js'
 import { getAnthropicClient } from './api/client.js'
 import { getAPIMetadata } from './providers/anthropic/index.js'
 import { APIError } from './api/sdkErrors.js'
+import type { UsageFeed } from './providers/usageFreshness.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 
 /**
@@ -99,7 +100,11 @@ export function getRateLimitDisplayName(type: string): string {
 // Raw per-window utilization
 //
 
-type RawWindow = { utilization: number; resets_at: number }
+/** One window as observed. `source` names the feed that stated it and
+ *  `observedAtMs` when — a figure painted without its source and age reads
+ *  as live truth forever, so every fold stamps both (a proof seam that
+ *  places a record bare leaves them absent, and the words say nothing). */
+type RawWindow = { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number }
 /** The per-model weekly POOLS the subscription usage endpoint states beside
  *  the shared 5h/7d windows (claude.ai meters them as separate pools). The
  *  response headers never state them, so they are ENDPOINT-FED ONLY — and
@@ -108,6 +113,18 @@ type RawWindow = { utilization: number; resets_at: number }
 export type WeeklyPoolClaim = 'seven_day_fable' | 'seven_day_opus' | 'seven_day_sonnet'
 export const WEEKLY_POOL_CLAIMS: readonly WeeklyPoolClaim[] = ['seven_day_fable', 'seven_day_opus', 'seven_day_sonnet']
 type RawUtilization = { five_hour?: RawWindow; seven_day?: RawWindow } & Partial<Record<WeeklyPoolClaim, RawWindow>>
+
+/** The weekly pool that APPLIES to a model: a pool binds only the family it
+ *  meters (the Fable week never caps a Sonnet turn), matched on the family
+ *  word inside the id so aliases and dated variants count. A model outside
+ *  every pooled family (a Haiku id) is capped by the shared windows alone. */
+export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefined {
+  const id = model.toLowerCase()
+  if (id.includes('fable')) return 'seven_day_fable'
+  if (id.includes('opus')) return 'seven_day_opus'
+  if (id.includes('sonnet')) return 'seven_day_sonnet'
+  return undefined
+}
 
 let rawUtilization: RawUtilization = {}
 
@@ -173,7 +190,8 @@ function recomputeRawUtilization(headers: Headers): void {
     const resetsAt = Number(resetRaw)
     if (!Number.isFinite(utilization) || !Number.isFinite(resetsAt)) continue
     if (utilization < 0 || resetsAt < 0) continue
-    next[key] = { utilization, resets_at: resetsAt }
+    // Stamped: a response stated it, now.
+    next[key] = { utilization, resets_at: resetsAt, source: 'headers', observedAtMs: Date.now() }
   }
   rawUtilization = next
   // The response rode the ACTIVE slot's credential — stamp the owner.
@@ -221,22 +239,26 @@ export function foldUtilizationFromEndpoint(
     seven_day?: { utilization: number | null; resets_at: string | null } | null
   } & Partial<Record<WeeklyPoolClaim, { utilization: number | null; resets_at: string | null } | null>>,
   issuedEpoch?: number,
+  observedAtMs: number = Date.now(),
 ): void {
   // Stale-by-credential refusal: an observation issued under a departed
-  // credential epoch folds nowhere (lane IV — the in-flight answer used to
+  // credential epoch folds nowhere (the in-flight answer used to
   // repopulate the feeders a sign-out/switch had just emptied). The guard
   // lives HERE so every caller inherits it.
   if (issuedEpoch !== undefined && issuedEpoch !== usageCredentialEpoch) return
   const next: RawUtilization = {}
+  // Every window of one observation carries the same stamp: the endpoint
+  // stated them together, at this instant.
+  const stamp = (w: RawWindow): RawWindow => ({ ...w, source: 'endpoint', observedAtMs })
   const fiveHour = normalizeEndpointWindow(u.five_hour)
   const sevenDay = normalizeEndpointWindow(u.seven_day)
-  if (fiveHour) next.five_hour = fiveHour
-  if (sevenDay) next.seven_day = sevenDay
+  if (fiveHour) next.five_hour = stamp(fiveHour)
+  if (sevenDay) next.seven_day = stamp(sevenDay)
   // The per-model pools land with the windows — the same observation, the
   // same record; a pool the endpoint did not state stays absent.
   for (const claim of WEEKLY_POOL_CLAIMS) {
     const pool = normalizeEndpointWindow(u[claim])
-    if (pool) next[claim] = pool
+    if (pool) next[claim] = stamp(pool)
   }
   endpointUtilization = next
   // The endpoint answered under the ACTIVE slot's sign-in — stamp the owner.
@@ -277,9 +299,12 @@ export function getRawUtilization(): RawUtilization {
     if (!match) continue
     const key = match[1] === '5h' ? 'five_hour' : 'seven_day'
     if (copy[key] !== undefined) continue
+    // A seed is a fixture, and says so: its feed word is 'seeded', never a
+    // read with an age.
     copy[key] = {
       utilization: Number(match[2]),
       resets_at: match[3] !== undefined ? Number(match[3]) : Math.floor(Date.now() / 1000) + SEED_DEFAULT_TTL_SECONDS,
+      source: 'seed',
     }
   }
   return copy

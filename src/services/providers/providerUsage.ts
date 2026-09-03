@@ -31,11 +31,28 @@ import { modelPricingBasis } from '../../utils/modelCost.js'
 import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
 import { resolveZaiApiKey } from '../../utils/router/providerDiscovery.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
-import { quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
-import { currentLimits, getRawUtilization, getUsageCredentialEpoch, WEEKLY_POOL_CLAIMS, type WeeklyPoolClaim } from '../claudeAiLimits.js'
+import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
+import {
+  currentLimits,
+  getRawUtilization,
+  getUsageCredentialEpoch,
+  WEEKLY_POOL_CLAIMS,
+  weeklyPoolClaimForModel,
+  type RateLimitType,
+  type WeeklyPoolClaim,
+} from '../claudeAiLimits.js'
+import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
+import {
+  NO_USAGE_READ_WORDS,
+  USAGE_POLL_TTL_MS,
+  USAGE_RESPONSE_FRESH_MS,
+  usageFreshness,
+  usageSourceWords,
+  type UsageFeed,
+} from './usageFreshness.js'
 import {
   openaiLimitWindow,
   openaiObservedUsage,
@@ -376,7 +393,46 @@ export interface UsageWindowView {
   usedPct?: number
   resetsAtMs?: number
   observedAtMs?: number
+  /** The feed that stated the figure ('endpoint' · 'headers' · 'seed') and
+   *  the reader's freshness horizon for it — the one vocabulary
+   *  (usageFreshness) turns these into the source + age words every
+   *  renderer paints; a view without them says nothing about its age. */
+  source?: UsageFeed
+  freshForMs?: number
 }
+
+/** The window that caps the session model HARDEST right now — the
+ *  highest-used live window among those that apply to it: the family's
+ *  shared windows, plus (on the first-party subscription) the per-model
+ *  weekly pool of the model's own family. A pool for another family never
+ *  binds (the Fable week never caps a Sonnet turn). */
+export interface UsageBindingView {
+  window: UsageWindowView
+  /** The wire claim, on the first-party subscription lane. */
+  claim?: RateLimitType
+  /** The window's name in the family's own vocabulary ('Fable limit' ·
+   *  'weekly window' · 'credit cap') — the strip warning's word. */
+  windowName: string
+}
+
+/** The provider-stated credit balance for an api-key source, or the honest
+ *  absence of one. 'reported' carries the figure verbatim with its reader,
+ *  feed and stamp; 'unreported' carries the reason — the provider exposes
+ *  no balance road this owner reads, or the reader has not been asked yet.
+ *  Never a computed spend presented as a balance. */
+export interface UsageCreditsView {
+  state: 'reported' | 'unreported'
+  /** The figure as the provider stated it ('USD 12.34'). */
+  display?: string
+  source?: UsageFeed
+  observedAtMs?: number
+  freshForMs?: number
+  /** The 'unreported' arm's one line. */
+  reason?: string
+}
+
+/** The one spelling for a lane whose provider publishes no balance road. */
+export const CREDITS_UNREPORTED_WORDS = 'not reported by the provider'
 
 export type ActiveUsageShape = 'subscription-windows' | 'api-spend' | 'none'
 
@@ -411,6 +467,19 @@ export interface ActiveSourceUsage {
   label: string
   shape: ActiveUsageShape
   windows: UsageWindowView[]
+  /** The per-model weekly POOLS the family reports beside its shared
+   *  windows (the first-party subscription's Fable · Opus · Sonnet weeks,
+   *  keyed by the wire claim) — every renderer folds them into the family's
+   *  block. A family that reports none has none: empty, never fabricated. */
+  pools: UsageWindowView[]
+  /** The window that binds the session model hardest (activeSourceUsage
+   *  resolves it against the model; a per-provider read has no model and
+   *  carries none). */
+  binding?: UsageBindingView
+  /** The api-key source's credit balance, reported or honestly not (absent
+   *  on subscription and metering-free lanes — a subscription meters
+   *  windows, not credits). */
+  credits?: UsageCreditsView
   spend: ProviderSessionSpend
   /** Present while the provider currently reports a reached limit. */
   limited?: { resetsAtMs: number }
@@ -647,6 +716,8 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
       ...(w.limit > 0 ? { usedPct: Math.min(100, Math.max(0, (w.used / w.limit) * 100)) } : {}),
       ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
       observedAtMs: usage.observedAtMs,
+      // A polled endpoint (the managed-usage probe, at the poll TTL).
+      source: 'endpoint',
     }
   }
   const windows = [...usage.windows].sort(
@@ -682,6 +753,11 @@ export function anthropicWindowViews(reads?: ActiveUsageReads): UsageWindowView[
     state: w.state === 'live' ? 'live' : 'unavailable',
     ...(w.usedPct !== null ? { usedPct: w.usedPct } : {}),
     ...(w.resetsAtMs !== null ? { resetsAtMs: w.resetsAtMs } : {}),
+    // The feed and stamp ride verbatim from the record; both subscription
+    // feeds (a response's headers, the usage endpoint a tab samples) have
+    // no timer, so they age at the response horizon.
+    ...(w.source !== undefined ? { source: w.source, freshForMs: USAGE_RESPONSE_FRESH_MS } : {}),
+    ...(w.observedAtMs !== undefined ? { observedAtMs: w.observedAtMs } : {}),
   })
   return [view(fiveHour), view(sevenDay)]
 }
@@ -696,9 +772,11 @@ const POOL_LABELS: Record<WeeklyPoolClaim, string> = {
  *  Sonnet) as window views, keyed by the wire's own claim so the warning
  *  owner names the pool in the wire vocabulary ("Fable limit"). Endpoint-fed
  *  only (the headers never state them) off the SAME record the 5h/7d views
- *  read. Deliberately NOT part of activeSourceUsage's windows: the rail and
- *  frame meters stay the shared pair; the strip warning reads these beside
- *  them. Empty until the endpoint has answered — never a fabricated 0%. */
+ *  read. Kept beside activeSourceUsage's windows (the `pools` field), never
+ *  inside them: the shared pair stays the shared pair, every renderer folds
+ *  the pools into the family's block, and the binding-window pick applies
+ *  only the pool of the model's own family. Empty until the endpoint has
+ *  answered — never a fabricated 0%. */
 export function anthropicPoolWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
   if (reads?.anthropicPoolWindows) return reads.anthropicPoolWindows()
   const raw = getRawUtilization()
@@ -712,9 +790,136 @@ export function anthropicPoolWindowViews(reads?: ActiveUsageReads): UsageWindowV
       state: 'live',
       usedPct: pool.utilization * 100,
       resetsAtMs: pool.resets_at * 1000,
+      ...(pool.source !== undefined ? { source: pool.source, freshForMs: USAGE_RESPONSE_FRESH_MS } : {}),
+      ...(pool.observedAtMs !== undefined ? { observedAtMs: pool.observedAtMs } : {}),
     })
   }
   return views
+}
+
+/** The worst live provider-stated percent window, or null when the source
+ *  stated none (absence is never a 0%). */
+export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {
+  const live = windows.filter(
+    w => w.state === 'live' && typeof w.usedPct === 'number' && Number.isFinite(w.usedPct),
+  )
+  if (live.length === 0) return null
+  return live.reduce((a, b) => ((b.usedPct ?? 0) > (a.usedPct ?? 0) ? b : a))
+}
+
+/** A first-party window view's wire claim: the shared pair by its meter
+ *  key, a per-model pool by the claim it is keyed on. */
+export function anthropicClaimOf(view: UsageWindowView): RateLimitType {
+  if (view.key === '5h') return 'five_hour'
+  if (view.key === '7d') return 'seven_day'
+  return view.key as RateLimitType
+}
+
+/** An engine window view's word for the one warning grammar — derived from
+ *  the label the provider's OWN statement produced. */
+export function usageWindowWord(view: UsageWindowView): string {
+  if (view.key === 'cap' || view.label === 'cap') return 'credit cap'
+  if (view.label === 'quota') return 'quota'
+  if (view.label === 'wk') return 'weekly window'
+  if (view.label === 'win') return 'usage window'
+  return `${view.label} window`
+}
+
+/**
+ * THE binding-window pick: the highest-used live window among those that
+ * apply to `model`. On the first-party subscription the applicable set is
+ * the shared 5h/7d pair plus the weekly pool of the model's own family;
+ * every other lane's set is its own stated windows. Undefined when nothing
+ * live applies (never a fabricated window). Pure over a view.
+ */
+export function bindingWindowOf(
+  view: Pick<ActiveSourceUsage, 'provider' | 'shape' | 'windows' | 'pools'>,
+  model: string,
+): UsageBindingView | undefined {
+  const firstParty = view.provider === 'anthropic' && view.shape === 'subscription-windows'
+  const applicable = [...view.windows]
+  if (firstParty) {
+    const claim = weeklyPoolClaimForModel(model)
+    for (const pool of view.pools) if (pool.key === claim) applicable.push(pool)
+  }
+  const worst = worstLiveWindow(applicable)
+  if (worst === null) return undefined
+  if (firstParty) {
+    const claim = anthropicClaimOf(worst)
+    return { window: worst, claim, windowName: rateLimitWindowName(claim) }
+  }
+  return { window: worst, windowName: usageWindowWord(worst) }
+}
+
+/** The binding window for a model on its own lane — the cap-offer and the
+ *  strip warning consult THIS, so the offer, the strip and the meters can
+ *  never name different windows. */
+export function bindingWindowFor(model: string, reads?: ActiveUsageReads): UsageBindingView | undefined {
+  return activeSourceUsage({ model, ...(reads !== undefined ? { reads } : {}) }).binding
+}
+
+/** The one reset spelling for a prose surface (the doctor row, a summary):
+ *  the operator's local clock and the countdown — 'resets 14:32 (in 2h 10m)'. */
+export function usageResetWords(resetsAtMs: number | undefined, now: number = Date.now()): string | undefined {
+  if (resetsAtMs === undefined || !Number.isFinite(resetsAtMs)) return undefined
+  return `resets ${formatClock(resetsAtMs)} (in ${formatCountdown(resetsAtMs - now)})`
+}
+
+/** The credits line, one spelling for every lane: 'credits: USD 12.34 ·
+ *  endpoint-fed · read 3 s ago' · 'credits: not reported by the provider'. */
+export function usageCreditsLine(credits: UsageCreditsView | undefined, now: number = Date.now()): string | undefined {
+  if (credits === undefined) return undefined
+  if (credits.state === 'unreported') return `credits: ${credits.reason ?? CREDITS_UNREPORTED_WORDS}`
+  const words = usageSourceWords(credits, now)
+  return `credits: ${credits.display ?? ''}${words !== undefined ? ` · ${words}` : ''}`
+}
+
+/** The freshest stamped view among a family's windows and pools — the one
+ *  whose source + age words stand for the block. */
+export function freshestUsageView(views: readonly UsageWindowView[]): UsageWindowView | undefined {
+  let best: UsageWindowView | undefined
+  for (const v of views) {
+    if (v.state !== 'live') continue
+    if (best === undefined || (v.observedAtMs ?? -1) > (best.observedAtMs ?? -1)) best = v
+  }
+  return best
+}
+
+/**
+ * One family's usage in prose (the doctor row, a headless summary): the
+ * tier, every live window and pool with its percent and local reset, the
+ * source + age words, the credits line, the reached limit, the honest
+ * absence — composed from the owner's view, nothing invented.
+ */
+export function usageSummaryWords(view: ActiveSourceUsage, now: number = Date.now()): string {
+  if (view.sourceKind === 'none') return view.whyNot ?? 'not connected'
+  const parts: string[] = []
+  if (view.tier !== undefined) parts.push(view.tier)
+  const metered = [...view.windows, ...view.pools].filter(w => w.state === 'live' && w.usedPct !== undefined)
+  for (const w of metered) {
+    const reset = usageResetWords(w.resetsAtMs, now)
+    parts.push(`${w.label} ${Math.round(w.usedPct ?? 0)}%${reset !== undefined ? ` · ${reset}` : ''}`)
+  }
+  const stamped = freshestUsageView(metered)
+  const source = stamped !== undefined ? usageSourceWords(stamped, now) : undefined
+  if (source !== undefined) parts.push(source)
+  if (metered.length === 0 && view.shape === 'subscription-windows') {
+    parts.push(`${NO_USAGE_READ_WORDS} yet — fills after the first reply, or /usage samples it`)
+  }
+  if (view.absence !== undefined) parts.push(view.absence)
+  const credits = usageCreditsLine(view.credits, now)
+  if (credits !== undefined) parts.push(credits)
+  if (view.readerNote !== undefined) parts.push(view.readerNote)
+  if (view.limited !== undefined) {
+    const reset = usageResetWords(view.limited.resetsAtMs, now)
+    parts.push(`limit reached${reset !== undefined ? ` · ${reset}` : ''}`)
+  }
+  return parts.join(' · ')
+}
+
+/** Whether a stamped view is stale at `now` (the renderers' one test). */
+export function usageViewIsStale(view: UsageWindowView | UsageCreditsView, now: number = Date.now()): boolean {
+  return usageFreshness(view, now).state === 'stale'
 }
 
 /** The OpenAI subscription's observed usage bands as window views — the ONE
@@ -746,9 +951,52 @@ export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWi
       state: 'live',
       usedPct,
       observedAtMs: usage.observedAtMs,
+      // The polled key endpoint, at the poll TTL.
+      source: 'endpoint',
     },
   ]
 }
+
+/** The OpenRouter key's credit balance as the key endpoint states it: the
+ *  remaining credit under a capped key is the balance fact; an uncapped
+ *  key states none there; nothing observed is not read yet — never a
+ *  figure the endpoint did not state. */
+function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastError?: string }): UsageCreditsView {
+  const usage = observed.usage
+  if (usage === null) {
+    return {
+      state: 'unreported',
+      reason:
+        observed.lastError !== undefined
+          ? `not read — ${observed.lastError}`
+          : 'not read yet — /usage samples the key endpoint',
+    }
+  }
+  if (typeof usage.limitRemaining === 'number') {
+    return {
+      state: 'reported',
+      display: `${usage.limitRemaining.toFixed(2)} remaining under the key cap`,
+      source: 'endpoint',
+      observedAtMs: usage.observedAtMs,
+      freshForMs: USAGE_POLL_TTL_MS,
+    }
+  }
+  if (usage.limit === null) {
+    return { state: 'unreported', reason: 'the key endpoint states no balance for an uncapped key — the OpenRouter dashboard is the view' }
+  }
+  return { state: 'unreported', reason: 'the key endpoint stated no cap or balance' }
+}
+
+/** A polled balance record as the credits view (the DeepSeek and Moonshot
+ *  balance endpoints): stated ⇒ reported verbatim with its stamp; not yet
+ *  observed ⇒ not read yet, never a zero. */
+function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
+  return balance !== undefined
+    ? { state: 'reported', display: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: USAGE_POLL_TTL_MS }
+    : { state: 'unreported', reason: 'not read yet — /usage samples the balance endpoint' }
+}
+
+const CREDITS_UNREPORTED: UsageCreditsView = { state: 'unreported', reason: CREDITS_UNREPORTED_WORDS }
 
 /** The last-observed OpenRouter credit facts for the settings tab (typed,
  *  stale-but-labelled) — null until the key endpoint has answered. */
@@ -775,6 +1023,8 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
       usedPct: band.usedPct!,
       ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
       observedAtMs: band.observedAtMs,
+      // Observed on the responses themselves (no polled endpoint).
+      source: 'headers' as const,
     }
   })
 }
@@ -930,7 +1180,11 @@ function deriveActiveSourceUsage(opts?: {
   const reads = opts?.reads
   const model = opts?.model ?? getMainLoopModel()
   const provider = (reads?.route ?? ((m: string) => declaredRouteOf(m) ?? 'unrecognised'))(model)
-  return usageForProvider(provider, reads)
+  const view = usageForProvider(provider, reads)
+  // The session model decides which windows apply — the binding pick is
+  // the active-source view's alone (a per-provider read has no model).
+  const binding = bindingWindowOf(view, model)
+  return binding !== undefined ? { ...view, binding } : view
 }
 
 /** One provider's usage record, independent of any session model — the
@@ -947,14 +1201,14 @@ export function usageForProvider(
   if (provider === 'zai') {
     const keyPresent = reads?.zaiKeyPresent?.() ?? resolveZaiApiKey() !== undefined
     return keyPresent
-      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], spend, tier: API_BILLING_TIER, absence: ZAI_USAGE_ABSENCE_NOTE }
-      : { provider, sourceKind: 'none', label: 'Z.AI usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins zai adds a key' }
+      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER, absence: ZAI_USAGE_ABSENCE_NOTE, credits: CREDITS_UNREPORTED }
+      : { provider, sourceKind: 'none', label: 'Z.AI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins zai adds a key' }
   }
 
   if (provider === 'openrouter') {
     const keyPresent = reads?.openrouterKeyPresent?.() ?? resolveOpenrouterApiKey() !== undefined
     if (!keyPresent) {
-      return { provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins adds OpenRouter' }
+      return { provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds OpenRouter' }
     }
     const limitedWindow = (reads?.openrouterLimited ?? openrouterLimitWindow)()
     // The polled key truth (GET /key): the credit figures and the cap meter
@@ -968,6 +1222,8 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: openrouterObservedWindowViews(reads),
+      pools: [],
+      credits: openrouterCredits(observed),
       spend,
       tier: API_BILLING_TIER,
       ...(figures.length > 0 ? { figures } : {}),
@@ -985,7 +1241,7 @@ export function usageForProvider(
   if (provider === 'gemini') {
     const account = reads?.geminiAccount ? reads.geminiAccount() : resolveGeminiAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Gemini usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins adds Gemini' }
+      return { provider, sourceKind: 'none', label: 'Gemini usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Gemini' }
     }
     const limitedWindow = (reads?.geminiLimited ?? geminiLimitWindow)()
     // No usage endpoint exists on this lane (verified absence —
@@ -997,6 +1253,8 @@ export function usageForProvider(
       label: account.kind === 'oauth' ? 'Gemini usage' : 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: CREDITS_UNREPORTED,
       spend,
       absence: GEMINI_USAGE_ABSENCE_NOTE,
       // A Google sign-in states no billing tier — the sign-in itself is the
@@ -1011,7 +1269,7 @@ export function usageForProvider(
   if (provider === 'huggingface') {
     const account = reads?.huggingfaceAccount ? reads.huggingfaceAccount() : resolveHuggingfaceAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Hugging Face usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins adds Hugging Face' }
+      return { provider, sourceKind: 'none', label: 'Hugging Face usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Hugging Face' }
     }
     const limitedWindow = (reads?.huggingfaceLimited ?? huggingfaceLimitWindow)()
     // No spend/credit API is documented (huggingfaceUsageState) — the
@@ -1036,6 +1294,8 @@ export function usageForProvider(
       label: account.kind === 'oauth' ? 'Hugging Face usage' : 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: CREDITS_UNREPORTED,
       spend,
       ...(figures.length > 0 ? { figures } : {}),
       absence: HUGGINGFACE_USAGE_ABSENCE_NOTE,
@@ -1047,7 +1307,7 @@ export function usageForProvider(
   if (provider === 'local') {
     const account = reads?.localAccount ? reads.localAccount() : resolveLocalAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Local usage', shape: 'none', windows: [], spend, whyNot: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL' }
+      return { provider, sourceKind: 'none', label: 'Local usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL' }
     }
     return {
       provider,
@@ -1055,6 +1315,7 @@ export function usageForProvider(
       label: 'Local usage',
       shape: 'none',
       windows: [],
+      pools: [],
       spend,
       absence: 'local · no metering',
       tier: 'local · no metering',
@@ -1068,7 +1329,7 @@ export function usageForProvider(
     // with the provider-stated balance (documented unit USD).
     const account = reads?.moonshotAccount ? reads.moonshotAccount() : liveMoonshotAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Moonshot usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins moonshot adds Kimi or a key' }
+      return { provider, sourceKind: 'none', label: 'Moonshot usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins moonshot adds Kimi or a key' }
     }
     if (account.kind === 'kimi-oauth') {
       const managed = reads?.kimiManagedUsage ? reads.kimiManagedUsage() : liveKimiManagedUsage()
@@ -1078,6 +1339,7 @@ export function usageForProvider(
         label: 'Kimi usage',
         shape: 'subscription-windows',
         windows: kimiManagedWindowViews(managed),
+        pools: [],
         spend,
         tier: 'Kimi sign-in',
       }
@@ -1092,6 +1354,8 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: polledBalanceCredits(balance),
       spend,
       tier: API_BILLING_TIER,
       ...(balance ? { balance } : {}),
@@ -1112,7 +1376,7 @@ export function usageForProvider(
         provider === 'deepseek'
           ? 'not connected — /logins deepseek adds a key'
           : 'not configured — set MERCURY_COMPAT_BASE_URL'
-      return { provider, sourceKind: 'none', label: uncredentialedLabel, shape: 'none', windows: [], spend, whyNot }
+      return { provider, sourceKind: 'none', label: uncredentialedLabel, shape: 'none', windows: [], pools: [], spend, whyNot }
     }
     const record = provider === 'deepseek' ? (reads?.deepseekBalance?.() ?? liveDeepseekBalance()) : null
     const primary = record?.balances[0]
@@ -1126,6 +1390,10 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      // The balance endpoint is this lane's one credit road; a custom
+      // endpoint publishes none this owner reads.
+      credits: provider === 'deepseek' ? polledBalanceCredits(balance) : CREDITS_UNREPORTED,
       spend,
       tier: API_BILLING_TIER,
       ...(balance ? { balance } : {}),
@@ -1147,6 +1415,7 @@ export function usageForProvider(
       label: 'Unrecognised model usage',
       shape: 'none',
       windows: [],
+      pools: [],
       spend,
       whyNot: 'no provider family declares the session model — /model picks a listed row',
     }
@@ -1157,15 +1426,19 @@ export function usageForProvider(
     // two-way vocabulary.
     const title = providerDisplayName(provider)
     const whyNot = `not connected — /logins connects ${title}`
-    return { provider, sourceKind: 'none', label: `${title} usage`, shape: 'none', windows: [], spend, whyNot }
+    return { provider, sourceKind: 'none', label: `${title} usage`, shape: 'none', windows: [], pools: [], spend, whyNot }
   }
   if (entry.kind === 'api-key') {
+    // Neither first-party key lane publishes a balance road this owner
+    // reads — the credits line says so, never a computed spend as a balance.
     return {
       provider,
       sourceKind: 'api-key',
       label: 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: CREDITS_UNREPORTED,
       spend,
       tier: API_BILLING_TIER,
       absence: API_KEY_USAGE_ABSENCE_NOTE,
@@ -1181,6 +1454,8 @@ export function usageForProvider(
       label: 'Anthropic usage',
       shape: 'subscription-windows',
       windows: anthropicWindowViews(reads),
+      // The per-model weekly pools the endpoint states, beside the pair.
+      pools: anthropicPoolWindowViews(reads),
       spend,
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
     }
@@ -1197,6 +1472,7 @@ export function usageForProvider(
     label: 'OpenAI usage',
     shape: 'subscription-windows',
     windows: openaiWindowViews(reads),
+    pools: [],
     spend,
     tier: openaiPlan ? `ChatGPT ${planWord(openaiPlan)}` : 'ChatGPT subscription',
     ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),
