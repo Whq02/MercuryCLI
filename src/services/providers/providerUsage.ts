@@ -12,11 +12,28 @@ import { modelPricingBasis } from '../../utils/modelCost.js'
 import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
 import { resolveZaiApiKey } from '../../utils/router/providerDiscovery.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
-import { quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
-import { currentLimits, getRawUtilization, getUsageCredentialEpoch, WEEKLY_POOL_CLAIMS, type WeeklyPoolClaim } from '../claudeAiLimits.js'
+import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
+import {
+  currentLimits,
+  getRawUtilization,
+  getUsageCredentialEpoch,
+  WEEKLY_POOL_CLAIMS,
+  weeklyPoolClaimForModel,
+  type RateLimitType,
+  type WeeklyPoolClaim,
+} from '../claudeAiLimits.js'
+import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
+import {
+  NO_USAGE_READ_WORDS,
+  USAGE_POLL_TTL_MS,
+  USAGE_RESPONSE_FRESH_MS,
+  usageFreshness,
+  usageSourceWords,
+  type UsageFeed,
+} from './usageFreshness.js'
 import {
   openaiLimitWindow,
   openaiObservedUsage,
@@ -233,7 +250,26 @@ export interface UsageWindowView {
   usedPct?: number
   resetsAtMs?: number
   observedAtMs?: number
+  source?: UsageFeed
+  freshForMs?: number
 }
+
+export interface UsageBindingView {
+  window: UsageWindowView
+  claim?: RateLimitType
+  windowName: string
+}
+
+export interface UsageCreditsView {
+  state: 'reported' | 'unreported'
+  display?: string
+  source?: UsageFeed
+  observedAtMs?: number
+  freshForMs?: number
+  reason?: string
+}
+
+export const CREDITS_UNREPORTED_WORDS = 'not reported by the provider'
 
 export type ActiveUsageShape = 'subscription-windows' | 'api-spend' | 'none'
 
@@ -251,6 +287,9 @@ export interface ActiveSourceUsage {
   label: string
   shape: ActiveUsageShape
   windows: UsageWindowView[]
+  pools: UsageWindowView[]
+  binding?: UsageBindingView
+  credits?: UsageCreditsView
   spend: ProviderSessionSpend
   limited?: { resetsAtMs: number }
   balance?: {
@@ -415,6 +454,7 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
       ...(w.limit > 0 ? { usedPct: Math.min(100, Math.max(0, (w.used / w.limit) * 100)) } : {}),
       ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
       observedAtMs: usage.observedAtMs,
+      source: 'endpoint',
     }
   }
   const windows = [...usage.windows].sort(
@@ -441,6 +481,8 @@ export function anthropicWindowViews(reads?: ActiveUsageReads): UsageWindowView[
     state: w.state === 'live' ? 'live' : 'unavailable',
     ...(w.usedPct !== null ? { usedPct: w.usedPct } : {}),
     ...(w.resetsAtMs !== null ? { resetsAtMs: w.resetsAtMs } : {}),
+    ...(w.source !== undefined ? { source: w.source, freshForMs: USAGE_RESPONSE_FRESH_MS } : {}),
+    ...(w.observedAtMs !== undefined ? { observedAtMs: w.observedAtMs } : {}),
   })
   return [view(fiveHour), view(sevenDay)]
 }
@@ -464,9 +506,107 @@ export function anthropicPoolWindowViews(reads?: ActiveUsageReads): UsageWindowV
       state: 'live',
       usedPct: pool.utilization * 100,
       resetsAtMs: pool.resets_at * 1000,
+      ...(pool.source !== undefined ? { source: pool.source, freshForMs: USAGE_RESPONSE_FRESH_MS } : {}),
+      ...(pool.observedAtMs !== undefined ? { observedAtMs: pool.observedAtMs } : {}),
     })
   }
   return views
+}
+
+export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {
+  const live = windows.filter(
+    w => w.state === 'live' && typeof w.usedPct === 'number' && Number.isFinite(w.usedPct),
+  )
+  if (live.length === 0) return null
+  return live.reduce((a, b) => ((b.usedPct ?? 0) > (a.usedPct ?? 0) ? b : a))
+}
+
+export function anthropicClaimOf(view: UsageWindowView): RateLimitType {
+  if (view.key === '5h') return 'five_hour'
+  if (view.key === '7d') return 'seven_day'
+  return view.key as RateLimitType
+}
+
+export function usageWindowWord(view: UsageWindowView): string {
+  if (view.key === 'cap' || view.label === 'cap') return 'credit cap'
+  if (view.label === 'quota') return 'quota'
+  if (view.label === 'wk') return 'weekly window'
+  if (view.label === 'win') return 'usage window'
+  return `${view.label} window`
+}
+
+export function bindingWindowOf(
+  view: Pick<ActiveSourceUsage, 'provider' | 'shape' | 'windows' | 'pools'>,
+  model: string,
+): UsageBindingView | undefined {
+  const firstParty = view.provider === 'anthropic' && view.shape === 'subscription-windows'
+  const applicable = [...view.windows]
+  if (firstParty) {
+    const claim = weeklyPoolClaimForModel(model)
+    for (const pool of view.pools) if (pool.key === claim) applicable.push(pool)
+  }
+  const worst = worstLiveWindow(applicable)
+  if (worst === null) return undefined
+  if (firstParty) {
+    const claim = anthropicClaimOf(worst)
+    return { window: worst, claim, windowName: rateLimitWindowName(claim) }
+  }
+  return { window: worst, windowName: usageWindowWord(worst) }
+}
+
+export function bindingWindowFor(model: string, reads?: ActiveUsageReads): UsageBindingView | undefined {
+  return activeSourceUsage({ model, ...(reads !== undefined ? { reads } : {}) }).binding
+}
+
+export function usageResetWords(resetsAtMs: number | undefined, now: number = Date.now()): string | undefined {
+  if (resetsAtMs === undefined || !Number.isFinite(resetsAtMs)) return undefined
+  return `resets ${formatClock(resetsAtMs)} (in ${formatCountdown(resetsAtMs - now)})`
+}
+
+export function usageCreditsLine(credits: UsageCreditsView | undefined, now: number = Date.now()): string | undefined {
+  if (credits === undefined) return undefined
+  if (credits.state === 'unreported') return `credits: ${credits.reason ?? CREDITS_UNREPORTED_WORDS}`
+  const words = usageSourceWords(credits, now)
+  return `credits: ${credits.display ?? ''}${words !== undefined ? ` · ${words}` : ''}`
+}
+
+export function freshestUsageView(views: readonly UsageWindowView[]): UsageWindowView | undefined {
+  let best: UsageWindowView | undefined
+  for (const v of views) {
+    if (v.state !== 'live') continue
+    if (best === undefined || (v.observedAtMs ?? -1) > (best.observedAtMs ?? -1)) best = v
+  }
+  return best
+}
+
+export function usageSummaryWords(view: ActiveSourceUsage, now: number = Date.now()): string {
+  if (view.sourceKind === 'none') return view.whyNot ?? 'not connected'
+  const parts: string[] = []
+  if (view.tier !== undefined) parts.push(view.tier)
+  const metered = [...view.windows, ...view.pools].filter(w => w.state === 'live' && w.usedPct !== undefined)
+  for (const w of metered) {
+    const reset = usageResetWords(w.resetsAtMs, now)
+    parts.push(`${w.label} ${Math.round(w.usedPct ?? 0)}%${reset !== undefined ? ` · ${reset}` : ''}`)
+  }
+  const stamped = freshestUsageView(metered)
+  const source = stamped !== undefined ? usageSourceWords(stamped, now) : undefined
+  if (source !== undefined) parts.push(source)
+  if (metered.length === 0 && view.shape === 'subscription-windows') {
+    parts.push(`${NO_USAGE_READ_WORDS} yet — fills after the first reply, or /usage samples it`)
+  }
+  if (view.absence !== undefined) parts.push(view.absence)
+  const credits = usageCreditsLine(view.credits, now)
+  if (credits !== undefined) parts.push(credits)
+  if (view.readerNote !== undefined) parts.push(view.readerNote)
+  if (view.limited !== undefined) {
+    const reset = usageResetWords(view.limited.resetsAtMs, now)
+    parts.push(`limit reached${reset !== undefined ? ` · ${reset}` : ''}`)
+  }
+  return parts.join(' · ')
+}
+
+export function usageViewIsStale(view: UsageWindowView | UsageCreditsView, now: number = Date.now()): boolean {
+  return usageFreshness(view, now).state === 'stale'
 }
 
 export function openaiObservedWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
@@ -488,9 +628,44 @@ export function openrouterObservedWindowViews(reads?: ActiveUsageReads): UsageWi
       state: 'live',
       usedPct,
       observedAtMs: usage.observedAtMs,
+      source: 'endpoint',
     },
   ]
 }
+
+function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastError?: string }): UsageCreditsView {
+  const usage = observed.usage
+  if (usage === null) {
+    return {
+      state: 'unreported',
+      reason:
+        observed.lastError !== undefined
+          ? `not read — ${observed.lastError}`
+          : 'not read yet — /usage samples the key endpoint',
+    }
+  }
+  if (typeof usage.limitRemaining === 'number') {
+    return {
+      state: 'reported',
+      display: `${usage.limitRemaining.toFixed(2)} remaining under the key cap`,
+      source: 'endpoint',
+      observedAtMs: usage.observedAtMs,
+      freshForMs: USAGE_POLL_TTL_MS,
+    }
+  }
+  if (usage.limit === null) {
+    return { state: 'unreported', reason: 'the key endpoint states no balance for an uncapped key — the OpenRouter dashboard is the view' }
+  }
+  return { state: 'unreported', reason: 'the key endpoint stated no cap or balance' }
+}
+
+function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
+  return balance !== undefined
+    ? { state: 'reported', display: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: USAGE_POLL_TTL_MS }
+    : { state: 'unreported', reason: 'not read yet — /usage samples the balance endpoint' }
+}
+
+const CREDITS_UNREPORTED: UsageCreditsView = { state: 'unreported', reason: CREDITS_UNREPORTED_WORDS }
 
 export function openrouterCreditFacts(reads?: ActiveUsageReads): {
   usage: OpenrouterKeyUsage | null
@@ -514,6 +689,7 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
       usedPct: band.usedPct!,
       ...(band.resetsAtMs !== undefined ? { resetsAtMs: band.resetsAtMs } : {}),
       observedAtMs: band.observedAtMs,
+      source: 'headers' as const,
     }
   })
 }
@@ -631,7 +807,9 @@ function deriveActiveSourceUsage(opts?: {
   const reads = opts?.reads
   const model = opts?.model ?? getMainLoopModel()
   const provider = (reads?.route ?? ((m: string) => declaredRouteOf(m) ?? 'unrecognised'))(model)
-  return usageForProvider(provider, reads)
+  const view = usageForProvider(provider, reads)
+  const binding = bindingWindowOf(view, model)
+  return binding !== undefined ? { ...view, binding } : view
 }
 
 export function usageForProvider(
@@ -643,14 +821,14 @@ export function usageForProvider(
   if (provider === 'zai') {
     const keyPresent = reads?.zaiKeyPresent?.() ?? resolveZaiApiKey() !== undefined
     return keyPresent
-      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], spend, tier: API_BILLING_TIER, absence: ZAI_USAGE_ABSENCE_NOTE }
-      : { provider, sourceKind: 'none', label: 'Z.AI usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins zai adds a key' }
+      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER, absence: ZAI_USAGE_ABSENCE_NOTE, credits: CREDITS_UNREPORTED }
+      : { provider, sourceKind: 'none', label: 'Z.AI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins zai adds a key' }
   }
 
   if (provider === 'openrouter') {
     const keyPresent = reads?.openrouterKeyPresent?.() ?? resolveOpenrouterApiKey() !== undefined
     if (!keyPresent) {
-      return { provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins adds OpenRouter' }
+      return { provider, sourceKind: 'none', label: 'OpenRouter usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds OpenRouter' }
     }
     const limitedWindow = (reads?.openrouterLimited ?? openrouterLimitWindow)()
     const observed = (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
@@ -661,6 +839,8 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: openrouterObservedWindowViews(reads),
+      pools: [],
+      credits: openrouterCredits(observed),
       spend,
       tier: API_BILLING_TIER,
       ...(figures.length > 0 ? { figures } : {}),
@@ -678,7 +858,7 @@ export function usageForProvider(
   if (provider === 'gemini') {
     const account = reads?.geminiAccount ? reads.geminiAccount() : resolveGeminiAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Gemini usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins adds Gemini' }
+      return { provider, sourceKind: 'none', label: 'Gemini usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Gemini' }
     }
     const limitedWindow = (reads?.geminiLimited ?? geminiLimitWindow)()
     return {
@@ -687,6 +867,8 @@ export function usageForProvider(
       label: account.kind === 'oauth' ? 'Gemini usage' : 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: CREDITS_UNREPORTED,
       spend,
       absence: GEMINI_USAGE_ABSENCE_NOTE,
       tier: account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
@@ -699,7 +881,7 @@ export function usageForProvider(
   if (provider === 'huggingface') {
     const account = reads?.huggingfaceAccount ? reads.huggingfaceAccount() : resolveHuggingfaceAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Hugging Face usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins adds Hugging Face' }
+      return { provider, sourceKind: 'none', label: 'Hugging Face usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Hugging Face' }
     }
     const limitedWindow = (reads?.huggingfaceLimited ?? huggingfaceLimitWindow)()
     const rate = reads?.huggingfaceRate ? reads.huggingfaceRate() : huggingfaceObservedRate()
@@ -720,6 +902,8 @@ export function usageForProvider(
       label: account.kind === 'oauth' ? 'Hugging Face usage' : 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: CREDITS_UNREPORTED,
       spend,
       ...(figures.length > 0 ? { figures } : {}),
       absence: HUGGINGFACE_USAGE_ABSENCE_NOTE,
@@ -731,7 +915,7 @@ export function usageForProvider(
   if (provider === 'local') {
     const account = reads?.localAccount ? reads.localAccount() : resolveLocalAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Local usage', shape: 'none', windows: [], spend, whyNot: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL' }
+      return { provider, sourceKind: 'none', label: 'Local usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL' }
     }
     return {
       provider,
@@ -739,6 +923,7 @@ export function usageForProvider(
       label: 'Local usage',
       shape: 'none',
       windows: [],
+      pools: [],
       spend,
       absence: 'local · no metering',
       tier: 'local · no metering',
@@ -748,7 +933,7 @@ export function usageForProvider(
   if (provider === 'moonshot') {
     const account = reads?.moonshotAccount ? reads.moonshotAccount() : liveMoonshotAccount()
     if (!account) {
-      return { provider, sourceKind: 'none', label: 'Moonshot usage', shape: 'none', windows: [], spend, whyNot: 'not connected — /logins moonshot adds Kimi or a key' }
+      return { provider, sourceKind: 'none', label: 'Moonshot usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins moonshot adds Kimi or a key' }
     }
     if (account.kind === 'kimi-oauth') {
       const managed = reads?.kimiManagedUsage ? reads.kimiManagedUsage() : liveKimiManagedUsage()
@@ -758,6 +943,7 @@ export function usageForProvider(
         label: 'Kimi usage',
         shape: 'subscription-windows',
         windows: kimiManagedWindowViews(managed),
+        pools: [],
         spend,
         tier: 'Kimi sign-in',
       }
@@ -772,6 +958,8 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: polledBalanceCredits(balance),
       spend,
       tier: API_BILLING_TIER,
       ...(balance ? { balance } : {}),
@@ -786,7 +974,7 @@ export function usageForProvider(
         provider === 'deepseek'
           ? 'not connected — /logins deepseek adds a key'
           : 'not configured — set MERCURY_COMPAT_BASE_URL'
-      return { provider, sourceKind: 'none', label: uncredentialedLabel, shape: 'none', windows: [], spend, whyNot }
+      return { provider, sourceKind: 'none', label: uncredentialedLabel, shape: 'none', windows: [], pools: [], spend, whyNot }
     }
     const record = provider === 'deepseek' ? (reads?.deepseekBalance?.() ?? liveDeepseekBalance()) : null
     const primary = record?.balances[0]
@@ -800,6 +988,8 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: provider === 'deepseek' ? polledBalanceCredits(balance) : CREDITS_UNREPORTED,
       spend,
       tier: API_BILLING_TIER,
       ...(balance ? { balance } : {}),
@@ -817,6 +1007,7 @@ export function usageForProvider(
       label: 'Unrecognised model usage',
       shape: 'none',
       windows: [],
+      pools: [],
       spend,
       whyNot: 'no provider family declares the session model — /model picks a listed row',
     }
@@ -825,7 +1016,7 @@ export function usageForProvider(
   if (entry === undefined) {
     const title = providerDisplayName(provider)
     const whyNot = `not connected — /logins connects ${title}`
-    return { provider, sourceKind: 'none', label: `${title} usage`, shape: 'none', windows: [], spend, whyNot }
+    return { provider, sourceKind: 'none', label: `${title} usage`, shape: 'none', windows: [], pools: [], spend, whyNot }
   }
   if (entry.kind === 'api-key') {
     return {
@@ -834,6 +1025,8 @@ export function usageForProvider(
       label: 'API usage',
       shape: 'api-spend',
       windows: [],
+      pools: [],
+      credits: CREDITS_UNREPORTED,
       spend,
       tier: API_BILLING_TIER,
       absence: API_KEY_USAGE_ABSENCE_NOTE,
@@ -847,6 +1040,7 @@ export function usageForProvider(
       label: 'Anthropic usage',
       shape: 'subscription-windows',
       windows: anthropicWindowViews(reads),
+      pools: anthropicPoolWindowViews(reads),
       spend,
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
     }
@@ -859,6 +1053,7 @@ export function usageForProvider(
     label: 'OpenAI usage',
     shape: 'subscription-windows',
     windows: openaiWindowViews(reads),
+    pools: [],
     spend,
     tier: openaiPlan ? `ChatGPT ${planWord(openaiPlan)}` : 'ChatGPT subscription',
     ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),

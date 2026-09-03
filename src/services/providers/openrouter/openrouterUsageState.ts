@@ -3,6 +3,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveOpenrouterRequestAuth } from './openrouterAccounts.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
@@ -27,7 +28,7 @@ let lastAttemptAtMs = 0
 let inFlight: Promise<OpenrouterKeyUsage | null> | null = null
 let observedIdentity = 'none'
 
-const KEY_USAGE_TTL_MS = 60_000
+const KEY_USAGE_TTL_MS = USAGE_POLL_TTL_MS
 const KEY_USAGE_FAILURE_RETRY_MS = 10_000
 
 function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
