@@ -46,7 +46,7 @@ console.log('── §2 the release windows job ──')
   check('the windows-x64 target row exists', yml.includes('target: windows-x64') && yml.includes('os: windows-latest'))
 }
 
-console.log('── §3 the win32-x64 layout ──')
+console.log('── §3 the win-x64 layout ──')
 {
   const lock = join(ROOT, 'vendor', 'brush.lock.json')
   if (existsSync(lock)) {
@@ -55,17 +55,37 @@ console.log('── §3 the win32-x64 layout ──')
   } else {
     console.log('  [SKIP] vendor/brush.lock.json is not on this tree — the version pin is the probe\'s default alone')
   }
-  const pack = join(ROOT, 'vendor', 'brush', 'win32-x64')
-  if (!existsSync(pack)) {
-    console.log('  [SKIP] no vendor/brush/win32-x64 pack on this host — the layout leg runs where the pack is built (the hosted probe, a Windows box)')
+  let packPlatform = 'win-x64'
+  let binaryName = 'brush.exe'
+  const ownerPath = join(ROOT, 'src', 'utils', 'shell', 'brushPack.ts')
+  if (existsSync(ownerPath)) {
+    ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
+    const owner = (await import(ownerPath)) as {
+      brushPackPlatform?: (platform: string, arch: string) => string | null
+      brushBinaryFor?: (packPlatform: string) => string
+      BRUSH_PACK_PATH?: string
+    }
+    const spelled = owner.brushPackPlatform?.('win32', 'x64') ?? null
+    check('the pack owner spells the Windows platform win-x64', spelled === 'win-x64', String(spelled))
+    check('the pack root is vendor/brush', owner.BRUSH_PACK_PATH === 'vendor/brush', String(owner.BRUSH_PACK_PATH))
+    if (spelled !== null) packPlatform = spelled
+    const named = owner.brushBinaryFor?.(packPlatform)
+    check('the Windows binary is brush.exe', named === 'brush.exe', String(named))
+    if (named !== undefined) binaryName = named
   } else {
-    const exe = join(pack, 'brush.exe')
-    check('brush.exe is present', existsSync(exe) && statSync(exe).size > 0)
+    console.log('  [SKIP] src/utils/shell/brushPack.ts is not on this tree — the literal win-x64 spelling stands in')
+  }
+  const pack = join(ROOT, 'vendor', 'brush', packPlatform)
+  if (!existsSync(pack)) {
+    console.log(`  [SKIP] no vendor/brush/${packPlatform} pack on this host — the layout leg runs where the pack is built (the hosted probe, a Windows box)`)
+  } else {
+    const exe = join(pack, binaryName)
+    check(`${binaryName} is present`, existsSync(exe) && statSync(exe).size > 0)
     const manifestPath = join(pack, '.vendor-manifest.json')
     check('.vendor-manifest.json is present', existsSync(manifestPath))
     if (existsSync(manifestPath) && existsSync(exe)) {
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
-      check('the manifest names the platform win32-x64', manifest.platform === 'win32-x64', String(manifest.platform))
+      check(`the manifest names the platform ${packPlatform}`, manifest.platform === packPlatform, String(manifest.platform))
       check('the manifest carries a version', typeof manifest.version === 'string' && /^\d+\.\d+\.\d+/.test(manifest.version), String(manifest.version))
       const digest = createHash('sha256').update(readFileSync(exe)).digest('hex')
       const strings: string[] = []
