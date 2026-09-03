@@ -22,7 +22,7 @@ import {
   withoutCacheControl,
   type CaptureRow,
   type WireBody,
-} from './wire-prefix-replay.ts'
+} from '../api/wire-prefix-replay.ts'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
