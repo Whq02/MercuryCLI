@@ -243,9 +243,10 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
 {
   const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
   check('no "refuses to draw narrower than 100" claim', !/refuses to draw narrower/.test(doc))
-  check('the real floor is stated (80 columns and 24 rows)', /80 columns and 24 rows/.test(doc))
+  const { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } = await import('../../src/ink/viewportFloor.ts')
+  check(`the real floor is stated (${VIEWPORT_FLOOR_COLS} columns and ${VIEWPORT_FLOOR_ROWS} rows)`, doc.includes(`${VIEWPORT_FLOOR_COLS} columns and ${VIEWPORT_FLOOR_ROWS} rows`))
   const layout = readFileSync(join(ROOT, 'src', 'components', 'concourse', 'ConcourseLayout.tsx'), 'utf8')
-  check("…and it is the tree's floor (ConcourseLayout: cols < 80 || rows < 24)", /cols < 80 \|\| rows < 24/.test(layout))
+  check("…and it is the tree's floor (ConcourseLayout reads the viewport floor's owner)", layout.includes('cols < VIEWPORT_FLOOR_COLS || rows < VIEWPORT_FLOOR_ROWS'))
   check('the winget id is the LTS line', doc.includes('winget install --id OpenJS.NodeJS.LTS --source winget') && !/--id OpenJS\.NodeJS --source/.test(doc))
   check('no "spaces break some build tooling" claim', !/spaces break/.test(doc))
   check('the splash tip says a bare direct node start paints it before the face', /a bare `node dist\\mercury\.mjs` runs it before the\s+face/.test(doc) && !/no effect on\s+a direct `node dist\\mercury\.mjs` start/.test(doc))
