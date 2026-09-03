@@ -20,6 +20,7 @@ import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 import { ProductLockup } from './mercury-ui/components.js'
 import { GLYPH, padTo } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
+import { EffortStrip } from './mercury-ui/EffortStrip.js'
 import { gaugeColor } from './mercury-ui/theme.js'
 import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
 import type { ModelPickerFooterDoor } from '../utils/model/modelPickerFooter.js'
@@ -406,14 +407,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
             <Text color={FAINT}> ←→ cycle</Text>
           </Text>
         ) : (
-          <Text>
-            <Text color={FAINT}>effort  </Text>
-            {efforts!.map(e => (
-              <Text key={e} bold={e === effort} color={e === effort ? TERRA : FAINT}>
-                {e === effort ? `[${e}] ` : `${e} `}
-              </Text>
-            ))}
-          </Text>
+          <EffortStrip levels={efforts!} current={effort} accent={TERRA} faint={FAINT} />
         )
       ) : null}
       {

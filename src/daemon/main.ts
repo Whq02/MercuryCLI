@@ -668,12 +668,24 @@ async function daemonRun(args: string[]): Promise<void> {
             )
           }
           if (action === 'stop') {
+            if (roster !== null) {
+              roster.control(
+                rec.runnerId,
+                JSON.stringify({
+                  type: 'control_request',
+                  request_id: `concourse-interrupt-stop-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
+                  request: { subtype: 'interrupt', hard: true },
+                }),
+              )
+            }
             const out = stopConcourseSession(sessionId, by, roster ?? undefined)
             return out.outcome === 'refused'
               ? { outcome: 'refused' as const, detail: out.reason }
               : out.outcome === 'noop'
                 ? { outcome: 'noop' as const, detail: out.reason }
-                : { outcome: 'applied' as const, detail: `stopped ${out.runnerId}` }
+                : out.acknowledged
+                  ? { outcome: 'applied' as const, detail: `stopped ${out.runnerId}` }
+                  : { outcome: 'applied' as const, detail: `stop sent — ${out.runnerId} ends its turn and its agents; the row reads stopped once it is gone` }
           }
           if (action === 'attach') {
             const out = attachYieldConcourseSession(sessionId, by, roster ?? undefined)
