@@ -15,13 +15,17 @@ echo "############################################################"
 echo "# attention — the operator command surface"
 echo "############################################################"
 
+claimed=$(cat scripts/attention-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for proof in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   echo
   echo "── $(basename "$proof") ──"
   __t=$SECONDS; (cd "$repo" && "$bun" run "$proof") || fail=1; prover_mark "$proof" "$__t"
 done
 
 for journey in "$here"/journey-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$journey")"; then continue; fi
   [ -e "$journey" ] || continue
   echo
   echo "── $(basename "$journey") (machine-gated) ──"
@@ -36,6 +40,7 @@ for journey in "$here"/journey-*.ts; do
 done
 
 for repro in "$here"/repro-journey-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")"; then continue; fi
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"

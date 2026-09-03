@@ -4,13 +4,7 @@
 # lands there automatically; a name listed here but missing on disk is a
 # loud red in this runner.
 prove-board-controls.ts
-prove-concourse-flow-captures.ts
 prove-concourse-resume.ts
 prove-coordinator-role-mint.ts
-prove-exit-everywhere-look.ts
-prove-exit-everywhere.ts
-prove-live-tiles-drive.ts
-prove-plain-world-command-honesty.ts
 prove-seat-ceiling.ts
 prove-spoken-model-launch.ts
-prove-unknown-command-honesty.ts

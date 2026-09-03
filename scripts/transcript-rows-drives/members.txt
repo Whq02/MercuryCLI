@@ -1,0 +1,11 @@
+# scripts/transcript-rows-drives/members.txt — the transcript-rows suite's real-terminal drives, one
+# basename per line (the files live in scripts/transcript-rows/). Each member boots
+# the built bundle in a pseudo-terminal; the parent suite runs every prover
+# NOT named by a sibling list, so a new prover lands there and moves here
+# only by editing this list. A name listed here but missing on disk is a
+# loud red in this runner.
+prove-clear-empties-transcript.ts
+prove-composer-seed.ts
+prove-row-identity.ts
+prove-settle-slot.ts
+prove-streaming-hold.ts

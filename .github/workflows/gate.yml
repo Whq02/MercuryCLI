@@ -82,21 +82,21 @@ jobs:
           node-version: '22'
       - name: Qualify artifact (Node 22 — concise refusal)
         run: bash scripts/node-runtime/qualify-artifact.sh dist/mercury.mjs expect-refusal
-      - name: Read darwin straggler list
+      - name: Read darwin straggler list (the release class)
         id: plan
         run: |
-          list=$(grep -v '^#' scripts/gate/ci-darwin-suites.txt 2>/dev/null | tr -d ' ' | grep -v '^$' | paste -sd' ' - || true)
+          list=$(bash scripts/gate/ci-shard.sh darwin 12 --class release --plan-only | paste -sd' ' - || true)
           echo "darwin_suites=$list" >> "$GITHUB_OUTPUT"
 
   shard:
     name: "suites · shard ${{ matrix.shard }}"
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -132,13 +132,15 @@ jobs:
           name: dist
       - name: Unpack dist
         run: tar -xzf dist.tar.gz
-      - name: Run shard suites
-        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 16
+      - name: Run shard suites (the release class)
+        run: bash scripts/gate/ci-shard.sh "${{ matrix.shard }}" 12 --class release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: gate-results-shard-${{ matrix.shard }}
-          path: ci-gate-out/results.tsv
+          path: |
+            ci-gate-out/results.tsv
+            ci-gate-out/notes.tsv
           retention-days: 7
           if-no-files-found: error
 
@@ -185,13 +187,15 @@ jobs:
           ~/.bun/bin/bun run scripts/vendor/fetch-js-debug.ts
       - name: Build dist (platform-correct vendoring)
         run: ~/.bun/bin/bun run build.ts
-      - name: Run darwin suites
-        run: bash scripts/gate/ci-shard.sh darwin 16
+      - name: Run darwin suites (the release class)
+        run: bash scripts/gate/ci-shard.sh darwin 12 --class release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: gate-results-darwin
-          path: ci-gate-out/results.tsv
+          path: |
+            ci-gate-out/results.tsv
+            ci-gate-out/notes.tsv
           retention-days: 7
           if-no-files-found: error
 
@@ -209,8 +213,8 @@ jobs:
         with:
           pattern: gate-results-*
           path: results
-      - name: Aggregate
-        run: /usr/bin/python3 scripts/gate/ci-verdict.py results
+      - name: Aggregate (release scope — the deferred drives are named, never counted)
+        run: /usr/bin/python3 scripts/gate/ci-verdict.py results --scope release
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:

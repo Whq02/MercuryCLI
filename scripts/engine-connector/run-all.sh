@@ -12,7 +12,10 @@ bun="${BUN:-$HOME/.bun/bin/bun}"
 
 failed=0
 shopt -s nullglob
+claimed=$(cat scripts/engine-connector-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for f in scripts/engine-connector/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$f")"; then continue; fi
   echo "── engine-connector: $(basename "$f")"
   __t=$SECONDS; if ! "$bun" "$f"; then
     failed=1
