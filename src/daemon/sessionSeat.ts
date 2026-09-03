@@ -490,6 +490,26 @@ function seatBusy(short: string, roster: SeatRosterPort): boolean {
   return seatTurnOpen(roster.list().find(j => j.short === short))
 }
 
+/**
+ * THE SWITCH LAW while agents hold the turn: a model or effort switch parks
+ * only while a STREAM is in flight ("the running turn keeps its model"). A
+ * turn held open by its background agents alone has no stream — the runner
+ * said so (the status word) — and the next call is the first that could
+ * carry the new value, so the switch applies now. Parked instead, the
+ * switch waited on agents that can run for an hour, the chip named a model
+ * the wire never carried, and the operator's next ask ran on the old one.
+ * Pure: the turn-open fact and the seat's state word decide.
+ */
+export function switchAppliesWhileAgentsHold(turnOpen: boolean, stateWord: SeatState['stateWord']): boolean {
+  if (!turnOpen) return true
+  return stateWord === 'waiting-on-agents'
+}
+
+/** Busy for a MODEL or EFFORT switch — seatBusy, less the agent hold. */
+function seatBusyForSwitch(short: string, roster: SeatRosterPort): boolean {
+  return !switchAppliesWhileAgentsHold(seatBusy(short, roster), seatOf(short).stateWord)
+}
+
 // ── the facts projection ────────────────────────────────────────────────────
 
 const ZERO_USAGE: SessionFactsAnswerV1['usage'] = {
@@ -1242,7 +1262,7 @@ export function setSessionModel(sessionId: string, model: string, roster: SeatRo
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.modelKey === model && rec.pendingModelKey === undefined) return { outcome: 'noop', detail: `already on ${model}` }
-  if (seatBusy(rec.runnerId, roster)) {
+  if (seatBusyForSwitch(rec.runnerId, roster)) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) {
@@ -1305,7 +1325,7 @@ export function setSessionEffort(sessionId: string, effort: string, roster: Seat
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.effort === effort && rec.pendingEffort === undefined) return { outcome: 'noop', detail: `already on ${effort}` }
-  if (seatBusy(rec.runnerId, roster)) {
+  if (seatBusyForSwitch(rec.runnerId, roster)) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) {
