@@ -7,6 +7,7 @@ import {
   type SessionFactsV1,
   type SessionProgressEntryV1,
 } from '../services/engine-connector/seatProjections.js'
+import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, updateConcourseWorkers, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
@@ -53,6 +54,7 @@ interface SeatState {
   turnChars: number
   stateWord: 'compacting' | 'waiting-on-agents' | null
   waitingOnAgents: number
+  wait: RequestWaitV1 | null
   progress: Map<string, SessionProgressEntryV1>
   progressTimer: ReturnType<typeof setTimeout> | null
   progressDirty: boolean
@@ -69,7 +71,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -92,6 +94,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
         ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
+        ...(seat.wait !== null ? { wait: seat.wait } : {}),
         ...(seat.lastEventAtMs !== null ? { lastEventAtMs: seat.lastEventAtMs } : {}),
         ...(seat.streamBlock !== null ? { streamBlock: seat.streamBlock } : {}),
         ...(seat.blockSinceMs !== null ? { blockSinceMs: seat.blockSinceMs } : {}),
@@ -605,6 +608,16 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       if (frame.type === 'system' && frame.subtype === 'status') {
         const seat = seatOf(short)
         if (seat.sessionId === null) seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
+        if (frame.status !== null && typeof frame.status === 'object' && 'wait' in (frame.status as object)) {
+          const raw = (frame.status as { wait?: unknown }).wait
+          const next = decodeRequestWait(raw)
+          noteSeatEvent(seat, dir)
+          if (JSON.stringify(seat.wait) !== JSON.stringify(next)) {
+            seat.wait = next
+            publishTailNow(seat, dir)
+          }
+          return
+        }
         const waiting =
           frame.status !== null && typeof frame.status === 'object'
             ? (frame.status as { waitingOnAgents?: unknown }).waitingOnAgents
@@ -660,6 +673,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.tailMessageId = null
       seat.stateWord = null
       seat.waitingOnAgents = 0
+      seat.wait = null
       noteSeatEvent(seat, dir)
       seat.streamBlock = null
       seat.blockSinceMs = null
@@ -689,9 +703,10 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
   seat.turnChars = 0
   seat.tailMessageId = null
-  const hadWord = seat.stateWord !== null
+  const hadWord = seat.stateWord !== null || seat.wait !== null
   seat.stateWord = null
   seat.waitingOnAgents = 0
+  seat.wait = null
   const hadLiveness = seat.lastEventAtMs !== null || seat.streamBlock !== null
   seat.lastEventAtMs = null
   seat.streamBlock = null
