@@ -2,6 +2,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import {
   kimiUsagesUrl,
   moonshotApiBase,
@@ -110,7 +111,7 @@ export async function fetchMoonshotBalance(key: string, io?: MoonshotUsageIo): P
   }
 }
 
-const REFRESH_TTL_MS = 60_000
+const REFRESH_TTL_MS = USAGE_POLL_TTL_MS
 let inFlight: Promise<MoonshotObservedBalance | null> | null = null
 
 export function refreshMoonshotBalance(io?: MoonshotUsageIo): Promise<MoonshotObservedBalance | null> {

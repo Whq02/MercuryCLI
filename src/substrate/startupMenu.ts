@@ -17,6 +17,7 @@ export interface MenuRow {
   kind: 'toggle' | 'enum' | 'string'
   options: readonly string[]
   defaultLabel: string
+  applicationClass?: 'new-session' | 'live'
   summary: string
   detail?: {
     controls: string
@@ -80,10 +81,10 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['0'],
     defaultLabel: 'on',
-    summary: 'real C/C++ IDE evidence — diagnostics with clang-tidy, rename, source↔header — through a clangd the harness finds for you',
+    summary: 'real C/C++ IDE evidence — diagnostics with clang-tidy, rename, source ⇄ header — through a clangd the harness finds for you',
     detail: {
       controls: 'The C/C++ language lane of the IDE bridge: finds a clangd (PATH · Xcode · Homebrew llvm), lazy-starts it on the first C/C++ file touched, and answers through the LSP tool. Needs nothing from the project — a compile database sharpens it (evidence on /health). Pairs with the Debug tool: real IDE evidence instead of guesses.',
-      on: ['C/C++ files get diagnostics · rename · code actions · source↔header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane simply stays quiet'],
+      on: ['C/C++ files get diagnostics · rename · code actions · source ⇄ header jumps', 'clang-tidy findings ride the diagnostics', 'no clangd installed ⇒ the lane simply stays quiet'],
       off: ['C/C++ files fall back to plain-text editing — no language server'],
     },
   },
@@ -187,6 +188,36 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     },
   },
   {
+    env: 'MERCURY_SESSION_SUBAGENTS',
+    label: 'Sub-agents',
+    group: 'agents',
+    kind: 'toggle',
+    options: ['0'],
+    defaultLabel: 'on',
+    applicationClass: 'live',
+    summary: 'whether a session may spawn sub-agents — off removes the Agent tool from its roster and closes every spawn road; the concourse itself keeps launching sessions',
+    detail: {
+      controls: "The sub-agents switch of the sessions born after this choice. On (the default): the Agent tool is in the roster and the model delegates as it does today. Off: the Agent tool is absent from the roster — the model never sees it — and every road that would spawn a sub-agent from inside the session (the tool, a skill fork, a workflow's agent hooks, the fleet tools, the Crew view's spawn key) answers one receipt naming /subagents and this menu. Per session: the concourse coordinator's own launches are untouched. Inside a session, /subagents on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.",
+      on: ['the Agent tool is in the roster; skills, workflows and the fleet tools may spawn', 'a running session flips it any time with /subagents off'],
+      off: ['no Agent tool in the roster; every spawn road answers "sub-agents are off for this session"', 'the concourse still launches sessions and crew seats', 'flip it back inside a session with /subagents on'],
+    },
+  },
+  {
+    env: 'MERCURY_SESSION_WORKFLOWS',
+    label: 'Workflows',
+    group: 'agents',
+    kind: 'toggle',
+    options: ['0'],
+    defaultLabel: 'on',
+    applicationClass: 'live',
+    summary: 'whether a session may run workflows — off removes the Workflow tool from its roster and closes the workflow launch roads (the run board stays readable)',
+    detail: {
+      controls: "The workflows switch of the sessions born after this choice. On (the default): the Workflow tool is in the roster and the workflow commands launch as they do today. Off: the Workflow tool leaves the roster and every workflow launch road (the tool, a workflow's own command) answers one receipt naming /workflows and this menu; /workflows still opens the run board to watch past runs. Inside a session, /workflows on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a run already going finishes.",
+      on: ['the Workflow tool is in the roster; the workflow commands launch', 'a running session flips it any time with /workflows off'],
+      off: ['no Workflow tool in the roster; the launch roads answer "workflows are off for this session"', 'the run board (/workflows) stays readable', 'flip it back inside a session with /workflows on'],
+    },
+  },
+  {
     env: 'MERCURY_LAUNCH_RIPPLE',
     label: 'Launch animation',
     group: 'miscellaneous',
@@ -281,7 +312,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       'when the usage window of the family you run on caps out: the SLOT rung always asks first (a one-key switch to the same family\'s other signed-in slot with headroom; auto switches it unattended) · offer (default) adds the one-keypress cross-family handoff card to another signed-in family — nothing moves without your confirm · off waits for reset instead · auto hands off unattended and returns on the observed reset',
     detail: {
       controls:
-        "What happens when the usage window of the family the session runs on runs out mid-work — the same for every signed-in family, no favourite. TWO rungs. The SLOT rung (within the family — Anthropic's sign-in↔managed key, OpenAI's subscription↔API key): whenever the walled family's OTHER slot is signed in with headroom, the wall presents a one-key slot-switch card at EVERY posture — off included (the wall is never a dead end); at auto the slot switches unattended, receipted on the wall row and in the slot state. Nothing signs out; the next turn rides the other slot. The CROSS-FAMILY rung: offer (the default) — a usage warning or a reached window on the home family presents a one-keypress card (family · window · reset time · spend posture) that opens the model-transition preview; confirming hands the session to the readiest usable lane of the OTHER signed-in families — the most recent sign-in first — at a safe boundary; no usable second lane, no card. off — never leaves the family, never offers; work waits for the reset. auto: a reached window hands off unattended (daemon/overnight runs) — warnings still show the visible offer. Return is symmetric: once the home family's window is OBSERVED to reset (a fresh reply says so, or the provider's own stated reset moment passes) and its credential is still signed in, the same posture offers or executes the way home. Signing the home family out ends the handoff — there is no home to return to. A slot switch back is the same one key (or /router source) once the walled window resets.",
+        "What happens when the usage window of the family the session runs on runs out mid-work — the same for every signed-in family, no favourite. TWO rungs. The SLOT rung (within the family — Anthropic's sign-in ⇄ managed key, OpenAI's subscription ⇄ API key): whenever the walled family's OTHER slot is signed in with headroom, the wall presents a one-key slot-switch card at EVERY posture — off included (the wall is never a dead end); at auto the slot switches unattended, receipted on the wall row and in the slot state. Nothing signs out; the next turn rides the other slot. The CROSS-FAMILY rung: offer (the default) — a usage warning or a reached window on the home family presents a one-keypress card (family · window · reset time · spend posture) that opens the model-transition preview; confirming hands the session to the readiest usable lane of the OTHER signed-in families — the most recent sign-in first — at a safe boundary; no usable second lane, no card. off — never leaves the family, never offers; work waits for the reset. auto: a reached window hands off unattended (daemon/overnight runs) — warnings still show the visible offer. Return is symmetric: once the home family's window is OBSERVED to reset (a fresh reply says so, or the provider's own stated reset moment passes) and its credential is still signed in, the same posture offers or executes the way home. Signing the home family out ends the handoff — there is no home to return to. A slot switch back is the same one key (or /router source) once the walled window resets.",
       on: [
         'offer (the default): warnings and caps on the family you run on present the one-keypress handoff card to another signed-in family — nothing moves without your confirm, and no card appears without a usable second lane',
         'auto: a walled slot switches to its family sibling unattended, and a capped family hands off cross-family at a safe boundary — receipted both ways',
@@ -631,7 +662,7 @@ export interface EffectiveSettingRow {
   env: string
   value: string | null
   source: 'process-env' | 'profile' | 'default'
-  applicationClass: 'new-session'
+  applicationClass: 'new-session' | 'live'
 }
 
 export interface SessionEffectiveSettingsSnapshotV1 {
@@ -654,14 +685,14 @@ export function resolveEffectiveSettingsSnapshot(args: {
   const rows: EffectiveSettingRow[] = STARTUP_MENU.map(row => {
     const pin = realEnvPin(row.env, processEnv)
     if (pin !== null) {
-      return { env: row.env, value: pin.value, source: 'process-env', applicationClass: 'new-session' }
+      return { env: row.env, value: pin.value, source: 'process-env', applicationClass: row.applicationClass ?? 'new-session' }
     }
     const spellings = flagSpellings(row.env)
     const profSpelling = profile ? spellings.find(sp => profile.env[sp] !== undefined) : undefined
     if (profile && profSpelling !== undefined) {
-      return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: 'new-session' }
+      return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: row.applicationClass ?? 'new-session' }
     }
-    return { env: row.env, value: null, source: 'default', applicationClass: 'new-session' }
+    return { env: row.env, value: null, source: 'default', applicationClass: row.applicationClass ?? 'new-session' }
   })
   const revision = profile?.revision ?? 0
   const digest = profile?.digest ?? profileDigestOf({})
@@ -754,6 +785,7 @@ export interface ExplicitApplyReceipt {
 export function evaluateExplicitApply(
   snapshot: SessionEffectiveSettingsSnapshotV1,
   profile: BootDefaultsProfileV1 | null,
+  liveValues?: Readonly<Record<string, string | null>>,
 ): ExplicitApplyReceipt[] {
   return snapshot.rows.map(row => {
     const spellings = flagSpellings(row.env)
@@ -767,12 +799,24 @@ export function evaluateExplicitApply(
         reason: 'pinned by the real environment — explicit env always wins (the :634 law); unset it and restart to follow the profile',
       } satisfies ExplicitApplyReceipt
     }
-    if ((row.value ?? null) === target) {
+    const current =
+      row.applicationClass === 'live' && liveValues !== undefined && row.env in liveValues
+        ? (liveValues[row.env] ?? null)
+        : (row.value ?? null)
+    if (current === target) {
       return {
         env: row.env,
         outcome: 'no-change',
         target,
         reason: 'already at the profile value — nothing to apply',
+      } satisfies ExplicitApplyReceipt
+    }
+    if (row.applicationClass === 'live') {
+      return {
+        env: row.env,
+        outcome: 'queued',
+        target,
+        reason: "a session's own switch (application class: live) — lands at the session's next turn boundary through its switch; the tool leaves or rejoins the roster, reasoning restarts on the next turn, a spawn already running finishes",
       } satisfies ExplicitApplyReceipt
     }
     return {

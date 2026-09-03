@@ -76,24 +76,33 @@ section('§1 — the seam: the armed payload stands in for the wire, whole')
   process.env.MERCURY_MOCK_LIMITS = '1'
 }
 
-section('§2 — the reader walks the full per-family vocabulary')
+section('§2 — the one owner walks the full per-family vocabulary; the panel reads it')
 {
+  const { anthropicPoolWindowViews } = await import('../../src/services/providers/providerUsage.ts')
+  const { WEEKLY_POOL_CLAIMS } = await import('../../src/services/claudeAiLimits.ts')
+  check('the owner\'s vocabulary lists every pooled family (fable included)', WEEKLY_POOL_CLAIMS.join(',') === 'seven_day_fable,seven_day_opus,seven_day_sonnet')
+  const pools = anthropicPoolWindowViews()
+  const byKey = Object.fromEntries(pools.map(p => [p.key, Math.round(p.usedPct ?? -1)]))
+  check('the owner reads the FABLE pool at 99', byKey.seven_day_fable === 99, JSON.stringify(byKey))
+  check('…and the Opus pool at 12', byKey.seven_day_opus === 12, JSON.stringify(byKey))
+  check('…and the Sonnet pool the endpoint never stated is ABSENT (never 0%)', !('seven_day_sonnet' in byKey), JSON.stringify(byKey))
+  check('every pool names its feed (endpoint-fed) and carries its stamp', pools.every(p => p.source === 'endpoint' && typeof p.observedAtMs === 'number'))
+
   const src = readFileSync(join(import.meta.dir, '../../src/components/Settings/Usage.tsx'), 'utf8')
   const poisonChain = ['data.seven_day_opus ', '?? data.seven_day_sonnet'].join('')
-  check('the family-subset ??-chain is GONE from the reader', !src.includes(poisonChain))
-  check('the reader reads the FABLE bucket', src.includes('seven_day_fable'))
-  for (const family of ['Fable', 'Opus', 'Sonnet']) {
-    check(`the row walk lists ${family}`, src.includes(`['${family}', data.seven_day_${family.toLowerCase()}]`))
-  }
-  check('each painted row is titled by its family', src.includes('`Current week (${family})`'))
+  check('the family-subset ??-chain is GONE from the panel', !src.includes(poisonChain))
+  check('the panel reads the pools through the owner\'s pool view', src.includes('anthropicPoolWindowViews()'))
+  check('no second decode of the fetch response survives in the panel', !src.includes('data.seven_day_'))
+  check('each painted pool row is titled by its label', src.includes('`Current week (${w.label})`'))
+  check('no plan word gates a stated pool off the panel', !src.includes('showModelSpecific'))
 }
 
-section('§3 — the seeded subscriber gates the model-specific rows on')
+section('§3 — the seeded subscriber passes the fetch gate')
 {
   const auth = await import('../../src/utils/auth.ts')
   check('the seeded home reads as a claude.ai subscriber', auth.isClaudeAISubscriber() === true)
   check('…with the profile scope (the fetch gate)', auth.hasProfileScope() === true)
-  check('…on the max plan (the model-specific gate)', auth.getSubscriptionType() === 'max')
+  check('…on the max plan (the seeded custodian word)', auth.getSubscriptionType() === 'max')
 }
 
 try {

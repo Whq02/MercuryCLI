@@ -1,5 +1,6 @@
 
 import figures from 'figures'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import React from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import type { TextBlockParam } from '../../types/wire.js'
@@ -98,7 +99,7 @@ export function TeammateMessageContent({
         <Text color={toInkColor(message.color)}>
           {figures.pointer} @{senderName}
         </Text>{' '}
-        <Text color="success">{figures.tick}</Text> completed #
+        <Text color="success">{GLYPH.check}</Text> completed #
         {completed.taskId}
         {completed.subject ? <Text dimColor> {completed.subject}</Text> : null}
       </Text>
