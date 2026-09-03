@@ -9,6 +9,7 @@ import React, {
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import {
+  DEFAULT_THEME_SETTING,
   getSystemThemeName,
   type SystemTheme,
 } from '../../utils/systemTheme.js'
@@ -30,8 +31,8 @@ type ThemeContextValue = {
 }
 
 const DEFAULT_CONTEXT: ThemeContextValue = {
-  resolvedTheme: 'dark',
-  themeSetting: 'dark',
+  resolvedTheme: DEFAULT_THEME_SETTING,
+  themeSetting: DEFAULT_THEME_SETTING,
   setThemeSetting: () => {},
   setPreviewTheme: () => {},
   savePreview: () => {},
@@ -49,7 +50,7 @@ function initialThemeSetting(initialState?: ThemeSetting): ThemeSetting {
   const stored = getGlobalConfig().theme
   return (REACHABLE_THEME_SETTINGS as readonly string[]).includes(stored)
     ? stored
-    : 'dark'
+    : DEFAULT_THEME_SETTING
 }
 
 export function currentStoredThemeSetting(): ThemeSetting {
