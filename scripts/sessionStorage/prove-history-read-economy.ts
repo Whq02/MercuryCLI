@@ -148,7 +148,10 @@ section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 
       return false
     }
   })(), (lines[0] ?? '').slice(0, 40))
-  check('the appended line is the newest, the newest old line survived, the oldest is gone', lines[lines.length - 1]!.includes('after the compaction') && text.includes(`"big-${lastBig}"`) && !text.includes('"big-0"'))
+  const newest = lines[lines.length - 1] ?? ''
+  check('the appended line is the newest line of the compacted file', newest.includes('after the compaction'), newest.slice(0, 80))
+  check('the newest old line survived the rewrite', text.includes(`"big-${lastBig}"`), `looked for "big-${lastBig}" · tail: ${text.slice(-160).replace(/\n/g, '⏎')}`)
+  check('the oldest line is gone', !text.includes('"big-0"'), `head: ${text.slice(0, 80)}`)
   check('the owner-only mode is kept through the rewrite', (statSync(filePath).mode & 0o777) === 0o600, (statSync(filePath).mode & 0o777).toString(8))
   check('the flush lock is released', !existsSync(`${filePath}.lock`))
   reset()
