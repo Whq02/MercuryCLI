@@ -121,9 +121,10 @@ if (!ready) {
   await run(`cd "${PROJECT}"`, true)
   const inside = await run(`echo in > "${PROJECT}/in.txt"`, true)
   check('a write inside the session directory lands with status 0', inside.code === 0 && existsSync(join(PROJECT, 'in.txt')), `code ${inside.code} ${JSON.stringify(inside.out.slice(0, 120))}`)
-  // Observed, not pinned: the shell snapshot sourced ahead of the command
-  // restores the login shell's own TMPDIR over the sandbox's, so mktemp
-  // lands outside the allow-write set — a seam of its own, recorded here.
+  // Observed, not pinned: the vendored runtime hands the sandboxed child a
+  // TMPDIR of its own (/tmp/claude) that nothing creates, so mktemp falls
+  // back to the system temp directory outside the allow-write set — a seam
+  // of its own, recorded here with the value the child saw.
   const temp = await run('f=$(mktemp) && echo "$f" && rm -f "$f"; echo "TMPDIR=$TMPDIR"', true)
   note(`mktemp under the sandbox: code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
   const outside = await run(`echo out > "${OUTSIDE}/out.txt"`, true)
@@ -143,6 +144,94 @@ if (!ready) {
   } catch {
     // a reset failure only affects this process's teardown
   }
+}
+
+// ── the plain seams (no sandbox) ─────────────────────────────────────────────
+interface Plain {
+  code: number
+  out: string
+  stderr: string
+  interrupted: boolean
+  ms: number
+  cwd: string
+}
+async function plain(command: string, opts: { timeout?: number } = {}): Promise<Plain> {
+  const started = Date.now()
+  const handle = await exec(command, new AbortController().signal, 'bash', {
+    timeout: opts.timeout ?? 20_000,
+    shouldUseSandbox: false,
+    shouldAutoBackground: false,
+  })
+  const result = await handle.result
+  return { code: result.code, out: result.stdout, stderr: result.stderr, interrupted: result.interrupted, ms: Date.now() - started, cwd: getCwd() }
+}
+const trimmed = (p: Plain): string => p.out.trimEnd()
+
+section('§2 a pipe keeps the special parameters and ANSI-C quoting')
+{
+  const { rearrangePipeCommand } = await import('../../src/utils/bash/bashPipeCommand.ts')
+  const status = await plain('false | true; echo "$?"')
+  check('`false | true; echo "$?"` prints the status, not the text $?', status.code === 0 && trimmed(status) === '0', JSON.stringify(status.out.slice(0, 80)))
+  const rc = await plain('cat | head -1; echo "rc=$?"')
+  check('`cat | head -1; echo "rc=$?"` expands $? after the pipeline', rc.code === 0 && trimmed(rc) === 'rc=0', JSON.stringify(rc.out.slice(0, 80)))
+  const pid = await plain('echo "$$" | cat')
+  check('`echo "$$" | cat` prints the shell pid', /^\d+$/.test(trimmed(pid)), JSON.stringify(pid.out.slice(0, 80)))
+  const positional = await plain(`sh -c 'echo "$1-$#"' _ one two | cat`)
+  check('positional parameters survive a pipe', trimmed(positional) === 'one-2', JSON.stringify(positional.out.slice(0, 80)))
+  const ansi = await plain(`printf '%s' $'a\\tb' | cat`)
+  check("ANSI-C quoting in a piped command carries the tab byte", ansi.out === 'a\tb', JSON.stringify(ansi.out.slice(0, 80)))
+  const count = await plain(`printf '%s' $'a\\tb' | wc -c | tr -d ' '`)
+  check('…and counts three bytes', trimmed(count) === '3', JSON.stringify(count.out.slice(0, 80)))
+  const named = await plain('X=1; echo "$X" | cat')
+  check('a named variable in a piped command still expands (the whole-command form)', trimmed(named) === '1', JSON.stringify(named.out.slice(0, 80)))
+  const plainPipe = await plain('printf "a\\nb\\n" | head -1')
+  check('a pipeline without parameters still works', trimmed(plainPipe) === 'a', JSON.stringify(plainPipe.out.slice(0, 80)))
+  check('the rearrangement takes the whole-command form for a special parameter', rearrangePipeCommand('false | true; echo "$?"').endsWith(" < /dev/null") && rearrangePipeCommand('false | true; echo "$?"').includes('"$?"'), rearrangePipeCommand('false | true; echo "$?"'))
+  const ansiForm = rearrangePipeCommand(`printf '%s' $'a\\tb' | cat`)
+  check('…and for ANSI-C quoting (the original text, single-quoted whole, the redirect outside)', ansiForm.startsWith("'") && ansiForm.endsWith("' < /dev/null") && ansiForm.includes('a\\tb') && !ansiForm.includes('< /dev/null |'), ansiForm)
+  check('…while a parameter-free pipeline is still rearranged onto its first stage', /^'ls < \/dev\/null \| head -1'$/.test(rearrangePipeCommand('ls | head -1')), rearrangePipeCommand('ls | head -1'))
+}
+
+section('§3 a here-string feeds stdin')
+{
+  const { hasStdinRedirect, shouldAddStdinRedirect } = await import('../../src/utils/bash/shellQuoting.ts')
+  const here = await plain(`cat <<< 'here string'`)
+  check("`cat <<< 'here string'` reads the here-string", here.code === 0 && trimmed(here) === 'here string', JSON.stringify(here.out.slice(0, 80)))
+  const piped = await plain(`cat <<< 'here' | tr a-z A-Z`)
+  check('a here-string feeding a pipeline', trimmed(piped) === 'HERE', JSON.stringify(piped.out.slice(0, 80)))
+  const late = await plain(`echo first; cat <<< 'second'`)
+  check('a here-string after another command', trimmed(late) === 'first\nsecond', JSON.stringify(late.out.slice(0, 80)))
+  const shift = await plain('echo $((1<<2))')
+  check('an arithmetic shift is not mistaken for a here-string or a heredoc', trimmed(shift) === '4', JSON.stringify(shift.out.slice(0, 80)))
+  check('the quoting owner adds no stdin redirect for a here-string', shouldAddStdinRedirect("cat <<< 'x'") === false)
+  check('…nor for a heredoc', shouldAddStdinRedirect('cat <<EOF\nx\nEOF') === false)
+  check('…nor when the command redirects stdin itself', shouldAddStdinRedirect('cat < in.txt') === false && hasStdinRedirect('cat < in.txt'))
+  check('…and still adds one for a plain command', shouldAddStdinRedirect('cat') === true)
+  const bare = await plain('cat')
+  check('a bare stdin reader still meets EOF at once', bare.code === 0 && bare.out === '' && bare.ms < 5000, `${bare.ms}ms ${JSON.stringify(bare.out.slice(0, 40))}`)
+}
+
+section("§4 the cwd record never replaces the command's status")
+{
+  const gone = await plain(`mkdir -p "${SCRATCH}/gone" && cd "${SCRATCH}/gone" && rm -rf "${SCRATCH}/gone"; echo done`)
+  check('a command that deletes its own directory keeps its status and prints its text', gone.code === 0 && trimmed(gone) === 'done', `code ${gone.code} ${JSON.stringify(gone.out.slice(0, 120))}`)
+  check('…and the session stays in an existing directory', existsSync(gone.cwd) && gone.cwd === PROJECT, gone.cwd)
+  const failing = await plain('echo before; exit 3')
+  check('a failing command keeps its own status', failing.code === 3 && trimmed(failing) === 'before', `code ${failing.code}`)
+  const moved = await plain(`cd "${PROJECT}/sub" && echo moved`)
+  check('a successful cd is still recorded', moved.code === 0 && moved.cwd === join(PROJECT, 'sub'), moved.cwd)
+  const back = await plain(`cd "${PROJECT}"`)
+  check('…and back', back.cwd === PROJECT, back.cwd)
+  const provider = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'), 'utf8')
+  check('the record step is grouped with || true on the POSIX leg', /\{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\} 2>\/dev\/null \|\| true; \}/.test(provider))
+}
+
+section('§5 the timed-out note reaches the result')
+{
+  const killed = await plain('sleep 3', { timeout: 400 })
+  check('a command past its timeout is killed (143) with the note on the result', killed.code === 143 && !killed.interrupted && /Command timed out after/.test(killed.stderr) && killed.ms < 4000, `code ${killed.code} interrupted ${killed.interrupted} stderr ${JSON.stringify(killed.stderr.slice(0, 80))} ${killed.ms}ms`)
+  const tool = readFileSync(join(ROOT, 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
+  check("the tool folds the result's note into the text the model reads (the error path throws that text)", /accumulator\.append\(result\.stderr\.trimEnd\(\) \+ '\\n'\)/.test(tool))
 }
 
 section('§1b the sandbox law — the artifact under node')
@@ -165,6 +254,12 @@ if (!ready) {
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
+    // The kill path: a command whose FIRST subcommand is the bare word the
+    // tool never auto-backgrounds keeps the whole call in the foreground,
+    // so the timeout kills it instead of moving it to the background — the
+    // path on which the note used to be lost.
+    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep; sleep 30', timeout: 3000, description: 'a command past its timeout on the kill path' }, whenModel: MODEL },
+    { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
   ]
   const fixture = await startFixtureApi(turns)
@@ -181,9 +276,13 @@ if (!ready) {
     MERCURY_VERIFY_EVIDENCE: '0',
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+    // The default Bash timeout for this boot: the fourth call sleeps past
+    // it, so the note is pinned on the kill path the default takes.
+    BASH_DEFAULT_TIMEOUT_MS: '3000',
   }
-  const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string }>(resolveRun => {
-    const child = spawn(nodeBin, [DIST, '-p', 'sandbox-probe: run the three', '--model', MODEL, '--dangerously-skip-permissions'], { cwd, env, detached: true })
+  const startedAt = Date.now()
+  const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
+    const child = spawn(nodeBin, [DIST, '-p', 'sandbox-probe: run the four', '--model', MODEL, '--dangerously-skip-permissions'], { cwd, env, detached: true })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', d => (stdout += d))
@@ -197,7 +296,7 @@ if (!ready) {
     }, 90_000)
     child.on('close', exit => {
       clearTimeout(deadline)
-      resolveRun({ exit, stdout, stderr })
+      resolveRun({ exit, stdout, stderr, ms: Date.now() - startedAt })
     })
   })
   await fixture.close()
@@ -213,14 +312,22 @@ if (!ready) {
       for (const block of message.content as Array<{ type?: string; content?: unknown; is_error?: boolean }>) {
         if (block.type !== 'tool_result') continue
         const text = typeof block.content === 'string' ? block.content : Array.isArray(block.content) ? (block.content as Array<{ text?: string }>).map(b => b.text ?? '').join('') : ''
-        if (results.length < 3 && !results.some(r => r.text === text && r.isError === (block.is_error === true))) results.push({ text, isError: block.is_error === true })
+        if (results.length < 4 && !results.some(r => r.text === text && r.isError === (block.is_error === true))) results.push({ text, isError: block.is_error === true })
       }
     }
   }
-  note(`print mode exit ${outcome.exit}; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
-  check('the artifact ran the three calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
-  check('the artifact showed the model three tool results', results.length === 3, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
-  const [first, second, third] = results
+  note(`print mode exit ${outcome.exit} after ${outcome.ms}ms; ${fixture.messageRequests().length} model requests; stdout ${JSON.stringify(outcome.stdout.trim().slice(0, 80))}`)
+  for (const [index, request] of fixture.messageRequests().entries()) {
+    const messages = (request.body as { messages?: Array<{ role?: string; content?: unknown }> })?.messages ?? []
+    const last = messages[messages.length - 1]
+    const blocks = Array.isArray(last?.content) ? (last?.content as Array<{ type?: string; content?: unknown; is_error?: boolean }>) : []
+    const result = blocks.find(b => b.type === 'tool_result')
+    if (result) note(`request ${index + 1} carried a tool result${result.is_error ? ' (error)' : ''}: ${JSON.stringify(typeof result.content === 'string' ? result.content.slice(0, 120) : JSON.stringify(result.content).slice(0, 120))}`)
+  }
+  check('the artifact ran the four calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
+  check('the artifact showed the model four tool results', results.length === 4, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
+  const [first, second, third, fourth] = results
+  check('artifact: the killed command tells the model it timed out (an error result carrying the note)', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text) && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
