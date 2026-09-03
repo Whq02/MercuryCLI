@@ -712,6 +712,8 @@ export class QueryEngine {
             }
             if (systemMessage.subtype === 'api_error') {
               this.mutableMessages.push(systemMessage)
+              turnMessages.push(systemMessage)
+              await recordDelta()
               const apiError = systemMessage as {
                 retryAttempt?: number
                 maxRetries?: number

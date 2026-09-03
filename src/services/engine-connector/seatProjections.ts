@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
+import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReasonWire.js'
 import type { PromptInputMode, QueuePriority } from '../../types/textInputTypes.js'
 import type {
@@ -90,6 +91,7 @@ export interface SessionTailV1 {
   messageId?: string
   stateWord?: 'compacting' | 'waiting-on-agents'
   waitingOnAgents?: number
+  wait?: RequestWaitV1
   lastEventAtMs?: number
   streamBlock?: 'thinking' | 'text' | 'tool_use'
   blockSinceMs?: number

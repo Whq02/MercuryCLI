@@ -24,6 +24,7 @@ export type PhaseDetail = {
   effort?: string
   servedBy?: string
   toolCount?: number
+  wait?: string
 }
 
 export type TurnPhaseSnapshot = {

@@ -54,7 +54,7 @@ import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
-import { streamIdleWarningMsOf } from '../providers/streamIdleBudget.js'
+import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
   AskAnswerV1,
@@ -370,6 +370,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
+  private liveWait: RequestWaitV1 | null = null
   private hardStopping = false
 
   private lastEventAtMs: number | null = null
@@ -499,6 +500,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
+    const wait = decodeRequestWait(tail.wait)
+    if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
+      this.liveWait = wait
+      emitAll(this.liveListeners, 'live')
+    }
     this.lastEventAtMs = typeof tail.lastEventAtMs === 'number' ? tail.lastEventAtMs : null
     const block = tail.streamBlock === 'thinking' || tail.streamBlock === 'text' || tail.streamBlock === 'tool_use' ? tail.streamBlock : null
     this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
@@ -1473,7 +1479,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const live = this.effectiveLive
     const now = Date.now()
     const quietMs = live.inFlight && this.lastEventAtMs !== null ? Math.max(0, now - this.lastEventAtMs) : null
-    const watchdogMs = typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
+    const wait = live.inFlight ? this.liveWait : null
+    const watchdogMs =
+      wait?.kind === 'first-byte' ? wait.budgetMs : typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
     let phaseMs: number | null = null
     let toolBudgetMs: number | null = null
     if (live.inFlight) {
@@ -1503,6 +1511,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       projectLabel: this.record.projectLabel,
       interrupting: this.interrupting,
       hardStopping: this.hardStopping,
+      wait,
       quietMs,
       watchdogMs,
       phaseMs,

@@ -13,11 +13,19 @@ export const GPT_REPLY = 'sol answers from the fixture'
 export const OPUS_REPLY = 'opus picked up cleanly'
 export const LONG_THINK_ASK = 'think long please'
 const LONG_THINK_CEILING_MS = 120_000
+export const SLOW_INGEST_ASK = 'ingest slowly please'
+const SLOW_INGEST_HOLD_MS = Number.parseInt(process.env.FIXTURE_HOLD_MS ?? '5000', 10)
 
-function wantsLongThink(body: Record<string, unknown>): boolean {
+function lastAskOf(body: Record<string, unknown>): string {
   const messages = Array.isArray(body.messages) ? (body.messages as Array<{ role?: string; content?: unknown }>) : []
   const last = [...messages].reverse().find(m => m.role === 'user')
-  return last !== undefined && JSON.stringify(last.content ?? '').includes(LONG_THINK_ASK)
+  return last === undefined ? '' : JSON.stringify(last.content ?? '')
+}
+function wantsLongThink(body: Record<string, unknown>): boolean {
+  return lastAskOf(body).includes(LONG_THINK_ASK)
+}
+function wantsSlowIngest(body: Record<string, unknown>): boolean {
+  return lastAskOf(body).includes(SLOW_INGEST_ASK)
 }
 
 function record(entry: Record<string, unknown>): void {
@@ -120,6 +128,20 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         setTimeout(() => {
           if (!res.writableEnded && !res.destroyed) res.end()
         }, LONG_THINK_CEILING_MS).unref()
+        return
+      }
+      if (wantsSlowIngest(body)) {
+        const heldAt = Date.now()
+        record({ kind: 'anthropic-held', at: heldAt, holdMs: SLOW_INGEST_HOLD_MS })
+        dropListeners.push(() => {
+          if (!res.headersSent) record({ kind: 'anthropic-dropped-while-held', at: Date.now(), heldMs: Date.now() - heldAt })
+        })
+        setTimeout(() => {
+          if (res.destroyed || res.writableEnded) return
+          record({ kind: 'anthropic-headers-sent', at: Date.now(), heldMs: Date.now() - heldAt })
+          res.writeHead(200, { 'content-type': 'text/event-stream' })
+          res.end(anthropicSse())
+        }, SLOW_INGEST_HOLD_MS)
         return
       }
       res.writeHead(200, { 'content-type': 'text/event-stream' })
