@@ -145,6 +145,7 @@ section('§2 the binding window is the model\'s own: its family\'s pool, the sha
   const cases: Array<[string, string, string]> = [
     ['claude-fable-5-1', 'seven_day_fable', 'Fable limit'],
     ['claude-fable-5-1[1m]', 'seven_day_fable', 'Fable limit'],
+    ['claude-mythos-5-1', 'seven_day_fable', 'Fable limit'],
     ['claude-opus-5', 'seven_day_opus', 'Opus limit'],
     ['claude-sonnet-5', '7d', 'weekly limit'],
     ['claude-haiku-4-5-20251001', '7d', 'weekly limit'],
@@ -155,7 +156,7 @@ section('§2 the binding window is the model\'s own: its family\'s pool, the sha
     const accessor = owner.bindingWindowFor(model, subscriptionReads())
     check(`${model}: the cap offer's accessor answers the same window`, accessor?.window.key === key && accessor?.windowName === name)
   }
-  check('the pool claim for a model is the owner\'s one rule (fable · opus · sonnet · none)', limits.weeklyPoolClaimForModel('claude-fable-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-opus-5') === 'seven_day_opus' && limits.weeklyPoolClaimForModel('claude-sonnet-5') === 'seven_day_sonnet' && limits.weeklyPoolClaimForModel('claude-haiku-4-5') === undefined)
+  check('the pool claim for a model is the owner\'s one rule (fable/mythos · opus · sonnet · none)', limits.weeklyPoolClaimForModel('claude-fable-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-mythos-5-1') === 'seven_day_fable' && limits.weeklyPoolClaimForModel('claude-opus-5') === 'seven_day_opus' && limits.weeklyPoolClaimForModel('claude-sonnet-5') === 'seven_day_sonnet' && limits.weeklyPoolClaimForModel('claude-haiku-4-5') === undefined)
   // The strip warning names the binding window, and only when it binds.
   const fable = providerLimitWarning({ model: 'claude-fable-5-1', reads: { ...subscriptionReads(), anthropicLimits: () => ({ status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }) } as never })
   check('a Fable session is warned about the Fable week (87%)', /^Anthropic: 87% of Fable limit used · resets /.test(fable?.text ?? ''), fable?.text ?? '(null)')
