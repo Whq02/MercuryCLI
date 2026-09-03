@@ -354,7 +354,7 @@ section("§8 the doctor's usage row is the owner's summary — windows, pools, f
 {
   const view = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: subscriptionReads() })
   const words = owner.usageSummaryWords(view, NOW)
-  check('the summary leads with the tier and walks the pair then the pools', words.startsWith('Claude Max · 5h 36%') && words.indexOf('7d 44%') < words.indexOf('Fable 87%') && words.includes('Opus 61%') && words.includes('Sonnet 20%'), words)
+  check('the summary leads with the tier and walks the pair then the pools', words.startsWith('Claude Max · 5h 36%') && words.indexOf('7d 44%') !== -1 && words.indexOf('7d 44%') < words.indexOf('Fable 87%') && words.includes('Opus 61%') && words.includes('Sonnet 20%'), words)
   check('…and names the feed and age once for the block', words.includes(' · endpoint-fed · read 10 s ago'), words)
   const key = owner.usageSummaryWords(owner.usageForProvider('zai', { zaiKeyPresent: () => true, spend: () => spend }), NOW)
   check('an api-key summary carries the tier, the absence and the credits line', key.startsWith('API billing · ') && key.includes('credits: not reported by the provider') && key.includes('Z.AI publishes no usage or balance endpoint'), key)

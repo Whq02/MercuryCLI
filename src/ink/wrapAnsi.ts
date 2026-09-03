@@ -20,11 +20,18 @@ const nativeWrapAnsi: NativeWrapAnsi | undefined = (
   globalThis as { Bun?: { wrapAnsi?: NativeWrapAnsi } }
 ).Bun?.wrapAnsi
 
+// A variation selector (U+FE00-U+FE0F) is zero-width and belongs to the
+// glyph before it; the native wrapper breaks BETWEEN them when that glyph
+// lands on the last column, orphaning the selector at the head of the next
+// row. Input carrying one rides the bundled wrapper, which keeps the pair
+// whole (the same refusal discipline as stringWidth's directional formats).
+const VARIATION_SELECTOR_RE = /[\uFE00-\uFE0F]/
+
 export function wrapAnsi(
   input: string,
   columns: number,
   options?: WrapAnsiOptions,
 ): string {
-  if (nativeWrapAnsi) return nativeWrapAnsi(input, columns, options)
+  if (nativeWrapAnsi && !VARIATION_SELECTOR_RE.test(input)) return nativeWrapAnsi(input, columns, options)
   return bundledWrapAnsi(input, columns, options)
 }

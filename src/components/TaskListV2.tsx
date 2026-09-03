@@ -5,6 +5,7 @@
 // completed on the first render are the baseline and never count.
 
 import figures from 'figures'
+import { GLYPH } from './mercury-ui/glyphs.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
@@ -200,11 +201,11 @@ export function TaskListV2({
 
     let glyph: React.ReactNode
     if (task.status === 'completed') {
-      glyph = <Text color="success">{figures.tick} </Text>
+      glyph = <Text color="success">{GLYPH.check} </Text>
     } else if (task.status === 'in_progress') {
-      glyph = <Text color="brand">{figures.squareSmallFilled} </Text>
+      glyph = <Text color="brand">{GLYPH.inProgress} </Text>
     } else {
-      glyph = <Text>{figures.squareSmall} </Text>
+      glyph = <Text>{GLYPH.pending} </Text>
     }
 
     return (

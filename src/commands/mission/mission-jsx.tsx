@@ -6,6 +6,7 @@ import type {
 } from '../../types/command.js'
 import { plural } from '../../utils/stringUtils.js'
 import { renderToString } from '../../utils/staticRender.js'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import {
   type ActiveMission,
   MISSION_CONDITION_MAX_LENGTH,
@@ -41,7 +42,7 @@ function MissionStatusPanel({ mission }: { mission: ActiveMission }): React.Reac
   const stateLine = mission.met
     ? '✓ Mission met — stops are allowed; a new /mission replaces it'
     : mission.gaveUp
-      ? '⚠\uFE0E Mission DISARMED (block cap reached, not met — set it again to re-arm)'
+      ? `${GLYPH.warn} Mission DISARMED (block cap reached, not met — set it again to re-arm)`
       : `${iterationsLabel}${mission.lastReason ? ` · ${mission.lastReason}` : ''}`
   return (
     <Box flexDirection="column">
