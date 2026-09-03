@@ -90,6 +90,7 @@ function worthParsing(text: string): boolean {
   if (text.includes('figures') || /\\u(?:[0-9a-fA-F]{4}|\{)/.test(text)) return true
   for (const ch of text) {
     const cp = ch.codePointAt(0)!
+    if (cp === TEXT_PRESENTATION_SELECTOR || cp === EMOJI_PRESENTATION_SELECTOR) return true
     if (cp > 0x7f && hasEmojiProperty(cp)) return true
   }
   return false
