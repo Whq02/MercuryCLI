@@ -110,7 +110,7 @@ console.log('── composer type-through (shipped artifact) ──')
       },
       { kind: 'text', text: 'Done.' },
     ],
-    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', '12000:w', `${12000 + 600 / vshotBudgetScale()}:atch`],
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', 'after:Do you want to:300:w', `after:Do you want to:${300 + 600 / vshotBudgetScale()}:atch`],
     seconds: 20,
     probe: true,
     keep: true,
