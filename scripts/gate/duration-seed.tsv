@@ -17,22 +17,22 @@
 # authored seconds on the hosted runner — the local pool at scale 1 is
 # unchanged, and a stale row still only costs balance, never a verdict).
 
-ui	900
+ui	1800
 ui-2	200
 ui-3	850
-ui-4	850
+ui-4	1800
 ui-5	1500
-render-continuity	900
+render-continuity	1500
 streaming	850
 pulse	850
 core-runtime	500
 interview	800
 golden-journeys	700
-interaction	580
+interaction	1300
 cockpit-interaction	700
 diffws	1100
 prompts-panel	460
-render-migration	450
+render-migration	1200
 journey	2100
 notifications	500
 transcript-rows	500
@@ -61,7 +61,7 @@ critters	250
 orphans	56
 switchboard	850
 switchboard-2	850
-switchboard-3	950
+switchboard-3	1300
 switchboard-4	800
 switchboard-5	700
 switchboard-6	800
@@ -174,12 +174,13 @@ model-floor	0
 swarm	0
 update-reliability	0
 winreg	0
+voice	36
 
 # class-median ESTIMATES — no pooled row yet (pure 4 · cpu 26 · pty 144)
 scroll	220
 apollo	4
 commit-gate	4
-pings	4
+pings	1400
 provauth	4
 provider-compat	4
 wallet	4

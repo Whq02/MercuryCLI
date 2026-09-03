@@ -9,7 +9,7 @@ const ALLOW: Record<string, string> = {
   'src/components/MercuryFrame.tsx :: tab': 'statusbar hint for the global shift+tab mode carousel (keybindings layer)',
   'src/components/concourse/SessionMirror.tsx :: enter': "the live pane's empty-state note for a ready-to-review newborn — its ↵ is the live box's empty-draft verb (the composer beside it, same region) entering the selected row",
   'src/components/concourse/ConcourseRoute.tsx :: letter:y':
-    'the daemon-start offer (the operator's word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
+    'the daemon-start offer (the operator\'s word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
   'src/components/concourse/ConcourseRoute.tsx :: letter:n':
     'the daemon-start offer: same ConcourseScreen y/n routing → callbacks.answerDaemonOffer (out-of-file binder)',
   'src/components/concourse/ConcourseRoute.tsx :: enter':
