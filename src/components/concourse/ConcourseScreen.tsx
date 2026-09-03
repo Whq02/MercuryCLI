@@ -696,9 +696,14 @@ export function ConcourseScreen({
       setNote({ tone: 'muted', text: `parked — nothing to stop · ${keyHintLabel('⌃x ⌃x')} again clears it from the board (the chat survives)` })
       return
     }
-    if (staged || sel.state === 'stopped') {
+    if (sel.state === 'stopped') {
       lastStopRef.current = null
       callbacks.removeSession?.(sel.sessionId)
+      return
+    }
+    if (staged) {
+      setNote({ tone: 'muted', text: `stop is on its way — the row reads stopped once its runner is gone; ${keyHintLabel('⌃x ⌃x')} then removes it` })
+      callbacks.stopSession?.(sel.sessionId)
       return
     }
     lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }

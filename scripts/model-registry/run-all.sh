@@ -12,6 +12,7 @@ __t=$SECONDS; "$BUN" run scripts/model-registry/prove-no-speculative-catalog.ts 
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-model-truth.ts || fail=1; prover_mark scripts/model-registry/prove-model-truth.ts "$__t"
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-usage-truth.ts || fail=1; prover_mark scripts/model-registry/prove-usage-truth.ts "$__t"
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-submodels.ts || fail=1; prover_mark scripts/model-registry/prove-submodels.ts "$__t"
+__t=$SECONDS; "$BUN" run scripts/model-registry/prove-submodel-effort-dial.ts || fail=1; prover_mark scripts/model-registry/prove-submodel-effort-dial.ts "$__t"
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-model-honesty.ts || fail=1; prover_mark scripts/model-registry/prove-model-honesty.ts "$__t"
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-spelling-fold.ts || fail=1; prover_mark scripts/model-registry/prove-spelling-fold.ts "$__t"
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-frontier-wire-laws.ts || fail=1; prover_mark scripts/model-registry/prove-frontier-wire-laws.ts "$__t"

@@ -535,7 +535,14 @@ function LiveConcourse(): React.ReactNode {
               const runnerAlive = rec?.pid !== undefined && isProcessAlive(rec.pid)
               if (rec !== undefined && !runnerAlive) {
                 const out = supervisor.stopConcourseSession(sessionId, 'operator', undefined)
-                noteControl('strip:composer', out.outcome === 'refused' ? { state: 'refused', reason: out.detail ?? out.reason } : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` })
+                noteControl(
+                  'strip:composer',
+                  out.outcome === 'refused'
+                    ? { state: 'refused', reason: out.detail ?? out.reason }
+                    : out.outcome === 'applied' && !out.acknowledged
+                      ? { state: 'applied', reason: `stop sent — ${out.runnerId} ends its turn; the row reads stopped once it is gone` }
+                      : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` },
+                )
               } else {
                 noteControl('strip:composer', { state: 'failed', reason: 'the daemon that hosts sessions is not reachable and the runner is alive', next: `${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` })
               }
@@ -547,10 +554,14 @@ function LiveConcourse(): React.ReactNode {
               { op: 'concourseControl', action: 'stop', sessionId, by: 'operator' } as never,
               { timeoutMs: 15_000 },
             )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+            const acknowledged = reply.ok === true && reply.outcome === 'applied' && /^stopped /.test(reply.detail ?? '')
             noteControl(
               'strip:composer',
               reply.ok === true && reply.outcome !== 'refused'
-                ? { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` }
+                ? {
+                    state: 'applied',
+                    reason: acknowledged || reply.outcome === 'noop' || reply.detail === undefined ? `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` : reply.detail,
+                  }
                 : { state: 'refused', reason: reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
             )
           } catch {
