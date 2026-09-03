@@ -46,6 +46,7 @@ export type SelectProps<T = string> = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
+  onEmptyInputSubmit?: (value: T) => void
 }
 
 function indexPrefix(index1: number, reservedWidth: number): string {
@@ -145,6 +146,7 @@ export function Select<T = string>({
   onImagePaste,
   pastedContents,
   onRemoveImage,
+  onEmptyInputSubmit,
 }: SelectProps<T>): React.ReactNode {
   const state = useSelectState({
     visibleOptionCount,
@@ -211,14 +213,16 @@ export function Select<T = string>({
     return true
   }
 
-  const submitInputOption = (option: OptionWithDescription<T>): void => {
-    const text = inputValues.get(optionValueOf(option)) ?? ''
+  const submitInputOption = (option: OptionWithDescription<T>, submitted?: string): void => {
+    const text = submitted ?? inputValues.get(optionValueOf(option)) ?? ''
     if (
       text.trim() !== '' ||
       images.length > 0 ||
       (isInputOption(option) && option.allowEmptySubmitToCancel)
     ) {
       onChange?.(optionValueOf(option))
+    } else if (onEmptyInputSubmit) {
+      onEmptyInputSubmit(optionValueOf(option))
     } else {
       onCancel?.()
     }
@@ -277,37 +281,55 @@ export function Select<T = string>({
       option,
       position,
     )
+    const clickable =
+      layout !== 'compact' &&
+      !isDisabled &&
+      !option.disabled &&
+      disableSelection !== true
     return (
-      <SelectInputOption
+      <Box
         key={String(option.value)}
-        option={option}
-        isFocused={isFocused}
-        isSelected={isSelected}
-        value={inputValues.get(optionValueOf(option)) ?? ''}
-        onChange={text => {
-          setInputValue(optionValueOf(option), text)
-          option.onChange?.(text)
-        }}
-        onSubmit={() => {
-          submitInputOption(option)
-        }}
-        reservedIndexWidth={inputRowReserved}
-        index={option.index + 1}
-        showLabelWithValue={inlineDescriptions}
-        layout={layout}
-        shouldShowDownArrow={showDown}
-        shouldShowUpArrow={showUp}
-        onOpenEditor={onOpenEditor}
-        onImagePaste={onImagePaste}
-        pastedContents={pastedContents}
-        onRemoveImage={onRemoveImage}
-        isImageSelectionMode={isImageSelectionMode}
-        selectedImageIndex={selectedImageIndex}
-        onSelectImage={setSelectedImageIndex}
-        onExitImageSelection={() => {
-          setImageSelectionMode(false)
-        }}
-      />
+        flexDirection="column"
+        onClick={
+          clickable
+            ? () => {
+                state.focusValue(optionValueOf(option))
+                const text = inputValues.get(optionValueOf(option)) ?? ''
+                if (text.trim() !== '' || images.length > 0) submitInputOption(option)
+              }
+            : undefined
+        }
+      >
+        <SelectInputOption
+          option={option}
+          isFocused={isFocused}
+          isSelected={isSelected}
+          value={inputValues.get(optionValueOf(option)) ?? ''}
+          onChange={text => {
+            setInputValue(optionValueOf(option), text)
+            option.onChange?.(text)
+          }}
+          onSubmit={text => {
+            submitInputOption(option, text)
+          }}
+          reservedIndexWidth={inputRowReserved}
+          index={option.index + 1}
+          showLabelWithValue={inlineDescriptions}
+          layout={layout}
+          shouldShowDownArrow={showDown}
+          shouldShowUpArrow={showUp}
+          onOpenEditor={onOpenEditor}
+          onImagePaste={onImagePaste}
+          pastedContents={pastedContents}
+          onRemoveImage={onRemoveImage}
+          isImageSelectionMode={isImageSelectionMode}
+          selectedImageIndex={selectedImageIndex}
+          onSelectImage={setSelectedImageIndex}
+          onExitImageSelection={() => {
+            setImageSelectionMode(false)
+          }}
+        />
+      </Box>
     )
   }
 

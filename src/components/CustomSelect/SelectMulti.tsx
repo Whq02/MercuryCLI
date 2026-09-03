@@ -38,6 +38,9 @@ export type SelectMultiProps<T = string> = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
+  onEmptyInputSubmit?: (value: T) => void
+  onTabOut?: (direction: 'next' | 'previous') => void
+  onSubmitFocusChange?: (focused: boolean) => void
 }
 
 export function SelectMulti<T = string>({
@@ -59,6 +62,9 @@ export function SelectMulti<T = string>({
   onImagePaste,
   pastedContents,
   onRemoveImage,
+  onEmptyInputSubmit,
+  onTabOut,
+  onSubmitFocusChange,
 }: SelectMultiProps<T>): React.ReactNode {
   const hasSubmitButton = Boolean(submitButtonText) && Boolean(onSubmit)
   const state = useMultiSelectState({
@@ -76,6 +82,9 @@ export function SelectMulti<T = string>({
     isDisabled,
     onDownFromLastItem,
     onUpFromFirstItem,
+    onEmptyInputSubmit,
+    onTabOut,
+    onSubmitFocusChange,
   })
 
   const optionCount = options.length
@@ -121,7 +130,7 @@ export function SelectMulti<T = string>({
                 isDisabled
                   ? undefined
                   : () => {
-                      state.toggleValue(optionValueOf(option))
+                      state.activateInputValue(optionValueOf(option), 'pointer')
                     }
               }
             >
@@ -132,8 +141,8 @@ export function SelectMulti<T = string>({
                 onChange={text => {
                   state.updateInputValue(optionValueOf(option), text)
                 }}
-                onSubmit={() => {
-                  onSubmit?.(state.selectedValues)
+                onSubmit={text => {
+                  state.activateInputValue(optionValueOf(option), 'enter', text)
                 }}
                 reservedIndexWidth={hideIndexes ? 0 : digitCount}
                 index={option.index + 1}
