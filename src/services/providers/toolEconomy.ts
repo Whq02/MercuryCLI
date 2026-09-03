@@ -21,12 +21,14 @@ export interface ToolPayloadPlanInput {
   hasPendingMcpServers?: boolean
   source?: string
   latchKey?: string
+  alsoDefer?: (tool: Tool) => boolean
 }
 
 interface RosterLatch {
   enabled: boolean
-  names: readonly string[]
-  tools: readonly Tool[]
+  names: string[]
+  tools: Tool[]
+  deferred: Set<string>
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
@@ -104,10 +106,14 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     if (enabled && wire.form !== 'block') enabled = false
   }
 
+  const defers = (t: Tool): boolean => isDeferredTool(t) || input.alsoDefer?.(t) === true
+
   const deferredNames = new Set<string>()
-  if (enabled) {
+  if (latched !== undefined) {
+    for (const name of latched.deferred) deferredNames.add(name)
+  } else if (enabled) {
     for (const t of tools) {
-      if (isDeferredTool(t)) deferredNames.add(t.name)
+      if (defers(t)) deferredNames.add(t.name)
     }
   }
 
@@ -116,20 +122,28 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   if (latchKey !== null && latched === undefined) {
-    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name), tools: [...tools] })
+    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name), tools: [...tools], deferred: new Set(deferredNames) })
   }
 
   const byName = new Map(tools.map(t => [t.name, t] as const))
   const ordered: Tool[] = []
   const held: string[] = []
   if (latched !== undefined) {
+    const latchedNames = new Set(latched.names)
+    for (const tool of tools) {
+      if (latchedNames.has(tool.name)) continue
+      if (latched.enabled && defers(tool)) {
+        latched.names.push(tool.name)
+        latched.tools.push(tool)
+        latched.deferred.add(tool.name)
+        deferredNames.add(tool.name)
+        latchedNames.add(tool.name)
+      } else {
+        held.push(tool.name)
+      }
+    }
     for (const latchedTool of latched.tools) {
       ordered.push(byName.get(latchedTool.name) ?? latchedTool)
-    }
-    for (const tool of tools) {
-      if (latched.names.includes(tool.name)) continue
-      if (latched.enabled && deferredNames.has(tool.name)) ordered.push(tool)
-      else held.push(tool.name)
     }
     if (held.length > 0) {
       logForDebugging(
@@ -143,7 +157,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
   const roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
 
-  const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(tools, deferredNames) : null
+  const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 
   return {
     enabled,

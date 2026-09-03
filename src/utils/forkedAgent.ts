@@ -6,6 +6,7 @@ import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { query } from '../query.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
+import { rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { ToolUseContext } from '../Tool.js'
 import { withAllowedCommandRules } from '../tools/AgentTool/agentPermissionPosture.js'
@@ -240,7 +241,10 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     skipCacheWrite,
   } = params
   const startedAt = Date.now()
-  const context = createSubagentContext(cacheSafeParams.toolUseContext, overrides)
+  const context: ToolUseContext = {
+    ...createSubagentContext(cacheSafeParams.toolUseContext, overrides),
+    rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext),
+  }
   const messages: Message[] = [...cacheSafeParams.forkContextMessages, ...promptMessages]
   const collected: Message[] = []
   let fold: ForkUsageFold = EMPTY_FORK_USAGE_FOLD
