@@ -257,6 +257,7 @@ export type ToolUseContext = {
   agentId?: AgentId
   agentType?: string
   owner?: OwnerKey
+  rosterOwner?: OwnerKey
   toolDecisions?: Map<string, PermissionDecision>
   fileReadingLimits?: any
   queryTracking?: QueryChainTracking
