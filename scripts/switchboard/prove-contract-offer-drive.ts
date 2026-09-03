@@ -55,7 +55,6 @@ const sends = [
   after(8800, 'n'),
   after(10200, ESC),
   after(13600, `${ESC}[1;2D`),
-  after(14600, '\t'),
   after(15400, 'n'),
   after(16600, '\r'),
   after(17600, CONTRACT_WORDS),
@@ -128,9 +127,9 @@ if (sendRecs.length === sends.length) {
       String(at(2) + 3000),
       String(at(5) + 900),
       String(at(6) + 2500),
+      String(at(9) + 900),
       String(at(10) + 900),
-      String(at(11) + 900),
-      String(at(12) + 2500),
+      String(at(11) + 2500),
       '-1',
     ],
     { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 },
@@ -144,7 +143,7 @@ if (sendRecs.length === sends.length) {
   check('§1 the n tab raises the offer card in the live-view pane', /Start with a contract\?/.test(cardFrame!) && /No, start it plain \(esc\)/.test(cardFrame!))
   check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (stage-1 tag)', /new session ·/.test(afterEsc!) && /· ready/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /· ready|new session/.test(r))?.trim().slice(0, 110) ?? '')
   check("§2c POISON: it is never the OLD chat (the pre-fix esc landed the first session's transcript)", !/first words here/.test(afterEsc!))
-  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').find(r => /contract/i.test(r))?.trim().slice(0, 110) ?? '')
+  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
   check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!))
   check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!))
   check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!))
