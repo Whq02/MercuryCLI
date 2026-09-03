@@ -99,6 +99,12 @@ export interface SessionFactsAnswerV1 {
    *  only against this number and names it. Optional on the wire: an older
    *  runner omits it and the row never claims stuckness. */
   streamIdleTimeoutMs?: number
+  /** THE SPAWN SWITCHES (services/switchboard/spawnSwitches.ts) — the
+   *  session's sub-agents and workflows switches with their sources. The
+   *  child answers its own latches; the daemon's publish stamps the
+   *  record's view over them (the durable truth). Optional on the wire: an
+   *  older runner omits it and every reader treats absence as both on. */
+  spawnSwitches?: import('../switchboard/spawnSwitches.js').SpawnSwitchFacts
 }
 
 /** The runner's checkpoint truth, as the facts carry it. */
@@ -119,6 +125,9 @@ export interface SessionFactsV1 extends SessionFactsAnswerV1 {
   /** A model switch parked until the session's turn ends (the daemon is
    *  the settlement owner); null when none. */
   pendingModel: string | null
+  /** Spawn-switch toggles parked until the session's turn ends (the daemon
+   *  is the settlement owner); absent when none. */
+  pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
   /** The daemon's OWN settlement receipt for a PARKED switch it applied at
    *  the turn boundary (FN-016 R15): the settle-note edge drives off THIS,
    *  never off a same-snapshot coincidence of pendingModel clearing while

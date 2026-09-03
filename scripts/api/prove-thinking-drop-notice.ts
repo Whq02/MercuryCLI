@@ -139,7 +139,7 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
 
