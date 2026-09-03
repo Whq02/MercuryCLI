@@ -1,5 +1,7 @@
 import type { ThemeName, ThemeSetting } from './theme.js'
 
+export const DEFAULT_THEME_SETTING = 'true-black' as const
+
 
 export type SystemTheme = 'dark' | 'light'
 

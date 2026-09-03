@@ -3,7 +3,7 @@ import type { Command } from '../../commands.js'
 const team = {
   type: 'local-jsx',
   name: 'team',
-  description: 'Team Center — your teammates, their phases, and handoffs',
+  description: 'Crew board — the named agents, their phases and handoffs (on /tasks)',
   isEnabled: () => true,
   isHidden: false,
   load: () => import('../tasks/tasks.js'),

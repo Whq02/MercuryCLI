@@ -150,6 +150,8 @@ export type Output =
         numLines: number
         startLine: number
         totalLines: number
+        anchor?: string
+        memoryUpdatedAt?: number
       }
     }
   | {
@@ -178,6 +180,8 @@ const outputSchema = z.discriminatedUnion('type', [
       numLines: z.number(),
       startLine: z.number(),
       totalLines: z.number(),
+      anchor: z.string().optional(),
+      memoryUpdatedAt: z.number().optional(),
     }),
   }),
   z.object({
@@ -216,10 +220,6 @@ const outputSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('file_unchanged'), file: z.object({ filePath: z.string() }) }),
 ])
 
-
-const memoryFreshnessTimes = new WeakMap<object, number>()
-
-const resultAnchors = new WeakMap<object, string>()
 
 const resultLineAnchors = new WeakSet<object>()
 
@@ -634,6 +634,17 @@ async function readTextLane(
   context.nestedMemoryAttachmentTriggers?.add(keyPath)
   notifyFileReadListeners(resolvedPath, range.content)
 
+  const memoryUpdatedAt = isAutoMemFile(resolvedPath) ? Math.floor(range.mtimeMs) : undefined
+  let anchor: string | undefined
+  if (changeTransactionEnabled() && range.content.length > 0) {
+    const wholeFile =
+      lineOffset === 0 &&
+      range.lineCount === range.totalLines &&
+      range.readBytes === range.totalBytes
+    anchor = wholeFile
+      ? mintFileAnchor(range.content)
+      : mintRangeAnchor(range.content, lineOffset + 1, range.lineCount)
+  }
   const data: Output = {
     type: 'text',
     file: {
@@ -642,24 +653,15 @@ async function readTextLane(
       numLines: range.lineCount,
       startLine: input.offset ?? 1,
       totalLines: range.totalLines,
+      ...(anchor !== undefined ? { anchor } : {}),
+      ...(memoryUpdatedAt !== undefined ? { memoryUpdatedAt } : {}),
     },
   }
 
-  if (isAutoMemFile(resolvedPath)) {
-    memoryFreshnessTimes.set(data, Math.floor(range.mtimeMs))
-  }
   if (lineAnchorsEnabled() && input.line_anchors === true && range.content.length > 0) {
     resultLineAnchors.add(data)
   }
-  if (changeTransactionEnabled() && range.content.length > 0) {
-    const wholeFile =
-      lineOffset === 0 &&
-      range.lineCount === range.totalLines &&
-      range.readBytes === range.totalBytes
-    const anchor = wholeFile
-      ? mintFileAnchor(range.content)
-      : mintRangeAnchor(range.content, lineOffset + 1, range.lineCount)
-    resultAnchors.set(data, anchor)
+  if (anchor !== undefined) {
     if (anchorPatchEnabled() || staleEditRecoveryEnabled()) {
       try {
         const owner = ownerFromToolUseContext(context)
@@ -684,10 +686,9 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
     }
     return '<system-reminder>Warning: the file exists but has empty contents.</system-reminder>'
   }
-  const freshness = memoryFreshnessTimes.get(data)
   const prefix =
-    freshness !== undefined
-      ? `(memory file — last updated ${new Date(freshness).toISOString()})\n`
+    file.memoryUpdatedAt !== undefined
+      ? `(memory file — last updated ${new Date(file.memoryUpdatedAt).toISOString()})\n`
       : ''
   const numbered = resultLineAnchors.has(data)
     ? addAnchoredLineNumbers({
@@ -696,8 +697,7 @@ function serializeTextResult(file: Extract<Output, { type: 'text' }>['file'], da
         compact: isCompactLinePrefixEnabled(),
       })
     : addLineNumbers({ content: file.content, startLine: file.startLine })
-  const anchor = resultAnchors.get(data)
-  const anchorSuffix = anchor !== undefined ? `\n(anchor: ${anchor})` : ''
+  const anchorSuffix = file.anchor !== undefined ? `\n(anchor: ${file.anchor})` : ''
   return `${prefix}${numbered}${anchorSuffix}`
 }
 

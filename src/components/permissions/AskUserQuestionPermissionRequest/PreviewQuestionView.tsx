@@ -84,14 +84,16 @@ export function PreviewQuestionView({
   const questionState = questionStates[questionText]
 
   const allOptions = question.options
-  const [focusedIndex, setFocusedIndex] = useState(0)
-
+  const focusForSelection = (): number => {
+    const selected = questionStates[questionText]?.selectedValue as string | undefined
+    const idx = selected ? allOptions.findIndex(opt => opt.label === selected) : -1
+    return idx >= 0 ? idx : 0
+  }
+  const [focusedIndex, setFocusedIndex] = useState(focusForSelection)
   const prevQuestionText = useRef(questionText)
   if (prevQuestionText.current !== questionText) {
     prevQuestionText.current = questionText
-    const selected = questionState?.selectedValue as string | undefined
-    const idx = selected ? allOptions.findIndex(opt => opt.label === selected) : -1
-    setFocusedIndex(idx >= 0 ? idx : 0)
+    setFocusedIndex(focusForSelection())
   }
   const focusedOption = allOptions[focusedIndex]
   const selectedValue = questionState?.selectedValue as string | undefined

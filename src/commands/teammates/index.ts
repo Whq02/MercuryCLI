@@ -4,7 +4,7 @@ const command = {
   type: 'local-jsx',
   name: 'teammates',
   needsConcourse: true,
-  description: "Teammate chats — named long-lived crew workers",
+  description: "Crew — the session's sub-agents live, and the named agents' chats",
   isEnabled: () => true,
   isHidden: false,
   load: () => import('./teammates.js'),

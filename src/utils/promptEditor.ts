@@ -10,6 +10,7 @@ import { classifyGuiEditor, getExternalEditor } from './editor.js'
 import { toIDEDisplayName } from './ide.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
+import { reclaimTerminalAfterChild } from './terminalHandback.js'
 
 
 export type EditorResult = {
@@ -88,6 +89,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       }
       return { content: readFileSync(filePath, 'utf8') }
     } finally {
+      reclaimTerminalAfterChild(isTerminalEditor ? 'prompt editor' : 'prompt editor (gui)')
       if (isTerminalEditor) {
         instance.exitAlternateScreen()
       } else {

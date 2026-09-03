@@ -148,6 +148,7 @@ import {
   stripToolReferenceBlocksFromUserMessage,
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
+import { stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import {
   getCanonicalName,
   getPublicModelDisplayName,
@@ -620,6 +621,12 @@ async function* queryModel(
   messagesForAPI = orderToolResultsByUse(ensureToolResultPairing(messagesForAPI))
 
   messagesForAPI = stripUnsignedThinkingBlocks(messagesForAPI)
+
+  messagesForAPI = stripThinkingFromOtherModels(
+    messagesForAPI,
+    options.model,
+    (a, b) => getCanonicalName(a) === getCanonicalName(b),
+  )
 
   if (!betas.includes(ADVISOR_BETA_HEADER)) {
     messagesForAPI = stripAdvisorBlocks(messagesForAPI)
