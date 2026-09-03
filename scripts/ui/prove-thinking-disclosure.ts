@@ -128,8 +128,8 @@ check(
 check('owner: exports the row element', typeof grammar.ThinkingLabel === 'function');
 const ownerSrc = readFileSync(OWNER, 'utf8');
 check(
-  'owner: the selector is spelled as an escape (never a droppable invisible literal)',
-  ownerSrc.includes("'\u2733\\uFE0E'") && !ownerSrc.includes('\uFE0E'),
+  'owner: the glyph is the figures constant and no presentation selector is spelled (the code point needs none)',
+  ownerSrc.includes('THINKING_GLYPH = TEARDROP_ASTERISK') && !ownerSrc.includes('\uFE0E') && !ownerSrc.includes('\\uFE0E'),
 );
 
 const RENDERERS: Record<string, string> = {
@@ -141,7 +141,7 @@ const RENDERERS: Record<string, string> = {
 const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8')]));
 for (const [name, src] of Object.entries(sources)) {
   check(`${name}: imports the thinking grammar owner`, src.includes("/thinkingGrammar.js'"));
-  check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK'));
+  check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK') && !code(src).includes('\u273B'));
   check(`${name}: spells no label of its own`, !/[Tt]hinking…/.test(src));
 }
 check('settled + redacted: no accent anywhere (the row is not identity)', !/accent/i.test(code(sources.settled!)) && !/accent/i.test(code(sources.redacted!)));
@@ -161,7 +161,11 @@ const walk = (dir: string, out: string[]): void => {
 const files: string[] = [];
 walk('src', files);
 const spellers = files.filter(f => readFileSync(f, 'utf8').includes('\u2733')).map(f => f.split('\\').join('/'));
-check('the glyph literal is spelled in the owner and nowhere else under src', spellers.length === 1 && spellers[0] === OWNER, spellers.join(', ') || '(none)');
+check('the eight-spoked asterisk (U+2733) is spelled nowhere under src', spellers.length === 0, spellers.join(', ') || '(none)');
+check(
+  'the teardrop literal is owned by constants/figures; the owner reads the constant and spells no literal',
+  readFileSync('src/constants/figures.ts', 'utf8').includes("TEARDROP_ASTERISK = '\u273B'") && !ownerSrc.includes('\u273B'),
+);
 
 const React = (await import('react')).default;
 const { renderToAnsiString } = await import('../../src/utils/staticRender.tsx');
