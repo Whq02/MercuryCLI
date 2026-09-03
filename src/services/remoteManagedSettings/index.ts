@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { backgroundHttpsAgent } from '../../utils/proxy.js'
 import { closeSync, fsyncSync, openSync, unlinkSync, writeSync } from 'node:fs'
 
 import axios from 'axios'
@@ -100,6 +101,7 @@ async function fetchRemoteSettings(
       {
         headers,
         timeout: FETCH_TIMEOUT_MS,
+        httpsAgent: backgroundHttpsAgent(),
         validateStatus: status =>
           status === 200 || status === 204 || status === 304 || status === 404,
       },

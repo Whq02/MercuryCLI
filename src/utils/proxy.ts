@@ -8,6 +8,8 @@ import { apiTimeoutMsOverride } from './envValidation.js'
 import { getCACertificates } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
+import { Agent as HttpsAgent } from 'node:https'
+import { connect as tlsConnect } from 'node:tls'
 
 
 type EnvLike = Record<string, string | undefined>
@@ -442,4 +444,21 @@ export function clearProxyCache(): void {
   proxyDispatcherCache = new Map()
   tunnelAgentCache = new Map()
   logForDebugging('proxy: cache cleared')
+}
+
+
+class BackgroundHttpsAgent extends HttpsAgent {
+  override createConnection(options: unknown, callback?: unknown): ReturnType<HttpsAgent['createConnection']> {
+    const inherited = (HttpsAgent.prototype as unknown as { createConnection?: (o: unknown, cb?: unknown) => unknown }).createConnection
+    const socket = (typeof inherited === 'function'
+      ? inherited.call(this, options, callback)
+      : tlsConnect(options as never, callback as never)) as ReturnType<HttpsAgent['createConnection']>
+    ;(socket as { unref?: () => unknown } | undefined)?.unref?.()
+    return socket
+  }
+}
+let backgroundAgent: HttpsAgent | null = null
+export function backgroundHttpsAgent(): HttpsAgent {
+  if (backgroundAgent === null) backgroundAgent = new BackgroundHttpsAgent({ keepAlive: false })
+  return backgroundAgent
 }

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { backgroundHttpsAgent } from '../../utils/proxy.js'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -106,6 +107,7 @@ async function fetchPolicyLimits(cached: Restrictions | null): Promise<PolicyLim
     const response = await axios.get(`${getOauthConfig().BASE_API_URL}/api/claude_code/policy_limits`, {
       headers,
       timeout: FETCH_TIMEOUT_MS,
+      httpsAgent: backgroundHttpsAgent(),
       validateStatus: status => status === 200 || status === 304 || status === 404,
     })
     if (response.status === 304) return { success: true, restrictions: null }
