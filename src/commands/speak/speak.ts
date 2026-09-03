@@ -20,7 +20,7 @@ export const call: LocalCommandCall = async rawArg => {
   return {
     type: 'text',
     value: next
-      ? `voice input ON — press v in an empty composer to start a capture, v or esc to stop; the words land in the composer\n${describeVoiceStatus()}`
-      : 'voice input OFF — v is the letter v again',
+      ? `voice input ON — press space in an empty composer to start a capture, space or esc to stop; the words land in the composer\n${describeVoiceStatus()}`
+      : 'voice input OFF — space is a space again',
   }
 }
