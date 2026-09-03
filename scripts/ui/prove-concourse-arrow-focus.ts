@@ -349,8 +349,11 @@ const scratches: string[] = []
 {
   const scratch = newScratch('zero', false)
   scratches.push(scratch)
+  // The 'before' mark waits for the PANE's own zero state (its first example
+  // row), not the board's row: the examples paint a beat after the board on a
+  // loaded box, and a mark taken on the board's needle found no example row.
   capture('zero', scratch, [
-    { ...settle, data: DOWN, mark: 'before' },
+    { ...settle, awaitText: 'launch two sessions', data: DOWN, mark: 'before' },
     { afterPrevTicks: 3, data: '', mark: 'after' },
   ], 60)
   const before = markOf('zero', 'before')
