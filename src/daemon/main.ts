@@ -1030,15 +1030,15 @@ async function daemonRun(args: string[]): Promise<void> {
                 console.error(`[daemon] hard stop: ${runnerId} still holds its turn a second after the interrupt — cutting the runner`)
                 live.kill(runnerId)
                 const t0 = Date.now()
-                const settle = (): void => {
+                const publishWhenGone = (): void => {
                   const after = live.list().find(j => j.short === runnerId)
                   if (after !== undefined && !after.outcome && Date.now() - t0 < 5_000) {
-                    setTimeout(settle, 100).unref()
+                    setTimeout(publishWhenGone, 100).unref()
                     return
                   }
                   publishSeatFacts(runnerId, undefined, live)
                 }
-                settle()
+                publishWhenGone()
               }, 1_000).unref()
             }
             return settle(
