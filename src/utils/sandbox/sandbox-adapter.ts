@@ -1,4 +1,5 @@
-import { existsSync, lstatSync, rmSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, lstatSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import {
@@ -223,6 +224,16 @@ function buildDenyWrite(): string[] {
   return [...denyWrite]
 }
 
+const platformUserTempDir = memoize((): string | null => {
+  if (getPlatform() !== 'macos') return null
+  try {
+    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000 }).trim()
+    return dir === '' ? null : realpathSync(dir)
+  } catch {
+    return null
+  }
+})
+
 function buildAllowWrite(): string[] {
   const allowWrite = new Set<string>(['.'])
   try {
@@ -234,6 +245,8 @@ function buildAllowWrite(): string[] {
     allowWrite.add(getMercuryTempDir())
   } catch {
   }
+  const platformTemp = platformUserTempDir()
+  if (platformTemp) allowWrite.add(platformTemp)
   const sessionDir = getCwd()
   const mainRepo = resolveWorktreeMainRepo(sessionDir)
   if (mainRepo && mainRepo !== sessionDir) allowWrite.add(mainRepo)
