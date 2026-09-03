@@ -22,8 +22,8 @@ check(
 )
 
 check(
-  'opt-out is =0 (default ON when unset)',
-  /MERCURY_SKILL_SELF_AUTH'\) !== '0'/.test(src),
+  'opt-out is any falsy spelling through isEnvDefinedFalsy (default ON when unset)',
+  /!isEnvDefinedFalsy\(flagEnv\('MERCURY_SKILL_SELF_AUTH'\)\)/.test(src),
 )
 check(
   'the deleted seam stays out of the gate ',
@@ -31,8 +31,8 @@ check(
 )
 
 check(
-  'command:allowedTools merge is conditional via spread (=0 the only off-switch)',
-  src.includes("return flagEnv('MERCURY_SKILL_SELF_AUTH') !== '0'") && src.includes('isSkillSelfAuthEnabled() ? { command: allowedTools } : {}'),
+  'command:allowedTools merge is conditional via spread (the falsy opt-out the only off-switch)',
+  src.includes("return !isEnvDefinedFalsy(flagEnv('MERCURY_SKILL_SELF_AUTH'))") && src.includes('isSkillSelfAuthEnabled() ? { command: allowedTools } : {}'),
 )
 
 check(
