@@ -27,6 +27,10 @@ __t=$SECONDS; "$BUN" run scripts/model-registry/prove-usage-truth.ts || fail=1; 
 # SUB-MODEL containers (Minerva · Console): derivation from the registry,
 # signed-out routing, the persistence ladder, the serve/refusal grammar.
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-submodels.ts || fail=1; prover_mark scripts/model-registry/prove-submodels.ts "$__t"
+# SUB-MODEL EFFORT DIAL: e on a /submodels row — the strip lists only the
+# owner's levels per family, the pick persists per container, the calls
+# carry it (or the model default with a receipt), the panel driven for real.
+__t=$SECONDS; "$BUN" run scripts/model-registry/prove-submodel-effort-dial.ts || fail=1; prover_mark scripts/model-registry/prove-submodel-effort-dial.ts "$__t"
 __t=$SECONDS; "$BUN" run scripts/model-registry/prove-model-honesty.ts || fail=1; prover_mark scripts/model-registry/prove-model-honesty.ts "$__t"
 # SPELLING FOLD (AGENTDIALS C2): human spellings resolve against the
 # catalogue's ids AND display names at the ONE normalizer — derived,

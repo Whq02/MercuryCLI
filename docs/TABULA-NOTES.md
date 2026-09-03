@@ -156,3 +156,14 @@ carries no schema-forced output format still serves Minerva: its plans are promp
 JSON (both prompts spell the exact shape), decoded tolerantly and post-validated
 deterministically; an undecodable answer degrades typed with the model named.
 
+Each container also carries its own **effort**. `e` on a model row opens the effort
+strip (the main picker's strip, one look) listing only the levels the one effort owner
+says that model offers under the container's own call context: a model with no effort
+control answers a one-line receipt and opens nothing, and Minerva calls with thinking
+off, so a model whose effort dial is its reasoning dial answers the same way there. `↵`
+saves the level for that container (`subModels.effort`), `esc` keeps what was there,
+and the row reads `runs @high (chosen)` against `runs @medium (the model default)`.
+The container's calls carry exactly that level; a model pick that lacks the level runs
+the model default and says so in its receipt — the wire never carries a level the model
+does not offer.
+
