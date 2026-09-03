@@ -2,6 +2,14 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
 import { getGlobalConfig, saveGlobalConfig } from '../config.js'
 import {
+  EFFORT_LEVELS,
+  NO_EFFORT_CONTROL_LABEL,
+  normalizeEffortLevelString,
+  resolveEffortTruth,
+  type EffortLevel,
+  type EffortTruthContext,
+} from '../effort.js'
+import {
   providerDisplayName,
   declaredRouteOf,
   type CallModelRoute,
@@ -296,6 +304,131 @@ export function setSubModel(
   }))
   return {
     ok: true,
-    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — live on the next ${container === 'minerva' ? 'curator pass' : 'side question'}`,
+    receipt: `${label} model set to ${entry.displayName} (${providerDisplayName(entry.source)}) — ${subModelEffortClause(container, wanted)} — live on the next ${container === 'minerva' ? 'curator pass' : 'side question'}`,
   }
+}
+
+
+function containerLabel(container: SubModelContainer): string {
+  return container === 'minerva' ? 'Minerva' : 'Console'
+}
+
+export function subModelEffortContext(container: SubModelContainer): EffortTruthContext {
+  return container === 'minerva' ? { thinkingEnabled: false } : {}
+}
+
+export function resolveSubModelEffort(container: SubModelContainer): EffortLevel | undefined {
+  const stored = getGlobalConfig().subModels?.effort?.[container]
+  return stored === undefined ? undefined : normalizeEffortLevelString(stored)
+}
+
+export type SubModelEffortStrip =
+  | { kind: 'levels'; levels: readonly EffortLevel[]; current: EffortLevel }
+  | { kind: 'none'; receipt: string }
+
+export function subModelEffortStrip(container: SubModelContainer, model: string): SubModelEffortStrip {
+  const truth = resolveEffortTruth(model, undefined, subModelEffortContext(container))
+  if (!truth.supportsEffort) {
+    return { kind: 'none', receipt: `${model} has ${NO_EFFORT_CONTROL_LABEL}` }
+  }
+  if (truth.suppressedBy === 'thinking-off') {
+    return {
+      kind: 'none',
+      receipt: `${model}: its effort dial is its reasoning dial, and ${containerLabel(container)} calls with thinking off — no level applies`,
+    }
+  }
+  const levels = truth.selectable
+  const chosen = resolveSubModelEffort(container)
+  const current =
+    chosen !== undefined && levels.includes(chosen)
+      ? chosen
+      : truth.applied !== undefined && levels.includes(truth.applied)
+        ? truth.applied
+        : levels.includes('high')
+          ? 'high'
+          : (levels[0] as EffortLevel)
+  return { kind: 'levels', levels, current }
+}
+
+export interface SubModelEffortDispatch {
+  effortValue: EffortLevel | undefined
+  chosen: EffortLevel | undefined
+  fallback?: string
+}
+
+export function subModelDispatchEffort(container: SubModelContainer, model: string): SubModelEffortDispatch {
+  const chosen = resolveSubModelEffort(container)
+  if (chosen === undefined) return { effortValue: undefined, chosen }
+  const truth = resolveEffortTruth(model, chosen, subModelEffortContext(container))
+  const label = containerLabel(container)
+  if (!truth.supportsEffort) {
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} has ${NO_EFFORT_CONTROL_LABEL} — ${chosen} stays saved and applies when ${label} runs an effort-capable model`,
+    }
+  }
+  if (truth.suppressedBy === 'thinking-off') {
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} sends no effort dial on ${label}'s thinking-off calls and runs its provider default — ${chosen} stays saved, not sent`,
+    }
+  }
+  if (!truth.selectable.includes(chosen)) {
+    const runs = resolveEffortTruth(model, undefined, subModelEffortContext(container)).label
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} does not offer ${chosen} — runs @${runs} (the model default); ${chosen} stays saved`,
+    }
+  }
+  return { effortValue: chosen, chosen }
+}
+
+export function subModelEffortClause(container: SubModelContainer, model: string): string {
+  const dispatch = subModelDispatchEffort(container, model)
+  if (dispatch.fallback !== undefined) return dispatch.fallback
+  const truth = resolveEffortTruth(model, dispatch.effortValue, subModelEffortContext(container))
+  if (!truth.supportsEffort) return NO_EFFORT_CONTROL_LABEL
+  if (truth.requestedSource === 'env') return `runs @${truth.label} (pinned by MERCURY_EFFORT_LEVEL)`
+  if (dispatch.chosen === undefined) return `runs @${truth.label} (the model default)`
+  return truth.label === dispatch.chosen
+    ? `runs @${truth.label} (chosen)`
+    : `runs @${truth.label} (${dispatch.chosen} chosen — resolved live at dispatch)`
+}
+
+export function setSubModelEffort(container: SubModelContainer, effortWord: string | null): SubModelSetResult {
+  const label = containerLabel(container)
+  if (effortWord === null) {
+    const had = getGlobalConfig().subModels?.effort?.[container] !== undefined
+    if (had) {
+      saveGlobalConfig(config => {
+        const effort = { ...config.subModels?.effort }
+        delete effort[container]
+        const next = { ...config.subModels }
+        if (Object.keys(effort).length > 0) next.effort = effort
+        else delete next.effort
+        return { ...config, subModels: Object.keys(next).length > 0 ? next : undefined }
+      })
+    }
+    return { ok: true, receipt: `${label} effort cleared — the model default applies` }
+  }
+  const level = normalizeEffortLevelString(effortWord)
+  if (level === undefined) {
+    return {
+      ok: false,
+      reason: `'${effortWord}' is not on the effort ladder — the levels are ${EFFORT_LEVELS.join(' | ')}`,
+    }
+  }
+  saveGlobalConfig(config => ({
+    ...config,
+    subModels: { ...config.subModels, effort: { ...config.subModels?.effort, [container]: level } },
+  }))
+  const pin = resolveSubModel(container)
+  const clause =
+    pin.origin === 'unset'
+      ? 'applies when a model is pinned'
+      : `${pin.model} ${subModelEffortClause(container, pin.model)}`
+  return { ok: true, receipt: `${label} effort set to ${level} — ${clause}` }
 }
