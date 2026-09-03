@@ -208,10 +208,12 @@ import {
   noteCapWindowObserved,
   noteOfferAutoDone,
   noteOfferDismissal,
+  noteSlotWallObserved,
   observedFamilyWindow,
   offerAutoDone,
   offerDismissed,
   resolveCapPosture,
+  slotWallKey,
 } from '../../services/capFailover.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
@@ -730,7 +732,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           otherWalled: view.other?.walled === true,
         })
         if (action.kind !== 'none' && view.other !== undefined && view.activeLabel !== undefined) {
-          const slotKey = `slot|${family}|${view.active ?? ''}|${activeWall.resetsAtMs ?? ''}`
+          const slotKey = slotWallKey(family, view.active ?? '')
+          noteSlotWallObserved(family, view.active ?? '', activeWall.walled)
           if (action.kind === 'offer') {
             const turnInFlightNow = appStateStore.getState().foregroundTurnActive
             if (turnInFlightNow) return

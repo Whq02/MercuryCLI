@@ -1,13 +1,8 @@
 import { formatResetTime } from '../../utils/format.js'
-import { currentLimits, type ClaudeAILimits, type RateLimitType } from '../claudeAiLimits.js'
+import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
-import {
-  activeSourceUsage,
-  anthropicPoolWindowViews,
-  type ActiveUsageReads,
-  type UsageWindowView,
-} from './providerUsage.js'
+import { activeSourceUsage, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
 
 export const APPROACHING_LIMIT_PCT = 70
 
@@ -18,14 +13,6 @@ export interface ProviderLimitWarningView {
 
 export interface LimitWarningReads extends ActiveUsageReads {
   anthropicLimits?: () => ClaudeAILimits
-}
-
-function windowWord(view: UsageWindowView): string {
-  if (view.key === 'cap' || view.label === 'cap') return 'credit cap'
-  if (view.label === 'quota') return 'quota'
-  if (view.label === 'wk') return 'weekly window'
-  if (view.label === 'win') return 'usage window'
-  return `${view.label} window`
 }
 
 function resetTail(epochSeconds: number | undefined): string {
@@ -81,20 +68,20 @@ export function providerLimitWarning(opts?: {
     const limits = reads?.anthropicLimits?.() ?? currentLimits
     const fromHeaders = anthropicWarning(limits)
     if (fromHeaders !== null) return fromHeaders
-    const meterWorst = worstLiveWindow([...view.windows, ...anthropicPoolWindowViews(reads)])
-    if (meterWorst === null) return null
-    const pct = flooredPct(meterWorst)
+    const binding = view.binding
+    if (binding === undefined) return null
+    const pct = flooredPct(binding.window)
     if (pct < APPROACHING_LIMIT_PCT) return null
-    const window = rateLimitWindowName(anthropicClaimOf(meterWorst))
+    const window = binding.claim !== undefined ? rateLimitWindowName(binding.claim) : binding.windowName
     return {
       provider: 'anthropic',
-      text: composeLine(providerDisplayName('anthropic'), pct, window, resetSecondsOf(meterWorst)),
+      text: composeLine(providerDisplayName('anthropic'), pct, window, resetSecondsOf(binding.window)),
     }
   }
 
-  const worst = worstLiveWindow(view.windows)
-  if (worst === null) return null
-  const pct = flooredPct(worst)
+  const binding = view.binding
+  if (binding === undefined) return null
+  const pct = flooredPct(binding.window)
   if (pct < APPROACHING_LIMIT_PCT) return null
   const label = view.label
   const word =
@@ -103,7 +90,7 @@ export function providerLimitWarning(opts?: {
       : providerDisplayName(view.provider)
   return {
     provider: view.provider,
-    text: composeLine(word, pct, windowWord(worst), resetSecondsOf(worst)),
+    text: composeLine(word, pct, binding.windowName, resetSecondsOf(binding.window)),
   }
 }
 
@@ -112,20 +99,6 @@ export function preferSessionLimitWarning(
   local: ProviderLimitWarningView | null,
 ): ProviderLimitWarningView | null {
   return fromSession ?? local
-}
-
-function anthropicClaimOf(view: UsageWindowView): RateLimitType {
-  if (view.key === '5h') return 'five_hour'
-  if (view.key === '7d') return 'seven_day'
-  return view.key as RateLimitType
-}
-
-function worstLiveWindow(windows: UsageWindowView[]): UsageWindowView | null {
-  const live = windows.filter(
-    w => w.state === 'live' && typeof w.usedPct === 'number' && Number.isFinite(w.usedPct),
-  )
-  if (live.length === 0) return null
-  return live.reduce((a, b) => ((b.usedPct ?? 0) > (a.usedPct ?? 0) ? b : a))
 }
 
 function flooredPct(view: UsageWindowView): number {
