@@ -27,7 +27,7 @@
 //  session, never the estate's.
 // ============================================================================
 import { flagSpellings } from '../../substrate/flagRegistry.js'
-import { realEnvPin } from '../../substrate/startupMenu.js'
+import { realEnvPin, type EffectiveSettingRow } from '../../substrate/startupMenu.js'
 
 export type SpawnSwitchKind = 'subagents' | 'workflows'
 
@@ -142,7 +142,7 @@ export interface SpawnSwitchRecordView {
    *  re-forwards); absent = never toggled. */
   spawnSwitches?: Partial<Record<SpawnSwitchKind, 'on' | 'off'>>
   /** The admission's settings snapshot (the env rows at birth). */
-  settingsSnapshot?: { rows: ReadonlyArray<{ env: string; value: string | null; source: 'process-env' | 'profile' | 'default' }> }
+  settingsSnapshot?: { rows: ReadonlyArray<Pick<EffectiveSettingRow, 'env' | 'value' | 'source'>> }
 }
 
 export function spawnSwitchOfRecord(rec: SpawnSwitchRecordView | undefined, kind: SpawnSwitchKind): SpawnSwitchState {
@@ -150,7 +150,10 @@ export function spawnSwitchOfRecord(rec: SpawnSwitchRecordView | undefined, kind
   if (toggled !== undefined) return { on: toggled === 'on', source: 'in-session' }
   const row = rec?.settingsSnapshot?.rows.find(r => r.env === SPAWN_SWITCH_ENV[kind])
   if (row === undefined || row.source === 'default') return { on: true, source: 'default' }
-  return { on: spawnSwitchOnFromValue(row.value), source: row.source === 'process-env' ? 'env' : 'boot-menu' }
+  // The snapshot's verdict is the boot-env owner's (realEnvPin decided it at
+  // admission): a profile row is the boot menu's, anything else the
+  // environment's pin.
+  return { on: spawnSwitchOnFromValue(row.value), source: row.source === 'profile' ? 'boot-menu' : 'env' }
 }
 
 export function spawnSwitchFactsOfRecord(rec: SpawnSwitchRecordView | undefined): SpawnSwitchFacts {
