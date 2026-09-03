@@ -58,7 +58,11 @@ if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
 const KEEP = process.env.MERCURY_UNIFY_KEEP === '1'
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
-const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetScale } = await import('../lib/captureDriver.ts')
+// The paced replies are state criteria of the hop drives (the hop must land
+// MID-TURN): their cadence rides the capture profile's stretch exactly as
+// the hop schedule does, so a stretched hop still lands inside the stream.
+const PACE = vshotBudgetScale()
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -176,7 +180,16 @@ async function runDrive(drive: Drive): Promise<DriveResult> {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
+      // The display pins: a stable-frame end (u1, u4) needs a still screen,
+      // and the status row's clock and the critters repaint every second
+      // unless pinned — on a runner without the pins in its own env the
+      // capture ran its whole budget instead of settling.
       MERCURY_LIVE_GLYPHS: '0',
+      MERCURY_LIVE_CLOCK: '0',
+      MERCURY_CRITTER_IDLE: '0',
+      MERCURY_CRITTER_GAZE: '0',
+      MERCURY_CRITTER_SLEEP: '0',
+      MERCURY_TERMINAL_TITLE: '0',
       ANTHROPIC_API_KEY: 'fixture-key-000',
       ANTHROPIC_BASE_URL: api.url,
       MERCURY_CACHE_CLOCK: '0',
@@ -483,12 +496,17 @@ for (const [cols, rows] of [
       // draft-survival leg is the concourse fold's capture, not this one.)
       g('· replying', '/concourse\r', { awaitSettleTicks: 8, mark: 'mid-turn-chat' }),
       g('WORKING', '\t', { awaitSettleTicks: 4, mark: 'board' }),
+      // The board's ↵ ARMS the selected row; ↵ again enters it (the armed
+      // legend's law) — the hop back is two presses.
+      { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 3, data: '\r' },
       g('⇧← back', '', { awaitSettleTicks: 3, mark: 'back' }),
     ],
     ready: 'streaming-word-24',
-    total: 700,
-    turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: 400, settleDelayMs: 800 }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }],
+    // The stream (24 words at the paced gap) plus two hops and their settles:
+    // the wall holds the schedule, not a NEVER-READY's whole day.
+    total: 260,
+    turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: Math.round(400 * PACE), settleDelayMs: Math.round(800 * PACE) }, { kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }],
     assert: async r => {
       printFrame(`u5 ${cols}x${rows} (settled)`, r.lines)
       const marks = (r.payload.marks as Array<{ label: string; grid: Array<Array<{ c: string }>> }> | undefined) ?? []
@@ -503,7 +521,9 @@ for (const [cols, rows] of [
       // as it arrives — the session's live tail — not whole at the settle.
       check(`u5 ${cols}x${rows}: the reply streams on screen mid-turn (the live tail paints partial words)`, partialOnScreen)
       check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary WORKING row`, board.includes('WORKING'), board === '' ? 'no mark' : '')
-      check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes('⇧← back') && back.includes('concourse-w1'))
+      // The status row names the session by its TITLE (the first words), not
+      // by its runner id.
+      check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes('⇧← back') && back.includes('stream a long reply please'))
       // The hopped-into chat carries the same reveal: the reply's words are
       // on screen in the chat entered from the board (mid-turn when the hop
       // beats the settle — the [PAINT] line names which frame it caught).
@@ -513,7 +533,10 @@ for (const [cols, rows] of [
       check(`u5 ${cols}x${rows}: the reply settled whole in the chat after the hop`, r.text.includes('streaming-word-24') && r.text.includes('streaming-word-01'))
       // The prompt row may scroll off a short chat (100x30 keeps ~9 rows
       // under the card); it must never appear TWICE on any frame.
-      const promptCount = (frame: string): number => (frame.match(/stream a long reply please/g) ?? []).length
+      // The words also name the session (the status row's title, the board's
+      // row, the rail): only a TRANSCRIPT row — the prompt glyph and the
+      // words — counts as the row that must never paint twice.
+      const promptCount = (frame: string): number => (frame.match(/❯ stream a long reply please/g) ?? []).length
       check(`u5 ${cols}x${rows}: no duplicated rows (the words appear at most once on every frame)`, promptCount(r.text) <= 1 && promptCount(back) <= 1 && promptCount(midTurn) <= 1, `final ${promptCount(r.text)} · back ${promptCount(back)} · mid-turn ${promptCount(midTurn)}`)
       await reapHome(r.home)
     },
@@ -527,19 +550,29 @@ for (const [cols, rows] of [
 // joined it), the ready line, and ONE dim key-map row
 // on the face's last row, outside the placed block. ↵ on New Session
 // births the session and enters it (create-on-Enter).
-const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Doctor / Health Check', 'Session Concourse', 'Resume Session']
+// The resume door is the face's Sessions · Projects row (a fresh home has no
+// history for a Continue Last Session row).
+const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Doctor / Health Check', 'Session Concourse', 'Sessions · Projects']
 // The reserved
 // chat stop retires, and the key-map row paints ONLY the move that exists
 // from the face — on a fresh boot with the concourse on, the concourse
 // alone (no `⇧←→` chord advertising a chat that is not there).
-const KEY_MAP = '⇧→ concourse'
-function assertFace(id: string, r: DriveResult): void {
+// The painted chord is host-spelled (off macOS "shift+→"): the needle reads
+// through the one platform-aware owner.
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const KEY_MAP = keyHintLabel('⇧→ concourse')
+function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {}): void {
   for (const row of FACE_ROWS) check(`${id}: the face carries '${row}'`, r.text.includes(row))
   check(`${id}: the ready line keeps its canon bytes`, r.text.includes(READY_LINE))
   const last = r.lines[r.lines.length - 1] ?? ''
   check(`${id}: the dim key-map row sits on the face's LAST row and names the concourse alone (the strip's one present move from a fresh face)`, last.includes(KEY_MAP) && !last.includes('chat'), last.trim().slice(0, 60))
-  check(`${id}: the key-map row appears exactly once, outside the card`, (r.text.match(/⇧→ concourse/g) ?? []).length === 1)
-  check(`${id}: no session was created by landing on the face`, Object.keys(liveRecords(r.home)).length === 0)
+  check(`${id}: the key-map row appears exactly once, outside the card`, r.text.split(KEY_MAP).length - 1 === 1)
+  // The records are read after the whole drive: a drive that goes on to
+  // press ↵ on New Session has its one born record by then (u1 counts it);
+  // only a drive that rests on the face pins the empty roster. The daemon
+  // pre-warms one identityless runner behind the face (its record stands
+  // warm, claimless); a SESSION is a claimed record.
+  if (opts.births !== true) check(`${id}: no session was created by landing on the face (a warm runner's record stands claimless)`, Object.values(liveRecords(r.home)).filter(x => x.warm !== true).length === 0, JSON.stringify(Object.values(liveRecords(r.home)).map(x => ({ id: x.runnerId, warm: x.warm, sid: x.sessionId }))))
 }
 // 120x42, not 120x40: with the eight-row card the tight head tier's block
 // is exactly 40 lines, so at 120x40 the placed block fills the terminal and
@@ -563,7 +596,7 @@ for (const [cols, rows] of [
       const face = marks.find(m => m.label === 'face')
       const faceLines = (face?.grid ?? []).map(row => row.map(c => c.c).join(''))
       printFrame(`u6 ${cols}x${rows} (the face)`, faceLines)
-      assertFace(`u6 ${cols}x${rows}`, { ...r, text: faceLines.join('\n'), lines: faceLines })
+      assertFace(`u6 ${cols}x${rows}`, { ...r, text: faceLines.join('\n'), lines: faceLines }, { births: true })
       check(`u6 ${cols}x${rows}: ↵ on New Session births the session and enters it (composer ready, ONE record — the poison is the ghost's zero)`, r.text.includes('Type a prompt') && Object.keys(liveRecords(r.home)).length === 1)
       await reapHome(r.home)
     },
@@ -628,7 +661,9 @@ function processCensus(rigPid = 0): { screens: number[]; daemons: number[]; runn
         continue
       }
       if (!cmd.includes(BIN_UNDER_TEST)) continue
-      if (cmd.includes(` daemon ${CWD}`)) {
+      // The owned daemon's argv reads `daemon run <dir>` (the older spelling
+      // `daemon <dir>` is kept for a stale binary).
+      if (cmd.includes(` daemon run ${CWD}`) || cmd.includes(` daemon ${CWD}`)) {
         out.daemons.push(pid)
         continue
       }
@@ -685,7 +720,7 @@ drives.push({
     g('· replying', '', { awaitSettleTicks: 4, mark: 'before-close', signal: 'SIGHUP' }),
   ],
   total: 120,
-  turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: 400, settleDelayMs: 800 }, { kind: 'text', text: 'Spare.' }],
+  turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: Math.round(400 * PACE), settleDelayMs: Math.round(800 * PACE) }, { kind: 'text', text: 'Spare.' }],
   assert: async r => {
     const before = (r.payload.marks as Array<{ label: string }> | undefined)?.some(m => m.label === 'before-close') === true
     check('u9: the session was running when the terminal closed', before)

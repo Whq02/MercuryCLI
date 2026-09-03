@@ -310,6 +310,11 @@ if (sendRecs.length === sends.length) {
     // chord's, not a standing composer line.
     const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x removes it'))
     check("…and the composer's receipt spoke the stop verb's detail inside its beat", receiptFrames.some(receiptWords), receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | '))
+    // …and the receipt FOLLOWS THE ROW: once the record reads stopped the
+    // words advance to the removal hint (a stop answered "sent" is not the
+    // end of the story; the stamp is).
+    const receiptRows = receiptFrames.map(g => `+${g.atMs - stopAt}ms: ${g.rows.find(r => /applied|refused|failed/.test(r))?.trim().slice(0, 110) ?? '(no receipt row)'}`).join(' | ')
+    check('…and once the row reads stopped the receipt advances to the removal hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x removes it')) && /\bstopped\s+stream slowly/.test(t(g))), receiptRows)
     check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|$)/.test(r)))
     check('REMOVE ARM: the hint now speaks the remove stage', t(removeArmFrame).includes(keyHintLabel('⌃x again removes it from the board')), stopWords(removeArmFrame))
     check('REMOVE: exactly the highlighted session left the board', !/stream slowly/.test(t(goneFrame)))
