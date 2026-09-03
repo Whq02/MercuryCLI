@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { adoptiveProjectPath } from '../../src/utils/projectStoreAdoption.js'
-import { readLedger } from '../gate/ledger.js'
+import { isAdvisoryKind, readLedger } from '../gate/ledger.js'
 import { spawnSync } from 'node:child_process'
 import { gitOutOrNull } from '../lib/git.ts'
 import { fullPoolSupport, resolveExecutionProfile } from '../lib/executionProfile.ts'
@@ -73,7 +73,7 @@ function localGreenTree(): { tree: string; headSha: string | null } | null {
 
 function ledgerGreenTrees(): Array<{ tree: string; headSha: string; kind: string }> {
   try {
-    const rows = readLedger().filter(r => r.ok)
+    const rows = readLedger().filter(r => r.ok && !isAdvisoryKind(r.kind))
     const out: Array<{ tree: string; headSha: string; kind: string }> = []
     for (const row of rows.slice(-20)) {
       if (!/^[0-9a-f]{40}$/.test(row.commit)) continue
