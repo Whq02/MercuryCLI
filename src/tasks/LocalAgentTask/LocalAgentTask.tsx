@@ -18,6 +18,7 @@ import { createAbortController, createChildAbortController } from '../../utils/a
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
+import { calculateUSDCost, modelPricingBasis } from '../../utils/modelCost.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import type { AgentId } from '../../types/ids.js'
@@ -66,6 +67,36 @@ export type AgentProgress = {
   totalToolUseCount?: number
   lastActivity?: ToolActivity
   recentActivities: ToolActivity[]
+  /** The ledger fold (AgentLedger) — the facts the crew surfaces paint:
+   *  absent until the first settled response, never a fabricated zero. */
+  inputTokens?: number
+  outputTokens?: number
+  costUSD?: number
+  unpricedTurns?: number
+  /** The model the newest response was SERVED on (the served-model law). */
+  model?: string
+}
+
+/**
+ * The per-response fold of an agent's own settled responses, in the session
+ * ledger's spelling: input counts the cached prefix read and written beside
+ * the uncached input; USD is what the pricing owner could price at the
+ * served model's rate, and `unpricedTurns` counts the responses it could
+ * not (their tokens are in the counts, their USD is not — the usage-
+ * neutrality law: honest absence, never a foreign rate, never free). One
+ * row per response: a streamed response settles across several assistant
+ * messages that share one id, so a later message REPLACES the earlier
+ * contribution of the same id — the fold never double-counts a turn.
+ */
+export type AgentLedger = {
+  inputTokens: number
+  outputTokens: number
+  costUSD: number
+  unpricedTurns: number
+  /** The model the newest response was served on. */
+  servedModel?: string
+  lastResponseId?: string
+  lastResponse?: { input: number; output: number; cost: number; unpriced: number }
 }
 
 export type ProgressTracker = {
@@ -75,6 +106,60 @@ export type ProgressTracker = {
   totalOutputTokens: number
   toolUseCount: number
   recentActivities: ToolActivity[]
+  /** The per-response ledger fold (see AgentLedger). */
+  ledger: AgentLedger
+}
+
+export function createAgentLedger(): AgentLedger {
+  return { inputTokens: 0, outputTokens: 0, costUSD: 0, unpricedTurns: 0 }
+}
+
+/**
+ * Fold one assistant message's usage into the ledger. A message without
+ * usage, or with nothing counted yet (a streamed block before its usage
+ * settles), leaves the ledger untouched; a message carrying the SAME
+ * response id as the last fold replaces that fold's contribution.
+ */
+export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
+  const usage = assistant.message.usage
+  if (!usage) return
+  const input =
+    (usage.input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0) +
+    (usage.cache_read_input_tokens ?? 0)
+  const output = usage.output_tokens ?? 0
+  if (input <= 0 && output <= 0) return
+  const rawModel = (assistant.message as { model?: unknown }).model
+  const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
+  const priced = model !== undefined && modelPricingBasis(model) !== 'unpriced'
+  // The wire's nullable cache fields become the pricing owner's optional ones.
+  const cost = priced
+    ? calculateUSDCost(model, {
+        input_tokens: usage.input_tokens ?? 0,
+        output_tokens: usage.output_tokens ?? 0,
+        ...(usage.cache_read_input_tokens != null ? { cache_read_input_tokens: usage.cache_read_input_tokens } : {}),
+        ...(usage.cache_creation_input_tokens != null
+          ? { cache_creation_input_tokens: usage.cache_creation_input_tokens }
+          : {}),
+        ...(usage.cache_creation ? { cache_creation: usage.cache_creation } : {}),
+      })
+    : 0
+  const next = { input, output, cost, unpriced: priced ? 0 : 1 }
+  const id = typeof assistant.message.id === 'string' ? assistant.message.id : undefined
+  if (id !== undefined && ledger.lastResponseId === id && ledger.lastResponse !== undefined) {
+    const prev = ledger.lastResponse
+    ledger.inputTokens -= prev.input
+    ledger.outputTokens -= prev.output
+    ledger.costUSD -= prev.cost
+    ledger.unpricedTurns -= prev.unpriced
+  }
+  ledger.inputTokens += next.input
+  ledger.outputTokens += next.output
+  ledger.costUSD += next.cost
+  ledger.unpricedTurns += next.unpriced
+  ledger.lastResponseId = id
+  ledger.lastResponse = next
+  if (model !== undefined) ledger.servedModel = model
 }
 
 export type ActivityDescriptionResolver = (
@@ -88,6 +173,7 @@ export function createProgressTracker(): ProgressTracker {
     totalOutputTokens: 0,
     toolUseCount: 0,
     recentActivities: [],
+    ledger: createAgentLedger(),
   }
 }
 
@@ -133,6 +219,7 @@ export function updateProgressFromMessage(
     if (latest > 0) tracker.latestInputTokens = latest
     tracker.totalOutputTokens += usage.output_tokens ?? 0
   }
+  foldResponseIntoLedger(tracker.ledger, assistant)
   const content = assistant.message.content
   if (!Array.isArray(content)) return
   for (const block of content) {
@@ -157,6 +244,8 @@ export function updateProgressFromMessage(
 }
 
 export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
+  const ledger = tracker.ledger
+  const settled = ledger.inputTokens + ledger.outputTokens > 0
   return {
     toolUseCount: tracker.toolUseCount,
     tokenCount: getTokenCountFromTracker(tracker),
@@ -164,6 +253,17 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
     totalToolUseCount: tracker.toolUseCount,
     lastActivity: tracker.recentActivities[tracker.recentActivities.length - 1],
     recentActivities: [...tracker.recentActivities],
+    // The ledger rides only once a response settled — an absent counter
+    // is the honest "nothing counted yet", never a zero that reads as fact.
+    ...(settled
+      ? {
+          inputTokens: ledger.inputTokens,
+          outputTokens: ledger.outputTokens,
+          costUSD: ledger.costUSD,
+          unpricedTurns: ledger.unpricedTurns,
+        }
+      : {}),
+    ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
   }
 }
 

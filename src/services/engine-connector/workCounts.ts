@@ -24,7 +24,7 @@ export interface WorkCountsV1 {
    *  (a nested spawn registers in the same runner store and rides the
    *  same roster). */
   agents: number
-  /** Running teammates (the session's crew). */
+  /** Running named agents (the session's named sub-agents). */
   teammates: number
   /** Running shells + monitors. */
   shells: number
@@ -65,7 +65,7 @@ export function workChipLine(counts: WorkCountsV1): string | null {
   const parts: string[] = []
   if (counts.workflows > 0) parts.push(`${counts.workflows} workflow${counts.workflows === 1 ? '' : 's'}`)
   if (counts.agents > 0) parts.push(`${counts.agents} agent${counts.agents === 1 ? '' : 's'}`)
-  if (counts.teammates > 0) parts.push(`${counts.teammates} teammate${counts.teammates === 1 ? '' : 's'}`)
+  if (counts.teammates > 0) parts.push(`${counts.teammates} named agent${counts.teammates === 1 ? '' : 's'}`)
   if (counts.shells > 0) parts.push(`${counts.shells} shell${counts.shells === 1 ? '' : 's'}`)
   if (parts.length === 0) return null
   const line = parts.join(' · ')

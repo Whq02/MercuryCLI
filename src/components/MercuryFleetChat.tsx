@@ -1,6 +1,6 @@
-// MercuryFleetChat — fullscreen harness center: teammate SELECTOR + message BOX.
-// Real Ink, keyboard-driven (the prototype's /fullscreen behavior). ↑↓ select a
-// teammate, type to compose, ↵ sends (prompt accent = target). esc exits.
+// MercuryFleetChat — fullscreen harness center: agent SELECTOR + message BOX.
+// Real Ink, keyboard-driven (the prototype's /fullscreen behavior). ↑↓ select an
+// agent, type to compose, ↵ sends (prompt accent = target). esc exits.
 // Wire onSend to the SendMessage tool. Compose as the center rail of FullscreenLayout.
 import * as React from 'react'
 import { useState } from 'react'
@@ -57,12 +57,12 @@ export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.R
     while (i < chars.length && displayWidth(chars.slice(i).join('')) > budget) i++
     return chars.slice(i).join('')
   }
-  // Honest empty state — no fleet (solo session). Never fabricate teammates.
+  // Honest empty state — no fleet (solo session). Never fabricate agents.
   if (!target) {
     return (
       <Box flexDirection="column" paddingX={1}>
         <Text bold color={TERRA}>fleet</Text>
-        <Text color={FAINT}>{'· no teammates yet — launch a team to chat'}</Text>
+        <Text color={FAINT}>{'· no named agents yet — spawn one from /teammates to chat'}</Text>
         <Text color={FAINT}>esc exit</Text>
       </Box>
     )
@@ -87,7 +87,7 @@ export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.R
       </Box>
       <Box flexDirection="column" flexGrow={1} paddingX={1}>
         <Text bold color={TERRA}>chat → @{target.name}</Text>
-        {log.length === 0 ? <Text color={FAINT}>· pick a teammate (↑↓), type a message, ↵ to send</Text>
+        {log.length === 0 ? <Text color={FAINT}>· pick an agent (↑↓), type a message, ↵ to send</Text>
           : log.map((m, idx) => m.who === 'you'
             ? <Text key={idx}><Text bold color={TERRA}>❯</Text> <Text color={FAINT}>@{m.at}</Text> <Text color={IVORY}>{m.text}</Text></Text>
             : <Text key={idx}><Text color={TEAL}>●</Text> <Text bold color={IVORY}>{m.at}</Text> <Text color={SAND}>{m.text}</Text></Text>)}
@@ -96,7 +96,7 @@ export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.R
           {/* prefix '❯ @name ' (2 + name + 1) + cursor (1) reserve; rest is draft budget */}
           <Text bold color={TERRA}>❯ </Text><Text color={FAINT}>@{target.name} </Text><Text color={IVORY}>{draftTail(draft, 44 - 4 - displayWidth(target.name) - 1 - 1)}</Text><Text color={TERRA}>▏</Text>
         </Box>
-        <Text color={FAINT}>↑↓ teammate · ↵ send · esc exit</Text>
+        <Text color={FAINT}>↑↓ agent · ↵ send · esc exit</Text>
       </Box>
     </Box>
   )

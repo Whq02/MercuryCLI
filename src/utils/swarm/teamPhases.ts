@@ -2,7 +2,7 @@
 //  teamPhases — the REAL lifecycle model for team members.
 //  Phases derive from actual task/runner/mailbox state, never from elapsed
 //  time; operator-facing vocabulary says "waiting" (ready for more work), not
-//  "idle" (which read as stuck). One derivation shared by the Team Center
+//  "idle" (which read as stuck). One derivation shared by the crew board
 //  list rows, the detail card, and doctor.
 // ============================================================================
 

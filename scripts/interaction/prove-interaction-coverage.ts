@@ -235,6 +235,7 @@ reg(
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',
     'src/components/mercury-ui/parity/DaemonSupervisorView.tsx',
     'src/components/mercury-ui/screens/TeammateChatsView.tsx',
+    'src/components/mercury-ui/screens/CrewView.tsx', // the Crew view (/teammates): ↑↓ ↵ n esc over the sub-agent + named-agent rows (useInput; the hosted card and the chats board own their own keys while up)
     'src/components/RouterKeyEntry.tsx', // the hidden Z.AI key entry (masked TextInput; esc cancels)
     'src/components/RouterOpenaiConnect.tsx', // the /router connect surface (paste-fallback TextInput; esc cancels/stops watching) — the RouterKeyEntry class
 

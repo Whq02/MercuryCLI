@@ -5,7 +5,7 @@
 //  /teammates board renders HONEST states in an ISOLATED scratch config home
 //  (immune to whatever crew team file the real home accumulates from live
 //  runs):
-//    · fork default @120 + @80: the honest EMPTY board — 'no teammates yet',
+//    · fork default @120 + @80: the honest EMPTY board — 'no named agents yet',
 //      and NO @atlas/@beacon design-stub chips (illustrative
 //      fakes; fabricating them is the bug class);
 //    · MERCURY_CREW=0 @120: the honest DISABLED line naming the kill.
@@ -110,7 +110,7 @@ function assertBoard(cols: number, tag: string, extraEnv: Record<string, string>
 // Honest EMPTY board (fork default) at both breakpoints.
 for (const cols of [120, 80]) {
   assertBoard(cols, 'empty', {}, [
-    [/no teammates yet/, true, "honest empty state ('no teammates yet')"],
+    [/no named agents yet/, true, "honest empty state ('no named agents yet')"],
     [/@atlas/, false, 'retired stub chip @atlas ABSENT (no fabricated instances)'],
     [/@beacon/, false, 'retired stub chip @beacon ABSENT'],
     [/crew is disabled/, false, 'not showing the disabled line while enabled'],
@@ -119,7 +119,7 @@ for (const cols of [120, 80]) {
 // Honest DISABLED state under the operator kill.
 assertBoard(120, 'disabled', { MERCURY_CREW: '0' }, [
   [/crew is disabled \(MERCURY_CREW=0/, true, 'honest disabled line naming the kill'],
-  [/no teammates yet/, false, 'empty-state hint suppressed while disabled'],
+  [/no named agents yet/, false, 'empty-state hint suppressed while disabled'],
 ])
 
 rmSync(home, { recursive: true, force: true })
