@@ -21,6 +21,11 @@ import { formatSessionCost } from '../../utils/spendSpelling.js'
  *  named, addressable sub-agent (a message reaches it by its name). */
 export type CrewAgentKind = 'agent' | 'named'
 
+/** The ONE status vocabulary every crew surface speaks — running (or
+ *  queued to run) · landed · stopped (the operator's or an interrupt's
+ *  stop) · failed. The runner's kind-status words map here once. */
+export type CrewAgentState = 'running' | 'landed' | 'stopped' | 'failed'
+
 export interface CrewAgentTokens {
   /** input + output — the figure every row and the attribution line spell. */
   total: number
@@ -36,6 +41,8 @@ export interface CrewAgentFacts {
   kind: CrewAgentKind
   /** The runner's own status word — never re-derived by a surface. */
   status: string
+  /** The one status vocabulary (crewStateOf over the runner's word). */
+  state: CrewAgentState
   /** Running or queued to run (the ONE counting law, workRowRuns). */
   running: boolean
   /** The model the agent runs: the served id once a response landed, the
@@ -49,6 +56,13 @@ export interface CrewAgentFacts {
   /** Settled responses no rate on file could price — counted beside the
    *  tokens, never at a foreign rate. */
   unpricedTurns: number
+  /** The tracker's tool-use count; null until the runner published one. */
+  toolUses: number | null
+  /** The running tool's own description (the latest activity); null when none. */
+  activity: string | null
+  /** The tool-use id of the launch that minted the row; null for a named
+   *  agent's spawn. The transcript's tool card joins by it. */
+  toolUseId: string | null
   startedAt: number
   endedAt: number | null
   agentType: string | null
@@ -79,6 +93,25 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   return total === null ? null : { total, input: null, output: null }
 }
 
+/** The runner's kind-status word mapped ONCE onto the crew vocabulary:
+ *  running/pending run (the counting law); failed fails; killed — and
+ *  the stop words an interrupt settles a row with — stopped; the rest
+ *  landed. */
+export function crewStateOf(row: Pick<WorkRowV1, 'status'>): CrewAgentState {
+  if (workRowRuns(row as WorkRowV1)) return 'running'
+  switch (row.status) {
+    case 'failed':
+      return 'failed'
+    case 'killed':
+    case 'stopped':
+    case 'cancelled':
+    case 'interrupted':
+      return 'stopped'
+    default:
+      return 'landed'
+  }
+}
+
 /** The record for one roster row; null for a row that is not a sub-agent. */
 export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): CrewAgentFacts | null {
   if (!isCrewRow(row)) return null
@@ -87,11 +120,15 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     name: row.name,
     kind: row.kind === 'agent' ? 'agent' : 'named',
     status: row.status,
+    state: crewStateOf(row),
     running: workRowRuns(row),
     model: typeof row.model === 'string' && row.model !== '' ? row.model : null,
     tokens: tokensOf(row),
     costUSD: positive(row.costUSD),
     unpricedTurns: positive(row.unpricedTurns) ?? 0,
+    toolUses: typeof row.toolUses === 'number' && Number.isFinite(row.toolUses) && row.toolUses >= 0 ? row.toolUses : null,
+    activity: typeof row.activity === 'string' && row.activity !== '' ? row.activity : null,
+    toolUseId: typeof row.toolUseId === 'string' && row.toolUseId !== '' ? row.toolUseId : null,
     startedAt: row.startTime,
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
     agentType: row.agentType ?? null,
@@ -121,6 +158,18 @@ export function crewAgentsOf(rows: readonly WorkRowV1[], sessionId: string | nul
 
 export function crewRunning(agents: readonly CrewAgentFacts[]): CrewAgentFacts[] {
   return agents.filter(a => a.running)
+}
+
+/** The agent an Agent tool call launched — the transcript's tool card
+ *  joins its row to the record by the call's id. */
+export function crewAgentByToolUse(agents: readonly CrewAgentFacts[], toolUseId: string): CrewAgentFacts | null {
+  return agents.find(a => a.toolUseId === toolUseId) ?? null
+}
+
+/** A named agent by its name (a spawn no tool call minted). */
+export function crewAgentByName(agents: readonly CrewAgentFacts[], name: string): CrewAgentFacts | null {
+  const bare = name.replace(/^@/, '')
+  return agents.find(a => a.kind === 'named' && a.name === bare) ?? null
 }
 
 /** The tokens the crew settled, summed over the agents that settled any. */
@@ -153,6 +202,25 @@ export const CREW_MODEL_UNKNOWN = '—'
 
 export function crewModelLabel(facts: CrewAgentFacts): string {
   return facts.model ?? CREW_MODEL_UNKNOWN
+}
+
+/** The one status word. */
+export function crewStateLabel(facts: CrewAgentFacts): string {
+  return facts.state
+}
+
+/** `3 tool uses`; null until the runner published a count. */
+export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
+  if (facts.toolUses === null) return null
+  return `${facts.toolUses} tool use${facts.toolUses === 1 ? '' : 's'}`
+}
+
+/** What a parent turn held open by its crew is doing — `waiting on N
+ *  agents`; null when none runs (the tail's own word stands). */
+export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
+  const n = crewRunning(agents).length
+  if (n === 0) return null
+  return `waiting on ${n} agent${n === 1 ? '' : 's'}`
 }
 
 /** `12.3k tokens`; null before the first settled response (the surface
@@ -208,7 +276,7 @@ export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {
   return [
     facts.name,
     crewModelLabel(facts),
-    facts.status,
+    crewStateLabel(facts),
     crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN,
     crewElapsedLabel(facts, nowMs),
   ].join(' · ')
