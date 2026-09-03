@@ -343,11 +343,12 @@ try {
   // park/park-all (parked is a record state; quit parks all) ·
   // set-effort (bcf2ce905, the seat's effort door) · contract (e10292f00,
   // the advisory contract record) · set-kit (d9b3a5047, the kit's one
-  // writer) · set-schedule (d77f37d29, the Saturn wire).
+  // writer) · set-schedule (d77f37d29, the Saturn wire) · set-spawn-switch
+  // (bc6a8fa, the seat's spawn-switch door — SPAWN-SWITCH).
   check(
-    "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·set-effort·contract·set-kit·set-schedule)",
+    "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·set-effort·contract·set-kit·set-schedule·set-spawn-switch)",
     union ===
-      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | set-effort | contract | set-kit | set-schedule',
+      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | set-effort | contract | set-kit | set-schedule | set-spawn-switch',
     union,
   )
   check(

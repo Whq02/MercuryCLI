@@ -439,8 +439,9 @@ console.log("S — set-kit, the ONE writer: a pre-kit record MATERIALIZES then e
   const controlArm = server.slice(server.indexOf("case 'sessionControl': {"), server.indexOf("case 'sessionList': {"))
   // S13 needle AMENDED: the requires-string grew
   // '|set-schedule' at its tail — the set-kit clauses pinned here are
-  // byte-unmoved.
-  check("S13 the server routes the action, narrows the payload through validateSessionKitEdit ('kitEdit refused — <reason>') and passes it typed; the requires-string names set-kit", controlArm.includes("raw.action === 'set-kit'") && controlArm.includes('validateSessionKitEdit(raw.kitEdit)') && controlArm.includes('kitEdit refused — ') && controlArm.includes('...(kitEdit !== undefined ? { kitEdit } : {})') && controlArm.includes('park-all|set-effort|contract|set-kit|set-schedule, sessionId, by }'))
+  // byte-unmoved. AMENDED again (bc6a8fa, SPAWN-SWITCH): '|set-spawn-switch'
+  // joined the tail.
+  check("S13 the server routes the action, narrows the payload through validateSessionKitEdit ('kitEdit refused — <reason>') and passes it typed; the requires-string names set-kit", controlArm.includes("raw.action === 'set-kit'") && controlArm.includes('validateSessionKitEdit(raw.kitEdit)') && controlArm.includes('kitEdit refused — ') && controlArm.includes('...(kitEdit !== undefined ? { kitEdit } : {})') && controlArm.includes('park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch, sessionId, by }'))
   // S14/S15 AMENDED (the live forward landed): the arm now
   // routes through the SEAT half (setSessionKitDial: idle applies through
   // the one writer and forwards the post-edit kit whole; busy parks with

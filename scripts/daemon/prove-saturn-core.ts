@@ -455,6 +455,8 @@ console.log('§W the wire')
 
   const server = read('src/daemon/controlServer.ts')
   const controlArm = server.slice(server.indexOf("case 'sessionControl': {"), server.indexOf("case 'sessionList': {"))
+  // W4's requires-string tail grew '|set-spawn-switch' (bc6a8fa, the seat's
+  // spawn-switch door).
   check(
     "W4 the server routes the action and narrows: op grammar · 'add' through validateSaturnSubmission ('scheduleEdit refused — <reason>') · the id grammar · the typed forward · the requires-string",
     controlArm.includes("raw.action === 'set-schedule'") &&
@@ -462,7 +464,7 @@ console.log('§W the wire')
       controlArm.includes('scheduleEdit refused — ') &&
       controlArm.includes('SATURN_ID_PATTERN.test(scheduleId)') &&
       controlArm.includes('...(scheduleEdit !== undefined ? { scheduleEdit } : {})') &&
-      controlArm.includes('contract|set-kit|set-schedule, sessionId, by }'),
+      controlArm.includes('contract|set-kit|set-schedule|set-spawn-switch, sessionId, by }'),
   )
 
   const main = read('src/daemon/main.ts')
