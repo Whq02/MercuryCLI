@@ -215,7 +215,12 @@ export function isSummariserRequest(body: WireBody): boolean {
 
 export function isPostCompactionRequest(body: WireBody): boolean {
   const head = firstUserText(body)
-  return head.includes('continued from a previous conversation') || head.includes('Summary of the session so far') || head.includes('summarized below')
+  return (
+    head.includes('The context window turned over') ||
+    head.includes('continued from a previous conversation') ||
+    head.includes('Summary of the session so far') ||
+    head.includes('summarized below')
+  )
 }
 
 export function isSideCall(body: WireBody): boolean {
@@ -268,9 +273,13 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
     const verdict = comparePrefix(pb, cb)
     const prevModel = String(pb.model ?? prev.model ?? '')
     const curModel = String(cb.model ?? cur.model ?? '')
+    const headMove =
+      !verdict.held &&
+      verdict.diff !== null &&
+      (verdict.diff.path.startsWith('messages[0]') || verdict.diff.path.startsWith('system[0]'))
     let lawful: PairReport['lawful'] = null
     if (prevModel !== curModel) lawful = 'model-switch'
-    else if (isSummariserRequest(cb) || isSummariserRequest(pb) || isPostCompactionRequest(cb)) lawful = 'compaction'
+    else if (headMove && ((isSummariserRequest(pb) && !isSummariserRequest(cb)) || (isPostCompactionRequest(cb) && !isPostCompactionRequest(pb)))) lawful = 'compaction'
     const usage = cur.response?.usage
     const drops = cur.response?.input_transformations
     const dropped = Array.isArray(drops) ? drops.filter(d => d.type === 'thinking_dropped') : null
