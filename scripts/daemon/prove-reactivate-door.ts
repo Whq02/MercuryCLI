@@ -262,7 +262,14 @@ console.log('\n── R7: the screen door reads the record and re-says the seat 
   const supervisorSrc = read('src/daemon/concourseSupervisor.ts')
   const admitAt = supervisorSrc.indexOf('export function makeConcourseAdmitHandler(')
   const admitBody = supervisorSrc.slice(admitAt, supervisorSrc.indexOf('function mintWorktreeBranchName', admitAt))
-  check('R7 the daemon\'s resume arm converges on the STANDING record before any mint (the two-states poison closed at the door)', admitBody.indexOf('return reactivateConcourseSession(') !== -1 && admitBody.indexOf('return reactivateConcourseSession(') < admitBody.indexOf('THE WARM CLAIM (claim-over-spawn)'))
+  const reactivateAt = admitBody.indexOf('const reactivated = await reactivateConcourseSession(')
+  check(
+    'R7 the daemon\'s resume arm converges on the STANDING record before any mint (the two-states poison closed at the door)',
+    reactivateAt !== -1 &&
+      reactivateAt < admitBody.indexOf('THE WARM CLAIM (claim-over-spawn)') &&
+      admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt) !== -1 &&
+      admitBody.indexOf('return reactivated.ok && retainedNote !== undefined ? { ...reactivated, note: retainedNote } : reactivated', reactivateAt) < admitBody.indexOf('THE WARM CLAIM (claim-over-spawn)'),
+  )
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
