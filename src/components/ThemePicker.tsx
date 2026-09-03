@@ -14,6 +14,7 @@ import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { useSetAppState } from '../state/AppState.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
+import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 import { REACHABLE_THEME_SETTINGS, type ThemeSetting } from '../utils/theme.js'
 import { Select, type OptionWithDescription } from './CustomSelect/index.js'
 import Byline from './design-system/Byline.js'
@@ -171,8 +172,8 @@ export function ThemePicker({
       {helpAbove ? <Text dimColor>{helpText}</Text> : null}
       <Select
         options={THEME_OPTIONS}
-        defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : 'dark'}
-        defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : 'dark'}
+        defaultValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}
+        defaultFocusValue={THEME_OPTIONS.some(o => o.value === savedSetting) ? savedSetting : DEFAULT_THEME_SETTING}
         visibleOptionCount={THEME_OPTIONS.length}
         onFocus={value => {
           setPreviewTheme(value)
