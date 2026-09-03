@@ -53,10 +53,10 @@ profile (Windows Terminal lists it in its new-tab menu once installed — the
 Start-menu "PowerShell 7" entry opens a standalone console, which works but
 meets the terminal-check card first). Run the check again.
 
-Give the window at least **80 columns and 24 rows** — the Session Concourse
-says so on screen below that, and below 80 columns or 22 rows every screen
-is the resize card (the boot menu itself fits from 64×13) — and 100 or more
-columns so the wide layouts have room. Maximised is fine.
+Give the window at least **80 columns and 22 rows** — below that every
+screen is the resize card and the Session Concourse says so (the boot menu
+itself fits from 64×13) — and 100 or more columns so the wide layouts have
+room. Maximised is fine.
 
 One more thing: the console must use the UTF-8 code page, or the interface's
 box-drawing renders as garbage (`ΓöÇ`-style on code page 437; accented-letter
