@@ -534,6 +534,7 @@ async function* queryModel(
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
     latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    alsoDefer: shouldDeferLspTool,
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames
@@ -563,8 +564,7 @@ async function* queryModel(
   const cacheEditingBetaHeader = ''
 
   const useGlobalCacheFeature = shouldUseGlobalCacheScope()
-  const willDefer = (t: Tool) =>
-    useToolSearch && blockForm && (deferredToolNames.has(t.name) || shouldDeferLspTool(t))
+  const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)
   const needsToolBasedCacheMarker =
     useGlobalCacheFeature &&
     filteredTools.some(t => t.isMcp === true && !willDefer(t))
