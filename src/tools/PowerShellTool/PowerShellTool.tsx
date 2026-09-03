@@ -38,6 +38,7 @@ import { interpretCommandResult } from './commandSemantics.js'
 import { getPrompt, getDefaultTimeoutMs, getMaxTimeoutMs } from './prompt.js'
 import { shouldUseSandbox } from '../BashTool/shouldUseSandbox.js'
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js'
+import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { powershellToolHasPermission } from './powershellPermissions.js'
 import { hasSyncSecurityConcerns, isReadOnlyCommand, resolveToCanonical } from './readOnlyValidation.js'
 import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
@@ -170,7 +171,7 @@ async function* runPowerShell(
   const isMainThread = agentId === undefined
   const requestedTimeout = input.timeout
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
-  const firstToken = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim().split(/\s+/)[0] ?? ''
+  const firstToken = firstCommandWord(pinnedCommandAnalysis.splitCommand(input.command)[0] ?? '')
   const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(resolveToCanonical(firstToken))
   // On Windows the sandbox is unconditionally off; otherwise delegate.
   const useSandbox = getPlatform() === 'windows' ? false : shouldUseSandbox(input)

@@ -256,12 +256,21 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   check('nothing declared anywhere ⇒ undefined (the resolver keeps its own default)', resolveAgentEffort({ effortOverride: undefined, useExactTools: false, definitionEffort: undefined, sessionEffort: undefined }) === undefined)
   check('a pin off the ladder yields to the next rung, never rides raw', resolveAgentEffort({ effortOverride: 'turbo', useExactTools: false, definitionEffort: undefined, sessionEffort: 'low' }) === 'low')
   check('a spoken pin normalises through the one effort normaliser', resolveAgentEffort({ effortOverride: 'x-high', useExactTools: false, definitionEffort: undefined, sessionEffort: undefined }) === 'xhigh')
-  // The dispatch seam: the agent-scoped app state writes the ladder's answer
-  // to effortValue — the key turn-machine reads — never to a dead key.
+  // The dispatch seam: the agent-scoped app state hands the ladder's answer
+  // to the ONE posture owner (composeAgentAppState), which writes it to
+  // effortValue — the key turn-machine reads — never to a dead key.
   const runAgent = readFileSync('src/tools/AgentTool/runAgent.ts', 'utf-8')
   const scoped = runAgent.slice(runAgent.indexOf('const agentGetAppState'), runAgent.indexOf('// ── Hooks'))
-  check('the scoped state writes effortValue (the key dispatch reads)', /parentState\.effortValue !== effortValue/.test(scoped) && /toolPermissionContext: context, effortValue \}/.test(scoped), scoped.slice(0, 80))
-  check('…and never the dead effort key the base wrote', !/\beffort: effortValue/.test(scoped) && !/\{ effort\?: unknown \}/.test(scoped))
+  const posture = readFileSync('src/tools/AgentTool/agentPermissionPosture.ts', 'utf-8')
+  check(
+    'the scoped state writes effortValue (the key dispatch reads) through the one posture owner',
+    /return composeAgentAppState\(state, \{/.test(scoped) &&
+      /effortValue: resolveAgentEffort\(\{/.test(scoped) &&
+      /sessionEffort: state\.effortValue,/.test(scoped) &&
+      /if \(facts\.effortValue !== undefined && next\.effortValue !== facts\.effortValue\) \{\s*next = \{ \.\.\.next, effortValue: facts\.effortValue \}/.test(posture),
+    scoped.slice(0, 80),
+  )
+  check('…and never the dead effort key the base wrote', !/\beffort: effortValue/.test(scoped) && !/\{ effort\?: unknown \}/.test(scoped) && !/\beffort: facts\.effortValue/.test(posture) && /^\s*effortValue: EffortValue \| undefined/m.test(posture))
   check('the identity readout rides the same ladder', /const resolvedEffort = resolveAgentEffort\(\{/.test(runAgent))
   const turnMachine = readFileSync('src/run-core/turn-machine.ts', 'utf-8')
   check('dispatch reads appState.effortValue (the key the scoped state now carries)', /iter\.appState\.effortValue/.test(turnMachine))

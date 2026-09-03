@@ -4,7 +4,8 @@
  * deny paths and post-command scrubbing, and re-exports a single manager
  * façade. The enforcement itself belongs to the external package.
  */
-import { existsSync, lstatSync, rmSync, statSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { existsSync, lstatSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { isAbsolute, join, resolve, sep } from 'node:path'
 import {
@@ -292,15 +293,46 @@ function buildDenyWrite(): string[] {
   return [...denyWrite]
 }
 
+/**
+ * The platform's own per-user temp directory, resolved: on macOS the
+ * DARWIN_USER_TEMP_DIR tree under /var/folders, which mktemp and the tools
+ * built on it use ahead of TMPDIR. Absent elsewhere (a Linux TMPDIR is
+ * honoured by the tools, and the /tmp fallback would be the whole of
+ * /tmp). Read once per process.
+ */
+const platformUserTempDir = memoize((): string | null => {
+  if (getPlatform() !== 'macos') return null
+  try {
+    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000 }).trim()
+    return dir === '' ? null : realpathSync(dir)
+  } catch {
+    return null
+  }
+})
+
 /** Build the allow-write set (cwd, temp, worktree main repo, additional dirs). */
 function buildAllowWrite(): string[] {
   const allowWrite = new Set<string>(['.']) // the cwd as the literal single-dot
   try {
-    const { getProjectTempDir } = require('../permissions/filesystem.js') as { getProjectTempDir(): string }
+    const { getMercuryTempDir, getProjectTempDir } = require('../permissions/filesystem.js') as {
+      getMercuryTempDir(): string
+      getProjectTempDir(): string
+    }
     allowWrite.add(getProjectTempDir())
+    // The product temp root (the resolved /tmp/mercury-<uid>/): the shell
+    // provider writes its cwd-tracking record there and the executor hands
+    // it to the sandboxed child as TMPDIR, so a write there must be allowed
+    // or every sandboxed command ends on the record's refusal (status 1, no
+    // cd ever recorded) and mktemp-class commands fail inside the sandbox.
+    allowWrite.add(getMercuryTempDir())
   } catch {
     // filesystem helper unavailable
   }
+  // The platform's per-user temp directory beside the product root: the
+  // user's own scratch (mode 0700), never the project or the home, so a
+  // bare mktemp under the sandbox lands somewhere it is allowed to.
+  const platformTemp = platformUserTempDir()
+  if (platformTemp) allowWrite.add(platformTemp)
   const sessionDir = getCwd()
   const mainRepo = resolveWorktreeMainRepo(sessionDir)
   if (mainRepo && mainRepo !== sessionDir) allowWrite.add(mainRepo)

@@ -3,7 +3,8 @@
 // proof (prove-lsp-lifecycle-config.ts). Speaks Content-Length framed
 // JSON-RPC; behavior is selected by FAKE_LSP_MODE:
 //   normal           — initialize → capabilities; shutdown → null; exit → 0
-//   crash-after-init — answers initialize, then exits(1) ~80ms later (a crash)
+//   crash-after-init — answers initialize, then exits(1) ~500ms later (a crash
+//                      after the client's start has settled, on any box)
 //   ignore-shutdown  — answers initialize, then never answers shutdown and
 //                      ignores the exit notification (stays alive until
 //                      force-killed) — exercises the graceful-shutdown deadline
@@ -87,7 +88,11 @@ function onMessage(msg) {
     }
     send({ jsonrpc: '2.0', id: msg.id, result: { capabilities: {} } })
     if (mode === 'crash-after-init') {
-      setTimeout(() => process.exit(1), 80)
+      // Long enough for the client's start() to settle on the initialize
+      // result even on a slow box — a crash inside the handshake would read
+      // as an init failure (the backoff arms) instead of the post-init
+      // crash this mode scripts.
+      setTimeout(() => process.exit(1), 500)
     }
     return
   }

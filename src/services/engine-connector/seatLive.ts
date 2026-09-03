@@ -12,6 +12,7 @@
 // ============================================================================
 import type { EngineConnectorV1 } from './types.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
+import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 
 export interface SessionLiveV1 {
   inFlight: boolean
@@ -47,6 +48,10 @@ export interface SeatStatusV1 {
    *  and cuts the runner itself if the turn is still open a second later
    *  (the session survives; its next words revive it). */
   hardStopping: boolean
+  /** The runner's request wait (SessionTailV1.wait): the first byte
+   *  outstanding under its budget, or a reissue on its way; null when the
+   *  stream flows or no turn is in flight. */
+  wait: RequestWaitV1 | null
   /** ms since the session's runner last spoke — its last frame of ANY kind
    *  (a thinking delta with no text, a ping, a text delta, a tool_use
    *  start, a tool progress tick, a landed result). Null when no turn is in

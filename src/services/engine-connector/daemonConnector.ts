@@ -99,7 +99,7 @@ import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
-import { streamIdleWarningMsOf } from '../providers/streamIdleBudget.js'
+import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
   AskAnswerV1,
@@ -534,6 +534,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   /** The agent wait's count (SessionTailV1.waitingOnAgents); 0 otherwise. */
   private liveAgentsWaiting = 0
+  /** The runner's request wait (SessionTailV1.wait): the first byte
+   *  outstanding under its budget, or a reissue on its way. The status
+   *  row speaks it, and promises ITS budget — the one that fires. */
+  private liveWait: RequestWaitV1 | null = null
   /** The second esc — the hard stop is on its way through the daemon. */
   private hardStopping = false
 
@@ -723,6 +727,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
+    // The request wait rides the same read (absent means none); a change
+    // wakes the status row through the live channel.
+    const wait = decodeRequestWait(tail.wait)
+    if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
+      this.liveWait = wait
+      emitAll(this.liveListeners, 'live')
+    }
     // LIVENESS: the seat's stamp of the runner's last frame and the block
     // in flight ride the same read (absent means unspoken / an old daemon —
     // the row then claims nothing); a block flip repaints the phase.
@@ -1994,7 +2005,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const live = this.effectiveLive
     const now = Date.now()
     const quietMs = live.inFlight && this.lastEventAtMs !== null ? Math.max(0, now - this.lastEventAtMs) : null
-    const watchdogMs = typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
+    // THE PROMISE IS THE BUDGET THAT FIRES: while the first byte is
+    // outstanding the request's own budget (the cold-ingest allowance on a
+    // switched, folded or fresh prompt) governs — not the idle budget the
+    // stream lives under once it flows.
+    const wait = live.inFlight ? this.liveWait : null
+    const watchdogMs =
+      wait?.kind === 'first-byte' ? wait.budgetMs : typeof this.facts?.streamIdleTimeoutMs === 'number' ? this.facts.streamIdleTimeoutMs : null
     let phaseMs: number | null = null
     let toolBudgetMs: number | null = null
     if (live.inFlight) {
@@ -2035,6 +2052,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       projectLabel: this.record.projectLabel,
       interrupting: this.interrupting,
       hardStopping: this.hardStopping,
+      wait,
       quietMs,
       watchdogMs,
       phaseMs,

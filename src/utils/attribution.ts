@@ -22,8 +22,9 @@ import { getInitialSettings } from './settings/settings.js'
  * The outward-facing text is provider-neutral (operator ruling,
  *): it names Mercury — the product — and never a model. The PR
  * line links the public product site (operator-supplied,
- * mercury-cli.ai); the commit trailer still carries no email token, so it
- * stays a watermark rather than a git co-author a hosting platform would
+ * mercury-cli.ai); the commit trailer carries the same site in the
+ * angle-bracket slot and no email token, so it stays a watermark that
+ * links the product rather than a git co-author a hosting platform would
  * resolve to an account.
  */
 
@@ -35,7 +36,7 @@ export type AttributionTexts = {
 // User-visible text that lands verbatim in commit bodies and PR
 // descriptions.
 const DEFAULT_PR_ATTRIBUTION = 'Generated with [Mercury CLI](https://mercury-cli.ai)'
-const DEFAULT_COMMIT_TRAILER = 'Co-Authored-By: Mercury'
+const DEFAULT_COMMIT_TRAILER = 'Co-Authored-By: Mercury <https://mercury-cli.ai>'
 
 /**
  * The commit trailer and PR line under settings precedence: an explicit
