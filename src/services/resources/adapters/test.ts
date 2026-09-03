@@ -13,11 +13,12 @@ import {
   type TestRunRecord,
 } from '../../ide/pythonTests.js'
 import { registerResourceAdapter } from '../registry.js'
+import { GLYPH } from '../../../components/mercury-ui/glyphs.js'
 import { boundedTextView, type ParsedRef, type ResourceAdapter, type ResourceChild, type ResourceResult } from '../contracts.js'
 
 function recordResource(record: TestRunRecord, ref: string, selectors: ParsedRef['selectors']): ResourceResult {
   const c = record.counts
-  const summary = `${record.framework} ${record.selection} — ${c.passed}✓ ${c.failed}✗ ${c.errored}⚠\uFE0E ${c.skipped}→ (${record.durationMs}ms)`
+  const summary = `${record.framework} ${record.selection} — ${c.passed}✓ ${c.failed}✗ ${c.errored}${GLYPH.warn} ${c.skipped}→ (${record.durationMs}ms)`
   const view = boundedTextView(JSON.stringify(record, null, 2), selectors)
   return {
     state: 'ok',
@@ -55,7 +56,7 @@ export const testAdapter: ResourceAdapter = {
           children: runs.slice(0, 25).map(r => ({
             ref: `mercury://test/run/${r.id}`,
             title: r.id,
-            summary: `${r.counts.passed}✓ ${r.counts.failed}✗ ${r.counts.errored}⚠\uFE0E`,
+            summary: `${r.counts.passed}✓ ${r.counts.failed}✗ ${r.counts.errored}${GLYPH.warn}`,
           })),
         },
       }
@@ -98,7 +99,7 @@ export const testAdapter: ResourceAdapter = {
       .map(r => ({
         ref: `mercury://test/run/${r.id}`,
         title: r.id,
-        summary: `${r.counts.passed}✓ ${r.counts.failed}✗ ${r.counts.errored}⚠\uFE0E`,
+        summary: `${r.counts.passed}✓ ${r.counts.failed}✗ ${r.counts.errored}${GLYPH.warn}`,
       }))
   },
 }

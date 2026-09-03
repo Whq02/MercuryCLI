@@ -41,6 +41,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import figures from 'figures'
+import { GLYPH } from '../../src/components/mercury-ui/glyphs.js'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'
@@ -348,7 +349,7 @@ const rowWith = (rows: string[], needle: string): string | undefined => rows.fin
 const pointerOn = (rows: string[], needle: string): boolean =>
   rows.some(r => r.includes(figures.pointer) && r.includes(needle))
 const tickOn = (rows: string[], needle: string): boolean =>
-  rows.some(r => r.includes(needle) && r.includes(figures.tick))
+  rows.some(r => r.includes(needle) && r.includes(GLYPH.check))
 const checkedRow = (rows: string[], needle: string): boolean =>
   rows.some(r => r.includes(needle) && r.includes(figures.checkboxOn))
 const uncheckedRow = (rows: string[], needle: string): boolean =>
@@ -450,17 +451,17 @@ if (wants('A')) {
   const afterText = markOr(d, 'q2-after-text')
   check('A: ↵ on the typed E row answered Q1 and advanced to Q2', cardRows(afterText, Q2).length > 0 && !afterText.some(r => r.includes(Q1)))
   const reopened = cardRows(markOr(d, 'q1-reopened'), Q1)
-  check('A: Q1 reopens ON its answer: the E row holds the text with the tick and the highlight', reopened.some(r => r.includes(Q1_TEXT) && r.includes(figures.tick)) && reopened.some(r => r.includes(Q1_TEXT) && r.includes(figures.pointer)))
+  check('A: Q1 reopens ON its answer: the E row holds the text with the tick and the highlight', reopened.some(r => r.includes(Q1_TEXT) && r.includes(GLYPH.check)) && reopened.some(r => r.includes(Q1_TEXT) && r.includes(figures.pointer)))
   if (!reopened.some(r => r.includes(Q1_TEXT))) dumpFrame('q1-reopened', markOr(d, 'q1-reopened'))
   const onB = cardRows(markOr(d, 'q1-on-b'), Q1)
-  check('A: the highlight walked up to B and stayed (E keeps its tick and text)', pointerOn(onB, 'B. In-memory') && onB.some(r => r.includes(Q1_TEXT) && r.includes(figures.tick)))
+  check('A: the highlight walked up to B and stayed (E keeps its tick and text)', pointerOn(onB, 'B. In-memory') && onB.some(r => r.includes(Q1_TEXT) && r.includes(GLYPH.check)))
   if (!pointerOn(onB, 'B. In-memory')) dumpFrame('q1-on-b', markOr(d, 'q1-on-b'))
 
   // The lost-input law: choosing B kept the text typed under E as an
   // uncommitted draft — Q1 reopens on B (tick + highlight) with the E row
   // still showing the text, and the wire (below) carries B, never the text.
   const kept = cardRows(markOr(d, 'q1-kept-draft'), Q1)
-  check('A: after choosing B, Q1 reopens on B with the E text still there (kept, uncommitted)', tickOn(kept, 'B. In-memory') && pointerOn(kept, 'B. In-memory') && kept.some(r => r.includes(Q1_TEXT)) && !kept.some(r => r.includes(Q1_TEXT) && r.includes(figures.tick)))
+  check('A: after choosing B, Q1 reopens on B with the E text still there (kept, uncommitted)', tickOn(kept, 'B. In-memory') && pointerOn(kept, 'B. In-memory') && kept.some(r => r.includes(Q1_TEXT)) && !kept.some(r => r.includes(Q1_TEXT) && r.includes(GLYPH.check)))
   if (!kept.some(r => r.includes(Q1_TEXT))) dumpFrame('q1-kept-draft', markOr(d, 'q1-kept-draft'))
   const q2Fresh = cardRows(markOr(d, 'q2-fresh'), Q2)
   check('A: Tab from the reopened Q1 advanced to Q2', q2Fresh.length > 0)
