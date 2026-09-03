@@ -11,6 +11,13 @@ import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, updateConcourseWorkers, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import { resolveSessionKitOnRecord, validateSessionKit, type SessionKitEditV1 } from './sessionKit.js'
+import {
+  SPAWN_SWITCH_KINDS,
+  spawnSwitchFactsOfRecord,
+  spawnSwitchOfRecord,
+  spawnSwitchToggleReceipt,
+  type SpawnSwitchKind,
+} from '../services/switchboard/spawnSwitches.js'
 import { applyConcourseScheduleOp, saturnFactsOf, SATURN_EDIT_BURST_CAP } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { applyConcourseKitOp } from './sessionKitOp.js'
@@ -355,6 +362,10 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
     },
     pendingModel: rec.pendingModelKey ?? null,
+    spawnSwitches: spawnSwitchFactsOfRecord(rec),
+    ...(rec.pendingSpawnSwitches !== undefined && rec.pendingSpawnSwitches.length > 0
+      ? { pendingSpawnSwitches: rec.pendingSpawnSwitches.map(p => ({ kind: p.kind, on: p.on })) }
+      : {}),
     ...(seat.lastModelSettle !== null ? { modelSettled: seat.lastModelSettle } : {}),
     busy: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
     ...saturnFactsOf(rec, Date.now()),
@@ -652,6 +663,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
   if (rec.pendingModelKey !== undefined) applyModelNow(rec, rec.pendingModelKey, roster, dir, { parkedSettle: true })
   if (rec.pendingEffort !== undefined) applyEffortNow(rec, rec.pendingEffort, roster, dir)
   drainPendingKitDials(short, roster, dir)
+  drainPendingSpawnSwitches(short, roster, dir)
   publishSeatFacts(short, dir, roster)
   requestSessionFacts(short, roster, { immediate: true })
 }
@@ -677,6 +689,8 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   if (seat.tail !== null || hadWord || hadLiveness) setSeatTail(seat, null, dir)
   clearSeatProgress(seat, dir)
   drainPendingKitDials(short, roster, dir)
+  forwardRecordSpawnSwitches(short, roster, dir)
+  drainPendingSpawnSwitches(short, roster, dir)
   pushScheduleRoster(short, roster, dir)
   publishSeatFacts(short, dir, roster)
   requestSessionFacts(short, roster, { immediate: true })
@@ -960,6 +974,93 @@ function forwardSessionKit(short: string, roster: SeatRosterPort, dir?: string):
       request: { subtype: 'kit_edit', kit: rec.kit },
     }),
   )
+}
+
+
+export function setSessionSpawnSwitch(
+  sessionId: string,
+  toggle: { kind: SpawnSwitchKind; on: boolean },
+  by: string,
+  roster: SeatRosterPort,
+  dir?: string,
+): SeatVerbOutcome {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const parkedForKind = (rec.pendingSpawnSwitches ?? []).filter(p => p.kind === toggle.kind)
+  const parked = parkedForKind[parkedForKind.length - 1]
+  const effectiveOn = parked !== undefined ? parked.on : spawnSwitchOfRecord(rec, toggle.kind).on
+  if (effectiveOn === toggle.on) return { outcome: 'noop', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'noop') }
+  if (seatBusy(rec.runnerId, roster)) {
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (w && w.endedAt === undefined) {
+        w.pendingSpawnSwitches = [...(w.pendingSpawnSwitches ?? []).filter(p => p.kind !== toggle.kind), { kind: toggle.kind, on: toggle.on, by }]
+      }
+    }, dir)
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat set-spawn-switch parked (the session is mid-turn): ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
+    publishSeatFacts(rec.runnerId, dir, roster)
+    return { outcome: 'queued', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'queued') }
+  }
+  return applySpawnSwitchNow(rec, toggle, roster, dir)
+}
+
+function applySpawnSwitchNow(
+  rec: ConcourseWorkerRecordV1,
+  toggle: { kind: SpawnSwitchKind; on: boolean },
+  roster: SeatRosterPort,
+  dir?: string,
+): SeatVerbOutcome {
+  updateConcourseWorkers(workers => {
+    const w = workers[rec.runnerId]
+    if (w && w.endedAt === undefined) w.spawnSwitches = { ...(w.spawnSwitches ?? {}), [toggle.kind]: toggle.on ? 'on' : 'off' }
+  }, dir)
+  const delivered = forwardSpawnSwitch(rec.runnerId, toggle, roster)
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] seat set-spawn-switch applied: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}${delivered ? '' : ' (no live control channel; the record holds it)'}`)
+  publishSeatFacts(rec.runnerId, dir, roster)
+  requestSessionFacts(rec.runnerId, roster, { immediate: true })
+  const receipt = spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'applied')
+  return delivered
+    ? { outcome: 'applied', detail: receipt }
+    : { outcome: 'applied', detail: `${receipt} — no live control channel; the record holds the switch and the session's next boot applies it` }
+}
+
+function forwardSpawnSwitch(short: string, toggle: { kind: SpawnSwitchKind; on: boolean }, roster: SeatRosterPort): boolean {
+  return roster.control(
+    short,
+    JSON.stringify({
+      type: 'control_request',
+      request_id: verbRequestId(short, `spawn-switch-${toggle.kind}`),
+      request: { subtype: 'spawn_switch', switch: toggle.kind, on: toggle.on },
+    }),
+  )
+}
+
+function forwardRecordSpawnSwitches(short: string, roster: SeatRosterPort, dir?: string): void {
+  const rec = liveRecordByShort(short, dir)
+  if (!rec?.spawnSwitches) return
+  for (const kind of SPAWN_SWITCH_KINDS) {
+    const held = rec.spawnSwitches[kind]
+    if (held !== undefined) forwardSpawnSwitch(short, { kind, on: held === 'on' }, roster)
+  }
+}
+
+function drainPendingSpawnSwitches(short: string, roster: SeatRosterPort, dir?: string): void {
+  const rec = liveRecordByShort(short, dir)
+  if (!rec) return
+  const parked = rec.pendingSpawnSwitches ?? []
+  if (parked.length === 0) return
+  updateConcourseWorkers(workers => {
+    const w = workers[short]
+    if (w && w.endedAt === undefined) delete w.pendingSpawnSwitches
+  }, dir)
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] seat set-spawn-switch applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
+  for (const entry of parked) {
+    const fresh = liveRecordByShort(short, dir)
+    if (fresh) applySpawnSwitchNow(fresh, { kind: entry.kind, on: entry.on }, roster, dir)
+  }
 }
 
 function drainPendingKitDials(short: string, roster: SeatRosterPort, dir?: string): void {

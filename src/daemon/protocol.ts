@@ -195,6 +195,7 @@ export type DaemonRequest =
         | 'contract'
         | 'set-kit'
         | 'set-schedule'
+        | 'set-spawn-switch'
       sessionId: string
       by: string
       reason?: string
@@ -214,6 +215,7 @@ export type DaemonRequest =
       contract?: { op: 'set' | 'ack' | 'amend' | 'close'; text?: string }
       kitEdit?: SessionKitEditV1
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
+      spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
       clientOpId?: string
     }
   | {
