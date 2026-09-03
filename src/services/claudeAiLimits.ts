@@ -128,6 +128,38 @@ export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefi
 
 let rawUtilization: RawUtilization = {}
 
+// ── The record's CHANGE SIGNAL ───────────────────────────────────────────────
+//  A fold that lands new windows (a reply's headers, a /usage sample, a
+//  reset) must reach every meter renderer at once: the frame band, the deck
+//  strip and the rail read the record at render, and nothing re-rendered
+//  them when the tab's mount fold filled it — the band kept painting "5h —"
+//  beside a strip warning computed from the very same record. One version
+//  counter, bumped by every writer, subscribed through useSyncExternalStore;
+//  the usage owner's short caches key on it too.
+let usageRecordVersion = 0
+const usageRecordListeners = new Set<() => void>()
+function noteUsageRecordChanged(): void {
+  usageRecordVersion++
+  for (const listener of usageRecordListeners) {
+    try {
+      listener()
+    } catch {
+      /* a renderer's listener must never break a fold */
+    }
+  }
+}
+/** The record's change counter (a useSyncExternalStore snapshot). */
+export function getUsageRecordVersion(): number {
+  return usageRecordVersion
+}
+/** Subscribe to record changes; returns the unsubscribe. */
+export function subscribeUsageRecord(listener: () => void): () => void {
+  usageRecordListeners.add(listener)
+  return () => {
+    usageRecordListeners.delete(listener)
+  }
+}
+
 // ── The window records' OWNER (the slot-attribution law, REPLDUP 2b) ────────
 //  A window record is a fact about ONE anthropic credential slot: keyed any
 //  coarser it outlives the slot that observed it, and a slot flip repaints
@@ -196,6 +228,7 @@ function recomputeRawUtilization(headers: Headers): void {
   rawUtilization = next
   // The response rode the ACTIVE slot's credential — stamp the owner.
   observedOwner = resolveOwner()
+  noteUsageRecordChanged()
 }
 
 // Seeded windows expire this far from now when the entry names no reset.
@@ -263,6 +296,7 @@ export function foldUtilizationFromEndpoint(
   endpointUtilization = next
   // The endpoint answered under the ACTIVE slot's sign-in — stamp the owner.
   observedOwner = resolveOwner()
+  noteUsageRecordChanged()
 }
 
 /**
@@ -502,6 +536,7 @@ function handleGateClosed(): void {
   endpointUtilization = {}
   observedOwner = null
   windowObserved = false
+  noteUsageRecordChanged()
   if (currentLimits.status !== 'allowed' || currentLimits.resetsAt !== undefined) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }
@@ -590,6 +625,7 @@ export async function checkQuotaStatus(): Promise<void> {
  *  win where present — must be provable without arming either). */
 export function __setRawUtilizationForTest(record: RawUtilization): void {
   rawUtilization = record
+  noteUsageRecordChanged()
 }
 
 /**
@@ -608,6 +644,7 @@ export function resetLimitsForCredentialSwitch(): void {
   // reads the record as 'unknown' until the new credential's own response
   // speaks — "no observation" is never "the window reset".
   windowObserved = false
+  noteUsageRecordChanged()
   if (!limitsEqual(currentLimits, DEFAULT_LIMITS)) {
     emitStatusChange({ ...DEFAULT_LIMITS })
   }

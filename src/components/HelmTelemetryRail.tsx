@@ -23,6 +23,7 @@ import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctx
 import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
 import { usageCreditsLine, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
 import { NO_USAGE_READ_WORDS, usageStaleTail } from '../services/providers/usageFreshness.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -260,6 +261,9 @@ function HelmTelemetryRailImpl({
     getFocusedRailModel,
     getFocusedRailModel,
   )
+  // The meters repaint the instant the first-party record changes (a
+  // /usage sample, a reply's headers, a reset) — not on the next 30s tick.
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
   const liveWindows = usage.windows.filter(w => w.state === 'live')
   // --- CONSOLE (MERCURY_HELM_CONSOLE): the cockpit mini-REPL, the rail's last section.

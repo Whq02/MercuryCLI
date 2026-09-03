@@ -41,6 +41,7 @@ import {
 } from '../utils/cockpit/index.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { CompanionSpeechLine, DeckCompanion, DeckCompanionChip } from './mercury-ui/DeckCompanion.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
@@ -158,6 +159,9 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   // The ACTIVE source's window meters from the ONE usage owner — the shape
   // follows the source (Anthropic 5h/7d · OpenAI observed bands · api-key /
   // logged-out: no meters); absent facts render nothing, never a fake bar.
+  // Repaint the instant the first-party record changes (a /usage sample, a
+  // reply's headers, a reset) — never a stale "5h —" over a filled record.
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const sourceUsage = activeSourceUsage()
   // The strip's two chips: the pair's first window, then the BINDING window
   // for the session model — the highest-used window that applies to it,

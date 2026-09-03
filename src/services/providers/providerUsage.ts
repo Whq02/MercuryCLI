@@ -36,6 +36,7 @@ import {
   currentLimits,
   getRawUtilization,
   getUsageCredentialEpoch,
+  getUsageRecordVersion,
   WEEKLY_POOL_CLAIMS,
   weeklyPoolClaimForModel,
   type RateLimitType,
@@ -1064,12 +1065,15 @@ function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
 // custodian reads touch the filesystem — a short TTL keeps repaints live
 // (well inside the rail's own 30s tick) without per-frame fs scans.
 // Injected reads (provers) always bypass; the cache is keyed on the model so
-// a /model switch re-derives immediately, AND on the usage-credential epoch
-// so a credential switch (or the C8 gate close) re-derives immediately too —
+// a /model switch re-derives immediately, on the usage-credential epoch so
+// a credential switch (or the C8 gate close) re-derives immediately too —
 // the reset owner's law ('no surface may keep painting the old account's
-// meters') would otherwise lose its last ≤2s to this cache.
+// meters') would otherwise lose its last ≤2s to this cache — AND on the
+// first-party record's change counter, so a fold that just landed new
+// windows (a /usage sample, a reply's headers) is painted by the very
+// render the fold woke, never the pre-fold value for the cache's tail.
 const ACTIVE_USAGE_CACHE_MS = 2_000
-let activeUsageCache: { model: string; atMs: number; epoch: number; value: ActiveSourceUsage } | null = null
+let activeUsageCache: { model: string; atMs: number; epoch: number; record: number; value: ActiveSourceUsage } | null = null
 
 /**
  * The active-source usage resolution — the model decides the lane (the
@@ -1084,16 +1088,18 @@ export function activeSourceUsage(opts?: {
     const model = opts?.model ?? getMainLoopModel()
     const now = Date.now()
     const epoch = getUsageCredentialEpoch()
+    const record = getUsageRecordVersion()
     if (
       activeUsageCache !== null &&
       activeUsageCache.model === model &&
       activeUsageCache.epoch === epoch &&
+      activeUsageCache.record === record &&
       now - activeUsageCache.atMs < ACTIVE_USAGE_CACHE_MS
     ) {
       return activeUsageCache.value
     }
     const value = deriveActiveSourceUsage({ model })
-    activeUsageCache = { model, atMs: now, epoch, value }
+    activeUsageCache = { model, atMs: now, epoch, record, value }
     return value
   }
   return deriveActiveSourceUsage(opts)
@@ -1113,6 +1119,7 @@ let otherUsagesCache: {
   primary: RouterProviderId | 'unrecognised'
   atMs: number
   epoch: number
+  record: number
   value: ActiveSourceUsage[]
 } | null = null
 
@@ -1130,16 +1137,18 @@ export function windowSourceUsages(opts?: {
   }
   const now = Date.now()
   const epoch = getUsageCredentialEpoch()
+  const record = getUsageRecordVersion()
   if (
     otherUsagesCache !== null &&
     otherUsagesCache.primary === primary.provider &&
     otherUsagesCache.epoch === epoch &&
+    otherUsagesCache.record === record &&
     now - otherUsagesCache.atMs < OTHER_USAGES_CACHE_MS
   ) {
     return { primary, others: otherUsagesCache.value }
   }
   const value = deriveOtherWindowUsages(primary.provider, undefined)
-  otherUsagesCache = { primary: primary.provider, atMs: now, epoch, value }
+  otherUsagesCache = { primary: primary.provider, atMs: now, epoch, record, value }
   return { primary, others: value }
 }
 
