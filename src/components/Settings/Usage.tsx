@@ -8,22 +8,25 @@ import {
   type RateLimit,
   type Utilization,
 } from '../../services/api/usage.js'
-import { getSubscriptionType, isClaudeAISubscriber } from '../../utils/auth.js'
+import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns } from '../../utils/model/computedDefault.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import {
+  anthropicPoolWindowViews,
   anthropicWindowViews,
   openaiObservedWindowViews,
   providerFamilyPresences,
   providerSessionSpend,
   providerUsageView,
   refreshProviderUsage,
+  usageCreditsLine,
   usageForProvider,
   type ActiveSourceUsage,
   type ProviderFamilyPresence,
   type ProviderSessionSpend,
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
+import { usageSourceWords } from '../../services/providers/usageFreshness.js'
 import { activeWalletEntry, walletEntries } from '../../services/wallet/wallet.js'
 import { getGptSeatAvailability } from '../../services/providers/openai/openaiCatalogue.js'
 import {
@@ -156,11 +159,13 @@ function ApiKeySlot({
   isActive,
   spend,
   note,
+  creditsLine,
 }: {
   presentLabel?: string
   isActive: boolean
   spend: ProviderSessionSpend
   note?: string
+  creditsLine?: string
 }): React.ReactNode {
   return (
     <Box flexDirection="column" marginTop={1}>
@@ -173,6 +178,7 @@ function ApiKeySlot({
           <Text dimColor>
             {isActive ? spendLine(spend, true) : INACTIVE_SLOT_LINE}
           </Text>
+          {isActive && creditsLine !== undefined ? <Text dimColor>{creditsLine}</Text> : null}
           {isActive && note !== undefined ? <Text dimColor>{note}</Text> : null}
         </Box>
       )}
@@ -206,15 +212,20 @@ function figuresLine(usage: ActiveSourceUsage): string | undefined {
   return `${parts.join(' · ')}${observedStamp(figures[0]?.observedAtMs)}`
 }
 
-function ObservedWindowMeter({ window: w, maxWidth }: { window: UsageWindowView; maxWidth?: number }): React.ReactNode {
+function ObservedWindowMeter({
+  window: w,
+  title,
+  maxWidth,
+}: {
+  window: UsageWindowView
+  title?: string
+  maxWidth?: number
+}): React.ReactNode {
   if (w.usedPct === undefined) return null
-  const observed =
-    w.observedAtMs !== undefined
-      ? `live from the account source · observed ${new Date(w.observedAtMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-      : undefined
+  const observed = usageSourceWords(w)
   return (
     <Meter
-      title={w.label === 'wk' ? 'Current week' : `Window (${w.label})`}
+      title={title ?? (w.label === 'wk' ? 'Current week' : `Window (${w.label})`)}
       limit={{
         utilization: w.usedPct,
         resets_at: w.resetsAtMs !== undefined ? new Date(w.resetsAtMs).toISOString() : null,
@@ -377,6 +388,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
         isActive={active?.kind === 'api-key'}
         spend={spend}
         {...(owner.absence !== undefined ? { note: owner.absence } : {})}
+        {...(usageCreditsLine(owner.credits) !== undefined ? { creditsLine: usageCreditsLine(owner.credits)! } : {})}
       />
       <Text dimColor>
         {seat.state === 'ready'
@@ -401,6 +413,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
     (usage.sourceKind === 'none'
       ? 'no credential — nothing to poll'
       : 'fetching live credit truth from the key endpoint…')
+  const balanceLine = usageCreditsLine(usage.credits)
   return (
     <Box flexDirection="column">
       <Text bold>OpenRouter usage</Text>
@@ -421,9 +434,10 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
       </Box>
       <ApiKeySlot presentLabel={key?.label} isActive={active !== undefined && active.id === key?.id} spend={spend} />
       {windows.map(w => (
-        <ObservedWindowMeter key={w.key} window={w} {...(width !== undefined ? { maxWidth: width } : {})} />
+        <ObservedWindowMeter key={w.key} window={w} title="Key credit cap" {...(width !== undefined ? { maxWidth: width } : {})} />
       ))}
       <Text dimColor>{creditLine}</Text>
+      {balanceLine !== undefined ? <Text dimColor>{balanceLine}</Text> : null}
       <Text dimColor>One credential serves the whole OpenRouter multi-model catalogue.</Text>
     </Box>
   )
@@ -455,7 +469,12 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
           </Box>
         )}
       </Box>
-      <ApiKeySlot presentLabel={key?.label} isActive={active?.kind === 'api-key'} spend={spend} />
+      <ApiKeySlot
+        presentLabel={key?.label}
+        isActive={active?.kind === 'api-key'}
+        spend={spend}
+        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
+      />
       <Text dimColor>{usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote}</Text>
     </Box>
   )
@@ -486,6 +505,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         presentLabel={account?.kind === 'api-key' ? account.label : undefined}
         isActive={account?.kind === 'api-key'}
         spend={spend}
+        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       {account && (rateLine !== undefined || usage.limited !== undefined) ? (
         <Text dimColor>
@@ -571,13 +591,10 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
         presentLabel={section.family.credentialLabel}
         isActive={section.family.credentialed}
         spend={spend}
+        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
-      {section.id === 'deepseek' && section.family.credentialed ? (
-        <Text dimColor>
-          {usage.balance
-            ? `Balance (provider-stated): ${usage.balance.display} · observed ${new Date(usage.balance.observedAtMs).toLocaleTimeString()}${usage.readerNote !== undefined ? ` · ${usage.readerNote}` : ''}`
-            : 'Balance: not yet observed — the provider is asked on this tab.'}
-        </Text>
+      {section.family.credentialed && usage.readerNote !== undefined ? (
+        <Text dimColor>{usage.readerNote}</Text>
       ) : null}
       <Text dimColor>
         {section.family.credentialed ? (usage.absence ?? section.limitsNote) : `Not connected — ${section.connect}.`}
@@ -592,8 +609,7 @@ function MoonshotUsageSection(): React.ReactNode {
   const spend = providerSessionSpend('moonshot')
   const usage = useOwnerUsage('moonshot', account !== undefined)
   const windows = usage.windows
-  const managedObservedAtMs = windows[0]?.observedAtMs
-  const balance = usage.balance
+  const managedSourceWords = windows[0] !== undefined ? usageSourceWords(windows[0]) : undefined
   return (
     <Box flexDirection="column">
       <Text bold>Moonshot usage</Text>
@@ -612,8 +628,8 @@ function MoonshotUsageSection(): React.ReactNode {
             ) : (
               <Text dimColor>Plan windows: not yet observed — the usage endpoint is asked on this tab.</Text>
             )}
-            {managedObservedAtMs !== undefined ? (
-              <Text dimColor>{`observed ${new Date(managedObservedAtMs).toLocaleTimeString()} (GET /usages on the coding base)`}</Text>
+            {managedSourceWords !== undefined ? (
+              <Text dimColor>{`${managedSourceWords} (GET /usages on the coding base)`}</Text>
             ) : null}
           </Box>
         ) : (
@@ -626,14 +642,8 @@ function MoonshotUsageSection(): React.ReactNode {
         }
         isActive={account?.kind === 'api-key'}
         spend={spend}
+        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
-      {account?.kind === 'api-key' ? (
-        <Text dimColor>
-          {balance
-            ? `Balance (provider-stated): ${balance.display} · observed ${new Date(balance.observedAtMs).toLocaleTimeString()}`
-            : 'Balance: not yet observed — the provider is asked on this tab.'}
-        </Text>
-      ) : null}
       <Text dimColor>
         {account
           ? ENGINE_USAGE_PRESENTATION.moonshot!.limitsNote
@@ -720,20 +730,11 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
       )
     }
 
-    const data = state.data ?? {}
-    const plan = getSubscriptionType()
     const ownerWindows = anthropicWindowViews().filter(w => w.state === 'live')
     const fiveHourView = ownerWindows.find(w => w.key === '5h')
     const sevenDayView = ownerWindows.find(w => w.key === '7d')
-    const modelWeekRows: Array<[string, RateLimit]> = []
-    for (const [family, limit] of [
-      ['Fable', data.seven_day_fable],
-      ['Opus', data.seven_day_opus],
-      ['Sonnet', data.seven_day_sonnet],
-    ] as const) {
-      if (limit != null) modelWeekRows.push([family, limit])
-    }
-    const hasAnyLimit = ownerWindows.length > 0 || modelWeekRows.length > 0
+    const poolViews = anthropicPoolWindowViews().filter(w => w.state === 'live')
+    const hasAnyLimit = ownerWindows.length > 0 || poolViews.length > 0
     if (!hasAnyLimit) {
       return (
         <Text dimColor>
@@ -741,26 +742,17 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
         </Text>
       )
     }
-
-    const showModelSpecific = plan === 'max' || plan === 'team' || plan === null
-
-    const meterOf = (w: UsageWindowView): RateLimit => ({
-      utilization: w.usedPct ?? null,
-      resets_at: w.resetsAtMs !== undefined ? new Date(w.resetsAtMs).toISOString() : null,
-    })
     return (
       <Box flexDirection="column">
         {fiveHourView !== undefined ? (
-          <Meter title="Current session" limit={meterOf(fiveHourView)} {...(width !== undefined ? { maxWidth: width } : {})} />
+          <ObservedWindowMeter window={fiveHourView} title="Current session" {...(width !== undefined ? { maxWidth: width } : {})} />
         ) : null}
         {sevenDayView !== undefined ? (
-          <Meter title="Current week (all models)" limit={meterOf(sevenDayView)} {...(width !== undefined ? { maxWidth: width } : {})} />
+          <ObservedWindowMeter window={sevenDayView} title="Current week (all models)" {...(width !== undefined ? { maxWidth: width } : {})} />
         ) : null}
-        {showModelSpecific
-          ? modelWeekRows.map(([family, limit]) => (
-              <Meter key={family} title={`Current week (${family})`} limit={limit} {...(width !== undefined ? { maxWidth: width } : {})} />
-            ))
-          : null}
+        {poolViews.map(w => (
+          <ObservedWindowMeter key={w.key} window={w} title={`Current week (${w.label})`} {...(width !== undefined ? { maxWidth: width } : {})} />
+        ))}
       </Box>
     )
   })()
@@ -780,6 +772,7 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
         isActive={view.activeEntry?.kind === 'api-key'}
         spend={view.sessionSpend}
         {...(owner.absence !== undefined ? { note: owner.absence } : {})}
+        {...(usageCreditsLine(owner.credits) !== undefined ? { creditsLine: usageCreditsLine(owner.credits)! } : {})}
       />
     </Box>
   )
