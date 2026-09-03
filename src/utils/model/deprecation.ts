@@ -1,4 +1,5 @@
 import { binaryName } from '../config.js'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 
 type DeprecationEntry = {
   match: string
@@ -43,7 +44,7 @@ function isDateInPast(date: string): boolean {
   return parsed < Date.now()
 }
 
-const WARNING_MARKER = '⚠\uFE0E'
+const WARNING_MARKER = GLYPH.warn
 
 export function getModelDeprecationWarning(id: string | null | undefined): string | null {
   if (!id) return null

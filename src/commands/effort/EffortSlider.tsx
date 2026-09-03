@@ -430,9 +430,9 @@ export function EffortSlider({
       {}
       <Box marginBottom={1}>
         <Text color={FAINT}>Faster </Text>
-        <Text color={FAINT}>{'◀\uFE0E '}</Text>
+        <Text color={FAINT}>{'← '}</Text>
         <Text color={SECOND}>effort</Text>
-        <Text color={FAINT}>{' ▶\uFE0E'}</Text>
+        <Text color={FAINT}>{' →'}</Text>
         <Text color={FAINT}> Smarter</Text>
       </Box>
 
