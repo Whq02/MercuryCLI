@@ -140,7 +140,7 @@
     },
     {
       "file": "src/components/Onboarding.tsx",
-      "line": 283,
+      "line": 286,
       "kind": "accent-mercury-text",
       "excerpt": "<Text color={IVORY}>Mercury can make mistakes</Text>",
       "role": "compact-status-inline",

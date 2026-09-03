@@ -280,7 +280,7 @@
     },
     {
       "file": "src/utils/healthReport.ts",
-      "line": 1197,
+      "line": 1196,
       "needle": ".claude",
       "excerpt": "authHome === join(homedir(), '.claude').normalize('NFC')",
       "cls": "compat-boundary",
