@@ -111,7 +111,13 @@ console.log('§1 LIVE — the settled turn reports the failed hook')
     mock.kill()
     const out = run.stdout ?? ''
     const err = run.stderr ?? ''
-    check('the turn SETTLES and the answer is delivered (the hook never blocks)', run.status === 0 && out.includes('MOCK-ANSWER'), `rc=${run.status} out=${out.slice(0, 60)} err=${err.slice(-160).replace(/\s+/g, ' ')}`)
+    check(
+      'the turn SETTLES and the answer is delivered (the hook never blocks)',
+      run.status === 0 && out.includes('MOCK-ANSWER'),
+      run.status === 0 && out.includes('MOCK-ANSWER')
+        ? `rc=${run.status} out=${out.slice(0, 60)}`
+        : `rc=${run.status} signal=${run.signal ?? 'none'} stdout=${out.slice(0, 1500).replace(/\s+/g, ' ')} stderr=${err.slice(0, 800).replace(/\s+/g, ' ')}`,
+    )
     check(
       "stderr carries the one-line report with the hook's stderr (the promise kept)",
       err.includes('failed with exit 1') && err.includes('FEEDBACK-SENTINEL'),

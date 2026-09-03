@@ -445,6 +445,12 @@ async function daemonRun(args: string[]): Promise<void> {
   // carries the owner-pid stamp); cleared on shutdown. ownerWatch.ts explains why.
   let ownerWatch: ReturnType<typeof setInterval> | undefined
   let ready = false
+  // The control server's readiness hold wakes on this: a work op that
+  // arrived during adoption is admitted the moment the flip below lands.
+  let wakeReady: () => void = () => {}
+  const readyPromise = new Promise<void>(resolve => {
+    wakeReady = resolve
+  })
   const startedAt = Date.now()
   // Assigned by the shutdown Promise below; called by the control `shutdown` RPC
   // (which always arrives long after setup, so the binding is set by then).
@@ -654,6 +660,7 @@ async function daemonRun(args: string[]): Promise<void> {
         maxInflight: MAX_INFLIGHT,
         controlKey,
         isReady: () => ready,
+        whenReady: () => readyPromise,
         // `envelope` fast path: after journaling, deliver to the recipient's
         // drain immediately (agent shorts and inbox names coincide on this bus).
         nudgeAgent: agentName => idleNudges.get(agentName)?.(),
@@ -1336,6 +1343,7 @@ async function daemonRun(args: string[]): Promise<void> {
         stopArmedBeat = () => clearInterval(armedBeat)
       }
       ready = true
+      wakeReady()
       // eslint-disable-next-line no-console
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
       // SATURN's fire engine: the ticker walks the live session records and

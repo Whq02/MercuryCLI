@@ -187,15 +187,31 @@ check(
     },
   })
   process.env.MERCURY_EXIT_CLIFF_DRAIN = '0'
+  // A 0 ms timer armed beside each call: it fires only if the call hands the
+  // loop a turn — the teardown of what the seams and the cleanups closed
+  // (a closed watcher's handle, a landed append's freed close request) runs
+  // in that turn, and process.exit after a never-yielding microtask chain
+  // tore down a loop that only looked busy.
+  let turnedWhileSkipped = false
+  const skipTimer = setTimeout(() => { turnedWhileSkipped = true }, 0)
   const skipped = await drainExitCliffSeams(200)
+  clearTimeout(skipTimer)
   const calledAfterSkip = called
   delete process.env.MERCURY_EXIT_CLIFF_DRAIN
+  let turnedWhileDrained = false
+  const drainTimer = setTimeout(() => { turnedWhileDrained = true }, 0)
   const drained = await drainExitCliffSeams(200)
+  clearTimeout(drainTimer)
   un()
   check(
     "the registered poison seam MERCURY_EXIT_CLIFF_DRAIN=0 skips the drain (the census prover's pre-fix arm); unset drains",
     skipped.skipped && calledAfterSkip === 0 && !drained.skipped && called === 1 && drained.settled.includes('poisoned'),
     j({ skipped, drained, calledAfterSkip, called }),
+  )
+  check(
+    'the drain hands the loop its turn before it returns (a 0 ms timer armed beside it fired); the skipped arm returns on the same chain (the pre-fix cliff)',
+    turnedWhileDrained && !turnedWhileSkipped,
+    j({ turnedWhileDrained, turnedWhileSkipped }),
   )
 }
 

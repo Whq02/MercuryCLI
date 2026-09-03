@@ -37,6 +37,7 @@ __t=$SECONDS; "$bun" run "$here/prove-interrupt-agent-wait.ts" || fail=1; prover
 __t=$SECONDS; "$bun" run "$here/prove-stop-acknowledged.ts" || fail=1; prover_mark "$here/prove-stop-acknowledged.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-hard-stop-cut.ts" || fail=1; prover_mark "$here/prove-hard-stop-cut.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-daemon-handshake.ts" || fail=1; prover_mark "$here/prove-daemon-handshake.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-starting-door.ts" || fail=1; prover_mark "$here/prove-starting-door.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-send-hops.ts" || fail=1; prover_mark "$here/prove-send-hops.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-rename-migration.ts" || fail=1; prover_mark "$here/prove-rename-migration.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-wire-answer-whole.ts" || fail=1; prover_mark "$here/prove-wire-answer-whole.ts" "$__t"
