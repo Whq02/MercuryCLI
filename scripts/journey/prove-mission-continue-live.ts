@@ -238,15 +238,20 @@ console.log('============================================================')
 console.log(' mission continuity LIVE — the boot-flag resume paths')
 console.log('============================================================')
 
+const ARM_TURN = 'mission arm turn one'
 const ARM_SENDS = [
   // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session enters the chat first.
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-  { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `/mission ${GOAL}\r` },
+  // A resume adopts a CONVERSATION: a transcript that holds only metadata
+  // (the arm alone) is refused at the door — "No conversation found to
+  // continue" — so one real turn settles on disk before the arm.
+  { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM_TURN}\r` },
+  { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM_TURN}`, data: `/mission ${GOAL}\r` },
 ]
 
 function stageA(world: World, label: string): { armedSessionId: string | null } {
   section(`${label} — stage A: arm on a fresh boot; the armed card lands`)
-  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 140)
+  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 240)
   check('the arm confirmation painted', grid.includes('Mission set'), grid.slice(-400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
@@ -265,9 +270,9 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
-      // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session enters the chat first.
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 110, minTick: 24, awaitText: '? for shortcuts', data: '/mission\r' }],
+      // A boot-flag resume goes straight to the adopted chat (no Boot face):
+      // /mission asks once the cockpit stands.
+      { atTick: 110, minTick: 10, awaitText: '? for shortcuts', data: '/mission\r' }],
     ['Standing mission'],
     240,
   )
