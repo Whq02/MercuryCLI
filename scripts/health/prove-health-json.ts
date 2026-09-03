@@ -238,7 +238,14 @@ try {
   {
     const dir = join(scratch, 'piped-vs-tty')
     mkdirSync(dir, { recursive: true })
-    const piped = runHealth(dir)
+    // ONE credential state for both runs: an interactive (TTY) run honours an
+    // env key only once the operator approved it (isCustomApiKeyApproved),
+    // while a piped run and a CI run honour it outright — so with a key in
+    // the environment the two verdicts split on AUTH, not on the profile row
+    // this leg pins. The credential variables are stripped from both runs
+    // (the auth rows read 'absent' alike on every box, CI or not).
+    const NO_CREDENTIAL = { ANTHROPIC_API_KEY: undefined, ANTHROPIC_AUTH_TOKEN: undefined, MERCURY_OAUTH_TOKEN: undefined }
+    const piped = runHealth(dir, NO_CREDENTIAL)
     const pipedCert = piped.json as Cert
     const pipedRow = byId(pipedCert, 'iface-terminal')
     check('piped: the profile row is NEVER a fault', pipedRow !== undefined && pipedRow.status !== 'fail', JSON.stringify(pipedRow))
@@ -259,6 +266,7 @@ try {
             MERCURY_CONFIG_DIR: join(scratchHome, '.mercury'),
             TERM: 'xterm-256color',
             COLORTERM: 'truecolor',
+            ...NO_CREDENTIAL,
           },
           encoding: 'utf8',
           timeout: 60_000,
