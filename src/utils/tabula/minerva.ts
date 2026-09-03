@@ -41,9 +41,11 @@ import { basename } from 'node:path'
 import { queryWithModel } from '../../services/providers/anthropic/index.js'
 import {
   resolveSubModel,
+  subModelDispatchEffort,
   subModelIdentityLine,
   type SubModelPin,
 } from '../model/subModelSlots.js'
+import type { EffortLevel } from '../effort.js'
 import { extractTextContent } from '../messages.js'
 import {
   decodeModelJson,
@@ -93,6 +95,18 @@ export const MINERVA_ROLE =
  *  container owner), so the prompt and the /submodels header agree. */
 export function minervaIdentityLine(pin: SubModelPin): string {
   return subModelIdentityLine('minerva', pin)
+}
+
+/** The effort Minerva's calls carry — the container's own dial through the
+ *  ONE dispatch composer (subModelDispatchEffort), resolved for Minerva's
+ *  thinking-off calls: the chosen level where this model offers it, else
+ *  NO level (the model's own default) with the fallback logged. Both
+ *  runners and the room spread this into their call options, so the wire
+ *  field and the /submodels row cannot disagree. */
+export function minervaEffort(model: string): { effortValue?: EffortLevel } {
+  const dispatch = subModelDispatchEffort('minerva', model)
+  if (dispatch.fallback !== undefined) logForDebugging(`minerva effort: ${dispatch.fallback}`)
+  return dispatch.effortValue !== undefined ? { effortValue: dispatch.effortValue } : {}
 }
 
 /** Input cap: notes serialized beyond this are elided (done-first, then the
@@ -363,6 +377,7 @@ export async function runMinervaOnce(
       signal: opts?.signal ?? new AbortController().signal,
       options: {
         model: slot.model,
+        ...minervaEffort(slot.model),
         querySource: 'tabula_minerva',
         agents: [],
         isNonInteractiveSession: true,
@@ -889,6 +904,7 @@ export async function runMinervaMessage(
       signal: opts?.signal ?? new AbortController().signal,
       options: {
         model: slot.model,
+        ...minervaEffort(slot.model),
         querySource: 'tabula_minerva_chat',
         agents: [],
         isNonInteractiveSession: true,

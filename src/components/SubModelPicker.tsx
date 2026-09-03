@@ -7,7 +7,10 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { resolveEffortTruth } from '../utils/effort.js'
+import { EffortStrip } from './mercury-ui/EffortStrip.js'
+import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
+import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
+import type { EffortLevel } from '../utils/effort.js'
 import { providerFrontierLine } from '../utils/model/providerFrontier.js'
 import { getMainLoopModel, renderModelName } from '../utils/model/model.js'
 import {
@@ -15,6 +18,9 @@ import {
   composeSubModelRegistry,
   resolveSubModel,
   setSubModel,
+  setSubModelEffort,
+  subModelEffortClause,
+  subModelEffortStrip,
   subModelEnvVar,
   SUB_MODEL_UNSET_HINT,
   type SubModelContainer,
@@ -43,7 +49,12 @@ import {
 //      family pre-focused, or the key-entry surface) with the pick armed;
 //      the caller lands it on return — never a dead end;
 //    · refused — inert on every channel, the typed reason painted inline
-//      (the kit's one availability policy).
+//      (the kit's one availability policy);
+//    · e on a model row — the EFFORT STRIP (the main picker's strip, one
+//      look): only the levels the one effort owner says that model offers
+//      under this container's call context; ←→ choose, ↵ persists the
+//      level PER CONTAINER (subModels.effort), esc keeps it; a model no
+//      level can apply to answers a one-line receipt and opens nothing.
 //  Esc closes one level. The main model is context here, never a row.
 // ============================================================================
 
@@ -124,11 +135,54 @@ function ContainerList({
   const resolved = resolveSubModel(container)
   const rows = React.useMemo(() => buildRows(registry), [registry])
   const [seedNote, setSeedNote] = useState<string | undefined>(initialNote)
+  // THE EFFORT STRIP: open over one model row — its levels from the one
+  // owner (subModelEffortStrip), the bracket on the level this container
+  // would run. While it is up the list yields whole and the strip owns
+  // every key (a modal layer on the overlay stack: esc closes it alone).
+  const [strip, setStrip] = useState<{
+    modelId: string
+    displayName: string
+    levels: readonly EffortLevel[]
+    index: number
+  } | null>(null)
+  const stripOverlay = useRegisterOverlay('effort-strip', active && strip !== null)
+  useInput(
+    (input, key, event) => {
+      if (strip === null) return
+      const action = decodeNavKey(input, key, { orientation: 'horizontal' })
+      if (action === 'cancel') {
+        if (stripOverlay !== null && !isTopOverlayNow(stripOverlay)) return
+        event.stopImmediatePropagation()
+        setStrip(null)
+        setSeedNote(
+          `${CONTAINER_META[container].label.toLowerCase()} effort kept — ${strip.displayName} ${subModelEffortClause(container, strip.modelId)}`,
+        )
+        return
+      }
+      if (action === 'activate') {
+        event.stopImmediatePropagation()
+        const level = strip.levels[strip.index] as EffortLevel
+        const result = setSubModelEffort(container, level)
+        setStrip(null)
+        setEpoch(n => n + 1)
+        setSeedNote(result.ok ? result.receipt : result.reason)
+        return
+      }
+      // Every other key is the strip's while it is up: a motion moves the
+      // bracket (clamp, never wrap); the rest is swallowed so the list and
+      // the container tab never act under an open strip.
+      event.stopImmediatePropagation()
+      if (action === null) return
+      const target = applyNavMotion(action, strip.index, strip.levels.length, { orientation: 'horizontal' })
+      if (target !== null) setStrip({ ...strip, index: target })
+    },
+    { isActive: active && strip !== null },
+  )
 
   const list = useInteractiveList<PickerRow>({
     rows,
     rowId,
-    active,
+    active: active && strip === null,
     onClose,
     idNamespace: `submodels:${container}`,
     initialId:
@@ -180,6 +234,27 @@ function ContainerList({
           return null
         },
       },
+      {
+        key: 'e',
+        hint: 'effort',
+        when: row => row.kind === 'entry' && row.entry.kind === 'model',
+        run: (row): string | null => {
+          if (!row || row.kind !== 'entry' || row.entry.kind !== 'model') return null
+          setSeedNote(undefined)
+          const offered = subModelEffortStrip(container, row.entry.modelId)
+          // No level can apply to this model here: the receipt IS the
+          // answer, and nothing opens (never a strip of levels the wire
+          // would not carry).
+          if (offered.kind === 'none') return offered.receipt
+          setStrip({
+            modelId: row.entry.modelId,
+            displayName: row.entry.displayName,
+            levels: offered.levels,
+            index: Math.max(0, offered.levels.indexOf(offered.current)),
+          })
+          return null
+        },
+      },
     ],
   })
 
@@ -216,20 +291,20 @@ function ContainerList({
         : ' · ≠ main — re-reads uncached'
       : ''
   const headerModel = resolved.origin === 'unset' ? 'unset' : renderModelName(resolved.model)
-  // The effort truth per row, from the one owner: the container dispatches
-  // with no effort value of its own, so the level a pinned model RUNS is its
-  // default — the owner's word for it — and a model with no effort control
-  // says so instead of borrowing a word. The header carries the short form
-  // for the pinned model; the detail line spells the offered range.
+  // The effort truth per row, from the one owner through the container's
+  // composers: the levels this model offers under THIS container's call
+  // context, and the level it RUNS — the container's own dial where the
+  // model offers it, else the model default with the fallback said aloud —
+  // never a borrowed word. The header carries the short form for the
+  // pinned model; the detail line spells the offered range.
   const effortRange = (modelId: string): string => {
-    const truth = resolveEffortTruth(modelId, undefined)
-    if (!truth.supportsEffort) return 'no effort control'
-    return `effort ${truth.selectable.join(' · ')} — runs ${truth.label} (the model default; the container carries no dial)`
+    const offered = subModelEffortStrip(container, modelId)
+    if (offered.kind === 'none') return offered.receipt
+    return `effort ${offered.levels.join(' · ')} — ${subModelEffortClause(container, modelId)} · e sets it`
   }
   const headerEffort = ((): string => {
     if (resolved.origin === 'unset') return ''
-    const truth = resolveEffortTruth(resolved.model, undefined)
-    return truth.supportsEffort ? ` · @${truth.label}` : ' · no effort control'
+    return ` · ${subModelEffortClause(container, resolved.model).replace(/^runs /, '')}`
   })()
 
   const current = (row: PickerRow): boolean =>
@@ -343,17 +418,29 @@ function ContainerList({
         </Box>
       ) : null}
       <Box height={1} overflow="hidden" marginTop={1}>
-        <Text color={t.textMuted} wrap="truncate-end">
-          {detail}
-        </Text>
+        {strip !== null ? (
+          // The strip paints on the detail line: the main picker's strip
+          // grammar (one look), over ONLY this model's levels.
+          <EffortStrip levels={strip.levels} current={strip.levels[strip.index]} accent={accent} faint={t.textMuted} />
+        ) : (
+          <Text color={t.textMuted} wrap="truncate-end">
+            {detail}
+          </Text>
+        )}
       </Box>
       <Box height={1} overflow="hidden">
-        <Text
-          color={(list.note ?? seedNote)?.includes('refused') || (list.note ?? seedNote)?.includes('not signed in') ? t.warning : t.textSecondary}
-          wrap="truncate-end"
-        >
-          {list.note ?? seedNote ?? ''}
-        </Text>
+        {strip !== null ? (
+          <Text color={t.textSecondary} wrap="truncate-end">
+            {`${strip.displayName} · ←→ choose · ↵ sets the ${meta.label.toLowerCase()} effort · esc keeps it`}
+          </Text>
+        ) : (
+          <Text
+            color={(list.note ?? seedNote)?.includes('refused') || (list.note ?? seedNote)?.includes('not signed in') ? t.warning : t.textSecondary}
+            wrap="truncate-end"
+          >
+            {list.note ?? seedNote ?? ''}
+          </Text>
+        )}
       </Box>
     </Box>
   )
