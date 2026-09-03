@@ -586,6 +586,12 @@ async function drive(): Promise<void> {
       lastOnboardingVersion: '99.0.0',
       numStartups: 10,
       theme: 'dark',
+      // A flow-born session paints a one-shot modal notice ("Flow is now
+      // the default permission mode … Got it") over the ready composer and
+      // waits for the operator; a tester who has answered it never sees it
+      // again, and neither does this drive.
+      hasSeenAutoDefaultNotice: true,
+      hasSeenAutoDefaultNudge: true,
       projects: { [FIXTURE_CWD]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
       customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
     }),
@@ -870,7 +876,7 @@ async function drive(): Promise<void> {
   const t2 = tally('leg 2', pairs2)
   if (!REPORT) {
     check('leg 1: every pair outside the compaction holds (no rewrite of sent history)', t1.unlawful.length === 0, t1.unlawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.verdict.diff?.path}`).join(' | '))
-    check('leg 1: the compaction is the only prefix move (the summariser and the post-compaction head)', t1.lawful.length >= 1 && t1.lawful.length <= 2 && t1.lawful.every(p => p.lawful === 'compaction'), t1.lawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.lawful}`).join(' | '))
+    check('leg 1: the compaction head is the only prefix move (the summariser\'s own request holds like any other)', t1.lawful.length === 1 && t1.lawful[0]!.lawful === 'compaction', t1.lawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.lawful}`).join(' | '))
     const unlawfulDrops1 = stream1.filter(r => (r.response?.input_transformations?.length ?? 0) > 0 && !pairs1.some(p => p.curSeq === r.seq && p.lawful !== null))
     check('leg 1: the API dropped no thinking outside the compaction', unlawfulDrops1.length === 0, unlawfulDrops1.map(r => `#${r.seq} ${r.response?.input_transformations?.[0]?.path}`).join(' | '))
     check('leg 1: the operator never read the "Mercury defect" arm', !word1.notices.some(n => n.includes('Mercury defect')) && !(word1.ledger ?? '').includes('recurrent'), word1.notices.join(' | ').slice(0, 300))

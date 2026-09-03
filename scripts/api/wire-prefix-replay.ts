@@ -284,10 +284,16 @@ export function isSummariserRequest(body: WireBody): boolean {
   return lastUserText(body).includes('Reply with prose only') || lastUserText(body).includes('summary of the conversation')
 }
 
-/** The first request after a fold: its head is the summary. */
+/** The first request after a fold: its head is the summary (the product's
+ *  own wrapper line, or a fixture's summary text). */
 export function isPostCompactionRequest(body: WireBody): boolean {
   const head = firstUserText(body)
-  return head.includes('continued from a previous conversation') || head.includes('Summary of the session so far') || head.includes('summarized below')
+  return (
+    head.includes('The context window turned over') ||
+    head.includes('continued from a previous conversation') ||
+    head.includes('Summary of the session so far') ||
+    head.includes('summarized below')
+  )
 }
 
 /** A side call: a one-row prompt with no tools (a title, a classifier). */
@@ -346,9 +352,20 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
     const verdict = comparePrefix(pb, cb)
     const prevModel = String(pb.model ?? prev.model ?? '')
     const curModel = String(cb.model ?? cur.model ?? '')
+    // A pair is lawful by ITS OWN byte path, never by what its later request
+    // is for: a model switch when the model id moved; a compaction when the
+    // request after the summariser (or a request whose head reads as a
+    // summary) moved first at the head — messages[0], or the system[0]
+    // attribution line that follows the head. The summariser's own request
+    // must HOLD like any other (its instruction is an appended row); a tools
+    // or system move there is a rewrite and reads as one.
+    const headMove =
+      !verdict.held &&
+      verdict.diff !== null &&
+      (verdict.diff.path.startsWith('messages[0]') || verdict.diff.path.startsWith('system[0]'))
     let lawful: PairReport['lawful'] = null
     if (prevModel !== curModel) lawful = 'model-switch'
-    else if (isSummariserRequest(cb) || isSummariserRequest(pb) || isPostCompactionRequest(cb)) lawful = 'compaction'
+    else if (headMove && ((isSummariserRequest(pb) && !isSummariserRequest(cb)) || (isPostCompactionRequest(cb) && !isPostCompactionRequest(pb)))) lawful = 'compaction'
     const usage = cur.response?.usage
     const drops = cur.response?.input_transformations
     const dropped = Array.isArray(drops) ? drops.filter(d => d.type === 'thinking_dropped') : null
