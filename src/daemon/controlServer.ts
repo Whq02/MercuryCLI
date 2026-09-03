@@ -234,6 +234,9 @@ export interface ControlServerDeps {
     sessionId: string
     by: string
     reason?: string
+    /** interrupt: the HARD stop — deliver again, cut the runner if the turn
+     *  is still open a second later. */
+    hard?: boolean
     /** answer-permission: which parked ask, and the verdict. */
     requestId?: string
     allow?: boolean
@@ -1138,6 +1141,7 @@ async function routeControlRequest(
         sessionId,
         by,
         ...(typeof raw.reason === 'string' && raw.reason ? { reason: raw.reason } : {}),
+        ...(raw.hard === true ? { hard: true } : {}),
         ...(typeof raw.requestId === 'string' && raw.requestId ? { requestId: raw.requestId.slice(0, 128) } : {}),
         ...(typeof raw.allow === 'boolean' ? { allow: raw.allow } : {}),
         ...(answerPayload !== undefined ? { answer: answerPayload } : {}),

@@ -18,6 +18,7 @@ import React, {
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import {
+  DEFAULT_THEME_SETTING,
   getSystemThemeName,
   type SystemTheme,
 } from '../../utils/systemTheme.js'
@@ -38,12 +39,12 @@ type ThemeContextValue = {
   cancelPreview: () => void
 }
 
-// The no-provider default (tests, tooling): dark resolution, a dark SETTING
-// (never `auto`), and inert setters — reading outside a provider must not
-// throw.
+// The no-provider default (tests, tooling): the default appearance, both as
+// the resolution and as the SETTING (never `auto`), and inert setters —
+// reading outside a provider must not throw.
 const DEFAULT_CONTEXT: ThemeContextValue = {
-  resolvedTheme: 'dark',
-  themeSetting: 'dark',
+  resolvedTheme: DEFAULT_THEME_SETTING,
+  themeSetting: DEFAULT_THEME_SETTING,
   setThemeSetting: () => {},
   setPreviewTheme: () => {},
   savePreview: () => {},
@@ -55,11 +56,12 @@ const ThemeContext = createContext<ThemeContextValue>(DEFAULT_CONTEXT)
 /** An explicitly passed initial state wins; a `MERCURY_THEME_PIN` value that
  *  is a member of the theme-setting list pins the setting for this process
  *  without touching the user's stored config; otherwise the stored global
- *  config theme is read — COLLAPSED to the one reachable appearance
- *  (operator ruling: dark only; a stored non-dark or `auto`
- *  setting resolves to dark silently, no error, nothing rewritten — the
- *  full family vocabulary stays reachable through the pin and the explicit
- *  initial state, the capture/accessibility gate). */
+ *  config theme is read (a fresh home carries the factory value, the
+ *  default appearance) — COLLAPSED to the reachable vocabulary: a stored
+ *  `dark` or `true-black` wins, and a name outside it (a dormant family,
+ *  `auto`) resolves to the default appearance silently, no error, nothing
+ *  rewritten — the full family vocabulary stays reachable through the pin
+ *  and the explicit initial state, the capture/accessibility gate. */
 function initialThemeSetting(initialState?: ThemeSetting): ThemeSetting {
   if (initialState !== undefined) return initialState
   const pin = flagEnv('MERCURY_THEME_PIN')
@@ -69,7 +71,7 @@ function initialThemeSetting(initialState?: ThemeSetting): ThemeSetting {
   const stored = getGlobalConfig().theme
   return (REACHABLE_THEME_SETTINGS as readonly string[]).includes(stored)
     ? stored
-    : 'dark'
+    : DEFAULT_THEME_SETTING
 }
 
 /** The stored/pinned theme setting a fresh provider would seed from — the

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // ============================================================================
-//  scripts/ui/prove-team-center.ts — the Team Center on the canonical surface
+//  scripts/ui/prove-team-center.ts — the crew board on the canonical surface
 //
 //
 //    §1 the REAL lifecycle model: phases derive from task/runner/mailbox
@@ -28,7 +28,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
 console.log('============================================================')
-console.log(' Team Center — real phases on the canonical surface')
+console.log(' Crew board — real phases on the canonical surface')
 console.log('============================================================')
 
 const phases = await import('../../src/utils/swarm/teamPhases.js')
@@ -82,7 +82,7 @@ section('§3 — /team deep link')
 {
   const team = (await import('../../src/commands/team/index.js')).default
   check('command name is team', team.name === 'team')
-  check('description says Team Center', team.description.includes('Team Center'))
+  check('description names the crew board', team.description.includes('Crew board'))
   check('not hidden', team.isHidden !== true)
   const teamSrc = src('commands', 'team', 'index.ts')
   check('routes into the CANONICAL surface (no competing dashboard)', teamSrc.includes("import('../tasks/tasks.js')"))

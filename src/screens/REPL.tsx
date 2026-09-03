@@ -138,6 +138,7 @@ import { modelDisplayString, renderModelName } from '../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/modelTransition.js';
 import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
+import { crewWaitingWords } from '../services/engine-connector/crewFacts.js';
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
@@ -2577,8 +2578,13 @@ export function REPL({
   // own word below; dressing the fold as 'thinking' put the session's
   // effort suffix on a bounded utility call.
   const viewStreamMode: SpinnerMode =
-    seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' ? 'requesting' : 'responding';
+    seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
+  // The agent wait speaks its own word too: the turn's stream is over and
+  // only its background agents hold the turn open — the count and the way
+  // out, never the thinking dress over a stream that already ended.
+  const viewAgentWait =
+    seatLive.phase === 'waiting' ? `${crewWaitingWords(seatLive.agentsWaiting) ?? 'waiting on agents'} · esc stops them` : null;
   // The spinner's token counter + tok/s poll this ref on their own animation
   // ticks; a LIVE getter feeds them the focused connector's streamed-char
   // count (the tail projection's turnChars). The old useRef(0) was fed by
@@ -2630,7 +2636,7 @@ export function REPL({
         responseLengthRef={responseLengthRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={viewCompacting ? 'compacting context…' : null}
+        overrideMessage={viewCompacting ? 'compacting context…' : viewAgentWait}
         spinnerSuffix={spinnerSuffix ?? null}
         verbose={verbose}
         hasActiveTools={viewInProgressToolUseIDs.size > 0}

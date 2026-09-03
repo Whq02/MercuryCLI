@@ -159,7 +159,7 @@ check('crew leg gated on crewEnabled()', bus.includes('crewEnabled()'))
 check('crew default-clears each refresh (no stale retention)', bus.includes('next.crew = null'))
 const lanes = read('src/components/HelmLanesRail.tsx')
 check('daemon-crew rows render in CREW', lanes.includes("entry.kind === 'daemon'"))
-check('daemon rows open /teammates', lanes.includes("command: '/teammates', label: `crew:d:${entry.name}`"))
+check('daemon rows open the named agent\'s chat', lanes.includes("command: `/teammates ${entry.name}`, label: `crew:d:${entry.name}`"))
 check('unread breathes (AttentionPulse via verbPulse)', lanes.includes('verbPulse={entry.unread > 0}'))
 check('solo gate counts daemon crew', lanes.includes('daemonCrew.length === 0'))
 

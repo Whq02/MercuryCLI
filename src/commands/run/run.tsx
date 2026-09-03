@@ -70,7 +70,7 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   }, [owner])
 
   // Boot-recovery status — the same typed state
-  // the Team Center and doctor read; quiet boots contribute no row.
+  // the crew board and doctor read; quiet boots contribute no row.
   const recovery = React.useSyncExternalStore(subscribeBootRecovery, getBootRecovery, getBootRecovery)
 
   // The mission composition — probe-shaped (async gather through the

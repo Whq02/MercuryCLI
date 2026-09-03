@@ -30,7 +30,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const SCRATCH = `/tmp/mercury-rail-click-${process.pid}`
@@ -108,6 +108,10 @@ const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
 // Tick geography per shape run (200ms ticks — generous settle margins).
 const SHRINK_AT = 70
 const GROW_AT = 110
+/** A resize's authored tick in the driver's own clock: vshot stretches every
+ *  schedule source by the hosted profile's scale, and a mark's atTick is read
+ *  in that stretched clock, so the geography compares scaled to scaled. */
+const tk = (authored: number): number => Math.round(authored * vshotBudgetScale())
 const STORM_AT = 140
 
 mkdirSync(SCRATCH, { recursive: true })
@@ -185,9 +189,9 @@ for (const shape of SHAPES) {
 
   // Tick geography holds: phase 1 closed before the shrink; phase 2 fired
   // after it and closed before the grow.
-  check(`${shape.tag}: phase 1 closed before the shrink`, (after1?.atTick ?? 999) < SHRINK_AT, `after1 @${after1?.atTick}`)
+  check(`${shape.tag}: phase 1 closed before the shrink`, (after1?.atTick ?? 999) < tk(SHRINK_AT), `after1 @${after1?.atTick}`)
   check(`${shape.tag}: phase 2 fired after the shrink and closed before the grow`,
-    (click2?.atTick ?? 0) > SHRINK_AT && (after2?.atTick ?? 999) < GROW_AT,
+    (click2?.atTick ?? 0) > tk(SHRINK_AT) && (after2?.atTick ?? 999) < tk(GROW_AT),
     `click2 @${click2?.atTick} after2 @${after2?.atTick}`)
 
   // PHASE 1 — the pre-resize click claims the row.

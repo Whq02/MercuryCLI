@@ -30,7 +30,10 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { Message } from '../../../types/message.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
+import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
@@ -146,26 +149,78 @@ export function describeInputTransformations(list: readonly InputTransformation[
 // changed path, the doctor row that carries the evidence and the bug-report
 // road — never a model switch, which does not touch the cause.
 
-/** The two lawful prefix changes the history can show. (An operator's
- *  transcript edit is the third; it leaves no row, so a drop after it reads
- *  as a single client-side edit.) */
-export type LawfulPrefixChange = 'compaction' | 'model-switch'
+/** The lawful prefix changes the history and the live settings can show:
+ *  a compaction, a deliberate model switch, an explicit operator setting
+ *  the system prompt or the tool roster reads (the permission mode's packs
+ *  and mode-exempt tools, the response profile). (An operator's transcript
+ *  edit leaves no row, so a drop after it reads as a single client-side
+ *  edit.) */
+export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting'
 
 /**
  * The marks of a request's history that move only on a lawful change: the
  * first conversation row (a compaction replaces it with the summary), the
- * newest compact boundary and model-transition rows, and the model itself.
- * Two consecutive requests whose marks agree had no lawful change between
- * them.
+ * newest compact boundary and model-transition rows, the model itself, and
+ * the operator settings the prompt build reads live (spelled as one string
+ * so a change names the key that moved). Two consecutive requests whose
+ * marks agree had no lawful change between them.
  */
 export interface PrefixMark {
   firstRow: string | null
   compactBoundary: string | null
   modelTransition: string | null
   model: string
+  settings: string
 }
 
-export function prefixMarkOf(messages: readonly Message[], model: string): PrefixMark {
+/** The live operator settings a mark records. Absent keys spell '?' — a
+ *  caller that cannot read one never fakes a change. */
+export interface LiveOperatorSettings {
+  permissionMode?: string
+  responseProfile?: string
+}
+
+const SETTING_LABELS: Record<string, string> = {
+  mode: 'the permission mode',
+  profile: 'the response profile',
+}
+
+export function spellOperatorSettings(live: LiveOperatorSettings | undefined): string {
+  let profile = live?.responseProfile
+  if (profile === undefined) {
+    try {
+      profile = getGlobalConfig().responseProfile ?? 'balanced'
+    } catch {
+      profile = undefined
+    }
+  }
+  return `mode=${live?.permissionMode ?? '?'};profile=${profile ?? '?'}`
+}
+
+/** "the permission mode (default → apollo)" for every key whose value moved. */
+export function describeSettingsMove(previous: string, current: string): string | null {
+  const parse = (spelled: string): Map<string, string> =>
+    new Map(spelled.split(';').filter(Boolean).map(part => {
+      const at = part.indexOf('=')
+      return [part.slice(0, at), part.slice(at + 1)] as [string, string]
+    }))
+  const before = parse(previous)
+  const after = parse(current)
+  const moved: string[] = []
+  for (const [key, value] of after) {
+    const was = before.get(key)
+    // An unreadable side ('?') never fakes an operator action.
+    if (was === undefined || was === '?' || value === '?' || was === value) continue
+    moved.push(`${SETTING_LABELS[key] ?? key} (${was} → ${value})`)
+  }
+  return moved.length === 0 ? null : moved.join(' and ')
+}
+
+export function prefixMarkOf(
+  messages: readonly Message[],
+  model: string,
+  live?: LiveOperatorSettings,
+): PrefixMark {
   let firstRow: string | null = null
   let compactBoundary: string | null = null
   let modelTransition: string | null = null
@@ -183,7 +238,7 @@ export function prefixMarkOf(messages: readonly Message[], model: string): Prefi
     if (modelTransition === null && subtype === 'model_transition') modelTransition = message.uuid
     if (compactBoundary !== null && modelTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, model }
+  return { firstRow, compactBoundary, modelTransition, model, settings: spellOperatorSettings(live) }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -191,6 +246,8 @@ export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
 export interface DropOutcome {
   kind: DropKind
   lawful: LawfulPrefixChange | null
+  /** The operator setting that moved, when `lawful` is 'operator-setting'. */
+  detail: string | null
   /** The unlawful run this drop extends (1 for a first drop). */
   consecutive: number
   count: number
@@ -228,14 +285,21 @@ export function classifyThinkingDrops(
   const previous = dropStates.get(owner)
   if (dropped.length === 0) {
     dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
-    return { kind: 'none', lawful: null, consecutive: 0, count: 0, path: null, reason: null }
+    return { kind: 'none', lawful: null, detail: null, consecutive: 0, count: 0, path: null, reason: null }
   }
   let lawful: LawfulPrefixChange | null = null
+  let detail: string | null = null
   if (previous !== undefined) {
     if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {
       lawful = 'compaction'
     } else if (previous.mark.model !== mark.model || previous.mark.modelTransition !== mark.modelTransition) {
       lawful = 'model-switch'
+    } else {
+      const moved = describeSettingsMove(previous.mark.settings, mark.settings)
+      if (moved !== null) {
+        lawful = 'operator-setting'
+        detail = moved
+      }
     }
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
@@ -255,7 +319,7 @@ export function classifyThinkingDrops(
   }
   dropStates.set(owner, { mark, kind, consecutive })
   const first = dropped[0]!
-  return { kind, lawful, consecutive, count: dropped.length, path: first.path, reason: first.reason }
+  return { kind, lawful, detail, consecutive, count: dropped.length, path: first.path, reason: first.reason }
 }
 
 /** Where the change sits, read off the dropped block's path. */
@@ -287,12 +351,47 @@ export function describeThinkingDrops(
       if (outcome.lawful === 'compaction') {
         return `Preserved thinking: the API dropped ${count} ${noun} after the compaction — the history before ${path} was folded into the summary, so the model re-plans without that reasoning this turn (expected once).`
       }
+      if (outcome.lawful === 'operator-setting') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after you changed ${outcome.detail ?? 'a setting'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
+      }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
     case 'first':
       return describeInputTransformations(list)
     case 'recurrent':
       return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} on ${outcome.consecutive} consecutive requests with no compaction, model switch or transcript edit between them (${describePathClass(outcome.path)}). This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+  }
+}
+
+// ── the model-switch receipt ───────────────────────────────────────────────
+
+/** Two model ids name the same model when their canonical families agree
+ *  (an alias, a dated spelling or a context suffix never reads as a switch). */
+export function isSameModel(a: string, b: string): boolean {
+  return getCanonicalName(a) === getCanonicalName(b)
+}
+
+/**
+ * The one quiet line a model switch earns: the previous model's thinking
+ * blocks stay out of the requests to the current model (the assembler
+ * strips them — stripThinkingFromOtherModels — so the API never drops and
+ * re-reports them turn after turn). Null when the history carries no such
+ * block. `key` identifies the switch (the conversation owner and the
+ * current model's family) so the caller paints it once.
+ */
+export function modelSwitchReceipt(
+  owner: string,
+  messages: readonly Message[],
+  currentModel: string,
+): { key: string; text: string } | null {
+  const foreign = thinkingFromOtherModels(messages, currentModel, isSameModel)
+  if (foreign.count === 0) return null
+  const display = (model: string): string => getPublicModelDisplayName(model) ?? model
+  const writers = foreign.models.map(display).join(', ')
+  const noun = foreign.count === 1 ? 'thinking block' : 'thinking blocks'
+  return {
+    key: `${owner}|${getCanonicalName(currentModel)}`,
+    text: `Preserved thinking: ${foreign.count} ${noun} written by ${writers} stay out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without them.`,
   }
 }
 
@@ -303,6 +402,7 @@ export interface ThinkingDropLedger {
     at: string
     kind: Exclude<DropKind, 'none'>
     lawful: LawfulPrefixChange | null
+    detail?: string | null
     reason: string | null
     path: string | null
     count: number
@@ -328,6 +428,7 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
         at: new Date().toISOString(),
         kind: outcome.kind,
         lawful: outcome.lawful,
+        ...(outcome.detail !== null ? { detail: outcome.detail } : {}),
         reason: outcome.reason,
         path: outcome.path,
         count: outcome.count,
@@ -373,9 +474,15 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
   if (last.kind === 'lawful') {
+    const cause =
+      last.lawful === 'compaction'
+        ? 'a compaction'
+        : last.lawful === 'operator-setting'
+          ? `a setting change (${last.detail ?? 'unnamed'})`
+          : 'a model switch'
     return {
       status: 'info',
-      evidence: `last drop ${last.at}: ${blocks} after ${last.lawful === 'compaction' ? 'a compaction' : 'a model switch'} (${where}, model ${last.model}) — expected once`,
+      evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
     }
   }
   if (last.kind === 'first') {

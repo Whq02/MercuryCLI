@@ -29,6 +29,8 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { formatLaneSpend } from '../cost-tracker.js'
+import { crewAgentsOf, crewUsageLine } from '../services/engine-connector/crewFacts.js'
+import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { pidAlive } from '../utils/pidAlive.js'
@@ -266,6 +268,10 @@ function HelmTelemetryRailImpl({
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
   const liveWindows = usage.windows.filter(w => w.state === 'live')
+  // The focused session's crew — its sub-agents' settled tokens ride the
+  // USAGE section as an attribution line (the ONE crew record, crewFacts
+  // over the session's own work roster).
+  const workRoster = useFocusedWorkRoster()
   // --- CONSOLE (MERCURY_HELM_CONSOLE): the cockpit mini-REPL, the rail's last section.
   // Version-subscribed to its module store (helmConsole.ts — the same
   // useSyncExternalStore idiom as the pane focus above); all reads below are
@@ -432,6 +438,20 @@ function HelmTelemetryRailImpl({
         })(),
       )
     }
+  }
+  // The crew's share of the session's usage: the sub-agents' settled tokens
+  // from the ONE crew record. They are IN the session total (the runner's
+  // ledger folds every response its process settles, a sub-agent's
+  // included); this line attributes them. Display-only, never selectable.
+  const crewLine = crewUsageLine(crewAgentsOf(workRoster.rows, focusedSessionIdOrNull()))
+  if (crewLine !== null) {
+    usageNodes.push(
+      <Box key="usage:crew" width={rowW}>
+        <Text wrap="truncate-end">
+          <Text color={tok.textMuted}>{`  ${crewLine}`}</Text>
+        </Text>
+      </Box>,
+    )
   }
   // A reached limit on the active source: one quiet warning line with the
   // observed reset — real observations only (the openaiLimitState law).

@@ -223,7 +223,7 @@ t.section('§3 — the live strip: a bare boot has two stops; the chat stop appe
   const r2 = route.cycleSurface(-1)
   t.check('⇧→ again: NO MOVEMENT — moved false, the dim hint, the route unchanged', r2.ok && !r2.moved && r2.hint === 'no chat open' && kind() === 'concourse', JSON.stringify(r2))
   t.check('…and NOTHING committed (no generation bump, no transition record — the frame is byte-still by construction; the poison was a commit onto the empty REPL)', route.surfaceGeneration() === gen && JSON.stringify(route.lastSurfaceTransition()) === last)
-  t.check('the concourse\'s key-map row says so', route.stripKeyMapHint() === '⇧← boot face · ⇧→ no chat open', route.stripKeyMapHint())
+  t.check('the concourse\'s key-map row says so (host-spelled)', route.stripKeyMapHint() === keyHintLabel('⇧← boot face · ⇧→ no chat open'), route.stripKeyMapHint())
   const r3 = route.cycleSurface(1)
   t.check('⇧← from the concourse lands the menu', r3.ok && r3.moved && kind() === 'boot-settings')
   const r4 = route.cycleSurface(1)

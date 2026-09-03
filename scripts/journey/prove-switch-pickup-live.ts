@@ -86,7 +86,10 @@ writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# switch drive fixture\n')
 // ── the fixture server (its own process — see the header) ──────────────────
 const captureFile = path.join(RUN_HOME, 'wire-captures.jsonl')
 writeFileSync(captureFile, '')
-const fixture = spawn(BUN, ['run', path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
+// Node hosts the fixture (its sibling drive measures a mid-stream drop,
+// which bun's node:http shim never raises); node strips the fixture's type
+// annotations natively.
+const fixture = spawn('node', [path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 const port = await new Promise<number>((resolve, reject) => {
@@ -145,11 +148,16 @@ const cfg = {
     // The GPT leg settles: its reply on the grid gates the switch.
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
     // /model with an argument opens the MODEL SWITCH PREVIEW (live-found in
-    // this drive) — enter confirms it through the settlement owner.
-    { atTick: 200, minTick: 8, awaitText: 'Model switch preview', data: '\r', mark: 'switch-confirmed' },
+    // this drive) — enter confirms it through the settlement owner. The
+    // card's confirm key registers after its first paint (a passive
+    // effect): an enter fired the instant the title paints lands on the
+    // composer instead, the card stays open, and the NEXT line typed is
+    // swallowed as its confirm (live-found: the pickup ask never reached
+    // the session). The settle wait arms the card first.
+    { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
     // The band repaints the new model chip ('Opus 5 · ●' — the preview text
     // never carries the status dot) once the switch has actually applied.
-    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
+    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
   ],
   readyText: [OPUS_REPLY],
   stableTicks: 4,
@@ -200,11 +208,12 @@ if (existsSync(out)) {
     sendReceipts?: Array<{ mark?: string; atMs?: number }>
   }
   gridText = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
-  // Receipts are {atTick, ts} in SEND ORDER (no mark echo): [0]=hello,
-  // [1]=/model, [2]=confirm, [3]=pickup. atTick is the fire tick; ts epoch ms.
+  // Receipts are {atTick, ts} in SEND ORDER (no mark echo): [0]=the face's
+  // ↵, [1]=hello, [2]=/model, [3]=confirm, [4]=pickup. atTick is the fire
+  // tick; ts epoch ms.
   const receipts = (payload.sendReceipts ?? []) as unknown as Array<{ atTick?: number; ts?: number }>
-  switchSentAt = receipts[1]?.atTick ?? 0
-  pickupSentAt = receipts[3]?.ts ?? 0
+  switchSentAt = receipts[2]?.atTick ?? 0
+  pickupSentAt = receipts[4]?.ts ?? 0
 }
 type Capture = { kind: string; method?: string; url?: string; body?: Record<string, unknown>; at: number }
 const wire: Capture[] = readFileSync(captureFile, 'utf8')

@@ -253,7 +253,7 @@ section('§C the daemon-hosted feed seams (source locks, call-shaped)')
   const connector = readFileSync(join(root, 'services/engine-connector/daemonConnector.ts'), 'utf8')
   check(
     "the connector folds its live set from ITS OWN records (liveTurnStateOf)",
-    connector.includes('liveTurnStateOf(this.rawRecords)'),
+    connector.includes('this.liveFold.fold(this.rawRecords, chain.since)'),
   )
 }
 

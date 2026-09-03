@@ -133,12 +133,15 @@ export type ThemeSetting = (typeof THEME_SETTINGS)[number] | (string & {})
 /** TWO appearances: the oasis dark identity and True Black (the same
  *  palette on the pure-black ground family). This is the USER-REACHABLE
  *  vocabulary — every chooser (/appearance's picker, the /config theme
- *  submenu) offers exactly this list, and a stored setting outside it
- *  resolves to dark silently at the resolution owner
- *  (ThemeProvider.initialThemeSetting). The full THEME_SETTINGS vocabulary
- *  above stays the dormant in-code family set, reachable only through the
- *  MERCURY_THEME_PIN gate (the capture matrix + the accessibility launch
- *  override) — a future light mode is a later decision behind that gate. */
+ *  submenu, the first-run fitting) offers exactly this list, in this order.
+ *  True Black is the default (DEFAULT_THEME_SETTING in systemTheme.ts, the
+ *  one owner): a fresh config home resolves to it, and a stored setting
+ *  outside this list collapses onto it silently at the resolution owner
+ *  (ThemeProvider.initialThemeSetting) — a stored `dark` or `true-black`
+ *  always wins. The full THEME_SETTINGS vocabulary above stays the dormant
+ *  in-code family set, reachable only through the MERCURY_THEME_PIN gate
+ *  (the capture matrix + the accessibility launch override) — a future
+ *  light mode is a later decision behind that gate. */
 export const REACHABLE_THEME_SETTINGS = ['dark', 'true-black'] as const
 
 // ── colour helpers ──────────────────────────────────────────────────────────

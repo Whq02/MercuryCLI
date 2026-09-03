@@ -6,17 +6,38 @@
 // Two deliberate inconsistencies are preserved:
 // the state constructor treats an ABSENT visible count as "show everything"
 // while the public hooks default the prop to 5; and the mount path prefers
-// the controlled focus value only when it is truthy, while the reset path
-// prefers it whenever it is defined.
+// the controlled focus value only when it is truthy, while the options-reset
+// path (focusSeedAfterOptionsChange) prefers the SURVIVING focus, then the
+// controlled value whenever it is defined.
 
-import { isEqual } from 'lodash-es'
 import React, { useCallback, useEffect, useReducer, useRef } from 'react'
 import OptionMap, {
   isInputOption,
+  optionsEquivalent,
   type OptionMapItem,
   type OptionValue,
   type OptionWithDescription,
 } from './option-map.js'
+
+/** The focus seed for an options change: the highlight is the operator's,
+ *  so the focused value survives whenever the new list still names it; the
+ *  controlled focus value seeds only a list that lost the focused row (or
+ *  never had one), and its own effect re-asserts it whenever the CALLER
+ *  moves it. Re-seeding from the controlled value on every list rebuild
+ *  snapped the highlight back to the selected answer the moment the
+ *  operator moved toward another row. Pure: the unit pins read it. */
+export function focusSeedAfterOptionsChange<T>(input: {
+  focusedValue: OptionValue<T> | undefined
+  options: readonly OptionWithDescription<T>[]
+  focusValue: T | undefined
+  initialFocusValue: T | undefined
+}): OptionValue<T> | undefined {
+  const { focusedValue, options, focusValue, initialFocusValue } = input
+  if (focusedValue !== undefined && options.some(o => o.value === focusedValue)) {
+    return focusedValue
+  }
+  return focusValue !== undefined ? focusValue : initialFocusValue
+}
 
 type NavigationState<T> = {
   optionMap: OptionMap<T>
@@ -365,12 +386,13 @@ export function useSelectNavigation<T>({
       }),
   )
 
-  // Options replaced: identity inequality PLUS deep inequality — identity
-  // alone would fire on every render, since callers build the array inline.
+  // Options replaced: identity inequality PLUS callback-blind deep
+  // inequality — identity alone would fire on every render, since callers
+  // build the array inline (and hand over fresh handlers each time).
   const previousOptionsRef = useRef(options)
   if (
     previousOptionsRef.current !== options &&
-    !isEqual(previousOptionsRef.current, options)
+    !optionsEquivalent(previousOptionsRef.current, options)
   ) {
     previousOptionsRef.current = options
     dispatch({
@@ -378,12 +400,12 @@ export function useSelectNavigation<T>({
       state: createNavigationState({
         options,
         visibleOptionCount,
-        initialFocusValue:
-          focusValue !== undefined
-            ? focusValue
-            : state.focusedValue !== undefined
-              ? state.focusedValue
-              : initialFocusValue,
+        initialFocusValue: focusSeedAfterOptionsChange({
+          focusedValue: state.focusedValue,
+          options,
+          focusValue,
+          initialFocusValue,
+        }),
         currentViewport: [state.visibleFromIndex, state.visibleToIndex],
       }),
     })

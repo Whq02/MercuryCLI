@@ -8,6 +8,7 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
+import { crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
@@ -48,8 +49,16 @@ export function statusDuration(ms: number): string {
  *  and paint from ten seconds on; "stuck" is spoken only on the owner's
  *  verdict and names exactly what it saw. */
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
-  if (s.interrupting) return 'interrupting — the reply stops at its next step'
+  // The interrupt's words claim exactly what the road does: the in-flight
+  // request is torn down and every agent the turn waits on is stopped; a
+  // second esc cuts the runner if the turn is still open a second later.
+  if (s.hardStopping) return 'stopping — the runner is cut if the turn is still open in a second'
+  if (s.interrupting) return 'interrupting — the request is torn down · esc again forces a stop'
   if (!live.inFlight) return 'ready'
+  if (live.phase === 'waiting') {
+    // The crew owner spells the wait; the way out is this row's own word.
+    return `${crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'} · esc stops them`
+  }
   if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {
     return `no stream events for ${statusDuration(s.quietMs)} — the session may be stuck (the watchdog aborts at ${statusDuration(s.watchdogMs)})`
   }
@@ -79,7 +88,7 @@ function getFocusedSeatStatusKey(): string {
   if (!hasSeatLive(c)) return ''
   const live = c.live()
   const s = c.status()
-  return `${getFocusedSeatIdentityKey()}|${s.interrupting ? 1 : 0}|${live.inFlight ? 1 : 0}|${s.stuck ? 1 : 0}|${statusLine(live, s)}`
+  return `${getFocusedSeatIdentityKey()}|${s.interrupting ? 1 : 0}|${s.hardStopping ? 1 : 0}|${live.inFlight ? 1 : 0}|${s.stuck ? 1 : 0}|${statusLine(live, s)}`
 }
 
 /** Coordinator-relayed messages wear their [Coordinator] plate in the chat
@@ -163,7 +172,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
                   terminal the state words truncate, the way back never
                   touches them. */}
               {' '}
-              {live.inFlight && !status.interrupting ? 'esc interrupts · ' : ''}{keyHintLabel('⇧← back')}{' '}
+              {live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}{keyHintLabel('⇧← back')}{' '}
             </Text>
           )}
         </InteractiveRow>

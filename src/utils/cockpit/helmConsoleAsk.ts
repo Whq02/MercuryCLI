@@ -37,9 +37,11 @@ import { getMessagesAfterCompactBoundary } from '../messages.js'
 import {
   consoleModelOverride,
   resolveSubModel,
+  subModelDispatchEffort,
   subModelIdentityLine,
   type SubModelPin,
 } from '../model/subModelSlots.js'
+import { logForDebugging } from '../debug.js'
 import type { ProcessUserInputContext } from '../processUserInput/processUserInput.js'
 import { runSideQuestion } from '../sideQuestion.js'
 import { noteCritterRealActivity } from './critterSleep.js'
@@ -146,6 +148,14 @@ export async function runConsoleAsk({
     }
   }
   const modelOverride = consoleModelOverride(context.options.mainLoopModel)
+  // THE CONSOLE'S EFFORT IS ITS OWN DIAL (/submodels, e on the row) through
+  // the one dispatch composer: the fork carries that level, or NO level —
+  // the model's own default — never the main seat's live dial (the
+  // /submodels header claims the model default, so the wire must agree)
+  // and never a level this model does not offer (the composer says so and
+  // the fallback is logged).
+  const effort = subModelDispatchEffort('console', slot.model)
+  if (effort.fallback !== undefined) logForDebugging(`console effort: ${effort.fallback}`)
   // A console ask is a real model turn — wake the critter at dispatch and
   // refresh the stamp at settle (the sleep grace counts from the turn's
   // end, mirroring the session turn's lastTurnEndTs semantics).
@@ -157,6 +167,7 @@ export async function runConsoleAsk({
       cacheSafeParams,
       abortController,
       framing: consoleAskFraming(slot),
+      effortValue: effort.effortValue ?? null,
       ...(originRef !== undefined ? { originRef } : {}),
       ...(modelOverride !== undefined ? { modelOverride } : {}),
     })

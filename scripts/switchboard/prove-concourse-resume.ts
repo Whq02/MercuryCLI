@@ -485,9 +485,10 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
   // the live view is not a stop; only the moves that exist print) — the
   // router's pure derivation, re-read on the route beat.
   const { stripKeyMapHintOf } = await import('../../src/context/surfaceRoute.ts')
+  const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   check("B4 the reduced band paints the router's key-map hint, re-read on the route beat", screen.includes('const keyMapHint = stripKeyMapHint()') && screen.includes('useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion)') && screen.includes('${keyMapHint.length > 0 ? ` · ${keyMapHint}` : \'\'}'))
-  check('B4 with the concourse off and no chat, the live view offers the boot face to the left and no chat stop to the right', stripKeyMapHintOf('concourse', ['boot-settings']).startsWith('⇧← boot face') && !stripKeyMapHintOf('concourse', ['boot-settings']).includes('⇧→ chat'))
-  check('B4 with a chat present the live view offers both moves', stripKeyMapHintOf('concourse', ['boot-settings', 'repl']) === '⇧← boot face · ⇧→ chat')
+  check('B4 with the concourse off and no chat, the live view offers the boot face to the left and no chat stop to the right', stripKeyMapHintOf('concourse', ['boot-settings']).startsWith(keyHintLabel('⇧← boot face')) && !stripKeyMapHintOf('concourse', ['boot-settings']).includes(keyHintLabel('⇧→ chat')))
+  check('B4 with a chat present the live view offers both moves', stripKeyMapHintOf('concourse', ['boot-settings', 'repl']) === keyHintLabel('⇧← boot face · ⇧→ chat'))
   check('B4 the reduced pane notice derives its move from the same hint (the retired literal is gone)', screen.includes('your sessions run and show here · ↵ enters one${keyMapHint.length > 0 ? ` · ${keyMapHint}` : \'\'}') && !screen.includes('⇧← the boot menu'))
   // THE CHAT IS A BRIDGE: esc lands the focused chat while one exists, the
   // boot menu otherwise — the legend, the too-small frame and the atlas say
