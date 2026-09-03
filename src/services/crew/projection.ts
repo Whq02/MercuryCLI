@@ -106,22 +106,54 @@ function attachLiveAttention(snap: CrewSnapshotV1): CrewSnapshotV1 {
   return snap
 }
 
+type SourceName = 'identity' | 'workbench'
+
+const STICKY_FAULT_LIMIT = 1
+const sourceFaults: Record<SourceName, number> = { identity: 0, workbench: 0 }
+const lastReady: { identity?: SourceState<AgentIdentityV1[]>; workbench?: SourceState<WorkbenchSnapshot> } = {}
+const injectedFaults: Record<SourceName, number> = { identity: 0, workbench: 0 }
+
+export function _faultSourceForProofs(source: SourceName, times: number): void {
+  injectedFaults[source] = Math.max(0, times)
+}
+
+function takeInjectedFault(source: SourceName): boolean {
+  if (injectedFaults[source] <= 0) return false
+  injectedFaults[source] -= 1
+  return true
+}
+
+function keepLastObservation<T>(source: SourceName, previous: SourceState<T> | undefined, fault: string): SourceState<T> {
+  sourceFaults[source] += 1
+  if (previous !== undefined && previous.state === 'ready' && sourceFaults[source] <= STICKY_FAULT_LIMIT) {
+    logForDebugging(`[crew/projection] ${source} gather faulted once — the last observation stands: ${fault}`)
+    return previous
+  }
+  return sourceUnavailable(fault, true) as SourceState<T>
+}
+
 async function gatherSources(): Promise<CrewSources> {
   let identity: SourceState<AgentIdentityV1[]>
   try {
+    if (takeInjectedFault('identity')) throw new Error('injected identity fault')
     const agents = await listAgents()
     identity = agents.length === 0 ? (sourceEmpty() as SourceState<AgentIdentityV1[]>) : sourceReady(agents)
+    sourceFaults.identity = 0
+    if (identity.state === 'ready') lastReady.identity = identity
   } catch (e) {
-    identity = sourceUnavailable(`identity store unreadable: ${String(e).slice(0, 80)}`, true)
+    identity = keepLastObservation('identity', lastReady.identity, `identity store unreadable: ${String(e).slice(0, 80)}`)
   }
   let workbench: SourceState<WorkbenchSnapshot>
   try {
+    if (takeInjectedFault('workbench')) throw new Error('injected workbench fault')
     const wb = await resolveWorkbenchSnapshot()
     workbench = wb
       ? sourceReady(wb)
       : sourceUnavailable('the workbench projection is disabled (MERCURY_WORKBENCH=0)', false)
+    sourceFaults.workbench = 0
+    if (workbench.state === 'ready') lastReady.workbench = workbench
   } catch (e) {
-    workbench = sourceUnavailable(`workbench gather failed: ${String(e).slice(0, 80)}`, true)
+    workbench = keepLastObservation('workbench', lastReady.workbench, `workbench gather failed: ${String(e).slice(0, 80)}`)
   }
   return { identity, workbench }
 }
@@ -174,9 +206,11 @@ async function composeCrewSnapshot(version: number): Promise<CrewSnapshotV1> {
         else if (mapped) member.lifecycle = { state: mapped, source: 'workbench:root.state' }
         if (root.title) member.focus = { label: root.title, source: 'workbench:root', ref: root.refs[0] }
         if (root.worktreePath) member.worktreeRef = root.worktreePath
+        const previous = snapshot?.members.find(p => p.agentId === member.agentId)?.latestActivity
+        const unchanged = previous !== undefined && previous.source === 'workbench:root' && previous.label === root.phase
         member.latestActivity = {
           label: root.phase,
-          atMs: root.updatedAt,
+          atMs: unchanged ? previous.atMs : root.updatedAt,
           source: 'workbench:root',
         }
       }
@@ -271,6 +305,10 @@ function armEngine(): void {
 
 function teardownEngine(): void {
   armEpoch++
+  sourceFaults.identity = 0
+  sourceFaults.workbench = 0
+  delete lastReady.identity
+  delete lastReady.workbench
   for (const u of unsubs) {
     try {
       u()

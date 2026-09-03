@@ -15,7 +15,9 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  publishAgentProgressSoon,
   registerAgentForeground,
+  settleAgentForeground,
   unregisterAgentForeground,
   updateAgentProgress,
   updateProgressFromMessage,
@@ -266,7 +268,7 @@ export async function runForegroundAgentExecution(
           resolveActivity,
           toolUseContext.options.tools,
         )
-        updateAgentProgress(backgroundedTaskId, getProgressUpdate(bgTracker), rootSetAppState)
+        publishAgentProgressSoon(backgroundedTaskId, bgTracker, rootSetAppState)
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
           emitTaskProgress(
@@ -451,11 +453,7 @@ export async function runForegroundAgentExecution(
       )
       if (foregroundTask) {
         if (message.type === 'assistant') {
-          updateAgentProgress(
-            foregroundTask.taskId,
-            getProgressUpdate(tracker),
-            rootSetAppState,
-          )
+          publishAgentProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)
         }
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
@@ -515,14 +513,16 @@ export async function runForegroundAgentExecution(
     toolUseContext.setToolJSX?.(null)
     stopForegroundSummarization?.()
     if (foregroundTask) {
-      unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
-      if (!backgrounded) {
+      if (backgrounded) {
+        unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
+      } else {
         const status: 'completed' | 'failed' | 'stopped' =
           heldError instanceof AbortError
             ? 'stopped'
             : heldError !== undefined
               ? 'failed'
               : deriveAgentTerminalOutcome(agentMessages).status
+        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker))
         enqueueSdkEvent({
           type: 'system',
           subtype: 'task_notification',

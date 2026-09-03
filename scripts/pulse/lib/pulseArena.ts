@@ -28,6 +28,8 @@ export interface TeeWrite {
   content?: string
 }
 
+const FACE_READY_NEEDLE = '↑↓ choose'
+
 export interface SendRecord {
   sent: number
   atMs: number
@@ -156,7 +158,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const dump = join(home, 'pulse.jsonl')
 
   const sendArgs: string[] = []
-  sendArgs.push('--send', 'after:↑↓ choose:900:\\r')
+  sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
   for (const s of opts.sends) sendArgs.push('--send', s)
   sendArgs.push('--anchor', `${COMPOSER_READY_NEEDLE}:${COMPOSER_NOMINAL_MS}`)
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
@@ -231,7 +233,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
       : null,
   )
   const sendLog = readJsonl<SendRecord>(drive, row =>
-    row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number'
+    row && typeof row === 'object' && typeof (row as SendRecord).sent === 'number' && (row as { after?: string }).after !== FACE_READY_NEEDLE
       ? (row as SendRecord)
       : null,
   )

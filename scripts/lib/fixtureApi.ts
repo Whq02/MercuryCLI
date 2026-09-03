@@ -1,4 +1,5 @@
 
+import { createHash } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 
 export type FixtureUsage = {
@@ -19,6 +20,7 @@ type ScriptedTurnBody =
       thinking?: string
       inputTransformations?: unknown[]
       model?: string
+      signature?: string
     }
   | {
       kind: 'tool_use'
@@ -29,6 +31,7 @@ type ScriptedTurnBody =
       thinking?: string
       inputTransformations?: unknown[]
       model?: string
+      signature?: string
       usage?: FixtureUsage
     }
   | { kind: 'error'; status: number; errorType: string; message: string }
@@ -74,6 +77,7 @@ export interface FixtureApi {
     at: number
   }[]
   messageRequests(): CapturedRequest[]
+  refusals: { request: number; message: string }[]
   destroyedReplays(): number
   messageRequestStarted(n: number): Promise<void>
   sawClientAbort(): boolean
@@ -173,19 +177,19 @@ function thinkingDelta(index: number, text: string): string {
   })
 }
 
-function signatureDelta(index: number): string {
+function signatureDelta(index: number, signature = 'fixture-signature'): string {
   return sseEvent('content_block_delta', {
     type: 'content_block_delta',
     index,
-    delta: { type: 'signature_delta', signature: 'fixture-signature' },
+    delta: { type: 'signature_delta', signature },
   })
 }
 
-function signedThinkingBlock(index: number, text: string): string {
+function signedThinkingBlock(index: number, text: string, signature?: string): string {
   return (
     thinkingBlockStart(index) +
     thinkingDelta(index, text) +
-    signatureDelta(index) +
+    signatureDelta(index, signature) +
     sseEvent('content_block_stop', { type: 'content_block_stop', index })
   )
 }
@@ -197,7 +201,7 @@ export function renderTurn(turn: ScriptedTurn, msgSeq: number): string {
       let body = messageStart(id, turn.usage, turn.inputTransformations, turn.model)
       let index = 0
       if (turn.thinking !== undefined) {
-        body += signedThinkingBlock(index, turn.thinking)
+        body += signedThinkingBlock(index, turn.thinking, turn.signature)
         index++
       }
       body += textBlocks(turn.text, index)
@@ -208,7 +212,7 @@ export function renderTurn(turn: ScriptedTurn, msgSeq: number): string {
       let body = messageStart(id, turn.usage, turn.inputTransformations, turn.model)
       let index = 0
       if (turn.thinking !== undefined) {
-        body += signedThinkingBlock(index, turn.thinking)
+        body += signedThinkingBlock(index, turn.thinking, turn.signature)
         index++
       }
       if (turn.preText) {
@@ -233,14 +237,120 @@ export function renderTurn(turn: ScriptedTurn, msgSeq: number): string {
   }
 }
 
+function stripCacheControl(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripCacheControl)
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (k === 'cache_control') continue
+      out[k] = stripCacheControl(v)
+    }
+    return out
+  }
+  return value
+}
+
+const BOUND_SIGNATURE_PREFIX = 'fixture-signature:'
+
+function withoutThinking(message: unknown): unknown {
+  const row = message as { content?: unknown }
+  if (!row || !Array.isArray(row.content)) return message
+  return { ...row, content: row.content.filter(b => { const t = (b as { type?: string }).type; return t !== 'thinking' && t !== 'redacted_thinking' }) }
+}
+
+export function prefixHashOf(body: { system?: unknown; tools?: unknown }, messages: unknown[]): string {
+  const material = JSON.stringify(stripCacheControl({ system: body.system, tools: body.tools, messages: messages.map(withoutThinking) }))
+  return createHash('sha256').update(material).digest('hex').slice(0, 16)
+}
+
+export function boundSignature(body: { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }): string {
+  return `${BOUND_SIGNATURE_PREFIX}${prefixHashOf(body, Array.isArray(body.messages) ? body.messages : [])}:${String(body.model ?? '')}`
+}
+
+export function bindingDropsFor(current: unknown): unknown[] {
+  const cur = current as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string } | null
+  if (!cur || !Array.isArray(cur.messages)) return []
+  const dropped: unknown[] = []
+  cur.messages.forEach((message, i) => {
+    const row = message as { role?: string; content?: unknown }
+    if (row.role !== 'assistant' || !Array.isArray(row.content)) return
+    row.content.forEach((block, j) => {
+      const b = block as { type?: string; signature?: unknown }
+      if (b.type !== 'thinking' && b.type !== 'redacted_thinking') return
+      if (typeof b.signature !== 'string' || !b.signature.startsWith(BOUND_SIGNATURE_PREFIX)) return
+      const [, mintedHash, mintedModel] = b.signature.split(':')
+      if (mintedModel !== String(cur.model ?? '')) {
+        dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'model_binding_mismatch' })
+        return
+      }
+      if (mintedHash !== prefixHashOf(cur, cur.messages!.slice(0, i))) {
+        dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
+      }
+    })
+  })
+  return dropped
+}
+
+function maxOutputTokensCap(model: string): number {
+  const id = model.toLowerCase()
+  if (id.includes('haiku-4-5')) return 64_000
+  return 128_000
+}
+
+export function apiRefusalOf(body: unknown): string | null {
+  const request = body as { model?: string; max_tokens?: number; messages?: unknown[] } | null
+  if (!request || !Array.isArray(request.messages)) return null
+  const messages = request.messages as Array<{ role?: string; content?: unknown }>
+  if (messages.length === 0) return 'messages: at least one message is required'
+  if (messages[0]!.role !== 'user') return 'messages: first message must use the "user" role'
+  const cap = maxOutputTokensCap(String(request.model ?? ''))
+  if (typeof request.max_tokens === 'number' && request.max_tokens > cap) {
+    return `max_tokens: ${request.max_tokens} > ${cap}, which is the maximum allowed number of output tokens for ${String(request.model)}`
+  }
+  for (let i = 0; i < messages.length; i++) {
+    const message = messages[i]!
+    const final = i === messages.length - 1
+    const content = message.content
+    if (message.role === 'assistant') {
+      if (Array.isArray(content) && content.length === 0 && !final) {
+        return `messages.${i}: all messages must have non-empty content except for the optional final assistant message`
+      }
+      if (Array.isArray(content)) {
+        const blocks = content as Array<{ type?: string; signature?: unknown; id?: string }>
+        const last = blocks[blocks.length - 1]
+        if (!final && last !== undefined && (last.type === 'thinking' || last.type === 'redacted_thinking')) {
+          return `messages.${i}: assistant message must not end with a thinking block`
+        }
+        for (let j = 0; j < blocks.length; j++) {
+          const block = blocks[j]!
+          if (block.type === 'thinking' && typeof block.signature !== 'string') {
+            return `messages.${i}.content.${j}: thinking block is missing its signature`
+          }
+          if (block.type === 'tool_use') {
+            const next = messages[i + 1]
+            const results = Array.isArray(next?.content) ? (next!.content as Array<{ type?: string; tool_use_id?: string }>) : []
+            if (!results.some(r => r.type === 'tool_result' && r.tool_use_id === block.id)) {
+              return `messages.${i + 1}: tool_use ids were found without tool_result blocks immediately after: ${String(block.id)}. Each tool_use block must have a corresponding tool_result block in the next message.`
+            }
+          }
+        }
+      }
+    }
+  }
+  return null
+}
+
 export async function startFixtureApi(
   turns: ScriptedTurn[],
   opts?: {
+    apiChecks?: boolean
     destroyOnKeepAliveReuse?: boolean
+    bindingCheck?: boolean
   },
 ): Promise<FixtureApi> {
   const queue = [...turns]
   const requests: CapturedRequest[] = []
+  const refusals: { request: number; message: string }[] = []
   const messagesServedBySocket = new WeakMap<object, number>()
   let destroyedReplays = 0
   const pacedEmits: FixtureApi['pacedEmits'] = []
@@ -305,7 +415,24 @@ export async function startFixtureApi(
       if (pick === -1) {
         pick = queue.findIndex(candidate => candidate.whenModel === undefined)
       }
-      const turn = pick === -1 ? undefined : queue.splice(pick, 1)[0]
+      let turn = pick === -1 ? undefined : queue.splice(pick, 1)[0]
+      if (opts?.apiChecks) {
+        const refusal = apiRefusalOf(body)
+        if (refusal !== null) {
+          if (turn !== undefined) queue.unshift(turn)
+          refusals.push({ request: msgSeq, message: refusal })
+          res.writeHead(400, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: refusal } }))
+          return
+        }
+      }
+      if (opts?.bindingCheck && turn !== undefined && (turn.kind === 'text' || turn.kind === 'tool_use')) {
+        turn = {
+          ...turn,
+          signature: boundSignature(body as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }),
+          ...(turn.inputTransformations === undefined ? { inputTransformations: bindingDropsFor(body) } : {}),
+        }
+      }
       started.get(msgSeq)?.()
       void startedPromise(msgSeq)
       started.get(msgSeq)?.()
@@ -640,6 +767,7 @@ export async function startFixtureApi(
     toolEmits,
     streamEmits,
     messageRequests: () => requests.filter(r => r.path.includes('/v1/messages')),
+    refusals,
     destroyedReplays: () => destroyedReplays,
     messageRequestStarted: startedPromise,
     sawClientAbort: () => clientAborted,

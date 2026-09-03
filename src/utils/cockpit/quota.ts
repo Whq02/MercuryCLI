@@ -1,5 +1,6 @@
 
 import { getRawUtilization } from '../../services/claudeAiLimits.js'
+import type { UsageFeed } from '../../services/providers/usageFreshness.js'
 import type { SnapshotState } from '../../components/mercury-ui/theme.js'
 
 export type QuotaWindow = {
@@ -7,11 +8,13 @@ export type QuotaWindow = {
   usedPct: number | null
   resetsAtMs: number | null
   state: SnapshotState
+  source?: UsageFeed
+  observedAtMs?: number
 }
 
 function normalizeWindow(
   key: '5h' | '7d',
-  raw: { utilization: number; resets_at: number } | undefined,
+  raw: { utilization: number; resets_at: number; source?: UsageFeed; observedAtMs?: number } | undefined,
 ): QuotaWindow {
   if (!raw || !Number.isFinite(raw.utilization) || !Number.isFinite(raw.resets_at)) {
     return { key, usedPct: null, resetsAtMs: null, state: 'unavailable' }
@@ -21,6 +24,8 @@ function normalizeWindow(
     usedPct: raw.utilization * 100,
     resetsAtMs: raw.resets_at * 1000,
     state: 'live',
+    ...(raw.source !== undefined ? { source: raw.source } : {}),
+    ...(raw.observedAtMs !== undefined ? { observedAtMs: raw.observedAtMs } : {}),
   }
 }
 
@@ -40,6 +45,12 @@ export function formatClock(ms: number): string {
   if (sameDay) return `${hh}:${mm}`
   const wd = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
   return `${wd} ${hh}:${mm}`
+}
+
+export function formatCountdownCoarse(deltaMs: number): string {
+  if (deltaMs < 3_600_000) return formatCountdown(deltaMs)
+  const totalHr = Math.floor(deltaMs / 3_600_000)
+  return totalHr < 24 ? `${totalHr}h` : `${Math.floor(totalHr / 24)}d`
 }
 
 export function formatCountdown(deltaMs: number): string {

@@ -79,6 +79,7 @@ export type ProgressTracker = {
   toolUseCount: number
   recentActivities: ToolActivity[]
   ledger: AgentLedger
+  lastAssistant?: AssistantMessage
 }
 
 export function createAgentLedger(): AgentLedger {
@@ -167,6 +168,10 @@ export function updateProgressFromMessage(
 ): void {
   if (message.type !== 'assistant') return
   const assistant = message as AssistantMessage
+  if (tracker.lastAssistant !== undefined && tracker.lastAssistant !== assistant) {
+    foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  }
+  tracker.lastAssistant = assistant
   const usage = assistant.message.usage
   if (usage) {
     const latest =
@@ -201,6 +206,7 @@ export function updateProgressFromMessage(
 }
 
 export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
+  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
   const ledger = tracker.ledger
   const settled = ledger.inputTokens + ledger.outputTokens > 0
   return {
@@ -397,6 +403,23 @@ export function unregisterAgentForeground(taskId: string, setAppState: SetAppSta
   cleanupToRun?.()
 }
 
+export function settleAgentForeground(
+  taskId: string,
+  status: 'completed' | 'failed' | 'stopped',
+  setAppState: SetAppState,
+  progress?: AgentProgress,
+): void {
+  let settled = false
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.isBackgrounded) return task
+    if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
+    settled = true
+    return terminalPatch(task, status === 'stopped' ? 'killed' : status, progress !== undefined ? { progress } : {})
+  })
+  backgroundSignalResolvers.delete(taskId)
+  if (settled) void evictTaskOutput(taskId)
+}
+
 
 function terminalPatch(
   task: LocalAgentTaskState,
@@ -498,6 +521,26 @@ export function updateAgentProgress(
       lastReportedTokenCount: progress.tokenCount,
     }
   })
+}
+
+const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
+
+const USAGE_SETTLE_GRACE_MS = 750
+
+export function publishAgentProgressSoon(
+  taskId: string,
+  tracker: ProgressTracker,
+  setAppState: SetAppState,
+): void {
+  updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  const pending = deferredPublishes.get(taskId)
+  if (pending !== undefined) clearTimeout(pending)
+  const timer = setTimeout(() => {
+    deferredPublishes.delete(taskId)
+    updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  }, USAGE_SETTLE_GRACE_MS)
+  timer.unref?.()
+  deferredPublishes.set(taskId, timer)
 }
 
 export function updateAgentSummary(

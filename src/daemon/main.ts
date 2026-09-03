@@ -53,6 +53,7 @@ import {
   setSessionKitDial,
   setSessionModel,
   setSessionPermissionMode,
+  setSessionSpawnSwitch,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { armChildRssWatchdog } from './rssWatchdog.js'
@@ -106,6 +107,7 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -323,7 +325,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
-          console.error(`[daemon] ⚠️  SUPERVISOR DEGRADED — ${reason}`)
+          console.error(`[daemon] ${GLYPH.warn} SUPERVISOR DEGRADED — ${reason}`)
           if (short !== undefined && short.startsWith('concourse-w')) {
             try {
               settleConcourseWorker(short)
@@ -483,7 +485,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, clientOpId, mintedAtMs, title, titleSource }) => {
+        concourseControl: ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, clientOpId, mintedAtMs, title, titleSource }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -611,6 +613,10 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'set-effort') {
             if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: 'set-effort requires effort' }
             return roster !== null ? setSessionEffort(sessionId, effort, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+          }
+          if (action === 'set-spawn-switch') {
+            if (spawnSwitch === undefined) return { outcome: 'refused' as const, detail: 'set-spawn-switch requires { spawnSwitch: { kind: subagents|workflows, on } }' }
+            return roster !== null ? setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'set-permission-mode') {
             if (mode === undefined || mode === '') return { outcome: 'refused' as const, detail: 'set-permission-mode requires mode' }
@@ -977,7 +983,7 @@ async function daemonRun(args: string[]): Promise<void> {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(
-        `[daemon] ⚠️  control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
+        `[daemon] ${GLYPH.warn} control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
       )
       logForDebugging(`[daemon] control layer failed to start (continuing as pure cron daemon): ${e}`)
       controlServer = null

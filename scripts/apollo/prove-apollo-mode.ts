@@ -92,7 +92,9 @@ try {
 }
 {
   const prompts = src('constants', 'prompts.ts')
-  check("prompts.ts pushes pushPack('mode-apollo', …) beside mode-autopilot", /pushPack\('mode-apollo', getApolloModeSections\(permissionMode\)\)/.test(prompts))
+  check('prompts.ts never pushes the apollo pack into the system prompt (the pack rides a mode_pack row)', !/pushPack\('mode-apollo'/.test(prompts) && !/getApolloModeSections\(/.test(prompts))
+  const lifecycles = src('utils', 'attachments', 'modeLifecycles.ts')
+  check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
   check(
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('QueryEngine.ts')) &&
@@ -219,7 +221,7 @@ try {
   check("the held wire carries the user's refine note verbatim", /the save system/.test(holdWire.content))
 
   const { isDeferredTool } = (await import('../../src/tools/ToolSearchTool/prompt.js')) as typeof import('../../src/tools/ToolSearchTool/prompt.js')
-  check('ApolloReview is force-loaded while the mode is apollo', isDeferredTool(ApolloReviewTool as never, 'apollo') === false)
+  check('ApolloReview is listed deferred in apollo too (never a mode-driven roster change)', isDeferredTool(ApolloReviewTool as never, 'apollo') === true)
   check(
     'ApolloReview stays deferred outside apollo (and for mode-less callers)',
     isDeferredTool(ApolloReviewTool as never, 'default') === true && isDeferredTool(ApolloReviewTool as never) === true,
@@ -257,7 +259,7 @@ try {
     /context\.mode === 'default' \|\| context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
-  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(toolEconomy))
+  check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
@@ -388,6 +390,34 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
   )
   const frame = src('components', 'MercuryFrame.tsx')
   check('the mode chip reads the connector facts (the surface the old refusal snapped back)', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
+}
+
+section("the seat's initial posture: a carried 'apollo' crosses the admission; the strict list holds elsewhere")
+{
+  const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseSupervisor.js')) as typeof import('../../src/daemon/concourseSupervisor.js')
+  const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
+  const headless = HEADLESS_PERMISSION_MODES as readonly string[]
+  check("a carried 'apollo' crosses the admission as apollo", seatInitialPermissionMode('apollo' as never) === 'apollo')
+  check("a carried headless posture crosses as itself ('flow', 'implement')", seatInitialPermissionMode('flow' as never) === 'flow' && seatInitialPermissionMode('implement' as never) === 'implement')
+  check("a carried interactive-only posture that is not apollo ('strategy') never crosses — the seat falls to a headless posture", headless.includes(seatInitialPermissionMode('strategy' as never)))
+  check('nothing carried ⇒ a headless posture (the saved default, else flow)', headless.includes(seatInitialPermissionMode()))
+  const priorEnv = process.env.MERCURY_DAEMON_PERMISSION_MODE
+  try {
+    delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+    check("the spec's carried apollo reaches the child's posture when the daemon env is unset", getHeadlessPermissionMode('apollo') === 'apollo')
+    check("…spelled on the argv as --permission-mode apollo", JSON.stringify(headlessPermissionArgv('apollo')) === JSON.stringify(['--permission-mode', 'apollo']))
+    process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
+    check("the operator's daemon env still wins over the carried posture (the strict road)", getHeadlessPermissionMode('apollo') === 'implement')
+    process.env.MERCURY_DAEMON_PERMISSION_MODE = 'apollo'
+    check("the daemon env never spells apollo — an invalid value falls to the spec default", getHeadlessPermissionMode('flow') === 'flow')
+  } finally {
+    if (priorEnv === undefined) delete process.env.MERCURY_DAEMON_PERMISSION_MODE
+    else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
+  }
+  const supervisor = src('daemon', 'concourseSupervisor.ts')
+  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.permissions\?\.defaultMode\)/.test(supervisor))
+  const hop = src('services', 'switchboard', 'hopIntoSession.ts')
+  check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }
 
 console.log('\n' + '═'.repeat(76))

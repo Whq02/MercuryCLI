@@ -25,6 +25,7 @@ import { getDiagnosticAttachments, getLSPDiagnosticAttachments } from './diagnos
 import { getChangedFiles } from './fileAttachments.js'
 import {
   getDateChangeAttachments,
+  getModePackAttachments,
   getPlanModeAttachments,
   getPlanModeExitAttachment,
   getRepoSurfaceMapAttachment,
@@ -220,6 +221,7 @@ export async function getAttachments(
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
     maybe('skill_listing', () => getSkillListingAttachments(context)),
     maybe('plan_mode', () => getPlanModeAttachments(messages, toolUseContext)),
+    maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
     maybe('plan_mode_exit', () => getPlanModeExitAttachment(toolUseContext)),
     maybe('repo_surface_map', () =>
       Promise.resolve(getRepoSurfaceMapAttachment(messages, toolUseContext)),
