@@ -57,6 +57,7 @@ console.log('============================================================')
 
 const prompts = await import('../../src/constants/prompts.ts')
 const bc = await import('../../src/prompt/behaviourContract.ts')
+const sections = await import('../../src/constants/systemPromptSections.ts')
 
 const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Agent', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
@@ -87,9 +88,17 @@ for (const [family, model] of FAMILY_MODELS) {
     bc.resolveBehaviourContract(turn1).sections.every(s => s.group !== 'segment'))
 
   section(`§2 signature moves only with inputs — ${family}`)
+  // Within a conversation the sections are FROZEN (the section cache): a
+  // changed input never rewrites the prefix mid-conversation. The lawful
+  // boundary (a compaction or /clear) re-evaluates — there the input moves
+  // the digest.
+  const frozen = await prompts.getSystemPrompt(tools, model, [join(cwd, 'extra-dir')], [])
+  check('within the conversation a changed input is frozen out (byte-identical render, same digest)', renderFor(family, frozen) === r1 && bc.resolveBehaviourContract(frozen).digest === d1)
+  sections.clearSystemPromptSections()
   const changed = await prompts.getSystemPrompt(tools, model, [join(cwd, 'extra-dir')], [])
   const dChanged = bc.resolveBehaviourContract(changed).digest
-  check('a changed input moves the digest', dChanged !== d1)
+  check('across the lawful boundary a changed input moves the digest', dChanged !== d1)
+  sections.clearSystemPromptSections()
   const restored = await prompts.getSystemPrompt(tools, model, undefined, [])
   check('restoring the input restores the byte-identical render',
     renderFor(family, restored) === r1)
@@ -101,7 +110,7 @@ for (const [family, model] of FAMILY_MODELS) {
   let firstDiff = 0
   const max = Math.min(base.length, moved.length)
   while (firstDiff < max && base[firstDiff] === moved[firstDiff]) firstDiff++
-  check('the renders differ (the input is render-visible)', base !== moved)
+  check('the renders differ across the boundary (the input is render-visible)', base !== moved)
   check('a non-empty shared prefix precedes the first difference', firstDiff > 0,
     `firstDiff=${firstDiff}`)
   // The differing section is the env block, which sits in the dynamic group —
