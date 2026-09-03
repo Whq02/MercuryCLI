@@ -17,6 +17,7 @@ export interface MenuRow {
   kind: 'toggle' | 'enum' | 'string'
   options: readonly string[]
   defaultLabel: string
+  applicationClass?: 'new-session' | 'live'
   summary: string
   detail?: {
     controls: string
@@ -184,6 +185,36 @@ export const STARTUP_MENU: readonly MenuRow[] = [
       controls: "Your standing model choice for repo generation's building roles (developers, repair, integrator). Injected mechanically at launch with its provenance named, validated against the current model catalogue, and shown in the launch consent \u2014 an explicit per-run choice always wins.",
       on: ["building roles use this model automatically (named as the saved choice in the launch consent)", "shown at launch \u2014 pass a different model in the run's args to override"],
       off: ["the run asks for a model pick before launching"],
+    },
+  },
+  {
+    env: 'MERCURY_SESSION_SUBAGENTS',
+    label: 'Sub-agents',
+    group: 'agents',
+    kind: 'toggle',
+    options: ['0'],
+    defaultLabel: 'on',
+    applicationClass: 'live',
+    summary: 'whether a session may spawn sub-agents — off removes the Agent tool from its roster and closes every spawn road; the concourse itself keeps launching sessions',
+    detail: {
+      controls: "The sub-agents switch of the sessions born after this choice. On (the default): the Agent tool is in the roster and the model delegates as it does today. Off: the Agent tool is absent from the roster — the model never sees it — and every road that would spawn a sub-agent from inside the session (the tool, a skill fork, a workflow's agent hooks, the fleet tools, the Crew view's spawn key) answers one receipt naming /subagents and this menu. Per session: the concourse coordinator's own launches are untouched. Inside a session, /subagents on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.",
+      on: ['the Agent tool is in the roster; skills, workflows and the fleet tools may spawn', 'a running session flips it any time with /subagents off'],
+      off: ['no Agent tool in the roster; every spawn road answers "sub-agents are off for this session"', 'the concourse still launches sessions and crew seats', 'flip it back inside a session with /subagents on'],
+    },
+  },
+  {
+    env: 'MERCURY_SESSION_WORKFLOWS',
+    label: 'Workflows',
+    group: 'agents',
+    kind: 'toggle',
+    options: ['0'],
+    defaultLabel: 'on',
+    applicationClass: 'live',
+    summary: 'whether a session may run workflows — off removes the Workflow tool from its roster and closes the workflow launch roads (the run board stays readable)',
+    detail: {
+      controls: "The workflows switch of the sessions born after this choice. On (the default): the Workflow tool is in the roster and the workflow commands launch as they do today. Off: the Workflow tool leaves the roster and every workflow launch road (the tool, a workflow's own command) answers one receipt naming /workflows and this menu; /workflows still opens the run board to watch past runs. Inside a session, /workflows on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a run already going finishes.",
+      on: ['the Workflow tool is in the roster; the workflow commands launch', 'a running session flips it any time with /workflows off'],
+      off: ['no Workflow tool in the roster; the launch roads answer "workflows are off for this session"', 'the run board (/workflows) stays readable', 'flip it back inside a session with /workflows on'],
     },
   },
   {
@@ -631,7 +662,7 @@ export interface EffectiveSettingRow {
   env: string
   value: string | null
   source: 'process-env' | 'profile' | 'default'
-  applicationClass: 'new-session'
+  applicationClass: 'new-session' | 'live'
 }
 
 export interface SessionEffectiveSettingsSnapshotV1 {
@@ -654,14 +685,14 @@ export function resolveEffectiveSettingsSnapshot(args: {
   const rows: EffectiveSettingRow[] = STARTUP_MENU.map(row => {
     const pin = realEnvPin(row.env, processEnv)
     if (pin !== null) {
-      return { env: row.env, value: pin.value, source: 'process-env', applicationClass: 'new-session' }
+      return { env: row.env, value: pin.value, source: 'process-env', applicationClass: row.applicationClass ?? 'new-session' }
     }
     const spellings = flagSpellings(row.env)
     const profSpelling = profile ? spellings.find(sp => profile.env[sp] !== undefined) : undefined
     if (profile && profSpelling !== undefined) {
-      return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: 'new-session' }
+      return { env: row.env, value: profile.env[profSpelling] ?? null, source: 'profile', applicationClass: row.applicationClass ?? 'new-session' }
     }
-    return { env: row.env, value: null, source: 'default', applicationClass: 'new-session' }
+    return { env: row.env, value: null, source: 'default', applicationClass: row.applicationClass ?? 'new-session' }
   })
   const revision = profile?.revision ?? 0
   const digest = profile?.digest ?? profileDigestOf({})
@@ -754,6 +785,7 @@ export interface ExplicitApplyReceipt {
 export function evaluateExplicitApply(
   snapshot: SessionEffectiveSettingsSnapshotV1,
   profile: BootDefaultsProfileV1 | null,
+  liveValues?: Readonly<Record<string, string | null>>,
 ): ExplicitApplyReceipt[] {
   return snapshot.rows.map(row => {
     const spellings = flagSpellings(row.env)
@@ -767,12 +799,24 @@ export function evaluateExplicitApply(
         reason: 'pinned by the real environment — explicit env always wins (the :634 law); unset it and restart to follow the profile',
       } satisfies ExplicitApplyReceipt
     }
-    if ((row.value ?? null) === target) {
+    const current =
+      row.applicationClass === 'live' && liveValues !== undefined && row.env in liveValues
+        ? (liveValues[row.env] ?? null)
+        : (row.value ?? null)
+    if (current === target) {
       return {
         env: row.env,
         outcome: 'no-change',
         target,
         reason: 'already at the profile value — nothing to apply',
+      } satisfies ExplicitApplyReceipt
+    }
+    if (row.applicationClass === 'live') {
+      return {
+        env: row.env,
+        outcome: 'queued',
+        target,
+        reason: "a session's own switch (application class: live) — lands at the session's next turn boundary through its switch; the tool leaves or rejoins the roster, reasoning restarts on the next turn, a spawn already running finishes",
       } satisfies ExplicitApplyReceipt
     }
     return {

@@ -27,6 +27,7 @@ import { assignTeammateColor } from '../../utils/swarm/teammateLayoutManager.js'
 import type { SetAppState } from '../../utils/messageQueueManager.js'
 import { TEAM_CREATE_TOOL_NAME } from './constants.js'
 import { TEAM_DELETE_TOOL_NAME } from '../TeamDeleteTool/constants.js'
+import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { getPrompt } from './prompt.js'
 import { extractSearchText, renderToolResultMessage, renderToolUseMessage } from './UI.js'
 
@@ -191,7 +192,7 @@ export const TeamCreateTool = buildTool({
   shouldDefer: true,
   maxResultSizeChars: 100_000,
   inputSchema,
-  isEnabled: () => isAgentSwarmsEnabled(),
+  isEnabled: () => isAgentSwarmsEnabled() && evaluateLaunchAuthority('subagents').allowed,
   isConcurrencySafe: () => false,
   isReadOnly: () => false,
   async description(): Promise<string> {

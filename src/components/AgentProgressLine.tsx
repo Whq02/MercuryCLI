@@ -21,6 +21,7 @@ export type AgentProgressLineProps = {
   shouldAnimate?: boolean
   lastToolInfo?: string
   hideType?: boolean
+  statusLine?: string
 }
 
 export function AgentProgressLine({
@@ -40,6 +41,7 @@ export function AgentProgressLine({
   shouldAnimate,
   lastToolInfo,
   hideType = false,
+  statusLine,
 }: AgentProgressLineProps): React.ReactNode {
   void isError
   void shouldAnimate
@@ -81,9 +83,11 @@ export function AgentProgressLine({
     ? taskDescription
       ? `${taskDescription} continues in the background`
       : 'continues in the background'
-    : !isResolved
-      ? (lastToolInfo ?? 'initialising…')
-      : 'done'
+    : statusLine !== undefined
+      ? statusLine
+      : !isResolved
+        ? (lastToolInfo ?? 'initialising…')
+        : 'done'
 
   return (
     <Box flexDirection="column">
