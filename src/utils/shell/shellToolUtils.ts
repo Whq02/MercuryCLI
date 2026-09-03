@@ -9,3 +9,7 @@ export function isPowerShellToolEnabled(): boolean {
   if (getPlatform() !== 'windows') return false
   return isEnvTruthy(process.env.MERCURY_USE_POWERSHELL_TOOL)
 }
+
+export function firstCommandWord(subcommand: string): string {
+  return subcommand.trim().split(/\s+/)[0] ?? ''
+}

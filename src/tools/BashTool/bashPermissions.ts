@@ -522,7 +522,8 @@ export async function checkCommandAndSuggestRules(
 }
 
 
-function sandboxAutoAllow(command: string, context: ToolPermissionContext): PermissionResult {
+function sandboxAutoAllow(input: BashInput, context: ToolPermissionContext): PermissionResult {
+  const command = input.command
   const fullDeny = matchRules(command, context, 'deny', 'prefix', true)
   if (fullDeny !== null) {
     return { behavior: 'deny', message: `${command} is blocked by a deny rule.`, decisionReason: ruleReason(context, fullDeny, 'deny') }
@@ -549,7 +550,7 @@ function sandboxAutoAllow(command: string, context: ToolPermissionContext): Perm
   if (fullAsk !== null) {
     return { behavior: 'ask', message: createPermissionRequestMessage(TOOL_NAME), decisionReason: ruleReason(context, fullAsk, 'ask') }
   }
-  return { behavior: 'allow', updatedInput: { command } as BashInput, decisionReason: { type: 'other', reason: 'Auto-allowed with sandbox' } }
+  return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Auto-allowed with sandbox' } }
 }
 
 
@@ -628,7 +629,7 @@ export async function bashToolHasPermission(
     SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
     shouldUseSandbox(input)
   ) {
-    const auto = sandboxAutoAllow(command, context)
+    const auto = sandboxAutoAllow(input, context)
     if (auto.behavior !== 'passthrough') return auto
   }
 

@@ -2092,7 +2092,10 @@
         ],
         "class": "coordination",
         "cancellation": "not-applicable",
-        "latency": "fast"
+        "latency": "fast",
+        "conditions": [
+          "the task list off — an interactive session (or MERCURY_TASKS=1) serves the task list in its place"
+        ]
       }
     },
     {

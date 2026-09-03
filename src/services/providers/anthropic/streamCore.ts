@@ -217,7 +217,17 @@ import {
   updateUsage,
 } from './cacheAndUsage.js'
 import { getPreviousRequestIdFromMessages, stripExcessMediaItems } from './media.js'
-import { streamIdleTimeoutMs, streamIdleWarningMsOf } from '../streamIdleBudget.js'
+import {
+  coldPrefixOf,
+  estimateRequestTokens,
+  firstByteBudgetMs,
+  firstByteTimeoutLine,
+  requestWaitLine,
+  retryReasonWords,
+  streamIdleTimeoutMs,
+  streamIdleWarningMsOf,
+  type RequestWaitV1,
+} from '../streamIdleBudget.js'
 import {
   configureEffortParams,
   configureTaskBudgetParams,
@@ -245,6 +255,7 @@ export type Options = {
   maxOutputTokensOverride?: number
   fallbackModel?: string
   onStreamingFallback?: () => void
+  onWait?: (wait: RequestWaitV1 | null) => void
   querySource: QuerySource
   agents: AgentDefinition[]
   allowedAgentTypes?: string[]
@@ -459,6 +470,11 @@ export async function* executeNonStreamingRequest(
   } while (!e.done)
 
   return e.value as BetaMessage
+}
+
+function isFirstByteTimeout(error: unknown): boolean {
+  if (error instanceof APIConnectionTimeoutError) return true
+  return error instanceof Error && error.constructor?.name === 'APIConnectionTimeoutError'
 }
 
 async function* queryModel(
@@ -1066,9 +1082,22 @@ async function* queryModel(
 
         maxOutputTokens = params.max_tokens
 
+        const promptTokens = estimateRequestTokens({ system: params.system, tools: params.tools, messages: params.messages })
+        const cold = coldPrefixOf(messages, options.model)
+        const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+          kind: 'first-byte',
+          cold,
+          promptTokens,
+          model: getPublicModelDisplayName(context.model) ?? context.model,
+          budgetMs: firstByteBudgetMs({ cold, promptTokens }),
+          sinceMs: Date.now(),
+          attempt,
+        }
+        options.onWait?.(wait)
+
         if (pulseMain) {
           pulseMark('api_request_sent')
-          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting')
+          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: requestWaitLine(wait) })
         }
         if (!options.agentId) {
           headlessProfilerCheckpoint('api_request_sent')
@@ -1077,18 +1106,34 @@ async function* queryModel(
 
         clientRequestId = isFirstPartyAnthropicBaseUrl() ? randomUUID() : undefined
 
-        const result = await anthropic.beta.messages
-          .create(
-            { ...params, stream: true },
-            {
-              signal,
-              ...(clientRequestId && {
-                headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
-              }),
-            },
-          )
-          .withResponse()
-        if (pulseMain) pulseMark('response_headers_received')
+        const dispatch = () =>
+          anthropic.beta.messages
+            .create(
+              { ...params, stream: true },
+              {
+                signal,
+                timeout: wait.budgetMs,
+                ...(clientRequestId && {
+                  headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
+                }),
+              },
+            )
+            .withResponse()
+        let result: Awaited<ReturnType<typeof dispatch>>
+        try {
+          result = await dispatch()
+        } catch (sent) {
+          if (!signal.aborted && isFirstByteTimeout(sent)) {
+            logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
+            throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait) })
+          }
+          throw sent
+        }
+        options.onWait?.(null)
+        if (pulseMain) {
+          pulseMark('response_headers_received')
+          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: undefined })
+        }
         streamRequestId = result.request_id
         streamResponse = result.response
         return result.data
@@ -1106,6 +1151,19 @@ async function* queryModel(
     do {
       e = await generator.next()
       if (!('controller' in e.value)) {
+        const notice = e.value as SystemAPIErrorMessage
+        if (notice.type === 'system' && notice.subtype === 'api_error') {
+          const retryWait: RequestWaitV1 = {
+            kind: 'retry',
+            attempt: notice.retryAttempt,
+            of: notice.maxRetries,
+            reason: retryReasonWords(notice.errorDetail?.status ?? (notice.error as { status?: number | null } | undefined)?.status, notice.error?.message),
+            delayMs: notice.retryInMs,
+            sinceMs: Date.now(),
+          }
+          options.onWait?.(retryWait)
+          if (pulseMain) setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: requestWaitLine(retryWait) })
+        }
         yield e.value
       }
     } while (!e.done)
