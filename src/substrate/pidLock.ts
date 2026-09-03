@@ -26,6 +26,12 @@ async function currentProcStartAnyPlatform(): Promise<{ procStartField: { procSt
 
 async function liveTokenFor(holder: PidLockHolder | null): Promise<string | null | undefined> {
   if (!holder?.procStart) return undefined
+  if (/^\d+$/.test(holder.procStart)) {
+    const local = procStartToken(holder.pid)
+    if (local !== undefined) return local
+    const probed = await getProcessStartTokenAsync(holder.pid)
+    return probed === '' ? '' : null
+  }
   return getProcessStartTokenAsync(holder.pid)
 }
 
