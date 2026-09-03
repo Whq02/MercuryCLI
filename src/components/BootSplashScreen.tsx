@@ -743,7 +743,12 @@ export function BootSplashScreen(): React.ReactNode {
 
   const selectedIndex = selCleared ? -1 : list.selectedIndex;
   const composition = useMemo(() => {
-    const composed = core.composeLockup(columns, rows, {
+    // THE PLAIN WORLD ALWAYS PAINTS ITS KEY-MAP ROW (the operator's ruling):
+    // a --chat face is the only door to the chat's ⇧→ keybind, so the row
+    // is never squeezed out by a block that fills the terminal — the block
+    // composes and places over one row less and the last row is its own.
+    const faceRows = plainWhy !== null && keyMapHint !== '' ? Math.max(1, rows - 1) : rows;
+    const composed = core.composeLockup(columns, faceRows, {
       cardRows: composedRows.map(r => ({
         icon: r.icon,
         label: r.label,
@@ -784,17 +789,18 @@ export function BootSplashScreen(): React.ReactNode {
     // the same call the launcher's cinematic frame makes at this geometry,
     // so the hero rows and the wordmark row are equal across the seam BY
     // CONSTRUCTION (the fixed card-slot constant is retired).
-    const { placed, top } = core.placeBlock(composed.lines, rows);
+    const { placed, top } = core.placeBlock(composed.lines, faceRows);
     return {
       placed: placed as string[],
       actionAt: new Map<number, number>((composed.actionLines as number[]).map((line, i) => [line + top, i])),
       // THE KEY-MAP ROW's threshold: the face's last row lies OUTSIDE the
       // placed block (so the row never squeezes the block or overlaps the
-      // strip); a geometry the block fills to the bottom carries no row.
-      lastRowFree: top + (composed.lines as string[]).length <= rows - 1,
+      // strip); with the concourse on, a geometry the block fills to the
+      // bottom carries no row — the plain world reserved the row above.
+      lastRowFree: faceRows !== rows || top + (composed.lines as string[]).length <= rows - 1,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [core, columns, rows, selectedIndex, composedRows, chips, menuAvailable, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
+  }, [core, columns, rows, plainWhy, keyMapHint, selectedIndex, composedRows, chips, menuAvailable, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
   // FLAT GROUND (round 7): the scene paints no backdrop of its own — the
   // composed lines ride the estate ground exactly like the main REPL.
