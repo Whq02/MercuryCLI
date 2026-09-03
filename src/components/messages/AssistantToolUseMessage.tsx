@@ -269,6 +269,9 @@ export function AssistantToolUseMessage({
           columns,
           rows,
           inProgressToolCallCount,
+          // The row's own tool-use id: a launcher's card joins its rows to
+          // the session's work roster by it (the Agent tool's crew record).
+          toolUseID: param.id,
         }) ?? null
     } catch (error) {
       logError(error)

@@ -83,7 +83,7 @@ type UsageBits = Partial<{
 }>
 let seq = 0
 /** One assistant message as the tracker sees it — the wire's usage shape. */
-const assistant = (id: string, model: string, usage: UsageBits): never =>
+const assistant = (id: string, model: string, usage: UsageBits, toolNames: string[] = []): never =>
   ({
     type: 'assistant',
     uuid: `fx-${id}-${++seq}`,
@@ -96,7 +96,7 @@ const assistant = (id: string, model: string, usage: UsageBits): never =>
       type: 'message',
       stop_reason: null,
       stop_sequence: null,
-      content: [],
+      content: toolNames.map((name, i) => ({ type: 'tool_use', id: `tu-${id}-${i}`, name, input: {} })),
       usage: {
         input_tokens: 0,
         output_tokens: 0,
@@ -157,9 +157,9 @@ console.log('— T1 the ledger fold —')
 
 // ── T2 the projector, both families ─────────────────────────────────────────
 console.log('— T2 the projector, both families —')
-const fold = (model: string, input: number, output: number) => {
+const fold = (model: string, input: number, output: number, toolNames: string[] = []) => {
   const tr = createProgressTracker()
-  updateProgressFromMessage(tr, assistant(`${model}-1`, model, { input_tokens: input, output_tokens: output }))
+  updateProgressFromMessage(tr, assistant(`${model}-1`, model, { input_tokens: input, output_tokens: output }, toolNames))
   return getProgressUpdate(tr)
 }
 const agentTask = (id: string, description: string, extra: Record<string, unknown>) => ({
@@ -177,9 +177,9 @@ const agentTask = (id: string, description: string, extra: Record<string, unknow
   ...extra,
 })
 const store = {
-  ag1: agentTask('ag1', 'tide-gauges', { model: OPENAI_ID, progress: fold(OPENAI_ID, 1200, 300), startTime: t0 + 1 }),
-  ag2: agentTask('ag2', 'reef-survey', { model: ANTHROPIC_ID, progress: fold(ANTHROPIC_ID, 1500, 200), startTime: t0 + 2 }),
-  ag3: agentTask('ag3', 'fresh-launch', { model: ANTHROPIC_ID, startTime: t0 + 3 }),
+  ag1: agentTask('ag1', 'tide-gauges', { toolUseId: 'tu-ag1', model: OPENAI_ID, progress: fold(OPENAI_ID, 1200, 300, ['Read']), startTime: t0 + 1 }),
+  ag2: agentTask('ag2', 'reef-survey', { toolUseId: 'tu-ag2', model: ANTHROPIC_ID, progress: fold(ANTHROPIC_ID, 1500, 200), startTime: t0 + 2 }),
+  ag3: agentTask('ag3', 'fresh-launch', { toolUseId: 'tu-ag3', model: ANTHROPIC_ID, startTime: t0 + 3 }),
   ag4: agentTask('ag4', 'landed-scout', {
     status: 'completed',
     model: ANTHROPIC_ID,
@@ -333,8 +333,8 @@ console.log('— T4 the Crew view painted off-screen —')
   const landed = await paint(landedRows)
   const landedFacts = crew.crewAgentsOf(landedRows, 'fx-session')
   check(
-    'T4 after landing: both agents still listed with model + tokens, the status word landed',
-    landed.includes(OPENAI_ID) && landed.includes(ANTHROPIC_ID) && landed.includes('completed') &&
+    'T4 after landing: both agents still listed with model + tokens, the one status word (landed, never the runner\'s completed)',
+    landed.includes(OPENAI_ID) && landed.includes(ANTHROPIC_ID) && landed.includes('landed') && !landed.includes('completed') &&
       landed.includes(crew.crewTokensLabel(landedFacts.find(a => a.id === 'ag1')!)!),
   )
   check('T4 after landing: the count label reads none running', landed.includes(crew.crewCountLabel(landedFacts)) && crew.crewCountLabel(landedFacts).startsWith('0 running'))
@@ -431,6 +431,105 @@ console.log('— T6 the source pins —')
   check(
     'T6 /teammates mounts the Crew view',
     src('src/commands/teammates/teammates.tsx').includes('<CrewView'),
+  )
+}
+
+
+// ── T7 the one status vocabulary + the transcript's agent card ──────────────
+console.log('— T7 the status vocabulary and the transcript card —')
+{
+  const stateOf = (status: string) => crew.crewStateOf({ status })
+  check(
+    'T7 running/pending → running · completed → landed · killed → stopped · failed → failed',
+    stateOf('running') === 'running' && stateOf('pending') === 'running' && stateOf('completed') === 'landed' &&
+      stateOf('killed') === 'stopped' && stateOf('failed') === 'failed',
+  )
+  check(
+    "T7 an interrupt's stop words land on stopped",
+    stateOf('stopped') === 'stopped' && stateOf('interrupted') === 'stopped' && stateOf('cancelled') === 'stopped',
+  )
+  check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 4 agents' && crew.crewWaitingLine([]) === null)
+  const ag1 = agents.find(a => a.id === 'ag1')!
+  check(
+    "T7 the wire carries the launch's tool-use id, its tool-use count and its activity",
+    ag1.toolUseId === 'tu-ag1' && ag1.toolUses === 1 && ag1.activity === 'Read' && crew.crewToolUsesLabel(ag1) === '1 tool use',
+    JSON.stringify({ toolUseId: ag1.toolUseId, toolUses: ag1.toolUses, activity: ag1.activity }),
+  )
+  check(
+    'T7 the join finds an agent by its tool-use id and a named agent by name',
+    crew.crewAgentByToolUse(agents, 'tu-ag1')?.id === 'ag1' && crew.crewAgentByToolUse(agents, 'tu-none') === null && crew.crewAgentByName(agents, '@scout')?.id === 'tm1',
+  )
+  check('T7 the row line speaks the vocabulary', crew.crewRowLine(agents.find(a => a.id === 'ag4')!, t0).includes(' · landed · '))
+  // The transcript's grouped card and single card, painted off-screen from the fixture connector.
+  const React = (await import('react')).default
+  const { renderToString } = await import('../../src/utils/staticRender.tsx')
+  const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(
+    '../../src/services/engine-connector/focusedConnector.ts'
+  )
+  const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
+  const ui = await import('../../src/tools/AgentTool/UI.tsx')
+  // The card's subtree reads the app state (the REPL wraps every row); the
+  // harness mounts the same provider around the paint.
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
+    ({
+      sessionId: () => 'fx-session',
+      workRoster: () => work,
+      subscribeWork: () => () => {},
+      subscribeRecords: () => () => {},
+      identity: () => ({ firstPartyApi: true, consoleBilling: true, claudeAiBilling: false, accountEmail: null }),
+    }) as never
+  setFocusedSessionConnector(fake({ rows, mission: [] }))
+  const paint = async (node: React.ReactNode, width: number): Promise<string> => {
+    try {
+      return await renderToString(React.createElement(AppStateProvider as never, {}, node), width)
+    } catch (e) {
+      return `RENDER FAILED: ${String(e)}`
+    }
+  }
+  const grouped = await paint(
+    ui.renderGroupedAgentToolUse(
+      [
+        { toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', subagent_type: 'general-purpose' }, progressMessages: [] },
+        { toolUseID: 'tu-ag2', input: { description: 'reef-survey', prompt: 'p', subagent_type: 'general-purpose' }, progressMessages: [] },
+        { toolUseID: 'tu-none', input: { description: 'unjoined', prompt: 'p' }, progressMessages: [] },
+      ] as never,
+      { shouldAnimate: false, tools: [] as never },
+    ),
+    110,
+  )
+  check('T7 the grouped card paints', !grouped.startsWith('RENDER FAILED'), grouped.slice(0, 200))
+  check(
+    "T7 the grouped card's joined rows paint the record — model · tool uses · tokens",
+    grouped.includes(OPENAI_ID) && grouped.includes(ANTHROPIC_ID) && grouped.includes('1 tool use') && grouped.includes(crew.crewTokensLabel(ag1)!),
+  )
+  check(
+    "T7 a joined row's status line is its activity + elapsed; an unjoined row keeps the tool's own initialising word",
+    grouped.includes('Read · ') && grouped.includes('initialising'),
+  )
+  const single = await paint(ui.renderToolUseProgressMessage([], { tools: [] as never, verbose: false, toolUseID: 'tu-ag1' }), 100)
+  check(
+    'T7 the single card before any progress row paints the record',
+    single.includes(OPENAI_ID) && single.includes('running') && single.includes('1 tool use') && single.includes(crew.crewTokensLabel(ag1)!),
+    single.slice(0, 160),
+  )
+  const unknown = await paint(ui.renderToolUseProgressMessage([], { tools: [] as never, verbose: false, toolUseID: 'tu-none' }), 100)
+  check('T7 an unjoined single card keeps the honest initialising line', unknown.includes('Initializing agent'))
+  const stoppedRows: WorkRowV1[] = rows.map(r => (r.id === 'ag1' ? { ...r, status: 'killed', endTime: r.startTime + 5000 } : r))
+  setFocusedSessionConnector(fake({ rows: stoppedRows, mission: [] }))
+  const view = await paint(React.createElement(CrewView, { onClose: () => {} }), 110)
+  check("T7 a killed row reads 'stopped' on the Crew view — never the runner's word", view.includes('stopped') && !view.includes('killed'))
+  const card = await paint(React.createElement(RosterWorkDetail, { work: stoppedRows.find(r => r.id === 'ag1')!, now: t0 + 61_001, onBack: () => {} }), 100)
+  check("T7 …and on the card", card.includes('stopped') && !card.includes('killed'))
+  _resetFocusedSessionConnectorForTesting()
+  check(
+    "T7 the tool row hands its id to the tool's progress renderer",
+    src('src/components/messages/AssistantToolUseMessage.tsx').includes('toolUseID: param.id,'),
+  )
+  const uiSrc = src('src/tools/AgentTool/UI.tsx')
+  check(
+    'T7 the agent card joins its rows to the owner',
+    uiSrc.includes('crewAgentByToolUse(') && uiSrc.includes('<CrewAgentRows entries={entries} animate={animate} />'),
   )
 }
 

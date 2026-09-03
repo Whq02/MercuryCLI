@@ -149,15 +149,17 @@ for (const f of FAMILIES) {
   const threshold = compact.getAutoCompactThreshold(f.model)
   thresholds.set(f.model, threshold)
   const reserve = Math.min(getModelMaxOutputTokens(f.model).upperLimit, 20_000, Math.floor(f.window / 4))
-  const expected = Math.max(effective - 13_000, Math.ceil(effective / 2))
+  // The default threshold is the FULL usable window — the blocking limit
+  // (effective − the manual-compact headroom); no early buffer.
+  const expected = effective - 3_000
   check(`${f.label}: window ${f.window.toLocaleString()} · effective ${effective.toLocaleString()} · threshold ${threshold.toLocaleString()} (${((threshold / f.window) * 100).toFixed(1)}%)`, r.effectiveWindow === f.window && effective === f.window - reserve && threshold === expected, JSON.stringify({ w: r.effectiveWindow, s: r.source, effective, threshold }))
 }
 check('a 1M carrier never compacts at ~160k: its threshold exceeds 950,000', thresholds.get('openrouter/stealth/ox-alpha')! > 950_000)
-check('a 131k carrier never sails to 200k: its threshold is below 131,072', thresholds.get('openrouter/meta/llama-small')! < 131_072 && thresholds.get('openrouter/meta/llama-small')! === 131_072 - 20_000 - 13_000)
+check('a 131k carrier never sails to 200k: its threshold is below 131,072', thresholds.get('openrouter/meta/llama-small')! < 131_072 && thresholds.get('openrouter/meta/llama-small')! === 131_072 - 20_000 - 3_000)
 {
   const tiny = compact.getAutoCompactThreshold('openrouter/tiny/edge-32k')
   const tinyEff = compact.getEffectiveContextWindowSize('openrouter/tiny/edge-32k')
-  check('a 32,768 row keeps the proportional floors: effective 24,576 (reserve ≤ window/4) · threshold 12,288 (≥ effective/2)', tinyEff === 24_576 && tiny === 12_288, JSON.stringify({ tinyEff, tiny }))
+  check('a 32,768 row keeps the proportional reserve: effective 24,576 (reserve ≤ window/4) · threshold 21,576 (the full usable window)', tinyEff === 24_576 && tiny === 21_576, JSON.stringify({ tinyEff, tiny }))
 }
 
 section('T2 · shouldAutoCompact is exact to the token on every family')
@@ -202,8 +204,14 @@ section('T3 · settings override clamps; the warning ladder, blocking limit, ove
   const warnBelow = compact.calculateTokenWarningState(threshold - 20_001, model)
   const compactAt = compact.calculateTokenWarningState(threshold, model)
   const blockedAt = compact.calculateTokenWarningState(effective - 3_000, model)
-  check('warning ladder: warn at threshold − 20,000 · ok one token below · compact at threshold · blocked at effective − 3,000', warnAt.level === 'warn' && warnBelow.level === 'ok' && compactAt.level === 'compact' && blockedAt.level === 'blocked', JSON.stringify({ warnAt, warnBelow, compactAt, blockedAt }))
-  check('pctLeft is measured against the trigger threshold (0 at threshold)', compactAt.pctLeft === 0 && warnAt.pctLeft === Math.round((20_000 / threshold) * 100))
+  // The default threshold IS the blocking limit (effective − 3,000): the
+  // fold fires at the last count a call still fits at, and the level there
+  // reads blocked (the stronger word — the trigger folds on either).
+  check('warning ladder: warn at threshold − 20,000 · ok one token below · the fold point at threshold (compact/blocked) · blocked at effective − 3,000', warnAt.level === 'warn' && warnBelow.level === 'ok' && (compactAt.level === 'compact' || compactAt.level === 'blocked') && blockedAt.level === 'blocked', JSON.stringify({ warnAt, warnBelow, compactAt, blockedAt }))
+  // pctLeft is the room to the threshold as a share of the model's WINDOW
+  // (the header's own denominator): 0 at the threshold, and 20,000 tokens
+  // under it exactly 20,000/window.
+  check('pctLeft is measured to the trigger threshold over the model window (0 at threshold)', compactAt.pctLeft === 0 && warnAt.pctLeft === Math.round((20_000 / resolveContextWindow(model).effectiveWindow) * 100), JSON.stringify({ compactAt, warnAt }))
   const overflow = compact.detectFixedPrefixOverflow(transcriptAt(threshold + 50_000) as never, model)
   check('the fixed-prefix overflow diagnostic reads the same threshold', overflow !== null && overflow.thresholdTokens === threshold && overflow.prefixTokens <= effective, JSON.stringify(overflow))
   const source = src('src/services/compact/autoCompact.ts')

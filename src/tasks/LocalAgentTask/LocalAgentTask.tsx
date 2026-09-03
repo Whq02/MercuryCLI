@@ -29,6 +29,7 @@ import {
 } from '../../utils/task/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
+import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
 
 /**
  * Background-agent task lifecycle: registration (background and
@@ -553,6 +554,36 @@ export function killAllRunningAgentTasks(
     if (task.status !== 'running') continue
     killAsyncAgent(task.id, setAppState)
   }
+}
+
+/**
+ * THE OPERATOR'S STOP of every running background agent — the one road the
+ * chat's kill chord and a hosted session's interrupt share: each running
+ * agent's controller aborts (its own query tears down), the task settles
+ * killed, it is marked notified (one aggregate word, never per-agent noise)
+ * and its termination rides the SDK stream as `stopped`, so every reader of
+ * the task rows — the transcript, a daemon's seat — learns the same fact.
+ * Returns the agents that were running, in task order; the caller decides
+ * whether the model hears about it (the chat queues one notification, an
+ * interrupt says nothing — the interruption row is the whole story).
+ */
+export function stopRunningAgentTasks(
+  tasks: Record<string, unknown>,
+  setAppState: SetAppState,
+): LocalAgentTaskState[] {
+  const running = Object.values(tasks ?? {}).filter(
+    (task): task is LocalAgentTaskState => isLocalAgentTask(task) && task.status === 'running',
+  )
+  if (running.length === 0) return running
+  killAllRunningAgentTasks(tasks, setAppState)
+  for (const task of running) {
+    markAgentsNotified(task.id, setAppState)
+    emitTaskTerminatedSdk(task.id, 'stopped', {
+      ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
+      summary: task.description,
+    })
+  }
+  return running
 }
 
 /** Mark an agent task notified without enqueueing (a bulk kill sends one

@@ -1388,7 +1388,9 @@ export async function* runEventCore(
       // (auto-compact off, or a compaction attempt changed the view). An
       // over-limit fold's own estimate leads.
       const estimatedTokens =
-        compactionResult?.truePostCompactTokenCount ?? measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery)
+        compactionResult?.truePostCompactTokenCount ??
+        measuredRawTokenCount ??
+        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.mainLoopModel)
       const { level } = calculateTokenWarningState(
         estimatedTokens,
         toolUseContext.options.mainLoopModel,

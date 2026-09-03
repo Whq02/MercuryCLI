@@ -4,6 +4,7 @@
 // what lets the focus machine skip disabled runs in either direction
 // without re-scanning arrays.
 
+import { isEqualWith } from 'lodash-es'
 import type React from 'react'
 
 /** The value side accepts any string beyond the pinned union — callers mix
@@ -64,6 +65,21 @@ export function isInputOption<T>(
   option: OptionWithDescription<T> | undefined,
 ): option is InputOption<T> {
   return option?.type === 'input'
+}
+
+/** Two option lists are EQUIVALENT when every field but their callbacks
+ *  matches deeply. A caller that builds its list inline hands the select a
+ *  fresh handler identity on every render; a handler swap is not a list
+ *  change, and the reset paths (focus re-seed, selection re-seed) key on
+ *  THIS, never on identity — a per-render reset re-seeded the highlight
+ *  from the selected answer on every keystroke. */
+export function optionsEquivalent<T>(
+  a: readonly OptionWithDescription<T>[],
+  b: readonly OptionWithDescription<T>[],
+): boolean {
+  return isEqualWith(a, b, (x: unknown, y: unknown) =>
+    typeof x === 'function' && typeof y === 'function' ? true : undefined,
+  )
 }
 
 export type OptionMapItem<T> = {
