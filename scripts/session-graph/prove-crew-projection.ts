@@ -72,6 +72,7 @@ t.section('§3 — derivation joins registry + owner facts (silence on unknown)'
   })
   // Party store: engaged, tank busy (→ online/working), healer dead
   // (→ offline/failed); one dispatch names the tank's focus.
+  mkdirSync(join(scratch, 'party'), { recursive: true })
   writeFileSync(
     join(scratch, 'party', 'state.json'),
     JSON.stringify({

@@ -124,7 +124,12 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   // rescaled twice, its resting pin landed a turn away on the way back).
   // The surface size the REPL subtree sees is frozen HERE, from the one
   // latch; the hosts beneath judge the floor on the live size.
-  const liveSize = useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext);
+  // Both contexts are read on EVERY render: `useContext(A) ?? useContext(B)`
+  // short-circuits the second hook once the live context provides, and a
+  // hook count that changes between renders is the React #300 class.
+  const liveSizeCtx = useContext(LiveTerminalSizeContext);
+  const baseSizeCtx = useContext(TerminalSizeContext);
+  const liveSize = liveSizeCtx ?? baseSizeCtx;
   const surface = useViewportFloor(liveSize, true);
   // #43 (family): the surface-cycle chord HANDLERS live in
   // GlobalKeybindingHandlers (useGlobalKeybindings.tsx), NOT here — this
@@ -239,7 +244,10 @@ function RouteSurfaceHost({
   // key left absent is never re-applied. The context's own size object is
   // what the hook freezes and re-provides, so consumers keep its identity
   // while the window fits.
-  const floor = useViewportFloor(useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext), true);
+  // Both contexts read unconditionally (the same hook-count law as above).
+  const hostLiveSize = useContext(LiveTerminalSizeContext);
+  const hostBaseSize = useContext(TerminalSizeContext);
+  const floor = useViewportFloor(hostLiveSize ?? hostBaseSize, true);
   return (
     <Box
       ref={elevatedRef}

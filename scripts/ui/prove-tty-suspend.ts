@@ -95,7 +95,7 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
     const receipt = restoreTerminalForStop('SIGTSTP', capturingHost(stop, alt), fg.stdin)
     check(
       `SIGTSTP (alt=${alt}): the stop writes EXACTLY the exit teardown suite's bytes, in its order`,
-      stop.bytes.join('') === exit.bytes.join(''),
+      stop.bytes.join('\x01') === exit.bytes.join('\x01'),
       `stop=${JSON.stringify(stop.bytes)} exit=${JSON.stringify(exit.bytes)}`,
     )
     check(`SIGTSTP (alt=${alt}): the input queue is drained (foreground stop)`, stop.drains === 1 && stop.pointer === 1)
@@ -113,7 +113,7 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
       const cap: Capture = { bytes: [], drains: 0, pointer: 0 }
       const st = rawStdin(true)
       const r = restoreTerminalForStop(bg, capturingHost(cap, alt), st.stdin)
-      check(`${bg} (alt=${alt}): same bytes as the exit suite`, cap.bytes.join('') === exit.bytes.join(''))
+      check(`${bg} (alt=${alt}): same bytes as the exit suite`, cap.bytes.join('\x01') === exit.bytes.join('\x01'))
       check(
         `${bg} (alt=${alt}): a BACKGROUND stop never touches the line discipline nor reads the terminal (SIGTTOU/SIGTTIN would stop it mid-restore)`,
         cap.drains === 0 && st.calls.length === 0 && r.rawModeOff === false,

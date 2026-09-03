@@ -319,7 +319,10 @@ if (process.env.IROW_CHILD) {
 
   console.log('\n── D. hover paint + unavailable inertness (raw rows) ────────')
   {
-    const base = capture('d0', 'rows', [], 24, 60, 12)
+    // The rows fixture mounts the alternate-screen host, which paints the
+    // one resize line under the 80 × 22 viewport floor — the raw-row legs
+    // live AT the floor.
+    const base = capture('d0', 'rows', [], 24, 80, 22)
     let aRow = -1
     let oRow = -1
     if (base) {
@@ -335,12 +338,12 @@ if (process.env.IROW_CHILD) {
       return out
     }
     if (aRow >= 0 && oRow >= 0) {
-      const d1 = capture('d1', 'rows', [{ atTick: 16, data: motion(4, aRow + 1) }], 26, 60, 12)
+      const d1 = capture('d1', 'rows', [{ atTick: 16, data: motion(4, aRow + 1) }], 26, 80, 22)
       if (d1) {
         const lit = hoverRows(d1.grid)
         check('hover paints exactly the live row', lit.length === 1 && lit[0] === aRow, `lit=${lit.join(',')}`)
       }
-      const d2 = capture('d2', 'rows', [{ atTick: 16, data: motion(4, oRow + 1) }], 26, 60, 12)
+      const d2 = capture('d2', 'rows', [{ atTick: 16, data: motion(4, oRow + 1) }], 26, 80, 22)
       if (d2) {
         check('an unavailable row takes NO hover paint', hoverRows(d2.grid).length === 0)
       }
@@ -389,7 +392,7 @@ if (process.env.IROW_CHILD) {
     }
     for (const family of ['light', 'dark-ansi'] as const) {
       const expected = gridForm(resolveMercuryTokens(family, '#DD4444').surface2)
-      const base = capture(`e-${family}-0`, 'rows', [], 24, 60, 12, { IROW_THEME: family })
+      const base = capture(`e-${family}-0`, 'rows', [], 24, 80, 22, { IROW_THEME: family })
       const aRow = base ? base.lines.findIndex(l => l.includes('ROW-alpha')) : -1
       if (aRow < 0) {
         check(`${family}: fixture renders`, false)

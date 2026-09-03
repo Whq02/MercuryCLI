@@ -75,7 +75,7 @@ console.log('L3 the dialog (source pins)')
 {
   const dialog = readFileSync(join(SRC, 'components/InvalidConfigDialog.tsx'), 'utf8')
   check('the dialog looks the newest backup up', dialog.includes('findMostRecentBackup(error.filePath)'))
-  check('it offers the restore as the FIRST option, naming the copy', /Restore the newest backup \(\$\{basename\(backupPath\)\}\)/.test(dialog) && dialog.indexOf("value: 'restore'") < dialog.indexOf("value: 'exit'"))
+  check('it offers the restore as the FIRST option, naming the copy', /Restore the newest backup \(\$\{basename\(backupPath\)\}\)/.test(dialog) && dialog.indexOf("value: 'restore'") !== -1 && dialog.indexOf("value: 'restore'") < dialog.indexOf("value: 'exit'"))
   check('the restore rides the one road and exits 0 with a notice', dialog.includes('restoreConfigFromBackup(error.filePath, backupPath)') && dialog.includes('the configuration was restored from'))
   check('the reset option warns what it discards', dialog.includes('discards account, trust grants, project records'))
   check('the copy is named in the dialog text', dialog.includes('The newest good copy is at'))

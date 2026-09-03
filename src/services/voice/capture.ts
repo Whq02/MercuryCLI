@@ -266,7 +266,7 @@ function startFixture(): RawCapture {
 /** The first dshow audio device ffmpeg lists (Windows has no "default"
  *  alias on that input). */
 function firstDshowAudioDevice(ffmpeg: string, env: NodeJS.ProcessEnv): string | null {
-  const probe = spawnSync(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { encoding: 'utf8', env, timeout: 10_000 })
+  const probe = spawnSync(ffmpeg, ['-hide_banner', '-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], { encoding: 'utf8', env, timeout: 10_000, windowsHide: true })
   const text = `${probe.stdout ?? ''}\n${probe.stderr ?? ''}`
   for (const line of text.split('\n')) {
     const m = /"([^"]+)"\s*\((audio)\)/.exec(line)
@@ -301,7 +301,7 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
   let stderr = ''
   let child: ChildProcess
   try {
-    child = spawn(exe, recorderArgv(kind, exe, env), { env, stdio: ['pipe', 'pipe', 'pipe'] })
+    child = spawn(exe, recorderArgv(kind, exe, env), { env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
   } catch (error) {
     throw new CaptureError(kind, `${kind} could not be started: ${error instanceof Error ? error.message : String(error)}`)
   }

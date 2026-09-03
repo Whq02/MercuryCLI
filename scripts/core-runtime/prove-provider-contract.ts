@@ -788,9 +788,10 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   // classification moved INSIDE the sanctioned model edge: seatSlots.ts).
   // The census is compared SET-wise on sorted spellings — the walk sorts, so
   // the pin must too (the old hand-ordered list went red purely on order).
+  // The seat board (TeammateChatsView) left the census: its labels read the
+  // resolver and the file carries no model-name conditional any more.
   const MODEL_NAME_CENSUS = [
     'src/commands/model/model.tsx',
-    'src/components/mercury-ui/screens/TeammateChatsView.tsx',
     // A1: the typed PrimaryAgentBackend contract — a
     // provider-EDGE module by construction (family classification for the
     // typed AgentRuntimeRef lives at the edge, exactly what this census

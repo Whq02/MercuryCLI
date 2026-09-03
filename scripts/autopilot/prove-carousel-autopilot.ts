@@ -74,7 +74,9 @@ check("'1' arms (live re-read)", isAutopilotEnabled() === true)
 process.env.MERCURY_AUTOPILOT = '0'
 check("'0' disarms (live re-read)", isAutopilotEnabled() === false)
 process.env.MERCURY_AUTOPILOT = '1'
-check('default allowlist = opus,sonnet,fable (fable is the frontier default tier)', autopilotAllowedModels().join(',') === 'opus,sonnet,fable')
+// The exact-generation alias (fable51) is a tier key of its own beside the
+// family alias, so the default admits both spellings of the frontier tier.
+check('default allowlist = opus,sonnet,fable,fable51 (the frontier default tier, both spellings)', autopilotAllowedModels().join(',') === 'opus,sonnet,fable,fable51')
 process.env.MERCURY_AUTOPILOT_MODELS = 'opus,sonnet,fable'
 check('operator CSV admits fable', autopilotAllowedModels().includes('fable'))
 process.env.MERCURY_AUTOPILOT_MODELS = 'haiku,gpt5,,junk'
