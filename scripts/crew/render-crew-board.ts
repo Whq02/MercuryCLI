@@ -25,7 +25,7 @@ if (!existsSync(BIN)) {
 
 const home = mkdtempSync(join(tmpdir(), 'crew-render-home-'))
 const FAKE_KEY = 'sk-ant-api03-crewrenderproof0000000000'
-writeFileSync(join(home, '.claude.json'), JSON.stringify({
+writeFileSync(join(home, '.mercury.json'), JSON.stringify({
   hasCompletedOnboarding: true, theme: 'dark', numStartups: 5,
   customApiKeyResponses: { approved: [FAKE_KEY.slice(-20)], rejected: [] },
   projects: { [RUNTIME_CWD]: { hasTrustDialogAccepted: true } },

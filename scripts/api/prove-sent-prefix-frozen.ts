@@ -185,9 +185,21 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   check('a mode change keys a new latch (a lawful operator action): the joiner enters under the new mode', names(s3) === j(['Read', 'LateBuiltin']), names(s3))
   clearToolRosterLatches()
   const s4 = await plan([search, readTool, late], { key: 'conv-c' })
-  check('the conversation-reset seam clears the latches: the joiner enters after a compaction or /clear', names(s4) === j(['Read', 'LateBuiltin']), names(s4))
+  check('clearing every latch (the process-wide reset) re-decides: the joiner enters', names(s4) === j(['Read', 'LateBuiltin']), names(s4))
   const s5 = await plan([search, readTool, late], {})
   check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8', 'default') === undefined, names(s5))
+
+  const { declareLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/services/providers/lawfulPrefixChange.ts')
+  await plan([search, readTool], { key: 'conv-d' })
+  await plan([search, readTool], { key: 'conv-e' })
+  declareLawfulPrefixChange('conv-d', 'sub-agents were turned on')
+  check('declareLawfulPrefixChange clears the declaring conversation\'s latch and records its reason', toolRosterLatchFor('conv-d', [], 'claude-opus-4-8', 'default') === undefined && pendingLawfulPrefixChange('conv-d') === 'sub-agents were turned on')
+  check('…and leaves the other conversation\'s latch in place', toolRosterLatchFor('conv-e', [], 'claude-opus-4-8', 'default') !== undefined)
+  const d2 = await plan([search, readTool, late], { key: 'conv-d' })
+  check('…so the declaring conversation re-decides at its next request (the joiner enters)', names(d2) === j(['Read', 'LateBuiltin']), names(d2))
+  const e2 = await plan([search, readTool, late], { key: 'conv-e' })
+  check('…while the other keeps its frozen roster', names(e2) === j(['Read']), names(e2))
+  resetLawfulPrefixChanges()
   if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
   else process.env.MERCURY_TOOL_SEARCH = saved
   clearToolRosterLatches()
@@ -449,6 +461,7 @@ if (!existsSync(DIST)) {
     }
 
     section('§5 a model switch — the previous model\'s thinking leaves the requests, one quiet receipt; same-model spellings never read as a switch')
+    const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
     const thinkingBlocksOf = (body: Body): number =>
       ((body.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
     const switchArgs = (model: string): string[] => ['--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose']
@@ -505,18 +518,15 @@ if (!existsSync(DIST)) {
         check(`${leg.label}: three requests, one wire id (${leg.wire}) whatever the spelling`, reqs.length === 3 && reqs.every(r => (r.body as Body).model === leg.wire), reqs.map(r => String((r.body as Body).model)).join(' · '))
         const last = reqs[2]?.body as Body | undefined
         check(`${leg.label}: the last request replays both earlier thinking blocks (no spelling read as a switch)`, last !== undefined && thinkingBlocksOf(last) === 2, String(last && thinkingBlocksOf(last)))
-        census(`§5 ${leg.wire}`, reqs.slice(0, 2), true)
-        const diffs = census(`§5 ${leg.wire} [1m]`, reqs.slice(1, 3), false)
-        const q2 = reqs[1]?.body as Body | undefined
+        census(`§5 ${leg.wire}`, reqs, true)
         const q3 = reqs[2]?.body as Body | undefined
-        check(`${leg.label} [1m]: the tools array and the shared messages prefix are byte-identical (only the identity line moved)`, q2 !== undefined && q3 !== undefined && j(withoutCacheControl(q2.tools)) === j(withoutCacheControl(q3.tools)) && diffs[0] === -1, j(diffs))
+        check(`${leg.label} [1m]: the identity line spells the wire id, never the window suffix`, q3 !== undefined && systemTextOf(q3).includes(`the model you run through Mercury is \`${leg.wire}\``) && !systemTextOf(q3).includes('[1m]') && !systemTextOf(q3).includes('1M context'), systemTextOf(q3).slice(systemTextOf(q3).indexOf('the model you run through'), systemTextOf(q3).indexOf('the model you run through') + 120))
         check(`${leg.label}: no switch receipt, no drop notice`, transcriptNotices(arena, SID).length === 0, j(transcriptNotices(arena, SID)))
         await fixture.close()
       }
     }
 
     section('§6 the Godot control section — read from the filesystem, frozen for the conversation')
-    const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
     const toolNamesOf = (body: Body): string[] => (Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => String(t.name)) : [])
     const godotProject = '; Engine configuration file.\nconfig_version=5\n\n[application]\n\nconfig/name="Fixture"\n'
     {
