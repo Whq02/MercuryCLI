@@ -19,6 +19,7 @@ import {
   isFirstPartyAnthropicBaseUrl,
 } from '../../utils/model/providers.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
+import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
 
 /**
@@ -79,7 +80,9 @@ function buildFetchWrapper(
   injectCorrelationId: boolean,
   source: string | undefined,
 ): typeof globalThis.fetch {
-  const baseFetch = fetchOverride ?? getApiFetch()
+  // The wire dump (MERCURY_WIRE_DUMP) rides the client's fetch: identity
+  // when the operator has not armed it.
+  const baseFetch = wrapFetchWithWireDump(fetchOverride ?? getApiFetch(), source)
   return async (input, init) => {
     // Copy the incoming headers into a fresh container and send the copy.
     const headers = new Headers((init as { headers?: HeadersInit } | undefined)?.headers)
