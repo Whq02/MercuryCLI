@@ -1,5 +1,8 @@
 
-import type { InterviewQuestionState } from '../../../services/interview/contracts.js'
+import type {
+  InterviewAnswerValue,
+  InterviewQuestionState,
+} from '../../../services/interview/contracts.js'
 
 export type QuestionState = {
   selectedValue?: string | string[]
@@ -31,4 +34,32 @@ export function projectQuestionState(qs: InterviewQuestionState): QuestionState 
     ? (committedLabels[0] ?? (committed.freeText?.trim() ? OTHER_OPTION_VALUE : undefined))
     : undefined
   return { selectedValue, textInputValue: text }
+}
+
+export function composeAnswer(input: {
+  question: { multiSelect: boolean; options: ReadonlyArray<{ id: string; label: string }> }
+  labels: readonly string[]
+  typed: string
+  hasImage: boolean
+}): { commit: InterviewAnswerValue; keptDraft?: InterviewAnswerValue } {
+  const { question, labels, typed, hasImage } = input
+  const optionIds = labels
+    .filter(l => l !== OTHER_OPTION_VALUE)
+    .map(l => question.options.find(o => o.label === l)?.id)
+    .filter((id): id is string => typeof id === 'string')
+  const other = labels.includes(OTHER_OPTION_VALUE)
+  const text = typed.trim()
+  const freeText = other
+    ? text
+      ? hasImage
+        ? `${text} (Image attached)`
+        : text
+      : hasImage
+        ? '(Image attached)'
+        : undefined
+    : undefined
+  const commit: InterviewAnswerValue = { optionIds, ...(freeText ? { freeText } : {}) }
+  const keptDraft =
+    !question.multiSelect && !other && text ? { optionIds, freeText: text } : undefined
+  return { commit, ...(keptDraft ? { keptDraft } : {}) }
 }
