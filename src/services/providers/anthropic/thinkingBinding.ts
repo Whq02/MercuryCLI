@@ -31,6 +31,8 @@ import type { Message } from '../../../types/message.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
+import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
@@ -293,6 +295,38 @@ export function describeThinkingDrops(
       return describeInputTransformations(list)
     case 'recurrent':
       return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} on ${outcome.consecutive} consecutive requests with no compaction, model switch or transcript edit between them (${describePathClass(outcome.path)}). This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+  }
+}
+
+// ── the model-switch receipt ───────────────────────────────────────────────
+
+/** Two model ids name the same model when their canonical families agree
+ *  (an alias, a dated spelling or a context suffix never reads as a switch). */
+export function isSameModel(a: string, b: string): boolean {
+  return getCanonicalName(a) === getCanonicalName(b)
+}
+
+/**
+ * The one quiet line a model switch earns: the previous model's thinking
+ * blocks stay out of the requests to the current model (the assembler
+ * strips them — stripThinkingFromOtherModels — so the API never drops and
+ * re-reports them turn after turn). Null when the history carries no such
+ * block. `key` identifies the switch (the conversation owner and the
+ * current model's family) so the caller paints it once.
+ */
+export function modelSwitchReceipt(
+  owner: string,
+  messages: readonly Message[],
+  currentModel: string,
+): { key: string; text: string } | null {
+  const foreign = thinkingFromOtherModels(messages, currentModel, isSameModel)
+  if (foreign.count === 0) return null
+  const display = (model: string): string => getPublicModelDisplayName(model) ?? model
+  const writers = foreign.models.map(display).join(', ')
+  const noun = foreign.count === 1 ? 'thinking block' : 'thinking blocks'
+  return {
+    key: `${owner}|${getCanonicalName(currentModel)}`,
+    text: `Preserved thinking: ${foreign.count} ${noun} written by ${writers} stay out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without them.`,
   }
 }
 

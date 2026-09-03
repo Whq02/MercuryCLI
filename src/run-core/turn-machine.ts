@@ -50,10 +50,15 @@ import {
   classifyThinkingDrops,
   describeThinkingDrops,
   inputTransformationsOf,
+  modelSwitchReceipt,
   prefixMarkOf,
   recordThinkingDropLedger,
 } from '../services/providers/anthropic/thinkingBinding.js'
 import { logForDebugging } from '../utils/debug.js'
+
+/** Model switches already receipted (owner + the current model's family):
+ *  the previous model's thinking leaves the requests quietly, once. */
+const switchReceipts = new Set<string>()
 
 /** Response ids whose preserved-thinking drop list was already classified —
  *  the streaming path mints one assistant envelope per content block and
@@ -648,6 +653,21 @@ async function* streamModel(
             getPublicModelDisplayName(iter.currentModel) ?? iter.currentModel,
           effort: effortLabel,
         })
+      }
+      // A model switch: thinking written by the previous model leaves the
+      // requests at the assembler (the API would drop and re-report it on
+      // every request); the operator reads one quiet line per switch.
+      {
+        const receipt = modelSwitchReceipt(
+          String(ownerFromToolUseContext(toolUseContext)),
+          iter.messagesForQuery,
+          iter.currentModel,
+        )
+        if (receipt !== null && !switchReceipts.has(receipt.key)) {
+          switchReceipts.add(receipt.key)
+          logForDebugging(`preserved thinking: ${receipt.text}`)
+          yield emit({ kind: 'notice', message: createSystemMessage(receipt.text, 'suggestion') })
+        }
       }
       try {
         let streamingFallbackOccured = false
