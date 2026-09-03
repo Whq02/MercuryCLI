@@ -178,6 +178,25 @@ export function noteOfferAutoDone(key: string): void {
   offerAutoActions.add(key)
 }
 
+/** The WITHIN-FAMILY rung's wall key — the family and the seat that walled,
+ *  NEVER the stated reset moment: a re-observed wall re-states its reset by
+ *  seconds (the cross-family rung's jitter class), and a key carrying it
+ *  re-offered an answered wall on the next observation. The seat kind keeps
+ *  a slot flip a genuinely new wall. */
+export function slotWallKey(family: string, active: string): string {
+  return `slot|${family}|${active}`
+}
+
+/** The active slot's wall was observed this commit. A CLEAR observation ends
+ *  the wall: its answered offer and its auto latch re-arm, so the NEXT wall
+ *  on that seat offers (or switches) again; a standing wall changes nothing. */
+export function noteSlotWallObserved(family: string, active: string, walled: boolean): void {
+  if (walled) return
+  const key = slotWallKey(family, active)
+  offerDismissals.delete(key)
+  offerAutoActions.delete(key)
+}
+
 /** TEST-ONLY: provers reset the session-scoped memories between arms. */
 export function _resetOfferMemoriesForTesting(): void {
   offerDismissals.clear()
