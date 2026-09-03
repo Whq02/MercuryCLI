@@ -35,6 +35,17 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
+/**
+ * The temp-directory variables a sandboxed command runs with: the product
+ * temp root the executor hands the provider (the one directory the sandbox
+ * lets temp-file writers use), in POSIX form for the shell. One owner for
+ * the spawn env and the in-chain export below.
+ */
+function sandboxTempEnv(sandboxTmpDir: string): Record<string, string> {
+  const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmpDir) : sandboxTmpDir
+  return { TMPDIR: dir, MERCURY_TMPDIR: dir, TMPPREFIX: posixPath.join(dir, 'zsh') }
+}
+
 /** Create a POSIX/bash shell provider. */
 export async function createBashShellProvider(
   shellPath: string,
@@ -108,6 +119,20 @@ export async function createBashShellProvider(
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(shellPath)
       if (preamble) parts.push(preamble)
+      if (opts.useSandbox && opts.sandboxTmpDir) {
+        // Exported INSIDE the chain, not only in the spawn env: the sandbox
+        // wrapper prefixes the wrapped command with a TMPDIR of its own (a
+        // directory nothing creates), which would replace the spawn env's
+        // value and send mktemp-class writers outside the allow-write set.
+        // The chain runs inside that prefix, so this export is the one the
+        // command and its children see.
+        const temp = sandboxTempEnv(opts.sandboxTmpDir)
+        parts.push(
+          `export ${Object.entries(temp)
+            .map(([name, value]) => `${name}=${quote([value])}`)
+            .join(' ')}`,
+        )
+      }
       parts.push(`eval ${quotedCommand}`)
       // The record is grouped like the Win32 leg below so its own failure
       // never replaces the user command's status: a command that deletes
@@ -147,12 +172,7 @@ export async function createBashShellProvider(
       // Sandbox temp overrides (the provider stashes the dir without re-checking
       // the flag; the engine passes it only when sandboxing).
       const sandboxTmp = pendingSandboxTmp
-      if (sandboxTmp) {
-        const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmp) : sandboxTmp
-        overrides.TMPDIR = dir
-        overrides.MERCURY_TMPDIR = dir
-        overrides.TMPPREFIX = posixPath.join(dir, 'zsh')
-      }
+      if (sandboxTmp) Object.assign(overrides, sandboxTempEnv(sandboxTmp))
       // Session env vars LAST (the opposite of the PowerShell provider).
       for (const [key, value] of getSessionEnvVars()) overrides[key] = value
       return overrides
