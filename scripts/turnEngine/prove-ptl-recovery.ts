@@ -217,6 +217,8 @@ const GOOD_SUMMARY =
   'PTL RECOVERY SUMMARY needle: the session refactored the tokenizer into three data-driven passes and ran the 412-test suite green. ' +
   'Open work: the follow-up requested in the last user turn.'
 
+const PROACTIVE_PCT = '5'
+
 section('§1 — over-threshold history: ONE compact round, the summary installs, the turn proceeds')
 {
   const r = await runQuery({
@@ -225,7 +227,7 @@ section('§1 — over-threshold history: ONE compact round, the summary installs
       { kind: 'text', text: 'P1 MAIN TURN OVER THE COMPACTED VIEW.' },
     ],
     history: makeHistory(50_000),
-    env: { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '0.001' },
+    env: { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: PROACTIVE_PCT },
   })
   const reqs = r.api.messageRequests()
   check('exactly two model calls (compact + main)', reqs.length === 2, `${reqs.length}`)
@@ -247,7 +249,7 @@ section('§2 — a FAILED compact round (fork + fallback) does not kill the turn
       { kind: 'text', text: 'P2 MAIN TURN OVER THE ORIGINAL HISTORY.' },
     ],
     history: makeHistory(50_000),
-    env: { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '0.001' },
+    env: { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: PROACTIVE_PCT },
   })
   const reqs = r.api.messageRequests()
   check('exactly three model calls (fork compact + fallback compact + main)', reqs.length === 3, `${reqs.length}`)
@@ -266,7 +268,7 @@ section("§3 — failed compact + blocked level: the preempt surfaces PTL, {reas
     ],
     history: makeHistory(50_000),
     env: {
-      MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '0.001',
+      MERCURY_AUTOCOMPACT_PCT_OVERRIDE: PROACTIVE_PCT,
       MERCURY_BLOCKING_LIMIT_OVERRIDE: '10000',
     },
   })
@@ -298,7 +300,39 @@ section('§4 — autocompact disabled + blocked level: the preempt fires with ZE
   check("Terminal reason 'blocking_limit'", r.terminal?.reason === 'blocking_limit', r.terminal?.reason)
 }
 
-section('§5 — a real API PTL surfaces ONCE: no compact attempt, no retry, no stop-hook spiral')
+section('§5 — a real API PTL: the ladder folds the history at the loop head and retries ONCE over the compacted view')
+{
+  const PTL_413 = {
+    kind: 'error' as const,
+    status: 400,
+    errorType: 'invalid_request_error',
+    message: 'prompt is too long: 137500 tokens > 135000 maximum',
+  }
+  const r = await runQuery({
+    turns: [
+      PTL_413,
+      { kind: 'text', text: GOOD_SUMMARY },
+      { kind: 'text', text: 'P5 RETRIED TURN OVER THE COMPACTED VIEW.' },
+    ],
+    history: makeHistory(100),
+  })
+  const reqs = r.api.messageRequests()
+  const shapes = reqs.map(q => (isCompactRequest(q) ? 'C' : 'M')).join('')
+  check('three model calls — overflow · compact · retry (the wire pattern M·C·M)', reqs.length === 3 && shapes === 'MCM', `${reqs.length} ${shapes}`)
+  check('the overflowed request carried the ORIGINAL history', !!reqs[0] && reqs[0].raw.includes('PTL HISTORY NEEDLE alpha'))
+  check('the compact call carried the real history', !!reqs[1] && reqs[1].raw.includes('PTL HISTORY NEEDLE alpha'))
+  check('the retried request rides the COMPACTED view: the summary on the wire', !!reqs[2] && reqs[2].raw.includes('PTL RECOVERY SUMMARY needle'))
+  check('…and the folded turns are gone from it (a lawful prefix change reaches the next request whole)', !!reqs[2] && !reqs[2].raw.includes('PTL HISTORY NEEDLE alpha') && !reqs[2].raw.includes('PTL HISTORY NEEDLE beta'))
+  const retriedMessages = ((reqs[2]?.body as { messages?: Array<{ role?: string; content?: unknown }> } | undefined)?.messages ?? [])
+  check('…the compacted view starts from the summary turn (messages[0] is a user turn carrying it)', retriedMessages[0]?.role === 'user' && j(retriedMessages[0]).includes('PTL RECOVERY SUMMARY needle'), j(retriedMessages[0]).slice(0, 200))
+  check('the compact summary message yields (isCompactSummary)', r.messages.some(m => (m as { isCompactSummary?: boolean }).isCompactSummary === true))
+  check('the fold notice yields as a system row naming the overflow', r.messages.some(m => m.type === 'system' && /overflow|too long|fold|compact/i.test(j(m))), j(r.messages.filter(m => m.type === 'system')).slice(0, 300))
+  check('no PTL assistant error surfaces (the withheld overflow was recovered)', !r.messages.some(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE)))
+  check('the retried turn\'s text yields', r.messages.some(m => m.type === 'assistant' && j(m).includes('P5 RETRIED TURN')))
+  check("Terminal reason 'completed'", r.terminal?.reason === 'completed', r.terminal?.reason)
+}
+
+section('§5b — a real API PTL with no summary to be had: the ladder refuses with the typed prompt-too-long terminal')
 {
   const r = await runQuery({
     turns: [
@@ -308,25 +342,24 @@ section('§5 — a real API PTL surfaces ONCE: no compact attempt, no retry, no 
         errorType: 'invalid_request_error',
         message: 'prompt is too long: 137500 tokens > 135000 maximum',
       },
+      { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
+      { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
     ],
     history: makeHistory(100),
   })
   const reqs = r.api.messageRequests()
-  check('exactly one model call — the 413 is never retried and never triggers a compact', reqs.length === 1, `${reqs.length}`)
+  const shapes = reqs.map(q => (isCompactRequest(q) ? 'C' : 'M')).join('')
+  check('three model calls — overflow, then the ONE failed compact round; the request is never retried blind (M·C·C)', reqs.length === 3 && shapes === 'MCC', `${reqs.length} ${shapes}`)
   const ptl = r.messages.find(
     m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE),
   ) as { errorDetails?: string } | undefined
-  check('the PTL assistant message yields with the exact generic content', !!ptl)
+  check('the typed PTL assistant refusal yields with the exact generic content', !!ptl)
   check(
-    'errorDetails carries the RAW API text with token counts (the reactive-gap contract)',
+    'errorDetails carries the RAW API text with token counts',
     !!ptl && typeof ptl.errorDetails === 'string' && ptl.errorDetails.includes('137500'),
     ptl?.errorDetails ?? 'no errorDetails',
   )
-  check(
-    "Terminal reason 'completed' (the pinned as-is band: API-error messages skip stop hooks and terminalize)",
-    r.terminal?.reason === 'completed',
-    r.terminal?.reason,
-  )
+  check("Terminal reason 'prompt_too_long' (the ladder exhausted)", r.terminal?.reason === 'prompt_too_long', r.terminal?.reason)
 }
 
 section('§6 — consecutive compact failures accumulate; the FOURTH iteration makes NO compact attempt (breaker at 3)')
@@ -335,7 +368,7 @@ section('§6 — consecutive compact failures accumulate; the FOURTH iteration m
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'ptl compact fixture refusal' },
   ]
-  const toolTurn = (id: string): ScriptedTurn => ({ kind: 'tool_use', name: 'PtlProbeTool', input: {}, id })
+  const toolTurn = (id: string): ScriptedTurn => ({ kind: 'tool_use', name: 'PtlProbeTool', input: {}, id, usage: { input_tokens: 50_000 } })
   const r = await runQuery({
     turns: [
       ...failRound, toolTurn('toolu_ptl_1'),
@@ -345,7 +378,7 @@ section('§6 — consecutive compact failures accumulate; the FOURTH iteration m
     ],
     history: makeHistory(50_000),
     tools: [makeFakeTool()],
-    env: { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '0.001' },
+    env: { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: PROACTIVE_PCT },
   })
   const reqs = r.api.messageRequests()
   const shapes = reqs.map(q => (isCompactRequest(q) ? 'C' : 'M')).join('')
