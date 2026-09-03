@@ -174,10 +174,35 @@ try {
     check('`doctor` alias still produces the certificate (0/3 by verdict, verdict present)', (r.status === 0 || r.status === 3) && typeof cert?.verdict === 'string', `status=${r.status}`)
   }
 
-  const scriptArgv = (argv: string[]): string[] =>
-    process.platform === 'linux'
-      ? ['-q', '-e', '-c', argv.map(a => `'${a.replace(/'/g, `'\\''`)}'`).join(' '), '/dev/null']
-      : ['-q', '/dev/null', ...argv]
+  const PTY_DRIVER = 'import os, pty, sys; st = pty.spawn(sys.argv[1:]); sys.exit(os.waitstatus_to_exitcode(st) if hasattr(os, "waitstatus_to_exitcode") else (st >> 8))'
+  const firstJsonObject = (text: string): Cert | null => {
+    const out = text.replace(/\r/g, '')
+    const first = out.indexOf('{')
+    if (first === -1) return null
+    let depth = 0
+    let inString = false
+    let escaped = false
+    for (let i = first; i < out.length; i++) {
+      const c = out[i] as string
+      if (inString) {
+        if (escaped) escaped = false
+        else if (c === '\\') escaped = true
+        else if (c === '"') inString = false
+        continue
+      }
+      if (c === '"') inString = true
+      else if (c === '{') depth++
+      else if (c === '}' && --depth === 0) {
+        try {
+          return JSON.parse(out.slice(first, i + 1)) as Cert
+        } catch {
+          return null
+        }
+      }
+    }
+    return null
+  }
+  let ttyTail = ''
   {
     const dir = join(scratch, 'piped-vs-tty')
     mkdirSync(dir, { recursive: true })
@@ -191,8 +216,8 @@ try {
     let ttyCert: Cert | null = null
     try {
       const out = execFileSync(
-        '/usr/bin/script',
-        scriptArgv(['node', BIN, 'health', '--json']),
+        'python3',
+        ['-c', PTY_DRIVER, 'node', BIN, 'health', '--json'],
         {
           cwd: dir,
           env: {
@@ -206,18 +231,16 @@ try {
           timeout: 60_000,
           stdio: ['ignore', 'pipe', 'pipe'],
         },
-      ).replace(/\r/g, '')
-      const first = out.indexOf('{')
-      const last = out.lastIndexOf('}')
-      if (first !== -1 && last > first) ttyCert = JSON.parse(out.slice(first, last + 1)) as Cert
+      )
+      ttyTail = out.slice(-300)
+      ttyCert = firstJsonObject(out)
     } catch (error) {
-      const out = String((error as { stdout?: unknown }).stdout ?? '').replace(/\r/g, '')
-      const first = out.indexOf('{')
-      const last = out.lastIndexOf('}')
-      ttyCert = first !== -1 && last > first ? (JSON.parse(out.slice(first, last + 1)) as Cert) : null
+      const out = String((error as { stdout?: unknown }).stdout ?? '')
+      ttyTail = out.slice(-300)
+      ttyCert = firstJsonObject(out)
     }
     if (ttyCert === null) {
-      check('tty drive produced a certificate (script(1) PTY)', false)
+      check('tty drive produced a certificate (a python pty)', false, `no balanced record in the transcript — tail: ${JSON.stringify(ttyTail)}`)
     } else {
       const ttyRow = byId(ttyCert, 'iface-terminal')
       check('tty: the profile row is NOT the environmental form', !/environmental/.test(String(ttyRow?.evidence)), String(ttyRow?.evidence))
