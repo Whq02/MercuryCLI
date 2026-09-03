@@ -11,8 +11,9 @@
 //   mark — constants/figures TEARDROP_ASTERISK). The eight-spoked asterisk it
 //   replaces (U+2733) carries the Unicode Emoji property, and a host that
 //   routes emoji-eligible code points to its colour font (Windows Terminal)
-//   paints it as a pictograph even behind the text-presentation selector;
-//   U+273B carries no such property and measures one cell everywhere.
+//   paints it as a pictograph even behind the text-presentation selector
+//   (its font fallback ignores VS15); U+273B carries no such property and
+//   measures one cell everywhere.
 // · Word: lowercase — the row is a status murmur, never a heading.
 // · Colour: the theme's `subtle` role — the family's readable secondary grey,
 //   the role the expanded reasoning body already paints. Never the session

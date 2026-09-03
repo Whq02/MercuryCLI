@@ -11,9 +11,9 @@
 //  ones as text, so a Mac never shows the defect: the thinking row's asterisk
 //  read as a green pictograph on Windows for weeks while every Mac fixture
 //  stayed green. The vocabulary law that follows: Mercury paints NO code
-//  point with the Emoji property, and a text-default one that must stay is
-//  written with U+FE0E behind it (the kit's width model measures the pair as
-//  one cell and never splits it).
+//  point with the Emoji property, selector or not (Windows Terminal's font
+//  fallback ignores VS15), and no presentation selector survives in a painted
+//  string — a stray U+FE0E / U+FE0F is its own failure.
 //
 //  Three censuses over src/**/*.ts(x) and the boot-face core
 //  (assets/splash/*.mjs), the emoji table vendored at ./lib/emojiProperties.ts
@@ -22,17 +22,18 @@
 //       points and zero U+FE0F (the emoji-presentation selector).
 //    §2 PAINTED — every string literal, template chunk and JSX text (the
 //       cooked values, so an escape cannot hide a glyph) plus every symbol
-//       reached through the `figures` package — no Emoji=Yes code point
-//       stands bare: it is followed by U+FE0E, or it is one of the named
-//       base-font exemptions (the ASCII keycap bases and the Latin-1 /
-//       letterlike marks every terminal font carries in its own cmap).
+//       reached through the `figures` package — no Emoji=Yes code point at
+//       all, U+FE0E behind it or not, beyond the named base-font exemptions
+//       (the ASCII keycap bases and the Latin-1 / letterlike marks every
+//       terminal font carries in its own cmap); and no selector at all.
 //    §3 THE KIT — no GLYPH / SPARK token and not the thinking glyph carries
 //       the property at all (the vocabulary never leans on the selector).
-//  §4 pins the width law for a selector-carrying pair: one cell, never split
-//  by end/start/middle truncation or a hard wrap. §5 is the self-test: a
-//  planted bare glyph, a planted pictograph, a planted U+FE0F, a planted
-//  escape and a planted `figures.tick` are each caught; the compliant forms
-//  are not.
+//  §4 pins the kit's width law for a glyph + selector pair (one no painted
+//  string carries any more): one cell, never split by end/start/middle
+//  truncation or a hard wrap, so a future pair cannot desync a grid. §5 is
+//  the self-test: a planted bare glyph, the same glyph behind U+FE0E, a
+//  planted pictograph, a planted U+FE0F, a stray selector, a planted escape
+//  and a planted `figures.tick` are each caught; the compliant forms are not.
 //
 //  Width and selector pins differ between bun's native width path and node's
 //  JS path, so under bun this proof ALSO bundles itself for node (the search
@@ -91,7 +92,7 @@ const BASE_FONT_TEXT = new Set<number>([
   0x2122, // ™
 ])
 
-type Rule = 'emoji-presentation' | 'emoji-selector' | 'bare-emoji-property'
+type Rule = 'emoji-presentation' | 'emoji-selector' | 'text-selector' | 'emoji-property'
 type Finding = { file: string; line: number; col: number; codePoint: number; rule: Rule; via: string }
 
 /** §2's per-string law over an already-cooked painted value. */
@@ -102,11 +103,9 @@ function paintedFindings(text: string, at: (offset: number) => { line: number; c
     const cp = cps[i]!.codePointAt(0)!
     const pos = at(i)
     if (cp === EMOJI_PRESENTATION_SELECTOR) out.push({ file, ...pos, codePoint: cp, rule: 'emoji-selector', via })
+    else if (cp === TEXT_PRESENTATION_SELECTOR) out.push({ file, ...pos, codePoint: cp, rule: 'text-selector', via })
     else if (hasEmojiPresentation(cp)) out.push({ file, ...pos, codePoint: cp, rule: 'emoji-presentation', via })
-    else if (hasEmojiProperty(cp) && !BASE_FONT_TEXT.has(cp)) {
-      const next = cps[i + 1]?.codePointAt(0)
-      if (next !== TEXT_PRESENTATION_SELECTOR) out.push({ file, ...pos, codePoint: cp, rule: 'bare-emoji-property', via })
-    }
+    else if (hasEmojiProperty(cp) && !BASE_FONT_TEXT.has(cp)) out.push({ file, ...pos, codePoint: cp, rule: 'emoji-property', via })
   }
   return out
 }
@@ -126,6 +125,7 @@ function anywhereFindings(text: string, file: string): Finding[] {
     col++
     if (hasEmojiPresentation(cp)) out.push({ file, line, col, codePoint: cp, rule: 'emoji-presentation', via: 'anywhere' })
     else if (cp === EMOJI_PRESENTATION_SELECTOR) out.push({ file, line, col, codePoint: cp, rule: 'emoji-selector', via: 'anywhere' })
+    else if (cp === TEXT_PRESENTATION_SELECTOR) out.push({ file, line, col, codePoint: cp, rule: 'text-selector', via: 'anywhere' })
   }
   return out
 }
@@ -223,7 +223,7 @@ console.log('============================================================')
 console.log(` no-emoji-presentation — the paint census (Unicode ${EMOJI_DATA_UNICODE_VERSION}, under ${RUNTIME})`)
 console.log('============================================================')
 
-section('§1 ANYWHERE: zero emoji-presentation code points, zero U+FE0F, comments included')
+section('§1 ANYWHERE: zero emoji-presentation code points, zero selectors, comments included')
 const files: string[] = []
 walk(join(ROOT, 'src'), ['.ts', '.tsx'], files)
 walk(join(ROOT, 'assets', 'splash'), ['.mjs'], files)
@@ -242,14 +242,14 @@ check(
   files.length > 100 && files.some(f => f.endsWith('splash-core.mjs')),
 )
 check(
-  'no Emoji_Presentation=Yes code point and no U+FE0F anywhere',
+  'no Emoji_Presentation=Yes code point and no U+FE0E / U+FE0F anywhere',
   anywhere.length === 0,
   anywhere.length ? `\n      - ${anywhere.slice(0, 40).map(describe).join('\n      - ')}` : 'clean',
 )
 
 section('§2 PAINTED: every string, template chunk, JSX text and figures symbol')
 check(
-  'no painted Emoji=Yes code point stands bare (U+FE0E behind it, or a named base-font exemption)',
+  'no painted Emoji=Yes code point at all, selector or not (beyond the named base-font exemptions), and no selector',
   painted.length === 0,
   painted.length ? `\n      - ${painted.slice(0, 60).map(describe).join('\n      - ')}` : 'clean',
 )
@@ -272,7 +272,7 @@ check('the thinking label measures glyph + space + word + ellipsis, one cell for
 check('the figures symbols Mercury still reaches carry no Emoji property (pointer, arrows, checkboxes, star, circle, bullet, ellipsis, pointerSmall, cross)', ['pointer', 'arrowUp', 'arrowDown', 'arrowLeft', 'arrowRight', 'checkboxOn', 'checkboxOff', 'star', 'circle', 'bullet', 'ellipsis', 'pointerSmall', 'cross'].every(name => carrying(name, (mainSymbols as Record<string, string>)[name]!) === null))
 check('and the ones it left DO (tick, warning, info, squareSmall, squareSmallFilled) — the swap was necessary', ['tick', 'warning', 'info', 'squareSmall', 'squareSmallFilled'].every(name => carrying(name, (mainSymbols as Record<string, string>)[name]!) !== null))
 
-section('§4 THE WIDTH LAW: a text-default glyph + U+FE0E is one cell and never splits')
+section('§4 THE WIDTH LAW: a glyph + U+FE0E pair (none painted any more) is one cell and never splits')
 const PAIR = '\u25B2' + VS15 // ▲︎ — the kit's warn lead behind the selector
 const intact = (s: string): boolean => {
   // every selector in the output sits right behind its base
@@ -305,13 +305,21 @@ const plant = (name: string, source: string): Finding[] => paintedFindingsOfSour
 const rulesOf = (fs: Finding[]): string => fs.map(f => `${f.rule}@${f.via}`).join(',') || 'none'
 {
   const bare = plant('t.ts', "const a = '\u26A0 warn'")
-  check('a bare text-default glyph in a string is caught', bare.length === 1 && bare[0]!.rule === 'bare-emoji-property', rulesOf(bare))
+  check('a bare text-default glyph in a string is caught', bare.length === 1 && bare[0]!.rule === 'emoji-property', rulesOf(bare))
   const pict = plant('t.ts', "const b = '\u2728 done'")
   check('an emoji-default pictograph in a string is caught', pict.length === 1 && pict[0]!.rule === 'emoji-presentation', rulesOf(pict))
   const vs16 = plant('t.ts', `const b2 = '\u26A0${VS16}'`)
   check('U+FE0F behind a glyph is caught (emoji presentation requested)', vs16.some(f => f.rule === 'emoji-selector'), rulesOf(vs16))
-  const okPair = plant('t.ts', `const c = '\u26A0${VS15} fine'`)
-  check('the same glyph behind U+FE0E passes', okPair.length === 0, rulesOf(okPair))
+  const behindVs15 = plant('t.ts', `const c = '\u26A0${VS15} still emoji'`)
+  check(
+    "the same glyph behind U+FE0E is STILL caught (Windows Terminal's font fallback ignores VS15), and the selector is its own finding",
+    behindVs15.length === 2 && behindVs15[0]!.rule === 'emoji-property' && behindVs15[1]!.rule === 'text-selector',
+    rulesOf(behindVs15),
+  )
+  const stray = plant('t.ts', `const c2 = 'x${VS15}y'`)
+  check('a stray U+FE0E behind a plain letter is its own failure', stray.length === 1 && stray[0]!.rule === 'text-selector', rulesOf(stray))
+  const strayAnywhere = anywhereFindings(`// a comment carrying an invisible ${VS15} selector\n`, 't.ts')
+  check('§1 catches a stray selector inside a comment', strayAnywhere.length === 1 && strayAnywhere[0]!.rule === 'text-selector', rulesOf(strayAnywhere))
   const escaped = plant('t.ts', "const g = '\\u26A0'")
   check('a backslash-u escape cannot hide a painted glyph (the cooked value is scanned)', escaped.length === 1, rulesOf(escaped))
   const tpl = plant('t.ts', 'const e = `${x} \u26A0 tail`')

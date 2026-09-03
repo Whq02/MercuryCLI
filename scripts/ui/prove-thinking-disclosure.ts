@@ -171,7 +171,7 @@ const { getSessionAccent } = await import('../../src/components/mercury-ui/sessi
 // U+273B, the teardrop-spoked asterisk: the transcript's static mark, and a
 // code point WITHOUT the Unicode Emoji property (the eight-spoked asterisk it
 // replaced painted as a colour pictograph on Windows Terminal even behind the
-// text-presentation selector).
+// text-presentation selector: its font fallback ignores VS15).
 const GLYPH = '\u273B';
 check('owner: the glyph is U+273B (no Emoji property — never a pictograph)', grammar.THINKING_GLYPH === GLYPH);
 check('owner: the glyph measures one cell', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
