@@ -50,6 +50,7 @@ import { checker, scratchRoot } from '../engine-durability/harness.ts'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { grabScreens, requireDist, runArtifactArena, visibleText, type ArenaRun } from '../streaming/artifactArena.ts'
 import { referenceFixtureSnapshot } from './concourseReferenceSeed.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const t = checker()
 scratchRoot('route-silence')
@@ -302,9 +303,11 @@ try {
     }
     const LADDER = [400, 800, 1200, 1600, 2200, 3000, 4200, 6000, 8000, 10_000]
     const NONBLANK = 200
-    // A chat on screen: the focused chat's status row ("⇧← back") or the
-    // composer's placeholder ("Type a prompt"), whitespace squashed.
-    const isChat = (s: string): boolean => s.includes('⇧←back') || s.includes('Typeaprompt')
+    // A chat on screen: the focused chat's status row ("⇧← back", spelled by
+    // the ONE platform-aware owner — off macOS it reads "shift+← back") or
+    // the composer's placeholder ("Type a prompt"), whitespace squashed.
+    const BACK = keyHintLabel('⇧← back').replace(/\s+/g, '')
+    const isChat = (s: string): boolean => s.includes(BACK) || s.includes('Typeaprompt')
     const stations: Array<{ from: number; ready: (s: string) => boolean }> = [
       { from: 0, ready: s => s.includes('SESSIONCONCOURSE') },
       // ⇧← lands the Boot face; the arena's ↵ on New Session births the

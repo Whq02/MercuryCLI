@@ -111,6 +111,31 @@ const L = (name: string) => join(tmp, name)
   const reclaimed = await acquirePidLock(L('recycled.lock'), 'owner-u', { liveness: 'assume-alive' })
   ok(reclaimed.held === true, '§6 a live pid whose recorded token mismatches the LIVE token is reclaimed end to end (the async pre-fetch through the one owner)')
 }
+
+// ── §7 the token vocabulary: the live compare reads the record's own book ────
+// A claim on linux records the /proc start time (clock ticks, digits); the
+// ps lstart string is another vocabulary that never byte-equals it, so a
+// compare across the two judged a LIVE holder dead on linux (its own record
+// reclaimable, a contender co-admitted). The live token is read in the
+// record's vocabulary: digits ⇒ /proc first; a ps token cannot be compared
+// against a /proc record and reads as unknowable (⇒ alive), never as dead.
+{
+  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'pidLock.ts'), 'utf8')
+  const fn = src.slice(src.indexOf('async function liveTokenFor('), src.indexOf('export interface PidLockHolder'))
+  ok(/\/\^\\d\+\$\/\.test\(holder\.procStart\)/.test(fn) && fn.includes('procStartToken(holder.pid)'), '§7 liveTokenFor reads a digits record through /proc first (the record\'s own vocabulary)')
+  ok(/return probed === '' \? '' : null/.test(fn), "§7 a ps token against a /proc record is unknowable (null ⇒ alive), a gone answer ('') stays gone")
+  // The same forged-record drive with a DIGITS token naming our live pid:
+  // on linux /proc answers our real start time ⇒ mismatch ⇒ reclaimed; on a
+  // platform without /proc the ps token cannot be compared ⇒ the record
+  // reads alive and BLOCKS (never a death verdict across vocabularies).
+  writeFileSync(L('digits.lock'), JSON.stringify({ owner: 'ghost', pid: process.pid, acquiredAt: Date.now() - 60_000, procStart: '424242' }))
+  const digits = await acquirePidLock(L('digits.lock'), 'owner-v', { liveness: 'assume-alive' })
+  if (process.platform === 'linux') {
+    ok(digits.held === true, '§7 linux: a /proc-vocabulary record naming our pid with a WRONG start time is reclaimed (the compare reads /proc)')
+  } else {
+    ok(digits.held === false, '§7 no /proc here: a /proc-vocabulary record cannot be compared with a ps token ⇒ alive ⇒ blocked (never a death verdict across vocabularies)')
+  }
+}
 rmSync(tmp, { recursive: true, force: true })
 if (failures > 0) {
   console.error(`prove-pidlock: ${failures} FAILURE(S)`)

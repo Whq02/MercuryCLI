@@ -67,6 +67,19 @@ async function currentProcStartAnyPlatform(): Promise<{ procStartField: { procSt
  *  record carries one (a pid-only record never pays a probe). */
 async function liveTokenFor(holder: PidLockHolder | null): Promise<string | null | undefined> {
   if (!holder?.procStart) return undefined
+  // Read the live token in the RECORD's own vocabulary. A claim on linux
+  // writes the /proc start time (clock ticks, digits); `ps -o lstart=` is
+  // another vocabulary that never byte-equals it, so comparing across the
+  // two judged a LIVE holder dead on linux — its own record read as
+  // reclaimable, a contender co-admitted (the null-probe class).
+  if (/^\d+$/.test(holder.procStart)) {
+    const local = procStartToken(holder.pid)
+    if (local !== undefined) return local
+    // /proc holds no stat for the pid: gone (the async owner says '' too)
+    // or unreadable — a ps token cannot be compared, so it is unknowable.
+    const probed = await getProcessStartTokenAsync(holder.pid)
+    return probed === '' ? '' : null
+  }
   return getProcessStartTokenAsync(holder.pid)
 }
 

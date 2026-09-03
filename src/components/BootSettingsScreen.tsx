@@ -21,6 +21,15 @@ import {
   type MenuRow,
 } from '../substrate/startupMenu.js';
 import { flagSpellings } from '../substrate/flagRegistry.js';
+import { daemonControlRpc } from '../daemon/controlSocket.js';
+import type { DaemonRequest } from '../daemon/protocol.js';
+import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js';
+import {
+  SPAWN_SWITCH_ENV,
+  spawnSwitchFactsOfRecord,
+  spawnSwitchKindOfEnv,
+  spawnSwitchOnFromValue,
+} from '../services/switchboard/spawnSwitches.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
@@ -168,15 +177,71 @@ export function BootSettingsScreen({
         const currentProfile = readBootDefaultsProfile(path);
         const workers = sup
           .listConcourseWorkers(null)
-          .map((rec): WorkerApplySummary => ({
-            runnerId: rec.runnerId,
-            sessionId: rec.sessionId,
-            snapshotRevision: rec.settingsSnapshot?.profileRevision ?? null,
-            receipts: rec.settingsSnapshot
-              ? evaluateExplicitApply(rec.settingsSnapshot, currentProfile)
-              : null,
-          }));
+          .map((rec): WorkerApplySummary => {
+            // The live rows' CURRENT values ride the record (an in-session
+            // toggle moves a switch off the captured snapshot).
+            const live = spawnSwitchFactsOfRecord(rec);
+            const liveValues = {
+              [SPAWN_SWITCH_ENV.subagents]: live.subagents.on ? null : '0',
+              [SPAWN_SWITCH_ENV.workflows]: live.workflows.on ? null : '0',
+            };
+            return {
+              runnerId: rec.runnerId,
+              sessionId: rec.sessionId,
+              snapshotRevision: rec.settingsSnapshot?.profileRevision ?? null,
+              receipts: rec.settingsSnapshot
+                ? evaluateExplicitApply(rec.settingsSnapshot, currentProfile, liveValues)
+                : null,
+            };
+          });
         setApply({ phase: 'ready', workers });
+        // THE LIVE ROWS' APPLY: a 'queued' receipt is the evaluation's word
+        // that the row lands through the session's own switch — this view
+        // drives it (the daemon's seat verb, the same door /subagents and
+        // /workflows ride) and replaces the receipt with the settlement
+        // owner's own outcome.
+        for (const worker of workers) {
+          for (const receipt of worker.receipts ?? []) {
+            const kind = spawnSwitchKindOfEnv(receipt.env);
+            if (receipt.outcome !== 'queued' || kind === null) continue;
+            void daemonControlRpc(
+              {
+                op: 'sessionControl',
+                action: 'set-spawn-switch',
+                sessionId: worker.sessionId,
+                by: 'operator',
+                spawnSwitch: { kind, on: spawnSwitchOnFromValue(receipt.target) },
+              } as DaemonRequest,
+              { timeoutMs: 3000 },
+            )
+              .then(reply => {
+                if (cancelled) return;
+                const settledControl = reply.ok === true && (reply.op === 'sessionControl' || reply.op === 'concourseControl') ? reply : null;
+                const outcome = settledControl !== null ? settledControl.outcome : 'refused';
+                const detail = settledControl !== null ? settledControl.detail : reply.ok === true ? undefined : reply.error;
+                const settled: ExplicitApplyReceipt = {
+                  ...receipt,
+                  outcome: outcome === 'applied' || outcome === 'queued' ? outcome : outcome === 'noop' ? 'no-change' : 'refused',
+                  reason: typeof detail === 'string' && detail !== '' ? detail : receipt.reason,
+                };
+                setApply(prev =>
+                  prev.phase !== 'ready'
+                    ? prev
+                    : {
+                        phase: 'ready',
+                        workers: prev.workers.map(w =>
+                          w.sessionId !== worker.sessionId || !w.receipts
+                            ? w
+                            : { ...w, receipts: w.receipts.map(r => (r.env === receipt.env ? settled : r)) },
+                        ),
+                      },
+                );
+              })
+              .catch(() => {
+                /* the daemon is not answering — the evaluation's receipt stands */
+              });
+          }
+        }
       })
       .catch(() => {
         if (!cancelled) setApply({ phase: 'ready', workers: [] });
@@ -196,6 +261,16 @@ export function BootSettingsScreen({
     if (!res.ok) return `save refused — ${res.reason}`;
     setSaveTick(n => n + 1);
     setLastReceipt(`r${res.revision} · ${res.receipt}`);
+    // A LIVE row flipped from the menu opened inside a session lands on the
+    // focused session too — through the connector's one verb (the same door
+    // /subagents and /workflows ride), at the session's next turn boundary;
+    // the daemon's word replaces the receipt when it settles.
+    const kind = spawnSwitchKindOfEnv(row.env);
+    if (row.applicationClass === 'live' && kind !== null && hasFocusedSession()) {
+      void getFocusedSessionConnector()
+        .setSpawnSwitch(kind, spawnSwitchOnFromValue(value))
+        .then(receipt => setLastReceipt(`r${res.revision} · saved for new sessions · this session: ${receipt.detail ?? receipt.outcome}`));
+    }
     return `r${res.revision} · ${res.receipt}`;
   };
 
@@ -433,9 +508,11 @@ function applyOverrideRows(workers: WorkerApplySummary[]): string[] {
     }
     const refused = w.receipts.filter(r => r.outcome === 'refused');
     const noChange = w.receipts.filter(r => r.outcome === 'no-change');
+    const live = w.receipts.filter(r => r.outcome === 'applied' || r.outcome === 'queued');
     rows.push(
-      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} at profile · ${refused.length} refused`,
+      `${w.runnerId} · ${w.sessionId.slice(0, 8)} — snapshot r${w.snapshotRevision ?? 0} · ${noChange.length} at profile · ${refused.length} refused${live.length > 0 ? ` · ${live.length} live (${live.map(r => r.outcome).join(', ')})` : ''}`,
     );
+    if (live.length > 0 && live[0]?.reason) rows.push(`  · ${live[0].reason}`);
     if (refused.length > 0 && refused[0]?.reason) rows.push(`  · ${refused[0].reason}`);
   }
   return rows;

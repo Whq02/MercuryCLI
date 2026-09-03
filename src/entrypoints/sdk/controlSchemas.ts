@@ -166,6 +166,15 @@ export const SDKControlMcpToggleRequestSchema = lazySchema(() =>
 export const SDKControlKitEditRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('kit_edit'), kit: z.unknown() }),
 )
+// Mercury: the session's spawn-switch toggle (the kit_edit family) — the
+// two switches and their new state, narrowed here (a closed vocabulary).
+export const SDKControlSpawnSwitchRequestSchema = lazySchema(() =>
+  z.object({
+    subtype: z.literal('spawn_switch'),
+    switch: z.enum(['subagents', 'workflows']),
+    on: z.boolean(),
+  }),
+)
 // Mercury: SATURN's roster push (the kit_edit family). Rows ride unnarrowed
 // — the handler shapes them (the mcp_set_servers convention).
 export const SDKControlScheduleRosterRequestSchema = lazySchema(() =>
@@ -276,6 +285,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlMcpReconnectRequestSchema(),
     SDKControlMcpToggleRequestSchema(),
     SDKControlKitEditRequestSchema(),
+    SDKControlSpawnSwitchRequestSchema(),
     SDKControlScheduleRosterRequestSchema(),
     SDKControlStopTaskRequestSchema(),
     SDKControlApplyFlagSettingsRequestSchema(),

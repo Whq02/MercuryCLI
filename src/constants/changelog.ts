@@ -23,4 +23,5 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A direct node dist/mercury.mjs start paints the launch splash before the Boot face, as the launcher does; the build ships the splash beside the bundle
 - Voice input: /speak on, then v in an empty composer dictates into it through the OpenAI or Gemini API key you signed in with; audio leaves only after you stop, and Mercury never speaks aloud
 - True Black is the default appearance: the same palette on a pure-black ground, on the launch splash and in the terminal; the oasis dark ground stays one row away in the first-run walk and /appearance, and a saved choice always wins
+- Two per-session switches in the boot menu's Agents section, Sub-agents and Workflows: off removes the Agent or Workflow tool from that session's roster and every spawn road answers one receipt; /subagents on|off and /workflows on|off flip a running session at its next turn boundary, and the doctor names both switches with their source
 `

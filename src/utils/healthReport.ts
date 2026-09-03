@@ -1992,6 +1992,29 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'spawn-switches',
+          label: 'Sub-agents & workflows',
+          run: async () => {
+            // The session's two spawn switches with their sources (the boot
+            // menu's Agents rows at birth · the in-session toggle · the
+            // environment · the default): the focused session's when a chat
+            // is open, else this process's own — the switches the next
+            // session is born with.
+            const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
+            const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
+            const focused = hasFocusedSession()
+            const facts = focused ? getFocusedSessionConnector().spawnSwitches() : spawnSwitchFacts()
+            const scope = focused ? 'the focused session' : 'this process — the next session is born with these'
+            const anyOff = !facts.subagents.on || !facts.workflows.on
+            return {
+              status: anyOff ? 'info' : 'ok',
+              evidence: `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — ${scope}`,
+              detail: 'Flip a running session with /subagents on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Agent or Workflow tool is absent from the roster and every spawn road answers one receipt.',
+              link: '/bootmenu',
+            }
+          },
+        },
+        {
           id: 'workflows',
           label: 'Workflows',
           run: async () => {

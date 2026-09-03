@@ -78,6 +78,10 @@ export interface ProbeDump {
   epochMinusPerfNow: number
 }
 
+/** The Boot face's ready line — the needle the arena's own New Session press
+ *  is armed on; the driver records it beside the send. */
+const FACE_READY_NEEDLE = '↑↓ choose'
+
 export interface ArenaRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
@@ -208,7 +212,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   // waits for the paint to SETTLE (awaitSettle/Stable ticks); a 150ms fire
   // raced the face's keybinding mount and the ↵ was eaten on the slower
   // boots (the face still up at +6s, every later anchored send unarmed).
-  sendArgs.push('--send', 'after:↑↓ choose:900:\\r')
+  sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
   // THE STATE ANCHOR: the birth's wall-clock seconds never scale with the
   // movie, so a rider's fixed-ms prompt ('4500:hello') authored for a
   // nominal world fires into the FACE when the chat is late (the hosted
@@ -308,7 +312,14 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         .filter(Boolean)
         .map(l => JSON.parse(l) as Partial<SendRecord> & { anchor?: number; shiftMs?: number })
     : []
-  const sendLog: SendRecord[] = driveRows.filter((r): r is SendRecord => r.sent !== undefined)
+  // The arena's own New Session press is a HARNESS send, never the scene's:
+  // the driver records an observed-ready send with the needle that armed it
+  // (`after`), and the face ↵ is the one armed by the face's ready line —
+  // it leaves the scene's send log so every "N sends delivered" count and
+  // every index-free stamp read stays authored.
+  const sendLog: SendRecord[] = driveRows.filter(
+    (r): r is SendRecord => r.sent !== undefined && (r as { after?: string }).after !== FACE_READY_NEEDLE,
+  )
   const anchorShiftMs = driveRows.find(r => typeof r.anchor === 'number')?.shiftMs ?? 0
   let probe: ProbeDump | null = null
   if (opts.probe && existsSync(probeTee)) {

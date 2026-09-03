@@ -74,6 +74,7 @@ import {
   setSessionKitDial,
   setSessionModel,
   setSessionPermissionMode,
+  setSessionSpawnSwitch,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { armChildRssWatchdog } from './rssWatchdog.js'
@@ -771,7 +772,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, clientOpId, mintedAtMs, title, titleSource }) => {
+        concourseControl: ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, clientOpId, mintedAtMs, title, titleSource }) => {
           // Resolve the worker FROM its session identity —
           // the valve speaks session ids (the operator's vocabulary), the
           // records speak worker shorts. Typed refusal when no record owns
@@ -972,6 +973,15 @@ async function daemonRun(args: string[]): Promise<void> {
             // effort write without the field).
             if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: 'set-effort requires effort' }
             return roster !== null ? setSessionEffort(sessionId, effort, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+          }
+          if (action === 'set-spawn-switch') {
+            // THE SPAWN SWITCHES' one door (services/switchboard/
+            // spawnSwitches.ts): the seat lands the toggle on the record
+            // and forwards it to the live child at a turn boundary — idle
+            // now, busy parked and drained at the idle edge (the kit dial's
+            // beat); the caller hears applied/queued/noop/refused.
+            if (spawnSwitch === undefined) return { outcome: 'refused' as const, detail: 'set-spawn-switch requires { spawnSwitch: { kind: subagents|workflows, on } }' }
+            return roster !== null ? setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'set-permission-mode') {
             if (mode === undefined || mode === '') return { outcome: 'refused' as const, detail: 'set-permission-mode requires mode' }
