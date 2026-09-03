@@ -51,6 +51,7 @@ const debugpy = vendorLock('debugpy.lock.json')
 const pyright = vendorLock('pyright.lock.json')
 const jsDebug = vendorLock('js-debug.lock.json')
 const nodeRuntime = vendorLock('node.lock.json')
+const brush = vendorLock('brush.lock.json')
 const tsMeta = pkgMeta('typescript')
 const treeSitterMeta = pkgMeta('@vscode/tree-sitter-wasm')
 const ripgrepMeta = pkgMeta('@vscode/ripgrep')
@@ -167,6 +168,9 @@ lines.push(
     `- **voice capture pack** (\`dist/vendor/voice/<platform>/mercury_voice.node\`) — Mercury's own Node-API addon, built from the repository's native/voice sources with cargo (never fetched). It statically links the Rust crates it depends on, chiefly cpal (Apache-2.0 / MIT, https://github.com/RustAudio/cpal) and napi-rs (MIT, https://github.com/napi-rs/napi-rs); the full per-platform crate inventory ships beside the addon as \`NOTICES.json\`, with every linked crate's licence text under \`licenses/<crate>-<version>/\`.`,
   )
 }
+lines.push(
+  `- **shell engine pack** (\`dist/vendor/brush/<platform>/brush\`) — brush, a bash-compatible shell written in Rust by reuben olinsky and contributors, ${brush.license ?? 'MIT'} (${brush.repository ?? 'https://github.com/reubeno/brush'}). Receipt: vendor/brush.lock.json (one upstream release archive + sha256 per platform, every digest copied from that release's published \`<archive>.sha256\` asset); the release archive ships the platform's engine binary and upstream's own \`LICENSE\` + \`THIRD_PARTY_LICENSES.html\` (the crate notices of everything linked into the binary) at dist/vendor/brush/<platform>/.`,
+)
 lines.push('')
 lines.push('## Preserved NOTICE files (Apache-2.0 §4(d))')
 lines.push('')

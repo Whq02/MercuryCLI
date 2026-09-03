@@ -35,7 +35,7 @@ range; a missing rung is named, never skipped silently.
 Mercury builds with bun and runs on Node 24 LTS:
 
 ```sh
-bun run setup                      # once; bun install + the five vendored packs
+bun run setup                      # once; bun install + the six vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs              # the cockpit needs a real TTY, 100+ columns
@@ -43,11 +43,15 @@ node dist/mercury.mjs doctor --json
 ```
 
 `setup` fetches the vendored capability packs (pyright · debugpy · js-debug ·
-extra grammars · this machine's Node runtime); a failed fetch skips its pack,
-and the build and the affected features say so (`bun install` alone ships
+extra grammars · this machine's Node runtime · brush); a failed fetch skips its
+pack, and the build and the affected features say so (`bun install` alone ships
 that degraded build). With a Rust toolchain on the machine, `setup` also
 builds the voice capture addon from `native/voice` (the one pack that is
 built, not fetched; without cargo it is skipped and the doctor says so).
+The vendored shell engine (brush, a bash-compatible shell in Rust) is optional:
+the system shell stays the default, and the `shellEngine` setting (`/config`) or
+`MERCURY_SHELL_ENGINE=brush` runs the Bash tool on it, keeping shell state
+across calls; see [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
 The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.
