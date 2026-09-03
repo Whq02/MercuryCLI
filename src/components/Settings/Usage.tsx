@@ -201,15 +201,12 @@ function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourc
   return usageForProvider(id)
 }
 
-function observedStamp(atMs: number | undefined): string {
-  return atMs !== undefined ? ` · observed ${new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''
-}
-
 function figuresLine(usage: ActiveSourceUsage): string | undefined {
   const figures = usage.figures ?? []
   if (figures.length === 0) return undefined
   const parts = figures.map(f => `${f.value} ${f.label}`)
-  return `${parts.join(' · ')}${observedStamp(figures[0]?.observedAtMs)}`
+  const stamp = figures[0] !== undefined ? usageSourceWords(figures[0]) : undefined
+  return `${parts.join(' · ')}${stamp !== undefined ? ` · ${stamp}` : ''}`
 }
 
 function ObservedWindowMeter({
