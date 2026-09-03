@@ -26,6 +26,7 @@ export interface ToolPayloadPlanInput {
 interface RosterLatch {
   enabled: boolean
   names: readonly string[]
+  tools: readonly Tool[]
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
@@ -115,16 +116,15 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   if (latchKey !== null && latched === undefined) {
-    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name) })
+    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name), tools: [...tools] })
   }
 
   const byName = new Map(tools.map(t => [t.name, t] as const))
   const ordered: Tool[] = []
   const held: string[] = []
   if (latched !== undefined) {
-    for (const name of latched.names) {
-      const tool = byName.get(name)
-      if (tool !== undefined) ordered.push(tool)
+    for (const latchedTool of latched.tools) {
+      ordered.push(byName.get(latchedTool.name) ?? latchedTool)
     }
     for (const tool of tools) {
       if (latched.names.includes(tool.name)) continue
