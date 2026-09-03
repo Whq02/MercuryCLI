@@ -61,6 +61,9 @@ export interface CaptureResponse {
   model?: string
   text?: string
   status?: number
+  error?: string
+  ms?: number
+  stop_reason?: string | null
 }
 
 export interface CaptureRow {
@@ -70,6 +73,8 @@ export interface CaptureRow {
   url?: string
   path?: string
   model?: string
+  /** The client's query source when the product's own dump wrote the row. */
+  source?: string
   headers?: Record<string, string>
   body?: WireBody
   response?: CaptureResponse
@@ -313,6 +318,17 @@ export interface PairReport {
   drops: number | null
   firstDropPath: string | null
   replayedThinking: number
+  /** The later request is byte-identical to the earlier one: a retry. */
+  retry: boolean
+  /** The later request's status when it was not answered 200. */
+  refused: string | null
+}
+
+/** The refusal a row carries, if any ("400 <message>" / "0 <transport error>"). */
+export function refusalOf(row: CaptureRow): string | null {
+  const status = row.response?.status
+  if (status === undefined || status === 200) return null
+  return `${status}${row.response?.error ? ` ${row.response.error}` : ''}`
 }
 
 /** The conversation stream: every message request that is not a side call. */
@@ -336,6 +352,7 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
     const usage = cur.response?.usage
     const drops = cur.response?.input_transformations
     const dropped = Array.isArray(drops) ? drops.filter(d => d.type === 'thinking_dropped') : null
+    const retry = verdict.held && verdict.appended === 0 && j(withoutCacheControl(pb)) === j(withoutCacheControl(cb))
     out.push({
       index: i,
       prevSeq: prev.seq ?? i,
@@ -347,6 +364,8 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
       drops: dropped === null ? null : dropped.length,
       firstDropPath: dropped !== null && dropped.length > 0 ? String(dropped[0]!.path ?? '') : null,
       replayedThinking: thinkingBlockCount(cb),
+      retry,
+      refused: refusalOf(cur),
     })
   }
   return out
@@ -355,11 +374,12 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
 /** One table line per pair — the shape the receipts and the reports carry. */
 export function formatPairLine(pair: PairReport): string {
   const v = pair.verdict
-  const where = v.held ? `HELD (+${v.appended} row${v.appended === 1 ? '' : 's'})` : `BROKE at ${v.diff?.path ?? '?'}`
+  const where = pair.retry ? 'RETRY (byte-identical to the previous request)' : v.held ? `HELD (+${v.appended} row${v.appended === 1 ? '' : 's'})` : `BROKE at ${v.diff?.path ?? '?'}`
   const lawful = pair.lawful === null ? '' : ` [${pair.lawful}]`
+  const refused = pair.refused === null ? '' : ` REFUSED ${pair.refused}`
   const cache = pair.cacheRead === null ? '' : ` cache_read=${pair.cacheRead}`
   const drops = pair.drops === null ? '' : ` drops=${pair.drops}${pair.firstDropPath ? ` first=${pair.firstDropPath}` : ''}`
-  return `#${pair.prevSeq}→#${pair.curSeq}  ${where}${lawful}${cache}${drops} thinking_replayed=${pair.replayedThinking}`
+  return `#${pair.prevSeq}→#${pair.curSeq}  ${where}${lawful}${refused}${cache}${drops} thinking_replayed=${pair.replayedThinking}`
 }
 
 export function printReport(rows: CaptureRow[], opts: { all?: boolean; quiet?: boolean } = {}): PairReport[] {
@@ -370,7 +390,8 @@ export function printReport(rows: CaptureRow[], opts: { all?: boolean; quiet?: b
     const body = row.body as WireBody
     const tools = toolNames(body.tools)
     const kind = isSummariserRequest(body) ? 'summariser' : isPostCompactionRequest(body) ? 'post-compaction' : 'conversation'
-    console.log(`  #${row.seq ?? '?'}  ${String(body.model ?? row.model ?? '?')}  ${kind}  system=${systemBytes(body)}B tools=${tools.length} messages=${Array.isArray(body.messages) ? body.messages.length : 0} thinking=${thinkingBlockCount(body)}${row.response?.usage ? ` cache_read=${row.response.usage.cache_read_input_tokens ?? 0}` : ''}${row.response?.input_transformations?.length ? ` drops=${row.response.input_transformations.length}` : ''}`)
+    const refused = refusalOf(row)
+    console.log(`  #${row.seq ?? '?'}  ${String(body.model ?? row.model ?? '?')}  ${kind}${row.source ? ` [${row.source}]` : ''}  system=${systemBytes(body)}B tools=${tools.length} messages=${Array.isArray(body.messages) ? body.messages.length : 0} thinking=${thinkingBlockCount(body)}${row.response?.usage ? ` cache_read=${row.response.usage.cache_read_input_tokens ?? 0}` : ''}${row.response?.input_transformations?.length ? ` drops=${row.response.input_transformations.length}` : ''}${refused !== null ? ` REFUSED ${refused}` : ''}${typeof row.response?.ms === 'number' ? ` ${row.response.ms}ms` : ''}`)
   }
   const pairs = reportPairs(stream)
   console.log('')
