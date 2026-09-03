@@ -401,7 +401,7 @@ console.log('— T6 the source pins —')
   const fg = src('src/tools/AgentTool/foregroundExecution.tsx')
   check(
     'T6 the foreground path publishes the tracker to the record on every assistant message, ungated',
-    fg.includes("if (message.type === 'assistant') {\n          updateAgentProgress(\n            foregroundTask.taskId,") &&
+    fg.includes("if (message.type === 'assistant') {\n          publishAgentProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)") &&
       !fg.includes('if (getSdkAgentProgressSummariesEnabled()) {\n            // Publish the tracker'),
   )
   check('T6 the foreground registration carries the resolved model', fg.includes('model: metadata.resolvedAgentModel,'))
