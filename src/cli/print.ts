@@ -227,6 +227,7 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks } from '../utils/task/framework.js'
+import { stopRunningAgentTasks } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
@@ -1573,6 +1574,21 @@ export async function runHeadless(
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
+    waitableBackgroundTaskCount: () =>
+      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate').length,
+    // The agent wait rides the runner's status frame — the same frame the
+    // compact service stamps 'compacting' on (and clears with null) — so a
+    // hosting seat lifts it into the session's state word: "waiting on 3
+    // agents", never the thinking dress over a stream that already ended.
+    onAgentWait: count => {
+      io.outbound.enqueue({
+        type: 'system',
+        subtype: 'status',
+        status: count > 0 ? { waitingOnAgents: count } : null,
+        uuid: randomUUID(),
+        session_id: getSessionId(),
+      })
+    },
     takePendingSuggestion: () => {
       const suggestion = pendingSuggestion
       pendingSuggestion = null
@@ -1854,7 +1870,19 @@ export async function runHeadless(
             }
             seenInterruptIds.add(requestId)
           }
+          // AN INTERRUPT INTERRUPTS: the in-flight request's own controller
+          // aborts (the wire tears the stream down under it), AND every
+          // background agent the turn is waiting on gets the same stop —
+          // the drain's agent wait held the seat busy past the stream's
+          // end, and an abort of a controller already released by that
+          // stream (or of nothing at all, between the stream and the wait)
+          // reached none of them: the footer said interrupting, the rows
+          // said thinking, and the agents ran on. The agents settle
+          // killed, their rows read stopped, the wait ends, the turn
+          // settles idle. The model hears nothing beyond the interruption
+          // row (no notification turn re-opens the seat).
           inFlightAbort?.abort()
+          stopRunningAgentTasks(getAppState().tasks, setAppState)
           abortSuggestion()
           lastEmittedSuggestion = null
           respondSuccess(requestId)

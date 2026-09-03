@@ -17,11 +17,8 @@ import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import {
   isLocalAgentTask,
-  killAllRunningAgentTasks,
-  markAgentsNotified,
-  type LocalAgentTaskState,
+  stopRunningAgentTasks,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
-import { emitTaskTerminatedSdk } from '../utils/sdkEventQueue.js'
 // The kill-agents notification lands in the in-process session's queue: the
 // background agents belong to the terminal process, whichever chat holds
 // the screen.
@@ -40,27 +37,16 @@ import {
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
 
-/** The shared kill path: stop all running background agents, mark each
- *  notified (one aggregate message, no per-agent noise), emit per-task
- *  termination events, and enqueue ONE aggregate model-facing
+/** The shared kill path: stop all running background agents through the
+ *  task owner's one road (abort, settle killed, mark notified, the
+ *  `stopped` termination events), then enqueue ONE aggregate model-facing
  *  notification. Returns whether anything was killed. */
 function killRunningAgents(
   getState: () => AppState,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): boolean {
-  const running = Object.values(getState().tasks).filter(
-    (task): task is LocalAgentTaskState =>
-      isLocalAgentTask(task) && task.status === 'running',
-  )
+  const running = stopRunningAgentTasks(getState().tasks, setAppState)
   if (running.length === 0) return false
-  killAllRunningAgentTasks(getState().tasks, setAppState)
-  for (const task of running) {
-    markAgentsNotified(task.id, setAppState)
-    emitTaskTerminatedSdk(task.id, 'stopped', {
-      toolUseId: task.toolUseId,
-      summary: task.description,
-    })
-  }
   const summary =
     running.length === 1
       ? `the background agent "${running[0]!.description}" was stopped`
