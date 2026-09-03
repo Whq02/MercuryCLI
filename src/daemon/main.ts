@@ -106,6 +106,7 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -323,7 +324,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
-          console.error(`[daemon] ⚠️  SUPERVISOR DEGRADED — ${reason}`)
+          console.error(`[daemon] ${GLYPH.warn} SUPERVISOR DEGRADED — ${reason}`)
           if (short !== undefined && short.startsWith('concourse-w')) {
             try {
               settleConcourseWorker(short)
@@ -977,7 +978,7 @@ async function daemonRun(args: string[]): Promise<void> {
     } catch (e) {
       // eslint-disable-next-line no-console
       console.error(
-        `[daemon] ⚠️  control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
+        `[daemon] ${GLYPH.warn} control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
       )
       logForDebugging(`[daemon] control layer failed to start (continuing as pure cron daemon): ${e}`)
       controlServer = null

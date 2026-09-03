@@ -1,4 +1,5 @@
 import figures from 'figures'
+import { GLYPH } from '../../mercury-ui/glyphs.js'
 import React from 'react'
 import { Box, Text } from '../../../ink.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
@@ -39,7 +40,7 @@ export function SubmitQuestionsView({
     .map(q => {
       const answer = answers[q.question]
       const note = notes?.[q.question]
-      const state = answer ? figures.tick : figures.warning
+      const state = answer ? GLYPH.check : GLYPH.warn
       const shown = answer ?? '(unanswered — select to answer)'
       return {
         type: 'text' as const,
@@ -68,7 +69,7 @@ export function SubmitQuestionsView({
           {!allQuestionsAnswered && (
             <Box marginBottom={1}>
               <Text color="warning">
-                {figures.warning} Not every question is answered — select one to answer it, or
+                {GLYPH.warn} Not every question is answered — select one to answer it, or
                 submit deliberately
               </Text>
             </Box>
