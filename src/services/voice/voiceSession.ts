@@ -31,10 +31,10 @@ export interface VoiceSnapshot {
   receipt: VoiceReceipt | null
 }
 
-export const RECORDING_FOOTER = 'recording · v or esc to stop'
+export const RECORDING_FOOTER = 'recording · space or esc to stop'
 export const TRANSCRIBING_FOOTER = 'transcribing…'
 
-export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then v in an empty composer starts a capture'
+export const VOICE_OFF_RECEIPT = 'voice input is off — /speak on turns it on; then space in an empty composer starts a capture'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
 
@@ -174,7 +174,7 @@ export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {})
   active = handle
   publish({ phase: 'recording', startedAt: handle.startedAt, backend: handle.backend })
   logForDebugging(`voice: capture started on ${handle.backend}; transcriber ${transcriber.choice.family} (${transcriber.choice.label})`)
-  return { kind: 'started', text: `recording — v or esc stops it (${transcriber.choice.label} transcribes)` }
+  return { kind: 'started', text: `recording — space or esc stops it (${transcriber.choice.label} transcribes)` }
 }
 
 export function cancelVoiceCapture(): boolean {
@@ -218,7 +218,7 @@ export function describeVoiceStatus(env: NodeJS.ProcessEnv = process.env): strin
   const on = voiceInputEnabled()
   const transcriber = resolveTranscriber(env)
   return [
-    `voice input ${on ? 'ON — v in an empty composer starts a capture, v or esc stops it' : 'OFF — /speak on turns it on'}`,
+    `voice input ${on ? 'ON — space in an empty composer starts a capture, space or esc stops it' : 'OFF — /speak on turns it on'}`,
     `transcriber: ${transcriber.state === 'ok' ? `${providerDisplayName(transcriber.choice.family)} · ${transcriber.choice.label}` : `none — ${transcriber.note}`}`,
     `backend: ${backendWords(resolveCaptureBackend(env))}`,
   ].join('\n')
