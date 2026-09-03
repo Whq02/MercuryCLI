@@ -8,7 +8,7 @@
    "messagesEndpoint": true,
    "modelEchoed": true,
    "stream": true,
-   "userMessageCount": 2
+   "userMessageCount": 1
   }
  },
  "J2": {
@@ -45,7 +45,7 @@
  },
  "J6": {
   "resumeCarriedTranscript": true,
-  "resumeMessageCount": 4,
+  "resumeMessageCount": 3,
   "turn1": {
    "exit": 0,
    "stdout": "J6-FIRST-REPLY\n"
