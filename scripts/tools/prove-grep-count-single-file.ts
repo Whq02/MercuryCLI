@@ -25,7 +25,7 @@ console.log('§1 the engine mechanism')
   writeFileSync(join(dir, 'one.txt'), 'hit\n')
   const single = (spawnSync(rg, ['-c', 'hit', join(dir, 'three.txt')], { encoding: 'utf8' }).stdout ?? '').trim()
   check('one FILE ⇒ the bare count (no path)', single === '3', JSON.stringify(single))
-  const wholeDir = (spawnSync(rg, ['-c', 'hit'], { cwd: dir, encoding: 'utf8' }).stdout ?? '').trim().split('\n').sort()
+  const wholeDir = (spawnSync(rg, ['-c', 'hit', dir], { cwd: dir, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).stdout ?? '').trim().split('\n').sort()
   check(
     'a DIRECTORY ⇒ path:count lines',
     wholeDir.length === 2 && wholeDir.every(l => /:\d+$/.test(l)),

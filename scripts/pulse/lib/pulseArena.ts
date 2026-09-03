@@ -156,6 +156,7 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
   const dump = join(home, 'pulse.jsonl')
 
   const sendArgs: string[] = []
+  sendArgs.push('--send', 'after:↑↓ choose:900:\\r')
   for (const s of opts.sends) sendArgs.push('--send', s)
   sendArgs.push('--anchor', `${COMPOSER_READY_NEEDLE}:${COMPOSER_NOMINAL_MS}`)
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)

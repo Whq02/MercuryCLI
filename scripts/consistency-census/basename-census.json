@@ -9,7 +9,7 @@
     ".mercury.json"
   ],
   "counts": {
-    "compat-boundary": 42,
+    "compat-boundary": 43,
     "owner-internal": 7,
     "baked-mirror": 3
   },
@@ -24,7 +24,7 @@
     },
     {
       "file": "src/entrypoints/cli.tsx",
-      "line": 311,
+      "line": 353,
       "needle": ".mercury",
       "excerpt": "return join(home, '.mercury')",
       "cls": "owner-internal",
@@ -128,7 +128,7 @@
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
-      "line": 135,
+      "line": 162,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', dir)",
       "cls": "baked-mirror",
@@ -136,7 +136,7 @@
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
-      "line": 138,
+      "line": 165,
       "needle": ".mercury",
       "excerpt": "return join(process.cwd(), '.mercury', dir)",
       "cls": "compat-boundary",
@@ -160,7 +160,7 @@
     },
     {
       "file": "src/utils/accounts/accountIdentity.ts",
-      "line": 71,
+      "line": 89,
       "needle": ".claude.json",
       "excerpt": "return readScopeIdentity(join(dir, '.claude.json')).email",
       "cls": "compat-boundary",
@@ -168,7 +168,15 @@
     },
     {
       "file": "src/utils/accounts/accountIdentity.ts",
-      "line": 147,
+      "line": 165,
+      "needle": ".claude.json",
+      "excerpt": "const file = join(dir, '.claude.json')",
+      "cls": "compat-boundary",
+      "why": "the account estate's documented compat surface — scoped-account homes + .claude.json identity files (Saturn's account facts read the same scope identity)"
+    },
+    {
+      "file": "src/utils/accounts/accountIdentity.ts",
+      "line": 210,
       "needle": ".claude.json",
       "excerpt": "const file = join(dir, '.claude.json')",
       "cls": "compat-boundary",
@@ -176,7 +184,7 @@
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
-      "line": 45,
+      "line": 46,
       "needle": ".claude",
       "excerpt": "return base === '.claude' || base.startsWith('.claude-')",
       "cls": "compat-boundary",
@@ -184,7 +192,7 @@
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
-      "line": 76,
+      "line": 95,
       "needle": ".claude.json",
       "excerpt": "const id = readScopeIdentity(join(dir, '.claude.json'))",
       "cls": "compat-boundary",
@@ -192,7 +200,7 @@
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
-      "line": 100,
+      "line": 142,
       "needle": ".claude.json",
       "excerpt": "hasConfig: existsSync(join(dir, '.claude.json')),",
       "cls": "compat-boundary",
@@ -200,9 +208,9 @@
     },
     {
       "file": "src/utils/auth.ts",
-      "line": 993,
+      "line": 1175,
       "needle": ".claude.json",
-      "excerpt": "const parsed = JSON.parse(readFileSync(join(dir, '.claude.json'), 'utf8'))",
+      "excerpt": "const file = join(dir, '.claude.json')",
       "cls": "compat-boundary",
       "why": "the account estate's documented compat surface — scoped-account homes + .claude.json identity files (Saturn's account facts read the same scope identity)"
     },
@@ -272,7 +280,7 @@
     },
     {
       "file": "src/utils/healthReport.ts",
-      "line": 1099,
+      "line": 1196,
       "needle": ".claude",
       "excerpt": "authHome === join(homedir(), '.claude').normalize('NFC')",
       "cls": "compat-boundary",
@@ -328,7 +336,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 445,
+      "line": 471,
       "needle": ".mercury",
       "excerpt": "{ dir: joinWithSep(joinWithSep(cwd, '.mercury'), 'skills'), prefix: '/.mercury/skills/' },",
       "cls": "compat-boundary",
@@ -336,7 +344,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 537,
+      "line": 563,
       "needle": ".claude",
       "excerpt": "for (const home of ['.mercury', '.claude']) {",
       "cls": "compat-boundary",
@@ -344,7 +352,7 @@
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
-      "line": 537,
+      "line": 563,
       "needle": ".mercury",
       "excerpt": "for (const home of ['.mercury', '.claude']) {",
       "cls": "compat-boundary",
@@ -384,7 +392,7 @@
     },
     {
       "file": "src/utils/secureStorage/macOsKeychainHelpers.ts",
-      "line": 35,
+      "line": 54,
       "needle": ".claude",
       "excerpt": "const isDefaultDir = configDir === join(homedir(), '.claude').normalize('NFC')",
       "cls": "compat-boundary",
@@ -392,7 +400,7 @@
     },
     {
       "file": "src/utils/secureStorage/macOsKeychainHelpers.ts",
-      "line": 47,
+      "line": 66,
       "needle": ".claude",
       "excerpt": "const isDefaultDir = configDir === join(homedir(), '.claude').normalize('NFC')",
       "cls": "compat-boundary",

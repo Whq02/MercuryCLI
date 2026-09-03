@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from '../ui/renderScenarios.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const CTRL_C = String.fromCharCode(3)
 const ESC = String.fromCharCode(27)
@@ -182,7 +183,7 @@ section('C · busy: one press interrupts AND arms; a second press closes')
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 130, awaitText: keyHintLabel('⇧← back'), minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: CTRL_C, mark: 'busy' },
@@ -217,7 +218,7 @@ section('C2 · busy: ESC alone interrupts the running turn (the hint keeps its p
     world.cfg,
     [
       ...ENTER_FRESH_CHAT,
-      { atTick: 130, awaitText: '⇧← back', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
+      { atTick: 130, awaitText: keyHintLabel('⇧← back'), minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '!' },
       { atTick: 150, awaitText: 'for shell mode', minTick: 0, awaitSettleTicks: 1, requireAwait: true, data: 'sleep 30' },
       { afterPrevTicks: 2, data: '\r' },
       { atTick: 210, awaitText: 'esc interrupt', minTick: 0, data: ESC, mark: 'busy' },
