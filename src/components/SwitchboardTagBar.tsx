@@ -10,6 +10,9 @@ import {
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
+import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { stringWidth } from '../ink/stringWidth.js'
+import { truncateKeepingTail } from '../utils/truncate.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
@@ -52,6 +55,12 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
   return `${word}${clock}${budget}`
 }
 
+export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
+  const budget = Math.max(12, columns - fixedWidth)
+  if (stringWidth(line) <= budget) return line
+  return line.includes(' — ') ? truncateKeepingTail(line, budget) : line
+}
+
 function getFocusedSeatIdentityKey(): string {
   const c = getFocusedSessionConnector()
   if (!hasSeatLive(c)) return ''
@@ -92,6 +101,7 @@ function SwitchboardAttributionBridge({
 
 export function FocusedSessionStatusRow(): React.ReactNode {
   const t = useMercuryTokens()
+  const { columns } = useTerminalSize()
   useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatStatusKey, getFocusedSeatStatusKey)
   const live = useSyncExternalStore(subscribeFocusedSeat, getFocusedSeatLive, getFocusedSeatLive)
   const c = getFocusedSessionConnector()
@@ -100,8 +110,17 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const stalled = status.stuck
   const line = statusLine(live, status)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
+  const backHint = `${live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}${keyHintLabel('⇧← back')}`
   const stageOneTail = ` · ${status.projectLabel} · ready`
   const title = status.title.endsWith(stageOneTail) ? status.title.slice(0, -stageOneTail.length) : status.title
+  const fixedWidth =
+    2 +
+    stringWidth(title) +
+    stringWidth(` · ${status.projectLabel} · `) +
+    (worktree !== null ? stringWidth(` · ${GLYPH.branch} ${worktree}`) : 0) +
+    2 +
+    stringWidth(backHint)
+  const fitted = fitStatusLine(line, columns, fixedWidth)
   return (
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {
@@ -115,7 +134,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
           {title}
         </Text>
         <Text color={t.textMuted}> · {status.projectLabel} · </Text>
-        <Text color={t.textInstruction}>{line}</Text>
+        <Text color={t.textInstruction}>{fitted}</Text>
         {worktree !== null ? (
           <Text>
             <Text color={t.textMuted}> · </Text>
@@ -132,7 +151,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
               {
 }
               {' '}
-              {live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}{keyHintLabel('⇧← back')}{' '}
+              {backHint}{' '}
             </Text>
           )}
         </InteractiveRow>

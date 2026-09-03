@@ -15,7 +15,10 @@ echo "############################################################"
 echo "# notifications — the Session Concourse lane"
 echo "############################################################"
 
+claimed=$(cat scripts/notifications-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for proof in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   [ -e "$proof" ] || continue
   echo
   echo "── $(basename "$proof") ──"
@@ -23,6 +26,7 @@ for proof in "$here"/prove-*.ts; do
 done
 
 for repro in "$here"/repro-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$repro")"; then continue; fi
   [ -e "$repro" ] || continue
   echo
   echo "── $(basename "$repro") ──"

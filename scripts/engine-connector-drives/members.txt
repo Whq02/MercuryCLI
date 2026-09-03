@@ -1,0 +1,7 @@
+# scripts/engine-connector-drives/members.txt — the engine-connector suite's real-terminal drives, one
+# basename per line (the files live in scripts/engine-connector/). Each member boots
+# the built bundle in a pseudo-terminal; the parent suite runs every prover
+# NOT named by a sibling list, so a new prover lands there and moves here
+# only by editing this list. A name listed here but missing on disk is a
+# loud red in this runner.
+prove-busy-stall-drive.ts

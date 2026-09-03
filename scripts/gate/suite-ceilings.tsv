@@ -65,3 +65,11 @@ switchboard-3	2400
 # agent-bash journey since the 2006 s run its row was sized from; the grant is
 # the measured wall plus the unrun tail with the diffws-class slack.
 journey	3000
+# The drive halves of the split suites inherit their parent's grant: the
+# real-terminal captures are the part of the wall the grant was measured on.
+switchboard-drives	1200
+switchboard-2-drives	1200
+switchboard-3-drives	2400
+switchboard-4-drives	1200
+switchboard-5-drives	1200
+switchboard-6-drives	1200
