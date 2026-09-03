@@ -116,7 +116,7 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 74,
+      "line": 85,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const tempRoot = posix.join(process.env.MERCURY_TMPDIR || '/tmp', getMercuryTempDirName())",
       "cls": "platform-owner",
@@ -124,7 +124,7 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 84,
+      "line": 95,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))",
       "cls": "platform-owner",
@@ -132,7 +132,7 @@
     },
     {
       "file": "scripts/bash/prove-bash-tool-seams.ts",
-      "line": 291,
+      "line": 317,
       "mechanism": "hardcoded-tmp",
       "excerpt": "const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))",
       "cls": "platform-owner",
@@ -479,6 +479,38 @@
       "line": 152,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-suite-class-census.ts",
+      "line": 334,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "w('scripts/lib/arena.ts', \"import { spawn } from 'node:child_process'\\nexport type Row = { a: number }\\nexport const run = (r: string) => sp",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-suite-class-census.ts",
+      "line": 335,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "w('scripts/lib/tui.ts', \"import { spawnSync } from 'node:child_process'\\nconst ENGINE = join(ROOT, 'scripts/ui/engine.py')\\nspawnSync('/usr/",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-suite-class-census.ts",
+      "line": 351,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "w('scripts/gated/render-x.ts', \"import { spawnSync } from 'node:child_process'\\nspawnSync('/usr/bin/python3', [join(ROOT, 'scripts', 'ui', '",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-suite-class-census.ts",
+      "line": 357,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "w('scripts/named-list/prove-g.ts', \"import { spawnSync } from 'node:child_process'\\nconst ENGINE = join(REPO, 'scripts/ui/engine.py')\\nspawn",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
@@ -879,6 +911,22 @@
       "line": 228,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const census = spawnSync('/usr/bin/python3', ['-c', CENSUS], { encoding: 'utf-8', timeout: vshotBudgetMs(120_000) })",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/journey/prove-switch-agents-live.ts",
+      "line": 312,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/journey/prove-switch-cold-ingest.ts",
+      "line": 186,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
@@ -1724,7 +1772,7 @@
     },
     {
       "file": "scripts/switchboard/prove-board-controls-look.ts",
-      "line": 153,
+      "line": 157,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1740,7 +1788,7 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 200,
+      "line": 217,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1748,7 +1796,7 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 261,
+      "line": 284,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-",
       "cls": "platform-owner",
@@ -1764,7 +1812,7 @@
     },
     {
       "file": "scripts/switchboard/prove-contract-offer-drive.ts",
-      "line": 98,
+      "line": 103,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1772,7 +1820,7 @@
     },
     {
       "file": "scripts/switchboard/prove-contract-offer-drive.ts",
-      "line": 155,
+      "line": 161,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1820,7 +1868,7 @@
     },
     {
       "file": "scripts/switchboard/prove-plain-world-command-honesty.ts",
-      "line": 71,
+      "line": 74,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1828,7 +1876,7 @@
     },
     {
       "file": "scripts/switchboard/prove-plain-world-command-honesty.ts",
-      "line": 137,
+      "line": 140,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1868,7 +1916,7 @@
     },
     {
       "file": "scripts/switchboard/prove-unknown-command-honesty.ts",
-      "line": 100,
+      "line": 102,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1876,7 +1924,7 @@
     },
     {
       "file": "scripts/switchboard/prove-unknown-command-honesty.ts",
-      "line": 155,
+      "line": 158,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '110', '32', String(submitAt + 1200),",
       "cls": "platform-owner",
