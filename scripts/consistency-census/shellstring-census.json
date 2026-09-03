@@ -115,6 +115,14 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
+      "file": "scripts/bash/prove-bash-tool-seams.ts",
+      "line": 74,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const tempRoot = posix.join(process.env.MERCURY_TMPDIR || '/tmp', getMercuryTempDirName())",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/behaviour-laws/prove-behaviour-laws-contract.ts",
       "line": 54,
       "mechanism": "execSync-string",
@@ -364,7 +372,7 @@
     },
     {
       "file": "scripts/critters/prove-ghost-wipe-live.ts",
-      "line": 82,
+      "line": 83,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -372,7 +380,7 @@
     },
     {
       "file": "scripts/critters/prove-ghost-wipe-live.ts",
-      "line": 132,
+      "line": 133,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const replay = spawnSync('/usr/bin/python3', [join(REPO, 'scripts/ui/critter-touched-rows.py'), tee, String(COLS), String(ROWS), '--cells'],",
       "cls": "platform-owner",
@@ -452,7 +460,7 @@
     },
     {
       "file": "scripts/formal-models/prove-flag-interactions.ts",
-      "line": 151,
+      "line": 152,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
       "cls": "platform-owner",
@@ -708,7 +716,7 @@
     },
     {
       "file": "scripts/interaction/prove-question-card-journeys.ts",
-      "line": 53,
+      "line": 54,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], {",
       "cls": "platform-owner",
@@ -716,7 +724,7 @@
     },
     {
       "file": "scripts/interaction/prove-question-card-journeys.ts",
-      "line": 287,
+      "line": 288,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })",
       "cls": "platform-owner",
@@ -747,6 +755,14 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/journey/prove-agent-bash-live.ts",
+      "line": 494,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/journey/prove-apollo-consent-journey.ts",
       "line": 208,
       "mechanism": "hardcoded-interpreter",
@@ -755,8 +771,16 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/journey/prove-cap-offer-list-live.ts",
+      "line": 253,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf-8', timeout: vshotBudgetMs(240_000), cwd: world.cwd, env })",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/journey/prove-cap-offer-live.ts",
-      "line": 239,
+      "line": 246,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1204,7 +1228,7 @@
     },
     {
       "file": "scripts/pulse/lib/pulseArena.ts",
-      "line": 229,
+      "line": 233,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1444,7 +1468,7 @@
     },
     {
       "file": "scripts/render-migration/prove-look-parity.ts",
-      "line": 183,
+      "line": 188,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, vshotCfg], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -1564,7 +1588,7 @@
     },
     {
       "file": "scripts/streaming/artifactArena.ts",
-      "line": 225,
+      "line": 229,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1572,7 +1596,7 @@
     },
     {
       "file": "scripts/streaming/artifactArena.ts",
-      "line": 401,
+      "line": 412,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1932,7 +1956,15 @@
     },
     {
       "file": "scripts/ui/generate-visual-baseline.ts",
-      "line": 235,
+      "line": 237,
+      "mechanism": "execSync-string",
+      "excerpt": "branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: REPO, encoding: 'utf8' }).trim() || 'HEAD'",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/ui/generate-visual-baseline.ts",
+      "line": 247,
       "mechanism": "execSync-string",
       "excerpt": "const sourceSha = execSync('git rev-parse HEAD:src', { cwd: REPO, encoding: 'utf8' }).trim()",
       "cls": "intentional-shell",
@@ -2036,7 +2068,7 @@
     },
     {
       "file": "scripts/ui/prove-crew-live-drive.ts",
-      "line": 236,
+      "line": 319,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2580,7 +2612,7 @@
     },
     {
       "file": "scripts/ui/render-thinking-row.ts",
-      "line": 53,
+      "line": 52,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const grid = execFileSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
