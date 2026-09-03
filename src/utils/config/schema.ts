@@ -2,6 +2,7 @@ import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
 import type { ModelOption } from '../model/modelOptions.js'
+import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
 
 export type PastedContent = {
@@ -386,7 +387,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     numStartups: 0,
     installMethod: undefined,
     autoUpdates: undefined,
-    theme: 'dark',
+    theme: DEFAULT_THEME_SETTING,
     preferredNotifChannel: 'auto',
     verbose: false,
     editorMode: 'normal',
