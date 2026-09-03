@@ -274,7 +274,10 @@ section('L4 — THE ROW TELLS THE TRUTH after the interrupt')
   check('the interruption painted (⨯ Interrupted)', /Interrupted/.test(gridText), gridText.split('\n').slice(-12).join('\n'))
   // The composer's row is back (its placeholder yields to the switch
   // receipt's transient on the hint row, so the prompt glyph is the fact).
-  check('the composer returned', /│❯\s/.test(gridText) && /shift \+ ↵ for a new line/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
+  // The new-line hint is spelled by the terminal's own keys ("shift + ↵" where
+  // extended keys are on, "backslash (\\) + ↵" elsewhere — the hosted runner's
+  // PTY is the latter): the fact is the prompt glyph and A hint row.
+  check('the composer returned', /│❯\s/.test(gridText) && / for a new line/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("the status row reads ready — no 'interrupting' left standing", /· ready/.test(gridText) && !/interrupting —/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("no 'thinking' stands over a stream that ended", !/thinking for|· thinking/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
 }

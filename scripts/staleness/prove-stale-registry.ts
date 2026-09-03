@@ -290,6 +290,7 @@ src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
 src/utils/router/providerDiscovery.ts :: cache :: ttl-bounded
 src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
+src/utils/sandbox/sandbox-adapter.ts :: platformUserTempDir :: static-for-process
 src/utils/savedPrompts/minervaRefinedStore.ts :: cache :: subscription-fed
 src/utils/savedPrompts/savedPromptsStore.ts :: cache :: subscription-fed
 src/utils/secureStorage/macOsKeychainHelpers.ts :: keychainCacheState :: invalidator=clearKeychainCache

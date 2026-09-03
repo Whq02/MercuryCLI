@@ -165,6 +165,12 @@ export async function runPreflight(): Promise<PreflightSummary> {
 // `.mercury/`). Later mounts reuse the boot's own summary.
 let bootPreflight: Promise<PreflightSummary> | null = null
 
+/** Proof seam: forget this boot's preflight so a prover can play a second
+ *  boot in one process (the once-per-boot law is otherwise the point). */
+export function _resetBootPreflightForTesting(): void {
+  bootPreflight = null
+}
+
 export async function runAndRecordPreflight(): Promise<PreflightSummary> {
   if (bootPreflight !== null) return bootPreflight
   bootPreflight = (async () => {

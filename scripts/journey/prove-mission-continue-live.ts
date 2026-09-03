@@ -186,8 +186,27 @@ function drive(
     check(`${name}: capture produced a grid`, false, `vshot: ${String(res.stderr).slice(0, 300)}`)
     return ''
   }
-  const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>> }
-  return payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+  const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Array<{ label: string; grid: Array<Array<{ c: string }>> }> }
+  const grid = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
+  // Every marked send's grid lands beside the capture (mark-<name>-<label>.txt).
+  for (const m of payload.marks ?? []) {
+    writeFileSync(path.join(world.home, `mark-${name}-${m.label}.txt`), m.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n'))
+  }
+  // A capture that never showed its ready text names the driver's own
+  // report (the first stuck send) beside the grid it did take.
+  if (readyText.length > 0 && !readyText.some(t => grid.includes(t))) {
+    console.log(`  [vshot ${name}] ${String(res.stderr ?? '').trim().replace(/\s+/g, ' ').slice(-700)}`)
+  }
+  return grid
+}
+
+/** A marked send's grid from a drive, or '' when the mark never fired. */
+function markText(world: World, name: string, label: string): string {
+  try {
+    return readFileSync(path.join(world.home, `mark-${name}-${label}.txt`), 'utf8')
+  } catch {
+    return ''
+  }
 }
 
 // ── card + debug forensics ─────────────────────────────────────────────────
@@ -197,6 +216,7 @@ interface CardOnDisk {
   goal: string
   state: string
   nextStep: string | null
+  iterations: number
 }
 function readCards(world: World): CardOnDisk[] {
   const out: CardOnDisk[] = []
@@ -209,7 +229,7 @@ function readCards(world: World): CardOnDisk[] {
       else if (dir.endsWith('/missions') && name.name.endsWith('.json')) {
         try {
           const parsed = JSON.parse(readFileSync(full, 'utf8')) as CardOnDisk & { schema: number }
-          out.push({ file: name.name, sessionId: parsed.sessionId, goal: parsed.goal, state: parsed.state, nextStep: parsed.nextStep })
+          out.push({ file: name.name, sessionId: parsed.sessionId, goal: parsed.goal, state: parsed.state, nextStep: parsed.nextStep, iterations: typeof parsed.iterations === 'number' ? parsed.iterations : 0 })
         } catch {
           /* corrupt card = absent */
         }
@@ -238,15 +258,22 @@ console.log('============================================================')
 console.log(' mission continuity LIVE — the boot-flag resume paths')
 console.log('============================================================')
 
+const ARM_TURN = 'mission arm turn one'
 const ARM_SENDS = [
   // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session enters the chat first.
   { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-  { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `/mission ${GOAL}\r` },
+  // A resume adopts a CONVERSATION: a transcript that holds only metadata
+  // (the arm alone) is refused at the door — "No conversation found to
+  // continue" — so one real turn settles on disk before the arm.
+  { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM_TURN}\r` },
+  // The mission worlds' fixture answers slowly by design; the arm needs the
+  // turn ACCEPTED (the status row offers esc), not its reply.
+  { atTick: 150, minTick: 30, awaitText: 'esc interrupts', awaitSettleTicks: 2, data: `/mission ${GOAL}\r` },
 ]
 
 function stageA(world: World, label: string): { armedSessionId: string | null } {
   section(`${label} — stage A: arm on a fresh boot; the armed card lands`)
-  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 140)
+  const grid = drive(world, 'arm', [], ARM_SENDS, ['Mission set'], 200)
   check('the arm confirmation painted', grid.includes('Mission set'), grid.slice(-400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
@@ -265,12 +292,19 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     `resume-${argvTail[0]!.replace(/^--/, '')}`,
     argvTail,
     [
-      // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session enters the chat first.
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-      { atTick: 110, minTick: 24, awaitText: '? for shortcuts', data: '/mission\r' }],
+      // A boot-flag resume goes straight to the adopted chat (no Boot face):
+      // /mission asks once the SEAT stands — the status row reads ready with
+      // the adopted chat attached (a key typed into the landing composer
+      // before the seat attaches is lost with the landing).
+      { atTick: 140, minTick: 15, awaitText: '· ready', awaitSettleTicks: 3, data: '/mission\r' },
+      // The panel is read three seconds after the ask (a timed mark): the
+      // command's answer is a notice with its own beat.
+      { data: '', afterPrevTicks: 15, mark: 'after-mission' }],
     ['Standing mission'],
     240,
   )
+  const asked = markText(world, `resume-${argvTail[0]!.replace(/^--/, '')}`, 'after-mission')
+  const shown = `${grid}\n${asked}`
   const after = debugText(world)
   // Presence-diff, not offset-diff: the resumed boot writes its OWN debug
   // file and readdir order interleaves them, so byte offsets misalign.
@@ -279,9 +313,9 @@ function stageB(world: World, label: string, argvTail: string[]): void {
     !before.includes('[mission] re-armed from card') && after.includes('[mission] re-armed from card'),
     after.slice(-300) || '(no debug lines)',
   )
-  check('/mission paints the standing mission', grid.includes('Standing mission'), grid.slice(-600))
-  check('the panel carries the goal', grid.includes(GOAL))
-  check('the panel names the resume re-arm', grid.includes('re-armed on resume'), grid.slice(-600))
+  check('/mission paints the standing mission', shown.includes('Standing mission'), asked.split('\n').filter(l => l.trim()).slice(-12).join('\n'))
+  check('the panel carries the goal', shown.includes(GOAL))
+  check('the panel names the resume re-arm', shown.includes('re-armed on resume'), asked.split('\n').filter(l => /mission|Mission/.test(l)).join(' | ').slice(0, 400))
   const cards = readCards(world)
   const armed = cards.filter(c => c.state === 'armed')
   check('exactly one ARMED card store-wide after the resume', armed.length === 1, JSON.stringify(cards))
@@ -437,6 +471,64 @@ function stageB(world: World, label: string, argvTail: string[]): void {
       first.includes('standing reply to [[continuity turn one'),
       first.slice(0, 400),
     )
+
+    // WORLD 4 — THE SEAT'S OWN STOP HOOK: a hosted chat's turns end in its
+    // runner, so a mission armed from the cockpit must fire THERE. The card
+    // is keyed by the conversation (the transcript's id, which the runner
+    // claims), the runner reads it at the turn start, and its Stop hook
+    // counts a check when the turn after the arm ends.
+    section('WORLD 4 — a mission armed on a hosted chat fires its Stop hook in the seat')
+    const world4 = makeWorld('world-seat-hook')
+    const ARM4 = 'seat hook turn one'
+    const AFTER4 = 'seat hook turn two'
+    const grid4 = drive(
+      world4,
+      'seat-hook',
+      [],
+      [
+        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 90, minTick: 20, awaitText: '? for shortcuts', data: `${ARM4}\r` },
+        { atTick: 180, minTick: 30, awaitText: `reply to [[${ARM4}`, data: `/mission ${GOAL}\r` },
+        { atTick: 240, minTick: 40, awaitText: 'Mission set', data: `${AFTER4}\r` },
+      ],
+      [`reply to [[${AFTER4}`],
+      360,
+      { base: fastBase, rows: 44 },
+    )
+    // The mission's own continuation turns follow the reply and scroll it off
+    // the viewport, so the turn is read on disk: the transcript carries the
+    // prompt and its reply.
+    const transcript4 = (() => {
+      const dir = path.join(world4.home, 'projects')
+      const found: string[] = []
+      const walk = (d: string): void => {
+        if (!existsSync(d)) return
+        for (const name of readdirSync(d, { withFileTypes: true })) {
+          const full = path.join(d, name.name)
+          if (name.isDirectory()) walk(full)
+          else if (name.name.endsWith('.jsonl')) found.push(readFileSync(full, 'utf8'))
+        }
+      }
+      walk(dir)
+      return found.join('\n')
+    })()
+    check('WORLD 4 the turn after the arm settled (the transcript carries the prompt and its reply)', transcript4.includes(AFTER4) && transcript4.includes(`reply to [[${AFTER4}`), grid4.slice(-400))
+    const cards4 = readCards(world4)
+    const card4 = cards4.find(c => c.iterations >= 1) ?? cards4.find(c => c.state === 'armed') ?? cards4[0]
+    const transcripts4: string[] = []
+    const walk4 = (dir: string): void => {
+      if (!existsSync(dir)) return
+      for (const name of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, name.name)
+        if (name.isDirectory()) walk4(full)
+        else if (name.name.endsWith('.jsonl') && !name.name.endsWith('.receipts.jsonl')) transcripts4.push(name.name.slice(0, -'.jsonl'.length))
+      }
+    }
+    walk4(path.join(world4.home, 'projects'))
+    check('WORLD 4 the card is keyed by the CONVERSATION (a transcript on disk carries the same id)', card4 !== undefined && transcripts4.includes(card4.sessionId), `card ${card4?.sessionId ?? '(none)'} · transcripts ${transcripts4.join(',')}`)
+    check("WORLD 4 the mission's Stop hook fired in the seat (the card counts a check)", (card4?.iterations ?? 0) >= 1, JSON.stringify(cards4))
+    const seatLines = debugText(world4).split('\n').filter(l => l.includes('[mission]'))
+    check('WORLD 4 the seat armed from the card and logged the check', seatLines.some(l => l.includes('re-armed from card')) && seatLines.some(l => /Mission not yet met|installed standing mission/.test(l)), seatLines.map(l => l.slice(-110)).join(' | ').slice(-400))
   } finally {
     try {
       fast.kill('SIGTERM')

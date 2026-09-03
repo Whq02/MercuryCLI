@@ -30,7 +30,8 @@ import type {
   EditablePromptInputMode,
   PromptInputMode,
 } from '../types/textInputTypes.js'
-import { getSessionId, updateLastInteractionTime } from '../bootstrap/state.js'
+import { getSessionId, onSessionSwitch, updateLastInteractionTime } from '../bootstrap/state.js'
+import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
 import { activityManager } from '../utils/activityManager.js'
 import {
   cancelPendingDraftSave,
@@ -38,6 +39,7 @@ import {
   flushDraftSaves,
   readDraftSync,
   saveDraftDebounced,
+  migrateOrphanedDraft,
 } from '../utils/promptDraft.js'
 import { createSignal } from '../utils/signal.js'
 import { noteCompanionTyping } from '../utils/cockpit/companionEngine.js'
@@ -243,6 +245,13 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   const typedWhileLanding = opts?.landing === true ? draft.text : ''
   await flushDraftSaves()
   owningSessionId = sessionId
+  // THE LANDING MOVES THE PAGE: the composer mounted under the boot's own id
+  // (no session held the slot yet), so what the operator typed while the
+  // chat landed — and any page an older boot left under such an id — sits
+  // under a key no transcript carries. On a landing the one orphaned page
+  // of this project follows the conversation; a hop never migrates (the
+  // page under a boot id during a hop is this boot's own live draft).
+  if (opts?.landing === true && sessionId !== null) await migrateOrphanedDraft(sessionId)
   const saved = readDraftSync(sessionId)
   if (editSeq !== fence) return // the operator typed into the new view — typing wins
   if (typedWhileLanding !== '' && (!saved || saved.text === '')) return // the landing keeps the live draft
@@ -256,6 +265,17 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
   }
   commit()
 }
+
+// THE IDENTITY SWITCH (the plain road's resume): a boot-flag resume adopts
+// its transcript AFTER the composer mounted under the boot's own id, and no
+// seat holds the slot to re-key it — the adopted conversation is the owner
+// from the switch on (its saved page restores; words typed while it landed
+// stay). A hosted chat's slot re-keys at the swap instead (the REPL's own
+// effect), so the switch is left to it while a session holds the slot.
+onSessionSwitch(id => {
+  if (getFocusedSessionConnector().sessionId() !== '') return
+  void rekeyToSession(String(id), { landing: true })
+})
 
 /** REPL registers its chokepoint effects once at mount; a re-register
  *  replaces (the latest render's closures win). */

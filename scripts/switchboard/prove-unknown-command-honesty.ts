@@ -23,6 +23,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 
 // Hermetic BEFORE any src import.
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-cmd-pure-home-'))
@@ -94,11 +95,12 @@ const sends = [
   after(7200, '/frobnicate'), // 3
   after(7900, '\r'), // 4 → the screen's sentence, display-only
 ]
+const WALL_S = driveWallSeconds(sends)
 const drive = join(home, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
   '/usr/bin/python3',
-  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '110', '--rows', '32', '--seconds', '13', '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
+  [join(REPO, 'scripts', 'streaming', 'ptydrive.py'), '--cols', '110', '--rows', '32', '--seconds', String(WALL_S), '--out', drive, ...sends.flatMap(s => ['--send', s]), '--', nodeBin, DIST],
   {
     cwd,
     env: {
@@ -110,6 +112,7 @@ const child = spawn(
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'xterm-256color',
+      MERCURY_SPLASH: 'off',
       MERCURY_CONFIG_DIR: configDir,
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
@@ -127,8 +130,8 @@ const child = spawn(
 let driverOut = ''
 child.stdout.on('data', d => (driverOut += d))
 child.stderr.on('data', d => (driverOut += d))
-const killer = setTimeout(() => child.kill('SIGKILL'), 13_000 + 22_000)
-await new Promise<void>(r => child.on('exit', () => r()))
+const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(WALL_S * 1000) + 22_000)
+await driverClosed(child)
 clearTimeout(killer)
 await api.close()
 // exact-pid reap.
@@ -149,7 +152,7 @@ type Rec = { sent?: number; ts?: number }
 const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : []
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
-check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${driverOut.slice(-250)}` : ''}`)
+check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
   const submitAt = Math.round((sendRecs[4]!.sent! - firstOut))
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '110', '32', String(submitAt + 1200), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(60_000), maxBuffer: 64 * 1024 * 1024 })

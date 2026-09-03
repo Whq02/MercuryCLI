@@ -560,6 +560,11 @@ export async function runHeadless(
     const [wards, tabula, crew] = await sessionWiringModules()
     wards.registerWardsHook(setAppState, sid)
     tabula.registerTabulaFireHooks(setAppState, sid)
+    // The standing mission rides the SEAT: a card left armed for this
+    // conversation arms the runner's own Stop hook here — the turn ends in
+    // this process, never in the cockpit's app state.
+    const mission = await import('../utils/hooks/missionHook.js')
+    mission.rearmMissionFromCard(setAppState, { cardSessionId: sid, armSessionId: sid })
     void crew.bootCrewIdentity({ sessionId: sid, worktreeRef: getCwd() }).catch(e => {
       logForDebugging(`[session-runner] crew identity boot failed (non-blocking): ${e}`)
     })
@@ -625,6 +630,21 @@ export async function runHeadless(
       const owner = processMainOwner()
       if (getRunSnapshot(owner) === null) {
         await reconcileOnResume(owner, getCwd())
+      }
+    } catch (error) {
+      logError(error)
+    }
+    // Launch receipts vs the registry: a background agent is an in-process
+    // task of the runner that just died, so every launch the transcript
+    // carries a receipt for and no notice against gets its death notice
+    // here — a settled record for the panel grace and the typed
+    // <task-notification> the model reads on its next turn (never a launch
+    // receipt standing alone for the next model to believe).
+    try {
+      const { reconcileBackgroundLaunchesOnResume } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState)
+      if (settledLaunches.length > 0) {
+        logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
       }
     } catch (error) {
       logError(error)
@@ -3071,6 +3091,11 @@ export async function runHeadless(
         }
         if (typed.type === 'user') {
           sessionInitialized = true
+          // The card the cockpit writes for this conversation is read at
+          // every turn start: a mission set (or cleared) mid-session
+          // reaches the seat's own Stop hook before the turn runs.
+          const missionSync = await import('../utils/hooks/missionHook.js')
+          missionSync.syncMissionFromCard(setAppState, String(getSessionId()))
           const uuid = typed.uuid
           if (uuid) {
             // The wire uuid is a plain string; the session store keys on the

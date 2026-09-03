@@ -467,6 +467,21 @@ function LiveConcourse(): React.ReactNode {
       : liveSnapshot
   const snapshotRef = useRef<typeof snapshot>(null)
   snapshotRef.current = snapshot
+  // THE STOP RECEIPT FOLLOWS THE ROW (the stop law): a stop the daemon
+  // answered "stop sent — …" is on its way, and the removal hint belongs to
+  // the moment the record reads stopped (the runner's acknowledgement,
+  // never the kill's dispatch). The ids whose receipt still says "sent"
+  // wait here; when their row lands stopped the receipt advances.
+  const stopAwaitingStampRef = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    const waiting = stopAwaitingStampRef.current
+    if (waiting.size === 0) return
+    for (const row of (snapshot?.groups ?? []).flatMap(g => g.rows)) {
+      if (!waiting.has(row.sessionId) || row.state !== 'stopped') continue
+      waiting.delete(row.sessionId)
+      noteControl('strip:composer', { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` })
+    }
+  }, [snapshot, noteControl])
   // ── enter = a WINDOW onto the session ────────────────────────────────
   // The real REPL opens onto the session at once — its chat read live from
   // its own file, the composer delivering through the daemon — and the route
@@ -812,7 +827,7 @@ function LiveConcourse(): React.ReactNode {
                   out.outcome === 'refused'
                     ? { state: 'refused', reason: out.detail ?? out.reason }
                     : out.outcome === 'applied' && !out.acknowledged
-                      ? { state: 'applied', reason: `stop sent — ${out.runnerId} ends its turn; the row reads stopped once it is gone` }
+                      ? (stopAwaitingStampRef.current.add(sessionId), { state: 'applied', reason: `stop sent — ${out.runnerId} ends its turn; the row reads stopped once it is gone` })
                       : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` },
                 )
               } else {
@@ -836,6 +851,7 @@ function LiveConcourse(): React.ReactNode {
             // the record reads stopped on the runner's acknowledgement,
             // never on the kill's dispatch.
             const acknowledged = reply.ok === true && reply.outcome === 'applied' && /^stopped /.test(reply.detail ?? '')
+            if (reply.ok === true && reply.outcome === 'applied' && !acknowledged && reply.detail !== undefined) stopAwaitingStampRef.current.add(sessionId)
             noteControl(
               'strip:composer',
               reply.ok === true && reply.outcome !== 'refused'

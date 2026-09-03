@@ -67,6 +67,10 @@ const DOORS = [
   'checkpointFacts',
   'subscribeCheckpoints',
   'rewind',
+  // The spawn switches ride the connector as their own doors: the seat
+  // reads them and applies a flip while agents alone hold the turn.
+  'spawnSwitches',
+  'setSpawnSwitch',
 ] as const
 
 // 1. The interface declares exactly these doors (order-free set equality).
