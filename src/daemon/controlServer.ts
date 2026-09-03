@@ -41,6 +41,8 @@ export interface ControlServerDeps {
   maxInflight: number
   controlKey: string
   isReady: () => boolean
+  whenReady?: () => Promise<void>
+  startingHoldMs?: number
   onShutdown: (reapWorkers: boolean) => {
     reaped: number
     workers: Array<{ short: string; kind: 'long-lived' | 'one-shot'; purpose: string; pid?: number }>
@@ -360,6 +362,33 @@ const SESSION_OP_ALIASES: Record<string, string> = {
   concourseControl: 'sessionControl',
 }
 
+export const ESTARTING_HOLD_MS = 4_000
+const PROMPT_WHILE_STARTING = new Set(['sessionList', 'list', 'has', 'status'])
+
+async function awaitReadiness(deps: ControlServerDeps, holdMs: number): Promise<boolean> {
+  if (deps.isReady()) return true
+  const deadline = Date.now() + holdMs
+  if (deps.whenReady) {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        deps.whenReady(),
+        new Promise<void>(resolve => {
+          timer = setTimeout(resolve, holdMs)
+        }),
+      ])
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+    return deps.isReady()
+  }
+  while (Date.now() < deadline) {
+    await new Promise<void>(resolve => setTimeout(resolve, 25))
+    if (deps.isReady()) return true
+  }
+  return deps.isReady()
+}
+
 async function routeControlRequest(
   deps: ControlServerDeps,
   leases: Map<net.Socket, LeaseClient>,
@@ -429,11 +458,17 @@ async function routeControlRequest(
   }
 
   if (!deps.isReady()) {
-    return answer(sock, {
-      ok: false,
-      code: 'ESTARTING',
-      error: 'daemon starting (adoption / lock acquisition in progress)',
-    })
+    const holdMs = typeof op === 'string' && !PROMPT_WHILE_STARTING.has(op) ? (deps.startingHoldMs ?? ESTARTING_HOLD_MS) : 0
+    if (holdMs <= 0 || !(await awaitReadiness(deps, holdMs))) {
+      return answer(sock, {
+        ok: false,
+        code: 'ESTARTING',
+        error:
+          holdMs > 0
+            ? `daemon starting (adoption / lock acquisition in progress) — held ${holdMs}ms for readiness; retry`
+            : 'daemon starting (adoption / lock acquisition in progress)',
+      })
+    }
   }
 
   const proto = raw.proto

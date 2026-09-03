@@ -1,4 +1,4 @@
-import { adoptiveProjectPath } from '../utils/projectStoreAdoption.js'
+import { daemonDir } from './controlSocket.js'
 import { spawn } from 'node:child_process'
 import { closeSync, mkdirSync, openSync, statSync } from 'node:fs'
 import { join } from 'node:path'
@@ -182,7 +182,7 @@ export function spawnOwnedDaemon(
   if (verdict !== 'spawn') {
     logForDebugging(
       verdict === 'capped'
-        ? `[${label}] spawnOwnedDaemon: session cap ${OWNED_SPAWN_SESSION_CAP} reached — the daemon keeps dying at boot; read ${join(adoptiveProjectPath(projectDir, 'daemon'), 'daemon.log')}`
+        ? `[${label}] spawnOwnedDaemon: session cap ${OWNED_SPAWN_SESSION_CAP} reached — the daemon keeps dying at boot; read ${join(daemonDir(), 'daemon.log')}`
         : `[${label}] spawnOwnedDaemon: cooling down (${Math.round((now - (history?.lastAt ?? 0)) / 1000)}s since the last spawn) — skipped`,
     )
     return undefined
@@ -205,7 +205,7 @@ export function spawnOwnedDaemon(
     }
     let outFd: number | 'ignore' = 'ignore'
     try {
-      const logDir = adoptiveProjectPath(projectDir, 'daemon')
+      const logDir = daemonDir()
       mkdirSync(logDir, { recursive: true })
       const logPath = join(logDir, 'daemon.log')
       try {
