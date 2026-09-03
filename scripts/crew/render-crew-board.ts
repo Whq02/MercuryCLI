@@ -87,7 +87,7 @@ function assertBoard(cols: number, tag: string, extraEnv: Record<string, string>
 
 for (const cols of [120, 80]) {
   assertBoard(cols, 'empty', {}, [
-    [/no teammates yet/, true, "honest empty state ('no teammates yet')"],
+    [/no named agents yet/, true, "honest empty state ('no named agents yet')"],
     [/@atlas/, false, 'retired stub chip @atlas ABSENT (no fabricated instances)'],
     [/@beacon/, false, 'retired stub chip @beacon ABSENT'],
     [/crew is disabled/, false, 'not showing the disabled line while enabled'],
@@ -95,7 +95,7 @@ for (const cols of [120, 80]) {
 }
 assertBoard(120, 'disabled', { MERCURY_CREW: '0' }, [
   [/crew is disabled \(MERCURY_CREW=0/, true, 'honest disabled line naming the kill'],
-  [/no teammates yet/, false, 'empty-state hint suppressed while disabled'],
+  [/no named agents yet/, false, 'empty-state hint suppressed while disabled'],
 ])
 
 rmSync(home, { recursive: true, force: true })
