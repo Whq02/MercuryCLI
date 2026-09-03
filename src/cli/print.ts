@@ -37,7 +37,8 @@ import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessio
 import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
-import { setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
+import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
+import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
@@ -664,6 +665,7 @@ export async function runHeadless(
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
     messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
+    declareLawfulPrefixChange(processMainOwner(), `the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
   }
 
   const dynamicMcp: DynamicMcpState = {
