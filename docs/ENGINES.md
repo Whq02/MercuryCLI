@@ -217,11 +217,26 @@ The approaching-limit warning has one owner and fires for
 whichever provider the session actually runs on, from that provider's own signals,
 in one grammar — `<provider>: XX% of <window> used[ · resets <t>]`: the Anthropic
 subscription meters and header states, the OpenAI observed usage bands, the
-OpenRouter per-key credit cap, the Kimi sign-in's managed windows. A lane that
-serves no percent-shaped usage signal warns never — an absent signal is an absent
-warning, not a fabricated meter. The engine feeders read the same window views the
-settings tab and the rail meters read, so the strip and the meters can never
-disagree about a percent.
+OpenRouter per-key credit cap, the Kimi sign-in's managed windows. The window it
+names is the one that binds the session model hardest — on the first-party
+subscription the shared session and weekly windows plus the per-model weekly
+pool of the model's own family (a Fable week at 87% warns a Fable session and
+never a Sonnet one). A lane that serves no percent-shaped usage signal warns
+never — an absent signal is an absent warning, not a fabricated meter. The engine
+feeders read the same window views the settings tab and the rail meters read, so
+the strip and the meters can never disagree about a percent.
+
+Every meter surface — the telemetry rail's USAGE panel, `/deck`, the frame
+band, `/usage` and the doctor's per-family usage rows — reads one owner and
+paints one grammar: a family's shared windows first, then every per-model
+weekly pool it reports beside them (the first-party subscription's Fable,
+Opus and Sonnet weeks, folded into the same block; a family that reports
+no pools shows none), each with its percent and its reset in the operator's
+local time. The frame band's second chip is the binding window for the
+session model, under its own label. Every figure names its feed and age —
+endpoint-fed or header-fed, "read N ago" — and a read older than its reader's
+own refresh cadence says "stale · last read N min ago" rather than passing as
+live; a lane that has observed nothing says "no usage read", never 0%.
 
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and
@@ -230,10 +245,14 @@ weekly pools, the OpenAI account's observed bands, a Kimi sign-in's plan
 windows, an OpenRouter key's credit totals and cap, the DeepSeek and Moonshot
 balances, and an honest one-line absence for a lane whose provider publishes
 no usage Mercury can read (Z.AI, Gemini, Hugging Face, a custom endpoint, an
-API key on a subscription lane, a local server). Every figure is a reader's
-last observation with its stamp, sampled on the tab through one door and
-dropped the moment the credential it belongs to changes — never remembered,
-never invented.
+API key on a subscription lane, a local server). Every API-key slot carries a
+credits line: the provider-stated balance with its feed and age where the
+family exposes one (the DeepSeek and Moonshot balance endpoints, the remaining
+credit under an OpenRouter key cap), and "credits: not reported by the
+provider" where none exists — never a computed spend presented as a balance.
+Every figure is a reader's last observation with its stamp, sampled on the tab
+through one door and dropped the moment the credential it belongs to changes —
+never remembered, never invented.
 
 The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,
