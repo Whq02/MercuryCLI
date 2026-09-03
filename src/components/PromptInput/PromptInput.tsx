@@ -2307,7 +2307,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const composerViewportStartRef = useRef<number | undefined>(undefined)
 
   const voiceInputFilter = useCallback((rawInput: string, key: Key): string => {
-    if (rawInput !== 'v' || key.ctrl || key.meta) return rawInput
+    if (rawInput !== ' ' || key.ctrl || key.meta) return rawInput
     const live = voiceSnapshot()
     if (live.phase === 'recording' || (live.phase === 'transcribing' && live.enabled)) {
       void toggleVoiceCapture()

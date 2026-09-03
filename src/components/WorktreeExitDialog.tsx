@@ -1,5 +1,5 @@
 
-import figures from 'figures'
+import { GLYPH } from './mercury-ui/glyphs.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
@@ -266,7 +266,7 @@ export function WorktreeExitDialog({
 
   return (
     <Dialog
-      title={`${figures.warning} Exiting a worktree session`}
+      title={`${GLYPH.warn} Exiting a worktree session`}
       subtitle={subtitle}
       onCancel={handleEscape}
     >

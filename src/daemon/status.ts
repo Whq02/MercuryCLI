@@ -14,6 +14,7 @@ export interface FireOutcomeSummary {
 }
 import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict } from './handshake.js'
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 export interface MercuryDaemonStatus {
   supervisor: { pid: number; version: string; uptimeSec: number; dir: string } | null
@@ -156,7 +157,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     )
   }
   if (status.degraded) {
-    lines.push(`  supervisor:   ⚠️  DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
+    lines.push(`  supervisor:   ${GLYPH.warn} DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
   }
   if (status.leaseCount !== null) {
     lines.push(`  leases:       ${status.leaseCount}`)
