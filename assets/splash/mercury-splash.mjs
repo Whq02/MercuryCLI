@@ -645,6 +645,7 @@ function critterLabel() {
   return CRITTER_KEY.charAt(0).toUpperCase() + CRITTER_KEY.slice(1)
 }
 
+const DEFAULT_THEME_FAMILY = 'true-black'
 function persistedThemeName() {
   const pin = process.env.MERCURY_THEME_PIN
   if (pin) return String(pin).toLowerCase().trim()
@@ -655,7 +656,8 @@ function persistedThemeName() {
     return ''
   }
 }
-adoptGroundFamily(persistedThemeName() === 'true-black' ? 'true-black' : 'dark')
+const persistedTheme = persistedThemeName() || DEFAULT_THEME_FAMILY
+adoptGroundFamily(persistedTheme === 'true-black' ? 'true-black' : 'dark')
 
 const core = createSplashCore({ nocolor: NOCOLOR, truecolor: TRUECOLOR, accent: CRITTER_KEY })
 const {
