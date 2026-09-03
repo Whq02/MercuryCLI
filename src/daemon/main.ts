@@ -44,9 +44,11 @@ import {
   onSeatIdle,
   onSeatLine,
   onSeatSpawned,
+  publishSeatFacts,
   refreshSessionFacts,
   requestSessionFacts,
   rewindSession,
+  seatTurnOpen,
   setSessionEffort,
   setSessionKitDial,
   setSessionModel,
@@ -481,7 +483,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: ({ action, sessionId, by, reason, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, clientOpId, mintedAtMs, title, titleSource }) => {
+        concourseControl: ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, clientOpId, mintedAtMs, title, titleSource }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -635,12 +637,33 @@ async function daemonRun(args: string[]): Promise<void> {
                 JSON.stringify({
                   type: 'control_request',
                   request_id: `concourse-interrupt-${clientOpId ?? `${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`}`,
-                  request: { subtype: 'interrupt' },
+                  request: { subtype: 'interrupt', ...(hard === true ? { hard: true } : {}) },
                 }),
               )
+            if (delivered && hard === true && roster !== null) {
+              const live = roster
+              const runnerId = rec.runnerId
+              setTimeout(() => {
+                const row = live.list().find(j => j.short === runnerId)
+                if (!seatTurnOpen(row)) return
+                // eslint-disable-next-line no-console
+                console.error(`[daemon] hard stop: ${runnerId} still holds its turn a second after the interrupt — cutting the runner`)
+                live.kill(runnerId)
+                const t0 = Date.now()
+                const publishWhenGone = (): void => {
+                  const after = live.list().find(j => j.short === runnerId)
+                  if (after !== undefined && !after.outcome && Date.now() - t0 < 5_000) {
+                    setTimeout(publishWhenGone, 100).unref()
+                    return
+                  }
+                  publishSeatFacts(runnerId, undefined, live)
+                }
+                publishWhenGone()
+              }, 1_000).unref()
+            }
             return settle(
               delivered
-                ? { outcome: 'applied' as const, detail: `interrupt ${rec.runnerId}` }
+                ? { outcome: 'applied' as const, detail: `${hard === true ? 'hard stop' : 'interrupt'} ${rec.runnerId}` }
                 : { outcome: 'refused' as const, detail: 'worker has no live control channel' },
             )
           }

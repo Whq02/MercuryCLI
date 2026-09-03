@@ -52,7 +52,7 @@ writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# switch drive fixture\n')
 
 const captureFile = path.join(RUN_HOME, 'wire-captures.jsonl')
 writeFileSync(captureFile, '')
-const fixture = spawn(BUN, ['run', path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
+const fixture = spawn('node', [path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 const port = await new Promise<number>((resolve, reject) => {
@@ -101,8 +101,8 @@ const cfg = {
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
     { atTick: 150, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
-    { atTick: 200, minTick: 8, awaitText: 'Model switch preview', data: '\r', mark: 'switch-confirmed' },
-    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
+    { atTick: 200, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },
+    { atTick: 260, minTick: 10, awaitText: 'Opus 5 · ●', awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'pickup-sent' },
   ],
   readyText: [OPUS_REPLY],
   stableTicks: 4,
@@ -154,8 +154,8 @@ if (existsSync(out)) {
   }
   gridText = payload.grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
   const receipts = (payload.sendReceipts ?? []) as unknown as Array<{ atTick?: number; ts?: number }>
-  switchSentAt = receipts[1]?.atTick ?? 0
-  pickupSentAt = receipts[3]?.ts ?? 0
+  switchSentAt = receipts[2]?.atTick ?? 0
+  pickupSentAt = receipts[4]?.ts ?? 0
 }
 type Capture = { kind: string; method?: string; url?: string; body?: Record<string, unknown>; at: number }
 const wire: Capture[] = readFileSync(captureFile, 'utf8')

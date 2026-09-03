@@ -1,5 +1,5 @@
 import figures from 'figures'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -21,7 +21,7 @@ import { FilePathLink } from '../../FilePathLink.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewQuestionView } from './PreviewQuestionView.js'
 import { QuestionNavigationBar } from './QuestionNavigationBar.js'
-import type { QuestionState } from './questionState.js'
+import { OTHER_OPTION_VALUE, type QuestionState } from './questionState.js'
 
 type Props = {
   question: Question
@@ -94,20 +94,26 @@ export function QuestionView(props: Props): React.ReactNode {
   const [isFooterFocused, setIsFooterFocused] = useState(false)
   const [footerIndex, setFooterIndex] = useState(0)
   const [isOtherFocused, setIsOtherFocused] = useState(false)
+  const [showEmptyOtherHint, setShowEmptyOtherHint] = useState(false)
+  const [isNextFocused, setIsNextFocused] = useState(false)
   const editor = getExternalEditor()
   const editorName = editor ? toIDEDisplayName(editor) : null
 
   const questionText = question.question
   const questionState = questionStates[questionText]
+  const otherTextRef = useRef<string | null>(null)
+  const otherText = (): string => otherTextRef.current ?? questionState?.textInputValue ?? ''
 
   const handleFocus = useCallback(
     (value: unknown) => {
-      const isOther = value === '__other__'
+      const isOther = value === OTHER_OPTION_VALUE
       setIsOtherFocused(isOther)
       onTextInputFocus(isOther)
+      if (!isOther) setShowEmptyOtherHint(false)
     },
     [onTextInputFocus],
   )
+  const showEmptyHint = useCallback(() => setShowEmptyOtherHint(true), [])
 
   const handleOpenEditor = useCallback(
     async (currentValue: string, setValue: (value: string) => void) => {
@@ -172,6 +178,16 @@ export function QuestionView(props: Props): React.ReactNode {
     { isActive: true },
   )
 
+  useInput(
+    (_input, key, event) => {
+      if (!key.tab) return
+      event.stopImmediatePropagation()
+      if (key.shift) onTabPrev?.()
+      else onTabNext?.()
+    },
+    { isActive: isOtherFocused && !question.multiSelect && !routesToPreview },
+  )
+
   if (routesToPreview) {
     return (
       <PreviewQuestionView
@@ -207,15 +223,30 @@ export function QuestionView(props: Props): React.ReactNode {
     })),
     {
       type: 'input' as const,
-      value: '__other__',
+      value: OTHER_OPTION_VALUE,
       label: 'Other',
       placeholder: question.multiSelect ? 'Type something' : 'Type something.',
       initialValue: questionState?.textInputValue ?? '',
-      onChange: (value: string) =>
-        onUpdateQuestionState(questionText, { textInputValue: value }, question.multiSelect ?? false),
+      onChange: (value: string) => {
+        otherTextRef.current = value
+        setShowEmptyOtherHint(false)
+        onUpdateQuestionState(questionText, { textInputValue: value }, question.multiSelect ?? false)
+      },
       ...(isApolloPoll ? { indexLabel: apolloCustomIndexLabel() } : {}),
     },
   ]
+
+  const enterHint = showEmptyOtherHint
+    ? question.multiSelect
+      ? 'Type something first, then Enter to add it'
+      : 'Type something first, then Enter to answer with it'
+    : isNextFocused
+      ? 'Enter to continue'
+      : isOtherFocused
+        ? question.multiSelect
+          ? 'Enter to add your text'
+          : 'Enter to answer with your text'
+        : 'Enter to select'
 
   const footer = (
     <Box flexDirection="column">
@@ -248,7 +279,7 @@ export function QuestionView(props: Props): React.ReactNode {
   const helpLine = (
     <Box marginTop={1}>
       <Text color="inactive" dimColor>
-        Enter to select ·{' '}
+        {enterHint} ·{' '}
         {questions.length === 1 ? (
           <>
             {figures.arrowUp}/{figures.arrowDown} to navigate
@@ -291,13 +322,8 @@ export function QuestionView(props: Props): React.ReactNode {
                 defaultValue={selectedValue as string[] | undefined}
                 onChange={((values: string[]) => {
                   onUpdateQuestionState(questionText, { selectedValue: values }, true)
-                  const textInput = values.includes('__other__')
-                    ? questionStates[questionText]?.textInputValue
-                    : undefined
-                  const finalValues = values
-                    .filter(v => v !== '__other__')
-                    .concat(textInput ? [textInput] : [])
-                  onAnswer(questionText, finalValues, undefined, false)
+                  const textInput = values.includes(OTHER_OPTION_VALUE) ? otherText() : undefined
+                  onAnswer(questionText, values, textInput, false)
                 }) as (values: unknown[]) => void}
                 onFocus={handleFocus}
                 onCancel={onCancel}
@@ -309,6 +335,9 @@ export function QuestionView(props: Props): React.ReactNode {
                 onImagePaste={onImagePaste}
                 pastedContents={pastedContents}
                 onRemoveImage={onRemoveImage}
+                onEmptyInputSubmit={showEmptyHint}
+                onTabOut={direction => (direction === 'next' ? onTabNext?.() : onTabPrev?.())}
+                onSubmitFocusChange={setIsNextFocused}
               />
             ) : (
               <Select
@@ -318,8 +347,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 defaultFocusValue={selectedValue as string | undefined}
                 onChange={((value: string) => {
                   onUpdateQuestionState(questionText, { selectedValue: value }, false)
-                  const textInput =
-                    value === '__other__' ? questionStates[questionText]?.textInputValue : undefined
+                  const textInput = value === OTHER_OPTION_VALUE ? otherText() : undefined
                   onAnswer(questionText, value, textInput)
                 }) as (value: unknown) => void}
                 onFocus={handleFocus}
@@ -331,6 +359,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 onImagePaste={onImagePaste}
                 pastedContents={pastedContents}
                 onRemoveImage={onRemoveImage}
+                onEmptyInputSubmit={showEmptyHint}
               />
             )}
           </Box>

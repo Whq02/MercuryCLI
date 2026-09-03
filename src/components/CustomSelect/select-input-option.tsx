@@ -22,7 +22,7 @@ export type SelectInputOptionProps<T = string> = {
   isSelected?: boolean
   value: string
   onChange: (value: string) => void
-  onSubmit: () => void
+  onSubmit: (value: string) => void
   reservedIndexWidth: number
   index: number
   showLabelWithValue?: boolean
@@ -198,8 +198,8 @@ export function SelectInputOption<T>({
       <TextInput
         value={value}
         onChange={handleChange}
-        onSubmit={() => {
-          onSubmit()
+        onSubmit={text => {
+          onSubmit(text)
         }}
         columns={inputColumns}
         cursorOffset={offset}

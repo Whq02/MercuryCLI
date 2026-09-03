@@ -11,6 +11,7 @@ import type { ConfigParseError } from '../utils/errors.js'
 import { gracefulShutdownSync } from '../utils/gracefulShutdown.js'
 import { findMostRecentBackup, getConfigBackupDir, restoreConfigFromBackup } from '../utils/config/globalConfig.js'
 import { logError } from '../utils/log.js'
+import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 
 type Choice = 'exit' | 'reset' | 'restore'
 
@@ -73,7 +74,7 @@ export function showInvalidConfigDialog({
     render(
       <AppStateProvider>
         <KeybindingSetup>
-          <ThemeProvider initialState="dark">
+          <ThemeProvider initialState={DEFAULT_THEME_SETTING}>
             <InvalidConfigDialogInner
               error={error}
               backupPath={backupPath}
