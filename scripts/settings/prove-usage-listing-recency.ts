@@ -138,7 +138,7 @@ section('§5 the first-party buckets keep their shape')
   const tab = readFileSync(join(ROOT, 'src/components/Settings/Usage.tsx'), 'utf8')
   check('the five-hour meter is titled Current session', tab.includes('title="Current session"'))
   check('the weekly all-models meter keeps its title', tab.includes('title="Current week (all models)"'))
-  check('the per-model weekly rows still walk the full family vocabulary (fable included)', tab.includes("['Fable', data.seven_day_fable]") && tab.includes('`Current week (${family})`'))
+  check('the per-model weekly rows read the owner\'s pool view, every stated pool titled by its label (fable included)', tab.includes('anthropicPoolWindowViews()') && tab.includes('`Current week (${w.label})`') && !tab.includes('data.seven_day_'))
   check('the meters still derive from the owner view', tab.includes('anthropicWindowViews()'))
 }
 
