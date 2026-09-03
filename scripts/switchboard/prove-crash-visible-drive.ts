@@ -201,18 +201,18 @@ await killLeg
 }
 
 console.log('leg B — reboot reconcile keeps the rows as NEEDS YOU; only release removes')
+if (daemon?.pid !== undefined) {
+  try {
+    process.kill(daemon.pid, 'SIGKILL')
+  } catch {
+  }
+}
 for (const w of workerPids()) {
   if (w.pid !== undefined) {
     try {
       process.kill(w.pid, 'SIGKILL')
     } catch {
     }
-  }
-}
-if (daemon?.pid !== undefined) {
-  try {
-    process.kill(daemon.pid, 'SIGKILL')
-  } catch {
   }
 }
 await new Promise(r => setTimeout(r, 800))
