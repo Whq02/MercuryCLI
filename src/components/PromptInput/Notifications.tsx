@@ -21,7 +21,7 @@ export function footerNoticeLine(text: string): string {
 }
 
 import { basename } from 'node:path'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
@@ -53,6 +53,7 @@ import { calculateTokenWarningState } from '../../services/compact/autoCompact.j
 import { SentryErrorBoundary } from '../SentryErrorBoundary.js'
 import { IdeStatusIndicator } from '../IdeStatusIndicator.js'
 import { TokenWarning } from '../TokenWarning.js'
+import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js'
 
@@ -64,6 +65,11 @@ const SLOW_HELPER_THRESHOLD_MS = 10_000
 
 /** Contract data: the login command the not-authenticated line names. */
 const LOGIN_COMMAND = '/logins'
+
+/** The focused chat's effective model, subscribed through the slot (a hop
+ *  re-points it) — module-stable for useSyncExternalStore. */
+const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
+const getFocusedModel = (): string => getFocusedSessionConnector().modelFacts().effective
 
 function FaultInjector(): React.ReactNode {
   // The crash-surface prover needs a REAL render error to walk the genuine
@@ -103,7 +109,13 @@ function NotificationsColumn({
   const current = useAppState(
     (state: AppState) => state.notifications.current,
   )
-  const mainLoopModel = useAppState((state: AppState) => state.mainLoopModel)
+  // THE SESSION'S OWN MODEL — the focused chat's effective model from its
+  // connector, the same owner the frame's context band measures its window
+  // by. A daemon-hosted chat never writes the screen's own mainLoopModel
+  // slot, so reading it here measured the seat's tokens against the screen
+  // default's window: a Fable [1m] seat at 20 % of 1000k read "0 % left"
+  // beside the band's 20 %.
+  const mainLoopModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
   const limits = useClaudeAiLimits()
 
   // ── environment-hook notifier (uninstalled on unmount) ───────────────────
