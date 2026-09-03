@@ -10,7 +10,7 @@
 # gate-watch: src/services/workshop/pythonRuntime.ts src/services/workshop/pythonRunnerSource.ts
 # gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
 # gate-watch: src/utils/worktree.ts src/utils/projectStoreAdoption.ts
-# gate-watch: src/utils/bash/ShellSnapshot.ts
+# gate-watch: src/utils/bash/ShellSnapshot.ts src/utils/shell/engineSession.ts src/utils/shell/brushPack.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
@@ -36,6 +36,8 @@ __t=$SECONDS; "$bun" run "$here/prove-watch-root-census.ts" || fail=1; prover_ma
 __t=$SECONDS; "$bun" run "$here/prove-shell-snapshot-path.ts" || fail=1; prover_mark "$here/prove-shell-snapshot-path.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || fail=1; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-cwd-record.ts" || fail=1; prover_mark "$here/prove-shell-cwd-record.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-pack.ts" || fail=1; prover_mark "$here/prove-shell-engine-pack.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-engine-session.ts" || fail=1; prover_mark "$here/prove-shell-engine-session.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
