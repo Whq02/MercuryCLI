@@ -142,37 +142,50 @@ jobs:
           Write-Host "doctor -> $code"
           $d = Get-Content "$env:RUNNER_TEMP\doctor-present.json" -Raw | ConvertFrom-Json
           Write-Host "verdict: $($d.verdict)"
-          $d.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' } | Format-List
-          $d.readiness | Where-Object { $_.id -eq 'tool:shell' } | Format-List
+          $failing = @($d.sections | ForEach-Object { $_.checks } | Where-Object { $_.status -eq 'fail' } | ForEach-Object { $_.id })
+          Write-Host "failing checks (this runner's own, not the road's): $($failing -join ', ')"
+          $shell = $d.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' }
+          $shell | Format-List
+          $row = $d.readiness | Where-Object { $_.id -eq 'tool:shell' }
+          $row | Format-List
+          if ($shell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok WITH bash.exe PRESENT'; exit 1 }
+          if ($row.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready WITH bash.exe PRESENT'; exit 1 }
           "DOCTOR_PRESENT_EXIT=$code" >> $env:GITHUB_ENV
+          "DOCTOR_PRESENT_FAILING=$($failing -join ',')" >> $env:GITHUB_ENV
+          exit 0
 
       - name: Doctor with bash.exe ABSENT (the real road)
         run: |
           $bash = 'C:\Program Files\Git\bin\bash.exe'
           if (-not (Test-Path $bash)) { throw "no $bash on this runner - the absent leg needs the classic install" }
           Rename-Item -Path $bash -NewName 'bash.exe.off'
+          $verdict = 0
           try {
-            $env:PATH = (($env:PATH -split ';') | Where-Object { $_ -notmatch 'Git' }) -join ';'
             $env:MERCURY_CONFIG_DIR = "$env:RUNNER_TEMP\home-absent"
             Write-Host '== --version boots'
             node dist\mercury.mjs --version
-            Write-Host "version -> $LASTEXITCODE"
+            $versionCode = $LASTEXITCODE
+            Write-Host "version -> $versionCode"
             Write-Host '== doctor --json'
             node dist\mercury.mjs doctor --json > "$env:RUNNER_TEMP\doctor-absent.json"
             $code = $LASTEXITCODE
             Write-Host "doctor -> $code (present run: $env:DOCTOR_PRESENT_EXIT)"
             $d = Get-Content "$env:RUNNER_TEMP\doctor-absent.json" -Raw | ConvertFrom-Json
             Write-Host "verdict: $($d.verdict)"
+            $failing = @($d.sections | ForEach-Object { $_.checks } | Where-Object { $_.status -eq 'fail' } | ForEach-Object { $_.id })
+            Write-Host "failing checks: $($failing -join ', ') (present run: $env:DOCTOR_PRESENT_FAILING)"
             $shell = $d.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' }
             $shell | Format-List
             $row = $d.readiness | Where-Object { $_.id -eq 'tool:shell' }
             $row | Format-List
-            if ($shell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN'; exit 1 }
-            if ($row.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable'; exit 1 }
-            if ("$code" -ne "$env:DOCTOR_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITHOUT bash.exe'; exit 1 }
+            if ($versionCode -ne 0) { Write-Host '--version DID NOT EXIT 0 WITHOUT bash.exe'; $verdict = 1 }
+            if ($shell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN'; $verdict = 1 }
+            if ($row.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable'; $verdict = 1 }
+            if ("$code" -ne "$env:DOCTOR_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITHOUT bash.exe'; $verdict = 1 }
           } finally {
             Rename-Item -Path "$bash.off" -NewName 'bash.exe'
           }
+          exit $verdict
 
       - name: A MERCURY_GIT_BASH_PATH that points nowhere still refuses loud
         run: |
@@ -182,6 +195,7 @@ jobs:
           $code = $LASTEXITCODE
           Get-Content "$env:RUNNER_TEMP\pin.err"
           if ($code -ne 1) { Write-Host "expected exit 1, got $code"; exit 1 }
+          exit 0
 
       - name: Windows shell road prover (the seam legs + the bundle)
         run: bun scripts/bash/prove-windows-shell-road.ts
