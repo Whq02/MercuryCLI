@@ -58,7 +58,7 @@ export function getTaskStatusIcon(
   if (flags?.shutdownRequested) return GLYPH.warn
   if (status === 'running') {
     if (flags?.isIdle) return '…'
-    return '▶\uFE0E'
+    return GLYPH.inProgress
   }
   if (status === 'completed') return GLYPH.check
   if (status === 'failed') return GLYPH.fail

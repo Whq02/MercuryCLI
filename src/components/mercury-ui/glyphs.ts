@@ -18,6 +18,7 @@ export const GLYPH = {
   fail: '✕',
   ok: '●',
   warn: '▲',
+  info: '○',
   read: '◌',
   handoff: '⇄',
   trace: '⟡',
