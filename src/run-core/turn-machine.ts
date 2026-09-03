@@ -576,10 +576,12 @@ async function* streamModel(
                   permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
                 }),
               )
-              const dropNotice = describeThinkingDrops(drops, outcome)
-              if (dropNotice !== null) {
+              if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
+              }
+              const dropNotice = describeThinkingDrops(drops, outcome)
+              if (dropNotice !== null) {
                 yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
               }
             }

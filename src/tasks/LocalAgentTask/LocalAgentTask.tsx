@@ -523,6 +523,26 @@ export function updateAgentProgress(
   })
 }
 
+const deferredPublishes = new Map<string, ReturnType<typeof setTimeout>>()
+
+const USAGE_SETTLE_GRACE_MS = 750
+
+export function publishAgentProgressSoon(
+  taskId: string,
+  tracker: ProgressTracker,
+  setAppState: SetAppState,
+): void {
+  updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  const pending = deferredPublishes.get(taskId)
+  if (pending !== undefined) clearTimeout(pending)
+  const timer = setTimeout(() => {
+    deferredPublishes.delete(taskId)
+    updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
+  }, USAGE_SETTLE_GRACE_MS)
+  timer.unref?.()
+  deferredPublishes.set(taskId, timer)
+}
+
 export function updateAgentSummary(
   taskId: string,
   summary: string,

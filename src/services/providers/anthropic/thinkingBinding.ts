@@ -191,12 +191,14 @@ export interface DropOutcome {
   count: number
   path: string | null
   reason: string | null
+  paint: boolean
 }
 
 interface OwnerDropState {
   mark: PrefixMark
   kind: DropKind
   consecutive: number
+  defectNoticed: boolean
 }
 
 const dropStates = new Map<string, OwnerDropState>()
@@ -214,8 +216,8 @@ export function classifyThinkingDrops(
   const previous = dropStates.get(owner)
   const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
-    dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
-    return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null }
+    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false })
+    return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null, paint: false }
   }
   let lawful: LawfulPrefixChange | null = null
   let detail: string | null = null
@@ -251,7 +253,9 @@ export function classifyThinkingDrops(
     kind = 'first'
     consecutive = 1
   }
-  dropStates.set(owner, { mark, kind, consecutive })
+  const defectNoticed = previous?.defectNoticed ?? false
+  const paint = kind !== 'recurrent' || !defectNoticed
+  dropStates.set(owner, { mark, kind, consecutive, defectNoticed: defectNoticed || kind === 'recurrent' })
   const first = dropped[0]!
   return {
     kind,
@@ -262,6 +266,7 @@ export function classifyThinkingDrops(
     count: dropped.length,
     path: first.path,
     reason: first.reason,
+    paint,
   }
 }
 
@@ -283,7 +288,7 @@ export function describeThinkingDrops(
   list: readonly InputTransformation[],
   outcome: DropOutcome,
 ): string | null {
-  if (outcome.kind === 'none') return null
+  if (outcome.kind === 'none' || !outcome.paint) return null
   const count = outcome.count
   const noun = count === 1 ? 'thinking block' : 'thinking blocks'
   const path = outcome.path ?? 'an earlier turn'
@@ -306,7 +311,7 @@ export function describeThinkingDrops(
     case 'first':
       return describeInputTransformations(list)
     case 'recurrent':
-      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} on ${outcome.consecutive} consecutive requests with no compaction, model switch or transcript edit between them (${describePathClass(outcome.path)}). This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} at an earlier request with no compaction, model switch or transcript edit to explain it (${describePathClass(outcome.path)}); every thinking block after that point keeps dropping on each request until the conversation compacts. This row paints once. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
   }
 }
 
