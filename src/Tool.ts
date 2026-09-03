@@ -346,6 +346,11 @@ export type ToolUseContext = {
   agentType?: string
   /** Owner key for attribution, when threaded explicitly. */
   owner?: OwnerKey
+  /** The conversation whose frozen tool roster this context's requests
+   *  ride when it is not its own: a cache-sharing fork carries its parent's
+   *  context messages, so its requests must carry the parent's tools array
+   *  byte-for-byte (the prefix every parent thinking block is bound to). */
+  rosterOwner?: OwnerKey
   /** Per-call decisions keyed by tool-use id. */
   toolDecisions?: Map<string, PermissionDecision>
   fileReadingLimits?: any
