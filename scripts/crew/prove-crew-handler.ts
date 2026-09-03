@@ -105,9 +105,9 @@ section('refusal ladder — every gate answers a PLAIN string (failure ≠ silen
   delete process.env.MERCURY_CREW
 
   const badName = await handler('Atlas', 'sonnet')
-  check('bad name ⇒ allowlist refusal', !badName.ok && /invalid teammate name/.test(badName.error ?? ''))
+  check('bad name ⇒ allowlist refusal', !badName.ok && /invalid agent name/.test(badName.error ?? ''))
   const reserved = await handler('tank', 'sonnet')
-  check("reserved name 'tank' refused", !reserved.ok && /invalid teammate name/.test(reserved.error ?? ''))
+  check("reserved name 'tank' refused", !reserved.ok && /invalid agent name/.test(reserved.error ?? ''))
   const badModel = await handler('atlas', 'haiku')
   check("model 'haiku' ⇒ the never-Haiku floor refuses pure (no registry, no config), naming the frontier rows", !badModel.ok && /worker-policy:frontier-only/.test(badModel.error ?? '') && /opus/.test(badModel.error ?? ''), badModel.error ?? '')
   const noRoster = await cs.makeCrewSpawnHandler({ roster: () => undefined, dir: scratch, onSpawned: () => {} })('atlas', 'sonnet')

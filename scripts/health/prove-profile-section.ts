@@ -2,7 +2,7 @@
 // ============================================================================
 //  scripts/health/prove-profile-section.ts — the health report explains the mature
 //  system: the PROFILE section reports the resolved
-//  appearance, role-registry normalization, and the team launch backend —
+//  appearance, role-registry normalization, and the sub-agent launch row —
 //  from the SAME typed state the runtime and UI consume, without mutating
 //  any preference or creating any team.
 //
@@ -55,8 +55,8 @@ const byId = new Map((profile?.checks ?? []).map(c => [c.id, c]))
 {
   const c = byId.get('team-launch')
   check('team-launch check present', !!c)
-  check('team-launch says what TeamCreate will actually use', !!c && c.evidence.includes('TeamCreate spawns'))
-  check('team-launch links the Team Center', c?.link === '/team')
+  check('team-launch says where named sub-agents run', !!c && c.evidence.includes('named sub-agents'))
+  check('team-launch links the crew surface', c?.link === '/teammates')
 }
 // Non-mutation contract: no preference changed, no team created.
 check('the health run never mutated the boot preference', JSON.stringify(menu.readBootEnvChoices()) === bootBefore)
