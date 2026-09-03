@@ -362,6 +362,24 @@ export type SystemSeatReceiptMessage = {
   timestamp: string
 }
 
+/** A landed spawn-switch toggle (sub-agents or workflows, on or off) — the
+ *  operator's deliberate roster change. The preserved-thinking reading
+ *  treats the newest row as a lawful prefix change (the tools array moves
+ *  with it), the way a model-transition row marks a model switch. Its own
+ *  subtype so the mark is typed; the content is the operator's sentence.
+ *  UI-only, never enters the API conversation. */
+export type SystemRosterTransitionMessage = {
+  type: 'system'
+  subtype: 'roster_transition'
+  toggle: 'subagents' | 'workflows'
+  on: boolean
+  content: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
 /** "Allowed <commands>" confirmation after a permission retry. */
 export type SystemPermissionRetryMessage = {
   type: 'system'
@@ -640,6 +658,7 @@ export type SystemThinkingMessage = {
 export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
+  | SystemRosterTransitionMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage
   | SystemScheduledTaskFireMessage

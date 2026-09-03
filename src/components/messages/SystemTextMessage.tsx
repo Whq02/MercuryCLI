@@ -325,6 +325,11 @@ export function SystemTextMessage({
         </Text>
       )
 
+    case 'roster_transition':
+      // The landed spawn-switch toggle: one grey sentence, the way a
+      // queued model switch settles.
+      return <Text dimColor>{message.content}</Text>
+
     case 'api_error':
       return <SystemAPIErrorMessage message={message} verbose={verbose} />
 
