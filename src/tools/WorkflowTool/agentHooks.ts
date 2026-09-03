@@ -34,6 +34,7 @@ import {
   settleAgentWorktree,
 } from '../../utils/worktree.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
+import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 
 import {
   getSchemaBoundStructuredOutputTool,
@@ -341,6 +342,8 @@ async function* adapterSpawnStream(
   args: SpawnSubagentArgs,
 ): AsyncGenerator<SubagentStreamEvent, void> {
   type RunAgentOpts = Parameters<typeof runAgent>[0]
+  const authority = evaluateLaunchAuthority('subagents')
+  if (!authority.allowed) throw new Error(authority.reason)
   const view = args.toolUseContext as unknown as HookContextView
   const appState = view.getAppState()
   const def = args.agentDefinition as { agentType?: string; permissionMode?: string }
