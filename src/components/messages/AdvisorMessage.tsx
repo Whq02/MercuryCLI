@@ -3,7 +3,7 @@
 // model, and its result folds behind ctrl+o unless verbose (a redacted
 // result keeps the one-liner and loses the expansion affordance).
 
-import figures from 'figures'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
@@ -93,7 +93,7 @@ export function AdvisorMessage({
     return (
       <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
         <Text>
-          <Text color="success">{figures.tick} </Text>
+          <Text color="success">{GLYPH.check} </Text>
           Advisor feedback:
         </Text>
         <Box paddingLeft={2}>
@@ -104,7 +104,7 @@ export function AdvisorMessage({
   }
   return (
     <Text>
-      <Text color="success">{figures.tick} </Text>
+      <Text color="success">{GLYPH.check} </Text>
       <Text dimColor>
         The advisor reviewed the conversation; its feedback will be applied.
       </Text>

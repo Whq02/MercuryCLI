@@ -48,7 +48,7 @@
 // ============================================================================
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
-import { getGlobalConfig, saveGlobalConfig } from '../config.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../config.js'
 import {
   EFFORT_LEVELS,
   NO_EFFORT_CONTROL_LABEL,
@@ -119,6 +119,16 @@ export interface SubModelUnset {
 
 export type SubModelResolution = SubModelPin | SubModelUnset
 
+/** The saved sub-model picks and dials, or nothing while the config home is
+ *  not yet enabled: an embed that reaches a container before the boot's
+ *  enableConfigs (an SDK host, a headless harness) reads no saved pick and
+ *  no effort dial — the env pin and the model's own default carry the call,
+ *  never a throw from the config read guard. A boot enables the home before
+ *  any container runs, so a live session never takes this arm. */
+function savedSubModels(): ReturnType<typeof getGlobalConfig>['subModels'] {
+  return isConfigReadingAllowed() ? getGlobalConfig().subModels : undefined
+}
+
 /** The container's model, resolved live: env pin > saved pick > UNSET. No
  *  default derives here — an unpinned container has no model and answers
  *  the hint (the ruling: the choice is the operator's). */
@@ -129,7 +139,7 @@ export function resolveSubModel(container: SubModelContainer): SubModelResolutio
     const model = canonicalSubModelId(envRaw)
     return { origin: 'env', model, route: declaredRouteOf(model) ?? 'unrecognised', envVar }
   }
-  const saved = getGlobalConfig().subModels?.[container]
+  const saved = savedSubModels()?.[container]
   if (saved !== undefined && saved.trim() !== '') {
     const model = canonicalSubModelId(saved)
     return { origin: 'saved', model, route: declaredRouteOf(model) ?? 'unrecognised' }
@@ -459,7 +469,7 @@ export function subModelEffortContext(container: SubModelContainer): EffortTruth
  *  normalizer that wrote it: an off-ladder stored spelling (a hand-edited
  *  file) reads as absent — the model's own default applies; never a guess. */
 export function resolveSubModelEffort(container: SubModelContainer): EffortLevel | undefined {
-  const stored = getGlobalConfig().subModels?.effort?.[container]
+  const stored = savedSubModels()?.effort?.[container]
   return stored === undefined ? undefined : normalizeEffortLevelString(stored)
 }
 

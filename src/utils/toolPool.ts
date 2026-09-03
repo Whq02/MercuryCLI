@@ -36,11 +36,13 @@ export function mergeAndFilterTools(
   const mcpTools = merged.filter(tool => isMcpTool(tool)).sort(byName)
   const ordered = [...builtinTools, ...mcpTools]
 
-  // Pool visibility only — call-time authority stays in the tool's own
-  // input validation. Callers re-merge on permission-context changes, so a
-  // mode change reaches the pool at the next render.
-  if (mode !== 'autopilot') {
-    return ordered.filter(tool => tool.name !== SET_TIER_TOOL_NAME)
-  }
+  // The pool is mode-independent by law: the tools array is part of the
+  // prefix every thinking block is bound to, so a mode change may not add
+  // or remove a tool. The autopilot tier control stays in the pool in every
+  // mode and refuses at call time if the mode is not autopilot (its own
+  // validation — call-time authority was always there, the pool was only a
+  // visibility optimisation).
+  void mode
+  void SET_TIER_TOOL_NAME
   return ordered
 }

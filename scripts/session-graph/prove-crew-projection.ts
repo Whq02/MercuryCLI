@@ -226,4 +226,43 @@ t.section('§9 — wave-A pin: a role CLOSE moves the projection (facts, not row
   unsub()
 }
 
+t.section('§10 — a transient source fault never rebuilds the snapshot (deterministic — no load needed)')
+{
+  const unsub = projection.subscribeCrew(() => {})
+  await waitUntil(() => (projection.cachedCrewSnapshot()?.members.length ?? 0) >= 3)
+  const { notifyRoomStatusFeed } = await import('../../src/services/attention/statusFeed.ts')
+  // The arm's own first refresh settles before the identity is read: the
+  // law is about a no-op refresh AFTER a settled snapshot.
+  await new Promise(r => setTimeout(r, 500))
+  const before = projection.cachedCrewSnapshot()!
+  t.check('the workbench source reads ready before the fault', before.sources.workbench.state === 'ready')
+  // ONE thrown gather (the loaded-runner race, injected): the last
+  // observation stands, the facts did not move, the object is the same.
+  projection._faultSourceForProofs('workbench', 1)
+  notifyRoomStatusFeed('presence.heartbeat')
+  await new Promise(r => setTimeout(r, 400))
+  const after = projection.cachedCrewSnapshot()
+  const facts = (snap: typeof before | null): string =>
+    JSON.stringify({
+      members: snap?.members.map(m => [m.agentId, m.label, m.presence.state, m.presence.source, m.lifecycle?.state ?? '', m.focus?.label ?? '', m.roles.length, m.roles.filter(r => r.activeUntil === undefined).length, m.sessions.length, m.sessions.filter(s => s.endedAt === undefined).length, m.latestActivity?.label ?? '', m.latestActivity?.atMs ?? 0]),
+      sources: snap ? [snap.sources.identity.state, snap.sources.workbench.state] : null,
+      stamp: snap ? [snap.version, snap.refreshedAt, snap.members.map(m => m.latestActivity?.source ?? '')] : null,
+    })
+  t.check('one thrown gather keeps the SAME snapshot object', after === before, `before ${facts(before)} · after ${facts(after)}`)
+  t.check('…and the source still reads ready (the last observation stands)', after?.sources.workbench.state === 'ready')
+  // A REPEATED fault is an outage — a fact: the source reads unavailable
+  // and the snapshot moves; the next clean gather reads ready again.
+  projection._faultSourceForProofs('workbench', 3)
+  notifyRoomStatusFeed('presence.heartbeat')
+  await new Promise(r => setTimeout(r, 400))
+  notifyRoomStatusFeed('presence.heartbeat')
+  const outage = await waitUntil(() => projection.cachedCrewSnapshot()?.sources.workbench.state === 'unavailable')
+  t.check('a repeated fault surfaces as unavailable and moves the snapshot', outage && projection.cachedCrewSnapshot() !== before)
+  projection._faultSourceForProofs('workbench', 0)
+  notifyRoomStatusFeed('presence.heartbeat')
+  const back = await waitUntil(() => projection.cachedCrewSnapshot()?.sources.workbench.state === 'ready')
+  t.check('a clean gather after the outage reads ready again', back)
+  unsub()
+}
+
 t.finish('prove-crew-projection')

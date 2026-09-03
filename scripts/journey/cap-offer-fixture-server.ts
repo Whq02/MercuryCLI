@@ -36,6 +36,22 @@ const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const FABLE_REPLY = 'fable picked up the handoff'
+const ZAI_REPLY = 'glm picked up the handoff'
+const DEEPSEEK_REPLY = 'deepseek picked up the handoff'
+
+/** The OpenAI-compatible chat stream the key lanes read: content deltas,
+ *  a final chunk with finish_reason, the [DONE] sentinel. */
+function chatCompletionsSse(text: string): string {
+  const id = `chatcmpl_fx_${Date.now()}`
+  const chunk = (delta: Record<string, unknown>, finish: string | null): string =>
+    sse({ id, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: 'fixture', choices: [{ index: 0, delta, finish_reason: finish }] })
+  return [
+    chunk({ role: 'assistant', content: '' }, null),
+    chunk({ content: text }, null),
+    chunk({}, 'stop'),
+    'data: [DONE]\n\n',
+  ].join('')
+}
 
 function record(entry: Record<string, unknown>): void {
   appendFileSync(captureFile, `${JSON.stringify(entry)}\n`)
@@ -127,6 +143,15 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       record({ kind: 'anthropic', url, body, at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(anthropicSse())
+      return
+    }
+    if (req.method === 'POST' && url.endsWith('/chat/completions')) {
+      // The key lanes' OpenAI-compatible wire (Z.AI · DeepSeek): the base
+      // pins name the lane in the path, so the reply names the lane.
+      const lane = url.includes('/zai/') ? 'zai' : url.includes('/deepseek/') ? 'deepseek' : 'compat'
+      record({ kind: lane, url, body, at: Date.now() })
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.end(chatCompletionsSse(lane === 'zai' ? ZAI_REPLY : DEEPSEEK_REPLY))
       return
     }
     record({ kind: 'hit', method: req.method, url, at: Date.now() })

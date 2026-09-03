@@ -27,7 +27,7 @@
 
                   ╭──────────────────────────────────────────────────────────────────────────────────╮
                   │▎❯ ✶ New Session in orchard-src                                start fresh here → │
-                  │   ↗ Continue Last Session                                     orchard-src · 5m → │
+                  │   ↳ Continue Last Session                                     orchard-src · 5m → │
                   │   ⊞ Boot Menu                                               configure boot env → │
                   │   ⊛ MCPs & Skills                                  what the next session loads → │
                   │   ◈ Agents                                              create and edit agents → │

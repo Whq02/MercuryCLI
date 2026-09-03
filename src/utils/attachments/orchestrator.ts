@@ -32,6 +32,7 @@ import { getDiagnosticAttachments, getLSPDiagnosticAttachments } from './diagnos
 import { getChangedFiles } from './fileAttachments.js'
 import {
   getDateChangeAttachments,
+  getModePackAttachments,
   getPlanModeAttachments,
   getPlanModeExitAttachment,
   getRepoSurfaceMapAttachment,
@@ -279,6 +280,9 @@ export async function getAttachments(
     // so it now races the turn instead of taxing it —
     // src/services/skillSearch/prefetch.ts.)
     maybe('plan_mode', () => getPlanModeAttachments(messages, toolUseContext)),
+    // The apollo/autopilot packs as persisted rows (the pack on entry, an
+    // exit row on leaving) — the system prompt is frozen, the rows move.
+    maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
     maybe('plan_mode_exit', () => getPlanModeExitAttachment(toolUseContext)),
     // Fast onboarding: the once-per-session repo surface map for an unmapped
     // repo (stamp-gated inside the generator — MERCURY_ONBOARDING).

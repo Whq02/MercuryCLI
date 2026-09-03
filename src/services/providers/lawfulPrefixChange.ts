@@ -7,20 +7,20 @@
 //  permission context does not carry.
 //
 //  What a declaration does, for one conversation (its canonical owner key):
-//    · the tool roster re-decides at the next request — its latches clear
-//      (toolEconomy.ts freezes the roster per conversation otherwise);
-//    · the memoized system-prompt sections re-evaluate — the section cache
-//      clears (the same cache a compaction or /clear clears);
-//    · the next response's dropped thinking, if the API drops the blocks the
-//      change invalidated, reads as LAWFUL and the receipt names `reason`
-//      (thinkingBinding.ts consumes the declaration when it classifies).
+//  the next response's dropped thinking, if the API drops the blocks the
+//  change invalidated, reads as LAWFUL and the receipt names `reason`
+//  (thinkingBinding.ts consumes the declaration when it classifies). It
+//  moves NOTHING on the wire: the tools array and the top-level system
+//  prompt are frozen for the conversation's life by law (toolEconomy.ts, the
+//  section cache), so the change itself must ride a new user row — a
+//  system-reminder attachment — where the model reads it; a tool the change
+//  forbids stays listed and refuses at call time. The declaration exists so
+//  that a drop the operator's own action caused is never blamed on Mercury.
 //
 //  Never for a change nobody asked for — a file appearing, a server landing,
 //  a clock moving: those ride a new user row and leave the prefix alone.
 // ============================================================================
-import { clearSystemPromptSectionState } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { clearToolRosterLatches } from './toolEconomy.js'
 
 /** Reasons declared and not yet consumed, per owner (one per conversation:
  *  a later declaration before the next response replaces the earlier
@@ -33,12 +33,6 @@ const pending = new Map<string, string>()
  * lawfully moves `owner`'s prefix from the next request on.
  */
 export function declareLawfulPrefixChange(owner: string, reason: string): void {
-  clearToolRosterLatches(owner)
-  // The section cache only (process-wide by construction; an unchanged
-  // input recomputes to the same bytes) — never the beta-header latches,
-  // which a conversation's change does not touch, and never another
-  // conversation's roster.
-  clearSystemPromptSectionState()
   pending.set(owner, reason)
   logForDebugging(`preserved thinking: lawful prefix change declared for ${owner}: ${reason}`)
 }

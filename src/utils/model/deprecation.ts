@@ -8,6 +8,7 @@
  * currently unreachable — the branches are kept (the table is data).
  */
 import { binaryName } from '../config.js'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 
 type DeprecationEntry = {
   /** Case-insensitive substring of the model ID. */
@@ -58,7 +59,7 @@ function isDateInPast(date: string): boolean {
   return parsed < Date.now()
 }
 
-const WARNING_MARKER = '⚠\uFE0E'
+const WARNING_MARKER = GLYPH.warn
 
 /** A warning string. */
 export function getModelDeprecationWarning(id: string | null | undefined): string | null {

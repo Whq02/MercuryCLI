@@ -25,9 +25,17 @@
 //  echoes the REQUESTED model id (the wire's own habit) and carries usage,
 //  so the tracker's fold has tokens to count while the seat sleeps.
 //
-//  Ports: 25161 (leg 1) · 25162 (leg 2). ~70 s + ~45 s. The fixture server
-//  lives in THIS process, so the capture engine is spawned ASYNC (a sync
-//  spawn starves the accept loop). CREW_KEEP=1 prints every marked frame.
+//  TWO FAMILIES, the same two legs: the Anthropic dialect (/v1/messages)
+//  and the OpenAI dialect (/openai/v1/responses — the Responses wire, with
+//  the models discovery the lane's catalogue reads), because the crew
+//  mismatch was reported on a GPT-routed session and the family-blind
+//  claim needs its own frames. The requested model is echoed as the exact
+//  id the lane asked for, never a substitute.
+//
+//  Ports: 25161–25164. ~70 s + ~45 s per family. The fixture server lives in
+//  THIS process, so the capture engine is spawned ASYNC (a sync spawn
+//  starves the accept loop). CREW_KEEP=1 prints every marked frame;
+//  CREW_LEG=land|stop|openai-land|openai-stop|anthropic|openai runs a slice.
 // ============================================================================
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
@@ -57,13 +65,18 @@ const ASK = 'crew-drive: launch two'
 /** The fixture server's canonical proof key — the seeder approves it. */
 const FIXTURE_API_KEY = 'fixture-key-000'
 
-// ── the content-routed fixture (Anthropic dialect) ──────────────────────────
+// ── the content-routed fixture (two dialects, one law) ──────────────────────
+type Dialect = 'anthropic' | 'openai'
 type Route = 'parent' | 'parent-ack' | 'seat' | 'seat-ack' | 'side'
 interface Hit {
   route: Route
   model: string
   seat: string | null
+  /** The wire the request rode ('messages' · 'responses' · 'other'). */
+  lane: string
 }
+/** The exact OpenAI id the discovery serves and the OpenAI legs request. */
+const GPT_ID = 'gpt-5.5'
 interface Fixture {
   base: string
   hits: Hit[]
@@ -72,32 +85,46 @@ interface Fixture {
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
-/** The last TOP-LEVEL user text (string content or text blocks) — a tool
- *  result carries its text inside the result block and never counts. */
+/** The conversation items of either wire: Anthropic `messages`, Responses
+ *  `input` (a string prompt or the item array). */
+function itemsOf(body: unknown): unknown[] {
+  const b = body as { messages?: unknown; input?: unknown }
+  if (Array.isArray(b?.messages)) return b.messages
+  if (Array.isArray(b?.input)) return b.input
+  if (typeof b?.input === 'string') return [{ role: 'user', content: b.input }]
+  return []
+}
+
+/** The text of the last user item that carries a crew marker — every
+ *  top-level user item's own text blocks (`text` or `input_text`) joined,
+ *  because a user turn carries its attachments beside the ask (a system
+ *  reminder rides the same item, before or after the words, per wire); a
+ *  tool result carries its text inside the result item and never counts. */
 function lastUserText(body: unknown): string {
-  const messages = (body as { messages?: unknown[] })?.messages ?? []
   let last = ''
-  for (const m of messages) {
+  for (const m of itemsOf(body)) {
     const msg = m as { role?: string; content?: unknown }
     if (msg.role !== 'user') continue
-    if (typeof msg.content === 'string') {
-      if (msg.content.trim() !== '') last = msg.content
-      continue
+    let text = ''
+    if (typeof msg.content === 'string') text = msg.content
+    else if (Array.isArray(msg.content)) {
+      for (const block of msg.content as Array<{ type?: string; text?: string }>) {
+        if ((block.type === 'text' || block.type === 'input_text') && typeof block.text === 'string') text += `\n${block.text}`
+      }
     }
-    if (!Array.isArray(msg.content)) continue
-    for (const block of msg.content as Array<{ type?: string; text?: string }>) {
-      if (block.type === 'text' && typeof block.text === 'string' && block.text.trim() !== '') last = block.text
-    }
+    if (text.includes('crew-seat:') || text.includes('crew-drive:')) last = text
   }
   return last
 }
 
+/** A delivered tool result on either wire: an Anthropic tool_result block
+ *  inside a user message, or a Responses function_call_output item. */
 function carriesToolResult(body: unknown): boolean {
-  const messages = (body as { messages?: unknown[] })?.messages ?? []
-  for (const m of messages) {
-    const msg = m as { role?: string; content?: unknown }
-    if (msg.role !== 'user' || !Array.isArray(msg.content)) continue
-    if ((msg.content as Array<{ type?: string }>).some(b => b.type === 'tool_result')) return true
+  for (const m of itemsOf(body)) {
+    const item = m as { type?: string; role?: string; content?: unknown }
+    if (item.type === 'function_call_output') return true
+    if (item.role !== 'user' || !Array.isArray(item.content)) continue
+    if ((item.content as Array<{ type?: string }>).some(b => b.type === 'tool_result')) return true
   }
   return false
 }
@@ -124,6 +151,32 @@ function routeOf(body: unknown): { route: Route; seat: string | null } {
 type Block =
   | { type: 'text'; text: string }
   | { type: 'tool_use'; name: string; input: Record<string, unknown> }
+
+/** One /openai/v1/responses SSE answer (the Responses wire) — function
+ *  calls or the final text; usage stated on the completion. */
+function responsesAnswer(blocks: Block[], usage: { input: number; output: number }): string {
+  const calls = blocks.filter((b): b is Extract<Block, { type: 'tool_use' }> => b.type === 'tool_use')
+  const text = blocks.filter((b): b is Extract<Block, { type: 'text' }> => b.type === 'text').map(b => b.text).join('')
+  const completed = sse({
+    type: 'response.completed',
+    response: { id: 'resp_crew', usage: { input_tokens: usage.input, output_tokens: usage.output, input_tokens_details: { cached_tokens: 0 } } },
+  })
+  if (calls.length > 0) {
+    return [
+      sse({ type: 'response.created', response: { id: 'resp_crew' } }),
+      ...calls.map((call, i) =>
+        sse({ type: 'response.output_item.done', item: { type: 'function_call', name: call.name, call_id: `call_crew_${Date.now() % 100000}_${i}`, arguments: JSON.stringify(call.input) } }),
+      ),
+      completed,
+    ].join('')
+  }
+  return [
+    sse({ type: 'response.created', response: { id: 'resp_crew' } }),
+    sse({ type: 'response.output_text.delta', delta: text }),
+    sse({ type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text }] } }),
+    completed,
+  ].join('')
+}
 
 /** One /v1/messages SSE answer — the requested model echoed, usage stated. */
 function answer(model: string, blocks: Block[], usage: { input: number; output: number }): string {
@@ -159,10 +212,34 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
     req.on('end', () => {
-      const url = req.url ?? ''
-      if (!url.includes('/v1/messages')) {
+      const url = (req.url ?? '').split('?')[0] ?? ''
+      // The OpenAI lane's live catalogue: the one model it may select, with
+      // its effort ladder (the crossfamily fixture's payload).
+      if (req.method === 'GET' && url === '/openai/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end('{}')
+        res.end(
+          JSON.stringify({
+            models: [
+              {
+                slug: GPT_ID,
+                display_name: GPT_ID.toUpperCase(),
+                supported_reasoning_levels: ['low', 'medium', 'high'].map(effort => ({ effort, description: effort })),
+                default_reasoning_level: 'high',
+                visibility: 'list',
+                priority: 1,
+                context_window: 272_000,
+                input_modalities: ['text'],
+                supported_in_api: true,
+              },
+            ],
+          }),
+        )
+        return
+      }
+      const lane = url.includes('/v1/messages') ? 'messages' : url.endsWith('/responses') ? 'responses' : 'other'
+      if (lane === 'other') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(url.endsWith('/models') ? JSON.stringify({ object: 'list', data: [], models: [] }) : '{}')
         return
       }
       let body: unknown = null
@@ -173,7 +250,13 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
       }
       const model = typeof (body as { model?: unknown })?.model === 'string' ? (body as { model: string }).model : 'fixture'
       const { route, seat } = routeOf(body)
-      hits.push({ route, model, seat })
+      hits.push({ route, model, seat, lane })
+      if (process.env.CREW_KEEP === '1' && route === 'side') {
+        // A side hit's shape — the wire's own spelling, for re-truing the router.
+        const b = body as { tools?: unknown[]; input?: unknown; messages?: unknown }
+        const toolNames = Array.isArray(b?.tools) ? b.tools.map(t => (t as { name?: string; function?: { name?: string } })?.name ?? (t as { function?: { name?: string } })?.function?.name).slice(0, 12) : 'none'
+        console.log(`[side ${lane}] keys=${Object.keys(body ?? {}).join(',')} tools=${JSON.stringify(toolNames)} items=${JSON.stringify(itemsOf(body).slice(-2)).slice(0, 700)}`)
+      }
       let blocks: Block[]
       let usage: { input: number; output: number }
       switch (route) {
@@ -202,7 +285,7 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
           usage = { input: 20, output: 2 }
       }
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
-      res.end(answer(model, blocks, usage))
+      res.end(lane === 'responses' ? responsesAnswer(blocks, usage) : answer(model, blocks, usage))
     })
   })
   await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))
@@ -273,7 +356,7 @@ function seedWorld(): { home: string; cwd: string } {
   return { home, cwd }
 }
 
-function driveEnv(home: string, fixtureBase: string): Record<string, string> {
+function driveEnv(home: string, fixtureBase: string, dialect: Dialect): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -281,7 +364,19 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_TABULA_DIR: join(home, 'tabula'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
-    ANTHROPIC_API_KEY: FIXTURE_API_KEY,
+    // The family the session runs on is the family with a credential: the
+    // Anthropic legs carry the fixture key; the OpenAI legs carry the
+    // fixture's OpenAI key and its Responses/models bases, and no Anthropic
+    // key at all (an empty value reads as unset at the resolver).
+    ANTHROPIC_API_KEY: dialect === 'anthropic' ? FIXTURE_API_KEY : '',
+    ...(dialect === 'openai'
+      ? {
+          OPENAI_API_KEY: 'fixture-openai-key',
+          MERCURY_OPENAI_API_BASE: `${fixtureBase}/openai/v1`,
+          MERCURY_OPENAI_CHATGPT_BASE: `${fixtureBase}/openai/chatgpt`,
+          MERCURY_OPENAI_AUTH_BASE: `${fixtureBase}/openai/auth`,
+        }
+      : {}),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',
@@ -291,13 +386,19 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
-    OPENAI_API_KEY: '',
+    ...(dialect === 'anthropic' ? { OPENAI_API_KEY: '' } : {}),
   }
 }
 
 // ── the frames' vocabulary ──────────────────────────────────────────────────
 const TOKENS_RE = /\b\d[\d.,]*k? tokens\b/
 const nonZeroTokens = (text: string): boolean => TOKENS_RE.test(text) && !/\b0 tokens\b/.test(text)
+/** The agent's OWN row (the line naming it) carries the words — the session
+ *  pill's own "↓ 0 tokens" on the same frame is not a crew fact. */
+const agentRow = (text: string, name: string, ...words: Array<string | RegExp>): boolean =>
+  text.split('\n').some(line => line.includes(name) && words.every(w => (typeof w === 'string' ? line.includes(w) : w.test(line))))
+const rowTokens = (text: string, name: string): boolean =>
+  text.split('\n').some(line => line.includes(name) && nonZeroTokens(line))
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const COLS = 160
 const ROWS = 44
@@ -322,13 +423,23 @@ function dump(label: string, frame: string | undefined): void {
   for (const row of frame.split('\n')) if (row.trim()) console.log(`│ ${row.slice(0, COLS)}`)
 }
 
-/** CREW_LEG=land|stop runs one leg (iteration); unset runs both. */
-const LEG = process.env.CREW_LEG ?? 'both'
+/** CREW_LEG runs a slice: land · stop · openai-land · openai-stop ·
+ *  anthropic · openai; unset runs all four. */
+const LEG = process.env.CREW_LEG ?? 'all'
+const runs = (dialect: Dialect, leg: 'land' | 'stop'): boolean => {
+  const name = dialect === 'anthropic' ? leg : `openai-${leg}`
+  return LEG === 'all' || LEG === name || LEG === dialect
+}
+/** The OpenAI legs ask for the exact id on the command line — the model
+ *  rides the birth, never a silent default. */
+const argvFor = (dialect: Dialect): string[] => (dialect === 'openai' ? ['node', DIST, '--model', GPT_ID] : ['node', DIST])
+const portFor = (dialect: Dialect, leg: 'land' | 'stop'): number =>
+  Number(process.env[`CREW_PORT_${dialect.toUpperCase()}_${leg.toUpperCase()}`] ?? (dialect === 'anthropic' ? (leg === 'land' ? 25161 : 25162) : leg === 'land' ? 25163 : 25164))
 
 // ── LEG 1 — land ────────────────────────────────────────────────────────────
-if (LEG !== 'stop') {
-  console.log('— leg 1: land —')
-  const fixture = await startCrewFixture(Number(process.env.CREW_PORT_LAND ?? '25161'), 10)
+async function landLeg(dialect: Dialect): Promise<void> {
+  console.log(`\n— ${dialect} · land —`)
+  const fixture = await startCrewFixture(portFor(dialect, 'land'), 10)
   const { home, cwd } = seedWorld()
   let cap: Capture | null = null
   try {
@@ -338,12 +449,14 @@ if (LEG !== 'stop') {
         rows: ROWS,
         total: 360,
         cwd,
-        argv: ['node', DIST],
+        argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
           // THE RUNNING WINDOW: the card's header names the pair; the mark
           // snapshots the settled frame (card rows · CREW lane · usage line).
-          { data: '/teammates', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
+          // (the mark waits past the usage-settle grace: a seat's tokens reach
+          // its row a beat after the tool starts, on every wire)
+          { data: '/teammates', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '\r', afterPrevTicks: 4 },
           // The Crew view while both seats sleep; esc closes the view.
           { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
@@ -357,7 +470,7 @@ if (LEG !== 'stop') {
         ],
         stableTicks: 6,
       },
-      driveEnv(home, fixture.base),
+      driveEnv(home, fixture.base, dialect),
     )
   } finally {
     await fixture.close()
@@ -365,48 +478,55 @@ if (LEG !== 'stop') {
   const seatHits = fixture.hits.filter(h => h.route === 'seat')
   const servedModel = seatHits[0]?.model ?? ''
   const { marks } = cap
-  if (process.env.CREW_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`leg 1 · ${label}`, frame)
-  check('land: every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
-  check('land: both seats asked the model on the wire, on one served model', seatHits.length >= 2 && servedModel !== '' && seatHits.every(h => h.model === servedModel), fixture.hits.map(h => `${h.route}:${h.model}`).join(','))
-  check('land: the parent asked once and landed once (the ack turn)', fixture.hits.some(h => h.route === 'parent') && fixture.hits.some(h => h.route === 'parent-ack'))
+  const tag = `${dialect} · land`
+  if (process.env.CREW_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
+  check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
+  check(`${tag}: both seats asked the model on the wire, on one served model`, seatHits.length >= 2 && servedModel !== '' && seatHits.every(h => h.model === servedModel), fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
+  check(`${tag}: the parent asked once and landed once (the ack turn)`, fixture.hits.some(h => h.route === 'parent') && fixture.hits.some(h => h.route === 'parent-ack'))
+  const wantLane = dialect === 'anthropic' ? 'messages' : 'responses'
+  check(
+    `${tag}: every crew turn rode the family's own wire${dialect === 'openai' ? ` with the exact id ${GPT_ID}` : ''}`,
+    fixture.hits.filter(h => h.route !== 'side').every(h => h.lane === wantLane && (dialect === 'anthropic' || h.model === GPT_ID)),
+    fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','),
+  )
   const running = marks['running'] ?? ''
   check(
-    "land: the running card's rows read the record — both names, the served model, tokens > 0",
-    running.includes(SEAT_ONE) && running.includes(SEAT_TWO) && running.includes(servedModel) && nonZeroTokens(running),
+    `${tag}: the running card's rows read the record — both names, the served model, tokens > 0`,
+    agentRow(running, SEAT_ONE, servedModel) && agentRow(running, SEAT_TWO, servedModel) && rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO),
   )
   check(
-    'land: the CREW lane rows carry a token verb while they run',
+    `${tag}: the CREW lane rows carry a token verb while they run`,
     (flat(running).match(/◐ [a-z-…]+ · \d[\d.,]*k? tokens/g) ?? []).length >= 2,
   )
-  check('land: the usage attribution line counts the crew', /sub-agents \d[\d.,]*k? tokens/.test(flat(running)))
+  check(`${tag}: the usage attribution line counts the crew`, /sub-agents \d[\d.,]*k? tokens/.test(flat(running)))
   const crewRunning = marks['crew-running'] ?? ''
   check(
-    'land: the Crew view while running — both rows, the served model, running, tokens > 0, the count label',
-    crewRunning.includes(SEAT_ONE) && crewRunning.includes(SEAT_TWO) && crewRunning.includes(servedModel) && nonZeroTokens(crewRunning) && (crewRunning.match(/\brunning\b/g) ?? []).length >= 2 && crewRunning.includes('2 running · 2 sub-agents'),
+    `${tag}: the Crew view while running — both rows, the served model, running, tokens > 0, the count label`,
+    agentRow(crewRunning, SEAT_ONE, servedModel, /\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'),
   )
   const landed = marks['landed'] ?? ''
-  check('land: the card landed both (its landed header) and no seat is still running', landed.includes('agents finished') && !/\bstopped\b/.test(landed))
+  check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('agents finished') && !/\bstopped\b/.test(landed))
   const crewLanded = marks['crew-landed'] ?? ''
   check(
-    "land: the Crew view after landing — landed twice, the tokens kept, never the runner's word",
-    (crewLanded.match(/\blanded\b/g) ?? []).length >= 2 && nonZeroTokens(crewLanded) && !crewLanded.includes('completed') && crewLanded.includes('0 running · 2 sub-agents'),
+    `${tag}: the Crew view after landing — landed twice, the tokens kept, never the runner's word`,
+    agentRow(crewLanded, SEAT_ONE, /\blanded\b/) && agentRow(crewLanded, SEAT_TWO, /\blanded\b/) && rowTokens(crewLanded, SEAT_ONE) && rowTokens(crewLanded, SEAT_TWO) && !crewLanded.includes('completed') && crewLanded.includes('0 running · 2 sub-agents'),
   )
   const card = marks['card'] ?? ''
   check(
-    "land: the agent's card reads the same record — model, tokens, tool uses, landed",
+    `${tag}: the agent's card reads the same record — model, tokens, tool uses, landed`,
     card.includes(servedModel) && card.includes('tokens') && card.includes('tool use') && card.includes('landed') && !card.includes('completed'),
   )
-  if (failures > 0 && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`leg 1 · ${label}`, frame)
-  if (failures > 0 || process.env.CREW_KEEP === '1') dump('leg 1 · final grid', cap.text)
+  if (failures > 0 && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
+  if (failures > 0 || process.env.CREW_KEEP === '1') dump(`${tag} · final grid`, cap.text)
   rmSync(home, { recursive: true, force: true })
   rmSync(cwd, { recursive: true, force: true })
 }
 
 // ── LEG 2 — stop ────────────────────────────────────────────────────────────
-if (LEG !== 'land') {
-  console.log('\n— leg 2: stop —')
+async function stopLeg(dialect: Dialect): Promise<void> {
+  console.log(`\n— ${dialect} · stop —`)
   const before = failures
-  const fixture = await startCrewFixture(Number(process.env.CREW_PORT_STOP ?? '25162'), 90)
+  const fixture = await startCrewFixture(portFor(dialect, 'stop'), 90)
   const { home, cwd } = seedWorld()
   let cap: Capture | null = null
   try {
@@ -416,12 +536,13 @@ if (LEG !== 'land') {
         rows: ROWS,
         total: 220,
         cwd,
-        argv: ['node', DIST],
+        argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
           // Esc while both seats sleep: the interrupt stops the turn and
-          // every agent it waits on.
-          { data: '\x1b', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
+          // every agent it waits on (the mark waits past the usage-settle
+          // grace, so the rows it photographs carry their tokens).
+          { data: '\x1b', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           // The card rows settle on the one stop word (a hard deadline keeps
           // the look honest when they do not); then the Crew view.
           { data: '/teammates', atTick: 110, awaitText: 'stopped', minTick: 2, awaitSettleTicks: 4, mark: 'stopped' },
@@ -430,28 +551,36 @@ if (LEG !== 'land') {
         ],
         stableTicks: 6,
       },
-      driveEnv(home, fixture.base),
+      driveEnv(home, fixture.base, dialect),
     )
   } finally {
     await fixture.close()
   }
   const { marks } = cap
-  if (process.env.CREW_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`leg 2 · ${label}`, frame)
-  check('stop: every send became due', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
+  const tag = `${dialect} · stop`
+  if (process.env.CREW_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
+  check(`${tag}: every send became due`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const running = marks['running'] ?? ''
-  check('stop: both seats were running with tokens when the Esc fired', running.includes(SEAT_ONE) && running.includes(SEAT_TWO) && nonZeroTokens(running))
+  check(`${tag}: both seats were running with tokens when the Esc fired`, rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO))
   const stopped = marks['stopped'] ?? ''
-  check("stop: the card rows read stopped — never the runner's word", (stopped.match(/\bstopped\b/g) ?? []).length >= 2 && !stopped.includes('killed'))
+  check(`${tag}: the card rows read stopped — never the runner's word`, (stopped.match(/\bstopped\b/g) ?? []).length >= 2 && !stopped.includes('killed'))
   const crewStopped = marks['crew-stopped'] ?? ''
-  check("stop: the Crew view reads stopped for both agents, tokens kept", (crewStopped.match(/\bstopped\b/g) ?? []).length >= 2 && !crewStopped.includes('killed') && nonZeroTokens(crewStopped) && crewStopped.includes('0 running · 2 sub-agents'))
-  check('stop: no seat settled its turn (the Sleep was interrupted — no seat-ack on the wire)', fixture.hits.every(h => h.route !== 'seat-ack'))
-  if (failures > before && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`leg 2 · ${label}`, frame)
-  if (failures > before || process.env.CREW_KEEP === '1') dump('leg 2 · final grid', cap.text)
-  if (process.env.CREW_KEEP === '1') console.log(`[keep] leg 2 home ${home} cwd ${cwd}`)
+  check(`${tag}: the Crew view reads stopped for both agents, tokens kept`, agentRow(crewStopped, SEAT_ONE, /\bstopped\b/) && agentRow(crewStopped, SEAT_TWO, /\bstopped\b/) && !crewStopped.includes('killed') && rowTokens(crewStopped, SEAT_ONE) && rowTokens(crewStopped, SEAT_TWO) && crewStopped.includes('0 running · 2 sub-agents'))
+  check(`${tag}: no seat settled its turn (the Sleep was interrupted — no seat-ack on the wire)`, fixture.hits.every(h => h.route !== 'seat-ack'))
+  const wantLane = dialect === 'anthropic' ? 'messages' : 'responses'
+  check(`${tag}: every crew turn rode the family's own wire`, fixture.hits.filter(h => h.route !== 'side').every(h => h.lane === wantLane && (dialect === 'anthropic' || h.model === GPT_ID)), fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
+  if (failures > before && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
+  if (failures > before || process.env.CREW_KEEP === '1') dump(`${tag} · final grid`, cap.text)
+  if (process.env.CREW_KEEP === '1') console.log(`[keep] ${tag} home ${home} cwd ${cwd}`)
   else {
     rmSync(home, { recursive: true, force: true })
     rmSync(cwd, { recursive: true, force: true })
   }
+}
+
+for (const dialect of ['anthropic', 'openai'] as const) {
+  if (runs(dialect, 'land')) await landLeg(dialect)
+  if (runs(dialect, 'stop')) await stopLeg(dialect)
 }
 
 console.log(failures === 0 ? '\nprove-crew-live-drive: ALL LAWS HOLD' : `\nprove-crew-live-drive: ${failures} FAILURE(S)`)

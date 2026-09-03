@@ -77,7 +77,7 @@ export function getTaskStatusIcon(
   if (status === 'running') {
     // The icon checks running BEFORE idle (the colour does the reverse).
     if (flags?.isIdle) return '…'
-    return '▶\uFE0E'
+    return GLYPH.inProgress
   }
   if (status === 'completed') return GLYPH.check
   if (status === 'failed') return GLYPH.fail

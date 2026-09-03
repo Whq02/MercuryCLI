@@ -435,7 +435,14 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
     thinkingConfig: { type: 'disabled' } as never,
     tools: [] as never,
     signal: new AbortController().signal,
-    options: { model: 'local/llava:latest', querySource: 'user' } as never,
+    // The plan reads the permission mode before the deferral decision (the
+    // roster latch keys on it), so the fixture carries the context every
+    // product caller passes — the Options type requires it.
+    options: {
+      model: 'local/llava:latest',
+      querySource: 'user',
+      getToolPermissionContext: async () => ({ mode: 'default' }) as never,
+    } as never,
   })) {
     yielded.push(item as never)
   }

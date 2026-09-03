@@ -83,6 +83,35 @@ process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'http://127.0.0.1:1'
 
+// ── (0) the config read guard is ARMED here (NODE_ENV is deleted above) ─────
+// A container resolution before the config home is enabled must answer,
+// never throw: the env pin carries the model and the effort dial reads as
+// unset (an SDK host or a harness may reach a container before the boot's
+// enableConfigs).
+section('(0) a container answers before the config home is enabled')
+{
+  const slots = await import('../../src/utils/model/subModelSlots.ts')
+  let origin: unknown = null
+  let threw = ''
+  try {
+    origin = slots.resolveSubModel('minerva').origin
+  } catch (e) {
+    threw = String(e)
+  }
+  check('the minerva model resolves from the env pin, never a throw through the read guard', origin === 'env' && threw === '', threw)
+  let effort: unknown = 'unread'
+  try {
+    effort = slots.resolveSubModelEffort('minerva')
+  } catch (e) {
+    threw = String(e)
+  }
+  check("the effort dial reads as unset before the home is enabled (the model's own default), never a throw", effort === undefined && threw === '', threw)
+}
+// The enableConfigs-before-mounting law: the boot enables the config home
+// before any container runs; the harness does the same, on the scratch home.
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+
 const { decodeModelJson, describeUndecodableModelText } = await import(
   '../../src/utils/messages/modelJson.ts'
 )

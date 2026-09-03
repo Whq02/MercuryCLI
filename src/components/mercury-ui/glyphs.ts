@@ -32,6 +32,11 @@ export const GLYPH = {
   ok: '●', // succeeded tool/trace mark (U+25CF, width-1) — the filled done-dot, NOT
   //          a geometric check: ✓/✗ are East-Asian-Ambiguous and desync a column.
   warn: '▲', // attention/warn lead (U+25B2, width-1) — the WarningBanner warn tone.
+  info: '○', // informational lead (U+25CB, width-1) — the hollow ring beneath ▲ in
+  //            the severity ladder (✗ error · ▲ warning · ○ info · · hint). The
+  //            letterlike information source (U+2139) carries the Unicode Emoji
+  //            property, so hosts that route emoji-eligible code points to a colour
+  //            font paint it as a pictograph; it never appears here.
   read: '◌', // file read — non-mutating "scanned/viewed" ring (U+25CC, width-1);
   //            distinct from the filled ● done-dot used for mutating success.
   handoff: '⇄',

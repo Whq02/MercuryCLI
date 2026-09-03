@@ -159,9 +159,16 @@ console.log(' cap offer LIVE — the real binary, both loopback families')
 console.log('============================================================')
 
 // ── the PTY drive ───────────────────────────────────────────────────────────
+/** A scripted keystroke. `requireAwait` makes the send fire ONLY on its
+ *  await (never blind at a deadline — a card that rises late on a busy box
+ *  still gets its key); `afterPrevTicks` schedules relative to the previous
+ *  send's actual fire tick. The capture ends early once every send is done
+ *  and the grid is stable, so a generous `total` costs nothing when fast. */
 type Send = {
-  atTick: number
+  atTick?: number
   minTick?: number
+  afterPrevTicks?: number
+  requireAwait?: boolean
   awaitText?: string
   awaitSettleTicks?: number
   data: string
@@ -253,26 +260,27 @@ const markGrid = (payload: Payload | null, label: string): string => {
 const receiptTick = (payload: Payload | null, index: number): number => payload?.sendReceipts?.[index]?.atTick ?? -1
 
 // ── leg 1: the offer settles ───────────────────────────────────────────────
-// Sends (in order; each fires on its await, its atTick the HARD deadline):
+// Sends (in order; every gate STRICT — it fires on its await, never blind):
 //   [0] ↵ on New Session (the bare boot lands on the Boot face)
 //   [1] the GPT turn
 //   [2] ↵ on the offer (the card arms enter after mount — settle first)
 //   [3] ↵ on the transition preview
 //   [4] the pickup ask once the chip shows the switched seat
-//   [5] the NO-REPAINT PROBE: awaits the offer title after the settlement and
-//       must fire on its DEADLINE — an early fire is the card re-painting
-const PROBE_DEADLINE = 400
+//   [5] the NO-REPAINT PROBE: fires on the offer title if it ever returns,
+//       else PROBE_GAP ticks after the pickup (its deadline) — an early fire
+//       is the card re-painting
+const PROBE_GAP = 60
 const legSettle = drive(
   'settle',
   [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
-    { atTick: 200, minTick: 10, awaitText: OFFER_TITLE, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
-    { atTick: 260, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'preview' },
-    { atTick: 320, minTick: 10, awaitText: TARGET_CHIP, awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'switched' },
-    { atTick: PROBE_DEADLINE, minTick: 30, awaitText: OFFER_TITLE, data: '', mark: 'probe' },
+    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello sol\r' },
+    { requireAwait: true, awaitText: OFFER_TITLE, minTick: 10, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
+    { requireAwait: true, awaitText: 'Model switch preview', minTick: 8, awaitSettleTicks: 2, data: '\r', mark: 'preview' },
+    { requireAwait: true, awaitText: TARGET_CHIP, minTick: 10, awaitSettleTicks: 2, data: 'pick up from gpt pls\r', mark: 'switched' },
+    { afterPrevTicks: PROBE_GAP, awaitText: OFFER_TITLE, data: '', mark: 'probe' },
   ],
-  { total: PROBE_DEADLINE + 40 },
+  { total: 900 },
 )
 {
   const p = legSettle.payload
@@ -283,7 +291,7 @@ const legSettle = drive(
   check('the Responses fixture served the GPT turn', gptCalls.length >= 1, `openai calls=${gptCalls.length} vshot status=${legSettle.status} hits=${wire.map(c => `${c.kind}:${c.url ?? ''}`).join('|') || 'NONE'}`)
   check('the GPT turn rode the ChatGPT-subscription base (the usage bands\' wire)', gptCalls.some(c => (c.url ?? '').includes('/chatgpt/')), gptCalls.map(c => c.url).join(','))
   const offerTick = receiptTick(p, 2)
-  check('the offer send fired on its await, well before its deadline (the reply painted and the bands armed the offer)', offerTick > 0 && offerTick < 200, `offer send at tick ${offerTick} (deadline 200); endReason=${p?.endReason ?? '?'}`)
+  check('the offer send fired on its await (the reply painted and the bands armed the offer)', offerTick > 0, `offer send at tick ${offerTick}; endReason=${p?.endReason ?? '?'}`)
 
   section('L2 — the offer paints ONCE: the OpenAI window named, the exact target id')
   const offerGrid = markGrid(p, 'offer')
@@ -300,7 +308,7 @@ const legSettle = drive(
 
   section('L4 — ↵ settles: the seat switches on the real bundle, the next turn dispatches to the Anthropic wire')
   const switchedTick = receiptTick(p, 4)
-  check('the chip flipped to the switched seat (the pickup send fired on its await, not its deadline)', switchedTick > 0 && switchedTick < 320, `pickup send at tick ${switchedTick} (deadline 320)`)
+  check('the chip flipped to the switched seat (the pickup send fired on its await)', switchedTick > 0, `pickup send at tick ${switchedTick}; endReason=${p?.endReason ?? '?'}`)
   const anthropicCalls = wire.filter(c => c.kind === 'anthropic')
   const main = anthropicCalls.find(c => Array.isArray(c.body?.tools) && (c.body?.tools as unknown[]).length > 0 && JSON.stringify(c.body ?? {}).includes('pick up from gpt pls'))
   check('the Anthropic loopback received the switched request (dispatch FIRED through the settlement)', main !== undefined, `anthropic calls=${anthropicCalls.length}`)
@@ -309,7 +317,7 @@ const legSettle = drive(
 
   section('L5 — the offer does not re-paint after the settlement')
   const probeTick = receiptTick(p, 5)
-  check('the no-repaint probe fired on its DEADLINE, never on its await (the card never returned)', probeTick >= PROBE_DEADLINE - 1, `probe fired at tick ${probeTick} (deadline ${PROBE_DEADLINE})`)
+  check('the no-repaint probe fired on its DEADLINE, never on its await (the card never returned)', switchedTick > 0 && probeTick >= switchedTick + PROBE_GAP - 1, `probe fired at tick ${probeTick} (pickup at ${switchedTick}, gap ${PROBE_GAP})`)
   const switchedGrid = markGrid(p, 'switched')
   check('no offer card on the switched screen', !switchedGrid.includes(OFFER_TITLE))
   check('no offer card on the final screen', !finalGrid.includes(OFFER_TITLE) && !finalGrid.includes('Model switch preview'))
@@ -323,17 +331,16 @@ const legSettle = drive(
 //   [3] a second GPT turn once the composer is back (the fixture re-observes
 //       the SAME wall with its reset shifted — the jitter)
 //   [4] the NO-REPAINT PROBE (deadline-fired)
-const ESC_PROBE_DEADLINE = 360
 const legEsc = drive(
   'esc',
   [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-    { atTick: 80, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
-    { atTick: 200, minTick: 10, awaitText: OFFER_TITLE, awaitSettleTicks: 3, data: '\x1b', mark: 'esc' },
-    { atTick: 250, minTick: 8, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: 'again please\r', mark: 'again' },
-    { atTick: ESC_PROBE_DEADLINE, minTick: 30, awaitText: OFFER_TITLE, data: '', mark: 'probe' },
+    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello sol\r' },
+    { requireAwait: true, awaitText: OFFER_TITLE, minTick: 10, awaitSettleTicks: 3, data: '\x1b', mark: 'esc' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 8, awaitSettleTicks: 2, data: 'again please\r', mark: 'again' },
+    { afterPrevTicks: PROBE_GAP, awaitText: OFFER_TITLE, data: '', mark: 'probe' },
   ],
-  { total: ESC_PROBE_DEADLINE + 40 },
+  { total: 900 },
 )
 {
   const p = legEsc.payload
@@ -343,11 +350,11 @@ const legEsc = drive(
   const escGrid = markGrid(p, 'esc')
   check('the offer card stood when esc was sent', escGrid.includes(OFFER_TITLE), escGrid.split('\n').slice(-14).join('\n'))
   const againTick = receiptTick(p, 3)
-  check('esc dismissed the card and the composer came back (the second turn fired on its await)', againTick > 0 && againTick < 250, `again send at tick ${againTick} (deadline 250)`)
+  check('esc dismissed the card and the composer came back (the second turn fired on its await)', againTick > 0, `again send at tick ${againTick}; endReason=${p?.endReason ?? '?'}`)
   const gptCalls = wire.filter(c => c.kind === 'openai')
   check('the second GPT turn ran on the same seat (two Responses calls, no Anthropic call)', gptCalls.length >= 2 && !wire.some(c => c.kind === 'anthropic'), `openai=${gptCalls.length} anthropic=${wire.filter(c => c.kind === 'anthropic').length}`)
   const probeTick = receiptTick(p, 4)
-  check('the same wall re-observed with a shifted reset did NOT re-paint the answered offer (the probe fired on its deadline)', probeTick >= ESC_PROBE_DEADLINE - 1, `probe fired at tick ${probeTick} (deadline ${ESC_PROBE_DEADLINE})`)
+  check('the same wall re-observed with a shifted reset did NOT re-paint the answered offer (the probe fired on its deadline)', againTick > 0 && probeTick >= againTick + PROBE_GAP - 1, `probe fired at tick ${probeTick} (again at ${againTick}, gap ${PROBE_GAP})`)
   check('the second reply painted', finalGrid.includes(GPT_REPLY_AGAIN) || markGrid(p, 'probe').includes(GPT_REPLY_AGAIN), finalGrid.split('\n').slice(-12).join('\n'))
   check('the session stayed on its GPT seat', finalGrid.includes(HOME_CHIP) && !finalGrid.includes('Fable 5.1'), finalGrid.split('\n').filter(l => l.includes('·')).slice(-3).join('\n'))
   check('no offer card on the final screen', !finalGrid.includes(OFFER_TITLE))

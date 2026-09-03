@@ -7,11 +7,10 @@
 //  assistant [thinking, text] message) and captures with vshot.py at 120 AND
 //  100 cols (the cockpit's floor — narrower, the product paints its resize
 //  gate, not a transcript). Asserts the finalized thinking row paints as the collapsed
-//  thinking-grammar line (`✳︎ thinking… ⌄` — the old dispatch nulled it and
+//  thinking-grammar line (`✻ thinking… ⌄` — the old dispatch nulled it and
 //  the reasoning was silently unreachable in the default view) with the
 //  answer prose still beneath it. HARD-fails: the needle is deterministic
-//  text, not hue. The glyph's text-presentation selector is zero-width, so
-//  the cell grid may or may not carry it — the needle admits both.
+//  text, not hue.
 //
 //  Run:  ~/.bun/bin/bun run scripts/ui/render-thinking-row.ts
 // ============================================================================
@@ -36,10 +35,10 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-// The grammar's row: glyph (selector optional in a cell grid), lowercase word,
-// ellipsis; the fold cue follows on the same line.
-const ROW = /✳︎? thinking…/
-const ROW_WITH_CUE = /✳︎? thinking…\s*⌄/
+// The grammar's row: glyph, lowercase word, ellipsis; the fold cue follows on
+// the same line.
+const ROW = /✻ thinking…/
+const ROW_WITH_CUE = /✻ thinking…\s*⌄/
 
 for (const cols of [120, 100]) {
   console.log(`\n── thinking-row @ ${cols} cols ──`)
