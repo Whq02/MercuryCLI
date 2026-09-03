@@ -330,54 +330,61 @@ section('§G the offer fires on the BINDING window: the seat model\'s weekly poo
 {
   const now = Date.now()
   const poolReset = now + (22 * 3600 + 51 * 60) * 1000
-  // The operator's usage page: 5h 36% · weekly (all models) 44% · weekly FABLE 87%.
+  // The operator's usage page: 5h 36% · weekly (all models) 44% · weekly FABLE 87%
+  // — the rows exactly as the usage reader states them (its own view shape).
+  const live = (key: string, label: string, usedPct: number, resetsAtMs: number) => ({ key, label, state: 'live' as const, usedPct, resetsAtMs })
   const reads = {
     now: () => now,
     anthropic: () => ({ status: 'allowed' as const, observed: true }),
-    anthropicWindows: () => [
-      { key: '5h', usedPct: 36, resetsAtMs: now + 3600_000 },
-      { key: '7d', usedPct: 44, resetsAtMs: now + 5 * 86400_000 },
-    ],
+    anthropicWindows: () => [live('5h', '5h', 36, now + 3600_000), live('7d', '7d', 44, now + 5 * 86400_000)],
     anthropicPools: () => [
-      { key: 'seven_day_fable', label: 'Fable', usedPct: 87, resetsAtMs: poolReset },
-      { key: 'seven_day_opus', label: 'Opus', usedPct: 20, resetsAtMs: poolReset },
-      { key: 'seven_day_sonnet', label: 'Sonnet', usedPct: 5, resetsAtMs: poolReset },
+      live('seven_day_fable', 'Fable', 87, poolReset),
+      live('seven_day_opus', 'Opus', 20, poolReset),
+      live('seven_day_sonnet', 'Sonnet', 5, poolReset),
     ],
   }
-  check('the pool that binds is keyed by the seat model\'s family (fable · opus · sonnet; none for the small tier or another family)', cap.bindingPoolKeyFor(FABLE_51) === 'seven_day_fable' && cap.bindingPoolKeyFor('claude-fable-5[1m]') === 'seven_day_fable' && cap.bindingPoolKeyFor('claude-opus-5') === 'seven_day_opus' && cap.bindingPoolKeyFor('claude-sonnet-5') === 'seven_day_sonnet' && cap.bindingPoolKeyFor('claude-haiku-4-5') === null && cap.bindingPoolKeyFor('gpt-5.6-sol') === null && cap.bindingPoolKeyFor(null) === null)
+  // ONE owner of "which window binds this seat" and of its name: the usage
+  // owner's bindingWindowOf. The resolver carries no copy of the rule.
+  const { bindingWindowOf } = await import('../../src/services/providers/providerUsage.ts')
+  const ownerPick = bindingWindowOf({ provider: 'anthropic', shape: 'subscription-windows', windows: reads.anthropicWindows(), pools: reads.anthropicPools() }, FABLE_51)
+  check("the usage owner picks the Fable pool for a Fable seat and names it in the strip's words ('Fable limit')", ownerPick?.window.key === 'seven_day_fable' && ownerPick?.windowName === 'Fable limit', JSON.stringify(ownerPick))
+  const owner = readFileSync(join(ROOT, 'src/services/capFailover.ts'), 'utf8')
+  const ownerCode = owner.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l))
+  check('the resolver routes the pool read through the usage owner (bindingWindowOf) and keeps no private applicability rule', owner.includes('bindingWindowOf(') && !owner.includes('bindingPoolKeyFor') && !ownerCode.some(l => /seven_day_(fable|opus|sonnet)/.test(l) || /includes\('(fable|mythos|opus|sonnet)'\)/.test(l) || l.includes('weekly ${')))
   const fableSeat = cap.observedFamilyWindow('anthropic', reads, { model: FABLE_51 })
   check('running Fable with the Fable pool at 87% ⇒ WARNING, even while 5h/7d read 36%/44%', fableSeat.state === 'warning' && fableSeat.basis === 'observed', JSON.stringify(fableSeat))
-  check("…and the window names the pool: 'weekly Fable limit', with its reset and its utilisation", fableSeat.windowName === 'weekly Fable limit' && fableSeat.resetsAtMs === poolReset && fableSeat.usedPct === 87, JSON.stringify(fableSeat))
+  check("…and the window carries the owner's name — 'Fable limit', never 'weekly Fable limit' — with its reset and its utilisation", fableSeat.windowName === 'Fable limit' && fableSeat.resetsAtMs === poolReset && fableSeat.usedPct === 87, JSON.stringify(fableSeat))
   check('the offer fires on it (offer × warning ⇒ offer)', cap.decideCapAction('offer', fableSeat.state).kind === 'offer')
   const opusSeat = cap.observedFamilyWindow('anthropic', reads, { model: 'claude-opus-5' })
-  check('the same account on an Opus seat (Opus pool 20%) reads ALLOWED — the binding pool is the seat\'s own', opusSeat.state === 'allowed' && opusSeat.usedPct === 44, JSON.stringify(opusSeat))
+  check("the same account on an Opus seat reads ALLOWED — the owner binds the highest-used applicable window (the 44% week, not the 20% Opus pool)", opusSeat.state === 'allowed' && opusSeat.usedPct === 44 && opusSeat.windowName === undefined, JSON.stringify(opusSeat))
   const haikuSeat = cap.observedFamilyWindow('anthropic', reads, { model: 'claude-haiku-4-5' })
   check('a seat no pool meters reads the shared windows (allowed, the worst shared utilisation on the usage line)', haikuSeat.state === 'allowed' && haikuSeat.usedPct === 44)
   const noModel = cap.observedFamilyWindow('anthropic', reads)
-  check('with no seat model the shared windows decide (the wall-row and auto callers)', noModel.state === 'allowed' && noModel.windowName === undefined)
-  // The worse window binds: a shared REJECTED latch outranks a pool warning.
+  check('with no seat model the latch alone decides (the wall-row and auto callers)', noModel.state === 'allowed' && noModel.windowName === undefined && noModel.usedPct === undefined)
+  // The worse verdict binds: a REJECTED latch (a 429) outranks a pool warning.
   const walled = cap.observedFamilyWindow('anthropic', { ...reads, anthropic: () => ({ status: 'rejected' as const, observed: true, resetsAtMs: now + 60_000, windowName: 'weekly limit' }) }, { model: FABLE_51 })
-  check('a reached shared window outranks the pool warning (the worse window binds, its own name)', walled.state === 'rejected' && walled.windowName === 'weekly limit')
-  const poolFull = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [{ key: 'seven_day_fable', label: 'Fable', usedPct: 100, resetsAtMs: poolReset }] }, { model: FABLE_51 })
-  check('a pool at 100% is a reached window (rejected), named', poolFull.state === 'rejected' && poolFull.windowName === 'weekly Fable limit')
-  const poolStale = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [{ key: 'seven_day_fable', label: 'Fable', usedPct: 99, resetsAtMs: now - 1 }] }, { model: FABLE_51 })
-  check('a pool whose stated reset passed is stale — the shared windows decide', poolStale.state === 'allowed')
+  check("a reached window on the wire outranks the pool warning (the latch's own name)", walled.state === 'rejected' && walled.windowName === 'weekly limit')
+  const poolFull = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [live('seven_day_fable', 'Fable', 100, poolReset)] }, { model: FABLE_51 })
+  check('a pool at 100% is a reached window (rejected), named by the owner', poolFull.state === 'rejected' && poolFull.windowName === 'Fable limit')
+  const poolStale = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => [live('seven_day_fable', 'Fable', 99, now - 1)] }, { model: FABLE_51 })
+  check('a pool whose stated reset passed is stale — it never binds', poolStale.state === 'allowed' && poolStale.windowName !== 'Fable limit')
   const openaiSeat = cap.observedFamilyWindow('openai', { now: () => now, openaiActiveSource: () => 'chatgpt-subscription' as const, openaiWall: () => null, openaiBands: () => [{ usedPct: 92, resetsAtMs: now + 5 * 3600_000, windowName: '5h window' }] }, { model: 'gpt-5.6-sol' })
   check('a family without per-model pools reads as before (the neutral grammar)', openaiSeat.state === 'warning' && openaiSeat.windowName === '5h window' && openaiSeat.usedPct === 92)
   const throwingPools = cap.observedFamilyWindow('anthropic', { ...reads, anthropicPools: () => { throw new Error('reader down') } }, { model: FABLE_51 })
-  check('a pool reader that throws never unsettles the latch fact (the shared windows decide)', throwingPools.state === 'allowed')
+  check('a pool reader that throws never unsettles the latch fact', throwingPools.state === 'allowed')
 
   // THE LIVE ACCESSOR ROAD: a fixture usage response carrying seven_day_fable
   // near its cap, folded into the usage record the reader serves — the
-  // resolver reads the pool through providerUsage's own accessors.
+  // resolver reads the pool through providerUsage's own accessors and the
+  // owner's own pick.
   const limits = await import('../../src/services/claudeAiLimits.ts')
   limits.__setRawUtilizationForTest({
     five_hour: { utilization: 0.36, resets_at: Math.floor((now + 3600_000) / 1000) },
     seven_day: { utilization: 0.44, resets_at: Math.floor((now + 5 * 86400_000) / 1000) },
     seven_day_fable: { utilization: 0.87, resets_at: Math.floor(poolReset / 1000) },
   })
-  const live = cap.observedFamilyWindow('anthropic', { now: () => now, anthropic: () => ({ status: 'allowed' as const, observed: true }) }, { model: FABLE_51 })
-  check('the LIVE accessor road: the usage record\'s seven_day_fable at 87% arms the offer, named', live.state === 'warning' && live.windowName === 'weekly Fable limit' && Math.round(live.usedPct ?? 0) === 87, JSON.stringify(live))
+  const liveRoad = cap.observedFamilyWindow('anthropic', { now: () => now, anthropic: () => ({ status: 'allowed' as const, observed: true }) }, { model: FABLE_51 })
+  check("the LIVE accessor road: the usage record's seven_day_fable at 87% arms the offer, named 'Fable limit'", liveRoad.state === 'warning' && liveRoad.windowName === 'Fable limit' && Math.round(liveRoad.usedPct ?? 0) === 87, JSON.stringify(liveRoad))
   limits.__setRawUtilizationForTest({})
 }
 
@@ -415,6 +422,43 @@ section('§I the within-family slot rung: a stable wall key, re-armed only by an
   const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
   check('the composer keys the slot rung on the stable owner and re-arms from the observed wall', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
   check('the slot key no longer carries the reset moment', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
+}
+
+// ── §J the offer follows the usage records' own change signals ─────────────
+section("§J a band that lands re-runs the offer at once: the OpenAI record's change signal, and the composer following both families' signals")
+{
+  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  openai.__resetOpenaiLimitStateForTest()
+  let fired = 0
+  const off = openai.subscribeOpenaiObserved(() => {
+    fired++
+  })
+  const v0 = openai.getOpenaiObservedVersion()
+  const now = Date.now()
+  openai.adoptOpenaiObservedUsage({ primary: { usedPct: 92, windowMinutes: 300, resetsAtMs: now + 3600_000, observedAtMs: now - 5_000 } })
+  check('a band adopted from the facts feed bumps the version and wakes the subscriber', openai.getOpenaiObservedVersion() === v0 + 1 && fired === 1)
+  openai.adoptOpenaiObservedUsage({ primary: { usedPct: 11, observedAtMs: now - 60_000 } })
+  check('a STALE adoption (older than the held band) changes nothing and signals nothing', openai.getOpenaiObservedVersion() === v0 + 1 && fired === 1)
+  openai.recordOpenaiRateHeaders(new Headers({ 'x-codex-primary-used-percent': '93', 'x-codex-primary-window-minutes': '300', 'x-codex-primary-reset-after-seconds': '3595' }), () => now)
+  check("a response's usage headers bump the version", openai.getOpenaiObservedVersion() === v0 + 2 && fired === 2)
+  openai.recordOpenaiRateHeaders(new Headers({ 'content-type': 'text/event-stream' }), () => now)
+  check('headers that state no band change nothing and signal nothing', openai.getOpenaiObservedVersion() === v0 + 2)
+  openai.recordOpenaiUsageLimit(now + 60_000, 'chatgpt-subscription', () => now)
+  check('an observed wall (a 429 with its reset) bumps the version', openai.getOpenaiObservedVersion() === v0 + 3)
+  openai.forgetOpenaiLimitSource('chatgpt-subscription')
+  check('forgetting a source (a sign-out) bumps the version', openai.getOpenaiObservedVersion() === v0 + 4)
+  off()
+  openai.recordOpenaiUsageLimit(now + 60_000, 'api-key', () => now)
+  check('an unsubscribed listener hears nothing more', fired === 4)
+  openai.__resetOpenaiLimitStateForTest()
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check("the composer follows the anthropic record's version and the OpenAI record's version (the cap effect re-runs on either)", composer.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && composer.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)'))
+  // The strip's warning is the same reader over the same records: it must
+  // re-derive on the records' signals too, or an endpoint fold that lands
+  // the session model's pool waits for a slow tick (the capture on a slow
+  // runner found the strip empty beside a rail showing the Opus week at 87%).
+  const strip = readFileSync(join(ROOT, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
+  check("the strip warning follows both records' versions and re-derives on them", strip.includes('useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)') && strip.includes('useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)') && /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(strip))
 }
 
 console.log(`\n${failures === 0 ? 'CAP OFFER SETTLES: ALL PASS' : `FAILURES: ${failures}`}`)

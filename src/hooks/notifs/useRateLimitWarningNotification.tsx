@@ -17,15 +17,17 @@
 // (preferSessionLimitWarning): a runner fact wins, else this derivation.
 
 import * as React from 'react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { useNowTick } from '../../components/mercury-ui/components.js'
 import { useNotifications } from '../../context/notifications.js'
 import { Text } from '../../ink.js'
 import { useSessionConnector } from '../useSessionConnector.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
 import { preferSessionLimitWarning, providerLimitWarning } from '../../services/providers/limitWarning.js'
+import { getOpenaiObservedVersion, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
 import { getUsingOverageText } from '../../services/rateLimitMessages.js'
 import { getSubscriptionType } from '../../utils/auth.js'
 import { hasConsoleBillingAccess } from '../../utils/billing.js'
@@ -45,6 +47,15 @@ export function useRateLimitWarningNotification(model: string): void {
   const limits = useClaudeAiLimits()
   const tick = useNowTick(ENGINE_FEEDER_REREAD_MS)
   const connector = useSessionConnector()
+  // The usage RECORDS' own change signals: the anthropic record's version
+  // (a fold of the subscription usage endpoint lands the per-model pools —
+  // a Fable seat's binding window — with no latch change and no repaint),
+  // and the OpenAI lane's observed version (the bands a facts read adopts).
+  // Without them the warning waited for the slow tick or a repaint from
+  // elsewhere, and a capture on a slow runner found the strip empty beside
+  // a rail that already showed the pool at 87%.
+  const usageRecordVersion = useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  const openaiObservedVersion = useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
   const overageShownRef = useRef(false)
   const lastWarningRef = useRef<string | null>(null)
 
@@ -94,5 +105,5 @@ export function useRateLimitWarningNotification(model: string): void {
         </Text>
       ),
     })
-  }, [limits, model, tick, connector, addNotification])
+  }, [limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion])
 }

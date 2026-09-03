@@ -46,6 +46,7 @@
 //  surfaces consume the decision and settle through settleModelSelection.
 // ============================================================================
 import { flagEnv } from '../substrate/flagRegistry.js'
+import type { UsageWindowView } from './providers/providerUsage.js'
 
 export type CapPosture = 'off' | 'offer' | 'auto'
 
@@ -353,14 +354,15 @@ export interface FamilyWindowReads {
     windowName?: string
   }
   /** The Anthropic subscription's shared 5h/7d windows as the usage reader
-   *  states them (providerUsage.anthropicWindowViews) — the utilisation the
-   *  usage line prints beside the latch's status. */
-  anthropicWindows?: () => Array<{ key: string; usedPct?: number; resetsAtMs?: number }>
-  /** The Anthropic per-model weekly POOLS (providerUsage.anthropicPoolWindowViews:
-   *  key 'seven_day_fable' · label 'Fable' …) — the BINDING window for a seat
-   *  on that model: a Fable seat at 87% of the Fable pool is capped even
-   *  while the shared 5h/7d read low. */
-  anthropicPools?: () => Array<{ key: string; label: string; usedPct?: number; resetsAtMs?: number }>
+   *  states them (providerUsage.anthropicWindowViews, live rows only) — the
+   *  usage owner's own view shape, handed to its binding-window pick. */
+  anthropicWindows?: () => UsageWindowView[]
+  /** The Anthropic per-model weekly POOLS as the usage reader states them
+   *  (providerUsage.anthropicPoolWindowViews: key 'seven_day_fable' · label
+   *  'Fable' …, live rows only). Which pool binds a seat, and what it is
+   *  called, is the usage owner's law (bindingWindowOf) — this read only
+   *  carries the rows. */
+  anthropicPools?: () => UsageWindowView[]
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
   /** The subscription's observed usage bands (openaiLimitState), each
@@ -385,25 +387,12 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
     anthropicWindows: () => {
       const { anthropicWindowViews } =
         require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
-      return anthropicWindowViews()
-        .filter(view => view.state === 'live')
-        .map(view => ({
-          key: view.key,
-          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
-          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
-        }))
+      return anthropicWindowViews().filter(view => view.state === 'live')
     },
     anthropicPools: () => {
       const { anthropicPoolWindowViews } =
         require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
-      return anthropicPoolWindowViews()
-        .filter(view => view.state === 'live')
-        .map(view => ({
-          key: view.key,
-          label: view.label,
-          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
-          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
-        }))
+      return anthropicPoolWindowViews().filter(view => view.state === 'live')
     },
     anthropic: () => {
       const limits = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
@@ -486,28 +475,33 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
  * fixtures); the live default reads each family's own latch. Never throws:
  * a reader that cannot answer reads as 'unknown' (basis 'none').
  */
-/** The per-model weekly POOL that binds a first-party seat — the usage
- *  endpoint meters Fable, Opus and Sonnet as separate weekly pools beside
- *  the shared 5h/7d windows. Keyed by the wire's own claim
- *  (anthropicPoolWindowViews' key); null for a model no pool meters (the
- *  small tier rides the shared windows only). Pure over the canonical id. */
-export function bindingPoolKeyFor(model: string | null | undefined): string | null {
-  if (model === null || model === undefined || model.trim() === '') return null
-  let canonical = model
-  try {
-    const { getCanonicalName } = require('../utils/model/model.js') as typeof import('../utils/model/model.js')
-    canonical = getCanonicalName(model)
-  } catch {
-    /* the raw spelling still names its family below */
-  }
-  const lowered = canonical.toLowerCase()
-  if (lowered.includes('fable') || lowered.includes('mythos')) return 'seven_day_fable'
-  if (lowered.includes('opus')) return 'seven_day_opus'
-  if (lowered.includes('sonnet')) return 'seven_day_sonnet'
-  return null
-}
-
 const WINDOW_RANK: Record<CapWindowState, number> = { unknown: 0, allowed: 1, warning: 2, rejected: 3 }
+
+/** The usage owner's binding-window pick for a first-party subscription
+ *  seat — which window applies to the seat's model (the shared 5h/7d pair
+ *  plus the weekly pool of the model's own family), which of them binds
+ *  (the highest used), and what it is called in the strip's own words
+ *  ('Fable limit' · 'weekly limit' · 'session limit'). ONE owner:
+ *  providerUsage.bindingWindowOf; this module carries no copy of the rule
+ *  or the words. Undefined when nothing live applies; a reader that throws
+ *  answers the same. */
+function bindingWindowOfSeat(
+  model: string | null | undefined,
+  windows: () => UsageWindowView[],
+  pools: () => UsageWindowView[],
+): { window: UsageWindowView; windowName: string } | undefined {
+  if (model === null || model === undefined || model.trim() === '') return undefined
+  try {
+    const { bindingWindowOf } =
+      require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+    return bindingWindowOf(
+      { provider: 'anthropic', shape: 'subscription-windows', windows: windows(), pools: pools() },
+      model,
+    )
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * THE family window resolver. Pure over injected reads (the prover feeds
@@ -534,22 +528,19 @@ export function observedFamilyWindow(
       const a = r.anthropic()
       if (!a.observed) return unknown
       const windowName = a.windowName ?? 'usage window'
-      // The shared windows' utilisation (the usage reader's views) — the
-      // usage line beside the latch's status. A reader failure prints no
-      // percent; it never unsettles the latch fact.
-      const sharedViews = ((): Array<{ key: string; usedPct?: number; resetsAtMs?: number }> => {
-        try {
-          return r.anthropicWindows()
-        } catch {
-          return []
-        }
-      })()
-      const sharedPct = ((): number | undefined => {
-        const stated = sharedViews.filter(view => view.usedPct !== undefined)
-        if (stated.length === 0) return undefined
-        return Math.max(...stated.map(view => view.usedPct as number))
-      })()
-      const shared: FamilyWindowFact = ((): FamilyWindowFact => {
+      // THE BINDING WINDOW for the seat's model, from the usage owner: the
+      // highest-used live window among the shared 5h/7d pair and the weekly
+      // pool the model's own family meters (a Fable seat at 87% of the Fable
+      // pool binds while 5h/7d read 36%/44%), named in the strip's words. A
+      // reader failure yields no window and never unsettles the latch fact.
+      const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools)
+      const bindingLive =
+        binding !== undefined &&
+        binding.window.usedPct !== undefined &&
+        (binding.window.resetsAtMs === undefined || binding.window.resetsAtMs > now)
+      const bindingPct = bindingLive ? (binding.window.usedPct as number) : undefined
+      // The latch is the wire's own verdict (a 429, an early-warning header).
+      const latch: FamilyWindowFact = ((): FamilyWindowFact => {
         if (a.status === 'rejected' || a.status === 'allowed_warning') {
           if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
             return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
@@ -560,42 +551,26 @@ export function observedFamilyWindow(
             basis: 'observed',
             ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
             windowName,
-            ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}),
+            ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}),
           }
         }
-        return { family, state: 'allowed', basis: 'observed', ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}) }
+        return { family, state: 'allowed', basis: 'observed', ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}) }
       })()
-      // The BINDING pool for the seat's model, when the endpoint meters one.
-      const poolKey = bindingPoolKeyFor(opts?.model)
-      if (poolKey === null) return shared
-      const pool = ((): { key: string; label: string; usedPct?: number; resetsAtMs?: number } | undefined => {
-        try {
-          return r.anthropicPools().find(view => view.key === poolKey)
-        } catch {
-          return undefined
-        }
-      })()
-      if (pool === undefined || pool.usedPct === undefined) return shared
-      const poolLive = pool.resetsAtMs === undefined || pool.resetsAtMs > now
-      if (!poolLive) return shared
-      const poolState: CapWindowState =
-        pool.usedPct >= 100 ? 'rejected' : pool.usedPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
-      const poolFact: FamilyWindowFact = {
+      if (!bindingLive || binding === undefined || bindingPct === undefined) return latch
+      const bindingState: CapWindowState =
+        bindingPct >= 100 ? 'rejected' : bindingPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
+      const bindingFact: FamilyWindowFact = {
         family,
-        state: poolState,
+        state: bindingState,
         basis: 'observed',
-        ...(pool.resetsAtMs !== undefined ? { resetsAtMs: pool.resetsAtMs } : {}),
-        windowName: `weekly ${pool.label} limit`,
-        usedPct: pool.usedPct,
+        ...(binding.window.resetsAtMs !== undefined ? { resetsAtMs: binding.window.resetsAtMs } : {}),
+        windowName: binding.windowName,
+        usedPct: bindingPct,
       }
-      // The worse window binds; states tied, the window closer to its cap
-      // (the higher stated utilisation) binds; all tied, the pool — the fact
-      // specific to the seat's own model.
-      const poolRank = WINDOW_RANK[poolFact.state]
-      const sharedRank = WINDOW_RANK[shared.state]
-      if (poolRank !== sharedRank) return poolRank > sharedRank ? poolFact : shared
-      if (shared.usedPct !== undefined && shared.usedPct > pool.usedPct) return shared
-      return poolFact
+      // The worse verdict binds: the wire's own refusal or early warning
+      // outranks a window the usage read merely says is filling; the usage
+      // read's binding window outranks a quiet latch.
+      return WINDOW_RANK[bindingFact.state] > WINDOW_RANK[latch.state] ? bindingFact : latch
     }
     if (family === 'openai') {
       const source = r.openaiActiveSource()
