@@ -116,6 +116,8 @@ export interface ConcourseWorkerRecordV1 {
   pendingModelKey?: string
   pendingEffort?: string
   pendingKitEdits?: Array<{ edit: import('./sessionKit.js').SessionKitEditV1; by: string }>
+  spawnSwitches?: Partial<Record<'subagents' | 'workflows', 'on' | 'off'>>
+  pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean; by: string }>
   lastLiveAt: number
   pid?: number
   procStart?: string

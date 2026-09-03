@@ -11,6 +11,7 @@ import {
 import { getTeamName } from '../../utils/teammate.js'
 import { readTeamFileAsync } from '../../utils/swarm/teamHelpers.js'
 import { LAUNCH_FLEET_TOOL_NAME } from './constants.js'
+import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
 
@@ -89,7 +90,7 @@ export const LaunchFleetTool = buildTool({
   },
   shouldDefer: true,
   isEnabled() {
-    return isAgentSwarmsEnabled()
+    return isAgentSwarmsEnabled() && evaluateLaunchAuthority('subagents').allowed
   },
   isConcurrencySafe() {
     return false

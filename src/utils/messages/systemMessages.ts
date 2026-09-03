@@ -51,6 +51,24 @@ export function createSystemMessage(
   }
 }
 
+export function createRosterTransitionMessage(
+  toggle: 'subagents' | 'workflows',
+  on: boolean,
+  content: string,
+): import('../../types/message.js').SystemRosterTransitionMessage {
+  return {
+    type: 'system',
+    subtype: 'roster_transition',
+    toggle,
+    on,
+    content,
+    level: 'info',
+    isMeta: false,
+    timestamp: new Date().toISOString(),
+    uuid: randomUUID(),
+  }
+}
+
 export function createSeatReceiptMessage(
   content: string,
   level: SystemMessageLevel = 'info',
