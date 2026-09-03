@@ -81,6 +81,11 @@
       "from": "./ink/measure-element.js"
     },
     {
+      "name": "elementScreenTop",
+      "kind": "value",
+      "from": "./ink/measure-element.js"
+    },
+    {
       "name": "Event",
       "kind": "value",
       "from": "./ink/events/event.js"
