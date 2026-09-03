@@ -30,6 +30,7 @@ import { checker } from '../engine-durability/harness.ts'
 import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { encodeTranscriptLine } from '../../src/utils/sessionStorage/vnext.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const t = checker()
@@ -153,7 +154,10 @@ const sumAt = (tick: number): number => [...(byTick.get(tick)?.values() ?? [])].
 
 // THE CYCLE TICK: the tick at or after the click whose burst rewrites the
 // vacated rows (the old top run).
-const cycleTick = [...byTick.keys()].filter(tk => tk >= CLICK_TICK).sort((a, b) => a - b).find(tk => rowsAt(tk, OLD_TOP) > 0 || rowsAt(tk, OLD_TOP + 1) > 0)
+// The tee's ticks run in the driver's stretched clock (the hosted profile
+// scales every send's moment), so the click is judged where it FIRED.
+const CLICK_AT = Math.round(CLICK_TICK * vshotBudgetScale())
+const cycleTick = [...byTick.keys()].filter(tk => tk >= CLICK_AT).sort((a, b) => a - b).find(tk => rowsAt(tk, OLD_TOP) > 0 || rowsAt(tk, OLD_TOP + 1) > 0)
 t.check('a tick after the click rewrites the vacated rows (the cycle landed in the tee)', cycleTick !== undefined, `ticks ${[...byTick.keys()].join(',')}`)
 const aboveCells = cycleTick !== undefined ? rowsAt(cycleTick, ROW_ABOVE) : 0
 if (POISON) {
@@ -162,7 +166,13 @@ if (POISON) {
   t.check(`the cycle tick re-emits the row above the old top run (row ${ROW_ABOVE}: ${aboveCells} cells in the art's columns — the crown's slivers)`, aboveCells >= 5, String(aboveCells))
 }
 // No PRE-CLICK edge (a blink, a sway step) ever touches that row.
-const preTicks = [...byTick.keys()].filter(tk => tk < CLICK_TICK && tk > 8)
+// The pre-click law reads the critter's OWN edges (a blink, a sway step):
+// the boot's paints are excluded in the stretched clock, and a whole-frame
+// repaint (every row touched — the boot's late card re-layout under the
+// hosted stretch) is a repaint, never an edge.
+const BOOT_TICKS = Math.round(8 * vshotBudgetScale())
+const wholeFrame = (tk: number): boolean => (byTick.get(tk)?.size ?? 0) >= ROWS
+const preTicks = [...byTick.keys()].filter(tk => tk < CLICK_AT && tk > BOOT_TICKS && !wholeFrame(tk))
 const preAbove = preTicks.filter(tk => rowsAt(tk, ROW_ABOVE) > 0)
 t.check(`no tick before the click touches that row (${preTicks.length} ticks — blink and sway edges)`, preAbove.length === 0, preAbove.join(','))
 const edgeTick = preTicks.reduce((best, tk) => (sumAt(tk) > sumAt(best) ? tk : best), preTicks[0] ?? 0)

@@ -22,6 +22,7 @@ import {
   grabScreens,
   runArtifactArena,
 } from '../streaming/artifactArena.ts'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
@@ -48,7 +49,12 @@ for (let i = 0; i < 110; i++) {
 // content still arriving is ordinary stream growth (the bottom-pinned view
 // legitimately translates as the last line wraps), so the BEFORE grab must
 // land after the final paint, not mid-stream.
-const SETTLE_HOLD = 1600
+// The hold and the grab offsets are RUNNER-SPEED premises ("+800 after the
+// last delta everything is painted"): the hosted 2-core runner paints
+// behind the fixture's emits by the same stretch every capture rides, so
+// both scale with the one multiplier (authored at 1 locally).
+const S = vshotBudgetScale()
+const SETTLE_HOLD = Math.round(1600 * S)
 const run = await runArtifactArena({
   turns: [{ kind: 'paced', deltas, gapMs: 40, settleDelayMs: SETTLE_HOLD }],
   sends: ['4500:hello', '5300:\\r'],
@@ -66,9 +72,9 @@ const settleAt = streamEnd + SETTLE_HOLD
 // the turn is still streaming (the hold keeps message_stop away); +600 past
 // the hold is comfortably settled; +1400 guards against late reflows.
 const [before, after, late] = grabScreens(run, 120, 40, [
-  streamEnd + 800,
-  settleAt + 600,
-  settleAt + 1400,
+  streamEnd + 800 * S,
+  settleAt + 600 * S,
+  settleAt + 1400 * S,
 ])
 
 const sentinels = Array.from({ length: sIdx }, (_, i) => `⟦S${i}⟧`)
@@ -93,7 +99,7 @@ const rowOf = (rows: string[], needle: string): number => findRows(rows, needle)
     const l = rowOf(late!.rows, s)
     if (a !== l) lateMoved.push(`${s}:${a}→${l}`)
   }
-  check('no late reflow (settle+600 == settle+1400)', lateMoved.length === 0, lateMoved.join(' '))
+  check('no late reflow (settle+600 == settle+1400, in the stretched clock)', lateMoved.length === 0, lateMoved.join(' '))
 }
 
 // (b) the nameplate column is stable: `[Mercury]` sits at the SAME column,

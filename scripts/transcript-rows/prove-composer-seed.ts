@@ -19,6 +19,7 @@
 // ============================================================================
 
 import { existsSync, readFileSync } from 'node:fs'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { join } from 'node:path'
 import {
   type ArenaRun,
@@ -143,7 +144,11 @@ console.log('── composer type-through (shipped artifact) ──')
     // only after the Boot face's ↵ — a fixed instant raced the landing):
     // `hello` once the composer invites, ↵ once the echo shows; the seeds
     // keep their late fixed instants (the card needs boot + turn + tool).
-    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', '12000:w', '12600:atch'],
+    // The gap between 'w' and 'atch' sits inside the card's own suppression
+    // window (a state criterion, not a schedule): the driver stretches every
+    // fixed moment by the hosted scale, so the gap is handed over pre-divided
+    // and lands authored (600 ms) on every host.
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r', '12000:w', `${12000 + 600 / vshotBudgetScale()}:atch`],
     seconds: 20,
     probe: true,
     keep: true,
