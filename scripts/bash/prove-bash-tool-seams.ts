@@ -23,7 +23,7 @@
 // ============================================================================
 import { plugin } from 'bun'
 import '../lib/hermetic.ts'
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, posix, resolve } from 'node:path'
@@ -72,12 +72,17 @@ const { shouldUseSandbox } = await import('../../src/tools/BashTool/shouldUseSan
 const { getMercuryTempDirName } = await import('../../src/utils/permissions/filesystem.ts')
 /** The product temp root the executor hands a sandboxed command (POSIX form, unresolved). */
 const tempRoot = posix.join(process.env.MERCURY_TMPDIR || '/tmp', getMercuryTempDirName())
+/** The platform's per-user temp directory the bare mktemp uses (macOS), resolved. */
+const platformTemp: string | null = process.platform === 'darwin' ? realpathSync(execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8' }).trim()) : null
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-')))
 const PROJECT = join(SCRATCH, 'project')
-const OUTSIDE = join(SCRATCH, 'outside')
+// "Outside" must be outside the allow-write set: a directory under /tmp
+// itself — not the session directory, not the product temp root, and not
+// the platform's per-user temp directory (the OS temp dir this process
+// was given, which the sandbox allows on macOS).
+const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))
 mkdirSync(join(PROJECT, 'sub'), { recursive: true })
-mkdirSync(OUTSIDE)
 // The allow-write set is the PROCESS working directory (the adapter hands
 // the runtime a literal single dot), the way the product's process starts
 // in the session directory: the proof moves both.
@@ -133,10 +138,10 @@ if (!ready) {
   const temp = await run('f=$(mktemp "$TMPDIR/probe.XXXXXX") && echo "$f" && rm -f "$f"', true)
   check('a temp file made under $TMPDIR succeeds inside the sandbox', temp.code === 0 && temp.out.trim().startsWith(`${tempRoot}/probe.`), `code ${temp.code} ${JSON.stringify(temp.out.trim().slice(0, 160))}`)
   // The bare form is the platform's: macOS mktemp prefers the Darwin
-  // per-user temp directory to TMPDIR (TMPDIR is its fallback), so a bare
-  // mktemp under the sandbox lands wherever that directory is — observed.
+  // per-user temp directory to TMPDIR (TMPDIR is its fallback), so that
+  // directory is in the allow-write set beside the product root.
   const bare = await run('f=$(mktemp) && echo "$f" && rm -f "$f"', true)
-  note(`bare mktemp under the sandbox: code ${bare.code} ${JSON.stringify(bare.out.trim().slice(0, 160))}`)
+  check("a bare mktemp succeeds under the sandbox (the platform's per-user temp directory is writable)", bare.code === 0 && bare.out.trim() !== '' && (platformTemp === null || realpathSync(dirname(bare.out.trim())) === platformTemp), `code ${bare.code} ${JSON.stringify(bare.out.trim().slice(0, 160))} (platform temp ${platformTemp})`)
   const outside = await run(`echo out > "${OUTSIDE}/out.txt"`, true)
   check('a write outside the allow-write set is refused and the file never appears', outside.code !== 0 && !existsSync(join(OUTSIDE, 'out.txt')), `code ${outside.code} ${JSON.stringify(outside.out.slice(0, 160))}`)
   note(`refusal text: ${JSON.stringify((outside.out + outside.stderr).trim().slice(0, 160))}`)
@@ -244,6 +249,34 @@ section('§5 the timed-out note reaches the result')
   check("the tool folds the result's note into the text the model reads (the error path throws that text)", /accumulator\.append\(result\.stderr\.trimEnd\(\) \+ '\\n'\)/.test(tool))
 }
 
+section("§6 the sandbox auto-allow keeps the model's whole input")
+if (!ready) {
+  console.log('  [SKIP] no live sandbox on this machine — the auto-allow road is not taken')
+} else {
+  const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const input = { command: 'sleep 30', timeout: 3000, description: 'a sleep', run_in_background: false }
+  const verdict = await bashToolHasPermission(input, getEmptyToolPermissionContext())
+  const updated = ((verdict as { updatedInput?: Record<string, unknown> }).updatedInput ?? {}) as Record<string, unknown>
+  const reason = (verdict as { decisionReason?: { reason?: string } }).decisionReason?.reason ?? ''
+  check('a sandboxed command is auto-allowed by the sandbox road', verdict.behavior === 'allow' && reason === 'Auto-allowed with sandbox', `${verdict.behavior} ${reason}`)
+  check("…and the allow carries the model's timeout, description and background flag", updated.timeout === 3000 && updated.description === 'a sleep' && updated.run_in_background === false && updated.command === 'sleep 30', JSON.stringify(updated))
+}
+
+section('§7 the never-auto-background list matches the command word')
+{
+  const { firstCommandWord } = await import('../../src/utils/shell/shellToolUtils.ts')
+  check("'sleep 30' → sleep", firstCommandWord('sleep 30') === 'sleep')
+  check("'  sleep ' → sleep", firstCommandWord('  sleep ') === 'sleep')
+  check("'sleeper 1' → sleeper (no prefix match)", firstCommandWord('sleeper 1') === 'sleeper')
+  check("'Start-Sleep -Seconds 5' → Start-Sleep", firstCommandWord('Start-Sleep -Seconds 5') === 'Start-Sleep')
+  check("'' → ''", firstCommandWord('') === '')
+  const bashTool = readFileSync(join(ROOT, 'src', 'tools', 'BashTool', 'BashTool.tsx'), 'utf8')
+  check('the Bash tool compares the command word of the first subcommand', /NEVER_AUTO_BACKGROUND\.has\(firstCommandWord\(firstSubcommand\)\)/.test(bashTool))
+  const psTool = readFileSync(join(ROOT, 'src', 'tools', 'PowerShellTool', 'PowerShellTool.tsx'), 'utf8')
+  check('the PowerShell tool takes its first token from the same owner', /const firstToken = firstCommandWord\(/.test(psTool) && /NEVER_AUTO_BACKGROUND\.has\(resolveToCanonical\(firstToken\)\)/.test(psTool))
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
@@ -254,7 +287,8 @@ if (!ready) {
 } else {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-cwd-')))
-  const away = realpathSync(mkdtempSync(join(tmpdir(), 'bash-tool-seams-away-')))
+  // Outside the allow-write set: under /tmp itself (see OUTSIDE above).
+  const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))
   mkdirSync(join(cwd, 'sub'))
   const configDir = join(home, '.mercury')
   seedFirstRun(configDir, [cwd])
@@ -264,12 +298,10 @@ if (!ready) {
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
-    // The kill path: a command whose FIRST subcommand is the bare word the
-    // tool never auto-backgrounds keeps the whole call in the foreground,
-    // so the timeout kills it instead of moving it to the background — the
-    // path on which the note used to be lost.
-    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep; sleep 30', timeout: 3000, description: 'a command past its timeout on the kill path' }, whenModel: MODEL },
-    { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp "$TMPDIR/probe.XXXXXX") && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
+    // The model's own timeout: with the sandbox auto-allow carrying the whole
+    // input, the sleep is stopped at three seconds.
+    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
+    { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp) && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
   ]
@@ -287,9 +319,6 @@ if (!ready) {
     MERCURY_VERIFY_EVIDENCE: '0',
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
-    // The default Bash timeout for this boot: the fourth call sleeps past
-    // it, so the note is pinned on the kill path the default takes.
-    BASH_DEFAULT_TIMEOUT_MS: '3000',
   }
   const startedAt = Date.now()
   const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
@@ -338,8 +367,10 @@ if (!ready) {
   check('the artifact ran the five calls and closed the turn', outcome.exit === 0 && /sandbox-probe: done/.test(outcome.stdout), `exit ${outcome.exit} ${JSON.stringify(outcome.stderr.slice(-300))}`)
   check('the artifact showed the model five tool results', results.length === 5, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth, fifth] = results
-  check("artifact: a temp file under $TMPDIR lands inside the product temp root and the child's TMPDIR reads it", fifth !== undefined && !fifth.isError && fifth.text.trim().startsWith(`${tempRoot}/probe.`) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
-  check('artifact: the killed command tells the model it timed out (an error result carrying the note)', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text) && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
+  const fifthPath = fifth?.text.trim().split('\n')[0] ?? ''
+  check("artifact: a bare mktemp succeeds under the sandbox and the child's TMPDIR reads the product root", fifth !== undefined && !fifth.isError && fifthPath.startsWith('/') && (platformTemp === null || realpathSync(dirname(fifthPath)) === platformTemp) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
+  check("artifact: the model's timeout is honoured under the sandbox — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
+  check('artifact: …on the kill path — an error result, never moved to the background', fourth !== undefined && fourth.isError && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
@@ -349,6 +380,7 @@ if (!ready) {
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
+rmSync(OUTSIDE, { recursive: true, force: true })
 
 console.log('\n============================================================')
 if (failures === 0) console.log(' ✅ ALL BASH TOOL SEAM PROOFS PASS')

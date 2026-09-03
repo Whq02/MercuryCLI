@@ -123,6 +123,22 @@
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
+      "file": "scripts/bash/prove-bash-tool-seams.ts",
+      "line": 84,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
+      "file": "scripts/bash/prove-bash-tool-seams.ts",
+      "line": 291,
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const away = realpathSync(mkdtempSync('/tmp/bash-tool-seams-away-'))",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/behaviour-laws/prove-behaviour-laws-contract.ts",
       "line": 54,
       "mechanism": "execSync-string",

@@ -625,7 +625,8 @@ export async function checkCommandAndSuggestRules(
 
 // ── sandbox auto-allow ──────────────────────────────────────────────────
 
-function sandboxAutoAllow(command: string, context: ToolPermissionContext): PermissionResult {
+function sandboxAutoAllow(input: BashInput, context: ToolPermissionContext): PermissionResult {
+  const command = input.command
   // 1. Full-command deny / ask.
   const fullDeny = matchRules(command, context, 'deny', 'prefix', true)
   if (fullDeny !== null) {
@@ -654,7 +655,10 @@ function sandboxAutoAllow(command: string, context: ToolPermissionContext): Perm
   if (fullAsk !== null) {
     return { behavior: 'ask', message: createPermissionRequestMessage(TOOL_NAME), decisionReason: ruleReason(context, fullAsk, 'ask') }
   }
-  return { behavior: 'allow', updatedInput: { command } as BashInput, decisionReason: { type: 'other', reason: 'Auto-allowed with sandbox' } }
+  // The whole input travels on: the auto-allow judges the command text, and
+  // the model's other fields — the timeout, the description, the background
+  // and no-sandbox flags — are the tool's to honour, not this road's to drop.
+  return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Auto-allowed with sandbox' } }
 }
 
 // ── top-level entry ─────────────────────────────────────────────────────
@@ -747,7 +751,7 @@ export async function bashToolHasPermission(
     SandboxManager.isAutoAllowBashIfSandboxedEnabled() &&
     shouldUseSandbox(input)
   ) {
-    const auto = sandboxAutoAllow(command, context)
+    const auto = sandboxAutoAllow(input, context)
     if (auto.behavior !== 'passthrough') return auto
   }
 

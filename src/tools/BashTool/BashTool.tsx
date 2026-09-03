@@ -48,6 +48,7 @@ import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIE
 import { interpretCommandResult } from './commandSemantics.js'
 import { getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
+import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { isSedInPlaceEdit, parseSedEditCommand, applySedSubstitution } from './sedEditParser.js'
 import { checkReadOnlyConstraints } from './readOnlyValidation.js'
 import { bashToolHasPermission } from './bashPermissions.js'
@@ -362,7 +363,7 @@ async function* runBash(
   const effectiveTimeout = Math.min(requestedTimeout || getDefaultTimeoutMs(), getMaxTimeoutMs())
   const useSandbox = shouldUseSandbox(input)
   const firstSubcommand = pinnedCommandAnalysis.splitCommand(input.command)[0]?.trim() ?? input.command.trim()
-  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstSubcommand)
+  const shouldAutoBackground = !BACKGROUND_TASKS_DISABLED && !NEVER_AUTO_BACKGROUND.has(firstCommandWord(firstSubcommand))
 
   // Start the shell FIRST — every branch below acts on a running command.
   let progressResolve: (() => void) | null = null
