@@ -323,6 +323,20 @@ function pickDefined<R extends object, K extends keyof R>(r: R, keys: readonly K
   return out as Pick<R, K>
 }
 
+/** The model a door request names. The wire's field is `model`; `modelKey`
+ *  (the record's own spelling, an easy slip) is read as the same field so
+ *  the model the caller named rides — never the registry default in silence
+ *  under a name nobody chose. Both spelled and different is an ambiguity
+ *  the door refuses typed. */
+function requestedModel(raw: { model?: unknown; modelKey?: unknown }): { model?: string; conflict?: string } {
+  const model = typeof raw.model === 'string' && raw.model !== '' ? raw.model : undefined
+  const alias = typeof raw.modelKey === 'string' && raw.modelKey !== '' ? raw.modelKey : undefined
+  if (model !== undefined && alias !== undefined && model !== alias) {
+    return { conflict: `\`model\` (${model}) and \`modelKey\` (${alias}) name different models — spell it once, in \`model\`` }
+  }
+  return { model: model ?? alias }
+}
+
 type AdmitOk = Extract<Awaited<ReturnType<NonNullable<ControlServerDeps['concourseAdmit']>>>, { ok: true }>
 /** Every admit field the wire carries; `ok` is the reply's own and
  *  `workerId` its legacy mirror of runnerId. */
@@ -935,17 +949,19 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
-      // THE MODEL FIELD IS `model`: a dispatch that spells it `modelKey`
-      // (the record's own field name, an easy slip) refuses typed — the
-      // door read no model and would otherwise admit the registry default
-      // in silence under a name the caller never chose.
-      if (raw.modelKey !== undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was admitted" })
+      // THE MODEL FIELD: the wire spells it `model`; a caller that spells it
+      // `modelKey` (the record's own field name, an easy slip) is read the
+      // same — the model it named rides, never the registry default in
+      // silence under a name the caller never chose. Two spellings naming
+      // different models refuse typed (requestedModel).
+      const named = requestedModel(raw)
+      if (named.conflict !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was admitted` })
       }
       const r = await deps.concourseAdmit({
         workspaceDir,
         ...(isolation !== undefined ? { isolation } : {}),
-        ...(typeof raw.model === 'string' && raw.model ? { modelKey: raw.model } : {}),
+        ...(named.model !== undefined ? { modelKey: named.model } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
         ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
@@ -1054,17 +1070,18 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
-      // The same field law as the admit door: `modelKey` is refused typed,
-      // never read as nothing.
-      if (raw.modelKey !== undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was dispatched" })
+      // The same field law as the admit door: `modelKey` is read as `model`,
+      // never as nothing; two different spellings refuse typed.
+      const named = requestedModel(raw)
+      if (named.conflict !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was dispatched` })
       }
       const r = await deps.concourseDispatch({
         clientMessageId,
         prompt,
         workspaceDir,
         ...(isolation !== undefined ? { isolation } : {}),
-        ...(typeof raw.model === 'string' && raw.model ? { modelKey: raw.model } : {}),
+        ...(named.model !== undefined ? { modelKey: named.model } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
         // Forwarded on the LIVE submit path, not only on admit — the typed
