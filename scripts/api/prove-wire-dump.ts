@@ -109,7 +109,10 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
   const wrapped = wrapFetchWithWireDump(baseFetch, 'prove')
   check('armed: the wrapper is a new fetch (not the base)', wrapped !== baseFetch)
 
-  const secretBody = j({ model: 'claude-fable-5-1', max_tokens: 10, messages: [{ role: 'user', content: 'my key is sk-ant-api03-ABCDEFGHIJKLMNOP1234 and the token is Bearer abcdefghijklmnopqrstuvwxyz0123' }] })
+  // The body carries a real-shaped key on purpose (the scrubber's needle);
+  // the line self-declares as a fixture so the leak sweep (prove-leak-sweep
+  // R2, the marker law) reads it lawful while the scrubber still sees a key.
+  const secretBody = j({ model: 'claude-fable-5-1', max_tokens: 10, messages: [{ role: 'user', content: 'my fixture key is sk-ant-api03-ABCDEFGHIJKLMNOP1234 and the fixture token is Bearer abcdefghijklmnopqrstuvwxyz0123' }] })
   const res = await wrapped('http://fixture.local/v1/messages', { method: 'POST', body: secretBody, headers: { 'x-api-key': 'sk-ant-never-written', 'content-type': 'application/json' } })
   const text = await res.text()
   check('the caller reads the whole stream byte for byte through the tee', text === sse && res.status === 200 && res.headers.get('request-id') === 'req_seam_1', `${text.length} vs ${sse.length}; status ${res.status}`)
