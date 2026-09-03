@@ -547,6 +547,15 @@ export async function runHeadless(
     } catch (error) {
       logError(error)
     }
+    try {
+      const { reconcileBackgroundLaunchesOnResume } = await import('../tasks/LocalAgentTask/launchReceipts.js')
+      const settledLaunches = reconcileBackgroundLaunchesOnResume(messages, getAppState, setAppState)
+      if (settledLaunches.length > 0) {
+        logForDebugging(`[session-runner] resume: ${settledLaunches.length} background launch(es) without a live record — stop notices written`)
+      }
+    } catch (error) {
+      logError(error)
+    }
   }
   if (options.continue || options.resume) await hydrateResumedRun()
 

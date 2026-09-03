@@ -630,6 +630,7 @@ export function enqueueAgentNotification(args: {
   worktreePath?: string
   worktreeBranch?: string
   envelopeBlock?: string
+  summary?: string
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
@@ -642,11 +643,12 @@ export function enqueueAgentNotification(args: {
   abortSpeculation(args.setAppState)
 
   const summary =
-    args.status === 'completed'
+    args.summary ??
+    (args.status === 'completed'
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
         ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}`
-        : `Agent "${args.description}" was stopped`
+        : `Agent "${args.description}" was stopped`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
