@@ -1,6 +1,7 @@
 import type { Command } from '../../types/command.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { getPlatform } from '../../utils/platform.js'
+import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 
 function platformLooksSupported(): boolean {
   const platform = getPlatform()
@@ -15,7 +16,7 @@ const sandboxToggle = {
   get description() {
     const check = SandboxManager.checkDependencies()
     const enabled = SandboxManager.isSandboxingEnabled()
-    const glyph = check.errors.length > 0 ? '⚠\uFE0E' : enabled ? '✓' : '◯'
+    const glyph = check.errors.length > 0 ? GLYPH.warn : enabled ? '✓' : '◯'
     let phrase = 'Sandboxing disabled'
     if (enabled) {
       phrase = SandboxManager.isAutoAllowBashIfSandboxedEnabled()
