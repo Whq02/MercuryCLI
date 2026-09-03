@@ -868,6 +868,22 @@ Flow is off — the user likely wants a more interactive pace again. Where the a
         createUserMessage({ content, isMeta: true }),
       ])
     }
+    case 'mode_pack': {
+      // The pack's bytes were captured when the mode was entered; the row
+      // replays them unchanged.
+      return wrapMessagesInSystemReminder([
+        createUserMessage({ content: attachment.text, isMeta: true }),
+      ])
+    }
+    case 'mode_pack_exit': {
+      const label = attachment.mode === 'apollo' ? 'Apollo mode' : 'Autopilot'
+      const content = `## Exited ${label}
+
+${label} is off: its instructions above no longer apply, and the session's standing instructions govern again.`
+      return wrapMessagesInSystemReminder([
+        createUserMessage({ content, isMeta: true }),
+      ])
+    }
     case 'repo_surface_map': {
       // Fast onboarding (fork): the auto-derived surface map for a repo with
       // no orientation doc (MERCURY.md, AGENTS.md or CLAUDE.md), injected once

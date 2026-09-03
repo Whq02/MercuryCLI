@@ -30,12 +30,18 @@ function isMcpToolLike(tool: Tool): boolean {
  * defers exactly when it declares itself deferrable.
  */
 export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
+  // Mode-independent by law: the tools array is part of the prefix every
+  // thinking block is bound to, so a tool's listing may not follow the
+  // permission mode. The Apollo closing-review tool is loaded in full in
+  // every mode and refuses outside apollo at call time (its own
+  // validateInput); the mode argument is kept for callers and ignored.
+  void permissionMode
   if (tool.alwaysLoad) return false
   if (isMcpToolLike(tool)) return true
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
   if (tool.name === SATURN_EXEMPT_TOOL_A && isSaturnExemptAEnabled()) return false
   if (tool.name === SATURN_EXEMPT_TOOL_B && isSaturnExemptBEnabled()) return false
-  if (tool.name === APOLLO_REVIEW_TOOL_NAME && permissionMode === 'apollo') return false
+  if (tool.name === APOLLO_REVIEW_TOOL_NAME) return false
   return Boolean(tool.shouldDefer)
 }
 

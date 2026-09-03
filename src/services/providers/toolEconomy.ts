@@ -59,26 +59,30 @@ export interface ToolPayloadPlanInput {
 }
 
 /**
- * THE FREEZE: the deferral decision a conversation made at its first
- * request holds for every later one. The tools array is part of the prefix
- * every thinking block is bound to, so the roster may not move on a
- * request's own initiative — a threshold crossed because an MCP server
- * landed, a server no longer pending — only on a lawful change: a
- * compaction or /clear gives the conversation a new first row (a new key), a
- * model or mode change keys a new latch (the operator's action; the drop
- * receipt names it), an operator's in-session change clears the
- * conversation's latch through the lawful-change seam
- * (./lawfulPrefixChange.ts), and every conversation in a process — each
- * chat, fork and agent — keys its own by its first row. A tool that joins
- * after the latch is deferrable under
- * a deferring latch (it rides the announcement row, never the tools array)
- * and is HELD out of the roster under a non-deferring one until the next
- * lawful boundary.
+ * THE FREEZE: the tools array is part of the prefix every thinking block is
+ * bound to, so for a conversation's life it never grows, shrinks or
+ * reorders on a request's own initiative — not for a ToolSearch admission,
+ * a threshold crossed because an MCP server landed, a server no longer
+ * pending, or a permission-mode change. The deferral decision a
+ * conversation made at its first request holds for every later one (the
+ * latch, keyed by the owner, the conversation's first row and the model —
+ * never the mode); the roster carries EVERY tool from the first request —
+ * the deferrable ones under the API's own deferred loading (the block form
+ * marks them `defer_loading`; the tool_reference a ToolSearch result
+ * carries expands server-side against the definition already on the wire),
+ * the rest in full — so an admission adds NOTHING. A wire that cannot defer
+ * lists every tool in full from the first request. A tool that joins after
+ * the latch is appended at the END, deferred, when the latch defers and the
+ * tool is deferrable (an unreferenced deferred tool is not part of the
+ * prefix — the API's own contract); any other joiner is HELD out until a
+ * compaction or /clear gives the conversation a new first row. A tool the
+ * mode forbids stays listed and refuses at call time through the
+ * permission engine.
  */
 interface RosterLatch {
   enabled: boolean
-  /** The tool names the roster could carry when the latch was taken. */
-  names: ReadonlySet<string>
+  /** The tool names the roster carried when the latch was taken, in order. */
+  names: readonly string[]
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
@@ -105,8 +109,8 @@ function firstConversationRow(messages: readonly Message[]): string {
   return 'empty'
 }
 
-function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string, mode: string): string {
-  return `${latchKey}|${firstConversationRow(messages)}|${model}|${mode}`
+function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string): string {
+  return `${latchKey}|${firstConversationRow(messages)}|${model}`
 }
 
 /** Test seam: the latch a conversation holds. */
@@ -114,9 +118,8 @@ export function toolRosterLatchFor(
   latchKey: string,
   messages: readonly Message[],
   model: string,
-  mode: string,
 ): RosterLatch | undefined {
-  return rosterLatches.get(rosterLatchKey(latchKey, messages, model, mode))
+  return rosterLatches.get(rosterLatchKey(latchKey, messages, model))
 }
 
 export interface ToolPayloadPlan {
@@ -157,9 +160,7 @@ export function deferredToolsAnnouncement(tools: Tools, deferredNames: ReadonlyS
 export async function planToolPayload(input: ToolPayloadPlanInput): Promise<ToolPayloadPlan> {
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
-  const rosterPermissionMode = (await input.getToolPermissionContext()).mode
-  const latchKey =
-    input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model, rosterPermissionMode)
+  const latchKey = input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model)
   const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
 
   let enabled: boolean
@@ -174,16 +175,19 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
       input.source,
       wire.form,
     )
+    // Deferral rides the API's own deferred loading — the block form. A wire
+    // that cannot defer lists every tool in full from the first request; an
+    // admission may never grow its tools array.
+    if (enabled && wire.form !== 'block') enabled = false
   }
 
   // isDeferredTool costs two feature lookups per call — resolve the set once.
-  // The live permission mode rides along: a mode-exempt tool (the Apollo
-  // closing-review tool in apollo mode) is force-loaded, so the roster tells
-  // the truth — the tool is present exactly when it is callable.
+  // Mode-independent: a tool the mode forbids stays listed and refuses at
+  // call time through the permission engine.
   const deferredNames = new Set<string>()
   if (enabled) {
     for (const t of tools) {
-      if (isDeferredTool(t, rosterPermissionMode)) deferredNames.add(t.name)
+      if (isDeferredTool(t)) deferredNames.add(t.name)
     }
   }
 
@@ -196,31 +200,40 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   if (latchKey !== null && latched === undefined) {
-    rosterLatches.set(latchKey, { enabled, names: new Set(tools.map(t => t.name)) })
+    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name) })
   }
-  // Under a non-deferring latch a tool that joined since the latch is held
-  // out of the roster (the tools array is frozen); the deferring case needs
-  // no hold — a joiner is deferrable and rides the announcement row.
-  const held = new Set<string>()
-  if (latched !== undefined && !latched.enabled) {
-    for (const t of tools) {
-      if (!latched.names.has(t.name)) held.add(t.name)
+
+  // The order the array was first sent in, then any joiner at the END —
+  // never a reorder. A joiner rides only when it is deferrable under a
+  // deferring latch (an unreferenced deferred tool is not part of the
+  // prefix); any other joiner is held until the next compaction or /clear.
+  const byName = new Map(tools.map(t => [t.name, t] as const))
+  const ordered: Tool[] = []
+  const held: string[] = []
+  if (latched !== undefined) {
+    for (const name of latched.names) {
+      const tool = byName.get(name)
+      if (tool !== undefined) ordered.push(tool)
     }
-    if (held.size > 0) {
+    for (const tool of tools) {
+      if (latched.names.includes(tool.name)) continue
+      if (latched.enabled && deferredNames.has(tool.name)) ordered.push(tool)
+      else held.push(tool.name)
+    }
+    if (held.length > 0) {
       logForDebugging(
-        `tool roster frozen: ${held.size} tool(s) joined after the first request and stay out until the next compaction or /clear (${[...held].join(', ')})`,
+        `tool roster frozen: ${held.length} tool(s) joined after the first request and stay out until the next compaction or /clear (${held.join(', ')})`,
       )
     }
+  } else {
+    ordered.push(...tools)
   }
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
-  const roster: Tool[] = enabled
-    ? tools.filter(tool => {
-        if (!deferredNames.has(tool.name)) return true
-        if (toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME)) return true
-        return admittedNames.has(tool.name)
-      })
-    : tools.filter(t => !toolMatchesName(t, TOOL_SEARCH_TOOL_NAME) && !held.has(t.name))
+  // THE ROSTER LAW: every tool rides every request — the deferrable ones
+  // deferred (the wire marks them), the rest in full; ToolSearch itself only
+  // while deferral is on. An admission changes nothing here.
+  const roster: Tool[] = ordered.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME) || enabled)
 
   // With the delta attachment on, persisted deferred_tools_delta attachments
   // carry the announcement instead — the per-request prepend busts cache

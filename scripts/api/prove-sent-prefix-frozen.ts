@@ -214,50 +214,61 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const free2 = await plan([search, readTool], { pending: false })
   check('control (no latch): pending servers ⇒ search on; landed with nothing deferred ⇒ off — the roster moves', free1.enabled && !free2.enabled && names(free1) !== names(free2), `${names(free1)} → ${names(free2)}`)
 
-  const p1 = await plan([search, readTool], { pending: true, key: 'conv-a' })
-  const p2 = await plan([search, readTool], { pending: false, key: 'conv-a' })
+  const deferrable = fakeTool('Browser', { shouldDefer: true })
+  const p1 = await plan([search, readTool, deferrable], { pending: true, key: 'conv-a' })
+  const p2 = await plan([search, readTool, deferrable], { pending: false, key: 'conv-a' })
   check('latched: the first request decided search on; the servers landing leaves the roster byte-identical', p1.enabled && p2.enabled && names(p1) === names(p2), `${names(p1)} → ${names(p2)}`)
-  check('…the latch records the decision and the names it saw', toolRosterLatchFor('conv-a', [], 'claude-opus-4-8', 'default')?.enabled === true && toolRosterLatchFor('conv-a', [], 'claude-opus-4-8', 'default')?.names.has('Read') === true)
+  check('THE ROSTER LAW: a deferrable tool rides the roster from the FIRST request (deferred on the wire), never held back for an admission', names(p1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && p1.deferredNames.has('Browser') && !p1.admittedNames.has('Browser'), names(p1))
+  check('…the latch records the decision and the names it saw, in order', toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.enabled === true && j(toolRosterLatchFor('conv-a', [], 'claude-opus-4-8')?.names) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']))
+  // An admission (a tool_reference inside a ToolSearch result row) changes
+  // NOTHING in the roster: the definition was on the wire from request 1.
+  const admitted = [user('one'), assistant([{ type: 'tool_use', id: 'toolu_ts', name: TOOL_SEARCH_TOOL_NAME, input: { query: 'browser' } }]), user([{ type: 'tool_result', tool_use_id: 'toolu_ts', content: [{ type: 'tool_reference', tool_name: 'Browser' }] }])]
+  const pAdmit = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferrable] as never, messages: admitted as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-adm' })
+  const pAdmit2 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, deferrable] as never, messages: admitted as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-adm' })
+  check('an admission adds nothing to the roster (the admitted tool was there, deferred, from the first request) and it is admitted', names(pAdmit) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser']) && pAdmit.admittedNames.has('Browser') && !pAdmit.isDeferredUnadmitted('Browser') && names(pAdmit2) === names(pAdmit), names(pAdmit))
   const mcpTool = fakeTool('mcp__srv__late', { isMcp: true, mcpInfo: { serverName: 'srv' } })
-  const p3 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-a' })
-  check('a tool that joins later under a deferring latch rides deferred: the roster is byte-identical, the joiner in deferredNames', names(p3) === names(p1) && p3.deferredNames.has('mcp__srv__late') && !p3.roster.some(t => t.name === 'mcp__srv__late'), names(p3))
+  const p3 = await plan([search, readTool, deferrable, mcpTool], { pending: false, key: 'conv-a' })
+  check('a deferrable tool that joins later under a deferring latch is appended at the END, deferred (an unreferenced deferred tool is not part of the prefix); the earlier order holds', names(p3) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'Browser', 'mcp__srv__late']) && p3.deferredNames.has('mcp__srv__late'), names(p3))
+  const reordered = await plan([mcpTool, deferrable, readTool, search], { pending: false, key: 'conv-a' })
+  check('…and a pool that arrives in another order still sends the latched order (never a reorder)', names(reordered) === names(p3), names(reordered))
+  const lateFull = fakeTool('LateBuiltin')
+  const p3b = await plan([search, readTool, deferrable, mcpTool, lateFull], { pending: false, key: 'conv-a' })
+  check('a NON-deferrable joiner is held even under a deferring latch (a regular tool added later is an edit)', names(p3b) === names(p3), names(p3b))
   // Another conversation of the SAME owner (a different first row — a new
   // chat in the process, or the summary row after a compaction) decides fresh.
   const other = [user('another chat')]
   const o1 = await planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, mcpTool] as never, messages: other as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-a' })
-  check('a different first row under the same owner keys its own latch (a new chat, or the post-compaction summary)', toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8', 'default') !== undefined && toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8', 'default') !== toolRosterLatchFor('conv-a', [], 'claude-opus-4-8', 'default') && o1.deferredNames.has('mcp__srv__late'), names(o1))
+  check('a different first row under the same owner keys its own latch (a new chat, or the post-compaction summary)', toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== undefined && toolRosterLatchFor('conv-a', other as never, 'claude-opus-4-8') !== toolRosterLatchFor('conv-a', [], 'claude-opus-4-8') && o1.deferredNames.has('mcp__srv__late'), names(o1))
   const p4 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-b' })
-  check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === names(p1), names(p4))
+  check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'mcp__srv__late']), names(p4))
 
-  // Search off by policy: a joiner is HELD out of the frozen roster.
+  // Search off by policy: everything rides in full from the first request
+  // (no ToolSearch); a joiner is HELD out of the frozen roster.
   process.env.MERCURY_TOOL_SEARCH = 'standard'
-  const s1 = await plan([search, readTool], { key: 'conv-c' })
+  const s1 = await plan([search, readTool, deferrable], { key: 'conv-c' })
   const late = fakeTool('LateBuiltin')
-  const s2 = await plan([search, readTool, late], { key: 'conv-c' })
-  check('search off by policy: the first roster carries Read alone (no ToolSearch)', !s1.enabled && names(s1) === j(['Read']), names(s1))
+  const s2 = await plan([search, readTool, deferrable, late], { key: 'conv-c' })
+  check('search off by policy: the roster carries every tool in full (no ToolSearch), the deferrable one included', !s1.enabled && names(s1) === j(['Read', 'Browser']) && s1.deferredNames.size === 0, names(s1))
   check('…a tool that joins later is held: the roster stays byte-identical', names(s2) === names(s1), names(s2))
-  const s3 = await plan([search, readTool, late], { key: 'conv-c', mode: 'plan' })
-  check('a mode change keys a new latch (a lawful operator action): the joiner enters under the new mode', names(s3) === j(['Read', 'LateBuiltin']), names(s3))
+  const s3 = await plan([search, readTool, deferrable, late], { key: 'conv-c', mode: 'apollo' })
+  check('A MODE CHANGE NEVER REWRITES THE PREFIX: the same latch serves every mode, the roster byte-identical', names(s3) === names(s1), names(s3))
   clearToolRosterLatches()
-  const s4 = await plan([search, readTool, late], { key: 'conv-c' })
-  check('clearing every latch (the process-wide reset) re-decides: the joiner enters', names(s4) === j(['Read', 'LateBuiltin']), names(s4))
+  const s4 = await plan([search, readTool, deferrable, late], { key: 'conv-c' })
+  check('clearing every latch (the process-wide reset) re-decides: the joiner enters', names(s4) === j(['Read', 'Browser', 'LateBuiltin']), names(s4))
   // A compaction or /clear needs no clear at all: the summary row is a new
   // first row, so the same owner keys a fresh latch (pinned above with
   // "a different first row under the same owner").
   const s5 = await plan([search, readTool, late], {})
-  check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8', 'default') === undefined, names(s5))
+  check('no latch key ⇒ no latch (a one-off caller decides fresh)', names(s5) === j(['Read', 'LateBuiltin']) && toolRosterLatchFor('undefined', [], 'claude-opus-4-8') === undefined, names(s5))
 
-  // The lawful-change seam: one conversation's latches clear, another's hold.
+  // The lawful-change seam moves nothing on the wire: the latch stays, the
+  // declaration is pending for the classifier only.
   const { declareLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/services/providers/lawfulPrefixChange.ts')
   await plan([search, readTool], { key: 'conv-d' })
-  await plan([search, readTool], { key: 'conv-e' })
-  declareLawfulPrefixChange('conv-d', 'sub-agents were turned on')
-  check('declareLawfulPrefixChange clears the declaring conversation\'s latch and records its reason', toolRosterLatchFor('conv-d', [], 'claude-opus-4-8', 'default') === undefined && pendingLawfulPrefixChange('conv-d') === 'sub-agents were turned on')
-  check('…and leaves the other conversation\'s latch in place', toolRosterLatchFor('conv-e', [], 'claude-opus-4-8', 'default') !== undefined)
+  declareLawfulPrefixChange('conv-d', 'the operator toggled sub-agents off')
+  check('declareLawfulPrefixChange records its reason and leaves the roster latch in place (the change rides a new row, not the wire)', toolRosterLatchFor('conv-d', [], 'claude-opus-4-8') !== undefined && pendingLawfulPrefixChange('conv-d') === 'the operator toggled sub-agents off')
   const d2 = await plan([search, readTool, late], { key: 'conv-d' })
-  check('…so the declaring conversation re-decides at its next request (the joiner enters)', names(d2) === j(['Read', 'LateBuiltin']), names(d2))
-  const e2 = await plan([search, readTool, late], { key: 'conv-e' })
-  check('…while the other keeps its frozen roster', names(e2) === j(['Read']), names(e2))
+  check('…so the declaring conversation keeps its frozen roster too', names(d2) === j(['Read']), names(d2))
   resetLawfulPrefixChanges()
   if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
   else process.env.MERCURY_TOOL_SEARCH = saved
