@@ -373,6 +373,19 @@ export type Attachment =
       type: 'auto_mode_exit'
     }
   | {
+      // A mode pack (the apollo interview, the autopilot appendix) rides the
+      // conversation as a persisted row, never the top-level system prompt
+      // (the prefix every thinking block is bound to). The text is captured
+      // at emit time so the row replays byte-identical.
+      type: 'mode_pack'
+      mode: 'apollo' | 'autopilot'
+      text: string
+    }
+  | {
+      type: 'mode_pack_exit'
+      mode: 'apollo' | 'autopilot'
+    }
+  | {
       // Fast onboarding (fork, MERCURY_ONBOARDING): the auto-derived repo
       // surface map, injected ONCE on the first turn in a repo that carries
       // no orientation doc (MERCURY.md, AGENTS.md or CLAUDE.md). Structure-only

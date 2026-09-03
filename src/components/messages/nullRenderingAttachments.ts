@@ -49,6 +49,8 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'contract_reminder',
   'auto_mode',
   'auto_mode_exit',
+  'mode_pack',
+  'mode_pack_exit',
   'output_token_usage',
   'verify_plan_reminder',
   'current_session_memory',
