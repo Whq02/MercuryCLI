@@ -560,6 +560,10 @@ export function saveConfigWithLock<A extends object>(
 
 let configReadingAllowed = false
 
+export function isConfigReadingAllowed(): boolean {
+  return configReadingAllowed || process.env.NODE_ENV === 'test'
+}
+
 export function enableConfigs(): void {
   if (configReadingAllowed) {
     return

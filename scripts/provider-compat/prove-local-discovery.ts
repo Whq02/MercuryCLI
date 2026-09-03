@@ -385,7 +385,11 @@ section('11 · the silent-truncation guard (proven live: Ollama truncates /v1 pr
     thinkingConfig: { type: 'disabled' } as never,
     tools: [] as never,
     signal: new AbortController().signal,
-    options: { model: 'local/llava:latest', querySource: 'user' } as never,
+    options: {
+      model: 'local/llava:latest',
+      querySource: 'user',
+      getToolPermissionContext: async () => ({ mode: 'default' }) as never,
+    } as never,
   })) {
     yielded.push(item as never)
   }
