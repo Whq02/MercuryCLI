@@ -3,14 +3,15 @@ import type { AssistantMessage, Message } from '../types/message.js'
 import type { ApiUsage } from '../types/wire.js'
 import { SYNTHETIC_MESSAGES, SYNTHETIC_MODEL } from './messages.js'
 
-/** The family a model id's usage speaks for: its declared route, or the
- *  home lane for an id no family declares. Two ids of one family count
+/** The family a model id's usage speaks for: the route a family declares
+ *  for it, or null for an id no family declares (a gateway's own name, a
+ *  local serving, a fixture's placeholder). Two ids of one family count
  *  tokens alike; across families the numbers are a different tokenizer's.
  *  The route law loads at call time: this module is a leaf every surface
  *  imports, and the law's own graph reaches back into the model owners. */
-function usageFamilyOf(model: string): string {
+function usageFamilyOf(model: string): string | null {
   const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
-  return declaredRouteOf(model) ?? 'anthropic'
+  return declaredRouteOf(model)
 }
 
 /** THE SWITCH FENCE on a usage anchor: a usage stamped by a model of
@@ -18,12 +19,16 @@ function usageFamilyOf(model: string): string {
  *  tokenizer's and its window another model's, so a gauge anchored on it
  *  after a cross-family switch read a previous model's world. A same-family
  *  switch keeps the anchor (comparable counts; the window re-anchors from
- *  the seated model regardless). */
+ *  the seated model regardless), and so does any id whose family is
+ *  unknown on either side — the fence claims a difference only where both
+ *  families are known. */
 function usageAnchorForeign(anchor: Message, model: string | undefined): boolean {
   if (model === undefined || anchor.type !== 'assistant') return false
   const stamped = (anchor as AssistantMessage).message?.model
   if (typeof stamped !== 'string' || stamped === '' || stamped === SYNTHETIC_MODEL) return false
-  return usageFamilyOf(stamped) !== usageFamilyOf(model)
+  const stampedFamily = usageFamilyOf(stamped)
+  const seatedFamily = usageFamilyOf(model)
+  return stampedFamily !== null && seatedFamily !== null && stampedFamily !== seatedFamily
 }
 
 /**
