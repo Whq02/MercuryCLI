@@ -16,6 +16,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
@@ -198,7 +199,6 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
 console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by project, then always adds the one focused session, ★ from its own project')
 {
   const { registerChatPresence, presentStripStops, stripKeyMapHintOf, _resetSurfaceRouteForTesting } = await import('../../src/context/surfaceRoute.ts')
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   registerChatPresence({ present: () => slot.hasFocusedSession() || slot.landingInFlight(), subscribe: slot.subscribeFocusedSessionConnector })
