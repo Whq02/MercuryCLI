@@ -171,12 +171,12 @@ const SCRATCH = (name: string) => join(tmpdir(), `hermes-journey-${name}-${proce
 const READY = '❯'
 const READY_TICK = 5
 const SLACK = 30
-type Timeline = Array<{ atTick: number; data: string }>
+type Timeline = Array<{ atTick: number; data: string; awaitText?: string }>
 function anchored(sends: Timeline, total: number, ready: string | null): Record<string, unknown> {
   let prev = 0
   const out = sends.map((s, i) => {
     const send = i === 0
-      ? { awaitText: READY, requireAwait: true, minTick: 1, awaitSettleTicks: Math.max(0, s.atTick - READY_TICK), data: s.data }
+      ? { awaitText: s.awaitText ?? READY, requireAwait: true, minTick: 1, awaitSettleTicks: Math.max(0, s.atTick - READY_TICK), data: s.data }
       : { afterPrevTicks: Math.max(1, s.atTick - prev), data: s.data }
     prev = s.atTick
     return send
@@ -313,16 +313,18 @@ console.log('\n── J4 · durable draft restore + disclosure toggle ───�
 writeSessions()
 const j4a = capture('j4-restore', [], 58, { ready: 'polish the omega handler' })
 let agentY4 = -1
+let agentX4 = -1
 if (j4a) {
   check('relaunch: the omega draft RESTORED from the durable store', rowOf(j4a, 'polish the omega handler') >= 0)
   check('relaunch: multiline shape intact', rowOf(j4a, 'then rerun the suite') >= 0)
   agentY4 = rowOf(j4a, 'Done (3 tool uses')
+  agentX4 = agentY4 >= 0 ? (j4a[agentY4] ?? '').indexOf('Done (') + 3 : -1
   check('relaunch: agent card present for the toggle leg', agentY4 >= 0)
 }
 if (agentY4 >= 0) {
   const j4b = capture('j4-toggle', [
-    { atTick: 58, data: click(10, agentY4 + 1) },
-    { atTick: 70, data: click(10, agentY4 + 1) },
+    { atTick: 58, awaitText: 'polish the omega handler', data: click(agentX4, agentY4 + 1) },
+    { atTick: 70, data: click(agentX4, agentY4 + 1) },
   ], 84)
   if (j4b) {
     check('toggle: report hidden again after the second click', rowOf(j4b, 'REPORT-LINE') === -1)
