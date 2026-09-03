@@ -246,6 +246,69 @@ export function stripThinkingFromIndex<M extends Message>(
   return changed ? result : messages
 }
 
+/** The thinking blocks a request would carry from models other than the
+ *  one it goes to: how many, and which models wrote them. */
+export function thinkingFromOtherModels(
+  messages: readonly Message[],
+  requestModel: string,
+  sameModel: (a: string, b: string) => boolean,
+): { count: number; models: string[] } {
+  let count = 0
+  const models: string[] = []
+  for (const msg of messages) {
+    if (msg.type !== 'assistant') continue
+    const model = msg.message.model
+    if (typeof model !== 'string' || model.length === 0 || sameModel(model, requestModel)) continue
+    const content = msg.message.content
+    if (!Array.isArray(content)) continue
+    const own = content.filter(isThinkingBlock).length
+    if (own === 0) continue
+    count += own
+    if (!models.includes(model)) models.push(model)
+  }
+  return { count, models }
+}
+
+/**
+ * Strip thinking/redacted_thinking blocks written by another model than
+ * the one this request goes to. The API drops such blocks itself (the
+ * model check: `model_binding_mismatch`) and names every one on EVERY
+ * request that replays them, so a switched conversation would paint the
+ * same drop notice turn after turn; stripping them at the assembler keeps
+ * the list empty and the receipt to one line per switch. `sameModel`
+ * decides identity — the canonical family, so an alias or a dated
+ * spelling of the same model never reads as a switch. The previous
+ * model's blocks all precede the new model's, which is the
+ * remove-from-the-front case the check allows; text and tool_use stay, and
+ * a thinking-only message keeps a placeholder text block.
+ */
+export function stripThinkingFromOtherModels<M extends Message>(
+  messages: M[],
+  requestModel: string,
+  sameModel: (a: string, b: string) => boolean,
+): M[] {
+  let changed = false
+  const result = messages.map(msg => {
+    if (msg.type !== 'assistant') return msg
+    const model = msg.message.model
+    if (typeof model !== 'string' || model.length === 0 || sameModel(model, requestModel)) return msg
+    const content = msg.message.content
+    if (!Array.isArray(content)) return msg
+    const filtered = content.filter(block => !isThinkingBlock(block))
+    if (filtered.length === content.length) return msg
+    changed = true
+    if (filtered.length === 0) {
+      filtered.push({
+        type: 'text' as const,
+        text: '[reasoning written by another model — not carried across the switch]',
+        citations: [],
+      })
+    }
+    return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
+  })
+  return changed ? result : messages
+}
+
 /**
  * Drop assistant messages whose tool_use blocks ALL lack a tool_result.
  * Scans raw content blocks (NOT normalizeMessages — its derived uuids would

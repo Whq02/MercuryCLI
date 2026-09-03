@@ -276,6 +276,9 @@ export function deserializeLiveMessages(serialized: Message[]): Message[] {
 export type LiveTurnState = {
   inFlight: boolean
   phase: 'thinking' | 'tool' | 'responding' | 'idle'
+  /** The records carry no agent wait — the runner's own state word does
+   *  (the connector lifts it over this fold); always 0 here. */
+  agentsWaiting: 0
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
 }
@@ -372,7 +375,7 @@ function settleTurn(acc: TurnAccumulator): LiveTurnState {
     // writing indicator while the request was still in flight.
     else phase = 'thinking'
   }
-  return { inFlight, phase, inProgressToolUseIDs: unresolved, turnStartedAtMs: acc.lastPromptMs }
+  return { inFlight, phase, agentsWaiting: 0, inProgressToolUseIDs: unresolved, turnStartedAtMs: acc.lastPromptMs }
 }
 
 /**

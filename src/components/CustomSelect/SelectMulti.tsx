@@ -45,6 +45,12 @@ export type SelectMultiProps<T = string> = {
   ) => void
   pastedContents?: Record<number, PastedContent>
   onRemoveImage?: (id: number) => void
+  /** ↵ on an EMPTY input row reports here (the row keeps focus). */
+  onEmptyInputSubmit?: (value: T) => void
+  /** Tab / shift+Tab leave the list through this when supplied. */
+  onTabOut?: (direction: 'next' | 'previous') => void
+  /** The submit button taking or losing the focus. */
+  onSubmitFocusChange?: (focused: boolean) => void
 }
 
 export function SelectMulti<T = string>({
@@ -66,6 +72,9 @@ export function SelectMulti<T = string>({
   onImagePaste,
   pastedContents,
   onRemoveImage,
+  onEmptyInputSubmit,
+  onTabOut,
+  onSubmitFocusChange,
 }: SelectMultiProps<T>): React.ReactNode {
   // The submit button renders only when both button text and a submit
   // callback were supplied.
@@ -85,6 +94,9 @@ export function SelectMulti<T = string>({
     isDisabled,
     onDownFromLastItem,
     onUpFromFirstItem,
+    onEmptyInputSubmit,
+    onTabOut,
+    onSubmitFocusChange,
   })
 
   const optionCount = options.length
@@ -124,9 +136,12 @@ export function SelectMulti<T = string>({
               )
 
         if (isInputOption(option)) {
-          // The input row is a full click target like every text row: a
-          // click toggles its selection (typing focus rides the keyboard
-          // path), so the checkbox is reachable by mouse on every row kind.
+          // The input row is a full click target like every text row, and
+          // its own door: a click puts the caret in its field and, with text
+          // typed, keeps the row in the selection — never a toggle that
+          // drops typed text out of the answer. The field's own submit (a
+          // coalesced keystroke landing text and ↵ together) takes the same
+          // door with the submitted text.
           return (
             <Box
               key={String(option.value)}
@@ -134,7 +149,7 @@ export function SelectMulti<T = string>({
                 isDisabled
                   ? undefined
                   : () => {
-                      state.toggleValue(optionValueOf(option))
+                      state.activateInputValue(optionValueOf(option), 'pointer')
                     }
               }
             >
@@ -145,8 +160,8 @@ export function SelectMulti<T = string>({
                 onChange={text => {
                   state.updateInputValue(optionValueOf(option), text)
                 }}
-                onSubmit={() => {
-                  onSubmit?.(state.selectedValues)
+                onSubmit={text => {
+                  state.activateInputValue(optionValueOf(option), 'enter', text)
                 }}
                 reservedIndexWidth={hideIndexes ? 0 : digitCount}
                 index={option.index + 1}

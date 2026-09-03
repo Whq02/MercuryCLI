@@ -2,10 +2,14 @@
 // select, everything is handled on the raw path here — including the bare
 // j/k letters. The selection is an array reported in full through the
 // change callback on every mutation; it resets to the default whenever the
-// options array changes by deep inequality (otherwise asynchronously loaded
-// data leaves stale rows checked).
+// options array changes by callback-blind deep inequality (otherwise
+// asynchronously loaded data leaves stale rows checked).
+//
+// An INPUT row (the free-text "Other" row) is never toggled: its membership
+// in the selection mirrors its text — the first typed character adds it,
+// clearing the field removes it — and ↵, a click and its ordinal all go
+// through the row's own door (activateInputValue) instead.
 
-import { isEqual } from 'lodash-es'
 import { useCallback, useRef, useState } from 'react'
 import { useRegisterOverlay } from '../../context/overlayContext.js'
 import useInput from '../../ink/hooks/use-input.js'
@@ -15,6 +19,7 @@ import {
 } from '../../utils/stringUtils.js'
 import {
   isInputOption,
+  optionsEquivalent,
   optionValueOf,
   type OptionWithDescription,
 } from './option-map.js'
@@ -43,6 +48,18 @@ export type UseMultiSelectStateProps<T> = {
   isDisabled?: boolean
   onDownFromLastItem?: () => void
   onUpFromFirstItem?: () => void
+  /** ↵ on an input row whose field is EMPTY: the row keeps focus and this
+   *  reports it (a caller paints its hint) — an empty field never selects
+   *  nothing. */
+  onEmptyInputSubmit?: (value: T) => void
+  /** When supplied, Tab / shift+Tab leave the list through this instead of
+   *  walking its rows — a card whose tabs are its questions keeps the
+   *  documented key from every row, the input row and the submit button
+   *  included. */
+  onTabOut?: (direction: 'next' | 'previous') => void
+  /** Fires when the submit button takes or loses the focus (the row focus
+   *  is unchanged underneath it, so onFocus cannot say). */
+  onSubmitFocusChange?: (focused: boolean) => void
 }
 
 export type MultiSelectState<T> = SelectNavigation<T> & {
@@ -51,6 +68,10 @@ export type MultiSelectState<T> = SelectNavigation<T> & {
   isSubmitFocused: boolean
   updateInputValue: (value: T, text: string) => void
   toggleValue: (value: T) => void
+  /** The input row's own door — see the module note. `submitted` carries
+   *  the field's text when the text field itself submitted (a coalesced
+   *  keystroke lands text and ↵ in one event, ahead of any render). */
+  activateInputValue: (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string) => void
   onCancel: () => void
 }
 
@@ -69,6 +90,9 @@ export function useMultiSelectState<T>({
   isDisabled = false,
   onDownFromLastItem,
   onUpFromFirstItem,
+  onEmptyInputSubmit,
+  onTabOut,
+  onSubmitFocusChange,
 }: UseMultiSelectStateProps<T>): MultiSelectState<T> {
   // Always an overlay, unconditionally, under this semantic id.
   useRegisterOverlay('multi-select')
@@ -95,14 +119,26 @@ export function useMultiSelectState<T>({
     }
     return seeded
   })
-  const [isSubmitFocused, setSubmitFocused] = useState(false)
+  const [isSubmitFocused, setSubmitFocusedState] = useState(false)
+  // The submit-button focus, with its change reported to the caller; the
+  // ref mirrors it so a same-value set reports nothing.
+  const submitFocusedRef = useRef(isSubmitFocused)
+  submitFocusedRef.current = isSubmitFocused
+  const onSubmitFocusChangeRef = useRef(onSubmitFocusChange)
+  onSubmitFocusChangeRef.current = onSubmitFocusChange
+  const setSubmitFocused = useCallback((next: boolean): void => {
+    if (submitFocusedRef.current === next) return
+    submitFocusedRef.current = next
+    setSubmitFocusedState(next)
+    onSubmitFocusChangeRef.current?.(next)
+  }, [])
 
-  // Reset the selection to the default whenever the options change by deep
-  // inequality.
+  // Reset the selection to the default whenever the options change by
+  // callback-blind deep inequality.
   const previousOptionsRef = useRef(options)
   if (
     previousOptionsRef.current !== options &&
-    !isEqual(previousOptionsRef.current, options)
+    !optionsEquivalent(previousOptionsRef.current, options)
   ) {
     previousOptionsRef.current = options
     setSelectedValues(defaultValue ?? [])
@@ -115,6 +151,10 @@ export function useMultiSelectState<T>({
   // updaters.
   const selectedValuesRef = useRef(selectedValues)
   selectedValuesRef.current = selectedValues
+  // The same mirror for the input texts: a keystroke and the ↵ that follows
+  // it can share one input event, ahead of any render.
+  const inputValuesRef = useRef(inputValues)
+  inputValuesRef.current = inputValues
 
   const toggleValue = useCallback(
     (value: T): void => {
@@ -131,11 +171,10 @@ export function useMultiSelectState<T>({
 
   const updateInputValue = useCallback(
     (value: T, text: string): void => {
-      setInputValues(current => {
-        const next = new Map(current)
-        next.set(value, text)
-        return next
-      })
+      const texts = new Map(inputValuesRef.current)
+      texts.set(value, text)
+      inputValuesRef.current = texts
+      setInputValues(texts)
       const option = options.find(o => o.value === value)
       if (isInputOption(option)) option.onChange?.(text)
       const current = selectedValuesRef.current
@@ -159,6 +198,27 @@ export function useMultiSelectState<T>({
     onSubmit?.(selectedValues)
   }
 
+  // The input row's own door. With text: the row is in the selection (added
+  // now when it is not — its text is its membership), it takes the focus,
+  // and ↵ moves on to the submit button when one is painted. Empty: the row
+  // takes the focus so the operator can type, and ↵ reports the empty field
+  // instead of selecting nothing.
+  const { focusValue: focusByValue } = navigation
+  const activateInputValue = useCallback(
+    (value: T, via: 'enter' | 'pointer' | 'ordinal', submitted?: string): void => {
+      const text = (submitted ?? inputValuesRef.current.get(value) ?? '').trim()
+      if (text === '') {
+        focusByValue(value)
+        if (via === 'enter') onEmptyInputSubmit?.(value)
+        return
+      }
+      if (!selectedValuesRef.current.includes(value)) toggleValue(value)
+      if (via === 'enter' && hasSubmitButton) setSubmitFocused(true)
+      else focusByValue(value)
+    },
+    [focusByValue, toggleValue, hasSubmitButton, onEmptyInputSubmit, setSubmitFocused],
+  )
+
   useInput(
     (input, key, event) => {
       // While the focused option is an input, only these chords are allowed
@@ -175,7 +235,12 @@ export function useMultiSelectState<T>({
         if (!allowed) return
       }
 
-      // Tab / shift+Tab.
+      // Tab / shift+Tab — handed out of the list when the caller owns them.
+      if (key.tab && onTabOut) {
+        onTabOut(key.shift ? 'previous' : 'next')
+        event.stopImmediatePropagation()
+        return
+      }
       if (key.tab && key.shift) {
         if (isSubmitFocused) {
           setSubmitFocused(false)
@@ -247,7 +312,8 @@ export function useMultiSelectState<T>({
       }
 
       // Enter or space. Every submit path requires the submit callback; a
-      // failed submit condition falls through to the toggle.
+      // failed submit condition falls through to the toggle — except on the
+      // focused input row, whose ↵ is its own door (never a toggle).
       const isSpace = normalizeFullWidthSpace(input) === ' '
       if (key.return || isSpace) {
         if (key.return && key.ctrl && navigation.isInInput && onSubmit) {
@@ -256,11 +322,21 @@ export function useMultiSelectState<T>({
           submit()
         } else if (key.return && !hasSubmitButton && onSubmit) {
           submit()
+        } else if (key.return && navigation.isInInput && navigation.focusedValue !== undefined) {
+          activateInputValue(navigation.focusedValue, 'enter')
         } else if (navigation.focusedValue !== undefined) {
           toggleValue(navigation.focusedValue)
         }
         event.stopImmediatePropagation()
         return
+      }
+
+      // An ordinal (digit or letter) naming an input row goes through its
+      // door; naming a text row toggles it.
+      const activateOrdinalTarget = (target: OptionWithDescription<T>): void => {
+        if (isInputOption(target)) activateInputValue(optionValueOf(target), 'ordinal')
+        else toggleValue(optionValueOf(target))
+        event.stopImmediatePropagation()
       }
 
       // Digits toggle the 1-based option — suppressed entirely when indexes
@@ -272,8 +348,7 @@ export function useMultiSelectState<T>({
         if (hideIndexes) return
         const target = options[parseInt(digits, 10) - 1]
         if (target) {
-          toggleValue(optionValueOf(target))
-          event.stopImmediatePropagation()
+          activateOrdinalTarget(target)
           return
         }
       }
@@ -286,8 +361,7 @@ export function useMultiSelectState<T>({
         const pressed = input.toUpperCase()
         const lettered = options.find(o => letterOrdinalOf(o) === pressed)
         if (lettered) {
-          toggleValue(optionValueOf(lettered))
-          event.stopImmediatePropagation()
+          activateOrdinalTarget(lettered)
           return
         }
       }
@@ -308,6 +382,7 @@ export function useMultiSelectState<T>({
     isSubmitFocused,
     updateInputValue,
     toggleValue,
+    activateInputValue,
     onCancel,
   }
 }

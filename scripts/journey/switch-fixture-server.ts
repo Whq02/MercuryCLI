@@ -24,6 +24,18 @@ if (!captureFile) {
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 export const GPT_REPLY = 'sol answers from the fixture'
 export const OPUS_REPLY = 'opus picked up cleanly'
+/** The ask that opens the never-ending thinking phase (the interrupt
+ *  drive's request); any other ask gets the canned reply. */
+export const LONG_THINK_ASK = 'think long please'
+const LONG_THINK_CEILING_MS = 120_000
+
+/** The MAIN turn's ask is the last user row's text (a tool-bearing
+ *  request); side calls (a title, a validation probe) never carry it. */
+function wantsLongThink(body: Record<string, unknown>): boolean {
+  const messages = Array.isArray(body.messages) ? (body.messages as Array<{ role?: string; content?: unknown }>) : []
+  const last = [...messages].reverse().find(m => m.role === 'user')
+  return last !== undefined && JSON.stringify(last.content ?? '').includes(LONG_THINK_ASK)
+}
 
 function record(entry: Record<string, unknown>): void {
   appendFileSync(captureFile, `${JSON.stringify(entry)}\n`)
@@ -52,6 +64,18 @@ function anthropicSse(): string {
 }
 
 const server = createServer((req: IncomingMessage, res: ServerResponse) => {
+  // THE DROP LISTENERS arm BEFORE the body is consumed: once the request
+  // has ended, bun's node:http shim detaches it from its socket and a
+  // listener added later hears nothing. The socket's close and the
+  // request's 'aborted' are the drop signals both runtimes raise; the
+  // response's close is node's alone.
+  const dropListeners: Array<() => void> = []
+  const dropped = (): void => {
+    for (const listener of dropListeners.splice(0)) listener()
+  }
+  req.socket?.on('close', dropped)
+  req.on('aborted', dropped)
+  res.on('close', dropped)
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
   req.on('end', () => {
@@ -94,6 +118,41 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
       record({ kind: 'anthropic', url, body, at: Date.now() })
+      if (wantsLongThink(body)) {
+        // THE LONG THINKING PHASE (the interrupt drive): a thinking block
+        // that streams a delta every 250 ms and never ends on its own — the
+        // request the operator's esc must tear down. The socket's close is
+        // the one fact the drive reads: `anthropic-closed` stamps when the
+        // client dropped the connection (an abort) or, past the ceiling,
+        // when the stream ended honestly on its own.
+        const openedAt = Date.now()
+        record({ kind: 'anthropic-open', at: openedAt })
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+        res.write(
+          `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_fx_think', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 20, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
+        )
+        res.write(`event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } })}`)
+        let n = 0
+        const timer = setInterval(() => {
+          if (res.writableEnded || res.destroyed) return
+          res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: `pondering ${++n} ` } })}`)
+        }, 250)
+        let closed = false
+        const onClose = (why: string): void => {
+          if (closed) return
+          closed = true
+          clearInterval(timer)
+          record({ kind: 'anthropic-closed', at: Date.now(), openMs: Date.now() - openedAt, why })
+        }
+        // The drop listeners armed at the request's start (see the handler's
+        // head) fire here: a drop while the stream is open is the client's
+        // abort; after the ceiling's end it is the ordinary close.
+        dropListeners.push(() => onClose(res.writableEnded ? 'ended' : 'client-dropped'))
+        setTimeout(() => {
+          if (!res.writableEnded && !res.destroyed) res.end()
+        }, LONG_THINK_CEILING_MS).unref()
+        return
+      }
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(anthropicSse())
       return

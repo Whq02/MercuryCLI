@@ -1,8 +1,16 @@
 import * as React from 'react'
-import { TeammateChatsView } from '../../components/mercury-ui/screens/TeammateChatsView.js'
+import { CrewView } from '../../components/mercury-ui/screens/CrewView.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
-// Each Mercury view is a self-contained <View onClose> (the /parity pattern).
-export const call: LocalJSXCommandCall = async onDone => {
-  return <TeammateChatsView onClose={(value?: unknown, options?: Parameters<typeof onDone>[1]) => { const v = typeof value === 'string' ? value : undefined; onDone(v, options ?? (v === undefined ? { display: 'skip' } : undefined)) }} />
+// /teammates — the Crew view: the focused session's sub-agents live, and
+// the named agents' chats. `/teammates <name>` opens that named agent's
+// chat straight away (the cockpit rail's door).
+export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
+  const name = (args ?? '').trim().replace(/^@/, '')
+  return (
+    <CrewView
+      onClose={() => onDone(undefined, { display: 'skip' })}
+      {...(name !== '' ? { initialChat: name } : {})}
+    />
+  )
 }

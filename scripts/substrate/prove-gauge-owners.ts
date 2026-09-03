@@ -150,7 +150,7 @@ section('§3 fleetGauge — solo reads off; the roster still lists a live execut
   const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
   const owner = processMainOwner()
   const solo = await f.fleetGauge()
-  check('solo session reads off with the team reason', solo.state === 'off' && /not in a team/.test(solo.reason ?? ''), `${solo.state} · ${solo.reason}`)
+  check('solo session reads off with the team reason', solo.state === 'off' && /not in an agent group/.test(solo.reason ?? ''), `${solo.state} · ${solo.reason}`)
   check('the off arm carries a roster array', Array.isArray(solo.data.roster))
   const beforeCount = solo.data.roster.filter(r => r.source === 'execution').length
   plane.registerExecution({ owner, id: 'proof-agent', kind: 'agent', label: 'proof agent', lifecycle: 'session', initialState: 'running' })
