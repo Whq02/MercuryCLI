@@ -7,11 +7,12 @@
 // the row draws <ThinkingLabel/>, a renderer that needs only the word or the
 // colour imports the token.
 //
-// · Glyph: U+2733 carries the Unicode Emoji property, so a terminal that
-//   routes emoji-eligible codepoints to its colour font (Windows Terminal)
-//   paints the bare codepoint as a colour emoji. VS15 (U+FE0E) forces text
-//   presentation and is zero-width under stringWidth, so the token measures
-//   one cell. The selector is an escape so it cannot be silently dropped.
+// · Glyph: the teardrop-spoked asterisk (U+273B, the transcript's own static
+//   mark — constants/figures TEARDROP_ASTERISK). The eight-spoked asterisk it
+//   replaces (U+2733) carries the Unicode Emoji property, and a host that
+//   routes emoji-eligible code points to its colour font (Windows Terminal)
+//   paints it as a pictograph even behind the text-presentation selector;
+//   U+273B carries no such property and measures one cell everywhere.
 // · Word: lowercase — the row is a status murmur, never a heading.
 // · Colour: the theme's `subtle` role — the family's readable secondary grey,
 //   the role the expanded reasoning body already paints. Never the session
@@ -22,8 +23,9 @@
 import React from 'react'
 import { Text } from '../../ink.js'
 import type { Theme } from '../../utils/theme.js'
+import { TEARDROP_ASTERISK } from '../../constants/figures.js'
 
-export const THINKING_GLYPH = '✳\uFE0E'
+export const THINKING_GLYPH = TEARDROP_ASTERISK
 export const THINKING_WORD = 'thinking'
 /** The one row spelling — the live line and the settled header alike. */
 export const THINKING_LABEL = `${THINKING_GLYPH} ${THINKING_WORD}…`

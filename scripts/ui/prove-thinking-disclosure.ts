@@ -168,9 +168,13 @@ const { stringWidth } = await import('../../src/ink/stringWidth.ts');
 const { getTheme, THEME_NAMES } = await import('../../src/utils/theme.ts');
 const { getSessionAccent } = await import('../../src/components/mercury-ui/sessionAccent.ts');
 
-const GLYPH = '\u2733\uFE0E';
-check('owner: the glyph is U+2733 with VS15 (text presentation)', grammar.THINKING_GLYPH === GLYPH);
-check('owner: the glyph measures one cell (the selector is zero-width)', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
+// U+273B, the teardrop-spoked asterisk: the transcript's static mark, and a
+// code point WITHOUT the Unicode Emoji property (the eight-spoked asterisk it
+// replaced painted as a colour pictograph on Windows Terminal even behind the
+// text-presentation selector).
+const GLYPH = '\u273B';
+check('owner: the glyph is U+273B (no Emoji property — never a pictograph)', grammar.THINKING_GLYPH === GLYPH);
+check('owner: the glyph measures one cell', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
 check('owner: the word is lowercase', grammar.THINKING_WORD === 'thinking');
 check('owner: the label is glyph + space + word + ellipsis', grammar.THINKING_LABEL === `${GLYPH} thinking…`);
 check('owner: the colour is the theme role `subtle`', grammar.THINKING_COLOR === 'subtle');
