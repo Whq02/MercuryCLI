@@ -77,7 +77,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /live | — | `src/commands/live` |
 | /logins | irow | `src/commands/login` |
 | /logout | — | `src/commands/logout` |
-| /mcp | — | `src/commands/mcp` |
+| /mcp | irow | `src/commands/mcp` |
 | /memory | irow | `src/commands/memory` |
 | /mission | — | `src/commands/mission` |
 | /model | irow | `src/commands/model` |
@@ -116,9 +116,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 28)
+## Slash routes — transcript prints (local: 30)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/release-notes` · `/remember` · `/rewind` · `/supervisor` · `/themis` · `/vim`
+`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/companion` · `/concourse` · `/cost` · `/counsel` · `/debrief` · `/good` · `/halt` · `/heapdump` · `/keybindings` · `/kill` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/release-notes` · `/remember` · `/rewind` · `/speak` · `/supervisor` · `/themis` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 
