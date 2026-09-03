@@ -22,7 +22,12 @@ echo "############################################################"
 echo "# /health certificate — proof harness"
 echo "############################################################"
 shopt -s nullglob
+# Provers named by a sibling member list (scripts/health-*/members.txt) run in
+# that sibling suite — the real-terminal drives — never here.
+claimed=$(cat scripts/health-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 for proof in "$here"/prove-*.ts; do
+  if printf '%s\n' "$claimed" | grep -qx "$(basename "$proof")"; then continue; fi
   echo
   echo ">>> $(basename "$proof")"
   __t=$SECONDS; "$bun" run "$proof" || fail=1; prover_mark "$proof" "$__t"

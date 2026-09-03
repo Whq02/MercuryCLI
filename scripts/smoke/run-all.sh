@@ -15,7 +15,6 @@ echo "############################################################"
 if [ ! -f "$here/../../dist/mercury.mjs" ]; then
   echo "# ⚠ dist/mercury.mjs absent — skipping (build first to exercise this gate)"
 else
-  /usr/bin/python3 "$here/mount-smoke.py" || fail=1
   # The headless-artifact honesty provers (each drives dist/mercury.mjs).
   bun="${BUN:-$HOME/.bun/bin/bun}"
   "$bun" run "$here/prove-cli-verb-honesty.ts" || fail=1

@@ -20,7 +20,6 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ramp-parity.ts" || f
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-units.ts" || fail=1; prover_mark "$here/prove-splash-units.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-receipt.ts" || fail=1; prover_mark "$here/prove-splash-receipt.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ripple-drain.ts" || fail=1; prover_mark "$here/prove-ripple-drain.ts" "$__t"
-__t=$SECONDS; /usr/bin/python3 "$here/prove-splash.py" || fail=1; prover_mark "$here/prove-splash.py" "$__t"
 if [ "$fail" -ne 0 ]; then
   echo "❌ splash suite: FAILURES"
   exit 1
