@@ -23,6 +23,9 @@ runtime beside the bundle, and the launcher, `mercury install` and
 - bun 1.3.x, the build runtime (never vendored).
 - git. On Windows, Windows Terminal or PowerShell 7; the step-by-step guide
   is [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
+  Git for Windows also supplies the `bash.exe` the Bash tool runs under:
+  without it Mercury still starts, the Bash tool is absent (the PowerShell
+  tool stays) and the doctor's `shell` row names the fix.
 
 The floor is 24.20.0 because it carries the fix for nodejs/node#56645. Below
 it, a headless `-p` run that dispatched any tool aborts at exit on Windows.

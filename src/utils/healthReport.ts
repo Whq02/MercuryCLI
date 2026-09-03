@@ -2528,6 +2528,16 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'shell',
+          label: 'Bash tool shell',
+          run: async () => {
+            const { describeWindowsShellRoad } = await import('./shell/windowsShellRoad.js')
+            const shell = describeWindowsShellRoad()
+            if (shell.absent) return { status: 'warn', evidence: shell.line, fix: shell.fix }
+            return { status: 'ok', evidence: shell.line }
+          },
+        },
+        {
           id: 'eval-kernels',
           label: 'Eval languages',
           run: async () => {

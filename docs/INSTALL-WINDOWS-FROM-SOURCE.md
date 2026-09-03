@@ -96,6 +96,15 @@ winget install --id Git.Git --source winget
 
 Close the terminal, open a new one, run the check again.
 
+Git for Windows also installs `bash.exe`, the shell Mercury's Bash tool runs
+under. Without it Mercury still starts, but the Bash tool is missing from the
+model's tool list (the PowerShell tool stays), the `doctor` report's **Bash
+tool shell** row (check id `shell`) warns, and a notice at the start of a
+session names the fix: install Git for Windows, or set `MERCURY_GIT_BASH_PATH`
+to your `bash.exe` when Git is installed somewhere Mercury does not look, or
+turn the shell engine on. A `MERCURY_GIT_BASH_PATH` that points at a file that
+does not exist stops Mercury at start with a message saying so — fix the path.
+
 ---
 
 ## 3. Install Node 24
@@ -372,3 +381,5 @@ Common cases:
 | the interface says the window is too small | fewer than 80 columns or 22 rows | widen or maximise the window |
 | an immediate exit that mentions `--print` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
 | `git pull` asks you to sign in again | the GitHub token expired | sign in in the browser window it opens |
+| a "Bash tool absent" notice, or the `doctor` **Bash tool shell** row warns | Git for Windows (`bash.exe`) is missing, or not where Mercury looks | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe` |
+| Mercury stops at start naming `MERCURY_GIT_BASH_PATH` | that variable points at a file that does not exist | fix or remove the variable |
