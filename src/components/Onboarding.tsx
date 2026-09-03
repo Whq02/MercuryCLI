@@ -10,6 +10,7 @@ import { getCustomApiKeyStatus } from '../utils/config.js'
 import { env } from '../utils/env.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 import { critterDefForKey, miniArtFor } from '../utils/cockpit/critterData.js'
+import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 import type { ThemeSetting } from '../utils/theme.js'
 import { bootNotes } from '../substrate/bootNotes.js'
 import { ApproveApiKey } from './ApproveApiKey.js'
@@ -270,7 +271,7 @@ function TerminalKeys({
         hint: '↵ select',
         run: r => {
           if (r?.id === 'install') {
-            void setupTerminal(theme === 'auto' ? 'dark' : theme)
+            void setupTerminal(theme === 'auto' ? DEFAULT_THEME_SETTING : theme)
               .catch(() => {})
               .finally(onDone)
           } else {
