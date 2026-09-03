@@ -43,6 +43,7 @@ import { writeToMailbox } from '../utils/teammateMailbox.js'
 
 export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import type { DispatchBody, DispatchSource, WireRosterEntry } from './protocol.js'
 
 export type RosterState =
@@ -676,7 +677,7 @@ export class TaskRoster {
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})`,
       )
       const composeStormNote = (phase: 'forming' | 'degraded'): string =>
-        `⚠ ${short} ${phase === 'degraded' ? 'DEGRADED — respawn ceiling hit' : 'respawn loop forming'}: ` +
+        `${GLYPH.warn} ${short} ${phase === 'degraded' ? 'DEGRADED — respawn ceiling hit' : 'respawn loop forming'}: ` +
         `${ll.respawns} fast exit(s) on ${ll.spec.model}@${ll.spec.effort} (exit code ${code ?? 'none'}${signal ? `, signal ${signal}` : ''}). ` +
         (ll.lastErrorText ? `Last error: ${ll.lastErrorText}` : 'No output before exit.') +
         (phase === 'degraded'
@@ -705,7 +706,7 @@ export class TaskRoster {
         h.entry.outcome = 'degraded'
         ledgerExit('degraded', decision.reason)
         stampCrash(false, `crashed — respawns exhausted (${decision.reason})`)
-        logForDebugging(`[daemon] ⚠️  DEGRADED — ${this.degradedState.reason}`)
+        logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${this.degradedState.reason}`)
         postStormNote('degraded')
         try {
           this.opts.onDegraded?.(this.degradedState.reason, short)
