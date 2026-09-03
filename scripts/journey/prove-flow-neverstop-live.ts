@@ -131,15 +131,17 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol', '--permission-mode', 'flow'],
   cwd: FIXTURE_CWD,
   sends: [
-    // --permission-mode flow boots into the flow-default NOTICE panel in
-    // place of the composer (live-found) — dismiss it first.
+    // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session
+    // enters the chat first (the notice below mounts inside the chat, so it
+    // can only be awaited after the birth).
+    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    // --permission-mode flow births into the flow-default NOTICE panel in
+    // place of the composer (live-found) — dismiss it before the prompt.
     { requireAwait: true, minTick: 10, awaitText: 'Flow is the default permission mode', data: '\r' },
     // The idle-composer hint is the true ready signal (see the switch
     // journey's live-found gating note). requireAwait: a deadline-fired
     // send on a slow loaded boot typed into a not-ready surface and was
     // eaten (live-found) — never-ready is a loud exit 4, not a wrong-frame.
-    // THE LANDING RULE: a bare boot lands on the Boot face — ↵ on New Session enters the chat first.
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'read both docs then summarize\r' },
   ],
   readyText: [FINAL_TEXT],
