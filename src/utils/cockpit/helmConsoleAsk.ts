@@ -7,9 +7,11 @@ import { getMessagesAfterCompactBoundary } from '../messages.js'
 import {
   consoleModelOverride,
   resolveSubModel,
+  subModelDispatchEffort,
   subModelIdentityLine,
   type SubModelPin,
 } from '../model/subModelSlots.js'
+import { logForDebugging } from '../debug.js'
 import type { ProcessUserInputContext } from '../processUserInput/processUserInput.js'
 import { runSideQuestion } from '../sideQuestion.js'
 import { noteCritterRealActivity } from './critterSleep.js'
@@ -99,6 +101,8 @@ export async function runConsoleAsk({
     }
   }
   const modelOverride = consoleModelOverride(context.options.mainLoopModel)
+  const effort = subModelDispatchEffort('console', slot.model)
+  if (effort.fallback !== undefined) logForDebugging(`console effort: ${effort.fallback}`)
   noteCritterRealActivity()
   let result: Awaited<ReturnType<typeof runSideQuestion>>
   try {
@@ -107,6 +111,7 @@ export async function runConsoleAsk({
       cacheSafeParams,
       abortController,
       framing: consoleAskFraming(slot),
+      effortValue: effort.effortValue ?? null,
       ...(originRef !== undefined ? { originRef } : {}),
       ...(modelOverride !== undefined ? { modelOverride } : {}),
     })

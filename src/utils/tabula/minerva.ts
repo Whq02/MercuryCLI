@@ -4,9 +4,11 @@ import { basename } from 'node:path'
 import { queryWithModel } from '../../services/providers/anthropic/index.js'
 import {
   resolveSubModel,
+  subModelDispatchEffort,
   subModelIdentityLine,
   type SubModelPin,
 } from '../model/subModelSlots.js'
+import type { EffortLevel } from '../effort.js'
 import { extractTextContent } from '../messages.js'
 import {
   decodeModelJson,
@@ -48,6 +50,12 @@ export const MINERVA_ROLE =
 
 export function minervaIdentityLine(pin: SubModelPin): string {
   return subModelIdentityLine('minerva', pin)
+}
+
+export function minervaEffort(model: string): { effortValue?: EffortLevel } {
+  const dispatch = subModelDispatchEffort('minerva', model)
+  if (dispatch.fallback !== undefined) logForDebugging(`minerva effort: ${dispatch.fallback}`)
+  return dispatch.effortValue !== undefined ? { effortValue: dispatch.effortValue } : {}
 }
 
 const MAX_INPUT_BYTES = 24_000
@@ -263,6 +271,7 @@ export async function runMinervaOnce(
       signal: opts?.signal ?? new AbortController().signal,
       options: {
         model: slot.model,
+        ...minervaEffort(slot.model),
         querySource: 'tabula_minerva',
         agents: [],
         isNonInteractiveSession: true,
@@ -686,6 +695,7 @@ export async function runMinervaMessage(
       signal: opts?.signal ?? new AbortController().signal,
       options: {
         model: slot.model,
+        ...minervaEffort(slot.model),
         querySource: 'tabula_minerva_chat',
         agents: [],
         isNonInteractiveSession: true,

@@ -368,7 +368,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly tailStore: StreamingTailStore = createStreamingTailStore()
   private tailAtMs = -1
   private liveTurnChars = 0
-  private liveStateWord: 'compacting' | null = null
+  private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
+  private liveAgentsWaiting = 0
+  private hardStopping = false
 
   private lastEventAtMs: number | null = null
   private streamBlock: 'thinking' | 'text' | 'tool_use' | null = null
@@ -493,7 +495,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return
     }
     this.liveTurnChars = tail.turnChars ?? 0
-    this.setLiveStateWord(tail.stateWord === 'compacting' ? 'compacting' : null)
+    this.setLiveStateWord(
+      tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
+      tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
+    )
     this.lastEventAtMs = typeof tail.lastEventAtMs === 'number' ? tail.lastEventAtMs : null
     const block = tail.streamBlock === 'thinking' || tail.streamBlock === 'text' || tail.streamBlock === 'tool_use' ? tail.streamBlock : null
     this.setStreamBlock(block, block !== null && typeof tail.blockSinceMs === 'number' ? tail.blockSinceMs : null)
@@ -508,9 +513,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return this.liveTurnChars
   }
 
-  private setLiveStateWord(word: 'compacting' | null): void {
-    if (this.liveStateWord === word) return
+  private setLiveStateWord(word: 'compacting' | 'waiting-on-agents' | null, agentsWaiting = 0): void {
+    const count = word === 'waiting-on-agents' ? agentsWaiting : 0
+    if (this.liveStateWord === word && this.liveAgentsWaiting === count) return
     this.liveStateWord = word
+    this.liveAgentsWaiting = count
     this.recomputeLive()
   }
 
@@ -672,11 +679,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const phase: SessionLiveV1['phase'] =
       inFlight && this.liveStateWord === 'compacting'
         ? 'compacting'
-        : inFlight && this.liveState.phase !== 'tool' && streaming !== null
-          ? streaming
-          : inFlight && this.liveState.phase === 'idle'
-            ? 'thinking'
-            : this.liveState.phase
+        : inFlight && this.liveStateWord === 'waiting-on-agents' && this.liveState.phase !== 'tool'
+          ? 'waiting'
+          : inFlight && this.liveState.phase !== 'tool' && streaming !== null
+            ? streaming
+            : inFlight && this.liveState.phase === 'idle'
+              ? 'thinking'
+              : this.liveState.phase
+    const agentsWaiting = phase === 'waiting' ? this.liveAgentsWaiting : 0
     const inProgressToolUseIDs = inFlight
       ? this.liveState.inProgressToolUseIDs
       : IDLE_LIVE.inProgressToolUseIDs
@@ -684,10 +694,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const changed =
       inFlight !== prev.inFlight ||
       phase !== prev.phase ||
+      agentsWaiting !== prev.agentsWaiting ||
       this.liveState.turnStartedAtMs !== prev.turnStartedAtMs ||
       inProgressToolUseIDs.size !== prev.inProgressToolUseIDs.size ||
       [...inProgressToolUseIDs].some(id => !prev.inProgressToolUseIDs.has(id))
     if (!inFlight && this.interrupting) this.interrupting = false
+    if (!inFlight && this.hardStopping) this.hardStopping = false
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveStateWord = null
@@ -701,6 +713,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.effectiveLive = {
       inFlight,
       phase,
+      agentsWaiting,
       inProgressToolUseIDs,
       turnStartedAtMs: this.liveState.turnStartedAtMs ?? (inFlight ? Date.now() : null),
     }
@@ -1247,21 +1260,24 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     for (const entry of this.askEntries) this.confirms.delete(entry.id)
     this.askEntries = []
     emitAll(this.askListeners, 'asks')
-    if (!this.interrupting) {
-      this.interrupting = true
-      emitAll(this.liveListeners, 'live')
-      void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator' })
-        .then(reply => {
-          if (!(reply.ok === true && reply.outcome === 'applied')) {
-            this.interrupting = false
-            emitAll(this.liveListeners, 'live')
-          }
-        })
-        .catch(() => {
-          this.interrupting = false
+    if (this.interrupting && this.hardStopping) return true
+    const hard = this.interrupting
+    if (hard) this.hardStopping = true
+    else this.interrupting = true
+    emitAll(this.liveListeners, 'live')
+    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', ...(hard ? { hard: true } : {}) })
+      .then(reply => {
+        if (!(reply.ok === true && reply.outcome === 'applied')) {
+          if (hard) this.hardStopping = false
+          else this.interrupting = false
           emitAll(this.liveListeners, 'live')
-        })
-    }
+        }
+      })
+      .catch(() => {
+        if (hard) this.hardStopping = false
+        else this.interrupting = false
+        emitAll(this.liveListeners, 'live')
+      })
     return true
   }
 
@@ -1486,6 +1502,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       title: liveTitleDeriver?.(this.record) ?? this.record.title,
       projectLabel: this.record.projectLabel,
       interrupting: this.interrupting,
+      hardStopping: this.hardStopping,
       quietMs,
       watchdogMs,
       phaseMs,

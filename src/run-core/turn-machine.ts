@@ -571,7 +571,9 @@ async function* streamModel(
               const outcome = classifyThinkingDrops(
                 String(ownerFromToolUseContext(toolUseContext)),
                 drops,
-                prefixMarkOf(iter.messagesForQuery, iter.currentModel),
+                prefixMarkOf(iter.messagesForQuery, iter.currentModel, {
+                  permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
+                }),
               )
               const dropNotice = describeThinkingDrops(drops, outcome)
               if (dropNotice !== null) {
@@ -1016,7 +1018,9 @@ export async function* runEventCore(
       querySource !== 'session_memory'
     ) {
       const estimatedTokens =
-        compactionResult?.truePostCompactTokenCount ?? measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery)
+        compactionResult?.truePostCompactTokenCount ??
+        measuredRawTokenCount ??
+        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.mainLoopModel)
       const { level } = calculateTokenWarningState(
         estimatedTokens,
         toolUseContext.options.mainLoopModel,

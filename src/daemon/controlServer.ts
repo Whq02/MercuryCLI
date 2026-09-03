@@ -152,6 +152,7 @@ export interface ControlServerDeps {
     sessionId: string
     by: string
     reason?: string
+    hard?: boolean
     requestId?: string
     allow?: boolean
     answer?: { updatedInput?: Record<string, unknown>; permissionUpdates?: unknown[]; feedback?: string; interrupt?: boolean }
@@ -888,6 +889,7 @@ async function routeControlRequest(
         sessionId,
         by,
         ...(typeof raw.reason === 'string' && raw.reason ? { reason: raw.reason } : {}),
+        ...(raw.hard === true ? { hard: true } : {}),
         ...(typeof raw.requestId === 'string' && raw.requestId ? { requestId: raw.requestId.slice(0, 128) } : {}),
         ...(typeof raw.allow === 'boolean' ? { allow: raw.allow } : {}),
         ...(answerPayload !== undefined ? { answer: answerPayload } : {}),

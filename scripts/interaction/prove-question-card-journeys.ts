@@ -338,6 +338,9 @@ if (wants('A')) {
       then(UP),
       snap('q1-on-b'),
       then('\r'),
+      awaits(Q2_FRAGMENT, BACKTAB),
+      awaits(Q1_FRAGMENT, '', { mark: 'q1-kept-draft' }),
+      then('\t'),
       awaits(Q2_FRAGMENT, 'b', { mark: 'q2-fresh' }),
       then('d'),
       snap('q2-toggled'),
@@ -385,8 +388,11 @@ if (wants('A')) {
   check('A: the highlight walked up to B and stayed (E keeps its tick and text)', pointerOn(onB, 'B. In-memory') && onB.some(r => r.includes(Q1_TEXT) && r.includes(figures.tick)))
   if (!pointerOn(onB, 'B. In-memory')) dumpFrame('q1-on-b', markOr(d, 'q1-on-b'))
 
+  const kept = cardRows(markOr(d, 'q1-kept-draft'), Q1)
+  check('A: after choosing B, Q1 reopens on B with the E text still there (kept, uncommitted)', tickOn(kept, 'B. In-memory') && pointerOn(kept, 'B. In-memory') && kept.some(r => r.includes(Q1_TEXT)) && !kept.some(r => r.includes(Q1_TEXT) && r.includes(figures.tick)))
+  if (!kept.some(r => r.includes(Q1_TEXT))) dumpFrame('q1-kept-draft', markOr(d, 'q1-kept-draft'))
   const q2Fresh = cardRows(markOr(d, 'q2-fresh'), Q2)
-  check('A: ↵ on B replaced the answer and advanced to Q2', q2Fresh.length > 0)
+  check('A: Tab from the reopened Q1 advanced to Q2', q2Fresh.length > 0)
   const toggled = cardRows(markOr(d, 'q2-toggled'), Q2)
   check('A: the B and D letters toggled exactly their rows', checkedRow(toggled, 'Manual flush') && checkedRow(toggled, 'Warm start') && uncheckedRow(toggled, 'TTL expiry') && uncheckedRow(toggled, 'Stats endpoint'))
   if (!checkedRow(toggled, 'Manual flush')) dumpFrame('q2-toggled', markOr(d, 'q2-toggled'))

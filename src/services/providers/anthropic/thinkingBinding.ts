@@ -5,6 +5,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { Message } from '../../../types/message.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
@@ -95,7 +96,7 @@ export function describeInputTransformations(list: readonly InputTransformation[
 }
 
 
-export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'roster-switch'
+export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting' | 'roster-switch'
 
 export interface PrefixMark {
   firstRow: string | null
@@ -104,9 +105,53 @@ export interface PrefixMark {
   rosterTransition: string | null
   rosterChange: string | null
   model: string
+  settings: string
 }
 
-export function prefixMarkOf(messages: readonly Message[], model: string): PrefixMark {
+export interface LiveOperatorSettings {
+  permissionMode?: string
+  responseProfile?: string
+}
+
+const SETTING_LABELS: Record<string, string> = {
+  mode: 'the permission mode',
+  profile: 'the response profile',
+}
+
+export function spellOperatorSettings(live: LiveOperatorSettings | undefined): string {
+  let profile = live?.responseProfile
+  if (profile === undefined) {
+    try {
+      profile = getGlobalConfig().responseProfile ?? 'balanced'
+    } catch {
+      profile = undefined
+    }
+  }
+  return `mode=${live?.permissionMode ?? '?'};profile=${profile ?? '?'}`
+}
+
+export function describeSettingsMove(previous: string, current: string): string | null {
+  const parse = (spelled: string): Map<string, string> =>
+    new Map(spelled.split(';').filter(Boolean).map(part => {
+      const at = part.indexOf('=')
+      return [part.slice(0, at), part.slice(at + 1)] as [string, string]
+    }))
+  const before = parse(previous)
+  const after = parse(current)
+  const moved: string[] = []
+  for (const [key, value] of after) {
+    const was = before.get(key)
+    if (was === undefined || was === '?' || value === '?' || was === value) continue
+    moved.push(`${SETTING_LABELS[key] ?? key} (${was} → ${value})`)
+  }
+  return moved.length === 0 ? null : moved.join(' and ')
+}
+
+export function prefixMarkOf(
+  messages: readonly Message[],
+  model: string,
+  live?: LiveOperatorSettings,
+): PrefixMark {
   let firstRow: string | null = null
   let compactBoundary: string | null = null
   let modelTransition: string | null = null
@@ -131,7 +176,7 @@ export function prefixMarkOf(messages: readonly Message[], model: string): Prefi
     }
     if (compactBoundary !== null && modelTransition !== null && rosterTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, rosterTransition, rosterChange, model }
+  return { firstRow, compactBoundary, modelTransition, rosterTransition, rosterChange, model, settings: spellOperatorSettings(live) }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -139,6 +184,7 @@ export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
 export interface DropOutcome {
   kind: DropKind
   lawful: LawfulPrefixChange | null
+  detail: string | null
   rosterChange: string | null
   consecutive: number
   count: number
@@ -167,9 +213,10 @@ export function classifyThinkingDrops(
   const previous = dropStates.get(owner)
   if (dropped.length === 0) {
     dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
-    return { kind: 'none', lawful: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null }
+    return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null }
   }
   let lawful: LawfulPrefixChange | null = null
+  let detail: string | null = null
   if (previous !== undefined) {
     if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {
       lawful = 'compaction'
@@ -177,6 +224,12 @@ export function classifyThinkingDrops(
       lawful = 'model-switch'
     } else if (previous.mark.rosterTransition !== mark.rosterTransition) {
       lawful = 'roster-switch'
+    } else {
+      const moved = describeSettingsMove(previous.mark.settings, mark.settings)
+      if (moved !== null) {
+        lawful = 'operator-setting'
+        detail = moved
+      }
     }
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
@@ -198,6 +251,7 @@ export function classifyThinkingDrops(
   return {
     kind,
     lawful,
+    detail,
     rosterChange: lawful === 'roster-switch' ? mark.rosterChange : null,
     consecutive,
     count: dropped.length,
@@ -236,6 +290,9 @@ export function describeThinkingDrops(
       if (outcome.lawful === 'roster-switch') {
         return `Preserved thinking: the API dropped ${count} ${noun} after the operator toggled ${outcome.rosterChange ?? 'a spawn switch'} — the tool roster changed with it, so the model re-plans without that reasoning this turn (expected once).`
       }
+      if (outcome.lawful === 'operator-setting') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after you changed ${outcome.detail ?? 'a setting'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
+      }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
     case 'first':
@@ -272,6 +329,7 @@ export interface ThinkingDropLedger {
     at: string
     kind: Exclude<DropKind, 'none'>
     lawful: LawfulPrefixChange | null
+    detail?: string | null
     reason: string | null
     path: string | null
     count: number
@@ -294,6 +352,7 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
         at: new Date().toISOString(),
         kind: outcome.kind,
         lawful: outcome.lawful,
+        ...(outcome.detail !== null ? { detail: outcome.detail } : {}),
         reason: outcome.reason,
         path: outcome.path,
         count: outcome.count,
@@ -337,9 +396,17 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
   if (last.kind === 'lawful') {
+    const cause =
+      last.lawful === 'compaction'
+        ? 'a compaction'
+        : last.lawful === 'operator-setting'
+          ? `a setting change (${last.detail ?? 'unnamed'})`
+          : last.lawful === 'roster-switch'
+            ? "the operator's spawn-switch toggle"
+            : 'a model switch'
     return {
       status: 'info',
-      evidence: `last drop ${last.at}: ${blocks} after ${last.lawful === 'compaction' ? 'a compaction' : last.lawful === 'roster-switch' ? "the operator's spawn-switch toggle" : 'a model switch'} (${where}, model ${last.model}) — expected once`,
+      evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
     }
   }
   if (last.kind === 'first') {

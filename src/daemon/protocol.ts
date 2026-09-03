@@ -199,6 +199,7 @@ export type DaemonRequest =
       sessionId: string
       by: string
       reason?: string
+      hard?: boolean
       requestId?: string
       allow?: boolean
       answer?: {
