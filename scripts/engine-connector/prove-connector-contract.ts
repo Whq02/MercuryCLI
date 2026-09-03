@@ -42,6 +42,8 @@ const DOORS = [
   'checkpointFacts',
   'subscribeCheckpoints',
   'rewind',
+  'spawnSwitches',
+  'setSpawnSwitch',
 ] as const
 
 {
