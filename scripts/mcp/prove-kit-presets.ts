@@ -323,7 +323,10 @@ section('§P3 — THE ONE-SHOT WEAR: armed for exactly one session; the menu def
   const hopSrc = read('src/services/switchboard/hopIntoSession.ts')
   t('P3-15 the birth door consumes at entry and spreads worn-else-carried', born.includes('const worn = takeWornPresetKit()') && born.includes('...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),'))
   t('P3-16 the resume door PEEKS, spreads worn-else-carried, and spends only when applied (liveHop gates the take)', hopSrc.includes('const worn = peekWornPresetKit()') && hopSrc.includes('worn !== null ? { kit: worn.kit } : carriedKitOf(bootBirthFacts())') && hopSrc.includes('if (worn !== null && reply.liveHop !== true) takeWornPresetKit()'))
-  t('P3-17 the wire carries the pure-hop fact end to end (supervisor answer → protocol row → controlServer pass-through)', read('src/daemon/concourseSupervisor.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && read('src/daemon/controlServer.ts').includes('...(r.liveHop === true ? { liveHop: true } : {})'))
+  // The controlServer pass-through is the wire-pick law: the admit answer
+  // spreads its key list, and the list names the hop fact.
+  const wireKeys = (src: string, name: string): string => (src.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
+  t('P3-17 the wire carries the pure-hop fact end to end (supervisor answer → protocol row → controlServer pass-through)', read('src/daemon/concourseSupervisor.ts').includes('liveHop: true,') && read('src/daemon/protocol.ts').includes('liveHop?: true') && /'liveHop'/.test(wireKeys(read('src/daemon/controlServer.ts'), 'ADMIT_WIRE_KEYS')) && read('src/daemon/controlServer.ts').includes('...pickDefined(r, ADMIT_WIRE_KEYS)'))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -381,7 +384,11 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
   const proto = read('src/daemon/protocol.ts')
   const server = read('src/daemon/controlServer.ts')
   t('P4-11 both wire verbs carry kitPreset and the replies carry the widened source + preset fields', proto.split('kitPreset?: string').length === 3 && proto.split("kitSource?: 'carried' | 'derived' | 'preset'").length === 3 && proto.split('presetName?: string').length === 3)
-  t('P4-12 the server refuses a malformed kitPreset typed on BOTH verbs and forwards the narrowed name on both; the answers pass presetName/presetNote', (server.match(/kitPreset must be a saved preset name \(a non-empty string\)/g) ?? []).length === 2 && (server.match(/\? \{ kitPreset: raw\.kitPreset \} : \{\}/g) ?? []).length === 2 && (server.match(/presetName: r\.presetName/g) ?? []).length === 2)
+  // The answers pass the preset fields through the wire-pick key lists:
+  // both lists name presetName and presetNote, both answers spread theirs.
+  const admitKeys = wireKeys(server, 'ADMIT_WIRE_KEYS')
+  const dispatchKeys = wireKeys(server, 'DISPATCH_WIRE_KEYS')
+  t('P4-12 the server refuses a malformed kitPreset typed on BOTH verbs and forwards the narrowed name on both; the answers pass presetName/presetNote', (server.match(/kitPreset must be a saved preset name \(a non-empty string\)/g) ?? []).length === 2 && (server.match(/\? \{ kitPreset: raw\.kitPreset \} : \{\}/g) ?? []).length === 2 && /'presetName'/.test(admitKeys) && /'presetNote'/.test(admitKeys) && /'presetName'/.test(dispatchKeys) && /'presetNote'/.test(dispatchKeys) && server.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') && server.includes('...pickDefined(r, DISPATCH_WIRE_KEYS)'))
   // THE HELD REPLAY, driven pure: a git-held preset launch replays WITH its
   // preset (the closed-roster poison closed) — the recording dispatch fn
   // receives kitPreset from the banked envelope.
