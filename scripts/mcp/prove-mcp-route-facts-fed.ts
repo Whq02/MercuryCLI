@@ -122,9 +122,15 @@ section('§4 the route driven through the composer')
     slot.setFocusedSessionConnector(fakeConnector(populated))
     let done: string | undefined
     const element = await mod.call(r => { done = r }, ctxWith(screenClients), '')
-    check("§4 populated roster beside screen clients: the composer completes with the session's line", typeof done === 'string' && done.includes('frozen (pending)') && done.includes('docs (connected)'), String(done))
-    check('§4 … and returns no panel (null element)', element === null)
-    check("§4 … the line never names the screen's own clients", typeof done === 'string' && !done.includes('cockpit-a'), String(done))
+    // THE ROSTER IS A CARD on every seat: a populated roster returns the
+    // roster card (its own element; the card completes when it closes), and
+    // no line completes synchronously — the card carries the SESSION's
+    // roster, never the screen's own clients.
+    const cardRoster = (element as { props?: { roster?: Roster } } | null)?.props?.roster
+    const cardNames = (cardRoster?.clients ?? []).map(c => c.name)
+    check("§4 populated roster beside screen clients: the composer returns the roster card (the card is the roster on every seat) and no line completes synchronously", element !== null && element !== undefined && done === undefined, String(done))
+    check("§4 … the card carries the session's roster", cardNames.includes('frozen') && cardNames.includes('docs'), cardNames.join(','))
+    check("§4 … and never the screen's own clients", !cardNames.includes('cockpit-a') && !cardNames.includes('cockpit-b'), cardNames.join(','))
 
     slot._resetFocusedSessionConnectorForTesting()
     slot.setFocusedSessionConnector(fakeConnector(empty))
