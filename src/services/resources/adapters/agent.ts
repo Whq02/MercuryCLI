@@ -1,5 +1,5 @@
 
-import { existsSync, readFileSync } from 'node:fs'
+import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
 import {
   readAgentTranscript,
   type AgentTranscriptView,
@@ -16,6 +16,30 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
+
+export const AGENT_TAIL_READ_CAP_BYTES = 512 * 1024
+
+export function readTailWindow(path: string, cap: number = AGENT_TAIL_READ_CAP_BYTES): { text: string; total: number; cut: boolean } {
+  const total = statSync(path).size
+  const fd = openSync(path, 'r')
+  try {
+    const length = Math.min(total, cap)
+    const buffer = Buffer.alloc(length)
+    readSync(fd, buffer, 0, length, total - length)
+    let text = buffer.toString('utf8')
+    if (length < total) {
+      const newline = text.indexOf('\n')
+      if (newline >= 0) text = text.slice(newline + 1)
+    }
+    return { text, total, cut: length < total }
+  } finally {
+    closeSync(fd)
+  }
+}
+
+export function agentStatusWord(status: string): string {
+  return status === 'killed' ? 'stopped' : status
+}
 
 interface TaskRow {
   id: string
@@ -109,7 +133,7 @@ export const agentAdapter: ResourceAdapter = {
           children: tasks.slice(0, 50).map(t => ({
             ref: formatRef('agent', t.id),
             title: `${t.id} (${t.type})`,
-            summary: `${t.status} · ${t.description.slice(0, 80)}`,
+            summary: `${agentStatusWord(t.status)} · ${t.description.slice(0, 80)}`,
           })),
         },
       }
@@ -131,7 +155,7 @@ export const agentAdapter: ResourceAdapter = {
         return { state: 'absent', note: `transcript for '${ref.id}' is unreadable (${contentPath})` }
       }
       const running = task?.status === 'running'
-      const status = task?.status ?? 'unregistered (transcript on disk)'
+      const status = task ? agentStatusWord(task.status) : 'unregistered (transcript on disk)'
       return {
         state: 'ok',
         resource: {
@@ -166,21 +190,24 @@ export const agentAdapter: ResourceAdapter = {
     let page: { cursor: number; hasMore: boolean; total: number } | undefined
     if (contentPath) {
       try {
-        const full = readFileSync(contentPath, 'utf8')
-        const view = boundedTextView(full, ref.selectors, 100, {
+        const window = readTailWindow(contentPath)
+        const view = boundedTextView(window.text, ref.selectors, 100, {
           defaultToTail: true,
         })
         page = view.page
         const shown = view.text ? view.text.split('\n').length : 0
         const hint = pageHint(view.page, shown)
-        outputTail = (view.text || '(empty output)') + (hint ? `\n${hint}` : '')
+        const cutNote = window.cut
+          ? `\n[tail window: the last ${Math.round(window.text.length / 1024)} KB of ${Math.round(window.total / 1024)} KB — the cursor pages within it]`
+          : ''
+        outputTail = (view.text || '(empty output)') + (hint ? `\n${hint}` : '') + cutNote
       } catch {
         outputTail = '(output not readable — the task may not have produced any)'
       }
     } else {
       outputTail = '(output not readable — the task may not have produced any)'
     }
-    const status = task?.status ?? 'settled (record on disk)'
+    const status = task ? agentStatusWord(task.status) : 'settled (record on disk)'
     const elapsed = task ? (task.endTime ?? Date.now()) - task.startTime : undefined
     return {
       state: 'ok',
@@ -189,10 +216,10 @@ export const agentAdapter: ResourceAdapter = {
         kind: 'agent',
         title: task ? `${task.id} (${task.type})` : `${ref.id} (agent)`,
         summary: task
-          ? `${task.status} · ${Math.round((elapsed ?? 0) / 1000)}s · ${task.description.slice(0, 100)}`
+          ? `${status} · ${Math.round((elapsed ?? 0) / 1000)}s · ${task.description.slice(0, 100)}`
           : `${status} · transcript on disk`,
         version: task
-          ? `${task.status}-${task.endTime ?? 'live'}`
+          ? `${status}-${task.endTime ?? 'live'}`
           : `${status}-${page?.total ?? 0}`,
         mutable: false,
         text: outputTail,
