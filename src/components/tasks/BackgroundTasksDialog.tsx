@@ -50,8 +50,10 @@ import {
   crewAgentFactsOf,
   crewCostLabel,
   crewModelLabel,
+  crewStateLabel,
   crewTokensBreakdown,
   crewTokensLabel,
+  crewToolUsesLabel,
 } from '../../services/engine-connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
@@ -145,7 +147,7 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
         </Text>
       )}
       <Text> {work.name}</Text>
-      <Text color={tokens.textMuted}> · {work.status}</Text>
+      <Text color={tokens.textMuted}> · {crew !== null ? crewStateLabel(crew) : work.status}</Text>
       {crew !== null ? (
         <Text color={tokens.textMuted}>
           {' · '}{crewModelLabel(crew)}{crewTokens !== null ? ` · ${crewTokens}` : ''}
@@ -179,14 +181,17 @@ export function RosterWorkDetail({
     },
     { context: 'Confirmation', isActive: true },
   )
+  const crew = crewAgentFactsOf(work, null)
   const rows: KVRow[] = [
-    { k: 'state', v: work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
+    { k: 'state', v: crew !== null ? crewStateLabel(crew) : work.status, tone: work.status === 'running' ? tokens.success : tokens.textPrimary },
     { k: 'started', v: `${formatDuration(Math.max(0, now - work.startTime))} ago`, tone: tokens.textMuted },
   ]
   if (work.endTime !== undefined) rows.push({ k: 'ran', v: formatDuration(Math.max(0, work.endTime - work.startTime)), tone: tokens.textMuted })
-  const crew = crewAgentFactsOf(work, null)
   if (crew !== null) {
     rows.push({ k: 'model', v: crewModelLabel(crew), tone: tokens.textPrimary })
+    const toolUses = crewToolUsesLabel(crew)
+    if (toolUses !== null) rows.push({ k: 'tools', v: toolUses, tone: tokens.textPrimary })
+    if (crew.activity !== null) rows.push({ k: 'doing', v: crew.activity, tone: tokens.textSecondary })
     if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
     if (crew.team !== null) rows.push({ k: 'team', v: crew.team, tone: tokens.textPrimary })
     const crewTokens = crewTokensLabel(crew)

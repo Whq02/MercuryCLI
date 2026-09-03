@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { vshotBudgetScale } from '../lib/captureDriver.ts'
 
 const DIST = join(process.cwd(), 'dist', 'mercury.mjs')
 if (!existsSync(DIST)) {
@@ -56,7 +57,7 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
       'after:↵ again enters:800:\r',
       `after:Type a prompt:1500:${DRAFT}`,
       `after:Type a prompt:${escAt}:\x1b`,
-      `after:Type a prompt:${escAt + gapMs}:\x1b`,
+      `after:Type a prompt:${escAt + gapMs / vshotBudgetScale()}:\x1b`,
     ],
     seconds: Math.ceil((escAt + gapMs + 20_000) / 1000),
     cols,

@@ -40,7 +40,6 @@ void notifyCompaction
 
 export const MIN_AUTOCOMPACT_WINDOW = 100_000
 export const MAX_AUTOCOMPACT_WINDOW = 1_000_000
-export const AUTOCOMPACT_BUFFER_TOKENS = 13_000
 export const WARNING_THRESHOLD_BUFFER_TOKENS = 20_000
 export const ERROR_THRESHOLD_BUFFER_TOKENS = 20_000
 export const MANUAL_COMPACT_BUFFER_TOKENS = 3_000
@@ -51,7 +50,6 @@ const RAPID_REFILL_TURN_WINDOW = 3
 const RAPID_REFILL_LIMIT = 3
 
 const SUMMARY_RESERVE_MAX_WINDOW_DIVISOR = 4
-const COMPACT_THRESHOLD_MIN_EFFECTIVE_DIVISOR = 2
 const WARNING_MIN_CEILING_NUMERATOR = 4
 const WARNING_MIN_CEILING_DENOMINATOR = 5
 
@@ -102,19 +100,16 @@ export function getEffectiveContextWindowSize(model: string, settingsWindow?: nu
 }
 
 export function getAutoCompactThreshold(model: string): number {
-  const effective = getEffectiveContextWindowSize(model)
-  const bufferThreshold = Math.max(
-    effective - AUTOCOMPACT_BUFFER_TOKENS,
-    Math.ceil(effective / COMPACT_THRESHOLD_MIN_EFFECTIVE_DIVISOR),
-  )
+  const full = getBlockingLimit(model)
   const pctRaw = flagEnv('MERCURY_AUTOCOMPACT_PCT_OVERRIDE')
   if (pctRaw !== undefined && pctRaw !== '') {
     const pct = Number.parseFloat(pctRaw)
     if (Number.isFinite(pct) && pct > 0 && pct <= 100) {
-      return Math.min(Math.floor((effective * pct) / 100), bufferThreshold)
+      const effective = getEffectiveContextWindowSize(model)
+      return Math.min(Math.max(1, Math.floor((effective * pct) / 100)), full)
     }
   }
-  return bufferThreshold
+  return full
 }
 
 export function isAutoCompactEnabled(): boolean {
@@ -147,7 +142,8 @@ export function calculateTokenWarningState(
     Math.ceil((ceiling * WARNING_MIN_CEILING_NUMERATOR) / WARNING_MIN_CEILING_DENOMINATOR),
   )
   const blockingLimit = getBlockingLimit(model, settingsWindow)
-  const pctLeft = Math.max(0, Math.round(((ceiling - tokenUsage) / ceiling) * 100))
+  const window = modelMaxWindow(model)
+  const pctLeft = window > 0 ? Math.max(0, Math.round(((ceiling - tokenUsage) / window) * 100)) : 0
   let level: TokenWarningLevel = 'ok'
   if (tokenUsage >= blockingLimit) level = 'blocked'
   else if (autoCompact && tokenUsage >= ceiling) level = 'compact'
@@ -215,7 +211,7 @@ export async function shouldAutoCompact(
   if (querySource === 'session_memory' || querySource === 'compact') return false
   if (!isAutoCompactEnabled()) return false
   await awaitContextWindowSource(model)
-  const tokenCount = tokenCountWithEstimation(messages) - snipTokensFreed
+  const tokenCount = tokenCountWithEstimation(messages, model) - snipTokensFreed
   onMeasured?.(tokenCount + snipTokensFreed)
   const threshold = getAutoCompactThreshold(model)
   const effective = getEffectiveContextWindowSize(model)
@@ -299,7 +295,7 @@ export async function autoCompactIfNeeded(
   if (!compact && advanceTriggerEnabled() && isAutoCompactEnabled()) {
     if (querySource !== 'session_memory' && querySource !== 'compact' && querySource !== 'context_agent') {
       try {
-        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation(messages)) - snipTokensFreed
+        const tokenCount = (measuredRawTokenCount ?? tokenCountWithEstimation(messages, model)) - snipTokensFreed
         const { pctLeft } = calculateTokenWarningState(tokenCount, model)
         const owner = ownerFromToolUseContext(toolUseContext)
         const slot = advanceState.get(owner)

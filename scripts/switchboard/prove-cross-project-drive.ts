@@ -79,10 +79,11 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
   utimesSync(file, at, at)
 }
 
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
-const TAG = '⇧← back'
+const TAG = keyHintLabel('⇧← back')
 const FROM_P = `✦ from ${basename(CWD)}`
 const FROM_Q = `✦ from ${basename(OTHER)}`
 const LINE_P = `running in ${basename(CWD)}`

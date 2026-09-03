@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { resetViewportFloorForTests, viewportFloorLine, viewportFloorLive } from '../../src/ink/viewportFloor.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -52,11 +52,11 @@ try {
       { atTick: 70, cols: 100, rows: 38 },
       { atTick: 90, cols: 120, rows: 44 },
       { atMs: 21_000, cols: 110, rows: 40 },
-      { afterPrevMs: 80, cols: 100, rows: 36 },
-      { afterPrevMs: 80, cols: 90, rows: 32 },
-      { afterPrevMs: 80, cols: 100, rows: 36 },
-      { afterPrevMs: 80, cols: 110, rows: 40 },
-      { afterPrevMs: 80, cols: 120, rows: 44 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 100, rows: 36 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 90, rows: 32 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 100, rows: 36 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 110, rows: 40 },
+      { afterPrevMs: 80 / vshotBudgetScale(), cols: 120, rows: 44 },
     ],
     out: gridPath,
     cwd: SCRATCH,

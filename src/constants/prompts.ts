@@ -527,8 +527,10 @@ export async function getSystemPrompt(
   }
   pushPack('mode-autopilot', getAutopilotModeSections(permissionMode))
   pushPack('mode-apollo', getApolloModeSections(permissionMode))
-  const vulcan = getVulcanSection()
-  if (vulcan !== null) modeSections.push({ name: 'mode-vulcan', text: vulcan })
+  const [vulcan] = await resolveSystemPromptSections([
+    systemPromptSection('mode-vulcan', () => getVulcanSection()),
+  ])
+  if (vulcan !== null && vulcan !== undefined) modeSections.push({ name: 'mode-vulcan', text: vulcan })
 
   const antiSycSections = getAntiSycophancyAlwaysOnSection()
   const reconcileTailSections =
