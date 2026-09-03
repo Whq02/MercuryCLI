@@ -36,6 +36,7 @@ import { shouldHonorNoColor } from '../../src/ink/colorize.ts'
 import { getFlagSpec } from '../../src/substrate/flagRegistry.ts'
 import { GROUND, GROUND_FAMILIES, adoptGroundFamily } from '../../assets/splash/splash-core.mjs'
 import { NIGHT, OASIS_GROUND, TRUE_BLACK_GROUND } from '../../src/components/mercuryPalette.ts'
+import { DEFAULT_THEME_SETTING } from '../../src/utils/systemTheme.ts'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
@@ -221,6 +222,26 @@ t.section('§6 — the flat-ground pair-law (round 7: the vignette sampler is re
     t.check('an unknown family name keeps the dark identity', JSON.stringify(GROUND) === JSON.stringify(rgbN))
     adoptGroundFamily('dark')
     t.check('adoptGroundFamily(dark) restores NIGHT exactly', JSON.stringify(GROUND) === JSON.stringify(rgbN))
+    // The driver's default-family mirror: the asset runs before the bundle
+    // exists, so it hand-mirrors the runtime's one default owner; the pair
+    // is pinned here, and the adoption ladder falls onto the default only
+    // when nothing is stored or pinned.
+    const driverText = readFileSync(DRIVER_PATH, 'utf8')
+    const mirror = /const DEFAULT_THEME_FAMILY = '([a-z-]+)'/.exec(driverText)?.[1]
+    t.check(
+      `the driver's DEFAULT_THEME_FAMILY mirrors DEFAULT_THEME_SETTING (${DEFAULT_THEME_SETTING})`,
+      mirror === DEFAULT_THEME_SETTING,
+      String(mirror),
+    )
+    t.check(
+      'the default family is one of the two grounds',
+      Object.prototype.hasOwnProperty.call(GROUND_FAMILIES, DEFAULT_THEME_SETTING),
+    )
+    t.check(
+      'the driver adopts the default family only when nothing is stored or pinned',
+      driverText.includes('const persistedTheme = persistedThemeName() || DEFAULT_THEME_FAMILY') &&
+        driverText.includes("adoptGroundFamily(persistedTheme === 'true-black' ? 'true-black' : 'dark')"),
+    )
   }
   // §6b — the retirement is COMPLETE: neither the core nor the driver
   // carries a vignette sampler, a canvas emitter, or the retired GRAD pair;

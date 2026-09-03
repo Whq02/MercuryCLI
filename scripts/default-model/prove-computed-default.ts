@@ -293,7 +293,7 @@ section('§3 the decision — pure over injected facts')
   // row word says "no usable row yet" (a sign-in exists — a catalogue still
   // composing, or gated), never "no sign-in yet"
   const d = evaluateComputedDefault({ ...base, laneRow: family => gated(`${family} offers nothing yet`) })
-  check('row 4: every sign-in unusable ⇒ keyless with each reason, the "no usable row yet" row and the logins door', d.source === 'keyless' && d.setting === KEYLESS.setting && d.provider === null && d.row === NO_USABLE_ROW && d.why === 'no sign-in offers a usable row (OpenAI: openai offers nothing yet; Anthropic: anthropic offers nothing yet) — /logins signs another provider in', d.why)
+  check('row 4: every sign-in unusable ⇒ keyless with each reason, the "no usable row yet" row and the logins door', d.source === 'keyless' && d.setting === KEYLESS.setting && d.provider === null && d.row === NO_USABLE_ROW && d.why === 'no sign-in offers a usable row (OpenAI: openai offers nothing yet; Anthropic: anthropic offers nothing yet) — /model names a row by id, or /logins signs another provider in', d.why)
 
   // row 5 — a legacy home: untimed credentials keep the recorded lane, and say why
   const e = evaluateComputedDefault(facts({ credentials: [{ family: 'anthropic', at: null, label: 'Claude subscription (max)' }, { family: 'openrouter', at: null, label: 'OpenRouter (stored key)' }], recordedDefaultProvider: 'openrouter', laneRow: family => (family === 'openrouter' ? usable('openrouter/qwen/qwen3-coder', 'Qwen3 Coder', "the first row this sign-in can use (the catalogue's own order)") : laneRow(family)) }))

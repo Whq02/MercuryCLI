@@ -180,7 +180,8 @@ section('N5 · the ONE fill derivation every surface reads')
   check('usage-bearing: usedTokens === tokenCountWithEstimation (290,000) · pct 29 · source usage', view.usedTokens === tokens.tokenCountWithEstimation(seq as never) && view.usedTokens === 290_000 && view.usedPct === 29 && view.fillSource === 'usage', JSON.stringify(view))
   check('  the deck reads the token figure, not 29% × window (which would paint 290k for a 285k count)', Math.round(view.usedTokens! / 1000) === 290)
   const compactAt = view.compactAtPct
-  check('  compactAtPct is the trigger threshold over the same window (967,000 / 1,000,000 = 96.7)', compactAt !== null && Math.abs(compactAt - 96.7) < 0.01, String(compactAt))
+  check('  compactAtPct is the trigger threshold over the same window (977,000 / 1,000,000 = 97.7 — the full usable window)', compactAt !== null && Math.abs(compactAt - 97.7) < 0.01, String(compactAt))
+  check('  leftUntilCompactPct rides the same window: used 29 + left 68 = the 97.7 fold point (to the rounding)', view.leftUntilCompactPct !== null && Math.abs(view.usedPct! + view.leftUntilCompactPct - compactAt!) <= 1, JSON.stringify({ used: view.usedPct, left: view.leftUntilCompactPct, compactAt }))
   // The same messages against a fallback-window model.
   const fallback = contextFillView(seq as never, 'compat/some-model')
   check('a fallback window resolves 200,000 with windowSource fallback and a reason', fallback.window === 200_000 && fallback.windowSource === 'fallback' && typeof fallback.windowReason === 'string')

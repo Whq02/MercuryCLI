@@ -13,6 +13,7 @@ import { getCwd } from './cwd.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { reclaimTerminalAfterChild } from './terminalHandback.js'
 
 const SESSION_NAME = 'panel'
 const DEFAULT_SHELL = '/bin/bash'
@@ -132,8 +133,13 @@ class TerminalPanel {
         })
       }
     } finally {
-      // Leaving the alternate screen happens in ALL cases, including a
-      // throwing shell.
+      // A killed shell (or a dead multiplexer server) leaves the terminal's
+      // foreground group behind — a login shell takes it for itself and
+      // gives it back only on a normal exit. Reclaim it first, BEFORE the
+      // renderer re-arms raw mode (a tcsetattr from a background process
+      // group is itself a stop); leaving the alternate screen then happens
+      // in ALL cases, including a throwing shell.
+      reclaimTerminalAfterChild('terminal panel')
       ink.exitAlternateScreen()
     }
   }

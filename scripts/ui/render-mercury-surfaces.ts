@@ -10,7 +10,7 @@
 //                    i.e. the 50+52=102 panels STACK at 80 instead of overflowing.
 //    WI3  /fullscreen: the RIGHT telemetry rail (unique marker 'active' from the
 //                    substrate row) is PRESENT@120 and ABSENT@80 (drops <100).
-//    WI2  /fullscreen: the center fleet chat's honest-empty 'no teammates yet'
+//    WI2  /fullscreen: the center fleet chat's honest-empty 'no named agents yet'
 //                    renders, and there is no duplicate LEFT 'fleet' list.
 //    WI1  (source wire): fullscreen.tsx routes onSend → writeToMailbox (the
 //                    SendMessage/mailbox transport), never a dropped log line.
@@ -116,8 +116,8 @@ console.log('\n── /fullscreen (WI3: drop right rail <100 · WI2: no duplicat
 // the right rail was reworked to a usage/trace panel, so `active` no longer appears.)
 expect('@120 RIGHT telemetry rail PRESENT (usage/trace panel)', /usage/.test(fs120))
 expect('@80  RIGHT telemetry rail DROPPED (no usage panel)', !/usage/.test(fs80))
-expect('@80  center fleet chat honest-empty renders', /no teammates yet/.test(fs80))
-expect('@120 center fleet chat honest-empty renders', /no teammates yet/.test(fs120))
+expect('@80  center fleet chat honest-empty renders', /no named agents yet/.test(fs80))
+expect('@120 center fleet chat honest-empty renders', /no named agents yet/.test(fs120))
 
 console.log('\n── /fullscreen onSend wired (WI1 source smoke) ──')
 const fsSrc = readFileSync(join(REPO, 'src', 'commands', 'fullscreen', 'fullscreen.tsx'), 'utf-8')

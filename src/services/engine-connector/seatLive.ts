@@ -17,8 +17,13 @@ export interface SessionLiveV1 {
   inFlight: boolean
   /** 'compacting' is the fold's own state word (the runner stamps it through
    *  the tail projection while the summary call runs) — the face paints it
-   *  as its own mechanical dress, never the thinking one. */
-  phase: 'thinking' | 'tool' | 'responding' | 'compacting' | 'idle'
+   *  as its own mechanical dress, never the thinking one. 'waiting' is the
+   *  runner's agent wait: the turn's stream is over and only its background
+   *  agents hold the turn open — the face names the count and the way out
+   *  (esc stops them), never a thinking phase that already ended. */
+  phase: 'thinking' | 'tool' | 'responding' | 'compacting' | 'waiting' | 'idle'
+  /** The agents the 'waiting' phase waits on; 0 in every other phase. */
+  agentsWaiting: number
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
 }
@@ -34,8 +39,14 @@ export interface SeatStatusV1 {
   /** The session's title (the record's) and its project label. */
   title: string
   projectLabel: string
-  /** An interrupt is on its way through the daemon. */
+  /** An interrupt is on its way through the daemon: the in-flight request
+   *  is being torn down and every background agent the turn waits on gets
+   *  the same stop. */
   interrupting: boolean
+  /** The second esc: a HARD stop — the daemon delivers the interrupt again
+   *  and cuts the runner itself if the turn is still open a second later
+   *  (the session survives; its next words revive it). */
+  hardStopping: boolean
   /** ms since the session's runner last spoke — its last frame of ANY kind
    *  (a thinking delta with no text, a ping, a text delta, a tool_use
    *  start, a tool progress tick, a landed result). Null when no turn is in
@@ -91,6 +102,7 @@ export function hasSeatLive(
 export const IDLE_LIVE: SessionLiveV1 = Object.freeze({
   inFlight: false,
   phase: 'idle',
+  agentsWaiting: 0,
   inProgressToolUseIDs: new Set<string>(),
   turnStartedAtMs: null,
 }) as SessionLiveV1

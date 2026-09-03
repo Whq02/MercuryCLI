@@ -23,7 +23,7 @@ import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { delimiter, join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE } from './voicePack.js'
+import { loadVoiceAddon, resolveVoicePackDir, VOICE_ADDON_FILE, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 
 /** Five minutes: the longest single take the composer accepts. */
@@ -41,6 +41,26 @@ export function captureBoundMs(): number {
 
 export const NO_BACKEND_RECEIPT =
   'no microphone backend — the voice pack is absent on this install; run `bun run setup` (needs cargo) or put sox/ffmpeg on PATH'
+
+/** The recorder install line for this platform (the PATH road). */
+export function recorderInstallHint(platform: string = process.platform): string {
+  if (platform === 'darwin') return 'brew install ffmpeg'
+  if (platform === 'win32') return 'winget install ffmpeg'
+  return 'apt install ffmpeg, or your package manager'
+}
+
+/** The release-install spelling: no checkout to build the pack from, so
+ *  the one actionable remedy is a recorder on PATH. */
+export const NO_BACKEND_RECEIPT_RELEASE =
+  'no microphone backend — this install carries no voice pack; put ffmpeg or sox on PATH'
+
+/** THE REMEDY FITS THE INSTALL: on a source checkout the setup line
+ *  (the pack builds there); on a release install — no checkout — the
+ *  recorder road with the platform's install command, never a setup the
+ *  operator cannot run. */
+export function noBackendReceipt(checkoutRoot: string | null = voiceCheckoutRoot(), platform: string = process.platform): string {
+  return checkoutRoot !== null ? NO_BACKEND_RECEIPT : `${NO_BACKEND_RECEIPT_RELEASE} (${recorderInstallHint(platform)})`
+}
 
 export type CaptureBackendKind = 'vendored' | 'sox' | 'arecord' | 'ffmpeg' | 'fixture'
 
@@ -123,7 +143,7 @@ export function resolveCaptureBackend(env: NodeJS.ProcessEnv = process.env): Cap
     tried.push(kind)
     notes.push(`${kind}: ${resolved.note}`)
   }
-  return { state: 'none', note: `${NO_BACKEND_RECEIPT} (${notes.join('; ')})`, tried }
+  return { state: 'none', note: `${noBackendReceipt()} (${notes.join('; ')})`, tried }
 }
 
 export class CaptureError extends Error {

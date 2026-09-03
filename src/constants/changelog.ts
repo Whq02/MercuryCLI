@@ -22,4 +22,5 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Release archives carry their own Node runtime; a release install needs git only
 - A direct node dist/mercury.mjs start paints the launch splash before the Boot face, as the launcher does; the build ships the splash beside the bundle
 - Voice input: /speak on, then v in an empty composer dictates into it through the OpenAI or Gemini API key you signed in with; audio leaves only after you stop, and Mercury never speaks aloud
+- True Black is the default appearance: the same palette on a pure-black ground, on the launch splash and in the terminal; the oasis dark ground stays one row away in the first-run walk and /appearance, and a saved choice always wins
 `

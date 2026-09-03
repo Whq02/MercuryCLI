@@ -47,22 +47,30 @@ import {
 import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
 import {
-  describeInputTransformations,
+  classifyThinkingDrops,
+  describeThinkingDrops,
   inputTransformationsOf,
+  modelSwitchReceipt,
+  prefixMarkOf,
+  recordThinkingDropLedger,
 } from '../services/providers/anthropic/thinkingBinding.js'
 import { logForDebugging } from '../utils/debug.js'
 
-/** Response ids whose preserved-thinking drop notice already painted — the
- *  streaming path mints one assistant envelope per content block and each
- *  carries the same list. Bounded: the oldest id leaves past 64. */
-const bindingDropsNoticed = new Set<string>()
-const BINDING_DROPS_NOTICED_CAP = 64
-function rememberBindingDrop(id: string): void {
-  bindingDropsNoticed.add(id)
-  while (bindingDropsNoticed.size > BINDING_DROPS_NOTICED_CAP) {
-    const oldest = bindingDropsNoticed.values().next().value
+/** Model switches already receipted (owner + the current model's family):
+ *  the previous model's thinking leaves the requests quietly, once. */
+const switchReceipts = new Set<string>()
+
+/** Response ids whose preserved-thinking drop list was already classified —
+ *  the streaming path mints one assistant envelope per content block and
+ *  each carries the same list. Bounded: the oldest id leaves past 64. */
+const responsesClassified = new Set<string>()
+const RESPONSES_CLASSIFIED_CAP = 64
+function rememberClassifiedResponse(id: string): void {
+  responsesClassified.add(id)
+  while (responsesClassified.size > RESPONSES_CLASSIFIED_CAP) {
+    const oldest = responsesClassified.values().next().value
     if (oldest === undefined) break
-    bindingDropsNoticed.delete(oldest)
+    responsesClassified.delete(oldest)
   }
 }
 import {
@@ -646,6 +654,21 @@ async function* streamModel(
           effort: effortLabel,
         })
       }
+      // A model switch: thinking written by the previous model leaves the
+      // requests at the assembler (the API would drop and re-report it on
+      // every request); the operator reads one quiet line per switch.
+      {
+        const receipt = modelSwitchReceipt(
+          String(ownerFromToolUseContext(toolUseContext)),
+          iter.messagesForQuery,
+          iter.currentModel,
+        )
+        if (receipt !== null && !switchReceipts.has(receipt.key)) {
+          switchReceipts.add(receipt.key)
+          logForDebugging(`preserved thinking: ${receipt.text}`)
+          yield emit({ kind: 'notice', message: createSystemMessage(receipt.text, 'suggestion') })
+        }
+      }
       try {
         let streamingFallbackOccured = false
         if (pulseMain) pulseMark('model_call_stream_start')
@@ -746,18 +769,28 @@ async function* streamModel(
                 (overflowSignalOf(message) !== null && overflowLadderArmed(run.querySource)),
             })
             iter.assistantMessages.push(message)
-            // Preserved thinking: a block the API dropped before the model
-            // read this request is a transcript row for the operator, once
-            // per response (streaming mints one assistant envelope per block;
-            // every envelope carries the same message id and the same list).
-            const dropNotice = describeInputTransformations(inputTransformationsOf(message.message))
-            if (dropNotice !== null && !bindingDropsNoticed.has(message.message.id)) {
-              rememberBindingDrop(message.message.id)
-              logForDebugging(
-                `preserved thinking: ${JSON.stringify(inputTransformationsOf(message.message))}`,
-                { level: 'warn' },
+            // Preserved thinking: every response's drop list is classified
+            // ONCE per response id (streaming mints one assistant envelope
+            // per block; every envelope carries the same id and list), and
+            // every response is recorded, dropped or not, so a drop on
+            // consecutive requests reads as Mercury rewriting sent history
+            // while a drop after a compaction or a model switch reads as the
+            // lawful change it is. A drop is a transcript row for the
+            // operator and a ledger entry for the doctor.
+            if (!responsesClassified.has(message.message.id)) {
+              rememberClassifiedResponse(message.message.id)
+              const drops = inputTransformationsOf(message.message)
+              const outcome = classifyThinkingDrops(
+                String(ownerFromToolUseContext(toolUseContext)),
+                drops,
+                prefixMarkOf(iter.messagesForQuery, iter.currentModel),
               )
-              yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+              const dropNotice = describeThinkingDrops(drops, outcome)
+              if (dropNotice !== null) {
+                recordThinkingDropLedger(outcome, iter.currentModel)
+                logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
+                yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+              }
             }
             // Calibration: reconcile measured usage for the FIRST call of the
             // turn only — the one whose request is the plan's projected
@@ -1353,7 +1386,9 @@ export async function* runEventCore(
       // (auto-compact off, or a compaction attempt changed the view). An
       // over-limit fold's own estimate leads.
       const estimatedTokens =
-        compactionResult?.truePostCompactTokenCount ?? measuredRawTokenCount ?? tokenCountWithEstimation(messagesForQuery)
+        compactionResult?.truePostCompactTokenCount ??
+        measuredRawTokenCount ??
+        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.mainLoopModel)
       const { level } = calculateTokenWarningState(
         estimatedTokens,
         toolUseContext.options.mainLoopModel,
