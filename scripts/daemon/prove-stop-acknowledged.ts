@@ -192,7 +192,7 @@ try {
     prompt: LONG_THINK_ASK,
     workspaceDir: work,
     title: 'Long think',
-    modelKey: 'claude-opus-5',
+    model: 'claude-opus-5',
     effort: 'high',
   } as never)) as { ok?: boolean; sessionId?: string; error?: string }
   check('the session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched))

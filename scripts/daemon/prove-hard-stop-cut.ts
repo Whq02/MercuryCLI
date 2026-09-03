@@ -190,7 +190,7 @@ const openThinking = async (id: string): Promise<{ sid: string; rec: Rec | undef
     prompt: LONG_THINK_ASK,
     workspaceDir: work,
     title: `Long think ${id}`,
-    modelKey: 'claude-opus-5',
+    model: 'claude-opus-5',
     effort: 'high',
   } as never)) as { ok?: boolean; sessionId?: string }
   check(`${id}: the session dispatched onto a real runner`, dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched))

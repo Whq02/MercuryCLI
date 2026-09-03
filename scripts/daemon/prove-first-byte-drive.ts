@@ -20,9 +20,10 @@
 //       ends and the seat goes idle
 //    C  (the reissue rows live in prove-reissue-rows-drive.ts — three
 //       attempts need a retries budget this drive's abort arm cannot afford)
-//    D  (the switched turn's cold wait rides the TUI's own /model road in
-//       scripts/journey/prove-switch-cold-ingest.ts — a daemon dispatch
-//       cannot name a model the registry does not hold)
+//    D  THE DAEMON DOOR: an unknown model id refuses typed, a dispatch
+//       spelling the model as `modelKey` refuses typed (the door reads
+//       `model`), a session born on Sonnet rides Sonnet, is switched to
+//       Opus through the seat verb, and its next ask waits cold on Opus
 //
 //  Run: ~/.bun/bin/bun run scripts/daemon/prove-first-byte-drive.ts
 // ============================================================================
@@ -87,6 +88,15 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const { decodeRequestWait } = await import('../../src/services/providers/streamIdleBudget.ts')
 
 type Capture = { kind: string; at: number; arm?: string; model?: string; status?: number; nth?: number }
+type Rec = { runnerId: string; sessionId: string; modelKey?: string }
+const readRec = (sid: string): Rec | undefined => {
+  try {
+    const all = JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers: Record<string, Rec> }
+    return Object.values(all.workers).find(w => w.sessionId === sid)
+  } catch {
+    return undefined
+  }
+}
 const captureFile = join(SCRATCH, 'wire-captures.jsonl')
 writeFileSync(captureFile, '')
 const wire = (): Capture[] =>
@@ -182,7 +192,7 @@ const dispatch = async (id: string, prompt: string, modelKey: string, sessionId?
     prompt,
     workspaceDir: work,
     title: `first byte ${id}`,
-    modelKey,
+    model: modelKey,
     effort: 'high',
     ...(sessionId !== undefined ? { sessionId } : {}),
   } as never)) as { ok?: boolean; sessionId?: string; error?: string }
@@ -235,6 +245,24 @@ try {
   const dropGaps = drops.map((d, i) => d.at - (holds[i]?.at ?? d.at))
   check(`each drop landed within the budget + 2 s of its request (measured ${dropGaps.map(g => `${g} ms`).join(', ')})`, dropGaps.length === 2 && dropGaps.every(g => g >= bBudget - 500 && g <= bBudget + 2_000), JSON.stringify({ dropGaps, bBudget }))
 
+  console.log('\nD the daemon door: the named model rides, an unknown one refuses, a misspelled field refuses; the switched turn waits cold on Opus')
+  {
+    const nonesuch = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-nonesuch', prompt: 'hello', workspaceDir: work, title: 'nonesuch', model: 'claude-nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
+    check('an unknown model id refuses typed (unknown-model, the way out named) — never a substitute', nonesuch.ok === false && /unknown-model/.test(nonesuch.error ?? '') && /(did you mean|pick one of)/.test(nonesuch.error ?? ''), JSON.stringify(nonesuch))
+    const misspelt = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-misspelt', prompt: 'hello', workspaceDir: work, title: 'misspelt', modelKey: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; error?: string }
+    check("a dispatch spelling the model as `modelKey` refuses typed (the door reads `model`) — never the registry default in silence", misspelt.ok === false && /`modelKey` is not a field of this door/.test(misspelt.error ?? ''), JSON.stringify(misspelt))
+  }
+  const d = await dispatch('fb-switch', 'hello there', 'claude-sonnet-5')
+  check('the Sonnet turn answered on Sonnet (the fixture saw claude-sonnet-5; the record names it)', await untilAsync(() => transcriptOf(d).includes('fixture answers'), 30_000) && wire().some(x => x.kind === 'answered' && x.arm === 'canned') && wire().filter(x => x.kind === 'anthropic' && x.arm === 'canned').every(x => (x.model ?? '').startsWith('claude-sonnet-5')) && readRec(d)?.modelKey === 'claude-sonnet-5', JSON.stringify({ rec: readRec(d)?.modelKey, models: wire().filter(x => x.arm === 'canned').map(x => x.model) }))
+  check('the seat went idle after the Sonnet turn', await untilAsync(() => readFacts(d)?.busy === false, 10_000))
+  const switched = (await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: d, by: 'operator', model: 'claude-opus-5' } as never)) as { ok?: boolean; outcome?: string; detail?: string }
+  check('the switch to Opus applied through the seat verb', switched.ok === true && switched.outcome === 'applied', JSON.stringify(switched))
+  await sleep(500)
+  const followUp = (await daemonControlRpc({ op: 'sessionDispatch', clientMessageId: 'fb-switch-2', prompt: 'ingest slowly please', workspaceDir: '', targetSessionId: d, by: 'operator' } as never)) as { ok?: boolean; error?: string }
+  check('the follow-up delivered into the same session', followUp.ok === true, JSON.stringify(followUp))
+  const dWaits = await watchWaits(d, HOLD_MS + 20_000, () => transcriptOf(d).includes('slow answer arrived'))
+  check("the switched turn's wait is COLD and names Opus 5 with a budget past the hold", dWaits.firstByte?.kind === 'first-byte' && dWaits.firstByte.cold && dWaits.firstByte.model === 'Opus 5' && dWaits.firstByte.budgetMs > HOLD_MS, JSON.stringify(dWaits.firstByte))
+  check('the switched turn completed on Opus (the fixture saw claude-opus-5 for the slow ask)', await untilAsync(() => transcriptOf(d).includes('slow answer arrived'), 30_000) && wire().some(x => x.kind === 'headers-sent' && x.arm === 'slow' && (x.model ?? '').startsWith('claude-opus-5')), JSON.stringify(wire().filter(x => x.arm === 'slow').map(x => [x.kind, x.model])))
 } finally {
   await cleanup()
 }
