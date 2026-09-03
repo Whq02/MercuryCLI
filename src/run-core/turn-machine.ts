@@ -193,7 +193,7 @@ import { buildRequestContextPlan, reconcileAppliedPlanUsage } from '../services/
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
-import { ownerFromToolUseContext } from '../services/run/resolveOwner.js'
+import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
@@ -717,7 +717,9 @@ async function* streamModel(
             advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
             agentId: toolUseContext.agentId,
-            ownerKey: String(ownerFromToolUseContext(toolUseContext)),
+            // The roster latch key: the conversation whose tools array this
+            // request rides (a cache-sharing fork rides its parent's).
+            ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
             ...(run.params.taskBudget && {
               taskBudget: run.budgetGuard.requestBag()!,
