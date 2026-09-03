@@ -199,6 +199,15 @@ function pickDefined<R extends object, K extends keyof R>(r: R, keys: readonly K
   return out as Pick<R, K>
 }
 
+function requestedModel(raw: { model?: unknown; modelKey?: unknown }): { model?: string; conflict?: string } {
+  const model = typeof raw.model === 'string' && raw.model !== '' ? raw.model : undefined
+  const alias = typeof raw.modelKey === 'string' && raw.modelKey !== '' ? raw.modelKey : undefined
+  if (model !== undefined && alias !== undefined && model !== alias) {
+    return { conflict: `\`model\` (${model}) and \`modelKey\` (${alias}) name different models — spell it once, in \`model\`` }
+  }
+  return { model: model ?? alias }
+}
+
 type AdmitOk = Extract<Awaited<ReturnType<NonNullable<ControlServerDeps['concourseAdmit']>>>, { ok: true }>
 const ADMIT_WIRE_KEYS = [
   'runnerId', 'sessionId', 'workspaceId', 'pid',
@@ -690,13 +699,14 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
-      if (raw.modelKey !== undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was admitted" })
+      const named = requestedModel(raw)
+      if (named.conflict !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was admitted` })
       }
       const r = await deps.concourseAdmit({
         workspaceDir,
         ...(isolation !== undefined ? { isolation } : {}),
-        ...(typeof raw.model === 'string' && raw.model ? { modelKey: raw.model } : {}),
+        ...(named.model !== undefined ? { modelKey: named.model } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
         ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
@@ -786,15 +796,16 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
-      if (raw.modelKey !== undefined) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was dispatched" })
+      const named = requestedModel(raw)
+      if (named.conflict !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${named.conflict}; nothing was dispatched` })
       }
       const r = await deps.concourseDispatch({
         clientMessageId,
         prompt,
         workspaceDir,
         ...(isolation !== undefined ? { isolation } : {}),
-        ...(typeof raw.model === 'string' && raw.model ? { modelKey: raw.model } : {}),
+        ...(named.model !== undefined ? { modelKey: named.model } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort } : {}),
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title } : {}),
         ...(typeof raw.agentName === 'string' && raw.agentName ? { agentName: raw.agentName } : {}),
