@@ -151,9 +151,12 @@ console.log('── §5 the built bundle boots headless through the seam ──'
     const shellCheck = (c: Cert | null): Check | undefined => c?.sections?.flatMap(s => s.checks).find(x => x.id === 'shell')
     const shellRow = (c: Cert | null): Row | undefined => c?.readiness?.find(r => r.id === 'tool:shell')
 
+    const faults = (c: Cert | null): string[] => c?.sections?.flatMap(s => s.checks).filter(x => x.status === 'fail').map(x => x.id) ?? []
+
     const control = doctor({})
     const controlCert = parse(control.stdout)
     check('control: doctor --json produced a certificate', controlCert !== null && typeof controlCert.verdict === 'string', `status ${control.status}; ${control.stderr.slice(0, 200)}`)
+    console.log(`  (control: verdict ${controlCert?.verdict ?? '?'}, exit ${control.status}; failing checks on this host: ${faults(controlCert).join(', ') || 'none'} — the seam run must match them exactly)`)
     const controlShell = shellCheck(controlCert)
     check('control: the shell check is ok on this host', controlShell?.status === 'ok', JSON.stringify(controlShell)?.slice(0, 200))
 
@@ -161,6 +164,7 @@ console.log('── §5 the built bundle boots headless through the seam ──'
     const seamCert = parse(seamRun.stdout)
     check('seam: the bundle BOOTS and produces a certificate with bash.exe absent', seamCert !== null && typeof seamCert.verdict === 'string', `status ${seamRun.status}; ${seamRun.stderr.slice(0, 200)}`)
     check('seam: the exit code equals the control run\'s (the road never worsens the verdict)', seamRun.status === control.status, `seam ${seamRun.status} vs control ${control.status}`)
+    check('seam: the failing checks are exactly the control run\'s (the road adds no fault)', JSON.stringify(faults(seamCert)) === JSON.stringify(faults(controlCert)), `seam [${faults(seamCert).join(', ')}] vs control [${faults(controlCert).join(', ')}]`)
     const seamShell = shellCheck(seamCert)
     check('seam: the shell check WARNS (a warning, never a fault)', seamShell?.status === 'warn', JSON.stringify(seamShell)?.slice(0, 240))
     check('seam: its evidence says the Bash tool is absent and PowerShell present', /Bash tool is absent/.test(seamShell?.evidence ?? '') && /PowerShell tool is present/.test(seamShell?.evidence ?? ''))
