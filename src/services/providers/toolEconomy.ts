@@ -34,6 +34,7 @@ import { toolMatchesName, type Tool, type ToolPermissionContext, type Tools } fr
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { createUserMessage } from '../../utils/messages.js'
 import {
   extractDiscoveredToolNames,
@@ -52,6 +53,60 @@ export interface ToolPayloadPlanInput {
   hasPendingMcpServers?: boolean
   /** The debug-line source label ('query', 'compact', …). */
   source?: string
+  /** The conversation whose roster this plan freezes (the owner: the main
+   *  thread or an agent id). Absent ⇒ no latch (a one-off caller). */
+  latchKey?: string
+}
+
+/**
+ * THE FREEZE: the deferral decision a conversation made at its first
+ * request holds for every later one. The tools array is part of the prefix
+ * every thinking block is bound to, so the roster may not move on a
+ * request's own initiative — a threshold crossed because an MCP server
+ * landed, a server no longer pending — only on a lawful change: a
+ * compaction or /clear clears the latches (the conversation-reset seam; the
+ * summary row is a new first row too), a model or mode change keys a new
+ * latch (the operator's action; the drop receipt names it), and every
+ * conversation in a process — each chat, fork and agent — keys its own by
+ * its first row. A tool that joins after the latch is deferrable under
+ * a deferring latch (it rides the announcement row, never the tools array)
+ * and is HELD out of the roster under a non-deferring one until the next
+ * lawful boundary.
+ */
+interface RosterLatch {
+  enabled: boolean
+  /** The tool names the roster could carry when the latch was taken. */
+  names: ReadonlySet<string>
+}
+const rosterLatches = new Map<string, RosterLatch>()
+
+/** The conversation-reset seam (a compaction, /clear): every roster re-decides. */
+export function clearToolRosterLatches(): void {
+  rosterLatches.clear()
+}
+
+/** The conversation a history belongs to: its first user or assistant row
+ *  (a compaction replaces it with the summary — a new key at the lawful
+ *  boundary; every chat, fork and agent in a process has its own). */
+function firstConversationRow(messages: readonly Message[]): string {
+  for (const message of messages) {
+    if (message.type === 'user' || message.type === 'assistant') return message.uuid
+  }
+  return 'empty'
+}
+
+function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string, mode: string): string {
+  return `${latchKey}|${firstConversationRow(messages)}|${model}|${mode}`
+}
+
+/** Test seam: the latch a conversation holds. */
+export function toolRosterLatchFor(
+  latchKey: string,
+  messages: readonly Message[],
+  model: string,
+  mode: string,
+): RosterLatch | undefined {
+  return rosterLatches.get(rosterLatchKey(latchKey, messages, model, mode))
 }
 
 export interface ToolPayloadPlan {
@@ -92,14 +147,24 @@ export function deferredToolsAnnouncement(tools: Tools, deferredNames: ReadonlyS
 export async function planToolPayload(input: ToolPayloadPlanInput): Promise<ToolPayloadPlan> {
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
-  let enabled = await isToolSearchEnabled(
-    model,
-    tools,
-    input.getToolPermissionContext,
-    input.agents,
-    input.source,
-    wire.form,
-  )
+  const rosterPermissionMode = (await input.getToolPermissionContext()).mode
+  const latchKey =
+    input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model, rosterPermissionMode)
+  const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
+
+  let enabled: boolean
+  if (latched !== undefined) {
+    enabled = latched.enabled
+  } else {
+    enabled = await isToolSearchEnabled(
+      model,
+      tools,
+      input.getToolPermissionContext,
+      input.agents,
+      input.source,
+      wire.form,
+    )
+  }
 
   // isDeferredTool costs two feature lookups per call — resolve the set once.
   // The live permission mode rides along: a mode-exempt tool (the Apollo
@@ -107,7 +172,6 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   // the truth — the tool is present exactly when it is callable.
   const deferredNames = new Set<string>()
   if (enabled) {
-    const rosterPermissionMode = (await input.getToolPermissionContext()).mode
     for (const t of tools) {
       if (isDeferredTool(t, rosterPermissionMode)) deferredNames.add(t.name)
     }
@@ -115,9 +179,28 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
 
   // No deferred tools AND no servers still connecting ⇒ nothing to search.
   // While servers are pending, ToolSearch stays so the model can discover
-  // their tools once they land — on every route.
-  if (enabled && deferredNames.size === 0 && !input.hasPendingMcpServers) {
+  // their tools once they land — on every route. A latched decision holds
+  // as taken: the roster never moves on a request's own initiative.
+  if (latched === undefined && enabled && deferredNames.size === 0 && !input.hasPendingMcpServers) {
     enabled = false
+  }
+
+  if (latchKey !== null && latched === undefined) {
+    rosterLatches.set(latchKey, { enabled, names: new Set(tools.map(t => t.name)) })
+  }
+  // Under a non-deferring latch a tool that joined since the latch is held
+  // out of the roster (the tools array is frozen); the deferring case needs
+  // no hold — a joiner is deferrable and rides the announcement row.
+  const held = new Set<string>()
+  if (latched !== undefined && !latched.enabled) {
+    for (const t of tools) {
+      if (!latched.names.has(t.name)) held.add(t.name)
+    }
+    if (held.size > 0) {
+      logForDebugging(
+        `tool roster frozen: ${held.size} tool(s) joined after the first request and stay out until the next compaction or /clear (${[...held].join(', ')})`,
+      )
+    }
   }
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
@@ -127,7 +210,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
         if (toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME)) return true
         return admittedNames.has(tool.name)
       })
-    : tools.filter(t => !toolMatchesName(t, TOOL_SEARCH_TOOL_NAME))
+    : tools.filter(t => !toolMatchesName(t, TOOL_SEARCH_TOOL_NAME) && !held.has(t.name))
 
   // With the delta attachment on, persisted deferred_tools_delta attachments
   // carry the announcement instead — the per-request prepend busts cache

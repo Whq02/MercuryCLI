@@ -5,6 +5,8 @@ import type { Message, SystemMessage } from '../types/message.js'
 import { createUserMessage } from './messages.js'
 import type { CacheSafeParams } from './forkedAgent.js'
 import { runForkedAgent } from './forkedAgent.js'
+import type { AppState } from '../state/AppStateStore.js'
+import type { EffortValue } from './effort.js'
 
 /**
  * The side-question engine: answers a quick question on a cache-sharing
@@ -130,6 +132,22 @@ export function extractResponse(messages: Message[]): string | null {
   return null
 }
 
+/** The fork's app state when a caller sets its dial: the parent's state
+ *  with `effortValue` replaced — the level to carry, or undefined for NO
+ *  level (the model's own default) — and the stance an unshared fork gets
+ *  from createSubagentContext (prompts avoided) kept byte-identical. The
+ *  turn machine reads appState.effortValue for a non-turn-owning source,
+ *  so this is exactly where the fork's wire dial is decided. Pure. */
+export function sideQuestionAppState(parent: AppState, effortValue: EffortValue | null): AppState {
+  return {
+    ...parent,
+    toolPermissionContext: parent.toolPermissionContext.shouldAvoidPermissionPrompts
+      ? parent.toolPermissionContext
+      : { ...parent.toolPermissionContext, shouldAvoidPermissionPrompts: true },
+    effortValue: effortValue ?? undefined,
+  }
+}
+
 export async function runSideQuestion({
   question,
   cacheSafeParams,
@@ -137,11 +155,19 @@ export async function runSideQuestion({
   originRef,
   modelOverride,
   framing,
+  effortValue,
 }: {
   question: string
   cacheSafeParams: CacheSafeParams
   abortController?: AbortController
   originRef?: string
+  /** The fork's effort: a level it carries, or null for NO level (the
+   *  model's own default). Absent ⇒ the fork inherits the parent's live
+   *  dial (the /btw behaviour). A caller with a dial of its own — the Helm
+   *  console — passes its composer's answer so the wire never rides the
+   *  main seat's. Effort is not part of the cached prefix, so the cache-hit
+   *  contract is untouched. */
+  effortValue?: EffortValue | null
   /** Run the fork on THIS model instead of the parent's. A different model
    *  is a different cache key, so the fork re-reads the shared context
    *  uncached — callers surface that cost honestly; identical-to-parent
@@ -166,6 +192,12 @@ export async function runSideQuestion({
             ...cacheSafeParams.toolUseContext.options,
             mainLoopModel: modelOverride,
           },
+        }
+      : {}),
+    ...(effortValue !== undefined
+      ? {
+          getAppState: (): AppState =>
+            sideQuestionAppState(cacheSafeParams.toolUseContext.getAppState(), effortValue),
         }
       : {}),
   }

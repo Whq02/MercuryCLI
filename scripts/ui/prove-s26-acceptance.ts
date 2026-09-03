@@ -281,7 +281,9 @@ section('structural pins — transcript renderers')
   const teammate = src('src/components/messages/UserTeammateMessage.tsx')
   check(
     'LooseMsg calls spell the content member (never text)',
-    teammate.includes('({ content: message.content })') && !teammate.includes('({ text: message.content })'),
+    // The card renderers take the content positionally now; the member read
+    // is still `content`, never a `text` twin.
+    /tryRender\w+Message\(\s*message\.content/.test(teammate) && !teammate.includes('message.text') && !teammate.includes('({ text: message.content })'),
   )
 }
 

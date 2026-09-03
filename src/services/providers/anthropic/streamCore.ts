@@ -612,6 +612,8 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
+    // The roster freezes per conversation (the main thread or the agent).
+    latchKey: options.agentId ?? 'main',
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames

@@ -1009,13 +1009,23 @@ export function ConcourseScreen({
       setNote({ tone: 'muted', text: `parked — nothing to stop · ${keyHintLabel('⌃x ⌃x')} again clears it from the board (the chat survives)` })
       return
     }
-    if (staged || sel.state === 'stopped') {
-      // THE REMOVE STAGE: a standing stop receipt (the window bridges the
-      // daemon round-trip — the snapshot may still paint the old state) or
-      // a row already settled 'stopped' — nothing is left to stop, and the
-      // completed chord advances to remove.
+    if (sel.state === 'stopped') {
+      // THE REMOVE STAGE: a row settled 'stopped' — its runner is gone (the
+      // record reads stopped on the runner's acknowledgement, never on the
+      // kill's dispatch), nothing is left to stop, and the completed chord
+      // advances to remove.
       lastStopRef.current = null
       callbacks.removeSession?.(sel.sessionId)
+      return
+    }
+    if (staged) {
+      // A standing stop receipt over a row that does not read stopped yet:
+      // the runner is still going down (or the kill never reached it). The
+      // chord never removes a running session — it says where the stop
+      // stands, and re-sends it (the verb re-kills; the request's stamp
+      // stands). The removal offer arrives with the row's own stopped state.
+      setNote({ tone: 'muted', text: `stop is on its way — the row reads stopped once its runner is gone; ${keyHintLabel('⌃x ⌃x')} then removes it` })
+      callbacks.stopSession?.(sel.sessionId)
       return
     }
     // THE STOP STAGE: the runner stops, the record settles, the ROW STAYS —

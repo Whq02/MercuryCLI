@@ -16,6 +16,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -97,7 +98,9 @@ if (!existsSync(BIN)) {
   let driverOut = ''
   child.stdout.on('data', (d: Buffer) => (driverOut += String(d)))
   child.stderr.on('data', (d: Buffer) => (driverOut += String(d)))
-  const killer = setTimeout(() => child.kill('SIGKILL'), 200_000)
+  // The wall rides the hosted profile (an authored wall killed the
+  // stretched capture with status null).
+  const killer = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(200_000))
   const status = await new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
   clearTimeout(killer)
   await fixture.close()
