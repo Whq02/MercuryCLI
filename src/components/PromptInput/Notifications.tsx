@@ -8,7 +8,7 @@ export function footerNoticeLine(text: string): string {
 }
 
 import { basename } from 'node:path'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
@@ -40,6 +40,7 @@ import { calculateTokenWarningState } from '../../services/compact/autoCompact.j
 import { SentryErrorBoundary } from '../SentryErrorBoundary.js'
 import { IdeStatusIndicator } from '../IdeStatusIndicator.js'
 import { TokenWarning } from '../TokenWarning.js'
+import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js'
 
@@ -48,6 +49,9 @@ export const FOOTER_TEMPORARY_STATUS_TIMEOUT = 5000
 const SLOW_HELPER_THRESHOLD_MS = 10_000
 
 const LOGIN_COMMAND = '/logins'
+
+const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
+const getFocusedModel = (): string => getFocusedSessionConnector().modelFacts().effective
 
 function FaultInjector(): React.ReactNode {
   if (flagEnv('MERCURY_RENDER_FAULT') === 'message') {
@@ -81,7 +85,7 @@ function NotificationsColumn({
   const current = useAppState(
     (state: AppState) => state.notifications.current,
   )
-  const mainLoopModel = useAppState((state: AppState) => state.mainLoopModel)
+  const mainLoopModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
   const limits = useClaudeAiLimits()
 
   const addRef = useRef(addNotification)
