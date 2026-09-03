@@ -2,8 +2,9 @@
 import React from 'react'
 import { Text } from '../../ink.js'
 import type { Theme } from '../../utils/theme.js'
+import { TEARDROP_ASTERISK } from '../../constants/figures.js'
 
-export const THINKING_GLYPH = '✳\uFE0E'
+export const THINKING_GLYPH = TEARDROP_ASTERISK
 export const THINKING_WORD = 'thinking'
 export const THINKING_LABEL = `${THINKING_GLYPH} ${THINKING_WORD}…`
 export const THINKING_COLOR: keyof Theme = 'subtle'

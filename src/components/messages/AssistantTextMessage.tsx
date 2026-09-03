@@ -1,5 +1,5 @@
 
-import figures from 'figures'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import React, { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
@@ -102,7 +102,7 @@ function ErrorCard({
   if (recovered && isContinuableStreamFaultText(text) && !verbose) {
     return (
       <Text>
-        <Text color="warning">{figures.warning} </Text>
+        <Text color="warning">{GLYPH.warn} </Text>
         <Text>The stream dropped mid-response.</Text>
         <Text dimColor> It recovered and the reply resumed below. </Text>
         <CtrlOToExpand />
