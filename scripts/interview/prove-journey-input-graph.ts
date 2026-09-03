@@ -262,7 +262,7 @@ try {
   )
   t.check(
     'Shift-Tab returned to q1',
-    win(shiftTabAt + 150, 17_000).some(s => textOf2(s).includes('Which config shape should ship?')),
+    win(shiftTabAt + 150, S(17_000)).some(s => textOf2(s).includes('Which config shape should ship?')),
   )
   t.check(
     // Option focus is transient presentation BY CONTRACT: a revisited
@@ -270,7 +270,7 @@ try {
     // first (the session authority stores question-level focus; drafts and
     // commits — not hover — are the durable meaning).
     'q1 reopens on its derived focus (selected ?? first)',
-    win(shiftTabAt + 150, 17_000).some(s => {
+    win(shiftTabAt + 150, S(17_000)).some(s => {
       const top = findRows(s.rows, 'Which config shape')[0] ?? 0
       const p = findRows(s.rows, '❯').filter(r => r >= top)
       const first = findRows(s.rows, 'Layered').filter(r => r >= top)

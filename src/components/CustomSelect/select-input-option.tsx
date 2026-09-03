@@ -35,7 +35,10 @@ export type SelectInputOptionProps<T = string> = {
   /** Reports to both the component's value map and the option's own change
    *  callback (the component's handler does both). */
   onChange: (value: string) => void
-  onSubmit: () => void
+  /** The field submitted, with the text it holds AT the submit — a
+   *  coalesced keystroke lands text and ↵ in one event, ahead of any
+   *  render, so the container must not read its own stale map. */
+  onSubmit: (value: string) => void
   /** The reserved index width — arrives 0 when the container hides indexes,
    *  in which case the prefix still occupies its two cells. */
   reservedIndexWidth: number
@@ -235,8 +238,8 @@ export function SelectInputOption<T>({
       <TextInput
         value={value}
         onChange={handleChange}
-        onSubmit={() => {
-          onSubmit()
+        onSubmit={text => {
+          onSubmit(text)
         }}
         columns={inputColumns}
         cursorOffset={offset}
