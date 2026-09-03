@@ -2,6 +2,7 @@ import { execFileNoThrow } from '../utils/execFileNoThrow.js'
 import { env } from '../utils/env.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { logError } from '../utils/log.js'
+import { logForDebugging } from '../utils/debug.js'
 import { executeNotificationHooks } from '../utils/hooks/events.js'
 import { tapTerminalBell } from './pings/bellTap.js'
 import type { TerminalNotification } from '../ink/useTerminalNotification.js'
@@ -133,8 +134,17 @@ async function lookUpAppleTerminalBellPreference(): Promise<boolean> {
     if (profileName === '') return false
     const exported = await execFileNoThrow('defaults', ['export', 'com.apple.Terminal', '-'])
     if (exported.code !== 0) return false
-    // Lazy: only a fraction of users reach this path (~280 KB parser).
-    const plist = await import('plist')
+    // Lazy: only a fraction of users reach this path (~280 KB parser). The
+    // reader is an OPTIONAL dependency: an install without it answers the
+    // probe closed — the audible bell stays on — with a debug line, never
+    // an error logged on every session's first ping.
+    let plist: { default: { parse(text: string): unknown } }
+    try {
+      plist = (await import('plist')) as typeof plist
+    } catch (missing) {
+      logForDebugging(`bell probe: the optional plist reader is not installed — assuming the audible bell (${missing instanceof Error ? missing.message : String(missing)})`)
+      return false
+    }
     const parsed = plist.default.parse(exported.stdout) as {
       'Window Settings'?: Record<string, { Bell?: unknown }>
     }
