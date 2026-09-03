@@ -2,15 +2,57 @@
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 import time
 
-results_dir = sys.argv[1] if len(sys.argv) > 1 else "results"
+scope = "all"
+positional = []
+argv = sys.argv[1:]
+i = 0
+while i < len(argv):
+    if argv[i] == "--scope":
+        scope = argv[i + 1] if i + 1 < len(argv) else ""
+        i += 2
+        continue
+    if argv[i].startswith("--scope="):
+        scope = argv[i].split("=", 1)[1]
+        i += 1
+        continue
+    positional.append(argv[i])
+    i += 1
+if scope not in ("release", "drives", "all"):
+    print(f"ci-verdict: --scope wants release|drives|all (got '{scope}')", file=sys.stderr)
+    sys.exit(2)
+results_dir = positional[0] if positional else "results"
 
-expected = sorted(
-    os.path.basename(os.path.dirname(p)) for p in glob.glob("scripts/*/run-all.sh")
-)
+SCOPES = {
+    "release": {"pure", "cpu", "exclusive"},
+    "drives": {"pty"},
+    "all": {"pure", "cpu", "pty", "exclusive"},
+}
+OTHER = {"release": "drives", "drives": "release"}
+VALID = {"pure", "cpu", "pty", "exclusive"}
+
+
+def class_of(runner):
+    for line in open(runner, encoding="utf-8", errors="replace"):
+        m = re.match(r"^# gate-class:\s*(\S+)", line)
+        if m:
+            return m.group(1) if m.group(1) in VALID else "undeclared"
+    return "undeclared"
+
+
+runners = {os.path.basename(os.path.dirname(p)): p for p in glob.glob("scripts/*/run-all.sh")}
+estate = sorted(runners)
+declared = {d: class_of(runners[d]) for d in estate}
+unclassed = [d for d in estate if declared[d] == "undeclared"]
+in_scope = SCOPES[scope]
+expected = sorted(d for d in estate if declared[d] in in_scope)
+deferred = {}
+if scope in OTHER:
+    deferred[OTHER[scope]] = sorted(d for d in estate if declared[d] in SCOPES[OTHER[scope]])
 
 rows = {}
 duplicated = []
@@ -29,9 +71,16 @@ for tsv in sorted(glob.glob(os.path.join(results_dir, "**", "results.tsv"), recu
             "retryRc": None if retry_rc == "-" else int(retry_rc),
             "retrySecs": None if retry_secs == "-" else int(retry_secs),
         }
+notes = {}
+for tsv in sorted(glob.glob(os.path.join(results_dir, "**", "notes.tsv"), recursive=True)):
+    for line in open(tsv):
+        parts = line.rstrip("\n").split("\t", 1)
+        if len(parts) == 2 and parts[0] and parts[1]:
+            notes[parts[0]] = parts[1]
 
 missing = [d for d in expected if d not in rows]
-unknown = sorted(d for d in rows if d not in expected)
+unknown = sorted(d for d in rows if d not in estate)
+misplanned = sorted(d for d in rows if d in estate and declared[d] not in in_scope)
 passed, failed, flakes = [], [], []
 for dom, r in sorted(rows.items()):
     final_rc = r["rc"] if r["retryRc"] is None else r["retryRc"]
@@ -51,29 +100,37 @@ head = subprocess.run(
     ["git", "rev-parse", "HEAD"], capture_output=True, text=True
 ).stdout.strip() or None
 
-ok = not failed and not missing and not duplicated and not unknown
+ok = not failed and not missing and not duplicated and not unknown and not unclassed and not misplanned
 verdict = {
     "ok": ok,
+    "scope": scope,
     "pass": passed,
     "fail": failed,
     "missing": missing,
     "duplicated": sorted(set(duplicated)),
     "unknown": unknown,
+    "unclassed": unclassed,
+    "misplanned": misplanned,
+    "deferred": deferred,
     "ranAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     "headSha": head,
     "source": "ci",
     "durations": {d: r["secs"] for d, r in sorted(rows.items())},
     "classes": {d: r["class"] for d, r in sorted(rows.items())},
     "flakes": flakes,
+    "notes": {d: notes[d] for d in sorted(notes) if d in rows},
 }
 with open("ci-verdict.json", "w") as f:
     json.dump(verdict, f, indent=2)
 
 summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+title = {"release": "Gate verdict (release scope)", "drives": "Drives verdict", "all": "Gate verdict"}[scope]
 lines = []
-lines.append("# Gate verdict — " + ("✅ ALL GREEN" if ok else "❌ RED"))
+lines.append(f"# {title} — " + ("✅ ALL GREEN" if ok else "❌ RED"))
 lines.append("")
-lines.append(f"- suites reported: **{len(rows)}** / expected **{len(expected)}**")
+lines.append(f"- suites reported: **{len(rows)}** / expected **{len(expected)}** ({scope} scope)")
+for other, suites in deferred.items():
+    lines.append(f"- deferred to the {other} verdict ({len(suites)} suites, not covered here): {', '.join(suites)}")
 if failed:
     lines.append(f"- **RED:** {', '.join(failed)}")
 if missing:
@@ -82,18 +139,23 @@ if duplicated:
     lines.append(f"- **DUPLICATED:** {', '.join(sorted(set(duplicated)))}")
 if unknown:
     lines.append(f"- **UNKNOWN (row for an undeclared suite):** {', '.join(unknown)}")
+if unclassed:
+    lines.append(f"- **UNCLASSED (no valid `# gate-class:` header — falls through the split):** {', '.join(unclassed)}")
+if misplanned:
+    lines.append(f"- **MISPLANNED (row for a suite outside the {scope} scope):** {', '.join(misplanned)}")
 if flakes:
     lines.append(
         "- recorded runner flakes: "
         + ", ".join(f"{f['suite']} (solo rc {f['soloRc']})" for f in flakes)
     )
 lines.append("")
-lines.append("| suite | class | rc | secs | retry |")
-lines.append("|---|---|---|---|---|")
+lines.append("| suite | class | rc | secs | retry | first stuck send |")
+lines.append("|---|---|---|---|---|---|")
 for dom, r in sorted(rows.items(), key=lambda kv: -kv[1]["secs"]):
     retry = "-" if r["retryRc"] is None else f"rc {r['retryRc']} in {r['retrySecs']}s"
     mark = "✅" if (r["rc"] if r["retryRc"] is None else r["retryRc"]) == 0 else "❌"
-    lines.append(f"| {mark} {dom} | {r['class']} | {r['rc']} | {r['secs']} | {retry} |")
+    note = notes.get(dom, "").replace("|", "\\|")
+    lines.append(f"| {mark} {dom} | {r['class']} | {r['rc']} | {r['secs']} | {retry} | {note} |")
 out = "\n".join(lines) + "\n"
 print(out)
 if summary_path:

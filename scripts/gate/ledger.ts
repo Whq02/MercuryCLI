@@ -13,6 +13,15 @@ export const LEDGER_SCHEMA = 1 as const
 
 export type ShardStatus = 'success' | 'failure' | 'missing' | 'duplicated'
 
+export type LedgerKind = 'local' | 'hosted' | 'hosted-drives' | 'windows-ui' | 'windows-functional' | 'windows-launcher'
+export const LEDGER_KINDS: readonly LedgerKind[] = ['local', 'hosted', 'hosted-drives', 'windows-ui', 'windows-functional', 'windows-launcher']
+
+export const ADVISORY_KINDS: readonly LedgerKind[] = ['hosted-drives']
+export const isAdvisoryKind = (kind: string): boolean => (ADVISORY_KINDS as readonly string[]).includes(kind)
+
+export type VerdictScope = 'release' | 'drives' | 'all'
+export const VERDICT_SCOPES: readonly VerdictScope[] = ['release', 'drives', 'all']
+
 export interface GateLedgerRow {
   schema: typeof LEDGER_SCHEMA
   recordedAt: string
@@ -21,7 +30,9 @@ export interface GateLedgerRow {
   lockfileDigest: string
   toolchain: { node: string; bun: string }
   declaredToolchain: { node: string; bun: string }
-  kind: 'local' | 'hosted' | 'windows-ui' | 'windows-functional' | 'windows-launcher'
+  kind: LedgerKind
+  scope?: VerdictScope
+  deferred?: Record<string, string[]>
   runId: string | null
   ok: boolean
   shardResults: Array<{ name: string; status: ShardStatus; durationSec?: number }>
@@ -107,7 +118,7 @@ export function appendRow(row: GateLedgerRow): void {
 
 export interface EligibilityQuery {
   rev?: string
-  kind?: 'local' | 'hosted' | 'windows-ui' | 'windows-functional' | 'windows-launcher' | 'any'
+  kind?: LedgerKind | 'any'
   requireDeclaredToolchain?: boolean
 }
 
@@ -122,7 +133,10 @@ export function findVerdict(q: EligibilityQuery = {}): EligibilityResult {
   const lockfile = lockfileDigest(rev)
   const declared = declaredToolchain(rev)
 
-  const rows = readLedger().filter(r => r.ok && r.codeTree === codeTree)
+  if (kind !== 'any' && isAdvisoryKind(kind)) {
+    return { eligible: false, reason: `a "${kind}" verdict is advisory — it reports the drives and verifies nothing`, codeTree }
+  }
+  const rows = readLedger().filter(r => r.ok && r.codeTree === codeTree && !isAdvisoryKind(r.kind))
   if (rows.length === 0) {
     return { eligible: false, reason: 'no green verdict recorded for this codeTree', codeTree }
   }
@@ -173,6 +187,8 @@ interface VerdictFile {
   durations?: Record<string, number>
   missing?: unknown
   duplicated?: unknown
+  scope?: unknown
+  deferred?: unknown
 }
 
 function shardsFrom(v: VerdictFile): GateLedgerRow['shardResults'] {
@@ -195,7 +211,7 @@ function shardsFrom(v: VerdictFile): GateLedgerRow['shardResults'] {
 
 export interface RecordOptions {
   verdictPath: string
-  kind: 'local' | 'hosted' | 'windows-ui' | 'windows-functional' | 'windows-launcher'
+  kind: LedgerKind
   runId?: string | null
   toolchain?: { node: string; bun: string }
 }
@@ -203,6 +219,20 @@ export interface RecordOptions {
 export function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
   const v = JSON.parse(readFileSync(opts.verdictPath, 'utf8')) as VerdictFile
   if (v.ok !== true) throw new Error('gate ledger: refusing to record a verdict that is not green')
+  const scope: VerdictScope = v.scope === undefined ? 'all' : (v.scope as VerdictScope)
+  if (!VERDICT_SCOPES.includes(scope)) {
+    throw new Error(`gate ledger: verdict scope "${String(v.scope)}" is not release|drives|all`)
+  }
+  if (opts.kind === 'hosted-drives' && scope !== 'drives') {
+    throw new Error(`gate ledger: --kind hosted-drives records a drives-scope verdict; this one is scope "${scope}"`)
+  }
+  if (opts.kind !== 'hosted-drives' && scope === 'drives') {
+    throw new Error('gate ledger: a drives-scope verdict is a report, never the release verdict — record it with --kind hosted-drives')
+  }
+  const deferred =
+    v.deferred !== null && typeof v.deferred === 'object' && !Array.isArray(v.deferred)
+      ? (v.deferred as Record<string, string[]>)
+      : undefined
   const commit = typeof v.headSha === 'string' ? v.headSha : ''
   if (!/^[0-9a-f]{40}$/.test(commit)) {
     throw new Error('gate ledger: verdict has no resolvable headSha')
@@ -240,6 +270,8 @@ export function rowFromVerdict(opts: RecordOptions): GateLedgerRow {
     toolchain: opts.toolchain ?? { node: process.version, bun: bunVersion },
     declaredToolchain: declaredToolchain(commit),
     kind: opts.kind,
+    scope,
+    ...(deferred !== undefined && { deferred }),
     runId: opts.runId ?? null,
     ok: true,
     shardResults: shardsFrom(v),
@@ -257,7 +289,8 @@ if (import.meta.main) {
   const cmd = process.argv[2] ?? 'show'
   try {
     if (cmd === 'record') {
-      const kind = (arg('kind') ?? 'local') as 'local' | 'hosted' | 'windows-ui' | 'windows-functional' | 'windows-launcher'
+      const kind = (arg('kind') ?? 'local') as LedgerKind
+      if (!LEDGER_KINDS.includes(kind)) throw new Error(`gate ledger: --kind wants ${LEDGER_KINDS.join('|')} (got "${kind}")`)
       const verdictPath = arg('verdict')
       if (!verdictPath) throw new Error('gate ledger: --verdict <path> is required')
       const tc = arg('toolchain')
@@ -274,8 +307,9 @@ if (import.meta.main) {
         process.exit(0)
       }
       appendRow(row)
+      const deferredNote = row.deferred ? ` · deferred ${Object.entries(row.deferred).map(([k, v]) => `${v.length} to ${k}`).join(', ')}` : ''
       console.log(
-        `gate ledger: recorded ${row.kind} verdict for ${row.commit.slice(0, 12)} · codeTree ${row.codeTree.slice(0, 12)} · ${row.shardResults.length} suites · covers ${row.coveredRange.commits} commit(s)`,
+        `gate ledger: recorded ${row.kind} verdict (${row.scope ?? 'all'} scope) for ${row.commit.slice(0, 12)} · codeTree ${row.codeTree.slice(0, 12)} · ${row.shardResults.length} suites${deferredNote} · covers ${row.coveredRange.commits} commit(s)`,
       )
       process.exit(0)
     }
@@ -283,7 +317,7 @@ if (import.meta.main) {
     if (cmd === 'check') {
       const res = findVerdict({
         rev: arg('rev') ?? 'HEAD',
-        kind: (arg('kind') ?? 'any') as 'local' | 'hosted' | 'windows-ui' | 'windows-functional' | 'windows-launcher' | 'any',
+        kind: (arg('kind') ?? 'any') as LedgerKind | 'any',
         requireDeclaredToolchain: process.argv.includes('--require-toolchain'),
       })
       if (res.eligible) {
@@ -307,7 +341,7 @@ if (import.meta.main) {
     for (const r of rows.slice(-limit)) {
       const red = r.shardResults.filter(s => s.status !== 'success').length
       console.log(
-        `  ${r.recordedAt.slice(0, 19)}  ${r.kind.padEnd(6)}  ${r.commit.slice(0, 12)}  codeTree ${r.codeTree.slice(0, 12)}  ${r.shardResults.length} suites${red ? ` (${red} not green)` : ''}  covers ${r.coveredRange.commits}`,
+        `  ${r.recordedAt.slice(0, 19)}  ${r.kind.padEnd(13)}  ${(r.scope ?? 'all').padEnd(7)}  ${r.commit.slice(0, 12)}  codeTree ${r.codeTree.slice(0, 12)}  ${r.shardResults.length} suites${red ? ` (${red} not green)` : ''}  covers ${r.coveredRange.commits}`,
       )
     }
     process.exit(0)

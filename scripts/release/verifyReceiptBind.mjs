@@ -10,6 +10,8 @@ export const isReceiptSafeDiff = (paths) => paths.every(isReceiptSafePath)
 
 const short = (tree) => String(tree).slice(0, 12) + '…'
 
+export const ADVISORY_KINDS = ['hosted-drives']
+
 export function readLedgerRows(text) {
   return text
     .split('\n')
@@ -21,7 +23,7 @@ export function readLedgerRows(text) {
         return null
       }
     })
-    .filter((r) => r && r.ok === true && typeof r.commit === 'string')
+    .filter((r) => r && r.ok === true && typeof r.commit === 'string' && !ADVISORY_KINDS.includes(r.kind))
     .reverse()
 }
 

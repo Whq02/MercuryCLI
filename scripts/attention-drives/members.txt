@@ -1,0 +1,8 @@
+# scripts/attention-drives/members.txt — the attention suite's real-terminal drives, one
+# basename per line (the files live in scripts/attention/). Each member boots
+# the built bundle in a pseudo-terminal; the parent suite runs every prover
+# NOT named by a sibling list, so a new prover lands there and moves here
+# only by editing this list. A name listed here but missing on disk is a
+# loud red in this runner.
+prove-b2-focus-pointer.ts
+prove-c3-resize-stream.ts

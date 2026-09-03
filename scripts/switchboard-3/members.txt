@@ -4,11 +4,8 @@
 # lands there automatically; a name listed here but missing on disk is a
 # loud red in this runner.
 prove-coordinator-replay.ts
-prove-crossfamily-concourse-arena.ts
 prove-crossfamily-concourse-kernel.ts
 prove-live-tiles.ts
-prove-seat-both-busy-journey.ts
 prove-seat-daemon-laws.ts
 prove-session-model-arms.ts
-prove-session-unification.ts
 prove-warm-parity.ts

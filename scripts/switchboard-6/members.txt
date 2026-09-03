@@ -3,14 +3,7 @@
 # suite runs every prover NOT named by a sibling list, so a NEW prover
 # lands there automatically; a name listed here but missing on disk is a
 # loud red in this runner.
-prove-board-controls-look.ts
 prove-broadcast.ts
-prove-chat-mode-drive.ts
-prove-crash-visible-drive.ts
 prove-cross-project.ts
-prove-esc-interrupts-drive.ts
-prove-esc-led-sends.ts
 prove-seat-covered-dialog-gate.ts
-prove-split-view-look.ts
 prove-status-prune.ts
-prove-switch-seamless-journey.ts
