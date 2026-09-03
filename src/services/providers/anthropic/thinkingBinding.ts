@@ -35,6 +35,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
+import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -155,7 +156,7 @@ export function describeInputTransformations(list: readonly InputTransformation[
  *  and mode-exempt tools, the response profile). (An operator's transcript
  *  edit leaves no row, so a drop after it reads as a single client-side
  *  edit.) */
-export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting'
+export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting' | 'declared'
 
 /**
  * The marks of a request's history that move only on a lawful change: the
@@ -283,13 +284,19 @@ export function classifyThinkingDrops(
 ): DropOutcome {
   const dropped = list.filter(entry => entry.type === 'thinking_dropped')
   const previous = dropStates.get(owner)
+  // A declared change (the lawful-change seam) applies to exactly this
+  // response — taken whether or not anything dropped.
+  const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
     dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
     return { kind: 'none', lawful: null, detail: null, consecutive: 0, count: 0, path: null, reason: null }
   }
   let lawful: LawfulPrefixChange | null = null
   let detail: string | null = null
-  if (previous !== undefined) {
+  if (declared !== null) {
+    lawful = 'declared'
+    detail = declared
+  } else if (previous !== undefined) {
     if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {
       lawful = 'compaction'
     } else if (previous.mark.model !== mark.model || previous.mark.modelTransition !== mark.modelTransition) {
@@ -353,6 +360,9 @@ export function describeThinkingDrops(
       }
       if (outcome.lawful === 'operator-setting') {
         return `Preserved thinking: the API dropped ${count} ${noun} after you changed ${outcome.detail ?? 'a setting'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
+      }
+      if (outcome.lawful === 'declared') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after ${outcome.detail ?? 'a change you asked for'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
       }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
@@ -479,7 +489,9 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
         ? 'a compaction'
         : last.lawful === 'operator-setting'
           ? `a setting change (${last.detail ?? 'unnamed'})`
-          : 'a model switch'
+          : last.lawful === 'declared'
+            ? `a change you asked for (${last.detail ?? 'unnamed'})`
+            : 'a model switch'
     return {
       status: 'info',
       evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
