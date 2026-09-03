@@ -200,6 +200,54 @@ export function stripThinkingFromIndex<M extends Message>(
   return changed ? result : messages
 }
 
+export function thinkingFromOtherModels(
+  messages: readonly Message[],
+  requestModel: string,
+  sameModel: (a: string, b: string) => boolean,
+): { count: number; models: string[] } {
+  let count = 0
+  const models: string[] = []
+  for (const msg of messages) {
+    if (msg.type !== 'assistant') continue
+    const model = msg.message.model
+    if (typeof model !== 'string' || model.length === 0 || sameModel(model, requestModel)) continue
+    const content = msg.message.content
+    if (!Array.isArray(content)) continue
+    const own = content.filter(isThinkingBlock).length
+    if (own === 0) continue
+    count += own
+    if (!models.includes(model)) models.push(model)
+  }
+  return { count, models }
+}
+
+export function stripThinkingFromOtherModels<M extends Message>(
+  messages: M[],
+  requestModel: string,
+  sameModel: (a: string, b: string) => boolean,
+): M[] {
+  let changed = false
+  const result = messages.map(msg => {
+    if (msg.type !== 'assistant') return msg
+    const model = msg.message.model
+    if (typeof model !== 'string' || model.length === 0 || sameModel(model, requestModel)) return msg
+    const content = msg.message.content
+    if (!Array.isArray(content)) return msg
+    const filtered = content.filter(block => !isThinkingBlock(block))
+    if (filtered.length === content.length) return msg
+    changed = true
+    if (filtered.length === 0) {
+      filtered.push({
+        type: 'text' as const,
+        text: '[reasoning written by another model — not carried across the switch]',
+        citations: [],
+      })
+    }
+    return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
+  })
+  return changed ? result : messages
+}
+
 export function filterUnresolvedToolUses(messages: Message[]): Message[] {
   const toolUseIds = new Set<string>()
   const toolResultIds = new Set<string>()

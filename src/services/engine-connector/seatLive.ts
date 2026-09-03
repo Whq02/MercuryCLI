@@ -3,7 +3,8 @@ import type { StreamingTailStore } from '../../utils/messages/streamingTailStore
 
 export interface SessionLiveV1 {
   inFlight: boolean
-  phase: 'thinking' | 'tool' | 'responding' | 'compacting' | 'idle'
+  phase: 'thinking' | 'tool' | 'responding' | 'compacting' | 'waiting' | 'idle'
+  agentsWaiting: number
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
 }
@@ -12,6 +13,7 @@ export interface SeatStatusV1 {
   title: string
   projectLabel: string
   interrupting: boolean
+  hardStopping: boolean
   quietMs: number | null
   watchdogMs: number | null
   phaseMs: number | null
@@ -39,6 +41,7 @@ export function hasSeatLive(
 export const IDLE_LIVE: SessionLiveV1 = Object.freeze({
   inFlight: false,
   phase: 'idle',
+  agentsWaiting: 0,
   inProgressToolUseIDs: new Set<string>(),
   turnStartedAtMs: null,
 }) as SessionLiveV1

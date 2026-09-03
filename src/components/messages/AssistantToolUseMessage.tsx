@@ -222,6 +222,7 @@ export function AssistantToolUseMessage({
           columns,
           rows,
           inProgressToolCallCount,
+          toolUseID: param.id,
         }) ?? null
     } catch (error) {
       logError(error)

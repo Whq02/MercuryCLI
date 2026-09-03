@@ -148,6 +148,13 @@ export type WorkRowV1 = {
   model?: string
   error?: string
   totalTokens?: number
+  inputTokens?: number
+  outputTokens?: number
+  costUSD?: number
+  unpricedTurns?: number
+  toolUses?: number
+  activity?: string
+  toolUseId?: string
   workflowRunId?: string
   phases?: WorkPhaseV1[]
   agentCount?: number
