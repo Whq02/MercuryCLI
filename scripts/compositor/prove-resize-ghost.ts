@@ -70,6 +70,7 @@ try {
     ...process.env,
     MERCURY_CONFIG_DIR: CONFIG_HOME,
     VSHOT_TEE: teePath,
+    MERCURY_SPLASH: 'off',
   }
   delete env.VSHOT_ACTIVE
   delete env.MERCURY_FULLSCREEN
