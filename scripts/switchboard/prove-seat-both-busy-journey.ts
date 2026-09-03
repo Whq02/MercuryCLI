@@ -74,10 +74,14 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 // the board session's later stages follow after their long tool sleeps.
 const seatDeltas = Array.from({ length: 48 }, (_, i) => `seat-${String(i + 1).padStart(2, '0')} body. `)
 const api = await startFixtureApi([
-  { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['b-stage-01 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 16; echo one', description: 'pause one' } }] },
-  { kind: 'paced', whenModel: 'opus', deltas: seatDeltas, gapMs: 600, settleDelayMs: 2500 },
-  { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['b-stage-02 body. '], gapMs: 300, tools: [{ name: 'Bash', input: { command: 'sleep 16; echo two', description: 'pause two' } }] },
-  { kind: 'paced', whenModel: 'opus', deltas: ['b-stage-03 body. ', 'b-stage-04 body. '], gapMs: 400, settleDelayMs: 1500 },
+  // The fixture's pace is a state criterion of the drive: the boot session
+  // must still be streaming across every hop, so its cadence (and the
+  // hopped session's tool pauses) stretch with the capture profile exactly
+  // as the hop schedule does.
+  { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['b-stage-01 body. '], gapMs: S(300), tools: [{ name: 'Bash', input: { command: `sleep ${Math.round(S(16_000) / 1000)}; echo one`, description: 'pause one' } }] },
+  { kind: 'paced', whenModel: 'opus', deltas: seatDeltas, gapMs: S(600), settleDelayMs: S(2500) },
+  { kind: 'paced_tool_use', whenModel: 'opus', preDeltas: ['b-stage-02 body. '], gapMs: S(300), tools: [{ name: 'Bash', input: { command: `sleep ${Math.round(S(16_000) / 1000)}; echo two`, description: 'pause two' } }] },
+  { kind: 'paced', whenModel: 'opus', deltas: ['b-stage-03 body. ', 'b-stage-04 body. '], gapMs: S(400), settleDelayMs: S(1500) },
   { kind: 'text', whenModel: 'opus', text: 'Spare.' },
   { kind: 'text', whenModel: 'opus', text: 'Spare.' },
   { kind: 'text', whenModel: 'opus', text: 'Spare.' },
@@ -263,7 +267,11 @@ try {
     const lastSeatToken = Math.max(...lane.map(l => l.seat))
     const firstHopAt = hoppedStretches[0]?.first ?? -1
     const bootBeforeFirstHop = Math.max(-1, ...lane.filter(l => l.atMs < firstHopAt).map(l => l.seat))
-    check('both were mid-turn during the hops (the boot session had more to say when the first hop landed; it said it later)', firstHopAt > 0 && bootBeforeFirstHop >= 0 && bootBeforeFirstHop < seatDeltas.length && lastSeatToken > bootBeforeFirstHop, `boot-session token at first hop: ${bootBeforeFirstHop}, last seen: ${lastSeatToken}`)
+    // Order-agnostic like L1: the boot session's token at the first hop is the
+    // last boot frame before it when the boot view came first, else the first
+    // boot frame after it (the hop landed before the boot view was visited).
+    const bootAtFirstHop = bootBeforeFirstHop >= 0 ? bootBeforeFirstHop : (bootStretches[0]?.seat ?? -1)
+    check('both were mid-turn during the hops (the boot session had more to say when the first hop landed; it said it later)', firstHopAt > 0 && bootAtFirstHop >= 0 && bootAtFirstHop < seatDeltas.length && lastSeatToken > bootAtFirstHop, `boot-session token at first hop: ${bootAtFirstHop}, last seen: ${lastSeatToken}`)
     // L4: nothing ever said wait.
     const said = (needle: string): number[] => grabs.filter(g => text(g).includes(needle)).map(g => g.atMs)
     for (const needle of ['did not commit', 'may be mid-turn', 'esc there', 'settling —', 'finishing this thought', 'restoring the session', 'a run is in flight']) {
