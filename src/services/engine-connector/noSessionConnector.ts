@@ -8,6 +8,7 @@ import type {
   CheckpointFactsV1,
   EngineConnectorV1,
   KitDialReceiptV1,
+  SpawnSwitchReceiptV1,
   McpRosterV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
@@ -21,12 +22,17 @@ import type {
   WorkRosterV1,
   WorkspaceFactsV1,
 } from './types.js'
+import type { SpawnSwitchFacts } from '../switchboard/spawnSwitches.js'
 
 export const NO_CHAT_OPEN = 'no chat is open — ↵ New Session on the boot menu starts one'
 
 const REFUSED_NO_CHAT: SendReceiptV1 = Object.freeze({ state: 'refused', detail: NO_CHAT_OPEN })
 const ASK_REFUSED_NO_CHAT: AskReceiptV1 = Object.freeze({ ok: false, detail: NO_CHAT_OPEN })
 const KIT_REFUSED_NO_CHAT: KitDialReceiptV1 = Object.freeze({ outcome: 'refused' as const, detail: NO_CHAT_OPEN })
+const NO_SPAWN_SWITCHES: SpawnSwitchFacts = Object.freeze({
+  subagents: Object.freeze({ on: true, source: 'default' as const }),
+  workflows: Object.freeze({ on: true, source: 'default' as const }),
+})
 
 const EMPTY_MESSAGES: readonly Message[] = Object.freeze([])
 const EMPTY_ASKS: readonly SessionAskV1[] = Object.freeze([])
@@ -118,6 +124,12 @@ export class NoSessionConnector implements EngineConnectorV1 {
   }
   async setKit(): Promise<KitDialReceiptV1> {
     return KIT_REFUSED_NO_CHAT
+  }
+  spawnSwitches(): SpawnSwitchFacts {
+    return NO_SPAWN_SWITCHES
+  }
+  async setSpawnSwitch(): Promise<SpawnSwitchReceiptV1> {
+    return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
   checkpointFacts(): CheckpointFactsV1 {
     return NO_CHECKPOINTS

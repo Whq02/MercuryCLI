@@ -20,6 +20,7 @@ import {
   getFocusedSessionConnector,
   hasFocusedSession,
 } from '../../../services/engine-connector/focusedConnector.js'
+import { spawnSwitchOffReceipt } from '../../../services/switchboard/spawnSwitches.js'
 import { pokeTelemetry, useTelemetry, type CrewGlanceMember } from '../../../state/telemetryBus.js'
 import { RosterWorkDetail } from '../../tasks/BackgroundTasksDialog.js'
 import {
@@ -83,10 +84,13 @@ export function CrewView({
   )
   const cursor = useStableSelection(rows, r => r.id)
   const sel = cursor.index
+  const spawnGate = (): string | null =>
+    getFocusedSessionConnector().spawnSwitches().subagents.on ? null : spawnSwitchOffReceipt('subagents')
+  const [spawnNote, setSpawnNote] = useState<string | null>(() => (initialSpawn ? spawnGate() : null))
   const [mode, setMode] = useState<Mode>(() =>
     initialChat !== undefined
       ? { view: 'chat', name: initialChat, fromDoor: true }
-      : initialSpawn
+      : initialSpawn && spawnGate() === null
         ? { view: 'chat', spawn: true, fromDoor: false }
         : { view: 'list' },
   )
@@ -120,7 +124,14 @@ export function CrewView({
       else setMode({ view: 'chat', name: row.member.name, fromDoor: false })
       return
     }
-    if (input === 'n' && namedOn) setMode({ view: 'chat', spawn: true, fromDoor: false })
+    if (input === 'n' && namedOn) {
+      const gate = spawnGate()
+      if (gate !== null) {
+        setSpawnNote(gate)
+        return
+      }
+      setMode({ view: 'chat', spawn: true, fromDoor: false })
+    }
   })
 
   if (mode.view === 'chat') {
@@ -204,6 +215,7 @@ export function CrewView({
             </Text>
           </>
         ) : null}
+        {spawnNote !== null ? <Text color={tokens.warning}>· {spawnNote}</Text> : null}
       </Box>
     </CommandCenter>
   )
