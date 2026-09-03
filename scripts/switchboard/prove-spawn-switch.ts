@@ -533,7 +533,10 @@ if (!existsSync(DIST)) {
       const cm = (b2.messages ?? []) as unknown[]
       const prefixSame = pm.every((m, i) => j(withoutCacheControl(m)) === j(withoutCacheControl(cm[i])))
       check('the shared messages prefix is byte-identical and the turn is appended (the toggle is a roster change, never a history rewrite)', prefixSame && cm.length > pm.length, `${pm.length}→${cm.length}`)
-      check('the top-level system is byte-identical across the toggle', j(withoutCacheControl(b1.system)) === j(withoutCacheControl(b2.system)))
+      // The lawful-change seam re-evaluates the memoized prompt sections with
+      // the roster, so the top-level system may move WITH the toggle — once:
+      // request 3 (no further change) is byte-identical to request 2.
+      check('the top-level system moves at most at the toggle: request 3 is byte-identical to request 2', j(withoutCacheControl(b2.system)) === j(withoutCacheControl(b3.system)))
       check('request 3 keeps the toggled roster (sticky)', !toolNames(b3).includes(AgentTool.name) && j(toolNames(b2)) === j(toolNames(b3)))
     }
     const notices = transcriptNotices(arena, SID)
