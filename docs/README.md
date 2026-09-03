@@ -52,7 +52,7 @@ the concourse ever comes to require it.
   your saved prompts) and the project notepad file underneath (`/note`).
 - [APOLLO-MODE.md](APOLLO-MODE.md): the Apollo permission mode, the
   pre-flight interview that writes the spec and builds a prototype from it.
-- [VOICE.md](VOICE.md): voice input — `/speak on`, `v` in an empty composer
+- [VOICE.md](VOICE.md): voice input — `/speak on`, space in an empty composer
   to dictate, the capture backends, the transcribing sign-ins, and the
   privacy line (audio leaves only to the family you signed into, only after
   you stop).
