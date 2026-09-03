@@ -96,6 +96,11 @@ function check(label: string, cond: boolean, detail = ''): void {
 /** Source reads anchor on the repo root — the real switch door chdirs. */
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 
+// THE HOST'S OWN KEY WORDS (faad4c8): a chord hint is spelled per platform at
+// paint time — '⇧→' on macOS, 'shift+→' elsewhere; '⌃g' / 'ctrl+g' — so a
+// pin reads the spelling from the one owner, never a Mac literal (the
+// hosted Linux gate red the literal on every run since gate 5).
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
@@ -306,11 +311,6 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
 console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by project, then always adds the one focused session, ★ from its own project')
 {
   const { registerChatPresence, presentStripStops, stripKeyMapHintOf, _resetSurfaceRouteForTesting } = await import('../../src/context/surfaceRoute.ts')
-// THE HOST'S OWN KEY WORDS (faad4c8): a chord hint is spelled per platform at
-// paint time — '⇧→' on macOS, 'shift+→' elsewhere; '⌃g' / 'ctrl+g' — so a
-// pin reads the spelling from the one owner, never a Mac literal (the
-// hosted Linux gate red the literal twice a run).
-const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   // The presence seam exactly as the router registers it (SurfaceRouter's
