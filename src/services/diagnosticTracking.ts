@@ -1,4 +1,5 @@
 import figures from 'figures'
+import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 import type { MCPServerConnection } from './mcp/types.js'
 import { getConnectedIdeClient } from '../utils/ide.js'
@@ -92,9 +93,9 @@ export class DiagnosticTrackingService {
       case 'Error':
         return figures.cross
       case 'Warning':
-        return figures.warning
+        return GLYPH.warn
       case 'Info':
-        return figures.info
+        return GLYPH.info
       case 'Hint':
         return figures.star
       default:

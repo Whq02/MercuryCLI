@@ -5,6 +5,7 @@
 // consumer.
 
 import figures from 'figures'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
@@ -86,7 +87,7 @@ export function ListItem({
         ) : (
           children
         )}
-        {showCheckmark ? <Text color="success">{figures.tick}</Text> : null}
+        {showCheckmark ? <Text color="success">{GLYPH.check}</Text> : null}
       </Box>
       {description !== undefined && description !== '' ? (
         <Box paddingLeft={2}>
