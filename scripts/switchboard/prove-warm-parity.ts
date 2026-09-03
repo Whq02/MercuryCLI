@@ -94,7 +94,7 @@ function normalize(text: string): string {
     .replace(/req_[A-Za-z0-9_]+/g, 'req_<ID>')
     .replace(/concourse-w\d+/g, 'concourse-w<N>')
     .replace(/"pid":\s*\d+/g, '"pid":<P>')
-    .replace(/"(atMs|resolvedAt|spawnedAt|lastLiveAt|lastDeliveryAt|lastTurnSettledAt|startedAt|askedAt|totalDurationMs|totalAPIDurationMs|durationMs|duration_ms|snapshotId)":\s*("[^"]*"|\d+(?:\.\d+)?)/g, '"$1":<VAR>')
+    .replace(/"(atMs|resolvedAt|spawnedAt|lastLiveAt|lastDeliveryAt|lastTurnSettledAt|startedAt|askedAt|totalDurationMs|totalAPIDurationMs|durationMs|duration_ms|snapshotId|procStart)":\s*("[^"]*"|\d+(?:\.\d+)?)/g, '"$1":<VAR>')
     .replace(/"(costUSD|totalCostUSD|total_cost_usd)":\s*\d+(?:\.\d+)?(e-?\d+)?/g, '"$1":<COST>')
 }
 
