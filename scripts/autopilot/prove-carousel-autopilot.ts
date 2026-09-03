@@ -135,9 +135,10 @@ const parityPins: Array<[string, string[], string]> = [
   ['services/PromptSuggestion/speculation.ts', ['isSpeculationEnabled', 'deliberately NOT built'], 'speculative lane disabled-world surface'],
   ['utils/swarm/spawnUtils.ts', ['modeBypassesPermissions(permissionMode)'], 'teammate spawn inheritance'],
   ['tools/shared/spawnMultiAgent.ts', ['modeBypassesPermissions(permissionMode)'], 'multi-agent spawn inheritance'],
-  // Over the current: the mode is hoisted to a local
-  // (`parentMode = parentState.toolPermissionContext.mode`) — same exclusion law.
-  ['tools/AgentTool/runAgent.ts', ['!modeBypassesPermissions(parentMode'], 'agent-mode override exclusion'],
+  // The one posture owner composes the agent's app state; the mode is hoisted
+  // to a local (`parentMode = parentState.toolPermissionContext.mode`) — the
+  // same exclusion law.
+  ['tools/AgentTool/agentPermissionPosture.ts', ['!modeBypassesPermissions(parentMode'], 'agent-mode override exclusion (the one posture owner)'],
   ['utils/permissions/permissionSetup.ts', ['modeBypassesPermissions(currentContext.mode)'], 'org-policy kill downgrades autopilot too'],
   ['main.tsx', ['setSessionBypassPermissionsMode(modeBypassesPermissions(permissionMode))', 'modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip'], 'boot latch + org-policy kill trigger'],
   ['setup.ts', ['modeBypassesPermissions(permissionMode) ||'], 'root/sudo guard'],

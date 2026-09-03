@@ -99,7 +99,7 @@ section('(e) getSystemPrompt wiring — spliced after the wrapper, reconcile-tai
 {
   const p = src('constants', 'prompts.ts')
   check('imports the section function', p.includes("import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'"))
-  check('computes antiSycSections ONCE (splice + reconcile agree)', p.includes('const antiSycSections = getAntiSycophancyAlwaysOnSection()'))
+  check('computes antiSycSections ONCE, frozen per conversation through the section cache (splice + reconcile agree)', p.includes("systemPromptSection('anti-sycophancy', () => {") && p.includes("const antiSycSections = typeof antiSycFrozen === 'string' ? [antiSycFrozen] : []"))
   // The splice ORDER moved into the owned composer (W9): prompts.ts hands the
   // named groups to composeSystemPrompt, and composer.ts is where "modes
   // before the arm before the reconcile tail" is written. Assert both halves

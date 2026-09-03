@@ -101,7 +101,12 @@ console.log('§1 LIVE — the settled turn reports the failed hook')
         MERCURY_COMPAT_BASE_URL: `http://127.0.0.1:${port}/v1`,
         MERCURY_COMPAT_API_KEY: 'fixture',
         NODE_ENV: undefined,
-        ANTHROPIC_API_KEY: undefined,
+        // The credential check's CI branch demands a first-party credential
+        // variable before any model runs — a compat model that never uses
+        // one included — so a curated child env that drops the job's key
+        // never reaches the turn on a hosted runner. A proof key satisfies
+        // the presence check; the compat mock still answers the turn.
+        ANTHROPIC_API_KEY: 'proof-key-hook-report-not-a-real-key',
         ANTHROPIC_AUTH_TOKEN: undefined,
         MERCURY_OAUTH_TOKEN: undefined,
       } as NodeJS.ProcessEnv,

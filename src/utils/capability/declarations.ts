@@ -519,6 +519,12 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'coordination',
     cancellation: 'not-applicable',
     latency: 'fast',
+    // Served only while the task list (todo v2) is off: an interactive
+    // session, or MERCURY_TASKS=1 anywhere, serves the task list in its
+    // place and retires this tool for the session — a declared condition,
+    // so the census names why the tool is off instead of warning a gap
+    // that flips with the terminal.
+    conditions: ['the task list off — an interactive session (or MERCURY_TASKS=1) serves the task list in its place'],
   },
   ToolSearch: {
     intents: ['find the right tool for a job', 'load a deferred tool schema', 'discover capability by intent'],

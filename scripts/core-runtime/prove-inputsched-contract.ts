@@ -386,6 +386,8 @@ console.log('native-core T13/T14 — input-scheduling contract')
   check('rekey: the REPL hop effect re-keys the queue beside pending-input, inside the same guard',
     hopBlock.slice(0, 600).includes("rekeyCommandQueueToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
       hopBlock.includes("pendingInput.rekeyToSession(focusedSessionId === '' ? null : focusedSessionId, { landing })") &&
+      hopBlock.indexOf('pendingInput.rekeyToSession') !== -1 &&
+      hopBlock.indexOf('rekeyCommandQueueToSession(focusedSessionId') !== -1 &&
       hopBlock.indexOf('pendingInput.rekeyToSession') < hopBlock.indexOf('rekeyCommandQueueToSession(focusedSessionId'))
   check('rekey: the landing word is the slot-fill fact, computed once for both owners',
     replSrc.includes("const landing = rekeyedSessionRef.current === '' && focusedSessionId !== '';"))

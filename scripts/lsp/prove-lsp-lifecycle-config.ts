@@ -115,9 +115,9 @@ console.log('prove-lsp-lifecycle-config — restartOnCrash + shutdownTimeout are
     await inst.start()
     // start() RESOLVING is the lazy restart — a refused respawn THROWS the
     // typed refusal (the restartOnCrash:false arm below pins that side).
-    // The crash-after-init fixture re-crashes on its own schedule, so a
-    // post-await state read races it on a slow box (the hosted 2-core red:
-    // state=error read AFTER the designed second crash).
+    // The crash-after-init fixture re-crashes on its own schedule (after the
+    // client's start has settled — its timer outlasts the handshake on any
+    // box), so only start() RESOLVING is read here, never a later state.
     recovered = true
   } catch {
     recovered = false
