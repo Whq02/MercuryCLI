@@ -17,7 +17,6 @@
 # quiet-box wall at MERCURY_VSHOT_BUDGET_SCALE=3 measured 904 s with
 # the engine truly scaling (the wave-5 knob forward), so the hosted 2-core
 # run needs the diffws-class slack over that envelope.
-journey	2400
 scroll	1500
 diffws	1500
 prompts-panel	1200
@@ -55,3 +54,14 @@ switchboard-3	2400
 # switchboard-3 at 1500 s inside prove-session-model-arms' second geometry
 # (two 120 s fixed-window legs run their whole stretched budget, 362 s each)
 # — honest walls, not hangs; both take the ui-class grant.
+# The fifth hosted run on the public tree: journey was tree-killed at 2400 s
+# with every prover completing honestly (agent-bash-live 106 s ·
+# cap-offer-list-live 797 s · cap-offer-live 109 s · concourse-roundtrip 244 s
+# · delivery-mid-tool 121 s · final-journey 730 s · mission-continue-live 85 s
+# and the short ones: 2283 s before the ceiling) and three still to run
+# (noping-stream-completes 181 s · steer-echo-single 154 s ·
+# switch-pickup-live 19 s), with two provers enrolled since (switch-cold-ingest
+# · switch-agents-live). The suite grew by the cap-offer pair and the
+# agent-bash journey since the 2006 s run its row was sized from; the grant is
+# the measured wall plus the unrun tail with the diffws-class slack.
+journey	3000

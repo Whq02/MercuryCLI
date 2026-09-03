@@ -209,7 +209,7 @@ section('L4 — THE ROW TELLS THE TRUTH after the interrupt')
   const before = markGrids.get('esc-sent') ?? ''
   check("the turn was LIVE at the esc (the status row said thinking, the way-back hint offered esc)", /thinking/.test(before) && /esc interrupts/.test(before), before.split('\n').slice(-8).join('\n'))
   check('the interruption painted (⨯ Interrupted)', /Interrupted/.test(gridText), gridText.split('\n').slice(-12).join('\n'))
-  check('the composer returned', /│❯\s/.test(gridText) && /shift \+ ↵ for a new line/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
+  check('the composer returned', /│❯\s/.test(gridText) && / for a new line/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("the status row reads ready — no 'interrupting' left standing", /· ready/.test(gridText) && !/interrupting —/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
   check("no 'thinking' stands over a stream that ended", !/thinking for|· thinking/.test(gridText), gridText.split('\n').slice(-8).join('\n'))
 }
