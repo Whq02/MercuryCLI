@@ -620,6 +620,11 @@ async function* queryModel(
     // The roster freezes per conversation, keyed by the run's owner — the
     // same key the drop classifier and the lawful-change seam use.
     latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    // This lane's own deferral rule, frozen with the roster: an LSP tool
+    // whose server is still initializing rides deferred, and keeps that
+    // mark for the conversation's life once the server is up (the mark is
+    // part of the definition every thinking block is bound to).
+    alsoDefer: shouldDeferLspTool,
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames
@@ -664,9 +669,9 @@ async function* queryModel(
 
   const useGlobalCacheFeature = shouldUseGlobalCacheScope()
   // The defer_loading mark is a block-form field; the text form carries no
-  // per-schema deferral field at all.
-  const willDefer = (t: Tool) =>
-    useToolSearch && blockForm && (deferredToolNames.has(t.name) || shouldDeferLspTool(t))
+  // per-schema deferral field at all. The set is the plan's frozen one —
+  // never a live re-read here.
+  const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)
   // MCP tools are per-user, so a rendered MCP tool forces the dynamic tool
   // section and forfeits global caching. A deferred one renders nothing
   // and forfeits nothing.
