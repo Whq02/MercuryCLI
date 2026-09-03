@@ -244,6 +244,20 @@ section('§5 the timed-out note reaches the result')
   check("the tool folds the result's note into the text the model reads (the error path throws that text)", /accumulator\.append\(result\.stderr\.trimEnd\(\) \+ '\\n'\)/.test(tool))
 }
 
+section("§6 the sandbox auto-allow keeps the model's whole input")
+if (!ready) {
+  console.log('  [SKIP] no live sandbox on this machine — the auto-allow road is not taken')
+} else {
+  const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const input = { command: 'sleep 30', timeout: 3000, description: 'a sleep', run_in_background: false }
+  const verdict = await bashToolHasPermission(input, getEmptyToolPermissionContext())
+  const updated = ((verdict as { updatedInput?: Record<string, unknown> }).updatedInput ?? {}) as Record<string, unknown>
+  const reason = (verdict as { decisionReason?: { reason?: string } }).decisionReason?.reason ?? ''
+  check('a sandboxed command is auto-allowed by the sandbox road', verdict.behavior === 'allow' && reason === 'Auto-allowed with sandbox', `${verdict.behavior} ${reason}`)
+  check("…and the allow carries the model's timeout, description and background flag", updated.timeout === 3000 && updated.description === 'a sleep' && updated.run_in_background === false && updated.command === 'sleep 30', JSON.stringify(updated))
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
@@ -264,11 +278,9 @@ if (!ready) {
     { kind: 'tool_use', name: 'Bash', input: { command: `cd "${cwd}/sub" && echo moved`, description: 'cd inside the sandbox' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `pwd && echo in > "${cwd}/in.txt" && echo written`, description: 'read the directory, write inside' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: `echo out > "${away}/out.txt"`, description: 'write outside' }, whenModel: MODEL },
-    // The kill path: a command whose FIRST subcommand is the bare word the
-    // tool never auto-backgrounds keeps the whole call in the foreground,
-    // so the timeout kills it instead of moving it to the background — the
-    // path on which the note used to be lost.
-    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep; sleep 30', timeout: 3000, description: 'a command past its timeout on the kill path' }, whenModel: MODEL },
+    // The model's own timeout: with the sandbox auto-allow carrying the whole
+    // input, the sleep is stopped at three seconds.
+    { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 30', timeout: 3000, description: 'a command past its timeout' }, whenModel: MODEL },
     { kind: 'tool_use', name: 'Bash', input: { command: 't=$(mktemp "$TMPDIR/probe.XXXXXX") && echo "$t" && rm -f "$t" && echo "TMPDIR=$TMPDIR"', description: 'a temp file under the sandbox' }, whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
     { kind: 'text', text: 'sandbox-probe: done', whenModel: MODEL },
@@ -287,9 +299,6 @@ if (!ready) {
     MERCURY_VERIFY_EVIDENCE: '0',
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
-    // The default Bash timeout for this boot: the fourth call sleeps past
-    // it, so the note is pinned on the kill path the default takes.
-    BASH_DEFAULT_TIMEOUT_MS: '3000',
   }
   const startedAt = Date.now()
   const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
@@ -339,7 +348,7 @@ if (!ready) {
   check('the artifact showed the model five tool results', results.length === 5, results.map(r => `${r.isError ? 'ERR' : 'ok'}:${JSON.stringify(r.text.slice(0, 60))}`).join(' '))
   const [first, second, third, fourth, fifth] = results
   check("artifact: a temp file under $TMPDIR lands inside the product temp root and the child's TMPDIR reads it", fifth !== undefined && !fifth.isError && fifth.text.trim().startsWith(`${tempRoot}/probe.`) && fifth.text.includes(`TMPDIR=${tempRoot}`), JSON.stringify(fifth?.text.slice(0, 160)))
-  check('artifact: the killed command tells the model it timed out (an error result carrying the note)', fourth !== undefined && fourth.isError && /Command timed out after/.test(fourth.text) && !/moved to the background/.test(fourth.text), JSON.stringify(fourth?.text.slice(0, 160)))
+  check("artifact: the model's timeout is honoured under the sandbox — the sleep is stopped at three seconds with the note", fourth !== undefined && /Command timed out after 3s/.test(fourth.text) && outcome.ms < 20_000, `${outcome.ms}ms ${JSON.stringify(fourth?.text.slice(0, 160))}`)
   check('artifact: a sandboxed cd keeps its status and its text', first !== undefined && !first.isError && /moved/.test(first.text) && !/Operation not permitted/.test(first.text), JSON.stringify(first?.text.slice(0, 160)))
   check('artifact: the cd propagated and a write inside the session directory landed', second !== undefined && !second.isError && second.text.trim().startsWith(join(cwd, 'sub')) && /written/.test(second.text) && existsSync(join(cwd, 'in.txt')), JSON.stringify(second?.text.slice(0, 160)))
   check('artifact: a write outside the allow-write set is still refused', third !== undefined && third.isError && /Operation not permitted|denied/i.test(third.text) && !existsSync(join(away, 'out.txt')), JSON.stringify(third?.text.slice(0, 160)))
