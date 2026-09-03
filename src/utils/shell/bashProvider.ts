@@ -27,6 +27,11 @@ function shellPrefix(): string {
   return flagEnv('MERCURY_SHELL_PREFIX') ?? ''
 }
 
+function sandboxTempEnv(sandboxTmpDir: string): Record<string, string> {
+  const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmpDir) : sandboxTmpDir
+  return { TMPDIR: dir, MERCURY_TMPDIR: dir, TMPPREFIX: posixPath.join(dir, 'zsh') }
+}
+
 export async function createBashShellProvider(
   shellPath: string,
   options?: { skipSnapshot?: boolean },
@@ -85,6 +90,14 @@ export async function createBashShellProvider(
       if (sessionScript) parts.push(sessionScript)
       const preamble = getGlobPreambleCommand(shellPath)
       if (preamble) parts.push(preamble)
+      if (opts.useSandbox && opts.sandboxTmpDir) {
+        const temp = sandboxTempEnv(opts.sandboxTmpDir)
+        parts.push(
+          `export ${Object.entries(temp)
+            .map(([name, value]) => `${name}=${quote([value])}`)
+            .join(' ')}`,
+        )
+      }
       parts.push(`eval ${quotedCommand}`)
       parts.push(`{ pwd -P >| ${quote([cwdFileInShell])} 2>/dev/null || true; }`)
       if (isWindows) {
@@ -109,12 +122,7 @@ export async function createBashShellProvider(
     async getEnvironmentOverrides(_command: string): Promise<Record<string, string>> {
       const overrides: Record<string, string> = {}
       const sandboxTmp = pendingSandboxTmp
-      if (sandboxTmp) {
-        const dir = getPlatform() === 'windows' ? windowsPathToPosixPath(sandboxTmp) : sandboxTmp
-        overrides.TMPDIR = dir
-        overrides.MERCURY_TMPDIR = dir
-        overrides.TMPPREFIX = posixPath.join(dir, 'zsh')
-      }
+      if (sandboxTmp) Object.assign(overrides, sandboxTempEnv(sandboxTmp))
       for (const [key, value] of getSessionEnvVars()) overrides[key] = value
       return overrides
     },
