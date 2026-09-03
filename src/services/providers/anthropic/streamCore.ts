@@ -149,6 +149,7 @@ import {
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
 import { stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   getCanonicalName,
   getPublicModelDisplayName,
@@ -257,6 +258,7 @@ export type Options = {
   hasPendingMcpServers?: boolean
   queryTracking?: QueryChainTracking
   agentId?: AgentId
+  ownerKey?: string
   outputFormat?: JsonOutputFormat
   advisorModel?: string
   addNotification?: (notif: Notification) => void
@@ -531,7 +533,7 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
-    latchKey: options.agentId ?? 'main',
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
   })
   const useToolSearch = plan.enabled
   const deferredToolNames = plan.deferredNames
