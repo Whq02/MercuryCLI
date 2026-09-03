@@ -16,6 +16,27 @@ spawn ledger. Team creation and deletion are multi-record journal operations —
 an interrupted create rolls forward or compensates at the next boot rather
 than leaving a half-team behind.
 
+## The two spawn switches
+
+Every session carries two switches, Sub-agents and Workflows, set in the boot
+menu's Agents section for the sessions born after the choice and sticky for
+each session. With sub-agents off, the Agent tool is absent from that
+session's roster — the model never sees it — and every road that would spawn
+one from inside the session (the tool, a skill that forks, a workflow's agent
+hooks, the fleet tools, the Crew view's spawn key) answers one receipt:
+"sub-agents are off for this session — /subagents on, or the boot menu's
+Agents section". Workflows off does the same for the Workflow tool and the
+workflow launch roads; the run board stays readable. The concourse itself
+keeps launching sessions and crew seats — the switches are per focused
+session.
+
+Inside a session, `/subagents on|off` and `/workflows on|off` (or the boot
+menu opened there) flip a switch at the session's next turn boundary: the tool
+leaves or rejoins the roster, a receipt says so, reasoning restarts on the
+next turn, and a spawn already running finishes. Plain `/subagents` reads both
+switches with their sources; the doctor's "Sub-agents & workflows" row does
+the same.
+
 ## Named agents and spawning
 
 `/teammates` is the Crew view: the focused session's sub-agents live — name,

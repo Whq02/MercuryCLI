@@ -152,6 +152,13 @@ export const SDKControlMcpToggleRequestSchema = lazySchema(() =>
 export const SDKControlKitEditRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('kit_edit'), kit: z.unknown() }),
 )
+export const SDKControlSpawnSwitchRequestSchema = lazySchema(() =>
+  z.object({
+    subtype: z.literal('spawn_switch'),
+    switch: z.enum(['subagents', 'workflows']),
+    on: z.boolean(),
+  }),
+)
 export const SDKControlScheduleRosterRequestSchema = lazySchema(() =>
   z.object({ subtype: z.literal('schedule_roster'), schedules: z.unknown() }),
 )
@@ -258,6 +265,7 @@ export const SDKControlRequestInnerSchema = lazySchema(() =>
     SDKControlMcpReconnectRequestSchema(),
     SDKControlMcpToggleRequestSchema(),
     SDKControlKitEditRequestSchema(),
+    SDKControlSpawnSwitchRequestSchema(),
     SDKControlScheduleRosterRequestSchema(),
     SDKControlStopTaskRequestSchema(),
     SDKControlApplyFlagSettingsRequestSchema(),
