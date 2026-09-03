@@ -190,6 +190,25 @@ section('§2 a pipe keeps the special parameters and ANSI-C quoting')
   check('…while a parameter-free pipeline is still rearranged onto its first stage', /^'ls < \/dev\/null \| head -1'$/.test(rearrangePipeCommand('ls | head -1')), rearrangePipeCommand('ls | head -1'))
 }
 
+section('§3 a here-string feeds stdin')
+{
+  const { hasStdinRedirect, shouldAddStdinRedirect } = await import('../../src/utils/bash/shellQuoting.ts')
+  const here = await plain(`cat <<< 'here string'`)
+  check("`cat <<< 'here string'` reads the here-string", here.code === 0 && trimmed(here) === 'here string', JSON.stringify(here.out.slice(0, 80)))
+  const piped = await plain(`cat <<< 'here' | tr a-z A-Z`)
+  check('a here-string feeding a pipeline', trimmed(piped) === 'HERE', JSON.stringify(piped.out.slice(0, 80)))
+  const late = await plain(`echo first; cat <<< 'second'`)
+  check('a here-string after another command', trimmed(late) === 'first\nsecond', JSON.stringify(late.out.slice(0, 80)))
+  const shift = await plain('echo $((1<<2))')
+  check('an arithmetic shift is not mistaken for a here-string or a heredoc', trimmed(shift) === '4', JSON.stringify(shift.out.slice(0, 80)))
+  check('the quoting owner adds no stdin redirect for a here-string', shouldAddStdinRedirect("cat <<< 'x'") === false)
+  check('…nor for a heredoc', shouldAddStdinRedirect('cat <<EOF\nx\nEOF') === false)
+  check('…nor when the command redirects stdin itself', shouldAddStdinRedirect('cat < in.txt') === false && hasStdinRedirect('cat < in.txt'))
+  check('…and still adds one for a plain command', shouldAddStdinRedirect('cat') === true)
+  const bare = await plain('cat')
+  check('a bare stdin reader still meets EOF at once', bare.code === 0 && bare.out === '' && bare.ms < 5000, `${bare.ms}ms ${JSON.stringify(bare.out.slice(0, 40))}`)
+}
+
 section('§1b the sandbox law — the artifact under node')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
