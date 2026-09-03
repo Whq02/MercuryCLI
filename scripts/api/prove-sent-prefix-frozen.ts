@@ -242,6 +242,44 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   const p4 = await plan([search, readTool, mcpTool], { pending: false, key: 'conv-b' })
   check('another conversation decides for itself (its first request sees the joiner)', p4.deferredNames.has('mcp__srv__late') && names(p4) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'mcp__srv__late']), names(p4))
 
+  // THE MARKS ARE FROZEN WITH THE ROSTER (the field's toggle): a deferrable
+  // tool the pool later drops keeps its defer_loading mark — the definition
+  // on the wire, mark included, is what every thinking block is bound to.
+  const swarm = fakeTool('TeamCreate', { shouldDefer: true })
+  const m1 = await plan([search, readTool, swarm], { pending: false, key: 'conv-marks' })
+  const m2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
+  check('THE MARKS ARE FROZEN: a deferrable tool the pool drops (a toggle) still rides the array AND keeps its deferral mark', m1.enabled && names(m2) === names(m1) && m1.deferredNames.has('TeamCreate') && m2.deferredNames.has('TeamCreate'), `${names(m2)} deferred=${j([...m2.deferredNames])}`)
+  // A lane's own rule is judged once: a tool it deferred at the first
+  // request stays deferred when the rule later answers no (an LSP server
+  // finishing its start-up).
+  const lsp = fakeTool('LspTool')
+  const lspPlan = (rule: (t: { name: string }) => boolean) =>
+    planToolPayload({ model: 'claude-opus-4-8', tools: [search, readTool, swarm, lsp] as never, messages: [], getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: 'conv-lsp', alsoDefer: rule as never })
+  const l1 = await lspPlan(t => t.name === 'LspTool')
+  const l2 = await lspPlan(() => false)
+  check("a lane's own deferral rule is judged once: the tool it deferred at the first request stays deferred when the rule later says no", l1.deferredNames.has('LspTool') && l2.deferredNames.has('LspTool') && names(l2) === names(l1), j([...l2.deferredNames]))
+  // A joiner keeps its position and its mark once appended — even after it
+  // leaves the pool again (the latch folds it in).
+  const j1 = await plan([search, readTool, swarm, mcpTool], { pending: false, key: 'conv-marks' })
+  const j2 = await plan([search, readTool], { pending: false, key: 'conv-marks' })
+  check('a joiner appended once keeps its position and its mark for good — even after it leaves the pool again', names(j1) === j([TOOL_SEARCH_TOOL_NAME, 'Read', 'TeamCreate', 'mcp__srv__late']) && names(j2) === names(j1) && j2.deferredNames.has('mcp__srv__late'), `${names(j2)} deferred=${j([...j2.deferredNames])}`)
+  // THE SUMMARISER RIDES THE CONVERSATION'S ROSTER: a plan under the
+  // conversation's key from the summariser's own small pool yields the
+  // identical array and marks.
+  const sumPlan = await plan([readTool, search], { pending: false, key: 'conv-marks' })
+  check("the summariser's plan under the conversation's key — from its own two-tool pool — yields the conversation's array and marks, byte for byte", names(sumPlan) === names(j1) && j([...sumPlan.deferredNames].sort()) === j([...j1.deferredNames].sort()), names(sumPlan))
+  // The seam's source: the fork runner stamps the parent's roster owner,
+  // the turn machine keys the latch on it, the direct summariser road
+  // passes it, and the Anthropic lane never re-reads a mark live.
+  const forkSrc = readFileSync(join(ROOT, 'src', 'utils', 'forkedAgent.ts'), 'utf8')
+  const tmSrc = readFileSync(join(ROOT, 'src', 'run-core', 'turn-machine.ts'), 'utf8')
+  const compactSrc = readFileSync(join(ROOT, 'src', 'services', 'compact', 'compact.ts'), 'utf8')
+  const scSrc = readFileSync(join(ROOT, 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
+  check("the fork runner stamps the parent's roster owner on the fork context (rosterOwner)", forkSrc.includes('rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext)'))
+  check('the turn machine keys the roster latch on the roster owner', tmSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext))'))
+  check("the direct summariser road keys the latch on the conversation's roster owner", compactSrc.includes('ownerKey: String(rosterOwnerFromToolUseContext(context))'))
+  check('the Anthropic lane never re-reads a deferral mark live (the LSP rule rides the plan, judged once)', scSrc.includes('alsoDefer: shouldDeferLspTool') && !/willDefer = [^\n]*shouldDeferLspTool/.test(scSrc))
+
   // Search off by policy (a defined-falsy MERCURY_TOOL_SEARCH is the
   // standard mode): everything rides in full from the first request (no
   // ToolSearch); a joiner is HELD out of the frozen roster.
@@ -694,21 +732,23 @@ if (!existsSync(DIST)) {
     }
 
     // ------------------------------------------------------------------------
-    section('§7 the six-request proof — two admissions, apollo→flow, sub-agents off, an effort change, then a compaction: the prefix never moves until the fold')
+    section("§7 the six-request proof — two admissions, apollo→flow, sub-agents off, an effort change, then a compaction: the prefix never moves until the fold; every deferral mark and the summariser's array ride frozen")
     // ------------------------------------------------------------------------
     {
       const summary = 'S7 SUMMARY needle: the session found the fetch and browser tools, switched to flow, turned sub-agents off and lowered the effort.'
       const turns: ScriptedTurn[] = [
-        { kind: 'text', text: 'S7-T1', thinking: 's7 one' },
-        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'WebFetch' }, thinking: 's7 lookup one' },
-        { kind: 'text', text: 'S7-T2', thinking: 's7 two' },
-        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'Browser' }, thinking: 's7 lookup two' },
-        { kind: 'text', text: 'S7-T3', thinking: 's7 three' },
-        { kind: 'text', text: 'S7-T4', thinking: 's7 four (flow)' },
-        { kind: 'text', text: 'S7-T5', thinking: 's7 five (no sub-agents)' },
-        { kind: 'text', text: 'S7-T6', thinking: 's7 six (low effort)', usage: { input_tokens: 97_000 } },
-        { kind: 'text', text: summary },
-        { kind: 'text', text: 'S7-T7', thinking: 's7 seven (after the fold)' },
+        // Every response is Fable 5.1's own (the fixture's exemplar model is
+        // opus-4-8; a foreign writer would read as a model switch).
+        { kind: 'text', text: 'S7-T1', thinking: 's7 one', model: 'claude-fable-5-1' },
+        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'WebFetch' }, thinking: 's7 lookup one', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S7-T2', thinking: 's7 two', model: 'claude-fable-5-1' },
+        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'Browser' }, thinking: 's7 lookup two', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S7-T3', thinking: 's7 three', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S7-T4', thinking: 's7 four (flow)', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S7-T5', thinking: 's7 five (no sub-agents)', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S7-T6', thinking: 's7 six (low effort)', usage: { input_tokens: 97_000 }, model: 'claude-fable-5-1' },
+        { kind: 'text', text: summary, model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'S7-T7', thinking: 's7 seven (after the fold)', model: 'claude-fable-5-1' },
       ]
       // The fixture replays the API's own binding check on every response.
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
@@ -724,9 +764,26 @@ if (!existsSync(DIST)) {
       })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0fa'
       const debugFile = join(arena.home, 's7.debug.log')
+      // The field's posture: a concourse chat the operator is INSIDE. The
+      // worker role alone refuses every launch (a backgrounded child), which
+      // would keep Agent, TeamCreate and LaunchFleet out of the pool from
+      // boot and make the toggle a no-op; the focused seat record (this
+      // process as the live terminal) admits them, so the toggle really
+      // removes the swarm tools from the pool — the rewrite the field saw.
+      mkdirSync(join(arena.home, 'daemon'), { recursive: true })
+      writeFileSync(join(arena.home, 'daemon', 'concourse-workers.json'), JSON.stringify({
+        version: 1,
+        workers: {
+          'concourse-w1': { schema: 1, runnerId: 'concourse-w1', sessionId: SID, workspaceId: arena.cwd, isolation: 'shared', modelKey: 'claude-fable-5-1', spawnedAt: Date.now(), focusedAt: Date.now(), focusedBy: `operator:${process.pid}` },
+        },
+      }))
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', 'claude-opus-4-8', '--allowedTools', 'ToolSearch,Read', '--permission-mode', 'apollo', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        // Fable 5.1 — the field's model, and the one whose thinking config
+        // sends the fold down the cache-sharing fork road (the summariser
+        // request the field saw; an 'enabled' thinking config takes the
+        // direct road instead).
+        ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'ToolSearch,Read', '--permission-mode', 'apollo', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },
@@ -766,7 +823,7 @@ if (!existsSync(DIST)) {
       const toolsOf = (q: { body: unknown }): Array<{ name?: string; defer_loading?: boolean }> => (Array.isArray((q.body as Body).tools) ? ((q.body as Body).tools as Array<{ name?: string; defer_loading?: boolean }>) : [])
       const first = toolsOf(reqs[0]!)
       check('§7 WebFetch and Browser rode the FIRST request deferred (defer_loading) — nothing to add on admission', first.some(t => t.name === 'WebFetch' && t.defer_loading === true) && first.some(t => t.name === 'Browser' && t.defer_loading === true), j(first.filter(t => t.name === 'WebFetch' || t.name === 'Browser')))
-      check('§7 the Agent tool stays in the tools array with sub-agents off (the valve refuses; the array never moves)', toolsOf(reqs[8]!).some(t => t.name === 'Agent') === toolsOf(reqs[0]!).some(t => t.name === 'Agent'))
+      check('§7 the Agent tool rode the first request (the focused seat admits launches) and stays in the tools array with sub-agents off — the toggled request and the summariser alike (the valve refuses; the array never moves)', toolsOf(reqs[0]!).some(t => t.name === 'Agent') && toolsOf(reqs[6]!).some(t => t.name === 'Agent') && toolsOf(reqs[8]!).some(t => t.name === 'Agent'), `first=${toolsOf(reqs[0]!).some(t => t.name === 'Agent')} toggled=${toolsOf(reqs[6]!).some(t => t.name === 'Agent')} summariser=${toolsOf(reqs[8]!).some(t => t.name === 'Agent')}`)
       const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
       check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
       // The mode pack rode rows: the pack in the first turn, an exit row after the switch.
@@ -778,6 +835,30 @@ if (!existsSync(DIST)) {
         return files.map(f => readFileSync(f, 'utf8')).join('\n')
       })()
       check('§7 the apollo pack rode a persisted mode_pack row and left through a mode_pack_exit row (never the system prompt)', rows.includes('"attachmentType":"mode_pack"') && rows.includes('"attachmentType":"mode_pack_exit"') && !systemTextOf(reqs[0]!.body as Body).includes('Apollo Mode'), `${rows.includes('"attachmentType":"mode_pack"')}/${rows.includes('"attachmentType":"mode_pack_exit"')}`)
+      // THE MARKS, per tool, across every pair before the fold — the toggle
+      // pair included: the swarm tools leave the pool with sub-agents off;
+      // their frozen entries keep the mark (the definition on the wire is
+      // what every thinking block is bound to).
+      const marksOf = (q: { body: unknown }): string => toolsOf(q).map(t => `${t.name}${t.defer_loading === true ? '+' : '-'}`).join(' ')
+      console.log(`    §7 tools per request: ${reqs.map((q, i) => `${i + 1}:${toolsOf(q).length}`).join(' ')}`)
+      for (let i = 1; i < beforeFold.length; i++) {
+        const a = marksOf(beforeFold[i - 1]!).split(' ')
+        const b = marksOf(beforeFold[i]!).split(' ')
+        const moved = a.filter((m, k) => m !== b[k]).map((m, k) => `${m}→${b[a.indexOf(m)] ?? '∅'}`)
+        if (moved.length > 0 || a.length !== b.length) console.log(`      marks moved ${i}→${i + 1}: ${moved.slice(0, 6).join(' ')}${a.length !== b.length ? ` (${a.length} → ${b.length} tools)` : ''}`)
+        check(`§7 pair ${i}→${i + 1}: every defer_loading mark is byte-identical (${a.length} tools)`, a.join(' ') === b.join(' '), moved.slice(0, 4).join(' '))
+      }
+      const swarmMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^(Agent|TeamCreate|LaunchFleet)[+-]$/.test(m)).join(' ')
+      check("§7 the swarm tools (TeamCreate, LaunchFleet) rode the FIRST request deferred — the field's tools", first.some(t => t.name === 'TeamCreate' && t.defer_loading === true) && first.some(t => t.name === 'LaunchFleet' && t.defer_loading === true), swarmMarks(reqs[0]!))
+      check('§7 the toggle landed in the transcript (a roster_transition notice row) — the mark pins are not vacuous', rows.includes('"noticeKind":"roster_transition"'))
+      check('§7 after the toggle the swarm tools are still listed AND still marked deferred (the mark travels with the definition)', toolsOf(reqs[6]!).some(t => t.name === 'TeamCreate' && t.defer_loading === true) && toolsOf(reqs[6]!).some(t => t.name === 'LaunchFleet' && t.defer_loading === true), swarmMarks(reqs[6]!))
+      // THE SUMMARISER (request 9, the fold's own request) rides the
+      // conversation's frozen array — the cache-sharing fork road on this
+      // model — byte for byte with the request before it, marks included.
+      const summariser = reqs[8]!
+      check("§7 the fold took the cache-sharing fork road (the field's road on Fable 5.1)", debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
+      check("§7 the summariser's tools array is the conversation's, byte for byte (the fork rides the parent's frozen roster)", j(withoutCacheControl((summariser.body as Body).tools)) === j(withoutCacheControl((reqs[7]!.body as Body).tools)) && marksOf(summariser) === marksOf(reqs[7]!), `${toolsOf(summariser).length} vs ${toolsOf(reqs[7]!).length} tools; summariser ${swarmMarks(summariser)} vs conversation ${swarmMarks(reqs[7]!)}`)
+      check("§7 the summariser's system prompt is the conversation's", j(withoutCacheControl((summariser.body as Body).system)) === j(withoutCacheControl((reqs[7]!.body as Body).system)))
       await fixture.close()
     }
 

@@ -68,3 +68,16 @@ export function ownerFromToolUseContext(context: {
   if (context.owner) return context.owner
   return processOwnerForLane(context.agentId ?? null)
 }
+
+/** The conversation whose frozen tool roster a context's requests ride:
+ *  its own owner, unless it is a cache-sharing fork riding its parent's
+ *  (ToolUseContext.rosterOwner — the fork runner stamps it). The roster
+ *  freeze keys on this; attribution and the drop classifier keep the
+ *  context's own owner. */
+export function rosterOwnerFromToolUseContext(context: {
+  owner?: OwnerKey
+  agentId?: string
+  rosterOwner?: OwnerKey
+}): OwnerKey {
+  return context.rosterOwner ?? ownerFromToolUseContext(context)
+}
