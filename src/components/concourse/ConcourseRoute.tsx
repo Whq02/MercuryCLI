@@ -479,7 +479,7 @@ function LiveConcourse(): React.ReactNode {
     for (const row of (snapshot?.groups ?? []).flatMap(g => g.rows)) {
       if (!waiting.has(row.sessionId) || row.state !== 'stopped') continue
       waiting.delete(row.sessionId)
-      noteControl('strip:composer', { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` })
+      noteControl('strip:composer', { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} archives it (the chat stands parked)` })
     }
   }, [snapshot, noteControl])
   // ── enter = a WINDOW onto the session ────────────────────────────────
@@ -828,7 +828,7 @@ function LiveConcourse(): React.ReactNode {
                     ? { state: 'refused', reason: out.detail ?? out.reason }
                     : out.outcome === 'applied' && !out.acknowledged
                       ? (stopAwaitingStampRef.current.add(sessionId), { state: 'applied', reason: `stop sent — ${out.runnerId} ends its turn; the row reads stopped once it is gone` })
-                      : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` },
+                      : { state: 'applied', reason: `stopped — ${keyHintLabel('⌃x ⌃x')} archives it (the chat stands parked)` },
                 )
               } else {
                 noteControl('strip:composer', { state: 'failed', reason: 'the daemon that hosts sessions is not reachable and the runner is alive', next: `${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` })
@@ -857,9 +857,40 @@ function LiveConcourse(): React.ReactNode {
               reply.ok === true && reply.outcome !== 'refused'
                 ? {
                     state: 'applied',
-                    reason: acknowledged || reply.outcome === 'noop' || reply.detail === undefined ? `stopped — ${keyHintLabel('⌃x ⌃x')} removes it from the board` : reply.detail,
+                    reason: acknowledged || reply.outcome === 'noop' || reply.detail === undefined ? `stopped — ${keyHintLabel('⌃x ⌃x')} archives it (the chat stands parked)` : reply.detail,
                   }
                 : { state: 'refused', reason: reply.detail ?? reply.error ?? `stop refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
+            )
+          } catch {
+            noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: `${keyHintLabel('⌃x ⌃x')} retries` })
+          }
+          refresh()
+        })()
+      },
+      // THE ARCHIVE RUNG (the close chord's second): the stopped row PARKS —
+      // the record stands parked on the board (the chat survives; ↵ brings it
+      // back, ⇧→ may still enter it) until the third rung deletes it. The
+      // daemon's park verb stamps a dead runner's record parked by intent.
+      archiveSession: sessionId => {
+        void (async () => {
+          try {
+            const { ensureOwnedDaemon } = await import('../../services/switchboard/ensureDaemon.js')
+            const daemonUp = await ensureOwnedDaemon()
+            if (!daemonUp) {
+              noteControl('strip:composer', { state: 'failed', reason: 'the daemon that hosts sessions is not reachable', next: `${keyHintLabel('⌃x ⌃x')} retries once the daemon is back` })
+              refresh()
+              return
+            }
+            const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+            const reply = (await daemonControlRpc(
+              { op: 'sessionControl', action: 'park', sessionId, by: 'operator' } as never,
+              { timeoutMs: 15_000 },
+            )) as { ok?: boolean; outcome?: string; detail?: string; error?: string; code?: string }
+            noteControl(
+              'strip:composer',
+              reply.ok === true && reply.outcome !== 'refused'
+                ? { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again deletes it` }
+                : { state: 'refused', reason: reply.detail ?? reply.error ?? `archive refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
             )
           } catch {
             noteControl('strip:composer', { state: 'failed', reason: 'the daemon was unreachable', next: `${keyHintLabel('⌃x ⌃x')} retries` })

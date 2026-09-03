@@ -487,6 +487,9 @@ export interface ConcourseCallbacks {
    *  (child dies, row stays as 'stopped'); the second x within the beat
    *  REMOVES it (release — the row leaves the board, transcript survives). */
   stopSession?: (sessionId: string) => void
+  /** The close chord's second rung: a stopped row parks — the record stands
+   *  (the chat survives) until the third rung deletes it. */
+  archiveSession?: (sessionId: string) => void
   removeSession?: (sessionId: string) => void
   /** THE BOARD'S RENAME (session-aware naming, L16): store the typed title
    *  on the session's record through the daemon's set-title door (source
