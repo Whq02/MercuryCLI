@@ -1,4 +1,5 @@
 import { color } from '../components/design-system/color.js'
+import { DEFAULT_THEME_SETTING } from './systemTheme.js'
 import type { Theme, ThemeName } from './theme.js'
 
 /**
@@ -38,7 +39,7 @@ function makePainter(role: keyof Theme | undefined, theme: ThemeName): Painter {
 export function treeify(obj: TreeNode, options?: TreeifyOptions): string {
   const showValues = options?.showValues ?? true
   const hideFunctions = options?.hideFunctions ?? false
-  const theme = options?.themeName ?? 'dark'
+  const theme = options?.themeName ?? DEFAULT_THEME_SETTING
   const paintTree = makePainter(options?.treeCharColors?.treeChar, theme)
   const paintKey = makePainter(options?.treeCharColors?.key, theme)
   const paintValue = makePainter(options?.treeCharColors?.value, theme)
