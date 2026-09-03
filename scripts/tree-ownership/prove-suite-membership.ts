@@ -43,6 +43,21 @@ const everyRunnerText = readdirSync(SCRIPTS)
   .filter(p => existsSync(p))
   .map(p => readFileSync(p, 'utf8'))
   .join('\n')
+// THE SPLIT (GATE-REMAKE, 661db2b): a `<suite>-drives` member suite runs the
+// drive provers that LIVE in its parent's directory, naming them by basename
+// in its members.txt — enrolment by list, one basename per line.
+const memberEnrolled = new Set<string>()
+for (const dir of readdirSync(SCRIPTS)) {
+  if (!dir.endsWith('-drives')) continue
+  const members = join(SCRIPTS, dir, 'members.txt')
+  if (!existsSync(members)) continue
+  const parent = dir.slice(0, -'-drives'.length)
+  for (const raw of readFileSync(members, 'utf8').split('\n')) {
+    const name = raw.trim()
+    if (name === '' || name.startsWith('#')) continue
+    memberEnrolled.add(`scripts/${parent}/${name}`)
+  }
+}
 for (const dir of readdirSync(SCRIPTS)) {
   const suiteDir = join(SCRIPTS, dir)
   const runAll = join(suiteDir, 'run-all.sh')
@@ -67,6 +82,7 @@ for (const dir of readdirSync(SCRIPTS)) {
     total++
     const rel = `scripts/${dir}/${p}`
     if (EXCLUDED[rel]) continue
+    if (memberEnrolled.has(rel)) continue
     if (globDriven || text.includes(p) || text.includes(basename(p, '.ts'))) continue
     if (everyRunnerText.includes(`scripts/${dir}/${p}`)) continue
     orphans.push(rel)
