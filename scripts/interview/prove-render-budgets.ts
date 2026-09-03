@@ -18,6 +18,11 @@
 //    frame cost:                  p95 ≤ 20 ms · max ≤ 60 ms
 //    resize:                      ≤ 8 commits to settle, then quiet
 //    idle:                        ≤ 2 writes in the final 2 s (no polling)
+//
+//  The wall-clock ms budgets ride the hosted capture profile's ONE
+//  multiplier (vshotBudgetMs over MERCURY_VSHOT_BUDGET_SCALE — the knob the
+//  capture engines stretch their own timelines by); the commit and write
+//  COUNTS stay authored: a slower host paints later, never more.
 // ============================================================================
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -28,6 +33,7 @@ import {
   requireDist,
   runArtifactArena,
 } from '../streaming/artifactArena.ts'
+import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { checker } from '../engine-durability/harness.ts'
 
@@ -97,8 +103,10 @@ try {
     t.check('every warmed press painted', misses === 0, `${misses} miss(es) of ${arrowSends.length}`)
     const p50 = pct(lat, 50)
     const p95 = pct(lat, 95)
-    t.check(`p50 ≤ 120 ms (${p50.toFixed(0)} ms over ${lat.length} presses)`, p50 <= 120)
-    t.check(`p95 ≤ 300 ms (${p95.toFixed(0)} ms)`, p95 <= 300)
+    const p50Budget = vshotBudgetMs(120)
+    const p95Budget = vshotBudgetMs(300)
+    t.check(`p50 ≤ ${p50Budget} ms (${p50.toFixed(0)} ms over ${lat.length} presses)`, p50 <= p50Budget)
+    t.check(`p95 ≤ ${p95Budget} ms (${p95.toFixed(0)} ms)`, p95 <= p95Budget)
   }
 
   t.section('§2 — commits per focus move (only the affected regions repaint)')
@@ -118,8 +126,10 @@ try {
     const frames = run.probe?.frames
     t.check('the probe captured frames', !!frames && frames.total > 0, `${frames?.total ?? 0}`)
     if (frames) {
-      t.check(`frame p95 ≤ 20 ms (${frames.p95.toFixed(1)} ms; R0 baselines 4.4–6.6)`, frames.p95 <= 20)
-      t.check(`frame max ≤ 60 ms (${frames.maxMs.toFixed(1)} ms; R0 baselines ≈ 12–14)`, frames.maxMs <= 60)
+      const frameP95Budget = vshotBudgetMs(20)
+      const frameMaxBudget = vshotBudgetMs(60)
+      t.check(`frame p95 ≤ ${frameP95Budget} ms (${frames.p95.toFixed(1)} ms; R0 baselines 4.4–6.6)`, frames.p95 <= frameP95Budget)
+      t.check(`frame max ≤ ${frameMaxBudget} ms (${frames.maxMs.toFixed(1)} ms; R0 baselines ≈ 12–14)`, frames.maxMs <= frameMaxBudget)
     }
   }
 

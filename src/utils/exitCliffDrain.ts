@@ -144,10 +144,31 @@ export async function drainNamedSeams(
   return report
 }
 
+/** The loop turns the cliff owes what the seams and the cleanups just
+ *  closed. A close is asynchronous in the runtime: `watcher.close()` hands
+ *  libuv a handle whose teardown runs in the loop's closing phase, and a
+ *  landed append's file-handle close is a request the runtime frees only
+ *  after its resolution's microtasks return. The shutdown tail from the
+ *  last completion to process.exit ran on ONE microtask chain and never
+ *  yielded, so the handle census at the cliff still listed every closed
+ *  watcher as alive and the landed append's close as a live request — the
+ *  exit tore down a loop that only looked busy. A 0 ms timer fires on the
+ *  NEXT iteration, after this one's closing phase; two hops cover a close
+ *  scheduled from inside a close callback. Bounded by the drain's grace. */
+export const EXIT_CLIFF_LOOP_TURNS = 2
+async function turnLoopForTeardown(deadline: number): Promise<void> {
+  for (let hop = 0; hop < EXIT_CLIFF_LOOP_TURNS; hop++) {
+    if (Date.now() >= deadline) return
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+  }
+}
+
 /**
- * The product's cliff: every registered seam under the shared grace. The
- * registered poison seam MERCURY_EXIT_CLIFF_DRAIN=0 skips the drain — the
- * census prover's pre-fix arm, never set in normal operation.
+ * The product's cliff: every registered seam under the shared grace, then
+ * the loop turns that let the runtime tear down what those seams and the
+ * cleanups before them closed. The registered poison seam
+ * MERCURY_EXIT_CLIFF_DRAIN=0 skips both — the census prover's pre-fix arm,
+ * never set in normal operation.
  */
 export async function drainExitCliffSeams(
   graceMs: number = EXIT_CLIFF_DRAIN_MS,
@@ -162,7 +183,10 @@ export async function drainExitCliffSeams(
     drainChannel.publish({ phase: 'after', report })
     return report
   }
+  const started = Date.now()
   const report = await drainNamedSeams(listExitCliffSeams(), graceMs)
+  await turnLoopForTeardown(started + graceMs)
+  report.elapsedMs = Date.now() - started
   if (report.settled.length + report.failed.length + report.abandoned.length > 0) {
     logForDebugging(
       `exit-cliff drain: settled=[${report.settled.join(',')}] failed=[${report.failed.join(',')}] abandoned=[${report.abandoned.join(',')}] in ${report.elapsedMs}ms`,

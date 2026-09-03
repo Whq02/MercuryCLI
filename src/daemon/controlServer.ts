@@ -64,8 +64,15 @@ export interface ControlServerDeps {
   /** The secret every keyed op has to present. */
   controlKey: string
   /** Turns true once adoption / lock work is finished; until then the keyed
-   *  tier answers ESTARTING. */
+   *  tier answers ESTARTING — the polls at once, the work doors after the
+   *  readiness hold. */
   isReady: () => boolean
+  /** Settles the moment the host turns ready (the hold's wake). Missing ⇒
+   *  the hold polls isReady. */
+  whenReady?: () => Promise<void>
+  /** The readiness hold in ms (proof seam; the default is the adoption
+   *  budget, ESTARTING_HOLD_MS). */
+  startingHoldMs?: number
   /** Runs the `shutdown` op; returns the reap count AND the reaped
    *  workers by name/purpose so the stop client can report honestly. */
   onShutdown: (reapWorkers: boolean) => {
@@ -530,6 +537,46 @@ const SESSION_OP_ALIASES: Record<string, string> = {
   concourseControl: 'sessionControl',
 }
 
+/** The readiness HOLD: a keyed WORK op (an admission, a dispatch, a control
+ *  verb, a spawn) that arrives while the daemon still adopts its records or
+ *  acquires its lock is held until readiness instead of refused on the
+ *  spot — the first dispatch after a boot raced the adoption by
+ *  milliseconds and was refused outright with ESTARTING, which the hello
+ *  road alone reads as "starting"; the dispatcher saw a refusal. The budget
+ *  is the adoption's: the supervisor lock's retry ladder plus the record
+ *  reconcile, and it sits far under the work doors' own round-trip
+ *  deadlines (10–20 s), so a held op is answered before its caller gives
+ *  up; an adoption that outlives the hold is refused typed, naming the
+ *  wait. The POLLS (list · has · status) keep the prompt refusal: they ask
+ *  what is, their callers allow a second, and a refusal there is an
+ *  answer. */
+export const ESTARTING_HOLD_MS = 4_000
+const PROMPT_WHILE_STARTING = new Set(['sessionList', 'list', 'has', 'status'])
+
+async function awaitReadiness(deps: ControlServerDeps, holdMs: number): Promise<boolean> {
+  if (deps.isReady()) return true
+  const deadline = Date.now() + holdMs
+  if (deps.whenReady) {
+    let timer: ReturnType<typeof setTimeout> | undefined
+    try {
+      await Promise.race([
+        deps.whenReady(),
+        new Promise<void>(resolve => {
+          timer = setTimeout(resolve, holdMs)
+        }),
+      ])
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
+    return deps.isReady()
+  }
+  while (Date.now() < deadline) {
+    await new Promise<void>(resolve => setTimeout(resolve, 25))
+    if (deps.isReady()) return true
+  }
+  return deps.isReady()
+}
+
 /**
  * The op router: keyless frames first, then the readiness gate, the version
  * gate, and behind those the keyed ops.
@@ -610,12 +657,20 @@ async function routeControlRequest(
   }
 
   // --- readiness gate ------------------------------------------------------
+  // The work doors are HELD for the adoption budget (see ESTARTING_HOLD_MS);
+  // the polls refuse at once.
   if (!deps.isReady()) {
-    return answer(sock, {
-      ok: false,
-      code: 'ESTARTING',
-      error: 'daemon starting (adoption / lock acquisition in progress)',
-    })
+    const holdMs = typeof op === 'string' && !PROMPT_WHILE_STARTING.has(op) ? (deps.startingHoldMs ?? ESTARTING_HOLD_MS) : 0
+    if (holdMs <= 0 || !(await awaitReadiness(deps, holdMs))) {
+      return answer(sock, {
+        ok: false,
+        code: 'ESTARTING',
+        error:
+          holdMs > 0
+            ? `daemon starting (adoption / lock acquisition in progress) — held ${holdMs}ms for readiness; retry`
+            : 'daemon starting (adoption / lock acquisition in progress)',
+      })
+    }
   }
 
   // --- version gate --------------------------------------------------------

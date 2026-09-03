@@ -141,16 +141,21 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
         // the old idle mark's '❯' await matched the FACE's own row marker,
         // so every capture "settled" on an empty chat.
         { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
-        // The idle composer, settled: gated on the composer's OWN placeholder.
-        { atTick: 999, requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 4, data: '', mark: 'idle' },
+        // The idle composer, settled: gated on the composer's OWN placeholder,
+        // and on the WHOLE GRID standing byte-identical for three ticks — a
+        // fixed grace after the placeholder is not a settled frame on a slow
+        // runner (a rule row snapshotted half-painted graded the two legs
+        // different on one glyph); byte-identity is asked of settled frames.
+        { atTick: 999, requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'idle' },
         // The prompt; the scripted stream holds an 8s active window. The
         // submit rides its OWN send: a CR inside a one-write burst is the
         // typed law's paste NEWLINE, never a submit (the seal/burst
         // composition).
         { afterPrevTicks: 1, data: 'parity drive prompt' },
         { afterPrevTicks: 2, data: '\r' },
-        // The settled reply, four quiet ticks after its text lands.
-        { atTick: 999, requireAwait: true, awaitText: 'Scripted stream settled', minTick: 20, awaitSettleTicks: 4, data: '', mark: 'settled' },
+        // The settled reply, four quiet ticks after its text lands and the
+        // grid byte-identical for three (the same settled-frame law).
+        { atTick: 999, requireAwait: true, awaitText: 'Scripted stream settled', minTick: 20, awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'settled' },
       ],
       out: gridPath,
     }),

@@ -56,6 +56,11 @@ export interface ToolPayloadPlanInput {
   /** The conversation whose roster this plan freezes (the owner: the main
    *  thread or an agent id). Absent ⇒ no latch (a one-off caller). */
   latchKey?: string
+  /** A lane's own extra deferral rule, judged when a tool first enters the
+   *  frozen array and never again (the Anthropic lane defers an LSP tool
+   *  whose server is still initializing; the mark then holds for the
+   *  conversation's life). */
+  alsoDefer?: (tool: Tool) => boolean
 }
 
 /**
@@ -70,7 +75,10 @@ export interface ToolPayloadPlanInput {
  * the deferrable ones under the API's own deferred loading (the block form
  * marks them `defer_loading`; the tool_reference a ToolSearch result
  * carries expands server-side against the definition already on the wire),
- * the rest in full — so an admission adds NOTHING. A wire that cannot defer
+ * the rest in full — so an admission adds NOTHING. The deferral mark is
+ * part of a definition on the wire: judged once when a tool enters the
+ * array and re-sent as first sent (a toggle that shrinks the pool, a server
+ * finishing its start-up, moves nothing). A wire that cannot defer
  * lists every tool in full from the first request. A tool that joins after
  * the latch is appended at the END, deferred, when the latch defers and the
  * tool is deferrable (an unreferenced deferred tool is not part of the
@@ -81,12 +89,19 @@ export interface ToolPayloadPlanInput {
  */
 interface RosterLatch {
   enabled: boolean
-  /** The tool names the roster carried when the latch was taken, in order. */
-  names: readonly string[]
+  /** The tool names the array carries, in the order first sent (a joiner
+   *  appended at the end stays at its position for good). */
+  names: string[]
   /** The tools themselves: a tool the pool later drops (a mode's filter, a
    *  toggle, a project file gone) still rides the frozen array from here —
    *  its call refuses at the permission engine; the array never shrinks. */
-  tools: readonly Tool[]
+  tools: Tool[]
+  /** The deferral marks as first sent. The mark is part of a tool's
+   *  definition on the wire, so a live re-read may never move it: a tool
+   *  deferred at the first request stays `defer_loading` for the
+   *  conversation's life — a toggle shrinking the pool, or a server
+   *  finishing its start-up, changes nothing already sent. */
+  deferred: Set<string>
 }
 const rosterLatches = new Map<string, RosterLatch>()
 
@@ -185,13 +200,20 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     if (enabled && wire.form !== 'block') enabled = false
   }
 
-  // isDeferredTool costs two feature lookups per call — resolve the set once.
-  // Mode-independent: a tool the mode forbids stays listed and refuses at
-  // call time through the permission engine.
+  // A tool's deferral is judged ONCE, when it enters the frozen array (the
+  // first request, or a later join): isDeferredTool's answer plus the
+  // lane's own rule. Mode-independent: a tool the mode forbids stays listed
+  // and refuses at call time through the permission engine.
+  const defers = (t: Tool): boolean => isDeferredTool(t) || input.alsoDefer?.(t) === true
+
+  // The marks: a latched conversation re-sends the marks it first sent; a
+  // fresh one judges its pool once.
   const deferredNames = new Set<string>()
-  if (enabled) {
+  if (latched !== undefined) {
+    for (const name of latched.deferred) deferredNames.add(name)
+  } else if (enabled) {
     for (const t of tools) {
-      if (isDeferredTool(t)) deferredNames.add(t.name)
+      if (defers(t)) deferredNames.add(t.name)
     }
   }
 
@@ -204,26 +226,35 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   }
 
   if (latchKey !== null && latched === undefined) {
-    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name), tools: [...tools] })
+    rosterLatches.set(latchKey, { enabled, names: tools.map(t => t.name), tools: [...tools], deferred: new Set(deferredNames) })
   }
 
   // The order the array was first sent in, then any joiner at the END —
   // never a reorder, never a shrink: a latched tool the pool no longer
   // carries still rides (its call refuses at the permission engine). A
   // joiner rides only when it is deferrable under a deferring latch (an
-  // unreferenced deferred tool is not part of the prefix); any other joiner
-  // is held until the next compaction or /clear.
+  // unreferenced deferred tool is not part of the prefix) and then joins
+  // the latch itself — its position and its mark hold from there on; any
+  // other joiner is held until the next compaction or /clear.
   const byName = new Map(tools.map(t => [t.name, t] as const))
   const ordered: Tool[] = []
   const held: string[] = []
   if (latched !== undefined) {
+    const latchedNames = new Set(latched.names)
+    for (const tool of tools) {
+      if (latchedNames.has(tool.name)) continue
+      if (latched.enabled && defers(tool)) {
+        latched.names.push(tool.name)
+        latched.tools.push(tool)
+        latched.deferred.add(tool.name)
+        deferredNames.add(tool.name)
+        latchedNames.add(tool.name)
+      } else {
+        held.push(tool.name)
+      }
+    }
     for (const latchedTool of latched.tools) {
       ordered.push(byName.get(latchedTool.name) ?? latchedTool)
-    }
-    for (const tool of tools) {
-      if (latched.names.includes(tool.name)) continue
-      if (latched.enabled && deferredNames.has(tool.name)) ordered.push(tool)
-      else held.push(tool.name)
     }
     if (held.length > 0) {
       logForDebugging(
@@ -243,7 +274,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   // With the delta attachment on, persisted deferred_tools_delta attachments
   // carry the announcement instead — the per-request prepend busts cache
   // every time the pool changes.
-  const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(tools, deferredNames) : null
+  const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
 
   return {
     enabled,

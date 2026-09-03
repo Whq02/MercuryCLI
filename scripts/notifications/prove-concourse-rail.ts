@@ -251,22 +251,46 @@ let sidecarState = 'never-fired'
 const erun: ArenaRun = await runArtifactArena({
   turns: [],
   seedHome: configDir => {
-    // TWO-CLOCK HEADROOM: this timer anchors
-    // on WALL CLOCK from seedHome (pre-boot) while the sends ride drive
-    // ticks — under pooled load a slow boot compresses the gap between the
-    // ↵ submit (~8.6s of drive time) and this clear, squeezing the §5
-    // survive-observation window below one 400ms grab. 13s keeps ≥3s of
-    // observed survive-window under any recorded load profile while §6's
-    // grab range (→22s) still sees the cleared frame.
-    const timer = setTimeout(() => {
+    // THE CLEAR FOLLOWS THE BURST, NEVER A WALL CLOCK: the sends ride drive
+    // ticks (stretched under the hosted profile) while a timer here ran on
+    // wall clock from seedHome (pre-boot) — on a slow hosted boot the clear
+    // landed BEFORE the burst was typed, so the burst stood to the end and
+    // "the clear happened after the burst held" was unprovable. The app
+    // persists the coordinator draft as it is typed; the sidecar polls
+    // that file, and only once the WHOLE burst is on disk (the burst held)
+    // waits one stretched beat and writes the foreign clear. The wall-clock
+    // fallback stays for a world that never persists the burst, so the
+    // arena can never wait forever.
+    const draftPath = join(configDir, 'concourse-draft.json')
+    let fired = false
+    const fire = (why: string): void => {
+      if (fired) return
+      fired = true
       try {
-        writeFileSync(join(configDir, 'concourse-draft.json'), JSON.stringify({ draft: '', updatedAtMs: Date.now() }))
-        sidecarState = `fired@${new Date().toISOString().slice(11, 19)}`
+        writeFileSync(draftPath, JSON.stringify({ draft: '', updatedAtMs: Date.now() }))
+        sidecarState = `fired@${new Date().toISOString().slice(11, 19)} (${why})`
       } catch (e) {
         sidecarState = `write-failed: ${e}`
       }
-    }, 13_000)
-    ;(timer as { unref?: () => void }).unref?.()
+    }
+    const poll = setInterval(() => {
+      let onDisk = ''
+      try {
+        onDisk = readFileSync(draftPath, 'utf8')
+      } catch {
+        return
+      }
+      if (!onDisk.includes(BURST)) return
+      clearInterval(poll)
+      const beat = setTimeout(() => fire('the burst persisted'), S(1_500))
+      ;(beat as { unref?: () => void }).unref?.()
+    }, 250)
+    ;(poll as { unref?: () => void }).unref?.()
+    const fallback = setTimeout(() => {
+      clearInterval(poll)
+      fire('wall-clock fallback')
+    }, S(18_000))
+    ;(fallback as { unref?: () => void }).unref?.()
   },
   // Re-shaped: NO submit — the drive rulings made ↵ CONSUME the
   // draft into a queued dispatch row (held + noted), so the retired

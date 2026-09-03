@@ -6,8 +6,10 @@ import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { query } from '../query.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
+import { rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { ToolUseContext } from '../Tool.js'
+import { withAllowedCommandRules } from '../tools/AgentTool/agentPermissionPosture.js'
 import { GENERAL_PURPOSE_AGENT } from '../tools/AgentTool/built-in/generalPurposeAgent.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
@@ -125,27 +127,14 @@ export function createCacheSafeParams(hookContext: REPLHookContext): CacheSafePa
 // Permission grants
 // ---------------------------------------------------------------------------
 
-/** Adds the tools to the always-allow command rules; identity for an empty list. */
+/** Adds the tools to the always-allow command rules (the one merge law,
+ *  agentPermissionPosture.withAllowedCommandRules); identity for an empty list. */
 export function createGetAppStateWithAllowedTools(
   baseGetAppState: () => AppState,
   allowedTools: string[],
 ): () => AppState {
   if (allowedTools.length === 0) return baseGetAppState
-  return () => {
-    const state = baseGetAppState()
-    const existing = state.toolPermissionContext.alwaysAllowRules.command ?? []
-    const merged = [...new Set([...existing, ...allowedTools])]
-    return {
-      ...state,
-      toolPermissionContext: {
-        ...state.toolPermissionContext,
-        alwaysAllowRules: {
-          ...state.toolPermissionContext.alwaysAllowRules,
-          command: merged,
-        },
-      },
-    }
-  }
+  return () => withAllowedCommandRules(baseGetAppState(), allowedTools)
 }
 
 // ---------------------------------------------------------------------------
@@ -311,7 +300,15 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     skipCacheWrite,
   } = params
   const startedAt = Date.now()
-  const context = createSubagentContext(cacheSafeParams.toolUseContext, overrides)
+  const context: ToolUseContext = {
+    ...createSubagentContext(cacheSafeParams.toolUseContext, overrides),
+    // A fork rides its parent's context messages, so its requests ride the
+    // parent's frozen tool roster too — the tools array byte-for-byte, the
+    // prefix every parent thinking block is bound to and the cache the fork
+    // exists to share. Its own owner stays its own (attribution, the drop
+    // classifier).
+    rosterOwner: rosterOwnerFromToolUseContext(cacheSafeParams.toolUseContext),
+  }
   // The parent's messages followed by the prompt. Incomplete tool calls are
   // NOT filtered here: filtering drops a whole assistant message when its
   // tool batch is partial and strands the paired results (a request the
