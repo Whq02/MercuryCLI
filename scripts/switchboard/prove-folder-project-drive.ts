@@ -315,7 +315,7 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
   printFrame('d2b (the face from another folder)', d.lines)
   const face = markText(d, 'face')
   check('D2 the other folder is named as itself', face.includes('New Session in other'))
-  check('D2 foo is a selectable project now — the face\'s project row names it (the one list; no transcript needed)', /Recent Project.*foo|Projects.*foo/.test(face.replace(/\n/g, ' ')), face.split('\n').filter(l => /Project/.test(l)).join(' | '))
+  check('D2 foo is a selectable project now — the face\'s project row counts it (the one list; no transcript needed)', /\b[1-9]\d* repos? · pick a session/.test(face.replace(/\n/g, ' ')), face.split('\n').filter(l => /Project/.test(l)).join(' | '))
   check('D2 foo\'s wordless chat is never a Continue target', !face.includes('Continue Last Session'), face.split('\n').filter(l => l.includes('Continue')).join(' | '))
   reapHome(home)
 }

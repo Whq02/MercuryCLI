@@ -1,4 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
+import type { UsageWindowView } from './providers/providerUsage.js'
 
 export type CapPosture = 'off' | 'offer' | 'auto'
 
@@ -169,8 +170,8 @@ export interface FamilyWindowReads {
     resetsAtMs?: number
     windowName?: string
   }
-  anthropicWindows?: () => Array<{ key: string; usedPct?: number; resetsAtMs?: number }>
-  anthropicPools?: () => Array<{ key: string; label: string; usedPct?: number; resetsAtMs?: number }>
+  anthropicWindows?: () => UsageWindowView[]
+  anthropicPools?: () => UsageWindowView[]
   openaiActiveSource?: () => 'chatgpt-subscription' | 'api-key' | undefined
   openaiWall?: (source: 'chatgpt-subscription' | 'api-key') => { resetsAtMs: number } | null
   openaiBands?: () => Array<{ usedPct: number; resetsAtMs?: number; windowName: string }>
@@ -188,25 +189,12 @@ function liveFamilyWindowReads(): Required<FamilyWindowReads> {
     anthropicWindows: () => {
       const { anthropicWindowViews } =
         require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
-      return anthropicWindowViews()
-        .filter(view => view.state === 'live')
-        .map(view => ({
-          key: view.key,
-          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
-          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
-        }))
+      return anthropicWindowViews().filter(view => view.state === 'live')
     },
     anthropicPools: () => {
       const { anthropicPoolWindowViews } =
         require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
-      return anthropicPoolWindowViews()
-        .filter(view => view.state === 'live')
-        .map(view => ({
-          key: view.key,
-          label: view.label,
-          ...(view.usedPct !== undefined ? { usedPct: view.usedPct } : {}),
-          ...(view.resetsAtMs !== undefined ? { resetsAtMs: view.resetsAtMs } : {}),
-        }))
+      return anthropicPoolWindowViews().filter(view => view.state === 'live')
     },
     anthropic: () => {
       const limits = require('./claudeAiLimits.js') as typeof import('./claudeAiLimits.js')
@@ -282,22 +270,25 @@ function wallFact(family: string, wall: { resetsAtMs: number }, now: number, win
     : { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: wall.resetsAtMs }
 }
 
-export function bindingPoolKeyFor(model: string | null | undefined): string | null {
-  if (model === null || model === undefined || model.trim() === '') return null
-  let canonical = model
-  try {
-    const { getCanonicalName } = require('../utils/model/model.js') as typeof import('../utils/model/model.js')
-    canonical = getCanonicalName(model)
-  } catch {
-  }
-  const lowered = canonical.toLowerCase()
-  if (lowered.includes('fable') || lowered.includes('mythos')) return 'seven_day_fable'
-  if (lowered.includes('opus')) return 'seven_day_opus'
-  if (lowered.includes('sonnet')) return 'seven_day_sonnet'
-  return null
-}
-
 const WINDOW_RANK: Record<CapWindowState, number> = { unknown: 0, allowed: 1, warning: 2, rejected: 3 }
+
+function bindingWindowOfSeat(
+  model: string | null | undefined,
+  windows: () => UsageWindowView[],
+  pools: () => UsageWindowView[],
+): { window: UsageWindowView; windowName: string } | undefined {
+  if (model === null || model === undefined || model.trim() === '') return undefined
+  try {
+    const { bindingWindowOf } =
+      require('./providers/providerUsage.js') as typeof import('./providers/providerUsage.js')
+    return bindingWindowOf(
+      { provider: 'anthropic', shape: 'subscription-windows', windows: windows(), pools: pools() },
+      model,
+    )
+  } catch {
+    return undefined
+  }
+}
 
 export function observedFamilyWindow(
   family: string,
@@ -312,19 +303,13 @@ export function observedFamilyWindow(
       const a = r.anthropic()
       if (!a.observed) return unknown
       const windowName = a.windowName ?? 'usage window'
-      const sharedViews = ((): Array<{ key: string; usedPct?: number; resetsAtMs?: number }> => {
-        try {
-          return r.anthropicWindows()
-        } catch {
-          return []
-        }
-      })()
-      const sharedPct = ((): number | undefined => {
-        const stated = sharedViews.filter(view => view.usedPct !== undefined)
-        if (stated.length === 0) return undefined
-        return Math.max(...stated.map(view => view.usedPct as number))
-      })()
-      const shared: FamilyWindowFact = ((): FamilyWindowFact => {
+      const binding = bindingWindowOfSeat(opts?.model, r.anthropicWindows, r.anthropicPools)
+      const bindingLive =
+        binding !== undefined &&
+        binding.window.usedPct !== undefined &&
+        (binding.window.resetsAtMs === undefined || binding.window.resetsAtMs > now)
+      const bindingPct = bindingLive ? (binding.window.usedPct as number) : undefined
+      const latch: FamilyWindowFact = ((): FamilyWindowFact => {
         if (a.status === 'rejected' || a.status === 'allowed_warning') {
           if (a.resetsAtMs !== undefined && a.resetsAtMs <= now) {
             return { family, state: 'allowed', basis: 'stated-reset-elapsed', resetsAtMs: a.resetsAtMs }
@@ -335,38 +320,23 @@ export function observedFamilyWindow(
             basis: 'observed',
             ...(a.resetsAtMs !== undefined ? { resetsAtMs: a.resetsAtMs } : {}),
             windowName,
-            ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}),
+            ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}),
           }
         }
-        return { family, state: 'allowed', basis: 'observed', ...(sharedPct !== undefined ? { usedPct: sharedPct } : {}) }
+        return { family, state: 'allowed', basis: 'observed', ...(bindingPct !== undefined ? { usedPct: bindingPct } : {}) }
       })()
-      const poolKey = bindingPoolKeyFor(opts?.model)
-      if (poolKey === null) return shared
-      const pool = ((): { key: string; label: string; usedPct?: number; resetsAtMs?: number } | undefined => {
-        try {
-          return r.anthropicPools().find(view => view.key === poolKey)
-        } catch {
-          return undefined
-        }
-      })()
-      if (pool === undefined || pool.usedPct === undefined) return shared
-      const poolLive = pool.resetsAtMs === undefined || pool.resetsAtMs > now
-      if (!poolLive) return shared
-      const poolState: CapWindowState =
-        pool.usedPct >= 100 ? 'rejected' : pool.usedPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
-      const poolFact: FamilyWindowFact = {
+      if (!bindingLive || binding === undefined || bindingPct === undefined) return latch
+      const bindingState: CapWindowState =
+        bindingPct >= 100 ? 'rejected' : bindingPct >= CAP_APPROACHING_PCT ? 'warning' : 'allowed'
+      const bindingFact: FamilyWindowFact = {
         family,
-        state: poolState,
+        state: bindingState,
         basis: 'observed',
-        ...(pool.resetsAtMs !== undefined ? { resetsAtMs: pool.resetsAtMs } : {}),
-        windowName: `weekly ${pool.label} limit`,
-        usedPct: pool.usedPct,
+        ...(binding.window.resetsAtMs !== undefined ? { resetsAtMs: binding.window.resetsAtMs } : {}),
+        windowName: binding.windowName,
+        usedPct: bindingPct,
       }
-      const poolRank = WINDOW_RANK[poolFact.state]
-      const sharedRank = WINDOW_RANK[shared.state]
-      if (poolRank !== sharedRank) return poolRank > sharedRank ? poolFact : shared
-      if (shared.usedPct !== undefined && shared.usedPct > pool.usedPct) return shared
-      return poolFact
+      return WINDOW_RANK[bindingFact.state] > WINDOW_RANK[latch.state] ? bindingFact : latch
     }
     if (family === 'openai') {
       const source = r.openaiActiveSource()

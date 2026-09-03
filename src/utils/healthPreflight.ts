@@ -116,13 +116,19 @@ export async function runPreflight(): Promise<PreflightSummary> {
   }
 }
 
+let bootPreflight: Promise<PreflightSummary> | null = null
+
 export async function runAndRecordPreflight(): Promise<PreflightSummary> {
-  const summary = await runPreflight()
-  if (projectLocalEstateExists(healthStateRoot())) {
-    try {
-      await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
-    } catch {
+  if (bootPreflight !== null) return bootPreflight
+  bootPreflight = (async () => {
+    const summary = await runPreflight()
+    if (projectLocalEstateExists(healthStateRoot())) {
+      try {
+        await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
+      } catch {
+      }
     }
-  }
-  return summary
+    return summary
+  })()
+  return bootPreflight
 }
