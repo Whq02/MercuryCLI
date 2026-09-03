@@ -439,6 +439,28 @@ function providerAuthChecks(): CheckSpec[] {
   })
 }
 
+function providerUsageChecks(): CheckSpec[] {
+  let owner: typeof import('../services/providers/providerUsage.js')
+  let presences: ReturnType<typeof owner.providerFamilyPresences>
+  try {
+    owner = require('../services/providers/providerUsage.js') as typeof import('../services/providers/providerUsage.js')
+    presences = owner.providerFamilyPresences()
+  } catch {
+    return []
+  }
+  const { providerDisplayName } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
+  return presences
+    .filter(presence => presence.credentialed)
+    .map((presence): CheckSpec => ({
+      id: `usage-${presence.id}`,
+      label: `${providerDisplayName(presence.id)} usage`,
+      run: () => ({
+        status: 'info' as const,
+        evidence: owner.usageSummaryWords(owner.usageForProvider(presence.id)),
+      }),
+    }))
+}
+
 function webSearchDoorCheck(): CheckSpec {
   return {
     id: 'web-search-door',
@@ -2257,7 +2279,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
     {
       id: 'auth',
       title: 'AUTH',
-      checks: [...providerAuthChecks(), webSearchDoorCheck(), extraCaCertsCheck()],
+      checks: [...providerAuthChecks(), ...providerUsageChecks(), webSearchDoorCheck(), extraCaCertsCheck()],
     },
     {
       id: 'interface',
