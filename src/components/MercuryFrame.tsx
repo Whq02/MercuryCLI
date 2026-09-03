@@ -393,7 +393,15 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     const numberOnly = tier.numberOnlyGauges
     const showSecond = tier.show7dGauge
     const first = usage.windows[0]
-    const second = usage.windows[1]
+    // The second chip is the BINDING window for the session model — the
+    // highest-used window that applies to it, with its own label — when
+    // the first window is not itself the binding one: a per-model weekly
+    // pool at 87% surfaces here as 'Fable 87%' where the 7d chip at 44%
+    // would have hidden it. Otherwise the pair's second window.
+    const second =
+      usage.binding !== undefined && first !== undefined && usage.binding.window.key !== first.key
+        ? usage.binding.window
+        : usage.windows[1]
     // A reached limit on the active source lights one neutral chip — real
     // observations only, whatever the family (never a fabricated %).
     const limited = usage.limited
