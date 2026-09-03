@@ -387,8 +387,8 @@ try {
     let ptyOut: string | null = null
     try {
       ptyOut = execFileSync(
-        '/usr/bin/script',
-        scriptArgv(['node', BIN, 'doctor', '--only', 'build-identity']),
+        'python3',
+        ['-c', PTY_DRIVER, 'node', BIN, 'doctor', '--only', 'build-identity'],
         {
           cwd: dir,
           env: {
