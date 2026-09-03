@@ -17,12 +17,12 @@ function isMcpToolLike(tool: Tool): boolean {
 
 export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
   void permissionMode
+  void APOLLO_REVIEW_TOOL_NAME
   if (tool.alwaysLoad) return false
   if (isMcpToolLike(tool)) return true
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
   if (tool.name === SATURN_EXEMPT_TOOL_A && isSaturnExemptAEnabled()) return false
   if (tool.name === SATURN_EXEMPT_TOOL_B && isSaturnExemptBEnabled()) return false
-  if (tool.name === APOLLO_REVIEW_TOOL_NAME) return false
   return Boolean(tool.shouldDefer)
 }
 

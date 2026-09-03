@@ -311,7 +311,7 @@ export function describeThinkingDrops(
     case 'first':
       return describeInputTransformations(list)
     case 'recurrent':
-      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} on ${outcome.consecutive} consecutive requests with no compaction, model switch or transcript edit between them (${describePathClass(outcome.path)}). This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} at an earlier request with no compaction, model switch or transcript edit to explain it (${describePathClass(outcome.path)}); every thinking block after that point keeps dropping on each request until the conversation compacts. This row paints once. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
   }
 }
 
