@@ -12,6 +12,7 @@
 # gate-watch: src/utils/worktree.ts src/utils/projectStoreAdoption.ts
 # gate-watch: src/utils/bash/ShellSnapshot.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
+# gate-watch: src/utils/bash/bashPipeCommand* src/utils/bash/shellQuoting* src/utils/shell/bashProvider* src/utils/sandbox/sandbox-adapter*
 # ============================================================================
 #  scripts/bash/run-all.sh — Bash permission & security proof harness.
 #
@@ -52,6 +53,7 @@ __t=$SECONDS; "$bun" run "$here/prove-watch-root-census.ts" || fail=1; prover_ma
 __t=$SECONDS; "$bun" run "$here/prove-shell-snapshot-path.ts" || fail=1; prover_mark "$here/prove-shell-snapshot-path.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || fail=1; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-cwd-record.ts" || fail=1; prover_mark "$here/prove-shell-cwd-record.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-bash-tool-seams.ts" || fail=1; prover_mark "$here/prove-bash-tool-seams.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
