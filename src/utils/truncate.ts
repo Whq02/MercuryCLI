@@ -42,6 +42,48 @@ export function truncateStartToWidth(text: string, maxWidth: number): string {
   return ELLIPSIS + result
 }
 
+export function truncateKeepingTail(text: string, maxWidth: number, keepTail?: number): string {
+  if (stringWidth(text) <= maxWidth) return text
+  if (maxWidth <= 1) return ELLIPSIS
+  const parts = graphemes(text)
+  let tailStart = parts.length
+  if (keepTail !== undefined) {
+    let width = 0
+    for (let index = parts.length - 1; index >= 0; index--) {
+      const w = stringWidth(parts[index] as string)
+      if (width + w > keepTail) break
+      width += w
+      tailStart = index
+    }
+  } else {
+    const dash = text.lastIndexOf(' — ')
+    if (dash !== -1) {
+      const clauseAt = dash
+      let seen = 0
+      for (let index = 0; index < parts.length; index++) {
+        if (seen >= clauseAt) {
+          tailStart = index
+          break
+        }
+        seen += (parts[index] as string).length
+      }
+    }
+  }
+  const tail = parts.slice(tailStart).join('')
+  const tailWidth = stringWidth(tail)
+  if (tailWidth + 1 >= maxWidth) return truncateStartToWidth(tail, maxWidth)
+  const headBudget = maxWidth - tailWidth - 1
+  let head = ''
+  let width = 0
+  for (const grapheme of parts.slice(0, tailStart)) {
+    const graphemeWidth = stringWidth(grapheme)
+    if (width + graphemeWidth > headBudget) break
+    head += grapheme
+    width += graphemeWidth
+  }
+  return `${head.trimEnd()}${ELLIPSIS}${tail}`
+}
+
 export function truncateToWidthNoEllipsis(text: string, maxWidth: number): string {
   if (stringWidth(text) <= maxWidth) return text
   if (maxWidth <= 0) return ''
