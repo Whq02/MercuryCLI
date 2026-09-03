@@ -10,10 +10,14 @@
 //
 //    §1 THE SEAM — the armed fixture payload stands in for the wire and the
 //       fetch returns it whole (fable intact) for a seeded subscriber.
-//    §2 THE READER — the panel walks the full per-family vocabulary and
-//       titles each row by its family; the family-subset chain is ABSENT
-//       (the poison: `seven_day_opus ?? seven_day_sonnet` skipped fable).
-//    §3 THE PLAN GATE — the seeded max subscriber shows model-specific rows.
+//    §2 THE READER — the ONE owner walks the full per-family vocabulary
+//       (the folded fixture answers Fable and Opus, no Sonnet: a pool the
+//       endpoint did not state is absent, never 0%) and the panel paints
+//       every stated pool through that owner, titled by its label; the
+//       family-subset chain is ABSENT (the poison: `seven_day_opus ??
+//       seven_day_sonnet` skipped fable), and so is any second decode of
+//       the fetch response.
+//    §3 THE SUBSCRIBER — the seeded max subscriber reads as the fetch gate.
 //
 //  The render truth (both sizes) is the built-bundle /usage capture driven
 //  with this same armed payload.
@@ -104,29 +108,40 @@ section('§1 — the seam: the armed payload stands in for the wire, whole')
 }
 
 //
-section('§2 — the reader walks the full per-family vocabulary')
+section('§2 — the one owner walks the full per-family vocabulary; the panel reads it')
 //
 {
+  // The fetch above folded the fixture into the one record: the owner's
+  // pool view carries exactly what the endpoint stated.
+  const { anthropicPoolWindowViews } = await import('../../src/services/providers/providerUsage.ts')
+  const { WEEKLY_POOL_CLAIMS } = await import('../../src/services/claudeAiLimits.ts')
+  check('the owner\'s vocabulary lists every pooled family (fable included)', WEEKLY_POOL_CLAIMS.join(',') === 'seven_day_fable,seven_day_opus,seven_day_sonnet')
+  const pools = anthropicPoolWindowViews()
+  const byKey = Object.fromEntries(pools.map(p => [p.key, Math.round(p.usedPct ?? -1)]))
+  check('the owner reads the FABLE pool at 99', byKey.seven_day_fable === 99, JSON.stringify(byKey))
+  check('…and the Opus pool at 12', byKey.seven_day_opus === 12, JSON.stringify(byKey))
+  check('…and the Sonnet pool the endpoint never stated is ABSENT (never 0%)', !('seven_day_sonnet' in byKey), JSON.stringify(byKey))
+  check('every pool names its feed (endpoint-fed) and carries its stamp', pools.every(p => p.source === 'endpoint' && typeof p.observedAtMs === 'number'))
+
   const src = readFileSync(join(import.meta.dir, '../../src/components/Settings/Usage.tsx'), 'utf8')
   // The poison, composed at runtime so this file never spells it as live code:
   // the family-subset chain that skipped the fable bucket.
   const poisonChain = ['data.seven_day_opus ', '?? data.seven_day_sonnet'].join('')
-  check('the family-subset ??-chain is GONE from the reader', !src.includes(poisonChain))
-  check('the reader reads the FABLE bucket', src.includes('seven_day_fable'))
-  for (const family of ['Fable', 'Opus', 'Sonnet']) {
-    check(`the row walk lists ${family}`, src.includes(`['${family}', data.seven_day_${family.toLowerCase()}]`))
-  }
-  check('each painted row is titled by its family', src.includes('`Current week (${family})`'))
+  check('the family-subset ??-chain is GONE from the panel', !src.includes(poisonChain))
+  check('the panel reads the pools through the owner\'s pool view', src.includes('anthropicPoolWindowViews()'))
+  check('no second decode of the fetch response survives in the panel', !src.includes('data.seven_day_'))
+  check('each painted pool row is titled by its label', src.includes('`Current week (${w.label})`'))
+  check('no plan word gates a stated pool off the panel', !src.includes('showModelSpecific'))
 }
 
 //
-section('§3 — the seeded subscriber gates the model-specific rows on')
+section('§3 — the seeded subscriber passes the fetch gate')
 //
 {
   const auth = await import('../../src/utils/auth.ts')
   check('the seeded home reads as a claude.ai subscriber', auth.isClaudeAISubscriber() === true)
   check('…with the profile scope (the fetch gate)', auth.hasProfileScope() === true)
-  check('…on the max plan (the model-specific gate)', auth.getSubscriptionType() === 'max')
+  check('…on the max plan (the seeded custodian word)', auth.getSubscriptionType() === 'max')
 }
 
 try {

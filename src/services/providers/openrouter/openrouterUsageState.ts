@@ -26,6 +26,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveOpenrouterRequestAuth } from './openrouterAccounts.js'
 
 /** One deadline per key probe (the provider-call deadline law — the
@@ -65,7 +66,9 @@ let inFlight: Promise<OpenrouterKeyUsage | null> | null = null
  *  credits for the rest of the TTL. */
 let observedIdentity = 'none'
 
-const KEY_USAGE_TTL_MS = 60_000
+/** The poll cadence is the ONE usage-freshness TTL — the words that call a
+ *  read stale and the refresh that would renew it share the number. */
+const KEY_USAGE_TTL_MS = USAGE_POLL_TTL_MS
 const KEY_USAGE_FAILURE_RETRY_MS = 10_000
 
 /** The active credential's identity: a one-way digest of the bearer + the
