@@ -293,8 +293,8 @@ console.log('— T4 the Crew view painted off-screen —')
   const landed = await paint(landedRows)
   const landedFacts = crew.crewAgentsOf(landedRows, 'fx-session')
   check(
-    'T4 after landing: both agents still listed with model + tokens, the status word landed',
-    landed.includes(OPENAI_ID) && landed.includes(ANTHROPIC_ID) && landed.includes('completed') &&
+    'T4 after landing: both agents still listed with model + tokens, the one status word (landed, never the runner\'s completed)',
+    landed.includes(OPENAI_ID) && landed.includes(ANTHROPIC_ID) && landed.includes('landed') && !landed.includes('completed') &&
       landed.includes(crew.crewTokensLabel(landedFacts.find(a => a.id === 'ag1')!)!),
   )
   check('T4 after landing: the count label reads none running', landed.includes(crew.crewCountLabel(landedFacts)) && crew.crewCountLabel(landedFacts).startsWith('0 running'))
@@ -423,6 +423,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
   const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
   const ui = await import('../../src/tools/AgentTool/UI.tsx')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({
       sessionId: () => 'fx-session',
@@ -434,7 +435,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
   setFocusedSessionConnector(fake({ rows, mission: [] }))
   const paint = async (node: React.ReactNode, width: number): Promise<string> => {
     try {
-      return await renderToString(node, width)
+      return await renderToString(React.createElement(AppStateProvider as never, {}, node), width)
     } catch (e) {
       return `RENDER FAILED: ${String(e)}`
     }
