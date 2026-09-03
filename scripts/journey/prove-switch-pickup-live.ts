@@ -86,7 +86,10 @@ writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# switch drive fixture\n')
 // ── the fixture server (its own process — see the header) ──────────────────
 const captureFile = path.join(RUN_HOME, 'wire-captures.jsonl')
 writeFileSync(captureFile, '')
-const fixture = spawn(BUN, ['run', path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
+// Node hosts the fixture (its sibling drive measures a mid-stream drop,
+// which bun's node:http shim never raises); node strips the fixture's type
+// annotations natively.
+const fixture = spawn('node', [path.join(import.meta.dir, 'switch-fixture-server.ts'), captureFile], {
   stdio: ['ignore', 'pipe', 'pipe'],
 })
 const port = await new Promise<number>((resolve, reject) => {
