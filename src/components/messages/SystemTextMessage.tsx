@@ -311,6 +311,9 @@ export function SystemTextMessage({
         </Text>
       )
 
+    case 'roster_transition':
+      return <Text dimColor>{message.content}</Text>
+
     case 'api_error':
       return <SystemAPIErrorMessage message={message} verbose={verbose} />
 

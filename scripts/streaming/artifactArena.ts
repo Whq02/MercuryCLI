@@ -47,6 +47,8 @@ export interface ProbeDump {
   epochMinusPerfNow: number
 }
 
+const FACE_READY_NEEDLE = '↑↓ choose'
+
 export interface ArenaRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
@@ -124,7 +126,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const probeTee = join(home, 'flux-probe.json')
 
   const sendArgs: string[] = []
-  sendArgs.push('--send', 'after:↑↓ choose:900:\\r')
+  sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
   const anchor = opts.anchor === undefined ? { needle: COMPOSER_READY_NEEDLE, atMs: COMPOSER_NOMINAL_MS } : opts.anchor
   if (anchor !== null) sendArgs.push('--anchor', `${anchor.needle}:${anchor.atMs}`)
   for (const s of opts.sends) sendArgs.push('--send', s)
@@ -199,7 +201,9 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
         .filter(Boolean)
         .map(l => JSON.parse(l) as Partial<SendRecord> & { anchor?: number; shiftMs?: number })
     : []
-  const sendLog: SendRecord[] = driveRows.filter((r): r is SendRecord => r.sent !== undefined)
+  const sendLog: SendRecord[] = driveRows.filter(
+    (r): r is SendRecord => r.sent !== undefined && (r as { after?: string }).after !== FACE_READY_NEEDLE,
+  )
   const anchorShiftMs = driveRows.find(r => typeof r.anchor === 'number')?.shiftMs ?? 0
   let probe: ProbeDump | null = null
   if (opts.probe && existsSync(probeTee)) {
