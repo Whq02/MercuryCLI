@@ -89,6 +89,10 @@ import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
+import {
+  composeAgentAppState,
+  resolveAgentPromptPosture,
+} from './agentPermissionPosture.js'
 
 /**
  * Drop assistant messages containing a tool-use block with no matching tool
@@ -790,71 +794,47 @@ export async function* runAgent(
     }
 
     // ── Permission posture ─────────────────────────────────────────
+    // ONE owner (agentPermissionPosture.ts): the child inherits its
+    // parent's ask road — a background run of a session that can ask uses
+    // that session's card, the way the main thread does; a caller's
+    // explicit answer or a bubble definition overrides; a prompt-less
+    // parent stays prompt-less.
     const parentGetAppState = toolUseContext.getAppState
     const definitionMode = agentDefinition.permissionMode as
       | PermissionMode
       | undefined
-    const avoidPrompts =
-      canShowPermissionPrompts !== undefined
-        ? !canShowPermissionPrompts
-        : definitionMode === 'bubble'
-          ? false
-          : isAsync
+    const posture = resolveAgentPromptPosture({
+      isAsync,
+      canShowPermissionPrompts,
+      definitionMode,
+      parentAvoidsPrompts:
+        parentGetAppState?.()?.toolPermissionContext
+          .shouldAvoidPermissionPrompts === true,
+      parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
+    })
+    const avoidPrompts = posture.avoidPrompts
     const agentGetAppState: typeof parentGetAppState = () => {
       const state = parentGetAppState()
-      const parentState = state
-      const parentMode = parentState.toolPermissionContext.mode
-      let changed = false
-      let context = parentState.toolPermissionContext
-      if (
-        definitionMode &&
-        !modeBypassesPermissions(parentMode as never) &&
-        parentMode !== 'implement' &&
-        parentMode !== definitionMode
-      ) {
-        context = { ...context, mode: definitionMode as never }
-        changed = true
-      }
-      if (avoidPrompts !== Boolean(context.shouldAvoidPermissionPrompts)) {
-        context = { ...context, shouldAvoidPermissionPrompts: avoidPrompts }
-        changed = true
-      }
-      if (isAsync && !avoidPrompts && !context.awaitAutomatedChecksBeforeDialog) {
-        context = { ...context, awaitAutomatedChecksBeforeDialog: true }
-        changed = true
-      }
-      if (allowedTools && allowedTools.length > 0) {
-        const existingAllow = context.alwaysAllowRules
-        context = {
-          ...context,
-          alwaysAllowRules: {
-            ...(existingAllow['cliArg']
-              ? { cliArg: existingAllow['cliArg'] }
-              : {}),
-            command: allowedTools,
-          } as never,
-        }
-        changed = true
-      }
-      // Effort: THE ONE ladder (resolveAgentEffort — the per-agent PIN, a
-      // read-only override scoped to this run and never on an exact-tools
-      // agent; else the definition's; else the session's), written to
-      // effortValue: THE key dispatch reads (turn-machine reads
-      // iter.appState.effortValue through this agent-scoped view; the
-      // shared session store is never mutated). It used to land under a
-      // key nothing reads, so every child dispatched the parent session's
-      // tier while every readout named the declared one (FN-018 rank 2).
-      const effortValue = resolveAgentEffort({
-        effortOverride,
-        useExactTools,
-        definitionEffort: agentDefinition.effort,
-        sessionEffort: state.effortValue,
+      return composeAgentAppState(state, {
+        definitionMode,
+        avoidPrompts,
+        isAsync,
+        allowedTools,
+        // Effort: THE ONE ladder (resolveAgentEffort — the per-agent PIN, a
+        // read-only override scoped to this run and never on an exact-tools
+        // agent; else the definition's; else the session's), written to
+        // effortValue: THE key dispatch reads (turn-machine reads
+        // iter.appState.effortValue through this agent-scoped view; the
+        // shared session store is never mutated). It used to land under a
+        // key nothing reads, so every child dispatched the parent session's
+        // tier while every readout named the declared one (FN-018 rank 2).
+        effortValue: resolveAgentEffort({
+          effortOverride,
+          useExactTools,
+          definitionEffort: agentDefinition.effort,
+          sessionEffort: state.effortValue,
+        }),
       })
-      if (effortValue !== undefined && parentState.effortValue !== effortValue) {
-        return { ...parentState, toolPermissionContext: context, effortValue }
-      }
-      if (!changed) return parentState
-      return { ...parentState, toolPermissionContext: context }
     }
 
     // ── Hooks ─────────────────────────────────────────────────────────────
@@ -964,14 +944,10 @@ export async function* runAgent(
 
     // ── Agent options + child context ─────────────────────────────────────
     const parentOptions = toolUseContext.options
-    // Non-interactivity: fork children keep the parent option's value;
-    // async children are always non-interactive; sync children take the
-    // parent option, defaulting to false.
-    const isNonInteractiveSession = isFork
-      ? parentOptions.isNonInteractiveSession
-      : isAsync
-        ? true
-        : (parentOptions.isNonInteractiveSession ?? false)
+    // Non-interactivity follows the parent (the posture owner): a
+    // background child of an interactive session can put a card in front
+    // of the operator exactly as the main thread can.
+    const isNonInteractiveSession = posture.isNonInteractiveSession
 
     // Thinking configuration: fork children inherit the parent's
     // configuration untouched. Every other child gets a DEFINITE config —
