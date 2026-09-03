@@ -47,11 +47,12 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSION CONCOURSE'
-const FACE_TO_CONCOURSE = '⇧→ concourse'
-const FACE_TO_CHAT = '⇧→ chat'
+const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
+const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const ARROW_DOWN = '\x1b[B'

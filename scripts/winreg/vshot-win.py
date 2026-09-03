@@ -107,7 +107,32 @@ send_stable_run = 0
 send_stable_text = None
 send_stable_eval_tick = -1
 raw_seen = bytearray()
-resizes = sorted(cfg.get("resizes", []), key=lambda r: r.get("atTick", 0))
+TICK_S = 0.2
+_RELATIVE_KEYS = ("atMs", "afterMark", "afterPrevMs")
+_resizes_raw = list(cfg.get("resizes", []))
+if all(not any(k in r for k in _RELATIVE_KEYS) for r in _resizes_raw):
+    resizes = sorted(_resizes_raw, key=lambda r: r.get("atTick", 0))
+else:
+    resizes = _resizes_raw
+
+
+def _resize_due_s(step, marks_fired_s, last_resize_s):
+    """Seconds after start at which `step` is due; None while its anchor
+    (a mark or a previous resize) has not fired."""
+    if "afterMark" in step:
+        base = marks_fired_s.get(step["afterMark"])
+        if base is None:
+            return None
+        return base + float(step.get("afterMs", 0)) / 1000.0
+    if "afterPrevMs" in step:
+        if last_resize_s is None:
+            return None
+        return last_resize_s + float(step["afterPrevMs"]) / 1000.0
+    if "atMs" in step:
+        return float(step["atMs"]) / 1000.0
+    return int(step.get("atTick", 0)) * TICK_S
+
+
 tee_path = os.environ.get("VSHOT_TEE")
 tee = open(tee_path, "ab") if tee_path else None
 
@@ -187,15 +212,21 @@ def grid_text(region=None):
 
 
 t0 = time.monotonic()
-TICK_S = 0.2
 alive = True
+marks_fired_s = {}
+last_resize_s = None
 while True:
     tick = int((time.monotonic() - t0) / TICK_S)
     if tick >= total:
         ended_at_tick, end_reason = tick, "budget"
         break
-    if resized < len(resizes) and tick >= int(resizes[resized].get("atTick", 0)):
+    if resized < len(resizes):
+        due_s = _resize_due_s(resizes[resized], marks_fired_s, last_resize_s)
+    else:
+        due_s = None
+    if due_s is not None and (time.monotonic() - t0) >= due_s:
         step = resizes[resized]
+        now_s = time.monotonic() - t0
         stages.append(
             {"cols": cols, "rows": rows, "untilTick": tick, "grid": snap_grid(cols, rows)}
         )
@@ -203,6 +234,7 @@ while True:
         screen.resize(rows, cols)
         pty.set_size(cols, rows)
         resized += 1
+        last_resize_s = now_s
     got = False
     try:
         data = pty.read(65536, blocking=False)
@@ -282,6 +314,7 @@ while True:
                 marks.append({"label": nxt["mark"], "atTick": tick,
                               "cols": cols, "rows": rows,
                               "grid": snap_grid(cols, rows)})
+                marks_fired_s[nxt["mark"]] = time.monotonic() - t0
             pty.write(send_payload)
             send_receipts.append({"atTick": tick, "ts": int(time.time() * 1000)})
             prev_send_tick = tick
