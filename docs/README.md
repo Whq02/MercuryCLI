@@ -11,7 +11,10 @@ every page under `docs/` is listed here, by task.
    headless verbs, and every slash command.
 2. [AGENTS.md](../AGENTS.md): build, run and check a fresh checkout in one
    screen. [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md)
-   is the step-by-step Windows install, every step with its check.
+   is the step-by-step Windows install, every step with its check;
+   [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md) is the
+   ten-minute look over a Windows terminal after an update: the rows whose
+   marks must read as text, and what to report when one draws as a picture.
 3. The first run: [TRUST.md](TRUST.md) is the workspace-trust question the
    first boot asks, and [SESSIONS.md](SESSIONS.md) is the Boot face, the
    chat, the strip and the concourse board you land in.
