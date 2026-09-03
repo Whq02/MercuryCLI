@@ -2,6 +2,7 @@ import { toolMatchesName, type Tool, type ToolPermissionContext, type Tools } fr
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { formatDeferredToolLine, isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
+import { logForDebugging } from '../../utils/debug.js'
 import { createUserMessage } from '../../utils/messages.js'
 import {
   extractDiscoveredToolNames,
@@ -19,6 +20,37 @@ export interface ToolPayloadPlanInput {
   agents: AgentDefinition[]
   hasPendingMcpServers?: boolean
   source?: string
+  latchKey?: string
+}
+
+interface RosterLatch {
+  enabled: boolean
+  names: ReadonlySet<string>
+}
+const rosterLatches = new Map<string, RosterLatch>()
+
+export function clearToolRosterLatches(): void {
+  rosterLatches.clear()
+}
+
+function firstConversationRow(messages: readonly Message[]): string {
+  for (const message of messages) {
+    if (message.type === 'user' || message.type === 'assistant') return message.uuid
+  }
+  return 'empty'
+}
+
+function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string, mode: string): string {
+  return `${latchKey}|${firstConversationRow(messages)}|${model}|${mode}`
+}
+
+export function toolRosterLatchFor(
+  latchKey: string,
+  messages: readonly Message[],
+  model: string,
+  mode: string,
+): RosterLatch | undefined {
+  return rosterLatches.get(rosterLatchKey(latchKey, messages, model, mode))
 }
 
 export interface ToolPayloadPlan {
@@ -48,25 +80,49 @@ export function deferredToolsAnnouncement(tools: Tools, deferredNames: ReadonlyS
 export async function planToolPayload(input: ToolPayloadPlanInput): Promise<ToolPayloadPlan> {
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
-  let enabled = await isToolSearchEnabled(
-    model,
-    tools,
-    input.getToolPermissionContext,
-    input.agents,
-    input.source,
-    wire.form,
-  )
+  const rosterPermissionMode = (await input.getToolPermissionContext()).mode
+  const latchKey =
+    input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model, rosterPermissionMode)
+  const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
+
+  let enabled: boolean
+  if (latched !== undefined) {
+    enabled = latched.enabled
+  } else {
+    enabled = await isToolSearchEnabled(
+      model,
+      tools,
+      input.getToolPermissionContext,
+      input.agents,
+      input.source,
+      wire.form,
+    )
+  }
 
   const deferredNames = new Set<string>()
   if (enabled) {
-    const rosterPermissionMode = (await input.getToolPermissionContext()).mode
     for (const t of tools) {
       if (isDeferredTool(t, rosterPermissionMode)) deferredNames.add(t.name)
     }
   }
 
-  if (enabled && deferredNames.size === 0 && !input.hasPendingMcpServers) {
+  if (latched === undefined && enabled && deferredNames.size === 0 && !input.hasPendingMcpServers) {
     enabled = false
+  }
+
+  if (latchKey !== null && latched === undefined) {
+    rosterLatches.set(latchKey, { enabled, names: new Set(tools.map(t => t.name)) })
+  }
+  const held = new Set<string>()
+  if (latched !== undefined && !latched.enabled) {
+    for (const t of tools) {
+      if (!latched.names.has(t.name)) held.add(t.name)
+    }
+    if (held.size > 0) {
+      logForDebugging(
+        `tool roster frozen: ${held.size} tool(s) joined after the first request and stay out until the next compaction or /clear (${[...held].join(', ')})`,
+      )
+    }
   }
 
   const admittedNames = enabled ? extractDiscoveredToolNames(messages as Message[]) : new Set<string>()
@@ -76,7 +132,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
         if (toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME)) return true
         return admittedNames.has(tool.name)
       })
-    : tools.filter(t => !toolMatchesName(t, TOOL_SEARCH_TOOL_NAME))
+    : tools.filter(t => !toolMatchesName(t, TOOL_SEARCH_TOOL_NAME) && !held.has(t.name))
 
   const announcement = enabled && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(tools, deferredNames) : null
 
