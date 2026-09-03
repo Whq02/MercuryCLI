@@ -66,9 +66,11 @@ build-and-run guide; [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 
 ## The first run
 
-The first interactive run is a short walk: pick a theme (the screen re-tints
-as you move), then sign in to a provider or choose "sign in later" and look
-around logged-out. After the walk, Mercury asks whether you trust the folder
+The first interactive run is a short walk: pick an appearance (the screen
+re-tints as you move; True Black is the default, the oasis dark ground is the
+other row, and `/appearance` changes it later), then sign in to a provider or
+choose "sign in later" and look around logged-out. After the walk, Mercury
+asks whether you trust the folder
 you started in. Nothing a workspace config asks for runs before you trust
 the folder, a grant covers the whole repository, and declining exits
 ([docs/TRUST.md](docs/TRUST.md)).
@@ -189,7 +191,7 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
   ([docs/EXTENSIONS.md](docs/EXTENSIONS.md)).
 - **MCPs & Skills**: what a session loads, as a per-repository record with
   named presets and in-session dials ([docs/KIT.md](docs/KIT.md)).
-- **Agents and teams**: named teammates, an agent studio, workflow runs and
+- **Agents and teams**: named agents, an agent studio, workflow runs and
   the boards that watch them ([docs/TEAMS.md](docs/TEAMS.md)).
 - **Saturn**: wake a session with a prompt at a time or on a recurrence, or
   schedule a fresh session's birth ([docs/SATURN.md](docs/SATURN.md)).
