@@ -25,6 +25,7 @@ import type { ConfigParseError } from '../utils/errors.js'
 import { gracefulShutdownSync } from '../utils/gracefulShutdown.js'
 import { findMostRecentBackup, getConfigBackupDir, restoreConfigFromBackup } from '../utils/config/globalConfig.js'
 import { logError } from '../utils/log.js'
+import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 
 type Choice = 'exit' | 'reset' | 'restore'
 
@@ -38,8 +39,9 @@ function InvalidConfigDialogInner({
   backupPath: string | null
   onChoice: (choice: Choice) => void
 }): React.ReactNode {
-  // Safe here: the enclosing ThemeProvider is pinned to 'dark', so the
-  // token resolution never re-reads the (broken) config file.
+  // Safe here: the enclosing ThemeProvider is pinned to the default
+  // appearance, so the token resolution never re-reads the (broken) config
+  // file.
   const tokens = useMercuryTokens()
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={tokens.failure} paddingX={1} gap={1}>
@@ -92,7 +94,7 @@ export function showInvalidConfigDialog({
     render(
       <AppStateProvider>
         <KeybindingSetup>
-          <ThemeProvider initialState="dark">
+          <ThemeProvider initialState={DEFAULT_THEME_SETTING}>
             <InvalidConfigDialogInner
               error={error}
               backupPath={backupPath}

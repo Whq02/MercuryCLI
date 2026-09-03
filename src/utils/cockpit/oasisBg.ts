@@ -12,7 +12,9 @@
 //
 //  Fill law: this module is the ONE owner of the terminal's
 //  default-background channel. Three writers would otherwise compete — this module
-//  (NIGHT at boot / OSC 111 at exit), warmBackground.ts (query-original →
+//  (the resolved appearance's family ground at boot — pure black on the
+//  True Black default, the oasis NIGHT on the oasis appearance — / OSC 111
+//  at exit), warmBackground.ts (query-original →
 //  paint → restore-exact at cleanupTerminalModes), and the launcher splash
 //  (its own `]11;#070D12` before the handoff). The recorded failure modes:
 //    • the warm-bg OSC 11 query is SENT after the oasis paint, so its "user
@@ -37,7 +39,7 @@ import { groundFamilyFor, NIGHT } from '../../components/mercuryPalette.js'
 import { launcherHeldAtBoot } from '../../ink/launcherAltHold.js'
 import { getGlobalConfig } from '../config.js'
 import { isDarkThemeFamily } from '../mercuryTokens.js'
-import { resolveThemeSetting } from '../systemTheme.js'
+import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName } from '../theme.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
@@ -46,7 +48,7 @@ function concreteTheme(): ThemeName {
   try {
     return resolveThemeSetting(getGlobalConfig().theme)
   } catch {
-    return 'dark' // config unreadable at this instant — the identity default
+    return DEFAULT_THEME_SETTING // config unreadable at this instant — the default appearance
   }
 }
 
@@ -68,8 +70,8 @@ export function oasisBgEnabled(
 
 /** The set sequence — the flat ground of the given appearance's family
  *  (mercuryPalette groundFamilyFor: oasis NIGHT for dark, #000000 for
- *  true-black). */
-export function oasisBgEnter(theme: ThemeName = 'dark'): string {
+ *  true-black — the default appearance). */
+export function oasisBgEnter(theme: ThemeName = DEFAULT_THEME_SETTING): string {
   return `\x1b]11;${groundFamilyFor(theme).NIGHT}\x07`
 }
 
