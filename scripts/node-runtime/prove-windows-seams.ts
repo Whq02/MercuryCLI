@@ -358,9 +358,12 @@ section('(13) the Windows install guide tells the tree\'s truth (a ratchet on th
   // TASK-014 W1's doc rows: every claim below was driven false on the box.
   const doc = readFileSync(join(ROOT, 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
   check('no "refuses to draw narrower than 100" claim', !/refuses to draw narrower/.test(doc))
-  check('the real floor is stated (80 columns and 24 rows)', /80 columns and 24 rows/.test(doc))
+  // ONE floor: the viewport floor's owner names the columns and rows the doc
+  // states, and the concourse's too-small profile reads the same constants.
+  const { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } = await import('../../src/ink/viewportFloor.ts')
+  check(`the real floor is stated (${VIEWPORT_FLOOR_COLS} columns and ${VIEWPORT_FLOOR_ROWS} rows)`, doc.includes(`${VIEWPORT_FLOOR_COLS} columns and ${VIEWPORT_FLOOR_ROWS} rows`))
   const layout = readFileSync(join(ROOT, 'src', 'components', 'concourse', 'ConcourseLayout.tsx'), 'utf8')
-  check("…and it is the tree's floor (ConcourseLayout: cols < 80 || rows < 24)", /cols < 80 \|\| rows < 24/.test(layout))
+  check("…and it is the tree's floor (ConcourseLayout reads the viewport floor's owner)", layout.includes('cols < VIEWPORT_FLOOR_COLS || rows < VIEWPORT_FLOOR_ROWS'))
   check('the winget id is the LTS line', doc.includes('winget install --id OpenJS.NodeJS.LTS --source winget') && !/--id OpenJS\.NodeJS --source/.test(doc))
   check('no "spaces break some build tooling" claim', !/spaces break/.test(doc))
   // The launch splash reaches a direct start too: the build copies the asset

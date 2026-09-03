@@ -11,6 +11,7 @@ import {
 import { getTeamName } from '../../utils/teammate.js'
 import { readTeamFileAsync } from '../../utils/swarm/teamHelpers.js'
 import { LAUNCH_FLEET_TOOL_NAME } from './constants.js'
+import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
 /**
@@ -102,7 +103,9 @@ export const LaunchFleetTool = buildTool({
   },
   shouldDefer: true,
   isEnabled() {
-    return isAgentSwarmsEnabled()
+    // A fleet launch spawns agents: the session's sub-agents switch
+    // (through the launch-authority valve) removes it with the Agent tool.
+    return isAgentSwarmsEnabled() && evaluateLaunchAuthority('subagents').allowed
   },
   // Creates multiple tasks + wires dependencies; not safe to run concurrently
   // against itself (sequential createTask is required for stable id ordering).

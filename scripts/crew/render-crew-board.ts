@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 // CI-portability: derive the checkout root — never a machine literal.
 const RUNTIME_CWD = join(import.meta.dir, '..', '..')
 
@@ -75,20 +76,47 @@ const lines = [
     timestamp: '2026-06-19T13:00:02.000Z',
   }),
 ]
-writeFileSync(join(PROJECTS, `${SID}.jsonl`), lines.map(l => JSON.stringify(l)).join('\n') + '\n')
+// The seedTranscript law: the rows go through the real record codec — a raw
+// legacy line seeds a session no --resume boot can open ("No conversation
+// found for session id"), and every scripted send then goes undelivered.
+writeFileSync(join(PROJECTS, `${SID}.jsonl`), encodeSeedTranscript(lines, SID))
 
 function capture(cols: number, tag: string, extraEnv: Record<string, string>): string[] | null {
   const grid = `/tmp/crew-board-grid-${tag}-${cols}.json`
   const cfgPath = `/tmp/crew-board-cfg-${tag}-${cols}.json`
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, '--resume', SID],
-    sends: [{ atTick: 30, data: '/teammates' }, { atTick: 36, data: '\r' }],
-    total: 60, cols, rows: 44, out: grid,
+    // Observed-ready sends: the status row's "· ready" is the resumed chat's
+    // own ready word at every width (the composer placeholder varies with
+    // the repo — a project without standing orders offers /init); the
+    // view's section header is the capture's ready text.
+    sends: [
+      { data: '/teammates', atTick: 999, awaitText: '· ready', requireAwait: true, minTick: 5, awaitSettleTicks: 3 },
+      { data: '\r', afterPrevTicks: 4 },
+    ],
+    readyText: ['Sub-agents'], stableTicks: 5,
+    total: 200, cols, rows: 44, out: grid,
   }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf-8', timeout: vshotBudgetMs(90000),
     env: {
-      ...process.env,      MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: FAKE_KEY, ...extraEnv,
+      ...process.env,
+      MERCURY_CONFIG_DIR: home,
+      // Hermetic: the resumed session's daemon and crew home live under the
+      // scratch home; no machine keychain, the fixture operator handle, the
+      // display pins every capture carries.
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_OPERATOR: 'sam',
+      MERCURY_TERMINAL_TITLE: '0',
+      MERCURY_CRITTER_IDLE: '0',
+      MERCURY_CRITTER_GAZE: '0',
+      MERCURY_CRITTER_SLEEP: '0',
+      MERCURY_LIVE_CLOCK: '0',
+      MERCURY_LIVE_GLYPHS: '0',
+      ANTHROPIC_API_KEY: FAKE_KEY,
+      ...extraEnv,
     },
   })
   if (res.status !== 0) {

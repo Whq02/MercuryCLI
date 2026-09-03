@@ -58,6 +58,7 @@ import {
   settleAgentWorktree,
 } from '../../utils/worktree.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
+import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
 
 // The schema-bound structured-output tool builder and its canonical wire
 // name. The name is owned by ./structuredOutputTool.js; importing and
@@ -493,6 +494,12 @@ async function* adapterSpawnStream(
   args: SpawnSubagentArgs,
 ): AsyncGenerator<SubagentStreamEvent, void> {
   type RunAgentOpts = Parameters<typeof runAgent>[0]
+  // A workflow's agent is a sub-agent: the launch-authority valve (the
+  // session's sub-agents switch first) answers the one receipt — a run
+  // already going finishes its running agents; a NEW launch after the
+  // switch went off refuses here.
+  const authority = evaluateLaunchAuthority('subagents')
+  if (!authority.allowed) throw new Error(authority.reason)
   const view = args.toolUseContext as unknown as HookContextView
   const appState = view.getAppState()
   const def = args.agentDefinition as { agentType?: string; permissionMode?: string }
