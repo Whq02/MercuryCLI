@@ -13,6 +13,7 @@
 # gate-watch: src/utils/bash/ShellSnapshot.ts
 # gate-watch: src/services/lsp/LSPClient.ts src/services/dap/dapClient.ts
 # gate-watch: src/utils/shell/windowsShellRoad.ts src/utils/windowsPaths.ts src/utils/shell/shellToolUtils.ts
+# gate-watch: .github/workflows/shell-windows-probe.yml .github/workflows/private-release.yml
 set -u
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
 
@@ -38,6 +39,7 @@ __t=$SECONDS; "$bun" run "$here/prove-shell-snapshot-path.ts" || fail=1; prover_
 __t=$SECONDS; "$bun" run "$here/prove-teardown-ends-the-tree.ts" || fail=1; prover_mark "$here/prove-teardown-ends-the-tree.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-shell-cwd-record.ts" || fail=1; prover_mark "$here/prove-shell-cwd-record.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-windows-shell-road.ts" || fail=1; prover_mark "$here/prove-windows-shell-road.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-shell-windows-pack-layout.ts" || fail=1; prover_mark "$here/prove-shell-windows-pack-layout.ts" "$__t"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"
