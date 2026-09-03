@@ -187,6 +187,10 @@ export type GlobalConfig = {
   subModels?: {
     minerva?: string
     console?: string
+    effort?: {
+      minerva?: string
+      console?: string
+    }
   }
   switchboardCapacity?: {
     askedAt: number
