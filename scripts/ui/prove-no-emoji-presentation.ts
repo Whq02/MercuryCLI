@@ -138,12 +138,13 @@ function scriptKindOf(file: string): ts.ScriptKind {
 }
 
 /** A painted-value candidate: any file carrying a non-ASCII Emoji=Yes code
- *  point, a backslash-u escape (the cooked value may be one), or a `figures`
- *  reference the parser must resolve. */
+ *  point or a presentation selector, a backslash-u escape (the cooked value
+ *  may be one), or a `figures` reference the parser must resolve. */
 function worthParsing(text: string): boolean {
   if (text.includes('figures') || /\\u(?:[0-9a-fA-F]{4}|\{)/.test(text)) return true
   for (const ch of text) {
     const cp = ch.codePointAt(0)!
+    if (cp === TEXT_PRESENTATION_SELECTOR || cp === EMOJI_PRESENTATION_SELECTOR) return true
     if (cp > 0x7f && hasEmojiProperty(cp)) return true
   }
   return false
