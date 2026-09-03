@@ -146,10 +146,11 @@ export async function flushHistoryNow(): Promise<void> {
 
 export function getHistoryFlushHealth(): {
   pending: number
+  inFlight: boolean
   streak: number
   lastFailure: { at: number; message: string } | null
 } {
-  return { pending: pendingEntries.length, streak: flushFailureStreak, lastFailure }
+  return { pending: pendingEntries.length, inFlight: inFlightFlush !== null, streak: flushFailureStreak, lastFailure }
 }
 
 

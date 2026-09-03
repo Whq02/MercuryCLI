@@ -26,6 +26,11 @@ const ROOT = join(import.meta.dir, '..', '..')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setOriginalCwd(cwd)
 const history = await import('../../src/history.ts')
+const quiet = (): boolean => {
+  const h = history.getHistoryFlushHealth()
+  return h.pending === 0 && !h.inFlight
+}
+
 const census = history.historyIoCensus
 const reset = (): void => {
   census.reads = 0
@@ -79,7 +84,7 @@ section('H3 the corpus carries the pending buffer first and honours a retraction
   history.removeLastFromHistory()
   const afterRetract = await history.loadHistoryCorpus()
   check('a retracted entry leaves the corpus whether it reached the disk or not', afterRetract[0]?.display !== 'typed just now', String(afterRetract[0]?.display))
-  await waitUntil(() => history.getHistoryFlushHealth().pending === 0, { tries: 2000 })
+  await waitUntil(() => quiet(), { tries: 2000 })
 }
 
 section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 MiB of whole lines')
@@ -100,7 +105,7 @@ section('H4 compaction — a flush past 8 MiB rewrites the file to its newest 4 
   reset()
   history.addToHistory('after the compaction')
   const compacted = await waitUntil(() => census.compactions >= 1, { tries: 2000 })
-  await waitUntil(() => history.getHistoryFlushHealth().pending === 0, { tries: 2000 })
+  await waitUntil(() => quiet(), { tries: 2000 })
   const sizeAfter = statSync(filePath).size
   const text = readFileSync(filePath, 'utf8')
   const lines = text.split('\n').filter(l => l !== '')
