@@ -560,6 +560,11 @@ export async function runHeadless(
     const [wards, tabula, crew] = await sessionWiringModules()
     wards.registerWardsHook(setAppState, sid)
     tabula.registerTabulaFireHooks(setAppState, sid)
+    // The standing mission rides the SEAT: a card left armed for this
+    // conversation arms the runner's own Stop hook here — the turn ends in
+    // this process, never in the cockpit's app state.
+    const mission = await import('../utils/hooks/missionHook.js')
+    mission.rearmMissionFromCard(setAppState, { cardSessionId: sid, armSessionId: sid })
     void crew.bootCrewIdentity({ sessionId: sid, worktreeRef: getCwd() }).catch(e => {
       logForDebugging(`[session-runner] crew identity boot failed (non-blocking): ${e}`)
     })
@@ -3086,6 +3091,11 @@ export async function runHeadless(
         }
         if (typed.type === 'user') {
           sessionInitialized = true
+          // The card the cockpit writes for this conversation is read at
+          // every turn start: a mission set (or cleared) mid-session
+          // reaches the seat's own Stop hook before the turn runs.
+          const missionSync = await import('../utils/hooks/missionHook.js')
+          missionSync.syncMissionFromCard(setAppState, String(getSessionId()))
           const uuid = typed.uuid
           if (uuid) {
             // The wire uuid is a plain string; the session store keys on the

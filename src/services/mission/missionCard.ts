@@ -98,3 +98,40 @@ export function listMissionCards(cwd?: string): MissionCard[] {
     return []
   }
 }
+
+/**
+ * THE ORPHAN MIGRATION (once, at a resume): before the card keyed by the
+ * conversation, the cockpit keyed it by its own process id — an id no
+ * transcript carries, so a resume adopting the conversation found nothing.
+ * When the adopted conversation has no card and exactly ONE armed card is
+ * keyed by an id with no transcript in this project, that card is the
+ * operator's standing mission: it is re-keyed to the conversation and the
+ * old card rewritten as `continued`. Two or more orphans are ambiguous and
+ * left alone. Returns whether a card was migrated.
+ */
+export function migrateOrphanedMissionCard(conversationId: string, cwd?: string): boolean {
+  try {
+    if (readMissionCard(conversationId, cwd) !== null) return false
+    const dir = missionCardsDir(cwd)
+    if (!existsSync(dir)) return false
+    const projectDir = getProjectDir(cwd ?? getOriginalCwd())
+    const orphans: MissionCard[] = []
+    for (const name of readdirSync(dir)) {
+      if (!name.endsWith('.json')) continue
+      const card = readMissionCard(name.slice(0, -'.json'.length), cwd)
+      if (card === null || card.state !== 'armed') continue
+      if (existsSync(join(projectDir, `${card.sessionId}.jsonl`))) continue
+      orphans.push(card)
+    }
+    if (orphans.length !== 1) return false
+    const orphan = orphans[0]!
+    const now = new Date().toISOString()
+    writeMissionCard({ ...orphan, sessionId: conversationId, updatedAt: now }, cwd)
+    writeMissionCard({ ...orphan, state: 'continued', nextStep: `continued in session ${conversationId}`, updatedAt: now }, cwd)
+    logForDebugging(`[mission] migrated the card keyed by a process id (${orphan.sessionId}) to the conversation ${conversationId}`)
+    return true
+  } catch (error) {
+    logForDebugging(`missionCard: migration failed: ${String(error)}`)
+    return false
+  }
+}
