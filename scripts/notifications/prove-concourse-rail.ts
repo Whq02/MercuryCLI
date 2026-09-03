@@ -170,15 +170,36 @@ let sidecarState = 'never-fired'
 const erun: ArenaRun = await runArtifactArena({
   turns: [],
   seedHome: configDir => {
-    const timer = setTimeout(() => {
+    const draftPath = join(configDir, 'concourse-draft.json')
+    let fired = false
+    const fire = (why: string): void => {
+      if (fired) return
+      fired = true
       try {
-        writeFileSync(join(configDir, 'concourse-draft.json'), JSON.stringify({ draft: '', updatedAtMs: Date.now() }))
-        sidecarState = `fired@${new Date().toISOString().slice(11, 19)}`
+        writeFileSync(draftPath, JSON.stringify({ draft: '', updatedAtMs: Date.now() }))
+        sidecarState = `fired@${new Date().toISOString().slice(11, 19)} (${why})`
       } catch (e) {
         sidecarState = `write-failed: ${e}`
       }
-    }, 13_000)
-    ;(timer as { unref?: () => void }).unref?.()
+    }
+    const poll = setInterval(() => {
+      let onDisk = ''
+      try {
+        onDisk = readFileSync(draftPath, 'utf8')
+      } catch {
+        return
+      }
+      if (!onDisk.includes(BURST)) return
+      clearInterval(poll)
+      const beat = setTimeout(() => fire('the burst persisted'), S(1_500))
+      ;(beat as { unref?: () => void }).unref?.()
+    }, 250)
+    ;(poll as { unref?: () => void }).unref?.()
+    const fallback = setTimeout(() => {
+      clearInterval(poll)
+      fire('wall-clock fallback')
+    }, S(18_000))
+    ;(fallback as { unref?: () => void }).unref?.()
   },
   sends: [
     'after:COORDINATOR:1500: ',
