@@ -331,7 +331,14 @@ if (ENSURE_SKIP !== '') {
   const mgr = read('src/services/concourse/managerMode.ts')
   check('A4 the manager lane receipt speaks it too', mgr.includes('kit ${laneKitSource}'))
   const server = read('src/daemon/controlServer.ts')
-  check('A4 the server forwards kitSource on the admit AND dispatch answers', server.split('r.kitSource !== undefined').length === 3)
+  const wireList = (name: string): string => (server.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`)) ?? [])[1] ?? ''
+  check(
+    'A4 the server forwards kitSource on the admit AND dispatch answers (the wire-pick key lists carry it; both answers spread their list)',
+    /'kitSource'/.test(wireList('ADMIT_WIRE_KEYS')) &&
+      /'kitSource'/.test(wireList('DISPATCH_WIRE_KEYS')) &&
+      server.includes('...pickDefined(r, ADMIT_WIRE_KEYS)') &&
+      server.includes('...pickDefined(r, DISPATCH_WIRE_KEYS)'),
+  )
 }
 
 console.log('\n── §C: non-session children never latch a stray kit ──')

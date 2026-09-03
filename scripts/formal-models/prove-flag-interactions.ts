@@ -17,6 +17,7 @@ const { liveGlyphsEnabled } = await import('../../src/utils/cockpit/liveGlyphs.t
 const { fsyncEnabled } = await import('../../src/substrate/durablePublish.ts')
 const { decideSplashReceipt } = await import('../../src/substrate/splashHandover.ts')
 const { resolveConcoursePolicy } = await import('../../src/context/surfaceRoute.ts')
+const { bornSpawnSwitch } = await import('../../src/services/switchboard/spawnSwitches.ts')
 
 const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
 
@@ -88,6 +89,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_STREAM_CARET: ['', '0'],
   MERCURY_MEMORY_OBSERVE: ['', '1', '0'],
   MERCURY_MNEME: ['', '1', '0'],
+  MERCURY_SESSION_SUBAGENTS: ['', '0'],
+  MERCURY_SESSION_WORKFLOWS: ['', '0'],
 }
 
 const CLUSTERS: Record<string, string[]> = {
@@ -99,6 +102,7 @@ const CLUSTERS: Record<string, string[]> = {
   'splash-motion': ['MERCURY_LAUNCH_RIPPLE', 'MERCURY_REDUCED_MOTION'],
   'splash-handover': ['MERCURY_SPLASH_HANDOFF', 'MERCURY_LAUNCH_ID'],
   concourse: ['MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_WORKER'],
+  'spawn-switches': ['MERCURY_SESSION_SUBAGENTS', 'MERCURY_SESSION_WORKFLOWS'],
 }
 
 function isOn(env: string, value: string): boolean {
@@ -195,6 +199,19 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     if (resolveConcoursePolicy() !== want) {
       assertionFailures++
       console.log(`     resolveConcoursePolicy ≠ '${want}' under ${JSON.stringify(vec)}`)
+    }
+  }
+  if (clusterName === 'spawn-switches') {
+    for (const [kind, env] of [
+      ['subagents', 'MERCURY_SESSION_SUBAGENTS'],
+      ['workflows', 'MERCURY_SESSION_WORKFLOWS'],
+    ] as const) {
+      const born = bornSpawnSwitch(kind)
+      const wantSource = val(env) === '' ? 'default' : 'env'
+      if (born.on !== expectOn(env) || born.source !== wantSource) {
+        assertionFailures++
+        console.log(`     bornSpawnSwitch(${kind}) = ${JSON.stringify(born)} ≠ on:${expectOn(env)} source:${wantSource} under ${JSON.stringify(vec)}`)
+      }
     }
   }
   if (clusterName === 'splash-handover') {
