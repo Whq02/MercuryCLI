@@ -255,18 +255,16 @@ function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourc
   return usageForProvider(id)
 }
 
-function observedStamp(atMs: number | undefined): string {
-  return atMs !== undefined ? ` · observed ${new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''
-}
-
 /** The owner's provider-stated figures as ONE line in the provider's own
- *  units and words (each figure `value label`), stamped; the reader's own
- *  note beside it when it has one; nothing when nothing was observed. */
+ *  units and words (each figure `value label`), captioned with the one
+ *  source + freshness vocabulary (the poll's feed and age); nothing when
+ *  nothing was observed. */
 function figuresLine(usage: ActiveSourceUsage): string | undefined {
   const figures = usage.figures ?? []
   if (figures.length === 0) return undefined
   const parts = figures.map(f => `${f.value} ${f.label}`)
-  return `${parts.join(' · ')}${observedStamp(figures[0]?.observedAtMs)}`
+  const stamp = figures[0] !== undefined ? usageSourceWords(figures[0]) : undefined
+  return `${parts.join(' · ')}${stamp !== undefined ? ` · ${stamp}` : ''}`
 }
 
 /** An observed window view → the shared Meter grammar (bar + percent +

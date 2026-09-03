@@ -454,6 +454,9 @@ export interface UsageFigureView {
   value: string
   observedAtMs?: number
   resetsAtMs?: number
+  /** The feed that stated it (the one source + freshness vocabulary). */
+  source?: UsageFeed
+  freshForMs?: number
 }
 
 export interface ActiveSourceUsage {
@@ -1183,20 +1186,23 @@ const API_KEY_USAGE_ABSENCE_NOTE =
 function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] {
   if (!usage) return []
   const observedAtMs = usage.observedAtMs
+  // Every figure of one poll shares its feed and stamp (the key endpoint,
+  // at the poll TTL).
+  const stamp = { observedAtMs, source: 'endpoint' as const, freshForMs: USAGE_POLL_TTL_MS }
   const figures: UsageFigureView[] = []
   if (usage.usage !== undefined) {
-    figures.push({ key: 'credits-all-time', label: 'credits used (all-time)', value: usage.usage.toFixed(2), observedAtMs })
+    figures.push({ key: 'credits-all-time', label: 'credits used (all-time)', value: usage.usage.toFixed(2), ...stamp })
   }
   if (usage.usageWeekly !== undefined) {
-    figures.push({ key: 'credits-week', label: 'credits used this week', value: usage.usageWeekly.toFixed(2), observedAtMs })
+    figures.push({ key: 'credits-week', label: 'credits used this week', value: usage.usageWeekly.toFixed(2), ...stamp })
   }
   if (typeof usage.limitRemaining === 'number') {
-    figures.push({ key: 'cap-remaining', label: 'remaining under the key cap', value: usage.limitRemaining.toFixed(2), observedAtMs })
+    figures.push({ key: 'cap-remaining', label: 'remaining under the key cap', value: usage.limitRemaining.toFixed(2), ...stamp })
   } else if (usage.limit === null) {
-    figures.push({ key: 'cap', label: 'key cap', value: 'uncapped', observedAtMs })
+    figures.push({ key: 'cap', label: 'key cap', value: 'uncapped', ...stamp })
   }
   if (usage.isFreeTier === true) {
-    figures.push({ key: 'tier', label: 'account', value: 'free tier', observedAtMs })
+    figures.push({ key: 'tier', label: 'account', value: 'free tier', ...stamp })
   }
   return figures
 }
@@ -1313,6 +1319,8 @@ export function usageForProvider(
             value: String(rate.remaining),
             observedAtMs: rate.observedAtMs,
             ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
+            // Observed on the response itself.
+            source: 'headers',
           },
         ]
       : []
