@@ -8,14 +8,13 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
+import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
   MERCURY_IDENTITY_FLOOR,
   MERCURY_IDENTITY_RECONCILE,
   getMercuryContractSections,
 } from '../prompt/mercuryContract.js'
 import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
-import { getApolloModeSections } from '../prompt/apolloMode.js'
-import { getAutopilotModeSections } from '../utils/autopilot/autopilotPrompt.js'
 import { isForkSubagentEnabled } from '../tools/AgentTool/forkSubagent.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
@@ -548,16 +547,19 @@ export async function getSystemPrompt(
   const forkSubagentsEnabled = toolNames.has(AGENT_TOOL_NAME) && isForkSubagentEnabled()
   const hasSkills = toolNames.has(SKILL_TOOL_NAME)
   const nonInteractive = process.env.MERCURY_ENTRYPOINT === 'sdk'
-  const dirsKey = (additionalWorkingDirectories ?? []).join('\x1f')
 
   const dynamicSpecs = [
     systemPromptSection('session_guidance', () =>
       sessionGuidanceSection(toolNames, hasSkills, forkSubagentsEnabled, nonInteractive),
     ),
     systemPromptSection('memory', () => loadMemoryPrompt()),
+    // Keyed on the MODEL alone: an added working directory mid-session must
+    // not rewrite the frozen prompt (the /add-dir command's own stdout row
+    // tells the model; the permission engine grants the directory); the
+    // block re-evaluates at a model switch, a compaction or /clear.
     keyedSystemPromptSection(
       'env_info_simple',
-      () => `${model}\x1f${dirsKey}`,
+      () => model,
       () => computeSimpleEnvInfo(model, additionalWorkingDirectories),
     ),
     systemPromptSection('model_currency', () => getModelCurrencySection()),
@@ -603,13 +605,14 @@ export async function getSystemPrompt(
   const pushPack = (name: string, sections: readonly string[]): void => {
     if (sections.length > 0) modeSections.push({ name, text: sections.join('\n\n') })
   }
-  // The autopilot and apollo appendices ride the MAIN engine's own builds
-  // (QueryEngine threads the live mode — the interactive REPL and the
-  // daemon-hosted session runner alike); subagent builds never pass
-  // permissionMode, which IS the ruled main-agent-only law, and the
-  // next-turn boundary is the build itself.
-  pushPack('mode-autopilot', getAutopilotModeSections(permissionMode))
-  pushPack('mode-apollo', getApolloModeSections(permissionMode))
+  // The autopilot and apollo appendices never compose into the top-level
+  // system prompt: it is part of the prefix every thinking block is bound
+  // to, and a mode change would rewrite it. They ride the conversation as
+  // persisted mode_pack rows (utils/attachments/modeLifecycles.ts emits the
+  // pack on entry and an exit row on leaving — the main thread only). The
+  // live mode still threads here for callers; nothing in the prompt reads it.
+  void permissionMode
+  void pushPack
   // The Godot control section reads the filesystem (the project.godot walk)
   // and a live flag on every build. It is FROZEN per conversation through
   // the section cache: the top-level system is part of the prefix every
@@ -623,7 +626,21 @@ export async function getSystemPrompt(
   ])
   if (vulcan !== null && vulcan !== undefined) modeSections.push({ name: 'mode-vulcan', text: vulcan })
 
-  const antiSycSections = getAntiSycophancyAlwaysOnSection()
+  // The contract sections (the response-profile config read) and the
+  // anti-sycophancy arm (an env read) are frozen per conversation through
+  // the section cache: the top-level system prompt is part of the prefix,
+  // and a setting or environment flipped mid-session must not rewrite it
+  // (a compaction or /clear re-evaluates both).
+  const [contractFrozen, antiSycFrozen] = await resolveSystemPromptSections([
+    systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections())),
+    systemPromptSection('anti-sycophancy', () => {
+      const arm = getAntiSycophancyAlwaysOnSection()
+      return arm.length > 0 ? arm.join('\n\n') : null
+    }),
+  ])
+  const wrapperSections: NamedSection[] =
+    typeof contractFrozen === 'string' ? (JSON.parse(contractFrozen) as NamedSection[]) : getMercuryContractSections()
+  const antiSycSections = typeof antiSycFrozen === 'string' ? [antiSycFrozen] : []
   const reconcileTailSections =
     modeSections.length > 0 || antiSycSections.length > 0 ? [MERCURY_IDENTITY_RECONCILE] : []
 
@@ -635,7 +652,7 @@ export async function getSystemPrompt(
       cacheBreak: spec.cacheBreaking,
     })),
     dynamicResolved,
-    wrapperSections: getMercuryContractSections(),
+    wrapperSections,
     modeSections,
     antiSycSections,
     reconcileTailSections,

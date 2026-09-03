@@ -123,7 +123,13 @@ try {
 }
 {
   const prompts = src('constants', 'prompts.ts')
-  check("prompts.ts pushes pushPack('mode-apollo', …) beside mode-autopilot", /pushPack\('mode-apollo', getApolloModeSections\(permissionMode\)\)/.test(prompts))
+  // The prefix law: the top-level system prompt is part of the prefix every
+  // thinking block is bound to, so the pack never composes into it — it
+  // rides the conversation as a persisted mode_pack row (the attachment
+  // lifecycle owner emits it on entry, an exit row on leaving).
+  check('prompts.ts never pushes the apollo pack into the system prompt (the pack rides a mode_pack row)', !/pushPack\('mode-apollo'/.test(prompts) && !/getApolloModeSections\(/.test(prompts))
+  const lifecycles = src('utils', 'attachments', 'modeLifecycles.ts')
+  check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
   // Law 9 hoisted the build sites behind fetchSystemPromptParts — the live
   // mode threads at the standing callers (the next-turn law), and the one
   // owner forwards it to getSystemPrompt.
@@ -263,10 +269,13 @@ try {
   check('the held wire speaks the discuss grammar (drafts held, resume the interview, review afresh)', /drafts held/.test(holdWire.content) && /Resume the interview/.test(holdWire.content) && /review afresh/.test(holdWire.content))
   check("the held wire carries the user's refine note verbatim", /the save system/.test(holdWire.content))
 
-  // The deferral exemption: in the only mode that can call it, the closing
-  // tool ships loaded — never name-only behind a discovery round-trip.
+  // The prefix law retired the mode exemption: the tools array is part of
+  // the prefix every thinking block is bound to, so the closing tool is
+  // listed the same way in every mode — deferred like every deferrable
+  // tool, from the conversation's first request — and refuses outside
+  // apollo at call time through its own validateInput.
   const { isDeferredTool } = (await import('../../src/tools/ToolSearchTool/prompt.js')) as typeof import('../../src/tools/ToolSearchTool/prompt.js')
-  check('ApolloReview is force-loaded while the mode is apollo', isDeferredTool(ApolloReviewTool as never, 'apollo') === false)
+  check('ApolloReview is listed deferred in apollo too (never a mode-driven roster change)', isDeferredTool(ApolloReviewTool as never, 'apollo') === true)
   check(
     'ApolloReview stays deferred outside apollo (and for mode-less callers)',
     isDeferredTool(ApolloReviewTool as never, 'default') === true && isDeferredTool(ApolloReviewTool as never) === true,
@@ -307,11 +316,11 @@ try {
     "modeSuggestion counts apollo with the ask-posture modes (the session tier moves apollo → implement)",
     /context\.mode === 'default' \|\| context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
-  // The wire roster passes the live mode into the deferral predicate — the
-  // roster's owner is the tool-economy fold (the deferred-name set resolved
-  // once per request), not the stream core.
+  // The wire roster never reads the live mode: the deferred-name set is
+  // mode-independent (the prefix law) and the roster's owner is the
+  // tool-economy fold, not the stream core.
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
-  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(toolEconomy))
+  check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
   // The receipt renders the held state.
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
