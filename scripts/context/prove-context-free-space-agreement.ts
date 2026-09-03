@@ -101,7 +101,7 @@ section('§2 no recorded usage: the measured categories stand alone')
 section('§3 the shape and the disclosure words')
 {
   const src = readFileSync(join(ROOT, 'src/utils/analyzeContext.ts'), 'utf8')
-  check('the headline total is computed BEFORE the free-space math', src.indexOf("const totalTokens = fill.source === 'usage'") < src.indexOf('const freeSpace = Math.max('))
+  check('the headline total is computed BEFORE the free-space math', src.indexOf("const totalTokens = fill.source === 'usage'") !== -1 && src.indexOf("const totalTokens = fill.source === 'usage'") < src.indexOf('const freeSpace = Math.max('))
   check('free space is the window less the layout total (the larger of measured and recorded)', /const usedForLayout = Math\.max\(actualUsage, totalTokens\)/.test(src) && /contextWindow - usedForLayout - reserveTokens/.test(src))
   check('the unmeasured row rides the same push-only-when-positive rule', /pushContent\('Unmeasured \(recorded usage\)', unmeasured, 'inactive'\)/.test(src))
   const view = readFileSync(join(ROOT, 'src/components/ContextVisualization.tsx'), 'utf8')

@@ -53,6 +53,7 @@ check('C18/C14: zero references to the deleted probes/helpers in src', offenders
 
 const logs = readFileSync(join(ROOT, 'src/utils/sessionStorage/logs.ts'), 'utf8')
 const loading = readFileSync(join(ROOT, 'src/utils/sessionStorage/loading.ts'), 'utf8')
+const reader = readFileSync(join(ROOT, 'src/utils/sessionStorage/transcriptReader.ts'), 'utf8')
 check('C21: logs.ts carries no orphaned pre-filter doc', !logs.includes('Byte-level pre-filter'))
 // C21 evolved with the pruning rebuild (operator-ruled): the byte-level
 // pre-filter EXISTS again, canonical-native — the pin now demands the
@@ -64,11 +65,13 @@ check(
     !loading.includes('pickDepthOneUuidCandidate') &&
     !loading.includes('{"parentUuid":'),
 )
+// The pruner lives with the transcript reader now (loading.ts re-exports it):
+// the envelope literal and the parsed-link law are pinned where they live.
 check(
   'C21: the canonical pruner keys on the record envelope and parses its links',
   loading.includes('pruneRecordBranchesBeforeParse') &&
-    loading.includes('{"schemaVersion":1,"recordId":"') &&
-    loading.includes('LINK TRUTH COMES FROM THE PARSED LINE'),
+    reader.includes('{"schemaVersion":1,"recordId":"') &&
+    reader.includes('LINK TRUTH COMES FROM THE PARSED LINE'),
 )
 
 const coordProver = readFileSync(join(ROOT, 'scripts/substrate/prove-coordination-server.ts'), 'utf8')

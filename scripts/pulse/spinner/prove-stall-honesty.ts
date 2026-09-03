@@ -161,9 +161,13 @@ function view(opts: { suppressed?: boolean; mode?: SpinnerMode; fallbackLastEven
   check('verb attention target = the theme WARNING role (AMBER spine)', /parseRGB\(theme\.warning\)/.test(glimmer))
   check('the old universal 3s red bar is gone', !/3000/.test(stall) && !/ERROR_RED/.test(glyph) && !/ERROR_RED/.test(glimmer))
   const hold = readFileSync(join(root, 'src/components/Spinner/StreamingHoldRow.tsx'), 'utf8')
+  // The hold row reads the stall from the count's OWN movement (a count that
+  // stands still for MID_STREAM_STILL_WAITING_MS is a real mid-stream gap)
+  // rather than from a phase word — the same quiet suffix, prose-stall
+  // visible.
   check(
-    'the streaming hold carries the SAME phase-aware quiet suffix (prose-stall visibility)',
-    hold.includes('MID_STREAM_STILL_WAITING_MS') && hold.includes('still waiting') && /snap\.phase === 'responding'/.test(hold),
+    'the streaming hold carries the SAME quiet suffix, read from the count\'s own movement (prose-stall visibility)',
+    hold.includes('MID_STREAM_STILL_WAITING_MS') && hold.includes('still waiting') && /const stillWaiting = now - movementRef\.current\.lastMovedAt >= MID_STREAM_STILL_WAITING_MS/.test(hold),
   )
 }
 

@@ -136,7 +136,7 @@ if (driver.kind !== 'posix-pty') {
         // run captured a rowless picker). The deadline is hard: a row that
         // never paints is an undelivered send (exit 4), never a pass on absence.
         { requireAwait: true, awaitText: 'Fable 5.1', awaitStableTicks: 3, mark: 'picker', data: '' },
-        { afterPrevTicks: 2, data: '' },
+        { afterPrevTicks: 2, data: '\x1b' },
         // The inline door: the exact-generation alias sets the member.
         { afterPrevTicks: 4, data: '/model fable51', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
@@ -145,7 +145,7 @@ if (driver.kind !== 'posix-pty') {
         { afterPrevTicks: 3, data: '/model', awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 3, data: '\r' },
         { requireAwait: true, awaitText: 'CHOOSE A MODEL', awaitStableTicks: 3, mark: 'reopened', data: '' },
-        { afterPrevTicks: 3, data: '' },
+        { afterPrevTicks: 3, data: '\x1b' },
       ],
       total: 170,
       cols: 120,

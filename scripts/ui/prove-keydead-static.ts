@@ -46,7 +46,7 @@ const ALLOW: Record<string, string> = {
   // ConcourseRoute submitDraft, which replays the held clientMessageId
   // (item-8 durable identity) or mints fresh after a terminal refusal.
   'src/components/concourse/ConcourseRoute.tsx :: letter:y':
-    'the daemon-start offer (the operator's word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
+    'the daemon-start offer (the operator\'s word): ConcourseScreen routes y/n while daemonOfferArmed → callbacks.answerDaemonOffer (out-of-file binder across the ConcourseCallbacks seam)',
   'src/components/concourse/ConcourseRoute.tsx :: letter:n':
     'the daemon-start offer: same ConcourseScreen y/n routing → callbacks.answerDaemonOffer (out-of-file binder)',
   'src/components/concourse/ConcourseRoute.tsx :: enter':

@@ -235,10 +235,17 @@ function reapHome(home: string): void {
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
 
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+// The key-map rows are spelled by the ONE platform-aware owner (off macOS the
+// product paints "shift+→"), so every hint needle reads through it.
+const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
+const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
+const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
+const hintRows = (text: string): string => text.split('\n').filter(l => /Concourse|⇧|shift\+|live view/i.test(l)).join(' | ')
 const isFace = (text: string): boolean => text.includes('New Session') && text.includes(READY_LINE)
 const isChat = (text: string): boolean => text.includes(COMPOSER) && !text.includes(READY_LINE)
 /** The --chat face: the card without its concourse row, the chat absent. */
-const isChatFace = (text: string): boolean => isFace(text) && !text.includes('Session Concourse') && text.includes('⇧→ no chat open')
+const isChatFace = (text: string): boolean => isFace(text) && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
 
 /** The felt ↵ on a face: boot → the face, WARM_TICKS, ↵ → the composer. */
 async function feltEnter(id: string, argv: string[]): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
@@ -322,9 +329,9 @@ for (const size of [
   // SUPERSEDED), the identical-worlds law): seven rows at most since the
   // MCPs & Skills row joined every face — the row itself is pinned by
   // scripts/ui/prove-kit-menu.ts on both hosts in both worlds.
-  check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), landing.split('\n').filter(l => /Concourse|⇧|live view/i.test(l)).join(' | '))
+  check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
-  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isFace(again) && !again.includes('Session Concourse') && again.includes('⇧→ chat') && !again.includes('⇧→ concourse'), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
+  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
   reapHome(home)
 }
 
@@ -346,7 +353,7 @@ console.log('P3 — --concourse-off at 100×30: the face keeps the row as its li
   printFrame('p3 (--concourse-off, 100×30)', c.lines)
   check('P3 the switch boot landed the face', isFace(c.text), firstRows(c.text))
   check('P3 the face KEEPS the Session Concourse row as the live-view door ("live view only — concourse off")', c.text.includes('Session Concourse') && c.text.includes('live view only') && c.text.includes('concourse off'), c.lines.filter(l => /live|concourse/i.test(l)).join(' | '))
-  check('P3 with no chat the key-map row says "⇧→ no chat open" — no concourse stop, no chat yet', c.text.includes('⇧→ no chat open'), c.lines.filter(l => l.includes('⇧')).join(' | '))
+  check('P3 with no chat the key-map row says "⇧→ no chat open" — no concourse stop, no chat yet', c.text.includes(FACE_NO_CHAT), hintRows(c.text))
   reapHome(home)
 }
 
