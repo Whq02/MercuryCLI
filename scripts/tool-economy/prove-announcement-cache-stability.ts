@@ -129,7 +129,8 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
 {
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const plan = await planFor(model, fresh())
-    check(`${route}: deferral is on and nothing deferred rides the roster`, plan.enabled === true && plan.roster.every(t => !DEFERRED_NAMES.includes(t.name)))
+    if (plan.wireForm === 'block') check(`${route}: deferral is on and every deferrable tool rides the roster MARKED`, plan.enabled === true && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n) && plan.deferredNames.has(n)))
+    else check(`${route}: a wire that cannot defer lists every tool in full, unmarked (deferral off)`, plan.enabled === false && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n)) && plan.deferredNames.size === 0)
     check(`${route}: the plan carries NO per-request announcement`, plan.announcement === null)
     check(`${route}: the Anthropic-wire spelling prepends nothing`, announcementMessage(plan) === null)
     const msgs = fresh()
@@ -204,8 +205,10 @@ const freshBody = await captureFirstParty(POOL, fresh())
     const texts = textsOf(freshBody.messages)
     check('no message carries the announcement tag', texts.every(t => !t.includes('<available-deferred-tools>')))
     check("the first message is the operator's own turn (nothing prepended)", freshBody.messages.length === 1 && texts[0] === 'Plan the fixture task.')
-    const toolNames = (freshBody.tools as Array<{ name?: string }>).map(t => t.name ?? '')
-    check('the tools term is the roster law (non-deferred + ToolSearch; nothing deferred)', toolNames.includes(TOOL_SEARCH_TOOL_NAME) && NON_DEFERRED.every(t => toolNames.includes(t.name)) && DEFERRED_NAMES.every(n => !toolNames.includes(n)))
+    const term = freshBody.tools as Array<{ name?: string; defer_loading?: boolean }>
+    const toolNames = term.map(t => t.name ?? '')
+    check('the tools term is the roster law: every pool tool in pool order, ToolSearch at its place', toolNames.join(',') === POOL.map(t => t.name).join(','), toolNames.join(','))
+    check('the deferrable entries carry the defer_loading mark; the rest ride in full, unmarked', DEFERRED_NAMES.every(n => term.find(t => t.name === n)?.defer_loading === true) && NON_DEFERRED.every(t => term.find(x => x.name === t.name)?.defer_loading === undefined), JSON.stringify(term.map(t => [t.name, t.defer_loading ?? null])))
   }
 }
 
@@ -232,12 +235,17 @@ let rowBytes = 0
 
 section('§4 HEAD STABILITY UNDER POOL CHANGE — a server connecting between requests moves no byte of the head')
 {
-  const grownBody = await captureFirstParty(POOL_GROWN, fresh())
-  check('the grown-pool request was captured', grownBody !== null)
-  if (freshBody && grownBody) {
-    check('messages: byte-identical (the head did not move)', JSON.stringify(grownBody.messages) === JSON.stringify(freshBody.messages))
-    check('system: byte-identical', JSON.stringify(grownBody.system) === JSON.stringify(freshBody.system))
-    check('tools term: byte-identical (the new server\'s tools are deferred — they do not ride)', JSON.stringify(grownBody.tools) === JSON.stringify(freshBody.tools))
+  const convo = fresh()
+  const firstBody = await captureFirstParty(POOL, convo)
+  const grownBody = await captureFirstParty(POOL_GROWN, convo)
+  check('both requests of the conversation were captured', firstBody !== null && grownBody !== null)
+  if (firstBody && grownBody) {
+    check('messages: byte-identical (the head did not move)', JSON.stringify(grownBody.messages) === JSON.stringify(firstBody.messages))
+    check('system: byte-identical', JSON.stringify(grownBody.system) === JSON.stringify(firstBody.system))
+    const firstTerm = firstBody.tools as Array<{ name?: string; defer_loading?: boolean }>
+    const grownTerm = grownBody.tools as Array<{ name?: string; defer_loading?: boolean }>
+    check('tools term: the frozen array is byte-identical — every entry the first request sent, in its order, with its mark', JSON.stringify(grownTerm.slice(0, firstTerm.length)) === JSON.stringify(firstTerm))
+    check("the new server's tools join at the END, deferred (an unreferenced deferred tool is not part of the prefix)", grownTerm.slice(firstTerm.length).map(t => t.name).join(',') === MCP_C.map(t => t.name).join(',') && grownTerm.slice(firstTerm.length).every(t => t.defer_loading === true), grownTerm.slice(firstTerm.length).map(t => `${t.name}:${String(t.defer_loading)}`).join(','))
   }
   const model = ROUTE_MODELS.anthropic
   const first = deltaRow(POOL, model, fresh())
