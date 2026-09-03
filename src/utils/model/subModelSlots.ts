@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
-import { getGlobalConfig, saveGlobalConfig } from '../config.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../config.js'
 import {
   EFFORT_LEVELS,
   NO_EFFORT_CONTROL_LABEL,
@@ -60,6 +60,10 @@ export interface SubModelUnset {
 
 export type SubModelResolution = SubModelPin | SubModelUnset
 
+function savedSubModels(): ReturnType<typeof getGlobalConfig>['subModels'] {
+  return isConfigReadingAllowed() ? getGlobalConfig().subModels : undefined
+}
+
 export function resolveSubModel(container: SubModelContainer): SubModelResolution {
   const envVar = subModelEnvVar(container)
   const envRaw = flagEnv(envVar)
@@ -67,7 +71,7 @@ export function resolveSubModel(container: SubModelContainer): SubModelResolutio
     const model = canonicalSubModelId(envRaw)
     return { origin: 'env', model, route: declaredRouteOf(model) ?? 'unrecognised', envVar }
   }
-  const saved = getGlobalConfig().subModels?.[container]
+  const saved = savedSubModels()?.[container]
   if (saved !== undefined && saved.trim() !== '') {
     const model = canonicalSubModelId(saved)
     return { origin: 'saved', model, route: declaredRouteOf(model) ?? 'unrecognised' }
@@ -318,7 +322,7 @@ export function subModelEffortContext(container: SubModelContainer): EffortTruth
 }
 
 export function resolveSubModelEffort(container: SubModelContainer): EffortLevel | undefined {
-  const stored = getGlobalConfig().subModels?.effort?.[container]
+  const stored = savedSubModels()?.effort?.[container]
   return stored === undefined ? undefined : normalizeEffortLevelString(stored)
 }
 
