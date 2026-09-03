@@ -218,7 +218,8 @@ import {
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
-import { openaiLimitWindow } from '../../services/providers/openai/openaiLimitState.js'
+import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../../services/claudeAiLimits.js'
 import { SlotOfferCard } from '../SlotOfferCard.js'
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js'
 import { formatResetTime } from '../../utils/format.js'
@@ -579,6 +580,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     resetText: string | null
   } | null>(null)
   const limits = useClaudeAiLimits()
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
+  useSyncExternalStore(subscribeOpenaiObserved, getOpenaiObservedVersion, getOpenaiObservedVersion)
 
   const applyModelSelection = (value: string | null): void => {
     const focused = getFocusedSessionConnector()
