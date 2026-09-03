@@ -112,9 +112,20 @@ function isSupportedPlatformSync(): boolean {
 }
 
 let cachedDepCheck: SandboxDependencyCheck = { warnings: [], errors: [] }
+let dependenciesChecked = false
 
-/** Warm the dependency-check cache (called during initialisation). */
-async function warmDependencyCheck(): Promise<void> {
+/**
+ * The dependency check, run once per process on the FIRST question that
+ * needs it — never answered from the cold default. The runtime's check is
+ * synchronous on the platforms that sandbox (a lookup of bubblewrap and
+ * ripgrep on Linux; nothing to look up on macOS); answering "enabled" before
+ * it ran let a boot with sandbox.enabled and no bubblewrap pass the
+ * unavailable-sandbox warning and the failIfUnavailable refusal, then run
+ * every command unconfined with nothing said.
+ */
+function ensureDependencyCheck(): void {
+  if (dependenciesChecked) return
+  dependenciesChecked = true
   try {
     const result = RuntimeSandboxManager.checkDependencies()
     cachedDepCheck = result
@@ -122,6 +133,11 @@ async function warmDependencyCheck(): Promise<void> {
   } catch {
     // leave the cached default
   }
+}
+
+/** Warm the dependency-check cache (called during initialisation). */
+async function warmDependencyCheck(): Promise<void> {
+  ensureDependencyCheck()
 }
 
 /** Whether the managed policy restricts sandbox domains to the policy layer. */
@@ -303,7 +319,7 @@ function buildDenyWrite(): string[] {
 const platformUserTempDir = memoize((): string | null => {
   if (getPlatform() !== 'macos') return null
   try {
-    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000 }).trim()
+    const dir = execFileSync('/usr/bin/getconf', ['DARWIN_USER_TEMP_DIR'], { encoding: 'utf8', timeout: 2_000, windowsHide: true }).trim()
     return dir === '' ? null : realpathSync(dir)
   } catch {
     return null
@@ -453,8 +469,10 @@ export const SandboxManager: ISandboxManager = {
   isSupportedPlatform: () => isSupportedPlatformMemo(),
   isPlatformInEnabledList(): boolean {
     try {
-      const initial = safeGetSettings('__initial__')
-      const list = getSandboxSection(initial).enabledPlatforms as string[] | undefined
+      // The merged settings: the list is an operator setting like the rest of
+      // the sandbox section. It was read from a source name that does not
+      // exist, which answered empty, so the list never applied anywhere.
+      const list = getSandboxSection(getMergedSettings()).enabledPlatforms as string[] | undefined
       if (list === undefined) return true // absent ⇒ all allowed
       return list.includes(getPlatform())
     } catch {
@@ -485,6 +503,7 @@ export const SandboxManager: ISandboxManager = {
 
   isSandboxingEnabled(): boolean {
     if (!isSupportedPlatformSync()) return false
+    ensureDependencyCheck()
     if (!dependenciesOk) return false
     if (!SandboxManager.isPlatformInEnabledList()) return false
     return SandboxManager.isSandboxEnabledInSettings()
@@ -499,7 +518,10 @@ export const SandboxManager: ISandboxManager = {
     }
   },
 
-  checkDependencies: () => cachedDepCheck,
+  checkDependencies: () => {
+    ensureDependencyCheck()
+    return cachedDepCheck
+  },
 
   isAutoAllowBashIfSandboxedEnabled(): boolean {
     const value = getSandboxSection(getMergedSettings()).autoAllowBashIfSandboxed
@@ -616,6 +638,8 @@ export const SandboxManager: ISandboxManager = {
     scrubList = []
     isSupportedPlatformMemo.cache.clear?.()
     cachedDepCheck = { warnings: [], errors: [] }
+    dependenciesOk = true
+    dependenciesChecked = false
     initPromise = null
     void RuntimeSandboxManager.reset()
   },
