@@ -250,8 +250,27 @@ def main() -> None:
                 trace("waitpid done")
         except ChildProcessError:
             trace("waitpid: ChildProcessError")
+    # THE STUCK NEEDLE, NAMED: a send that never became due is the journey
+    # not happening as written, and a hosted log that only carries the
+    # caller's "N/M sends fired" count leaves the first stuck send a guess.
+    # Every unfired send is listed on stderr — the observed-ready ones with
+    # the needle that never armed (or armed too late for its delay), the
+    # fixed-ms ones with their authored moment — so the caller's own
+    # verdict can quote it; the exit code stays the caller's judgement.
+    unfired = []
+    for af in afters:
+        if not af["fired"]:
+            state = ("never painted" if af["armed_ms"] is None
+                     else "armed at %dms, delay %dms unreached" % (af["armed_ms"], af["delay"]))
+            unfired.append("after %r (+%dms): %s" % (af["needle"].decode("utf-8", "replace"), af["delay"], state))
+    for atms, _payload in sends[si:]:
+        unfired.append("at %dms: never reached" % atms)
+    if unfired:
+        sys.stderr.write("[ptydrive] UNFIRED-SENDS: %d of %d sends never became due — %s\n"
+                         % (len(unfired), len(sends) + len(afters), " · ".join(unfired)))
     print(json.dumps({"raw_bytes": nbytes, "raw_reads": nreads,
-                      "sends": si + sum(1 for af in afters if af["fired"])}))
+                      "sends": si + sum(1 for af in afters if af["fired"]),
+                      "unfired": unfired}))
 
 
 if __name__ == "__main__":

@@ -158,14 +158,25 @@ export async function runPreflight(): Promise<PreflightSummary> {
  *  refresh an ESTABLISHED `.mercury/` estate but must never be its creator —
  *  on a virgin project the summary still drives the boot notice and nothing
  *  lands on disk. */
+// ONE preflight per boot: the REPL mounts beneath the Boot face and again
+// when the first chat is born, and a second run at the birth landed
+// doctor/last-preflight.json inside the estate the birth had just created
+// empty (the folder-as-project law: the first chat creates exactly
+// `.mercury/`). Later mounts reuse the boot's own summary.
+let bootPreflight: Promise<PreflightSummary> | null = null
+
 export async function runAndRecordPreflight(): Promise<PreflightSummary> {
-  const summary = await runPreflight()
-  if (projectLocalEstateExists(healthStateRoot())) {
-    try {
-      await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
-    } catch {
-      // best-effort artifact — the returned summary still drives the boot notice
+  if (bootPreflight !== null) return bootPreflight
+  bootPreflight = (async () => {
+    const summary = await runPreflight()
+    if (projectLocalEstateExists(healthStateRoot())) {
+      try {
+        await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
+      } catch {
+        // best-effort artifact — the returned summary still drives the boot notice
+      }
     }
-  }
-  return summary
+    return summary
+  })()
+  return bootPreflight
 }
