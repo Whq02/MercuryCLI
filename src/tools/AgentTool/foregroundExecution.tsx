@@ -181,6 +181,7 @@ export async function runForegroundAgentExecution(
       prompt,
       setAppState: rootSetAppState,
       selectedAgent,
+      model: metadata.resolvedAgentModel,
       toolUseId: toolUseContext.toolUseId,
       autoBackgroundMs,
     })
@@ -449,6 +450,13 @@ export async function runForegroundAgentExecution(
         toolUseContext.options.tools,
       )
       if (foregroundTask) {
+        if (message.type === 'assistant') {
+          updateAgentProgress(
+            foregroundTask.taskId,
+            getProgressUpdate(tracker),
+            rootSetAppState,
+          )
+        }
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
           emitTaskProgress(
@@ -459,13 +467,6 @@ export async function runForegroundAgentExecution(
             metadata.startTime,
             lastToolName,
           )
-          if (getSdkAgentProgressSummariesEnabled()) {
-            updateAgentProgress(
-              foregroundTask.taskId,
-              getProgressUpdate(tracker),
-              rootSetAppState,
-            )
-          }
         }
       }
 
