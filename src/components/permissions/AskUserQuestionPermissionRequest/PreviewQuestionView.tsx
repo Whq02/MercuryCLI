@@ -95,18 +95,21 @@ export function PreviewQuestionView({
   const questionState = questionStates[questionText]
 
   const allOptions = question.options
-  const [focusedIndex, setFocusedIndex] = useState(0)
-
-  // Focus derives from question identity: when the question under this view
-  // changes, focus resets to the selected (or first) option. Render-phase
-  // derived state per the React idiom; identity, answers, and drafts live in
-  // the session authority, so a remount can never lose meaning.
+  // Focus opens on the selected option, else the first — on a fresh mount
+  // (a revisited question mounts its own view) and when the question under
+  // a mounted view changes. Render-phase derived state per the React idiom;
+  // identity, answers, and drafts live in the session authority, so a
+  // remount can never lose meaning.
+  const focusForSelection = (): number => {
+    const selected = questionStates[questionText]?.selectedValue as string | undefined
+    const idx = selected ? allOptions.findIndex(opt => opt.label === selected) : -1
+    return idx >= 0 ? idx : 0
+  }
+  const [focusedIndex, setFocusedIndex] = useState(focusForSelection)
   const prevQuestionText = useRef(questionText)
   if (prevQuestionText.current !== questionText) {
     prevQuestionText.current = questionText
-    const selected = questionState?.selectedValue as string | undefined
-    const idx = selected ? allOptions.findIndex(opt => opt.label === selected) : -1
-    setFocusedIndex(idx >= 0 ? idx : 0)
+    setFocusedIndex(focusForSelection())
   }
   const focusedOption = allOptions[focusedIndex]
   const selectedValue = questionState?.selectedValue as string | undefined
