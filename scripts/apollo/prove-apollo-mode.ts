@@ -307,9 +307,11 @@ try {
     "modeSuggestion counts apollo with the ask-posture modes (the session tier moves apollo → implement)",
     /context\.mode === 'default' \|\| context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
-  // The wire roster passes the live mode into the deferral predicate.
-  const streamCore = src('services', 'providers', 'anthropic', 'streamCore.ts')
-  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(streamCore))
+  // The wire roster passes the live mode into the deferral predicate — the
+  // roster's owner is the tool-economy fold (the deferred-name set resolved
+  // once per request), not the stream core.
+  const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
+  check('the wire roster passes the live mode into isDeferredTool', /isDeferredTool\(t, rosterPermissionMode\)/.test(toolEconomy))
   // The receipt renders the held state.
   const ui = src('tools', 'ApolloReviewTool', 'UI.tsx')
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))

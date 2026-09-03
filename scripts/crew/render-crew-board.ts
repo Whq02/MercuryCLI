@@ -46,7 +46,9 @@ if (!existsSync(BIN)) {
 // real credential ever touches /tmp — the bench credential-containment rule.
 const home = mkdtempSync(join(tmpdir(), 'crew-render-home-'))
 const FAKE_KEY = 'sk-ant-api03-crewrenderproof0000000000'
-writeFileSync(join(home, '.claude.json'), JSON.stringify({
+// The config home's own file: the boot reads `.mercury<suffix>.json` (or a
+// legacy `.config.json`), never the other tool's spelling.
+writeFileSync(join(home, '.mercury.json'), JSON.stringify({
   hasCompletedOnboarding: true, theme: 'dark', numStartups: 5,
   customApiKeyResponses: { approved: [FAKE_KEY.slice(-20)], rejected: [] },
   projects: { [RUNTIME_CWD]: { hasTrustDialogAccepted: true } },
