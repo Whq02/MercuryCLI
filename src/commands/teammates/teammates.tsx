@@ -1,7 +1,13 @@
 import * as React from 'react'
-import { TeammateChatsView } from '../../components/mercury-ui/screens/TeammateChatsView.js'
+import { CrewView } from '../../components/mercury-ui/screens/CrewView.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
-export const call: LocalJSXCommandCall = async onDone => {
-  return <TeammateChatsView onClose={(value?: unknown, options?: Parameters<typeof onDone>[1]) => { const v = typeof value === 'string' ? value : undefined; onDone(v, options ?? (v === undefined ? { display: 'skip' } : undefined)) }} />
+export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
+  const name = (args ?? '').trim().replace(/^@/, '')
+  return (
+    <CrewView
+      onClose={() => onDone(undefined, { display: 'skip' })}
+      {...(name !== '' ? { initialChat: name } : {})}
+    />
+  )
 }
