@@ -53,6 +53,7 @@ t.section('§3 — derivation joins registry + owner facts (silence on unknown)'
     displayName: 'Atlas',
     binding: { bindingKind: 'native', bindingId: 'seat:healer' },
   })
+  mkdirSync(join(scratch, 'party'), { recursive: true })
   writeFileSync(
     join(scratch, 'party', 'state.json'),
     JSON.stringify({

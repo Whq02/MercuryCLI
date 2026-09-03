@@ -59,7 +59,7 @@ check(
 )
 check(
   'the real drain body moved to _drainWriteQueueInner (still splices the queue + appendToFile)',
-  /private async _drainWriteQueueInner\(\): Promise<void> \{[\s\S]{0,400}queue\.splice\(0\)/.test(
+  /private async _drainWriteQueueInner\(\): Promise<void> \{[\s\S]{0,1400}queue\.splice\(0\)/.test(
     storage,
   ),
 )

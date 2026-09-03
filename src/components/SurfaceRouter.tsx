@@ -80,7 +80,9 @@ export function SurfaceRouter({ children }: { children: React.ReactNode }): Reac
   useSyncExternalStore(subscribeSurfaceRoute, surfaceRouteVersion, surfaceRouteVersion);
   const route = currentSurfaceRoute();
   const entry = getRouteSurface(route.kind);
-  const liveSize = useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext);
+  const liveSizeCtx = useContext(LiveTerminalSizeContext);
+  const baseSizeCtx = useContext(TerminalSizeContext);
+  const liveSize = liveSizeCtx ?? baseSizeCtx;
   const surface = useViewportFloor(liveSize, true);
   return (
     <>
@@ -127,7 +129,9 @@ function RouteSurfaceHost({
   const t = useMercuryTokens();
   const ground = estateGroundBg(t);
   const [exitChordArmed, setExitChordArmed] = useState(false);
-  const floor = useViewportFloor(useContext(LiveTerminalSizeContext) ?? useContext(TerminalSizeContext), true);
+  const hostLiveSize = useContext(LiveTerminalSizeContext);
+  const hostBaseSize = useContext(TerminalSizeContext);
+  const floor = useViewportFloor(hostLiveSize ?? hostBaseSize, true);
   return (
     <Box
       ref={elevatedRef}
