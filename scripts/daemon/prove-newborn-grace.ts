@@ -91,7 +91,18 @@ console.log('N1 the birth grace at the sweep')
   killed.length = 0
   const retired = idle.sweepIdleEmptyConcourseSessions(roster, { dir, nowMs: now, thresholdMs: T })
   check('N1 the blank newborn is NOT retired (idle 30 min past a 10 min threshold)', !retired.some(r => r.runnerId === 'concourse-w1') && rec('concourse-w1')?.stoppedAt === undefined, JSON.stringify(retired))
-  check('N1 the poison control: the same empty idle record WITHOUT the birth stamp IS retired', retired.some(r => r.runnerId === 'concourse-w2') && rec('concourse-w2')?.stoppedAt !== undefined && killed.includes('concourse-w2'))
+  // THE STOP LAW: the sweep REQUESTS the stop — the kill goes to the roster
+  // and the record stamps stopRequestedAt — and the record reads stopped on
+  // the runner's acknowledgement (its exit), never on the kill's dispatch.
+  // The control's runner is this process (alive): its exit is played by
+  // re-pointing the record at a dead pid and completing the requested stop.
+  check('N1 the poison control: the same empty idle record WITHOUT the birth stamp gets its stop requested (the kill dispatched, the request stamped, the sweep reports it)', retired.some(r => r.runnerId === 'concourse-w2') && rec('concourse-w2')?.stopRequestedAt !== undefined && killed.includes('concourse-w2'))
+  sup.updateConcourseWorkers(workers => {
+    const w = workers['concourse-w2']
+    if (w) w.pid = 999_999
+  }, dir)
+  const completed = sup.completeRequestedStop('concourse-w2', dir)
+  check("N1 …and reads stopped on the runner's exit (the acknowledgement lands the stamp)", completed && rec('concourse-w2')?.stoppedAt !== undefined)
   check('N1 the retired row carries the typed idle-empty fact (the existing wording stands)', rec('concourse-w2')?.retired?.reason === 'idle-empty')
 }
 
