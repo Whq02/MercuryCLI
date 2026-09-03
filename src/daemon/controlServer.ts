@@ -690,6 +690,9 @@ async function routeControlRequest(
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
       }
+      if (raw.modelKey !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was admitted" })
+      }
       const r = await deps.concourseAdmit({
         workspaceDir,
         ...(isolation !== undefined ? { isolation } : {}),
@@ -782,6 +785,9 @@ async function routeControlRequest(
       }
       if (raw.kitPreset !== undefined && (typeof raw.kitPreset !== 'string' || raw.kitPreset === '')) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'kitPreset must be a saved preset name (a non-empty string)' })
+      }
+      if (raw.modelKey !== undefined) {
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: "the model rides in `model` — `modelKey` is not a field of this door; nothing was dispatched" })
       }
       const r = await deps.concourseDispatch({
         clientMessageId,
