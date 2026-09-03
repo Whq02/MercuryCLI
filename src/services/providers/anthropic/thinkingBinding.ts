@@ -5,7 +5,10 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { Message } from '../../../types/message.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
+import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
@@ -92,16 +95,60 @@ export function describeInputTransformations(list: readonly InputTransformation[
 }
 
 
-export type LawfulPrefixChange = 'compaction' | 'model-switch'
+export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting'
 
 export interface PrefixMark {
   firstRow: string | null
   compactBoundary: string | null
   modelTransition: string | null
   model: string
+  settings: string
 }
 
-export function prefixMarkOf(messages: readonly Message[], model: string): PrefixMark {
+export interface LiveOperatorSettings {
+  permissionMode?: string
+  responseProfile?: string
+}
+
+const SETTING_LABELS: Record<string, string> = {
+  mode: 'the permission mode',
+  profile: 'the response profile',
+}
+
+export function spellOperatorSettings(live: LiveOperatorSettings | undefined): string {
+  let profile = live?.responseProfile
+  if (profile === undefined) {
+    try {
+      profile = getGlobalConfig().responseProfile ?? 'balanced'
+    } catch {
+      profile = undefined
+    }
+  }
+  return `mode=${live?.permissionMode ?? '?'};profile=${profile ?? '?'}`
+}
+
+export function describeSettingsMove(previous: string, current: string): string | null {
+  const parse = (spelled: string): Map<string, string> =>
+    new Map(spelled.split(';').filter(Boolean).map(part => {
+      const at = part.indexOf('=')
+      return [part.slice(0, at), part.slice(at + 1)] as [string, string]
+    }))
+  const before = parse(previous)
+  const after = parse(current)
+  const moved: string[] = []
+  for (const [key, value] of after) {
+    const was = before.get(key)
+    if (was === undefined || was === '?' || value === '?' || was === value) continue
+    moved.push(`${SETTING_LABELS[key] ?? key} (${was} → ${value})`)
+  }
+  return moved.length === 0 ? null : moved.join(' and ')
+}
+
+export function prefixMarkOf(
+  messages: readonly Message[],
+  model: string,
+  live?: LiveOperatorSettings,
+): PrefixMark {
   let firstRow: string | null = null
   let compactBoundary: string | null = null
   let modelTransition: string | null = null
@@ -119,7 +166,7 @@ export function prefixMarkOf(messages: readonly Message[], model: string): Prefi
     if (modelTransition === null && subtype === 'model_transition') modelTransition = message.uuid
     if (compactBoundary !== null && modelTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, model }
+  return { firstRow, compactBoundary, modelTransition, model, settings: spellOperatorSettings(live) }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -127,6 +174,7 @@ export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
 export interface DropOutcome {
   kind: DropKind
   lawful: LawfulPrefixChange | null
+  detail: string | null
   consecutive: number
   count: number
   path: string | null
@@ -154,14 +202,21 @@ export function classifyThinkingDrops(
   const previous = dropStates.get(owner)
   if (dropped.length === 0) {
     dropStates.set(owner, { mark, kind: 'none', consecutive: 0 })
-    return { kind: 'none', lawful: null, consecutive: 0, count: 0, path: null, reason: null }
+    return { kind: 'none', lawful: null, detail: null, consecutive: 0, count: 0, path: null, reason: null }
   }
   let lawful: LawfulPrefixChange | null = null
+  let detail: string | null = null
   if (previous !== undefined) {
     if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {
       lawful = 'compaction'
     } else if (previous.mark.model !== mark.model || previous.mark.modelTransition !== mark.modelTransition) {
       lawful = 'model-switch'
+    } else {
+      const moved = describeSettingsMove(previous.mark.settings, mark.settings)
+      if (moved !== null) {
+        lawful = 'operator-setting'
+        detail = moved
+      }
     }
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
@@ -180,7 +235,7 @@ export function classifyThinkingDrops(
   }
   dropStates.set(owner, { mark, kind, consecutive })
   const first = dropped[0]!
-  return { kind, lawful, consecutive, count: dropped.length, path: first.path, reason: first.reason }
+  return { kind, lawful, detail, consecutive, count: dropped.length, path: first.path, reason: first.reason }
 }
 
 function describePathClass(path: string | null): string {
@@ -210,6 +265,9 @@ export function describeThinkingDrops(
       if (outcome.lawful === 'compaction') {
         return `Preserved thinking: the API dropped ${count} ${noun} after the compaction — the history before ${path} was folded into the summary, so the model re-plans without that reasoning this turn (expected once).`
       }
+      if (outcome.lawful === 'operator-setting') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after you changed ${outcome.detail ?? 'a setting'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
+      }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
     case 'first':
@@ -220,11 +278,33 @@ export function describeThinkingDrops(
 }
 
 
+export function isSameModel(a: string, b: string): boolean {
+  return getCanonicalName(a) === getCanonicalName(b)
+}
+
+export function modelSwitchReceipt(
+  owner: string,
+  messages: readonly Message[],
+  currentModel: string,
+): { key: string; text: string } | null {
+  const foreign = thinkingFromOtherModels(messages, currentModel, isSameModel)
+  if (foreign.count === 0) return null
+  const display = (model: string): string => getPublicModelDisplayName(model) ?? model
+  const writers = foreign.models.map(display).join(', ')
+  const noun = foreign.count === 1 ? 'thinking block' : 'thinking blocks'
+  return {
+    key: `${owner}|${getCanonicalName(currentModel)}`,
+    text: `Preserved thinking: ${foreign.count} ${noun} written by ${writers} stay out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without them.`,
+  }
+}
+
+
 export interface ThinkingDropLedger {
   last: {
     at: string
     kind: Exclude<DropKind, 'none'>
     lawful: LawfulPrefixChange | null
+    detail?: string | null
     reason: string | null
     path: string | null
     count: number
@@ -247,6 +327,7 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
         at: new Date().toISOString(),
         kind: outcome.kind,
         lawful: outcome.lawful,
+        ...(outcome.detail !== null ? { detail: outcome.detail } : {}),
         reason: outcome.reason,
         path: outcome.path,
         count: outcome.count,
@@ -290,9 +371,15 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
   if (last.kind === 'lawful') {
+    const cause =
+      last.lawful === 'compaction'
+        ? 'a compaction'
+        : last.lawful === 'operator-setting'
+          ? `a setting change (${last.detail ?? 'unnamed'})`
+          : 'a model switch'
     return {
       status: 'info',
-      evidence: `last drop ${last.at}: ${blocks} after ${last.lawful === 'compaction' ? 'a compaction' : 'a model switch'} (${where}, model ${last.model}) — expected once`,
+      evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
     }
   }
   if (last.kind === 'first') {

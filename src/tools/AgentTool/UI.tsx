@@ -22,6 +22,19 @@ import { buildSubagentLookups } from '../../utils/messages.js'
 import { renderModelName, getMainLoopModel } from '../../utils/model/model.js'
 import { Markdown } from '../../components/Markdown.js'
 import { getAgentColor } from './agentColorManager.js'
+import { useNowTick } from '../../components/mercury-ui/components.js'
+import { useFocusedWorkRoster } from '../../components/tasks/useFocusedWork.js'
+import {
+  crewAgentByName,
+  crewAgentByToolUse,
+  crewAgentsOf,
+  crewElapsedLabel,
+  crewModelLabel,
+  crewStateLabel,
+  crewTokensLabel,
+  crewToolUsesLabel,
+  type CrewAgentFacts,
+} from '../../services/engine-connector/crewFacts.js'
 import type { AgentToolOutput } from './AgentTool.js'
 
 function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
@@ -227,6 +240,7 @@ export function renderToolUseProgressMessage(
     terminalSize?: { columns: number; rows: number }
     inProgressToolCallCount?: number
     isTranscriptMode?: boolean
+    toolUseID?: string
   },
 ): React.ReactNode {
   const { tools, verbose, terminalSize, inProgressToolCallCount } = options
@@ -234,11 +248,7 @@ export function renderToolUseProgressMessage(
   const rows = displayRows(progressMessages)
 
   if (messagesOf(progressMessages).length === 0) {
-    return (
-      <MessageResponse height={1}>
-        <Text dimColor>Initializing agent…</Text>
-      </MessageResponse>
-    )
+    return <AgentFactsOrInitialising {...(options.toolUseID !== undefined ? { toolUseID: options.toolUseID } : {})} />
   }
 
   const callCount = inProgressToolCallCount ?? 1
@@ -599,6 +609,93 @@ export function extractLastToolInfo(
   return null
 }
 
+type GroupedEntry = {
+  toolUseID?: string
+  input: AgentUiInput
+  toolUseCount: number
+  tokens: number
+  lastTool: string | null
+  isTeammateSpawn: boolean
+  resolved: boolean
+  isErrored: boolean
+}
+
+function factsForEntry(agents: readonly CrewAgentFacts[], entry: GroupedEntry): CrewAgentFacts | null {
+  if (entry.toolUseID !== undefined) {
+    const byId = crewAgentByToolUse(agents, entry.toolUseID)
+    if (byId !== null) return byId
+  }
+  if (entry.isTeammateSpawn && entry.input.name) return crewAgentByName(agents, entry.input.name)
+  return null
+}
+
+function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
+  const doing = facts.running ? (facts.activity ?? crewStateLabel(facts)) : crewStateLabel(facts)
+  return `${doing} · ${crewElapsedLabel(facts, nowMs)}`
+}
+
+function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
+  const roster = useFocusedWorkRoster()
+  const agents = React.useMemo(() => crewAgentsOf(roster.rows, null), [roster])
+  const now = useNowTick(animate ? 1000 : null)
+  return (
+    <>
+      {entries.map((entry, index) => {
+        const facts = factsForEntry(agents, entry)
+        const resolved = entry.resolved || (facts !== null && !facts.running)
+        const tokens = facts !== null ? facts.tokens?.total : entry.tokens > 0 ? entry.tokens : undefined
+        const statusLine = facts !== null ? factsStatusLine(facts, now) : entry.lastTool
+        return (
+          <AgentProgressLine
+            key={entry.toolUseID ?? index}
+            agentType={userFacingName(entry.input)}
+            {...(entry.isTeammateSpawn && entry.input.name ? { name: `@${entry.input.name}` } : {})}
+            {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
+            {...(entry.input.subagent_type ? { color: getAgentColor(entry.input.subagent_type) } : {})}
+            {...(facts !== null ? { model: crewModelLabel(facts) } : {})}
+            {...(statusLine !== null ? { lastToolInfo: statusLine } : {})}
+            toolUseCount={facts?.toolUses ?? entry.toolUseCount}
+            {...(tokens !== undefined ? { tokens } : {})}
+            isLast={index === entries.length - 1}
+            isResolved={resolved}
+            isError={entry.isErrored || facts?.state === 'failed'}
+            shouldAnimate={animate}
+          />
+        )
+      })}
+    </>
+  )
+}
+
+function AgentFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.ReactNode {
+  const roster = useFocusedWorkRoster()
+  const facts = React.useMemo(
+    () => (toolUseID === undefined ? null : crewAgentByToolUse(crewAgentsOf(roster.rows, null), toolUseID)),
+    [roster, toolUseID],
+  )
+  const now = useNowTick(facts !== null && facts.running ? 1000 : null)
+  if (facts === null) {
+    return (
+      <MessageResponse height={1}>
+        <Text dimColor>Initializing agent…</Text>
+      </MessageResponse>
+    )
+  }
+  const parts = [
+    crewModelLabel(facts),
+    crewStateLabel(facts),
+    crewToolUsesLabel(facts) ?? undefined,
+    crewTokensLabel(facts) ?? undefined,
+    crewElapsedLabel(facts, now),
+    facts.activity ?? undefined,
+  ].filter((part): part is string => part !== undefined)
+  return (
+    <MessageResponse height={1}>
+      <Text dimColor>{parts.join(' · ')}</Text>
+    </MessageResponse>
+  )
+}
+
 export function renderGroupedAgentToolUse(
   toolUses: GroupedToolUse[],
   options: { shouldAnimate: boolean; tools: Tools },
@@ -631,6 +728,7 @@ export function renderGroupedAgentToolUse(
       isTeammateSpawn
     const resolved = entry.isResolved === true || status !== undefined
     return {
+      toolUseID: entry.toolUseID,
       input,
       toolUseCount,
       tokens,
@@ -693,24 +791,7 @@ export function renderGroupedAgentToolUse(
           ) : null}
         </Text>
       </Box>
-      {entries.map((entry, index) => (
-        <AgentProgressLine
-          key={index}
-          agentType={userFacingName(entry.input)}
-          {...(entry.isTeammateSpawn && entry.input.name ? { name: `@${entry.input.name}` } : {})}
-          {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
-          {...(entry.input.subagent_type
-            ? { color: getAgentColor(entry.input.subagent_type) }
-            : {})}
-          {...(entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}
-          toolUseCount={entry.toolUseCount}
-          tokens={entry.tokens}
-          isLast={index === entries.length - 1}
-          isResolved={entry.resolved}
-          isError={entry.isErrored}
-          shouldAnimate={animate}
-        />
-      ))}
+      <CrewAgentRows entries={entries} animate={animate} />
     </Box>
   )
 }
