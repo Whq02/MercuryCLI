@@ -216,10 +216,12 @@ import {
   noteCapWindowObserved,
   noteOfferAutoDone,
   noteOfferDismissal,
+  noteSlotWallObserved,
   observedFamilyWindow,
   offerAutoDone,
   offerDismissed,
   resolveCapPosture,
+  slotWallKey,
 } from '../../services/capFailover.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
@@ -893,7 +895,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           otherWalled: view.other?.walled === true,
         })
         if (action.kind !== 'none' && view.other !== undefined && view.activeLabel !== undefined) {
-          const slotKey = `slot|${family}|${view.active ?? ''}|${activeWall.resetsAtMs ?? ''}`
+          // The wall key is the family and the walled seat — never the
+          // stated reset moment (a re-observed wall re-states it by seconds
+          // and would re-offer an answered wall); a clear observation ends
+          // the wall and re-arms the rung for the next one.
+          const slotKey = slotWallKey(family, view.active ?? '')
+          noteSlotWallObserved(family, view.active ?? '', activeWall.walled)
           if (action.kind === 'offer') {
             // NEVER over a live turn (FN-016 R7): the card replaces the
             // composer and takes the keyboard — mid-stream its Escape

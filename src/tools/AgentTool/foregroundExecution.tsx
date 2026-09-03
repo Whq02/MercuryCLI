@@ -31,6 +31,7 @@ import {
   isLocalAgentTask,
   killAsyncAgent,
   registerAgentForeground,
+  settleAgentForeground,
   unregisterAgentForeground,
   updateAgentProgress,
   updateProgressFromMessage,
@@ -596,8 +597,10 @@ export async function runForegroundAgentExecution(
     toolUseContext.setToolJSX?.(null)
     stopForegroundSummarization?.()
     if (foregroundTask) {
-      unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
-      if (!backgrounded) {
+      if (backgrounded) {
+        // The hand-off: the background task carries on under the same id.
+        unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
+      } else {
         // The SDK bookend: ONE terminal event, its status DERIVED over the
         // agentMessages messages (the one-derivation law — the bookend and the
         // parent transcript can never disagree).
@@ -607,6 +610,10 @@ export async function runForegroundAgentExecution(
             : heldError !== undefined
               ? 'failed'
               : deriveAgentTerminalOutcome(agentMessages).status
+        // The record SETTLES with its final fold (the same word the bookend
+        // carries) and stays through the panel grace — the crew surfaces read
+        // the landing; it never vanishes at the settle.
+        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker))
         enqueueSdkEvent({
           type: 'system',
           subtype: 'task_notification',

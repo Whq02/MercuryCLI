@@ -20,8 +20,10 @@ import {
 } from '../utils/cockpit/index.js'
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
-import { formatCountdown } from '../utils/cockpit/quota.js'
-import { windowSourceUsages } from '../services/providers/providerUsage.js'
+import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
+import { usageCreditsLine, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { NO_USAGE_READ_WORDS, usageStaleTail } from '../services/providers/usageFreshness.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -261,6 +263,9 @@ function HelmTelemetryRailImpl({
     getFocusedRailModel,
     getFocusedRailModel,
   )
+  // The meters repaint the instant the first-party record changes (a
+  // /usage sample, a reply's headers, a reset) — not on the next 30s tick.
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
   const liveWindows = usage.windows.filter(w => w.state === 'live')
   // The focused session's crew — its sub-agents' settled tokens ride the
@@ -286,8 +291,17 @@ function HelmTelemetryRailImpl({
   // While a console ask is in flight the tick tightens to 1s so its elapsed
   // counter moves (useNowTick handles a changing interval).
   const now = useNowTick(consolePending ? 1000 : 30_000)
-  const resetIn = (resetsAtMs?: number): string | undefined =>
-    resetsAtMs != null ? formatCountdown(resetsAtMs - now) : undefined
+  // A meter row's tail: the reset countdown while the read is live; the
+  // STALE mark with the read's age once it is older than its reader's own
+  // horizon (usageFreshness — never a stale number painted as live). The
+  // per-model pool rows carry longer labels than '5h', so their countdown
+  // is the coarse spelling (days/hours) to keep the row inside the rail.
+  const meterTail = (w: UsageWindowView, pool: boolean): string | undefined => {
+    const stale = usageStaleTail(w, now)
+    if (stale !== undefined) return stale
+    if (w.resetsAtMs == null) return undefined
+    return pool ? formatCountdownCoarse(w.resetsAtMs - now) : formatCountdown(w.resetsAtMs - now)
+  }
   const usageEmpty = usage.shape !== 'api-spend' && liveWindows.length === 0
 
   // --- CTX: the live context-window fill. MercuryFrame publishes it every render
@@ -362,6 +376,19 @@ function HelmTelemetryRailImpl({
         )
       })(),
     )
+    // The key's credit balance as the provider states it — or the honest
+    // "not reported" — from the ONE owner (the same line the tab and the
+    // doctor carry, in the rail's compact spelling).
+    const credits = usageCreditsLine(usage.credits, now, 'compact')
+    if (credits !== undefined) {
+      usageNodes.push(
+        <Box key="usage:credits" width={rowW}>
+          <Text wrap="truncate-end">
+            <Text color={tok.textMuted}>{`  ${credits}`}</Text>
+          </Text>
+        </Box>,
+      )
+    }
   } else if (usageEmpty && usage.sourceKind === 'none') {
     // Nothing connected on the active lane: the honest why-not from the ONE
     // usage owner — the same truth the settings tab's not-connected line
@@ -375,15 +402,22 @@ function HelmTelemetryRailImpl({
     usageNodes.push(<EmptyHint key="usage:absence" text={usage.absence} width={rowW} />)
   } else if (usageEmpty) {
     // A connected source whose meters genuinely fill later (a subscription
-    // lane before its first observed response): explain WHEN.
-    usageNodes.push(<EmptyHint key="usage:none" text="fills after first reply" width={rowW} />)
+    // lane before its first observed response): the one no-read spelling,
+    // and WHEN it fills.
+    usageNodes.push(<EmptyHint key="usage:none" text={`${NO_USAGE_READ_WORDS} · fills after first reply`} width={rowW} />)
   } else {
-    // Subscription windows in the source's own shape: Anthropic serves
-    // 5h + 7d; OpenAI serves what it stated (the weekly band — no 5h row).
-    // Row labels/keys ride the window key so a source switch republishes an
+    // Subscription windows in the source's own shape: the first-party
+    // subscription serves 5h + 7d AND its per-model weekly pools (Fable ·
+    // Opus · Sonnet — folded into the same block, the shared pair first);
+    // OpenAI serves what it stated (the weekly band — no 5h row). Row
+    // labels/keys ride the window key so a source switch republishes an
     // honest row model. ↵ opens the owning surface per provider.
     const windowCommand = usage.provider === 'anthropic' ? '/deck' : '/usage'
-    for (const w of liveWindows) {
+    const meterRows: Array<{ w: UsageWindowView; pool: boolean }> = [
+      ...liveWindows.map(w => ({ w, pool: false })),
+      ...usage.pools.filter(w => w.state === 'live').map(w => ({ w, pool: true })),
+    ]
+    for (const { w, pool } of meterRows) {
       usageNodes.push(
         ((): React.ReactNode => {
           const i = sel({ kind: 'command', command: windowCommand, label: `usage:${w.key}` })
@@ -396,7 +430,7 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={resetIn(w.resetsAtMs)}
+                  resetIn={meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>
@@ -433,9 +467,9 @@ function HelmTelemetryRailImpl({
     )
   }
   // The OTHER logged-in window-metered accounts (the ruled design): each
-  // with signal paints its quiet source label and its live windows after
-  // the focused source's rows — all accounts visible, the focused one
-  // first and emphasized by position.
+  // with signal paints its quiet source label, its live windows and its
+  // per-model pools after the focused source's rows — all accounts
+  // visible, the focused one first and emphasized by position.
   for (const other of otherUsages) {
     const otherCommand = other.provider === 'anthropic' ? '/deck' : '/usage'
     usageNodes.push(
@@ -445,7 +479,11 @@ function HelmTelemetryRailImpl({
         </Text>
       </Box>,
     )
-    for (const w of other.windows.filter(x => x.state === 'live')) {
+    const otherRows: Array<{ w: UsageWindowView; pool: boolean }> = [
+      ...other.windows.filter(x => x.state === 'live').map(w => ({ w, pool: false })),
+      ...other.pools.filter(x => x.state === 'live').map(w => ({ w, pool: true })),
+    ]
+    for (const { w, pool } of otherRows) {
       usageNodes.push(
         ((): React.ReactNode => {
           const i = sel({ kind: 'command', command: otherCommand, label: `usage:${other.provider}:${w.key}` })
@@ -458,7 +496,7 @@ function HelmTelemetryRailImpl({
                   window={w.label}
                   state="live"
                   value={w.usedPct ?? undefined}
-                  resetIn={resetIn(w.resetsAtMs)}
+                  resetIn={meterTail(w, pool)}
                 />
               </Text>
             </TelemetryRow>

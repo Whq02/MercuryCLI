@@ -38,6 +38,7 @@ import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 // Warm-ink brand palette — single source of truth (see mercuryPalette.ts). The
 // identity accent (TERRA-or-critter) comes from getSessionAccent so a live
 // /critter pick re-tints the frame; the status spine stays fixed here.
@@ -209,6 +210,11 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   // cols is the OVERRIDDEN center width (~70), which would read as "narrow" and defeat
   // the gate. CockpitActiveContext is true exactly when the rails are showing.
   const helmActive = useContext(CockpitActiveContext) && !routeSurface
+  // The usage chips repaint the instant the first-party record changes (a
+  // /usage sample, a reply's headers, a reset) — the band read the record
+  // only when something else re-rendered it, and kept painting "5h —"
+  // beside a strip warning computed from the very same fold.
+  useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
   // The deck strip is ACTUALLY on screen only when the cockpit didn't supersede it.
   // RB-01: beneath a route surface NEITHER the deck nor the cockpit is
   // visible — the band keeps every fact instead of shedding to invisible
@@ -393,7 +399,15 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     const numberOnly = tier.numberOnlyGauges
     const showSecond = tier.show7dGauge
     const first = usage.windows[0]
-    const second = usage.windows[1]
+    // The second chip is the BINDING window for the session model — the
+    // highest-used window that applies to it, with its own label — when
+    // the first window is not itself the binding one: a per-model weekly
+    // pool at 87% surfaces here as 'Fable 87%' where the 7d chip at 44%
+    // would have hidden it. Otherwise the pair's second window.
+    const second =
+      usage.binding !== undefined && first !== undefined && usage.binding.window.key !== first.key
+        ? usage.binding.window
+        : usage.windows[1]
     // A reached limit on the active source lights one neutral chip — real
     // observations only, whatever the family (never a fabricated %).
     const limited = usage.limited
