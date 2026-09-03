@@ -376,7 +376,7 @@
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "line": 57,
+      "line": 58,
       "needle": ".claude",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
       "cls": "compat-boundary",
@@ -384,7 +384,7 @@
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "line": 57,
+      "line": 58,
       "needle": ".mercury",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
       "cls": "compat-boundary",
