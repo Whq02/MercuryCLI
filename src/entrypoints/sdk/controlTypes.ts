@@ -137,6 +137,12 @@ export type SDKControlKitEditRequest = {
   kit: unknown
 }
 
+export type SDKControlSpawnSwitchRequest = {
+  subtype: 'spawn_switch'
+  switch: 'subagents' | 'workflows'
+  on: boolean
+}
+
 export type SDKControlScheduleRosterRequest = {
   subtype: 'schedule_roster'
   schedules: unknown
@@ -261,6 +267,7 @@ export type SDKControlRequestInner =
   | SDKControlMcpReconnectRequest
   | SDKControlMcpToggleRequest
   | SDKControlKitEditRequest
+  | SDKControlSpawnSwitchRequest
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
   | SDKControlApplyFlagSettingsRequest

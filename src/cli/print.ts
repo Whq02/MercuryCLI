@@ -37,6 +37,8 @@ import { resetSessionFilePointer, restoreSessionMetadata } from '../utils/sessio
 import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
+import { setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
+import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
@@ -656,6 +658,12 @@ export async function runHeadless(
   let inputClosed = false
   let inFlightAbort: AbortController | null = null
   let deferredModelBreadcrumb: string | null = null
+  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean }> = []
+  const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
+    const landed = setSpawnSwitch(kind, on)
+    if (!landed.changed) return
+    messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
+  }
 
   const dynamicMcp: DynamicMcpState = {
     configs: {},
@@ -1165,6 +1173,11 @@ export async function runHeadless(
         const toModel = deferredModelBreadcrumb
         deferredModelBreadcrumb = null
         await injectModelSwitchBreadcrumbs(toModel)
+      }
+      if (deferredSpawnSwitches.length > 0) {
+        const toggles = deferredSpawnSwitches
+        deferredSpawnSwitches = []
+        for (const toggle of toggles) landSpawnSwitch(toggle.kind, toggle.on)
       }
     }
     if (turnWatchdog.fired) {
@@ -1779,6 +1792,7 @@ export async function runHeadless(
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
             permissionMode: state.toolPermissionContext.mode,
+            spawnSwitches: spawnSwitchFacts(),
             workspace: {
               cwd: getCwd(),
               originalCwd: getOriginalCwd(),
@@ -2045,6 +2059,16 @@ export async function runHeadless(
               respondError(requestId, `failed to enable ${serverName}`)
             }
           }
+          return
+        }
+        case 'spawn_switch': {
+          const toggle = { kind: request.switch, on: request.on }
+          if (inFlightAbort !== null) {
+            deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), toggle]
+          } else {
+            landSpawnSwitch(toggle.kind, toggle.on)
+          }
+          respondSuccess(requestId)
           return
         }
         case 'kit_edit': {
