@@ -81,7 +81,11 @@ the ten-row card:
 - **New Session in \<folder\>**: a fresh session here, born on Enter.
 - **Continue Last Session**: one keystroke back into the newest chat. It
   appears once session history exists; a first boot has none yet.
-- **Boot Menu**: boot settings.
+- **Boot Menu**: boot settings. Its Agents section holds two per-session
+  switches, Sub-agents and Workflows: off removes the Agent or Workflow tool
+  from the sessions born with it and every spawn road answers one receipt;
+  inside a session, `/subagents on|off` and `/workflows on|off` flip it at
+  the next turn boundary.
 - **MCPs & Skills**: what the next session loads ([docs/KIT.md](docs/KIT.md)).
 - **Agents**: create and edit agents.
 - **Doctor / Health Check**: the install's health certificate.
@@ -214,7 +218,7 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
   [docs/ASEPRITE-BRIDGE.md](docs/ASEPRITE-BRIDGE.md)).
 - **Memory**: experience cards, a project notepad, and Minerva's room over
   your saved prompts ([docs/TABULA-NOTES.md](docs/TABULA-NOTES.md)).
-- **Voice input**: `/speak on`, then `v` in an empty composer dictates
+- **Voice input**: `/speak on`, then space in an empty composer dictates
   into it through the family you signed into; audio leaves only after you
   stop, and Mercury never speaks aloud ([docs/VOICE.md](docs/VOICE.md)).
 - **Durability**: atomic publication, journaled operations and a boot-time
@@ -239,7 +243,7 @@ catalogue, grouped the way `/help` groups it:
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/themis` `/supervisor` |
-| crew & delegation | `/agents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
+| crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/plan` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |

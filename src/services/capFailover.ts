@@ -77,6 +77,17 @@ export function noteOfferAutoDone(key: string): void {
   offerAutoActions.add(key)
 }
 
+export function slotWallKey(family: string, active: string): string {
+  return `slot|${family}|${active}`
+}
+
+export function noteSlotWallObserved(family: string, active: string, walled: boolean): void {
+  if (walled) return
+  const key = slotWallKey(family, active)
+  offerDismissals.delete(key)
+  offerAutoActions.delete(key)
+}
+
 export function _resetOfferMemoriesForTesting(): void {
   offerDismissals.clear()
   offerAutoActions.clear()

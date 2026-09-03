@@ -28,6 +28,7 @@ type Send = {
   minTick?: number
   awaitText?: string
   awaitSettleTicks?: number
+  awaitStableTicks?: number
   afterPrevTicks?: number
   requireAwait?: boolean
   mark?: string
@@ -125,7 +126,7 @@ function baseEnv(home: string): Record<string, string> {
 }
 
 const FACE_THEN_COMPOSER: Send[] = [
-  { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3 },
+  { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
 
 console.log('============================================================')
@@ -151,7 +152,7 @@ for (const cols of [100, 120]) {
     {
       cols,
       rows: 40,
-      total: 200,
+      total: 260,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
@@ -184,7 +185,7 @@ for (const cols of [100, 120]) {
 }
 
 for (const cols of [100, 120]) {
-  const { home, workspace } = seedHome()
+  const { home, workspace } = seedHome('claude-opus-5')
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({
@@ -202,14 +203,14 @@ for (const cols of [100, 120]) {
     {
       cols,
       rows: 40,
-      total: 200,
+      total: 260,
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
         ...FACE_THEN_COMPOSER,
         { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-        { data: '\x1b', atTick: 999, awaitText: 'Current week (Fable)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
-        { data: '', atTick: 999, awaitText: 'of Fable limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
+        { data: '\x1b', atTick: 999, awaitText: 'Current week (Opus)', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
+        { data: '', atTick: 999, awaitText: 'of Opus limit used', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'warning' },
       ],
       readyText: ['? for shortcuts'],
       stableTicks: 4,
@@ -220,17 +221,17 @@ for (const cols of [100, 120]) {
       MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
         five_hour: { utilization: 23, resets_at: new Date(Date.now() + 3600e3).toISOString() },
         seven_day: { utilization: 51, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
-        seven_day_fable: { utilization: 99, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
-        seven_day_opus: { utilization: 12, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
+        seven_day_fable: { utilization: 12, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
+        seven_day_opus: { utilization: 99, resets_at: new Date(Date.now() + 4 * 24 * 3600e3).toISOString() },
       }),
     },
   )
-  console.log(`\nanthropic Fable-pool fixture · ${cols} cols`)
+  console.log(`\nanthropic per-model-pool fixture · ${cols} cols`)
   check(`every send became due (${cols})`, sends > 0 && receipts === sends)
   const frame = (marks.warning ?? '').replace(/\s+/g, ' ')
   check(
-    `the strip names the POOL, not the calm all-models week (${cols})`,
-    /Anthropic: 99% of Fable limit used · resets /.test(frame),
+    `the strip names the session model's OWN pool, not the calm all-models week (${cols})`,
+    /Anthropic: 99% of Opus limit used · resets /.test(frame) && !/of Fable limit used/.test(frame),
     frame.slice(-260) || '(no warning frame)',
   )
   check(`…with the warn lead (${cols})`, frame.includes('▲ Anthropic: 99%'), frame.slice(-140))
