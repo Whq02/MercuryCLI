@@ -1,12 +1,8 @@
-import { clearSystemPromptSectionState } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { clearToolRosterLatches } from './toolEconomy.js'
 
 const pending = new Map<string, string>()
 
 export function declareLawfulPrefixChange(owner: string, reason: string): void {
-  clearToolRosterLatches(owner)
-  clearSystemPromptSectionState()
   pending.set(owner, reason)
   logForDebugging(`preserved thinking: lawful prefix change declared for ${owner}: ${reason}`)
 }
