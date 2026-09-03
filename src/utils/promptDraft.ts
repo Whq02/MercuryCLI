@@ -7,6 +7,7 @@ import type { PastedContent } from './config.js'
 import { getMercuryHome } from './envUtils.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
+import { getProjectDir } from './sessionStorage/paths.js'
 
 export interface PromptDraft {
   text: string
@@ -298,5 +299,30 @@ export function readScopedDocsSync(
     return scopes as Record<string, ComposerDocument>
   } catch {
     return null
+  }
+}
+
+export async function migrateOrphanedDraft(conversationId: string): Promise<boolean> {
+  try {
+    const p = draftFilePath()
+    if (!existsSync(p)) return false
+    const parsed = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>
+    if (sanitizeDraft(parsed[conversationId]) !== null) return false
+    const projectDir = getProjectDir(getCwd())
+    const orphans = Object.keys(parsed).filter(
+      key => !key.startsWith('_') && sanitizeDraft(parsed[key]) !== null && !existsSync(join(projectDir, `${key}.jsonl`)),
+    )
+    if (orphans.length !== 1) return false
+    const orphan = orphans[0]!
+    await draftStore().mutate(current => {
+      const page = current[orphan]
+      if (page === undefined || conversationId in current) return current
+      const next = { ...current, [conversationId]: page }
+      delete next[orphan]
+      return next
+    })
+    return true
+  } catch {
+    return false
   }
 }
