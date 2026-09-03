@@ -56,6 +56,10 @@ export type PhaseDetail = {
   servedBy?: string
   /** Leader tool_use blocks in flight (tool-work byline: "Running 3 tools"). */
   toolCount?: number
+  /** The request wait's own words while the first byte is outstanding or a
+   *  reissue is on its way ("ingesting a 26k-token prompt on Opus 5 —
+   *  first byte expected within 90 s"); absent once the stream flows. */
+  wait?: string
 }
 
 export type TurnPhaseSnapshot = {

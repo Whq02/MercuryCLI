@@ -226,7 +226,17 @@ import {
   updateUsage,
 } from './cacheAndUsage.js'
 import { getPreviousRequestIdFromMessages, stripExcessMediaItems } from './media.js'
-import { streamIdleTimeoutMs, streamIdleWarningMsOf } from '../streamIdleBudget.js'
+import {
+  coldPrefixOf,
+  estimateRequestTokens,
+  firstByteBudgetMs,
+  firstByteTimeoutLine,
+  requestWaitLine,
+  retryReasonWords,
+  streamIdleTimeoutMs,
+  streamIdleWarningMsOf,
+  type RequestWaitV1,
+} from '../streamIdleBudget.js'
 import {
   configureEffortParams,
   configureTaskBudgetParams,
@@ -263,6 +273,12 @@ export type Options = {
   maxOutputTokensOverride?: number
   fallbackModel?: string
   onStreamingFallback?: () => void
+  /** THE REQUEST WAIT: the first byte outstanding under its budget (the
+   *  idle budget on a warm prefix, the cold-ingest budget on a switched,
+   *  folded or fresh one), or a reissue on its way; null once the stream
+   *  flows. The runner relays it as its status frame so a hosting seat's
+   *  status row speaks it and promises the budget that fires. */
+  onWait?: (wait: RequestWaitV1 | null) => void
   querySource: QuerySource
   agents: AgentDefinition[]
   allowedAgentTypes?: string[]
@@ -523,6 +539,13 @@ export async function* executeNonStreamingRequest(
   } while (!e.done)
 
   return e.value as BetaMessage
+}
+
+/** The SDK's own request timeout, whichever bundle copy of the class threw
+ *  it (the retry seam classifies by name for the same reason). */
+function isFirstByteTimeout(error: unknown): boolean {
+  if (error instanceof APIConnectionTimeoutError) return true
+  return error instanceof Error && error.constructor?.name === 'APIConnectionTimeoutError'
 }
 
 async function* queryModel(
@@ -1344,6 +1367,29 @@ async function* queryModel(
 
         maxOutputTokens = params.max_tokens
 
+        // THE FIRST-BYTE BUDGET: the idle watchdog below arms only once the
+        // headers have arrived; the wait before them — the provider
+        // ingesting the prompt — rode the SDK's ten-minute request timeout
+        // while the status row promised the idle budget (the turn that sat
+        // "no stream events for 4m — the watchdog aborts at 1m" for five
+        // minutes after a model switch). The budget is the request's own
+        // timeout: the idle budget on a warm prefix, and on a cold one (a
+        // switch, a fold, a fresh session) the idle budget plus a bounded
+        // per-token ingest allowance — spoken as the wait, so the row
+        // promises the number that fires. Every attempt re-speaks it.
+        const promptTokens = estimateRequestTokens({ system: params.system, tools: params.tools, messages: params.messages })
+        const cold = coldPrefixOf(messages, options.model)
+        const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+          kind: 'first-byte',
+          cold,
+          promptTokens,
+          model: getPublicModelDisplayName(context.model) ?? context.model,
+          budgetMs: firstByteBudgetMs({ cold, promptTokens }),
+          sinceMs: Date.now(),
+          attempt,
+        }
+        options.onWait?.(wait)
+
         // These marks MUST precede the awaited call: .withResponse()
         // resolves only when response headers arrive, and the dispatch
         // boundary is the moment local preparation ends and the provider
@@ -1351,7 +1397,7 @@ async function* queryModel(
         // stamp.
         if (pulseMain) {
           pulseMark('api_request_sent')
-          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting')
+          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: requestWaitLine(wait) })
         }
         if (!options.agentId) {
           headlessProfilerCheckpoint('api_request_sent')
@@ -1367,18 +1413,42 @@ async function* queryModel(
         // JSON on every input_json_delta — O(n²) over large tool inputs —
         // and this loop accumulates tool input itself.
         // biome-ignore lint/plugin: attribution for the main loop rides the fingerprint header
-        const result = await anthropic.beta.messages
-          .create(
-            { ...params, stream: true },
-            {
-              signal,
-              ...(clientRequestId && {
-                headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
-              }),
-            },
-          )
-          .withResponse()
-        if (pulseMain) pulseMark('response_headers_received')
+        const dispatch = () =>
+          anthropic.beta.messages
+            .create(
+              { ...params, stream: true },
+              {
+                signal,
+                // The first-byte budget IS the request timeout (the SDK
+                // clears it once the headers arrive; the idle watchdog
+                // governs from there).
+                timeout: wait.budgetMs,
+                ...(clientRequestId && {
+                  headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
+                }),
+              },
+            )
+            .withResponse()
+        let result: Awaited<ReturnType<typeof dispatch>>
+        try {
+          result = await dispatch()
+        } catch (sent) {
+          // THE BUDGET FIRED: the SDK's own timeout, spelled as the typed
+          // line naming the wait — the retry ladder reissues (a row per
+          // attempt) or aborts with it; the operator's own esc stays an
+          // abort, never a timeout.
+          if (!signal.aborted && isFirstByteTimeout(sent)) {
+            logForDebugging(`first-byte budget fired: ${firstByteTimeoutLine(wait)}`, { level: 'warn' })
+            throw new APIConnectionTimeoutError({ message: firstByteTimeoutLine(wait) })
+          }
+          throw sent
+        }
+        // The first byte landed: the wait is over; the idle budget governs.
+        options.onWait?.(null)
+        if (pulseMain) {
+          pulseMark('response_headers_received')
+          setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: undefined })
+        }
         streamRequestId = result.request_id
         streamResponse = result.response
         return result.data
@@ -1393,11 +1463,26 @@ async function* queryModel(
     )
 
     // Pump: retry-notice system messages pass through; the stream itself
-    // is the return value (it owns a controller, notices don't).
+    // is the return value (it owns a controller, notices don't). Every
+    // notice is a reissue on its way — the wait says so (the status row's
+    // "retrying — attempt 2 of N after a 529") beside the row it paints.
     let e
     do {
       e = await generator.next()
       if (!('controller' in e.value)) {
+        const notice = e.value as SystemAPIErrorMessage
+        if (notice.type === 'system' && notice.subtype === 'api_error') {
+          const retryWait: RequestWaitV1 = {
+            kind: 'retry',
+            attempt: notice.retryAttempt,
+            of: notice.maxRetries,
+            reason: retryReasonWords(notice.errorDetail?.status ?? (notice.error as { status?: number | null } | undefined)?.status, notice.error?.message),
+            delayMs: notice.retryInMs,
+            sinceMs: Date.now(),
+          }
+          options.onWait?.(retryWait)
+          if (pulseMain) setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'waiting', { wait: requestWaitLine(retryWait) })
+        }
         yield e.value
       }
     } while (!e.done)

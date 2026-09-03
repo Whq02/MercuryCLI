@@ -839,6 +839,12 @@ export class QueryEngine {
             }
             if (systemMessage.subtype === 'api_error') {
               this.mutableMessages.push(systemMessage)
+              // EVERY REISSUE PAINTS A ROW: the retry notice is RECORDED,
+              // not held in memory alone — a hosted chat paints from the
+              // transcript file, and an unrecorded reissue left the turn
+              // silent through every backoff (the operator's five minutes).
+              turnMessages.push(systemMessage)
+              await recordDelta()
               const apiError = systemMessage as {
                 retryAttempt?: number
                 maxRetries?: number

@@ -28,6 +28,7 @@ import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
+import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReasonWire.js'
 import type { PromptInputMode, QueuePriority } from '../../types/textInputTypes.js'
 import type {
@@ -219,6 +220,12 @@ export interface SessionTailV1 {
    *  the wait and the way out (esc stops them) instead of a thinking phase
    *  that ended with the stream. ADDITIVE: absent means no wait. */
   waitingOnAgents?: number
+  /** THE REQUEST WAIT — what the runner's request lane is waiting on: the
+   *  first byte (with the budget that fires — the idle budget on a warm
+   *  prefix, the cold-ingest budget on a switched, folded or fresh one) or
+   *  a reissue on its way. The status row speaks it and promises exactly
+   *  that budget. ADDITIVE: absent means no wait is outstanding. */
+  wait?: RequestWaitV1
   /** LIVENESS — when the runner last spoke: the wall clock of its last
    *  frame of ANY kind (a stream event — an empty thinking delta and a ping
    *  count —, a tool progress tick, an assistant, user or result frame, a
