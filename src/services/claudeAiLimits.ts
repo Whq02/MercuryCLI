@@ -89,7 +89,7 @@ type RawUtilization = { five_hour?: RawWindow; seven_day?: RawWindow } & Partial
 
 export function weeklyPoolClaimForModel(model: string): WeeklyPoolClaim | undefined {
   const id = model.toLowerCase()
-  if (id.includes('fable')) return 'seven_day_fable'
+  if (id.includes('fable') || id.includes('mythos')) return 'seven_day_fable'
   if (id.includes('opus')) return 'seven_day_opus'
   if (id.includes('sonnet')) return 'seven_day_sonnet'
   return undefined
