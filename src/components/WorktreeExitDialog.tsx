@@ -5,7 +5,7 @@
 // is reached through a deferred module load because a direct import would
 // close an import cycle back through the command layer.
 
-import figures from 'figures'
+import { GLYPH } from './mercury-ui/glyphs.js'
 import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
@@ -282,7 +282,7 @@ export function WorktreeExitDialog({
 
   return (
     <Dialog
-      title={`${figures.warning} Exiting a worktree session`}
+      title={`${GLYPH.warn} Exiting a worktree session`}
       subtitle={subtitle}
       onCancel={handleEscape}
     >

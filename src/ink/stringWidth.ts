@@ -122,7 +122,8 @@ const EMOJI_TRIGGER_RE =
 // The vendored pattern is a NON-unicode-mode regex (emoji-regex ships flags
 // 'g' alone and spells astral emoji as surrogate escapes); compiling its
 // source under 'u' turned every astral cluster into a non-match, so the
-// per-code-point sum measured 👍🏽 and 👨‍💻 as 4 and 👩‍👩‍👦 as 6 while the
+// per-code-point sum measured a thumbs-up with a skin-tone modifier and a
+// man+ZWJ+laptop cluster as 4 and a two-adult ZWJ family as 6 while the
 // grid paints 2 (WG-1). The anchored copy inherits the vendored flags minus
 // the global one, so the source and its mode can never disagree again.
 const EMOJI_CLUSTER_RE = (() => {

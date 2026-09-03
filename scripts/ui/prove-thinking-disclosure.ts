@@ -168,9 +168,13 @@ const { stringWidth } = await import('../../src/ink/stringWidth.ts');
 const { getTheme, THEME_NAMES } = await import('../../src/utils/theme.ts');
 const { getSessionAccent } = await import('../../src/components/mercury-ui/sessionAccent.ts');
 
-const GLYPH = '\u2733\uFE0E';
-check('owner: the glyph is U+2733 with VS15 (text presentation)', grammar.THINKING_GLYPH === GLYPH);
-check('owner: the glyph measures one cell (the selector is zero-width)', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
+// U+273B, the teardrop-spoked asterisk: the transcript's static mark, and a
+// code point WITHOUT the Unicode Emoji property (the eight-spoked asterisk it
+// replaced painted as a colour pictograph on Windows Terminal even behind the
+// text-presentation selector: its font fallback ignores VS15).
+const GLYPH = '\u273B';
+check('owner: the glyph is U+273B (no Emoji property — never a pictograph)', grammar.THINKING_GLYPH === GLYPH);
+check('owner: the glyph measures one cell', stringWidth(grammar.THINKING_GLYPH) === 1, `width=${stringWidth(grammar.THINKING_GLYPH)}`);
 check('owner: the word is lowercase', grammar.THINKING_WORD === 'thinking');
 check('owner: the label is glyph + space + word + ellipsis', grammar.THINKING_LABEL === `${GLYPH} thinking…`);
 check('owner: the colour is the theme role `subtle`', grammar.THINKING_COLOR === 'subtle');
@@ -184,8 +188,8 @@ check(
 check('owner: exports the row element', typeof grammar.ThinkingLabel === 'function');
 const ownerSrc = readFileSync(OWNER, 'utf8');
 check(
-  'owner: the selector is spelled as an escape (never a droppable invisible literal)',
-  ownerSrc.includes("'\u2733\\uFE0E'") && !ownerSrc.includes('\uFE0E'),
+  'owner: the glyph is the figures constant and no presentation selector is spelled (the code point needs none)',
+  ownerSrc.includes('THINKING_GLYPH = TEARDROP_ASTERISK') && !ownerSrc.includes('\uFE0E') && !ownerSrc.includes('\\uFE0E'),
 );
 
 // Every renderer imports the owner and spells nothing of its own.
@@ -198,7 +202,7 @@ const RENDERERS: Record<string, string> = {
 const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8')]));
 for (const [name, src] of Object.entries(sources)) {
   check(`${name}: imports the thinking grammar owner`, src.includes("/thinkingGrammar.js'"));
-  check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK'));
+  check(`${name}: spells no glyph of its own`, !src.includes('\u2733') && !src.includes('TEARDROP_ASTERISK') && !code(src).includes('\u273B'));
   check(`${name}: spells no label of its own`, !/[Tt]hinking…/.test(src));
 }
 check('settled + redacted: no accent anywhere (the row is not identity)', !/accent/i.test(code(sources.settled!)) && !/accent/i.test(code(sources.redacted!)));
@@ -208,7 +212,9 @@ check('live: the quiet-stream line draws the one element (no bare word, no dim o
 check('spinner: the HUD word is the grammar word (full label and bare fallback)', sources.spinner!.includes('`${THINKING_WORD}${effortSuffix') && sources.spinner!.includes('text: THINKING_WORD') && !/text: 'thinking'/.test(sources.spinner!) && !/`thinking\$\{/.test(sources.spinner!));
 check('spinner: the segment paints the grammar colour at rest (the dim override that beat it is gone)', sources.spinner!.includes('return THINKING_COLOR') && !sources.spinner!.includes('dimColor={!shimmerActive}'));
 
-// The glyph literal lives in exactly one file under src (comments included).
+// The retired code point (U+2733) is spelled nowhere under src, comments
+// included; the teardrop literal is owned by constants/figures and the owner
+// reads it, never spells it.
 const walk = (dir: string, out: string[]): void => {
   for (const e of readdirSync(dir)) {
     const p = join(dir, e);
@@ -219,7 +225,11 @@ const walk = (dir: string, out: string[]): void => {
 const files: string[] = [];
 walk('src', files);
 const spellers = files.filter(f => readFileSync(f, 'utf8').includes('\u2733')).map(f => f.split('\\').join('/'));
-check('the glyph literal is spelled in the owner and nowhere else under src', spellers.length === 1 && spellers[0] === OWNER, spellers.join(', ') || '(none)');
+check('the eight-spoked asterisk (U+2733) is spelled nowhere under src', spellers.length === 0, spellers.join(', ') || '(none)');
+check(
+  'the teardrop literal is owned by constants/figures; the owner reads the constant and spells no literal',
+  readFileSync('src/constants/figures.ts', 'utf8').includes("TEARDROP_ASTERISK = '\u273B'") && !ownerSrc.includes('\u273B'),
+);
 
 // The rendered row: real components through the static renderer.
 const React = (await import('react')).default;
