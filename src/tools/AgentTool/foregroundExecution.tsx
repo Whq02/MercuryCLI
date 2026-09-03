@@ -16,6 +16,7 @@ import {
   isLocalAgentTask,
   killAsyncAgent,
   registerAgentForeground,
+  settleAgentForeground,
   unregisterAgentForeground,
   updateAgentProgress,
   updateProgressFromMessage,
@@ -515,14 +516,16 @@ export async function runForegroundAgentExecution(
     toolUseContext.setToolJSX?.(null)
     stopForegroundSummarization?.()
     if (foregroundTask) {
-      unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
-      if (!backgrounded) {
+      if (backgrounded) {
+        unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
+      } else {
         const status: 'completed' | 'failed' | 'stopped' =
           heldError instanceof AbortError
             ? 'stopped'
             : heldError !== undefined
               ? 'failed'
               : deriveAgentTerminalOutcome(agentMessages).status
+        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker))
         enqueueSdkEvent({
           type: 'system',
           subtype: 'task_notification',
