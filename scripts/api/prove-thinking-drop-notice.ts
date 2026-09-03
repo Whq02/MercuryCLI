@@ -82,6 +82,7 @@ const mark = (over: Partial<ReturnType<typeof prefixMarkOf>> = {}): ReturnType<t
   compactBoundary: null,
   modelTransition: null,
   model: 'claude-fable-5-1',
+  settings: 'mode=default;profile=balanced',
   ...over,
 })
 
@@ -137,10 +138,27 @@ section('§1 the classifier')
     { type: 'system', subtype: 'model_transition', uuid: 'mt-1' },
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
-  const m = prefixMarkOf(rows as never, 'claude-fable-5-1')
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, and the model', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', model: 'claude-fable-5-1' }), j(m))
+  const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
-  check('an empty history marks nulls', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null)
+  check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
+
+  // The operator settings the prompt build reads live: a change is a lawful
+  // prefix change and the receipt names the key that moved.
+  const { describeSettingsMove } = binding
+  check('describeSettingsMove names the moved key with both values', describeSettingsMove('mode=default;profile=balanced', 'mode=apollo;profile=balanced') === 'the permission mode (default → apollo)')
+  check('…two moved keys join', describeSettingsMove('mode=default;profile=balanced', 'mode=autopilot;profile=concise') === 'the permission mode (default → autopilot) and the response profile (balanced → concise)')
+  check('…nothing moved ⇒ null; an unreadable side never fakes a move', describeSettingsMove('mode=default;profile=balanced', 'mode=default;profile=balanced') === null && describeSettingsMove('mode=?;profile=balanced', 'mode=default;profile=balanced') === null && describeSettingsMove('mode=default;profile=balanced', 'mode=?;profile=balanced') === null)
+  resetThinkingDropStates()
+  classifyThinkingDrops('main', [], mark())
+  const modeMove = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark({ settings: 'mode=apollo;profile=balanced' }))
+  check('a drop after the permission mode changed is a lawful operator-setting change naming the mode', modeMove.kind === 'lawful' && modeMove.lawful === 'operator-setting' && modeMove.detail === 'the permission mode (default → apollo)', j(modeMove))
+  const profileMove = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark({ settings: 'mode=apollo;profile=concise' }))
+  check('a drop after the response profile changed names the profile', profileMove.kind === 'lawful' && profileMove.detail === 'the response profile (balanced → concise)', j(profileMove))
+  const stillApollo = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark({ settings: 'mode=apollo;profile=concise' }))
+  check('…and a drop right after it with the settings unchanged is a first drop (the lawful one never seeds a run)', stillApollo.kind === 'first', j(stillApollo))
+  const words = describeThinkingDrops([DROP('messages.1.content.0')], modeMove) ?? ''
+  check('the words: "after you changed the permission mode (default → apollo) — the system prompt and the tool roster moved with it", expected once', words.includes('after you changed the permission mode (default → apollo)') && words.includes('the system prompt and the tool roster moved with it') && words.includes('expected once') && !words.includes('Mercury') && !words.includes('doctor'), words)
 }
 
 // ============================================================================
@@ -253,6 +271,13 @@ section('§3 the ledger and the doctor row')
   const l3 = readThinkingDropLedger()
   const r3 = preservedThinkingHealth(l3)
   check('a later single drop keeps the longest run and reads as info', l3?.last.kind === 'first' && l3.longestRun === 2 && r3.status === 'info' && r3.evidence.includes('a single drop'), j(r3))
+
+  classifyThinkingDrops('ls', [], mark())
+  const setting = classifyThinkingDrops('ls', [DROP('messages.1.content.0')], mark({ settings: 'mode=apollo;profile=balanced' }))
+  recordThinkingDropLedger(setting, 'claude-fable-5-1')
+  const ls = readThinkingDropLedger()
+  const rs = preservedThinkingHealth(ls)
+  check('an operator-setting drop is recorded with its detail and reads as an info row naming the setting', ls?.last.lawful === 'operator-setting' && ls.last.detail === 'the permission mode (default → apollo)' && rs.status === 'info' && rs.evidence.includes('a setting change (the permission mode (default → apollo))'), j(rs))
 
   writeFileSync(thinkingDropLedgerPath(), '{not json')
   check('a corrupt ledger reads as null (the ok row), never a throw', readThinkingDropLedger() === null)
