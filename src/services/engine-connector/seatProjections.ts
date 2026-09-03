@@ -86,7 +86,8 @@ export interface SessionTailV1 {
   text: string | null
   turnChars?: number
   messageId?: string
-  stateWord?: 'compacting'
+  stateWord?: 'compacting' | 'waiting-on-agents'
+  waitingOnAgents?: number
   lastEventAtMs?: number
   streamBlock?: 'thinking' | 'text' | 'tool_use'
   blockSinceMs?: number

@@ -8,11 +8,8 @@ import { useAppStateStore, useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppStateStore.js'
 import {
   isLocalAgentTask,
-  killAllRunningAgentTasks,
-  markAgentsNotified,
-  type LocalAgentTaskState,
+  stopRunningAgentTasks,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
-import { emitTaskTerminatedSdk } from '../utils/sdkEventQueue.js'
 import { enqueuePendingNotification } from '../input-core/command-queue.js'
 import { pressInterrupt } from '../input-core/interruptArity.js'
 import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
@@ -32,19 +29,8 @@ function killRunningAgents(
   getState: () => AppState,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): boolean {
-  const running = Object.values(getState().tasks).filter(
-    (task): task is LocalAgentTaskState =>
-      isLocalAgentTask(task) && task.status === 'running',
-  )
+  const running = stopRunningAgentTasks(getState().tasks, setAppState)
   if (running.length === 0) return false
-  killAllRunningAgentTasks(getState().tasks, setAppState)
-  for (const task of running) {
-    markAgentsNotified(task.id, setAppState)
-    emitTaskTerminatedSdk(task.id, 'stopped', {
-      toolUseId: task.toolUseId,
-      summary: task.description,
-    })
-  }
   const summary =
     running.length === 1
       ? `the background agent "${running[0]!.description}" was stopped`
