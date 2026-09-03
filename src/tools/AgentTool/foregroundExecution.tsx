@@ -15,6 +15,7 @@ import {
   getTokenCountFromTracker,
   isLocalAgentTask,
   killAsyncAgent,
+  publishAgentProgressSoon,
   registerAgentForeground,
   settleAgentForeground,
   unregisterAgentForeground,
@@ -267,7 +268,7 @@ export async function runForegroundAgentExecution(
           resolveActivity,
           toolUseContext.options.tools,
         )
-        updateAgentProgress(backgroundedTaskId, getProgressUpdate(bgTracker), rootSetAppState)
+        publishAgentProgressSoon(backgroundedTaskId, bgTracker, rootSetAppState)
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
           emitTaskProgress(
@@ -452,11 +453,7 @@ export async function runForegroundAgentExecution(
       )
       if (foregroundTask) {
         if (message.type === 'assistant') {
-          updateAgentProgress(
-            foregroundTask.taskId,
-            getProgressUpdate(tracker),
-            rootSetAppState,
-          )
+          publishAgentProgressSoon(foregroundTask.taskId, tracker, rootSetAppState)
         }
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
