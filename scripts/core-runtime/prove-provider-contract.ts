@@ -792,6 +792,11 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   // resolver and the file carries no model-name conditional any more.
   const MODEL_NAME_CENSUS = [
     'src/commands/model/model.tsx',
+    // The first-party usage owner: the weekly pools the endpoint meters are
+    // PER FAMILY by the provider's own contract (a Fable week never caps a
+    // Sonnet turn), so binding a pool to the family word inside a model id
+    // is the pool's identity, not a capability leak — declared deliberate.
+    'src/services/claudeAiLimits.ts',
     // A1: the typed PrimaryAgentBackend contract — a
     // provider-EDGE module by construction (family classification for the
     // typed AgentRuntimeRef lives at the edge, exactly what this census
