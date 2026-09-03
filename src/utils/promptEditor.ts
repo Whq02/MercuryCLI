@@ -10,6 +10,7 @@ import { classifyGuiEditor, getExternalEditor } from './editor.js'
 import { toIDEDisplayName } from './ide.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
+import { reclaimTerminalAfterChild } from './terminalHandback.js'
 
 /**
  * Hand-off of a file (or the current prompt) to the user's external editor,
@@ -120,6 +121,10 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       }
       return { content: readFileSync(filePath, 'utf8') }
     } finally {
+      // A killed editor may have left the terminal's foreground group
+      // behind: reclaim it BEFORE either branch re-arms raw mode (a
+      // tcsetattr from a background process group is itself a stop).
+      reclaimTerminalAfterChild(isTerminalEditor ? 'prompt editor' : 'prompt editor (gui)')
       if (isTerminalEditor) {
         instance.exitAlternateScreen()
       } else {

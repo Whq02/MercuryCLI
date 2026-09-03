@@ -545,7 +545,9 @@ console.log('[G] the bound — with the proof seam at 1.5 s the take stops by it
   )
   fx.child.kill('SIGTERM')
   check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
-  check('the bound receipt names the bound and the transcribing footer follows', (res.marks.bound ?? '').includes('capture stopped at the 1.5-second bound — transcribing') && (res.marks.bound ?? '').includes('transcribing…'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('bound') || l.includes('transcribing')).join(' · '))
+  // The receipt shares the footer's one notice row with the transient phase word, so the frame that carries the
+  // receipt need not carry 'transcribing…' in the same beat; the footer's phase word is §A's pin.
+  check('the bound receipt names the bound and says the take is transcribing', (res.marks.bound ?? '').includes('capture stopped at the 1.5-second bound — transcribing'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('bound') || l.includes('transcribing')).join(' · '))
   check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
   const served = ledgerPosts(fx.ledger)
   check('exactly ONE take reached the transcriber', served.length === 1, served.join(' | '))

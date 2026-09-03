@@ -219,6 +219,10 @@ export async function runForegroundAgentExecution(
       prompt,
       setAppState: rootSetAppState,
       selectedAgent,
+      // The record names the model the agent RUNS — the plan's resolved id
+      // (the served id replaces it in the progress fold once a response
+      // lands); a record without one painted a model-less row.
+      model: metadata.resolvedAgentModel,
       toolUseId: toolUseContext.toolUseId,
       autoBackgroundMs,
     })
@@ -518,6 +522,19 @@ export async function runForegroundAgentExecution(
         toolUseContext.options.tools,
       )
       if (foregroundTask) {
+        // The task record is the ONE record every crew surface reads (the
+        // work roster projects it): the tracker's totals — tool uses, the
+        // ledger fold, the served model — land on it at every assistant
+        // message, exactly as the background path publishes. This publish
+        // once rode the SDK-summaries gate, so a foreground agent's row
+        // carried no model and no tokens for the whole of its run.
+        if (message.type === 'assistant') {
+          updateAgentProgress(
+            foregroundTask.taskId,
+            getProgressUpdate(tracker),
+            rootSetAppState,
+          )
+        }
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
           emitTaskProgress(
@@ -528,15 +545,6 @@ export async function runForegroundAgentExecution(
             metadata.startTime,
             lastToolName,
           )
-          if (getSdkAgentProgressSummariesEnabled()) {
-            // Publish the tracker's totals so summary token/tool counts are
-            // never zero.
-            updateAgentProgress(
-              foregroundTask.taskId,
-              getProgressUpdate(tracker),
-              rootSetAppState,
-            )
-          }
         }
       }
 

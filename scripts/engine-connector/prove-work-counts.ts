@@ -123,7 +123,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
   check('C2 the parked ask rides the counts', counts.asks === 1, `asks=${counts.asks}`)
   check(
     'C2 the chip line speaks the board vocabulary',
-    chip === '1 workflow · 2 agents · 1 teammate · 1 shell · 1 ask',
+    chip === '1 workflow · 2 agents · 1 named agent · 1 shell · 1 ask',
     chip ?? 'null',
   )
   check('C3 the settled agent is LISTED by the board but never counted', rosterRowsOf(rows, 'agent').length === 3 && boardAgentsRunning === 2)

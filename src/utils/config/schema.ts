@@ -15,6 +15,10 @@ import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
 import type { ModelOption } from '../model/modelOptions.js'
+// The default appearance comes from its leaf owner (systemTheme.ts), never
+// from theme.ts: DEFAULT_GLOBAL_CONFIG is minted while this module
+// evaluates, and theme.ts pulls the palette and accent graph.
+import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
 
 // One pasted item in the composer's attachment slots. Text pastes carry the
@@ -696,7 +700,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     numStartups: 0,
     installMethod: undefined,
     autoUpdates: undefined,
-    theme: 'dark',
+    theme: DEFAULT_THEME_SETTING,
     preferredNotifChannel: 'auto',
     verbose: false,
     editorMode: 'normal',

@@ -1,12 +1,15 @@
-//! Mercury's voice capture addon — a Node-API module over cpal.
+//! Mercury's native addon — a Node-API module: the voice capture over cpal,
+//! and beside it the terminal hand-back (tty.rs).
 //!
-//! Surface (camelCase on the JS side):
+//! Voice surface (camelCase on the JS side):
 //!   packVersion()            the crate version
 //!   listInputDevices()       every input device name the host reports
 //!   defaultInputDevice()     the default input's name, or null
 //!   startCapture()           open a take on the default input → handle
 //!   stopCapture(handle)      close the take → its bytes as s16le 16 kHz mono
 //!   cancelCapture(handle)    close the take, keep nothing
+//! Terminal surface (tty.rs): ttyForegroundGroup(fd) · ownProcessGroup() ·
+//!   reclaimTerminal(fd) — the foreground process group read and reclaimed.
 //!
 //! A take runs on its own thread (an audio stream is bound to the thread
 //! that built it): the thread builds the stream, plays it, waits for the
@@ -24,6 +27,8 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Sample;
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
+
+pub mod tty;
 
 /// The capture format Mercury's transcribers are promised.
 const TARGET_RATE: u32 = 16_000;

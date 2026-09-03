@@ -11,7 +11,7 @@
  * launched from review opens ON the committed answer.
  */
 import figures from 'figures'
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import type { KeyboardEvent } from '../../../ink/events/keyboard-event.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { useAppState } from '../../../state/AppState.js'
@@ -33,7 +33,7 @@ import { FilePathLink } from '../../FilePathLink.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewQuestionView } from './PreviewQuestionView.js'
 import { QuestionNavigationBar } from './QuestionNavigationBar.js'
-import type { QuestionState } from './questionState.js'
+import { OTHER_OPTION_VALUE, type QuestionState } from './questionState.js'
 
 type Props = {
   question: Question
@@ -110,20 +110,34 @@ export function QuestionView(props: Props): React.ReactNode {
   const [isFooterFocused, setIsFooterFocused] = useState(false)
   const [footerIndex, setFooterIndex] = useState(0)
   const [isOtherFocused, setIsOtherFocused] = useState(false)
+  // ↵ on the Other row with nothing typed: the row keeps the focus and the
+  // help line says what to do; the hint clears on the next keystroke or
+  // when the focus leaves the row.
+  const [showEmptyOtherHint, setShowEmptyOtherHint] = useState(false)
+  // The multi-select's Next/Submit button holding the focus (the row focus
+  // stays on the Other row beneath it).
+  const [isNextFocused, setIsNextFocused] = useState(false)
   const editor = getExternalEditor()
   const editorName = editor ? toIDEDisplayName(editor) : null
 
   const questionText = question.question
   const questionState = questionStates[questionText]
+  // The Other field as it stands: every keystroke lands here before the
+  // authority's projection can re-render, and an answer composed in the
+  // same event reads THIS — never a projection a keystroke behind.
+  const otherTextRef = useRef<string | null>(null)
+  const otherText = (): string => otherTextRef.current ?? questionState?.textInputValue ?? ''
 
   const handleFocus = useCallback(
     (value: unknown) => {
-      const isOther = value === '__other__'
+      const isOther = value === OTHER_OPTION_VALUE
       setIsOtherFocused(isOther)
       onTextInputFocus(isOther)
+      if (!isOther) setShowEmptyOtherHint(false)
     },
     [onTextInputFocus],
   )
+  const showEmptyHint = useCallback(() => setShowEmptyOtherHint(true), [])
 
   const handleOpenEditor = useCallback(
     async (currentValue: string, setValue: (value: string) => void) => {
@@ -196,6 +210,24 @@ export function QuestionView(props: Props): React.ReactNode {
     { isActive: true },
   )
 
+  // Tab / shift+Tab from INSIDE the Other field (single-select): the
+  // question keys are the documented way between questions and must work
+  // from every row. The card's own tab bindings stand down while a text
+  // field is focused — they also carry ←/→, which the caret owns — so this
+  // handler takes only the two tab keys there. It registers after the
+  // select's raw handler (which passes tab through inside an input row) and
+  // before the field's own, which would swallow it. A multi-select hands its
+  // tabs out itself (onTabOut).
+  useInput(
+    (_input, key, event) => {
+      if (!key.tab) return
+      event.stopImmediatePropagation()
+      if (key.shift) onTabPrev?.()
+      else onTabNext?.()
+    },
+    { isActive: isOtherFocused && !question.multiSelect && !routesToPreview },
+  )
+
   // Any previewed option routes the whole decision to the preview workspace.
   if (routesToPreview) {
     return (
@@ -232,15 +264,32 @@ export function QuestionView(props: Props): React.ReactNode {
     })),
     {
       type: 'input' as const,
-      value: '__other__',
+      value: OTHER_OPTION_VALUE,
       label: 'Other',
       placeholder: question.multiSelect ? 'Type something' : 'Type something.',
       initialValue: questionState?.textInputValue ?? '',
-      onChange: (value: string) =>
-        onUpdateQuestionState(questionText, { textInputValue: value }, question.multiSelect ?? false),
+      onChange: (value: string) => {
+        otherTextRef.current = value
+        setShowEmptyOtherHint(false)
+        onUpdateQuestionState(questionText, { textInputValue: value }, question.multiSelect ?? false)
+      },
       ...(isApolloPoll ? { indexLabel: apolloCustomIndexLabel() } : {}),
     },
   ]
+
+  // What ↵ does on the focused row — the footer states it, and an empty
+  // Other field on ↵ says what to do instead of selecting nothing.
+  const enterHint = showEmptyOtherHint
+    ? question.multiSelect
+      ? 'Type something first, then Enter to add it'
+      : 'Type something first, then Enter to answer with it'
+    : isNextFocused
+      ? 'Enter to continue'
+      : isOtherFocused
+        ? question.multiSelect
+          ? 'Enter to add your text'
+          : 'Enter to answer with your text'
+        : 'Enter to select'
 
   const footer = (
     <Box flexDirection="column">
@@ -273,7 +322,7 @@ export function QuestionView(props: Props): React.ReactNode {
   const helpLine = (
     <Box marginTop={1}>
       <Text color="inactive" dimColor>
-        Enter to select ·{' '}
+        {enterHint} ·{' '}
         {questions.length === 1 ? (
           <>
             {figures.arrowUp}/{figures.arrowDown} to navigate
@@ -315,14 +364,12 @@ export function QuestionView(props: Props): React.ReactNode {
                 options={options}
                 defaultValue={selectedValue as string[] | undefined}
                 onChange={((values: string[]) => {
+                  // The Other row in the selection carries its text: the
+                  // answer names the row and hands the field over as it
+                  // stands; the card strips the row and keeps the text.
                   onUpdateQuestionState(questionText, { selectedValue: values }, true)
-                  const textInput = values.includes('__other__')
-                    ? questionStates[questionText]?.textInputValue
-                    : undefined
-                  const finalValues = values
-                    .filter(v => v !== '__other__')
-                    .concat(textInput ? [textInput] : [])
-                  onAnswer(questionText, finalValues, undefined, false)
+                  const textInput = values.includes(OTHER_OPTION_VALUE) ? otherText() : undefined
+                  onAnswer(questionText, values, textInput, false)
                 }) as (values: unknown[]) => void}
                 onFocus={handleFocus}
                 onCancel={onCancel}
@@ -334,6 +381,9 @@ export function QuestionView(props: Props): React.ReactNode {
                 onImagePaste={onImagePaste}
                 pastedContents={pastedContents}
                 onRemoveImage={onRemoveImage}
+                onEmptyInputSubmit={showEmptyHint}
+                onTabOut={direction => (direction === 'next' ? onTabNext?.() : onTabPrev?.())}
+                onSubmitFocusChange={setIsNextFocused}
               />
             ) : (
               <Select
@@ -343,8 +393,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 defaultFocusValue={selectedValue as string | undefined}
                 onChange={((value: string) => {
                   onUpdateQuestionState(questionText, { selectedValue: value }, false)
-                  const textInput =
-                    value === '__other__' ? questionStates[questionText]?.textInputValue : undefined
+                  const textInput = value === OTHER_OPTION_VALUE ? otherText() : undefined
                   onAnswer(questionText, value, textInput)
                 }) as (value: unknown) => void}
                 onFocus={handleFocus}
@@ -356,6 +405,7 @@ export function QuestionView(props: Props): React.ReactNode {
                 onImagePaste={onImagePaste}
                 pastedContents={pastedContents}
                 onRemoveImage={onRemoveImage}
+                onEmptyInputSubmit={showEmptyHint}
               />
             )}
           </Box>

@@ -157,6 +157,7 @@ import {
   stripToolReferenceBlocksFromUserMessage,
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
+import { stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import {
   getCanonicalName,
   getPublicModelDisplayName,
@@ -741,6 +742,18 @@ async function* queryModel(
   // 'Invalid `signature` in `thinking` block'). Reasoning never
   // round-trips across providers; signed Anthropic thinking replays as-is.
   messagesForAPI = stripUnsignedThinkingBlocks(messagesForAPI)
+
+  // Signed thinking written by ANOTHER Anthropic model (the conversation
+  // switched models): the API drops it on every request that replays it
+  // and names each block, so the operator would read the same drop notice
+  // turn after turn. It leaves here instead — one quiet receipt per switch,
+  // painted by the turn machine. Compared by canonical family, so an alias
+  // never reads as a switch.
+  messagesForAPI = stripThinkingFromOtherModels(
+    messagesForAPI,
+    options.model,
+    (a, b) => getCanonicalName(a) === getCanonicalName(b),
+  )
 
   // Advisor blocks without the advisor header are a 400 — strip them.
   if (!betas.includes(ADVISOR_BETA_HEADER)) {

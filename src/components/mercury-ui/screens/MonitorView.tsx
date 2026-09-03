@@ -427,7 +427,7 @@ export function MonitorView({ onClose }: { onClose: () => void }): React.ReactNo
     )
   }
 
-  // not in a team — honest dormant card, NOT a crash, NO faked rows.
+  // not in a group — honest dormant card, NOT a crash, NO faked rows.
   if (snap.state !== 'live') {
     return (
       <NavigablePanes<MonRow>
@@ -440,8 +440,8 @@ export function MonitorView({ onClose }: { onClose: () => void }): React.ReactNo
         onClose={onClose}
         footerHints="r refresh"
         emptyState={{
-          title: snap.reason ?? 'not in a team',
-          hint: '/monitor is a swarm command-center. Start or join a team first.',
+          title: snap.reason ?? 'not in an agent group',
+          hint: "/monitor follows a shared agent group; this session's own sub-agents are on /teammates.",
         }}
       />
     )

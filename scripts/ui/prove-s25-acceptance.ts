@@ -294,9 +294,9 @@ pin('theme pin flag + member gate (2)', 'components/design-system/ThemeProvider.
   '(THEME_SETTINGS as readonly string[]).includes(pin)',
   'getGlobalConfig().theme',
 ])
-pin('no-provider default: dark setting, inert setters (1)', 'components/design-system/ThemeProvider.tsx', [
-  "resolvedTheme: 'dark'",
-  "themeSetting: 'dark'",
+pin('no-provider default: the default appearance (its one owner), inert setters (1)', 'components/design-system/ThemeProvider.tsx', [
+  'resolvedTheme: DEFAULT_THEME_SETTING',
+  'themeSetting: DEFAULT_THEME_SETTING',
 ])
 pin('ground sync on every resolved value (5)', 'components/design-system/ThemeProvider.tsx', [
   'syncOasisBgToTheme(resolvedTheme)',
