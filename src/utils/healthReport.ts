@@ -2269,14 +2269,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Terminal profile',
           run: () => {
             const { resolveTerminalProfile } = require('../ink/session/terminalProfile.js') as typeof import('../ink/session/terminalProfile.js')
+            const { describeTerminalHandback } = require('./terminalHandback.js') as typeof import('./terminalHandback.js')
+            const handback = describeTerminalHandback()
             const p = resolveTerminalProfile()
             const cols = process.stdout.columns ?? 0
             const rows = process.stdout.rows ?? 0
             const color = process.env.NO_COLOR ? 'no-color' : (flagEnv('MERCURY_TRUECOLOR') ?? '1') !== '0' ? 'truecolor' : 'reduced'
             const missing = p.checks.filter(c => !c.ok)
-            const detail = p.checks
-              .map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`)
-              .join('\n')
+            const detail = [
+              ...p.checks.map(c => `${c.ok ? '●' : c.requirement === 'required' ? '✕' : '○'} ${c.label} (${c.requirement}) — ${c.evidence}${c.ok ? '' : ` · ${c.remediation}`}`),
+              handback.line,
+            ].join('\n')
             if (!process.stdout.isTTY) {
               return {
                 status: 'info' as const,
@@ -2286,7 +2289,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             return {
               status: p.verdict === 'unsupported' ? 'fail' : p.verdict === 'capable' ? 'info' : 'ok',
-              evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''}`,
+              evidence: `profile v${p.version} ${p.verdict} · ${cols}x${rows} · ${color}${missing.length ? ` · missing: ${missing.map(c => c.id).join(', ')}` : ''} · hand-back: ${handback.native ? 'native' : 'stop + fg'}`,
               detail,
               ...(p.verdict === 'unsupported'
                 ? { fix: missing.find(c => c.requirement === 'required')?.remediation }
