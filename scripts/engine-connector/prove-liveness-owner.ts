@@ -144,7 +144,7 @@ section('§5 a tool running under its deadline = alive, whatever the stream’s 
 section('§6 interrupting wins over every other sentence')
 {
   const live: SessionLiveV1 = { inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set(), turnStartedAtMs: Date.now() - 1000 }
-  const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 50_000, watchdogMs: 90_000, phaseMs: 50_000, toolBudgetMs: null, stuck: true }
+  const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 50_000, watchdogMs: 90_000, phaseMs: 50_000, toolBudgetMs: null, stuck: true, wait: null }
   check('interrupting + stuck ⇒ the interrupting sentence', statusLine(live, stuck) === 'interrupting — the request is torn down · esc again forces a stop', statusLine(live, stuck))
   check('the hard stop outranks the interrupting sentence', statusLine(live, { ...stuck, hardStopping: true }) === 'stopping — the runner is cut if the turn is still open in a second', statusLine(live, { ...stuck, hardStopping: true }))
   const idle: SessionLiveV1 = { ...live, inFlight: false, phase: 'idle' }
