@@ -57,7 +57,7 @@ section('§19 the picker\'s supercode persists like /effort')
   const branch = src.slice(src.indexOf("if (mode === 'supercode') {"), src.indexOf("// A real effort level; selecting it clears supercode"))
   check('the supercode branch persists effortLevel max + supercodeEffort (the /effort contract)', /updateSettingsForSource\('userSettings', \{ effortLevel: 'max', supercodeEffort: true \}\)/.test(branch), branch.slice(0, 120))
   check('…and releases the launch pins first', /unpinAllLaunchEffort\(\)/.test(branch))
-  check('…before the session state flips', branch.indexOf('updateSettingsForSource') < branch.indexOf('setAppState'))
+  check('…before the session state flips', branch.indexOf('updateSettingsForSource') !== -1 && branch.indexOf('updateSettingsForSource') < branch.indexOf('setAppState'))
   const effortCmd = read('src/commands/effort/effort.tsx')
   check('the /effort command still writes the same two fields (one contract, two doors)', /effortLevel: 'max',\s*\n\s*supercodeEffort: true,/.test(effortCmd))
 }
