@@ -9,6 +9,7 @@ import { getSelectedSuggestion } from '../components/PromptInput/suggestionSelec
 import { useNotifications } from '../context/notifications.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useIsModalOverlayActive, useRegisterOverlay } from '../context/overlayContext.js'
+import { anyModalOverlayActive } from '../context/overlayStack.js'
 import { currentSurfaceRoute } from '../context/surfaceRoute.js'
 import { useInput } from '../ink.js'
 import { KeyboardEvent } from '../ink/events/keyboard-event.js'
@@ -1190,6 +1191,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
       void input_
       void key
       if (currentSurfaceRoute().kind !== 'repl') return
+      if (anyModalOverlayActive()) return
       const adapter = new KeyboardEvent(event.keypress)
       handleKeyboardEvent(adapter)
       if (adapter.didStopImmediatePropagation()) {
