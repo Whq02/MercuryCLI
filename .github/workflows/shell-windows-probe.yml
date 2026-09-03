@@ -198,12 +198,18 @@ jobs:
           exit 0
 
       - name: Windows shell road prover (the seam legs + the bundle)
+        id: road
+        continue-on-error: true
         run: bun scripts/bash/prove-windows-shell-road.ts
 
       - name: Windows pack layout prover
+        id: layout
+        continue-on-error: true
         run: bun scripts/bash/prove-shell-windows-pack-layout.ts
 
       - name: Engine session prover (when the engine landed on this tree)
+        id: engine
+        continue-on-error: true
         env:
           MERCURY_SHELL_ENGINE: brush
         run: |
@@ -213,6 +219,22 @@ jobs:
           } else {
             Write-Host 'no scripts/bash/prove-shell-engine-session.ts on this tree - skipped'
           }
+
+      - name: Probe verdict (every prover's outcome, one line each)
+        if: always()
+        run: |
+          $outcomes = @{
+            'road prover'   = '${{ steps.road.outcome }}'
+            'layout prover' = '${{ steps.layout.outcome }}'
+            'engine prover' = '${{ steps.engine.outcome }}'
+          }
+          $red = 0
+          foreach ($k in $outcomes.Keys | Sort-Object) {
+            Write-Host ("{0,-14} {1}" -f $k, $outcomes[$k])
+            if ($outcomes[$k] -eq 'failure') { $red = 1 }
+          }
+          if ($red -eq 1) { Write-Host 'PROBE RED: at least one prover failed (its log is above, whole)'; exit 1 }
+          Write-Host 'PROBE GREEN'
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
