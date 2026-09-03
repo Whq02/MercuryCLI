@@ -197,6 +197,32 @@ section('§H the switch receipt is durable (FN-016 R20)')
   check('the seat_receipt row renders above the verbose gate (a receipt is never quiet)', /case 'seat_receipt':\s*\n\s*return \(/.test(renderer))
 }
 
+section('§H the wall key is stable: a reset-moment shift never re-arms; an observed clear does')
+{
+  const { slotWallKey, noteSlotWallObserved, offerDismissed, noteOfferDismissal, offerAutoDone, noteOfferAutoDone, _resetOfferMemoriesForTesting } =
+    await import('../../src/services/capFailover.ts')
+  _resetOfferMemoriesForTesting()
+  const key = slotWallKey('anthropic', 'subscription')
+  check('the wall key is the family and the walled seat — it carries no reset moment', key === 'slot|anthropic|subscription' && !/\d/.test(key))
+  check('the same wall re-stated with a shifted reset is the SAME key', slotWallKey('anthropic', 'subscription') === key)
+  noteOfferDismissal(key)
+  noteOfferAutoDone(key)
+  noteSlotWallObserved('anthropic', 'subscription', true)
+  check('a reset-moment shift without a material change does not re-arm the answered offer', offerDismissed(key))
+  check('…nor the auto latch', offerAutoDone(key))
+  noteSlotWallObserved('anthropic', 'subscription', false)
+  check('a real reset (the wall observed clear) re-arms the offer', !offerDismissed(key))
+  check('…and the auto latch', !offerAutoDone(key))
+  noteOfferDismissal(key)
+  noteSlotWallObserved('anthropic', 'api-key', false)
+  check("the other seat's clear leaves this seat's answered wall alone", offerDismissed(key))
+  check('a seat flip keys a new wall', slotWallKey('anthropic', 'api-key') !== key)
+  _resetOfferMemoriesForTesting()
+  const composer = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')
+  check('the composer keys the rung on the owner and feeds it the observed wall every commit', composer.includes("slotWallKey(family, view.active ?? '')") && composer.includes("noteSlotWallObserved(family, view.active ?? '', activeWall.walled)"))
+  check('the composer no longer embeds the reset moment in the slot key', !composer.includes("${activeWall.resetsAtMs ?? ''}`"))
+}
+
 console.log('\n' + '═'.repeat(60))
 if (failures === 0) console.log('SLOT WALL RUNG: ALL GREEN')
 else console.log(`❌ ${failures} SLOT-WALL LAW(S) BROKEN`)

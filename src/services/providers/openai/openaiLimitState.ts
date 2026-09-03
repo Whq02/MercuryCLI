@@ -10,6 +10,27 @@ const observedBySource: Record<OpenaiLimitSource, { resetsAtMs: number; observed
   'api-key': null,
 }
 
+let observedVersion = 0
+const observedListeners = new Set<() => void>()
+function noteObservedChanged(): void {
+  observedVersion++
+  for (const listener of observedListeners) {
+    try {
+      listener()
+    } catch {
+    }
+  }
+}
+export function getOpenaiObservedVersion(): number {
+  return observedVersion
+}
+export function subscribeOpenaiObserved(listener: () => void): () => void {
+  observedListeners.add(listener)
+  return () => {
+    observedListeners.delete(listener)
+  }
+}
+
 export function recordOpenaiUsageLimit(
   resetsAtMs: number | undefined,
   source: OpenaiLimitSource,
@@ -17,6 +38,7 @@ export function recordOpenaiUsageLimit(
 ): void {
   if (resetsAtMs === undefined || !Number.isFinite(resetsAtMs)) return
   observedBySource[source] = { resetsAtMs, observedAtMs: now() }
+  noteObservedChanged()
 }
 
 export function openaiLimitWindow(source: OpenaiLimitSource, now: () => number = Date.now): OpenaiLimitWindow {
@@ -32,6 +54,7 @@ export function openaiObservedWall(source: OpenaiLimitSource): { resetsAtMs: num
 export function forgetOpenaiLimitSource(source: OpenaiLimitSource): void {
   observedBySource[source] = null
   if (source === 'chatgpt-subscription') observedUsage = {}
+  noteObservedChanged()
 }
 
 
@@ -62,9 +85,11 @@ export function recordOpenaiRateHeaders(
   if (!headers || typeof headers.get !== 'function') return
   try {
     const next: OpenaiObservedUsage = { ...observedUsage }
+    let stated = false
     for (const band of ['primary', 'secondary'] as const) {
       const usedPct = finiteOrUndefined(headers.get(`x-codex-${band}-used-percent`))
       if (usedPct === undefined || usedPct < 0 || usedPct > 100) continue
+      stated = true
       const windowMinutes = finiteOrUndefined(headers.get(`x-codex-${band}-window-minutes`))
       const resetAfterSeconds = finiteOrUndefined(
         headers.get(`x-codex-${band}-reset-after-seconds`),
@@ -79,6 +104,7 @@ export function recordOpenaiRateHeaders(
       }
     }
     observedUsage = next
+    if (stated) noteObservedChanged()
   } catch {
   }
 }
@@ -115,7 +141,10 @@ export function adoptOpenaiObservedUsage(
       }
       moved = true
     }
-    if (moved) observedUsage = next
+    if (moved) {
+      observedUsage = next
+      noteObservedChanged()
+    }
   } catch {
   }
 }
