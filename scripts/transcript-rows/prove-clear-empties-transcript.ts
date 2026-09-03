@@ -75,9 +75,10 @@ try {
     else {
       const paneHas = (s: string): boolean => rows.some(r => r.slice(24).includes(s))
       const has = (s: string): boolean => rows.some(r => r.includes(s))
-      t('keyless: the /clear receipt painted in the STANDING chat', paneHas('/clear'))
-      t('keyless: the refusal says the session stands', paneHas('so this one stands'))
-      t('keyless: the old conversation stayed whole (nothing was parked)', paneHas('why does the manifest pin zod?'))
+      console.log(`  [frame] keyless after /clear: ${rows.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 100)).join(' | ')}`)
+      t('keyless: the cleared USER prompt is off the glass (the old conversation parked, never kept on the glass)', !paneHas('why does the manifest pin zod?'))
+      t('keyless: the fresh-session welcome returned (ready line)', paneHas('ready · type a prompt'))
+      t('keyless: the BORN chat is the focused one (the new-session status row)', has('new session') && has('· ready'))
       t('keyless: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
