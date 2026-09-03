@@ -47,5 +47,11 @@ ui-4	2400
 render-migration	1500
 pings	1800
 render-continuity	1800
-interaction	1500
-switchboard-3	1500
+interaction	2400
+switchboard-3	2400
+# The second hosted run on the public tree: interaction was tree-killed at
+# 1500 s with prove-rewind-escape-journeys still to run (click-expand 335 s ·
+# exit-copy 353 s · question-card-journeys 173 s under the stretch) and
+# switchboard-3 at 1500 s inside prove-session-model-arms' second geometry
+# (two 120 s fixed-window legs run their whole stretched budget, 362 s each)
+# — honest walls, not hangs; both take the ui-class grant.
