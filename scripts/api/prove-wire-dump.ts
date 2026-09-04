@@ -103,10 +103,147 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
   rows = await waitForRows(file, 2)
   check('…and lands as a row with the status and the error message', rows.length === 2 && rows[1]!.response.status === 400 && (rows[1]!.response.error ?? '').includes('deprecated') && rows[1]!.model === 'claude-opus-5', j(rows[1]?.response))
 
-  await wrapped('http://fixture.local/v1/models', { method: 'GET' })
+  await wrapped('http://fixture.local/v1/organizations', { method: 'GET' })
   await wrapped('http://fixture.local/v1/messages/count_tokens', { method: 'POST', body: j({ model: 'claude-fable-5-1', messages: [] }) })
   await sleep(100)
-  check('a GET and a count_tokens call write nothing', rowsOf(file).length === 2 && calls.length === 4, `${rowsOf(file).length} rows, ${calls.length} calls`)
+  check('a GET off the models road and a count_tokens call write nothing', rowsOf(file).length === 2 && calls.length === 4, `${rowsOf(file).length} rows, ${calls.length} calls`)
+
+  const responsesSse = [
+    `event: response.created\ndata: ${j({ type: 'response.created', response: { id: 'resp_seam_1', model: 'gpt-6-astra', status: 'in_progress' } })}\n\n`,
+    `event: response.output_item.added\ndata: ${j({ type: 'response.output_item.added', output_index: 0, item: { type: 'reasoning', id: 'rs_seam_1', summary: [] } })}\n\n`,
+    `event: response.reasoning_summary_text.delta\ndata: ${j({ type: 'response.reasoning_summary_text.delta', item_id: 'rs_seam_1', delta: 'weighing it' })}\n\n`,
+    `event: response.output_item.added\ndata: ${j({ type: 'response.output_item.added', output_index: 1, item: { type: 'message', id: 'msg_seam_1', role: 'assistant', status: 'in_progress', content: [] } })}\n\n`,
+    `event: response.output_text.delta\ndata: ${j({ type: 'response.output_text.delta', item_id: 'msg_seam_1', delta: 'SEAM-' })}\n\n`,
+    `event: response.output_text.delta\ndata: ${j({ type: 'response.output_text.delta', item_id: 'msg_seam_1', delta: 'ASTRA' })}\n\n`,
+    `event: response.completed\ndata: ${j({ type: 'response.completed', response: { id: 'resp_seam_1', model: 'gpt-6-astra', status: 'completed', usage: { input_tokens: 1200, input_tokens_details: { cached_tokens: 1024, cache_write_tokens: 176 }, output_tokens: 30, output_tokens_details: { reasoning_tokens: 20 }, total_tokens: 1230 } } })}\n\n`,
+  ].join('')
+  const servedList = {
+    models: [
+      { slug: 'gpt-6-astra', display_name: 'GPT-6 Astra', visibility: 'list', priority: 1, supported_reasoning_levels: [{ effort: 'low', description: 'low' }, { effort: 'max', description: 'max' }], default_reasoning_level: 'high', context_window: 1_050_000, max_context_window: 1_050_000, input_modalities: ['text', 'image'], supported_in_api: true },
+      { slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 2, supported_reasoning_levels: [], context_window: 272_000 },
+      { display_name: 'no id — skipped' },
+    ],
+  }
+  const openaiFetch: typeof globalThis.fetch = async (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    const method = init?.method ?? 'GET'
+    if (url.endsWith('/backend-api/codex/responses') && method === 'POST') {
+      if (String(init?.body).includes('"refuse"')) {
+        return new Response(j({ error: { message: 'model not in the live catalogue', type: 'invalid_request_error' } }), { status: 400, headers: { 'content-type': 'application/json' } })
+      }
+      const parts = [responsesSse.slice(0, 150), responsesSse.slice(150, 500), responsesSse.slice(500)]
+      const stream = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          const next = parts.shift()
+          if (next === undefined) {
+            controller.close()
+            return
+          }
+          await sleep(5)
+          controller.enqueue(new TextEncoder().encode(next))
+        },
+      })
+      return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+    }
+    if (url.includes('/backend-api/codex/models') && method === 'GET') {
+      return new Response(j(servedList), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    if (url.endsWith('/v1/models') && method === 'GET') {
+      return new Response(j({ object: 'list', data: [{ id: 'gpt-6-astra', object: 'model' }, { id: 'gpt-5.6-sol', object: 'model' }] }), { status: 200, headers: { 'content-type': 'application/json' } })
+    }
+    return new Response('{}', { status: 200, headers: { 'content-type': 'application/json' } })
+  }
+  const wrappedOpenai = wrapFetchWithWireDump(openaiFetch, 'openai')
+  const responsesBody = j({ model: 'gpt-6-astra', instructions: 'SEAM-INSTRUCTIONS', input: [{ role: 'user', content: [{ type: 'input_text', text: 'seam probe' }] }], reasoning: { effort: 'max', summary: 'auto' }, store: false, stream: true, prompt_cache_key: 'mercury-domain:seam' })
+  const astra = await wrappedOpenai('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: responsesBody, headers: { authorization: 'Bearer never-written-token-0123456789', 'content-type': 'application/json' } })
+  const astraText = await astra.text()
+  check('the OpenAI lane: the caller reads the whole Responses stream through the tee', astraText === responsesSse && astra.status === 200, `${astraText.length} vs ${responsesSse.length}`)
+  rows = await waitForRows(file, 3)
+  const astraRow = rows[2]
+  check('a Responses POST lands as a request row: the body in full, the model, the source, no headers', astraRow !== undefined && astraRow.kind === 'request' && astraRow.url === '/backend-api/codex/responses' && astraRow.model === 'gpt-6-astra' && astraRow.source === 'openai' && (astraRow.body as { reasoning?: { effort?: string } }).reasoning?.effort === 'max' && !j(astraRow).includes('never-written-token'), astraRow ? j(astraRow).slice(0, 300) : 'no row')
+  check("the usage is flattened: cached_tokens · cache_write_tokens · reasoning_tokens beside the totals; the reply head, the model and 'completed' ride the row", astraRow?.response.usage?.input_tokens === 1200 && astraRow.response.usage.cached_tokens === 1024 && astraRow.response.usage.cache_write_tokens === 176 && astraRow.response.usage.output_tokens === 30 && astraRow.response.usage.reasoning_tokens === 20 && astraRow.response.text === 'SEAM-ASTRA' && astraRow.response.model === 'gpt-6-astra' && astraRow.response.stop_reason === 'completed', j(astraRow?.response))
+  const firstByte = (astraRow?.response as { firstByteMs?: number } | undefined)?.firstByteMs
+  check('the first byte is timed on the row (headers), at or before the body end', typeof firstByte === 'number' && firstByte >= 0 && firstByte <= (astraRow?.response.ms ?? -1), `firstByteMs=${String(firstByte)} ms=${String(astraRow?.response.ms)}`)
+  const refusedAstra = await wrappedOpenai('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: j({ model: 'gpt-6-astra', refuse: true, input: [] }) })
+  check('a refused Responses call still reaches the caller as the 400 it was', refusedAstra.status === 400 && (await refusedAstra.text()).includes('live catalogue'))
+  rows = await waitForRows(file, 4)
+  check('…and lands as a row with the status and the error message', rows[3]?.response.status === 400 && (rows[3]?.response.error ?? '').includes('live catalogue'), j(rows[3]?.response))
+  const listed = await wrappedOpenai('https://chatgpt.com/backend-api/codex/models?client_version=1', { method: 'GET', headers: { authorization: 'Bearer never-written-token-0123456789' } })
+  const listedBody = (await listed.json()) as { models?: unknown[] }
+  check('the caller reads the models list whole through the tee', listed.status === 200 && listedBody.models?.length === 3)
+  rows = await waitForRows(file, 5)
+  type CatalogueRow = { kind: string; url: string; source?: string; response: { status: number; ms: number; firstByteMs?: number; models?: Array<Record<string, unknown>>; error?: string } }
+  const catalogue = rows[4] as unknown as CatalogueRow | undefined
+  check('a models-list GET lands as a catalogue row: the served rows, never a header', catalogue?.kind === 'catalogue' && catalogue.url === '/backend-api/codex/models' && catalogue.source === 'openai' && catalogue.response.status === 200 && !j(catalogue).includes('never-written-token') && typeof catalogue.response.firstByteMs === 'number', catalogue ? j(catalogue).slice(0, 300) : 'no row')
+  const served = catalogue?.response.models ?? []
+  check("each served row reads to its id and the facts beside it (window · ceiling · ladder · default · modalities · rank · visibility · api); a row without an id is skipped", served.length === 2 && served[0]?.id === 'gpt-6-astra' && served[0].display_name === 'GPT-6 Astra' && served[0].context_window === 1_050_000 && served[0].max_context_window === 1_050_000 && j(served[0].efforts) === j(['low', 'max']) && served[0].default_effort === 'high' && j(served[0].input_modalities) === j(['text', 'image']) && served[0].priority === 1 && served[0].visibility === 'list' && served[0].supported_in_api === true && served[1]?.id === 'gpt-5.6-sol' && j(served[1].efforts) === j([]) && served[1].context_window === 272_000, j(served))
+  await (await wrappedOpenai('https://api.openai.com/v1/models', { method: 'GET' })).json()
+  rows = await waitForRows(file, 6)
+  const bare = rows[5] as unknown as CatalogueRow | undefined
+  check('the id-only list (the API base) lands as a catalogue row of ids', bare?.kind === 'catalogue' && bare.url === '/v1/models' && j(bare.response.models?.map(m => m.id)) === j(['gpt-6-astra', 'gpt-5.6-sol']), j(bare?.response))
+
+  const heldFetch: typeof globalThis.fetch = async (_input, init) => {
+    const parts = [responsesSse.slice(0, 700), responsesSse.slice(700)]
+    let held: ReadableStreamDefaultController<Uint8Array> | null = null
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        held = controller
+        init?.signal?.addEventListener('abort', () => {
+          try {
+            controller.error(new DOMException('This operation was aborted', 'AbortError'))
+          } catch {
+          }
+        })
+      },
+      async pull(controller) {
+        const next = parts.shift()
+        if (next === undefined) return
+        await sleep(5)
+        controller.enqueue(new TextEncoder().encode(next))
+      },
+    })
+    void held
+    return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  const wrappedHeld = wrapFetchWithWireDump(heldFetch, 'openai')
+  const readUntilEnd = async (res: Response): Promise<{ reader: ReadableStreamDefaultReader<Uint8Array>; seen: string }> => {
+    const reader = res.body!.getReader()
+    const decoder = new TextDecoder()
+    let seen = ''
+    while (!seen.includes('response.completed')) {
+      const next = await reader.read()
+      if (next.done) break
+      seen += decoder.decode(next.value, { stream: true })
+    }
+    return { reader, seen }
+  }
+  const cancelled = await wrappedHeld('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: responsesBody })
+  const cancelledRead = await readUntilEnd(cancelled)
+  await cancelledRead.reader.cancel()
+  rows = await waitForRows(file, 7)
+  check('the caller cancels the body at the end event: the row lands with the usage, the model, the reply head and no fault', rows[6]?.response.usage?.cache_write_tokens === 176 && rows[6].response.stop_reason === 'completed' && rows[6].response.text === 'SEAM-ASTRA' && rows[6].response.error === undefined, j(rows[6]?.response))
+  const aborter = new AbortController()
+  const aborted = await wrappedHeld('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: responsesBody, signal: aborter.signal })
+  const abortedRead = await readUntilEnd(aborted)
+  aborter.abort()
+  let abortedFault = ''
+  try {
+    await abortedRead.reader.read()
+  } catch (error) {
+    abortedFault = String(error)
+  }
+  rows = await waitForRows(file, 8)
+  check('the caller aborts the connection at the end event: the caller sees its abort, the row still carries the usage and no fault', abortedFault.includes('abort') && rows[7]?.response.usage?.cached_tokens === 1024 && rows[7].response.stop_reason === 'completed' && rows[7].response.error === undefined, `${abortedFault} ${j(rows[7]?.response)}`)
+  const octetFetch: typeof globalThis.fetch = async () =>
+    new Response(new TextEncoder().encode(responsesSse), { status: 200, headers: { 'content-type': 'application/octet-stream' } })
+  const octet = await wrapFetchWithWireDump(octetFetch, 'openai')('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: responsesBody })
+  await octet.text()
+  rows = await waitForRows(file, 9)
+  check('an event stream under another content-type still reads as SSE: the usage, the text, the model and the content type ride the row', rows[8]?.response.usage?.cache_write_tokens === 176 && rows[8].response.text === 'SEAM-ASTRA' && rows[8].response.stop_reason === 'completed' && (rows[8].response as { contentType?: string }).contentType === 'application/octet-stream', j(rows[8]?.response))
+  const cutEarly = await wrappedHeld('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: responsesBody })
+  await cutEarly.body!.getReader().cancel()
+  rows = await waitForRows(file, 10)
+  check('a body cut before its end event lands as the fault it was', (rows[9]?.response.error ?? '').includes('the body ended early') && rows[9]?.response.usage === undefined, j(rows[9]?.response))
 
   const failing: typeof globalThis.fetch = async () => {
     throw new Error('ECONNRESET fixture')
@@ -118,8 +255,8 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
   } catch (error) {
     thrown = String(error)
   }
-  rows = await waitForRows(file, 3)
-  check('a transport failure lands as status 0 with the error and still throws to the caller', thrown.includes('ECONNRESET') && rows.length === 3 && rows[2]!.response.status === 0 && (rows[2]!.response.error ?? '').includes('ECONNRESET'), `${thrown} rows=${rows.length}`)
+  rows = await waitForRows(file, 11)
+  check('a transport failure lands as status 0 with the error and still throws to the caller', thrown.includes('ECONNRESET') && rows.length === 11 && rows[10]!.response.status === 0 && (rows[10]!.response.error ?? '').includes('ECONNRESET'), `${thrown} rows=${rows.length}`)
 
   const saved = process.env.MERCURY_WIRE_DUMP
   delete process.env.MERCURY_WIRE_DUMP
@@ -132,6 +269,50 @@ section('§1 the seam — the fetch wrapper records a row, scrubs, and never tou
   const reader = createWireResponseReader('application/json')
   reader.feed(j({ type: 'error', error: { type: 'overloaded_error', message: 'Overloaded' } }))
   check('the JSON reader takes the error body once it has landed', reader.end().error === 'Overloaded')
+  const responsesJson = createWireResponseReader('application/json')
+  responsesJson.feed(j({ object: 'response', id: 'resp_json', model: 'gpt-6-astra', status: 'completed', usage: { input_tokens: 10, input_tokens_details: { cached_tokens: 0, cache_write_tokens: 10 }, output_tokens: 2, output_tokens_details: { reasoning_tokens: 0 } } }))
+  const responsesEnd = responsesJson.end()
+  check('a non-streamed Responses body flattens its usage too', responsesEnd.usage?.cache_write_tokens === 10 && responsesEnd.usage.input_tokens === 10 && responsesEnd.model === 'gpt-6-astra', j(responsesEnd))
+}
+
+section('§1b the replay tool reads Responses rows in the prefix law\'s terms')
+{
+  const { writeFileSync } = await import('node:fs')
+  const { normalizeWireBody, messageRows: rowsOfMessages, printReport, formatPairLine } = await import('./wire-prefix-replay.ts')
+  const tools = [{ type: 'function', name: 'Read', description: 'read a file', parameters: { type: 'object' } }]
+  const turn1 = { role: 'user', content: [{ type: 'input_text', text: 'first' }] }
+  const reply1 = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'one' }] }
+  const turn2 = { role: 'user', content: [{ type: 'input_text', text: 'second' }] }
+  const rowOf = (seq: number, body: unknown, usage: Record<string, number>): string =>
+    j({ kind: 'request', seq, at: 1_725_000_000_000 + seq, url: '/backend-api/codex/responses', model: 'gpt-6-astra', source: 'openai', body, response: { status: 200, ms: 10, firstByteMs: 3, usage, stop_reason: 'completed' } })
+  const file = join(PURE_DIR, 'replay-responses.jsonl')
+  writeFileSync(
+    file,
+    [
+      rowOf(1, { model: 'gpt-6-astra', instructions: 'SYS', tools, input: [turn1], reasoning: { effort: 'low', summary: 'auto' } }, { input_tokens: 100, cached_tokens: 0, cache_write_tokens: 100, output_tokens: 5 }),
+      rowOf(2, { model: 'gpt-6-astra', instructions: 'SYS', tools, input: [turn1, reply1, turn2], reasoning: { effort: 'low', summary: 'auto' } }, { input_tokens: 130, cached_tokens: 100, cache_write_tokens: 30, output_tokens: 5 }),
+      rowOf(3, { model: 'gpt-6-astra', instructions: 'SYS-moved', tools, input: [turn1, reply1, turn2], reasoning: { effort: 'low', summary: 'auto' } }, { input_tokens: 130, cached_tokens: 0, cache_write_tokens: 130, output_tokens: 5 }),
+    ].join('\n') + '\n',
+  )
+  const normalized = normalizeWireBody({ model: 'gpt-6-astra', instructions: 'SYS', tools, input: [turn1] })
+  check('a Responses body reads instructions as the system and input as the messages (the originals kept)', normalized.system === 'SYS' && Array.isArray(normalized.messages) && normalized.messages.length === 1 && normalized.instructions === 'SYS' && Array.isArray(normalized.input), j(normalized))
+  check('a messages body is untouched', j(normalizeWireBody({ model: 'claude-fable-5-1', system: [{ type: 'text', text: 's' }], messages: [] })) === j({ model: 'claude-fable-5-1', system: [{ type: 'text', text: 's' }], messages: [] }))
+  const capture = readCapture(file)
+  check('the capture reads all three Responses rows as message rows', capture.length === 3 && rowsOfMessages(capture).length === 3, `${capture.length} / ${rowsOfMessages(capture).length}`)
+  const pairs = reportPairs(capture)
+  check('#1→#2 HELD with two rows appended; the cache read is the wire\'s cached_tokens', pairs[0]?.verdict.held === true && pairs[0].verdict.appended === 2 && pairs[0].cacheRead === 100, pairs[0] ? formatPairLine(pairs[0]) : 'no pair')
+  check('#2→#3 BROKE at the system (the instructions moved) with the char named', pairs[1]?.verdict.held === false && pairs[1].verdict.term === 'system' && (pairs[1].verdict.diff?.path ?? '').startsWith('system@char 3') && pairs[1].cacheRead === 0, pairs[1] ? formatPairLine(pairs[1]) : 'no pair')
+  const logged: string[] = []
+  const original = console.log
+  console.log = (line?: unknown) => {
+    logged.push(String(line ?? ''))
+  }
+  try {
+    printReport(capture, { quiet: true })
+  } finally {
+    console.log = original
+  }
+  check('the report prints the Responses rows with their cache reads', logged.some(l => l.includes('#2  gpt-6-astra') && l.includes('cache_read=100')), logged.slice(0, 5).join(' | '))
 }
 
 section('§2 the wire — the built bundle with the dump armed, read back by the replay tool')
