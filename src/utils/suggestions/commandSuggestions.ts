@@ -1,7 +1,6 @@
 import Fuse from 'fuse.js'
 
 import type { Command } from '../../commands.js'
-import type { MenuLiveState } from '../../types/command.js'
 import { formatDescriptionWithSource, getCommandName } from '../../commands.js'
 import { getSkillUsageScore } from './skillUsageTracking.js'
 
@@ -57,13 +56,12 @@ function suggestionIdentifier(command: CommandLike): string {
 function toSuggestionItem(
   command: CommandLike,
   typedQuery: string,
-  live: MenuLiveState = {},
 ): CommandSuggestionItem {
   const name = getCommandName(command)
   let value: string | undefined
   if (command.currentValue !== undefined) {
     try {
-      value = command.currentValue(live)
+      value = command.currentValue()
     } catch {
       value = undefined
     }
@@ -90,7 +88,7 @@ function toSuggestionItem(
 
 const MAX_RECENTLY_USED = 5
 
-function emptyQuerySuggestions(commands: Command[], live: MenuLiveState): CommandSuggestionItem[] {
+function emptyQuerySuggestions(commands: Command[]): CommandSuggestionItem[] {
   const visible = (commands as CommandLike[]).filter(cmd => !cmd.isHidden)
 
   const recentlyUsed = visible
@@ -116,7 +114,7 @@ function emptyQuerySuggestions(commands: Command[], live: MenuLiveState): Comman
   const everythingElse = remaining.filter(cmd => !claimed.has(suggestionIdentifier(cmd))).sort(byName)
 
   return [...recentlyUsed, ...builtins, ...userLocal, ...project, ...policy, ...everythingElse].map(cmd =>
-    toSuggestionItem(cmd, '', live),
+    toSuggestionItem(cmd, ''),
   )
 }
 
@@ -211,17 +209,16 @@ function rankResults(
 export function generateCommandSuggestions(
   input: string,
   commands: Command[],
-  live: MenuLiveState = {},
 ): CommandSuggestionItem[] {
   if (!isCommandInput(input)) return []
   if (hasCommandArgs(input)) return []
 
   const query = input.slice(1).toLowerCase().trim()
-  if (query === '') return emptyQuerySuggestions(commands, live)
+  if (query === '') return emptyQuerySuggestions(commands)
 
   const results = getFuseIndex(commands).search(query)
   const orderedCommands = rankResults(results, query)
-  let items = orderedCommands.map(cmd => toSuggestionItem(cmd, query, live))
+  let items = orderedCommands.map(cmd => toSuggestionItem(cmd, query))
 
   const hiddenExact = (commands as CommandLike[]).find(cmd => cmd.isHidden && getCommandName(cmd).toLowerCase() === query)
   if (hiddenExact !== undefined) {
@@ -230,7 +227,7 @@ export function generateCommandSuggestions(
     )
     const alreadyPresent = items.some(item => item.id === suggestionIdentifier(hiddenExact))
     if (!visibleSameName && !alreadyPresent) {
-      items = [toSuggestionItem(hiddenExact, query, live), ...items]
+      items = [toSuggestionItem(hiddenExact, query), ...items]
     }
   }
   return items

@@ -13,7 +13,7 @@ import {
 import { getContextWindowForModel, has1mContext } from './capabilities.js'
 import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import { resolveAntModel } from './antModels.js'
-import { ALL_MODEL_CONFIGS } from './configs.js'
+import { ALL_MODEL_CONFIGS, newestGenerationKey } from './configs.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import { enforceSubagentModelFloor } from './modelFloor.js'
@@ -43,25 +43,25 @@ function firstPartyString(key: keyof typeof ALL_MODEL_CONFIGS): string {
 export function getDefaultOpusModel(): string {
   const pin = process.env.ANTHROPIC_DEFAULT_OPUS_MODEL
   if (pin) return pin
-  return firstPartyString('opus5')
+  return firstPartyString(newestGenerationKey('opus'))
 }
 
 export function getDefaultSonnetModel(): string {
   const pin = process.env.ANTHROPIC_DEFAULT_SONNET_MODEL
   if (pin) return pin
-  return firstPartyString('sonnet5')
+  return firstPartyString(newestGenerationKey('sonnet'))
 }
 
 export function getDefaultHaikuModel(): string {
   const pin = process.env.ANTHROPIC_DEFAULT_HAIKU_MODEL
   if (pin) return pin
-  return firstPartyString('haiku45')
+  return firstPartyString(newestGenerationKey('haiku'))
 }
 
 export function getDefaultFableModel(): string {
   const pin = process.env.ANTHROPIC_DEFAULT_FABLE_MODEL
   if (pin) return pin
-  return firstPartyString('fable5')
+  return firstPartyString(newestGenerationKey('fable'))
 }
 
 export function isFableAvailable(): boolean {
@@ -373,6 +373,10 @@ export function getMarketingNameForModel(id: string): string | null {
 
 export function isDefaultOpusNatively1M(): boolean {
   return getContextWindowForModel(normalizeModelStringForAPI(getDefaultOpusModel())) >= 1_000_000
+}
+
+export function isDefaultFableNatively1M(): boolean {
+  return getContextWindowForModel(normalizeModelStringForAPI(getDefaultFableModel())) >= 1_000_000
 }
 
 export function isOpus1mMergeEnabled(): boolean {

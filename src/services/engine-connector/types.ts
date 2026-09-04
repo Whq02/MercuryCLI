@@ -58,6 +58,7 @@ export type ModelFactsV1 = {
   main: string
   setting: ModelSetting
   sessionPin: ModelSetting | null
+  effort?: string | null
   pendingSwitch: { setting: ModelSetting } | null
 }
 
