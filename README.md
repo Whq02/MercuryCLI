@@ -53,8 +53,8 @@ rerun the install command above, which installs the newest release over
 the old one.
 
 The 1.0.0-beta.2 archives are unsigned: a release install prints a
-`provenance — unsigned` line when it boots interactively, and
-`mercury doctor` carries the same row. The line means the archive's
+`provenance — unsigned` line on a bare interactive boot (a plain `mercury`
+with no verb or flag), and `mercury doctor` carries the same row. The line means the archive's
 manifest carries no signature; the download itself is checked against the
 release's `SHA256SUMS.txt`. The boot-time verification is described in
 [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
