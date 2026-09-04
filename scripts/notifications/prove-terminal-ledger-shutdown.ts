@@ -127,6 +127,8 @@ t.section('§5 — the partition: the full standing set notes and settles')
     ['paste', 'DBP'],
     ['focus', 'DFE'],
     ['kitty', 'DISABLE_KITTY_KEYBOARD'],
+    ['ring', 'CLEAR_ITERM2_PROGRESS'],
+    ['title', 'CLEAR_TERMINAL_TITLE'],
   ] as const) {
     const writes = [...cleanup.matchAll(new RegExp(`writeSync\\(1, ${needle}\\)`, 'g'))]
     const gated = writes.length > 0
