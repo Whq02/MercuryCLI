@@ -248,6 +248,17 @@ section('§5 bounded to the launch folder — a nested launch never looks above 
   vs.markMutation(undefined, [inside], nested)
   const nd3 = await vs.computeWorkingTreeDigestAsync(nested)
   check('…while a file inside does', nd3 !== null && nd3 !== nd)
+  const nestedHarness = join(nested, '.mercury')
+  mkdirSync(nestedHarness, { recursive: true })
+  const nestedChurn = join(nestedHarness, 'churn.bin')
+  writeFileSync(nestedChurn, Buffer.alloc(4 << 20, 3))
+  vs.markMutation(undefined, [nestedChurn], nested)
+  const n1 = mark()
+  const nd4 = await vs.computeWorkingTreeDigestAsync(nested)
+  check("a churning file under the nested launch folder's own .mercury never moves its digest", nd4 === nd3, `${nd3} vs ${nd4}`)
+  check('…and rode the exclude road there too (no reset)', !since(n1).some(x => x.cwd === nested && x.argv.startsWith('reset ')))
+  const nestedBlob = git(repo, 'hash-object', nestedChurn).trim()
+  check('…and was never hashed into the repository', spawnSync(REAL_GIT, ['-C', repo, 'cat-file', '-e', nestedBlob]).status !== 0)
 }
 
 section('§6 a budget that speaks — a timeout and a ceiling read unmeasured, once')
@@ -314,6 +325,43 @@ section('§7 the same tree, both forms — and the certificate sha byte-identica
   check('the health certificate names the same tree with its objects redirected', got === expected, `${got} vs ${expected}`)
   check("…and the repository gained nothing from it (the untracked file's blob went beside the temp index)", after.count === before.count, `${before.count} → ${after.count}`)
   check('the certificate still includes the harness dirs (its semantics are untouched)', !readFileSync(join(REPO_ROOT, 'src/utils/healthReport.ts'), 'utf8').includes('exclude).mercury'))
+}
+
+section('§8 no job outlives its repository — a mid-scan removal quiesces, a cancel awaits')
+{
+  const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
+  const gone = join(SCRATCH, 'gone')
+  makeRepo(gone, 120)
+  process.env.GIT_SHIM_SLEEP_MS = '1500'
+  process.env.GIT_SHIM_SLEEP_FOR = 'add'
+  const n0 = mark()
+  const pending = vs.computeWorkingTreeDigestAsync(gone, { fresh: true })
+  await sleep(450)
+  check('a scan is in flight (its add is running)', vs._treeScanChildrenForTesting(gone) === 1, String(vs._treeScanChildrenForTesting(gone)))
+  rmSync(join(gone, '.git'), { recursive: true, force: true })
+  const d = await pending
+  check('the digest answers null once the repository is gone — and it is not a fault', d === null && vs.treeScanStatus(gone).state === 'unknown', JSON.stringify(vs.treeScanStatus(gone)))
+  check('no Mercury git job survives the repository', vs._treeScanChildrenForTesting(gone) === 0)
+  check('the running add was killed mid-step and no tree was written', !since(n0).some(x => x.cwd === gone && (isAdd(x) || x.argv.startsWith('write-tree'))), since(n0).filter(x => x.cwd === gone).map(x => x.argv).join(' | '))
+  check('.git is not recreated', !existsSync(join(gone, '.git')))
+  const n1 = mark()
+  const again = await vs.computeWorkingTreeDigestAsync(gone)
+  check('the next reader re-resolves: not a repository, no job', again === null && !since(n1).some(x => x.cwd === gone && isAdd(x)))
+
+  const stays = join(SCRATCH, 'stays')
+  makeRepo(stays, 120)
+  const p2 = vs.computeWorkingTreeDigestAsync(stays, { fresh: true })
+  await sleep(450)
+  check('a second scan is in flight', vs._treeScanChildrenForTesting(stays) === 1)
+  await vs.invalidateTreeScans(stays)
+  check('invalidateTreeScans cancels and awaits the running job', vs._treeScanChildrenForTesting(stays) === 0 && (await p2) === null)
+  check('…drops the record and the cache (no fault, no notice)', vs.treeScanStatus(stays).state === 'unknown')
+  delete process.env.GIT_SHIM_SLEEP_MS
+  delete process.env.GIT_SHIM_SLEEP_FOR
+  const n2 = mark()
+  const d2 = await vs.computeWorkingTreeDigestAsync(stays, { fresh: true })
+  check('a later demand re-resolves the repository and scans it afresh', d2 !== null && since(n2).some(x => x.cwd === stays && isAdd(x)))
+  check('…and the repository is intact (invalidation is not deletion)', existsSync(join(stays, '.git')))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

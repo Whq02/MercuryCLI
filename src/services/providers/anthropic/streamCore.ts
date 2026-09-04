@@ -103,7 +103,8 @@ import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer }
 import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
 import { announcementMessage, conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
-import { applyInducedPrefixEdit, judgeAndRecordPrefix, resolveInducedPrefixEdit, shouldInduceEdit, type WirePrefixParts } from './prefixLedger.js'
+import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
+import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
 import type {
   ConnectorTextBlock,
   ConnectorTextDelta,
@@ -658,6 +659,8 @@ async function* queryModel(
     API_MAX_MEDIA_PER_REQUEST,
   )
 
+  messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
+
   const fingerprint = computeFingerprintFromMessages(messages)
 
   const announcement = announcementMessage(plan)
@@ -872,11 +875,10 @@ async function* queryModel(
         options.skipCacheWrite,
       ),
     }
-    const requestMark = `${messages.length}|${messages[messages.length - 1]?.uuid ?? ''}`
     const inducedEdit = resolveInducedPrefixEdit()
-    const induced = inducedEdit !== null && shouldInduceEdit(rosterOwnerKey, prefixKey, requestMark)
-    if (induced) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit!)
-    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, { requestMark, induced })
+    if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
+    const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
+    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds)
 
     return {
       model: normalizeModelStringForAPI(options.model),

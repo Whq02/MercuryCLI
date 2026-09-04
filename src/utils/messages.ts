@@ -122,6 +122,7 @@ export {
   createStopHookSummaryMessage,
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,
+  createThinkingDeadMessage,
   createSystemMessage,
   createTurnDurationMessage,
   findLastCompactBoundaryIndex,

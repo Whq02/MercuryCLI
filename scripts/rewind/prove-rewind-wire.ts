@@ -32,7 +32,7 @@ section('§1 — the version fact: a new verb bumps the proto and re-registers t
   const protocol = read('src/daemon/protocol.ts')
   const opsBlock = protocol.slice(protocol.indexOf('export type DaemonOp ='), protocol.indexOf('\n\n', protocol.indexOf('export type DaemonOp =')))
   const ops = Array.from(opsBlock.matchAll(/'([A-Za-z-]+)'/g), m => m[1]!)
-  check('sessionRewind is the LAST op of the union (appended, never reordered)', ops[ops.length - 1] === 'sessionRewind', ops.slice(-3).join(','))
+  check('sessionRewind sits right after sessionControl, where v5 appended it; later verbs follow it (appended, never reordered)', ops.indexOf('sessionRewind') === ops.indexOf('sessionControl') + 1 && ops.indexOf('sessionRewind') !== 0, ops.slice(ops.indexOf('sessionControl'), ops.indexOf('sessionControl') + 3).join(','))
   check('MERCURY_DAEMON_PROTO is at least 5 (v4 → v5 with the verb; later verbs bump it further)', Number(/export const MERCURY_DAEMON_PROTO = (\d+)/.exec(protocol)?.[1] ?? 0) >= 5)
   check('the v5 line documents the verb beside the constant', protocol.includes(' *   v5  sessionRewind'))
   const shape = spawnSync(process.execPath, ['run', join(ROOT, 'scripts/daemon/prove-protocol-shape.ts')], { cwd: ROOT, encoding: 'utf8' })
