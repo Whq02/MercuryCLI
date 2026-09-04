@@ -49,9 +49,11 @@ section('§2 THE DISPATCH SEAM')
 {
   const src = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const seam = src.slice(src.indexOf('const workerTools'), src.indexOf('const workerTools') + 900)
+  const utils = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
+  const owner = utils.slice(utils.indexOf('export function resolveWorkerTools('), utils.indexOf('export function resolveWorkerTools(') + 900)
   check(
     'the non-inheriting worker pool rides resolveAgentTools(...).resolvedTools (FC-015)',
-    /resolveAgentTools\([\s\S]{0,400}?\)\.resolvedTools/.test(seam),
+    /resolveWorkerTools\(/.test(seam) && /resolveAgentTools\([\s\S]{0,400}?\)\.resolvedTools/.test(owner),
     seam.slice(0, 160).replace(/\s+/g, ' '),
   )
   check('the inheriting path still keeps the parent pool untouched', seam.includes('options.tools'))
