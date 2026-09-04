@@ -60,10 +60,10 @@ interface Estate {
   traceDir: string
 }
 
-function estate(id: string, opts: { homeIsRepo: boolean; bulkFiles: number }): Estate {
+function estate(id: string, opts: { homeIsRepo: boolean; bulkFiles: number; nest?: string }): Estate {
   const root = join(SCRATCH, id)
   const home = join(root, 'home')
-  const proj = join(home, 'Desktop', 'proj')
+  const proj = join(home, ...(opts.nest ?? 'Desktop/proj').split('/'))
   const cfg = join(root, 'cfg')
   const bin = join(root, 'bin')
   const traceDir = join(root, 'trace')
@@ -231,9 +231,12 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
 }
 
 if (LEG !== 'D1') {
-console.log('\nD2 — from a project nested under a home repository, no probe scans above the launch folder')
+console.log('\nD2 — from a project nested under a home repository (Documents/voxel), no probe scans above the launch folder')
   const BULK = 15_000
-  const e = estate('d2', { homeIsRepo: true, bulkFiles: BULK })
+  const NEST = 'Documents/voxel'
+  const e = estate('d2', { homeIsRepo: true, bulkFiles: BULK, nest: NEST })
+  const top = spawnSync(REAL_GIT, ['-C', e.proj, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', env: { ...process.env, HOME: e.home } }).stdout.trim()
+  check('D2 the nested Documents folder resolves to the home root today (git says so)', realpathSync(top) === realpathSync(e.home), top)
   const c = await capture(e, 'd2-nested-boot', e.proj, [
     { atTick: 150, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
     { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' },
@@ -272,11 +275,11 @@ console.log('\nD2 — from a project nested under a home repository, no probe sc
   }
   for (const [k, v] of shapes) console.log(`    ${String(v.n).padStart(3)}×  paths-visited≤${v.max}  ${k}`)
   check('D2 the boot issued status/add/ls-files probes at all', probes.length >= 3, String(probes.length))
-  const unbounded = probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj')))
+  const unbounded = probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith(`-- ${NEST}`)))
   check('D2 every status/add/ls-files probe carries the boundary pathspec', unbounded.length === 0, unbounded.map(r => r.args).join(' | '))
   const heavy = probes.filter(r => visited(r.pid) > 200)
   check(`D2 no probe visited more than 200 paths (the home holds ${BULK}+ entries)`, heavy.length === 0, heavy.map(r => `${r.args}=${visited(r.pid)}`).join(' | '))
-  const atHome = probes.filter(r => r.effCwd === e.home && !r.args.endsWith('-- Desktop/proj'))
+  const atHome = probes.filter(r => r.effCwd === e.home && !r.args.endsWith(`-- ${NEST}`))
   check('D2 no probe ran at the home root without the boundary pathspec', atHome.length === 0, atHome.map(r => r.args).join(' | '))
 }
 

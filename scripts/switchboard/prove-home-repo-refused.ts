@@ -169,6 +169,26 @@ console.log('\nR6 mintGitRefusedReceipt — the rail receipt bound to the queued
   check('… naming the folder, the reason and kept without git', receipt?.question.includes(HOME_FX) === true && receipt?.question.includes('this is your home folder') === true && receipt?.question.includes('kept without git') === true, receipt?.question)
 }
 
+console.log('\nR7 non-recreation — a home repository removed by the operator is never made again')
+{
+  const { spawnSync } = await import('node:child_process')
+  const g = (...args: string[]): void => {
+    spawnSync('git', ['-C', HOME_FX, ...args], { stdio: 'ignore', env: { ...process.env } })
+  }
+  g('init', '-q')
+  g('commit', '-q', '--allow-empty', '-m', wt.FORK_BASE_COMMIT_SUBJECT)
+  check('the fixture home is a repository (the shape the box had)', existsSync(join(HOME_FX, '.git')))
+  rmSync(join(HOME_FX, '.git'), { recursive: true, force: true })
+  check('… removed', !existsSync(join(HOME_FX, '.git')))
+  const minted = asks.mintGitInitAsk(HOME_FX)
+  const init = wt.initGitRepository(HOME_FX)
+  const admission = sup.resolveDefaultedAdmission([{ workspaceId: HOME_FX, isolation: 'shared' }], { workspaceId: HOME_FX }, 5)
+  check('a later collision mints no ask for the home', 'refused' in minted, JSON.stringify(minted))
+  check('a later apply refuses', init.ok === false, init.error)
+  check('a later defaulted admission never offers', admission.kind === 'decision' && admission.gitOfferRefused?.kind === 'home')
+  check('the home has no .git again', !existsSync(join(HOME_FX, '.git')))
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-home-repo-refused: ALL LAWS HOLD' : `\nprove-home-repo-refused: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
