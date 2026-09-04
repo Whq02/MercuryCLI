@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { MercurySupercodeDivider } from '../../components/MercurySupercodeDivider.js'
+import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
 import type {
   LocalJSXCommandContext,
@@ -11,9 +12,12 @@ import {
   getEffortEnvOverride,
   getEffortLevelDescription,
   getEffortValueDescription,
+  modelSupportsEffort,
   modelSupportsMaxEffort,
   normalizeEffortLevelString,
+  parseEffortValue,
   resolveEffortTruth,
+  resolveStampedEffortTruth,
   toPersistableEffort,
   unpinAllLaunchEffort,
   type EffortLevel,
@@ -155,6 +159,22 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   }
 }
 
+export function showSeatEffort(word: string | null | undefined, sent: string | null | undefined, model: string): string {
+  if (!modelSupportsEffort(model)) return `Effort is automatic — ${model} takes no effort setting.`
+  const value = word === null || word === undefined ? undefined : parseEffortValue(word)
+  if (value === undefined) {
+    return `Effort is automatic — this session carries no effort word; currently ${resolveStampedEffortTruth(model, undefined).label} on ${model}.`
+  }
+  const runs = sent !== undefined ? sent : (resolveStampedEffortTruth(model, value).wire ?? null)
+  const clause =
+    runs === null
+      ? ` (${model} runs its provider default this session)`
+      : runs !== String(value)
+        ? ` (it runs ${runs} on ${model})`
+        : ''
+  return `Effort is ${String(value)}${clause} — ${getEffortValueDescription(value, model)}.`
+}
+
 export function showCurrentEffort(
   storedEffortValue: EffortValue | undefined,
   model: string,
@@ -225,6 +245,35 @@ function applyEffortResult(result: EffortCommandResult, context: LocalJSXCommand
   }
 }
 
+async function settleEffortResult(result: EffortCommandResult, context: LocalJSXCommandContext): Promise<string> {
+  const focused = getFocusedSessionConnector()
+  if (focused.carrier !== 'daemon' || result.effortUpdate === undefined) {
+    applyEffortResult(result, context)
+    return result.message
+  }
+  const model = context.options.mainLoopModel
+  const level = toPersistableEffort(result.effortUpdate.value)
+  if (level === undefined) {
+    const word = focused.modelFacts().effort
+    return `Effort settings cleared for future sessions — this session keeps running ${word ?? 'its own word'}; pick a level to change it.`
+  }
+  const receipt = await focused.setEffort(level)
+  const saved = result.supercodeUpdate?.value === true ? '' : ' Saved as your default for future sessions.'
+  if (receipt.state === 'refused') {
+    return `${level} was not applied to this session: ${receipt.detail}.${saved}`
+  }
+  applyEffortResult(result, context)
+  const supercode = result.supercodeUpdate?.value === true ? ' SUPERCODE is on — the maximum tier plus a standing expectation of dynamic orchestration, persisted as your default.' : ''
+  if (receipt.state === 'no-op') return `Already on ${level} — nothing to change.${supercode}`
+  if (receipt.state === 'queued') {
+    return `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${supercode}${saved}`
+  }
+  if (!modelSupportsEffort(model)) {
+    return `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${supercode}${saved}`
+  }
+  return `Effort set to ${level} for this session — its next request runs it.${supercode}${saved}`
+}
+
 
 function SessionSlider({
   context,
@@ -241,8 +290,7 @@ function SessionSlider({
           value === 'supercode'
             ? executeEffort('supercode', model)
             : executeEffort(String(value), model)
-        applyEffortResult(result, context)
-        return result.message
+        return settleEffortResult(result, context)
       }}
     >
       <EffortSlider onDone={message => onDone(message)} />
@@ -269,12 +317,17 @@ export async function call(
   if (trimmed) {
     const token = trimmed.toLowerCase()
     if (token === 'current' || token === 'status') {
-      onDone(showCurrentEffort(context.getAppState().effortValue, model).message)
+      const focused = getFocusedSessionConnector()
+      const seat = focused.modelFacts()
+      onDone(
+        focused.carrier === 'daemon'
+          ? showSeatEffort(seat.effort, seat.effortSent, model)
+          : showCurrentEffort(context.getAppState().effortValue, model).message,
+      )
       return null
     }
     const result = executeEffort(trimmed, model)
-    applyEffortResult(result, context)
-    onDone(result.message)
+    onDone(await settleEffortResult(result, context))
     return null
   }
 

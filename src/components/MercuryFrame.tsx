@@ -90,7 +90,7 @@ export const MercuryFrame = React.memo(MercuryFrameImpl)
 const subscribeFocusedModelFacts = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedSessionPin = (): string | null => getFocusedSessionConnector().modelFacts().sessionPin
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener))
-const getFocusedPermissionMode = (): string => getFocusedSessionConnector().permissionMode()
+const getFocusedPermissionMode = (): PermissionMode | null => getFocusedSessionConnector().permissionMode()
 
 function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNode {
   fluxMark('render:frame')
@@ -388,7 +388,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   }
   const autopilotTurnTier =
     permMode === 'autopilot' ? describeTurnOverride(undefined) : null
-  const modeBand = !isDefaultMode(permMode as PermissionMode | undefined) ? (
+  const modeBand = !isDefaultMode(permMode ?? undefined) ? (
     <Box width="100%" paddingX={1} flexShrink={0}>
       {permMode === 'sovereign' ? (
         <Text bold color={tok.failure} wrap="truncate-end">
