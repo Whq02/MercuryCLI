@@ -145,6 +145,7 @@ export type RunAgentParams = {
   useExactTools?: boolean
   worktreePath?: string
   description?: string
+  seatHolder?: string
   transcriptSubdir?: string
   effortOverride?: string
   instructionProfileOverride?: string
@@ -465,6 +466,7 @@ export async function* runAgent(
     useExactTools,
     worktreePath,
     description,
+    seatHolder,
     transcriptSubdir,
     effortOverride,
     instructionProfileOverride,
@@ -803,7 +805,7 @@ export async function* runAgent(
         : {}),
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
-    childContext.seatHolder = description ?? agentDefinition.agentType
+    childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
     if (onWait !== undefined) childContext.onSeatWait = onWait
     if (preserveToolUseResults) {
       ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
