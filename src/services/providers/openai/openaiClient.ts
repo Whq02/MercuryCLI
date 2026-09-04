@@ -10,9 +10,8 @@ import {
 } from './openaiWire.js'
 import { recordOpenaiRateHeaders } from './openaiLimitState.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { compatStreamIdleTimeoutMs } from '../streamIdleBudget.js'
+import { createStreamIdleWatchdog, streamIdleTimeoutMs, StreamIdleTimeoutError, type StreamIdleWatchdog } from '../streamIdleBudget.js'
 
-const IDLE_TIMEOUT_MS = compatStreamIdleTimeoutMs()
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -28,13 +27,14 @@ export interface OpenaiStreamOptions {
 export async function* streamOpenaiResponses(
   options: OpenaiStreamOptions,
 ): AsyncGenerator<OpenaiStreamEvent> {
-  const idleMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS
+  const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const url = `${options.baseUrl.replace(/\/$/, '')}/responses`
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
   const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
   totalTimer.unref?.()
+  let idleWatchdog: StreamIdleWatchdog | null = null
 
   const fold = new ResponsesStreamFold()
 
@@ -93,26 +93,16 @@ export async function* streamOpenaiResponses(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-
-    const readWithIdleGuard = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
-      let idleTimer: ReturnType<typeof setTimeout> | undefined
-      const idle = new Promise<never>((_, reject) => {
-        idleTimer = setTimeout(() => reject(new Error('idle-timeout')), idleMs)
-        idleTimer.unref?.()
-      })
-      try {
-        return await Promise.race([reader.read(), idle])
-      } finally {
-        clearTimeout(idleTimer)
-      }
-    }
+    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    idleWatchdog = watchdog
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
-        chunk = await readWithIdleGuard()
+        chunk = await watchdog.guard(reader.read())
+        watchdog.noteActivity()
       } catch (error) {
-        const isIdle = error instanceof Error && error.message === 'idle-timeout'
+        const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
         yield {
           type: 'stream-fault',
@@ -126,11 +116,9 @@ export async function* streamOpenaiResponses(
                   message: error instanceof Error ? error.message : String(error),
                   retryable: true,
                 },
+          settledItems: fold.settledItems(),
         }
-        try {
-          await reader.cancel()
-        } catch {
-        }
+        void reader.cancel().catch(() => {})
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
@@ -181,10 +169,12 @@ export async function* streamOpenaiResponses(
           message: 'stream ended without response.completed/failed/incomplete',
           retryable: true,
         },
+        settledItems: fold.settledItems(),
       }
     }
   } finally {
     clearTimeout(totalTimer)
+    idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
   }

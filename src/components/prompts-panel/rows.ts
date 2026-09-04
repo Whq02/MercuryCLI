@@ -22,6 +22,7 @@ export type PromptRow = {
   text: string
   lines: number
   chars: number
+  queued?: true
 }
 
 export type CrewDirection = 'to' | 'from'
@@ -113,6 +114,7 @@ export function promptRows(records: readonly Message[]): PromptRow[] {
       text: body,
       lines: Math.max(1, lineCount(body)),
       chars: body.length,
+      ...(m.queued === true ? { queued: true as const } : {}),
     })
   }
   return rows
@@ -262,13 +264,14 @@ export function recordLimits(records: readonly Message[], processStartedAt?: str
   return { since, compacted, resumed }
 }
 
-export function limitsLine(limits: RecordLimits, promptCount: number, clock: (iso: string) => string): string {
+export function limitsLine(limits: RecordLimits, promptCount: number, clock: (iso: string) => string, queuedCount = 0): string {
   const head = promptCount === 1 ? '1 prompt' : `${promptCount} prompts`
-  if (limits.since === null) return `${head} · nothing sent in this chat yet`
+  const queued = queuedCount > 0 ? ` · ${queuedCount} queued` : ''
+  if (limits.since === null) return `${head} · nothing sent in this chat yet${queued}`
   const parts = [`${head} since ${clock(limits.since)}`]
   parts.push(limits.resumed ? 'resumed transcript included' : 'from the start of this session')
   if (limits.compacted) parts.push('a compaction hides the earlier prompts')
-  return parts.join(' · ')
+  return parts.join(' · ') + queued
 }
 
 export function clockOf(iso: string): string {
