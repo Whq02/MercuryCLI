@@ -41,10 +41,10 @@ A release install lives under the config home,
 `~/.mercury/versions/<version>` (`%USERPROFILE%\.mercury\versions` on
 Windows), with a `mercury` command in a user-local bin folder:
 `~/.local/bin` on macOS and Linux, `%LOCALAPPDATA%\Mercury\bin` on
-Windows. The installers put that folder on your PATH once (one guarded line
-in your shell's startup file; the user PATH on Windows), so a new terminal
-finds `mercury`; the terminal you installed from needs the line the
-installer prints. `mercury --version` is the check.
+Windows. `mercury install` puts that folder on your PATH itself, once (one
+guarded line in your shell's startup file; the user PATH on Windows), so a
+new terminal finds `mercury`; the terminal you installed from needs the
+line the installer prints. `mercury --version` is the check.
 
 `mercury update` keeps a release install current in place (`--check`,
 `--status`, `--rollback`; the previous version stays on disk). It reads the
