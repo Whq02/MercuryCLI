@@ -1,13 +1,27 @@
 
 import { resolve } from 'node:path';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync, realpathSync } from 'node:fs';
-import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 
 const ROOT = import.meta.dir;
 const SRC = resolve(ROOT, 'src');
 const OUT = resolve(ROOT, process.env.MERCURY_BUILD_OUTDIR ?? 'dist');
+
+const { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget, platformKey, releaseTargetFor, ripgrepPackageFor } = await import('./src/services/privateChannel/releaseTarget.ts');
+const { resolvePlatformPackage } = await import('./scripts/vendor/platformPackages.ts');
+const targetFlag = process.argv.indexOf('--target');
+const TARGET_ARG = targetFlag === -1 ? null : (process.argv[targetFlag + 1] ?? '');
+if (TARGET_ARG !== null && !isReleaseTarget(TARGET_ARG)) {
+  console.error(`build.ts: --target wants one of ${RELEASE_TARGETS.join(', ')} (got ${TARGET_ARG || 'nothing'})`);
+  process.exit(2);
+}
+const SHIP = TARGET_ARG === null ? { platform: process.platform, arch: process.arch } : buildPlatformOf(TARGET_ARG);
+const SHIP_KEY = platformKey(SHIP.platform, SHIP.arch);
+const HOST_KEY = platformKey(process.platform, process.arch);
+const SHIP_RELEASE = releaseTargetFor(SHIP.platform, SHIP.arch);
+const CROSS = SHIP_KEY !== HOST_KEY;
+if (CROSS) console.log(`CROSS BUILD: shipping for ${SHIP_KEY} (${SHIP_RELEASE}) on a ${HOST_KEY} host — every platform-bound pack is the target's`);
 
 const resolveBuildTime = (): string => {
   if (process.env.MERCURY_BUILD_TIME) return process.env.MERCURY_BUILD_TIME;
@@ -230,29 +244,28 @@ rmSync(resolve(OUT, '.build-tree'), { force: true });
   }
 }
 
-const rgRelPath = `vendor/ripgrep/${process.arch}-${process.platform}/${process.platform === 'win32' ? 'rg.exe' : 'rg'}`;
+const rgRelPath = `vendor/ripgrep/${SHIP.arch}-${SHIP.platform}/${SHIP.platform === 'win32' ? 'rg.exe' : 'rg'}`;
 let rgVendored = false;
 let rgSourceLabel = '';
 {
   const rgDest = resolve(OUT, rgRelPath);
   const rgDestDir = resolve(rgDest, '..');
+  rmSync(resolve(OUT, 'vendor', 'ripgrep'), { recursive: true, force: true });
 
   let rgSource: string | null = null;
   const forceNoRg = process.env.MERCURY_BUILD_NO_VENDOR_RG === '1';
+  const rgPackage = ripgrepPackageFor(SHIP.platform, SHIP.arch);
 
   if (!forceNoRg) {
-    try {
-      const req = createRequire(import.meta.url);
-      const candidate = req('@vscode/ripgrep').rgPath as string;
-      if (candidate && statSync(candidate).isFile()) {
-        rgSource = candidate;
-        rgSourceLabel = '@vscode/ripgrep';
-      }
-    } catch {
+    const pkg = resolvePlatformPackage(ROOT, SHIP.platform, SHIP.arch, rgPackage);
+    const candidate = pkg ? resolve(pkg.dir, 'bin', SHIP.platform === 'win32' ? 'rg.exe' : 'rg') : null;
+    if (pkg && candidate && statSync(candidate, { throwIfNoEntry: false })?.isFile()) {
+      rgSource = candidate;
+      rgSourceLabel = pkg.source === 'node_modules' ? '@vscode/ripgrep' : `${rgPackage} (vendor/platform-packages, bun.lock-pinned)`;
     }
   }
 
-  if (!rgSource && !forceNoRg) {
+  if (!rgSource && !forceNoRg && !CROSS) {
     const systemCandidates: string[] = ['/opt/homebrew/bin/rg'];
     try {
       const whichCmd = process.platform === 'win32' ? 'where' : 'which';
@@ -295,6 +308,16 @@ let rgSourceLabel = '';
         '!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n',
     );
   } else {
+    if (CROSS) {
+      console.error(
+        'BUILD FAILED: no ripgrep binary could be vendored.\n' +
+          `  Expected output: ${rgDest}\n` +
+          `  This build ships for ${SHIP_KEY}, so only that platform's package serves (a system rg is the host's). Prepare it:\n` +
+          `    bun run scripts/vendor/fetch-platform-packages.ts --target ${TARGET_ARG}\n` +
+          `  then re-run bun run build.ts --target ${TARGET_ARG}.`,
+      );
+      process.exit(1);
+    }
     console.error(
       'BUILD FAILED: no ripgrep binary could be vendored.\n' +
         `  Expected output: ${rgDest}\n` +
@@ -447,18 +470,18 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
   const nodeDest = resolve(OUT, nodeRelPath);
   rmSync(nodeDest, { recursive: true, force: true });
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_NODE === '1';
-  const hostPlatform = nodePackPlatform(process.platform, process.arch);
+  const packPlatform = nodePackPlatform(SHIP.platform, SHIP.arch);
   const lockPath = resolve(ROOT, 'vendor', 'node.lock.json');
-  const extractedDir = hostPlatform ? resolve(ROOT, 'vendor', 'node', 'extracted', hostPlatform) : null;
+  const extractedDir = packPlatform ? resolve(ROOT, 'vendor', 'node', 'extracted', packPlatform) : null;
   const vendorManifestPath = extractedDir ? resolve(extractedDir, '.vendor-manifest.json') : null;
-  if (!forceNo && hostPlatform && extractedDir && vendorManifestPath && statSync(lockPath, { throwIfNoEntry: false })?.isFile() && statSync(vendorManifestPath, { throwIfNoEntry: false })?.isFile()) {
+  if (!forceNo && packPlatform && extractedDir && vendorManifestPath && statSync(lockPath, { throwIfNoEntry: false })?.isFile() && statSync(vendorManifestPath, { throwIfNoEntry: false })?.isFile()) {
     try {
       const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { version: string; license: string; platforms: Record<string, { sha256: string }> };
       const vman = JSON.parse(readFileSync(vendorManifestPath, 'utf8')) as { version: string; platform: string; archiveSha256: string; binary: string };
-      const pinned = lock.platforms[hostPlatform];
-      const binary = runtimeBinaryFor(hostPlatform);
+      const pinned = lock.platforms[packPlatform];
+      const binary = runtimeBinaryFor(packPlatform);
       const binaryPath = resolve(extractedDir, ...binary.split('/'));
-      if (pinned && vman.version === lock.version && vman.platform === hostPlatform && vman.archiveSha256 === pinned.sha256 && vman.binary === binary && statSync(binaryPath, { throwIfNoEntry: false })?.isFile()) {
+      if (pinned && vman.version === lock.version && vman.platform === packPlatform && vman.archiveSha256 === pinned.sha256 && vman.binary === binary && statSync(binaryPath, { throwIfNoEntry: false })?.isFile()) {
         const { cpSync } = await import('node:fs');
         cpSync(extractedDir, nodeDest, { recursive: true });
         const shipped = resolve(nodeDest, ...binary.split('/'));
@@ -466,17 +489,17 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
         nodeVendored = true;
         nodeMeta = {
           version: lock.version,
-          platform: hostPlatform,
+          platform: packPlatform,
           license: lock.license,
           archiveSha256: pinned.sha256,
           binary,
           binarySha256: createHash('sha256').update(readFileSync(shipped)).digest('hex'),
         };
-        console.log(`VENDORED node ${lock.version} ${hostPlatform} (pinned nodejs.org archive, sha256-verified cache)\n  -> ${nodeDest}`);
+        console.log(`VENDORED node ${lock.version} ${packPlatform} (pinned nodejs.org archive, sha256-verified cache)\n  -> ${nodeDest}`);
       } else {
         console.error(
           'BUILD FAILED: vendor/node cache does not match vendor/node.lock.json ' +
-            `(cache ${vman.version} ${vman.platform}, lock ${lock.version} ${hostPlatform}) — the lock was re-pinned without refetching.\n` +
+            `(cache ${vman.version} ${vman.platform}, lock ${lock.version} ${packPlatform}) — the lock was re-pinned without refetching.\n` +
             '  remedy: bun run scripts/vendor/fetch-node.ts   (then rebuild)\n' +
             '  (a missing cache degrades honestly instead — only a PRESENT-but-wrong cache fails the build)',
         );
@@ -491,10 +514,10 @@ let nodeMeta: { version: string; platform: string; license: string; archiveSha25
     }
   } else if (forceNo) {
     console.warn('MERCURY_BUILD_NO_VENDOR_NODE=1 — node runtime NOT vendored (degraded: runtime; proof seam).');
-  } else if (!hostPlatform) {
-    console.warn(`nodejs.org publishes no runtime archive Mercury vendors for ${process.platform}/${process.arch} — the artifact ships WITHOUT a bundled Node runtime (degraded: runtime; the launchers run MERCURY_NODE or a PATH node inside the supported range).`);
+  } else if (!packPlatform) {
+    console.warn(`nodejs.org publishes no runtime archive Mercury vendors for ${SHIP_KEY} — the artifact ships WITHOUT a bundled Node runtime (degraded: runtime; the launchers run MERCURY_NODE or a PATH node inside the supported range).`);
   } else {
-    console.warn('no node vendor cache — the artifact ships WITHOUT the bundled Node runtime (degraded: runtime; the launchers run MERCURY_NODE or a PATH node inside the supported range). Prepare it: bun run scripts/vendor/fetch-node.ts');
+    console.warn(`no node vendor cache for ${packPlatform} — the artifact ships WITHOUT the bundled Node runtime (degraded: runtime; the launchers run MERCURY_NODE or a PATH node inside the supported range). Prepare it: bun run scripts/vendor/fetch-node.ts${CROSS ? ` --platform ${packPlatform}` : ''}`);
   }
 }
 
@@ -505,28 +528,28 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   const voiceDest = resolve(OUT, voiceRelPath);
   rmSync(voiceDest, { recursive: true, force: true });
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_VOICE === '1';
-  const hostPlatform = voicePackPlatform();
-  const packDir = resolve(ROOT, voiceRelPath, hostPlatform);
+  const packPlatform = voicePackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = resolve(ROOT, voiceRelPath, packPlatform);
   const nativeDir = resolve(ROOT, voiceNativePath);
   if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
-    const check = checkVoicePackDir(packDir, { digest: true, platform: hostPlatform });
+    const check = checkVoicePackDir(packDir, { digest: true, platform: packPlatform });
     const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? voiceSourceTreeDigest(nativeDir) : null;
     if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
       const { cpSync } = await import('node:fs');
-      cpSync(packDir, resolve(voiceDest, hostPlatform), { recursive: true });
+      cpSync(packDir, resolve(voiceDest, packPlatform), { recursive: true });
       voiceVendored = true;
       voiceMeta = {
         version: check.manifest.version,
-        platform: hostPlatform,
+        platform: packPlatform,
         addon: check.manifest.addon,
         addonSha256: check.manifest.addonSha256,
         crates: check.manifest.crates.length,
       };
-      console.log(`VENDORED voice pack ${check.manifest.version} ${hostPlatform} (built from ${voiceNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(voiceDest, hostPlatform)}`);
+      console.log(`VENDORED voice pack ${check.manifest.version} ${packPlatform} (built from ${voiceNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(voiceDest, packPlatform)}`);
     } else {
       const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${voiceNativePath} is absent` : `the pack was built from other sources than ${voiceNativePath} now holds`;
       console.error(
-        `BUILD FAILED: vendor/voice/${hostPlatform} pack is present but stale — ${why}.\n` +
+        `BUILD FAILED: vendor/voice/${packPlatform} pack is present but stale — ${why}.\n` +
           '  remedy: bun run scripts/vendor/build-voice.ts   (then rebuild)\n' +
           '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
       );
@@ -535,7 +558,7 @@ let voiceMeta: { version: string; platform: string; addon: string; addonSha256: 
   } else if (forceNo) {
     console.warn('MERCURY_BUILD_NO_VENDOR_VOICE=1 — voice pack NOT vendored (degraded: voice-input; proof seam).');
   } else {
-    console.warn(`no voice pack for ${hostPlatform} — the artifact ships WITHOUT the voice capture addon (degraded: voice-input; the runtime falls back to sox/arecord/ffmpeg on PATH, else the no-backend receipt). Prepare it: bun run scripts/vendor/build-voice.ts (needs cargo)`);
+    console.warn(`no voice pack for ${packPlatform} — the artifact ships WITHOUT the voice capture addon (degraded: voice-input; the runtime falls back to sox/arecord/ffmpeg on PATH, else the no-backend receipt). Prepare it: bun run scripts/vendor/build-voice.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo${CROSS ? ' and the rustup target it names' : ''})`);
   }
 }
 
@@ -579,13 +602,15 @@ const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages 
 let imagePackVendored = false;
 let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvips: string | null } | null = null;
 {
-  const packPlatform = imagePackPlatform();
+  const packPlatform = imagePackPlatform(SHIP.platform, SHIP.arch);
   const packDest = resolve(OUT, imagePackRelPath, packPlatform);
   rmSync(resolve(OUT, imagePackRelPath), { recursive: true, force: true });
   const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_IMAGE === '1';
   const packages = imagePackPackages(packPlatform);
-  const sources = packages.map((name) => resolve(ROOT, 'node_modules', ...name.split('/')));
-  const present = sources.every((dir) => statSync(resolve(dir, 'package.json'), { throwIfNoEntry: false })?.isFile());
+  const resolved = packages.map((name) => resolvePlatformPackage(ROOT, SHIP.platform, SHIP.arch, name));
+  const sources = resolved.map((r) => r?.dir ?? '');
+  const present = resolved.every((r) => r !== null);
+  const fromModules = resolved.every((r) => r?.source === 'node_modules');
   if (!forceNo && present) {
     try {
       const { cpSync } = await import('node:fs');
@@ -594,7 +619,7 @@ let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvip
       }
       const versionOf = (dir: string): string => (JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8')) as { version: string }).version;
       imagePackMeta = { platform: packPlatform, packages, sharp: versionOf(sources[0]!), libvips: sources[1] ? versionOf(sources[1]) : null };
-      writeFileSync(resolve(packDest, 'vendor.json'), JSON.stringify({ ...imagePackMeta, source: 'repo dependency (sharp prebuilt packages)' }, null, 2) + '\n');
+      writeFileSync(resolve(packDest, 'vendor.json'), JSON.stringify({ ...imagePackMeta, source: fromModules ? 'repo dependency (sharp prebuilt packages)' : 'vendor/platform-packages (sharp prebuilt packages, bun.lock-pinned)' }, null, 2) + '\n');
       imagePackVendored = true;
       console.log(`VENDORED image processor ${packPlatform} (${packages.join(' + ')})\n  -> ${packDest}`);
     } catch (e) {
@@ -603,7 +628,7 @@ let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvip
   } else if (forceNo) {
     console.warn('MERCURY_BUILD_NO_VENDOR_IMAGE=1 — image processor NOT vendored (degraded: image-processing; proof seam).');
   } else {
-    console.warn(`no prebuilt image processor for ${packPlatform} under node_modules/@img — the artifact ships WITHOUT it (degraded: image-processing; the runtime takes the pure-JavaScript image road: PNG/BMP shrink, other formats pass through unshrunk).`);
+    console.warn(`no prebuilt image processor for ${packPlatform} under node_modules/@img${CROSS ? ` or vendor/platform-packages (prepare it: bun run scripts/vendor/fetch-platform-packages.ts --target ${TARGET_ARG})` : ''} — the artifact ships WITHOUT it (degraded: image-processing; the runtime takes the pure-JavaScript image road: PNG/BMP shrink, other formats pass through unshrunk).`);
   }
 }
 
@@ -822,6 +847,7 @@ const manifest = {
   bundle: 'mercury.mjs',
   bundleBytes: statSync(resolve(OUT, 'mercury.mjs')).size,
   bundleSha256: createHash('sha256').update(readFileSync(resolve(OUT, 'mercury.mjs'))).digest('hex'),
+  target: { platform: SHIP.platform, arch: SHIP.arch, release: SHIP_RELEASE, host: HOST_KEY },
   node: NODE_SUPPORTED_RANGE,
   selfContained: true,
   search: rgVendored

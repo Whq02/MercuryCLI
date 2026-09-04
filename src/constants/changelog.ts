@@ -3,6 +3,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.3
 - GPT-6 Astra (gpt-6-astra) is a first-class row: the 1,050,000 window, the 128,000 output ceiling, the low-to-max effort ladder and the published prices; it lists once the connected OpenAI account serves it
+- The Intel Mac archive (macos-x64) ships from the release: cross-packaged on the Apple silicon runner with the Intel runtime, search binary and image processor, booted under Rosetta before it publishes; mercury update names it on an Intel Mac
 - Images paste into the composer on every platform (ctrl+v; alt+v on Windows) at any size: a big image is shrunk to the provider's published limits, never refused for its size, and the composer says what it attached; the build vendors the image processor beside the bundle
 - /bug <what happened> shows the exact report, then files it in the repository through your own signed-in GitHub CLI; the draft and the transcript stay local under the config home; /feedback opens the three-form chooser
 - mercury install puts the stable command's folder on your PATH once (a guarded line in the shell's startup file; the user PATH on Windows), so a new terminal finds mercury; the provenance line prints on a bare interactive boot only

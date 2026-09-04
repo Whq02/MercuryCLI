@@ -372,7 +372,13 @@ export function EffortSlider({
       if (key.return) {
         const chosen = geo.levels[selected]
         if (!chosen) return
-        finish(apply(chosen.value))
+        const applied = apply(chosen.value)
+        if (typeof applied === 'string') {
+          finish(applied)
+          return
+        }
+        setDone(true)
+        void applied.then(onDone)
         return
       }
     },
@@ -579,5 +585,5 @@ function tierSummary(level: SliderLevel | undefined): string {
   }
 }
 
-export type EffortApplier = (value: EffortValue | 'supercode') => string
+export type EffortApplier = (value: EffortValue | 'supercode') => string | Promise<string>
 export const EffortApplyContext = React.createContext<EffortApplier>(() => '')

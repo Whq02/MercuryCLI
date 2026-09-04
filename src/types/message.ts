@@ -3,6 +3,7 @@ import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ApiUsage, 
 import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
 import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
+import type { EffortAdjustedV1 } from '../utils/effort.js'
 import type { UUID } from 'crypto'
 import type {
   BranchAction,
@@ -102,6 +103,7 @@ export type AssistantMessage = {
     }
   }
   streamEnd?: StreamEndV1
+  effortAdjusted?: EffortAdjustedV1
 }
 
 
