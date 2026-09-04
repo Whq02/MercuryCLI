@@ -1,4 +1,6 @@
+import { homedir } from 'node:os'
 import { formatUninstallReport, resolveLayoutRoots, uninstallLayout } from 'src/services/privateChannel/installLayout.js'
+import { describePathTarget, type PathEntryOutcome } from 'src/services/privateChannel/installPath.js'
 import { describeInstall, performInstall, type Progress } from 'src/services/privateChannel/updateService.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliOk } from './exit.js'
@@ -16,6 +18,27 @@ const progressToStderr: Progress = (state, detail) => {
 
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
 const failJson = (value: unknown): never => cliError(jsonStringify(value, null, 1) ?? '{}')
+
+export function describePathOutcome(path: PathEntryOutcome, isWindows: boolean, home: string = homedir()): string {
+  const targets = (list: string[]): string => list.map(t => describePathTarget(t, home)).join(' and ')
+  const openNew = isWindows ? 'open a new terminal' : `open a new terminal, or run: ${path.line}`
+  switch (path.state) {
+    case 'on-path':
+      return `PATH: ${path.dir} is already on your PATH`
+    case 'reachable':
+      return `PATH: unchanged — a \`mercury\` command already runs from ${path.resolved}`
+    case 'present':
+      return isWindows
+        ? `PATH: your user PATH already lists ${path.dir} — ${openNew}`
+        : `PATH: ${targets(path.targets)} already ${path.targets.length > 1 ? 'name' : 'names'} ${path.dir} — ${openNew}`
+    case 'would-write':
+      return isWindows ? `PATH: would add ${path.dir} to your user PATH` : `PATH: would add ${path.dir} in ${targets(path.targets)}`
+    case 'written':
+      return isWindows ? `PATH: added ${path.dir} to your user PATH — ${openNew}` : `PATH: added ${path.dir} in ${targets(path.targets)} — ${openNew}`
+    case 'refused':
+      return `note: ${path.dir} is not on your PATH — ${path.reason}; add it yourself: ${path.line}`
+  }
+}
 
 export async function installVerb(options: InstallCliOptions = {}): Promise<never> {
   if (options.dryRun && options.uninstall) {
@@ -40,6 +63,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
           `would install to:      ${described.wouldInstallTo}`,
           `stable command:        ${described.shimPath}`,
           `runtime:               ${described.runtime}`,
+          describePathOutcome(described.path, roots.isWindows),
           `note: ${described.note}`,
         ].join('\n'),
       )
@@ -67,9 +91,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
         lines.push(`stable command NOT written: ${result.shim.note}`)
         break
     }
-    if (!result.binDirOnPath) {
-      lines.push(`note: add ${roots.binDir} to your PATH to use the \`mercury\` command everywhere`)
-    }
+    lines.push(describePathOutcome(result.path, roots.isWindows))
     lines.push('configuration and sessions live in your Mercury home and were not touched')
     lines.push('next: `mercury update --check` keeps this install current (no GitHub sign-in needed)')
     return cliOk(lines.join('\n'))

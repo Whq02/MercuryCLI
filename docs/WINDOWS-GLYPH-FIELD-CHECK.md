@@ -17,7 +17,7 @@ below.
 
 ## Before you start
 
-1. Update to the current main (`mercury update` on a release install, or
+1. Update to the current release (`mercury update` on a release install, or
    pull and rebuild from source as the Windows install guide describes).
 2. Confirm the version:
 

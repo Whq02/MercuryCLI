@@ -225,7 +225,7 @@ export async function* zaiCallModel(
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
-  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue)
+  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const vocabulary = glmEffortsFor(modelId)
   const wireEffort =
     effortValue && vocabulary
