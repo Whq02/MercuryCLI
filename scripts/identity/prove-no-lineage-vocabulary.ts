@@ -300,6 +300,7 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/substrate/prove-identity-constants.ts', 'terms', "the JetBrains IDE integration — that product's own word"],
   ['src/services/ide/pythonTests.ts', 'terms', "pytest's own vocabulary for its add-ons"],
   ['BUILD-NOTES.md', 'terms', "Bun's build API vocabulary (the build's module-resolution hook)"],
+  ['MERCURY-COMMUNITY-PRODUCTION-TERMS.md', 'terms', "the licence's companion terms: generic legal enumerations of third-party things (any product's add-ons), not Mercury's own vocabulary; the wording is the licence's and its hash is pinned in LICENSE.md"],
   ['scripts/gate/gate-ledger.jsonl', 'terms,estate-paths,estate-caduceus', 'an append-only record of past gate runs; it names the suite paths as they were'],
   // ── §13 rows (each names a record that keeps its bytes; generated records
   // refresh on their own capture roads and need no rows — a return there
