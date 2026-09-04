@@ -34,7 +34,7 @@ const LEGS = legsArg === '0' ? [] : legsArg.split(',').map(s => {
   const [n, gap] = s.split(':').map(Number)
   return { n: n!, gap: gap ?? 8 }
 })
-const HOLD = Number(argOf('--hold', '350')) || 0
+const HOLD = Number(argOf('--hold', '200')) || 0
 const jsonOut = argv.includes('--json') ? argOf('--json', '') : null
 const SETTLE = 9000
 
@@ -234,15 +234,6 @@ function attrGrab(drive: string, offsets: number[]): AttrScreen[] {
 
 async function legHold(holdMs: number): Promise<Record<string, unknown>> {
   const t0 = SETTLE
-  let holdAnchor = { col: 32, row: Math.max(3, tailRow - 12) }
-  for (let r = holdAnchor.row; r >= 3; r--) {
-    const t = (screenRows[r] ?? '').slice(26).trim()
-    if (t.length >= 25 && /^[A-Za-z]/.test(t)) {
-      holdAnchor = { col: 32, row: r }
-      break
-    }
-  }
-  const anchor = holdAnchor
   const above = { col: anchor.col, row: 0 }
   const sends = [
     `${t0}:${sgrText(LEFT, anchor.col, anchor.row)}`,
