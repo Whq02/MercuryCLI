@@ -266,6 +266,7 @@ export function AssistantTextMessage({
     )
   }
 
+  const workingNote = param.phase === 'commentary'
   return (
     <Box
       flexDirection="column"
@@ -273,6 +274,7 @@ export function AssistantTextMessage({
       width={width}
     >
       <Markdown
+        color={workingNote ? 'subtle' : undefined}
         leadingInline={shouldShowDot ? <TranscriptNameplate /> : undefined}
       >
         {text}
