@@ -12,6 +12,7 @@ import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { TextPhase } from '../types/wire.js'
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { validateWorkerModelChoice } from '../services/concourse/workerModels.js'
 import { getMarketingNameForModel } from '../utils/model/model.js'
@@ -55,6 +56,7 @@ interface SeatState {
   sessionId: string | null
   tail: string | null
   tailMessageId: string | null
+  tailPhase: TextPhase | null
   tailTimer: ReturnType<typeof setTimeout> | null
   tailDirty: boolean
   streamedThisTurn: boolean
@@ -78,7 +80,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -99,6 +101,7 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         text: seat.tail,
         ...(seat.turnChars > 0 ? { turnChars: seat.turnChars } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
+        ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
         ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
         ...(seat.wait !== null ? { wait: seat.wait } : {}),
@@ -167,8 +170,12 @@ function streamBlockOf(type: string | undefined): SeatState['streamBlock'] {
   return null
 }
 
+function textPhaseOf(raw: unknown): TextPhase | null {
+  return raw === 'commentary' || raw === 'final_answer' ? raw : null
+}
+
 function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string; thinking?: string }; message?: { id?: string } } }
+  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown }; delta?: { type?: string; text?: string; thinking?: string }; message?: { id?: string } } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
@@ -180,6 +187,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
   if (ev.type === 'content_block_start') {
     seat.streamBlock = streamBlockOf(ev.content_block?.type)
     seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
+    if (ev.content_block?.type === 'text') seat.tailPhase = textPhaseOf(ev.content_block.phase)
     publishTailNow(seat, dir)
     return true
   }
@@ -187,6 +195,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     if (seat.tail !== null) setSeatTail(seat, null, dir)
     const id = ev.message?.id
     seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+    seat.tailPhase = null
     seat.streamBlock = null
     seat.blockSinceMs = null
     publishTailNow(seat, dir)
@@ -300,20 +309,19 @@ function onSeatEphemeralProgress(seat: SeatState, line: string, dir?: string): b
 
 function onSeatAssistantFrame(seat: SeatState, line: string, dir?: string): void {
   if (seat.streamedThisTurn) return
-  let frame: { type?: string; message?: { id?: string; content?: Array<{ type?: string; text?: string }> } }
+  let frame: { type?: string; message?: { id?: string; content?: Array<{ type?: string; text?: string; phase?: unknown }> } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
     return
   }
   if (frame.type !== 'assistant' || !Array.isArray(frame.message?.content)) return
-  const text = frame.message.content
-    .filter(block => block.type === 'text' && typeof block.text === 'string')
-    .map(block => block.text)
-    .join('')
+  const textBlocks = frame.message.content.filter(block => block.type === 'text' && typeof block.text === 'string')
+  const text = textBlocks.map(block => block.text).join('')
   if (text !== '') {
     const id = frame.message.id
     seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+    seat.tailPhase = textPhaseOf(textBlocks[0]?.phase)
     seat.turnChars += text.length
     setSeatTail(seat, text, dir)
   }
@@ -700,6 +708,7 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.streamedThisTurn = false
       seat.turnChars = 0
       seat.tailMessageId = null
+      seat.tailPhase = null
       seat.stateWord = null
       seat.waitingOnAgents = 0
       seat.wait = null
@@ -733,6 +742,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
   seat.turnChars = 0
   seat.tailMessageId = null
+  seat.tailPhase = null
   const hadWord = seat.stateWord !== null || seat.wait !== null
   seat.stateWord = null
   seat.waitingOnAgents = 0

@@ -141,23 +141,28 @@ export function LiveStreamingTail({
   const { rows, columns } = useTerminalSize()
   const turnActive = useAppState((s: AppState) => s.foregroundTurnActive)
   const settled = !textSuppressed && published === null ? store.readSettled() : null
+  const settledSince = settled !== null ? store.readSettledSinceMs() : null
   const [lingerExpired, setLingerExpired] = useState(false)
   useEffect(() => {
     if (settled === null) {
       setLingerExpired(false)
       return
     }
-    if (settledShown || turnActive) return
-    const timer = setTimeout(() => setLingerExpired(true), SETTLE_LINGER_MS)
+    if (settledShown) return
+    const age = settledSince === null ? 0 : Math.max(0, performance.now() - settledSince)
+    const timer = setTimeout(() => setLingerExpired(true), Math.max(0, SETTLE_LINGER_MS - age))
     return () => clearTimeout(timer)
-  }, [settled, settledShown, turnActive])
-  const ghost = settled !== null && !settledShown && (turnActive || !lingerExpired)
+  }, [settled, settledSince, settledShown])
+  const ghost = settled !== null && !settledShown && !lingerExpired
   const rawText = textSuppressed
     ? null
     : ((publishedShown ? null : published) ?? (ghost ? settled : null))
   useEffect(() => {
-    if (settled !== null && (settledShown || (!turnActive && lingerExpired))) store.dropSettled()
-  }, [store, settled, settledShown, turnActive, lingerExpired])
+    if (settled !== null && (settledShown || lingerExpired)) store.dropSettled()
+  }, [store, settled, settledShown, lingerExpired])
+  const phases = store.readPhases()
+  const phase = rawText === null ? null : published !== null && !publishedShown ? phases.current : phases.settled
+  const ink = phase === 'commentary' ? 'subtle' : undefined
   const engine = cockpitEngine()
   if (engine && rawText) engine.streamBody.update(rawText, Math.max(20, columns - 4))
   const bounded =
@@ -189,7 +194,7 @@ export function LiveStreamingTail({
       {bounded.truncated ? (
         <Text dimColor>… the reply continues above-fold at settle</Text>
       ) : null}
-      <StreamingMarkdown leadingInline={<MercuryStreamingNameplate />}>
+      <StreamingMarkdown leadingInline={<MercuryStreamingNameplate />} color={ink}>
         {text}
       </StreamingMarkdown>
     </Box>

@@ -4,6 +4,7 @@ import { daemonDir } from '../../daemon/controlSocket.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
+import type { TextPhase } from '../../types/wire.js'
 import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReasonWire.js'
 import type { PromptInputMode, QueuePriority } from '../../types/textInputTypes.js'
 import type {
@@ -89,6 +90,7 @@ export interface SessionTailV1 {
   text: string | null
   turnChars?: number
   messageId?: string
+  phase?: TextPhase
   stateWord?: 'compacting' | 'waiting-on-agents'
   waitingOnAgents?: number
   wait?: RequestWaitV1

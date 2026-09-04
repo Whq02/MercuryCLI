@@ -61,6 +61,20 @@ try {
   bare.update(() => null)
   const bareIds = (bare as unknown as { readIds(): { current: string | null; settled: string | null } }).readIds()
   check('a writer that never stages an id keeps every id null (in-process world unchanged)', bareIds.current === null && bareIds.settled === null, JSON.stringify(bareIds))
+
+  const labelled = createStreamingTailStore(timers)
+  labelled.setPhase('commentary')
+  labelled.update(() => 'a working note')
+  check('text takes the staged register as CURRENT', labelled.readPhases().current === 'commentary', JSON.stringify(labelled.readPhases()))
+  labelled.update(() => null)
+  check('the clear slides the register into the SETTLED hold beside the ghost', labelled.readPhases().settled === 'commentary' && labelled.readPhases().current === null, JSON.stringify(labelled.readPhases()))
+  check('…and stamps the ghost\'s birth on the store\'s clock', typeof labelled.readSettledSinceMs() === 'number', String(labelled.readSettledSinceMs()))
+  labelled.setPhase(null)
+  labelled.update(() => 'the answer')
+  check('the next (unlabelled) text drops the settled register with the ghost and its stamp', labelled.readPhases().settled === null && labelled.readPhases().current === null && labelled.readSettledSinceMs() === null, JSON.stringify(labelled.readPhases()))
+  labelled.update(() => null)
+  labelled.dropSettled()
+  check('dropSettled clears the register and the stamp with the ghost', labelled.readPhases().settled === null && labelled.readSettledSinceMs() === null)
 } catch (e) {
   check('the id channel exists on the store', false, String(e))
 }
@@ -92,32 +106,40 @@ try {
   const { computeTailRelease } = await import('../../src/utils/messages/tailRetirement.ts')
   const rows = [userRow, assistantTextRow('msg_X', FULL, 'a-1'), toolResultRow]
 
-  const sighting = computeTailRelease(rows as never, { current: null, settled: 'msg_X' }, PREFIX)
+  const sighting = computeTailRelease(rows as never, { current: null, settled: 'msg_X' })
   check('THE SIGHTING HEALS: the stale mid-word prefix ghost retires by identity beside its row', sighting.settledShown === true, JSON.stringify(sighting))
 
-  const oldRunner = computeTailRelease(rows as never, { current: null, settled: null }, PREFIX)
-  check('CONTROL (the disease, documented): with no id the text fallback CANNOT release the stale prefix', oldRunner.settledShown === false, JSON.stringify(oldRunner))
-
-  const exact = computeTailRelease(rows as never, { current: null, settled: null }, `  ${FULL}\n`)
-  check('the fallback still releases an exact settle (both sides trimmed — today’s law kept)', exact.settledShown === true, JSON.stringify(exact))
-
-  const held = computeTailRelease(rows as never, { current: 'msg_X', settled: null }, null)
-  check('the settle-class PUBLISHED hold retires the instant its row is visible', held.publishedShown === true, JSON.stringify(held))
-
-  const streamingStill = computeTailRelease([userRow] as never, { current: 'msg_X', settled: null }, null)
-  check('…and NEVER before the row lands (live streaming untouched)', streamingStill.publishedShown === false, JSON.stringify(streamingStill))
+  const queuedRow = (uuid: string, text: string): Row => ({
+    type: 'user',
+    uuid,
+    timestamp: '2026-08-31T18:45:11.000Z',
+    queued: true,
+    message: { role: 'user', content: [{ type: 'text', text }] },
+  })
+  const underQueued = computeTailRelease(
+    [userRow, assistantTextRow('msg_X', FULL, 'a-1'), queuedRow('q-1', 'first queued words'), queuedRow('q-2', 'second queued words')] as never,
+    { current: null, settled: 'msg_X' },
+  )
+  check('THE QUEUED SHAPE HEALS: a ghost whose row stands above two queued user rows retires (no row bounds the walk)', underQueued.settledShown === true, JSON.stringify(underQueued))
 
   const behindHuman = computeTailRelease(
     [assistantTextRow('msg_X', FULL, 'a-0'), userRow] as never,
     { current: 'msg_X', settled: 'msg_X' },
-    PREFIX,
   )
-  check('the walk stops at the human-turn boundary (an older turn’s row never releases)', behindHuman.publishedShown === false && behindHuman.settledShown === false, JSON.stringify(behindHuman))
+  check('an id is exact: a row behind a sent human turn still retires by identity (the drained queue is the next turn\'s ask)', behindHuman.publishedShown === true && behindHuman.settledShown === true, JSON.stringify(behindHuman))
+
+  const noIdentity = computeTailRelease(rows as never, { current: null, settled: null })
+  check('CONTROL: with no identity nothing releases — not even an exact text (the text match is retired; the ghost\'s own linger retires it)', noIdentity.settledShown === false && noIdentity.publishedShown === false, JSON.stringify(noIdentity))
+
+  const held = computeTailRelease(rows as never, { current: 'msg_X', settled: null })
+  check('the settle-class PUBLISHED hold retires the instant its row is visible', held.publishedShown === true, JSON.stringify(held))
+
+  const streamingStill = computeTailRelease([userRow] as never, { current: 'msg_X', settled: null })
+  check('…and NEVER before the row lands (live streaming untouched)', streamingStill.publishedShown === false, JSON.stringify(streamingStill))
 
   const acrossToolResult = computeTailRelease(
     [userRow, assistantTextRow('msg_X', FULL, 'a-1'), toolResultRow, assistantTextRow('msg_Y', 'tool follow-up', 'a-2')] as never,
     { current: null, settled: 'msg_X' },
-    PREFIX,
   )
   check('a tool_result user row does not break the walk', acrossToolResult.settledShown === true, JSON.stringify(acrossToolResult))
 } catch (e) {
@@ -154,17 +176,28 @@ try {
   const frame = (o: unknown): string => JSON.stringify(o)
 
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_live', usage: {} } } }), roster as never, dir)
+  onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '', phase: 'commentary' } } }), roster as never, dir)
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Empty directory apart ' } } }), roster as never, dir)
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'from the harness.' } } }), roster as never, dir)
   await published()
   check('streamed text publishes WITH the message_start id', tail()?.messageId === 'msg_live', JSON.stringify(tail()))
+  check('…and WITH the block\'s register from its start frame (a working note)', tail()?.phase === 'commentary', JSON.stringify(tail()))
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_stop' } }), roster as never, dir)
   check('the clear keeps the id — the ghost’s identity', tail()?.text === null && tail()?.messageId === 'msg_live', JSON.stringify(tail()))
+  check('…and keeps the register — the ghost\'s ink', tail()?.phase === 'commentary', JSON.stringify(tail()))
   onSeatLine(SHORT, frame({ type: 'result', subtype: 'success' }), roster as never, dir)
   check('the result frame zeroes the id with the turn', (tail()?.messageId ?? null) === null, JSON.stringify(tail()))
+  check('…and the register', (tail()?.phase ?? null) === null, JSON.stringify(tail()))
 
-  onSeatLine(SHORT, frame({ type: 'assistant', message: { id: 'msg_settle', content: [{ type: 'text', text: 'Settled whole.' }] } }), roster as never, dir)
+  onSeatLine(SHORT, frame({ type: 'assistant', message: { id: 'msg_settle', content: [{ type: 'text', text: 'Settled whole.', phase: 'final_answer' }] } }), roster as never, dir)
   check('a settle-class frame stamps its own id beside its held text', tail()?.text === 'Settled whole.' && tail()?.messageId === 'msg_settle', JSON.stringify(tail()))
+  check('…and its text block\'s register', tail()?.phase === 'final_answer', JSON.stringify(tail()))
+  onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_plain', usage: {} } } }), roster as never, dir)
+  onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } } }), roster as never, dir)
+  onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'plain words' } } }), roster as never, dir)
+  await published()
+  check('an unlabelled text block publishes no register (assign-or-null, never inherited)', tail()?.text === 'plain words' && (tail()?.phase ?? null) === null, JSON.stringify(tail()))
+  onSeatLine(SHORT, frame({ type: 'result', subtype: 'success' }), roster as never, dir)
 
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'message_start', message: { id: 'msg_next', usage: {} } } }), roster as never, dir)
   onSeatLine(SHORT, frame({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Fresh stream.' } } }), roster as never, dir)
@@ -184,6 +217,7 @@ console.log('\n§4 the connector stages the id and detach drops the ghost')
 {
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
   check('readTail stages the file’s id into the store before every feed', src.includes('setMessageId'), 'no setMessageId call in daemonConnector.ts')
+  check('readTail stages the file’s register beside the id', src.includes('setPhase'), 'no setPhase call in daemonConnector.ts')
   check('detach drops the ghost with the tail (a moment, never a cache)', src.includes('dropSettled'), 'no dropSettled call in daemonConnector.ts')
   try {
     const store = createStreamingTailStore(timers)
@@ -206,6 +240,9 @@ console.log('\n§5 the screen routes its release through the one law')
   check('Messages hands publishedShown down', messages.includes('publishedShown'), 'no publishedShown in Messages.tsx')
   const leaf = readFileSync(join(import.meta.dir, '..', '..', 'src/components/LiveStreamingTail.tsx'), 'utf8')
   check('LiveStreamingTail hides published text behind the release', leaf.includes('publishedShown'), 'no publishedShown in LiveStreamingTail.tsx')
+  check('LiveStreamingTail paints the block\'s register (readPhases → the streaming markdown\'s ink)', leaf.includes('readPhases') && /<StreamingMarkdown[\s\S]{0,160}color=\{ink\}/.test(leaf), 'no register ink on the leaf')
+  const law = readFileSync(join(import.meta.dir, '..', '..', 'src/utils/messages/tailRetirement.ts'), 'utf8')
+  check('the release law reads no text (identity only)', !/getAssistantMessageText|isHumanTurn/.test(law), 'the text match or the human-turn bound survives in tailRetirement.ts')
 }
 
 console.log(

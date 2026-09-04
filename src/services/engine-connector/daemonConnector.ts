@@ -467,6 +467,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.tailStore.reset(null)
     this.tailStore.dropSettled()
     this.tailStore.setMessageId(null)
+    this.tailStore.setPhase(null)
     this.tailAtMs = -1
     this.liveTurnChars = 0
     this.liveStateWord = null
@@ -526,6 +527,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.tailAtMs = tail.atMs
     const text = tail.text
     this.tailStore.setMessageId(typeof tail.messageId === 'string' && tail.messageId !== '' ? tail.messageId : null)
+    this.tailStore.setPhase(tail.phase === 'commentary' || tail.phase === 'final_answer' ? tail.phase : null)
     this.tailStore.update(() => text)
   }
 

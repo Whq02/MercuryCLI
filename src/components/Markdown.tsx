@@ -268,9 +268,11 @@ export const STREAM_CARET = '▍'
 export function StreamingMarkdown({
   children,
   leadingInline,
+  color,
 }: {
   children: string
   leadingInline?: React.ReactNode
+  color?: string
 }): React.ReactNode {
   const [themeName] = useTheme()
   const boundaryRef = React.useRef(0)
@@ -307,13 +309,14 @@ export function StreamingMarkdown({
   return (
     <Box flexDirection="column">
       {stable !== '' ? (
-        <Markdown leadingInline={leadingInline}>{stable}</Markdown>
+        <Markdown leadingInline={leadingInline} color={color}>{stable}</Markdown>
       ) : null}
       {stable !== '' && seamRef.current > 0 ? (
         <Box height={seamRef.current} />
       ) : null}
       {live.trim() !== '' ? (
         <Markdown
+          color={color}
           leadingInline={stable === '' ? leadingInline : undefined}
           trailingInline={
             caretArmed && !caretOnHeadRow ? (
