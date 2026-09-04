@@ -27,7 +27,7 @@ import {
   type EvalDisplay,
   type EvalLanguage,
 } from './contracts.js'
-import { evalAvailability } from './interpreters.js'
+import { primeEvalAvailability } from './interpreters.js'
 import { buildKernelEnv } from './kernelEnv.js'
 import { transformJsCell } from './jsCellTransform.js'
 import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
@@ -359,7 +359,7 @@ export class EvalKernelManager {
 
   async runCell(request: RunCellRequest): Promise<EvalCellOutcome> {
     const { owner, cwd, input } = request
-    const availability = evalAvailability(cwd)
+    const availability = await primeEvalAvailability(cwd)
     const row = availability.find(a => a.language === input.language)
     if (!row || !row.available || !row.interpreterPath) {
       return refusalOutcome(unavailableLanguageMessage(input.language, availability))

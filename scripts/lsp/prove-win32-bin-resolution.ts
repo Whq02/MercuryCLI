@@ -102,9 +102,9 @@ section('§3 the project-local probe picks the .cmd sibling under win32')
 section('§4 call-shaped pins')
 {
   const which = readFileSync(join(import.meta.dir, '../../src/utils/which.ts'), 'utf8')
-  const picks = which.match(/pickWin32ExecutableLine\(result\.stdout\.split\(\/\\r\?\\n\/\)\)/g) ?? []
-  check('both where.exe arms (async which + whichSync) route their lines through the picker', picks.length === 2, `sites=${picks.length}`)
-  check('no arm takes the first where.exe line outright any more', !/split\(\/\\r\?\\n\/\)\[0\]/.test(which))
+  check('the win32 walk routes its listing through the picker', /return pickWin32ExecutableLine\(listed\)/.test(which))
+  check('the picker is the one selection owner (the first spawnable line, else the bare first line)', /spawnable \?\? listed\[0\] \?\? null/.test(which))
+  check('a lookup never creates a process (no child_process in the owner)', !which.includes('child_process'))
   const catalogue = readFileSync(join(import.meta.dir, '../../src/services/lsp/serverCatalogue.ts'), 'utf8')
   check('the project-local probe iterates the spawnable spellings', /for \(const spelling of spawnableSpellings\(bin\)\)/.test(catalogue))
 }

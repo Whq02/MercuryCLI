@@ -99,7 +99,7 @@ let rawUtilization: RawUtilization = {}
 
 let usageRecordVersion = 0
 const usageRecordListeners = new Set<() => void>()
-function noteUsageRecordChanged(): void {
+export function noteUsageRecordChanged(): void {
   usageRecordVersion++
   for (const listener of usageRecordListeners) {
     try {
@@ -215,8 +215,15 @@ export function getRawUtilization(): RawUtilization {
     return live
   }
   const copy: RawUtilization = { ...live }
-  if (copy.five_hour === undefined && endpoint.five_hour !== undefined) copy.five_hour = endpoint.five_hour
-  if (copy.seven_day === undefined && endpoint.seven_day !== undefined) copy.seven_day = endpoint.seven_day
+  const fresher = (header: RawWindow | undefined, polled: RawWindow | undefined): RawWindow | undefined => {
+    if (header === undefined) return polled
+    if (polled === undefined || header.observedAtMs === undefined) return header
+    return (polled.observedAtMs ?? -1) > header.observedAtMs ? polled : header
+  }
+  copy.five_hour = fresher(live.five_hour, endpoint.five_hour)
+  copy.seven_day = fresher(live.seven_day, endpoint.seven_day)
+  if (copy.five_hour === undefined) delete copy.five_hour
+  if (copy.seven_day === undefined) delete copy.seven_day
   for (const claim of WEEKLY_POOL_CLAIMS) {
     const pool = endpoint[claim]
     if (pool !== undefined) copy[claim] = pool

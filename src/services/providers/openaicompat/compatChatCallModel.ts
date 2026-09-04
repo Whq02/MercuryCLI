@@ -15,6 +15,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
+import { streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
@@ -661,6 +662,15 @@ async function* streamOneCompatAttempt(ctx: {
   if (fault && nothingYielded && !finish) {
     return { kind: 'fault', fault, retryEligible: true }
   }
+  const typedEnd =
+    fault !== undefined && !finish
+      ? typedStreamEndOf({
+          fault,
+          provider: profile.providerLabel,
+          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          silentMs: streamIdleTimeoutMs(),
+        })
+      : null
 
   yield* ensureMessageStart()
   yield* closeOpenBlock()
@@ -756,6 +766,7 @@ async function* streamOneCompatAttempt(ctx: {
   if (lastMessage) {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
+    if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     void settleTranscriptMessage(lastMessage)
   }
   yield streamEvent({
@@ -765,7 +776,7 @@ async function* streamOneCompatAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
-  if (fault) {
+  if (fault && typedEnd === null) {
     yield apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),
       compatFaultToTypedError(fault),

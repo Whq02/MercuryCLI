@@ -364,6 +364,7 @@ function MessageInner({
       message={{
         type: message.type,
         timestamp: (display as { timestamp?: string } | null)?.timestamp,
+        ...((display as { queued?: true } | null)?.queued === true ? { queued: true as const } : {}),
       }}
     >
       {body}
@@ -385,6 +386,8 @@ function MessageInner({
 
 export function areMessagePropsEqual(prev: Props, next: Props): boolean {
   if (prev.message.uuid !== next.message.uuid) return false
+  if ((prev.message as { queued?: true }).queued !== (next.message as { queued?: true }).queued) return false
+  if ((prev.message as { timestamp?: string }).timestamp !== (next.message as { timestamp?: string }).timestamp) return false
   if (
     prev.lastThinkingBlockId !== next.lastThinkingBlockId &&
     hasThinkingContent(next.message)

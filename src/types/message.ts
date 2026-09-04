@@ -2,6 +2,7 @@
 import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ApiUsage, ContentBlockParam, ToolResultBlockParam } from './wire.js'
 import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
+import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
 import type { UUID } from 'crypto'
 import type {
   BranchAction,
@@ -100,6 +101,7 @@ export type AssistantMessage = {
       anomaly?: 'cached-exceeds-total'
     }
   }
+  streamEnd?: StreamEndV1
 }
 
 
@@ -114,6 +116,7 @@ export type UserMessage = {
   isMeta?: true
   isVisibleInTranscriptOnly?: true
   isVirtual?: true
+  queued?: true
   isCompactSummary?: true
   summarizeMetadata?: {
     messagesSummarized: number

@@ -190,6 +190,14 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
             )
           }
         }
+        if (usage.readerNote !== undefined) {
+          nodes.push(
+            <Text key="reader">
+              <Text color={t.textMuted}>{padTo('', 11)}</Text>
+              <Text color={t.warning}>{usage.readerNote}</Text>
+            </Text>,
+          )
+        }
         if (usage.limited !== undefined) {
           nodes.push(
             <Text key="limited" color={t.warning}>
