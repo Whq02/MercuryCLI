@@ -1,7 +1,7 @@
 import { getSessionId } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { noSessionConnector } from './noSessionConnector.js'
-import type { EngineConnectorV1 } from './types.js'
+import type { EngineConnectorV1, ModelFactsV1 } from './types.js'
 
 let focused: EngineConnectorV1 | null = null
 
@@ -29,6 +29,12 @@ function emit(): void {
 
 export function getFocusedSessionConnector(): EngineConnectorV1 {
   return focused ?? noSessionConnector()
+}
+
+export function focusedSessionModelFacts(): ModelFactsV1 | null {
+  if (focused === null) return null
+  const facts = focused.modelFacts()
+  return facts.effectiveSource === 'ambient' ? null : facts
 }
 
 export function conversationIdHere(): string {

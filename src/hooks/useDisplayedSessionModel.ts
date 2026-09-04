@@ -1,5 +1,6 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import {
+  focusedSessionModelFacts,
   getFocusedSessionConnector,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
@@ -35,6 +36,19 @@ const getFocusedMainModel = (): string => getFocusedSessionConnector().modelFact
 const getFocusedPendingParked = (): boolean => getFocusedSessionConnector().modelFacts().pendingSwitch !== null
 const getFocusedPendingSetting = (): string | null =>
   getFocusedSessionConnector().modelFacts().pendingSwitch?.setting ?? null
+const getFocusedServedModel = (): string => focusedSessionModelFacts()?.effective ?? ''
+
+export function useFocusedServedModel(): string | null {
+  const served = useSyncExternalStore(subscribeFocusedModel, getFocusedServedModel, getFocusedServedModel)
+  return served === '' ? null : served
+}
+
+const getFocusedServedEffort = (): string => focusedSessionModelFacts()?.effort ?? ''
+
+export function useFocusedServedEffort(): string | null {
+  const effort = useSyncExternalStore(subscribeFocusedModel, getFocusedServedEffort, getFocusedServedEffort)
+  return effort === '' ? null : effort
+}
 
 export function useDisplayedSessionModel(): DisplayedSessionModel {
   const mainModel = useSyncExternalStore(subscribeFocusedModel, getFocusedMainModel, getFocusedMainModel)
