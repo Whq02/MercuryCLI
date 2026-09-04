@@ -216,7 +216,7 @@ section('§4 the built artifact under a PTY that hangs up after the quiet spell'
     } catch (e) {
       check('the capture payload is readable', false, String(e))
     }
-    const ledger = join(home, 'spawn-ledger.jsonl')
+    const ledger = join(home, 'daemon', 'spawn-ledger.jsonl')
     const deadline = Date.now() + 20_000
     let shutDown = false
     while (Date.now() < deadline) {

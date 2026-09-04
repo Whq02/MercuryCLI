@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
-import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'append-growth-home-'))
+const TRACE = join(process.env.MERCURY_CONFIG_DIR, 'connector-trace.jsonl')
+process.env.MERCURY_CONNECTOR_TRACE = TRACE
 
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
@@ -105,6 +107,21 @@ check(
   conn.detach()
   const gone = conn.feedCadencesForProofs()
   check('§2 detach stops every heartbeat', gone.transcript === 0 && gone.facts === 0 && gone.asks === 0 && gone.tail === 0 && gone.progress === 0, JSON.stringify(gone))
+}
+{
+  const home = mkdtempSync(join(tmpdir(), 'append-growth-absent-'))
+  const sessionId = '12345678-1234-4123-8123-123456789abf'
+  const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w4', title: 'absent', projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam
+  const loadsFor = (): number => (existsSync(TRACE) ? readFileSync(TRACE, 'utf8').split('\n').filter(l => l.includes('"ev":"load"') && l.includes(sessionId)).length : 0)
+  await conn.attach()
+  const afterAttach = loadsFor()
+  for (let i = 0; i < 5; i++) await conn.tickOnce()
+  check('§3 an absent transcript is read once (the attach) and gated on every heartbeat after', afterAttach === 1 && loadsFor() === 1, `loads after attach=${afterAttach} after 5 ticks=${loadsFor()}`)
+  const lines = transcriptLines(sessionId, home, 1, 40)
+  writeFileSync(join(home, `${sessionId}.jsonl`), lines.join('\n') + '\n')
+  await conn.tickOnce()
+  check('§3 the file appearing is read on the next pass', loadsFor() === 2 && conn.rawRecords.length === 3, `loads=${loadsFor()} rows=${conn.rawRecords.length}`)
+  conn.detach()
 }
 {
   const home = join(mkdtempSync(join(tmpdir(), 'append-growth-nodir-')), 'missing')
