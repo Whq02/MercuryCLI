@@ -303,6 +303,20 @@ bundle, `manifest.json`, the platform ripgrep, the platform Node runtime
 `NOTICES.md` (the generated `THIRD_PARTY_NOTICES.md` verbatim). A degraded
 manifest refuses to package unless `--allow-degraded` says so explicitly.
 
+The build ships for its host unless `bun run build.ts --target <target>` names
+another release target (`src/services/privateChannel/releaseTarget.ts` owns the
+vocabulary); the manifest's `target` record declares the platform, and the
+packager refuses a dist built for another target than its own. The Intel Mac
+archive is cross-packaged this way on the Apple silicon runner: the target's
+Node runtime comes from `fetch-node.ts --platform darwin-x64`, its search binary
+and image processor from `scripts/vendor/fetch-platform-packages.ts --target
+macos-x64` (the npm platform packages, each verified against the integrity
+`bun.lock` pins, into `vendor/platform-packages/`), and the voice addon from
+`build-voice.ts --target macos-x64` (cargo `--target x86_64-apple-darwin`, a
+loud skip without that rustup target). A cross build never takes the host's
+system `rg`. `scripts/updater/prove-cross-archive-rosetta.ts` boots the packaged
+Intel archive under `arch -x86_64` on a Mac with Rosetta 2.
+
 Launcher templates live in `scripts/release/launcherTemplates.mjs`; every
 launcher resolves its Node in one order — `MERCURY_NODE`, the vendored
 `vendor/node` beside the bundle, then a PATH node — and projects the Node

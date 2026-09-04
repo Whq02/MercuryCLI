@@ -3,6 +3,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.3
 - GPT-6 Astra (gpt-6-astra) is a first-class row: the 1,050,000 window, the 128,000 output ceiling, the low-to-max effort ladder and the published prices; it lists once the connected OpenAI account serves it
+- The Intel Mac archive (macos-x64) ships from the release: cross-packaged on the Apple silicon runner with the Intel runtime, search binary and image processor, booted under Rosetta before it publishes; mercury update names it on an Intel Mac
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
