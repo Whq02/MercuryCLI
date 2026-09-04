@@ -759,7 +759,7 @@ export default class Ink {
     this.backFrame = this.frontFrame
     this.frontFrame = frame
     this.glassOverlay = overlayRecord.size > 0 ? overlayRecord : null
-    this.ledger.commitFrame()
+    this.ledger.commitFrame(patches.length > 0)
 
     if (Date.now() - this.lastPoolReset > POOL_RESET_INTERVAL_MS) this.resetPools()
 
