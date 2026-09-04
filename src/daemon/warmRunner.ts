@@ -248,6 +248,7 @@ async function ensureWarmRunnerFlight(
   if (seatsHeld + 1 > ceiling) {
     return { state: 'refused', detail: `seat reading: ${seatsHeld} held of ${ceiling} — no headroom for a warm runner` }
   }
+  ;(await import('./signInView.js')).refreshSignInReads(true)
   const validated = await validateWorkerModelChoice(undefined, 'session')
   if (!validated.ok) {
     return { state: 'refused', detail: `registry default unavailable (${validated.reason}) — the next dispatch spawns cold` }
