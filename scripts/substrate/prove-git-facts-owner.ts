@@ -289,7 +289,7 @@ console.log('\n§9 the source pins')
   const doctor = src('src/utils/healthReport.ts')
   check('the doctor demands a fresh read and prints the one notice', doctor.includes('gitSnapshot({ fresh: true })') && doctor.includes('gitProbeNote()'))
   const feedback = src('src/components/Feedback.tsx')
-  check('the feedback dialog reads the same snapshot', feedback.includes('await getGitState()') && !feedback.includes('hasUnpushedCommits'))
+  check('the feedback dialog runs no git probe of its own', !feedback.includes('hasUnpushedCommits') && !feedback.includes('getIsClean(') && !feedback.includes('getBranch('))
 }
 
 Date.now = realNow
