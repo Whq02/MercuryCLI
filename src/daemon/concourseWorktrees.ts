@@ -5,6 +5,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { gitExe } from '../utils/git.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../utils/projectConfig.js'
+import { projectScopePathspec } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
@@ -255,7 +256,7 @@ export type WorktreeDirt =
   | { kind: 'authored'; files: string[] }
 
 export function classifyWorktreeDirt(path: string): WorktreeDirt {
-  const status = git(path, 'status', '--porcelain')
+  const status = git(path, 'status', '--porcelain', ...projectScopePathspec(path))
   if (!status.ok) {
     return { kind: 'authored', files: [`<unreadable: git status failed — ${status.stderr.slice(0, 120)}>`] }
   }
