@@ -341,6 +341,7 @@ function toneSection(): string {
     'Reference code locations as `file_path:line_number` so the user can jump there.',
     'Reference GitHub issues and PRs as owner/repo#123 (for example vercel/next.js#123) so they render as links.',
     'Do not write a colon before tool calls — they may not be shown. "Let me read the file:" followed by a read becomes "Let me read the file." with a period.',
+    'Text written before a tool call is a one-line working note about the next step; the final answer never restates it and stands on its own.',
   ]
   if (!isCapableDirectProfile()) {
     items.splice(1, 0, 'Your responses should be short and concise.')
