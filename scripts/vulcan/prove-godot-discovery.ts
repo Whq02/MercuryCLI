@@ -199,7 +199,7 @@ try {
   const prompt = readFileSync(join(ROOT, 'src/tools/GodotTool/prompt.ts'), 'utf8')
   check('the tool prompt names the three states and project_refresh_classes', /no editor running \/ editor open but unbridged \/ bridge up/.test(prompt) && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
   const plugin = readFileSync(join(ROOT, 'assets/vulcan/addon/plugin.gd'), 'utf8')
-  check('plugin.gd adds the autoload only when the row is absent (no per-boot rewrite)', /if not ProjectSettings\.has_setting\("autoload\/" \+ RUNTIME_AUTOLOAD\):\n\t\tadd_autoload_singleton/.test(plugin))
+  check('plugin.gd writes the autoload row only when absent, as the plain res:// setting (no add_autoload_singleton, no per-boot rewrite)', /if not ProjectSettings\.has_setting\("autoload\/" \+ RUNTIME_AUTOLOAD\):\n\t\tProjectSettings\.set_setting\("autoload\/" \+ RUNTIME_AUTOLOAD, "\*" \+ RUNTIME_BRIDGE_PATH\)/.test(plugin) && !/^\s*add_autoload_singleton\(/m.test(plugin))
   const server = readFileSync(join(ROOT, 'assets/vulcan/addon/core/server.gd'), 'utf8')
   const editorCat = readFileSync(join(ROOT, 'assets/vulcan/addon/categories/editor.gd'), 'utf8')
   check('the server carries a start stamp and editor_state reports it (the reload confirmation)', /started_ms = Time\.get_ticks_msec\(\)/.test(server) && editorCat.includes('"vulcan_server_started_ms"') && server.includes('"project_refresh_classes"'))

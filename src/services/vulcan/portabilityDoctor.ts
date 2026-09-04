@@ -1,6 +1,6 @@
 
 import { accessSync, constants, existsSync, readdirSync, readFileSync, statSync } from 'fs'
-import { delimiter, join } from 'path'
+import { delimiter, join, posix as pathPosix, win32 as pathWin32 } from 'path'
 import { projectConfigCandidates } from '../../utils/projectConfig.js'
 import {
   censusPlatform,
@@ -76,11 +76,16 @@ export function semanticLaunchOf(skillText: string): string | undefined {
 }
 
 
+export function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
+  return platform === 'win32' ? pathWin32.join : pathPosix.join
+}
+
 export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.ProcessEnv = process.env): string[] {
   const roots: string[] = []
+  const joinPath = joinerFor(platform)
   const add = (...parts: Array<string | undefined>): void => {
     if (parts.some(p => !p)) return
-    const root = join(...(parts as string[]))
+    const root = joinPath(...(parts as string[]))
     if (!roots.includes(root)) roots.push(root)
   }
   if (platform === 'win32') {
@@ -92,9 +97,9 @@ export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.Proces
     add(env.ProgramFiles, 'Steam', 'steamapps', 'common', 'Godot Engine')
     add(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links')
     add(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Packages')
-    add(env.SCOOP ?? (home ? join(home, 'scoop') : undefined), 'shims')
-    add(env.SCOOP ?? (home ? join(home, 'scoop') : undefined), 'apps', 'godot', 'current')
-    add(env.ChocolateyInstall ?? (env.ProgramData ? join(env.ProgramData, 'chocolatey') : undefined), 'bin')
+    add(env.SCOOP ?? (home ? joinPath(home, 'scoop') : undefined), 'shims')
+    add(env.SCOOP ?? (home ? joinPath(home, 'scoop') : undefined), 'apps', 'godot', 'current')
+    add(env.ChocolateyInstall ?? (env.ProgramData ? joinPath(env.ProgramData, 'chocolatey') : undefined), 'bin')
     return roots
   }
   const home = env.HOME
@@ -163,11 +168,12 @@ function compareCandidates(a: { name: string }, b: { name: string }): number {
 
 export function findGodotInRoot(root: string, platform: CensusPlatform, fs: RootWalkFs = realRootWalkFs): string | undefined {
   const candidates: Array<{ name: string; path: string }> = []
+  const joinPath = joinerFor(platform)
   for (const name of fs.list(root)) {
-    const full = join(root, name)
+    const full = joinPath(root, name)
     const lower = name.toLowerCase()
     if (platform === 'darwin' && lower.startsWith('godot') && lower.endsWith('.app')) {
-      const bin = join(full, 'Contents', 'MacOS', 'Godot')
+      const bin = joinPath(full, 'Contents', 'MacOS', 'Godot')
       if (fs.executable(bin)) candidates.push({ name, path: bin })
       continue
     }
@@ -205,9 +211,10 @@ export async function resolveGodotExecutable(opts: ResolveGodotOptions = {}): Pr
     return { resolved: mine[0].executable, source: 'running-editor', note: `the running editor's own executable (pid ${mine[0].pid}, this project)`, probed }
   }
   const names = platform === 'win32' ? ['godot.exe', 'godot4.exe'] : ['godot', 'godot4']
-  for (const dir of (env.PATH ?? '').split(delimiter).filter(Boolean)) {
+  const joinPath = joinerFor(platform)
+  for (const dir of (env.PATH ?? '').split(platform === 'win32' ? ';' : delimiter).filter(Boolean)) {
     for (const name of names) {
-      const candidate = join(dir, name)
+      const candidate = joinPath(dir, name)
       if (fs.executable(candidate)) return { resolved: candidate, source: 'PATH', note: `resolved via PATH (${dir})`, probed }
     }
   }
