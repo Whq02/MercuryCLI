@@ -21,7 +21,6 @@ import {
   toPersistableEffort,
   unpinAllLaunchEffort,
   type EffortLevel,
-  type EffortResolution,
   type EffortValue,
 } from '../../utils/effort.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
@@ -45,8 +44,8 @@ function appliedTruth(
   model: string,
   level: EffortLevel,
   persisted: boolean,
-  truth: EffortResolution = resolveEffortTruth(model, level),
 ): { headline?: string; trailing?: string } {
+  const truth = resolveEffortTruth(model, level)
   const savedClause = persisted ? 'saved as your default' : 'saved for this session'
   if (!truth.supportsEffort) {
     return {
@@ -160,18 +159,18 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   }
 }
 
-export function showSeatEffort(word: string | null | undefined, model: string): string {
+export function showSeatEffort(word: string | null | undefined, sent: string | null | undefined, model: string): string {
   if (!modelSupportsEffort(model)) return `Effort is automatic — ${model} takes no effort setting.`
   const value = word === null || word === undefined ? undefined : parseEffortValue(word)
   if (value === undefined) {
     return `Effort is automatic — this session carries no effort word; currently ${resolveStampedEffortTruth(model, undefined).label} on ${model}.`
   }
-  const truth = resolveStampedEffortTruth(model, value)
+  const runs = sent !== undefined ? sent : (resolveStampedEffortTruth(model, value).wire ?? null)
   const clause =
-    truth.wire === undefined
+    runs === null
       ? ` ${model} runs its provider default this session.`
-      : truth.label !== String(value)
-        ? ` It runs ${truth.label} on ${model}.`
+      : runs !== String(value)
+        ? ` It runs ${runs} on ${model}.`
         : ''
   return `Effort is ${String(value)} — ${getEffortValueDescription(value, model)}.${clause}`
 }
@@ -269,9 +268,10 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
   if (receipt.state === 'queued') {
     return `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${supercode}${saved}`
   }
-  const truth = appliedTruth(model, level, saved !== '', resolveStampedEffortTruth(model, level))
-  if (truth.headline) return `${truth.headline}${supercode}`
-  return `Effort set to ${level} for this session — its next request runs it.${truth.trailing ?? ''}${supercode}${saved}`
+  if (!modelSupportsEffort(model)) {
+    return `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${supercode}${saved}`
+  }
+  return `Effort set to ${level} for this session — its next request runs it.${supercode}${saved}`
 }
 
 
@@ -318,9 +318,10 @@ export async function call(
     const token = trimmed.toLowerCase()
     if (token === 'current' || token === 'status') {
       const focused = getFocusedSessionConnector()
+      const seat = focused.modelFacts()
       onDone(
         focused.carrier === 'daemon'
-          ? showSeatEffort(focused.modelFacts().effort, model)
+          ? showSeatEffort(seat.effort, seat.effortSent, model)
           : showCurrentEffort(context.getAppState().effortValue, model).message,
       )
       return null

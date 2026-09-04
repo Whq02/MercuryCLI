@@ -995,7 +995,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       prev.model.effective !== next.model.effective ||
       prev.model.setting !== next.model.setting ||
       prev.pendingModel !== next.pendingModel ||
-      prev.effort !== next.effort
+      prev.effort !== next.effort ||
+      prev.effortSent !== next.effortSent
     const modeMoved = prev === null || prev.permissionMode !== next.permissionMode
     this.factsBusy = next.busy
     if (next.busy) this.armBusyStall()
@@ -1436,6 +1437,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       setting: this.facts?.model.setting ?? this.record.modelKey ?? null,
       sessionPin: this.facts?.model.setting ?? this.record.modelKey ?? null,
       effort: this.facts?.effort ?? this.record.effort ?? null,
+      ...(this.facts?.effortSent !== undefined ? { effortSent: this.facts.effortSent } : {}),
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
     }
   }

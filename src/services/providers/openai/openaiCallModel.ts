@@ -76,7 +76,7 @@ import {
 } from './openaiCatalogue.js'
 import { recordLiveQualification } from './qualificationStore.js'
 import { recordOpenaiUsageLimit } from './openaiLimitState.js'
-import { resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
@@ -415,11 +415,15 @@ export async function* openaiCallModel(
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
-  if (profile.source === 'unsupported-fallback' && profile.adjustedFrom) {
-    settlementNotes.push(
-      `[openai] requested reasoning effort '${profile.adjustedFrom}' is not in ${modelId}'s live effort catalogue — using '${profile.wireEffort ?? 'the model default'}'.`,
-    )
-  }
+  const effortAdjusted: EffortAdjustedV1 | undefined =
+    profile.source === 'unsupported-fallback' && profile.adjustedFrom !== undefined
+      ? {
+          model: modelId,
+          name: getPublicModelDisplayName(modelId) ?? modelId,
+          asked: profile.adjustedFrom,
+          ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
+        }
+      : undefined
   if (qualification.kind === 'degraded') {
     settlementNotes.push(qualification.note)
   }
@@ -488,6 +492,7 @@ export async function* openaiCallModel(
       messages,
       attempt,
       settlementNotes,
+      ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       pulseMain,
       pulseGeneration,
       contractDigest: contract.digest,
@@ -609,6 +614,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   modelId: string
   messages: Message[]
   settlementNotes: readonly string[]
+  effortAdjusted?: EffortAdjustedV1
   pulseMain: boolean
   pulseGeneration: number
   contractDigest: string
@@ -1021,6 +1027,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    if (ctx.effortAdjusted !== undefined) lastMessage.effortAdjusted = ctx.effortAdjusted
     const replayItems = replayableItems(finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : []), refused)
     if (replayItems.length > 0) {
       lastMessage.apexProviderTurn = {
