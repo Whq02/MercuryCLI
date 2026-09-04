@@ -28,7 +28,7 @@ export function imagePackPackages(packPlatform: string): string[] {
 }
 
 export function vendoredImagePackDir(packPlatform: string = imagePackPlatform()): string {
-  return join(dirname(fileURLToPath(import.meta.url)), ...IMAGE_PACK_PATH.split('/'), packPlatform)
+  return join(dirname(fileURLToPath(import.meta.url)), IMAGE_PACK_PATH, packPlatform)
 }
 
 export function imageBindingResolvable(packPlatform: string = imagePackPlatform()): boolean {
