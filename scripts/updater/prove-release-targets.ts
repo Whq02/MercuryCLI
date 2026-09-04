@@ -169,7 +169,8 @@ section('§8 the words — the archive README, the release page, the compatibili
   const templates = read('scripts/release/launcherTemplates.mjs')
   check('the archive README lists macOS x64 (Intel) and no longer says Intel is not packaged', templates.includes('macOS x64 (Intel') && !templates.includes('macOS Intel is not packaged'))
   const notes = read('docs/releases/1.0.0-beta.3.md')
-  check('the beta.3 page carries the Intel Mac build as landed', /Intel Mac build[^\n]*\n[^\n]*landed/i.test(notes) || /Intel Mac build[^\n]*landed/i.test(notes))
+  const intelItem = /\*\*The Intel Mac build\*\*([\s\S]*?)(?=\n\d+\. \*\*|\n\n)/.exec(notes)?.[1] ?? ''
+  check('the beta.3 page carries the Intel Mac build as done, naming the archive', intelItem.includes('`macos-x64`') && /\bDone\.\s*$/.test(intelItem) && !/In progress\./.test(intelItem), intelItem.slice(-80))
   const compat = read('docs/COMPATIBILITY.md')
   check('the compatibility table carries the four archives with the Intel row', compat.includes('| `macos-x64` |') && compat.includes('| `macos-arm64` |') && compat.includes('| `linux-x64` |') && compat.includes('| `windows-x64` |'))
 }
