@@ -1034,6 +1034,7 @@ export async function runHeadless(
 
   const executeTurn = async (
     command: QueuedCommand,
+    batchUuids: string[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void> => {
     if (command.mode === 'task-notification' || /<task-notification>/.test(String(command.value ?? ''))) {
@@ -1126,6 +1127,7 @@ export async function runHeadless(
           commands: dedupedCommands,
           prompt: command.value,
           promptUuid: command.uuid,
+          ...(batchUuids.length > 0 ? { batchUuids } : {}),
           isMeta: command.isMeta,
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
@@ -1379,8 +1381,8 @@ export async function runHeadless(
         }
       }
     },
-    executeTurn: (command, onMessage) =>
-      executeTurn(command, message => {
+    executeTurn: (command, batchUuids, onMessage) =>
+      executeTurn(command, batchUuids, message => {
         onMessage(message)
       }),
     onTurnSettled: () => {

@@ -600,6 +600,10 @@ export function dropCredentialMemos(): void {
   clearLegacyApiKeyPrefetch()
   clearBetasCaches()
   clearToolSchemaCache()
+  const { resetRouterModelSnapshotMemo } = require('./router/modelRegistry.js') as typeof import('./router/modelRegistry.js')
+  resetRouterModelSnapshotMemo()
+  const { resetWalletEntriesMemo } = require('../services/wallet/wallet.js') as typeof import('../services/wallet/wallet.js')
+  resetWalletEntriesMemo()
 }
 
 export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {

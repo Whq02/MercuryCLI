@@ -259,8 +259,11 @@ capture.
 
 ## Reporting a problem
 
-Open an issue on the repository through one of its templates: a bug, a
-provider or model report, or a feature request. Every template asks for the
+Inside Mercury, `/bug <what happened>` shows you the exact report, then files
+it in the repository through your own signed-in GitHub CLI (`gh`); without
+`gh` it stays a local draft under the config home and the issues page is
+named. By hand, open an issue on the repository through one of its templates:
+a bug, a provider or model report, or a feature request. Every template asks for the
 `--version` line, the OS and terminal, and the exact steps; the bug and
 provider templates also ask for the output of `node dist/mercury.mjs doctor
 --json` (`mercury doctor --json` for a release install). A pasted transcript

@@ -49,6 +49,7 @@ export type TurnDriverPorts = {
 
   executeTurn(
     command: QueuedCommand,
+    batchUuids: string[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void>
   beforeCycle(): Promise<void>
@@ -127,7 +128,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.notifyLifecycle(uuid, 'started')
     }
 
-    await ports.executeTurn(command, message => {
+    await ports.executeTurn(command, batch.length > 1 ? batchUuids : [], message => {
       if (message.type === 'result') {
         flushSdkEvents()
         if (!holdReleased && ports.hasHoldableBackgroundAgents()) {

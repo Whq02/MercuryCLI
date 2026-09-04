@@ -192,7 +192,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash' },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[] },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -351,6 +351,7 @@ export class QueryEngine {
       context: toolUseContext as Parameters<typeof processUserInput>[0]['context'],
       messages: this.mutableMessages,
       uuid: options?.uuid,
+      ...(options?.batchUuids !== undefined ? { batchUuids: options.batchUuids } : {}),
       isMeta: options?.isMeta,
       querySource: 'sdk',
       canUseTool: wrappedCanUseTool,
@@ -993,6 +994,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   prompt: string | ContentBlockParam[]
   promptUuid?: string
   isMeta?: boolean
+  batchUuids?: string[]
   promptMode?: 'prompt' | 'bash'
   mutableMessages?: Message[]
   getReadFileCache: () => FileStateCache
@@ -1006,6 +1008,7 @@ export async function* ask(
     prompt,
     promptUuid,
     isMeta,
+    batchUuids,
     promptMode,
     mutableMessages = [],
     getReadFileCache,
@@ -1023,6 +1026,7 @@ export async function* ask(
       uuid: promptUuid,
       isMeta,
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
+      ...(batchUuids !== undefined ? { batchUuids } : {}),
     })
   } finally {
     setReadFileCache(engine.getReadFileState())

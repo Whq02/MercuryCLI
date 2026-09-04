@@ -71,6 +71,7 @@ type ProcessUserInputOptions = {
   messages: Message[]
   setUserInputOnProcessing?: (input: string | undefined) => void
   uuid?: string
+  batchUuids?: string[]
   querySource: QuerySource
   canUseTool?: CanUseToolFn
   skipSlashCommands?: boolean
@@ -382,6 +383,7 @@ async function processUserInputBase(
       uuid as UUID | undefined,
       context.getAppState().toolPermissionContext.mode,
       isMeta,
+          options.batchUuids,
     )
   }
 
