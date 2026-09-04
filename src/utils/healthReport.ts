@@ -15,7 +15,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'n
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, homedir, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
-import { basename, delimiter, dirname, join, relative, sep } from 'node:path'
+import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
@@ -127,23 +127,40 @@ import {
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
-  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { mkdirSync, mkdtempSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const idxDir = mkdtempSync(join(tmpdir(), 'gate-tree-'))
   const idx = join(idxDir, 'index')
+  const objects = join(idxDir, 'objects')
+  mkdirSync(objects, { recursive: true })
+  const repoObjects = await new Promise<string | null>(resolve => {
+    execFile(
+      'git',
+      ['rev-parse', '--git-path', 'objects'],
+      { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv() }, timeout: 15_000 },
+      (err, stdout) => resolve(err ? null : stdout.trim()),
+    )
+  })
+  const env = {
+    ...subprocessEnv(),
+    GIT_INDEX_FILE: idx,
+    ...(repoObjects
+      ? { GIT_OBJECT_DIRECTORY: objects, GIT_ALTERNATE_OBJECT_DIRECTORIES: resolvePath(cwdDir, repoObjects) }
+      : {}),
+  }
   const run = (args: string[]): Promise<string | null> =>
-    new Promise(resolve => {
+    new Promise(resolvePromise => {
       execFile(
         'git',
         args,
-        { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv(), GIT_INDEX_FILE: idx }, timeout: 15_000 },
-        (err, stdout) => resolve(err ? null : stdout.trim()),
+        { windowsHide: true, cwd: cwdDir, env, timeout: 15_000 },
+        (err, stdout) => resolvePromise(err ? null : stdout.trim()),
       )
     })
   try {
     if ((await run(['read-tree', 'HEAD'])) === null) return null
     if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
-    const tree = await run(['write-tree'])
+    const tree = await run(['write-tree', '--missing-ok'])
     return tree && tree.length > 0 ? tree : null
   } catch {
     return null
