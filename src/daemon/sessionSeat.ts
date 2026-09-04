@@ -620,6 +620,12 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       } catch {
       }
     }
+    if (line.includes(SEAT_MODE_REQUEST_PREFIX)) {
+      try {
+        settleModeAnswer(JSON.parse(line) as Parameters<typeof settleModeAnswer>[0])
+      } catch {
+      }
+    }
     requestSessionFacts(short, roster, { immediate: true })
     return
   }
@@ -743,6 +749,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
 export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: string): void {
   rejectRewindWaiters(short, "the session's runner restarted before it answered the rewind — nothing is assumed restored")
   rejectAgentVerbWaiters(short, "the session's runner restarted before it answered — nothing is assumed stopped or resumed")
+  rejectModeWaiters(short, "the session's runner restarted before it answered the mode change — the band follows its facts")
   const seat = seatOf(short)
   seat.lastAnswer = null
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
@@ -775,6 +782,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
 export function onSeatSettled(short: string): void {
   rejectRewindWaiters(short, "the session's runner ended before it answered the rewind — nothing is assumed restored")
   rejectAgentVerbWaiters(short, "the session's runner ended before it answered — nothing is assumed stopped or resumed")
+  rejectModeWaiters(short, "the session's runner ended before it answered the mode change")
   const seat = seats.get(short)
   if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
   if (seat?.workPoll !== null && seat?.workPoll !== undefined) clearTimeout(seat.workPoll)
@@ -1313,25 +1321,85 @@ function drainPendingKitDials(short: string, roster: SeatRosterPort, dir?: strin
   forwardSessionKit(short, roster, dir)
 }
 
+
+const SEAT_MODE_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}set-permission-mode-`
+export const PERMISSION_MODE_ANSWER_DEADLINE_MS = 5_000
+
+interface ModeWaiter {
+  short: string
+  mode: string
+  settle: (outcome: SeatVerbOutcome) => void
+}
+
+const modeWaiters = new Map<string, ModeWaiter>()
+let modeSeq = 0
+
 export function setSessionPermissionMode(
   sessionId: string,
   mode: string,
   roster: SeatRosterPort,
   dir?: string,
-): SeatVerbOutcome {
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
   const rec = liveRecordBySession(sessionId, dir)
-  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
-  const delivered = roster.control(
-    rec.runnerId,
-    JSON.stringify({
-      type: 'control_request',
-      request_id: verbRequestId(rec.runnerId, 'set-permission-mode'),
-      request: { subtype: 'set_permission_mode', mode },
-    }),
-  )
-  return delivered
-    ? { outcome: 'applied', detail: `${rec.runnerId} mode → ${mode}` }
-    : { outcome: 'refused', detail: 'the session has no live control channel' }
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  const requestId = `${SEAT_MODE_REQUEST_PREFIX}${rec.runnerId}-${Date.now().toString(36)}-${(++modeSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? PERMISSION_MODE_ANSWER_DEADLINE_MS
+  return new Promise<SeatVerbOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!modeWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the mode change within ${Math.round(deadlineMs / 1000)}s — the band follows its facts` })
+    }, deadlineMs)
+    timer.unref?.()
+    modeWaiters.set(requestId, {
+      short: rec.runnerId,
+      mode,
+      settle: outcome => {
+        clearTimeout(timer)
+        modeWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const delivered = roster.control(
+      rec.runnerId,
+      JSON.stringify({
+        type: 'control_request',
+        request_id: requestId,
+        request: { subtype: 'set_permission_mode', mode },
+      }),
+    )
+    if (!delivered) {
+      clearTimeout(timer)
+      modeWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+    }
+  })
+}
+
+function settleModeAnswer(frame: { type?: string; response?: { subtype?: string; request_id?: string; error?: unknown } }): boolean {
+  const response = frame.response
+  if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
+  const waiter = modeWaiters.get(response.request_id)
+  if (waiter === undefined) return false
+  if (response.subtype === 'success') {
+    waiter.settle({ outcome: 'applied', detail: `${waiter.short} mode → ${waiter.mode}` })
+    return true
+  }
+  const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the mode change'
+  waiter.settle({ outcome: 'refused', detail: error })
+  return true
+}
+
+function rejectModeWaiters(short: string, detail: string): void {
+  for (const [requestId, waiter] of modeWaiters) {
+    if (waiter.short !== short) continue
+    modeWaiters.delete(requestId)
+    waiter.settle({ outcome: 'refused', detail })
+  }
+}
+
+export function _pendingModeWaitersForTesting(): number {
+  return modeWaiters.size
 }
 
 export function refreshSessionFacts(sessionId: string, roster: SeatRosterPort, dir?: string): SeatVerbOutcome {
