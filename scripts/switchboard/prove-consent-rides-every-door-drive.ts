@@ -51,7 +51,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
-  console.error(`prove-sovereign-rides-every-door-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
+  console.error(`prove-consent-rides-every-door-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
   process.exit(1)
 }
 
@@ -312,5 +312,5 @@ if (counts.r4 !== undefined) {
 console.log(`\n[SUMMARY] ${Object.entries(counts).map(([id, c]) => `${id}=${c.distinct}`).join(' · ')}`)
 
 if (!KEEP) rmSync(SCRATCH, { recursive: true, force: true })
-console.log(failures === 0 ? '\nprove-sovereign-rides-every-door-drive: ALL LAWS HOLD' : `\nprove-sovereign-rides-every-door-drive: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? '\nprove-consent-rides-every-door-drive: ALL LAWS HOLD' : `\nprove-consent-rides-every-door-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

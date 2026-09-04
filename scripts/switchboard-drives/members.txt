@@ -12,4 +12,4 @@ prove-enter-live-journey.ts
 prove-manager-self-managed-drive.ts
 prove-reap-focus-drive.ts
 prove-seat-needs-you.ts
-prove-sovereign-rides-every-door-drive.ts
+prove-consent-rides-every-door-drive.ts
