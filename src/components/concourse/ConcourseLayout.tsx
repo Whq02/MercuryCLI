@@ -260,6 +260,7 @@ export function ConcourseLayout({
   rowChipRows = 0,
   olderRows = 0,
   armedSelected = false,
+  closeChordStaged = false,
   markedIds,
   coordinatorNode,
   mirrorNode,
@@ -290,6 +291,7 @@ export function ConcourseLayout({
   rowChipRows?: number
   olderRows?: number
   armedSelected?: boolean
+  closeChordStaged?: boolean
   markedIds?: ReadonlySet<string>
   coordinatorNode: (rows: number, width: number) => React.ReactNode
   mirrorNode: (rows: number, width: number) => React.ReactNode
@@ -789,6 +791,7 @@ export function ConcourseLayout({
                 : (() => {
                     const prio = (keys: string): number => legendPriorityOf(keys, { splitOn })
                     const olderBrowse = olderRows > 0
+                    const selectionClass = boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId))
                     const composerEnter =
                       region === 'live' && liveDraftEmpty && !olderBrowse
                         ? armedSelected
@@ -813,7 +816,7 @@ export function ConcourseLayout({
                         newSession: wiring.newSession !== undefined,
                         olderBrowse,
                         ...(region === 'list'
-                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty }
+                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty, chordStaged: closeChordStaged }
                           : {}),
                         ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
                         }),
