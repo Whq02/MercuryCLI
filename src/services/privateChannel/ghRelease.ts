@@ -21,7 +21,7 @@ export function channelRepoSlug(): string {
   return repoSlugFromUrl(MACRO.PACKAGE_URL) ?? 'Whq02/PreRelease'
 }
 
-function ghArgv(): string[] {
+export function ghArgv(): string[] {
   const pinned = flagEnv('MERCURY_GH_CMD')
   if (pinned) {
     try {
@@ -35,10 +35,18 @@ function ghArgv(): string[] {
   return ['gh']
 }
 
-function gh(args: string[], timeoutMs = GH_TIMEOUT_MS): Promise<GhResult> {
+export interface GhSpawnOptions {
+  timeoutMs?: number
+  cwd?: string
+  maxBuffer?: number
+}
+
+export function gh(args: string[], opts: GhSpawnOptions = {}): Promise<GhResult> {
   const argv = ghArgv()
+  const timeoutMs = opts.timeoutMs ?? GH_TIMEOUT_MS
+  const maxBuffer = opts.maxBuffer ?? MAX_GH_BYTES
   return new Promise(resolve => {
-    execFile(argv[0]!, [...argv.slice(1), ...args], { windowsHide: true, timeout: timeoutMs, killSignal: 'SIGKILL', maxBuffer: MAX_GH_BYTES, env: { ...subprocessEnv() } }, (err, stdout, stderr) => {
+    execFile(argv[0]!, [...argv.slice(1), ...args], { windowsHide: true, ...(opts.cwd !== undefined ? { cwd: opts.cwd } : {}), timeout: timeoutMs, killSignal: 'SIGKILL', maxBuffer, env: { ...subprocessEnv() } }, (err, stdout, stderr) => {
       if (err) {
         resolve({
           state: 'error',
@@ -128,7 +136,7 @@ export async function downloadReleaseAssets(
 ): Promise<DownloadResult> {
   const args = ['release', 'download', tag, '--repo', slug, '--dir', destDir]
   for (const name of assetNames) args.push('--pattern', name)
-  const res = await gh(args, DOWNLOAD_TIMEOUT_MS)
+  const res = await gh(args, { timeoutMs: DOWNLOAD_TIMEOUT_MS })
   if (res.state === 'error') {
     return {
       state: 'failed',
