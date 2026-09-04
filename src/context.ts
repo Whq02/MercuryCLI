@@ -157,6 +157,7 @@ export const getUserContext = memoize(
       instructionPrompt = composed || null
       setCachedInstructionPrompt(instructionPrompt)
     }
+    const isGit = await getIsGit()
     logForDiagnosticsNoPII('info', 'user_context_completed', {
       duration_ms: Date.now() - startedAt,
       content_length: instructionPrompt?.length ?? 0,
@@ -164,6 +165,7 @@ export const getUserContext = memoize(
     })
     return {
       ...(instructionPrompt ? { claudeMd: instructionPrompt } : {}),
+      environment: `Is a git repository: ${isGit ? 'Yes' : 'No'}`,
       currentDate: `Today's date is ${localIsoDate()}.`,
     }
   },
