@@ -68,7 +68,7 @@ export function workflowPulse(
 
 export type AgentPulseInput = {
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
-  waiting?: 'prefill' | 'provider-backoff' | 'usage-window'
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat'
   waitWords?: string
   waitBudgetMs?: number
   waitSinceMs?: number
@@ -82,13 +82,15 @@ export type AgentPulseInput = {
 }
 
 export type AgentPulse =
-  | { kind: 'queued' }
+  | { kind: 'queued'; words?: string }
   | { kind: 'first-token'; words?: string }
+  | { kind: 'seat'; words: string }
   | {
       kind: 'backoff'
       retryInMs?: number
       recoveryTimeoutMs?: number
       retryAttempt?: number
+      words?: string
     }
   | { kind: 'working'; toolLine?: string }
   | { kind: 'usage-window'; words: string }
@@ -96,8 +98,9 @@ export type AgentPulse =
   | { kind: 'settled' }
 
 export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
-  if (a.state === 'start') return { kind: 'queued' }
+  if (a.state === 'start') return a.waitWords !== undefined && a.waitWords !== '' ? { kind: 'queued', words: a.waitWords } : { kind: 'queued' }
   if (a.state !== 'progress') return { kind: 'settled' }
+  if (a.waiting === 'seat') return { kind: 'seat', words: a.waitWords ?? 'waiting for a seat' }
   if (a.waiting === 'usage-window') return { kind: 'usage-window', words: a.waitWords ?? 'waiting for the usage window' }
   const toolLine = a.lastToolName
     ? `${a.lastToolName}(${a.lastToolSummary ?? ''})`
@@ -112,6 +115,7 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
       retryInMs: a.retryInMs,
       recoveryTimeoutMs: a.recoveryTimeoutMs,
       retryAttempt: a.retryAttempt,
+      ...(a.waitWords !== undefined && a.waitWords !== '' ? { words: a.waitWords } : {}),
     }
   if (a.waiting === 'prefill') {
     const words =
@@ -126,10 +130,13 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
 export function agentPulseWord(p: AgentPulse): string {
   switch (p.kind) {
     case 'queued':
-      return 'queued'
+      return p.words ?? 'queued'
     case 'first-token':
       return p.words ?? 'awaiting first token'
+    case 'seat':
+      return p.words
     case 'backoff': {
+      if (p.words !== undefined) return p.words
       if (
         (typeof p.retryInMs !== 'number' || p.retryInMs <= 0) &&
         typeof p.recoveryTimeoutMs === 'number' &&

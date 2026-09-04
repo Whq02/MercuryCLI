@@ -8,6 +8,7 @@ import type { ToolUseContext } from '../../Tool.js'
 import { assembleToolPool } from '../../tools.js'
 import {
   registerAsyncAgent,
+  setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
@@ -214,6 +215,7 @@ export async function resumeAgentBackground(args: {
           agentDefinition: definition,
           promptMessages,
           ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
+          onWait: line => setAgentWaitLine(agentId, line, rootSetAppState),
           toolUseContext,
           canUseTool: canUseTool ?? ((async () => ({ behavior: 'allow', updatedInput: {} })) as never),
           isAsync: true,

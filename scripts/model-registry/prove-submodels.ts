@@ -26,6 +26,7 @@ const {
 } = await import('../../src/utils/model/subModelSlots.ts')
 const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { getGlobalConfig } = await import('../../src/utils/config.ts')
+const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -502,6 +503,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       },
     }),
   )
+  noteCredentialChange()
   check('signed in: the owner resolves the subscription', resolveOpenaiAccount()?.kind === 'chatgpt-subscription')
   {
     const presence = presenceOf('openai')
@@ -540,6 +542,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   }
 
   rmSync(authFile)
+  noteCredentialChange()
   check('signed out again: the owner resolves no account', resolveOpenaiAccount() === undefined)
   check(
     'signed out again: the presence follows WITHOUT any re-prime',

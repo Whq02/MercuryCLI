@@ -256,6 +256,8 @@ export type ToolUseContext = {
   ) => Promise<any>
   agentId?: AgentId
   agentType?: string
+  seatHolder?: string
+  onSeatWait?: (words: string | null) => void
   owner?: OwnerKey
   rosterOwner?: OwnerKey
   toolDecisions?: Map<string, PermissionDecision>

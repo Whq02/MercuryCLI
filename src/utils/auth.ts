@@ -590,6 +590,10 @@ export function hasStoredOAuthToken(): boolean {
 export function clearOAuthTokenCache(): void {
   getClaudeAIOAuthTokens.cache?.clear?.()
   clearKeychainCache()
+  const { resetRouterModelSnapshotMemo } = require('./router/modelRegistry.js') as typeof import('./router/modelRegistry.js')
+  resetRouterModelSnapshotMemo()
+  const { resetWalletEntriesMemo } = require('../services/wallet/wallet.js') as typeof import('../services/wallet/wallet.js')
+  resetWalletEntriesMemo()
 }
 
 export function dropCredentialMemos(): void {
@@ -600,10 +604,6 @@ export function dropCredentialMemos(): void {
   clearLegacyApiKeyPrefetch()
   clearBetasCaches()
   clearToolSchemaCache()
-  const { resetRouterModelSnapshotMemo } = require('./router/modelRegistry.js') as typeof import('./router/modelRegistry.js')
-  resetRouterModelSnapshotMemo()
-  const { resetWalletEntriesMemo } = require('../services/wallet/wallet.js') as typeof import('../services/wallet/wallet.js')
-  resetWalletEntriesMemo()
 }
 
 export function saveOAuthTokensIfNeeded(tokens: OAuthTokens): {
