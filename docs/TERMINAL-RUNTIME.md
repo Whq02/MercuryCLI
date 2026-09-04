@@ -100,8 +100,11 @@ update --status` and `mercury doctor` name the runtime in use: the vendored
 one, an explicit `MERCURY_NODE`, or a system node.
 
 `mercury install`, run from an extracted archive's own launcher,
-self-adopts that payload into the layout: idempotent, no administrator
-access. `--dry-run` previews (and names the runtime the payload carries),
+self-adopts that payload into the layout and puts the stable command's
+folder on the user's PATH once (a guarded line in the shell's startup file;
+the user PATH on Windows), so a new terminal finds `mercury`: idempotent,
+no administrator access. `--dry-run` previews (and names the runtime the
+payload carries and the PATH act it would perform),
 `--uninstall` removes managed binaries only
 (and says what it preserved), `--force` replaces a pre-existing non-managed
 command at the stable path with a `.bak` kept — without it, a foreign
@@ -109,9 +112,10 @@ command is refused, not clobbered. `--json` on every verb.
 
 ## `mercury update`
 
-`mercury update` speaks only to the private release repository through the
-collaborator's own signed-in `gh` — there is no anonymous endpoint and no
-other delivery path. Verbs:
+`mercury update` reads the repository's releases through your own signed-in
+`gh` (the GitHub CLI) — it is the one delivery path this version speaks; a
+machine without `gh` reinstalls by rerunning the install command in the
+README's Install section. Verbs:
 `--check`, `--status`, `--rollback`, `--json`; stdout carries the result,
 stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.

@@ -86,7 +86,7 @@ field and the packaged launchers project the range from the one owner.
 build injects it, and the banner, manifest, release archives, and CLI all
 render the same value.
 Same pattern for the repository URL: `MACRO.PACKAGE_URL` derives from
-`package.json` `repository.url`, and the private update channel resolves its
+`package.json` `repository.url`, and the update channel resolves its
 release slug from it — never a second hand-held literal. A missing
 `engines.node` or an unrecognized `repository.url` fails the build.
 
@@ -247,12 +247,17 @@ against their checked-in lock files before a byte is consumed.
   engine. WASM is platform-independent — one asset set serves every
   platform. `MERCURY_BUILD_NO_VENDOR_TREESITTER=1` and
   `MERCURY_BUILD_NO_VENDOR_GRAMMARPACK=1` force the degraded arms.
-- **sharp** (deliberately not vendored). Its native
-  binding is `node_modules`-resident, so a clean-machine artifact loses
-  sixel/half-cell image decode at call time with sharp's own named error
-  while the iTerm/kitty native image tiers keep working. The manifest's
-  `imageProcessing` entry states this so the absence is a stated trade, not
-  a silent surprise.
+- **Image-processor pack** (optional at build; from the repo dependency,
+  never fetched). sharp's prebuilt binding and the libvips library it links
+  arrive with `bun install` as the platform's `node_modules/@img/*`
+  packages; the build copies them to
+  `dist/vendor/image-processor/<platform>/` with a `vendor.json` stamp and
+  records them as the manifest's `imageProcessing` (sharp and libvips
+  versions). The runtime arms the pack beside the bundle before the first
+  image decode. Absent ⇒ degraded `image-processing`, and the runtime takes
+  the pure-JavaScript image road (PNG and BMP shrink; other formats pass
+  through unshrunk); the release packager refuses to publish that
+  degradation, so an archive packaged from this tree carries the pack.
 
 ## The NOTICE stamp
 
