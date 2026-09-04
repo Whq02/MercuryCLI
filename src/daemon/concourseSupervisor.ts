@@ -13,6 +13,7 @@ import { decideTransition, type ConcourseSessionState } from './concourseLifecyc
 import { ensureWorkerWorktree, reapWorkerWorktree, workspaceKindOf } from './concourseWorktrees.js'
 import type { CrewRosterPort } from './crewSpawn.js'
 import { foldLegacyWorkerModelKey, validateWorkerModelChoice } from '../services/concourse/workerModels.js'
+import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
@@ -641,6 +642,7 @@ export function makeConcourseAdmitHandler(
       req.modelKey === undefined && req.resumeSessionId !== undefined
         ? resumeModelKeyOf(req.resumeSessionId, req.workspaceDir, deps.dir)
         : undefined
+    refreshSignInReads(true)
     const validated = await validateWorkerModelChoice(req.modelKey ?? retainedModelKey, 'session')
     let admission = validated
     let retainedNote: string | undefined
@@ -655,11 +657,11 @@ export function makeConcourseAdmitHandler(
       }
     }
     if (!admission.ok) {
-      return {
-        ok: false,
-        code: 'invalid-request',
-        error: `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`,
-      }
+      const read = admission.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(admission.reason.slice('no-credential:'.length))}` : ''
+      const error = `model refused (${admission.reason})${admission.action !== undefined ? ` · ${admission.action}` : ''}${admission.detail !== undefined ? ` — ${admission.detail}` : ''}${read} (got ${JSON.stringify(req.modelKey ?? retainedModelKey ?? '(unset → registry default)')}${retainedModelKey !== undefined && req.modelKey === undefined ? ' — the model this session ran on; --model picks another' : ''})`
+      // eslint-disable-next-line no-console
+      console.error(`[daemon] admission refused: ${error}`)
+      return { ok: false, code: 'invalid-request', error }
     }
     const modelKey = admission.entry.modelId
     const modelDisplayName = admission.entry.displayName

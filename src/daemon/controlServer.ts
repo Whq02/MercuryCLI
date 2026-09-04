@@ -14,6 +14,7 @@ import {
   readControlFrame,
   type DaemonHelloFacts,
   type DaemonReply,
+  type DaemonSignInViewV1,
   type LeaseClient,
   type SessionRewindMode,
   type SessionRewindOutcomeV1,
@@ -49,6 +50,7 @@ export interface ControlServerDeps {
   }
   hello?: () => DaemonHelloFacts
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
+  signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
   nudgeAgent?: (agentName: string) => void
   crewSpawn?: (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }>
   concourseAdmit?: (req: {
@@ -1023,6 +1025,14 @@ async function routeControlRequest(
         live: r.live,
         ...(r.detail !== undefined ? { detail: r.detail } : {}),
       })
+    }
+
+    case 'signIns': {
+      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+      if (!deps.signIns) {
+        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no sign-in view' })
+      }
+      return answer(sock, { ok: true, op: 'signIns', view: deps.signIns({ refresh: raw.refresh === true }) })
     }
 
     case 'attach': {
