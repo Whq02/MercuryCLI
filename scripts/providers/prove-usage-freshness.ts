@@ -221,7 +221,7 @@ section('§3 one owner: the door routes through the reader · the freshest obser
   const deck = src('src/components/Deck.tsx')
   check('/deck paints the reader\'s note', deck.includes('usage.readerNote') && deck.includes('key="reader"'))
   const tab = src('src/components/Settings/Usage.tsx')
-  check("the tab's own ask rides the reader as the operator (never the raw fetch)", tab.includes("refreshAnthropicUsage({ reason: 'operator' })") && !tab.includes('fetchUtilization()'))
+  check("the tab's own ask rides the owner's door as the operator (never the raw fetch, never a reader import)", tab.includes("refreshProviderUsage('anthropic', { reason: 'operator' })") && !tab.includes('fetchUtilization()') && !tab.includes('anthropicUsageState'))
   const frame = src('src/components/MercuryFrame.tsx')
   check('a completed turn pokes the reader from the frame (the focused session\'s own totals)', frame.includes('pokeProviderUsage()') && frame.includes('[usageFacts.totalOutputTokens, usageFacts.totalAPIDurationMs]'))
   const boot = src('src/main.tsx')
