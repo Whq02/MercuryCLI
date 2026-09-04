@@ -1,13 +1,30 @@
 import type { ToolUseContext } from '../../Tool.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { PROVIDER_SEARCH_TOOL_NAME } from '../../tools/WebSearchTool/prompt.js'
 import { AbortError } from '../../utils/errors.js'
+import { getMainLoopModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import { braveSearch, resolveBraveSearchApiKey, type SearchKeySource } from './brave.js'
 import { keylessSearch } from './duckduckgo.js'
 import { nativeBackendIdFor, type SearchProgressSink } from './nativeSearch.js'
 import { isNativeSearchFamily, type NativeSearchFamily } from './nativeSearchRequest.js'
 import {
+  cachedAnswerNote,
+  coolDownRemainingMs,
+  liveSearchClock,
+  nextSearchGroupId,
+  noteAnswered,
+  noteRateLimited,
+  rememberSearch,
+  secondsLeftLabel,
+  takeCachedSearch,
+  takeKeyedDoorHint,
+  type SearchClock,
+} from './searchPacing.js'
+import {
   failureLine,
+  KEYED_DOOR_COMMANDS,
+  KEYED_DOOR_FREE_TIER,
   searchBackendLabel,
   searchFailure,
   type SearchBackendId,
@@ -67,7 +84,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads): SearchDoorPlan {
 
   if (parsed === 'auto') {
     const doors: SearchDoor[] = [...keyed]
-    if (keyed.length === 0) closed.push('no Brave or Tavily key stored (/router key brave · /router key tavily)')
+    if (keyed.length === 0) closed.push(`no Brave or Tavily key stored (${KEYED_DOOR_COMMANDS} — ${KEYED_DOOR_FREE_TIER})`)
     if (keyless) doors.push(keyless)
     else closed.push('the keyless door is off (MERCURY_SEARCH_KEYLESS=0)')
     return { doors, closed, override: 'auto' }
@@ -122,6 +139,8 @@ export interface WebSearchRun {
   sequence: Array<string | { toolUseId: string; hits: SearchHit[] }>
   queries: string[]
   notes: string[]
+  hint?: string
+  cached?: boolean
 }
 
 export interface WebSearchRunIo {
@@ -133,51 +152,97 @@ export interface WebSearchRunIo {
     tavily?: (request: SearchRequest) => Promise<SearchOutcome>
     keyless?: (request: SearchRequest) => Promise<SearchOutcome>
   }
+  clock?: SearchClock
 }
 
-async function openDoor(door: SearchDoor, request: SearchRequest, io: WebSearchRunIo): Promise<SearchOutcome> {
+async function openDoor(door: SearchDoor, request: SearchRequest, io: WebSearchRunIo, clock: SearchClock): Promise<SearchOutcome> {
   switch (door.kind) {
     case 'keyed':
       return door.backend === 'brave'
         ? (io.backends?.brave ?? (r => braveSearch(r)))(request)
         : (io.backends?.tavily ?? (r => tavilySearch(r)))(request)
     case 'keyless':
-      return (io.backends?.keyless ?? (r => keylessSearch(r)))(request)
+      return (io.backends?.keyless ?? (r => keylessSearch(r, { clock })))(request)
   }
 }
 
-export function walkFailureLine(failures: readonly SearchFailure[], plan: SearchDoorPlan): string {
+export interface WalkFailureContext {
+  nativeFamily?: NativeSearchFamily
+}
+
+export function walkFailureLine(failures: readonly SearchFailure[], plan: SearchDoorPlan, walk: WalkFailureContext = {}): string {
+  const native = walk.nativeFamily
+    ? ` ${PROVIDER_SEARCH_TOOL_NAME} (${searchBackendLabel(nativeBackendIdFor(walk.nativeFamily))}, the provider's own search) is listed for this session — the other door.`
+    : ''
   if (failures.length === 0) {
-    return failureLine(searchFailure('no-backend', 'none', plan.closed.join('; ') || 'no door is configured'))
+    return `${failureLine(searchFailure('no-backend', 'none', plan.closed.join('; ') || 'no door is configured'))}${native}`
   }
   const last = failures[failures.length - 1]!
   const earlier = failures.slice(0, -1).map(failureLine)
   const closed = plan.closed.length > 0 ? ` Not in the walk: ${plan.closed.join('; ')}.` : ''
-  return `${failureLine(last)}${earlier.length > 0 ? ` (earlier: ${earlier.join(' · ')})` : ''}${closed}`
+  return `${failureLine(last)}${earlier.length > 0 ? ` (earlier: ${earlier.join(' · ')})` : ''}${closed}${native}`
+}
+
+function coolingKeyedFailure(backend: 'brave' | 'tavily', leftMs: number): SearchFailure {
+  return searchFailure('rate-limited', backend, `cooling down after a rate limit — ${secondsLeftLabel(leftMs)} left; not knocked`)
 }
 
 export async function performWebSearch(request: SearchRequest, io: WebSearchRunIo): Promise<WebSearchRun> {
+  const clock = io.clock ?? liveSearchClock
   const reads = io.reads ?? liveSearchDoorReads()
   const plan = resolveSearchDoorPlan(reads)
+  const mainModel = (io.context.options.mainLoopModel as string | undefined) || getMainLoopModel()
+  const hasKeyedDoor = plan.doors.some(door => door.kind === 'keyed')
+  const report = (toolUseID: string, resultCount: number): void => {
+    io.onProgress?.({ toolUseID, data: { type: 'search_results_received', resultCount, query: request.query } })
+  }
+
+  const cached = takeCachedSearch(request, clock.now())
+  if (cached) {
+    const toolUseId = nextSearchGroupId(cached.via)
+    report(toolUseId, cached.hits.length)
+    return {
+      via: cached.via,
+      tier: cached.tier,
+      hits: [...cached.hits],
+      sequence: [{ toolUseId, hits: [...cached.hits] }],
+      queries: [...cached.queries],
+      notes: [cachedAnswerNote(searchBackendLabel(cached.via))],
+      cached: true,
+    }
+  }
+
   const failures: SearchFailure[] = []
   for (const door of plan.doors) {
-    const outcome = await openDoor(door, request, io)
+    if (door.kind === 'keyed') {
+      const left = coolDownRemainingMs(door.backend, clock.now())
+      if (left > 0) {
+        failures.push(coolingKeyedFailure(door.backend, left))
+        continue
+      }
+    }
+    const outcome = await openDoor(door, request, io, clock)
     if (outcome.ok) {
-      io.onProgress?.({
-        toolUseID: `${outcome.via}-1`,
-        data: { type: 'search_results_received', resultCount: outcome.hits.length, query: request.query },
-      })
+      if (door.kind === 'keyed') noteAnswered(door.backend)
+      const queries = outcome.queries ?? [request.query]
+      rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits: outcome.hits, queries }, clock.now())
+      const toolUseId = nextSearchGroupId(outcome.via)
+      report(toolUseId, outcome.hits.length)
+      const hint = outcome.tier === 'keyless' && !hasKeyedDoor ? takeKeyedDoorHint() : undefined
       return {
         via: outcome.via,
         tier: outcome.tier,
         hits: outcome.hits,
-        sequence: outcome.sequence ?? [{ toolUseId: `${outcome.via}-1`, hits: outcome.hits }],
-        queries: outcome.queries ?? [request.query],
-        notes: failures.map(failureLine),
+        sequence: outcome.sequence ?? [{ toolUseId, hits: outcome.hits }],
+        queries,
+        notes: [...failures.map(failureLine), ...(outcome.notes ?? [])],
+        ...(hint ? { hint } : {}),
       }
     }
     if (outcome.kind === 'aborted' || io.context.abortController.signal.aborted) throw new AbortError()
+    if (door.kind === 'keyed' && outcome.kind === 'rate-limited') noteRateLimited(door.backend, clock)
     failures.push(outcome)
   }
-  throw new Error(walkFailureLine(failures, plan))
+  if (!hasKeyedDoor) takeKeyedDoorHint()
+  throw new Error(walkFailureLine(failures, plan, { nativeFamily: nativeSearchFamilyOf(mainModel) }))
 }
