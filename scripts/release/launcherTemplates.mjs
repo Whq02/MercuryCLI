@@ -544,24 +544,24 @@ entry). No administrator access, no npm, rerunning it is a no-op.
 configuration or sessions. (\`install.sh\` / \`install.ps1\` in this folder run
 the same verb.) See INSTALLING.md for the full layout.
 
-## Staying current (private beta channel)
+## Staying current
 
-Updates come from the PRIVATE Mercury repository, so they need two things:
-collaborator access to that repository and a signed-in GitHub CLI
-(\`gh auth status\` should say you are logged in — otherwise \`gh auth login\`).
+Updates come from the Mercury repository's public GitHub Releases — no
+account, no sign-in, no token. A signed-in GitHub CLI (\`gh\`) is used when
+it is present (it raises GitHub's request limit); it is never required.
 
 \`\`\`
-mercury update --check      # is a newer private beta available?
-mercury update              # download, verify checksums, stage, activate
+mercury update --check      # is a newer release available?
+mercury update              # download, verify, stage, activate
 mercury update --rollback   # return to the previously installed version
-mercury update --status     # what is installed, where, and channel access
+mercury update --status     # what is installed, where, and how the channel is read
 \`\`\`
 
 Every update verifies the release's SHA256SUMS.txt before anything activates,
-keeps the previous version installed, and restores it automatically if the
-new one fails its startup smoke. See UPDATING.md for every failure mode and
-manual recovery. Mercury never publishes to npm and never auto-updates in the
-background — updates happen only when you run the command.
+states the archive's signature verdict, keeps the previous version installed,
+and restores it automatically if the new one fails its startup smoke. See
+UPDATING.md for every failure mode and manual recovery. Mercury never
+auto-updates in the background — updates happen only when you run the command.
 
 ## The facts
 
@@ -682,17 +682,20 @@ naming the active version directory — edit it if automation ever cannot.
 }
 
 export function updatingDoc(p, version) {
-  return `# Updating Mercury (private beta channel)
+  return `# Updating Mercury
 
-Mercury ${version} updates from the PRIVATE Mercury GitHub repository only —
-through YOUR already-signed-in GitHub CLI. There is no npm package, no public
-download endpoint, and no background auto-update. Mercury never prints or
-stores your GitHub credentials; \`gh\` holds them itself.
+Mercury ${version} updates from the Mercury repository's public GitHub
+Releases. The release list and the archive are read anonymously over HTTPS —
+no account, no sign-in, no token — the same lookup the install one-liner
+performs. When the GitHub CLI (\`gh\`) is installed and signed in, the same
+reads go through it instead (GitHub's limit for a signed-in CLI sits far above
+the anonymous per-address one); gh is never required. There is no background
+auto-update. Mercury never prints or stores GitHub credentials; \`gh\` holds
+its own.
 
 ## Prerequisites
 
-- collaborator access to the private Mercury repository;
-- GitHub CLI installed and signed in — \`gh auth status\` confirms readiness;
+- a network path to github.com (the usual HTTPS_PROXY setting is honoured);
 - no Node install: every archive carries its own runtime (${p.label}), and an
   updated version brings its own.
 
@@ -705,7 +708,7 @@ mercury update --rollback   # switch back to the previous installed version
 mercury update --status     # layout, versions present, channel access
 \`\`\`
 
-A normal update: discovers the newest convention-valid private prerelease,
+A normal update: discovers the newest convention-valid prerelease,
 downloads YOUR platform's archive plus SHA256SUMS.txt from that SAME release,
 verifies the SHA-256 locally, extracts and checks the embedded version,
 smoke-tests the staged copy, switches the current pointer atomically, keeps
@@ -714,12 +717,21 @@ restoring the previous pointer automatically if that last check fails.
 
 ## What each state means
 
-- **"Mercury is current"** — no newer private release exists. Exit 0.
-- **"no private releases found"** — the channel has no release yet. Exit 0.
-- **Access unavailable** — \`gh\` missing, signed out, or your account cannot
-  see the private repository. The message names which, with the remedy
-  (install gh · \`gh auth login\` · ask for a collaborator invite). Nothing
-  was downloaded or changed.
+- **"Mercury is current"** — no newer release exists. Exit 0. Every answer
+  names the road that read the channel (anonymously, or through gh).
+- **"no releases found"** — the channel has no release yet. Exit 0.
+- **Rate limited** — GitHub's anonymous request limit for your address is
+  used up (sixty requests an hour, shared by everyone behind one address).
+  The message says when it resets, in minutes; signing in the GitHub CLI
+  (\`gh auth login\`) raises the limit at once. Nothing was changed.
+- **Not visible / access unavailable** — the configured repository answers
+  404 anonymously (a private channel, or a typo in
+  \`MERCURY_UPDATE_CHANNEL_REPO\`), or your signed-in account cannot see it.
+  The message names which, with the remedy (\`gh auth login\` · ask for a
+  collaborator invite). Nothing was downloaded or changed.
+- **Unreachable** — GitHub did not answer (network, proxy, or a download that
+  stalled past its deadline). The message names the seam and the silence it
+  waited through. Rerun when the network is back.
 - **No asset for this platform** — the release exists but does not carry your
   OS/architecture archive. Reported honestly; nothing changes.
 - **Checksum refusal** — the downloaded bytes do not match the release's
