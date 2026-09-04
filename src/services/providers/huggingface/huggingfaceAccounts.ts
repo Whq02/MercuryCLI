@@ -7,6 +7,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredHuggingfaceApiKey } from '../../../utils/router/providerSecrets.js'
+import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 
 
 const HF_HUB_BASE_URL = 'https://huggingface.co'
@@ -94,6 +95,7 @@ function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFil
     chmodSync(path, 0o600)
   } catch {
   }
+  noteCredentialChange()
 }
 
 export function writeHuggingfaceTokens(
