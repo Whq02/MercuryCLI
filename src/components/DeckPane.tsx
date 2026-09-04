@@ -9,7 +9,7 @@ import {
   getTotalUnpricedTurns,
 } from '../cost-tracker.js'
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
-import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
+import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text } from '../ink.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
@@ -65,7 +65,9 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const cols = useTerminalSize().columns
   const compact = cols < 100
   const companionOn = useCompanionEnabled()
-  const rawModel = useMainLoopModel()
+  const servedModel = useFocusedServedModel()
+  const processModel = useMainLoopModel()
+  const rawModel = servedModel ?? processModel
   const model = useDisplayedSessionModel().compact
   const cost = getTotalCost()
   const unpricedTurns = getTotalUnpricedTurns()
