@@ -249,7 +249,7 @@ export async function gatherWorkbenchInputs(opts?: {
     'contextLanes',
     listContextLaneFacts(sessionId),
   )
-  const gitWorktreesSrc = remember(opts?.lastGood, 'gitWorktrees', listGitWorktreeLanes(cwd))
+  const gitWorktreesSrc = remember(opts?.lastGood, 'gitWorktrees', listGitWorktreeLanes(cwd, treeDigest))
 
   return {
     now,
@@ -303,7 +303,26 @@ function remember<T>(
   return prior === undefined ? s : sourceStale(prior as T, s.reason)
 }
 
+const WORKTREE_LANES_FLOOR_MS = 60_000
+let worktreeLanesMemo: {
+  cwd: string
+  digest: string | null
+  at: number
+  value: SourceState<WorkbenchSourceInputs['gitWorktreeLanes']>
+} | null = null
+
 function listGitWorktreeLanes(
+  cwd: string,
+  digest: string | null,
+): SourceState<WorkbenchSourceInputs['gitWorktreeLanes']> {
+  const memo = worktreeLanesMemo
+  if (memo && memo.cwd === cwd && memo.digest === digest && Date.now() - memo.at < WORKTREE_LANES_FLOOR_MS) return memo.value
+  const value = probeGitWorktreeLanes(cwd)
+  worktreeLanesMemo = { cwd, digest, at: Date.now(), value }
+  return value
+}
+
+function probeGitWorktreeLanes(
   cwd: string,
 ): SourceState<WorkbenchSourceInputs['gitWorktreeLanes']> {
   try {

@@ -16,6 +16,7 @@ import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getGitState, type GitRepoState } from '../utils/git.js'
+import { computeWorkingTreeDigestAsync } from '../utils/verification/verificationState.js'
 import { getTaskListId, listTasks, onTasksUpdated, type Task } from '../utils/tasks.js'
 import {
   fleetGauge,
@@ -80,11 +81,23 @@ function emit(): void {
   }
 }
 
+const GIT_STATE_FLOOR_MS = 60_000
+let gitStateMemo: { digest: string | null; at: number; value: GitRepoState | null } | null = null
+
+async function gitStateForRefresh(): Promise<GitRepoState | null> {
+  const digest = await computeWorkingTreeDigestAsync(getCwd())
+  const memo = gitStateMemo
+  if (memo && memo.digest === digest && Date.now() - memo.at < GIT_STATE_FLOOR_MS) return memo.value
+  const value = await getGitState()
+  gitStateMemo = { digest, at: Date.now(), value }
+  return value
+}
+
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
   next.crew = null
   await Promise.all([
-    getGitState()
+    gitStateForRefresh()
       .then(g => {
         next.git = g
       })
