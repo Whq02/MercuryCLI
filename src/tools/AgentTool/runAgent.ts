@@ -852,7 +852,7 @@ export async function* runAgent(
         : {}),
     }).catch(() => {})
 
-    let lastRecordedUuid: string | undefined
+    let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
     const queryParams: QueryParams = {

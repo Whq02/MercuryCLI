@@ -600,6 +600,12 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       } catch {
       }
     }
+    if (line.includes(SEAT_AGENT_REQUEST_PREFIX)) {
+      try {
+        settleAgentVerbAnswer(JSON.parse(line) as Parameters<typeof settleAgentVerbAnswer>[0])
+      } catch {
+      }
+    }
     requestSessionFacts(short, roster, { immediate: true })
     return
   }
@@ -721,6 +727,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
 
 export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: string): void {
   rejectRewindWaiters(short, "the session's runner restarted before it answered the rewind — nothing is assumed restored")
+  rejectAgentVerbWaiters(short, "the session's runner restarted before it answered — nothing is assumed stopped or resumed")
   const seat = seatOf(short)
   seat.lastAnswer = null
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
@@ -751,6 +758,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
 
 export function onSeatSettled(short: string): void {
   rejectRewindWaiters(short, "the session's runner ended before it answered the rewind — nothing is assumed restored")
+  rejectAgentVerbWaiters(short, "the session's runner ended before it answered — nothing is assumed stopped or resumed")
   const seat = seats.get(short)
   if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
   if (seat?.workPoll !== null && seat?.workPoll !== undefined) clearTimeout(seat.workPoll)
@@ -869,6 +877,95 @@ function rejectRewindWaiters(short: string, detail: string): void {
 
 export function _pendingRewindWaitersForTesting(): number {
   return rewindWaiters.size
+}
+
+
+const SEAT_AGENT_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}agent-`
+export const AGENT_VERB_ANSWER_DEADLINE_MS = 10_000
+
+export type SessionAgentVerb = 'stop-agent' | 'resume-agent'
+
+interface AgentVerbWaiter {
+  short: string
+  settle: (outcome: SeatVerbOutcome) => void
+}
+
+const agentVerbWaiters = new Map<string, AgentVerbWaiter>()
+let agentVerbSeq = 0
+
+export function controlSessionAgent(
+  sessionId: string,
+  agentId: string,
+  verb: SessionAgentVerb,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { note?: string; deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  if (agentId === '') return Promise.resolve({ outcome: 'refused', detail: `${verb} requires agentId` })
+  const requestId = `${SEAT_AGENT_REQUEST_PREFIX}${verb}-${rec.runnerId}-${Date.now().toString(36)}-${(++agentVerbSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  return new Promise<SeatVerbOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!agentVerbWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the ${verb} within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    agentVerbWaiters.set(requestId, {
+      short: rec.runnerId,
+      settle: outcome => {
+        clearTimeout(timer)
+        agentVerbWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const request =
+      verb === 'stop-agent'
+        ? { subtype: 'stop_task', task_id: agentId }
+        : { subtype: 'resume_task', task_id: agentId, ...(opts?.note !== undefined ? { note: opts.note } : {}) }
+    const delivered = roster.control(rec.runnerId, JSON.stringify({ type: 'control_request', request_id: requestId, request }))
+    if (!delivered) {
+      clearTimeout(timer)
+      agentVerbWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat ${verb} sent: ${rec.runnerId} → ${agentId}`)
+  })
+}
+
+function settleAgentVerbAnswer(frame: { type?: string; response?: { subtype?: string; request_id?: string; response?: unknown; error?: unknown } }): boolean {
+  const response = frame.response
+  if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
+  const waiter = agentVerbWaiters.get(response.request_id)
+  if (waiter === undefined) return false
+  if (response.subtype === 'success') {
+    const payload = response.response && typeof response.response === 'object' ? (response.response as Record<string, unknown>) : {}
+    const detail = Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined
+    waiter.settle({ outcome: 'applied', ...(detail !== undefined ? { detail } : {}) })
+    return true
+  }
+  const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the verb'
+  const older = /unsupported control request subtype/i.test(error)
+  waiter.settle({
+    outcome: 'refused',
+    detail: older ? "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session" : error,
+  })
+  return true
+}
+
+function rejectAgentVerbWaiters(short: string, detail: string): void {
+  for (const [requestId, waiter] of agentVerbWaiters) {
+    if (waiter.short !== short) continue
+    agentVerbWaiters.delete(requestId)
+    waiter.settle({ outcome: 'refused', detail })
+  }
+}
+
+export function _pendingAgentVerbWaitersForTesting(): number {
+  return agentVerbWaiters.size
 }
 
 async function applyModelNow(

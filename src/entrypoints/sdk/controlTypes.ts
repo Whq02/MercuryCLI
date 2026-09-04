@@ -153,6 +153,12 @@ export type SDKControlStopTaskRequest = {
   task_id: string
 }
 
+export type SDKControlResumeTaskRequest = {
+  subtype: 'resume_task'
+  task_id: string
+  note?: string
+}
+
 export type SDKControlApplyFlagSettingsRequest = {
   subtype: 'apply_flag_settings'
   settings: Record<string, unknown>
@@ -270,6 +276,7 @@ export type SDKControlRequestInner =
   | SDKControlSpawnSwitchRequest
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
+  | SDKControlResumeTaskRequest
   | SDKControlApplyFlagSettingsRequest
   | SDKControlGetSettingsRequest
   | SDKControlElicitationRequest

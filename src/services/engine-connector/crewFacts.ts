@@ -35,6 +35,7 @@ export interface CrewAgentFacts {
   team: string | null
   description: string | null
   error: string | null
+  stopReason: string | null
   pendingAsks: number
   sessionId: string | null
 }
@@ -95,6 +96,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     team: row.team ?? null,
     description: row.description ?? null,
     error: row.error ?? null,
+    stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,
     pendingAsks: row.pendingAsks ?? 0,
     sessionId,
   }
@@ -171,6 +173,11 @@ export function crewWaitingWords(running: number): string | null {
 
 export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
   return crewWaitingWords(crewRunning(agents).length)
+}
+
+export function crewStillRunningLine(running: number): string | null {
+  if (!(running > 0)) return null
+  return `${running} sub-agent${running === 1 ? '' : 's'} still running — open the crew view (/teammates) to stop one`
 }
 
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
