@@ -444,7 +444,7 @@ export async function* openaiCallModel(
     providerScope: `openai:${auth.account.kind}`,
     servedModel: modelId,
     projectPath: getCwd(),
-    behaviorContractDigest: createHash('sha256').update(renderedInstructions).digest('hex').slice(0, 16),
+    behaviorContractDigest: contract.digest,
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
