@@ -3,8 +3,9 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { appendFileSync } from 'node:fs'
 
 const captureFile = process.argv[2]
+const fixtureCwd = process.argv[3] ?? process.cwd()
 if (!captureFile) {
-  console.error('usage: turn-end-fixture-server.ts <captureFile>')
+  console.error('usage: turn-end-fixture-server.ts <captureFile> [fixtureCwd]')
   process.exit(2)
 }
 
@@ -12,8 +13,12 @@ export const REPLY_TEXT = 'the reply stands here after its last item'
 export const HOLD_AFTER_SETTLE_ASK = 'hold after settle'
 export const CLOSE_AFTER_SETTLE_ASK = 'close after settle'
 export const HOLD_AFTER_END_ASK = 'hold after end'
+export const READ_THREE_ASK = 'read three files'
+export const SLEEP_TOOL_ASK = 'run the long sleep'
+export const READ_HOLD_MS = 6_000
+export const SLEEP_SECONDS = 40
 
-type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'complete'
+type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'read-three' | 'sleep-tool' | 'complete'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const named = (event: string, obj: unknown): string => `event: ${event}\n${sse(obj)}`
@@ -52,6 +57,46 @@ function armOf(ask: string): Arm {
   if (words === HOLD_AFTER_END_ASK) return 'hold-after-end'
   return 'complete'
 }
+
+function toolArmOf(body: Record<string, unknown>): { arm: 'read-three' | 'sleep-tool'; step: number } | null {
+  const input = body.input
+  const items = Array.isArray(input) ? input : Array.isArray(body.messages) ? body.messages : []
+  let step = 0
+  let first = ''
+  for (const raw of items as Array<{ role?: string; content?: unknown; type?: string; call_id?: string }>) {
+    if (raw.type === 'function_call_output') step++
+    if (raw.role === 'user') {
+      const content = raw.content
+      if (Array.isArray(content)) {
+        for (const part of content) {
+          if ((part as { type?: string }).type === 'tool_result') step++
+        }
+      }
+      const text = textOf(content)
+      if (first === '' && text !== '') first = text.trim().replace(/\s+please$/, '')
+    }
+  }
+  if (first === READ_THREE_ASK) return { arm: 'read-three', step }
+  if (first === SLEEP_TOOL_ASK) return { arm: 'sleep-tool', step }
+  return null
+}
+
+function carriesWords(body: Record<string, unknown>, words: string[]): string[] {
+  const raw = JSON.stringify(body)
+  return words.filter(w => raw.includes(w))
+}
+export const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
+
+function toolStep(arm: 'read-three' | 'sleep-tool', step: number, cwd: string): { name: string; input: Record<string, unknown>; id: string } | null {
+  if (arm === 'sleep-tool') {
+    return step === 0 ? { name: 'Bash', input: { command: `sleep ${SLEEP_SECONDS}`, description: 'the long sleep' }, id: 'toolu_sleep_1' } : null
+  }
+  const files = ['a.md', 'b.md', 'c.md']
+  const file = files[step]
+  if (file === undefined) return null
+  return { name: 'Read', input: { file_path: `${cwd}/${file}` }, id: `toolu_read_${step + 1}` }
+}
+
 
 const held = new Set<ServerResponse>()
 let openaiCalls = 0
@@ -113,11 +158,28 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && url.endsWith('/responses')) {
       const n = ++openaiCalls
       const ask = lastAskOf(body)
-      const arm = armOf(ask)
-      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, at: Date.now() })
+      const tool = toolArmOf(body)
+      const arm = tool?.arm ?? armOf(ask)
+      const carries = carriesWords(body, QUEUED_WORDS_WATCH)
+      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const rid = `resp_turnend_${n}`
       const itemId = `msg_turnend_${n}`
+      if (tool !== null) {
+        const call = toolStep(tool.arm, tool.step, fixtureCwd)
+        const serve = (): void => {
+          res.write(sse({ type: 'response.created', response: { id: rid } }))
+          if (call !== null) {
+            res.write(sse({ type: 'response.output_item.done', output_index: 0, item: { type: 'function_call', id: `fc_${call.id}`, call_id: call.id, name: call.name, arguments: JSON.stringify(call.input) } }))
+          } else {
+            res.write(sse({ type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: itemId, role: 'assistant', content: [{ type: 'output_text', text: REPLY_TEXT }] } }))
+          }
+          res.end(sse({ type: 'response.completed', response: { id: rid, usage: { input_tokens: 21, output_tokens: 9 } } }))
+        }
+        if (tool.arm === 'read-three' && tool.step === 1) setTimeout(serve, READ_HOLD_MS).unref()
+        else serve()
+        return
+      }
       res.write(sse({ type: 'response.created', response: { id: rid } }))
       res.write(
         sse({
@@ -148,9 +210,34 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
       const n = ++anthropicCalls
       const ask = lastAskOf(body)
-      const arm = armOf(ask)
-      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, at: Date.now() })
+      const tool = toolArmOf(body)
+      const arm = tool?.arm ?? armOf(ask)
+      const carries = carriesWords(body, QUEUED_WORDS_WATCH)
+      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
+      if (tool !== null) {
+        const call = toolStep(tool.arm, tool.step, fixtureCwd)
+        const model = typeof body.model === 'string' ? body.model : 'fixture'
+        const usage = { input_tokens: 21, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 9 }
+        const serve = (): void => {
+          res.write(named('message_start', { type: 'message_start', message: { id: `msg_turnend_t${n}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { ...usage, output_tokens: 1 } } }))
+          if (call !== null) {
+            res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: call.id, name: call.name, input: {} } }))
+            res.write(named('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(call.input) } }))
+            res.write(named('content_block_stop', { type: 'content_block_stop', index: 0 }))
+            res.write(named('message_delta', { type: 'message_delta', delta: { stop_reason: 'tool_use', stop_sequence: null }, usage }))
+          } else {
+            res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
+            res.write(named('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: REPLY_TEXT } }))
+            res.write(named('content_block_stop', { type: 'content_block_stop', index: 0 }))
+            res.write(named('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage }))
+          }
+          res.end(named('message_stop', { type: 'message_stop' }))
+        }
+        if (tool.arm === 'read-three' && tool.step === 1) setTimeout(serve, READ_HOLD_MS).unref()
+        else serve()
+        return
+      }
       res.write(
         named('message_start', {
           type: 'message_start',
