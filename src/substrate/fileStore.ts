@@ -1,7 +1,7 @@
 
 import { resolveWatchRoot } from '../utils/watchRoot.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
-import { existsSync, realpathSync } from 'node:fs'
+import { existsSync, realpathSync, watch as fsWatch, type FSWatcher as NodeFSWatcher } from 'node:fs'
 import { mkdir, readFile, stat, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import type { FSWatcher } from 'chokidar'
@@ -157,6 +157,7 @@ type Runtime = {
   watcher: FSWatcher | null
   watcherStarting: Promise<void> | null
   pollTimer: ReturnType<typeof setInterval> | null
+  pollLadderStop: (() => void) | null
   pollFloorStop: (() => void) | null
   debounceTimer: ReturnType<typeof setTimeout> | null
   lastEmittedRaw: string | null
@@ -303,6 +304,7 @@ export function defineStore<T, A extends unknown[] = []>(
         watcher: null,
         watcherStarting: null,
         pollTimer: null,
+        pollLadderStop: null,
         pollFloorStop: null,
         debounceTimer: null,
         lastEmittedRaw: null,
@@ -492,22 +494,52 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const startPollUntilExists = (path: string, rt: Runtime): void => {
     if (rt.pollTimer || rt.listeners.size === 0) return
-    rt.pollTimer = setInterval(() => {
-      void (async () => {
-        await emitIfChanged(path, rt)
+    let ancestor: NodeFSWatcher | null = null
+    const upgrade = (): void => {
+      if (rt.pollTimer) {
+        clearInterval(rt.pollTimer)
+        rt.pollTimer = null
+      }
+      stopFloor()
+      try {
+        ancestor?.close()
+      } catch {
+      }
+      ancestor = null
+      startWatcher(path, rt)
+    }
+    const probe = async (): Promise<void> => {
+      await emitIfChanged(path, rt)
+      if (rt.pollTimer === null) return
+      if (rt.lastStatKey === STAT_KEY_ABSENT || rt.lastStatKey === null) return
+      upgrade()
+    }
+    let dir = dirname(path)
+    while (dir !== dirname(dir) && !existsSync(dir)) dir = dirname(dir)
+    try {
+      const w = fsWatch(resolveWatchRoot(dir), () => void probe())
+      w.on('error', () => {
         try {
-          await stat(path)
+          w.close()
         } catch {
-          return
         }
-        if (rt.pollTimer) {
-          clearInterval(rt.pollTimer)
-          rt.pollTimer = null
-        }
-        startWatcher(path, rt)
-      })()
-    }, cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
+        if (ancestor === w) ancestor = null
+      })
+      ancestor = w
+    } catch {
+    }
+    const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
+    const stopFloor = subscribeUiClock(floorMs, () => void probe())
+    rt.pollTimer = setInterval(() => {}, 0x7fffffff)
     rt.pollTimer.unref?.()
+    rt.pollLadderStop = () => {
+      stopFloor()
+      try {
+        ancestor?.close()
+      } catch {
+      }
+      ancestor = null
+    }
   }
 
   const stopWatching = (path: string, rt: Runtime): void => {
@@ -518,6 +550,10 @@ export function defineStore<T, A extends unknown[] = []>(
     if (rt.pollTimer) {
       clearInterval(rt.pollTimer)
       rt.pollTimer = null
+    }
+    if (rt.pollLadderStop) {
+      rt.pollLadderStop()
+      rt.pollLadderStop = null
     }
     if (rt.pollFloorStop) {
       rt.pollFloorStop()
