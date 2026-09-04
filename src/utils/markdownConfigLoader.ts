@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd } from '../bootstrap/state.js'
+import { addBootNote } from '../substrate/bootNotes.js'
 import { getMercuryHome } from './envUtils.js'
 import { normalizePathForComparison } from './file.js'
 import { findCanonicalGitRoot, findGitRoot } from './git.js'
@@ -17,7 +18,6 @@ import {
   MERCURY_PROJECT_DIR,
   PROJECT_CONFIG_DIR_NAMES,
 } from './projectConfig.js'
-import { ripGrepAnswer } from './ripgrep.js'
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
 
@@ -164,12 +164,34 @@ export function getProjectDirsUpToHome(subdir: string, cwd: string): string[] {
 }
 
 
-const DISCOVERY_TIMEOUT_MS = 3000
+export const ESTATE_WALK_MAX_ENTRIES = 8_000
+export const ESTATE_WALK_MAX_DEPTH = 12
+const ESTATE_WALK_BUDGET_MS = 3_000
 
-async function nativeWalk(dir: string): Promise<string[]> {
+export interface EstateWalk {
+  files: string[]
+  complete: boolean
+  reason?: string
+  entries: number
+}
+
+export async function walkMarkdownEstate(dir: string): Promise<EstateWalk> {
   const out: string[] = []
   const visited = new Set<string>()
-  const walk = async (current: string): Promise<void> => {
+  const startedAt = Date.now()
+  let entries = 0
+  let stopped: string | undefined
+  let pruned: string | undefined
+  const walk = async (current: string, depth: number): Promise<void> => {
+    if (stopped) return
+    if (depth > ESTATE_WALK_MAX_DEPTH) {
+      pruned ??= `depth ${ESTATE_WALK_MAX_DEPTH} exceeded at ${current}`
+      return
+    }
+    if (Date.now() - startedAt > ESTATE_WALK_BUDGET_MS) {
+      stopped = `the ${ESTATE_WALK_BUDGET_MS} ms budget was spent at ${current}`
+      return
+    }
     let key: string
     try {
       const info = await stat(current, { bigint: true })
@@ -187,23 +209,27 @@ async function nativeWalk(dir: string): Promise<string[]> {
     }
     if (visited.has(key)) return
     visited.add(key)
-    let entries
+    let listing
     try {
-      entries = await readdir(current, { withFileTypes: true })
+      listing = await readdir(current, { withFileTypes: true })
     } catch (error) {
       logForDebugging(`markdownConfigLoader: skipping unreadable ${current}: ${String(error)}`)
       return
     }
-    for (const entry of entries) {
+    for (const entry of listing) {
+      if (stopped) return
+      if (++entries > ESTATE_WALK_MAX_ENTRIES) {
+        stopped = `${ESTATE_WALK_MAX_ENTRIES} entries examined, the last under ${current}`
+        return
+      }
       const full = join(current, entry.name)
       if (entry.isDirectory()) {
-        await walk(full)
+        await walk(full, depth + 1)
       } else if (entry.isSymbolicLink()) {
         try {
-          const resolved = await realpath(full)
-          const info = await stat(resolved)
-          if (info.isDirectory()) await walk(resolved)
-          else if (resolved.toLowerCase().endsWith('.md')) out.push(full)
+          const info = await stat(full)
+          if (info.isDirectory()) await walk(full, depth + 1)
+          else if (info.isFile() && entry.name.toLowerCase().endsWith('.md')) out.push(full)
         } catch (error) {
           logForDebugging(`markdownConfigLoader: skipping unreadable ${full}: ${String(error)}`)
         }
@@ -212,40 +238,20 @@ async function nativeWalk(dir: string): Promise<string[]> {
       }
     }
   }
-  await walk(dir)
-  return out
+  await walk(dir, 0)
+  out.sort()
+  const reason = stopped ?? pruned
+  return reason ? { files: out, complete: false, reason, entries } : { files: out, complete: true, entries }
 }
 
 async function discoverMarkdownFiles(dir: string): Promise<string[]> {
-  const files = await (async (): Promise<string[]> => {
-    try {
-      const answer = await ripGrepAnswer(
-        ['--files', '--hidden', '--follow', '--no-ignore', '--iglob', '*.md'],
-        dir,
-        AbortSignal.timeout(DISCOVERY_TIMEOUT_MS),
-      )
-      if (!answer.complete) {
-        logError(new Error(`markdownConfigLoader: the discovery walk under ${dir} did not finish (${answer.reason ?? 'unknown'}) — walking natively`))
-        return nativeWalk(dir)
-      }
-      return answer.lines
-    } catch (error) {
-      if (isSearchBinaryMissing(error)) {
-        logForDebugging(`markdownConfigLoader: search binary unavailable — walking ${dir} natively`)
-        return nativeWalk(dir)
-      }
-      logError(error)
-      logForDebugging(`markdownConfigLoader: discovery refused under ${dir} — walking natively`, { level: 'error' })
-      return nativeWalk(dir)
-    }
-  })()
-  return files.sort()
-}
-
-function isSearchBinaryMissing(error: unknown): boolean {
-  const code = (error as { code?: unknown } | null)?.code
-  const text = String((error as { message?: unknown } | null)?.message ?? error)
-  return code === 'ENOENT' || text.includes('search binary was not found')
+  const walk = await walkMarkdownEstate(dir)
+  if (!walk.complete) {
+    const note = `the configuration walk under ${dir} stopped early (${walk.reason}) — ${walk.files.length} markdown file(s) kept, the estate beyond the cap is not loaded`
+    logError(new Error(`markdownConfigLoader: ${note}`))
+    addBootNote('warn', note)
+  }
+  return walk.files
 }
 
 async function loadDirectory(
