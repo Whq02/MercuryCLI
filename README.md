@@ -253,6 +253,10 @@ catalogue, grouped the way `/help` groups it:
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/companion` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/release-notes` `/feedback` `/help` `/exit` |
 
+`/mouse off` hands the pointer back to the terminal for native select and
+copy; the choice is saved for later boots, and `/config` shows it as Mouse
+capture.
+
 ## Reporting a problem
 
 Open an issue on the repository through one of its templates: a bug, a

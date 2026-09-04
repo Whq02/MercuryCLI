@@ -2,11 +2,11 @@
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 6
+export const MERCURY_DAEMON_PROTO = 7
 
 export const MIN_PROTO = 1
 
-export const DAEMON_PROTO_SHAPE = 'sha256:24e4456f6195d853497e746fc89136503c3a0d49f113d9768538a8ae084b9d5e'
+export const DAEMON_PROTO_SHAPE = 'sha256:d4df48647d1dedb3896b278a6135f73e2ea9e3e41362625e987266fa45899a87'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -54,6 +54,7 @@ export type DaemonOp =
   | 'sessionRelease'
   | 'sessionControl'
   | 'sessionRewind'
+  | 'signIns'
 
 export type DispatchSource = 'user' | 'cron' | 'dispatch'
 
@@ -263,6 +264,31 @@ export type DaemonRequest =
       userMessageId: string
       dryRun?: boolean
     }
+  | {
+      op: 'signIns'
+      proto: number
+      auth?: string
+      refresh?: true
+    }
+
+export interface SignInFamilyViewV1 {
+  family: string
+  credentialed: boolean
+  label?: string
+  usable: boolean
+  row?: string
+  why?: string
+  signedInAt?: number | null
+}
+
+export interface DaemonSignInViewV1 {
+  home: string
+  store: string
+  defaultFamily: string | null
+  readAt: number
+  refreshed: boolean
+  families: SignInFamilyViewV1[]
+}
 
 export interface DaemonHelloFacts {
   version: string
@@ -364,6 +390,7 @@ export type DaemonReply =
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }
   | ({ ok: true; op: 'hello'; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)
   | { ok: true; op: 'restart-when-idle'; state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
+  | { ok: true; op: 'signIns'; view: DaemonSignInViewV1 }
   | {
       ok: false
       code: DaemonErrorCode

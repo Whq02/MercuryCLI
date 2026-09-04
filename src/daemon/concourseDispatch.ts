@@ -397,6 +397,7 @@ export async function preflightConcourseDispatch(
   if (!workspaceOk) {
     refusals.push({ code: 'invalid-workspace', reason: `project folder not found: ${req.workspaceDir} — pick an existing folder` })
   }
+  ;(await import('./signInView.js')).refreshSignInReads(true)
   const modelValidated = await (await import('../services/concourse/workerModels.js')).validateWorkerModelChoice(req.modelKey, 'session')
   if (req.effort !== undefined) {
     const { normalizeEffortLevelString, EFFORT_LEVELS } = await import('../utils/effort.js')

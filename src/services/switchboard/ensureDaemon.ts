@@ -96,6 +96,9 @@ function bootCarriesRunnerOptions(): boolean {
 let waiting: Promise<boolean> | null = null
 
 export async function ensureOwnedDaemon(): Promise<boolean> {
+  void import('../../daemon/ownedDaemon.js')
+    .then(m => m.armDaemonSignInPoke())
+    .catch(() => {})
   if (usableMemoActive() && !daemonHaltStanddownActive()) return true
   const hs = await import('../../daemon/handshake.js')
   const first = await hs.handshakeDaemon({ timeoutMs: 500 })

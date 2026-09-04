@@ -3,6 +3,7 @@ import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
+import { findGitRoot } from './git.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
@@ -10,11 +11,11 @@ import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn } from 'node:child_process'
 import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, homedir, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
-import { basename, delimiter, dirname, join, relative } from 'node:path'
+import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
@@ -95,6 +96,7 @@ import { getLiveContextUsage } from './cockpit/contextUsageLive.js'
 import { ctxForecastEnabled } from './cockpit/ctxForecast.js'
 import { daemonSnapshot } from './cockpit/daemonSnapshot.js'
 import { daemonDir } from '../daemon/controlSocket.js'
+import type { DaemonSignInViewV1 } from '../daemon/protocol.js'
 import { getGlobalMercuryFile } from './env.js'
 import { getMacOsKeychainStorageServiceName } from './secureStorage/macOsKeychainHelpers.js'
 import { fleetGauge } from './cockpit/fleetGauge.js'
@@ -125,23 +127,40 @@ import {
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
-  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { mkdirSync, mkdtempSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const idxDir = mkdtempSync(join(tmpdir(), 'gate-tree-'))
   const idx = join(idxDir, 'index')
+  const objects = join(idxDir, 'objects')
+  mkdirSync(objects, { recursive: true })
+  const repoObjects = await new Promise<string | null>(resolve => {
+    execFile(
+      'git',
+      ['rev-parse', '--git-path', 'objects'],
+      { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv() }, timeout: 15_000 },
+      (err, stdout) => resolve(err ? null : stdout.trim()),
+    )
+  })
+  const env = {
+    ...subprocessEnv(),
+    GIT_INDEX_FILE: idx,
+    ...(repoObjects
+      ? { GIT_OBJECT_DIRECTORY: objects, GIT_ALTERNATE_OBJECT_DIRECTORIES: resolvePath(cwdDir, repoObjects) }
+      : {}),
+  }
   const run = (args: string[]): Promise<string | null> =>
-    new Promise(resolve => {
+    new Promise(resolvePromise => {
       execFile(
         'git',
         args,
-        { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv(), GIT_INDEX_FILE: idx }, timeout: 15_000 },
-        (err, stdout) => resolve(err ? null : stdout.trim()),
+        { windowsHide: true, cwd: cwdDir, env, timeout: 15_000 },
+        (err, stdout) => resolvePromise(err ? null : stdout.trim()),
       )
     })
   try {
     if ((await run(['read-tree', 'HEAD'])) === null) return null
     if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
-    const tree = await run(['write-tree'])
+    const tree = await run(['write-tree', '--missing-ok'])
     return tree && tree.length > 0 ? tree : null
   } catch {
     return null
@@ -176,6 +195,50 @@ export function homeRepositoryRemovalWords(dir: string, platform: NodeJS.Platfor
   }
   const folder = inside.length === 0 ? '"$HOME"' : `"$HOME/${inside.join('/')}"`
   return { inspect: `git -C ${folder} log --oneline`, remove: `rm -rf ${folder.slice(0, -1)}/.git"` }
+}
+
+const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (sign out and back in on Windows if unsure)'
+
+async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }> {
+  const runners: string[] = []
+  try {
+    const { readSessionWorkers } = await import('../daemon/concourseSupervisor.js')
+    for (const rec of Object.values(readSessionWorkers())) {
+      if (rec.endedAt !== undefined || rec.pid === undefined || !pidAlive(rec.pid)) continue
+      let ws: string
+      try {
+        ws = realpathSync(rec.workspaceId)
+      } catch {
+        continue
+      }
+      if (ws !== repo && !ws.startsWith(repo + sep)) continue
+      if (findGitRoot(ws) !== repo) continue
+      const warm = (rec as { warm?: boolean }).warm === true
+      runners.push(`${rec.runnerId}${warm ? ' (warm)' : ''} pid ${rec.pid}`)
+    }
+  } catch {
+  }
+  let indexLockAgeS: number | null = null
+  try {
+    indexLockAgeS = Math.max(0, Math.round((Date.now() - statSync(join(repo, '.git', 'index.lock')).mtimeMs) / 1000))
+  } catch {
+    indexLockAgeS = null
+  }
+  let objectsInFlight = 0
+  try {
+    objectsInFlight = readdirSync(join(repo, '.git', 'objects')).filter(n => /^tmp_obj_|^tmpobj/i.test(n)).length
+  } catch {
+    objectsInFlight = 0
+  }
+  return { runners, indexLockAgeS, objectsInFlight }
+}
+
+function holdersWords(h: { runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }): string {
+  const parts: string[] = []
+  if (h.runners.length > 0) parts.push(`${h.runners.length} live session${h.runners.length === 1 ? '' : 's'} rooted here (${h.runners.join(', ')})`)
+  if (h.indexLockAgeS !== null) parts.push(`a git writer holds .git/index.lock (${h.indexLockAgeS} s old)`)
+  if (h.objectsInFlight > 0) parts.push(`${h.objectsInFlight} object${h.objectsInFlight === 1 ? '' : 's'} being written under .git/objects`)
+  return parts.length === 0 ? 'no Mercury process holds it now' : `held by Mercury now: ${parts.join(' · ')}`
 }
 
 export async function homeRepositoryCheck(): Promise<CheckResult> {
@@ -223,17 +286,18 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
               ? `started by Mercury, ${subjects.length - 1}${subjects.length >= 20 ? '+' : ''} commits since`
               : `not Mercury's (${subjects.length}${subjects.length >= 20 ? '+' : ''} commits, none is Mercury's base commit)`
       const words = homeRepositoryRemovalWords(dir)
+      const holders = holdersWords(await mercuryHoldersOf(dir))
       const fix = madeByMercury
-        ? `run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
-        : `keep it if it is yours; to remove it, check ${words.inspect} first, then: ${words.remove}`
-      return { evidence: `${dir} is a git repository (${created}; ${who})`, fix }
+        ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
+        : `keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
+      return { evidence: `${dir} is a git repository (${created}; ${who}; ${holders})`, fix }
     }),
   )
   return {
     status: 'fail',
     evidence: facts.map(f => f.evidence).join(' · '),
     detail:
-      'every folder beneath it without its own .git resolves to this repository, so repository-wide probes walk the whole profile; Mercury bounds its own probes to the launch folder and removes nothing here',
+      'every folder beneath it without its own .git resolves to this repository, so repository-wide probes walk the whole profile; Mercury bounds its own probes to the launch folder and removes nothing here — remove it only with Mercury quit, or the deletion races the objects a live writer is still writing',
     fix: facts.map(f => f.fix).join(' · '),
     probe: 'functional',
   }
@@ -1274,6 +1338,45 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const staleNote =
               report.oursStale.length > 0 ? ` · ${report.oursStale.map(a => a.evidence).join(' · ')}` : ''
             return { status: 'ok', evidence: `no foreign-harness artifacts in ${home}${staleNote}` }
+          },
+        },
+        {
+          id: 'daemon-sign-ins',
+          label: 'Daemon sign-in view',
+          run: async () => {
+            const d = daemonSnapshot()
+            if (d.state !== 'live') {
+              return { status: 'off', evidence: `no live daemon to compare with — ${d.reason}`, link: '/daemon' }
+            }
+            const { daemonControlRpc } = await import('../daemon/controlSocket.js')
+            const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../daemon/signInView.js')
+            const reply = (await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 3000 })) as
+              | { ok: true; view: DaemonSignInViewV1 }
+              | { ok: false; code?: string; error?: string }
+            const restart = `restart the daemon: \`${binaryName()} daemon restart\``
+            if (!reply.ok) {
+              return {
+                status: 'warn',
+                evidence: `the daemon did not answer signIns (${reply.code ?? '?'}${reply.error ? `: ${reply.error}` : ''}) — a daemon of an older build`,
+                fix: `${restart} — the successor answers the sign-in verb.`,
+                link: '/daemon',
+              }
+            }
+            const mine = composeSignInView()
+            const gaps = compareSignInViews(mine, reply.view)
+            const sameEstate = reply.view.home === mine.home && reply.view.store === mine.store
+            const where = `daemon read ${reply.view.store} in ${reply.view.home}; this process reads ${mine.store} in ${mine.home}`
+            if (gaps.length === 0 && sameEstate) {
+              return { status: 'ok', evidence: `daemon and client agree — ${summarizeSignInView(reply.view)} · ${where}`, link: '/daemon' }
+            }
+            const named = gaps.map(g => `${g.family}: client ${g.client} vs daemon ${g.daemon}`).join('; ')
+            const lists = `daemon: [${summarizeSignInView(reply.view)}] · client: [${summarizeSignInView(mine)}]`
+            return {
+              status: 'fail',
+              evidence: `daemon ≠ client${named !== '' ? ` — ${named}` : ' — different home or store'} · ${lists} · ${where}`,
+              fix: `${restart} — a restarted daemon reads the estate this screen reads; a gap that stands means the two run on different homes, stores or env keys (the evidence names both).`,
+              link: '/daemon',
+            }
           },
         },
         {
