@@ -68,6 +68,7 @@ src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround
 src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth
+src/daemon/concourseWorktrees.ts :: worktreeDirtCache :: ttl-bounded
 src/daemon/controlSocket.ts :: controlKeyMemo :: invalidator=clearControlKeyMemo
 src/daemon/handshake.ts :: clientMemo :: static-for-process
 src/daemon/ownerWatch.ts :: startTokenCache :: ttl-bounded
@@ -150,8 +151,10 @@ src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
 src/services/workbench/projection.ts :: snapshot :: subscription-fed
+src/services/workbench/projection.ts :: worktreeLanesMemo :: ttl-bounded
 src/services/workshop/runtime.ts :: cachedTs :: keyed-by-truth
 src/skills/loadSkillsDir.ts :: loadAllSkillsMemo :: invalidator=clearSkillCaches
+src/state/telemetryBus.ts :: gitStateMemo :: ttl-bounded
 src/state/telemetryBus.ts :: snapshots :: subscription-fed
 src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
