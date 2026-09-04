@@ -88,8 +88,10 @@ section('1 · the fold — the register rides the item events and the replay rec
   check('ONE text-item-done, carrying the register', done.length === 1 && done[0]?.type === 'text-item-done' && done[0].phase === 'commentary')
   check(
     'order: item start → deltas → item done → the tool call opens',
-    types.indexOf('text-item-start') < types.indexOf('text-delta') &&
+    types.includes('text-item-start') &&
+      types.indexOf('text-item-start') < types.indexOf('text-delta') &&
       types.lastIndexOf('text-delta') < types.indexOf('text-item-done') &&
+      types.includes('text-item-done') &&
       types.indexOf('text-item-done') < types.indexOf('tool-args-start'),
     types.join(','),
   )
@@ -153,6 +155,7 @@ section('1 · the fold — the register rides the item events and the replay rec
   check(
     'a delta-less item: exactly one carried text-delta, then the item done',
     carried.filter(e => e.type === 'text-delta').length === 1 &&
+      carriedTypes.includes('text-delta') &&
       carriedTypes.indexOf('text-delta') < carriedTypes.indexOf('text-item-done') &&
       finishOf(carried).finalText === 'Carried whole.',
     carriedTypes.join(','),
