@@ -1,7 +1,6 @@
 
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
-import { execFile } from 'node:child_process'
-import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { gh as spawnGh } from '../privateChannel/ghRelease.js'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import * as path from 'node:path'
@@ -47,28 +46,19 @@ async function gh(
     if (pending) return pending
   }
   const gen = ++ghGeneration
-  const run = new Promise<GhOk | Unavailable>(resolve => {
-    execFile(
-      'gh',
-      args,
-      { windowsHide: true, cwd: root, timeout: GH_TIMEOUT_MS, killSignal: 'SIGKILL', maxBuffer: MAX_GH_BYTES, env: { ...subprocessEnv() } },
-      (err, stdout, stderr) => {
-        if (err) {
-          const enoent = (err as NodeJS.ErrnoException).code === 'ENOENT'
-          resolve({
-            state: 'unavailable',
-            note: enoent
-              ? 'the GitHub CLI (gh) is not on PATH'
-              : `gh ${args[0]} ${args[1] ?? ''} failed: ${(stderr || err.message).trim().slice(0, 200)}`,
-            remedy: enoent
-              ? 'install the GitHub CLI and authenticate (gh auth login)'
-              : 'check gh auth status and that this branch/PR exists on the host',
-          })
-          return
-        }
-        resolve({ state: 'ok', stdout: stdout ?? '' })
-      },
-    )
+  const run = spawnGh(args, { cwd: root, timeoutMs: GH_TIMEOUT_MS, maxBuffer: MAX_GH_BYTES }).then((res): GhOk | Unavailable => {
+    if (res.state === 'error') {
+      return {
+        state: 'unavailable',
+        note: res.enoent
+          ? 'the GitHub CLI (gh) is not on PATH'
+          : `gh ${args[0]} ${args[1] ?? ''} failed: ${res.stderr.slice(0, 200)}`,
+        remedy: res.enoent
+          ? 'install the GitHub CLI and authenticate (gh auth login)'
+          : 'check gh auth status and that this branch/PR exists on the host',
+      }
+    }
+    return { state: 'ok', stdout: res.stdout }
   }).then(value => {
     const existing = cache.get(key)
     if (!existing || existing.gen <= gen) cache.set(key, { at: Date.now(), gen, value })
