@@ -9,7 +9,7 @@ import { getContextWindowForModel } from '../../utils/context.js'
 import { contextFillView } from '../../utils/contextFill.js'
 import { getMainLoopModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import { crossProviderNote, providerFamilyOfSetting, settleModelSelection } from '../../utils/model/modelTransition.js'
-import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
+import { focusedSessionModelFacts, getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,
@@ -52,6 +52,8 @@ import {
   getDisplayedEffortLabel,
   modelSupportsEffort,
   modelSupportsMaxEffort,
+  parseEffortValue,
+  resolveStampedEffortTruth,
   selectableEffortLevels,
   toPersistableEffort,
   unpinAllLaunchEffort,
@@ -69,6 +71,28 @@ function fmtCtx(windowSize: number): string {
   return `${fmtCtxWindow(windowSize)} ctx`
 }
 
+
+function resolveCurrentRowId(models: ModelChoice[], served: string, setting: string | null | undefined): string {
+  if (models.some(m => m.id === served)) return served
+  const target = stripContext1m(served)
+  const rows = models.filter(m => !m.gated && (m.id !== 'default' || setting === null))
+  const resolvedOf = (id: string): string | null => {
+    try {
+      return id === 'default' ? getMainLoopModel() : parseUserSpecifiedModel(id)
+    } catch {
+      return null
+    }
+  }
+  for (const exact of [true, false]) {
+    for (const m of rows) {
+      const resolved = resolvedOf(m.id)
+      if (resolved === null || stripContext1m(resolved) !== target) continue
+      if (exact && has1mContext(resolved) !== has1mContext(served)) continue
+      return m.id
+    }
+  }
+  return served
+}
 
 const subscribeFocusedModelFeed = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 function getFocusedModelKey(): string {
@@ -95,19 +119,23 @@ function MercuryModelWrapper({
   const betas = getSdkBetas()
   useCatalogueEpoch()
   const focusedModelKey = React.useSyncExternalStore(subscribeFocusedModelFeed, getFocusedModelKey, getFocusedModelKey)
-  const focusedSeat = getFocusedSessionConnector().carrier === 'daemon' ? getFocusedSessionConnector().modelFacts() : null
+  const focusedSeat = focusedSessionModelFacts()
   void focusedModelKey
+  const servedModel = focusedSeat !== null ? focusedSeat.effective : (mainLoopModelForSession ?? getMainLoopModel())
 
-  const liveModel = getMainLoopModel()
+  const liveModel = servedModel
   const efforts = modelSupportsEffort(liveModel)
     ? [
         ...selectableEffortLevels(liveModel),
         ...(modelSupportsMaxEffort(liveModel) ? ['supercode'] : []),
       ]
     : []
+  const seatEffort = focusedSeat?.effort != null ? parseEffortValue(focusedSeat.effort) : undefined
   const initialEffort = supercode
     ? 'supercode'
-    : getDisplayedEffortLabel(liveModel, effortValue)
+    : seatEffort !== undefined
+      ? resolveStampedEffortTruth(liveModel, seatEffort).label
+      : getDisplayedEffortLabel(liveModel, effortValue)
   const [effort, setEffort] = React.useState<string>(initialEffort)
 
   function handleEffort(mode: string): void {
@@ -205,6 +233,7 @@ function MercuryModelWrapper({
     focusedSeat !== null
       ? focusedSeat.effective
       : (mainLoopModelForSession ?? mainLoopModel ?? 'default')
+  const currentRowId = resolveCurrentRowId(models, current, focusedSeat === null ? undefined : focusedSeat.setting)
   const pendingSwitch = useAppState(s => s.pendingModelSwitch)
   const pendingNext =
     focusedSeat !== null
@@ -217,8 +246,7 @@ function MercuryModelWrapper({
 
   let ctxPct: number | null = null
   try {
-    const windowModel = getFocusedSessionConnector().modelFacts().sessionPin ?? mainLoopModelForSession ?? mainLoopModel ?? getMainLoopModel()
-    const { usedPct } = contextFillView(messages, windowModel)
+    const { usedPct } = contextFillView(messages, servedModel)
     if (usedPct != null) ctxPct = Math.round(usedPct)
   } catch {
     ctxPct = null
@@ -543,7 +571,7 @@ function MercuryModelWrapper({
       <TransitionPreviewCard
         plan={held.plan}
         targetUsability={usabilityForRoute(held.plan.targetRoute)}
-        fromLabel={renderModelName(mainLoopModelForSession ?? getMainLoopModel())}
+        fromLabel={renderModelName(servedModel)}
         toLabel={held.value === null ? 'Default' : renderModelName(held.value)}
         refreshed={held.refreshed}
         onConfirm={() => {
@@ -558,7 +586,7 @@ function MercuryModelWrapper({
         onCancel={() => {
           setTransitionConfirm(null)
           onDone(
-            `Kept model as ${renderModelName(mainLoopModelForSession ?? getMainLoopModel())} — switch cancelled at the preview`,
+            `Kept model as ${renderModelName(servedModel)} — switch cancelled at the preview`,
           )
         }}
       />
@@ -568,7 +596,7 @@ function MercuryModelWrapper({
   return (
     <MercuryModelPicker
       models={models}
-      current={current}
+      current={currentRowId}
       ctxPct={ctxPct}
       efforts={efforts}
       effort={effort}
@@ -581,9 +609,9 @@ function MercuryModelWrapper({
       onSelect={handleSelect}
       onClose={() =>
         onDone(
-          mainLoopModelForSession
+          focusedSeat === null && mainLoopModelForSession
             ? `Kept model as ${renderModelName(mainLoopModelForSession)} (session override)`
-            : `Kept model as ${renderModelName(getMainLoopModel())}`,
+            : `Kept model as ${renderModelName(servedModel)}`,
           { display: 'system' },
         )
       }
