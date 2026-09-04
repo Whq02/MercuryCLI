@@ -56,6 +56,7 @@ section('§2 a symlink loop ends')
 
 section('§3 an estate of 50,000 entries stops at the entry cap and says so')
 const BIG = join(SCRATCH, 'big-project', '.mercury', 'skills')
+let bigKept = 0
 {
   mkdirSync(BIG, { recursive: true })
   for (let d = 0; d < 100; d++) {
@@ -70,6 +71,7 @@ const BIG = join(SCRATCH, 'big-project', '.mercury', 'skills')
   check('the reason names the entry cap', (walk.reason ?? '').includes(`${ESTATE_WALK_MAX_ENTRIES} entries`), walk.reason)
   check('the entries examined stop at the cap', walk.entries === ESTATE_WALK_MAX_ENTRIES + 1, String(walk.entries))
   check('the files kept never exceed the cap', walk.files.length > 0 && walk.files.length <= ESTATE_WALK_MAX_ENTRIES, String(walk.files.length))
+  bigKept = walk.files.length
   check('the stopped walk took under three seconds', took < 3_000, `${took} ms`)
 }
 
@@ -95,6 +97,7 @@ section('§5 through the loader: the partial roster loads AND a boot note names 
   const files = await loadMarkdownFilesForSubdir('skills', join(SCRATCH, 'big-project'))
   const project = files.filter(f => f.source === 'projectSettings')
   check('the partial roster is served (never hidden)', project.length > 0 && project.length <= ESTATE_WALK_MAX_ENTRIES, String(project.length))
+  check('every kept file loads (the bounded read pool drops none)', project.length === bigKept, `${project.length} of ${bigKept}`)
   const notes = bootNotes()
   const note = notes.find(n => n.text.includes('configuration walk') && n.text.includes('stopped early'))
   check('a warn boot note names the stopped walk', note !== undefined && note.kind === 'warn', JSON.stringify(notes))

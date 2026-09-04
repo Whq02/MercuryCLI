@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getOriginalCwd } from '../bootstrap/state.js'
 import { addBootNote } from '../substrate/bootNotes.js'
+import { discoveryPoolWidth, mapWithConcurrency } from './concurrency.js'
 import { getMercuryHome } from './envUtils.js'
 import { normalizePathForComparison } from './file.js'
 import { findCanonicalGitRoot, findGitRoot } from './git.js'
@@ -259,8 +260,10 @@ async function loadDirectory(
   source: MarkdownFile['source'],
 ): Promise<MarkdownFile[]> {
   const paths = await discoverMarkdownFiles(dir)
-  const loaded = await Promise.all(
-    paths.map(async filePath => {
+  const loaded = await mapWithConcurrency(
+    paths,
+    discoveryPoolWidth() * 4,
+    async filePath => {
       try {
         const rawContent = await readFile(filePath, 'utf8')
         const parsed = parseFrontmatter(rawContent, filePath)
@@ -277,7 +280,7 @@ async function loadDirectory(
         logForDebugging(`markdownConfigLoader: dropping ${filePath}: ${String(error)}`)
         return null
       }
-    }),
+    },
   )
   return loaded.filter((f): f is MarkdownFile => f !== null)
 }
