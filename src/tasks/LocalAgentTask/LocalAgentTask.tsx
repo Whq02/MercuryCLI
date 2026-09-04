@@ -12,6 +12,7 @@ import type { AppState } from '../../state/AppState.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
+import type { ApiUsage } from '../../types/wire.js'
 import type { Tools } from '../../Tool.js'
 import { findToolByName, safeSearchOrReadClassification } from '../../Tool.js'
 import { createAbortController, createChildAbortController } from '../../utils/abortController.js'
@@ -19,6 +20,7 @@ import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
 import { calculateUSDCost, modelPricingBasis } from '../../utils/modelCost.js'
+import { getTokenCountFromUsage } from '../../utils/tokens.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import type { AgentId } from '../../types/ids.js'
@@ -58,6 +60,7 @@ export type AgentProgress = {
   recentActivities: ToolActivity[]
   inputTokens?: number
   outputTokens?: number
+  contextTokens?: number
   costUSD?: number
   unpricedTurns?: number
   model?: string
@@ -66,6 +69,7 @@ export type AgentProgress = {
 export type AgentLedger = {
   inputTokens: number
   outputTokens: number
+  contextTokens: number
   costUSD: number
   unpricedTurns: number
   servedModel?: string
@@ -74,8 +78,6 @@ export type AgentLedger = {
 }
 
 export type ProgressTracker = {
-  latestInputTokens: number
-  totalOutputTokens: number
   toolUseCount: number
   recentActivities: ToolActivity[]
   ledger: AgentLedger
@@ -83,17 +85,15 @@ export type ProgressTracker = {
 }
 
 export function createAgentLedger(): AgentLedger {
-  return { inputTokens: 0, outputTokens: 0, costUSD: 0, unpricedTurns: 0 }
+  return { inputTokens: 0, outputTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
 }
 
 export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
   const usage = assistant.message.usage
   if (!usage) return
-  const input =
-    (usage.input_tokens ?? 0) +
-    (usage.cache_creation_input_tokens ?? 0) +
-    (usage.cache_read_input_tokens ?? 0)
+  const context = getTokenCountFromUsage(usage as ApiUsage)
   const output = usage.output_tokens ?? 0
+  const input = context - output
   if (input <= 0 && output <= 0) return
   const rawModel = (assistant.message as { model?: unknown }).model
   const model = typeof rawModel === 'string' && rawModel.trim() !== '' ? rawModel : undefined
@@ -120,6 +120,7 @@ export function foldResponseIntoLedger(ledger: AgentLedger, assistant: Assistant
   }
   ledger.inputTokens += next.input
   ledger.outputTokens += next.output
+  ledger.contextTokens = context
   ledger.costUSD += next.cost
   ledger.unpricedTurns += next.unpriced
   ledger.lastResponseId = id
@@ -134,8 +135,6 @@ export type ActivityDescriptionResolver = (
 
 export function createProgressTracker(): ProgressTracker {
   return {
-    latestInputTokens: 0,
-    totalOutputTokens: 0,
     toolUseCount: 0,
     recentActivities: [],
     ledger: createAgentLedger(),
@@ -143,7 +142,13 @@ export function createProgressTracker(): ProgressTracker {
 }
 
 export function getTokenCountFromTracker(tracker: ProgressTracker): number {
-  return tracker.latestInputTokens + tracker.totalOutputTokens
+  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  return tracker.ledger.inputTokens + tracker.ledger.outputTokens
+}
+
+export function getContextTokensFromTracker(tracker: ProgressTracker): number {
+  if (tracker.lastAssistant !== undefined) foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
+  return tracker.ledger.contextTokens
 }
 
 export function createActivityDescriptionResolver(
@@ -172,15 +177,6 @@ export function updateProgressFromMessage(
     foldResponseIntoLedger(tracker.ledger, tracker.lastAssistant)
   }
   tracker.lastAssistant = assistant
-  const usage = assistant.message.usage
-  if (usage) {
-    const latest =
-      (usage.input_tokens ?? 0) +
-      (usage.cache_creation_input_tokens ?? 0) +
-      (usage.cache_read_input_tokens ?? 0)
-    if (latest > 0) tracker.latestInputTokens = latest
-    tracker.totalOutputTokens += usage.output_tokens ?? 0
-  }
   foldResponseIntoLedger(tracker.ledger, assistant)
   const content = assistant.message.content
   if (!Array.isArray(content)) return
@@ -220,6 +216,7 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
       ? {
           inputTokens: ledger.inputTokens,
           outputTokens: ledger.outputTokens,
+          contextTokens: ledger.contextTokens,
           costUSD: ledger.costUSD,
           unpricedTurns: ledger.unpricedTurns,
         }
