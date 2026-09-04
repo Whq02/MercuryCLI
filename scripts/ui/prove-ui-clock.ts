@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { markScrollActivity } from '../../src/bootstrap/state.js'
-import { lastClockTick, quantizedNow, subscribeUiClock, uiClockStatsForProofs } from '../../src/utils/cockpit/uiClock.js'
+import { _setUiClockMeterForProofs, lastClockTick, quantizedNow, subscribeUiClock, uiClockPostureForProofs, uiClockStatsForProofs } from '../../src/utils/cockpit/uiClock.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -89,6 +89,34 @@ unsubC()
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'hooks', 'useElapsedTime.ts'), 'utf8')
   check('§6c useElapsedTime derives the running snapshot from lastClockTick(ms)', src.includes('lastClockTick(ms)'))
   check('§6c the old raw-Date.now snapshot derivation is gone', !src.includes('endTime ?? Date.now()'))
+}
+
+{
+  _setUiClockMeterForProofs({ budgetMs: 4, probeMs: 1500 })
+  let heavy = true
+  let ticks = 0
+  const spin = (ms: number): void => {
+    const until = performance.now() + ms
+    while (performance.now() < until) {
+    }
+  }
+  const unsub = subscribeUiClock(50, () => {
+    ticks++
+    if (heavy) spin(2)
+  })
+  await sleep(2600)
+  const posture = uiClockPostureForProofs()
+  check('§7 two over-budget windows degrade the bucket', posture[50] === true, JSON.stringify(posture))
+  const before = ticks
+  await sleep(1000)
+  const halved = ticks - before
+  check('§7 a degraded bucket fans out at about half its cadence (every other tick skipped)', halved >= 6 && halved <= 15, `${halved} fan-outs in 1 s @50 ms`)
+  heavy = false
+  await sleep(5500)
+  const recovered = uiClockPostureForProofs()
+  check('§7 two quiet probes restore the cadence', recovered[50] === false, JSON.stringify(recovered))
+  unsub()
+  _setUiClockMeterForProofs(null)
 }
 
 console.log(failures === 0 ? '\n✓ prove-ui-clock: all green' : `\n✗ prove-ui-clock: ${failures} failure(s)`)

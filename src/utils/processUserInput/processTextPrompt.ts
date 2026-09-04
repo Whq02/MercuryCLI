@@ -13,6 +13,7 @@ export function processTextPrompt(
   uuid?: UUID,
   permissionMode?: PermissionMode,
   isMeta?: boolean,
+  batchUuids?: string[],
 ): { messages: Message[]; shouldQuery: boolean } {
   const promptUuid = uuid ?? (randomUUID() as UUID)
 
@@ -38,6 +39,7 @@ export function processTextPrompt(
     ...(imagePasteIds.length > 0 ? { imagePasteIds } : {}),
     ...(permissionMode !== undefined ? { permissionMode } : {}),
     ...(isMeta === true ? { isMeta: true as const } : {}),
+    ...(batchUuids !== undefined ? { batchUuids } : {}),
   })
   return { messages: [message, ...attachmentMessages], shouldQuery: true }
 }

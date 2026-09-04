@@ -23,6 +23,9 @@ import { deepseekProviderAdapter } from './providers/deepseek.js'
 import { compatProviderAdapter } from './providers/openaicompat.js'
 import { huggingfaceProviderAdapter } from './providers/huggingface.js'
 import { localProviderAdapter } from './providers/local.js'
+import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
+import { signInLedgerEpoch } from '../accounts/signInLedger.js'
+import { credentialEnvNames } from './providerSecrets.js'
 
 export interface RouterModelSnapshot {
   providers: Array<{
@@ -68,9 +71,34 @@ function defaultExactEffort(modelClass: RouterModelClass): RouteEffortLevel {
   return modelClass === 'opus' ? 'xhigh' : 'high'
 }
 
+const SNAPSHOT_TTL_MS = 5_000
+let snapshotMemo: { at: number; key: string; snapshot: RouterModelSnapshot } | null = null
+
+function snapshotKey(): string {
+  let env = ''
+  for (const name of credentialEnvNames()) env += `${name}=${process.env[name] ?? ''}\u0000`
+  return `${signInLedgerEpoch()}:${catalogueEpoch()}:${env}`
+}
+
+export function resetRouterModelSnapshotMemo(): void {
+  snapshotMemo = null
+}
+
 export function buildRouterModelSnapshot(): RouterModelSnapshot {
-  const providers = PROVIDER_ADAPTERS.map(adapter => {
-    const status = adapter.status()
+  const key = snapshotKey()
+  const now = Date.now()
+  if (snapshotMemo !== null && snapshotMemo.key === key && now - snapshotMemo.at < SNAPSHOT_TTL_MS) {
+    return snapshotMemo.snapshot
+  }
+  const snapshot = composeRouterModelSnapshot()
+  snapshotMemo = { at: now, key, snapshot }
+  return snapshot
+}
+
+function composeRouterModelSnapshot(): RouterModelSnapshot {
+  const statuses = PROVIDER_ADAPTERS.map(adapter => adapter.status())
+  const providers = PROVIDER_ADAPTERS.map((adapter, i) => {
+    const status = statuses[i]!
     return {
       id: adapter.id,
       available: status.available,
@@ -81,9 +109,9 @@ export function buildRouterModelSnapshot(): RouterModelSnapshot {
   })
 
   function resolve(modelClass: RouterModelClass, posture: RouterPosture): RouteModelRef | null {
-    for (const adapter of PROVIDER_ADAPTERS) {
-      if (!adapter.status().available) continue
-      const ref = adapter.resolveModel(modelClass, posture)
+    for (let i = 0; i < PROVIDER_ADAPTERS.length; i++) {
+      if (!statuses[i]!.available) continue
+      const ref = PROVIDER_ADAPTERS[i]!.resolveModel(modelClass, posture)
       if (ref) return ref
     }
     return null
@@ -108,9 +136,9 @@ export function buildRouterModelSnapshot(): RouterModelSnapshot {
 
   function listAvailable(): RouterProviderModel[] {
     const out: RouterProviderModel[] = []
-    for (const adapter of PROVIDER_ADAPTERS) {
-      if (!adapter.status().available) continue
-      out.push(...adapter.listModels())
+    for (let i = 0; i < PROVIDER_ADAPTERS.length; i++) {
+      if (!statuses[i]!.available) continue
+      out.push(...PROVIDER_ADAPTERS[i]!.listModels())
     }
     return out
   }

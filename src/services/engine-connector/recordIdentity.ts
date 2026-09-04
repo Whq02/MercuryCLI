@@ -10,17 +10,28 @@ export function mergeRecordsContentKeyed(
   prevRecords: readonly Message[],
   prevSigs: readonly string[],
   raw: readonly unknown[],
-  fresh: Message[],
+  freshTail: Message[],
   sigOf: (record: unknown) => string = record => JSON.stringify(record),
+  since = 0,
 ): RecordMergeResult {
+  const keep = Math.max(0, Math.min(since, prevRecords.length, prevSigs.length, raw.length))
   const sigs = new Array<string>(raw.length)
-  let reusedAll = fresh.length === prevRecords.length
-  for (let i = 0; i < fresh.length; i++) {
+  const records = new Array<Message>(raw.length)
+  for (let i = 0; i < keep; i++) {
+    records[i] = prevRecords[i] as Message
+    sigs[i] = prevSigs[i] as string
+  }
+  let reusedAll = raw.length === prevRecords.length
+  for (let i = keep; i < raw.length; i++) {
     const sig = sigOf(raw[i])
     sigs[i] = sig
     const prev = prevRecords[i]
-    if (prev !== undefined && sig === prevSigs[i]) fresh[i] = prev as Message
-    else reusedAll = false
+    const fresh = freshTail[i - keep]
+    if (prev !== undefined && sig === prevSigs[i]) records[i] = prev as Message
+    else {
+      records[i] = fresh as Message
+      reusedAll = false
+    }
   }
-  return { records: fresh, sigs, reusedAll }
+  return { records, sigs, reusedAll }
 }

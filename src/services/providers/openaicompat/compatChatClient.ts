@@ -1,7 +1,15 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
-import { createStreamIdleWatchdog, streamIdleTimeoutMs, StreamIdleTimeoutError, type StreamIdleWatchdog } from '../streamIdleBudget.js'
+import {
+  createStreamIdleWatchdog,
+  firstByteBudgetMs,
+  firstByteTimeoutLine,
+  streamIdleTimeoutMs,
+  StreamIdleTimeoutError,
+  type RequestWaitV1,
+  type StreamIdleWatchdog,
+} from '../streamIdleBudget.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -154,6 +162,13 @@ export interface CompatStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  firstByte?: {
+    cold: boolean
+    promptTokens: number
+    model: string
+    attempt?: number
+    onWait?: (wait: RequestWaitV1 | null) => void
+  }
   extraHeaders?: Record<string, string>
   onResponseHeaders?: (headers: Headers, status?: number) => void
 }
@@ -225,6 +240,27 @@ export async function* streamCompatChat(
 
   try {
     let response: Response
+    const firstByteBudget = firstByteBudgetMs({
+      cold: options.firstByte?.cold === true,
+      promptTokens: options.firstByte?.promptTokens ?? 0,
+      idleMs: idleMs,
+    })
+    const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+      kind: 'first-byte',
+      cold: options.firstByte?.cold === true,
+      promptTokens: options.firstByte?.promptTokens ?? 0,
+      model: options.firstByte?.model ?? 'the model',
+      budgetMs: firstByteBudget,
+      sinceMs: Date.now(),
+      attempt: options.firstByte?.attempt ?? 1,
+    }
+    options.firstByte?.onWait?.(wait)
+    let firstByteFired = false
+    const firstByteTimer = setTimeout(() => {
+      firstByteFired = true
+      controller.abort()
+    }, firstByteBudget)
+    firstByteTimer.unref?.()
     try {
       const fetchImpl = options.fetchImpl ?? getApiFetch()
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
@@ -243,7 +279,15 @@ export async function* streamCompatChat(
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
+      clearTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
+      if (!cancelled && firstByteFired) {
+        yield {
+          type: 'stream-fault',
+          fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true },
+        }
+        return
+      }
       yield {
         type: 'stream-fault',
         fault: cancelled
@@ -262,6 +306,9 @@ export async function* streamCompatChat(
       options.onResponseHeaders?.(response.headers, response.status)
     } catch {
     }
+    clearTimeout(firstByteTimer)
+    options.firstByte?.onWait?.(null)
+
     if (!response.ok) {
       let body: unknown
       try {
