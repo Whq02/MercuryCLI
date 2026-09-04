@@ -264,15 +264,10 @@ export function buildPythonProjectProfile(from: string = getCwd()): PythonProjec
   if (existsSync(path.join(root, 'pyrightconfig.json'))) pyrightEvidence = 'pyrightconfig.json'
   else if (existsSync(pyproject) && fileContains(pyproject, '[tool.pyright')) pyrightEvidence = 'pyproject.toml [tool.pyright]'
 
-  const ruffBin = whichSync('ruff')
-  let ruffVersion: string | undefined
-  if (ruffBin) {
-    try {
-      const r = spawnSync('ruff', ['--version'], { windowsHide: true, timeout: PROBE_TIMEOUT_MS, encoding: 'utf8', env: { ...subprocessEnv() } })
-      if (r.status === 0) ruffVersion = (r.stdout ?? '').trim()
-    } catch {
-    }
-  }
+  const { probeRuff } = require('../lsp/ruffLane.js') as typeof import('../lsp/ruffLane.js')
+  const ruffProbe = probeRuff()
+  const ruffBin = ruffProbe.ruffPath ?? null
+  const ruffVersion = ruffProbe.version
   let ruffConfigEvidence: string | undefined
   if (existsSync(path.join(root, '.ruff.toml'))) ruffConfigEvidence = '.ruff.toml'
   else if (existsSync(path.join(root, 'ruff.toml'))) ruffConfigEvidence = 'ruff.toml'

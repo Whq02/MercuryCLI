@@ -27,6 +27,7 @@ import { logForDebugging } from '../utils/debug.js'
 const switchReceipts = new Set<string>()
 
 const responsesClassified = new Set<string>()
+const streamEndsReceipted = new Set<string>()
 const RESPONSES_CLASSIFIED_CAP = 64
 function rememberClassifiedResponse(id: string): void {
   responsesClassified.add(id)
@@ -157,6 +158,7 @@ import { buildRequestContextPlan, reconcileAppliedPlanUsage } from '../services/
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
+import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
@@ -638,6 +640,14 @@ async function* streamModel(
           }
         }
         if (pulseMain) pulseMark('model_call_stream_end')
+        for (const settled of iter.assistantMessages) {
+          if (settled.streamEnd === undefined || streamEndsReceipted.has(settled.uuid)) continue
+          streamEndsReceipted.add(settled.uuid)
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(streamEndReceiptLine(settled.streamEnd), 'warning'),
+          })
+        }
       } catch (innerError) {
         if (innerError instanceof FallbackTriggeredError && run.fallbackModel) {
           iter.currentModel = run.fallbackModel

@@ -9,16 +9,13 @@ export function streamIdleTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed >= STREAM_IDLE_FLOOR_MS ? parsed : STREAM_IDLE_DEFAULT_MS
 }
 
-export function compatStreamIdleTimeoutMs(): number {
-  return STREAM_IDLE_DEFAULT_MS
-}
-
 export function streamIdleWarningMsOf(timeoutMs: number): number {
   return timeoutMs / 2
 }
 
 export function streamIdleTimeoutMsForRoute(route: string | null): number {
-  return route === null || route === 'anthropic' ? streamIdleTimeoutMs() : compatStreamIdleTimeoutMs()
+  void route
+  return streamIdleTimeoutMs()
 }
 
 
@@ -125,4 +122,131 @@ export function retryReasonWords(status: number | null | undefined, message?: st
   if (typeof status === 'number' && status > 0) return `a ${status}`
   if (message !== undefined && /no first byte/.test(message)) return 'a first-byte timeout'
   return 'a connection error'
+}
+
+
+export type StreamIdleFire = {
+  silentMs: number
+  activity: number
+}
+
+export class StreamIdleTimeoutError extends Error {
+  readonly silentMs: number
+  constructor(silentMs: number) {
+    super(`no stream activity for ${silentMs} ms`)
+    this.name = 'StreamIdleTimeoutError'
+    this.silentMs = silentMs
+  }
+}
+
+export interface StreamIdleWatchdog {
+  noteActivity(): void
+  stop(): void
+  fired(): StreamIdleFire | null
+  silentMs(): number
+  guard<T>(pending: Promise<T>): Promise<T>
+}
+
+export function createStreamIdleWatchdog(opts: {
+  timeoutMs: number
+  onWarning?: (silentMs: number) => void
+  onFire?: (fire: StreamIdleFire) => void
+}): StreamIdleWatchdog {
+  const timeoutMs = opts.timeoutMs
+  const warningMs = streamIdleWarningMsOf(timeoutMs)
+  let lastActivityAtMs = Date.now()
+  let activity = 0
+  let warnedForMs = -1
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let fire: StreamIdleFire | null = null
+  let stopped = false
+  const waiters = new Set<(error: StreamIdleTimeoutError) => void>()
+  function clear(): void {
+    if (timer !== null) {
+      clearTimeout(timer)
+      timer = null
+    }
+  }
+  function onStreamIdleDeadline(): void {
+    timer = null
+    if (stopped || fire !== null) return
+    const silentMs = Date.now() - lastActivityAtMs
+    if (silentMs >= timeoutMs) {
+      fire = { silentMs, activity }
+      const error = new StreamIdleTimeoutError(silentMs)
+      for (const reject of waiters) reject(error)
+      waiters.clear()
+      opts.onFire?.(fire)
+      return
+    }
+    if (silentMs >= warningMs && warnedForMs !== lastActivityAtMs) {
+      warnedForMs = lastActivityAtMs
+      opts.onWarning?.(silentMs)
+    }
+    arm()
+  }
+  function arm(): void {
+    const nextDeadlineAt = lastActivityAtMs + (warnedForMs === lastActivityAtMs ? timeoutMs : warningMs)
+    timer = setTimeout(onStreamIdleDeadline, Math.max(0, nextDeadlineAt - Date.now()))
+  }
+  arm()
+  return {
+    noteActivity() {
+      lastActivityAtMs = Date.now()
+      activity++
+    },
+    stop() {
+      stopped = true
+      clear()
+    },
+    fired() {
+      return fire
+    },
+    silentMs() {
+      return Date.now() - lastActivityAtMs
+    },
+    guard<T>(pending: Promise<T>): Promise<T> {
+      if (fire !== null) return Promise.reject(new StreamIdleTimeoutError(fire.silentMs))
+      return new Promise<T>((resolve, reject) => {
+        waiters.add(reject)
+        pending.then(
+          value => {
+            waiters.delete(reject)
+            resolve(value)
+          },
+          error => {
+            waiters.delete(reject)
+            reject(error)
+          },
+        )
+      })
+    },
+  }
+}
+
+
+export type StreamEndV1 =
+  | { reason: 'silent-after-last-item'; provider: string; silentMs: number }
+  | { reason: 'closed-after-last-item'; provider: string }
+
+export function streamEndReceiptLine(end: StreamEndV1): string {
+  return end.reason === 'silent-after-last-item'
+    ? `the ${end.provider} stream went silent ${seconds(end.silentMs)} after its last item; the reply stands`
+    : `the ${end.provider} stream closed without its end event after its last item; the reply stands`
+}
+
+export function typedStreamEndOf(args: {
+  fault: { kind: string; code: string }
+  provider: string
+  tailStands: boolean
+  silentMs: number
+}): StreamEndV1 | null {
+  if (!args.tailStands) return null
+  if (args.fault.kind === 'timeout' && args.fault.code === 'idle-timeout') {
+    return { reason: 'silent-after-last-item', provider: args.provider, silentMs: args.silentMs }
+  }
+  if (args.fault.kind === 'truncated-stream' && (args.fault.code === 'no-terminal-event' || args.fault.code === 'no-finish')) {
+    return { reason: 'closed-after-last-item', provider: args.provider }
+  }
+  return null
 }
