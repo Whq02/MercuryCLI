@@ -1835,6 +1835,10 @@ export async function runHeadless(
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
             permissionMode: state.toolPermissionContext.mode,
+            effortSent: ((): string | null => {
+              const truth = resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue)
+              return truth.supportsEffort ? (truth.wire ?? null) : null
+            })(),
             spawnSwitches: spawnSwitchFacts(),
             workspace: {
               cwd: getCwd(),
