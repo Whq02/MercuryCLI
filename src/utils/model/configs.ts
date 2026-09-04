@@ -62,6 +62,23 @@ export const ALL_MODEL_CONFIGS = {
 
 export type ModelKey = keyof typeof ALL_MODEL_CONFIGS
 
+export const FAMILY_GENERATIONS = {
+  fable: ['fable51', 'fable5'],
+  opus: ['opus5', 'opus48', 'opus47', 'opus46'],
+  sonnet: ['sonnet5', 'sonnet46'],
+  haiku: ['haiku45'],
+} as const satisfies Record<string, readonly ModelKey[]>
+
+export type ModelFamily = keyof typeof FAMILY_GENERATIONS
+
+export function newestGenerationKey(family: ModelFamily): ModelKey {
+  return FAMILY_GENERATIONS[family][0]
+}
+
+export function previousGenerationKeys(family: ModelFamily): readonly ModelKey[] {
+  return FAMILY_GENERATIONS[family].slice(1)
+}
+
 export type CanonicalModelId = (typeof ALL_MODEL_CONFIGS)[ModelKey]['firstParty']
 
 export const CANONICAL_MODEL_IDS: CanonicalModelId[] = Object.values(ALL_MODEL_CONFIGS).map(
