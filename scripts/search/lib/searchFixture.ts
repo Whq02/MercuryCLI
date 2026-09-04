@@ -10,8 +10,11 @@ export interface SearchFixtureHit {
   path: string
   headers: Record<string, string>
   body: string
+  at: number
 }
-export type DoorMode = 'results' | 'anomaly' | 'poison' | 'entity-poison' | 'http-401' | 'http-500'
+export type DoorMode = 'results' | 'anomaly' | 'poison' | 'entity-poison' | 'http-401' | 'http-429' | 'http-500'
+
+export type OpenaiScriptTurn = { call: { name: string; input: Record<string, unknown> } } | { final: string }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const FIXTURES = [join(HERE, '..', 'fixtures'), join(HERE, 'fixtures')].find(p => existsSync(p)) ?? join(HERE, '..', 'fixtures')
@@ -47,11 +50,40 @@ function openaiSearchSse(query: string): string {
   ].join('')
 }
 
+function openaiScriptedSse(turn: OpenaiScriptTurn, seq: number): string {
+  const usage = { input_tokens: 8, output_tokens: 3, input_tokens_details: { cached_tokens: 0 } }
+  const id = `resp_fx_script_${seq}`
+  if ('call' in turn) {
+    return [
+      sse({ type: 'response.created', response: { id } }),
+      sse({ type: 'response.output_item.done', item: { type: 'function_call', name: turn.call.name, call_id: `call_fx_${seq}`, arguments: JSON.stringify(turn.call.input) } }),
+      sse({ type: 'response.completed', response: { id, usage } }),
+    ].join('')
+  }
+  return [
+    sse({ type: 'response.created', response: { id } }),
+    sse({ type: 'response.output_text.delta', delta: turn.final }),
+    sse({ type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: turn.final, annotations: [] }] } }),
+    sse({ type: 'response.completed', response: { id, usage } }),
+  ].join('')
+}
+
+function scriptedStepOf(body: string): { side: boolean; step: number } {
+  try {
+    const parsed = JSON.parse(body) as { tools?: unknown; input?: unknown }
+    const items = Array.isArray(parsed.input) ? (parsed.input as Array<{ type?: string }>) : []
+    return { side: !Array.isArray(parsed.tools) || parsed.tools.length === 0, step: items.filter(item => item?.type === 'function_call_output').length }
+  } catch {
+    return { side: true, step: 0 }
+  }
+}
+
 export interface SearchFixture {
   base: string
   port: number
   hits: SearchFixtureHit[]
   modes: { ddgHtml: DoorMode; ddgLite: DoorMode; brave: DoorMode; tavily: DoorMode; openai: DoorMode }
+  script: OpenaiScriptTurn[] | null
   env: Record<string, string>
   hitsOn(lane: FixtureLane): SearchFixtureHit[]
   reset(): void
@@ -61,6 +93,7 @@ export interface SearchFixture {
 export async function startSearchFixture(port: number): Promise<SearchFixture> {
   const hits: SearchFixtureHit[] = []
   const modes: SearchFixture['modes'] = { ddgHtml: 'results', ddgLite: 'results', brave: 'results', tavily: 'results', openai: 'results' }
+  const scripted: { turns: OpenaiScriptTurn[] | null; served: number } = { turns: null, served: 0 }
   const page = (name: string): string => readFileSync(join(FIXTURES, name), 'utf8')
 
   function laneOf(path: string): FixtureLane {
@@ -79,6 +112,11 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
     if (mode === 'http-401') {
       res.writeHead(401, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ error: 'unauthorized (fixture)' }))
+      return
+    }
+    if (mode === 'http-429') {
+      res.writeHead(429, { 'content-type': 'application/json' })
+      res.end(JSON.stringify({ error: 'rate limited (fixture)' }))
       return
     }
     if (mode === 'http-500') {
@@ -128,7 +166,7 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
       const body = Buffer.concat(chunks).toString('utf8')
       const headers: Record<string, string> = {}
       for (const [name, value] of Object.entries(req.headers)) headers[name] = Array.isArray(value) ? value.join(',') : String(value ?? '')
-      hits.push({ lane, method: req.method ?? '', path: req.url ?? '', headers, body })
+      hits.push({ lane, method: req.method ?? '', path: req.url ?? '', headers, body, at: Date.now() })
       switch (lane) {
         case 'anthropic': {
           if (path.startsWith('/api/web/domain_info')) {
@@ -148,6 +186,13 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
           return
         }
         case 'openai': {
+          if (scripted.turns !== null) {
+            const { side, step } = scriptedStepOf(body)
+            const turn: OpenaiScriptTurn = side ? { final: 'fixture-side-query' } : (scripted.turns[step] ?? { final: `fixture-script-exhausted at step ${step}` })
+            res.writeHead(200, { 'content-type': 'text/event-stream' })
+            res.end(openaiScriptedSse(turn, ++scripted.served))
+            return
+          }
           if (modes.openai !== 'results') {
             answerDoor(res, modes.openai, 'brave')
             return
@@ -192,6 +237,12 @@ export async function startSearchFixture(port: number): Promise<SearchFixture> {
     port,
     hits,
     modes,
+    get script() {
+      return scripted.turns
+    },
+    set script(turns: OpenaiScriptTurn[] | null) {
+      scripted.turns = turns
+    },
     env: {
       ANTHROPIC_BASE_URL: base,
       MERCURY_OPENAI_API_BASE: `${base}/openai/v1`,
