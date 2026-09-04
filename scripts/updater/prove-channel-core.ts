@@ -63,7 +63,7 @@ console.log('── §3 platform asset mapping (exactly one, honest gaps) ──
 check('linux/x64', assetNameFor('1.2.0-beta.1', 'linux', 'x64') === 'mercury-v1.2.0-beta.1-linux-x64.tar.gz')
 check('darwin/arm64', assetNameFor('1.2.0-beta.1', 'darwin', 'arm64') === 'mercury-v1.2.0-beta.1-macos-arm64.tar.gz')
 check('win32/x64', assetNameFor('1.2.0-beta.1', 'win32', 'x64') === 'mercury-v1.2.0-beta.1-windows-x64.zip')
-check('darwin/x64 has no channel asset', assetNameFor('1.2.0-beta.1', 'darwin', 'x64') === null)
+check('darwin/x64 → the Intel Mac archive (cross-packaged)', assetNameFor('1.2.0-beta.1', 'darwin', 'x64') === 'mercury-v1.2.0-beta.1-macos-x64.tar.gz')
 check('linux/arm64 has no channel asset', assetNameFor('1.2.0-beta.1', 'linux', 'arm64') === null)
 
 console.log('── §4 release selection ──')
@@ -105,7 +105,7 @@ check('drafts are ignored', selectRelease([rel('v1.3.0-beta.1', { isDraft: true 
   const s = selectRelease([rel('v1.2.0-beta.1', { assetNames: [CHECKSUM_MANIFEST_NAME] })], installed, 'linux', 'x64')
   check('missing platform asset refused as malformed', s.state === 'malformed-release' && s.note.includes('linux-x64'))
 }
-check('unsupported platform is its own state', selectRelease([rel('v1.2.0-beta.1')], installed, 'darwin', 'x64').state === 'unsupported-platform')
+check('unsupported platform is its own state', selectRelease([rel('v1.2.0-beta.1')], installed, 'linux', 'arm64').state === 'unsupported-platform')
 {
   const s = selectRelease([rel('v1.2.0-beta.2'), rel('v1.2.0-beta.1', { isPrerelease: false })], installed, 'linux', 'x64')
   check('newest sound release wins despite older malformed sibling', s.state === 'update-available' && s.tag === 'v1.2.0-beta.2')
