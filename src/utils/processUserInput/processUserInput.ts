@@ -26,7 +26,7 @@ import {
   extractTextContent,
 } from '../messages.js'
 import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
-import { storeImages } from '../imageStore.js'
+import { isStoredImageRef, readStoredImageRef, storeImages } from '../imageStore.js'
 import {
   getActivePulseTrace,
   pulseMark,
@@ -199,7 +199,16 @@ async function processUserInputBase(
   if (Array.isArray(input)) {
     pulseMark('image_processing_start', undefined, generation)
     const processed: ContentBlockParam[] = []
-    for (const block of input) {
+    for (const raw of input) {
+      let block = raw
+      if (isStoredImageRef(raw)) {
+        const read = await readStoredImageRef(raw)
+        if (read.kind === 'missing') {
+          processed.push({ type: 'text', text: read.words } as ContentBlockParam)
+          continue
+        }
+        block = read.block as ContentBlockParam
+      }
       if (!isImageBlock(block)) {
         processed.push(block)
         continue

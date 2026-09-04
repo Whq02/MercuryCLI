@@ -91,6 +91,7 @@ export function BaseTextInput({
   const { wrappedOnInput, isPasting } = usePasteHandler({
     onPaste: props.onPaste,
     onImagePaste: props.onImagePaste,
+    onImageError: props.onImageError,
     onInput: (input, key) => {
       if (isPasting && key.return) return
       onInput(input, key)

@@ -106,11 +106,14 @@ export function SelectInputOption<T>({
   useKeybinding(
     'chat:imagePaste',
     () => {
-      void getImageFromClipboard().then(image => {
-        if (image) {
-          onImagePaste?.(image.base64, image.mediaType, undefined, image.dimensions)
-        }
-      })
+      void getImageFromClipboard()
+        .then(image => {
+          if (image) {
+            onImagePaste?.(image.base64, image.mediaType, undefined, image.dimensions)
+          }
+        })
+        .catch(() => {
+        })
     },
     { context: 'Chat', isActive: isFocused && Boolean(onImagePaste) },
   )

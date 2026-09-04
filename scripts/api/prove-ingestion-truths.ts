@@ -38,13 +38,27 @@ section('§1 N-04 · NATIVE TOOL-RESULT IMAGES CLAMPED AT THE ONE BOUNDARY')
       { type: 'image', source: { type: 'base64', media_type: 'image/png', data: small.toString('base64') } },
     ],
   }
-  await clampToolResultImageBlocks(block)
+  const { ANTHROPIC_IMAGE_LIMITS } = await import('../../src/constants/apiLimits.ts')
+  await clampToolResultImageBlocks(block, { limits: ANTHROPIC_IMAGE_LIMITS, model: 'claude-sonnet-5' })
   const clamped = block.content[1] as { source: { data: string } }
   const meta = await sharp(Buffer.from(clamped.source.data, 'base64')).metadata()
   check(
-    'an oversized native capture clamps to ≤2000px on both sides',
-    (meta.width ?? 9999) <= 2000 && (meta.height ?? 9999) <= 2000,
+    'an oversized native capture clamps to the high-resolution tier long edge (≤2576px)',
+    Math.max(meta.width ?? 9999, meta.height ?? 9999) <= ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.highResolution &&
+      Math.max(meta.width ?? 0, meta.height ?? 0) > 2000,
     `${meta.width}×${meta.height}`,
+  )
+  const standard = {
+    tool_use_id: 't1s',
+    type: 'tool_result',
+    content: [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: oversized.toString('base64') } }],
+  }
+  await clampToolResultImageBlocks(standard, { limits: ANTHROPIC_IMAGE_LIMITS, model: 'claude-sonnet-4-5' })
+  const standardMeta = await sharp(Buffer.from((standard.content[0] as { source: { data: string } }).source.data, 'base64')).metadata()
+  check(
+    'the same capture clamps to the standard tier long edge (≤1568px) for a standard-tier model',
+    Math.max(standardMeta.width ?? 9999, standardMeta.height ?? 9999) <= ANTHROPIC_IMAGE_LIMITS.nativeLongEdgePx.standard,
+    `${standardMeta.width}×${standardMeta.height}`,
   )
   const untouchedSmall = block.content[2] as { source: { data: string } }
   check('an under-limit image passes through byte-identical', untouchedSmall.source.data === small.toString('base64'))
