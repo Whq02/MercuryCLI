@@ -3,6 +3,7 @@ import type {
   LocalCommandResult,
   LocalJSXCommandContext,
 } from '../../types/command.js'
+import { saveGlobalConfig } from '../../utils/config.js'
 
 
 export const call = async (
@@ -26,10 +27,11 @@ export const call = async (
     }
   }
   ink.setMouseTrackingEnabled(next)
+  saveGlobalConfig(current => ({ ...current, mouseCapture: next }))
   return {
     type: 'text',
     value: next
-      ? 'mouse capture ON — clickable TUI (rails · tabs · cards); in-app drag-copy is transcript-scoped (rails never pollute the clipboard)'
-      : 'mouse capture OFF — native terminal select/copy works now (NOTE: native selection sweeps the side rails; /mouse on + drag copies the transcript cleanly); TUI clicks/wheel are off until /mouse on — the statusbar shows an amber chip while off',
+      ? 'mouse capture ON — clickable TUI (rails · tabs · cards); in-app drag-copy is transcript-scoped (rails never pollute the clipboard); saved for later boots'
+      : 'mouse capture OFF — native terminal select/copy works now (NOTE: native selection sweeps the side rails; /mouse on + drag copies the transcript cleanly); TUI clicks/wheel are off until /mouse on — the statusbar shows an amber chip while off; saved for later boots (/config → Mouse capture shows it)',
   }
 }

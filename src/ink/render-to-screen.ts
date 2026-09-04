@@ -7,7 +7,6 @@ import {
   CharPool,
   createScreen,
   HyperlinkPool,
-  setCellStyleId,
   StylePool,
   type Screen,
 } from './cell-grid.js'
@@ -15,6 +14,7 @@ import ComposeBuffer from './compose-buffer.js'
 import composeTree from './compose-walk.js'
 import { createNode, type DOMElement } from './dom.js'
 import { FocusManager } from './focus.js'
+import { restyleCell, type OverlayRecord } from './geometry/overlay.js'
 import reconciler from './reconciler.js'
 import { logForDebugging } from '../utils/debug.js'
 
@@ -188,6 +188,7 @@ export function applyPositionedHighlight(
   rowOffset: number,
   colOffset: number,
   currentIdx: number,
+  record?: OverlayRecord,
 ): boolean {
   if (currentIdx < 0 || currentIdx >= positions.length) return false
   const position = positions[currentIdx]!
@@ -200,7 +201,7 @@ export function applyPositionedHighlight(
   for (let x = start; x < end; x++) {
     const cell = cellAt(screen, x, row)
     if (!cell) continue
-    setCellStyleId(screen, x, row, stylePool.withCurrentMatch(cell.styleId))
+    restyleCell(screen, x, row, stylePool.withCurrentMatch(cell.styleId), record)
   }
   return true
 }
