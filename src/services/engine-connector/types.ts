@@ -55,7 +55,7 @@ export type ModelFactsV1 = {
 }
 
 export type ModelSwitchReceiptV1 =
-  | { state: 'applied' }
+  | { state: 'applied'; note?: string }
   | { state: 'queued' }
   | { state: 'no-op' }
   | { state: 'refused'; detail: string }
