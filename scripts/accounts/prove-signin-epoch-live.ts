@@ -37,18 +37,28 @@ section('E1 the epoch moves on sign-ins AND removals, and subscribers hear it')
   const unsubscribe = ledger.subscribeSignInEpoch(() => {
     heard += 1
   })
-  check('a landed record bumps the epoch and wakes the subscriber', ledger.recordSignIn('openai', 'subscription', { home: HOME }) && ledger.signInLedgerEpoch() === before + 1 && heard === 1)
-  ledger.noteCredentialRemoval()
+  const landed = ledger.recordSignIn('openai', 'subscription', { home: HOME })
+  check('a landed record bumps the epoch at once, and the subscriber has not yet woken', landed && ledger.signInLedgerEpoch() === before + 1 && heard === 0)
+  await Promise.resolve()
+  check('…the subscriber wakes one microtask later', heard === 1)
+  ledger.noteCredentialChange()
+  await Promise.resolve()
   check('a removal bumps the SAME epoch and wakes the subscriber', ledger.signInLedgerEpoch() === before + 2 && heard === 2)
   const throwing = ledger.subscribeSignInEpoch(() => {
     throw new Error('a subscriber down')
   })
-  ledger.noteCredentialRemoval()
+  ledger.noteCredentialChange()
+  await Promise.resolve()
   check('a throwing subscriber never fails the move, and the others still hear it', ledger.signInLedgerEpoch() === before + 3 && heard === 3)
+  ledger.noteCredentialChange()
+  ledger.noteCredentialChange()
+  await Promise.resolve()
+  check('a burst of moves is one wake (the number counts every move)', ledger.signInLedgerEpoch() === before + 5 && heard === 4)
   throwing()
   unsubscribe()
-  ledger.noteCredentialRemoval()
-  check('an unsubscribed listener hears nothing more', heard === 3 && ledger.signInLedgerEpoch() === before + 4)
+  ledger.noteCredentialChange()
+  await Promise.resolve()
+  check('an unsubscribed listener hears nothing more', heard === 4 && ledger.signInLedgerEpoch() === before + 6)
   check('the ledger keeps its records across a removal (a sign-out is not a sign-in)', ledger.readSignInRecord('openai', { home: HOME })?.kind === 'subscription')
 }
 
@@ -75,9 +85,11 @@ section('E2 the per-slot removal owner: the move is announced, the observations 
     signedIn: true,
     removal: { route: 'openai-subscription' },
   }
-  const out = slots.executeSlotRemoval(subscriptionSlot as never, { disconnectOpenaiSubscription: () => {}, openaiApiKeyAfter: () => undefined })
+  const out = slots.executeSlotRemoval(subscriptionSlot as never, { disconnectOpenaiSubscription: () => ledger.noteCredentialChange(), openaiApiKeyAfter: () => undefined })
   check('the removal mutated through its owner', out.mutated === true)
-  check('…and announced the move (the epoch bumped, the subscriber woke)', ledger.signInLedgerEpoch() === epochBefore + 1 && woke === 1)
+  check('…and the move was announced ONCE (the owner raised the epoch; the orchestrator did not raise it again)', ledger.signInLedgerEpoch() === epochBefore + 1 && woke === 0)
+  await Promise.resolve()
+  check('…and the subscriber woke after the teardown', woke === 1)
   check("…and the subscription source's observations left with it — the wall AND the bands", openaiLimits.openaiObservedWall('chatgpt-subscription') === null && Object.keys(openaiLimits.openaiObservedUsage()).length === 0)
   check("…while the OTHER source's wall stands (a separate pool)", openaiLimits.openaiObservedWall('api-key') !== null)
   const keySlot = { ...subscriptionSlot, id: 'openai:stored-key', name: 'api-key', kind: 'api-key', kindLabel: 'API key', removal: { route: 'openai-stored-key' } }
@@ -86,6 +98,7 @@ section('E2 the per-slot removal owner: the move is announced, the observations 
   const guidance = { ...subscriptionSlot, envPinned: true, removal: { route: 'env', envVar: 'OPENAI_API_KEY' } }
   const woken = woke
   const refused = slots.executeSlotRemoval(guidance as never)
+  await Promise.resolve()
   check('a refused removal (an env pin) announces nothing', refused.mutated === false && woke === woken)
   cap.noteCapHandoff('gpt-5.6-sol', 'openai')
   slots.executeSlotRemoval(subscriptionSlot as never, { disconnectOpenaiSubscription: () => {}, openaiApiKeyAfter: () => undefined })
@@ -150,7 +163,7 @@ section('E4 the readers re-derive on the epoch; the warm claim reads the disk')
   const hook = read('src/utils/accounts/useSignInEpoch.ts')
   check('the hook subscribes through the ledger (one owner, no polling)', hook.includes('subscribeSignInEpoch(') && !hook.includes('setInterval'))
   const logout = read('src/commands/logout/logout.tsx')
-  check('/logout announces the move after its teardown', logout.includes('noteCredentialRemoval()'))
+  check('/logout announces the move once after its teardown (the secure store left whole on that road)', logout.includes('noteCredentialChange()') && !logout.includes('noteCredentialRemoval'))
   const runner = read('src/cli/print.ts')
   const claim = runner.slice(runner.indexOf("case 'claim_session': {"), runner.indexOf("case 'set_effort': {"))
   check('the warm claim drops the credential memos BEFORE it applies the session (presence is live at the claim)', claim.indexOf('dropCredentialMemos()') !== -1 && claim.indexOf('dropCredentialMemos()') < claim.indexOf('consumeSessionHomePin()'))
