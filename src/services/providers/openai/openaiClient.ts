@@ -116,6 +116,7 @@ export async function* streamOpenaiResponses(
                   message: error instanceof Error ? error.message : String(error),
                   retryable: true,
                 },
+          settledItems: fold.settledItems(),
         }
         void reader.cancel().catch(() => {})
         return
@@ -168,6 +169,7 @@ export async function* streamOpenaiResponses(
           message: 'stream ended without response.completed/failed/incomplete',
           retryable: true,
         },
+        settledItems: fold.settledItems(),
       }
     }
   } finally {

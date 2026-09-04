@@ -678,6 +678,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       }
     | undefined
   let fault: OpenaiFault | undefined
+  let settledOnFault: OpenaiInputItem[] = []
 
   function* ensureMessageStart(): Generator<StreamEvent> {
     if (messageStarted) return
@@ -877,6 +878,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
         break
       case 'stream-fault':
         fault = fault ?? event.fault
+        if (event.settledItems !== undefined) settledOnFault = event.settledItems
         break
     }
   }
@@ -1009,7 +1011,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
-    const replayItems = replayableItems(finish?.orderedItems ?? [], refused)
+    const replayItems = replayableItems(finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : []), refused)
     if (replayItems.length > 0) {
       lastMessage.apexProviderTurn = {
         provider: 'openai',
