@@ -328,9 +328,13 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const adjusted = await collect('gpt-5.6-sol', 'xhigh')
   const adjustedBody = lastResponsesBody as { reasoning?: { effort?: string } }
   check("unsupported 'xhigh' adjusts to the NEAREST supported 'high' on the wire", adjustedBody?.reasoning?.effort === 'high')
+  const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
+    items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
+  const xhighStamp = stampOf(adjusted)
   check(
-    'the adjustment is VISIBLE (a settled note block names both levels)',
-    JSON.stringify(adjusted).includes("requested reasoning effort 'xhigh'") && JSON.stringify(adjusted).includes("'high'"),
+    'the adjustment is RECEIPTED — the settled message carries the typed stamp (asked xhigh, sent high, the row named) and the reply text carries no note',
+    xhighStamp !== undefined && xhighStamp.model === 'gpt-5.6-sol' && xhighStamp.asked === 'xhigh' && xhighStamp.sent === 'high' && xhighStamp.name.length > 0 && !JSON.stringify(adjusted).includes('requested reasoning effort'),
+    JSON.stringify(xhighStamp),
   )
 
   __resetOpenaiCatalogueForTest()
@@ -348,9 +352,11 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const maxAdjusted = await collect('gpt-5.6-sol', 'max')
   const maxBody = lastResponsesBody as { reasoning?: { effort?: string } }
   check("unsupported 'max' adjusts to the deepest supported 'xhigh' on the wire", maxBody?.reasoning?.effort === 'xhigh')
+  const maxStamp = stampOf(maxAdjusted)
   check(
-    "the max→xhigh adjustment is VISIBLE",
-    JSON.stringify(maxAdjusted).includes("requested reasoning effort 'max'") && JSON.stringify(maxAdjusted).includes("'xhigh'"),
+    'the max→xhigh adjustment is RECEIPTED on the settled message (asked max, sent xhigh)',
+    maxStamp !== undefined && maxStamp.asked === 'max' && maxStamp.sent === 'xhigh',
+    JSON.stringify(maxStamp),
   )
 
   __resetOpenaiCatalogueForTest()
@@ -376,7 +382,10 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const retried = await collect('gpt-5.6-sol')
   restoreWire()
   check('retryable pre-content fault: exactly two attempts (bounded)', responsesCalls === 2, String(responsesCalls))
-  check('…then ONE API-error assistant message', retried.length === 1 && isApiErrorAssistant(retried[0]))
+  const retryRows = retried.filter(m => (m as { type?: string }).type === 'system')
+  const retryAssistants = retried.filter(m => (m as { type?: string }).type === 'assistant')
+  check("the reissue is a row: ONE retry notice names the fault and the attempt (never a silent sleep)", retryRows.length === 1 && (retryRows[0] as { subtype?: string; retryAttempt?: number; maxRetries?: number }).subtype === 'api_error' && (retryRows[0] as { retryAttempt?: number }).retryAttempt === 1 && (retryRows[0] as { maxRetries?: number }).maxRetries === 1, JSON.stringify(retryRows[0]).slice(0, 200))
+  check('…then ONE API-error assistant message', retryAssistants.length === 1 && isApiErrorAssistant(retryAssistants[0]))
 }
 
 section('3 · stateless replay round-trip (the transcript is canonical)')
