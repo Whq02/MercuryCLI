@@ -4,7 +4,6 @@ import { z } from 'zod'
 import { getSessionId, setOriginalCwd } from '../../bootstrap/state.js'
 import { clearInstructionFileCaches } from '../../services/instructions/engine.js'
 import { buildTool } from '../../Tool.js'
-import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getPlanSlug, getPlansDirectory } from '../../utils/plans.js'
@@ -15,7 +14,6 @@ import {
 } from '../../utils/worktree.js'
 import { findCanonicalGitRoot } from '../../utils/git.js'
 import { saveWorktreeState } from '../../utils/sessionStorage.js'
-import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
 import { ENTER_WORKTREE_TOOL_NAME, getEnterWorktreeToolPrompt } from './prompt.js'
 import * as UI from './UI.js'
 
@@ -92,11 +90,6 @@ export const EnterWorktreeTool = buildTool({
     setOriginalCwd(session.worktreePath)
     void saveWorktreeState(session as never)
 
-    try {
-      clearSystemPromptSections()
-    } catch (error) {
-      logForDebugging(`EnterWorktree: prompt-section clear failed: ${errorMessage(error)}`)
-    }
     clearInstructionFileCaches()
     getPlansDirectory.cache.clear()
 
