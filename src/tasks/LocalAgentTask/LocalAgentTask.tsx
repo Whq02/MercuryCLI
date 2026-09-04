@@ -239,6 +239,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   result?: any
   progress?: any
   summary?: string
+  wait?: string
   retrieved?: boolean
   messages?: Message[]
   lastReportedToolCount?: number
@@ -564,6 +565,19 @@ export function updateAgentSummary(
       summary,
     })
   }
+}
+
+export function setAgentWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (line === null) {
+      if (task.wait === undefined) return task
+      const { wait: _gone, ...rest } = task
+      return rest as LocalAgentTaskState
+    }
+    if (task.wait === line) return task
+    return { ...task, wait: line }
+  })
 }
 
 

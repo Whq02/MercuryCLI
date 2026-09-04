@@ -27,6 +27,7 @@ export interface CrewAgentFacts {
   unpricedTurns: number
   toolUses: number | null
   activity: string | null
+  wait: string | null
   toolUseId: string | null
   startedAt: number
   endedAt: number | null
@@ -86,6 +87,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     unpricedTurns: positive(row.unpricedTurns) ?? 0,
     toolUses: typeof row.toolUses === 'number' && Number.isFinite(row.toolUses) && row.toolUses >= 0 ? row.toolUses : null,
     activity: typeof row.activity === 'string' && row.activity !== '' ? row.activity : null,
+    wait: typeof row.wait === 'string' && row.wait !== '' ? row.wait : null,
     toolUseId: typeof row.toolUseId === 'string' && row.toolUseId !== '' ? row.toolUseId : null,
     startedAt: row.startTime,
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
@@ -150,7 +152,11 @@ export function crewModelLabel(facts: CrewAgentFacts): string {
 }
 
 export function crewStateLabel(facts: CrewAgentFacts): string {
-  return facts.state
+  return facts.running && facts.wait !== null ? 'waiting' : facts.state
+}
+
+export function crewWaitLine(facts: CrewAgentFacts): string | null {
+  return facts.running ? facts.wait : null
 }
 
 export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {

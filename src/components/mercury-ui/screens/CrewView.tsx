@@ -13,6 +13,7 @@ import {
   crewElapsedLabel,
   crewModelLabel,
   crewStateLabel,
+  crewWaitLine,
   crewTokensLabel,
   type CrewAgentFacts,
 } from '../../../services/engine-connector/crewFacts.js'
@@ -241,11 +242,12 @@ function AgentRow({
   const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped ? tokens.warning : tokens.textMuted
   const glyph = failed || stopped ? GLYPH.fail : pending ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
   const spend = billed ? crewCostLabel(facts) : null
+  const wait = crewWaitLine(facts)
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
         <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
-        {facts.running && !pending ? <WorkingGlyph color={tokens.success} active /> : <Text color={tone}>{glyph}</Text>}
+        {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
         <Text bold={on} color={on ? tokens.textPrimary : tokens.textSecondary}>
           {' '}
           {padTo(truncateToWidth(facts.name, NAME_W), NAME_W)}
@@ -258,6 +260,7 @@ function AgentRow({
           {crewElapsedLabel(facts, now)}
           {spend !== null ? ` · ${spend}` : ''}
         </Text>
+        {wait !== null ? <Text color={tokens.warning}> · {wait}</Text> : null}
       </Text>
     </Box>
   )
