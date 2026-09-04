@@ -365,7 +365,10 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const retried = await collect('gpt-5.6-sol')
   restoreWire()
   check('retryable pre-content fault: exactly two attempts (bounded)', responsesCalls === 2, String(responsesCalls))
-  check('…then ONE API-error assistant message', retried.length === 1 && isApiErrorAssistant(retried[0]))
+  const retryRows = retried.filter(m => (m as { type?: string }).type === 'system')
+  const retryAssistants = retried.filter(m => (m as { type?: string }).type === 'assistant')
+  check("the reissue is a row: ONE retry notice names the fault and the attempt (never a silent sleep)", retryRows.length === 1 && (retryRows[0] as { subtype?: string; retryAttempt?: number; maxRetries?: number }).subtype === 'api_error' && (retryRows[0] as { retryAttempt?: number }).retryAttempt === 1 && (retryRows[0] as { maxRetries?: number }).maxRetries === 1, JSON.stringify(retryRows[0]).slice(0, 200))
+  check('…then ONE API-error assistant message', retryAssistants.length === 1 && isApiErrorAssistant(retryAssistants[0]))
 }
 
 section('3 · stateless replay round-trip (the transcript is canonical)')
