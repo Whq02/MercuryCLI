@@ -4,10 +4,10 @@ import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
-  fetchUtilization,
   type RateLimit,
   type Utilization,
 } from '../../services/api/usage.js'
+import { anthropicUsageReaderNote, refreshAnthropicUsage } from '../../services/providers/anthropic/anthropicUsageState.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns } from '../../utils/model/computedDefault.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
@@ -667,13 +667,14 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
   const load = useCallback((): void => {
     if (!subscriber) return
     setState(previous => ({ ...previous, loading: true, error: null }))
-    fetchUtilization()
-      .then(data => {
-        if (!disposedRef.current) setState({ loading: false, error: null, data })
-      })
-      .catch((error: unknown) => {
-        if (!disposedRef.current) setState({ loading: false, error, data: null })
-      })
+    void refreshAnthropicUsage({ reason: 'operator' }).then(status => {
+      if (disposedRef.current) return
+      if (status.failure !== undefined) {
+        setState({ loading: false, error: anthropicUsageReaderNote() ?? status.failure.detail, data: null })
+      } else {
+        setState({ loading: false, error: null, data: {} })
+      }
+    })
   }, [subscriber])
   useEffect(() => {
     load()
