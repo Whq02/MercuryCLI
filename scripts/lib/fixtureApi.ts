@@ -62,10 +62,19 @@ export interface CapturedRequest {
   raw: string
 }
 
+export interface UsageEndpointControl {
+  mode: 'ok' | 'error' | 'hang'
+  status: number
+  payload: (n: number) => unknown
+  next?: (n: number) => void
+}
+
 export interface FixtureApi {
   port: number
   url: string
   requests: CapturedRequest[]
+  usage: UsageEndpointControl
+  usageRequests: { at: number; mode: UsageEndpointControl['mode']; n: number }[]
   pacedEmits: { turn: number; index: number; text: string; at: number }[]
   toolEmits: { turn: number; name: string; id: string; at: number }[]
   streamEmits: {
@@ -389,10 +398,14 @@ export async function startFixtureApi(
     apiChecks?: boolean
     destroyOnKeepAliveReuse?: boolean
     bindingCheck?: boolean
+    messageHeaders?: Record<string, string>
+    jsonForNonStream?: boolean
   },
 ): Promise<FixtureApi> {
   const queue = [...turns]
   const requests: CapturedRequest[] = []
+  const usage: UsageEndpointControl = { mode: 'ok', status: 500, payload: () => ({}) }
+  const usageRequests: FixtureApi['usageRequests'] = []
   const refusals: { request: number; message: string }[] = []
   const messagesServedBySocket = new WeakMap<object, number>()
   let destroyedReplays = 0
@@ -441,6 +454,25 @@ export async function startFixtureApi(
       }
       requests.push({ path: req.url ?? '', method: req.method ?? '', headers, body, raw })
 
+      if ((req.url ?? '').includes('/api/oauth/usage')) {
+        const n = usageRequests.length + 1
+        usage.next?.(n)
+        usageRequests.push({ at: Date.now(), mode: usage.mode, n })
+        if (usage.mode === 'hang') {
+          openResponses.add(res)
+          req.socket.on('close', () => openResponses.delete(res))
+          return
+        }
+        if (usage.mode === 'error') {
+          res.writeHead(usage.status, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: `fixture usage endpoint answered ${usage.status}` } }))
+          return
+        }
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify(usage.payload(n)))
+        return
+      }
+
       if (!(req.url ?? '').includes('/v1/messages')) {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end('{}')
@@ -448,6 +480,7 @@ export async function startFixtureApi(
       }
 
       msgSeq++
+      for (const [name, value] of Object.entries(opts?.messageHeaders ?? {})) res.setHeader(name, value)
       const requestedModel =
         typeof (body as { model?: unknown })?.model === 'string'
           ? ((body as { model: string }).model)
@@ -508,6 +541,22 @@ export async function startFixtureApi(
           JSON.stringify({
             type: 'error',
             error: { type: turn.errorType, message: turn.message },
+          }),
+        )
+        return
+      }
+      if (opts?.jsonForNonStream && turn.kind === 'text' && (body as { stream?: unknown })?.stream !== true) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(
+          JSON.stringify({
+            id: `msg_fixture_${msgSeq}`,
+            type: 'message',
+            role: 'assistant',
+            model: turn.model ?? requestedModel,
+            content: [{ type: 'text', text: turn.text }],
+            stop_reason: turn.stopReason ?? 'end_turn',
+            stop_sequence: null,
+            usage: { input_tokens: turn.usage?.input_tokens ?? 25, output_tokens: turn.usage?.output_tokens ?? 12 },
           }),
         )
         return
@@ -815,6 +864,8 @@ export async function startFixtureApi(
     port,
     url: `http://127.0.0.1:${port}`,
     requests,
+    usage,
+    usageRequests,
     pacedEmits,
     toolEmits,
     streamEmits,
