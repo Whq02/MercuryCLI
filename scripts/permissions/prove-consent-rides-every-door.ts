@@ -221,5 +221,5 @@ section('§7 the floors: crew seats, cron one-shots and the runner claim door')
   check('…and accepts it on a runner that booted the consent', withFlag.ok === true && withFlag.ok === true && withFlag.context.mode === 'sovereign')
 }
 
-console.log(failures === 0 ? '\nprove-sovereign-rides-every-door: ALL LAWS HOLD' : `\nprove-sovereign-rides-every-door: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? '\nprove-consent-rides-every-door: ALL LAWS HOLD' : `\nprove-consent-rides-every-door: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
