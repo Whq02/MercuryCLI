@@ -52,9 +52,14 @@ export function censusCommands(platform: CensusPlatform): Array<{ file: string; 
 }
 
 export function isGodotExecutable(executable: string): boolean {
-  const base = path.basename(executable.trim()).toLowerCase()
+  const base = executableBasename(executable).toLowerCase()
   if (base === 'org.godotengine.godot') return true
   return base.startsWith('godot') && !base.includes('-lsp') && !base.includes('helper')
+}
+
+export function executableBasename(executable: string): string {
+  const p = executable.trim()
+  return p.slice(Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')) + 1)
 }
 
 function hasFlag(args: string, ...flags: string[]): boolean {
@@ -68,7 +73,8 @@ export function projectFromArgs(args: string): string | undefined {
   const pg = /(?:^|\s)"?([^\s"]*(?:[^"]*?))project\.godot"?(?=\s|$)/.exec(args)
   if (pg && pg[0].trim().length > 0) {
     const spelled = unquote(pg[0].trim())
-    return path.dirname(spelled)
+    const cut = Math.max(spelled.lastIndexOf('/'), spelled.lastIndexOf('\\'))
+    return cut > 0 ? spelled.slice(0, cut) : path.dirname(spelled)
   }
   return undefined
 }
