@@ -43,9 +43,13 @@ if (degraded.includes('voice-input')) ok('the voice capture pack is absent from 
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]
+if (manifest.target && typeof manifest.target === 'object' && manifest.target.release !== TARGET) {
+  const builtFor = manifest.target.release ?? `${manifest.target.platform}/${manifest.target.arch} (no release archive exists for it)`
+  fail(`dist was built for ${builtFor} but --target is ${TARGET} — build for the target: bun run build.ts --target ${TARGET}`)
+}
 const runtime = manifest.runtime && manifest.runtime.vendored === true ? manifest.runtime : null
 if (runtime) {
-  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build on the target platform`)
+  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build for the target: bun run build.ts --target ${TARGET}`)
   const runtimeBinary = join(dist, ...runtime.path.split('/'), ...runtime.binary.split('/'))
   if (!existsSync(runtimeBinary)) fail(`dist manifest declares the vendored runtime at ${runtime.path}/${runtime.binary} but the file is missing — rebuild`)
 }
