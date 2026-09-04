@@ -1,4 +1,4 @@
-<!-- Pull requests can be opened by the repository's collaborators only (a repository setting). If you are not one, open an issue that describes the change instead. -->
+<!-- During the beta this repository takes issues, not pull requests: one from outside the collaborator set is closed with thanks and a pointer to an issue (CONTRIBUTING.md). If you are a collaborator, fill this in. -->
 
 ## What this changes, and why
 
