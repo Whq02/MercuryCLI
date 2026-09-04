@@ -15,7 +15,8 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
-import { streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
@@ -604,6 +605,12 @@ async function* streamOneCompatAttempt(ctx: {
     url: requestUrl,
     request,
     signal,
+    firstByte: {
+      cold: coldPrefixOf(ctx.messages, modelId),
+      promptTokens: estimateRequestTokens(request),
+      model: getPublicModelDisplayName(modelId) ?? modelId,
+      ...(options.onWait ? { onWait: options.onWait } : {}),
+    },
   })
   for await (const event of events) {
     if (!firstEventSeen) {
