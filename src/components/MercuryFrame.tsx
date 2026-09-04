@@ -56,8 +56,9 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
-import { formatQuietAge, workflowPulse } from '../tools/WorkflowTool/livePulse.js'
-import type { WorkflowProgressEvent } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { formatQuietAge, workflowPulseAt } from '../tools/WorkflowTool/livePulse.js'
+import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import type { AppState } from '../state/AppState.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
@@ -356,37 +357,31 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const autopilotEffort = useAppStateMaybeOutsideOfProvider(
     (s: { effortValue?: string | number } | undefined) => s?.effortValue,
   ) as EffortValue | undefined
-  type WfTaskLite = {
-    type?: string
-    status?: string
-    startTime?: number
-    workflowProgress?: WorkflowProgressEvent[]
-  }
   const allTasks = useAppStateMaybeOutsideOfProvider(
-    (s: { tasks?: Record<string, WfTaskLite> } | undefined) => s?.tasks,
-  ) as Record<string, WfTaskLite> | undefined
-  const wfLive = Object.values(allTasks ?? {}).filter(
-    t =>
-      t.type === 'local_workflow' &&
-      (t.status === 'running' || t.status === 'pending'),
+    (s: { tasks?: AppState['tasks'] } | undefined) => s?.tasks,
+  ) as AppState['tasks'] | undefined
+  const workRoster = useFocusedWorkRoster()
+  const wfLive = React.useMemo(
+    () => runningWorkflowRows(focusedWorkRows(allTasks, workRoster)),
+    [allTasks, workRoster],
   )
   const wfNow = useNowTick(wfLive.length > 0 ? 10_000 : null)
   let wfNode: React.ReactNode = null
   if (wfLive.length > 0) {
-    const worst = wfLive
-      .map(w => workflowPulse(w.workflowProgress ?? [], w.startTime ?? wfNow, wfNow))
-      .reduce((a, b) => (a.quietMs >= b.quietMs ? a : b))
+    const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
+    const worst = pulses.length > 0 ? pulses.reduce((a, b) => (a.quietMs >= b.quietMs ? a : b)) : null
     const label = wfLive.length === 1 ? 'wf' : `wf×${wfLive.length}`
     const phase =
-      wfLive.length === 1 && worst.phaseTitle
+      wfLive.length === 1 && worst?.phaseTitle
         ? ` ${truncateToWidth(worst.phaseTitle, 14)}`
         : ''
     wfNode = (
       <Text>
         <Sep />
-        <Text color={worst.moving ? tok.success : tok.warning}>
+        <Text color={worst === null || worst.moving ? tok.success : tok.warning}>
           {GLYPH.inProgress} {label}
-          {phase} {formatQuietAge(worst.quietMs)}
+          {phase}
+          {worst !== null ? ` ${formatQuietAge(worst.quietMs)}` : ''}
         </Text>
       </Text>
     )

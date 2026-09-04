@@ -149,6 +149,14 @@ export type WorkPhaseV1 = {
   agents: WorkAgentV1[]
 }
 
+export type WorkflowPulseV1 = {
+  phaseTitle?: string
+  running: number
+  settled: number
+  maxAttempt: number
+  lastEventAt: number
+}
+
 export type WorkRowV1 = {
   id: string
   kind: 'workflow' | 'agent' | 'teammate' | 'shell' | 'monitor' | 'dream'
@@ -172,6 +180,7 @@ export type WorkRowV1 = {
   workflowRunId?: string
   phases?: WorkPhaseV1[]
   agentCount?: number
+  pulse?: WorkflowPulseV1
   pendingAsks?: number
   agentType?: string
   team?: string
