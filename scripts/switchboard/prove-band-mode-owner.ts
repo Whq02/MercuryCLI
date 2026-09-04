@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
-const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'mode-truth-home-')))
+const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'band-mode-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
@@ -90,8 +90,8 @@ section("§3 the connector's mode read: the facts' word, else the birth posture,
 
 section("§4 every revive road boots the record's posture and consent; the reactivate's word wins")
 {
-  const dir = mkdtempSync(join(tmpdir(), 'mode-truth-daemon-'))
-  const ws = realpathSync(mkdtempSync(join(tmpdir(), 'mode-truth-ws-')))
+  const dir = mkdtempSync(join(tmpdir(), 'band-mode-daemon-'))
+  const ws = realpathSync(mkdtempSync(join(tmpdir(), 'band-mode-ws-')))
   const sid = '00000000-0000-4000-8000-0000000000aa'
   const short = 'concourse-w7'
   class FakeRoster {
@@ -164,7 +164,7 @@ section("§4 every revive road boots the record's posture and consent; the react
 
 section("§5 a mode change's receipt is the runner's own word: refused with its sentence, applied, or typed past the deadline")
 {
-  const dir = mkdtempSync(join(tmpdir(), 'mode-truth-seat-'))
+  const dir = mkdtempSync(join(tmpdir(), 'band-mode-seat-'))
   const sid = '00000000-0000-4000-8000-0000000000bb'
   const short = 'concourse-w3'
   supervisor.updateConcourseWorkers(workers => {
@@ -254,6 +254,6 @@ section('§6 the carousel lists every station the seat may hold, Sovereign in a 
   check('…and the one station the ring withholds (Sovereign without consent) is exactly what the runner refuses', !bounce.ok && /dangerously-skip-permissions/.test(bounce.ok ? '' : bounce.error))
 }
 
-console.log(`\nprove-mode-truth: ${passes} PASS · ${failures} FAIL`)
-console.log(failures === 0 ? 'prove-mode-truth: ALL LAWS HOLD' : `prove-mode-truth: ${failures} FAILURE(S)`)
+console.log(`\nprove-band-mode-owner: ${passes} PASS · ${failures} FAIL`)
+console.log(failures === 0 ? 'prove-band-mode-owner: ALL LAWS HOLD' : `prove-band-mode-owner: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
