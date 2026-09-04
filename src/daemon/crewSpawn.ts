@@ -1,5 +1,6 @@
 import { logForDebugging } from '../utils/debug.js'
 import { isHaikuTier } from '../utils/model/modelFloor.js'
+import { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } from '../utils/model/configs.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
   appendTeamMember,
@@ -27,10 +28,10 @@ export function crewEnabled(): boolean {
 }
 
 export const CREW_MODEL_CHOICES = {
-  opus: { model: 'claude-opus-5', effort: 'high' },
-  sonnet: { model: 'claude-sonnet-5', effort: 'high' },
-  fable: { model: 'claude-fable-5', effort: 'high' },
-  fable51: { model: 'claude-fable-5-1', effort: 'high' },
+  opus: { model: ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.opus[0]].firstParty, effort: 'high' },
+  sonnet: { model: ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.sonnet[0]].firstParty, effort: 'high' },
+  fable: { model: ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty, effort: 'high' },
+  fable51: { model: ALL_MODEL_CONFIGS.fable51.firstParty, effort: 'high' },
 } as const
 export type CrewModelKey = keyof typeof CREW_MODEL_CHOICES
 
