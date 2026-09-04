@@ -29,6 +29,7 @@ __t=$SECONDS; "$bun" run "$here/prove-prompt-draft.ts" || fail=1; prover_mark "$
 __t=$SECONDS; "$bun" run "$here/prove-lead-team-identity.ts" || fail=1; prover_mark "$here/prove-lead-team-identity.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-classifier-prompt.ts" || fail=1; prover_mark "$here/prove-classifier-prompt.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-filestore-subscribe.ts" || fail=1; prover_mark "$here/prove-filestore-subscribe.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-filestore-stat-gate.ts" || fail=1; prover_mark "$here/prove-filestore-stat-gate.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-gauge-owners.ts" || fail=1; prover_mark "$here/prove-gauge-owners.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-coordination-service.ts" || fail=1; prover_mark "$here/prove-coordination-service.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-pidlock.ts" || fail=1; prover_mark "$here/prove-pidlock.ts" "$__t"

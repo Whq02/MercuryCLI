@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, resolve, sep } from 'node:path'
 
 import * as chokidar from 'chokidar'
@@ -40,6 +40,7 @@ let mdmSnapshot: string | null = null
 const pendingDeletions = new Map<string, NodeJS.Timeout>()
 let knownSettingsFiles = new Map<string, SettingSource>()
 let dropInDir: string | null = null
+let watchedRoots = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
 
 function hookSourceFor(source: SettingSource): string {
@@ -172,6 +173,7 @@ async function initialize(): Promise<void> {
     dropInDir = null
   }
   knownSettingsFiles = files
+  watchedRoots = new Set([...directories].map(d => normalizeEventPath(resolve(d))))
 
   if (disposed) return
   if (directories.size === 0) return
@@ -183,28 +185,11 @@ async function initialize(): Promise<void> {
     awaitWriteFinish: { stabilityThreshold: stabilityThresholdMs, pollInterval: pollIntervalMs },
     ignorePermissionErrors: true,
     atomic: true,
-    ignored: (candidatePath: string, stats?: { isFile(): boolean; isDirectory(): boolean }) => {
+    ignored: (candidatePath: string) => {
       const normalized = normalizeEventPath(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
-      let fileStats = stats
-      if (fileStats === undefined) {
-        try {
-          fileStats = statSync(normalized)
-        } catch {
-          return false
-        }
-      }
-      const raw = fileStats as unknown as {
-        isFile(): boolean
-        isDirectory(): boolean
-        isSocket?(): boolean
-        isFIFO?(): boolean
-        isCharacterDevice?(): boolean
-        isBlockDevice?(): boolean
-      }
-      if (raw.isSocket?.() || raw.isFIFO?.() || raw.isCharacterDevice?.() || raw.isBlockDevice?.()) return true
-      if (raw.isDirectory()) return false
-      if (!raw.isFile()) return false
+      if (watchedRoots.has(normalized)) return false
+      if (dropInDir !== null && normalized === dropInDir) return false
       if (knownSettingsFiles.has(normalized)) return false
       if (dropInDir !== null && normalized.startsWith(dropInDir + sep) && normalized.endsWith('.json')) {
         return false
