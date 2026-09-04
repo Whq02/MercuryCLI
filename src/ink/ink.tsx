@@ -9,6 +9,7 @@ import { onExit } from 'signal-exit'
 import { flushInteractionTime } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fluxFrame, fluxMark } from '../utils/flux/fluxProbe.js'
+import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
 import { logError } from '../utils/log.js'
 import { notePulseFrameWritten } from '../utils/pulse/turnTrace.js'
@@ -299,7 +300,7 @@ export default class Ink {
     this.frontFrame = this.newEmptyFrame()
     this.backFrame = this.newEmptyFrame()
     this.mouseTracking = mouseTrackingEnabledByEnvironment()
-    this.mouseTrackingPref = this.mouseTracking
+    this.mouseTrackingPref = this.mouseTracking && isMouseCaptureEnabled()
 
     this.writer = new FrameWriter({ isTTY: this.isTTY, stylePool: this.stylePool })
     this.scheduler = new RenderScheduler(
