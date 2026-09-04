@@ -11,7 +11,7 @@ import type {
 import { getSettingsForSource, updateSettingsForSource } from '../settings/settings.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
-import { type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
+import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
 
 export type {
   AdditionalWorkingDirectory,
@@ -81,6 +81,15 @@ export function applyPermissionUpdate(
       break
     }
     case 'setMode':
+      if (next.mode === 'apollo' && update.mode !== 'strategy') {
+        holdModeTransition({
+          from: 'apollo',
+          to: update.mode,
+          road,
+          detail: `setMode at the ${update.destination} scope — Apollo Mode leaves only through the review card or the operator's own mode change`,
+        })
+        break
+      }
       if (next.mode !== update.mode) {
         recordModeTransition({ from: next.mode, to: update.mode, road, detail: `setMode at the ${update.destination} scope` })
       }
