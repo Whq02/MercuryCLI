@@ -758,7 +758,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.sends.length === 0) return false
     const now = Date.now()
     const landed = new Set<string>()
-    const ownIds = new Set(this.sends.map(s => s.clientMessageId))
     for (const s of this.sends) {
       if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
         landed.add(s.clientMessageId)
@@ -773,13 +772,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
             landed.add(s.clientMessageId)
             break
           }
-          if (m.type === 'user' && rowUuid !== undefined && ownIds.has(rowUuid)) {
-            const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
-            const text = textOfUserRow(m)
-            if (!(!Number.isNaN(ts) && ts + 1000 < s.sentAtMs) && text !== '' && text.includes(s.text)) {
-              landed.add(s.clientMessageId)
-              break
-            }
+          if (m.type === 'user' && ((m as { batchUuids?: string[] }).batchUuids ?? []).includes(s.clientMessageId)) {
+            landed.add(s.clientMessageId)
+            break
           }
           const att = (m as { attachment?: { type?: string; source_uuid?: string } }).attachment
           if (m.type === 'attachment' && att?.type === 'queued_command' && att.source_uuid === s.clientMessageId) {
