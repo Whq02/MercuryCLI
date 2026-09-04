@@ -324,7 +324,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setSessionBypassPermissionsMode', 'setSessionIngressToken',
     'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
-    'setThinkingClearLatched', 'setUserMsgOptIn', 'snapshotOutputTokensForTurn', 'subscribeCwdState', 'switchSession',
+    'setThinkingClearLatched', 'setUserMsgOptIn', 'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeMainLoopModelOverride', 'switchSession',
     'updateLastInteractionTime', 'waitForScrollIdle',
   ]
   const actual = Object.keys(state).sort()

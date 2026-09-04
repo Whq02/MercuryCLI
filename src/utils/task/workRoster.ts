@@ -70,7 +70,7 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
 }
 
 function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkRowV1 {
-  const t = task as { model?: unknown; error?: unknown }
+  const t = task as { model?: unknown; error?: unknown; stopReason?: unknown }
   return {
     id: task.id,
     kind,
@@ -80,6 +80,7 @@ function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkR
     ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
     ...(typeof t.model === 'string' ? { model: t.model } : {}),
     ...(typeof t.error === 'string' ? { error: clip(t.error, MAX_ERROR) } : {}),
+    ...(typeof t.stopReason === 'string' && t.stopReason !== '' ? { stopReason: clip(t.stopReason, MAX_ERROR) } : {}),
     ...(typeof task.toolUseId === 'string' && task.toolUseId !== '' ? { toolUseId: task.toolUseId } : {}),
   }
 }
@@ -144,6 +145,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...plainRow(task, 'agent', task.description || task.agentType),
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
+        ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
       })
     } else if (isInProcessTeammateTask(task)) {
       rows.push({

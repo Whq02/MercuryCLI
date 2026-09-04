@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
-import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getProductUserAgent } from '../../../utils/http.js'
@@ -72,6 +72,7 @@ function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile)
     chmodSync(path, 0o600)
   } catch {
   }
+  noteCredentialChange()
 }
 
 export function openrouterAuthFileExists(): boolean {

@@ -3,7 +3,7 @@ import { adoptiveProjectPath } from '../projectStoreAdoption.js'
 import { getMercuryHome } from '../envUtils.js'
 import { sanitizePath } from '../sessionStoragePortable.js'
 import { execFile, execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { gitExe } from '../git.js'
+import { gitExe, markGitTreeSuspect } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { logForDebugging } from '../debug.js'
 import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, mkdtempSync, statSync } from 'node:fs'
@@ -599,6 +599,7 @@ export function treeScanNote(cwd: string): string | null {
 export function markTreeSuspectAfterTurn(): void {
   digestCache.clear()
   for (const [cwd, rec] of treeScanRecords) if (rec === null) treeScanRecords.delete(cwd)
+  markGitTreeSuspect('tree')
 }
 
 export function computeWorkingTreeDigest(cwd: string, opts?: { fresh?: boolean }): string | null {
@@ -759,6 +760,7 @@ export function markMutation(
   if (cwd !== undefined && treeScanRecords.get(cwd) === null) treeScanRecords.delete(cwd)
   if (cwd !== undefined) verifiableCache.delete(cwd)
   else verifiableCache.clear()
+  markGitTreeSuspect('tree')
   notify()
 }
 
@@ -792,6 +794,7 @@ export function observeCompletedToolCall(
     if (toolName === 'Bash' || toolName === 'PowerShell') {
       if (lifecycle === 'launch') return
       const command = String((input as { command?: unknown } | undefined)?.command ?? '')
+      if (ok && /(^|[\s;&|(])git\s/.test(command)) markGitTreeSuspect('git')
       const cls = classifyVerificationCommand(command, cwd)
       if (cls) recordEvidence(cwd, { command, ok, ...cls }, owner)
     }

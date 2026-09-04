@@ -13,6 +13,10 @@ import {
 import { enqueuePendingNotification } from '../input-core/command-queue.js'
 import { pressInterrupt } from '../input-core/interruptArity.js'
 import { getFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
+import { crewStillRunningLine } from '../services/engine-connector/crewFacts.js'
+import { workRowRuns } from '../services/engine-connector/workCounts.js'
+import type { Message } from '../types/message.js'
+import { createSystemMessage } from '../utils/messages/systemMessages.js'
 import * as pendingInput from '../input-core/pending-input.js'
 import type { Screen } from '../screens/REPL.js'
 import type { VimMode } from '../types/textInputTypes.js'
@@ -24,6 +28,18 @@ import {
 
 const KILL_CONFIRM_WINDOW_MS = 3000
 const NONE_RUNNING_TIMEOUT_MS = 2000
+
+export function interruptFocusedTurn(): boolean {
+  const focused = getFocusedSessionConnector()
+  const running = focused.workRoster().rows.filter(row => workRowRuns(row) && (row.kind === 'agent' || row.kind === 'workflow')).length
+  if (!focused.interrupt()) return false
+  const line = crewStillRunningLine(running)
+  if (line !== null) {
+    const painter = focused as { addDisplayRow?: (row: Message) => void }
+    if (typeof painter.addDisplayRow === 'function') painter.addDisplayRow(createSystemMessage(line, 'warning'))
+  }
+  return true
+}
 
 function killRunningAgents(
   getState: () => AppState,
@@ -89,7 +105,7 @@ export function CancelRequestHandler({
   const viewingTeammate = store.getState().viewingAgentTaskId !== undefined
 
   const settleAsksAndCancel = (): void => {
-    getFocusedSessionConnector().interrupt()
+    interruptFocusedTurn()
   }
 
   const contextGuardsPass =

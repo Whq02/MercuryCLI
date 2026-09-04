@@ -292,7 +292,7 @@ try {
   const wall = lastAssistantText(sid)
   check('C1 the wall row is the typed end: it names the window and its reset', /window|limit/i.test(wall) && /resets/i.test(wall), wall.slice(0, 300))
   check('C1 the wall row names the /model door', wall.includes('/model'), wall.slice(0, 300))
-  console.log(`      wall row: ${wall.replace(/\n/g, ' ⏎ ').slice(0, 400)}`)
+  console.log(`      wall row: ${wall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
 
   section('§3 C2/C4 the family switch on the live idle runner: Fable → GPT lands in place')
   const sw1 = await setModel(sid, GPT_ID)
@@ -316,7 +316,7 @@ try {
   check('C1 the runner is ALIVE after the GPT cap', rec4 !== undefined && alive(rec4.pid) && rec4.pid === pid1, `pid ${rec4?.pid} alive=${alive(rec4?.pid)}`)
   const gptWall = lastAssistantText(sid)
   check('C1 the GPT wall row names the window, its reset and the /model door', /usage window/i.test(gptWall) && /resets/i.test(gptWall) && gptWall.includes('/model'), gptWall.slice(0, 300))
-  console.log(`      gpt wall row: ${gptWall.replace(/\n/g, ' ⏎ ').slice(0, 400)}`)
+  console.log(`      gpt wall row: ${gptWall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
   const swBack = await setModel(sid, 'claude-fable-5-1')
   check('the switch back to the Fable row lands in place', swBack.ok === true && swBack.outcome === 'applied', JSON.stringify(swBack))
   check('the record carries the Fable row again', await untilAsync(() => readRec(sid)?.modelKey === 'claude-fable-5-1', 20_000), JSON.stringify(readRec(sid)?.modelKey))

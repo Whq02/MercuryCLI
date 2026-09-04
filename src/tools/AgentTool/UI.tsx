@@ -637,7 +637,7 @@ function factsForEntry(agents: readonly CrewAgentFacts[], entry: GroupedEntry): 
 }
 
 function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
-  const doing = facts.running ? (facts.activity ?? crewStateLabel(facts)) : crewStateLabel(facts)
+  const doing = facts.running ? (facts.wait ?? facts.activity ?? crewStateLabel(facts)) : crewStateLabel(facts)
   return `${doing} · ${crewElapsedLabel(facts, nowMs)}`
 }
 

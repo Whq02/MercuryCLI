@@ -113,7 +113,7 @@ const root = mkdtempSync(join(tmpdir(), 'dualdir-'))
   const { readFileSync } = await import('node:fs')
   const loaderSrc = readFileSync(new URL('../../src/utils/markdownConfigLoader.ts', import.meta.url), 'utf8')
   const fn = loaderSrc.slice(loaderSrc.indexOf('async function loadDirectory('), loaderSrc.indexOf('\n}\n', loaderSrc.indexOf('async function loadDirectory(')))
-  check(fn.includes('await Promise.all(') && fn.includes('paths.map(async filePath =>') && !/for\s*\(const filePath of paths\)/.test(fn), 'loadDirectory reads per-file concurrently (no serial await loop)')
+  check(fn.includes('await mapWithConcurrency(') && !/for\s*\(const filePath of paths\)/.test(fn), 'loadDirectory reads per-file through the bounded, order-preserving pool (no serial await loop)')
 }
 
 console.log('════════════════════════════════════════════════════════════════════════════')

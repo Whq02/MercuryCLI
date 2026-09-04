@@ -15,8 +15,7 @@ import {
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
-import { getGitState, type GitRepoState } from '../utils/git.js'
-import { computeWorkingTreeDigestAsync } from '../utils/verification/verificationState.js'
+import { getGitState, subscribeGitFacts, type GitRepoState } from '../utils/git.js'
 import { getTaskListId, listTasks, onTasksUpdated, type Task } from '../utils/tasks.js'
 import {
   fleetGauge,
@@ -68,6 +67,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let unsubTranscript: (() => void) | null = null
 let unsubTasks: (() => void) | null = null
 let unsubExecutions: (() => void) | null = null
+let unsubGitFacts: (() => void) | null = null
 let coalescer: SerialCoalescer | null = null
 
 function emit(): void {
@@ -81,16 +81,8 @@ function emit(): void {
   }
 }
 
-const GIT_STATE_FLOOR_MS = 60_000
-let gitStateMemo: { digest: string | null; at: number; value: GitRepoState | null } | null = null
-
 async function gitStateForRefresh(): Promise<GitRepoState | null> {
-  const digest = await computeWorkingTreeDigestAsync(getCwd())
-  const memo = gitStateMemo
-  if (memo && memo.digest === digest && Date.now() - memo.at < GIT_STATE_FLOOR_MS) return memo.value
-  const value = await getGitState({ untrackedFiles: 'normal' })
-  gitStateMemo = { digest, at: Date.now(), value }
-  return value
+  return getGitState({ untrackedFiles: 'normal' })
 }
 
 async function refreshOnce(): Promise<void> {
@@ -195,6 +187,7 @@ function startEngine(): void {
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
   unsubTasks = onTasksUpdated(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
+  unsubGitFacts = subscribeGitFacts(() => pokeTelemetry())
   pokeTelemetry()
 }
 
@@ -213,6 +206,8 @@ function stopEngine(): void {
   unsubTasks = null
   unsubExecutions?.()
   unsubExecutions = null
+  unsubGitFacts?.()
+  unsubGitFacts = null
   coalescer?.release()
   coalescer = null
 }
@@ -242,7 +237,10 @@ export function _statsForProofs(): {
     heartbeat: heartbeat !== null,
     debounceTimer: debounceTimer !== null,
     sourceUnsubs:
-      (unsubTranscript !== null ? 1 : 0) + (unsubTasks !== null ? 1 : 0) + (unsubExecutions !== null ? 1 : 0),
+      (unsubTranscript !== null ? 1 : 0) +
+      (unsubTasks !== null ? 1 : 0) +
+      (unsubExecutions !== null ? 1 : 0) +
+      (unsubGitFacts !== null ? 1 : 0),
     coalescer: coalescer !== null,
   }
 }
