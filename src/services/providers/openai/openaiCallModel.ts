@@ -35,6 +35,7 @@ import {
 import { toolToAPISchema } from '../../../utils/api.js'
 import {
   createAssistantAPIErrorMessage,
+  createSystemAPIErrorMessage,
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
@@ -539,8 +540,10 @@ export async function* openaiCallModel(
     const retryable =
       outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS
     if (retryable) {
+      const delayMs = openaiRetryDelayMs(attempt)
+      yield createSystemAPIErrorMessage(new Error(outcome.fault.message), delayMs, attempt, OPENAI_MAX_ATTEMPTS - 1)
       await new Promise(resolve => {
-        const t = setTimeout(resolve, openaiRetryDelayMs(attempt))
+        const t = setTimeout(resolve, delayMs)
         ;(t as any).unref?.()
       })
       if (signal.aborted) return

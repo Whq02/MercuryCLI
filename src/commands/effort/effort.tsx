@@ -168,11 +168,11 @@ export function showSeatEffort(word: string | null | undefined, sent: string | n
   const runs = sent !== undefined ? sent : (resolveStampedEffortTruth(model, value).wire ?? null)
   const clause =
     runs === null
-      ? ` ${model} runs its provider default this session.`
+      ? ` (${model} runs its provider default this session)`
       : runs !== String(value)
-        ? ` It runs ${runs} on ${model}.`
+        ? ` (it runs ${runs} on ${model})`
         : ''
-  return `Effort is ${String(value)} — ${getEffortValueDescription(value, model)}.${clause}`
+  return `Effort is ${String(value)}${clause} — ${getEffortValueDescription(value, model)}.`
 }
 
 export function showCurrentEffort(
