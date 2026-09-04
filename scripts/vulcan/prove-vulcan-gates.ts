@@ -64,7 +64,9 @@ section('§2 · ARMED — tool + seams + token hygiene')
   process.env.MERCURY_GODOT_TOOLS = '1'
   check('gate ON', gates.vulcanEnabled())
   check('Godot tool present inside a project', runWithCwdOverride(proj, () => hasGodot()))
-  check('Godot tool absent outside a project', runWithCwdOverride(scratch, () => !hasGodot()))
+  check('Godot tool present outside a project too (the flag seats it; the project is answered at call time)', runWithCwdOverride(scratch, () => hasGodot()))
+  const outside = (await runWithCwdOverride(scratch, () => GodotTool.call({ op: 'vulcan_status' } as never, {} as never, {} as never, {} as never))) as { data: { result: string } }
+  check('outside a project every op answers the teaching note, never a ghost surface', outside.data.result.includes('no project.godot found from the working directory'), outside.data.result.slice(0, 120))
   check('prompt section renders inside a project', runWithCwdOverride(proj, () => (gates.getVulcanSection() ?? '').includes('VULCAN')))
   check('prompt section null outside a project', runWithCwdOverride(scratch, () => gates.getVulcanSection() === null))
   check('doctrine line renders', runWithCwdOverride(proj, () => (gates.getVulcanDoctrineLine() ?? '').includes('Godot tool')))
