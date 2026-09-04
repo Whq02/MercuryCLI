@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assetNameFor, formatPrivateVersion, parsePrivateVersion } from '../../src/services/privateChannel/channelCore.js'
+import { closedLoopbackPort } from './journeyFixtures.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string; engines?: { node?: string } }
@@ -107,6 +108,7 @@ const NEXT_ASSET = assetNameFor(NEXT, process.platform, process.arch)!
 
 const SLUG = 'fixture/mercury'
 const GH_CMD = JSON.stringify(['node', join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')])
+const DEAD_API_BASE = `http://127.0.0.1:${await closedLoopbackPort()}`
 function run(cmd: string, args: string[]): { code: number; stdout: string; stderr: string; all: string } {
   const res = spawnSync(cmd, args, {
     encoding: 'utf8',
@@ -117,6 +119,7 @@ function run(cmd: string, args: string[]): { code: number; stdout: string; stder
       MERCURY_CONFIG_DIR: home,
       MERCURY_VERSIONS_DIR: versionsDir,
       MERCURY_UPDATE_CHANNEL_REPO: SLUG,
+      MERCURY_UPDATE_API_BASE_URL: DEAD_API_BASE,
       MERCURY_GH_CMD: GH_CMD,
       GH_SHIM_FIXTURES: fixtures,
       GH_SHIM_LOG: ghLog,
