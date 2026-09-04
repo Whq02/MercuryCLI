@@ -180,6 +180,7 @@ export type LocalJSXCommandCall = (
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
   args: string,
+  invokedAs?: string,
 ) => Promise<React.ReactNode | null>
 
 export type LocalJSXCommandModule = {
