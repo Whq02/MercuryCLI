@@ -6,14 +6,14 @@
   "publisher": "mercury",
   "license": "SEE LICENSE IN LICENSE.txt",
   "private": true,
-  "homepage": "https://github.com/Whq02/PreRelease",
+  "homepage": "https://github.com/Whq02/MercuryCLI",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Whq02/PreRelease.git",
+    "url": "https://github.com/Whq02/MercuryCLI.git",
     "directory": "integrations/vscode"
   },
   "bugs": {
-    "url": "https://github.com/Whq02/PreRelease/issues"
+    "url": "https://github.com/Whq02/MercuryCLI/issues"
   },
   "engines": {
     "vscode": "^1.85.0"

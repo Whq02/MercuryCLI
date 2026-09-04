@@ -73,7 +73,7 @@ bounded "external npm package URL"       "npmjs.com/package/@anthropic-ai/$forei
 bounded "external native-dist bucket"    "storage.googleapis.com/$foreign_slug-dist" 0
 bounded "external product page URL"      "claude.com/$foreign_slug" 0
 bounded "external docs links"            "code.claude.com/docs" 0
-present "Mercury repo as the package origin" "github.com/Whq02/PreRelease"
+present "Mercury repo as the package origin" "github.com/Whq02/MercuryCLI"
 
 echo "[3] one version root + unlinked attribution"
 mercury_version=$(python3 -c "import json;print(json.load(open('$here/../../package.json'))['version'])")
