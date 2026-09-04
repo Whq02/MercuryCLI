@@ -2606,6 +2606,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-image-processor',
+          label: 'Image processor',
+          run: async () => {
+            const { describeImageProcessor } = await import('../tools/FileReadTool/imageProcessor.js')
+            const road = await describeImageProcessor()
+            return { status: road.ready ? ('ok' as const) : ('info' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
+          },
+        },
+        {
           id: 'iface-inventory',
           label: 'Interaction inventory',
           run: () => {
