@@ -107,13 +107,13 @@ check(
   check('§2 detach stops every heartbeat', gone.transcript === 0 && gone.facts === 0 && gone.asks === 0 && gone.tail === 0 && gone.progress === 0, JSON.stringify(gone))
 }
 {
-  const home = mkdtempSync(join(tmpdir(), 'append-growth-nofile-'))
+  const home = join(mkdtempSync(join(tmpdir(), 'append-growth-nodir-')), 'missing')
   const sessionId = '12345678-1234-4123-8123-123456789abe'
-  const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w3', title: 'nofile', projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam
+  const conn = new DaemonSessionConnector({ sessionId, runnerId: 'concourse-w3', title: 'nodir', projectLabel: 'scratch', workspaceId: home, home }) as unknown as Seam
   await conn.attach()
   await sleep(20)
   const c = conn.feedCadencesForProofs()
-  check('§2 a transcript whose watch cannot arm keeps the full heartbeat', c.transcript === 400, JSON.stringify(c))
+  check('§2 a transcript whose directory does not exist keeps the full heartbeat (no watch can arm)', c.transcript === 400, JSON.stringify(c))
   conn.detach()
 }
 
