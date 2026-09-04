@@ -106,7 +106,7 @@ const QUIT: Send[] = [
   { afterPrevTicks: 2, data: '\x04' },
 ]
 type Row = { start: number; cwd: string; argv: string }
-type Surface = { surface: string; lines: string[]; rows: Row[]; minutes: number; before: { count: number; size: number }; after: { count: number; size: number }; endReason: unknown }
+type Surface = { surface: string; lines: string[]; rows: Row[]; minutes: number; before: { count: number; size: number }; after: { count: number; size: number }; endReason: unknown; status: string }
 
 function reapHome(home: string): void {
   for (const rec of Object.values(readSessionWorkers(join(home, 'daemon')))) {
@@ -196,7 +196,8 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   const rows = winStart !== undefined && winEnd !== undefined ? all.filter(r => r.start >= winStart && r.start <= winEnd) : []
   const minutes = winStart !== undefined && winEnd !== undefined ? (winEnd - winStart) / 60000 : 0
   if (minutes === 0) console.log(`  (${surface}: no idle window — ${String(payload.endReason)} · ${tail.slice(-300)})`)
-  return { surface, lines, rows, minutes, before, after, endReason: payload.endReason }
+  const status = git(FIX, 'status', '--porcelain').trim()
+  return { surface, lines, rows, minutes, before, after, endReason: payload.endReason, status }
 }
 
 const isDigestStep = (argv: string): boolean => /^(read-tree HEAD|add -A -- \.|reset -q -- |write-tree)/.test(argv)
@@ -234,6 +235,7 @@ for (const r of results) {
   check(`D1 ${r.surface}: every digest step that ran was one of the four (no stray shapes)`, r.rows.filter(x => isDigestStep(x.argv)).every(x => x.cwd === FIX))
   check(`D2 ${r.surface}: all git calls stay under ${TOTAL_CEILING_PER_MIN}/min at idle`, perMin(r.rows.length) <= TOTAL_CEILING_PER_MIN, `${r.rows.length} in ${r.minutes.toFixed(2)} min`)
   check(`D3 ${r.surface}: the repository gained no object`, r.after.count === r.before.count && r.after.size === r.before.size, `${r.before.count}→${r.after.count}`)
+  check(`D5 ${r.surface}: the launch folder's git status stays empty (nothing at boot writes under it)`, r.status === '', r.status.split('\n').slice(0, 4).join(' | '))
 }
 const chat = results.find(r => r.surface === 'chat')
 check('D4 the chat frame carries no vfy word on a measurable tree', chat !== undefined && !chat.lines.some(l => /\bvfy\b/.test(l)), chat?.lines.filter(l => /\bvfy\b/.test(l)).join(' | '))

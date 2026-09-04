@@ -88,7 +88,7 @@ async function gitStateForRefresh(): Promise<GitRepoState | null> {
   const digest = await computeWorkingTreeDigestAsync(getCwd())
   const memo = gitStateMemo
   if (memo && memo.digest === digest && Date.now() - memo.at < GIT_STATE_FLOOR_MS) return memo.value
-  const value = await getGitState()
+  const value = await getGitState({ untrackedFiles: 'normal' })
   gitStateMemo = { digest, at: Date.now(), value }
   return value
 }
