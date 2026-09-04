@@ -122,7 +122,7 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
 export function agentPulseWord(p: AgentPulse): string {
   switch (p.kind) {
     case 'queued':
-      return p.words ?? 'queued'
+      return p.words ?? 'starting'
     case 'first-token':
       return p.words ?? 'awaiting first token'
     case 'seat':

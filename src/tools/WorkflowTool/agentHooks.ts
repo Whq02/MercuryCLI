@@ -14,8 +14,7 @@ import type {
   ProgressFrame,
 } from './executor.js'
 
-import { governorCeilings, governorProvenance } from '../../services/capacity/governor.js'
-import { seatWaitWords } from '../../services/capacity/seatWords.js'
+import { governorCeilings } from '../../services/capacity/governor.js'
 import {
   chargeRecoveryWait,
   makeRecoveryBudget,
@@ -323,6 +322,7 @@ export interface SpawnSubagentArgs {
   maxTurns?: number
   worktreePath?: string
   description?: string
+  seatHolder?: string
   onQueryProgress?: (message?: unknown) => void
   onWait?: (words: string | null) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
@@ -441,7 +441,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   const resolveCustomAgentType =
     deps.resolveCustomAgentType ?? resolveFromSessionRegistry
 
-  const lane = makeGate(computeConcurrencyCap())
   let admitted = 0
   const failures: string[] = []
 
@@ -703,47 +702,30 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           ...data,
         },
       })
-      const gateWords = (): Record<string, unknown> =>
-        lane.full()
-          ? { waitWords: seatWaitWords({ width: computeConcurrencyCap(), holders: lane.holders(), narrowing: governorProvenance().narrowing }) }
-          : {}
-      const queuedFrame = (): void =>
-        emit(
-          queuedTile({
-            agentType: opts?.agentType != null ? String(opts.agentType) : undefined,
-            isolation: opts?.isolation === 'worktree' ? 'worktree' : undefined,
-            state: 'start',
-            lastProgressAt: Date.now(),
-            ...gateWords(),
-          }),
-        )
-      queuedFrame()
-      let gateKeep: ReturnType<typeof setInterval> | undefined = setInterval(queuedFrame, CAP_KEEPALIVE_MS)
-      gateKeep.unref?.()
-      const leaveGate = (): void => {
-        if (gateKeep !== undefined) clearInterval(gateKeep)
-        gateKeep = undefined
-      }
+      emit(
+        queuedTile({
+          agentType: opts?.agentType != null ? String(opts.agentType) : undefined,
+          isolation: opts?.isolation === 'worktree' ? 'worktree' : undefined,
+          state: 'start',
+          lastProgressAt: Date.now(),
+        }),
+      )
 
       try {
         return await recordResult(
-          await lane.run(() => {
-            leaveGate()
-            return runAgentCall({
-              index,
-              prompt,
-              label,
-              phaseTitle,
-              phaseIndex,
-              stallMs,
-              opts,
-              onAttemptStarted,
-              queuedAt,
-            })
-          }, label),
+          await runAgentCall({
+            index,
+            prompt,
+            label,
+            phaseTitle,
+            phaseIndex,
+            stallMs,
+            opts,
+            onAttemptStarted,
+            queuedAt,
+          }),
         )
       } catch (e) {
-        leaveGate()
         if (!anyAttemptStarted && !ctx.abortController?.signal.aborted) {
           emit(
             queuedTile({
@@ -1109,6 +1091,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           effort: opts?.effort != null ? String(opts.effort) : undefined,
           worktreePath,
           description: attemptPromptPreview,
+          seatHolder: attemptLabel,
           continuationMessages: continuation,
           onQueryProgress,
           onWait: words => emitFrame('progress', words === null ? {} : { waiting: 'seat', waitWords: words }),
@@ -1678,47 +1661,6 @@ function toolInputGlance(input: unknown): string | undefined {
     return clip(String(input), 80) || undefined
   } catch {
     return undefined
-  }
-}
-
-interface Gate {
-  holders(): string[]
-  full(): boolean
-  run<T>(fn: () => Promise<T>, label?: string): Promise<T>
-}
-function makeGate(max: number): Gate {
-  let active = 0
-  const running: string[] = []
-  const waiting: Array<() => void> = []
-  const acquire = (): Promise<void> => {
-    if (active < max) {
-      active++
-      return Promise.resolve()
-    }
-    return new Promise<void>(resolve => waiting.push(resolve))
-  }
-  const release = (): void => {
-    active--
-    const next = waiting.shift()
-    if (next) {
-      active++
-      next()
-    }
-  }
-  return {
-    holders: () => [...running],
-    full: () => active >= max,
-    async run<T>(fn: () => Promise<T>, label = 'an agent'): Promise<T> {
-      await acquire()
-      running.push(label)
-      try {
-        return await fn()
-      } finally {
-        const at = running.indexOf(label)
-        if (at !== -1) running.splice(at, 1)
-        release()
-      }
-    },
   }
 }
 
