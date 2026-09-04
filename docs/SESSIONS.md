@@ -114,6 +114,19 @@ answers at once. `/tasks`,
 `/workflows` and the board's work chip show the focused session's own work
 and never another's.
 
+An image goes into the composer three ways: paste it from the clipboard
+with ctrl+v on macOS and Linux, or alt+v on Windows (the terminal owns
+ctrl+v there, and an image-only clipboard gives it nothing to paste); drag
+an image file onto the terminal; or paste its path. Each attaches as an
+`[Image #N]` chip, saved under its own name in the session's image store
+for the session's life, and the composer says what was attached — its size,
+and what it was shrunk to when the provider's limits asked for it. Copy an
+image and come back to Mercury and it tells you the key. An image is never
+refused for its size: it is shrunk to the provider's published limits
+(`/health` names the image processor on this machine); the one refusal
+left is an image whose smallest encoding still exceeds them, and its words
+say which limit and what size.
+
 The status row under the composer says what the focused session is doing,
 and for how long, from the session's runner itself: "thinking for 2m",
 "running a tool for 4m (its own timeout at 10m)", "replying",
