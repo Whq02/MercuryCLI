@@ -486,7 +486,8 @@ export default class App extends PureComponent<Props, State> {
 
     let chunkConsumed = false
 
-    for (const atom of atoms) {
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i]!
       if (atom.kind === 'response') {
         this.querier.onResponse(atom.response)
         continue
@@ -494,6 +495,7 @@ export default class App extends PureComponent<Props, State> {
       if (atom.kind === 'mouse') {
         const isClickClass = (atom.button & MOTION_BIT) === 0
         if (chunkConsumed && isClickClass) continue
+        if (isDragMotion(atom) && i + 1 < atoms.length && isDragMotion(atoms[i + 1]!)) continue
         handleMouseEvent(this, atom)
         continue
       }
@@ -564,6 +566,15 @@ export default class App extends PureComponent<Props, State> {
 
 function toCell(atom: ParsedMouse): { col: number; row: number } {
   return { col: atom.col - 1, row: atom.row - 1 }
+}
+
+export function isDragMotion(atom: ParsedInput): boolean {
+  return (
+    atom.kind === 'mouse' &&
+    atom.action === 'press' &&
+    (atom.button & MOTION_BIT) !== 0 &&
+    (atom.button & 3) === 0
+  )
 }
 
 export function isRefocusPress(state: { focused: boolean; refocusedAt: number; now: number }): boolean {

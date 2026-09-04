@@ -57,11 +57,13 @@ import {
   startSelection,
   updateSelection,
   type FocusMove,
+  type Point,
   type SelectionState,
 } from './geometry/selection.js'
 import type { ParsedKey } from './input/input-decoder.js'
 import instances from './instances.js'
 import { getCellLayoutCounters } from './layout/cellLayout.js'
+import { unionRect } from './layout/geometry.js'
 import { nodeCache } from './node-cache.js'
 import { optimizePatches } from './patch-stream.js'
 import reconciler, {
@@ -164,6 +166,10 @@ export type Options = {
 type ExitOutcome = { kind: 'ok' } | { kind: 'error'; error: Error }
 
 const HOME_CURSOR = Object.freeze({ x: 0, y: 0, visible: false })
+
+function samePoint(a: Point | null, b: Point | null): boolean {
+  return a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row)
+}
 
 function safeAppend(path: string, line: string): void {
   try {
@@ -1321,11 +1327,15 @@ export default class Ink {
 
   handleSelectionDrag(col: number, row: number): void {
     if (!this.altScreenActive) return
-    if (this.selection.anchorSpan) {
-      extendSelection(this.selection, this.frontFrame.screen, col, row)
+    const s = this.selection
+    const anchor = s.anchor
+    const focus = s.focus
+    if (s.anchorSpan) {
+      extendSelection(s, this.frontFrame.screen, col, row)
     } else {
-      updateSelection(this.selection, col, row)
+      updateSelection(s, col, row)
     }
+    if (samePoint(s.anchor, anchor) && samePoint(s.focus, focus)) return
     this.notifySelectionChange()
   }
 
