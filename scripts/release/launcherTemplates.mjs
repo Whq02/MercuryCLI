@@ -547,10 +547,12 @@ mercury\\mercury.cmd install     # Windows
 \`\`\`
 
 This copies the extracted payload into a per-version directory under your
-Mercury home and places ONE stable \`mercury\` command in a user-local bin
+Mercury home, places ONE stable \`mercury\` command in a user-local bin
 directory (\`~/.local/bin\` on macOS/Linux, \`%LOCALAPPDATA%\\Mercury\\bin\` on
-Windows — it prints exactly what it changed and whether you need a PATH
-entry). No administrator access, no npm, rerunning it is a no-op.
+Windows) and puts that directory on your PATH once — a guarded line in your
+shell's startup file on macOS/Linux, the user PATH on Windows — so a new
+terminal finds \`mercury\`. It prints exactly what it changed. No
+administrator access, no npm, rerunning it is a no-op.
 \`mercury install --dry-run\` describes the change without making it;
 \`mercury install --uninstall\` removes the managed binaries and never your
 configuration or sessions. (\`install.sh\` / \`install.ps1\` in this folder run
@@ -661,12 +663,21 @@ Run \`mercury install\` from the extracted folder's own launcher (or
 2. smoke-tests the copy (\`--version\` must print this release);
 3. switches the ONE pointer file \`versions/current.txt\` atomically;
 4. writes the stable \`mercury\` command — \`~/.local/bin/mercury\` on
-   macOS/Linux, \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` on Windows —
-   and tells you if that directory needs adding to PATH.
+   macOS/Linux, \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` on Windows;
+5. puts that directory on your PATH once, and names exactly what it wrote:
+   on macOS/Linux one guarded line in your shell's startup file
+   (\`~/.zshrc\` for zsh; \`~/.bashrc\` plus the login profile for bash; a
+   \`~/.config/fish/conf.d/mercury.fish\` file for fish), on Windows the
+   user PATH in the registry (expandable entries kept, running programs
+   told). A directory already on PATH, a startup file that already names
+   it, or a \`mercury\` command that already resolves is left alone; a
+   shell it does not know gets the exact line to add instead.
 
 Properties you can rely on:
 
 - **No administrator access.** Everything is user-owned.
+- **Reachable from a new terminal.** The stable command's directory is on
+  PATH after one install; the current terminal needs the line it prints.
 - **Idempotent.** Rerunning with the same archive changes nothing and says so.
 - **Never npm, never a source checkout.**
 - **Previous versions stay.** Installing or updating never deletes the
@@ -686,6 +697,7 @@ Properties you can rely on:
 | Installed versions | \`<mercury home>/versions/<version>/\` |
 | Active-version pointer | \`<mercury home>/versions/current.txt\` (one line) |
 | Stable command | \`~/.local/bin/mercury\` · \`%LOCALAPPDATA%\\Mercury\\bin\\mercury.cmd\` |
+| PATH entry | one \`mercury-managed-path\` line in the shell's startup file · the user PATH (\`HKCU\\Environment\`) |
 | Configuration + sessions | \`<mercury home>\` (\`~/.mercury\`; \`MERCURY_CONFIG_DIR\` overrides) |
 
 Manual recovery is deliberately simple: \`current.txt\` is a plain text file

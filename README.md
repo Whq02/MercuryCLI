@@ -58,7 +58,9 @@ clean-tree build to `<config home>/runtime/dist` and
 `<config home>/bin/mercury`; put that directory on your `PATH` (for zsh,
 `echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc`). A missing
 runtime is a loud launcher failure, never a silent fallback. Release archives
-install with `mercury install` and stay current with `mercury update` on the
+install with `mercury install` (it puts the stable command's folder on your
+PATH itself: one guarded line in your shell's startup file, or the user PATH
+on Windows) and stay current with `mercury update` on the
 private release channel (`--check`, `--status`, `--rollback`). Both paths run
 the artifact on the vendored Node 24 LTS runtime the build carries, else on
 `MERCURY_NODE` or a PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
