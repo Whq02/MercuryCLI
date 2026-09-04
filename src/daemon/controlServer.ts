@@ -153,6 +153,8 @@ export interface ControlServerDeps {
       | 'set-kit'
       | 'set-schedule'
       | 'set-spawn-switch'
+      | 'stop-agent'
+      | 'resume-agent'
     sessionId: string
     by: string
     reason?: string
@@ -169,9 +171,13 @@ export interface ControlServerDeps {
     kitEdit?: SessionKitEditV1
     scheduleEdit?: ScheduleOpRequestV1
     spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
+    agentId?: string
+    note?: string
     mintedAtMs?: number
     clientOpId?: string
-  }) => { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
+  }) =>
+    | { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
+    | Promise<{ outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }>
   sessionRewind?: (req: {
     sessionId: string
     by: string
@@ -230,7 +236,7 @@ const dispatchWhole: Whole<
   (typeof DISPATCH_WIRE_KEYS)[number] | (typeof DISPATCH_REFUSAL_WIRE_KEYS)[number]
 > = true
 
-type ControlResult = ReturnType<NonNullable<ControlServerDeps['concourseControl']>>
+type ControlResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseControl']>>>
 const CONTROL_WIRE_KEYS = ['outcome', 'detail'] as const satisfies readonly (keyof ControlResult)[]
 const controlWhole: Whole<ControlResult, (typeof CONTROL_WIRE_KEYS)[number]> = true
 
@@ -869,13 +875,15 @@ async function routeControlRequest(
         raw.action === 'contract' ||
         raw.action === 'set-kit' ||
         raw.action === 'set-schedule' ||
-        raw.action === 'set-spawn-switch'
+        raw.action === 'set-spawn-switch' ||
+        raw.action === 'stop-agent' ||
+        raw.action === 'resume-agent'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent, sessionId, by }' })
       }
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {
@@ -940,10 +948,12 @@ async function routeControlRequest(
           scheduleEdit = { op, scheduleId }
         }
       }
-      const r = deps.concourseControl({
+      const r = await deps.concourseControl({
         action,
         sessionId,
         by,
+        ...(typeof raw.agentId === 'string' && raw.agentId ? { agentId: raw.agentId.slice(0, 128) } : {}),
+        ...(typeof raw.note === 'string' && raw.note ? { note: raw.note.slice(0, 4000) } : {}),
         ...(typeof raw.reason === 'string' && raw.reason ? { reason: raw.reason } : {}),
         ...(raw.hard === true ? { hard: true } : {}),
         ...(typeof raw.requestId === 'string' && raw.requestId ? { requestId: raw.requestId.slice(0, 128) } : {}),

@@ -57,6 +57,7 @@ import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
+  AgentControlReceiptV1,
   AskAnswerV1,
   AskReceiptV1,
   CheckpointFactsV1,
@@ -1325,6 +1326,41 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         emitAll(this.liveListeners, 'live')
       })
     return true
+  }
+
+  stopAgent(agentId: string): Promise<AgentControlReceiptV1> {
+    return this.agentVerb('stop-agent', agentId)
+  }
+
+  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+    return this.agentVerb('resume-agent', agentId, note)
+  }
+
+  private async agentVerb(action: 'stop-agent' | 'resume-agent', agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+    if (agentId === '') return { outcome: 'refused', detail: `${action} needs an agent` }
+    try {
+      const reply = await this.chainRpc({
+        op: 'sessionControl',
+        action,
+        sessionId: this.record.sessionId,
+        by: 'operator',
+        agentId,
+        ...(note !== undefined ? { note } : {}),
+      })
+      if (reply.ok !== true) {
+        const error = String(reply.error ?? 'the daemon refused the verb')
+        const older = /sessionControl requires/.test(error)
+        return {
+          outcome: 'refused',
+          detail: older ? 'the daemon predates the crew stop and resume verbs — /daemon restart when ready, then try again' : error,
+        }
+      }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+    } catch (e) {
+      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
   }
 
   modelFacts(): ModelFactsV1 {
