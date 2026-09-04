@@ -8,6 +8,7 @@ import {
 } from '../primitives/canonicalStream.js'
 import { acceptUserRequest, noteTurnEnd } from './runCoordinator.js'
 import { ownerFromToolUseContext } from './resolveOwner.js'
+import { markTreeSuspectAfterTurn } from '../../utils/verification/verificationState.js'
 
 function turnOwningSource(querySource: QuerySource | undefined): boolean {
   if (querySource === undefined) return false
@@ -83,6 +84,7 @@ export async function noteQueryTurnEnd(params: {
       aborted,
     })
     settleModelTurnExecution(owner, { aborted, reason: params.reason })
+    markTreeSuspectAfterTurn()
   } catch {
   }
 }
