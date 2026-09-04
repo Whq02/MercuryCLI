@@ -10,7 +10,15 @@ import {
 } from './openaiWire.js'
 import { recordOpenaiRateHeaders } from './openaiLimitState.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { createStreamIdleWatchdog, streamIdleTimeoutMs, StreamIdleTimeoutError, type StreamIdleWatchdog } from '../streamIdleBudget.js'
+import {
+  createStreamIdleWatchdog,
+  firstByteBudgetMs,
+  firstByteTimeoutLine,
+  streamIdleTimeoutMs,
+  StreamIdleTimeoutError,
+  type RequestWaitV1,
+  type StreamIdleWatchdog,
+} from '../streamIdleBudget.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const TOTAL_TIMEOUT_MS = 50 * 60_000
@@ -22,6 +30,13 @@ export interface OpenaiStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  firstByte?: {
+    cold: boolean
+    promptTokens: number
+    model: string
+    attempt?: number
+    onWait?: (wait: RequestWaitV1 | null) => void
+  }
 }
 
 export async function* streamOpenaiResponses(
@@ -40,6 +55,27 @@ export async function* streamOpenaiResponses(
 
   try {
     let response: Response
+    const firstByteBudget = firstByteBudgetMs({
+      cold: options.firstByte?.cold === true,
+      promptTokens: options.firstByte?.promptTokens ?? 0,
+      idleMs: idleMs,
+    })
+    const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+      kind: 'first-byte',
+      cold: options.firstByte?.cold === true,
+      promptTokens: options.firstByte?.promptTokens ?? 0,
+      model: options.firstByte?.model ?? 'the model',
+      budgetMs: firstByteBudget,
+      sinceMs: Date.now(),
+      attempt: options.firstByte?.attempt ?? 1,
+    }
+    options.firstByte?.onWait?.(wait)
+    let firstByteFired = false
+    const firstByteTimer = setTimeout(() => {
+      firstByteFired = true
+      controller.abort()
+    }, firstByteBudget)
+    firstByteTimer.unref?.()
     try {
       const fetchImpl = options.fetchImpl ?? getApiFetch()
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
@@ -56,7 +92,15 @@ export async function* streamOpenaiResponses(
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
+      clearTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
+      if (!cancelled && firstByteFired) {
+        yield {
+          type: 'stream-fault',
+          fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true },
+        }
+        return
+      }
       yield {
         type: 'stream-fault',
         fault: cancelled
@@ -70,6 +114,9 @@ export async function* streamOpenaiResponses(
       }
       return
     }
+
+    clearTimeout(firstByteTimer)
+    options.firstByte?.onWait?.(null)
 
     recordOpenaiRateHeaders(response.headers)
 
@@ -100,7 +147,6 @@ export async function* streamOpenaiResponses(
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
         chunk = await watchdog.guard(reader.read())
-        watchdog.noteActivity()
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
@@ -135,6 +181,7 @@ export async function* streamOpenaiResponses(
           }
           continue
         }
+        watchdog.noteActivity()
         const payload = item.event.data
         if (payload.trim() === '[DONE]') break readLoop
         let parsed: unknown

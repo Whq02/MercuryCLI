@@ -79,7 +79,8 @@ import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
-import { streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
@@ -485,6 +486,7 @@ export async function* openaiCallModel(
       options,
       modelId,
       messages,
+      attempt,
       settlementNotes,
       pulseMain,
       pulseGeneration,
@@ -611,6 +613,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   pulseGeneration: number
   contractDigest: string
   deferredUnadmitted?: (name: string) => boolean
+  attempt?: number
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, auth, signal, tools, options, modelId } = ctx
 
@@ -779,6 +782,13 @@ export async function* streamOneOpenaiAttempt(ctx: {
       headers: auth.headers,
       request,
       signal,
+      firstByte: {
+        cold: coldPrefixOf(ctx.messages, modelId),
+        promptTokens: estimateRequestTokens(request),
+        model: getPublicModelDisplayName(modelId) ?? modelId,
+        ...(ctx.attempt !== undefined ? { attempt: ctx.attempt } : {}),
+        ...(options.onWait ? { onWait: options.onWait } : {}),
+      },
     })
   for await (const event of events) {
     if (!firstEventSeen) {
