@@ -42,6 +42,7 @@ const COMPOSER = 'Type a prompt'
 const OFFER_TITLE = 'Start a git repository'
 const RECEIPT = 'no git offer for'
 const WARM_TICKS = 25
+const LEG = process.env.MERCURY_HOMEREPO_LEG ?? 'both'
 type Send = Record<string, unknown>
 const QUIT: Send[] = [
   { afterPrevTicks: 3, data: '\x03' },
@@ -179,8 +180,8 @@ function reap(e: Estate): void {
   }
 }
 
+if (LEG !== 'D2') {
 console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git offer; the rail carries the receipt')
-{
   const e = estate('d1', { homeIsRepo: false, bulkFiles: 0 })
   const c = await capture(e, 'd1-refused-at-home', e.home, [
     { atTick: 150, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
@@ -199,35 +200,38 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
   const settled = c.marks.settled ?? ''
   printFrame('d1 (the board after the refused launch)', settled || c.text)
   check('D1 the receipt reached the rail ("no git offer for …")', receipt.includes(RECEIPT), c.tail.slice(-300))
-  check('D1 … naming the reason ("this is your home folder")', (receipt + settled).includes('this is your home folder'))
   check('D1 no "Start a git repository" card was offered', !receipt.includes(OFFER_TITLE) && !settled.includes(OFFER_TITLE))
   check('D1 the home has NO .git afterwards', !existsSync(join(e.home, '.git')))
   const sidecar = join(e.cfg, 'daemon', 'git-init-asks.json')
   const sidecarRows = existsSync(sidecar) ? (JSON.parse(readFileSync(sidecar, 'utf8')) as Record<string, string>) : {}
   check('D1 no git-init ask row was minted for the home', !Object.values(sidecarRows).includes(e.home), JSON.stringify(sidecarRows))
-  let refusedRow = false
+  let receiptRow: { ref: string; question: string } | undefined
   let askRow = false
   try {
     const store = JSON.parse(readFileSync(join(e.cfg, 'crew', 'obligations-switchboard.json'), 'utf8')) as { obligations: Record<string, { ref: string; question: string }> }
     for (const o of Object.values(store.obligations)) {
-      if (o.ref.startsWith('git-refused:') && o.question.includes(e.home)) refusedRow = true
+      if (o.ref.startsWith('git-refused:') && o.question.includes(e.home)) receiptRow = o
       if (o.ref.startsWith('permission:git-init:')) askRow = true
     }
   } catch {
   }
-  check('D1 the obligation store holds the refusal receipt and no git-init ask', refusedRow && !askRow)
-  let held = false
+  check('D1 the obligation store holds the refusal receipt and no git-init ask', receiptRow !== undefined && !askRow)
+  check('D1 the receipt names the reason and says kept without git', receiptRow?.question.includes('this is your home folder') === true && receiptRow?.question.includes('kept without git') === true, receiptRow?.question)
+  let rows: Array<{ heldReason?: string; reason?: string; sessionId?: string; state?: string }> = []
   try {
-    const ledger = JSON.parse(readFileSync(join(e.cfg, 'daemon', 'concourse-dispatches.json'), 'utf8')) as Record<string, { heldReason?: string; reason?: string; sessionId?: string }>
-    held = Object.values(ledger).some(r => r.sessionId === undefined && r.heldReason === 'repo-held' && (r.reason ?? '').includes('kept without git'))
+    const ledger = JSON.parse(readFileSync(join(e.cfg, 'daemon', 'concourse-dispatches.json'), 'utf8')) as { dispatches?: Record<string, { heldReason?: string; reason?: string; sessionId?: string; state?: string }> } & Record<string, unknown>
+    const table = (ledger.dispatches ?? ledger) as Record<string, { heldReason?: string; reason?: string; sessionId?: string; state?: string }>
+    rows = Object.values(table).filter(r => r !== null && typeof r === 'object' && 'state' in r)
   } catch {
   }
-  check('D1 the launch is held as a plain repo-held wait whose reason says kept without git', held)
+  const summary = rows.map(r => `${r.state}/${r.heldReason ?? '-'}/${r.sessionId !== undefined ? 'started' : 'no-session'}: ${(r.reason ?? '').slice(0, 90)}`).join(' | ')
+  check('D1 no launch was ever held on the git offer (no-repository / unborn-head)', rows.length > 0 && rows.every(r => r.heldReason !== 'no-repository' && r.heldReason !== 'unborn-head'), summary)
+  check('D1 the launch waits as a plain collision whose reason says kept without git', rows.some(r => r.sessionId === undefined && (r.reason ?? '').includes('kept without git')), summary)
   reap(e)
 }
 
+if (LEG !== 'D1') {
 console.log('\nD2 — from a project nested under a home repository, no probe scans above the launch folder')
-{
   const BULK = 15_000
   const e = estate('d2', { homeIsRepo: true, bulkFiles: BULK })
   const c = await capture(e, 'd2-nested-boot', e.proj, [
