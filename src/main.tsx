@@ -1830,6 +1830,14 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('startup-prefetch-batch', async () => {
     await runStartupPrefetchBatch()
   })
+  registerBackgroundNode('usage-poll', async () => {
+    const { armProviderUsagePoll } = await import('./services/providers/providerUsage.js')
+    const { declaredRouteOf } = await import('./services/providers/callModelRouter.js')
+    const { getFocusedSessionConnector } = await import('./services/engine-connector/focusedConnector.js')
+    armProviderUsagePoll({
+      family: () => declaredRouteOf(getFocusedSessionConnector().modelFacts().main) ?? 'unrecognised',
+    })
+  })
   registerBackgroundNode('example-commands', async () => {
     await refreshExampleCommands()
   })
