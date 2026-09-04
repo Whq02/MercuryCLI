@@ -498,9 +498,7 @@ export function ScrollKeybindingHandler({
     const timer = setInterval(() => {
       const handle = activeHandle()
       const state = selection.getState()
-      const dragging = Boolean(
-        (state as { dragging?: boolean } | null)?.dragging,
-      )
+      const dragging = state !== null && state.isDragging
       if (!handle || !state || !dragging) {
         autoscrollDirRef.current = 0
         autoscrollTicksRef.current = 0
@@ -508,10 +506,11 @@ export function ScrollKeybindingHandler({
       }
       if (autoscrollTicksRef.current > AUTOSCROLL_MAX_TICKS) return
       if (handle.getPendingDelta() !== 0) return
+      if (!state.focus || !state.anchor) return
       const top = handle.getViewportTop()
       const bottom = top + handle.getViewportHeight() - 1
-      const focusRow = (state as { focus?: { row: number } }).focus?.row ?? 0
-      const anchorRow = (state as { anchor?: { row: number } }).anchor?.row ?? 0
+      const focusRow = state.focus.row
+      const anchorRow = state.anchor.row
       const direction = dragScrollDirection(
         { anchorRow, focusRow },
         top,

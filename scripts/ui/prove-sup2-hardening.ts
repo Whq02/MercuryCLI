@@ -173,8 +173,8 @@ console.log('§11 tree digest — argv, never a shell')
 {
   const vs = read('src/utils/verification/verificationState.ts')
   check('poison gone: no execSync command strings remain', !vs.includes('execSync('))
-  check('the four calls are argv execFileSync', ["['read-tree', 'HEAD']", "['add', '-A', '--', '.']", "['reset', '-q', '--', '.claude', '.mercury']", "['write-tree']"].every(a => vs.includes(`execFileSync(gitExe(), ${a}`)))
-  check('the async twin still spells argv too', vs.includes('execFile(gitExe(), args, { windowsHide: true, cwd, env }'))
+  check('the four calls are argv execFileSync', vs.includes('execFileSync(gitExe(), args, {') && ["['read-tree', 'HEAD']", "['add', '-A', '--', '.'", "['reset', '-q', '--', ...HARNESS_DIRS]", "['write-tree', '--missing-ok'"].every(a => vs.includes(a)))
+  check('the async twin still spells argv too', vs.includes('execFile(gitExe(), args, { windowsHide: true, cwd, env,'))
 }
 
 console.log('§12 boot scan — the growth dimension is capped')

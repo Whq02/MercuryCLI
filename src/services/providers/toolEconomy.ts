@@ -49,8 +49,12 @@ function firstConversationRow(messages: readonly Message[]): string {
   return 'empty'
 }
 
-function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string): string {
+export function conversationRosterKey(latchKey: string, messages: readonly Message[], model: string): string {
   return `${latchKey}|${firstConversationRow(messages)}|${model}`
+}
+
+function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string): string {
+  return conversationRosterKey(latchKey, messages, model)
 }
 
 export function toolRosterLatchFor(

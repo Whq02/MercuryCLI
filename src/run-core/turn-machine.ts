@@ -11,12 +11,15 @@ import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
 import {
   classifyThinkingDrops,
+  describePrefixRewrite,
   describeThinkingDrops,
   inputTransformationsOf,
   modelSwitchReceipt,
   prefixMarkOf,
+  recordPrefixRewriteLedger,
   recordThinkingDropLedger,
 } from '../services/providers/anthropic/thinkingBinding.js'
+import { takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
 import { logForDebugging } from '../utils/debug.js'
 
 const switchReceipts = new Set<string>()
@@ -577,6 +580,9 @@ async function* streamModel(
                   permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
                 }),
               )
+              const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              const rewrite = prefixVerdict?.mismatch ?? null
+              if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
               if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
@@ -584,6 +590,9 @@ async function* streamModel(
               const dropNotice = describeThinkingDrops(drops, outcome)
               if (dropNotice !== null) {
                 yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+              } else if (rewrite !== null && outcome.kind === 'none') {
+                recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel)
+                yield emit({ kind: 'notice', message: createSystemMessage(describePrefixRewrite(rewrite.part, rewrite.path), 'warning') })
               }
             }
             if (callId === `${iter.turnId}.c1`) {
