@@ -27,7 +27,11 @@ import { OverlayRecord } from '../../src/ink/geometry/overlay.js'
 import {
   clearSelection,
   createSelectionState,
+  finishSelection,
+  getSelectedText,
+  hasSelection,
   type SelectionState,
+  setSelectionClipBand,
   startSelection,
   updateSelection,
 } from '../../src/ink/geometry/selection.js'
@@ -321,13 +325,13 @@ function freshScrollCompose(spec: ScrollSpec, scrollTop: number): { screen: Scre
   const grown = session.step()
   const afterTop = t.scrollBox.scroll?.scrollTop ?? 0
   check('sticky growth: follows to the new max', afterTop === beforeTop + 1, `${beforeTop}→${afterTop}`)
-  const follow = grown.signals.consumeFollowScroll()
+  const follow = grown.signals.consumeScrollTranslation()
   check(
-    'sticky growth: followScroll published once',
+    'sticky growth: scrollTranslation published once',
     follow !== null && follow.delta === afterTop - beforeTop,
     JSON.stringify(follow),
   )
-  check('followScroll consumed', grown.signals.consumeFollowScroll() === null)
+  check('scrollTranslation consumed', grown.signals.consumeScrollTranslation() === null)
 }
 
 {
@@ -422,7 +426,7 @@ class OverlaySession {
     const record = new OverlayRecord(frame.screen.width)
     applyOverlayPass({
       altScreen: true,
-      follow: signals.consumeFollowScroll(),
+      scrollTranslation: signals.consumeScrollTranslation(),
       selection: this.selection,
       captureScreen: this.front.screen,
       screen: frame.screen,
@@ -618,6 +622,226 @@ function checkOverlayStep(
     quiet.bytes.length === 0 && quiet.counts.write === 0,
     `${quiet.bytes.length} bytes, write=${quiet.counts.write}`,
   )
+}
+
+{
+  const P_TOP = 2
+  const P_BOT = 9
+  const P_H = P_BOT - P_TOP + 1
+
+  function buildPaneTree(items: string[]): { root: DOMElement; scrollBox: DOMElement; content: DOMElement } {
+    const root = createNode('ink-root')
+    applySceneStyle(root, { width: COLS, height: ROWS, flexDirection: 'column' })
+    const header = createNode('ink-box')
+    applySceneStyle(header, { height: P_TOP, flexShrink: 0, flexDirection: 'column' })
+    const ht = createNode('ink-text')
+    appendChildNode(ht, createTextNode('HEADER above the pane') as never)
+    appendChildNode(header, ht)
+    const scrollBox = createNode('ink-box')
+    applySceneStyle(scrollBox, { flexDirection: 'column', flexGrow: 0, flexShrink: 0, height: P_H, overflowY: 'scroll' })
+    const content = createNode('ink-box')
+    applySceneStyle(content, { flexDirection: 'column', flexGrow: 0, flexShrink: 0 })
+    for (const item of items) {
+      const t = createNode('ink-text')
+      appendChildNode(t, createTextNode(item) as never)
+      appendChildNode(content, t)
+    }
+    appendChildNode(scrollBox, content)
+    const footer = createNode('ink-box')
+    applySceneStyle(footer, { height: ROWS - P_BOT - 1, flexShrink: 0, flexDirection: 'column' })
+    const ft = createNode('ink-text')
+    appendChildNode(ft, createTextNode('FOOTER below the pane') as never)
+    appendChildNode(footer, ft)
+    appendChildNode(root, header)
+    appendChildNode(root, scrollBox)
+    appendChildNode(root, footer)
+    return { root, scrollBox, content }
+  }
+
+  class ScrollOverlaySession {
+    readonly stylePool = new StylePool()
+    readonly charPool = new CharPool()
+    readonly hyperlinkPool = new HyperlinkPool()
+    readonly selection: SelectionState = createSelectionState()
+    cleared = 0
+    private front: Frame
+    private back: Frame
+    private glass: OverlayRecord | null = null
+    private readonly render: ReturnType<typeof createRenderer>
+    constructor(readonly root: DOMElement, readonly sb: DOMElement) {
+      this.stylePool.setSelectionBg({ code: `\x1b[${SELECTION_BG}m`, endCode: '\x1b[49m' })
+      this.front = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+      this.back = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+      this.render = createRenderer(root, this.stylePool)
+    }
+    step(): Frame {
+      this.root.layoutNode!.calculateLayout(COLS, ROWS)
+      const glass = this.glass
+      if (glass) glass.revert(this.front.screen)
+      const { frame, signals } = this.render({
+        frontFrame: this.front,
+        backFrame: this.back,
+        isTTY: true,
+        terminalWidth: COLS,
+        terminalRows: ROWS,
+        altScreen: true,
+        prevFrameContaminated: false,
+        regionScrollUsable: true,
+      })
+      if (glass) glass.restore(this.front.screen)
+      const record = new OverlayRecord(frame.screen.width)
+      applyOverlayPass({
+        altScreen: true,
+        scrollTranslation: signals.consumeScrollTranslation(),
+        selection: this.selection,
+        captureScreen: this.front.screen,
+        screen: frame.screen,
+        stylePool: this.stylePool,
+        searchQuery: '',
+        searchPositions: null,
+        onSelectionCleared: () => {
+          this.cleared++
+        },
+        record,
+      })
+      this.back = this.front
+      this.front = frame
+      this.glass = record.size > 0 ? record : null
+      return frame
+    }
+    highlighted(): Map<number, string> {
+      const out = new Map<number, string>()
+      const screen = this.front.screen
+      for (let y = 0; y < screen.height; y++) {
+        let text = ''
+        for (let x = 0; x < screen.width; x++) {
+          const cell = cellAt(screen, x, y)
+          if (!cell || cell.width === CellWidth.SpacerTail) continue
+          if (expectedStyle(this.stylePool, cell.styleId).bg === SELECTION_BG) text += cell.char === '' ? ' ' : cell.char
+        }
+        if (text.trim().length > 0) out.set(y, text)
+      }
+      return out
+    }
+    copy(): string {
+      return getSelectedText(this.selection, this.front.screen)
+    }
+    scrollTo(top: number): void {
+      const sc = ((this.scrollBoxNode()).scroll ??= {})
+      sc.scrollTop = top
+      sc.pendingScrollDelta = undefined
+      markDirty(this.scrollBoxNode())
+    }
+    wheelBy(dy: number): void {
+      const sc = ((this.scrollBoxNode()).scroll ??= {})
+      sc.pendingScrollDelta = (sc.pendingScrollDelta ?? 0) + dy
+      markDirty(this.scrollBoxNode())
+    }
+    pending(): number {
+      return this.scrollBoxNode().scroll?.pendingScrollDelta ?? 0
+    }
+    private scrollBoxNode(): DOMElement {
+      return this.sb
+    }
+  }
+
+  const items = Array.from({ length: 40 }, (_, i) => `item ${String(i).padStart(2, '0')} the quick brown line`)
+  const { root, scrollBox: sb } = buildPaneTree(items)
+  const session = new ScrollOverlaySession(root, sb)
+  session.step()
+  session.step()
+
+  const rowsInPane = (h: Map<number, string>): boolean => [...h.keys()].every(y => y >= P_TOP && y <= P_BOT)
+  const escapedRows = (h: Map<number, string>): number[] => [...h.keys()].filter(y => y < P_TOP || y > P_BOT)
+
+  startSelection(session.selection, 0, P_TOP + 2)
+  updateSelection(session.selection, COLS - 1, P_TOP + 6)
+  finishSelection(session.selection)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const copy0 = session.copy()
+  const h0 = session.highlighted()
+  check('scroll-xlate: a selection highlights inside the pane', h0.size > 0 && rowsInPane(h0), `rows ${[...h0.keys()].join(',')}`)
+  check('scroll-xlate: the copy carries the five selected lines', copy0.split('\n').length === 5 && copy0.startsWith('item 02'), JSON.stringify(copy0))
+
+  session.scrollTo(3)
+  session.step()
+  check('scroll-xlate: jump down 3 — copy unchanged (the selection followed)', session.copy() === copy0, `${JSON.stringify(session.copy())} vs ${JSON.stringify(copy0)}`)
+  check('scroll-xlate: jump down 3 — no highlight escapes the pane', escapedRows(session.highlighted()).length === 0, `escaped ${escapedRows(session.highlighted()).join(',')}`)
+
+  session.scrollTo(6)
+  session.step()
+  check('scroll-xlate: jump down 6 — copy still unchanged', session.copy() === copy0, JSON.stringify(session.copy()))
+  check('scroll-xlate: jump down 6 — no escape', escapedRows(session.highlighted()).length === 0)
+
+  session.scrollTo(0)
+  session.step()
+  check('scroll-xlate: back at the top — copy restored (no accumulation)', session.copy() === copy0, JSON.stringify(session.copy()))
+  const hBack = session.highlighted()
+  check('scroll-xlate: back at the top — the highlight is on the original rows', [...hBack.keys()].join(',') === [...h0.keys()].join(','), `${[...hBack.keys()].join(',')} vs ${[...h0.keys()].join(',')}`)
+
+  session.wheelBy(5)
+  let guard = 0
+  while (session.pending() !== 0 && guard++ < 12) {
+    session.step()
+    check(`scroll-xlate: wheel drain frame ${guard} — no escape`, escapedRows(session.highlighted()).length === 0, `escaped ${escapedRows(session.highlighted()).join(',')}`)
+  }
+  check('scroll-xlate: after the wheel drain the copy is unchanged (the wheel moved, never cleared)', session.copy() === copy0 && hasSelection(session.selection), JSON.stringify(session.copy()))
+  session.scrollTo(0)
+  session.step()
+  check('scroll-xlate: wheel round-trip restores the copy', session.copy() === copy0, JSON.stringify(session.copy()))
+
+  session.scrollTo(2)
+  session.step()
+  session.wheelBy(-20)
+  guard = 0
+  while (session.pending() !== 0 && guard++ < 12) session.step()
+  check('scroll-xlate: a clamp at the top leaves no escape', escapedRows(session.highlighted()).length === 0, `escaped ${escapedRows(session.highlighted()).join(',')}`)
+  check('scroll-xlate: after the clamped return the copy holds', session.copy() === copy0, JSON.stringify(session.copy()))
+
+  clearSelection(session.selection)
+  session.scrollTo(0)
+  session.step()
+  startSelection(session.selection, 0, P_TOP + 2)
+  updateSelection(session.selection, COLS - 1, ROWS - 1)
+  finishSelection(session.selection)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const hStraddle = session.highlighted()
+  check('scroll-xlate: a straddle selection paints no row past the pane (the row band)', escapedRows(hStraddle).length === 0 && hStraddle.size > 0, `rows ${[...hStraddle.keys()].join(',')}`)
+
+  clearSelection(session.selection)
+  session.scrollTo(0)
+  session.step()
+  const dragAnchorRow = P_TOP + 4
+  startSelection(session.selection, 0, dragAnchorRow)
+  updateSelection(session.selection, COLS - 1, dragAnchorRow + 1)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const anchorLine = session.highlighted().get(dragAnchorRow) ?? ''
+  check('scroll-xlate: the drag anchor line is highlighted before the tick', anchorLine.startsWith('item 04'), JSON.stringify(anchorLine))
+  session.scrollTo(2)
+  session.step()
+  const hDrag = session.highlighted()
+  check('scroll-xlate: under a drag the anchor line moved up with the content and stays highlighted', hDrag.get(dragAnchorRow - 2)?.startsWith('item 04') === true, `rows ${[...hDrag.entries()].map(([y, t]) => `${y}:${t.slice(0, 7)}`).join(' ')}`)
+  check('scroll-xlate: under a drag the focus stays at the pointer row', session.selection.focus?.row === dragAnchorRow + 1 && session.selection.anchor?.row === dragAnchorRow - 2, JSON.stringify({ anchor: session.selection.anchor, focus: session.selection.focus }))
+  check('scroll-xlate: under a drag the copy runs from the anchor line to the pointer', session.copy().startsWith('item 04') && session.copy().split('\n').length === 4, JSON.stringify(session.copy()))
+  check('scroll-xlate: under a drag nothing escapes the pane', escapedRows(hDrag).length === 0)
+
+  clearSelection(session.selection)
+  session.scrollTo(0)
+  session.step()
+  startSelection(session.selection, 0, P_TOP + 2)
+  updateSelection(session.selection, COLS - 1, P_TOP + 6)
+  finishSelection(session.selection)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const clearedBefore = session.cleared
+  session.scrollTo(P_H)
+  session.step()
+  const hGone = session.highlighted()
+  check('scroll-xlate: both ends past the top edge clear the selection (no ghost cell, empty copy)', !hasSelection(session.selection) && hGone.size === 0 && session.copy() === '', `rows ${[...hGone.keys()].join(',')} copy=${JSON.stringify(session.copy())}`)
+  check('scroll-xlate: the clear fires the cleared listener exactly once', session.cleared === clearedBefore + 1, `${session.cleared - clearedBefore} fired`)
 }
 
 if (failures > 0) {
