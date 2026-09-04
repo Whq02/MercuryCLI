@@ -122,7 +122,7 @@ export interface ControlServerDeps {
   concourseList?: () => ReadonlyArray<Record<string, unknown>>
   concourseWithdraw?: (clientMessageId: string) => Promise<boolean>
   concourseRelease?: (runnerId: string) => { settled: boolean; killed: boolean }
-  concourseWarm?: (req: { workspaceDir: string; retiring?: string; bootCarriesRunnerOptions?: boolean; kit?: SessionKitV1 }) => Promise<{
+  concourseWarm?: (req: { workspaceDir: string; retiring?: string; bootCarriesRunnerOptions?: boolean; kit?: SessionKitV1; bypassConsent?: true }) => Promise<{
     state: 'warmed' | 'kept' | 'refused'
     detail?: string
   }>
@@ -714,6 +714,7 @@ async function routeControlRequest(
         ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
         ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
+        ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
         ...(raw.bornBlank === true ? { bornBlank: true } : {}),
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
@@ -763,6 +764,7 @@ async function routeControlRequest(
         ...(typeof raw.retiring === 'string' && raw.retiring !== '' ? { retiring: raw.retiring } : {}),
         ...(raw.runnerOptionsPresent === true ? { bootCarriesRunnerOptions: true } : {}),
         ...(warmKit !== undefined ? { kit: warmKit } : {}),
+        ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
       })
       return answer(sock, { ok: true, op: 'concourseWarm', ...pickDefined(warm, WARM_WIRE_KEYS) })
     }

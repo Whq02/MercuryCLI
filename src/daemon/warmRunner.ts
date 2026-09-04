@@ -39,6 +39,7 @@ interface WarmRunnerEntry {
   bootModelKey: string
   snapshotId: string
   kit: SessionKitV1
+  bypassConsent: boolean
 }
 
 const pool = new Map<string, WarmRunnerEntry>()
@@ -47,12 +48,14 @@ const claimWaiters = new Map<string, (outcome: { ok: boolean; error?: string }) 
 
 interface TrailingEnsure {
   requestedKit: SessionKitV1 | undefined
+  requestedConsent: boolean
   deps: WarmRunnerDeps
   waiters: Array<{ resolve: (outcome: WarmEnsureOutcome) => void; reject: (err: unknown) => void }>
 }
 
 interface EnsureFlight {
   requestedKit: SessionKitV1 | undefined
+  requestedConsent: boolean
   run: Promise<WarmEnsureOutcome>
   trailing: TrailingEnsure | null
 }
@@ -131,6 +134,7 @@ export async function ensureWarmRunner(
     retiring?: string
     bootCarriesRunnerOptions?: boolean
     kit?: SessionKitV1
+    bypassConsent?: boolean
   },
   deps: WarmRunnerDeps,
 ): Promise<WarmEnsureOutcome> {
@@ -154,9 +158,10 @@ export async function ensureWarmRunner(
     } catch {
     }
   }
+  const consent = args.bypassConsent === true
   const inFlight = ensureFlights.get(workspaceId)
-  if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, deps)
-  const flight: EnsureFlight = { requestedKit: args.kit, run: ensureWarmRunnerFlight(workspaceId, args.kit, deps), trailing: null }
+  if (inFlight !== undefined) return awaitBehindFlight(inFlight, args.kit, consent, deps)
+  const flight: EnsureFlight = { requestedKit: args.kit, requestedConsent: consent, run: ensureWarmRunnerFlight(workspaceId, args.kit, consent, deps), trailing: null }
   ensureFlights.set(workspaceId, flight)
   settleEnsureFlight(workspaceId, flight)
   return flight.run
@@ -170,13 +175,14 @@ function sameRequestedKit(a: SessionKitV1 | undefined, b: SessionKitV1 | undefin
 function awaitBehindFlight(
   flight: EnsureFlight,
   kit: SessionKitV1 | undefined,
+  consent: boolean,
   deps: WarmRunnerDeps,
 ): Promise<WarmEnsureOutcome> {
-  if (flight.trailing === null && sameRequestedKit(flight.requestedKit, kit)) return flight.run
+  if (flight.trailing === null && sameRequestedKit(flight.requestedKit, kit) && flight.requestedConsent === consent) return flight.run
   return new Promise<WarmEnsureOutcome>((resolve, reject) => {
     const waiters = flight.trailing?.waiters ?? []
     waiters.push({ resolve, reject })
-    flight.trailing = { requestedKit: kit, deps, waiters }
+    flight.trailing = { requestedKit: kit, requestedConsent: consent, deps, waiters }
   })
 }
 
@@ -189,7 +195,8 @@ function settleEnsureFlight(workspaceId: string, flight: EnsureFlight): void {
     }
     flight.trailing = null
     flight.requestedKit = next.requestedKit
-    flight.run = ensureWarmRunnerFlight(workspaceId, next.requestedKit, next.deps)
+    flight.requestedConsent = next.requestedConsent
+    flight.run = ensureWarmRunnerFlight(workspaceId, next.requestedKit, next.requestedConsent, next.deps)
     void flight.run.then(
       outcome => {
         for (const waiter of next.waiters) waiter.resolve(outcome)
@@ -206,6 +213,7 @@ function settleEnsureFlight(workspaceId: string, flight: EnsureFlight): void {
 async function ensureWarmRunnerFlight(
   workspaceId: string,
   carriedKit: SessionKitV1 | undefined,
+  bypassConsent: boolean,
   deps: WarmRunnerDeps,
 ): Promise<WarmEnsureOutcome> {
   const roster = deps.roster()
@@ -215,11 +223,15 @@ async function ensureWarmRunnerFlight(
   if (existing !== undefined) {
     const state = roster.has(existing.short)
     if (state.present && state.alive && (existing.pid === undefined || isProcessAlive(existing.pid))) {
-      if (sameKit(existing.kit, kit)) {
+      if (sameKit(existing.kit, kit) && existing.bypassConsent === bypassConsent) {
         existing.lastKeptAt = Date.now()
         return { state: 'kept', detail: existing.short, short: existing.short }
       }
-      retireWarmRunner(workspaceId, 'kit drift — the menu moved since the warm boot', deps)
+      retireWarmRunner(
+        workspaceId,
+        sameKit(existing.kit, kit) ? 'consent drift — the launch consent changed since the warm boot' : 'kit drift — the menu moved since the warm boot',
+        deps,
+      )
     } else {
       pool.delete(workspaceId)
     }
@@ -246,7 +258,7 @@ async function ensureWarmRunnerFlight(
   const appeared = pool.get(workspaceId)
   if (appeared !== undefined) {
     const state = roster.has(appeared.short)
-    if (state.present && state.alive && (appeared.pid === undefined || isProcessAlive(appeared.pid)) && sameKit(appeared.kit, kit)) {
+    if (state.present && state.alive && (appeared.pid === undefined || isProcessAlive(appeared.pid)) && sameKit(appeared.kit, kit) && appeared.bypassConsent === bypassConsent) {
       appeared.lastKeptAt = Date.now()
       return { state: 'kept', detail: appeared.short, short: appeared.short }
     }
@@ -260,6 +272,7 @@ async function ensureWarmRunnerFlight(
     modelKey: validated.entry.modelId,
     effort: 'high',
     warm: true,
+    ...(bypassConsent ? { bypassConsent: true as const } : {}),
     kit,
   })
   const reg = roster.registerLongLived(short, spec)
@@ -273,6 +286,7 @@ async function ensureWarmRunnerFlight(
     bootModelKey: validated.entry.modelId,
     snapshotId,
     kit,
+    bypassConsent,
   })
   deps.onWarmSpawned?.(short, workspaceId, reg.pid)
   return { state: 'warmed', detail: short, short }
@@ -289,6 +303,7 @@ export async function claimWarmRunner(
     modelKey: string
     effort: string
     permissionMode: string
+    bypassConsent?: boolean
     kit: SessionKitV1
     resume?: true
     answerDeadlineMs?: number
@@ -311,6 +326,10 @@ export async function claimWarmRunner(
   if (!sameKit(args.kit, entry.kit)) {
     retireWarmRunner(args.workspaceId, 'kit drift — the warm runner booted a different kit than this admission carries', deps)
     return { claimed: false, reason: 'the menu kit changed since the warm boot' }
+  }
+  if (entry.bypassConsent !== (args.bypassConsent === true)) {
+    retireWarmRunner(args.workspaceId, 'consent drift — the warm runner booted a different launch consent than this admission carries', deps)
+    return { claimed: false, reason: 'the launch consent differs from the warm boot' }
   }
   const requestId = `${WARM_CLAIM_REQUEST_PREFIX}${entry.short}-${Date.now().toString(36)}`
   const frame = JSON.stringify({

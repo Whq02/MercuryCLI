@@ -1992,6 +1992,17 @@ async function interactiveLaunch(args: {
       await exitWithError(root, `Failed to resume session ${sessionId}: ${outcome.reason}`)
       return false
     }
+    {
+      const facts = await import('./services/switchboard/bootBirthFacts.js')
+      const { runnerArgvFromBoot } = await import('./services/switchboard/runnerArgv.js')
+      facts.setBootBirthFacts({
+        title: args.sessionTitle ?? null,
+        effort: typeof opts.effort === 'string' ? opts.effort : null,
+        permissionMode: args.permissionMode,
+        bypassConsent: effectiveContext.isBypassPermissionsModeAvailable === true,
+        runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),
+      })
+    }
     if (opts.continue) {
       const lastLog = await getLogByIndex(0)
       const sessionId = lastLog ? getSessionIdFromLog(lastLog as Parameters<typeof getSessionIdFromLog>[0]) : undefined
@@ -2037,14 +2048,6 @@ async function interactiveLaunch(args: {
         return
       }
     } else {
-      const facts = await import('./services/switchboard/bootBirthFacts.js')
-      const { runnerArgvFromBoot } = await import('./services/switchboard/runnerArgv.js')
-      facts.setBootBirthFacts({
-        title: args.sessionTitle ?? null,
-        effort: typeof opts.effort === 'string' ? opts.effort : null,
-        permissionMode: args.permissionMode,
-        runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),
-      })
       const promptIsWords = typeof inputPrompt === 'string' && inputPrompt.trim() !== '' && !inputPrompt.trimStart().startsWith('/')
       const { isFullscreenEnvEnabled } = await import('./utils/fullscreen.js')
       if (promptIsWords || !isFullscreenEnvEnabled()) {

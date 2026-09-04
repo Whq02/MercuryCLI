@@ -64,12 +64,13 @@ async function awaitSuccessor(hs: Handshake, oldPid: number | null, tries = 40):
 export async function warmSessionRunner(workspaceDir: string, retiring?: string): Promise<boolean> {
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
-    const { bootBirthFacts, carriedKitOf } = await import('./bootBirthFacts.js')
+    const { bootBirthFacts, carriedConsentOf, carriedKitOf } = await import('./bootBirthFacts.js')
     const reply = (await daemonControlRpc(
       {
         op: 'concourseWarm',
         workspaceDir,
         ...(retiring !== undefined ? { retiring } : {}),
+        ...carriedConsentOf(bootBirthFacts()),
         ...(bootCarriesRunnerOptions() ? { runnerOptionsPresent: true } : {}),
         ...carriedKitOf(bootBirthFacts()),
       } as never,

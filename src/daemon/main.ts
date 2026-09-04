@@ -366,8 +366,8 @@ async function daemonRun(args: string[]): Promise<void> {
       }
       const warmAdmitDoors = {
         claimWarm: (args: Parameters<typeof claimWarmRunner>[0]) => claimWarmRunner(args, warmDeps),
-        ensureWarm: (workspaceDir: string, kit?: Parameters<typeof ensureWarmRunner>[0]['kit']) => {
-          void ensureWarmRunner({ workspaceDir, ...(kit !== undefined ? { kit } : {}) }, warmDeps).catch(() => {})
+        ensureWarm: (workspaceDir: string, kit?: Parameters<typeof ensureWarmRunner>[0]['kit'], bypassConsent?: boolean) => {
+          void ensureWarmRunner({ workspaceDir, ...(kit !== undefined ? { kit } : {}), ...(bypassConsent === true ? { bypassConsent: true } : {}) }, warmDeps).catch(() => {})
         },
       }
       const concourseDispatchHandler = makeConcourseDispatchHandler({
