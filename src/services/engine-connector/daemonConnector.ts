@@ -99,7 +99,7 @@ interface SeatSend {
   clientMessageId: string
   text: string
   sentAtMs: number
-  state: 'pending' | 'delivered'
+  state: 'pending' | 'delivered' | 'queued' | 'taken'
   mode: 'prompt' | 'bash'
 }
 
@@ -726,12 +726,41 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     emitAll(this.liveListeners, 'live')
   }
 
+  private reconcileQueuedSends(facts: SessionFactsV1): void {
+    if (this.sends.length === 0) return
+    const queuedIds = new Set<string>()
+    for (const entry of facts.queue ?? []) if (typeof entry.uuid === 'string') queuedIds.add(entry.uuid)
+    for (const s of this.sends) {
+      if (s.state === 'pending') continue
+      if (queuedIds.has(s.clientMessageId)) {
+        if (s.state !== 'queued') this.dressSend(s.clientMessageId, 'queued')
+      } else if (s.state === 'queued' || (s.state === 'delivered' && facts.atMs >= s.sentAtMs)) {
+        this.dressSend(s.clientMessageId, 'taken')
+      }
+    }
+  }
+
+  private dressSend(clientMessageId: string, state: SeatSend['state']): void {
+    this.sends = this.sends.map(s => (s.clientMessageId === clientMessageId ? { ...s, state } : s))
+    const row = this.echoRows.get(clientMessageId) as (Message & { queued?: true }) | undefined
+    if (row === undefined) return
+    const queued = state === 'queued'
+    if (queued === (row.queued === true)) return
+    const next: Message & { queued?: true } = queued
+      ? { ...row, queued: true }
+      : { ...row, timestamp: new Date().toISOString() }
+    if (!queued) delete next.queued
+    this.echoRows.set(clientMessageId, next)
+    this.paint()
+  }
+
   private reconcileSends(): boolean {
     if (this.sends.length === 0) return false
     const now = Date.now()
     const landed = new Set<string>()
+    const ownIds = new Set(this.sends.map(s => s.clientMessageId))
     for (const s of this.sends) {
-      if (now - s.sentAtMs > ECHO_RETIRE_MS) {
+      if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
         landed.add(s.clientMessageId)
         continue
       }
@@ -739,9 +768,18 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       for (let i = this.rawRecords.length - 1; i >= 0; i--) {
         const m = this.rawRecords[i]!
         if (idKeyed) {
-          if (m.type === 'user' && (m as { uuid?: string }).uuid === s.clientMessageId) {
+          const rowUuid = (m as { uuid?: string }).uuid
+          if (m.type === 'user' && rowUuid === s.clientMessageId) {
             landed.add(s.clientMessageId)
             break
+          }
+          if (m.type === 'user' && rowUuid !== undefined && ownIds.has(rowUuid)) {
+            const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
+            const text = textOfUserRow(m)
+            if (!(!Number.isNaN(ts) && ts + 1000 < s.sentAtMs) && text !== '' && text.includes(s.text)) {
+              landed.add(s.clientMessageId)
+              break
+            }
           }
           const att = (m as { attachment?: { type?: string; source_uuid?: string } }).attachment
           if (m.type === 'attachment' && att?.type === 'queued_command' && att.source_uuid === s.clientMessageId) {
@@ -899,6 +937,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.factsBusy = next.busy
     if (next.busy) this.armBusyStall()
     else this.disarmBusyStall()
+    this.reconcileQueuedSends(next)
     this.recomputeLive()
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
@@ -1117,7 +1156,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.echoRows.delete(clientMessageId)
         this.paint()
       } else {
-        this.sends = this.sends.map(s => (s.clientMessageId === clientMessageId ? { ...s, state: 'delivered' as const } : s))
+        this.dressSend(clientMessageId, this.factsBusy ? 'queued' : 'delivered')
       }
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
       emitAll(this.liveListeners, 'live')

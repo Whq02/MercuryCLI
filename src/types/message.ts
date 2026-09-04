@@ -116,6 +116,7 @@ export type UserMessage = {
   isMeta?: true
   isVisibleInTranscriptOnly?: true
   isVirtual?: true
+  queued?: true
   isCompactSummary?: true
   summarizeMetadata?: {
     messagesSummarized: number
