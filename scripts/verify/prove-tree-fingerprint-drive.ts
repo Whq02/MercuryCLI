@@ -18,7 +18,8 @@ if (!existsSync(BIN)) {
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'tree-drive-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
 const FIX = join(SCRATCH, 'fixture')
-const IDLE_TICKS = Number(process.env.MERCURY_TREE_DRIVE_IDLE_TICKS ?? 250)
+const IDLE_TICKS = Number(process.env.MERCURY_TREE_DRIVE_IDLE_TICKS ?? 200)
+const SETTLE_TICKS = 100
 const DIGEST_CEILING_PER_MIN = 1
 const TOTAL_CEILING_PER_MIN = 8
 
@@ -132,15 +133,16 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   const api = await startFixtureApi([{ kind: 'text', text: 'Spare.' }, { kind: 'text', text: 'Spare.' }])
   const shimLog = join(SCRATCH, `git-${surface}.log`)
   writeFileSync(shimLog, '')
+  const idle: Send[] = [{ afterPrevTicks: SETTLE_TICKS, data: '', mark: 'surface' }, { afterPrevTicks: IDLE_TICKS, data: '', mark: 'surface-end' }, ...QUIT]
   const sends: Send[] =
     surface === 'face'
-      ? [g(READY_LINE, '', { mark: 'surface', awaitSettleTicks: 4 }), { afterPrevTicks: IDLE_TICKS, data: '', mark: 'surface-end' }, ...QUIT]
+      ? [g(READY_LINE, '', { awaitSettleTicks: 4 }), ...idle]
       : surface === 'chat'
-        ? [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, '', { mark: 'surface', awaitSettleTicks: 4 }), { afterPrevTicks: IDLE_TICKS, data: '', mark: 'surface-end' }, ...QUIT]
-        : [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }), g(BOARD, '', { mark: 'surface', awaitSettleTicks: 4 }), { afterPrevTicks: IDLE_TICKS, data: '', mark: 'surface-end' }, ...QUIT]
+        ? [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, '', { awaitSettleTicks: 4 }), ...idle]
+        : [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }), g(BOARD, '', { awaitSettleTicks: 4 }), ...idle]
   const cfgPath = join(SCRATCH, `cfg-${surface}.json`)
   const outPath = join(SCRATCH, `grid-${surface}.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--model', 'claude-sonnet-5'], cwd: FIX, cols: 120, rows: 40, sends, total: IDLE_TICKS + 300, out: outPath }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--model', 'claude-sonnet-5'], cwd: FIX, cols: 120, rows: 40, sends, total: SETTLE_TICKS + IDLE_TICKS + 300, out: outPath }))
   const before = countObjects(FIX)
   const child = spawn(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], {
     env: {
