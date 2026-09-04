@@ -283,7 +283,7 @@ section('§8 the surfaces — doctor, status, dry-run, registry, notices, docs, 
   check('THIRD_PARTY_NOTICES names the Node.js runtime with its receipt', notices.includes('**Node.js runtime**') && notices.includes('vendor/node.lock.json'))
   check('the notices generator reads the node lock', read('scripts/distribution/generate-third-party-notices.ts').includes("vendorLock('node.lock.json')"))
   const readme = read('README.md')
-  check('README: a release install needs git only', readme.includes('A release install needs git only'))
+  check('README: a release install needs git only', readme.includes('A release install needs git only') || readme.includes('A release install needs `git` only'))
   check('README: five vendored packs', readme.includes('the five vendored packs'))
   const agents = read('AGENTS.md')
   check('AGENTS.md: a release install needs git only, and stays under 80 lines', agents.includes('A release install needs `git` only') && agents.split('\n').length <= 80, `${agents.split('\n').length} split parts`)
