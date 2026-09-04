@@ -50,6 +50,10 @@ export function spawnLedgerPaths(): string[] {
   return legacy !== live && existsSync(legacy) ? [live, legacy] : [live]
 }
 
+export function bashAuditPath(): string {
+  return join(forensicsDir(), 'bash-audit.jsonl')
+}
+
 function appendTrail(path: string, row: unknown): void {
   mkdirSync(dirname(path), { recursive: true })
   appendFileSync(path, JSON.stringify(row) + '\n')
@@ -114,7 +118,7 @@ export function recordBashAudit(command: string, exitCode: number | null, interr
       exitCode,
       interrupted,
     }
-    appendTrail(join(forensicsDir(), 'bash-audit.jsonl'), row)
+    appendTrail(bashAuditPath(), row)
   } catch {
   }
 }

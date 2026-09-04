@@ -62,7 +62,8 @@ console.log('— unit: provenance stamp —')
 check('spawnedByStamp is kind:id#pid', new RegExp(`^daemon-tank:x#${process.pid}$`).test(led.spawnedByStamp('daemon-tank', 'x')))
 
 console.log('— unit: autonomous-only bash audit —')
-const auditPath = join(home, 'bash-audit.jsonl')
+const auditPath = led.bashAuditPath()
+check('the bash audit lives beside the ledger under the daemon\'s own directory', auditPath === join(home, 'daemon', 'bash-audit.jsonl'), auditPath)
 led.recordBashAudit('echo operator', 0, false)
 check('operator sessions never write bash-audit.jsonl', !existsSync(auditPath))
 process.env.MERCURY_SPAWNED_BY = 'proof:me#1'
