@@ -1136,7 +1136,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     const mode: 'prompt' | 'bash' = opts.mode === 'bash' ? 'bash' : 'prompt'
     const provisionalId =
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
-    this.echoRows.set(provisionalId, createUserMessage({ content: expanded }) as unknown as Message)
+    const echo = createUserMessage({ content: expanded }) as unknown as Message
+    this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
     this.paint()
     const answering = await this.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
