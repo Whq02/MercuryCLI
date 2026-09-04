@@ -175,11 +175,13 @@ export async function coordinatorBoardView(opts: CoordinatorBoardViewOpts = {}):
         probes += 1
         try {
           if (wt.workspaceKindOf(workspaceId) === 'git') {
-            const dirt = wt.classifyWorktreeDirt(workspaceId)
+            const dirt = wt.cachedWorktreeDirt(workspaceId)
             words =
-              dirt.kind === 'authored'
-                ? `on the main checkout · uncommitted changes in ${dirt.files.length} file${dirt.files.length === 1 ? '' : 's'} there`
-                : 'on the main checkout · working tree clean'
+              dirt === null
+                ? 'on the main checkout'
+                : dirt.kind === 'authored'
+                  ? `on the main checkout · uncommitted changes in ${dirt.files.length} file${dirt.files.length === 1 ? '' : 's'} there`
+                  : 'on the main checkout · working tree clean'
           } else {
             words = 'plain folder (no git)'
           }

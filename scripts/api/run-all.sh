@@ -23,5 +23,6 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-binding.t
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || fail=1; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-thinking-drop-notice.ts" || fail=1; prover_mark "scripts/api/prove-thinking-drop-notice.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wire-dump.ts" || fail=1; prover_mark "scripts/api/prove-wire-dump.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-ledger.ts" || fail=1; prover_mark "scripts/api/prove-prefix-ledger.ts" "$__t"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi

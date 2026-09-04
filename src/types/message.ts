@@ -195,6 +195,22 @@ export type SystemRosterTransitionMessage = {
   timestamp: string
 }
 
+export type DeadThinkingMark = {
+  messageId: string
+  blockIndex: number
+}
+
+export type SystemThinkingDeadMessage = {
+  type: 'system'
+  subtype: 'thinking_dead'
+  dead: DeadThinkingMark[]
+  content: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
 export type SystemPermissionRetryMessage = {
   type: 'system'
   subtype: 'permission_retry'
@@ -428,6 +444,7 @@ export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
   | SystemRosterTransitionMessage
+  | SystemThinkingDeadMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage
   | SystemScheduledTaskFireMessage

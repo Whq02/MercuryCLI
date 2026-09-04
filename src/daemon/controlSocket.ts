@@ -240,6 +240,7 @@ const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
   'concourseWithdraw',
   'concourseWarm',
   'restart-when-idle',
+  'signIns',
 ])
 
 

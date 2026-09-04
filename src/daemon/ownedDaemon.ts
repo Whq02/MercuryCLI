@@ -7,6 +7,7 @@ import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { hasStoredOAuthToken } from '../utils/auth.js'
+import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
 import { OWNER_PID_ENV } from './ownerWatch.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
@@ -164,6 +165,35 @@ export async function restartOwnedDaemonForFreshSignin(opts?: {
     { timeoutMs: 3000 },
   ).catch(() => undefined)
   return 'asked'
+}
+
+export function pokeDaemonSignIns(opts?: {
+  rpc?: (req: { op: 'signIns'; refresh: true }, o: { timeoutMs: number }) => Promise<unknown>
+}): Promise<void> {
+  const rpc =
+    opts?.rpc ??
+    (async (req, o) => {
+      const { daemonControlRpc } = await import('./controlSocket.js')
+      return daemonControlRpc(req as never, o)
+    })
+  return rpc({ op: 'signIns', refresh: true }, { timeoutMs: 3000 }).then(
+    () => undefined,
+    () => undefined,
+  )
+}
+
+let signInPokeArmed = false
+
+export function armDaemonSignInPoke(opts?: Parameters<typeof pokeDaemonSignIns>[0]): void {
+  if (signInPokeArmed) return
+  signInPokeArmed = true
+  subscribeSignInEpoch(() => {
+    void pokeDaemonSignIns(opts)
+  })
+}
+
+export function __resetDaemonSignInPokeForTest(): void {
+  signInPokeArmed = false
 }
 
 export function spawnOwnedDaemon(

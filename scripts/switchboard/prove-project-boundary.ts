@@ -128,7 +128,7 @@ console.log('\nB2 the probes from a folder under a home repository carry the bou
   check('the conversation status block ran bounded (status --short -- .)', kinds(/status --short/).length >= 1 && kinds(/status --short/).every(r => r.args.endsWith('-- .')))
   check('the health digest ran bounded (add -A -- .)', kinds(/(^| )add -A/).length >= 1 && kinds(/(^| )add -A/).every(r => r.args.endsWith('-- .')))
   check('the project-intel status ran bounded (porcelain=v2 -- .)', kinds(/--porcelain=v2/).length >= 1 && kinds(/--porcelain=v2/).every(r => r.args.endsWith('-- .')))
-  check("the board's dirt probe ran bounded (-C <folder> status --porcelain -- .)", kinds(/-C .* status --porcelain -- \.$/).length >= 1)
+  check("the board's dirt probe ran bounded (-C <folder> status --porcelain [--untracked-files=normal] -- .)", kinds(/-C .* status --porcelain( --untracked-files=normal)? -- \.$/).length >= 1)
   const lsFiles = kinds(/ls-files/)
   check('the @-file index listed from the boundary (ls-files … -- Desktop/proj at the root)', lsFiles.length >= 1 && lsFiles.every(r => r.args.endsWith('-- Desktop/proj')), lsFiles.map(r => r.args).join(' | '))
   check('no status/add/ls-files probe ran unbounded', probes.every(r => r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj')), probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj'))).map(r => r.args).join(' | '))

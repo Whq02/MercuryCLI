@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { EventEmitter } from 'node:events'
-import { mkdirSync, mkdtempSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Readable } from 'node:stream'
@@ -9,6 +9,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-drag-coalesce-'))
 mkdirSync(join(SCRATCH, 'config'), { recursive: true })
+writeFileSync(join(SCRATCH, 'config', '.mercury.json'), JSON.stringify({ copyOnSelect: false, hasCompletedOnboarding: true }))
 process.env.HOME = SCRATCH
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'config')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -33,6 +34,9 @@ const { default: ScrollBox } = await import(`${ROOT}/src/ink/components/ScrollBo
 const { default: instances } = await import(`${ROOT}/src/ink/instances.js`)
 const { default: useInput } = await import(`${ROOT}/src/ink/hooks/use-input.js`)
 const { lastComposeCounts } = await import(`${ROOT}/src/ink/compose-buffer.js`)
+const { AppStateProvider } = await import(`${ROOT}/src/state/AppState.js`)
+const { default: ScrollKeybindingHandler } = await import(`${ROOT}/src/components/ScrollKeybindingHandler.js`)
+type ScrollHandle = { getScrollTop: () => number; getViewportTop: () => number; getViewportHeight: () => number; getPendingDelta: () => number }
 const { AnsiEmulator, defaultSgr } = await import('../ink-runtime/ansiEmulator.js')
 type SgrState = ReturnType<typeof defaultSgr>
 
@@ -117,46 +121,67 @@ function snapshot(): string[] {
 function glassRowText(y: number): string {
   return glass.rowText(y)
 }
+function rowWith(needle: string): number {
+  for (let y = 0; y < ROWS; y++) if (glassRowText(y).includes(needle)) return y
+  return -1
+}
 
 const h = React.createElement as (...a: unknown[]) => unknown
 const W = ['alpha', 'bravo', 'charlie', 'delta', 'echo', 'foxtrot', 'golf', 'hotel', 'india', 'juliet', 'kilo', 'lima']
 const rowText = (i: number): string =>
   `${String(i).padStart(3, '0')} ${W[i % 12]} ${W[(i * 5 + 3) % 12]} ${'▪'.repeat(1 + ((i * 7) % 30))} ${W[(i * 11 + 7) % 12]} the quick brown fox jumps over the lazy dog`
 const TAIL_MARK = 'tailrow'
+const TRANSCRIPT_ROWS = 400
 let setTailText: ((t: string) => void) | null = null
 function Tail(): unknown {
-  const [text, setText] = React.useState(`199 ${TAIL_MARK} one the quick brown fox jumps over the lazy dog`)
+  const [text, setText] = React.useState(`${TRANSCRIPT_ROWS - 1} ${TAIL_MARK} one the quick brown fox jumps over the lazy dog`)
   setTailText = setText
   return h(Text as never, { color: 'cyan' }, text)
 }
+let setStreamedRows: ((n: number) => void) | null = null
+function Streamed(): unknown {
+  const [n, setN] = React.useState(0)
+  setStreamedRows = setN
+  return h(React.Fragment as never, {}, ...Array.from({ length: n }, (_, i) => h(Text as never, { key: `s${i}` }, `streamed line ${i} arrives under the selection`)))
+}
+let keyLanded: ((input: string, atMs: number) => void) | null = null
 function RawModeHolder(): null {
-  useInput(() => {})
+  useInput(input => {
+    keyLanded?.(input, performance.now())
+  })
   return null
 }
-const transcript = Array.from({ length: 199 }, (_, i) =>
+const transcript = Array.from({ length: TRANSCRIPT_ROWS - 1 }, (_, i) =>
   h(Text as never, { key: `t${i}`, ...(i % 5 === 0 ? { color: 'cyan' } : i % 7 === 0 ? { bold: true } : {}) }, rowText(i)),
 )
 transcript.push(h(Tail as never, { key: 'tail' }))
+transcript.push(h(Streamed as never, { key: 'streamed' }))
 const rail = (tag: string): unknown =>
   h(
     Box as never,
     { width: 24, flexShrink: 0, flexDirection: 'column', borderStyle: 'round' },
     ...Array.from({ length: 30 }, (_, i) => h(Text as never, { key: `${tag}${i}`, dimColor: i % 3 === 0 }, `${tag} row ${i} · steady`)),
   )
+const scrollRef = React.createRef<ScrollHandle>()
 const tree = h(
-  AlternateScreen as never,
-  { mouseTracking: true },
+  AppStateProvider as never,
+  {},
   h(
-    Box as never,
-    { flexDirection: 'column', width: COLS, height: ROWS },
+    AlternateScreen as never,
+    { mouseTracking: true },
     h(
       Box as never,
-      { flexDirection: 'row', flexGrow: 1 },
-      rail('left'),
-      h(Box as never, { flexGrow: 1, flexDirection: 'column', borderStyle: 'round' }, h(ScrollBox as never, { flexGrow: 1, stickyScroll: true }, ...transcript)),
-      rail('right'),
+      { flexDirection: 'column', width: COLS, height: ROWS },
+      h(
+        Box as never,
+        { flexDirection: 'row', flexGrow: 1 },
+        rail('left'),
+        h(Box as never, { flexGrow: 1, flexDirection: 'column', borderStyle: 'round' }, h(ScrollBox as never, { ref: scrollRef, flexGrow: 1, flexDirection: 'column', stickyScroll: true }, ...transcript)),
+        rail('right'),
+      ),
+      h(Box as never, { height: 3, borderStyle: 'round', flexShrink: 0 }, h(Text as never, {}, 'composer › type here'), h(RawModeHolder as never, {})),
+      h(ScrollKeybindingHandler as never, { scrollRef, isActive: true }),
     ),
-    h(Box as never, { height: 3, borderStyle: 'round', flexShrink: 0 }, h(Text as never, {}, 'composer › type here'), h(RawModeHolder as never, {})),
   ),
 )
 
@@ -336,7 +361,7 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   await settle(50)
   await glassEqualsRedraw('content change under the selection')
   flushGlass()
-  check('the glass shows the changed tail text', glassRowText(tailRow).includes('CHANGED'), glassRowText(tailRow).slice(24, 80))
+  check('the glass shows the changed tail text', rowWith('CHANGED') >= 0, glassRowText(tailRow).slice(24, 80))
   await releaseAt(focusAt(699))
   await clearAll()
   await glassEqualsRedraw('clear')
@@ -345,6 +370,158 @@ section('§3 the ghosts — the glass equals a full redraw after every step')
   const plain = styleKey({ col: 40, row: ANCHOR.row })
   for (let y = 1; y < tailRow; y++) for (let x = PANE_C0; x <= PANE_C1; x++) if (styleKey({ col: x, row: y }) !== plain) highlighted++
   check('no transcript cell carries a highlight after the clear', highlighted === 0, `${highlighted} cells`)
+}
+
+section('§4 scroll under a drag — the tick scrolls, motion reports never do; the highlight follows the text')
+{
+  const handle = scrollRef.current
+  check('the transcript exposes its scroll handle', handle !== null, 'scrollRef.current is null')
+  const viewportTop = handle?.getViewportTop() ?? 1
+  const paneRows = handle?.getViewportHeight() ?? 0
+  check('the pane fills the transcript box', paneRows > 20 && viewportTop >= 1, `viewportTop=${viewportTop} height=${paneRows}`)
+  const plainKey = styleKey({ col: 40, row: tailRow })
+  const highlightedRows = (): number[] => {
+    const rows: number[] = []
+    for (let y = 0; y < ROWS; y++) {
+      let n = 0
+      for (let x = PANE_C0; x <= PANE_C1; x++) if (styleKey({ col: x, row: y }) !== plainKey && glass.grid[y]![x] !== ' ') n++
+      if (n > 0) rows.push(y)
+    }
+    return rows
+  }
+  const scrollTop = (): number => handle?.getScrollTop() ?? -1
+  const full = handle as unknown as { getScrollHeight: () => number; scrollBy: (dy: number) => void; scrollToBottom: () => void } | null
+  const facts = (): string =>
+    `scrollTop=${scrollTop()} height=${full?.getScrollHeight()} viewport=${viewportTop}+${paneRows} pending=${handle?.getPendingDelta()} dragging=${ink.selection.isDragging} anchor=${JSON.stringify(ink.selection.anchor)} focus=${JSON.stringify(ink.selection.focus)} fault=${glassFault || 'none'}`
+  const tailRows = (): string => [ROWS - 8, ROWS - 7, ROWS - 6, ROWS - 5, ROWS - 4].map(y => `${y}:${JSON.stringify(glassRowText(y).slice(PANE_C0, PANE_C0 + 40))}`).join(' ')
+  flushGlass()
+  console.log(`  at entry: ${facts()}`)
+  console.log(`  glass tail rows: ${tailRows()}`)
+  const TEXT_C0 = 25
+  const lineStart = (y: number): boolean => /^\d{3} /.test(glassRowText(y).slice(TEXT_C0, TEXT_C0 + 4))
+  let anchorRowB = viewportTop + 2
+  while (anchorRowB < viewportTop + 8 && !lineStart(anchorRowB)) anchorRowB++
+  const ANCHOR_B: Cell = { col: TEXT_C0 + 6, row: anchorRowB }
+  const anchorLine = glassRowText(ANCHOR_B.row).slice(TEXT_C0, TEXT_C0 + 20)
+  check('the anchor row is a line start carrying transcript text', lineStart(ANCHOR_B.row), JSON.stringify(anchorLine))
+
+  const controlTop = scrollTop()
+  full?.scrollBy(-4)
+  await settle(60)
+  flushGlass()
+  check('the scroll handle scrolls the pane (the control for the tick)', controlTop - scrollTop() === 4, `scrollTop ${controlTop} → ${scrollTop()}; ${facts()}`)
+  full?.scrollToBottom()
+  await settle(60)
+
+  await pressAt(ANCHOR_B)
+  const above: Cell = { col: ANCHOR_B.col, row: 0 }
+  const top0 = scrollTop()
+  push(sgr(LEFT | MOTION, above))
+  await twoTicks()
+  await settle(320)
+  console.log(`  after the hold: ${facts()}`)
+  const heldStill = top0 - scrollTop()
+  check('a pointer held still above the pane scrolls the content by the tick (≈ 2 rows per 50 ms)', heldStill >= 8 && heldStill <= 16, `${heldStill} rows in 320 ms`)
+  const top1 = scrollTop()
+  const t1 = performance.now()
+  for (let k = 0; k < 30; k++) {
+    push(sgr(LEFT | MOTION, { col: above.col + (k % 3), row: 0 }))
+    await settle(5)
+  }
+  const elapsed = performance.now() - t1
+  const heldMoving = top1 - scrollTop()
+  const expected = 2 * Math.floor(elapsed / 50)
+  check('thirty reports at the edge scroll the tick\'s rows, not thirty (the rate, not the count)', Math.abs(heldMoving - expected) <= 4 && heldMoving < 30, `${heldMoving} rows for 30 reports over ${elapsed.toFixed(0)} ms (tick rate ⇒ ${expected})`)
+
+  await twoTicks()
+  flushGlass()
+  const anchorNow = rowWith(anchorLine)
+  const rows = highlightedRows()
+  check('the anchor line moved down with the scrolled content', anchorNow > ANCHOR_B.row, `anchor line ${JSON.stringify(anchorLine)} now at row ${anchorNow} (was ${ANCHOR_B.row}); scrolled ${heldStill + heldMoving} rows`)
+  check('the anchor line is still highlighted at its new row (the highlight followed the text)', anchorNow >= 0 && rows.includes(anchorNow), `highlighted rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
+  check('the highlight spans from the pane top down to the anchor line', rows.length > 0 && rows[0]! <= viewportTop && rows.at(-1)! >= anchorNow, `rows ${rows[0]}..${rows.at(-1)}, anchor at ${anchorNow}`)
+  const copied = (ink as unknown as { copySelectionNoClear: () => string }).copySelectionNoClear()
+  check('the copy carries the anchor line and the lines that scrolled in above it', copied.includes(anchorLine.slice(0, 6)) && copied.split('\n').length >= heldStill, `${copied.split('\n').length} lines copied; ${JSON.stringify(copied.slice(-80))}`)
+  await releaseAt(above)
+  await clearAll()
+  ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()
+  await settle(120)
+
+  flushGlass()
+  const tailBefore = rowWith(TAIL_MARK)
+  await pressAt({ col: ANCHOR.col, row: tailBefore - 2 })
+  push(sgr(LEFT | MOTION, { col: ANCHOR.col + 20, row: tailBefore }))
+  await twoTicks()
+  await releaseAt({ col: ANCHOR.col + 20, row: tailBefore })
+  flushGlass()
+  const textsBefore = highlightedRows().map(y => glassRowText(y).slice(PANE_C0, PANE_C0 + 16))
+  check('a selection stands on the last three lines', textsBefore.length === 3, `${textsBefore.length} rows (${highlightedRows().join(',')}); ${facts()}`)
+  setStreamedRows?.(4)
+  await settle(150)
+  flushGlass()
+  console.log(`  after the stream: ${facts()}`)
+  console.log(`  glass tail rows: ${tailRows()}`)
+  const textsAfter = highlightedRows().map(y => glassRowText(y).slice(PANE_C0, PANE_C0 + 16))
+  check('four streamed lines scrolled the pane (the tail moved up)', rowWith(TAIL_MARK) === tailBefore - 4, `tail ${tailBefore} → ${rowWith(TAIL_MARK)}`)
+  check('the same lines stay highlighted after the stream (the follow translation)', JSON.stringify(textsAfter) === JSON.stringify(textsBefore), `before ${JSON.stringify(textsBefore)} after ${JSON.stringify(textsAfter)}`)
+  await clearAll()
+  flushGlass()
+  const tail2 = rowWith(TAIL_MARK)
+  await pressAt({ col: ANCHOR.col, row: tail2 - 2 })
+  push(sgr(LEFT | MOTION, { col: ANCHOR.col + 20, row: tail2 }))
+  await twoTicks()
+  flushGlass()
+  const anchorText = glassRowText(tail2 - 2).slice(TEXT_C0, TEXT_C0 + 16)
+  setStreamedRows?.(8)
+  await settle(150)
+  flushGlass()
+  const anchorRowNow = rowWith(anchorText)
+  check('while dragging, the anchor line moved up with the stream and is still highlighted', anchorRowNow === tail2 - 6 && highlightedRows().includes(anchorRowNow), `anchor ${JSON.stringify(anchorText)} at ${anchorRowNow} (expected ${tail2 - 6}); highlighted ${highlightedRows().join(',')}`)
+  await releaseAt({ col: ANCHOR.col + 20, row: tail2 })
+  await clearAll()
+  ;(handle as unknown as { scrollToBottom: () => void } | null)?.scrollToBottom()
+  await settle(120)
+
+  flushGlass()
+  const tailForDrag = rowWith(TAIL_MARK) > 0 ? rowWith(TAIL_MARK) : tailRow
+  await pressAt({ col: ANCHOR.col, row: tailForDrag - 3 })
+  console.log(`  backlog leg start: ${facts()}`)
+  const atom = sgr(LEFT | MOTION, { col: 40, row: 0 })
+  const atomBytes = Buffer.byteLength(atom)
+  const queueSamples: number[] = []
+  const keyLatencies: number[] = []
+  const scrollSamples: number[] = []
+  let keyPushedAt = 0
+  keyLanded = (input, at) => {
+    if (input === 'x' && keyPushedAt > 0) {
+      keyLatencies.push(at - keyPushedAt)
+      keyPushedAt = 0
+    }
+  }
+  const f0 = frames
+  const t0 = performance.now()
+  let k = 0
+  while (performance.now() - t0 < 5000) {
+    const pendingBytes = (stdin as unknown as { readableLength: number }).readableLength
+    queueSamples.push(pendingBytes / atomBytes)
+    push(sgr(LEFT | MOTION, { col: 40 + (k % 40), row: 0 }))
+    if (k % 62 === 61) {
+      keyPushedAt = performance.now()
+      push('\x1bx')
+      scrollSamples.push(scrollTop())
+      if (scrollSamples.length === 2) console.log(`  backlog leg mid: ${facts()}`)
+    }
+    k++
+    await settle(8)
+  }
+  await twoTicks()
+  const worstQueue = Math.max(...queueSamples)
+  check(`${k} reports over 5 s with the pane scrolling: the input queue stays ≤ 1 report at every sample`, worstQueue <= 1, `worst ${worstQueue.toFixed(2)} reports pending; ${frames - f0} frames painted`)
+  check('keystrokes typed through the drag land within one frame', keyLatencies.length >= 5 && Math.max(...keyLatencies) <= 16, `${keyLatencies.length} keys, worst ${keyLatencies.length ? Math.max(...keyLatencies).toFixed(1) : 'n/a'} ms`)
+  console.log(`  ${k} reports · ${frames - f0} frames · worst queue ${worstQueue.toFixed(2)} · keys ${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms · scrollTop every half second ${scrollSamples.join(' ')} → ${scrollTop()}`)
+  keyLanded = null
+  await releaseAt({ col: 40, row: 0 })
+  await clearAll()
 }
 
 instance.unmount()
