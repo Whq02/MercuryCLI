@@ -9,6 +9,7 @@ export type CrewAgentState = 'running' | 'landed' | 'stopped' | 'failed'
 
 export interface CrewAgentTokens {
   total: number
+  context: number | null
   input: number | null
   output: number | null
 }
@@ -47,11 +48,12 @@ const positive = (v: unknown): number | null =>
 function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   const input = typeof row.inputTokens === 'number' && Number.isFinite(row.inputTokens) ? row.inputTokens : null
   const output = typeof row.outputTokens === 'number' && Number.isFinite(row.outputTokens) ? row.outputTokens : null
+  const context = positive(row.contextTokens)
   if (input !== null && output !== null && input + output > 0) {
-    return { total: input + output, input, output }
+    return { total: input + output, context, input, output }
   }
   const total = positive(row.totalTokens)
-  return total === null ? null : { total, input: null, output: null }
+  return total === null ? null : { total, context, input: null, output: null }
 }
 
 export function crewStateOf(row: Pick<WorkRowV1, 'status'>): CrewAgentState {
@@ -166,7 +168,13 @@ export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | nul
 }
 
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
-  return facts.tokens === null ? null : `${formatTokens(facts.tokens.total)} tokens`
+  const t = facts.tokens
+  if (t === null) return null
+  return t.context !== null ? `${formatTokens(t.context)} context` : `${formatTokens(t.total)} spent`
+}
+
+export function crewSpendLabel(facts: CrewAgentFacts): string | null {
+  return facts.tokens === null ? null : `${formatTokens(facts.tokens.total)} spent`
 }
 
 export function crewTokensBreakdown(facts: CrewAgentFacts): string | null {
@@ -199,7 +207,7 @@ export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null 
   const n = counted.length
   const spend = crewSpendOf(counted)
   const spendPart = spend.costUSD > 0 || spend.unpricedTurns > 0 ? ` · ${formatSessionCost(spend.costUSD, spend.unpricedTurns)}` : ''
-  return `sub-agents ${formatTokens(crewTokenSum(counted))} tokens · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
+  return `sub-agents ${formatTokens(crewTokenSum(counted))} spent · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
 }
 
 export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {
