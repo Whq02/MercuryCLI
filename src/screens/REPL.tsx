@@ -1265,7 +1265,7 @@ export function REPL({
       };
       try {
         const module = await seatCommand.load();
-        const element = await module.call(onDone, context, args);
+        const element = await module.call(onDone, context, args, text.slice(1, spaceAt === -1 ? undefined : spaceAt));
         if (element && !completed) {
           setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
         } else if (!element && !completed) {
