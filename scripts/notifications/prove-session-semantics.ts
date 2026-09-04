@@ -285,7 +285,7 @@ try {
   check(
     "the session-control union is EXACTLY the switchboard vocabulary (pause·resume·interrupt·attach·detach·grant/revoke-workflows·answer-permission·stop) + the seat doors (set-model·set-permission-mode·session-facts·set-title·focus·blur·park·park-all·set-effort·contract·set-kit·set-schedule·set-spawn-switch)",
     union ===
-      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | set-effort | contract | set-kit | set-schedule | set-spawn-switch',
+      'pause | resume | interrupt | attach | detach | grant-workflows | revoke-workflows | answer-permission | stop | set-model | set-permission-mode | session-facts | set-title | focus | blur | park | park-all | set-effort | contract | set-kit | set-schedule | set-spawn-switch | stop-agent | resume-agent',
     union,
   )
   check(
