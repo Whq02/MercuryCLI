@@ -1046,7 +1046,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   program
     .command('update')
     .alias('upgrade')
-    .description('Update to the latest private-channel release')
+    .description('Update to the newest release (no GitHub sign-in needed)')
     .option('--check', 'Only check for updates')
     .option('--status', 'Show update status')
     .option('--rollback', 'Roll back to the previous version')

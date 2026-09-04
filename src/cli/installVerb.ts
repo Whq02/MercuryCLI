@@ -71,7 +71,7 @@ export async function installVerb(options: InstallCliOptions = {}): Promise<neve
       lines.push(`note: add ${roots.binDir} to your PATH to use the \`mercury\` command everywhere`)
     }
     lines.push('configuration and sessions live in your Mercury home and were not touched')
-    lines.push('next: `mercury update --check` keeps this install current (needs your own gh sign-in)')
+    lines.push('next: `mercury update --check` keeps this install current (no GitHub sign-in needed)')
     return cliOk(lines.join('\n'))
   }
   return cliError(`install refused: ${result.reason}\n  ${result.remedy}`)
