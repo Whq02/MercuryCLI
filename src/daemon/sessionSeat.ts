@@ -12,6 +12,7 @@ import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { PermissionMode } from '../types/permissions.js'
 import type { TextPhase } from '../types/wire.js'
 import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { validateWorkerModelChoice } from '../services/concourse/workerModels.js'
@@ -369,7 +370,11 @@ const ZERO_USAGE: SessionFactsAnswerV1['usage'] = {
   hasUnknownModelCost: false,
 }
 
-function skeletonAnswer(rec: ConcourseWorkerRecordV1): SessionFactsAnswerV1 {
+export function spawnPostureWordOf(rec: Pick<ConcourseWorkerRecordV1, 'permissionMode'>): { permissionMode: PermissionMode } | Record<string, never> {
+  return rec.permissionMode !== undefined ? { permissionMode: rec.permissionMode } : {}
+}
+
+function skeletonAnswer(rec: ConcourseWorkerRecordV1): Omit<SessionFactsAnswerV1, 'permissionMode'> & { permissionMode?: PermissionMode } {
   const cwd = rec.worktreePath ?? rec.workspaceId
   return {
     model: { effective: rec.modelKey, setting: rec.modelKey },
@@ -377,7 +382,7 @@ function skeletonAnswer(rec: ConcourseWorkerRecordV1): SessionFactsAnswerV1 {
     identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
     skills: [],
     mcp: [],
-    permissionMode: 'flow',
+    ...spawnPostureWordOf(rec),
     workspace: { cwd, originalCwd: cwd, projectRoot: rec.workspaceId, instructionRoots: [] },
     queue: [],
   }
