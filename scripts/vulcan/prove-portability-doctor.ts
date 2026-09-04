@@ -43,7 +43,7 @@ try {
   writeFileSync(join(skillDir, 'SKILL.md'), SKILL)
   const before = readFileSync(join(skillDir, 'SKILL.md'), 'utf8')
 
-  const report = godotPortabilityReport(proj)
+  const report = await godotPortabilityReport(proj)
 
   check('machine-absolute path reported with file + line', report.absolutePaths.length >= 1 && report.absolutePaths[0]!.line === 3 && /machine-b/.test(report.absolutePaths[0]!.text), JSON.stringify(report.absolutePaths[0] ?? null)?.slice(0, 110))
   check('the skill file is NEVER rewritten (byte-identical after diagnosis)', readFileSync(join(skillDir, 'SKILL.md'), 'utf8') === before)
@@ -52,7 +52,7 @@ try {
   check('declared-but-not-live action named exactly (jump)', !!drift && JSON.stringify(drift.declaredNotLive) === JSON.stringify(['jump']), JSON.stringify(drift)?.slice(0, 120))
   check('live-but-undeclared actions named exactly (move_right, interact)', !!drift && JSON.stringify(drift.liveNotDeclared) === JSON.stringify(['move_right', 'interact']))
 
-  check('executable resolution carries a typed receipt', ['PATH', 'well-known-location', 'not-found'].includes(report.executable.source) && report.executable.note.length > 0, `${report.executable.source}: ${report.executable.note.slice(0, 60)}`)
+  check('executable resolution carries a typed receipt with the roots it walked', ['running-editor', 'PATH', 'well-known-location', 'not-found'].includes(report.executable.source) && report.executable.note.length > 0 && Array.isArray(report.executable.probed) && report.executable.probed.length > 0, `${report.executable.source}: ${report.executable.note.slice(0, 60)}`)
 
   const machineA = SKILL.replace(/\/Users\/machine-b\/Godot Projects\/deadnight/g, 'C:\\Users\\Machine A\\Gödot\\deadnight')
   check('two machines, different roots ⇒ the SAME semantic launch', semanticLaunchOf(SKILL) === 'res://scenes/main.tscn' && semanticLaunchOf(machineA) === 'res://scenes/main.tscn', `${semanticLaunchOf(SKILL)} vs ${semanticLaunchOf(machineA)}`)
