@@ -166,6 +166,7 @@ export type WorkRowV1 = {
   unpricedTurns?: number
   toolUses?: number
   activity?: string
+  wait?: string
   toolUseId?: string
   workflowRunId?: string
   phases?: WorkPhaseV1[]
@@ -174,7 +175,7 @@ export type WorkRowV1 = {
   agentType?: string
   team?: string
   stopReason?: string
-  wait?: AgentWaitV1
+  phase?: AgentWaitV1
 }
 
 export type MissionRowV1 = {

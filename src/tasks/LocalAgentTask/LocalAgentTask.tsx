@@ -65,7 +65,7 @@ export type AgentProgress = {
   costUSD?: number
   unpricedTurns?: number
   model?: string
-  wait?: AgentWaitV1
+  phase?: AgentWaitV1
 }
 
 export type AgentLedger = {
@@ -84,7 +84,7 @@ export type ProgressTracker = {
   recentActivities: ToolActivity[]
   ledger: AgentLedger
   lastAssistant?: AssistantMessage
-  wait: AgentWaitV1 | null
+  phase: AgentWaitV1 | null
 }
 
 export function createAgentLedger(): AgentLedger {
@@ -92,9 +92,9 @@ export function createAgentLedger(): AgentLedger {
 }
 
 export function foldQueryProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
-  const next = foldAgentWaitEvent(tracker.wait, event, nowMs)
-  if (next === tracker.wait) return false
-  tracker.wait = next
+  const next = foldAgentWaitEvent(tracker.phase, event, nowMs)
+  if (next === tracker.phase) return false
+  tracker.phase = next
   return true
 }
 
@@ -148,7 +148,7 @@ export function createProgressTracker(): ProgressTracker {
     toolUseCount: 0,
     recentActivities: [],
     ledger: createAgentLedger(),
-    wait: null,
+    phase: null,
   }
 }
 
@@ -233,7 +233,7 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
         }
       : {}),
     ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
-    ...(tracker.wait !== null ? { wait: tracker.wait } : {}),
+    ...(tracker.phase !== null ? { phase: tracker.phase } : {}),
   }
 }
 
@@ -260,6 +260,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   result?: any
   progress?: any
   summary?: string
+  wait?: string
   retrieved?: boolean
   stopReason?: string
   messages?: Message[]
@@ -607,6 +608,19 @@ export function updateAgentSummary(
       summary,
     })
   }
+}
+
+export function setAgentWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (line === null) {
+      if (task.wait === undefined) return task
+      const { wait: _gone, ...rest } = task
+      return rest as LocalAgentTaskState
+    }
+    if (task.wait === line) return task
+    return { ...task, wait: line }
+  })
 }
 
 

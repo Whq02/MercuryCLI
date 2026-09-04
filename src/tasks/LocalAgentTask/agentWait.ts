@@ -1,6 +1,5 @@
 
 export type AgentWaitPhase =
-  | 'seat'
   | 'request-sent'
   | 'first-byte'
   | 'retry'
@@ -16,7 +15,6 @@ export type AgentWaitV1 = {
   reason?: string
   attempt?: number
   of?: number
-  words?: string
 }
 
 type StreamEventLike = {
@@ -126,8 +124,6 @@ export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: numb
   if (!wait) return null
   const elapsed = agentWaitElapsed(nowMs - wait.sinceMs)
   switch (wait.phase) {
-    case 'seat':
-      return wait.words ?? 'waiting for a seat'
     case 'request-sent':
       return 'request sent'
     case 'first-byte':

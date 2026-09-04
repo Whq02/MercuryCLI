@@ -296,22 +296,24 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   check('K10 a scheduled retry names its delay, its cause and the ladder', retry?.phase === 'retry' && agentWaitWords(retry, t0 + 20_500) === 'retrying in 4 s — a 529 (retry 2 of 3)')
   const backoff = foldAgentWaitEvent(wait, { type: 'system', subtype: 'api_error', retryInMs: 2500, retryAttempt: 1 }, t0 + 30_000)
   check('K10 a provider fault with a retry delay is a retry too', backoff?.phase === 'retry' && agentWaitWords(backoff, t0 + 30_000) === 'retrying in 3 s — a provider fault (retry 1)')
-  check('K10 the seat phase is reserved for the gate owner\'s own sentence', agentWaitWords({ phase: 'seat', sinceMs: t0, words: 'waiting for a seat (3 of 3 held)' }, t0) === 'waiting for a seat (3 of 3 held)' && agentWaitWords({ phase: 'seat', sinceMs: t0 }, t0) === 'waiting for a seat')
   check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
   const tracker = createProgressTracker()
-  check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).wait?.phase === 'request-sent')
+  check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).phase?.phase === 'request-sent')
   const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
   const crew = await import('../../src/services/engine-connector/crewFacts.js')
-  const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], wait: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
+  const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], phase: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
   const rows = projectWorkRoster({ 'ag-w': running } as never)
-  check('K10 the roster row carries the wait whole', rows[0]?.wait?.phase === 'first-byte' && rows[0]?.wait?.budgetMs === 45_000)
+  check('K10 the roster row carries the phase whole', rows[0]?.phase?.phase === 'first-byte' && rows[0]?.phase?.budgetMs === 45_000)
   const facts = crew.crewAgentFactsOf(rows[0]!, 'fx')!
-  check('K10 the crew record carries it and the status cell speaks the phase', facts.wait?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, within 45 s' && crew.crewStateLabel(facts) === 'running')
-  const toolRow = projectWorkRoster({ 'ag-t': { ...running, id: 'ag-t', agentId: 'ag-t', progress: { toolUseCount: 1, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', input: {}, activityDescription: 'Read notes.txt' }, wait: { phase: 'tool', sinceMs: t0 } } } } as never)
+  check('K10 the crew record carries it and the status cell speaks the phase', facts.phase?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, within 45 s' && crew.crewStateLabel(facts) === 'running')
+  const toolRow = projectWorkRoster({ 'ag-t': { ...running, id: 'ag-t', agentId: 'ag-t', progress: { toolUseCount: 1, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', input: {}, activityDescription: 'Read notes.txt' }, phase: { phase: 'tool', sinceMs: t0 } } } } as never)
   const toolFacts = crew.crewAgentFactsOf(toolRow[0]!, 'fx')!
   check('K10 the tool phase speaks the running tool\'s own line', crew.crewPhaseWords(toolFacts, t0 + 1000) === 'Read notes.txt')
   const landedFacts = crew.crewAgentFactsOf({ ...rows[0]!, status: 'completed', endTime: t0 + 9000 }, 'fx')!
   check('K10 a settled row keeps the one status word', crew.crewPhaseWords(landedFacts, t0 + 9000) === null && crew.crewStatusWords(landedFacts, t0 + 9000) === 'landed')
+  const seatRow = projectWorkRoster({ 'ag-s': { ...running, id: 'ag-s', agentId: 'ag-s', wait: 'waiting for a seat — 3 of 3 held (a, b, the chat)' } } as never)
+  const seatFacts = crew.crewAgentFactsOf(seatRow[0]!, 'fx')!
+  check('K10 the seat gate\'s own sentence outranks the phase on the card line and the status cell keeps its short word', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
   const { agentPulse, agentPulseWord } = await import('../../src/tools/WorkflowTool/livePulse.js')
   const budgeted = agentPulse({ state: 'progress', waiting: 'prefill', waitBudgetMs: 60_000, waitSinceMs: t0, lastProgressAt: t0 }, t0 + 3000)
   check('K10 the workflow pulse speaks the budget in the one spelling', budgeted.kind === 'first-token' && agentPulseWord(budgeted) === 'waiting for the first byte · 3s, within 60 s')

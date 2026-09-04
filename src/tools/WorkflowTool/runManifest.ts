@@ -41,7 +41,7 @@ export type WorkflowRunAgentSummary = {
   startedAt?: number
   queuedAt?: number
   attempt?: number
-  waiting?: 'prefill' | 'provider-backoff' | 'usage-window'
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat'
   waitWords?: string
   waitBudgetMs?: number
   waitSinceMs?: number
@@ -114,7 +114,7 @@ export function buildAgentSummaries(
       queuedAt: num(ev['queuedAt']),
       attempt: num(ev['attempt']),
       waiting:
-        ev['waiting'] === 'prefill' || ev['waiting'] === 'provider-backoff' || ev['waiting'] === 'usage-window'
+        ev['waiting'] === 'prefill' || ev['waiting'] === 'provider-backoff' || ev['waiting'] === 'usage-window' || ev['waiting'] === 'seat'
           ? ev['waiting']
           : undefined,
       waitWords: str(ev['waitWords']),

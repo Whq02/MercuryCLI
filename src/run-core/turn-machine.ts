@@ -449,15 +449,24 @@ async function* streamModel(
       const callId = `${iter.turnId}.c${++iter.callOrdinal}`
       const permitKey = `${iter.queryTracking.chainId}:${callId}`
       refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)
-      const permit = await acquireModelPermit({
-        lane:
-          toolUseContext.agentId !== undefined
-            ? 'background-session'
-            : isTurnOwningQuerySource(run.querySource)
-              ? 'foreground'
-              : 'service',
-        callId: permitKey,
-      })
+      let permit: Awaited<ReturnType<typeof acquireModelPermit>>
+      try {
+        permit = await acquireModelPermit({
+          lane:
+            toolUseContext.agentId !== undefined
+              ? 'background-session'
+              : isTurnOwningQuerySource(run.querySource)
+                ? 'foreground'
+                : 'service',
+          callId: permitKey,
+          ...(toolUseContext.seatHolder !== undefined ? { holder: toolUseContext.seatHolder } : {}),
+          signal: toolUseContext.abortController.signal,
+          ...(toolUseContext.onSeatWait !== undefined ? { onWait: toolUseContext.onSeatWait } : {}),
+        })
+      } catch (waitError) {
+        if (toolUseContext.abortController.signal.aborted) return { kind: 'streamed' }
+        throw waitError
+      }
       yield emit({
         kind: 'model_permit',
         callId,

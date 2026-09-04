@@ -7,6 +7,7 @@ import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { readStoredMoonshotApiKey } from '../../../utils/router/providerSecrets.js'
+import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 
 
 const MOONSHOT_API_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -117,6 +118,7 @@ function writeAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): vo
     chmodSync(path, 0o600)
   } catch {
   }
+  noteCredentialChange()
 }
 
 export function writeMoonshotTokens(tokens: MoonshotStoredTokens | null, region?: KimiRegion): void {

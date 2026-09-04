@@ -458,6 +458,7 @@ export function buildConcourseWorkerSpec(args: {
     cwd: args.cwd ?? args.workspaceId,
     extraEnv: {
       MERCURY_SESSION_HOME: getProjectDir(args.workspaceId),
+      MERCURY_SEATS: String(effectiveSeatCeiling()),
       ...(args.kit !== undefined ? { MERCURY_SESSION_KIT: JSON.stringify(args.kit) } : {}),
     },
     permissionMode: seatInitialPermissionMode(args.permissionMode),

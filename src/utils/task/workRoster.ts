@@ -100,7 +100,7 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
     unpricedTurns?: unknown
     toolUseCount?: unknown
     lastActivity?: unknown
-    wait?: unknown
+    phase?: unknown
   }
   const input = finite(p.inputTokens)
   const output = finite(p.outputTokens)
@@ -118,15 +118,15 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
       : typeof last.toolName === 'string' && last.toolName !== ''
         ? last.toolName
         : undefined
-  const wait =
-    typeof p.wait === 'object' && p.wait !== null && typeof (p.wait as { phase?: unknown }).phase === 'string' && typeof (p.wait as { sinceMs?: unknown }).sinceMs === 'number'
-      ? (p.wait as WorkRowV1['wait'])
+  const phase =
+    typeof p.phase === 'object' && p.phase !== null && typeof (p.phase as { phase?: unknown }).phase === 'string' && typeof (p.phase as { sinceMs?: unknown }).sinceMs === 'number'
+      ? (p.phase as WorkRowV1['phase'])
       : undefined
   return {
     ...(typeof p.model === 'string' && p.model !== '' ? { model: p.model } : {}),
     ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
     ...(activity !== undefined ? { activity: clip(activity, MAX_NAME) } : {}),
-    ...(wait !== undefined ? { wait } : {}),
+    ...(phase !== undefined ? { phase } : {}),
     ...(input !== undefined && output !== undefined && input + output > 0
       ? {
           inputTokens: input,
@@ -151,6 +151,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...plainRow(task, 'agent', task.description || task.agentType),
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
+        ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
       })
     } else if (isInProcessTeammateTask(task)) {
       rows.push({

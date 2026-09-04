@@ -16,6 +16,7 @@ import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthor
 import { harnessEffortFact, noteHarnessBoundary } from '../../services/mission/harnessApplication.js'
 import {
   registerAsyncAgent,
+  setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getRunningTasks } from '../../utils/task/framework.js'
@@ -744,6 +745,7 @@ export const AgentTool = buildTool({
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
       description: input.description,
+      onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
     }
 
     const agentContext: SubagentContext = {
