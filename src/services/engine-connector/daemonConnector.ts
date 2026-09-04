@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, statSync, watch, mkdirSync, type FSWatcher 
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import type { Message, AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
@@ -574,7 +574,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private armTranscriptWatcher(): void {
     if (this.transcriptWatcher !== null) return
     try {
-      const watcher = watch(resolveWatchRoot(this.transcriptPath), () => void this.tick())
+      const dir = dirname(this.transcriptPath)
+      const name = basename(this.transcriptPath)
+      const watcher = watch(resolveWatchRoot(dir), (_event, filename) => {
+        if (filename === undefined || filename === null || String(filename) === name) void this.tick()
+      })
       watcher.on('error', () => {
         try {
           watcher.close()
