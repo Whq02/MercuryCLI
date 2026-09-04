@@ -104,7 +104,7 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     writeDirect: async () => {},
     drainSdkEvents: () => [],
     flushInternalEvents: async () => {},
-    executeTurn: async (_c, onMessage) => {
+    executeTurn: async (_c, _batchUuids, onMessage) => {
       onMessage({ type: 'assistant' } as never)
       if (opts.releaseBeforeResult) driver.releaseHold()
       onMessage({ type: 'result' } as never)
@@ -126,7 +126,12 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
-    onCycleError: () => ({ type: 'result' }) as never,
+    onCycleError: error => {
+      console.log(`  [FAIL] the driver cycle threw — ${String(error)}`)
+      failures++
+      resolveSettled()
+      return { type: 'result' } as never
+    },
     shutdown: () => {},
     clock: { sleep: ms => new Promise(r => setTimeout(r, Math.min(ms, 20))) },
   })
