@@ -328,7 +328,7 @@ function pidFieldsOf(pid: number | undefined): { pid?: number; procStart?: strin
   return { pid, ...(token !== null && token !== '' ? { procStart: token } : {}) }
 }
 
-function workerPidAlive(rec: { pid?: number; procStart?: string }): boolean {
+export function workerPidAlive(rec: { pid?: number; procStart?: string }): boolean {
   if (rec.pid === undefined || !isProcessAlive(rec.pid)) return false
   if (rec.procStart !== undefined) {
     const current = getProcessStartTokenCachedOrRefresh(rec.pid)
@@ -1563,6 +1563,7 @@ export function reviveConcourseWorker(
     allowStopped?: boolean
     clearCrash?: boolean
     kitOverride?: SessionKitV1
+    modelOverride?: string
     permissionMode?: PermissionMode
     bypassConsent?: true
   },
@@ -1585,11 +1586,12 @@ export function reviveConcourseWorker(
   if (!roster)
     return { outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' }
   const reviveKit = opts?.kitOverride ?? rec.kit
+  const reviveModel = opts?.modelOverride ?? rec.modelKey
   const spec = buildConcourseWorkerSpec({
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
     workspaceId: rec.workspaceId,
-    modelKey: rec.modelKey,
+    modelKey: reviveModel,
     ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     ...(rec.title !== undefined ? { title: rec.title } : {}),
     ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
@@ -1618,6 +1620,10 @@ export function reviveConcourseWorker(
     delete w.retired
     clearParkedFields(w)
     if (opts?.clearCrash === true) delete w.crash
+    if (opts?.modelOverride !== undefined) {
+      w.modelKey = opts.modelOverride
+      delete w.pendingModelKey
+    }
     w.lastLiveAt = Date.now()
     if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
   }, dir)

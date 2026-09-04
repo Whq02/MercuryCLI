@@ -328,10 +328,25 @@ export function getMainLoopModelOverride(): ModelSetting | undefined {
   return modelConfig.mainLoopModelOverride
 }
 
+const mainLoopModelOverrideListeners = new Set<(model: ModelSetting | undefined) => void>()
+
+export function subscribeMainLoopModelOverride(listener: (model: ModelSetting | undefined) => void): () => void {
+  mainLoopModelOverrideListeners.add(listener)
+  return () => {
+    mainLoopModelOverrideListeners.delete(listener)
+  }
+}
+
 export function setMainLoopModelOverride(
   model: ModelSetting | undefined,
 ): void {
   modelConfig.mainLoopModelOverride = model
+  for (const listener of mainLoopModelOverrideListeners) {
+    try {
+      listener(model)
+    } catch {
+    }
+  }
 }
 
 export function getInitialMainLoopModel(): ModelSetting {

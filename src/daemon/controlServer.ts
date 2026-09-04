@@ -34,6 +34,8 @@ import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 
+export type ControlOutcome = { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true }
+
 export interface ControlServerDeps {
   roster: TaskRoster
   breaker: DaemonBreaker
@@ -175,9 +177,7 @@ export interface ControlServerDeps {
     note?: string
     mintedAtMs?: number
     clientOpId?: string
-  }) =>
-    | { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
-    | Promise<{ outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }>
+  }) => ControlOutcome | Promise<ControlOutcome>
   sessionRewind?: (req: {
     sessionId: string
     by: string
@@ -236,8 +236,8 @@ const dispatchWhole: Whole<
   (typeof DISPATCH_WIRE_KEYS)[number] | (typeof DISPATCH_REFUSAL_WIRE_KEYS)[number]
 > = true
 
-type ControlResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseControl']>>>
-const CONTROL_WIRE_KEYS = ['outcome', 'detail'] as const satisfies readonly (keyof ControlResult)[]
+type ControlResult = ControlOutcome
+const CONTROL_WIRE_KEYS = ['outcome', 'detail', 'respawned'] as const satisfies readonly (keyof ControlResult)[]
 const controlWhole: Whole<ControlResult, (typeof CONTROL_WIRE_KEYS)[number]> = true
 
 type WarmResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseWarm']>>>

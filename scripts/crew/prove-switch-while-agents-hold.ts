@@ -63,18 +63,18 @@ const status = (value: unknown): string => JSON.stringify({ type: 'system', subt
 const record = () => readSessionWorkers(dir)[SHORT] as { modelKey?: string; pendingModelKey?: string; effort?: string; pendingEffort?: string } | undefined
 
 seat.onSeatLine(SHORT, status({ waitingOnAgents: 2 }), roster as never, dir)
-const applied = seat.setSessionModel(sid, 'claude-opus-5', roster as never, dir)
+const applied = await seat.setSessionModel(sid, 'claude-opus-5', roster as never, dir)
 check('with agents holding the turn, set-model APPLIES', applied.outcome === 'applied', JSON.stringify(applied))
 check('…the set_model control reached the child', controls.some(f => f.includes('"subtype":"set_model"') && f.includes('claude-opus-5')), controls.join(' | ').slice(0, 200))
 check('…and the record flips to the new model with nothing parked', record()?.modelKey === 'claude-opus-5' && record()?.pendingModelKey === undefined, JSON.stringify(record()))
 
 seat.onSeatLine(SHORT, status(null), roster as never, dir)
-const queued = seat.setSessionModel(sid, 'claude-fable-5-1', roster as never, dir)
+const queued = await seat.setSessionModel(sid, 'claude-fable-5-1', roster as never, dir)
 check('with a stream in flight, set-model PARKS (queued)', queued.outcome === 'queued', JSON.stringify(queued))
 check('…the record carries the parked model and keeps the applied one', record()?.modelKey === 'claude-opus-5' && record()?.pendingModelKey === 'claude-fable-5-1', JSON.stringify(record()))
 
 turnActive = false
-const closed = seat.setSessionModel(sid, 'claude-sonnet-5', roster as never, dir)
+const closed = await seat.setSessionModel(sid, 'claude-sonnet-5', roster as never, dir)
 check('with the turn closed, set-model applies', closed.outcome === 'applied' && record()?.modelKey === 'claude-sonnet-5', JSON.stringify(closed))
 
 section('S3 · the effort sibling')
