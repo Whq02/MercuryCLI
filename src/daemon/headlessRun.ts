@@ -108,10 +108,11 @@ export function getHeadlessPermissionMode(
 
 export function headlessPermissionArgv(
   mode: SeatPermissionMode = getHeadlessPermissionMode(),
+  allowBypass = false,
 ): string[] {
-  if (mode === 'default') return []
   if (mode === 'sovereign') return ['--dangerously-skip-permissions']
-  return ['--permission-mode', mode]
+  const words = mode === 'default' ? [] : ['--permission-mode', mode]
+  return allowBypass ? [...words, '--allow-dangerously-skip-permissions'] : words
 }
 
 export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -176,6 +177,7 @@ export interface StreamJsonChildSpec {
   cwd?: string
   extraEnv?: Readonly<Record<string, string>>
   permissionMode?: SeatPermissionMode
+  allowBypass?: true
   allowedTools?: readonly string[]
   extraArgv?: readonly string[]
   respawnExtraArgv?: readonly string[]
@@ -202,7 +204,7 @@ export function buildStreamJsonInvocation(
     script,
     '-p',
     '--verbose',
-    ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),
+    ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true),
     ...(spec.allowedTools && spec.allowedTools.length > 0
       ? ['--allowedTools', ...spec.allowedTools]
       : []),

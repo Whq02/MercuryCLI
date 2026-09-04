@@ -156,6 +156,7 @@ export type DaemonRequest =
       bornBlank?: true
       kit?: SessionKitV1
       kitPreset?: string
+      bypassConsent?: true
     }
   | { op: 'sessionList'; proto: number; auth?: string }
   | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }
@@ -168,6 +169,7 @@ export type DaemonRequest =
       retiring?: string
       runnerOptionsPresent?: boolean
       kit?: SessionKitV1
+      bypassConsent?: true
     }
   | {
       op: 'sessionControl'
