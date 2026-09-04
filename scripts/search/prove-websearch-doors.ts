@@ -441,7 +441,7 @@ section('§10 PACING — a rate limit is a WAIT: one retry, a cool-down, the ONE
   line = run.error?.message ?? ''
   check("on a gpt home the ONE line ends by naming ProviderSearch (the provider's own search) as the other door",
     run.output === undefined && /ProviderSearch \(OpenAI web search, the provider's own search\) is listed for this session — the other door\.$/.test(line) && !line.includes('\n'), line)
-  check('…after the key commands, with the census html 2 + lite 1 and ZERO model lanes', line.indexOf('/router key brave') < line.indexOf('ProviderSearch (') && j(run.perLane) === j({ 'ddg-html': 2, 'ddg-lite': 1 }), j(run.perLane))
+  check('…after the key commands, with the census html 2 + lite 1 and ZERO model lanes', line.includes('/router key brave') && line.indexOf('/router key brave') < line.indexOf('ProviderSearch (') && j(run.perLane) === j({ 'ddg-html': 2, 'ddg-lite': 1 }), j(run.perLane))
 
   fixture.reset()
   fixture.modes.ddgHtml = 'anomaly'

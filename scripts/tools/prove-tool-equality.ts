@@ -344,7 +344,7 @@ check(
 const searchDoorSource = readFileSync(new URL('../../src/services/search/searchDoor.ts', import.meta.url), 'utf8')
 check(
   'WebSearch: the door walks typed failures and throws the one composed line when no door answers',
-  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan))') && searchDoorSource.includes('notes: failures.map(failureLine)'),
+  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan, { nativeFamily:') && searchDoorSource.includes('notes: [...failures.map(failureLine)'),
 )
 check(
   'WebSearch: the native door is the main model\'s OWN family by the routing law — never another family\'s credential',
