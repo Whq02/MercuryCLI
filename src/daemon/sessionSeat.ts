@@ -10,7 +10,11 @@ import {
 import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
-import { readSessionWorkers, updateConcourseWorkers, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import type { StreamJsonChildSpec } from './headlessRun.js'
+import { describeSignInRead, refreshSignInReads } from './signInView.js'
+import { validateWorkerModelChoice } from '../services/concourse/workerModels.js'
+import { getMarketingNameForModel } from '../utils/model/model.js'
 import { resolveSessionKitOnRecord, validateSessionKit, type SessionKitEditV1 } from './sessionKit.js'
 import {
   SPAWN_SWITCH_KINDS,
@@ -27,9 +31,12 @@ import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
 export interface SeatRosterPort {
   control(short: string, frame: string): boolean
-  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean }>
+  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean; state?: string }>
   patchSeatModel(short: string, model: string): boolean
   patchSeatEffort(short: string, effort: string): boolean
+  has?(short: string): { present: boolean }
+  kill?(short: string): boolean
+  registerLongLived?(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string }
 }
 
 export const SESSION_FACTS_REQUEST_PREFIX = 'mercury-session-facts-'
@@ -704,7 +711,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
   if (!rec) return
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat idle edge: ${short}${rec.pendingModelKey !== undefined ? ` — applying the parked model ${rec.pendingModelKey}` : ''}${rec.pendingEffort !== undefined ? ` — applying the parked effort ${rec.pendingEffort}` : ''}`)
-  if (rec.pendingModelKey !== undefined) applyModelNow(rec, rec.pendingModelKey, roster, dir, { parkedSettle: true })
+  if (rec.pendingModelKey !== undefined) void applyModelNow(rec, rec.pendingModelKey, roster, dir, { parkedSettle: true })
   if (rec.pendingEffort !== undefined) applyEffortNow(rec, rec.pendingEffort, roster, dir)
   drainPendingKitDials(short, roster, dir)
   drainPendingSpawnSwitches(short, roster, dir)
@@ -754,7 +761,7 @@ export function onSeatSettled(short: string): void {
 }
 
 
-export type SeatVerbOutcome = { outcome: 'applied' | 'queued' | 'noop' | 'refused'; detail?: string }
+export type SeatVerbOutcome = { outcome: 'applied' | 'queued' | 'noop' | 'refused'; detail?: string; respawned?: true }
 
 function verbRequestId(short: string, verb: string): string {
   return `${SEAT_VERB_REQUEST_PREFIX}${verb}-${short}-${Date.now().toString(36)}`
@@ -864,7 +871,7 @@ export function _pendingRewindWaitersForTesting(): number {
   return rewindWaiters.size
 }
 
-function applyModelNow(
+async function applyModelNow(
   rec: ConcourseWorkerRecordV1,
   model: string,
   roster: SeatRosterPort,
@@ -872,7 +879,7 @@ function applyModelNow(
   opts?: {
     parkedSettle?: boolean
   },
-): SeatVerbOutcome {
+): Promise<SeatVerbOutcome> {
   const delivered = roster.control(
     rec.runnerId,
     JSON.stringify({
@@ -881,7 +888,7 @@ function applyModelNow(
       request: { subtype: 'set_model', model },
     }),
   )
-  if (!delivered) return { outcome: 'refused', detail: 'the session has no live control channel' }
+  if (!delivered) return respawnOnModel(rec, model, roster, dir)
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-model applied: ${rec.runnerId} → ${model}`)
   if (opts?.parkedSettle === true) {
@@ -901,11 +908,12 @@ function applyModelNow(
   return { outcome: 'applied', detail: `${rec.runnerId} → ${model}` }
 }
 
-export function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string): SeatVerbOutcome {
+export async function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string): Promise<SeatVerbOutcome> {
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.modelKey === model && rec.pendingModelKey === undefined) return { outcome: 'noop', detail: `already on ${model}` }
-  if (seatBusyForSwitch(rec.runnerId, roster)) {
+  const gone = rec.pid !== undefined && !workerPidAlive(rec)
+  if (!gone && seatBusyForSwitch(rec.runnerId, roster)) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) {
@@ -919,6 +927,74 @@ export function setSessionModel(sessionId: string, model: string, roster: SeatRo
     return { outcome: 'queued', detail: `${model} applies when this turn ends` }
   }
   return applyModelNow(rec, model, roster, dir)
+}
+
+function clockOf(atMs: number): string {
+  return new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function goneRunnerWords(rec: ConcourseWorkerRecordV1, row: { outcome?: string } | undefined): string {
+  if (rec.crash !== undefined) {
+    const head = rec.crash.reason.replace(/ · resumed.*$/, '').replace(/ — .*$/, '')
+    return `the runner had exited at ${clockOf(rec.crash.at)} (${head})`
+  }
+  if (row?.outcome === 'killed') return 'the runner had been cut (the stop)'
+  return 'the runner had exited'
+}
+
+async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir?: string): Promise<SeatVerbOutcome> {
+  const row = roster.list().find(j => j.short === rec.runnerId)
+  if (roster.registerLongLived === undefined || roster.has === undefined || roster.kill === undefined) {
+    return { outcome: 'refused', detail: 'the session has no live control channel, and this roster cannot respawn its runner' }
+  }
+  refreshSignInReads(true)
+  const validated = await validateWorkerModelChoice(model, 'session')
+  if (!validated.ok) {
+    const read = validated.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(validated.reason.slice('no-credential:'.length))}` : ''
+    return {
+      outcome: 'refused',
+      detail: `${goneRunnerWords(rec, row)} and cannot restart on ${model}: model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''}${read}`,
+    }
+  }
+  const name = ((): string => {
+    try {
+      return getMarketingNameForModel(model) ?? model
+    } catch {
+      return model
+    }
+  })()
+  if (row !== undefined && row.outcome === undefined && row.state === 'spawning') {
+    roster.patchSeatModel(rec.runnerId, model)
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (w && w.endedAt === undefined) {
+        w.modelKey = model
+        delete w.pendingModelKey
+      }
+    }, dir)
+    const receipt = `${goneRunnerWords(rec, row)} — restarting on ${name}`
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat set-model rides the respawn: ${rec.runnerId} → ${model} (${receipt})`)
+    publishSeatFacts(rec.runnerId, dir, roster)
+    return { outcome: 'applied', detail: receipt, respawned: true }
+  }
+  const reviveRoster = {
+    kill: (short: string): boolean => roster.kill!(short),
+    has: (short: string): { present: boolean } => roster.has!(short),
+    registerLongLived: (short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived!(short, spec),
+  }
+  const revived = reviveConcourseWorker(rec.sessionId, 'operator:set-model', reviveRoster, { clearCrash: true, modelOverride: model }, dir)
+  if (revived.outcome === 'noop') {
+    return { outcome: 'refused', detail: `the runner's control channel is closed while its process (pid ${rec.pid ?? '?'}) still stands — retry in a moment` }
+  }
+  if (revived.outcome === 'refused') {
+    return { outcome: 'refused', detail: `${goneRunnerWords(rec, row)} and could not restart on ${model}: ${revived.detail ?? revived.reason}` }
+  }
+  const receipt = `${goneRunnerWords(rec, row)} — restarted on ${name}`
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] seat set-model respawned: ${rec.runnerId} → ${model} (${receipt})`)
+  publishSeatFacts(rec.runnerId, dir, roster)
+  return { outcome: 'applied', detail: receipt, respawned: true }
 }
 
 function applyEffortNow(
