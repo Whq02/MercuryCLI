@@ -50,10 +50,10 @@ section('§19 the picker\'s supercode persists like /effort')
 section('§20 one definition of progress.tokenCount')
 {
   const main = read('src/tasks/LocalMainSessionTask.ts')
-  check('the main-session task reads the wire usage (last input side + running output) when present', /latestInputTokens = latest/.test(main) && /totalOutputTokens \+= usage\.output_tokens \?\? 0/.test(main))
-  check('…and reports it as tokenCount, the estimate standing in only before any usage', /const tokensSnapshot = sawUsage \? latestInputTokens \+ totalOutputTokens : estimatedTokens/.test(main))
+  check('the main-session task folds the wire usage through the one ledger (the spend) when present', /foldResponseIntoLedger\(ledger, message\)/.test(main))
+  check('…and reports it as tokenCount, the estimate standing in only before any usage', /const tokensSnapshot = sawUsage \? ledger\.inputTokens \+ ledger\.outputTokens : estimatedTokens/.test(main))
   const agent = read('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-  check('the agent task defines the same quantity (latest input + total output)', /return tracker\.latestInputTokens \+ tracker\.totalOutputTokens/.test(agent))
+  check('the agent task defines the same quantity (the ledger\'s spend: input + output summed over every response)', /return tracker\.ledger\.inputTokens \+ tracker\.ledger\.outputTokens/.test(agent))
 }
 
 section('§21 the coordinator gauge counts the round\'s output')

@@ -9,6 +9,7 @@ import { onExit } from 'signal-exit'
 import { flushInteractionTime } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { fluxFrame, fluxMark } from '../utils/flux/fluxProbe.js'
+import { isMouseCaptureEnabled } from '../utils/config/derived.js'
 import { isMouseTrackingEnabled as mouseTrackingEnabledByEnvironment } from '../utils/fullscreen.js'
 import { logError } from '../utils/log.js'
 import { notePulseFrameWritten } from '../utils/pulse/turnTrace.js'
@@ -41,6 +42,7 @@ import {
   dispatchHover as dispatchHoverInTree,
   hitTest,
 } from './geometry/hit.js'
+import { OverlayRecord } from './geometry/overlay.js'
 import {
   captureScrolledRows,
   clearSelection,
@@ -57,11 +59,13 @@ import {
   startSelection,
   updateSelection,
   type FocusMove,
+  type Point,
   type SelectionState,
 } from './geometry/selection.js'
 import type { ParsedKey } from './input/input-decoder.js'
 import instances from './instances.js'
 import { getCellLayoutCounters } from './layout/cellLayout.js'
+import { unionRect } from './layout/geometry.js'
 import { nodeCache } from './node-cache.js'
 import { optimizePatches } from './patch-stream.js'
 import reconciler, {
@@ -74,10 +78,10 @@ import reconciler, {
   resetProfileCounters,
 } from './reconciler.js'
 import { scanPositions, type MatchPosition } from './render-to-screen.js'
-import createRenderer, { type Renderer } from './renderer.js'
+import createRenderer, { type Renderer, type RenderResult } from './renderer.js'
 import { refreshConsoleSize } from './root/console-size.js'
 import { planCursor, type CursorPoint } from './root/cursor-park.js'
-import { FrameLedger, type ContaminationReason } from './root/frame-ledger.js'
+import { FrameLedger } from './root/frame-ledger.js'
 import { applyOverlayPass, type SearchPositions } from './root/overlay-pass.js'
 import { RenderScheduler } from './root/render-scheduler.js'
 import {
@@ -164,6 +168,10 @@ export type Options = {
 type ExitOutcome = { kind: 'ok' } | { kind: 'error'; error: Error }
 
 const HOME_CURSOR = Object.freeze({ x: 0, y: 0, visible: false })
+
+function samePoint(a: Point | null, b: Point | null): boolean {
+  return a === b || (a !== null && b !== null && a.col === b.col && a.row === b.row)
+}
 
 function safeAppend(path: string, line: string): void {
   try {
@@ -259,6 +267,7 @@ export default class Ink {
 
   readonly selection: SelectionState = createSelectionState()
   private readonly selectionListeners = new Set<() => void>()
+  private glassOverlay: OverlayRecord | null = null
   private searchQuery = ''
   private searchPositions: SearchPositions | null = null
   private readonly hoveredNodes = new Set<DOMElement>()
@@ -291,7 +300,7 @@ export default class Ink {
     this.frontFrame = this.newEmptyFrame()
     this.backFrame = this.newEmptyFrame()
     this.mouseTracking = mouseTrackingEnabledByEnvironment()
-    this.mouseTrackingPref = this.mouseTracking
+    this.mouseTrackingPref = this.mouseTracking && isMouseCaptureEnabled()
 
     this.writer = new FrameWriter({ isTTY: this.isTTY, stylePool: this.stylePool })
     this.scheduler = new RenderScheduler(
@@ -415,6 +424,7 @@ export default class Ink {
     })
     this.frontFrame = make()
     this.backFrame = make()
+    this.glassOverlay = null
     this.ledger.syncAfterDeliberateReset()
     this.writer.reset()
     this.displayCursor = null
@@ -432,6 +442,7 @@ export default class Ink {
       )
     this.frontFrame = rebuild(this.frontFrame)
     this.backFrame = rebuild(this.backFrame)
+    this.glassOverlay = null
     this.ledger.syncAfterDeliberateReset()
     this.writer.reset()
     this.displayCursor = null
@@ -659,18 +670,27 @@ export default class Ink {
     const regionScrollUsable =
       this.altScreenActive && syncOutputSupportedNow() && regionScrollTrustedNow()
     const rendererStart = performance.now()
-    const { frame, signals } = this.renderer({
-      frontFrame: this.frontFrame,
-      backFrame: this.backFrame,
-      isTTY: this.isTTY,
-      terminalWidth: columns,
-      terminalRows: rows,
-      altScreen: this.altScreenActive,
-      prevFrameContaminated: wasContaminated,
-      regionScrollUsable,
-    })
+    const glassOverlay = this.glassOverlay
+    if (glassOverlay) glassOverlay.revert(this.frontFrame.screen)
+    let composed: RenderResult
+    try {
+      composed = this.renderer({
+        frontFrame: this.frontFrame,
+        backFrame: this.backFrame,
+        isTTY: this.isTTY,
+        terminalWidth: columns,
+        terminalRows: rows,
+        altScreen: this.altScreenActive,
+        prevFrameContaminated: wasContaminated,
+        regionScrollUsable,
+      })
+    } finally {
+      if (glassOverlay) glassOverlay.restore(this.frontFrame.screen)
+    }
+    const { frame, signals } = composed
     const rendererMs = performance.now() - rendererStart
 
+    const overlayRecord = new OverlayRecord(frame.screen.width)
     const overlay = applyOverlayPass({
       altScreen: this.altScreenActive,
       follow: signals.consumeFollowScroll(),
@@ -683,17 +703,18 @@ export default class Ink {
       onSelectionCleared: () => {
         for (const listener of this.selectionListeners) listener()
       },
+      record: overlayRecord,
     })
+    const vacated = glassOverlay ? glassOverlay.rect() : null
+    if (vacated) {
+      const screen = frame.screen
+      screen.damage = screen.damage ? unionRect(screen.damage, vacated) : vacated
+    }
 
-    if (
-      signals.layoutShifted ||
-      overlay.selActive ||
-      overlay.hlActive ||
-      wasContaminated
-    ) {
+    if (signals.layoutShifted || wasContaminated) {
       const screen = frame.screen
       const bandTop = signals.shiftBandTop()
-      const shiftOnly = !overlay.selActive && !overlay.hlActive && !wasContaminated
+      const shiftOnly = !wasContaminated
       if (
         shiftOnly &&
         bandTop !== null &&
@@ -737,6 +758,7 @@ export default class Ink {
 
     this.backFrame = this.frontFrame
     this.frontFrame = frame
+    this.glassOverlay = overlayRecord.size > 0 ? overlayRecord : null
     this.ledger.commitFrame()
 
     if (Date.now() - this.lastPoolReset > POOL_RESET_INTERVAL_MS) this.resetPools()
@@ -806,12 +828,7 @@ export default class Ink {
       }
     }
 
-    const contamination: ContaminationReason | null = overlay.selActive
-      ? 'selection-overlay'
-      : overlay.hlActive
-        ? 'search-overlay'
-        : null
-    this.ledger.settle(delivered, contamination)
+    this.ledger.settle(delivered, null)
     notePulseFrameWritten(delivered)
 
     if (!delivered) {
@@ -1299,9 +1316,10 @@ export default class Ink {
     }
   }
 
-  handleSelectionStart(col: number, row: number): void {
+  handleSelectionStart(col: number, row: number, pressHadAlt = false): void {
     if (!this.altScreenActive) return
     startSelection(this.selection, col, row)
+    this.selection.lastPressHadAlt = pressHadAlt
     this.applySelectionClipBand(col, row)
     this.notifySelectionChange()
   }
@@ -1321,11 +1339,15 @@ export default class Ink {
 
   handleSelectionDrag(col: number, row: number): void {
     if (!this.altScreenActive) return
-    if (this.selection.anchorSpan) {
-      extendSelection(this.selection, this.frontFrame.screen, col, row)
+    const s = this.selection
+    const anchor = s.anchor
+    const focus = s.focus
+    if (s.anchorSpan) {
+      extendSelection(s, this.frontFrame.screen, col, row)
     } else {
-      updateSelection(this.selection, col, row)
+      updateSelection(s, col, row)
     }
+    if (samePoint(s.anchor, anchor) && samePoint(s.focus, focus)) return
     this.notifySelectionChange()
   }
 
