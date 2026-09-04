@@ -1746,6 +1746,10 @@ export default class Ink {
     else this.resolveExitPromise()
   }
 
+  lastFrameText(): string {
+    return this.writer.fullFrameText(this.frontFrame)
+  }
+
   waitUntilExit(): Promise<void> {
     if (this.options.waitUntilExit) return this.options.waitUntilExit()
     if (this.exitPromise) return this.exitPromise
