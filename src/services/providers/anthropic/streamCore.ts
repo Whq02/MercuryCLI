@@ -224,9 +224,12 @@ import {
   firstByteTimeoutLine,
   requestWaitLine,
   retryReasonWords,
+  createStreamIdleWatchdog,
+  streamEndReceiptLine,
   streamIdleTimeoutMs,
   streamIdleWarningMsOf,
   type RequestWaitV1,
+  type StreamEndV1,
 } from '../streamIdleBudget.js'
 import {
   configureEffortParams,
@@ -1187,19 +1190,17 @@ async function* queryModel(
     let sawFirstStreamEvent = false
     let streamEventCount = 0
     let streamWatchdogFiredAt: number | null = null
-    let lastStreamEventAtMs = 0
-    let idleWarnedForMs = -1
-    let streamIdleTimer: ReturnType<typeof setTimeout> | null = null
-    function clearStreamIdleTimers(): void {
-      if (streamIdleTimer !== null) {
-        clearTimeout(streamIdleTimer)
-        streamIdleTimer = null
-      }
-    }
-    function onStreamIdleDeadline(): void {
-      streamIdleTimer = null
-      const silentMs = Date.now() - lastStreamEventAtMs
-      if (silentMs >= STREAM_IDLE_TIMEOUT_MS) {
+    let sawMessageStop = false
+    const streamIdleWatchdog = createStreamIdleWatchdog({
+      timeoutMs: STREAM_IDLE_TIMEOUT_MS,
+      onWarning: () => {
+        logForDebugging(
+          `stream silent for ${STREAM_IDLE_WARNING_MS / 1000}s — watchdog warning`,
+          { level: 'warn' },
+        )
+        logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
+      },
+      onFire: () => {
         streamIdleAborted = true
         streamWatchdogFiredAt = performance.now()
         logForDebugging(
@@ -1208,34 +1209,44 @@ async function* queryModel(
         )
         logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
         releaseStreamResources()
-        return
-      }
-      if (
-        silentMs >= STREAM_IDLE_WARNING_MS &&
-        idleWarnedForMs !== lastStreamEventAtMs
-      ) {
-        idleWarnedForMs = lastStreamEventAtMs
-        logForDebugging(
-          `stream silent for ${STREAM_IDLE_WARNING_MS / 1000}s — watchdog warning`,
-          { level: 'warn' },
-        )
-        logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
-      }
-      armStreamIdleWatchdog()
+      },
+    })
+    function clearStreamIdleTimers(): void {
+      streamIdleWatchdog.stop()
     }
-    function armStreamIdleWatchdog(): void {
-      const nextDeadlineAt =
-        lastStreamEventAtMs +
-        (idleWarnedForMs === lastStreamEventAtMs
-          ? STREAM_IDLE_TIMEOUT_MS
-          : STREAM_IDLE_WARNING_MS)
-      streamIdleTimer = setTimeout(
-        onStreamIdleDeadline,
-        Math.max(0, nextDeadlineAt - Date.now()),
-      )
+    function settledTailStands(): boolean {
+      if (!partialMessage || newMessages.length === 0 || stopReason !== null || streamedToolUse) return false
+      let last: (typeof contentBlocks)[number] | undefined
+      for (let i = 0; i < contentBlocks.length; i++) {
+        const block = contentBlocks[i]
+        if (block === undefined) continue
+        if (!stoppedBlockIndices.has(i)) return false
+        last = block
+      }
+      return last !== undefined && last.type === 'text'
     }
-    lastStreamEventAtMs = Date.now()
-    armStreamIdleWatchdog()
+    function* settleTypedEnd(end: StreamEndV1) {
+      const lastMsg = newMessages.at(-1)
+      if (!lastMsg) return
+      stopReason = 'end_turn'
+      lastMsg.message.usage = usage as AssistantMessage['message']['usage']
+      lastMsg.message.stop_reason = 'end_turn'
+      lastMsg.streamEnd = end
+      void settleTranscriptMessage(lastMsg)
+      logForDebugging(streamEndReceiptLine(end), { level: 'warn' })
+      yield {
+        type: 'stream_event' as const,
+        event: {
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage,
+        } as unknown as BetaRawMessageStreamEvent,
+      }
+      yield {
+        type: 'stream_event' as const,
+        event: { type: 'message_stop' } as BetaRawMessageStreamEvent,
+      }
+    }
 
     startSessionActivity('api_call')
     try {
@@ -1246,7 +1257,7 @@ async function* queryModel(
       let stallCount = 0
 
       for await (const part of stream) {
-        lastStreamEventAtMs = Date.now()
+        streamIdleWatchdog.noteActivity()
         sawFirstStreamEvent = true
         streamEventCount++
         const now = Date.now()
@@ -1460,6 +1471,7 @@ async function* queryModel(
             break
           }
           case 'message_stop':
+            sawMessageStop = true
             break
         }
 
@@ -1468,6 +1480,7 @@ async function* queryModel(
           event: part,
           ...(part.type === 'message_start' ? { ttftMs } : undefined),
         }
+        if (sawMessageStop) break
       }
       clearStreamIdleTimers()
 
@@ -1484,7 +1497,15 @@ async function* queryModel(
           `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
         )
         streamWatchdogFiredAt = null
-        throw new Error('Stream idle timeout - no chunks received')
+        if (settledTailStands()) {
+          yield* settleTypedEnd({
+            reason: 'silent-after-last-item',
+            provider: 'Anthropic',
+            silentMs: streamIdleWatchdog.fired()?.silentMs ?? STREAM_IDLE_TIMEOUT_MS,
+          })
+        } else {
+          throw new Error('Stream idle timeout - no chunks received')
+        }
       }
 
       if (!partialMessage || (newMessages.length === 0 && !stopReason)) {
@@ -1495,6 +1516,9 @@ async function* queryModel(
           { level: 'error' },
         )
         throw new Error('Stream ended without receiving any events')
+      }
+      if (stopReason === null && settledTailStands()) {
+        yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
       }
 
       if (stallCount > 0) {
@@ -1532,6 +1556,15 @@ async function* queryModel(
         logForDebugging(
           `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
         )
+      }
+
+      if (streamIdleAborted && !signal.aborted && settledTailStands()) {
+        yield* settleTypedEnd({
+          reason: 'silent-after-last-item',
+          provider: 'Anthropic',
+          silentMs: streamIdleWatchdog.fired()?.silentMs ?? STREAM_IDLE_TIMEOUT_MS,
+        })
+        break
       }
 
       if (streamingError instanceof APIUserAbortError) {

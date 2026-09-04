@@ -15,6 +15,7 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
+import { streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
@@ -482,6 +483,15 @@ async function* streamOneZaiAttempt(ctx: {
   if (fault && nothingYielded && !finish) {
     return { kind: 'fault', fault, retryEligible: true }
   }
+  const typedEnd =
+    fault !== undefined && !finish
+      ? typedStreamEndOf({
+          fault,
+          provider: 'Z.AI',
+          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          silentMs: streamIdleTimeoutMs(),
+        })
+      : null
 
   yield* ensureMessageStart()
   yield* closeOpenBlock()
@@ -580,6 +590,7 @@ async function* streamOneZaiAttempt(ctx: {
   if (lastMessage) {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
+    if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     void settleTranscriptMessage(lastMessage)
   }
   yield streamEvent({
@@ -589,7 +600,7 @@ async function* streamOneZaiAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
-  if (fault) {
+  if (fault && typedEnd === null) {
     yield apiErrorMessage(
       streamFaultAfterPartialText('Z.AI', fault.code, fault.message),
       compatFaultToTypedError(fault),
