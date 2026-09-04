@@ -54,6 +54,7 @@ import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ep
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
+import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
@@ -759,6 +760,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
               ? 'thinking'
               : this.liveState.phase
     const agentsWaiting = phase === 'waiting' ? this.liveAgentsWaiting : 0
+    const waitingOn = phase === 'waiting' ? workCounts(this.facts?.work ?? []) : null
+    const waitingOnWords = waitingOn !== null ? workChipLine(waitingOn) : null
     const inProgressToolUseIDs = inFlight
       ? this.liveState.inProgressToolUseIDs
       : IDLE_LIVE.inProgressToolUseIDs
@@ -767,6 +770,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       inFlight !== prev.inFlight ||
       phase !== prev.phase ||
       agentsWaiting !== prev.agentsWaiting ||
+      waitingOnWords !== (prev.waitingOn !== undefined ? workChipLine(prev.waitingOn) : null) ||
       this.liveState.turnStartedAtMs !== prev.turnStartedAtMs ||
       inProgressToolUseIDs.size !== prev.inProgressToolUseIDs.size ||
       [...inProgressToolUseIDs].some(id => !prev.inProgressToolUseIDs.has(id))
@@ -787,6 +791,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       inFlight,
       phase,
       agentsWaiting,
+      ...(waitingOn !== null && waitingOnWords !== null ? { waitingOn } : {}),
       inProgressToolUseIDs,
       turnStartedAtMs: this.liveState.turnStartedAtMs ?? (inFlight ? Date.now() : null),
     }
