@@ -355,6 +355,26 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   check("the account moved while an ask hung: the new account's ask answered at once (5h 36% for A)", view.state === 'live' && view.pct === 36, JSON.stringify(view))
   await hung
   check('…and the hung ask settled into nothing — no failure, no backoff, the figure untouched', reader.anthropicUsageReadStatus().failure === undefined && reader.anthropicUsageReadStatus().retryAtMs === undefined && fiveHour().pct === 36, JSON.stringify(reader.anthropicUsageReadStatus()))
+  removeSignIn()
+  await settled()
+  view = fiveHour()
+  check('a removal with no successor paints the blank and asks nothing', view.state === 'unavailable' && reader.anthropicUsageReadStatus().requests === asksBefore + 4 && reader.anthropicUsageReadStatus().inFlight === false, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
+  signIn('A')
+  await settled()
+  check("A is back and read (5h 36%)", fiveHour().pct === 36 && bearers.at(-1) === 'Bearer fixture-token-A')
+  const saved = saveOAuthTokensIfNeeded(tokensFor('B'))
+  if (!saved.success) throw new Error('the fixture swap did not save')
+  const before = reader.anthropicUsageReadStatus().requests
+  recordSignIn('anthropic', 'oauth')
+  const dropped = fiveHour()
+  await settled()
+  view = fiveHour()
+  check("a bump whose road forgot the reset: the reader dropped A's figure at once (the blank on the bump) and painted B's (5h 77%)", dropped.state === 'unavailable' && view.pct === 77 && bearers.at(-1) === 'Bearer fixture-token-B' && reader.anthropicUsageReadStatus().requests === before + 1, JSON.stringify({ dropped, view }))
+  const standing = reader.anthropicUsageReadStatus().requests
+  recordSignIn('openai', 'api-key')
+  const held = fiveHour()
+  await settled()
+  check("another family's sign-in never blanks the meter: B's figure stood through the bump and was re-read once", held.state === 'live' && held.pct === 77 && fiveHour().pct === 77 && reader.anthropicUsageReadStatus().requests === standing + 1, JSON.stringify({ held, after: fiveHour() }))
   check('the sign-in subscription is the driver\'s: disarmed, a sign-in asks nothing', (() => {
     disarm()
     const asks = reader.anthropicUsageReadStatus().requests
