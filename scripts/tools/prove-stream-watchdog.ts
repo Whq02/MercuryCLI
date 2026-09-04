@@ -13,14 +13,15 @@ function section(t: string): void {
 }
 const _apiDir = join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic')
 const claude = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic', 'index.ts'), 'utf-8') + readdirSync(_apiDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_apiDir, f), 'utf-8')).join('\n')
+const budget = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'streamIdleBudget.ts'), 'utf-8')
 
 console.log('============================================================')
 console.log(' stream idle watchdog — default-ON (HB-0119)')
 console.log('============================================================')
 
 section('source: the watchdog is ALWAYS armed — no enablement gate, no env spelling')
-check('the watchdog arms unconditionally at stream start (stamp + arm, no gate between)', /lastStreamEventAtMs = Date\.now\(\)\s*armStreamIdleWatchdog\(\)/.test(claude))
-check('the deadline handler serves BOTH thresholds (abort at full budget, warning at half)', /function onStreamIdleDeadline\(\): void \{[\s\S]{0,900}STREAM_IDLE_TIMEOUT_MS[\s\S]{0,900}STREAM_IDLE_WARNING_MS/.test(claude))
+check('the watchdog is the one owner\'s, created at stream start with no gate between', claude.includes('const streamIdleWatchdog = createStreamIdleWatchdog({') && claude.includes('timeoutMs: STREAM_IDLE_TIMEOUT_MS,'))
+check('the one owner serves BOTH thresholds (the fire at the budget, the warning at half) and the stream wires both', /const warningMs = streamIdleWarningMsOf\(timeoutMs\)/.test(budget) && /onWarning\?: \(silentMs: number\) => void/.test(budget) && /onFire\?: \(fire: StreamIdleFire\) => void/.test(budget) && /onWarning: \(\) => \{/.test(claude) && /onFire: \(\) => \{/.test(claude))
 check('no watchdog enablement variable exists', !/streamWatchdogEnabled/.test(claude))
 check('no retired watchdog env spelling survives', !/STREAM_WATCHDOG/.test(claude))
 
@@ -31,7 +32,7 @@ check(
 )
 check(
   'the watchdog signal streamIdleAborted is still set by the idle deadline firing',
-  /function onStreamIdleDeadline\(\): void \{[\s\S]{0,300}streamIdleAborted = true/.test(claude),
+  /onFire: \(\) => \{\s*streamIdleAborted = true/.test(claude),
 )
 check(
   'streamedToolUse is set only when a local tool_use block finishes streaming (content_block_stop)',
