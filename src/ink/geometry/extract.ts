@@ -46,7 +46,9 @@ export function getSelectedText(s: SelectionState, screen: Screen): string {
 
   const lo = s.clipLo ?? 0
   const hi = s.clipHi ?? screen.width - 1
-  for (let row = start.row; row <= end.row; row++) {
+  const rowLo = Math.max(start.row, s.clipTop ?? 0)
+  const rowHi = Math.min(end.row, s.clipBottom ?? screen.height - 1)
+  for (let row = rowLo; row <= rowHi; row++) {
     const rowStart = Math.max(row === start.row ? start.col : 0, lo)
     const rowEnd = Math.min(row === end.row ? end.col : screen.width - 1, hi)
     if (rowEnd < rowStart) continue
