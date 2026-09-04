@@ -111,6 +111,7 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
           if (!alive) break
           const last = attempted.get(rec.sessionId)
           if (last !== undefined && Date.now() - last < RETRY_MS) continue
+          if (!shouldMintTitle(rec, Number.POSITIVE_INFINITY)) continue
           const facts = transcriptHeadFacts(rec)
           if (!shouldMintTitle(rec, facts.assistantTurns)) continue
           if (facts.description.trim().length === 0) continue
