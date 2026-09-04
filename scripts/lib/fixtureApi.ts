@@ -258,9 +258,45 @@ function withoutThinking(message: unknown): unknown {
   return { ...row, content: row.content.filter(b => { const t = (b as { type?: string }).type; return t !== 'thinking' && t !== 'redacted_thinking' }) }
 }
 
+function referencedToolNames(messages: unknown[]): Set<string> {
+  const names = new Set<string>()
+  for (const message of messages) {
+    const content = (message as { content?: unknown } | null)?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      const b = block as { type?: string; name?: unknown; tool_name?: unknown; content?: unknown }
+      if (b.type === 'tool_use' && typeof b.name === 'string') names.add(b.name)
+      if (b.type === 'tool_reference' && typeof b.tool_name === 'string') names.add(b.tool_name)
+      if (b.type === 'tool_result' && Array.isArray(b.content)) {
+        for (const inner of b.content) {
+          const r = inner as { type?: string; tool_name?: unknown }
+          if (r.type === 'tool_reference' && typeof r.tool_name === 'string') names.add(r.tool_name)
+        }
+      }
+    }
+  }
+  return names
+}
+
+function boundTools(tools: unknown, messages: unknown[]): unknown[] {
+  if (!Array.isArray(tools)) return []
+  const referenced = referencedToolNames(messages)
+  return tools.filter(tool => {
+    const t = tool as { name?: unknown; defer_loading?: unknown }
+    return t.defer_loading !== true || (typeof t.name === 'string' && referenced.has(t.name))
+  })
+}
+
 export function prefixHashOf(body: { system?: unknown; tools?: unknown }, messages: unknown[]): string {
-  const material = JSON.stringify(stripCacheControl({ system: body.system, tools: body.tools, messages: messages.map(withoutThinking) }))
+  const material = JSON.stringify(stripCacheControl({ system: body.system, tools: boundTools(body.tools, messages), messages: messages.map(withoutThinking) }))
   return createHash('sha256').update(material).digest('hex').slice(0, 16)
+}
+
+export function bindingRefusalOf(body: unknown, drops: unknown[]): string | null {
+  const behavior = (body as { thinking?: { block_binding?: { prefix_mismatch_behavior?: unknown } } } | null)?.thinking?.block_binding?.prefix_mismatch_behavior
+  if (behavior !== 'error' || drops.length === 0) return null
+  const first = drops[0] as { path?: string; reason?: string }
+  return `${first.path ?? 'messages'}: the thinking block's ${first.reason === 'model_binding_mismatch' ? 'model' : 'prefix'} binding does not match this request (${first.reason ?? 'binding_mismatch'}); set thinking.block_binding.prefix_mismatch_behavior to "drop_block" to drop it instead`
 }
 
 export function boundSignature(body: { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }): string {
@@ -427,10 +463,19 @@ export async function startFixtureApi(
         }
       }
       if (opts?.bindingCheck && turn !== undefined && (turn.kind === 'text' || turn.kind === 'tool_use')) {
+        const judged = turn.inputTransformations === undefined ? bindingDropsFor(body) : turn.inputTransformations
+        const refusal = bindingRefusalOf(body, judged)
+        if (refusal !== null) {
+          queue.unshift(turn)
+          refusals.push({ request: msgSeq, message: refusal })
+          res.writeHead(400, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: refusal } }))
+          return
+        }
         turn = {
           ...turn,
           signature: boundSignature(body as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }),
-          ...(turn.inputTransformations === undefined ? { inputTransformations: bindingDropsFor(body) } : {}),
+          ...(turn.inputTransformations === undefined ? { inputTransformations: judged } : {}),
         }
       }
       started.get(msgSeq)?.()
