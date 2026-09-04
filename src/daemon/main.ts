@@ -78,13 +78,14 @@ import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseC
 import { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
+  parseOwnerFd,
   isProcessAlive,
-  decideOrphanShutdown,
   getProcessStartToken,
   getProcessStartTokenAsync,
-  ownerIdentityMatches,
-  OWNER_WATCH_INTERVAL_MS,
-  OWNER_WATCH_GRACE_CHECKS,
+  armOwnerPipe,
+  startOwnerWatch,
+  type OwnerPipeHandleV1,
+  type OwnerWatchHandleV1,
 } from './ownerWatch.js'
 import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
@@ -277,7 +278,8 @@ async function daemonRun(args: string[]): Promise<void> {
   let roster: TaskRoster | null = null
   const dispatchDrains: DispatchDrainHandle[] = []
   const idleNudges = new Map<string, () => void>()
-  let ownerWatch: ReturnType<typeof setInterval> | undefined
+  let ownerWatch: OwnerWatchHandleV1 | undefined
+  let ownerPipe: OwnerPipeHandleV1 | undefined
   let ready = false
   let wakeReady: () => void = () => {}
   const readyPromise = new Promise<void>(resolve => {
@@ -1032,10 +1034,10 @@ async function daemonRun(args: string[]): Promise<void> {
         }
       }
       idleNudges.clear()
-      if (ownerWatch) {
-        clearInterval(ownerWatch)
-        ownerWatch = undefined
-      }
+      ownerWatch?.stop()
+      ownerWatch = undefined
+      ownerPipe?.close()
+      ownerPipe = undefined
       if (roster) {
         for (const j of roster.list()) {
           if (!j.outcome) {
@@ -1132,37 +1134,28 @@ async function daemonRun(args: string[]): Promise<void> {
     const ownerPid = parseOwnerPid()
     const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
     if (ownerPid !== null && !persist) {
-      let deadStreak = 0
       const ownerStartToken = getProcessStartToken(ownerPid)
-      let ownerProbeInflight = false
-      ownerWatch = setInterval(() => {
-        if (ownerProbeInflight) return
-        ownerProbeInflight = true
-        void (async () => {
-          try {
-            const ownerAlive =
-              isProcessAlive(ownerPid) &&
-              ownerIdentityMatches(await getProcessStartTokenAsync(ownerPid), ownerStartToken)
-            deadStreak = ownerAlive ? 0 : deadStreak + 1
-            if (
-              decideOrphanShutdown({
-                ownerPid,
-                ownerAlive,
-                deadStreak,
-                graceChecks: OWNER_WATCH_GRACE_CHECKS,
-                persist: false,
-              })
-            ) {
-              // eslint-disable-next-line no-console
-              console.error(`[daemon] owner pid ${ownerPid} gone — parking every active session, then self-reaping (orphaned auto-start)`)
-              void parkAllThenShutdown('owner-orphaned')
-            }
-          } finally {
-            ownerProbeInflight = false
-          }
-        })()
-      }, OWNER_WATCH_INTERVAL_MS)
-      ownerWatch.unref?.()
+      ownerWatch = startOwnerWatch({
+        ownerPid,
+        baselineToken: ownerStartToken,
+        // eslint-disable-next-line no-console
+        log: line => console.error(line),
+        onOrphan: why => {
+          ownerPipe?.close()
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] owner pid ${ownerPid} gone (${why}) — parking every active session, then self-reaping (orphaned auto-start)`)
+          void parkAllThenShutdown('owner-orphaned')
+        },
+      })
+      const ownerFd = parseOwnerFd()
+      if (ownerFd !== null) {
+        // eslint-disable-next-line no-console
+        ownerPipe = armOwnerPipe(ownerFd, () => ownerWatch?.ownerPipeClosed(), line => console.error(line))
+        if (!ownerPipe.armed) {
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] owner pipe not armed (${ownerPipe.why ?? 'unknown'}) — the liveness beat and the minute identity probe watch alone`)
+        }
+      }
     }
   })
 }
