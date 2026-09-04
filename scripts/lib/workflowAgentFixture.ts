@@ -15,6 +15,7 @@ export interface WorkflowAgentFixtureOpts {
   throttle?: { lane: WorkflowFixtureLane; times: number; retryAfterSec?: number }
   latencyMs?: Partial<Record<WorkflowFixtureLane, number>>
   gptId?: string
+  gptReasoningLevels?: readonly string[]
 }
 
 export interface WorkflowAgentFixture {
@@ -166,7 +167,7 @@ export async function startWorkflowAgentFixture(
                 {
                   slug: gptId,
                   display_name: gptId.toUpperCase(),
-                  supported_reasoning_levels: [{ effort: 'high', description: 'high' }],
+                  supported_reasoning_levels: (opts.gptReasoningLevels ?? ['high']).map(effort => ({ effort, description: effort })),
                   default_reasoning_level: 'high',
                   visibility: 'list',
                   priority: 1,
