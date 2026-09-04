@@ -42,7 +42,7 @@ check(
 )
 check(
   'the tools abort branch appends the tool-use interruption line (steer excepted)',
-  /steer \? null : createUserInterruptionMessage\(\{ toolUse: true \}\)[\s\S]{0,600}?aborted_tools/.test(machine),
+  /\/\/ ── abort during tools[\s\S]{0,1200}?steer \? null : createUserInterruptionMessage\(\{ toolUse: true \}\)[\s\S]{0,1500}?const terminal: Terminal = \{ reason: 'aborted_tools' \}/.test(machine),
 )
 check(
   'the streaming abort branch settles every announced tool_use synthetically first',
@@ -73,7 +73,7 @@ check(
 section('C. the settle tail: exactly once per turn, after the turn, one call site')
 check(
   "runOneTurn settles in order: executeTurn → lifecycle 'completed' → onTurnSettled",
-  /await ports\.executeTurn\(command, message => \{[\s\S]{0,900}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
+  /await ports\.executeTurn\(command, batch\.length > 1 \? batchUuids : \[\], message => \{[\s\S]{0,1500}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
 )
 check(
   'onTurnSettled has exactly one call site in the driver',
