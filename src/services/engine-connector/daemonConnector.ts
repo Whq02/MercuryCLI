@@ -68,6 +68,7 @@ import type {
   McpRosterV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
+  PermissionModeReceiptV1,
   RewindReceiptV1,
   RewindRequestV1,
   SeatIdentityV1,
@@ -79,6 +80,8 @@ import type {
   WorkRosterV1,
   WorkspaceFactsV1,
 } from './types.js'
+import { bootBirthFacts, type BootBirthFacts } from '../switchboard/bootBirthFacts.js'
+import { seatInitialPermissionMode } from '../../daemon/concourseSupervisor.js'
 import { projectOperatorRewinds } from '../compact/checkpointRewind.js'
 
 const UNKNOWN_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'unknown' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
@@ -95,6 +98,13 @@ export interface DaemonSessionRecordV1 {
   modelKey?: string
   effort?: string
   worktreePath?: string
+}
+
+export function permissionModeOf(facts: Pick<SessionFactsV1, 'permissionMode'> | null, birth: Pick<BootBirthFacts, 'permissionMode'>): PermissionMode | null {
+  const spoken = facts?.permissionMode
+  if (spoken !== undefined) return spoken
+  const born = birth.permissionMode
+  return born === null ? null : (seatInitialPermissionMode(born) as PermissionMode)
 }
 
 interface SeatSend {
@@ -1128,7 +1138,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     void Promise.resolve(
       tool.description(row.input as never, {
         isNonInteractiveSession: false,
-        toolPermissionContext: { mode: this.facts?.permissionMode ?? 'default' } as never,
+        toolPermissionContext: { mode: this.permissionMode() ?? 'default' } as never,
         tools: getAllBaseTools(),
       }),
     )
@@ -1570,8 +1580,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
-  permissionMode(): PermissionMode {
-    return (this.facts?.permissionMode ?? 'flow') as PermissionMode
+  permissionMode(): PermissionMode | null {
+    return permissionModeOf(this.facts, bootBirthFacts())
   }
 
   subscribePermissionMode(listener: () => void): () => void {
@@ -1581,14 +1591,32 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
-  setPermissionMode(mode: PermissionMode): void {
+  async setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1> {
+    const before = this.facts
     if (this.facts !== null) {
       this.facts = { ...this.facts, permissionMode: mode }
       emitAll(this.permissionListeners, 'permission')
     }
-    void this.chainRpc({ op: 'sessionControl', action: 'set-permission-mode', sessionId: this.record.sessionId, by: 'operator', mode }).catch(e =>
-      logForDebugging(`[engine-connector] daemon set-permission-mode failed: ${e}`),
-    )
+    let receipt: PermissionModeReceiptV1
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'set-permission-mode', sessionId: this.record.sessionId, by: 'operator', mode })
+      const outcome = reply.outcome
+      receipt =
+        reply.ok === true && (outcome === 'applied' || outcome === 'noop')
+          ? { outcome, ...(typeof reply.detail === 'string' && reply.detail !== '' ? { detail: reply.detail } : {}) }
+          : { outcome: 'refused', detail: typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : String(reply.error ?? 'the daemon refused the mode change') }
+    } catch (e) {
+      logForDebugging(`[engine-connector] daemon set-permission-mode failed: ${e}`)
+      receipt = { outcome: 'refused', detail: 'the daemon is not answering — the mode change did not land' }
+    }
+    if (receipt.outcome === 'refused') {
+      if (this.facts !== null && this.facts.permissionMode === mode) {
+        this.facts = before !== null ? before : this.facts
+        emitAll(this.permissionListeners, 'permission')
+      }
+      this.readFacts()
+    }
+    return receipt
   }
 
   workspace(): WorkspaceFactsV1 {
