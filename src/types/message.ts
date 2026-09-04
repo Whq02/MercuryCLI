@@ -117,6 +117,7 @@ export type UserMessage = {
   isVisibleInTranscriptOnly?: true
   isVirtual?: true
   queued?: true
+  batchUuids?: string[]
   isCompactSummary?: true
   summarizeMetadata?: {
     messagesSummarized: number
