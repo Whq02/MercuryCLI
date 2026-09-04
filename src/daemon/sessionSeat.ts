@@ -1131,6 +1131,7 @@ function applyEffortNow(
     }
   }, dir)
   publishSeatFacts(rec.runnerId, dir, roster)
+  requestSessionFacts(rec.runnerId, roster, { immediate: true })
   return { outcome: 'applied', detail: `${rec.runnerId} → ${effort}` }
 }
 
