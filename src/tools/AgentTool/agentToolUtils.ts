@@ -14,6 +14,7 @@ import {
   createAgentLedger,
   createProgressTracker,
   drainPendingMessages,
+  agentStopReasonOf,
   enqueueAgentNotification,
   failAgentTask,
   foldResponseIntoLedger,
@@ -685,7 +686,8 @@ export async function runAsyncAgentLifecycle(args: {
   } catch (error) {
     if (error instanceof AbortError) {
       stopSummarization?.()
-      killAsyncAgent(taskId, rootSetAppState)
+      const stopReason = agentStopReasonOf(args.abortController.signal.reason)
+      killAsyncAgent(taskId, rootSetAppState, stopReason)
       const worktreeResult = await getWorktreeResult()
       const partialResult = extractPartialResult(accumulated)
       enqueueAgentNotification({
@@ -695,6 +697,7 @@ export async function runAsyncAgentLifecycle(args: {
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
+        ...(stopReason !== undefined ? { stopReason } : {}),
         ...worktreeResult,
       })
       return
