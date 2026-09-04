@@ -797,7 +797,11 @@ export function ConcourseLayout({
                               { keys: '→', label: 'enter' },
                             ]
                           : [
-                              { keys: '↵↵', label: 'enter session' },
+                              selectionClass === 'parked'
+                                ? { keys: '↵', label: 'brings it back' }
+                                : selectionClass === 'door'
+                                  ? { keys: '↵', label: 'open' }
+                                  : { keys: '↵↵', label: 'enter session' },
                               { keys: '→', label: rowPeekOpen ? 'close peek' : 'peek' },
                             ]
                         : []

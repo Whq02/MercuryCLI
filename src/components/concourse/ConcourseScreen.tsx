@@ -121,7 +121,7 @@ export function liveComposerGateOf(
   }
   if (sel.door !== undefined) return { ok: false, line: 'a door — ↵ opens it; nothing to message' }
   if (sel.sessionId.startsWith('dispatch:') || sel.state === 'queued') return { ok: false, line: 'queued — m stacks a message for its start' }
-  if (sel.state === 'parked') return { ok: false, line: 'parked — ↵↵ brings it back; a sleeping chat takes no queue' }
+  if (sel.state === 'parked') return { ok: false, line: 'parked — ↵ brings it back; a sleeping chat takes no queue' }
   if (sel.state === 'attached') return { ok: false, line: 'with you — type in its own chat' }
   if (sel.state === 'stopped') return { ok: false, line: `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} archives it` }
   if (sel.state === 'needs-you' || openAsk) return { ok: false, line: 'needs you · ↵↵ to answer' }
@@ -773,7 +773,8 @@ export function ConcourseScreen({
       else setGroundPickerOpen(true)
       return
     }
-    if (!reducedStage && opts.pointer !== true && boardArmedRef.current !== sessionId) {
+    const parked = sessionRows.find(r => r.sessionId === sessionId)?.state === 'parked'
+    if (!reducedStage && !parked && opts.pointer !== true && boardArmedRef.current !== sessionId) {
       boardArmedRef.current = sessionId
       setBoardArmed(sessionId)
       return

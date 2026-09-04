@@ -282,7 +282,7 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     const { liveComposerPaintOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
     const parkedGate = liveComposerGateOf(row({ state: 'parked' }), false)
     const parkedPaint = liveComposerPaintOf(parkedGate, null)
-    check('PARKED: the placeholder EMPTIES and the BOTTOM hint carries the line, standing (no send needed)', parkedGate.ok === false && parkedPaint.restHint === '' && parkedPaint.note?.text === 'parked — ↵↵ brings it back; a sleeping chat takes no queue')
+    check('PARKED: the placeholder EMPTIES and the BOTTOM hint carries the line, standing (no send needed)', parkedGate.ok === false && parkedPaint.restHint === '' && parkedPaint.note?.text === 'parked — ↵ brings it back; a sleeping chat takes no queue')
     const dupNote = { tone: 'muted' as const, text: parkedGate.ok === false ? parkedGate.line : '' }
     const parkedAfterSend = liveComposerPaintOf(parkedGate, dupNote)
     check('PARKED after a refused send (the screenshot): ONE paint — the note keeps the line, the placeholder stays empty', parkedAfterSend.restHint === '' && parkedAfterSend.note === dupNote)
