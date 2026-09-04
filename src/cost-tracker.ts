@@ -191,7 +191,7 @@ function formatModelUsageRows(): string[] {
   const byModel = getModelUsage()
   const models = Object.keys(byModel)
   if (models.length === 0) {
-    return [labelled('Usage:', '0 input, 0 output, 0 cache read, 0 cache write')]
+    return [labelled('Tokens spent:', '0 input, 0 output, 0 cache read, 0 cache write')]
   }
   const byShortName = new Map<
     string,
@@ -227,7 +227,7 @@ function formatModelUsageRows(): string[] {
     row.unpricedTurns += unpriced[model] ?? 0
     byShortName.set(shortName, row)
   }
-  const rows = ['Usage by model:']
+  const rows = ['Tokens spent by model:']
   for (const [shortName, row] of byShortName) {
     const metrics = [
       `${formatNumber(row.inputTokens)} input`,
