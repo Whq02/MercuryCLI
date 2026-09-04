@@ -12,6 +12,7 @@ import {
 import { setHasExitedPlanMode, setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
 import { isAutopilotEnabled } from '../autopilot/autopilotGates.js'
 import { logForDebugging } from '../debug.js'
+import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import {
   checkFeatureGate_CACHED_MAY_BE_STALE,
   checkSecurityRestrictionGate,
@@ -325,13 +326,18 @@ export function setPermissionModeWithGuards(
   mode: PermissionMode,
   context: ToolPermissionContext,
   updateAppState: UpdateAppState,
+  road: ModeTransitionRoad = 'carousel',
 ): SetPermissionModeResult {
   const validation = validateModeEntry(mode, context)
-  if (!validation.ok) return validation
+  if (!validation.ok) {
+    if (context.mode !== mode) holdModeTransition({ from: context.mode, to: mode, road, detail: validation.error })
+    return validation
+  }
 
   updateAppState(current => {
     if (current.mode === mode) return current
     const transitioned = transitionPermissionMode(current.mode, mode, current)
+    recordModeTransition({ from: current.mode, to: mode, road })
     return { ...(transitioned as object), mode } as ToolPermissionContext
   })
   return { ok: true, mode }
@@ -515,6 +521,7 @@ function kickOutOfAuto(context: ToolPermissionContext, available: boolean): Tool
   setNeedsAutoModeExitAttachment(true)
   let next = restoreDangerousPermissions(context)
   if (mode === 'flow') {
+    recordModeTransition({ from: 'flow', to: 'default', road: 'flow-unavailable' })
     next = { ...(next as object), mode: 'default' } as ToolPermissionContext
   } else {
     next = clearPrePlanMode({ ...(next as object), prePlanMode: 'default' } as ToolPermissionContext)
@@ -539,6 +546,7 @@ export function createDisabledBypassPermissionsContext(
 ): ToolPermissionContext {
   let next = currentContext
   if (modeBypassesPermissions(currentContext.mode)) {
+    recordModeTransition({ from: currentContext.mode, to: 'default', road: 'bypass-disabled' })
     next = { ...(next as object), mode: 'default' } as ToolPermissionContext
   }
   return { ...(next as object), isBypassPermissionsModeAvailable: false } as ToolPermissionContext
@@ -777,6 +785,7 @@ export async function initializeToolPermissionContext(args: {
   } as unknown as ToolPermissionContext
 
   context = applyPermissionRulesToPermissionContext(context, diskRules)
+  recordModeTransition({ from: null, to: context.mode, road: 'boot' })
 
   return {
     toolPermissionContext: context,

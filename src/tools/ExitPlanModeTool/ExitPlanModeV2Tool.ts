@@ -14,6 +14,8 @@ import {
   isTeammate,
 } from '../../utils/teammate.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
+import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
+import type { PermissionMode } from '../../types/permissions.js'
 import {
   findInProcessTeammateTaskId,
   setAwaitingPlanApproval,
@@ -189,6 +191,9 @@ export const ExitPlanModeV2Tool = buildTool({
         restoreMode = 'default'
       }
       context.setAppState(prev => {
+        if (prev.toolPermissionContext.mode !== restoreMode) {
+          recordModeTransition({ from: prev.toolPermissionContext.mode, to: restoreMode as PermissionMode, road: 'plan-exit' })
+        }
         let nextContext = {
           ...prev.toolPermissionContext,
           mode: restoreMode as never,
