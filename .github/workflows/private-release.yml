@@ -86,6 +86,11 @@ jobs:
           - os: macos-14
             target: macos-arm64
             node_pack: darwin-arm64
+          - os: macos-14
+            target: macos-x64
+            node_pack: darwin-x64
+            cross: true
+            rust_targets: x86_64-apple-darwin
           - os: windows-latest
             target: windows-x64
             node_pack: win-x64
@@ -111,7 +116,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'bun.lock') }}
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
@@ -119,19 +124,27 @@ jobs:
           bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
           bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}
+          bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}
+      - name: Rosetta 2 for the cross-packaged archive
+        if: matrix.cross
+        run: |
+          arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          arch -x86_64 /usr/bin/true
       - name: Rust toolchain (pinned stable)
         id: rust
         continue-on-error: true
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: ${{ matrix.rust_targets || '' }}
       - name: ALSA headers for the voice pack (Linux)
         if: runner.os == 'Linux'
         continue-on-error: true
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - name: Build the voice capture pack
         continue-on-error: true
-        run: bun run scripts/vendor/build-voice.ts
+        run: bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}
       - name: native build
-        run: bun run build.ts
+        run: bun run build.ts --target ${{ matrix.target }}
       - name: package + friend-path smoke
         run: node scripts/release/package.mjs --target ${{ matrix.target }}
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -153,6 +166,9 @@ jobs:
             target: linux-x64
           - os: macos-14
             target: macos-arm64
+          - os: macos-14
+            target: macos-x64
+            cross: true
           - os: windows-latest
             target: windows-x64
     runs-on: ${{ matrix.os }}
@@ -173,6 +189,14 @@ jobs:
         with:
           name: mercury-${{ matrix.target }}
           path: release-out
+      - name: Rosetta 2 for the cross-packaged archive
+        if: matrix.cross
+        run: |
+          arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          arch -x86_64 /usr/bin/true
+      - name: the Intel archive under Rosetta
+        if: matrix.cross
+        run: bun run scripts/updater/prove-cross-archive-rosetta.ts --target ${{ matrix.target }} --require
       - name: update journey against the candidate bundle
         shell: bash
         run: |
@@ -187,7 +211,7 @@ jobs:
       - name: previous shipped reader consumes the candidate archive
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bun run scripts/updater/prove-release-bridge.ts
+        run: bun run scripts/updater/prove-release-bridge.ts --target ${{ matrix.target }}
 
   release:
     name: publish to Releases

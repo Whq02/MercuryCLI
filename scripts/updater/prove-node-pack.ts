@@ -161,7 +161,7 @@ section('§4 the build row — fixed path, staleness guard, manifest record, deg
 {
   const build = read('build.ts')
   check('build.ts imports the owner for the path + platform + binary', build.includes("await import('./src/services/privateChannel/vendoredRuntime.ts')"))
-  check('build.ts reads vendor/node.lock.json and the host platform\'s cache', build.includes("'vendor', 'node.lock.json'") && build.includes("'vendor', 'node', 'extracted', hostPlatform"))
+  check('build.ts reads vendor/node.lock.json and the shipped platform\'s cache', build.includes("'vendor', 'node.lock.json'") && build.includes("'vendor', 'node', 'extracted', packPlatform"))
   check('a PRESENT-but-stale cache fails the build naming the fetch (the vendor-staleness law)', build.includes('vendor/node cache does not match vendor/node.lock.json') && build.includes('remedy: bun run scripts/vendor/fetch-node.ts'))
   check('the manifest carries the runtime record (version · platform · both digests)', build.includes('runtime: nodeVendored && nodeMeta') && build.includes('binarySha256: createHash') && build.includes('archiveSha256: pinned.sha256'))
   check("absence degrades as 'runtime'", build.includes("...(nodeVendored ? [] : ['runtime'])"))
@@ -255,7 +255,7 @@ section('§7 the packager + the workflows')
 
   const release = read('.github/workflows/private-release.yml')
   check('private-release fetches the node pack per matrix row', release.includes('bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}'))
-  for (const [target, pack] of [['linux-x64', 'linux-x64'], ['macos-arm64', 'darwin-arm64'], ['windows-x64', 'win-x64']] as const) {
+  for (const [target, pack] of [['linux-x64', 'linux-x64'], ['macos-arm64', 'darwin-arm64'], ['macos-x64', 'darwin-x64'], ['windows-x64', 'win-x64']] as const) {
     check(`private-release row ${target} ships the ${pack} pack`, new RegExp(`target: ${target}\\n\\s+node_pack: ${pack}`).test(release))
   }
   check('private-release fetches js-debug too (a hosted release ships every pack)', release.includes('bun run scripts/vendor/fetch-js-debug.ts'))
