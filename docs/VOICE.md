@@ -12,9 +12,9 @@ capture is the composer.
   the transcribing sign-in the next take would use.
 - With voice input on, press space in an empty composer to start a capture.
   A terminal sees no key-up, so a capture is press-to-start, press-to-stop:
-  press `v` again to stop it and send the take to the transcriber, or press
-  `esc` to cancel it (nothing leaves the machine). With voice input off,
-  `v` is the letter v.
+  press space again to stop it and send the take to the transcriber, or
+  press `esc` to cancel it (nothing leaves the machine). With voice input
+  off, space is a space.
 - `/voice` is the same action as pressing space: start a capture, or stop
   the one running.
 - The footer says `● recording · space or esc to stop` while a take runs and
@@ -72,8 +72,8 @@ model):
 
 With no transcribing sign-in, pressing space answers "no sign-in transcribes
 yet — /logins openai (API key) or /logins gemini" before any audio is
-captured. On-device transcription is a possible follow-up; it is not part of
-this release.
+captured. Transcription runs through one of those cloud endpoints; there is
+no on-device transcriber.
 
 ## The privacy line
 
