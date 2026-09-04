@@ -35,6 +35,7 @@ __t=$SECONDS; "$bun" run "$here/prove-compact-state-word.ts" || fail=1; prover_m
 __t=$SECONDS; "$bun" run "$here/prove-interrupt-agent-wait.ts" || fail=1; prover_mark "$here/prove-interrupt-agent-wait.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-stop-acknowledged.ts" || fail=1; prover_mark "$here/prove-stop-acknowledged.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-hard-stop-cut.ts" || fail=1; prover_mark "$here/prove-hard-stop-cut.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-cap-seat.ts" || fail=1; prover_mark "$here/prove-cap-seat.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-first-byte-drive.ts" || fail=1; prover_mark "$here/prove-first-byte-drive.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-reissue-rows-drive.ts" || fail=1; prover_mark "$here/prove-reissue-rows-drive.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-daemon-handshake.ts" || fail=1; prover_mark "$here/prove-daemon-handshake.ts" "$__t"

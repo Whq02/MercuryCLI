@@ -388,7 +388,7 @@ export type DaemonReply =
       presetNote?: string
     }
   | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
-  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
+  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true }
   | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
   | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }
