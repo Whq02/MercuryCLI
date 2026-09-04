@@ -235,7 +235,7 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
   const line = crew.crewRowLine(ag1, t0 + 61_001)
   check(
     'T3 the row line spells every fact from the owner',
-    line === `tide-gauges · ${OPENAI_ID} · running · 1.5k tokens · ${formatDuration(61_000)}`,
+    line === `tide-gauges · ${OPENAI_ID} · running · 1.5k context · ${formatDuration(61_000)}`,
     line,
   )
   const fresh = agents.find(a => a.id === 'ag3')!
@@ -327,7 +327,7 @@ console.log('— T5 the usage attribution —')
   const counted = agents.filter(a => a.tokens !== null)
   check(
     'T5 the line sums the crew\'s tokens over the agents that settled any, live ones counted',
-    line !== null && line.startsWith(`sub-agents ${formatTokens(crew.crewTokenSum(counted))} tokens · 4 agents · 3 live`),
+    line !== null && line.startsWith(`sub-agents ${formatTokens(crew.crewTokenSum(counted))} spent · 4 agents · 3 live`),
     String(line),
   )
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)
