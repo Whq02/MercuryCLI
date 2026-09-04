@@ -40,7 +40,8 @@ import {
   type SnapshotState,
 } from '../utils/cockpit/index.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
-import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
+import { usageAgeTail } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { CompanionSpeechLine, DeckCompanion, DeckCompanionChip } from './mercury-ui/DeckCompanion.js'
@@ -335,6 +336,16 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
             <UsageMeter compact window={stripSecond.label} state={stripSecond.state} value={stripSecond.usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: stripSecond.resetsAtMs ?? null })} />
           </>
         ) : null}
+        {((): React.ReactNode => {
+          const age = stripFirst !== undefined ? usageAgeTail(stripFirst, now) : undefined
+          if (age === undefined || stripFirst === undefined) return null
+          return (
+            <>
+              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
+              <Text color={usageViewIsStale(stripFirst, now) ? tok.warning : tok.textMuted}>{age}</Text>
+            </>
+          )
+        })()}
         {((): React.ReactNode => {
           if (sourceUsage.limited === undefined) return null
           return (

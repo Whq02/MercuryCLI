@@ -59,6 +59,7 @@ import {
 } from '../utils/cockpit/presenceLive.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { usageAgeTail } from '../services/providers/usageFreshness.js'
 import {
   getLiveContextUsage,
   getLiveContextUsageVersion,
@@ -1165,11 +1166,12 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     const focusedUsage = getFocusedSessionConnector().usage()
     const focusedSpendUSD = focusedUsage.totalCostUSD
     const focusedUnpriced = focusedUsage.unpricedTurns ?? 0
+    const leadAge = lead !== undefined ? usageAgeTail(lead, Date.now()) : undefined
     const usageLabel =
       lead !== undefined
         ? `${lead.label} ${Math.round(lead.usedPct!)}%${
             lead.resetsAtMs != null ? ` · ${formatCountdown(lead.resetsAtMs - Date.now())}` : ''
-          }`
+          }${leadAge !== undefined ? ` · ${leadAge}` : ''}`
         : glanceUsage.shape === 'api-spend'
           ? `spend ${
               focusedUnpriced > 0
