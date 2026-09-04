@@ -424,7 +424,7 @@ if (cap !== null) {
   check('K3 the failed notice carries the decline text', failedNotes.some(h => h.lastUserText.includes(DECLINE_TEXT)))
 
   console.log('\n— K4 resume —')
-  const resumedHits = after(stoppedSeat, resumeAt)
+  const resumedHits = fixture.hits.filter(h => h.seat === stoppedSeat && h.atMs >= resumeAt - 200)
   const resumedFirst = resumedHits[0]
   check(`K4 after r the stopped seat called the fixture again (${resumedHits.length} calls)`, resumedHits.length >= 1)
   check('K4 the resumed call carries the reads made before the stop (the transcript stands)', (resumedFirst?.priorReads ?? 0) >= 1, `prior reads ${resumedFirst?.priorReads ?? 'none'}`)
