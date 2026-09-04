@@ -13,6 +13,7 @@ import {
   crewElapsedLabel,
   crewModelLabel,
   crewStateLabel,
+  crewWaitLine,
   crewTokensLabel,
   type CrewAgentFacts,
 } from '../../../services/engine-connector/crewFacts.js'
@@ -36,6 +37,7 @@ import { paneWindow } from '../paneWindow.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
+import { CREW_RESUME_HINT, crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from './crewStopChord.js'
 import { TeammateChatsView } from './TeammateChatsView.js'
 
 
@@ -96,12 +98,51 @@ export function CrewView({
   )
   const pastMount = useOpenEventGate()
   const listMode = mode.view === 'list' || (mode.view === 'card' && !workById.has(mode.id))
+  const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
+  const [doorNote, setDoorNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
+  const armedTarget = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (agents.find(a => a.id === stopArm.id) ?? null) : null
 
   useEffect(() => {
     if (listMode) pokeTelemetry()
   }, [listMode])
 
   useInput((input, key) => {
+    if (mode.view === 'chat') return
+    const selected = rows[sel]
+    const target: CrewAgentFacts | null =
+      mode.view === 'card' && !listMode
+        ? (agents.find(a => a.id === mode.id) ?? null)
+        : selected?.kind === 'agent'
+          ? selected.facts
+          : null
+    if (input === 'x' && target !== null && target.running) {
+      const press = pressCrewStop(stopArm, target.id, Date.now())
+      if (!press.fire) {
+        setStopArm(press.arm)
+        return
+      }
+      setStopArm(null)
+      setDoorNote(null)
+      void getFocusedSessionConnector()
+        .stopAgent(target.id)
+        .then(receipt => {
+          if (receipt.outcome === 'refused') setDoorNote({ tone: 'warning', text: `the stop of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` })
+        })
+      return
+    }
+    if (input === 'r' && target !== null && !target.running) {
+      setDoorNote({ tone: 'muted', text: `resuming ${target.name} from its transcript…` })
+      void getFocusedSessionConnector()
+        .resumeAgent(target.id)
+        .then(receipt => {
+          setDoorNote(
+            receipt.outcome === 'applied'
+              ? { tone: 'muted', text: `${target.name} resumed from its transcript — it runs on under the same id` }
+              : { tone: 'warning', text: `the resume of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` },
+          )
+        })
+      return
+    }
     if (!listMode) return
     const nav = decodeNavKey(input, key, { orientation: 'vertical' })
     if (nav === 'cancel') {
@@ -144,14 +185,19 @@ export function CrewView({
     )
   }
 
+  const doorKeys = (target: CrewAgentFacts | null): string[] =>
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : target === null ? [] : target.running ? ['x x stop'] : ['r resume']
+
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
     const facts = agents.find(a => a.id === mode.id)
     const back = (): void => setMode({ view: 'list' })
+    const cardFooter = [...doorKeys(facts ?? null), 'esc back'].join(' · ')
     return (
-      <CommandCenter view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer="esc back" captureInput={false}>
+      <CommandCenter view={`crew › ${facts?.name ?? work.name}`} onClose={back} footer={cardFooter} captureInput={false}>
         <Box marginTop={1} flexDirection="column">
           <RosterWorkDetail work={work} now={now} onBack={back} />
+          {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted}>· {doorNote.text}</Text> : null}
         </Box>
       </CommandCenter>
     )
@@ -161,9 +207,11 @@ export function CrewView({
   const visible = Math.max(4, (termRows || 24) - 12)
   const win = paneWindow(rows.length, sel, visible)
   const firstNamedIx = rows.findIndex(r => r.kind === 'named')
+  const selectedRow = rows[sel]
   const footer = [
     '↑↓ move',
     rows.length > 0 ? '↵ open' : undefined,
+    ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
     namedOn ? 'n new named agent' : undefined,
     'esc close',
   ]
@@ -216,6 +264,7 @@ export function CrewView({
           </>
         ) : null}
         {spawnNote !== null ? <Text color={tokens.warning}>· {spawnNote}</Text> : null}
+        {doorNote !== null ? <Text color={doorNote.tone === 'warning' ? tokens.warning : tokens.textMuted}>· {doorNote.text}</Text> : null}
       </Box>
     </CommandCenter>
   )
@@ -241,11 +290,12 @@ function AgentRow({
   const tone = facts.running ? tokens.success : failed ? tokens.failure : stopped ? tokens.warning : tokens.textMuted
   const glyph = failed || stopped ? GLYPH.fail : pending ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
   const spend = billed ? crewCostLabel(facts) : null
+  const wait = crewWaitLine(facts)
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
         <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
-        {facts.running && !pending ? <WorkingGlyph color={tokens.success} active /> : <Text color={tone}>{glyph}</Text>}
+        {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
         <Text bold={on} color={on ? tokens.textPrimary : tokens.textSecondary}>
           {' '}
           {padTo(truncateToWidth(facts.name, NAME_W), NAME_W)}
@@ -257,7 +307,11 @@ function AgentRow({
           {' '}
           {crewElapsedLabel(facts, now)}
           {spend !== null ? ` · ${spend}` : ''}
+          {
+}
+          {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
         </Text>
+        {wait !== null ? <Text color={tokens.warning}> · {wait}</Text> : null}
       </Text>
     </Box>
   )

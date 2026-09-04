@@ -57,6 +57,7 @@ process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.MERCURY_ZAI_API_BASE = 'https://fixture.invalid/zai'
 
 const { enableConfigs } = await import('../../src/utils/config.js')
+const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 enableConfigs()
 
 const discovery = await import('../../src/utils/router/providerDiscovery.js')
@@ -249,6 +250,7 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
       },
     }),
   )
+  noteCredentialChange()
   openaiLimits.recordOpenaiRateHeaders(
     new Headers({
       'x-codex-primary-used-percent': '0',
@@ -281,6 +283,7 @@ section('§2 the operator frame cannot recur — sign-in lands after the boot pr
   check('frame: the tier fact names the ChatGPT plan', after.asu.tier === 'ChatGPT Plus', `tier=${after.asu.tier}`)
 
   rmSync(join(scratchHome, '.openai-auth.json'))
+  noteCredentialChange()
   const out = surfaceFacts('openai', 'gpt-5.6-sol')
   check('frame: sign-out empties the tab gate', out.row?.credentialed === false)
   check('frame: sign-out empties the rail windows', out.asu.sourceKind === 'none' && out.asu.windows.length === 0)

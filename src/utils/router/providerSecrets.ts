@@ -1,7 +1,7 @@
 import { chmodSync, copyFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DurablePublishError, durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { recordSignIn } from '../accounts/signInLedger.js'
+import { recordSignIn, noteCredentialChange } from '../accounts/signInLedger.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 
@@ -113,8 +113,9 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   try {
     chmodSync(path, 0o600)
   } catch {
-  }
+  }  noteCredentialChange()
 }
+
 
 export function readStoredZaiApiKey(): string | undefined {
   const file = readFile()
@@ -277,6 +278,7 @@ export function credentialEnvNames(): readonly string[] {
     'MOONSHOT_API_KEY',
     'DEEPSEEK_API_KEY',
     'MERCURY_COMPAT_API_KEY',
+    'MERCURY_COMPAT_BASE_URL',
     'HF_TOKEN',
     'MERCURY_LOCAL_API_KEY',
     'BRAVE_API_KEY',

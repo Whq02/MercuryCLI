@@ -3,7 +3,7 @@ import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
-import { findGitRoot } from './git.js'
+import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
@@ -680,7 +680,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
   const t0 = Date.now()
   const cwd = getCwd()
 
-  const git = await gitSnapshot()
+  const git = await gitSnapshot({ fresh: true })
   const repo = git.state === 'live' ? git.data.git : null
   const head: CertHead = repo
     ? { sha: repo.commitHash, branch: repo.branchName, dirty: !repo.isClean }
@@ -1118,6 +1118,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (repo.unpushedCount > 0) parts.push(`${repo.unpushedCount} unpushed`)
             else if (repo.remoteUrl === null) parts.push('no remote configured')
             else if (!repo.isHeadOnRemote) parts.push('no upstream for this branch')
+            const note = gitProbeNote()
+            if (note !== null) return { status: 'warn', evidence: `${parts.join(' · ')} · ${note}` }
             return { status: 'ok', evidence: parts.join(' · ') + ' (getGitState)' }
           },
         },
@@ -1833,6 +1835,27 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             return { status: 'ok', evidence, link: '/fleet' }
+          },
+        },
+        {
+          id: 'seats',
+          label: 'Seats',
+          run: async () => {
+            const { seatCeilingFacts } = await import('../services/switchboard/capacityCheck.js')
+            const { liveCeilingFacts, composeGovernorCeilings, composeProvenance } = await import('../services/capacity/composeCeilings.js')
+            const { seatNarrowingWords } = await import('../services/capacity/seatWords.js')
+            const facts = seatCeilingFacts()
+            const live = liveCeilingFacts(null)
+            const composed = composeGovernorCeilings(live)
+            const provenance = composeProvenance(live, composed)
+            const source = facts.source === 'consented' ? 'the consented first-boot recommendation' : "the machine's own reading, held for this process"
+            const narrowed = seatNarrowingWords(provenance.narrowing)
+            const lanes = `${composed.delegationLanes} delegated lane${composed.delegationLanes === 1 ? '' : 's'} for the crew`
+            return {
+              status: narrowed !== null ? 'info' : 'ok',
+              evidence: `${facts.sentence} · source: ${source} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
+              detail: `Sessions, sub-agents and workflow agents all run under this one number; a crew member past it waits and its row says so. Manual lever: ${facts.lever}.`,
+            }
           },
         },
         {

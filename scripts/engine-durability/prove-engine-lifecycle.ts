@@ -59,7 +59,7 @@ t.section('§2 — an unsubscribed telemetry engine holds nothing')
   const live = telemetry._statsForProofs()
   t.check(
     'subscribed: heartbeat, source subscriptions and coalescer armed',
-    live.listeners === 1 && live.heartbeat && live.sourceUnsubs === 3 && live.coalescer,
+    live.listeners === 1 && live.heartbeat && live.sourceUnsubs === 4 && live.coalescer,
     JSON.stringify(live),
   )
 

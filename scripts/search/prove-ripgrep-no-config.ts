@@ -51,8 +51,8 @@ section('§3 STRUCTURAL — refusal degrade + overflow report')
 {
   const loader = readFileSync(join(import.meta.dir, '../../src/utils/markdownConfigLoader.ts'), 'utf8')
   check(
-    'a refused discovery degrades to the native walk, logged loudly (FC-041)',
-    /logError\(error\)[\s\S]{0,300}return nativeWalk\(dir\)/.test(loader),
+    'the estate discovery is the native capped walk; a walk stopped by a cap is logged loudly and kept partial (FC-041)',
+    /async function discoverMarkdownFiles[\s\S]{0,600}logError\(new Error\(`markdownConfigLoader: \$\{note\}`\)\)/.test(loader) && /addBootNote\('warn', note\)/.test(loader),
   )
   const rg = readFileSync(join(import.meta.dir, '../../src/utils/ripgrep.ts'), 'utf8')
   check(

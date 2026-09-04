@@ -221,7 +221,8 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks } from '../utils/task/framework.js'
-import { stopRunningAgentTasks } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
@@ -1467,6 +1468,9 @@ export async function runHeadless(
     if (queued.some(command => command.priority === 'now')) {
       inFlightAbort?.abort()
     }
+    if (!inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
+      driver.kick()
+    }
   })
 
   process.on('SIGINT', () => {
@@ -1661,7 +1665,7 @@ export async function runHeadless(
             seenInterruptIds.add(requestId)
           }
           inFlightAbort?.abort()
-          stopRunningAgentTasks(getAppState().tasks, setAppState)
+          driver.releaseHold()
           if ((request as { hard?: boolean }).hard === true) {
             for (const task of Object.values(getAppState().tasks)) {
               if (isLocalShellTask(task) && task.status === 'running') void killTask(task.id, setAppState)
@@ -2449,8 +2453,44 @@ export async function runHeadless(
         }
         case 'stop_task': {
           try {
-            stopOrDismissAgent(request.task_id, setAppState)
-            respondSuccess(requestId, {})
+            const target = getAppState().tasks[request.task_id]
+            if (isLocalWorkflowTask(target)) {
+              respondSuccess(requestId, { receipt: killWorkflowTask(request.task_id, setAppState) })
+            } else {
+              stopOrDismissAgent(request.task_id, setAppState, AGENT_STOP_BY_OPERATOR)
+              respondSuccess(requestId, {})
+            }
+          } catch (error) {
+            respondError(requestId, errorMessage(error))
+          }
+          return
+        }
+        case 'resume_task': {
+          const params = getLastCacheSafeParams()
+          if (params === null) {
+            respondError(requestId, 'nothing to resume from yet — the session has not run a turn')
+            return
+          }
+          const target = getAppState().tasks[request.task_id]
+          if (target !== undefined && target.status === 'running') {
+            respondError(requestId, 'the agent is running — nothing to resume')
+            return
+          }
+          try {
+            const { resumeAgentBackground } = await import('../tools/AgentTool/resumeAgent.js')
+            const { toolUseId: _staleToolUseId, ...lastContext } = params.toolUseContext
+            void _staleToolUseId
+            const resumed = await resumeAgentBackground({
+              agentId: request.task_id,
+              prompt: request.note !== undefined && request.note.trim() !== '' ? request.note : AGENT_RESUME_NOTE,
+              toolUseContext: { ...lastContext, abortController: new AbortController() } as typeof params.toolUseContext,
+              canUseTool,
+            })
+            respondSuccess(requestId, {
+              agentId: resumed.agentId,
+              outputFile: resumed.outputFile,
+              ...(resumed.cwdFallback !== undefined ? { cwdFallback: resumed.cwdFallback } : {}),
+            })
           } catch (error) {
             respondError(requestId, errorMessage(error))
           }
