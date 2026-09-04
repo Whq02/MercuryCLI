@@ -703,7 +703,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         sizeNow = -1
       }
       connectorTrace({ ev: 'tick', sid: this.record.sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
-      if (sizeNow !== -1 && sizeNow === this.lastSize && this.lastLen >= 0) return
+      if (sizeNow === this.lastSize && this.lastLen >= 0) return
       if (sizeNow !== -1 && this.transcriptWatcher === null) {
         this.armTranscriptWatcher()
         this.armTranscriptTimer()
@@ -714,7 +714,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (!this.attached) return
       this.chainCursor = chain.cursor
       const raw = chain.rows as unknown as Message[]
-      if (sizeNow !== -1 && sizeNow !== this.lastSize) this.lastSize = sizeNow
+      this.lastSize = sizeNow
       this.lastLen = raw.length
       const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
       const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))

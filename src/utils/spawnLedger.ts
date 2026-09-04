@@ -1,5 +1,5 @@
-import { appendFileSync, existsSync } from 'node:fs'
-import { join } from 'node:path'
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { getMercuryHome } from './envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
@@ -32,9 +32,31 @@ export interface SpawnLedgerEntry {
 }
 
 function forensicsDir(): string {
-  const seam = flagEnv('MERCURY_DAEMON_DIR')
-  if (seam && seam.trim() !== '') return seam
-  return getMercuryHome()
+  const { daemonDir } = require('../daemon/controlSocket.js') as typeof import('../daemon/controlSocket.js')
+  return daemonDir()
+}
+
+export function spawnLedgerPath(): string {
+  return join(forensicsDir(), 'spawn-ledger.jsonl')
+}
+
+export function legacySpawnLedgerPath(): string {
+  return join(getMercuryHome(), 'spawn-ledger.jsonl')
+}
+
+export function spawnLedgerPaths(): string[] {
+  const live = spawnLedgerPath()
+  const legacy = legacySpawnLedgerPath()
+  return legacy !== live && existsSync(legacy) ? [live, legacy] : [live]
+}
+
+export function bashAuditPath(): string {
+  return join(forensicsDir(), 'bash-audit.jsonl')
+}
+
+function appendTrail(path: string, row: unknown): void {
+  mkdirSync(dirname(path), { recursive: true })
+  appendFileSync(path, JSON.stringify(row) + '\n')
 }
 
 export function recordSpawn(entry: SpawnLedgerEntry): void {
@@ -46,7 +68,7 @@ export function recordSpawn(entry: SpawnLedgerEntry): void {
       spawnedBy: flagEnv(SPAWNED_BY_ENV) ?? 'operator-session',
       ...entry,
     }
-    appendFileSync(join(forensicsDir(), 'spawn-ledger.jsonl'), JSON.stringify(row) + '\n')
+    appendTrail(spawnLedgerPath(), row)
   } catch {
   }
 }
@@ -71,7 +93,7 @@ export function recordSpawnExit(entry: SpawnExitEntry): void {
       spawnedBy: flagEnv(SPAWNED_BY_ENV) ?? 'operator-session',
       ...entry,
     }
-    appendFileSync(join(forensicsDir(), 'spawn-ledger.jsonl'), JSON.stringify(row) + '\n')
+    appendTrail(spawnLedgerPath(), row)
   } catch {
   }
 }
@@ -96,7 +118,7 @@ export function recordBashAudit(command: string, exitCode: number | null, interr
       exitCode,
       interrupted,
     }
-    appendFileSync(join(forensicsDir(), 'bash-audit.jsonl'), JSON.stringify(row) + '\n')
+    appendTrail(bashAuditPath(), row)
   } catch {
   }
 }
