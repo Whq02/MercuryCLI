@@ -92,13 +92,15 @@ type UsageLike = {
 }
 
 function engineTier(
-  pin: { costInPerMtok?: number; costOutPerMtok?: number; cachedInPerMtok?: number } | undefined,
+  pin:
+    | { costInPerMtok?: number; costOutPerMtok?: number; cachedInPerMtok?: number; cacheWritePerMtok?: number }
+    | undefined,
 ): ModelCosts | undefined {
   if (!pin || pin.costInPerMtok === undefined || pin.costOutPerMtok === undefined) return undefined
   return {
     inputTokens: pin.costInPerMtok,
     outputTokens: pin.costOutPerMtok,
-    promptCacheWriteTokens: pin.costInPerMtok,
+    promptCacheWriteTokens: pin.cacheWritePerMtok ?? pin.costInPerMtok,
     promptCacheReadTokens: pin.cachedInPerMtok ?? pin.costInPerMtok * 0.1,
     webSearchRequests: 0,
   }

@@ -1,6 +1,9 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.3
+- GPT-6 Astra (gpt-6-astra) is a first-class row: the 1,050,000 window, the 128,000 output ceiling, the low-to-max effort ladder and the published prices; it lists once the connected OpenAI account serves it
+
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
 - The repository is github.com/Whq02/MercuryCLI; the app's update channel and the release bridge read it

@@ -81,11 +81,25 @@ export interface GptDisplayPin {
   costInPerMtok?: number
   costOutPerMtok?: number
   cachedInPerMtok?: number
+  cacheWritePerMtok?: number
   knowledgeCutoff?: string
   availabilityNote?: string
 }
 
 export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
+  {
+    id: 'gpt-6-astra',
+    displayName: 'GPT-6 Astra',
+    observedAt: '2026-09-04',
+    contextWindow: 1_050_000,
+    outputMax: 128_000,
+    costInPerMtok: 10,
+    costOutPerMtok: 50,
+    cachedInPerMtok: 1,
+    cacheWritePerMtok: 12.5,
+    knowledgeCutoff: '2026-04-30',
+    availabilityNote: 'rolling out (enterprise Trusted Access first, then the API and the ChatGPT plans)',
+  },
   {
     id: 'gpt-5.6-sol',
     displayName: 'GPT-5.6 Sol',

@@ -17,7 +17,7 @@ The live catalog is always the product surface, never this file: /model shows th
 ## Ids this build ships (examples, verified in-tree)
 
 - Anthropic: claude-opus-5 (Opus 5), claude-sonnet-5 (Sonnet 5), claude-fable-5-1 (Fable 5.1, the frontier row), claude-fable-5 (Fable 5), plus dated spellings such as claude-opus-4-1-20250805.
-- OpenAI: gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark.
+- OpenAI: gpt-6-astra (GPT-6 Astra, the newest row), gpt-5.6-sol, gpt-5.6-terra, gpt-5.6-luna, gpt-5.5, gpt-5.4, gpt-5.4-mini, gpt-5.3-codex-spark.
 - Moonshot: kimi-k3 (the reasoning_effort model), kimi-k2.7-code, kimi-k2.7-code-highspeed.
 - DeepSeek: deepseek-v4-pro, deepseek-v4-flash.
 - Z.AI: glm-5.2, glm-5.3.
