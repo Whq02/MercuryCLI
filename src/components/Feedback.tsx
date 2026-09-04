@@ -14,8 +14,7 @@ import {
   getLastAPIRequest,
   getLastMainRequestId,
 } from '../bootstrap/state.js'
-import { getIsGit, getBranch, getHead, getRemoteUrl, getIsClean, hasUnpushedCommits } from '../utils/git.js'
-import { getCwd } from '../utils/cwd.js'
+import { getIsGit, getGitState } from '../utils/git.js'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
@@ -454,20 +453,13 @@ function GitStateLine(): React.ReactNode {
         if (!cancelled) setLine(null)
         return
       }
-      const cwd = getCwd()
-      const [branch, head, remote, clean, unpushed] = await Promise.all([
-        getBranch(cwd).catch(() => ''),
-        getHead().catch(() => ''),
-        getRemoteUrl().catch(() => null),
-        getIsClean().catch(() => true),
-        hasUnpushedCommits().catch(() => false),
-      ])
+      const state = await getGitState().catch(() => null)
       const parts = [
-        branch && `branch ${branch}`,
-        head && `commit ${head.slice(0, 8)}`,
-        remote && `remote ${remote}`,
-        unpushed ? 'unsynced' : null,
-        clean ? null : 'local changes',
+        state?.branchName && `branch ${state.branchName}`,
+        state?.commitHash && `commit ${state.commitHash.slice(0, 8)}`,
+        state?.remoteUrl && `remote ${state.remoteUrl}`,
+        state && state.unpushedCount > 0 ? 'unsynced' : null,
+        state && !state.isClean ? 'local changes' : null,
       ].filter(Boolean)
       if (!cancelled) setLine(parts.join(', '))
     })()
