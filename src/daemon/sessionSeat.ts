@@ -390,6 +390,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
     },
     pendingModel: rec.pendingModelKey ?? null,
+    ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     spawnSwitches: spawnSwitchFactsOfRecord(rec),
     ...(rec.pendingSpawnSwitches !== undefined && rec.pendingSpawnSwitches.length > 0
       ? { pendingSpawnSwitches: rec.pendingSpawnSwitches.map(p => ({ kind: p.kind, on: p.on })) }
