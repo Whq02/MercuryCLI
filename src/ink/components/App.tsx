@@ -107,7 +107,7 @@ type Props = {
   readonly openHyperlink: (url: string) => void
   readonly handleMultiClick: (col: number, row: number, count: 2 | 3) => void
   readonly handleSelectionDrag: (col: number, row: number) => void
-  readonly handleSelectionStart?: (col: number, row: number) => void
+  readonly handleSelectionStart?: (col: number, row: number, pressHadAlt: boolean) => void
   readonly onStdinResume: () => void
   readonly setCursorDeclaration?: CursorDeclarationSetter
   readonly dispatchKeyboardEvent: (key: ParsedKey) => void
@@ -486,7 +486,8 @@ export default class App extends PureComponent<Props, State> {
 
     let chunkConsumed = false
 
-    for (const atom of atoms) {
+    for (let i = 0; i < atoms.length; i++) {
+      const atom = atoms[i]!
       if (atom.kind === 'response') {
         this.querier.onResponse(atom.response)
         continue
@@ -494,6 +495,7 @@ export default class App extends PureComponent<Props, State> {
       if (atom.kind === 'mouse') {
         const isClickClass = (atom.button & MOTION_BIT) === 0
         if (chunkConsumed && isClickClass) continue
+        if (isDragMotion(atom) && i + 1 < atoms.length && isDragMotion(atoms[i + 1]!)) continue
         handleMouseEvent(this, atom)
         continue
       }
@@ -566,6 +568,15 @@ function toCell(atom: ParsedMouse): { col: number; row: number } {
   return { col: atom.col - 1, row: atom.row - 1 }
 }
 
+export function isDragMotion(atom: ParsedInput): boolean {
+  return (
+    atom.kind === 'mouse' &&
+    atom.action === 'press' &&
+    (atom.button & MOTION_BIT) !== 0 &&
+    (atom.button & 3) === 0
+  )
+}
+
 export function isRefocusPress(state: { focused: boolean; refocusedAt: number; now: number }): boolean {
   if (!state.focused) return true
   return state.refocusedAt >= 0 && state.now - state.refocusedAt <= REFOCUS_CLICK_WINDOW_MS
@@ -636,13 +647,14 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       props.handleMultiClick(col, row, count)
       return
     }
+    const pressHadAlt = (atom.button & ALT_MODIFIER_BIT) !== 0
     if (props.handleSelectionStart) {
-      props.handleSelectionStart(col, row)
+      props.handleSelectionStart(col, row, pressHadAlt)
     } else {
       startSelection(selection, col, row)
+      selection.lastPressHadAlt = pressHadAlt
+      props.notifySelectionChange()
     }
-    selection.lastPressHadAlt = (atom.button & ALT_MODIFIER_BIT) !== 0
-    props.notifySelectionChange()
     return
   }
 

@@ -9,7 +9,7 @@
     ".mercury.json"
   ],
   "counts": {
-    "compat-boundary": 43,
+    "compat-boundary": 41,
     "owner-internal": 7,
     "baked-mirror": 3
   },
@@ -280,7 +280,7 @@
     },
     {
       "file": "src/utils/healthReport.ts",
-      "line": 1227,
+      "line": 1248,
       "needle": ".claude",
       "excerpt": "authHome === join(homedir(), '.claude').normalize('NFC')",
       "cls": "compat-boundary",
@@ -376,7 +376,7 @@
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "line": 58,
+      "line": 59,
       "needle": ".claude",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
       "cls": "compat-boundary",
@@ -384,7 +384,7 @@
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
-      "line": 58,
+      "line": 59,
       "needle": ".mercury",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
       "cls": "compat-boundary",
@@ -408,33 +408,17 @@
     },
     {
       "file": "src/utils/verification/verificationState.ts",
-      "line": 219,
+      "line": 211,
       "needle": ".claude",
-      "excerpt": "execFileSync(gitExe(), ['reset', '-q', '--', '.claude', '.mercury'], { windowsHide: true, cwd, env, stdio: 'pipe', timeout: 30_000 })",
+      "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
       "cls": "compat-boundary",
       "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
     },
     {
       "file": "src/utils/verification/verificationState.ts",
-      "line": 219,
+      "line": 211,
       "needle": ".mercury",
-      "excerpt": "execFileSync(gitExe(), ['reset', '-q', '--', '.claude', '.mercury'], { windowsHide: true, cwd, env, stdio: 'pipe', timeout: 30_000 })",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
-    },
-    {
-      "file": "src/utils/verification/verificationState.ts",
-      "line": 263,
-      "needle": ".claude",
-      "excerpt": "await git(['reset', '-q', '--', '.claude', '.mercury'])",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
-    },
-    {
-      "file": "src/utils/verification/verificationState.ts",
-      "line": 263,
-      "needle": ".mercury",
-      "excerpt": "await git(['reset', '-q', '--', '.claude', '.mercury'])",
+      "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
       "cls": "compat-boundary",
       "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
     }

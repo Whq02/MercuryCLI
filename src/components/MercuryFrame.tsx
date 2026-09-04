@@ -41,6 +41,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import {
   subscribeVerification,
+  treeScanStatus,
   verificationSummary,
   verifyEvidenceEnabled,
 } from '../utils/verification/verificationState.js'
@@ -313,8 +314,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     subscribeVerification,
     () => {
       if (!verifyEvidenceEnabled()) return null
-      const s = verificationSummary(getFocusedSessionConnector().workspace().cwd, { skipDigest: true })
-      return s.state === 'stale' || s.state === 'failed' ? s.state : null
+      const cwd = getFocusedSessionConnector().workspace().cwd
+      const s = verificationSummary(cwd, { skipDigest: true })
+      if (s.state === 'stale' || s.state === 'failed') return s.state
+      return treeScanStatus(cwd).state === 'unmeasured' ? 'unmeasured' : null
     },
     () => null,
   )
@@ -327,7 +330,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
             vfy {GLYPH.fail} failed
           </Text>
         ) : (
-          <Text color={tok.warning}>vfy {GLYPH.warn} stale</Text>
+          <Text color={tok.warning}>vfy {GLYPH.warn} {vfySnap}</Text>
         )}
       </Text>
     ) : null

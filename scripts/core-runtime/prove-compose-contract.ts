@@ -22,6 +22,21 @@ import {
   StylePool,
 } from '../../src/ink/cell-grid.js'
 import type { Styles } from '../../src/ink/styles.js'
+import { FrameWriter } from '../../src/ink/frame-writer.js'
+import { OverlayRecord } from '../../src/ink/geometry/overlay.js'
+import {
+  clearSelection,
+  createSelectionState,
+  type SelectionState,
+  startSelection,
+  updateSelection,
+} from '../../src/ink/geometry/selection.js'
+import { unionRect } from '../../src/ink/layout/geometry.js'
+import { optimizePatches } from '../../src/ink/patch-stream.js'
+import { applyOverlayPass } from '../../src/ink/root/overlay-pass.js'
+import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
+import { AnsiEmulator, defaultSgr, sgrStateOfStyleString, type SgrState } from '../ink-runtime/ansiEmulator.js'
 import { applySceneStyle } from '../ink-runtime/frameHarness.js'
 
 let failures = 0
@@ -348,6 +363,261 @@ function freshScrollCompose(spec: ScrollSpec, scrollTop: number): { screen: Scre
   const covered = session.step()
   check('clamp-hold: covering bounds end the chain', covered.frame.scrollDrainPending !== true)
   check('clamp-hold: the covered paint sits at the intent', sc.scrollTop === 2, `scrollTop=${sc.scrollTop}`)
+}
+
+const SELECTION_BG = '48;2;40;60;90'
+
+function serialize(diff: ReturnType<typeof optimizePatches>): string {
+  let captured = ''
+  const fake = {
+    stdout: {
+      write(s: string) {
+        captured += s
+        return true
+      },
+      isTTY: false,
+    },
+  }
+  writeDiffToTerminal(fake as never, diff, false)
+  return captured
+}
+
+class OverlaySession {
+  readonly stylePool = new StylePool()
+  readonly charPool = new CharPool()
+  readonly hyperlinkPool = new HyperlinkPool()
+  readonly selection: SelectionState = createSelectionState()
+  readonly emu = new AnsiEmulator(COLS, ROWS, true)
+  searchQuery = ''
+  private front: Frame
+  private back: Frame
+  private glass: OverlayRecord | null = null
+  private readonly render: ReturnType<typeof createRenderer>
+  private readonly writer: FrameWriter
+
+  constructor(readonly root: DOMElement) {
+    this.stylePool.setSelectionBg({ code: `\x1b[${SELECTION_BG}m`, endCode: '\x1b[49m' })
+    this.front = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+    this.back = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+    this.render = createRenderer(root, this.stylePool)
+    this.writer = new FrameWriter({ isTTY: true, stylePool: this.stylePool })
+  }
+
+  step(): { frame: Frame; counts: typeof lastComposeCounts; bytes: string } {
+    this.root.layoutNode!.calculateLayout(COLS, ROWS)
+    const glass = this.glass
+    if (glass) glass.revert(this.front.screen)
+    const { frame, signals } = this.render({
+      frontFrame: this.front,
+      backFrame: this.back,
+      isTTY: true,
+      terminalWidth: COLS,
+      terminalRows: ROWS,
+      altScreen: true,
+      prevFrameContaminated: false,
+      regionScrollUsable: true,
+    })
+    if (glass) glass.restore(this.front.screen)
+    const counts = { ...lastComposeCounts }
+    const record = new OverlayRecord(frame.screen.width)
+    applyOverlayPass({
+      altScreen: true,
+      follow: signals.consumeFollowScroll(),
+      selection: this.selection,
+      captureScreen: this.front.screen,
+      screen: frame.screen,
+      stylePool: this.stylePool,
+      searchQuery: this.searchQuery,
+      searchPositions: null,
+      onSelectionCleared: () => {},
+      record,
+    })
+    const vacated = glass ? glass.rect() : null
+    if (vacated) {
+      frame.screen.damage = frame.screen.damage ? unionRect(frame.screen.damage, vacated) : vacated
+    }
+    const anchored: Frame = { ...this.front, cursor: { x: 0, y: 0, visible: false } }
+    const bytes = serialize(optimizePatches(this.writer.render(anchored, frame, true, true)))
+    this.emu.feed(CURSOR_HOME + bytes)
+    this.back = this.front
+    this.front = frame
+    this.glass = record.size > 0 ? record : null
+    return { frame, counts, bytes }
+  }
+}
+
+function expectedStyle(pool: StylePool, styleId: number): SgrState {
+  return sgrStateOfStyleString(pool.transition(pool.none, styleId))
+}
+
+function sameVisibleStyle(char: string, actual: SgrState | null, expected: SgrState): boolean {
+  const a = actual ?? defaultSgr()
+  if (char === ' ') {
+    return (
+      a.bg === expected.bg &&
+      a.inverse === expected.inverse &&
+      a.underline === expected.underline &&
+      a.strike === expected.strike
+    )
+  }
+  return (
+    a.bold === expected.bold &&
+    a.dim === expected.dim &&
+    a.italic === expected.italic &&
+    a.underline === expected.underline &&
+    a.inverse === expected.inverse &&
+    a.strike === expected.strike &&
+    a.fg === expected.fg &&
+    a.bg === expected.bg
+  )
+}
+
+function glassMismatch(emu: AnsiEmulator, frame: Frame, pool: StylePool): string {
+  const { screen } = frame
+  for (let y = 0; y < screen.height; y++) {
+    for (let x = 0; x < screen.width; x++) {
+      const cell = cellAt(screen, x, y)
+      const got = emu.grid[y]![x]!
+      const style = emu.styleAt(x, y)
+      if (!cell) {
+        if (got !== ' ') return `(${x},${y}) text: glass ${JSON.stringify(got)} vs an empty cell`
+        if (style && (style.bg !== 'default' || style.inverse)) {
+          return `(${x},${y}) style: glass ${JSON.stringify(style)} vs an empty cell`
+        }
+        continue
+      }
+      if (cell.width === CellWidth.SpacerTail || cell.width === CellWidth.SpacerHead) continue
+      const want = cell.char === '' ? ' ' : cell.char
+      if (got !== want) return `(${x},${y}) text: glass ${JSON.stringify(got)} vs frame ${JSON.stringify(want)}`
+      const exp = expectedStyle(pool, cell.styleId)
+      if (!sameVisibleStyle(cell.char, style, exp)) {
+        return `(${x},${y}) style ${JSON.stringify(cell.char)}: glass ${JSON.stringify(style)} vs frame ${JSON.stringify(exp)}`
+      }
+    }
+  }
+  return ''
+}
+
+function glassSnapshot(emu: AnsiEmulator): string[] {
+  const out: string[] = []
+  for (let y = 0; y < emu.height; y++) {
+    for (let x = 0; x < emu.width; x++) {
+      out.push(`${emu.grid[y]![x]}|${JSON.stringify(emu.styleAt(x, y))}`)
+    }
+  }
+  return out
+}
+
+function highlightedCells(emu: AnsiEmulator): Set<number> {
+  const out = new Set<number>()
+  for (let y = 0; y < emu.height; y++) {
+    for (let x = 0; x < emu.width; x++) {
+      if (emu.styleAt(x, y)?.bg === SELECTION_BG) out.add(y * emu.width + x)
+    }
+  }
+  return out
+}
+
+function freshOverlay(spec: TreeSpec, like: OverlaySession): { screen: Screen; pool: StylePool } {
+  const { root } = buildTree(spec)
+  const s = new OverlaySession(root)
+  const sel = like.selection
+  s.selection.anchor = sel.anchor ? { ...sel.anchor } : null
+  s.selection.focus = sel.focus ? { ...sel.focus } : null
+  s.selection.isDragging = sel.isDragging
+  s.selection.clipLo = sel.clipLo
+  s.selection.clipHi = sel.clipHi
+  s.searchQuery = like.searchQuery
+  return { screen: s.step().frame.screen, pool: s.stylePool }
+}
+
+function checkOverlayStep(
+  label: string,
+  session: OverlaySession,
+  spec: TreeSpec,
+  r: { frame: Frame; counts: typeof lastComposeCounts; bytes: string },
+  steadyTree: boolean,
+): void {
+  const fresh = freshOverlay(spec, session)
+  check(
+    `${label}: incremental ≡ fresh (overlay included)`,
+    decode(r.frame.screen, session.stylePool) === decode(fresh.screen, fresh.pool),
+  )
+  const mismatch = glassMismatch(session.emu, r.frame, session.stylePool)
+  check(`${label}: the glass replays the frame cell-exact`, mismatch === '', mismatch)
+  if (steadyTree) {
+    check(
+      `${label}: composes no text (the blit engaged)`,
+      r.counts.write === 0 && r.counts.blit > 0,
+      `write=${r.counts.write} blit=${r.counts.blit}`,
+    )
+  }
+}
+
+{
+  const spec: TreeSpec = {
+    lines: [
+      { text: 'alpha row one', style: { color: 'red', bold: true } },
+      { text: 'beta row two' },
+      { text: 'gamma 漢字 three', style: { backgroundColor: '#112233' } },
+      { text: 'delta four' },
+    ],
+    boxStyle: { borderStyle: 'round' },
+  }
+  const { root, texts } = buildTree(spec)
+  const session = new OverlaySession(root)
+  const sel = session.selection
+
+  checkOverlayStep('overlay: first frame', session, spec, session.step(), false)
+  session.step()
+
+  startSelection(sel, 2, 1)
+  updateSelection(sel, 8, 1)
+  checkOverlayStep('overlay: grow on one row', session, spec, session.step(), true)
+  updateSelection(sel, 5, 3)
+  checkOverlayStep('overlay: grow across three rows (wide glyphs under it)', session, spec, session.step(), true)
+  updateSelection(sel, 4, 2)
+  checkOverlayStep('overlay: shrink', session, spec, session.step(), true)
+
+  const still = session.step()
+  checkOverlayStep('overlay: unchanged selection', session, spec, still, true)
+  check('overlay: an unchanged selection writes zero bytes', still.bytes.length === 0, `${still.bytes.length} bytes`)
+
+  sel.anchor = { col: 2, row: 2 }
+  sel.focus = { col: 4, row: 3 }
+  checkOverlayStep('overlay: move rows', session, spec, session.step(), true)
+
+  spec.lines[1]!.text = 'BETA ROW TWO'
+  setTextNodeValue(texts[1]!, 'BETA ROW TWO')
+  const changed = session.step()
+  checkOverlayStep('overlay: content change under the selection', session, spec, changed, false)
+  check('overlay: the content change composed text', changed.counts.write > 0, `write=${changed.counts.write}`)
+
+  session.searchQuery = 'row'
+  checkOverlayStep('overlay: the search highlight joins the record', session, spec, session.step(), true)
+  session.searchQuery = ''
+  checkOverlayStep('overlay: the search highlight leaves', session, spec, session.step(), true)
+
+  const highlighted = highlightedCells(session.emu)
+  check('overlay: the glass carries the highlight before the clear', highlighted.size > 0, `${highlighted.size} cells`)
+  const before = glassSnapshot(session.emu)
+  clearSelection(sel)
+  checkOverlayStep('overlay: clear', session, spec, session.step(), true)
+  const after = glassSnapshot(session.emu)
+  const changedCells = new Set<number>()
+  for (let i = 0; i < before.length; i++) if (before[i] !== after[i]) changedCells.add(i)
+  const exact = changedCells.size === highlighted.size && [...changedCells].every(i => highlighted.has(i))
+  check(
+    'overlay: the clear frame changes exactly the vacated cells',
+    exact,
+    `changed ${changedCells.size} vs highlighted ${highlighted.size}`,
+  )
+  const quiet = session.step()
+  check(
+    'overlay: steady after the clear writes zero bytes and composes no text',
+    quiet.bytes.length === 0 && quiet.counts.write === 0,
+    `${quiet.bytes.length} bytes, write=${quiet.counts.write}`,
+  )
 }
 
 if (failures > 0) {

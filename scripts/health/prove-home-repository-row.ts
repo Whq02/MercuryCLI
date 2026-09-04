@@ -56,11 +56,70 @@ console.log('§1 the fixture home (Mercury-made) and a foreign Desktop repositor
   check('the evidence says Mercury made the home repository', r.evidence.includes('made by Mercury (its base commit is the only commit)'), r.evidence)
   check("the evidence says the Desktop repository is not Mercury's", r.evidence.includes(DESKTOP) && r.evidence.includes("not Mercury's (2 commits"), r.evidence)
   const fix = r.fix ?? ''
+  check('the fix says quit first (every window and the background process; sign out and back in on Windows if unsure)', fix.startsWith('quit every Mercury window and its background process (sign out and back in on Windows if unsure), then'), fix)
+  check('the evidence says no Mercury process holds it now (nothing planted yet)', r.evidence.includes('no Mercury process holds it now'), r.evidence)
   check('the fix carries the sh inspect words for the home', fix.includes('git -C "$HOME" log --oneline'), fix)
   check('the fix carries the sh removal words for the home', fix.includes('rm -rf "$HOME/.git"'), fix)
   check('the fix keeps a foreign repository ("keep it if it is yours") and names its removal words', fix.includes('keep it if it is yours') && fix.includes('rm -rf "$HOME/Desktop/.git"'), fix)
   check('the check is functional evidence', r.probe === 'functional')
   check('the detail explains the swallow and says Mercury removes nothing', (r.detail ?? '').includes('removes nothing'), r.detail)
+}
+
+console.log("\n§1b Mercury's own holders of the repository are named: live runners rooted there, the index lock, objects mid-write")
+{
+  const VOXEL = join(HOME_FX, 'Documents', 'voxel')
+  const ELSEWHERE = join(SCRATCH, 'elsewhere')
+  mkdirSync(VOXEL, { recursive: true })
+  mkdirSync(ELSEWHERE, { recursive: true })
+  git(ELSEWHERE, 'init', '-q')
+  const daemonDir = join(CFG, 'daemon')
+  mkdirSync(daemonDir, { recursive: true })
+  const rec = (runnerId: string, workspaceId: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+    schema: 1,
+    runnerId,
+    sessionId: `s-${runnerId}`,
+    workspaceId,
+    isolation: 'shared',
+    modelKey: 'claude-sonnet-5',
+    pid: process.pid,
+    spawnedAt: Date.now(),
+    ...extra,
+  })
+  writeFileSync(
+    join(daemonDir, 'concourse-workers.json'),
+    JSON.stringify({
+      version: 1,
+      workers: {
+        'concourse-w1': rec('concourse-w1', VOXEL, { warm: true }),
+        'concourse-w2': rec('concourse-w2', HOME_FX),
+        'concourse-w3': rec('concourse-w3', VOXEL, { pid: 2147483000 }),
+        'concourse-w4': rec('concourse-w4', VOXEL, { endedAt: Date.now() }),
+        'concourse-w5': rec('concourse-w5', ELSEWHERE),
+      },
+    }),
+  )
+  writeFileSync(join(HOME_FX, '.git', 'index.lock'), '')
+  mkdirSync(join(HOME_FX, '.git', 'objects'), { recursive: true })
+  writeFileSync(join(HOME_FX, '.git', 'objects', 'tmp_obj_abc123'), '')
+  const r = await report.homeRepositoryCheck()
+  const spanOf = (dir: string): string => {
+    const start = r.evidence.indexOf(`${dir} is a git repository`)
+    if (start < 0) return ''
+    const rest = r.evidence.slice(start + dir.length + 1)
+    const next = rest.search(/ · \/[^ ]+ is a git repository/)
+    return next < 0 ? r.evidence.slice(start) : r.evidence.slice(start, start + dir.length + 1 + next)
+  }
+  const homeLine = spanOf(HOME_FX)
+  check('the home line says held by Mercury now', homeLine.includes('held by Mercury now'), homeLine)
+  check('… naming the warm runner rooted in a nested Documents folder and the claimed runner at the home', homeLine.includes('concourse-w1 (warm) pid') && homeLine.includes('concourse-w2 pid') && homeLine.includes('2 live sessions rooted here'), homeLine)
+  check('… not a dead pid, not an ended record, not a runner in another repository', !homeLine.includes('concourse-w3') && !homeLine.includes('concourse-w4') && !homeLine.includes('concourse-w5'), homeLine)
+  check('… the index lock with its age', /a git writer holds \.git\/index\.lock \(\d+ s old\)/.test(homeLine), homeLine)
+  check('… the object mid-write', homeLine.includes('1 object being written under .git/objects'), homeLine)
+  const deskLine = spanOf(DESKTOP)
+  check('the Desktop line has no holder', deskLine.includes('no Mercury process holds it now'), deskLine)
+  rmSync(join(daemonDir, 'concourse-workers.json'), { force: true })
+  rmSync(join(HOME_FX, '.git', 'index.lock'), { force: true })
+  rmSync(join(HOME_FX, '.git', 'objects', 'tmp_obj_abc123'), { force: true })
 }
 
 console.log('\n§2 the PowerShell words survive a markdown paste (no $_, no backslash before punctuation)')
