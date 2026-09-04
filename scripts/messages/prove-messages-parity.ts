@@ -424,6 +424,7 @@ add('createToolUseSummaryMessage', 'basic', () =>
 );
 
 const SKIPPED: Record<string, string> = {
+  createThinkingDeadMessage: 'a system row constructor for the dead-thinking mark — its identity rides the response id and block index; pinned by scripts/api/prove-prefix-ledger.ts',
   handleMessageFromStream: 'needs a live SSE stream context — covered by QueryEngine suites',
   isDroppedLateStreamFrame:
     'behaviorally covered by scripts/permissions/prove-permission-abort-total.ts (late-frame gate)',
