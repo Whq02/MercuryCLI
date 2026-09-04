@@ -1,4 +1,5 @@
 import type { EngineConnectorV1 } from './types.js'
+import type { WorkCountsV1 } from './workCounts.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 
@@ -6,6 +7,7 @@ export interface SessionLiveV1 {
   inFlight: boolean
   phase: 'thinking' | 'tool' | 'responding' | 'compacting' | 'waiting' | 'idle'
   agentsWaiting: number
+  waitingOn?: WorkCountsV1
   inProgressToolUseIDs: Set<string>
   turnStartedAtMs: number | null
 }
