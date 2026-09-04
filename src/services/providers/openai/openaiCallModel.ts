@@ -259,11 +259,13 @@ async function buildApiShapedTools(
 export function mapOpenaiUsageToAnthropic(usage: OpenaiUsage | undefined, webSearchRequests = 0): typeof EMPTY_USAGE {
   const total = usage?.inputTokens ?? 0
   const cached = usage?.cachedInputTokens ?? 0
+  const written = usage?.cacheWriteInputTokens ?? 0
   return {
     ...EMPTY_USAGE,
-    input_tokens: Math.max(0, total - cached),
+    input_tokens: Math.max(0, total - cached - written),
     output_tokens: usage?.outputTokens ?? 0,
     cache_read_input_tokens: cached,
+    cache_creation_input_tokens: written,
     server_tool_use: { ...EMPTY_USAGE.server_tool_use, web_search_requests: webSearchRequests },
   }
 }
@@ -277,6 +279,9 @@ export function buildProviderUsageReceipt(usage: OpenaiUsage): NonNullable<
     inputTokensTotal: total,
     cachedInputTokens: cached,
     outputTokens: usage.outputTokens ?? 0,
+    ...(typeof usage.cacheWriteInputTokens === 'number'
+      ? { cacheWriteInputTokens: usage.cacheWriteInputTokens }
+      : {}),
     ...(typeof usage.reasoningOutputTokens === 'number'
       ? { reasoningOutputTokens: usage.reasoningOutputTokens }
       : {}),
@@ -444,7 +449,7 @@ export async function* openaiCallModel(
     providerScope: `openai:${auth.account.kind}`,
     servedModel: modelId,
     projectPath: getCwd(),
-    behaviorContractDigest: createHash('sha256').update(renderedInstructions).digest('hex').slice(0, 16),
+    behaviorContractDigest: contract.digest,
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
