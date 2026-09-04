@@ -703,7 +703,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         sizeNow = -1
       }
       connectorTrace({ ev: 'tick', sid: this.record.sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
-      if (sizeNow !== -1 && sizeNow === this.lastSize && this.lastLen >= 0) return
+      if (sizeNow === this.lastSize && this.lastLen >= 0) return
       if (sizeNow !== -1 && this.transcriptWatcher === null) {
         this.armTranscriptWatcher()
         this.armTranscriptTimer()
@@ -714,7 +714,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (!this.attached) return
       this.chainCursor = chain.cursor
       const raw = chain.rows as unknown as Message[]
-      if (sizeNow !== -1 && sizeNow !== this.lastSize) this.lastSize = sizeNow
+      this.lastSize = sizeNow
       this.lastLen = raw.length
       const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
       const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))
@@ -821,7 +821,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.sends.length === 0) return false
     const now = Date.now()
     const landed = new Set<string>()
-    const ownIds = new Set(this.sends.map(s => s.clientMessageId))
     for (const s of this.sends) {
       if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
         landed.add(s.clientMessageId)
@@ -836,13 +835,9 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
             landed.add(s.clientMessageId)
             break
           }
-          if (m.type === 'user' && rowUuid !== undefined && ownIds.has(rowUuid)) {
-            const ts = Date.parse((m as { timestamp?: string }).timestamp ?? '')
-            const text = textOfUserRow(m)
-            if (!(!Number.isNaN(ts) && ts + 1000 < s.sentAtMs) && text !== '' && text.includes(s.text)) {
-              landed.add(s.clientMessageId)
-              break
-            }
+          if (m.type === 'user' && ((m as { batchUuids?: string[] }).batchUuids ?? []).includes(s.clientMessageId)) {
+            landed.add(s.clientMessageId)
+            break
           }
           const att = (m as { attachment?: { type?: string; source_uuid?: string } }).attachment
           if (m.type === 'attachment' && att?.type === 'queued_command' && att.source_uuid === s.clientMessageId) {

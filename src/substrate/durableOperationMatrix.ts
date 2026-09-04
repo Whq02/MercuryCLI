@@ -136,7 +136,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     files: [
       '<teams>/<team>/config.json (locked append via appendTeamMember)',
       '<teams>/<team>/inboxes/<name>.json (first write)',
-      '<config>/spawn-ledger.jsonl (append)',
+      '<config>/daemon/spawn-ledger.jsonl (append)',
     ],
     projections: ['AppState.teamContext.teammates', 'roster handles (daemon)'],
     lockOwner: 'withLockedTeamFile (proper-lockfile, durable publish)',

@@ -25,19 +25,21 @@ process.env.OPENAI_API_KEY = 'sk-test-turn-end-typed'
 const BUDGET_MS = 1500
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the typed-end prover exceeded 90s')
+  console.log('\nTIMEOUT — the typed-end prover exceeded 180s')
   process.exit(1)
-}, 90_000)
+}, 180_000)
 guard.unref?.()
 
 const REPLY_TEXT = 'the reply stands here after its last item'
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const named = (event: string, obj: unknown): string => `event: ${event}\n${sse(obj)}`
 
-type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'mid-item-silence' | 'complete'
+type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'mid-item-silence' | 'keepalive-after-settle' | 'complete'
 let arm: Arm = 'complete'
+let holdHeaders = false
 const calls = { openai: 0, anthropic: 0 }
 const holds = new Set<ServerResponse>()
+const keepalives = new Set<ReturnType<typeof setInterval>>()
 
 function responsesBody(res: ServerResponse): void {
   const rid = 'resp_typed'
@@ -54,6 +56,15 @@ function responsesBody(res: ServerResponse): void {
   const end = sse({ type: 'response.completed', response: { id: rid, usage: { input_tokens: 21, output_tokens: 9 } } })
   if (arm === 'close-after-settle') return void res.end()
   if (arm === 'hold-after-settle') return void holds.add(res)
+  if (arm === 'keepalive-after-settle') {
+    holds.add(res)
+    const t = setInterval(() => {
+      if (res.destroyed) return clearInterval(t)
+      res.write(': keepalive\n\n')
+    }, 100)
+    keepalives.add(t)
+    return
+  }
   if (arm === 'hold-after-end') {
     res.write(end)
     holds.add(res)
@@ -97,6 +108,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     if (req.method === 'POST' && path.endsWith('/responses')) {
       calls.openai++
+      if (holdHeaders) {
+        holds.add(res)
+        return
+      }
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       responsesBody(res)
       return
@@ -315,7 +330,98 @@ section('T8 — the owner: the law table, the words, the watchdog')
   check('stop() stood the watchdog down', quiet.fired() === null)
 }
 
+section('T9 — the first-byte budget on the three compat clients (a fetch that never answers)')
+{
+  const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
+  const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.ts')
+  const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
+  const neverAnswers: typeof fetch = (_url, init) =>
+    new Promise((_, reject) => {
+      const signal = (init as { signal?: AbortSignal } | undefined)?.signal
+      signal?.addEventListener('abort', () => reject(Object.assign(new Error('The operation was aborted'), { name: 'AbortError' })), { once: true })
+    })
+  type Road = { name: string; run: (onWait: (w: unknown) => void) => AsyncGenerator<{ type: string; fault?: { kind: string; code: string; message: string; retryable: boolean } }> }
+  const roads: Road[] = [
+    {
+      name: 'OpenAI',
+      run: onWait =>
+        streamOpenaiResponses({
+          baseUrl: `${base}/openai/v1`,
+          headers: { authorization: 'Bearer x' },
+          request: { model: 'gpt-5.6-sol', input: 'go' } as never,
+          fetchImpl: neverAnswers,
+          idleTimeoutMs: 400,
+          firstByte: { cold: false, promptTokens: 10, model: 'GPT-5.6 Sol', onWait: onWait as never },
+        }) as never,
+    },
+    {
+      name: 'Z.AI',
+      run: onWait =>
+        streamZaiChat({
+          apiKey: 'x',
+          baseUrl: `${base}/zai/v4`,
+          request: { model: 'glm-5.2', messages: [{ role: 'user', content: 'go' }] } as never,
+          fetchImpl: neverAnswers,
+          idleTimeoutMs: 400,
+          firstByte: { cold: false, promptTokens: 10, model: 'GLM 5.2', onWait: onWait as never },
+        } as never) as never,
+    },
+    {
+      name: 'compat',
+      run: onWait =>
+        streamCompatChat({
+          apiKey: 'x',
+          url: `${base}/v1/chat/completions`,
+          request: { model: 'a-compat-model', messages: [{ role: 'user', content: 'go' }] } as never,
+          fetchImpl: neverAnswers,
+          idleTimeoutMs: 400,
+          firstByte: { cold: false, promptTokens: 10, model: 'A Compat Model', onWait: onWait as never },
+        } as never) as never,
+    },
+  ]
+  for (const road of roads) {
+    const waits: unknown[] = []
+    const events: Array<{ type: string; fault?: { kind: string; code: string; message: string; retryable: boolean } }> = []
+    const t0 = performance.now()
+    for await (const ev of road.run(w => waits.push(w))) events.push(ev)
+    const wallMs = Math.round(performance.now() - t0)
+    const fault = events.find(e => e.type === 'stream-fault')?.fault
+    check(`${road.name}: the fetch that never answers ends at the budget`, wallMs >= 350 && wallMs < 2000, `wall=${wallMs}ms events=${JSON.stringify(events).slice(0, 200)}`)
+    check(`${road.name}: the typed first-byte fault, retryable`, fault?.kind === 'timeout' && fault.code === 'first-byte-timeout' && fault.retryable === true, JSON.stringify(fault))
+    check(`${road.name}: the line names the wait and the budget`, fault !== undefined && /^no first byte from .+ after 1 s \(the request was accepted and nothing arrived\)$/.test(fault.message), fault?.message)
+    const first = waits[0] as { kind?: string; budgetMs?: number; model?: string } | undefined
+    check(`${road.name}: the wait was published first with the budget that fires`, first?.kind === 'first-byte' && first.budgetMs === 400 && typeof first.model === 'string', JSON.stringify(waits))
+    check(`${road.name}: the wait was never cleared (the headers never came)`, !waits.includes(null), JSON.stringify(waits))
+  }
+  const cold = budget.firstByteBudgetMs({ cold: true, promptTokens: 50_000, idleMs: 400 })
+  check('a cold prefix earns its ingest allowance under the same owner', cold === 400 + 50 * budget.COLD_INGEST_MS_PER_1K_TOKENS, String(cold))
+}
+
+section('T10 — the OpenAI road end to end: headers never answered')
+{
+  calls.openai = 0
+  arm = 'complete'
+  holdHeaders = true
+  const r = await drive('gpt-5.6-sol', 'complete')
+  holdHeaders = false
+  check('T10: the road ended inside the budget and its one retry — never the fifty-minute ceiling', r.wallMs < 4 * BUDGET_MS + 4000, `wall=${r.wallMs}ms`)
+  check('T10: the terminal error row carries the typed first-byte line', r.errors.some(e => /no first byte from GPT-5\.6 Sol after/.test(e)), r.errors.join(' | ').slice(0, 300))
+  check('T10: no reply was minted', r.last === undefined, String(JSON.stringify(r.last?.message.content) ?? '').slice(0, 100))
+  check('T10: the request reached the fixture (once, then the bounded retry)', calls.openai >= 1 && calls.openai <= 2, `calls=${calls.openai}`)
+}
+
+section('T11 — liveness on the Responses client is a decoded event, never a byte')
+{
+  calls.openai = 0
+  arm = 'keepalive-after-settle'
+  const r = await drive('gpt-5.6-sol', 'keepalive-after-settle')
+  check('T11: comment keepalives never counted — the typed end came at the budget', r.last?.streamEnd?.reason === 'silent-after-last-item', JSON.stringify(r.last?.streamEnd))
+  check('T11: the reply stands', textOf(r.last) === REPLY_TEXT, textOf(r.last))
+  check('T11: the end came at the budget, not at the fifty-minute ceiling', r.wallMs >= BUDGET_MS - 100 && r.wallMs < BUDGET_MS + 4000, `wall=${r.wallMs}ms`)
+}
+
 for (const res of holds) res.destroy()
+for (const t of keepalives) clearInterval(t)
 holds.clear()
 server.close()
 console.log(`\n ${checks} checks, ${failures} failures`)
