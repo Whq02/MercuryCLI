@@ -10,8 +10,15 @@ cd "$root" || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
+claimed=$(cat scripts/updater-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
 echo "── PRIVATE CHANNEL — updater/installer proofs ──"
 for prover in prove-channel-core prove-status-check-agreement prove-install-layout prove-install-path prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack prove-release-targets; do
+  if printf '%s\n' "$claimed" | grep -qx "$prover.ts"; then
+    echo ""
+    echo "· $prover runs with the updater drives (scripts/updater-drives/members.txt)"
+    continue
+  fi
   echo ""
   echo "▶ $prover"
   "$BUN" run "$here/$prover.ts" || fail=1

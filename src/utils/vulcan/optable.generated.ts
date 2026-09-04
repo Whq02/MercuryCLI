@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'afb15784c00e4a08cbf174f0ef6a292ba61a34ff35248148ed8ab0378118034e'
+export const VULCAN_OPTABLE_DIGEST = '3157ad07946e8533bac4a8311b346540c92c8362e2c392711e1876a7684ccee6'
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {
@@ -1856,10 +1856,18 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
-    "summary": "One-call project picture: engine/project, main scene, autoloads, input actions, global classes, scene/script census, plugins, export presets (answers from project files when the editor is closed)",
+    "summary": "One-call project picture: engine/project, main scene, autoloads, input actions, global classes (+ whether the class cache is stale), scene/script census, plugins, export presets (answers from project files when no bridge is up, naming the editor state)",
     "args": {
       "budget": "optional: max listed entries per slice (default 40)"
     }
+  },
+  {
+    "name": "project_refresh_classes",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Mercury-side: rebuild .godot/global_script_class_cache.cfg so headless runs see new class_name scripts — the editor's rescan when the bridge is up, else the bounded headless import pass (godot --headless --import --path <project>); output folded into the answer",
+    "args": {}
   },
   {
     "name": "scene_diff",

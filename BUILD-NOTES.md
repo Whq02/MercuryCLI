@@ -319,8 +319,8 @@ macos-x64` (the npm platform packages, each verified against the integrity
 `bun.lock` pins, into `vendor/platform-packages/`), and the voice addon from
 `build-voice.ts --target macos-x64` (cargo `--target x86_64-apple-darwin`, a
 loud skip without that rustup target). A cross build never takes the host's
-system `rg`. `scripts/updater/prove-cross-archive-rosetta.ts` boots the packaged
-Intel archive under `arch -x86_64` on a Mac with Rosetta 2.
+system `rg`. The packaged Intel archive is booted under `arch -x86_64` on a
+Mac with Rosetta 2 before it publishes.
 
 Launcher templates live in `scripts/release/launcherTemplates.mjs`; every
 launcher resolves its Node in one order — `MERCURY_NODE`, the vendored
