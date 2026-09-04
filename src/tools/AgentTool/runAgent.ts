@@ -946,12 +946,13 @@ export async function* runAgent(
         yield message as Message
         continue
       }
+      const subtype = (anyMessage as { subtype?: string }).subtype
       const recordable =
         anyMessage.type === 'assistant' ||
         anyMessage.type === 'user' ||
         anyMessage.type === 'progress' ||
         (anyMessage.type === 'system' &&
-          (anyMessage as { subtype?: string }).subtype === 'compact_boundary')
+          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
       if (!recordable) continue
 
       void recordSidechainTranscript(
