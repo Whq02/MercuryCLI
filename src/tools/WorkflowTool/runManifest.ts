@@ -43,6 +43,8 @@ export type WorkflowRunAgentSummary = {
   attempt?: number
   waiting?: 'prefill' | 'provider-backoff' | 'usage-window'
   waitWords?: string
+  waitBudgetMs?: number
+  waitSinceMs?: number
   retryInMs?: number
   recoveryTimeoutMs?: number
   retryAttempt?: number
@@ -116,6 +118,8 @@ export function buildAgentSummaries(
           ? ev['waiting']
           : undefined,
       waitWords: str(ev['waitWords']),
+      waitBudgetMs: num(ev['waitBudgetMs']),
+      waitSinceMs: num(ev['waitSinceMs']),
       retryInMs: num(ev['retryInMs']),
       recoveryTimeoutMs: num(ev['recoveryTimeoutMs']),
       retryAttempt: num(ev['retryAttempt']),

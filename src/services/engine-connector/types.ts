@@ -6,6 +6,7 @@ import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import type { MCPServerConnection } from '../mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
+import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
@@ -173,6 +174,7 @@ export type WorkRowV1 = {
   agentType?: string
   team?: string
   stopReason?: string
+  wait?: AgentWaitV1
 }
 
 export type MissionRowV1 = {

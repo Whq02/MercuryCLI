@@ -2,6 +2,7 @@ import type { WorkRowV1 } from './types.js'
 import { workRowRuns } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
+import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
@@ -35,6 +36,7 @@ export interface CrewAgentFacts {
   description: string | null
   error: string | null
   stopReason: string | null
+  wait: AgentWaitV1 | null
   pendingAsks: number
   sessionId: string | null
 }
@@ -95,6 +97,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     description: row.description ?? null,
     error: row.error ?? null,
     stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,
+    wait: row.wait ?? null,
     pendingAsks: row.pendingAsks ?? 0,
     sessionId,
   }
@@ -153,6 +156,15 @@ export function crewModelLabel(facts: CrewAgentFacts): string {
 
 export function crewStateLabel(facts: CrewAgentFacts): string {
   return facts.state
+}
+
+export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
+  if (!facts.running) return null
+  return agentWaitWords(facts.wait, nowMs) ?? facts.activity
+}
+
+export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
+  return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
 }
 
 export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {

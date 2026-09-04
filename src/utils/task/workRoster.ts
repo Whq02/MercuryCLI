@@ -100,6 +100,7 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
     unpricedTurns?: unknown
     toolUseCount?: unknown
     lastActivity?: unknown
+    wait?: unknown
   }
   const input = finite(p.inputTokens)
   const output = finite(p.outputTokens)
@@ -117,10 +118,15 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
       : typeof last.toolName === 'string' && last.toolName !== ''
         ? last.toolName
         : undefined
+  const wait =
+    typeof p.wait === 'object' && p.wait !== null && typeof (p.wait as { phase?: unknown }).phase === 'string' && typeof (p.wait as { sinceMs?: unknown }).sinceMs === 'number'
+      ? (p.wait as WorkRowV1['wait'])
+      : undefined
   return {
     ...(typeof p.model === 'string' && p.model !== '' ? { model: p.model } : {}),
     ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
     ...(activity !== undefined ? { activity: clip(activity, MAX_NAME) } : {}),
+    ...(wait !== undefined ? { wait } : {}),
     ...(input !== undefined && output !== undefined && input + output > 0
       ? {
           inputTokens: input,

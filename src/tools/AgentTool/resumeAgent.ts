@@ -33,7 +33,7 @@ import {
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { getSdkAgentProgressSummariesEnabled } from '../../bootstrap/state.js'
 import { getSystemPrompt } from '../../constants/prompts.js'
-import { runAsyncAgentLifecycle } from './agentToolUtils.js'
+import { resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { FORK_AGENT, FORK_SUBAGENT_TYPE, isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
@@ -161,14 +161,20 @@ export async function resumeAgentBackground(args: {
   const restoredEffort = meta?.effortOverride
   const instructionProfileOverride = meta?.instructionProfile
 
+  const workerPermissionMode = (definition.permissionMode ?? 'implement') as NonNullable<AgentDefinition['permissionMode']>
   const tools = isForkResume
     ? toolUseContext.options.tools
-    : assembleToolPool(
-        {
-          ...toolUseContext.getAppState().toolPermissionContext,
-          mode: (definition.permissionMode ?? 'implement') as never,
-        },
-        [],
+    : resolveWorkerTools(
+        definition,
+        workerPermissionMode,
+        assembleToolPool(
+          {
+            ...toolUseContext.getAppState().toolPermissionContext,
+            mode: workerPermissionMode as never,
+          },
+          toolUseContext.getAppState().mcp?.tools ?? [],
+        ),
+        true,
       )
 
   void writeAgentMetadata(agentId as AgentId, {
@@ -203,10 +209,11 @@ export async function resumeAgentBackground(args: {
     runAsyncAgentLifecycle({
       taskId: agentId,
       abortController: task.abortController!,
-      makeStream: onCacheSafeParams =>
+      makeStream: (onCacheSafeParams, onQueryProgress) =>
         runAgent({
           agentDefinition: definition,
           promptMessages,
+          ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
           toolUseContext,
           canUseTool: canUseTool ?? ((async () => ({ behavior: 'allow', updatedInput: {} })) as never),
           isAsync: true,
