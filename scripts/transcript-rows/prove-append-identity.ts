@@ -44,8 +44,8 @@ console.log('── row-identity append law ──')
     !src.includes('setMessages(prev => [...prev, message])') && !src.includes('const handleStreamMessage'),
   )
   check(
-    'the connector rebuilds the records whole from the transcript file',
-    connector.includes('deserializeLiveMessages(raw),') &&
+    'the connector rebuilds the records from the reader-handed tail through the 1:1 deserialize',
+    connector.includes('deserializeLiveMessages(tail),') &&
       connector.includes('this.rawRecords = merge.records'),
   )
 }
