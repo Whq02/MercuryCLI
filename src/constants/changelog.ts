@@ -15,6 +15,18 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.2
+- The first published build of the public line; 1.0.0-beta.1 was tagged and never published
+- The repository is github.com/Whq02/MercuryCLI; the app's update channel and the release bridge read it
+- The daemon runs the model a dispatch names under either field spelling; an unknown id refuses, never the default in silence
+- A permission ask that expires or is withdrawn always settles its needs-you row, even when the row was still being written
+- Background start-up probes never hold the process open at exit
+- On the Concourse board, Enter on an example prompt fills the composer and never sends it; the next Enter sends
+- The close chord is a ladder: stop, then archive, then delete; the --chat face always shows the shift-arrow key row
+- The split view's size floor is the viewport's (80 columns by 22 rows)
+- The status row keeps a wait's budget word on a narrow terminal; a cold model switch names its first-byte budget
+- Twelve Bash tool fixes: the sandbox allows its own temp dir, pipes keep the special parameters, here-strings read, the timeout note reaches the model, an unavailable sandbox is refused and named
+
 ## 1.0.0-beta.1
 - The first build published from this repository; README.md says what is inside
 - Release notes ship inside the build: this bundled changelog is the only source
