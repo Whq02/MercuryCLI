@@ -2,7 +2,7 @@
 
 Mercury is a terminal harness for software development. This file covers a copy
 of the source — build, run, check, report a problem — not the internals. The
-repository is https://github.com/Whq02/PreRelease; README.md is its front door.
+repository is https://github.com/Whq02/MercuryCLI; README.md is its front door.
 
 ## Prerequisites
 
@@ -71,7 +71,7 @@ Run the suite nearest your change; `bun run verify` closes — read its exit sta
 
 ## Reporting a problem
 
-Open an issue at https://github.com/Whq02/PreRelease/issues through one of its
+Open an issue at https://github.com/Whq02/MercuryCLI/issues through one of its
 templates (bug · provider or model report · feature request) with the
 `--version` line, the OS and terminal, the exact steps, and the output of
 `node dist/mercury.mjs doctor --json` (`mercury doctor --json` for a release
