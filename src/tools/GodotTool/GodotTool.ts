@@ -196,7 +196,7 @@ export const GodotTool = buildTool({
     if (input.op === 'vulcan_install' || input.op === 'vulcan_uninstall') {
       return {
         behavior: 'ask' as const,
-        message: `Godot mutate: ${input.op} — writes addons/mercury_vulcan/ and project.godot rows (each row receipted; no editor undo step)${input.op === 'vulcan_install' ? '; with a bridge already up it reloads the plugin in the editor' : ''}`,
+        message: `Godot mutate: ${input.op} — writes addons/mercury_vulcan/ and project.godot rows (each row receipted; no editor undo step)${input.op === 'vulcan_install' ? '; with a bridge already up it reloads the editor plugin' : ''}`,
       }
     }
     if (FILE_MUTATES.has(input.op)) {
