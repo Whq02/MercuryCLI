@@ -1,8 +1,5 @@
 # Mercury CLI — Business Source License 1.1
 
-> **DRAFT FOR REVIEW**  
-> Fill in the Version Release Date, Change Date, version identifier, companion-terms hash, and commercial-licensing contact before publishing. 
-
 Copyright © 2026 Waleed Al Qusous, trading as Mercury CLI. All rights reserved except as expressly licensed below.
 
 SPDX license identifier for the underlying standard license: `BUSL-1.1`
@@ -24,13 +21,13 @@ This summary is only a guide. The operative terms below control.
 
 - **Licensor:** Waleed Al Qusous, trading as Mercury CLI
 - **Licensed Work:** The version of Mercury CLI identified below, including its Mercury-owned source code, object code, documentation, and other materials distributed with this notice, but excluding third-party components expressly identified as being under another licence.
-- **Version:** `[INSERT VERSION OR RELEASE TAG]`
-- **Version Release Date:** `[INSERT YYYY-MM-DD]`
+- **Version:** `v1.0.0-beta.2` — the Mercury CLI release this file is distributed with, as named by its release tag and by `mercury --version`; a later version ships its own copy of this file with its own values
+- **Version Release Date:** 2026-09-04 (published at https://github.com/Whq02/MercuryCLI/releases/tag/v1.0.0-beta.2)
 - **Additional Use Grant:** The Mercury Community Production Grant set out below.
-- **Change Date:** `[INSERT YYYY-MM-DD — exactly three years after the Version Release Date]`
+- **Change Date:** 2029-09-04 (exactly three years after the Version Release Date)
 - **Change License:** Apache License, Version 2.0 (`Apache-2.0`)
-- **Companion Production Terms:** `MERCURY-COMMUNITY-PRODUCTION-TERMS-DRAFT.md`, version `[INSERT MATCHING VERSION]`, SHA-256 `[INSERT HASH]`
-- **Commercial Licensing Contact:** `[INSERT URL OR EMAIL]`
+- **Companion Production Terms:** `MERCURY-COMMUNITY-PRODUCTION-TERMS.md` distributed with the same version, terms version 1, SHA-256 `fa79191caba8270a78a7ae731939921a2959126ab9b036da73dac21906a47863`
+- **Commercial Licensing Contact:** https://mercury-cli.ai/licensing
 
 The parameters and Mercury Community Production Grant apply separately to each version of the Licensed Work. A later version may ship with different parameters or an updated Additional Use Grant. The terms shipped with a version govern that version and do not retroactively change the terms of an earlier version.
 

@@ -267,5 +267,5 @@ checks.
 
 ## Licence
 
-The licence is [LICENSE.md](LICENSE.md). Bundled third-party licences are
+The licence is [LICENSE.md](LICENSE.md); the production terms it names are [MERCURY-COMMUNITY-PRODUCTION-TERMS.md](MERCURY-COMMUNITY-PRODUCTION-TERMS.md) and the trademark policy is [TRADEMARKS.md](TRADEMARKS.md). Bundled third-party licences are
 inventoried in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
