@@ -832,7 +832,6 @@ function MessagesInner({
     return computeTailRelease(
       visible as unknown as Parameters<typeof computeTailRelease>[0],
       streamingTail?.readIds() ?? { current: null, settled: null },
-      streamingTail?.readSettled() ?? null,
     )
   }, [visible, streamingTail, tailBoundaryKey])
 

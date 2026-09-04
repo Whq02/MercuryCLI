@@ -13,6 +13,15 @@ export const REPLY_TEXT = 'the reply stands here after its last item'
 export const HOLD_AFTER_SETTLE_ASK = 'hold after settle'
 export const CLOSE_AFTER_SETTLE_ASK = 'close after settle'
 export const HOLD_AFTER_END_ASK = 'hold after end'
+export const STREAM_SLOWLY_ASK = 'stream slowly'
+export const STREAM_NOTE_SLOWLY_ASK = 'stream a note slowly'
+export const SLOW_FIRST_DELTA_MS = 3_000
+export const SLOW_DELTA_MS = 1_500
+export const SLOW_REPLY_TEXTS = ['the first slow reply arrives a piece at a time', 'the second slow reply follows the queued words'] as const
+const SLOW_DELTAS = [
+  ['the first slow reply ', 'arrives a piece ', 'at a time'],
+  ['the second slow reply ', 'follows the ', 'queued words'],
+] as const
 export const READ_THREE_ASK = 'read three files'
 export const SLEEP_TOOL_ASK = 'run the long sleep'
 export const READ_HOLD_MS = 6_000
@@ -20,7 +29,7 @@ export const SLEEP_SECONDS = 40
 export const LAUNCH_AGENT_ASK = 'launch one agent'
 export const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
 
-type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'read-three' | 'sleep-tool' | 'launch-agent' | 'seat-hold' | 'complete'
+type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'read-three' | 'sleep-tool' | 'launch-agent' | 'seat-hold' | 'slow' | 'slow-note' | 'complete'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const named = (event: string, obj: unknown): string => `event: ${event}\n${sse(obj)}`
@@ -42,6 +51,13 @@ function textOf(content: unknown): string {
     .join('\n')
 }
 
+function askCountOf(body: Record<string, unknown>): number {
+  const input = body.input
+  if (typeof input === 'string') return 1
+  const items = Array.isArray(input) ? input : Array.isArray(body.messages) ? body.messages : []
+  return (items as Array<{ role?: string; content?: unknown }>).filter(m => m.role === 'user' && textOf(m.content) !== '').length
+}
+
 function lastAskOf(body: Record<string, unknown>): string {
   const input = body.input
   if (typeof input === 'string') return input
@@ -57,7 +73,24 @@ function armOf(ask: string): Arm {
   if (words === HOLD_AFTER_SETTLE_ASK) return 'hold-after-settle'
   if (words === CLOSE_AFTER_SETTLE_ASK) return 'close-after-settle'
   if (words === HOLD_AFTER_END_ASK) return 'hold-after-end'
+  if (words === STREAM_SLOWLY_ASK) return 'slow'
+  if (words === STREAM_NOTE_SLOWLY_ASK) return 'slow-note'
   return 'complete'
+}
+
+function streamSlowly(res: ServerResponse, frames: string[], endFrames: string): void {
+  let i = 0
+  const step = (): void => {
+    if (res.destroyed || res.writableEnded) return
+    if (i < frames.length) {
+      res.write(frames[i]!)
+      i++
+      setTimeout(step, SLOW_DELTA_MS).unref()
+      return
+    }
+    res.end(endFrames)
+  }
+  setTimeout(step, SLOW_FIRST_DELTA_MS).unref()
 }
 
 function toolArmOf(body: Record<string, unknown>): { arm: 'read-three' | 'sleep-tool' | 'launch-agent' | 'seat-hold'; step: number } | null {
@@ -201,6 +234,18 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return
       }
       res.write(sse({ type: 'response.created', response: { id: rid } }))
+      if (arm === 'slow' || arm === 'slow-note') {
+        const label = arm === 'slow-note' ? { phase: 'commentary' } : {}
+        const ordinal = Math.min(SLOW_DELTAS.length, Math.max(1, askCountOf(body))) - 1
+        res.write(sse({ type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: itemId, role: 'assistant', content: [], ...label } }))
+        streamSlowly(
+          res,
+          SLOW_DELTAS[ordinal]!.map(delta => sse({ type: 'response.output_text.delta', item_id: itemId, output_index: 0, content_index: 0, delta })),
+          sse({ type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: itemId, role: 'assistant', content: [{ type: 'output_text', text: SLOW_REPLY_TEXTS[ordinal] }], ...label } }) +
+            sse({ type: 'response.completed', response: { id: rid, usage: { input_tokens: 21, output_tokens: 9 } } }),
+        )
+        return
+      }
       res.write(
         sse({
           type: 'response.output_item.added',
@@ -275,6 +320,17 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         }),
       )
       res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
+      if (arm === 'slow' || arm === 'slow-note') {
+        const ordinal = Math.min(SLOW_DELTAS.length, Math.max(1, askCountOf(body))) - 1
+        streamSlowly(
+          res,
+          SLOW_DELTAS[ordinal]!.map(delta => named('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: delta } })),
+          named('content_block_stop', { type: 'content_block_stop', index: 0 }) +
+            named('message_delta', { type: 'message_delta', delta: { stop_reason: 'end_turn', stop_sequence: null }, usage: { input_tokens: 21, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 9 } }) +
+            named('message_stop', { type: 'message_stop' }),
+        )
+        return
+      }
       for (const delta of arm === 'complete' && ask === '' ? ['svc'] : DELTAS) {
         res.write(named('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: delta } }))
       }
