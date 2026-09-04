@@ -11,6 +11,7 @@ import { getSettings_DEPRECATED } from '../settings/settings.js'
 import {
   getDefaultFableModel,
   getDefaultOpusModel,
+  isDefaultFableNatively1M,
   isDefaultOpusNatively1M,
   isOpus1mMergeEnabled,
 } from './model.js'
@@ -46,6 +47,7 @@ export type FrontierOperatorDecision = {
 export type FrontierFacts = {
   fableEnvPin: boolean
   fableId: string
+  fableNatively1M?: boolean
   allowlistPresent: boolean
   allowlistNamesFable: boolean
   allowlistPermits: (id: string) => boolean
@@ -94,7 +96,7 @@ function settingForWinner(
   if (winner.code === 'eligible-env-pin') {
     return winner.id
   }
-  return f.oneMDisabled ? winner.id : winner.id + '[1m]'
+  return f.oneMDisabled || f.fableNatively1M === true ? winner.id : winner.id + '[1m]'
 }
 
 export function evaluateFrontierDecision(
@@ -142,6 +144,7 @@ export function gatherFrontierFacts(): FrontierFacts {
   return {
     fableEnvPin: !!process.env.ANTHROPIC_DEFAULT_FABLE_MODEL,
     fableId: getDefaultFableModel(),
+    fableNatively1M: isDefaultFableNatively1M(),
     allowlistPresent: allowlist !== undefined,
     allowlistNamesFable:
       !!allowlist &&

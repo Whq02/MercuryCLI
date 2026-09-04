@@ -58,6 +58,7 @@ import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
+  AgentControlReceiptV1,
   AskAnswerV1,
   AskReceiptV1,
   CheckpointFactsV1,
@@ -991,7 +992,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       prev === null ||
       prev.model.effective !== next.model.effective ||
       prev.model.setting !== next.model.setting ||
-      prev.pendingModel !== next.pendingModel
+      prev.pendingModel !== next.pendingModel ||
+      prev.effort !== next.effort
     const modeMoved = prev === null || prev.permissionMode !== next.permissionMode
     this.factsBusy = next.busy
     if (next.busy) this.armBusyStall()
@@ -1386,6 +1388,41 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     return true
   }
 
+  stopAgent(agentId: string): Promise<AgentControlReceiptV1> {
+    return this.agentVerb('stop-agent', agentId)
+  }
+
+  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+    return this.agentVerb('resume-agent', agentId, note)
+  }
+
+  private async agentVerb(action: 'stop-agent' | 'resume-agent', agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+    if (agentId === '') return { outcome: 'refused', detail: `${action} needs an agent` }
+    try {
+      const reply = await this.chainRpc({
+        op: 'sessionControl',
+        action,
+        sessionId: this.record.sessionId,
+        by: 'operator',
+        agentId,
+        ...(note !== undefined ? { note } : {}),
+      })
+      if (reply.ok !== true) {
+        const error = String(reply.error ?? 'the daemon refused the verb')
+        const older = /sessionControl requires/.test(error)
+        return {
+          outcome: 'refused',
+          detail: older ? 'the daemon predates the crew stop and resume verbs — /daemon restart when ready, then try again' : error,
+        }
+      }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
+      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+    } catch (e) {
+      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
+  }
+
   modelFacts(): ModelFactsV1 {
     const effective = this.facts?.model.effective ?? this.record.modelKey ?? getMainLoopModel()
     const effectiveSource: 'live' | 'record' | 'ambient' =
@@ -1395,7 +1432,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       effectiveSource,
       main: effective,
       setting: this.facts?.model.setting ?? this.record.modelKey ?? null,
-      sessionPin: null,
+      sessionPin: this.facts?.model.setting ?? this.record.modelKey ?? null,
+      effort: this.facts?.effort ?? this.record.effort ?? null,
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
     }
   }

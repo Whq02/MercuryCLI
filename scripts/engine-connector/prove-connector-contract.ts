@@ -38,6 +38,8 @@ const DOORS = [
   'workspace',
   'dispatchSlash',
   'sendAgentNote',
+  'stopAgent',
+  'resumeAgent',
   'setKit',
   'checkpointFacts',
   'subscribeCheckpoints',

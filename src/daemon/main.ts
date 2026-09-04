@@ -42,6 +42,7 @@ import {
 import { answerPermissionAsk, onWorkerControlRequest } from './permissionAsks.js'
 import {
   onSeatIdle,
+  controlSessionAgent,
   onSeatLine,
   onSeatSpawned,
   publishSeatFacts,
@@ -491,7 +492,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, clientOpId, mintedAtMs, title, titleSource }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, clientOpId, mintedAtMs, title, titleSource, agentId, note }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -679,6 +680,11 @@ async function daemonRun(args: string[]): Promise<void> {
                 ? { outcome: 'applied' as const, detail: `${hard === true ? 'hard stop' : 'interrupt'} ${rec.runnerId}` }
                 : { outcome: 'refused' as const, detail: 'worker has no live control channel' },
             )
+          }
+          if (action === 'stop-agent' || action === 'resume-agent') {
+            if (agentId === undefined || agentId === '') return { outcome: 'refused' as const, detail: `${action} requires agentId` }
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return controlSessionAgent(sessionId, agentId, action, roster, undefined, note !== undefined ? { note } : undefined)
           }
           if (action === 'stop') {
             if (roster !== null) {

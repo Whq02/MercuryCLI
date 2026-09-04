@@ -101,12 +101,12 @@ export function exitTeammateView(setAppState: SetAppState): void {
   })
 }
 
-export function stopOrDismissAgent(taskId: string, setAppState: SetAppState): void {
+export function stopOrDismissAgent(taskId: string, setAppState: SetAppState, reason?: string): void {
   setAppState(prev => {
     const task = prev.tasks[taskId]
     if (!task || !isLocalAgentTaskShape(task)) return prev
     if (task.status === 'running') {
-      task.abortController?.abort()
+      task.abortController?.abort(reason)
       return prev
     }
     if (task.evictAfter === 0) return prev

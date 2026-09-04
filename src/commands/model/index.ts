@@ -1,14 +1,16 @@
 import type { Command } from '../../commands.js'
+import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
 import { shouldInferenceConfigCommandBeImmediate } from '../../utils/immediateCommand.js'
-import { getMainLoopModel, renderModelName } from '../../utils/model/model.js'
+import { renderModelName } from '../../utils/model/model.js'
 
 export default {
   type: 'local-jsx',
   name: 'model',
-  get description() {
-    return `Set the model for Mercury (currently ${renderModelName(getMainLoopModel())})`
+  description: 'Choose the AI model',
+  currentValue: () => {
+    const facts = focusedSessionModelFacts()
+    return facts === null ? undefined : renderModelName(facts.effective)
   },
-  currentValue: live => renderModelName(live.mainLoopModelForSession ?? getMainLoopModel()),
   argumentHint: '[model]',
   get immediate() {
     return shouldInferenceConfigCommandBeImmediate()

@@ -15,7 +15,7 @@ import type { AssistantMessage, Message } from '../../types/message.js'
 import type { ApiUsage } from '../../types/wire.js'
 import type { Tools } from '../../Tool.js'
 import { findToolByName, safeSearchOrReadClassification } from '../../Tool.js'
-import { createAbortController, createChildAbortController } from '../../utils/abortController.js'
+import { createAbortController } from '../../utils/abortController.js'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { sliceHeadAtGrapheme, sliceTailAtGrapheme } from '../../utils/intl.js'
@@ -32,6 +32,7 @@ import {
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
+import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 
 
 const DEFAULT_AGENT_TYPE = 'general-purpose'
@@ -64,6 +65,7 @@ export type AgentProgress = {
   costUSD?: number
   unpricedTurns?: number
   model?: string
+  phase?: AgentWaitV1
 }
 
 export type AgentLedger = {
@@ -82,10 +84,18 @@ export type ProgressTracker = {
   recentActivities: ToolActivity[]
   ledger: AgentLedger
   lastAssistant?: AssistantMessage
+  phase: AgentWaitV1 | null
 }
 
 export function createAgentLedger(): AgentLedger {
   return { inputTokens: 0, outputTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
+}
+
+export function foldQueryProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
+  const next = foldAgentWaitEvent(tracker.phase, event, nowMs)
+  if (next === tracker.phase) return false
+  tracker.phase = next
+  return true
 }
 
 export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
@@ -138,6 +148,7 @@ export function createProgressTracker(): ProgressTracker {
     toolUseCount: 0,
     recentActivities: [],
     ledger: createAgentLedger(),
+    phase: null,
   }
 }
 
@@ -222,7 +233,17 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
         }
       : {}),
     ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
+    ...(tracker.phase !== null ? { phase: tracker.phase } : {}),
   }
+}
+
+export function publishAgentWaitFromEvent(
+  taskId: string,
+  tracker: ProgressTracker,
+  event: unknown,
+  setAppState: SetAppState,
+): void {
+  if (foldQueryProgressIntoTracker(tracker, event)) updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
 }
 
 
@@ -239,7 +260,9 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   result?: any
   progress?: any
   summary?: string
+  wait?: string
   retrieved?: boolean
+  stopReason?: string
   messages?: Message[]
   lastReportedToolCount?: number
   lastReportedTokenCount?: number
@@ -272,6 +295,28 @@ export function mergeDiskPrefix<M extends { uuid: unknown }>(live: M[], disk: M[
 }
 
 
+export const AGENT_STOP_BY_OPERATOR = 'crew-stop'
+
+export function agentStopReasonOf(signalReason: unknown): string | undefined {
+  return signalReason === AGENT_STOP_BY_OPERATOR ? 'stopped from the crew view' : undefined
+}
+
+export const AGENT_RESUME_DOOR = 'resume it from the crew view (r on its row) or by SendMessage to its id'
+
+export const AGENT_RESUME_NOTE =
+  'The operator resumed you from the crew view after a stop. Continue from where your transcript ends — the work before the stop stands; do not redo it.'
+
+export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
+  let n = 0
+  for (const task of Object.values(tasks ?? {})) {
+    const t = task as { type?: string; status?: string; agentType?: string }
+    if (t.status !== 'running') continue
+    if (t.type === 'local_workflow' || (t.type === 'local_agent' && t.agentType !== MAIN_SESSION_AGENT_TYPE)) n++
+  }
+  return n
+}
+
+
 const backgroundSignalResolvers = new Map<string, () => void>()
 
 function resolveBackgroundSignal(taskId: string): void {
@@ -290,13 +335,10 @@ export function registerAsyncAgent(args: {
   selectedAgent?: AgentDefinition
   model?: string
   toolUseId?: string
-  parentAbortController?: AbortController
 }): LocalAgentTaskState {
   const taskId = args.agentId
   void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
-  const abortController = args.parentAbortController
-    ? createChildAbortController(args.parentAbortController)
-    : createAbortController()
+  const abortController = createAbortController()
   const cleanup = registerCleanup(async () => {
     killAsyncAgent(taskId, args.setAppState)
   })
@@ -326,14 +368,16 @@ export function registerAgentForeground(args: {
   selectedAgent?: AgentDefinition
   model?: string
   toolUseId?: string
-  parentAbortController?: AbortController
   autoBackgroundMs?: number
-}): { taskId: string; backgroundSignal: Promise<void>; cancelAutoBackground?: () => void } {
+}): {
+  taskId: string
+  abortController: AbortController
+  backgroundSignal: Promise<void>
+  cancelAutoBackground?: () => void
+} {
   const taskId = args.agentId
   void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
-  const abortController = args.parentAbortController
-    ? createChildAbortController(args.parentAbortController)
-    : createAbortController()
+  const abortController = createAbortController()
   const cleanup = registerCleanup(async () => {
     killAsyncAgent(taskId, args.setAppState)
   })
@@ -367,7 +411,7 @@ export function registerAgentForeground(args: {
     cancelAutoBackground = () => clearTimeout(timer)
   }
 
-  return { taskId, backgroundSignal, cancelAutoBackground }
+  return { taskId, abortController, backgroundSignal, cancelAutoBackground }
 }
 
 export function backgroundAgentTask(
@@ -456,13 +500,13 @@ export function failAgentTask(taskId: string, error: string, setAppState: SetApp
   void evictTaskOutput(taskId)
 }
 
-export function killAsyncAgent(taskId: string, setAppState: SetAppState): void {
+export function killAsyncAgent(taskId: string, setAppState: SetAppState, stopReason?: string): void {
   let killed = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.status !== 'running') return task
     killed = true
     task.abortController?.abort()
-    return terminalPatch(task, 'killed', {})
+    return terminalPatch(task, 'killed', stopReason !== undefined ? { stopReason } : {})
   })
   if (killed) void evictTaskOutput(taskId)
 }
@@ -566,6 +610,19 @@ export function updateAgentSummary(
   }
 }
 
+export function setAgentWaitLine(taskId: string, line: string | null, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (line === null) {
+      if (task.wait === undefined) return task
+      const { wait: _gone, ...rest } = task
+      return rest as LocalAgentTaskState
+    }
+    if (task.wait === line) return task
+    return { ...task, wait: line }
+  })
+}
+
 
 export function queuePendingMessage(
   taskId: string,
@@ -628,6 +685,7 @@ export function enqueueAgentNotification(args: {
   worktreeBranch?: string
   envelopeBlock?: string
   summary?: string
+  stopReason?: string
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
@@ -645,7 +703,7 @@ export function enqueueAgentNotification(args: {
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
         ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}`
-        : `Agent "${args.description}" was stopped`)
+        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'} — its transcript stands; ${AGENT_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`

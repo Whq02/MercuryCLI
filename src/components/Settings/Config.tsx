@@ -49,6 +49,7 @@ import {
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
+import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -344,8 +345,9 @@ export function Config({
     </Text>
   )
 
+  const servedModel = useFocusedServedModel()
   const mainRoute = declaredRouteOf(
-    appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel(),
+    servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel(),
   )
   const providerScoped = (item: SettingsItem, appliesTo: 'anthropic'): SettingsItem => {
     const applicability = configRowApplicability(appliesTo, mainRoute ?? 'unrecognised')
@@ -639,7 +641,7 @@ export function Config({
     kind: 'info',
     value: (
       <Text>
-        {mainLoopPointerText(appState.mainLoopModelForSession ?? appState.mainLoopModel)}
+        {mainLoopPointerText(servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel)}
       </Text>
     ),
   })
