@@ -363,6 +363,10 @@ export function defineStore<T, A extends unknown[] = []>(
     }
     if (rt.listeners.size === 0) return
     if (raw === rt.lastEmittedRaw) return
+    if (rt.lastEmittedRaw === null && raw !== null && raw === encodeValue(cfg.empty())) {
+      rt.lastEmittedRaw = raw
+      return
+    }
     let value: T
     let revision: StoreRevision | null = null
     try {
@@ -604,13 +608,14 @@ export function defineStore<T, A extends unknown[] = []>(
       await publishAtomic(path, raw)
       rt.lastStatKey = null
       const emitted = revision ?? revisionFor(null, value)
+      const echoed = rt.lastEmittedRaw === raw
       rt.publishEpoch += 1
       rt.lastEmittedRaw = raw
       rt.lastEmittedOpId = revision?.operationId ?? null
       if (emitted) {
         rt.lastSeenRevision = Math.max(rt.lastSeenRevision ?? 0, emitted.revision)
       }
-      if (rt.listeners.size > 0) {
+      if (!echoed && rt.listeners.size > 0) {
         queueMicrotask(() =>
           fanOut(rt, { value, revision: emitted, cause, skippedRevisions: 0 }),
         )
