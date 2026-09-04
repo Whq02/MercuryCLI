@@ -7,7 +7,6 @@ import {
   type RateLimit,
   type Utilization,
 } from '../../services/api/usage.js'
-import { anthropicUsageReaderNote, refreshAnthropicUsage } from '../../services/providers/anthropic/anthropicUsageState.js'
 import { isClaudeAISubscriber } from '../../utils/auth.js'
 import { recentSignIns } from '../../utils/model/computedDefault.js'
 import type { RouterProviderId } from '../../utils/router/providers/types.js'
@@ -667,13 +666,10 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
   const load = useCallback((): void => {
     if (!subscriber) return
     setState(previous => ({ ...previous, loading: true, error: null }))
-    void refreshAnthropicUsage({ reason: 'operator' }).then(status => {
+    void refreshProviderUsage('anthropic', { reason: 'operator' }).then(() => {
       if (disposedRef.current) return
-      if (status.failure !== undefined) {
-        setState({ loading: false, error: anthropicUsageReaderNote() ?? status.failure.detail, data: null })
-      } else {
-        setState({ loading: false, error: null, data: {} })
-      }
+      const note = usageForProvider('anthropic').readerNote
+      setState(note !== undefined ? { loading: false, error: note, data: null } : { loading: false, error: null, data: {} })
     })
   }, [subscriber])
   useEffect(() => {
