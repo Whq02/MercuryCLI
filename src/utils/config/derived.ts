@@ -11,7 +11,7 @@ import {
 import type { MemoryType } from '../memory/types.js'
 import { getManagedFilePath } from '../settings/managedPath.js'
 
-import { getGlobalConfig, saveGlobalConfig } from './globalConfig.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from './globalConfig.js'
 
 export function getRemoteControlAtStartup(): boolean {
   const explicit = getGlobalConfig().remoteControlAtStartup
@@ -50,6 +50,11 @@ export function binaryName(): string {
 
 export function isCopyOnSelectEnabled(): boolean {
   return getGlobalConfig().copyOnSelect ?? true
+}
+
+export function isMouseCaptureEnabled(): boolean {
+  if (!isConfigReadingAllowed()) return true
+  return getGlobalConfig().mouseCapture !== false
 }
 
 export function isMercurySubstrateProfileOn(): boolean {
