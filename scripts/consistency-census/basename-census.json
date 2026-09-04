@@ -24,7 +24,7 @@
     },
     {
       "file": "src/entrypoints/cli.tsx",
-      "line": 353,
+      "line": 363,
       "needle": ".mercury",
       "excerpt": "return join(home, '.mercury')",
       "cls": "owner-internal",
@@ -120,7 +120,7 @@
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",
-      "line": 98,
+      "line": 111,
       "needle": "CLAUDE.md",
       "excerpt": "claudeMd: exists(join(workspace, 'CLAUDE.md')),",
       "cls": "compat-boundary",
@@ -208,7 +208,7 @@
     },
     {
       "file": "src/utils/auth.ts",
-      "line": 1175,
+      "line": 1184,
       "needle": ".claude.json",
       "excerpt": "const file = join(dir, '.claude.json')",
       "cls": "compat-boundary",
@@ -240,7 +240,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 174,
+      "line": 187,
       "needle": "MERCURY.md",
       "excerpt": "return join(getMercuryHome(), 'MERCURY.md')",
       "cls": "owner-internal",
@@ -248,7 +248,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 178,
+      "line": 191,
       "needle": "MERCURY.md",
       "excerpt": "return join(cwd, 'MERCURY.md')",
       "cls": "compat-boundary",
@@ -256,7 +256,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 180,
+      "line": 193,
       "needle": "MERCURY.md",
       "excerpt": "return join(getManagedFilePath(), 'MERCURY.md')",
       "cls": "baked-mirror",
@@ -264,7 +264,7 @@
     },
     {
       "file": "src/utils/config/derived.ts",
-      "line": 192,
+      "line": 205,
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', 'rules')",
       "cls": "baked-mirror",
@@ -280,7 +280,7 @@
     },
     {
       "file": "src/utils/healthReport.ts",
-      "line": 1248,
+      "line": 1423,
       "needle": ".claude",
       "excerpt": "authHome === join(homedir(), '.claude').normalize('NFC')",
       "cls": "compat-boundary",
