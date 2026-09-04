@@ -94,6 +94,7 @@ import { getLiveContextUsage } from './cockpit/contextUsageLive.js'
 import { ctxForecastEnabled } from './cockpit/ctxForecast.js'
 import { daemonSnapshot } from './cockpit/daemonSnapshot.js'
 import { daemonDir } from '../daemon/controlSocket.js'
+import type { DaemonSignInViewV1 } from '../daemon/protocol.js'
 import { getGlobalMercuryFile } from './env.js'
 import { getMacOsKeychainStorageServiceName } from './secureStorage/macOsKeychainHelpers.js'
 import { fleetGauge } from './cockpit/fleetGauge.js'
@@ -1181,6 +1182,45 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const staleNote =
               report.oursStale.length > 0 ? ` · ${report.oursStale.map(a => a.evidence).join(' · ')}` : ''
             return { status: 'ok', evidence: `no foreign-harness artifacts in ${home}${staleNote}` }
+          },
+        },
+        {
+          id: 'daemon-sign-ins',
+          label: 'Daemon sign-in view',
+          run: async () => {
+            const d = daemonSnapshot()
+            if (d.state !== 'live') {
+              return { status: 'off', evidence: `no live daemon to compare with — ${d.reason}`, link: '/daemon' }
+            }
+            const { daemonControlRpc } = await import('../daemon/controlSocket.js')
+            const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../daemon/signInView.js')
+            const reply = (await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 3000 })) as
+              | { ok: true; view: DaemonSignInViewV1 }
+              | { ok: false; code?: string; error?: string }
+            const restart = `restart the daemon: \`${binaryName()} daemon restart\``
+            if (!reply.ok) {
+              return {
+                status: 'warn',
+                evidence: `the daemon did not answer signIns (${reply.code ?? '?'}${reply.error ? `: ${reply.error}` : ''}) — a daemon of an older build`,
+                fix: `${restart} — the successor answers the sign-in verb.`,
+                link: '/daemon',
+              }
+            }
+            const mine = composeSignInView()
+            const gaps = compareSignInViews(mine, reply.view)
+            const sameEstate = reply.view.home === mine.home && reply.view.store === mine.store
+            const where = `daemon read ${reply.view.store} in ${reply.view.home}; this process reads ${mine.store} in ${mine.home}`
+            if (gaps.length === 0 && sameEstate) {
+              return { status: 'ok', evidence: `daemon and client agree — ${summarizeSignInView(reply.view)} · ${where}`, link: '/daemon' }
+            }
+            const named = gaps.map(g => `${g.family}: client ${g.client} vs daemon ${g.daemon}`).join('; ')
+            const lists = `daemon: [${summarizeSignInView(reply.view)}] · client: [${summarizeSignInView(mine)}]`
+            return {
+              status: 'fail',
+              evidence: `daemon ≠ client${named !== '' ? ` — ${named}` : ' — different home or store'} · ${lists} · ${where}`,
+              fix: `${restart} — a restarted daemon reads the estate this screen reads; a gap that stands means the two run on different homes, stores or env keys (the evidence names both).`,
+              link: '/daemon',
+            }
           },
         },
         {
