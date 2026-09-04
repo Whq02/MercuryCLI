@@ -394,6 +394,12 @@ if (cap !== null) {
     check(`W3 [${label}] the frame's wf chip stands while the run lives, naming the phase and the age`, chip.some(r => new RegExp(`◐ wf ${PHASE} \\d+[smh]`).test(r)), chip.map(flat).join(' | ').slice(0, 200))
   }
 
+  console.log('\n— W6 the wait words —')
+  for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
+    const waits = rowsWith(m[label], /waiting on/)
+    check(`W6 [${label}] the strip says the turn waits on 1 workflow — never on "1 agent"`, waits.length > 0 && waits.every(r => r.includes('waiting on 1 workflow')) && !waits.some(r => /waiting on 1 agent/.test(r)), waits.map(flat).join(' | ').slice(0, 300))
+  }
+
   console.log('\n— W5 the settle —')
   const settledPanel = panelRows(m['settled'], 'WORKFLOW', 'HEALTH')
   check('W5 once the run settled the panel reads idle', settledPanel.some(r => /\bidle\b/.test(r)) && !settledPanel.some(r => r.includes(WF_NAME)), settledPanel.map(flat).filter(Boolean).join(' | ').slice(0, 200))
