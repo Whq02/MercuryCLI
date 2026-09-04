@@ -12,7 +12,6 @@ import { isForkSubagentEnabled } from '../tools/AgentTool/forkSubagent.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
-import { isGitRepo } from '../services/gitGraph/observe.js'
 import { mercuryEngineIdentityLine } from '../prompt/engineIdentity.js'
 import {
   getModelKnowledgeCutoff,
@@ -109,7 +108,6 @@ export async function computeEnvInfo(
   additionalWorkingDirectories?: string[],
 ): Promise<string> {
   const cwd = getOriginalCwd()
-  const gitRepo = isGitRepo(cwd)
   const extraDirs =
     additionalWorkingDirectories && additionalWorkingDirectories.length > 0
       ? `\nAdditional working directories: ${additionalWorkingDirectories.join(', ')}`
@@ -118,8 +116,7 @@ export async function computeEnvInfo(
   const currency = `\n\n${MODEL_CURRENCY_NOTE}`
   return `The environment this session runs in:
 <env>
-Working directory: ${cwd}
-Is directory a git repo: ${gitRepo ? 'Yes' : 'No'}${extraDirs}
+Working directory: ${cwd}${extraDirs}
 Platform: ${platform()}
 ${shellLine()}
 OS Version: ${getUnameSR()}
@@ -139,7 +136,6 @@ export async function computeSimpleEnvInfo(
       'This is an isolated copy of the repository (a git worktree). All commands run from this directory — do NOT change directory to the original repository root.',
     )
   }
-  items.push([`Is a git repository: ${isGitRepo(cwd)}`])
   if (additionalWorkingDirectories && additionalWorkingDirectories.length > 0) {
     items.push('Additional working directories:')
     items.push(additionalWorkingDirectories.map(dir => dir))

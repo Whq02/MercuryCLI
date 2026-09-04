@@ -43,9 +43,9 @@ console.log('============================================================')
 check('the op union was found and is non-trivial', shape.ops.length >= 20, `${shape.ops.length} ops`)
 check('the concourseControl actions were found', shape.controlActions.length >= 15, `${shape.controlActions.length} actions`)
 check(
-  'the v2+v3+v5 verbs are appended at the end of the union (never reordered)',
-  shape.ops.slice(-8).join(',') === 'hello,restart-when-idle,sessionAdmit,sessionDispatch,sessionList,sessionRelease,sessionControl,sessionRewind',
-  shape.ops.slice(-8).join(','),
+  'the v2+v3+v5+v7 verbs are appended at the end of the union (never reordered)',
+  shape.ops.slice(-9).join(',') === 'hello,restart-when-idle,sessionAdmit,sessionDispatch,sessionList,sessionRelease,sessionControl,sessionRewind,signIns',
+  shape.ops.slice(-9).join(','),
 )
 check('every verb is unique', new Set([...shape.ops, ...shape.controlActions]).size === shape.ops.length + shape.controlActions.length)
 check('MERCURY_DAEMON_PROTO is an integer ≥ 2 (the handshake wire)', Number.isInteger(proto) && proto >= 2, String(proto))

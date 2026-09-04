@@ -1,8 +1,4 @@
 
-import {
-  adoptiveProjectLocalPath,
-  projectLocalEstateExists,
-} from '../services/projectLocal/paths.js'
 import { existsSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
@@ -21,11 +17,13 @@ import {
   type PreflightSummary,
 } from './healthCertCore.js'
 import { computeWorkingTreeSha, gateVerdictPath, healthStateRoot } from './healthReport.js'
+import { getMercuryHome } from './envUtils.js'
+import { sanitizePath } from './sessionStoragePortable.js'
 import { getRipgrepStatus } from './ripgrep.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 
 export function lastPreflightPath(): string {
-  return join(adoptiveProjectLocalPath(healthStateRoot(), 'doctor'), 'last-preflight.json')
+  return join(getMercuryHome(), 'doctor', sanitizePath(healthStateRoot()), 'last-preflight.json')
 }
 
 export function mercuryBootPreflightEnabled(): boolean {
@@ -126,11 +124,9 @@ export async function runAndRecordPreflight(): Promise<PreflightSummary> {
   if (bootPreflight !== null) return bootPreflight
   bootPreflight = (async () => {
     const summary = await runPreflight()
-    if (projectLocalEstateExists(healthStateRoot())) {
-      try {
-        await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
-      } catch {
-      }
+    try {
+      await publishAtomic(lastPreflightPath(), JSON.stringify({ _v: 1, ...summary }))
+    } catch {
     }
     return summary
   })()
