@@ -52,10 +52,11 @@ export interface FileCheckpointFactsV1 {
   restorable: string[]
 }
 
-export interface SessionFactsV1 extends SessionFactsAnswerV1 {
+export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMode'> {
   schema: 1
   sessionId: string
   atMs: number
+  permissionMode?: PermissionMode
   pendingModel: string | null
   effort?: string
   pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
