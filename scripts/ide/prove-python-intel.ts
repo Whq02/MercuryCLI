@@ -52,7 +52,7 @@ const { createLSPServerManager } = await import('../../src/services/lsp/LSPServe
 const { subscribeLSPDiagnosticPublish } = await import('../../src/services/lsp/LSPDiagnosticRegistry.js')
 const { registerLSPNotificationHandlers } = await import('../../src/services/lsp/passiveFeedback.js')
 const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
-const { probeRuff } = await import('../../src/services/lsp/ruffLane.js')
+const { primeRuffProbe } = await import('../../src/services/lsp/ruffLane.js')
 
 const PERMISSIVE_CTX = {
   mode: 'implement',
@@ -145,7 +145,7 @@ try {
 
   section('(5) formatting honesty — the capability-owned refusal or the real format')
   {
-    const ruffProbe = probeRuff()
+    const ruffProbe = await primeRuffProbe()
     const out = await runMercuryLspOp(opEnv({ operation: 'formatDocument', filePath: mainPy }, mainPy))
     if (ruffProbe.available) {
       check('ruff formats (preview) through the owner', out.effect.outcome !== 'failed', out.result.split('\n')[0])

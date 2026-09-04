@@ -21,8 +21,8 @@ import {
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
 import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
-import { usageCreditsLine, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
-import { NO_USAGE_READ_WORDS, usageStaleTail } from '../services/providers/usageFreshness.js'
+import { usageCreditsLine, usageViewIsStale, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { NO_USAGE_READ_WORDS, usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import {
   getFocusedSessionConnector,
@@ -190,12 +190,14 @@ function HelmTelemetryRailImpl({
   const consoleLast = consoleOn ? getConsoleEntries().at(-1) : undefined
   const consoleCount = consoleOn ? getConsoleAskCount() : 0
   const { rows: termRows } = useTerminalSize()
-  const now = useNowTick(consolePending ? 1000 : 30_000)
+  const now = useNowTick(consolePending ? 1000 : Math.min(30_000, usagePollTtlMs()))
+  const readNow = Date.now()
   const meterTail = (w: UsageWindowView, pool: boolean): string | undefined => {
-    const stale = usageStaleTail(w, now)
-    if (stale !== undefined) return stale
-    if (w.resetsAtMs == null) return undefined
-    return pool ? formatCountdownCoarse(w.resetsAtMs - now) : formatCountdown(w.resetsAtMs - now)
+    const age = usageAgeTail(w, readNow)
+    if (age !== undefined && usageViewIsStale(w, readNow)) return age
+    const reset = w.resetsAtMs == null ? undefined : pool ? formatCountdownCoarse(w.resetsAtMs - readNow) : formatCountdown(w.resetsAtMs - readNow)
+    const tail = [reset, age].filter((part): part is string => part !== undefined).join(' ')
+    return tail === '' ? undefined : tail
   }
   const usageEmpty = usage.shape !== 'api-spend' && liveWindows.length === 0
 
@@ -287,6 +289,15 @@ function HelmTelemetryRailImpl({
         })(),
       )
     }
+  }
+  if (usage.readerNoteCompact !== undefined) {
+    usageNodes.push(
+      <Box key="usage:reader" width={rowW}>
+        <Text wrap="truncate-end">
+          <Text color={tok.warning}>{`  ${usage.readerNoteCompact}`}</Text>
+        </Text>
+      </Box>,
+    )
   }
   const crewLine = crewUsageLine(crewAgentsOf(workRoster.rows, focusedSessionIdOrNull()))
   if (crewLine !== null) {

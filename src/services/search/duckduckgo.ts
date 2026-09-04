@@ -3,12 +3,23 @@ import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText, readAttribute } from './htmlText.js'
 import {
+  coolDownRemainingMs,
+  liveSearchClock,
+  noteAnswered,
+  noteRateLimited,
+  retryBackoffMs,
+  secondsLeftLabel,
+  type SearchClock,
+} from './searchPacing.js'
+import {
   DEFAULT_MAX_RESULTS,
+  failureLine,
   filterHitsByDomain,
   normaliseHits,
   searchFailure,
   searchUserAgent,
   type SearchBackend,
+  type SearchFailure,
   type SearchHit,
   type SearchOutcome,
   type SearchRequest,
@@ -119,12 +130,15 @@ export function keylessQueryFor(request: SearchRequest): string {
 
 export interface KeylessSearchIo {
   fetchImpl?: typeof fetch
+  clock?: SearchClock
 }
 
-type DoorAttempt = { ok: true; hits: SearchHit[] } | { ok: false; failure: Extract<SearchOutcome, { ok: false }> }
+type KeylessDoor = 'duckduckgo' | 'duckduckgo-lite'
+
+type DoorAttempt = { ok: true; hits: SearchHit[] } | { ok: false; failure: SearchFailure; knocked: boolean }
 
 async function attemptDoor(
-  door: 'duckduckgo' | 'duckduckgo-lite',
+  door: KeylessDoor,
   url: string,
   request: SearchRequest,
   io: KeylessSearchIo,
@@ -148,50 +162,89 @@ async function attemptDoor(
       ...(request.signal ? { signal: request.signal } : {}),
     } as RequestInit)
   } catch (error) {
-    if (request.signal?.aborted) return { ok: false, failure: searchFailure('aborted', door, 'cancelled') }
-    return { ok: false, failure: searchFailure('network', door, error instanceof Error ? error.message : String(error)) }
+    if (request.signal?.aborted) return { ok: false, knocked: true, failure: searchFailure('aborted', door, 'cancelled') }
+    return { ok: false, knocked: true, failure: searchFailure('network', door, error instanceof Error ? error.message : String(error)) }
   }
   let body = ''
   try {
     body = await response.text()
   } catch (error) {
-    return { ok: false, failure: searchFailure('network', door, `the page body could not be read (${error instanceof Error ? error.message : String(error)})`) }
+    return { ok: false, knocked: true, failure: searchFailure('network', door, `the page body could not be read (${error instanceof Error ? error.message : String(error)})`) }
   }
   const page = door === 'duckduckgo' ? parseDuckDuckGoHtml(body) : parseDuckDuckGoLite(body)
-  if (page.kind === 'challenge' || response.status === 202 || response.status === 403 || response.status === 429) {
-    return { ok: false, failure: searchFailure('rate-limited', door, `HTTP ${response.status}${page.kind === 'challenge' ? ' with the bot challenge page' : ''}`) }
+  if (page.kind === 'challenge' || response.status === 202 || response.status === 403 || response.status === 429 || response.status === 503) {
+    return { ok: false, knocked: true, failure: searchFailure('rate-limited', door, `HTTP ${response.status}${page.kind === 'challenge' ? ' with the bot challenge page' : ''}`) }
   }
   if (response.status >= 500) {
-    return { ok: false, failure: searchFailure('network', door, `HTTP ${response.status}`) }
+    return { ok: false, knocked: true, failure: searchFailure('network', door, `HTTP ${response.status}`) }
   }
   if (page.kind === 'unrecognised') {
-    return { ok: false, failure: searchFailure('parse-failed', door, `HTTP ${response.status}, ${page.reason}`) }
+    return { ok: false, knocked: true, failure: searchFailure('parse-failed', door, `HTTP ${response.status}, ${page.reason}`) }
   }
   return { ok: true, hits: page.hits }
 }
 
+function coolingAttempt(door: KeylessDoor, leftMs: number): DoorAttempt {
+  return { ok: false, knocked: false, failure: searchFailure('rate-limited', door, `cooling down after a rate limit — ${secondsLeftLabel(leftMs)} left; not knocked`) }
+}
+
+async function openKeylessDoor(door: KeylessDoor, url: string, request: SearchRequest, io: KeylessSearchIo, clock: SearchClock): Promise<DoorAttempt> {
+  const left = coolDownRemainingMs(door, clock.now())
+  if (left > 0) return coolingAttempt(door, left)
+  return attemptDoor(door, url, request, io)
+}
+
+function keylessAnswer(via: KeylessDoor, hits: SearchHit[], request: SearchRequest, notes: string[]): SearchOutcome {
+  noteAnswered(via)
+  return {
+    ok: true,
+    via,
+    tier: 'keyless',
+    hits: normaliseHits(filterHitsByDomain(hits, request.allowedDomains, request.blockedDomains), request.maxResults ?? DEFAULT_MAX_RESULTS),
+    ...(notes.length > 0 ? { notes } : {}),
+  }
+}
+
+function retryable(failure: SearchFailure): boolean {
+  return failure.kind === 'rate-limited' || failure.kind === 'network'
+}
+
 export async function keylessSearch(request: SearchRequest, io: KeylessSearchIo = {}): Promise<SearchOutcome> {
-  const html = await attemptDoor('duckduckgo', duckduckgoHtmlUrl(), request, io)
-  if (html.ok) {
-    return {
-      ok: true,
-      via: 'duckduckgo',
-      tier: 'keyless',
-      hits: normaliseHits(filterHitsByDomain(html.hits, request.allowedDomains, request.blockedDomains), request.maxResults ?? DEFAULT_MAX_RESULTS),
-    }
-  }
+  const clock = io.clock ?? liveSearchClock
+  const html = await openKeylessDoor('duckduckgo', duckduckgoHtmlUrl(), request, io, clock)
+  if (html.ok) return keylessAnswer('duckduckgo', html.hits, request, [])
   if (html.failure.kind === 'aborted') return html.failure
-  const lite = await attemptDoor('duckduckgo-lite', duckduckgoLiteUrl(), request, io)
-  if (lite.ok) {
-    return {
-      ok: true,
-      via: 'duckduckgo-lite',
-      tier: 'keyless',
-      hits: normaliseHits(filterHitsByDomain(lite.hits, request.allowedDomains, request.blockedDomains), request.maxResults ?? DEFAULT_MAX_RESULTS),
-    }
-  }
+  const lite = await openKeylessDoor('duckduckgo-lite', duckduckgoLiteUrl(), request, io, clock)
+  if (lite.ok) return keylessAnswer('duckduckgo-lite', lite.hits, request, [failureLine(html.failure)])
   if (lite.failure.kind === 'aborted') return lite.failure
-  return searchFailure(lite.failure.kind, 'duckduckgo-lite', `${lite.failure.message} (the html door: ${html.failure.kind} — ${html.failure.message})`)
+
+  let retry: { waitedMs: number; failure: SearchFailure } | undefined
+  if (html.knocked && retryable(html.failure)) {
+    const waitedMs = retryBackoffMs(clock.random)
+    await clock.sleep(waitedMs, request.signal)
+    if (request.signal?.aborted) return searchFailure('aborted', 'duckduckgo', 'cancelled')
+    const again = await attemptDoor('duckduckgo', duckduckgoHtmlUrl(), request, io)
+    if (again.ok) {
+      return keylessAnswer('duckduckgo', again.hits, request, [`${failureLine(html.failure)} — answered on one retry after ${(waitedMs / 1000).toFixed(1)}s`, failureLine(lite.failure)])
+    }
+    if (again.failure.kind === 'aborted') return again.failure
+    retry = { waitedMs, failure: again.failure }
+  }
+
+  const htmlFinal = retry?.failure ?? html.failure
+  if (html.knocked && htmlFinal.kind === 'rate-limited') noteRateLimited('duckduckgo', clock)
+  if (lite.knocked && lite.failure.kind === 'rate-limited') noteRateLimited('duckduckgo-lite', clock)
+  const coolDownMs = Math.max(coolDownRemainingMs('duckduckgo', clock.now()), coolDownRemainingMs('duckduckgo-lite', clock.now()))
+  if (!html.knocked && !lite.knocked) {
+    return searchFailure('rate-limited', 'duckduckgo-lite', `cooling down after a rate limit — ${secondsLeftLabel(coolDownMs)} left before the next knock (both doors); no request was made`)
+  }
+  const retryWords = retry
+    ? retry.failure.kind === html.failure.kind && retry.failure.message === html.failure.message
+      ? `; the same on one retry after ${(retry.waitedMs / 1000).toFixed(1)}s`
+      : `; on one retry after ${(retry.waitedMs / 1000).toFixed(1)}s: ${retry.failure.kind} — ${retry.failure.message}`
+    : ''
+  const cooling = coolDownMs > 0 ? `; cooling down ${secondsLeftLabel(coolDownMs)} before the next knock` : ''
+  return searchFailure(lite.failure.kind, 'duckduckgo-lite', `${lite.failure.message} (the html door: ${html.failure.kind} — ${html.failure.message}${retryWords})${cooling}`)
 }
 
 export const duckduckgoBackend: SearchBackend = {

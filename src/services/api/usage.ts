@@ -23,6 +23,10 @@ export type Utilization = {
 
 const USAGE_TIMEOUT_MS = 5000
 
+export function usageEndpointBase(): string {
+  return process.env.ANTHROPIC_BASE_URL || getOauthConfig().BASE_API_URL
+}
+
 export async function fetchUtilization(): Promise<Utilization | null> {
   if (!isClaudeAISubscriber() || !hasProfileScope()) return {}
 
@@ -59,7 +63,7 @@ export async function fetchUtilization(): Promise<Utilization | null> {
     issuedEpoch = undefined
   }
 
-  const base = getOauthConfig().BASE_API_URL
+  const base = usageEndpointBase()
   const response = await axios.get<Utilization>(`${base}/api/oauth/usage`, {
     headers: {
       'Content-Type': 'application/json',
