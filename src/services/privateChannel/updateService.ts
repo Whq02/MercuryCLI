@@ -37,6 +37,7 @@ import {
   type ShimOutcome,
 } from './installLayout.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryOutcome } from './installPath.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
 
 export function runningRuntime(): RunningRuntime {
@@ -181,7 +182,7 @@ const sha256File = (path: string): string => createHash('sha256').update(readFil
 
 type ExtractOutcome = { state: 'ok' } | { state: 'tool-absent'; note: string } | { state: 'failed'; note: string }
 
-function resolveWindowsShell(): string | null {
+export function resolveWindowsShell(): string | null {
   for (const exe of ['pwsh', 'powershell']) {
     try {
       execFileSync(exe, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { windowsHide: true, stdio: 'pipe', timeout: 30_000, env: { ...subprocessEnv() } })
@@ -454,9 +455,12 @@ export type InstallVerbOutcome =
       activated: boolean
       shim: ReturnType<typeof writeShim>
       binDirOnPath: boolean
+      path: PathEntryOutcome
     }
   | { state: 'refused'; reason: string; remedy: string }
-  | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string }
+  | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string; path: PathEntryOutcome }
+
+const pathEntryIo = () => realPathEntryIo({ powershell: resolveWindowsShell })
 
 export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
   const payloadDir = runningPayloadDir()
@@ -471,6 +475,7 @@ export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
       payload.state === 'ok'
         ? 'no changes made (dry run); configuration and sessions are never touched'
         : `refusal expected: ${payload.note}`,
+    path: planBinDirOnPath(roots, pathEntryIo()),
   }
 }
 
@@ -515,6 +520,11 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
     const binDirOnPath = (process.env.PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))
+    const io = pathEntryIo()
+    const path: PathEntryOutcome =
+      shim.state === 'refused-foreign'
+        ? { state: 'refused', dir: roots.binDir, reason: 'the stable command was not written', line: manualPathLine(roots, io) }
+        : ensureBinDirOnPath(roots, io)
     progress('complete', payload.version)
     return {
       state: 'installed',
@@ -524,6 +534,7 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
       activated: true,
       shim,
       binDirOnPath,
+      path,
     }
   } finally {
     releaseUpdateLock(roots)

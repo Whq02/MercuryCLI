@@ -274,7 +274,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
 {
   const { saveOAuthTokensIfNeeded, clearOAuthTokenCache } = auth
   const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-  const { recordSignIn, noteCredentialRemoval, signInLedgerEpoch } = await import('../../src/utils/accounts/signInLedger.ts')
+  const { recordSignIn, noteCredentialChange, signInLedgerEpoch } = await import('../../src/utils/accounts/signInLedger.ts')
   const { signOutAnthropicSlot } = await import('../../src/services/providers/accountSlots.ts')
   const tokensFor = (name: 'A' | 'B') => ({
     accessToken: `fixture-token-${name}`,
@@ -293,7 +293,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   }
   const removeSignIn = (): void => {
     signOutAnthropicSlot(scratch, { revoke: async () => undefined })
-    noteCredentialRemoval()
+    noteCredentialChange()
   }
   const settled = async (): Promise<void> => {
     for (let i = 0; i < 40; i++) {
@@ -366,6 +366,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   if (!saved.success) throw new Error('the fixture swap did not save')
   const before = reader.anthropicUsageReadStatus().requests
   recordSignIn('anthropic', 'oauth')
+  await Promise.resolve()
   const dropped = fiveHour()
   await settled()
   view = fiveHour()

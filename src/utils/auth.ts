@@ -3,6 +3,7 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { randomInt } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { noteCredentialChange } from './accounts/signInLedger.js'
 
 import memoize from 'lodash-es/memoize.js'
 
@@ -490,6 +491,7 @@ export async function removeApiKey(): Promise<void> {
   saveGlobalConfig(current => ({ ...current, primaryApiKey: undefined }))
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
+  noteCredentialChange()
 }
 
 
