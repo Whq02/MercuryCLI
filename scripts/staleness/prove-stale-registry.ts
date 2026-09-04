@@ -254,6 +254,7 @@ src/utils/plans.ts :: plansDirectoryMemo :: invalidator=applyHarnessGround
 src/utils/platform.ts :: getLinuxDistroInfo :: static-for-process
 src/utils/platform.ts :: getPlatform :: static-for-process
 src/utils/platform.ts :: getWslVersion :: static-for-process
+src/utils/projectBoundary.ts :: refusalMemo :: ttl-bounded
 src/utils/proxy.ts :: proxyDispatcherCache :: keyed-by-truth
 src/utils/proxy.ts :: tunnelAgentCache :: keyed-by-truth
 src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
