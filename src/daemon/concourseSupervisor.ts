@@ -4,6 +4,7 @@ import { randomUUID } from '../utils/crypto.js'
 import { recordToEntry } from '../fabric/entryCodec.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../utils/model/retainedModel.js'
 import { logForDebugging } from '../utils/debug.js'
+import { gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
@@ -502,7 +503,12 @@ export function effectiveSeatCeiling(): number {
 }
 
 export type DefaultedAdmissionResolution =
-  | { kind: 'decision'; decision: AdmissionDecision; effectiveIsolation: WorkspaceIsolation }
+  | {
+      kind: 'decision'
+      decision: AdmissionDecision
+      effectiveIsolation: WorkspaceIsolation
+      gitOfferRefused?: GitInitRefusal
+    }
   | { kind: 'git-offer'; code: 'no-repository'; error: string; moves: ConcourseMoveV1[] }
 
 export function resolveDefaultedAdmission(
@@ -527,6 +533,20 @@ export function resolveDefaultedAdmission(
       if (retry.admit) effectiveIsolation = 'worktree-isolated'
       decision = retry
     } else {
+      const refusal = gitInitRefusal(claim.workspaceId)
+      if (refusal !== null) {
+        return {
+          kind: 'decision',
+          decision: {
+            admit: false,
+            code: 'workspace-collision',
+            reason: `two sessions here would need git, and Mercury will not start a repository in ${claim.workspaceId} — ${refusal.words}; kept without git: this one starts when the folder frees`,
+            moves: [{ verb: 'queue', label: 'it waits — it starts when the folder frees' }],
+          },
+          effectiveIsolation,
+          gitOfferRefused: refusal,
+        }
+      }
       return {
         kind: 'git-offer',
         code: 'no-repository',
@@ -584,7 +604,13 @@ export type ConcourseAdmitResult =
       presetNote?: string
       liveHop?: true
     }
-  | { ok: false; error: string; code: ConcourseRefusalCode; moves?: ConcourseMoveV1[] }
+  | {
+      ok: false
+      error: string
+      code: ConcourseRefusalCode
+      moves?: ConcourseMoveV1[]
+      gitOfferRefused?: GitInitRefusal
+    }
 
 export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: string): string | undefined {
   const fromRecord = Object.values(readSessionWorkers(dir))
@@ -741,6 +767,7 @@ export function makeConcourseAdmitHandler(
         code: decision.code,
         error: decision.reason,
         ...(decision.moves !== undefined ? { moves: decision.moves } : {}),
+        ...(resolution.gitOfferRefused !== undefined ? { gitOfferRefused: resolution.gitOfferRefused } : {}),
       }
 
     const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)

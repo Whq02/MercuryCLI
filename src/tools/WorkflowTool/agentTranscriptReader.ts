@@ -4,6 +4,8 @@ import { readFile, stat, open } from 'node:fs/promises'
 import path from 'node:path'
 
 import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
+import type { ApiUsage } from '../../types/wire.js'
+import { getTokenCountFromUsage } from '../../utils/tokens.js'
 
 export const PROMPT_CAP_CHARS = 8_000
 export const ACTIVITY_LAST_N = 40
@@ -30,6 +32,7 @@ export type AgentUsageRollup = {
   outputTokens: number
   cacheReadTokens: number
   cacheCreationTokens: number
+  contextTokens: number
   apiTurns: number
 }
 
@@ -155,6 +158,7 @@ export async function readAgentTranscript(
     outputTokens: 0,
     cacheReadTokens: 0,
     cacheCreationTokens: 0,
+    contextTokens: 0,
     apiTurns: 0,
   }
   const seenUsageIds = new Set<string>()
@@ -206,6 +210,12 @@ export async function readAgentTranscript(
       usage.outputTokens += n(u.output_tokens)
       usage.cacheReadTokens += n(u.cache_read_input_tokens)
       usage.cacheCreationTokens += n(u.cache_creation_input_tokens)
+      usage.contextTokens = getTokenCountFromUsage({
+        input_tokens: n(u.input_tokens),
+        output_tokens: n(u.output_tokens),
+        cache_read_input_tokens: n(u.cache_read_input_tokens),
+        cache_creation_input_tokens: n(u.cache_creation_input_tokens),
+      } as ApiUsage)
     }
     if (!Array.isArray(content)) continue
     for (const b of content) {

@@ -3,6 +3,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
+import { gitInitRefusal } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
@@ -413,11 +414,20 @@ export async function preflightConcourseDispatch(
   if (workspaceOk) {
     const workspaceId = canonicalWorkspaceId(req.workspaceDir)
     if ((req.isolation ?? 'exclusive') === 'worktree-isolated' && workspaceKindOf(workspaceId) === 'plain-folder') {
-      refusals.push({
-        code: 'no-repository',
-        reason: 'forking needs a git repository — this folder has none yet',
-        moves: [{ verb: 'init-git', label: 'say yes to the git offer — then sessions can fork here' }],
-      })
+      const refusal = gitInitRefusal(workspaceId)
+      refusals.push(
+        refusal !== null
+          ? {
+              code: 'no-repository',
+              reason: `forking needs a git repository, and Mercury will not start one here — ${refusal.words}`,
+              moves: [{ verb: 'retry', label: 'launch it without a worktree — in the folder as it is' }],
+            }
+          : {
+              code: 'no-repository',
+              reason: 'forking needs a git repository — this folder has none yet',
+              moves: [{ verb: 'init-git', label: 'say yes to the git offer — then sessions can fork here' }],
+            },
+      )
     }
     const live = Object.values(readSessionWorkers(dir)).filter(
       r =>
@@ -709,6 +719,13 @@ export function makeConcourseDispatchHandler(
           void import('./permissionAsks.js')
             .then(p => p.mintGitInitAsk(folder))
             .catch(err => logForDebugging(`[concourse/dispatch] git-init ask mint failed: ${err}`))
+        }
+        if (admitted.gitOfferRefused !== undefined && rec.workspaceId !== undefined) {
+          const folder = rec.workspaceId
+          const refusal = admitted.gitOfferRefused
+          void import('./permissionAsks.js')
+            .then(p => p.mintGitRefusedReceipt(req.clientMessageId, folder, refusal))
+            .catch(err => logForDebugging(`[concourse/dispatch] git-refused receipt failed: ${err}`))
         }
         return {
           ok: false,

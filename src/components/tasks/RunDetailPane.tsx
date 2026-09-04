@@ -192,7 +192,7 @@ function AgentLane({
   const model = shortModel(agent.model)
   if (model) meta.push(agent.effort ? `${model} @${agent.effort}` : model)
   if (typeof agent.tokens === 'number' && agent.tokens > 0)
-    meta.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)}`)
+    meta.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} spent`)
   if (typeof agent.toolCalls === 'number' && agent.toolCalls > 0)
     meta.push(`${agent.toolCalls} ${plural(agent.toolCalls, 'tool')}`)
   const runtime = agentRuntime(agent, now)
@@ -328,12 +328,14 @@ function DossierCard({
 
   const metaBits: string[] = []
   if (typeof agent.tokens === 'number' && agent.tokens > 0)
-    metaBits.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)}`)
+    metaBits.push(`${GLYPH.tokens} ${formatTokens(agent.tokens)} spent`)
   if (toolsBit) metaBits.push(toolsBit)
-  if (view?.usage)
+  if (view?.usage) {
+    if (view.usage.contextTokens > 0) metaBits.push(`${formatTokens(view.usage.contextTokens)} context`)
     metaBits.push(
-      `${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out`,
+      `${formatTokens(view.usage.inputTokens + view.usage.outputTokens)} spent (${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out)`,
     )
+  }
   if (read.meta?.agentType) metaBits.push(read.meta.agentType)
   if (read.meta?.worktreePath) metaBits.push('worktree')
   if (typeof agent.attempt === 'number' && agent.attempt > 1)
@@ -519,7 +521,7 @@ export function RunDetailPane({
   const metrics: string[] = []
   metrics.push(`${GLYPH.mission} ${settledCount(groups)}/${groups.length}`)
   metrics.push(`${agentCount} ${plural(agentCount, 'agent')}`)
-  if (totalTokens > 0) metrics.push(`${GLYPH.tokens} ${formatTokens(totalTokens)}`)
+  if (totalTokens > 0) metrics.push(`${GLYPH.tokens} ${formatTokens(totalTokens)} spent`)
   if (totalToolCalls > 0) metrics.push(`${totalToolCalls} ${plural(totalToolCalls, 'tool')}`)
   if (model) metrics.push(model)
 
