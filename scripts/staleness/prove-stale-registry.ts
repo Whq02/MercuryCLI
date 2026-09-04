@@ -121,7 +121,7 @@ src/services/instructions/engine.ts :: getInstructionFiles :: invalidator=clearI
 src/services/internalLogging.ts :: getContainerId :: static-for-process
 src/services/lsp/clangdLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/pyrightLane.ts :: probeCache :: ttl-bounded
-src/services/lsp/ruffLane.ts :: probeCache :: ttl-bounded
+src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded
 src/services/lsp/unityLane.ts :: probeCache :: ttl-bounded
 src/services/mcp/auth.ts :: metadataCache :: static-for-process
 src/services/mcp/channelsRoot.ts :: channelsRootCache :: static-for-process
@@ -147,6 +147,7 @@ src/services/remoteManagedSettings/syncCacheState.ts :: sessionCache :: subscrip
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
+src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
