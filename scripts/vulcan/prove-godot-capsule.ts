@@ -6,6 +6,14 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { staticGodotCapsule } = await import(join(ROOT, 'src/services/vulcan/godotCapsule.ts'))
+const { derivePresence } = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
+const NO_EDITOR = derivePresence(6010, false, { ok: true, processes: [] }, '/fixture')
+const UNBRIDGED = derivePresence(
+  6010,
+  false,
+  { ok: true, processes: [{ pid: 4242, executable: '/Applications/Godot.app/Contents/MacOS/Godot', args: '--editor --path /fixture', editor: true, headless: false, project: '/fixture' }] },
+  '/fixture',
+)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -67,8 +75,8 @@ try {
     writeFileSync(join(proj, s), 'extends Node\n')
   }
 
-  const capsule = staticGodotCapsule(proj)
-  check('labeled as file-derived', capsule.source.startsWith('static'), capsule.source)
+  const capsule = staticGodotCapsule(proj, undefined, NO_EDITOR)
+  check('labeled as file-derived, naming the editor state', capsule.source.startsWith('static (no editor running — derived from project files'), capsule.source)
   check('project name', capsule.project === 'Capsule Fixture', capsule.project)
   check('uid main scene passes through unresolved', capsule.main_scene === 'uid://c8yhhbwq6kxu1', capsule.main_scene)
   check('engine derived from the features tag', capsule.engine.startsWith('4.6'), capsule.engine)
@@ -98,21 +106,37 @@ try {
     JSON.stringify(capsule.export_presets) === JSON.stringify([{ name: 'macOS', platform: 'macOS' }, { name: 'Web', platform: 'Web' }]),
     JSON.stringify(capsule.export_presets),
   )
-  check('editor-only slices render their absence', capsule.edited_scene === '(editor closed)' && capsule.open_scenes.length === 0)
+  check('editor-only slices render their absence with the state, never "closed"', capsule.edited_scene === '(no editor running)' && capsule.open_scenes.length === 0 && capsule.engine === '4.6 (from project features; no editor running)')
+  check('the class cache reads fresh here (no class_name script newer than it)', capsule.class_cache.state === 'fresh' && capsule.class_cache.hint === '')
 
-  const again = staticGodotCapsule(proj)
+  const again = staticGodotCapsule(proj, undefined, NO_EDITOR)
   check('deterministic (two reads identical)', JSON.stringify(capsule) === JSON.stringify(again))
 
-  const bounded = staticGodotCapsule(proj, 5)
+  const bounded = staticGodotCapsule(proj, 5, NO_EDITOR)
   check(
     'budget floor bounds lists, totals stay exact',
     bounded.scene_paths.length <= 5 && bounded.scene_count === 3 && bounded.global_class_count === 2,
   )
 
+  const open = staticGodotCapsule(proj, undefined, UNBRIDGED)
+  check(
+    'an open, unbridged editor is never called closed',
+    open.source.startsWith('static (editor running (pid 4242), bridge dark — open but unbridged') && open.edited_scene === '(editor open but unbridged)' && !/closed/.test(open.engine),
+    open.source,
+  )
+
+  writeFileSync(join(proj, 'scripts', 'enemy.gd'), 'class_name Enemy\nextends Node2D\n')
+  const staleCap = staticGodotCapsule(proj, undefined, NO_EDITOR)
+  check(
+    'a class_name script missing from the cache marks the cache stale, naming project_refresh_classes',
+    staleCap.class_cache.state === 'stale' && staleCap.class_cache.stale.some(s => s.class === 'Enemy' && s.reason === 'missing-from-cache') && staleCap.class_cache.hint.includes('op:"project_refresh_classes"'),
+    staleCap.class_cache.hint,
+  )
+
   const bare = join(scratch, 'bare')
   mkdirSync(bare, { recursive: true })
   writeFileSync(join(bare, 'project.godot'), 'config_version=5\n\n[application]\n\nconfig/name="Bare"\n')
-  const empty = staticGodotCapsule(bare)
+  const empty = staticGodotCapsule(bare, undefined, NO_EDITOR)
   check(
     'bare project renders absence honestly',
     empty.main_scene === '(none)' && empty.engine.includes('unknown') && empty.global_class_count === 0 && empty.scene_count === 0,

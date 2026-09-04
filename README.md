@@ -14,15 +14,15 @@ for scripts and editors. You bring a provider sign-in or an API key.
 
 ## Install
 
-Mercury ships as release archives, one per platform (Apple silicon Macs,
-Linux x64, Windows x64), each carrying its own Node runtime and ripgrep, so
-a release install needs `git` and nothing else. One command installs it;
+Mercury ships as release archives, one per platform (Apple silicon and Intel
+Macs, Linux x64, Windows x64), each carrying its own Node runtime and ripgrep,
+so a release install needs `git` and nothing else. One command installs it;
 pick the channel you prefer:
 
 ```sh
-curl -fsSL https://mercury-cli.ai/install | sh     # macOS (Apple silicon) and Linux x64
+curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux x64
 irm https://mercury-cli.ai/install.ps1 | iex        # Windows x64, in PowerShell 7
-brew install Whq02/mercury/mercury                 # Homebrew: macOS (Apple silicon) and Linux x64
+brew install Whq02/mercury/mercury                 # Homebrew: macOS and Linux x64
 npm install -g mercury-tech-cli                    # npm; `bun install -g mercury-tech-cli` is the same package
 mise use -g npm:mercury-tech-cli                   # mise, through the npm package
 ```
@@ -53,15 +53,17 @@ rerun the install command above, which installs the newest release over
 the old one.
 
 The 1.0.0-beta.2 archives are unsigned: a release install prints a
-`provenance — unsigned` line when it boots interactively, and
-`mercury doctor` carries the same row. The line means the archive's
+`provenance — unsigned` line on a bare interactive boot (a plain `mercury`
+with no verb or flag), and `mercury doctor` carries the same row. The line means the archive's
 manifest carries no signature; the download itself is checked against the
 release's `SHA256SUMS.txt`. The boot-time verification is described in
 [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
 
-No archive ships yet for an Intel Mac, a Linux arm64 machine or Windows on
-arm64: the installers say so on the first two and point at building from
-source (below); on Windows arm64 the x64 build runs under emulation.
+No archive ships for a Linux arm64 machine or Windows on arm64: the installer
+says so on the first and points at building from source (below); on Windows
+arm64 the x64 build runs under emulation. The Intel Mac archive ships from
+1.0.0-beta.3, cross-packaged on the Apple silicon runner and booted under
+Rosetta before it publishes; on 1.0.0-beta.2 an Intel Mac builds from source.
 
 Once installed, `mercury` in any repository starts the first run (below).
 

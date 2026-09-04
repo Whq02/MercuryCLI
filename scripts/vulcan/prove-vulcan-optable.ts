@@ -39,6 +39,7 @@ const EXEC_OPS = new Set([
   'animation_play', 'animtree_travel', 'particles_emit', 'nav_bake', 'audio_play',
   'test_run', 'test_assert', 'test_screenshot_baseline', 'test_screenshot_compare',
   'export_run', 'runtime_wait_signal',
+  'project_refresh_classes',
 ])
 
 section('1. per-category counts — the 163-op contract')

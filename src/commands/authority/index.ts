@@ -6,8 +6,11 @@ const command = {
   type: 'local-jsx',
   name: 'authority',
   description: 'Capability gates & bypass — authority control (Mercury)',
-  currentValue: () =>
-    hasFocusedSession() ? permissionModeTitle(getFocusedSessionConnector().permissionMode()) : undefined,
+  currentValue: () => {
+    if (!hasFocusedSession()) return undefined
+    const mode = getFocusedSessionConnector().permissionMode()
+    return mode === null ? undefined : permissionModeTitle(mode)
+  },
   isEnabled: () => true,
   isHidden: false,
   load: () => import('./authority.js'),
