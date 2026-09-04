@@ -2,7 +2,7 @@ import { appendFileSync, existsSync, statSync, watch, mkdirSync, type FSWatcher 
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline } from '../../utils/deadline.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import type { Message, AssistantMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
@@ -153,6 +153,8 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
 }
 const RPC_TIMEOUT_MS = 15_000
 const HEARTBEAT_MS = 400
+const IDLE_TRANSCRIPT_FLOOR_MS = 2000
+const IDLE_PROJECTION_FLOOR_MS = 10_000
 const LIVENESS_TICK_MS = 1000
 const ECHO_RETIRE_MS = 10 * 60_000
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -201,32 +203,47 @@ export const PROJECTION_ABSENT = 'absent'
 export class ProjectionFeed {
   private watcher: FSWatcher | null = null
   private timer: ReturnType<typeof setInterval> | null = null
+  private timerMs = 0
   private lastKey = PROJECTION_ABSENT
   constructor(
     private readonly dir: string,
     private readonly path: string,
     private readonly onChange: () => void,
+    private readonly idleFloorMs: () => number = () => HEARTBEAT_MS,
   ) {}
+  private readonly tick = (): void => {
+    let key = PROJECTION_ABSENT
+    try {
+      key = projectionChangeKey(statSync(this.path))
+    } catch {
+      key = PROJECTION_ABSENT
+    }
+    if (key !== this.lastKey) {
+      this.lastKey = key
+      this.onChange()
+    }
+  }
+  private cadenceMs(): number {
+    return this.watcher === null ? HEARTBEAT_MS : this.idleFloorMs()
+  }
+  rearm(): void {
+    if (this.timer === null) return
+    const ms = this.cadenceMs()
+    if (ms === this.timerMs) return
+    clearInterval(this.timer)
+    this.timer = setInterval(this.tick, ms)
+    this.timer.unref?.()
+    this.timerMs = ms
+  }
+  heartbeatMs(): number {
+    return this.timer === null ? 0 : this.timerMs
+  }
   start(): void {
     if (this.timer !== null) return
-    const tick = (): void => {
-      let key = PROJECTION_ABSENT
-      try {
-        key = projectionChangeKey(statSync(this.path))
-      } catch {
-        key = PROJECTION_ABSENT
-      }
-      if (key !== this.lastKey) {
-        this.lastKey = key
-        this.onChange()
-      }
-    }
-    this.timer = setInterval(tick, HEARTBEAT_MS)
-    this.timer.unref?.()
     try {
       mkdirSync(this.dir, { recursive: true })
       const watcher = watch(resolveWatchRoot(this.dir), (_event, filename) => {
-        if (filename === undefined || filename === null || join(this.dir, String(filename)) === this.path) tick()
+        if (filename === undefined || filename === null || join(this.dir, String(filename)) === this.path) this.tick()
       })
       watcher.on('error', () => {
         try {
@@ -234,16 +251,21 @@ export class ProjectionFeed {
         } catch {
         }
         if (this.watcher === watcher) this.watcher = null
+        this.rearm()
       })
       this.watcher = watcher
     } catch {
     }
-    tick()
+    this.timerMs = this.cadenceMs()
+    this.timer = setInterval(this.tick, this.timerMs)
+    this.timer.unref?.()
+    this.tick()
   }
   stop(): void {
     if (this.timer !== null) {
       clearInterval(this.timer)
       this.timer = null
+      this.timerMs = 0
     }
     try {
       this.watcher?.close()
@@ -342,6 +364,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private releaseTranscript: (() => void) | null = null
   private transcriptWatcher: FSWatcher | null = null
   private transcriptTimer: ReturnType<typeof setInterval> | null = null
+  private transcriptTimerMs = 0
+  private turnInFlight = false
   private tickInFlight: Promise<void> | null = null
   private tickDirty = false
   private readonly transcriptPath: string
@@ -390,10 +414,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
-    this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts())
-    this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks())
-    this.tailFeed = new ProjectionFeed(sessionTailDir(), sessionTailPath(record.sessionId), () => this.readTail())
-    this.progressFeed = new ProjectionFeed(sessionProgressDir(), sessionProgressPath(record.sessionId), () => this.readProgress())
+    const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
+    this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
+    this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
+    this.tailFeed = new ProjectionFeed(sessionTailDir(), sessionTailPath(record.sessionId), () => this.readTail(), idleFloor)
+    this.progressFeed = new ProjectionFeed(sessionProgressDir(), sessionProgressPath(record.sessionId), () => this.readProgress(), idleFloor)
     this.readAsks()
     this.refreshWork()
     this.refreshCheckpoints()
@@ -404,21 +429,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.attached) return Promise.resolve()
     this.attached = true
     connectorTrace({ ev: 'attach', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length })
-    const timer = setInterval(() => void this.tick(), HEARTBEAT_MS)
-    timer.unref?.()
-    this.transcriptTimer = timer
-    try {
-      const watcher = watch(resolveWatchRoot(this.transcriptPath), () => void this.tick())
-      watcher.on('error', () => {
-        try {
-          watcher.close()
-        } catch {
-        }
-        if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
-      })
-      this.transcriptWatcher = watcher
-    } catch {
-    }
+    this.armTranscriptWatcher()
+    this.armTranscriptTimer()
     this.factsFeed.start()
     this.asksFeed.start()
     this.tailFeed.start()
@@ -437,6 +449,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.transcriptTimer !== null) {
       clearInterval(this.transcriptTimer)
       this.transcriptTimer = null
+      this.transcriptTimerMs = 0
     }
     try {
       this.transcriptWatcher?.close()
@@ -548,6 +561,58 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
+  private syncFeedCadence(inFlight: boolean): void {
+    if (this.turnInFlight === inFlight) return
+    this.turnInFlight = inFlight
+    this.armTranscriptTimer()
+    this.factsFeed.rearm()
+    this.asksFeed.rearm()
+    this.tailFeed.rearm()
+    this.progressFeed.rearm()
+  }
+
+  private armTranscriptWatcher(): void {
+    if (this.transcriptWatcher !== null) return
+    try {
+      const dir = dirname(this.transcriptPath)
+      const name = basename(this.transcriptPath)
+      const watcher = watch(resolveWatchRoot(dir), (_event, filename) => {
+        if (filename === undefined || filename === null || String(filename) === name) void this.tick()
+      })
+      watcher.on('error', () => {
+        try {
+          watcher.close()
+        } catch {
+        }
+        if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
+        this.armTranscriptTimer()
+      })
+      this.transcriptWatcher = watcher
+    } catch {
+    }
+  }
+
+  private armTranscriptTimer(): void {
+    if (!this.attached) return
+    const ms = this.transcriptWatcher === null || this.turnInFlight ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
+    if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
+    if (this.transcriptTimer !== null) clearInterval(this.transcriptTimer)
+    const timer = setInterval(() => void this.tick(), ms)
+    timer.unref?.()
+    this.transcriptTimer = timer
+    this.transcriptTimerMs = ms
+  }
+
+  feedCadencesForProofs(): { transcript: number; facts: number; asks: number; tail: number; progress: number } {
+    return {
+      transcript: this.transcriptTimer === null ? 0 : this.transcriptTimerMs,
+      facts: this.factsFeed.heartbeatMs(),
+      asks: this.asksFeed.heartbeatMs(),
+      tail: this.tailFeed.heartbeatMs(),
+      progress: this.progressFeed.heartbeatMs(),
+    }
+  }
+
   private toolStartedAtMs(inProgress: ReadonlySet<string>): number | null {
     let earliest: number | null = null
     for (let i = this.rawRecords.length - 1; i >= 0; i--) {
@@ -640,14 +705,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       connectorTrace({ ev: 'tick', sid: this.record.sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
       if (sizeNow !== -1 && sizeNow === this.lastSize && this.lastLen >= 0) return
       if (sizeNow !== -1 && this.transcriptWatcher === null) {
-        try {
-          const watcher = watch(resolveWatchRoot(this.transcriptPath), () => void this.tick())
-          watcher.on('error', () => {
-            if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
-          })
-          this.transcriptWatcher = watcher
-        } catch {
-        }
+        this.armTranscriptWatcher()
+        this.armTranscriptTimer()
       }
       const reader = await import('../../utils/sessionStorage/transcriptReader.js')
       if (this.releaseTranscript === null) this.releaseTranscript = reader.retainTranscript(this.transcriptPath)
@@ -657,12 +716,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const raw = chain.rows as unknown as Message[]
       if (sizeNow !== -1 && sizeNow !== this.lastSize) this.lastSize = sizeNow
       this.lastLen = raw.length
+      const since = chain.since <= this.rawRecords.length && chain.since <= this.recordSigs.length ? chain.since : 0
+      const tail = (since === 0 ? raw : (chain.appended as unknown as Message[]))
       const merge = mergeRecordsContentKeyed(
         this.rawRecords,
         this.recordSigs,
         raw,
-        deserializeLiveMessages(raw),
+        deserializeLiveMessages(tail),
         reader.chainRowSigner(),
+        since,
       )
       this.recordSigs = merge.sigs
       connectorTrace({ ev: 'load', sid: this.record.sessionId, rawLen: raw.length, reusedAll: merge.reusedAll, prevLen: this.rawRecords.length, since: chain.since, rewound: chain.rewound })
@@ -715,6 +777,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     if (!inFlight && this.toolBudgets.size > 0) this.toolBudgets.clear()
     this.syncLivenessTicker(inFlight)
+    this.syncFeedCadence(inFlight)
     if (!changed) return
     this.effectiveLive = {
       inFlight,

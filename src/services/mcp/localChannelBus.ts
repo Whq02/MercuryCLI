@@ -1,5 +1,6 @@
 
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { watch } from 'fs'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
@@ -174,8 +175,7 @@ export function startLocalChannelBus(
     )
   }
 
-  const poll = setInterval(drainFrom, 1000)
-  if (typeof poll.unref === 'function') poll.unref()
+  const stopPoll = subscribeUiClock(1000, drainFrom)
 
   logForDebugging(
     `[local-channel] bus live · room=${getLocalChannelRoom()} · inbox=${path}`,
@@ -187,7 +187,7 @@ export function startLocalChannelBus(
         watcher?.close()
       } catch {
       }
-      clearInterval(poll)
+      stopPoll()
     },
   }
 }
