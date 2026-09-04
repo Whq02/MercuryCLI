@@ -235,11 +235,15 @@ export async function hasUnpushedCommits(): Promise<boolean> {
   return (await getUnpushedCount()) > 0
 }
 
-export async function getIsClean(options?: { ignoreUntracked?: boolean }): Promise<boolean> {
-  const args = ['-c', 'core.optionalLocks=false', 'status', '--porcelain']
-  args.push(options?.ignoreUntracked ? '--untracked-files=no' : '--untracked-files=all')
+export async function getIsClean(options?: {
+  ignoreUntracked?: boolean
+  untrackedFiles?: 'all' | 'normal'
+}): Promise<boolean> {
+  const args = ['status', '--porcelain']
+  const mode = options?.ignoreUntracked ? 'no' : (options?.untrackedFiles ?? 'all')
+  args.push(`--untracked-files=${mode}`)
   args.push(...projectScopePathspec(getCwd()))
-  const result = await execFileNoThrow(gitExe(), args, { preserveOutputOnError: false })
+  const result = await execFileNoThrow(gitExe(), args, { preserveOutputOnError: false, env: { GIT_OPTIONAL_LOCKS: '0' } })
   if (result.code !== 0) return false
   const meaningful = result.stdout
     .split('\n')
@@ -247,7 +251,8 @@ export async function getIsClean(options?: { ignoreUntracked?: boolean }): Promi
     .filter(line => line !== '')
     .filter(line => {
       const path = line.replace(/^..\s+/, '').replace(/^"|"$/g, '')
-      return !path.startsWith(`${MERCURY_PROJECT_DIR}/doctor/`)
+      if (path.startsWith(`${MERCURY_PROJECT_DIR}/doctor/`)) return false
+      return !(mode === 'normal' && path === `${MERCURY_PROJECT_DIR}/`)
     })
   return meaningful.length === 0
 }
@@ -329,7 +334,7 @@ export type GitRepoState = {
   unpushedCount: number
 }
 
-export async function getGitState(): Promise<GitRepoState | null> {
+export async function getGitState(options?: { untrackedFiles?: 'all' | 'normal' }): Promise<GitRepoState | null> {
   try {
     const [commitHash, branchName, remoteUrl, isHeadOnRemote, isClean, worktreeCount, unpushedCount] =
       await Promise.all([
@@ -337,7 +342,7 @@ export async function getGitState(): Promise<GitRepoState | null> {
         getBranch(),
         getRemoteUrl(),
         getIsHeadOnRemote(),
-        getIsClean(),
+        getIsClean(options),
         getWorktreeCount(),
         getUnpushedCount(),
       ])
