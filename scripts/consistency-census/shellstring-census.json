@@ -60,7 +60,7 @@
     },
     {
       "file": "scripts/accounts/prove-auth-scope-isolation.ts",
-      "line": 195,
+      "line": 200,
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
       "cls": "intentional-shell",
@@ -1699,6 +1699,14 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/streaming/prove-turn-end-queue.ts",
+      "line": 245,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/streaming/prove-viewport-continuity.ts",
       "line": 65,
       "mechanism": "hardcoded-interpreter",
@@ -2007,6 +2015,14 @@
       "line": 55,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const thief = spawn('/usr/bin/python3', [thiefPath], { stdio: 'ignore' })",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/measure-drag-latency.ts",
+      "line": 266,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
