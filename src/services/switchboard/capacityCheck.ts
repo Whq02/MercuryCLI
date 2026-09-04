@@ -1,6 +1,6 @@
 import { freemem, totalmem } from 'node:os'
 import { availableCores } from '../../utils/availableCores.js'
-import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import { getGlobalConfig, saveGlobalConfig, isConfigReadingAllowed } from '../../utils/config.js'
 import { displayConfigHome } from '../../utils/envUtils.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 
@@ -24,7 +24,7 @@ export function _setHeldMachineSeatReadingForTesting(reading: number | null): vo
 }
 
 export function describeSeatReading(ceiling: number): string {
-  const decision = getGlobalConfig().switchboardCapacity
+  const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
   if (
     typeof stored === 'number' &&
@@ -162,7 +162,7 @@ export interface SeatCeilingFacts {
 }
 
 export function seatCeilingFacts(): SeatCeilingFacts {
-  const decision = getGlobalConfig().switchboardCapacity
+  const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
   const consented = typeof stored === 'number' && Number.isFinite(stored)
   const seats = consented ? Math.max(1, Math.floor(stored)) : heldMachineSeatReading()
