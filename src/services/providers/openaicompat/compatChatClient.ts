@@ -1,9 +1,8 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
-import { compatStreamIdleTimeoutMs } from '../streamIdleBudget.js'
+import { createStreamIdleWatchdog, streamIdleTimeoutMs, StreamIdleTimeoutError, type StreamIdleWatchdog } from '../streamIdleBudget.js'
 
-const IDLE_TIMEOUT_MS = compatStreamIdleTimeoutMs()
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
 
@@ -213,12 +212,13 @@ export async function* streamCompatChat(
   options: CompatStreamOptions,
 ): AsyncGenerator<CompatStreamEvent> {
   const { request } = options
-  const idleMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS
+  const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
   const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
   totalTimer.unref?.()
+  let idleWatchdog: StreamIdleWatchdog | null = null
 
   const toolAcc = new Map<number, ToolCallAccumulator>()
   let finished = false
@@ -282,26 +282,16 @@ export async function* streamCompatChat(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-
-    const readWithIdleGuard = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
-      let idleTimer: ReturnType<typeof setTimeout> | undefined
-      const idle = new Promise<never>((_, reject) => {
-        idleTimer = setTimeout(() => reject(new Error('idle-timeout')), idleMs)
-        idleTimer.unref?.()
-      })
-      try {
-        return await Promise.race([reader.read(), idle])
-      } finally {
-        clearTimeout(idleTimer)
-      }
-    }
+    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    idleWatchdog = watchdog
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
-        chunk = await readWithIdleGuard()
+        chunk = await watchdog.guard(reader.read())
+        watchdog.noteActivity()
       } catch (error) {
-        const isIdle = error instanceof Error && error.message === 'idle-timeout'
+        const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
         yield {
           type: 'stream-fault',
@@ -316,10 +306,7 @@ export async function* streamCompatChat(
                   retryable: true,
                 },
         }
-        try {
-          await reader.cancel()
-        } catch {
-        }
+        void reader.cancel().catch(() => {})
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
@@ -396,6 +383,7 @@ export async function* streamCompatChat(
     }
   } finally {
     clearTimeout(totalTimer)
+    idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
   }

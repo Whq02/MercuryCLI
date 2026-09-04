@@ -11,7 +11,7 @@ import {
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { MessageActionsSelectedContext } from '../messageActions.js'
-import { TranscriptNameplate } from './TranscriptNameplate.js'
+import { TranscriptNameplate, useMessageMeta } from './TranscriptNameplate.js'
 
 type Props = {
   text: string
@@ -34,8 +34,9 @@ export function HighlightedThinkingText({
   const { accent } = useSessionAccent()
   const pointerColor = userPointerColor(isSelected, accent)
   const textColor = useMercuryTokens().accentSoft
+  const meta = useMessageMeta()
   if (useBriefLayout) {
-    const ts = timestamp ? formatBriefTimestamp(timestamp) : ''
+    const ts = meta?.queued ? 'queued' : timestamp ? formatBriefTimestamp(timestamp) : ''
     return (
       <Box flexDirection="column" paddingLeft={2}>
         <Box flexDirection="row">

@@ -144,7 +144,11 @@ export type OpenaiStreamEvent =
       incompleteDetail?: string
       responseId?: string
     }
-  | { type: 'stream-fault'; fault: OpenaiFault }
+  | {
+      type: 'stream-fault'
+      fault: OpenaiFault
+      settledItems?: OpenaiInputItem[]
+    }
 
 export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   textDelta: true,
@@ -310,6 +314,9 @@ function parseUsage(usage: Record<string, unknown>): OpenaiUsage {
 
 export class ResponsesStreamFold {
   finished = false
+  settledItems(): OpenaiInputItem[] {
+    return [...this.orderedItems]
+  }
   private responseId: string | undefined
   private toolCalls: OpenaiCompletedToolCall[] = []
   private argDeltas = new Map<string, string>()
