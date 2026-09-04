@@ -1,11 +1,12 @@
 import axios from 'axios'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isClaudeAISubscriber } from '../../../utils/auth.js'
+import { dropCredentialMemos, getClaudeAIOAuthTokens, isClaudeAISubscriber } from '../../../utils/auth.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
-import { noteUsageRecordChanged } from '../../claudeAiLimits.js'
+import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../claudeAiLimits.js'
+import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, usagePollTtlMs } from '../usageFreshness.js'
 
 export type AnthropicUsageReadFailure = {
@@ -39,6 +40,15 @@ let retryAtMs: number | undefined
 let requests = 0
 let inFlight: Promise<AnthropicUsageReadStatus> | null = null
 let generation = 0
+let observedCredential = 'none'
+
+function currentCredential(): string {
+  try {
+    return credentialFingerprint(getClaudeAIOAuthTokens()?.accessToken)
+  } catch {
+    return 'none'
+  }
+}
 
 export function anthropicUsageReadStatus(): AnthropicUsageReadStatus {
   return {
@@ -222,10 +232,28 @@ export function forgetAnthropicUsageRead(): void {
   noteUsageRecordChanged()
 }
 
+function dropIfAccountMoved(): boolean {
+  try {
+    dropCredentialMemos()
+  } catch {
+  }
+  const current = currentCredential()
+  if (current === observedCredential) return false
+  observedCredential = current
+  try {
+    resetLimitsForCredentialSwitch()
+  } catch {
+  }
+  return true
+}
+
 export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'operator' | 'sign-in'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
   const reason = opts?.reason ?? 'poll'
   const now = opts?.now ?? Date.now
-  if (reason === 'sign-in') forgetAnthropicUsageRead()
+  if (reason === 'sign-in') {
+    dropIfAccountMoved()
+    forgetAnthropicUsageRead()
+  }
   if (inFlight !== null) return inFlight
   let subscriber = false
   try {
@@ -243,6 +271,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
     if (lastAttemptAtMs !== undefined && at - lastAttemptAtMs < floor) return Promise.resolve(anthropicUsageReadStatus())
   }
   const issued = generation
+  observedCredential = currentCredential()
   const ask = (async (): Promise<AnthropicUsageReadStatus> => {
     lastAttemptAtMs = at
     requests += 1
@@ -266,6 +295,7 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
 
 export function _resetAnthropicUsageReaderForTesting(): void {
   generation += 1
+  observedCredential = 'none'
   lastAttemptAtMs = undefined
   lastOkAtMs = undefined
   failure = undefined

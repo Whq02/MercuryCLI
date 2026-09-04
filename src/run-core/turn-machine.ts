@@ -159,6 +159,7 @@ import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
+import { interruptedToolsLine } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
@@ -1636,6 +1637,10 @@ export async function* runEventCore(
         phase: 'tools',
         steer,
         message: steer ? null : createUserInterruptionMessage({ toolUse: true }),
+      })
+      yield emit({
+        kind: 'notice',
+        message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
       })
       const nextTurnCountOnAbort = turnCount + 1
       if (
