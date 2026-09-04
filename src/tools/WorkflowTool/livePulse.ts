@@ -80,7 +80,7 @@ export type AgentPulseInput = {
 
 export type AgentPulse =
   | { kind: 'queued'; words?: string }
-  | { kind: 'first-token' }
+  | { kind: 'first-token'; words?: string }
   | { kind: 'seat'; words: string }
   | {
       kind: 'backoff'
@@ -114,7 +114,8 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
       retryAttempt: a.retryAttempt,
       ...(a.waitWords !== undefined && a.waitWords !== '' ? { words: a.waitWords } : {}),
     }
-  if (a.waiting === 'prefill') return { kind: 'first-token' }
+  if (a.waiting === 'prefill')
+    return a.waitWords !== undefined && a.waitWords !== '' ? { kind: 'first-token', words: a.waitWords } : { kind: 'first-token' }
   return { kind: 'working', toolLine }
 }
 
@@ -123,7 +124,7 @@ export function agentPulseWord(p: AgentPulse): string {
     case 'queued':
       return p.words ?? 'queued'
     case 'first-token':
-      return 'awaiting first token'
+      return p.words ?? 'awaiting first token'
     case 'seat':
       return p.words
     case 'backoff': {

@@ -32,6 +32,7 @@ import {
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitTaskTerminatedSdk } from '../../utils/sdkEventQueue.js'
+import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 
 
 const DEFAULT_AGENT_TYPE = 'general-purpose'
@@ -64,6 +65,7 @@ export type AgentProgress = {
   costUSD?: number
   unpricedTurns?: number
   model?: string
+  phase?: AgentWaitV1
 }
 
 export type AgentLedger = {
@@ -82,10 +84,18 @@ export type ProgressTracker = {
   recentActivities: ToolActivity[]
   ledger: AgentLedger
   lastAssistant?: AssistantMessage
+  phase: AgentWaitV1 | null
 }
 
 export function createAgentLedger(): AgentLedger {
   return { inputTokens: 0, outputTokens: 0, contextTokens: 0, costUSD: 0, unpricedTurns: 0 }
+}
+
+export function foldQueryProgressIntoTracker(tracker: ProgressTracker, event: unknown, nowMs: number = Date.now()): boolean {
+  const next = foldAgentWaitEvent(tracker.phase, event, nowMs)
+  if (next === tracker.phase) return false
+  tracker.phase = next
+  return true
 }
 
 export function foldResponseIntoLedger(ledger: AgentLedger, assistant: AssistantMessage): void {
@@ -138,6 +148,7 @@ export function createProgressTracker(): ProgressTracker {
     toolUseCount: 0,
     recentActivities: [],
     ledger: createAgentLedger(),
+    phase: null,
   }
 }
 
@@ -222,7 +233,17 @@ export function getProgressUpdate(tracker: ProgressTracker): AgentProgress {
         }
       : {}),
     ...(ledger.servedModel !== undefined ? { model: ledger.servedModel } : {}),
+    ...(tracker.phase !== null ? { phase: tracker.phase } : {}),
   }
+}
+
+export function publishAgentWaitFromEvent(
+  taskId: string,
+  tracker: ProgressTracker,
+  event: unknown,
+  setAppState: SetAppState,
+): void {
+  if (foldQueryProgressIntoTracker(tracker, event)) updateAgentProgress(taskId, getProgressUpdate(tracker), setAppState)
 }
 
 

@@ -13,6 +13,7 @@ import {
   crewElapsedLabel,
   crewModelLabel,
   crewStateLabel,
+  crewStatusWords,
   crewWaitLine,
   crewTokensLabel,
   type CrewAgentFacts,
@@ -54,7 +55,7 @@ const EMPTY_NAMED: readonly CrewGlanceMember[] = []
 
 const NAME_W = 20
 const MODEL_W = 18
-const STATUS_W = 9
+const STATUS_W = 34
 const TOKENS_W = 14
 
 export function CrewView({
@@ -301,7 +302,7 @@ function AgentRow({
           {padTo(truncateToWidth(facts.name, NAME_W), NAME_W)}
         </Text>
         <Text color={tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
-        <Text color={tone}> {padTo(truncateToWidth(crewStateLabel(facts), STATUS_W), STATUS_W)}</Text>
+        <Text color={tone}> {padTo(truncateToWidth(crewStatusWords(facts, now), STATUS_W), STATUS_W)}</Text>
         <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
         <Text color={tokens.textMuted}>
           {' '}

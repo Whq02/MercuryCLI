@@ -16,6 +16,7 @@ import {
   drainPendingMessages,
   agentStopReasonOf,
   enqueueAgentNotification,
+  publishAgentWaitFromEvent,
   failAgentTask,
   foldResponseIntoLedger,
   getProgressUpdate,
@@ -95,6 +96,15 @@ export type ResolvedAgentTools = {
   invalidTools: string[]
   resolvedTools: Tools
   allowedAgentTypes?: string[]
+}
+
+export function resolveWorkerTools(
+  definition: AgentDefinition,
+  workerPermissionMode: NonNullable<AgentDefinition['permissionMode']>,
+  pool: Tools,
+  isAsync: boolean,
+): Tools {
+  return resolveAgentTools({ ...definition, permissionMode: workerPermissionMode }, pool, isAsync, false).resolvedTools
 }
 
 export function resolveAgentTools(
@@ -491,6 +501,7 @@ export async function runAsyncAgentLifecycle(args: {
   abortController: AbortController
   makeStream: (
     onCacheSafeParams?: (params: CacheSafeParams) => void,
+    onQueryProgress?: (event: unknown) => void,
   ) => AsyncGenerator<Message, void>
   metadata: {
     prompt: string
@@ -555,6 +566,7 @@ export async function runAsyncAgentLifecycle(args: {
             })()
           }
         : undefined,
+      event => publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState),
     )
 
     for await (const message of stream) {

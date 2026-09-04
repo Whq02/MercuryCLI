@@ -809,6 +809,11 @@ export async function* runAgent(
       ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
         true
     }
+    childContext.setSDKStatus = (status: unknown) => {
+      if (status !== null && typeof status === 'object' && 'wait' in status) {
+        onQueryProgress?.({ type: 'request_wait', wait: (status as { wait?: unknown }).wait ?? null } as never)
+      }
+    }
 
     const messages: Message[] = [
       ...initialMessages,

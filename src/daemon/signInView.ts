@@ -1,4 +1,6 @@
 import { providerFamilyPresences } from '../services/providers/providerUsage.js'
+import { resolveOpenaiAccount } from '../services/providers/openai/openaiAccounts.js'
+import { refreshOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
 import { dropCredentialMemos } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { computedDefault, resetComputedDefaultMemo } from '../utils/model/computedDefault.js'
@@ -14,6 +16,8 @@ export function refreshSignInReads(force = false): boolean {
   lastLiveReadAt = now
   dropCredentialMemos()
   resetComputedDefaultMemo()
+  const openaiAccount = resolveOpenaiAccount()
+  if (openaiAccount) void refreshOpenaiCatalogue(openaiAccount.kind).catch(() => null)
   return true
 }
 

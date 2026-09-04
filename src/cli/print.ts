@@ -223,6 +223,7 @@ import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks } from '../utils/task/framework.js'
 import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { primeOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
@@ -1743,6 +1744,9 @@ export async function runHeadless(
             return
           }
           dropCredentialMemos()
+          if (request.openai_catalogue !== undefined) {
+            primeOpenaiCatalogue(request.openai_catalogue as Parameters<typeof primeOpenaiCatalogue>[0])
+          }
           const claimedHome = consumeSessionHomePin()
           if (request.resume === true) {
             const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
