@@ -307,6 +307,7 @@ export function bindingDropsFor(current: unknown): unknown[] {
   const cur = current as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string } | null
   if (!cur || !Array.isArray(cur.messages)) return []
   const dropped: unknown[] = []
+  let broken = false
   cur.messages.forEach((message, i) => {
     const row = message as { role?: string; content?: unknown }
     if (row.role !== 'assistant' || !Array.isArray(row.content)) return
@@ -314,13 +315,19 @@ export function bindingDropsFor(current: unknown): unknown[] {
       const b = block as { type?: string; signature?: unknown }
       if (b.type !== 'thinking' && b.type !== 'redacted_thinking') return
       if (typeof b.signature !== 'string' || !b.signature.startsWith(BOUND_SIGNATURE_PREFIX)) return
+      if (broken) {
+        dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
+        return
+      }
       const [, mintedHash, mintedModel] = b.signature.split(':')
       if (mintedModel !== String(cur.model ?? '')) {
         dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'model_binding_mismatch' })
+        broken = true
         return
       }
       if (mintedHash !== prefixHashOf(cur, cur.messages!.slice(0, i))) {
         dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
+        broken = true
       }
     })
   })
