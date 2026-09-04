@@ -102,7 +102,8 @@ import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer } from '../deferralProbe.js'
 import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
-import { announcementMessage, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { announcementMessage, conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { applyInducedPrefixEdit, judgeAndRecordPrefix, resolveInducedPrefixEdit, shouldInduceEdit, type WirePrefixParts } from './prefixLedger.js'
 import type {
   ConnectorTextBlock,
   ConnectorTextDelta,
@@ -541,6 +542,7 @@ async function* queryModel(
     }
   }
 
+  const rosterOwnerKey = options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null))
   const plan = await planToolPayload({
     model: options.model,
     tools,
@@ -549,7 +551,7 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
-    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    latchKey: rosterOwnerKey,
     alsoDefer: shouldDeferLspTool,
   })
   const useToolSearch = plan.enabled
@@ -856,8 +858,10 @@ async function* queryModel(
       )
     }
 
-    return {
-      model: normalizeModelStringForAPI(options.model),
+    const prefixKey = conversationRosterKey(rosterOwnerKey, messages, options.model)
+    let wireParts: WirePrefixParts = {
+      system,
+      tools: allTools,
       messages: addCacheBreakpoints(
         messagesForAPI,
         enablePromptCaching,
@@ -867,8 +871,18 @@ async function* queryModel(
         consumedPinnedEdits as CachedMCPinnedEdits[],
         options.skipCacheWrite,
       ),
-      system,
-      tools: allTools,
+    }
+    const requestMark = `${messages.length}|${messages[messages.length - 1]?.uuid ?? ''}`
+    const inducedEdit = resolveInducedPrefixEdit()
+    const induced = inducedEdit !== null && shouldInduceEdit(rosterOwnerKey, prefixKey, requestMark)
+    if (induced) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit!)
+    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, { requestMark, induced })
+
+    return {
+      model: normalizeModelStringForAPI(options.model),
+      messages: wireParts.messages as ReturnType<typeof addCacheBreakpoints>,
+      system: wireParts.system as typeof system,
+      tools: wireParts.tools as typeof allTools,
       tool_choice: toolChoice,
       ...(refusalFallback && { fallbacks: refusalFallback.fallbacks }),
       ...(sendBetas && { betas: betasParams }),
