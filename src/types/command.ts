@@ -40,17 +40,11 @@ export type ExtensionCommandInfo = {
   id: string
 }
 
-export type MenuLiveState = {
-  effortValue?: EffortValue
-  permissionMode?: string
-  mainLoopModelForSession?: string | null
-}
-
 export type CommandBase = {
   name: string
   description: string
   menuDescription?: string
-  currentValue?: (live: MenuLiveState) => string | undefined
+  currentValue?: () => string | undefined
   hasUserSpecifiedDescription?: boolean
   isEnabled?: () => boolean
   isHidden?: boolean

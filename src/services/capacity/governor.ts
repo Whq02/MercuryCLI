@@ -1,5 +1,7 @@
 //  global lane, service queries — acquires a permit HERE before the provider
 import { logForDebugging } from '../../utils/debug.js'
+import { APIUserAbortError } from '../api/sdkErrors.js'
+import { CHAT_HOLDER, seatWaitWords, type SeatNarrowing, type SeatWaitFacts } from './seatWords.js'
 
 export type PermitLane = 'foreground' | 'background-session' | 'coordinator' | 'service'
 
@@ -7,6 +9,9 @@ export interface PermitRequest {
   lane: PermitLane
   callId: string
   sessionId?: string
+  holder?: string
+  signal?: AbortSignal
+  onWait?: (words: string | null) => void
 }
 
 export interface PermitGrant {
@@ -15,12 +20,15 @@ export interface PermitGrant {
   lane: PermitLane
   waitedMs: number
   reacquired: boolean
+  holder: string
 }
 
 interface Waiter {
   req: PermitRequest
   enqueuedAt: number
   resolve: (grant: PermitGrant) => void
+  reject: (error: Error) => void
+  onAbort?: () => void
 }
 
 export interface GovernorCeilings {
@@ -30,16 +38,26 @@ export interface GovernorCeilings {
 
 const DEFAULT_CEILINGS: GovernorCeilings = { modelLanes: 16, delegationLanes: 16 }
 
+export interface CeilingProvenance {
+  seats: number
+  seatSource: 'consented' | 'machine' | 'inherited' | 'default'
+  narrowing: SeatNarrowing
+}
+
+const DEFAULT_PROVENANCE: CeilingProvenance = { seats: DEFAULT_CEILINGS.modelLanes, seatSource: 'default', narrowing: null }
+
 let ceilings: GovernorCeilings = { ...DEFAULT_CEILINGS }
+let provenance: CeilingProvenance = { ...DEFAULT_PROVENANCE }
 const held = new Map<string, PermitGrant>()
 const heldByCall = new Map<string, string>()
 const waiters: Waiter[] = []
 let permitSeq = 0
 
-export function setGovernorCeilings(next: Partial<GovernorCeilings>): void {
+export function setGovernorCeilings(next: Partial<GovernorCeilings>, from?: CeilingProvenance): void {
   const lanes = Math.max(1, Math.floor(next.modelLanes ?? ceilings.modelLanes))
   const delegation = Math.max(1, Math.floor(next.delegationLanes ?? ceilings.delegationLanes))
   ceilings = { modelLanes: lanes, delegationLanes: delegation }
+  provenance = from !== undefined ? { ...from } : { seats: lanes, seatSource: 'default', narrowing: null }
   drainWaiters()
 }
 
@@ -47,12 +65,36 @@ export function governorCeilings(): GovernorCeilings {
   return { ...ceilings }
 }
 
+export function governorProvenance(): CeilingProvenance {
+  return { ...provenance }
+}
+
+export function laneWidth(lane: PermitLane): number {
+  return lane === 'background-session' ? Math.min(ceilings.modelLanes, ceilings.delegationLanes) : ceilings.modelLanes
+}
+
+export function seatWaitFacts(lane: PermitLane): SeatWaitFacts {
+  const width = laneWidth(lane)
+  const narrowed = lane === 'background-session' && ceilings.delegationLanes < ceilings.modelLanes
+  const holders: string[] = []
+  for (const g of held.values()) {
+    if (narrowed && g.lane !== 'background-session') continue
+    holders.push(g.holder)
+  }
+  return { width, holders, narrowing: narrowed ? provenance.narrowing : null }
+}
+
+function holderLabel(req: PermitRequest): string {
+  if (req.holder !== undefined && req.holder !== '') return req.holder
+  return req.lane === 'foreground' ? CHAT_HOLDER : req.lane === 'background-session' ? 'an agent' : req.lane
+}
+
 export function heldPermits(): readonly PermitGrant[] {
   return [...held.values()]
 }
 
 function backgroundAllowance(): number {
-  return ceilings.modelLanes <= 1 ? 1 : ceilings.modelLanes - 1
+  return ceilings.modelLanes
 }
 
 function heldDelegated(): number {
@@ -77,6 +119,7 @@ function admit(req: PermitRequest, waitedMs: number): PermitGrant {
     lane: req.lane,
     waitedMs,
     reacquired: false,
+    holder: holderLabel(req),
   }
   held.set(permitId, grant)
   heldByCall.set(req.callId, permitId)
@@ -93,8 +136,14 @@ function drainWaiters(): void {
     })()
     if (idx === -1) return
     const w = waiters.splice(idx, 1)[0]!
+    if (w.onAbort !== undefined) w.req.signal?.removeEventListener('abort', w.onAbort)
+    w.req.onWait?.(null)
     w.resolve(admit(w.req, Date.now() - w.enqueuedAt))
   }
+}
+
+function respeakWaits(): void {
+  for (const w of waiters) w.req.onWait?.(seatWaitWords(seatWaitFacts(w.req.lane)))
 }
 
 export function acquireModelPermit(req: PermitRequest): Promise<PermitGrant> {
@@ -103,11 +152,23 @@ export function acquireModelPermit(req: PermitRequest): Promise<PermitGrant> {
     const grant = held.get(existing)
     if (grant) return Promise.resolve({ ...grant, reacquired: true })
   }
+  if (req.signal?.aborted) return Promise.reject(new APIUserAbortError())
   if (mayAdmit(req.lane)) {
     return Promise.resolve(admit(req, 0))
   }
-  return new Promise<PermitGrant>(resolve => {
-    waiters.push({ req, enqueuedAt: Date.now(), resolve })
+  return new Promise<PermitGrant>((resolve, reject) => {
+    const waiter: Waiter = { req, enqueuedAt: Date.now(), resolve, reject }
+    if (req.signal !== undefined) {
+      waiter.onAbort = (): void => {
+        const at = waiters.indexOf(waiter)
+        if (at !== -1) waiters.splice(at, 1)
+        req.onWait?.(null)
+        reject(new APIUserAbortError())
+      }
+      req.signal.addEventListener('abort', waiter.onAbort, { once: true })
+    }
+    waiters.push(waiter)
+    req.onWait?.(seatWaitWords(seatWaitFacts(req.lane)))
   })
 }
 
@@ -117,6 +178,7 @@ export function releaseModelPermit(permitId: string): void {
   held.delete(permitId)
   if (heldByCall.get(grant.callId) === permitId) heldByCall.delete(grant.callId)
   drainWaiters()
+  respeakWaits()
 }
 
 export function releaseModelPermitByCall(callId: string): void {
@@ -132,6 +194,7 @@ export function _resetCapacityGovernorForTesting(): void {
   held.clear()
   heldByCall.clear()
   ceilings = { ...DEFAULT_CEILINGS }
+  provenance = { ...DEFAULT_PROVENANCE }
   permitSeq = 0
 }
 

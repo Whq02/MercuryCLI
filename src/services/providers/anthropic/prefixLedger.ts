@@ -192,22 +192,24 @@ function compareRecords(previous: PrefixRecord, current: PrefixRecord, lastThink
     const name = section === undefined ? `the system prompt (block ${b})` : `the system prompt's ${section.heading} section`
     return { part: name, path: `system[${b}].text@char ${at}`, before: excerpt(was.text, at), after: excerpt(now.text, at) }
   }
+  const wasByName = new Map(previous.tools.map(t => [t.name, t] as const))
+  const nowByName = new Map(current.tools.map(t => [t.name, t] as const))
   const wasBound = previous.tools.filter(t => t.bound)
   const nowBound = current.tools.filter(t => t.bound)
-  const wasNames = new Set(wasBound.map(t => t.name))
-  const nowNames = new Set(nowBound.map(t => t.name))
-  const added = nowBound.filter(t => !wasNames.has(t.name)).map(t => t.name)
-  const removed = wasBound.filter(t => !nowNames.has(t.name)).map(t => t.name)
+  const added = nowBound.filter(t => !wasByName.has(t.name)).map(t => t.name)
+  const removed = wasBound.filter(t => nowByName.get(t.name)?.bound !== true).map(t => t.name)
   if (added.length > 0 || removed.length > 0) {
     const words: string[] = []
     if (added.length > 0) words.push(`${added.length} added (${added.join(', ')})`)
     if (removed.length > 0) words.push(`${removed.length} removed (${removed.join(', ')})`)
     return { part: `the tools set: ${words.join(', ')}`, path: `tools.length (${wasBound.length} → ${nowBound.length})` }
   }
-  for (let i = 0; i < wasBound.length; i++) {
-    const was = wasBound[i]!
-    const now = nowBound[i]!
-    if (was.name !== now.name) return { part: `the tools set: reordered (${was.name} → ${now.name} at position ${i})`, path: `tools[${i}].name` }
+  const wasBoth = wasBound.filter(t => nowByName.get(t.name)?.bound === true)
+  const nowBoth = nowBound.filter(t => wasByName.get(t.name)?.bound === true)
+  for (let i = 0; i < wasBoth.length; i++) {
+    const was = wasBoth[i]!
+    const now = nowBoth[i]
+    if (now === undefined || was.name !== now.name) return { part: `the tools set: reordered (${was.name} → ${now?.name ?? 'nothing'} at position ${i})`, path: `tools[${i}].name` }
     if (was.deferred !== now.deferred) return { part: `the tool ${was.name}'s deferral mark`, path: `tools[${i}].defer_loading` }
     if (was.description !== now.description) return { part: `the tool ${was.name}'s description`, path: `tools[${i}].description` }
     if (was.schema !== now.schema) return { part: `the tool ${was.name}'s input schema`, path: `tools[${i}].input_schema` }

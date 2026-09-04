@@ -13,6 +13,7 @@ enableConfigs()
 
 const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
 const { usageSectionPlan } = await import('../../src/components/Settings/Usage.tsx')
+const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 const { configProviderRows, mainLoopPointerText } = await import(
   '../../src/components/Settings/Config.tsx'
 )
@@ -163,6 +164,7 @@ section('(4) the /usage gate — UNGATED, proven OpenAI-only')
       },
     }),
   )
+  noteCredentialChange()
   const fams = providerFamilyPresences()
   const openai = fams.find(f => f.id === 'openai')
   check('fixture auth ⇒ the openai family is credentialed', openai?.credentialed === true, JSON.stringify(openai))

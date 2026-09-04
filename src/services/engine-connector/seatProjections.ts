@@ -56,6 +56,7 @@ export interface SessionFactsV1 extends SessionFactsAnswerV1 {
   sessionId: string
   atMs: number
   pendingModel: string | null
+  effort?: string
   pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
   modelSettled?: { from: string; to: string; atMs: number }
   busy: boolean

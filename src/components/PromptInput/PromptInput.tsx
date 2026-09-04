@@ -159,6 +159,7 @@ import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { danglingReferences, getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences } from '../../history.js'
 import { PASTE_THRESHOLD, getImageFromClipboard } from '../../utils/imagePaste.js'
+import { describeAttachedImage } from '../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
 import { expandPastedTextRefs } from '../../history.js'
@@ -1064,6 +1065,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       filename?: string,
       dimensions?: ImageDimensions,
       sourcePath?: string,
+      byteLength?: number,
     ): void => {
       setMode('prompt')
       const pendingSpace = deferredSpaceArmedRef.current
@@ -1082,8 +1084,28 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setPastedContents(prev => ({ ...prev, [id]: entry }))
       insertAtCursor(`${pendingSpace ? ' ' : ''}${formatImageRef(id)}`, { atomic: true })
       deferredSpaceArmedRef.current = true
+      const bytes = byteLength ?? Math.floor((base64Image.length * 3) / 4)
+      addNotification({
+        key: `image-attached-${id}`,
+        text: `${formatImageRef(id)} attached — ${describeAttachedImage(dimensions, bytes)}`,
+        priority: 'low',
+        timeoutMs: 4000,
+      })
     },
-    [insertAtCursor, setMode, setPastedContents],
+    [insertAtCursor, setMode, setPastedContents, addNotification],
+  )
+
+  const handleImageError = useCallback(
+    (message: string): void => {
+      addNotification({
+        key: 'image-attach-failed',
+        text: message,
+        color: 'warning',
+        priority: 'high',
+        timeoutMs: 10000,
+      })
+    },
+    [addNotification],
   )
 
   const handleTextPaste = useCallback(
@@ -1668,7 +1690,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       },
       'chat:imagePaste': () => {
         void (async () => {
-          const image = await getImageFromClipboard()
+          let image: Awaited<ReturnType<typeof getImageFromClipboard>>
+          try {
+            image = await getImageFromClipboard()
+          } catch (error) {
+            handleImageError(error instanceof Error ? error.message : String(error))
+            return
+          }
           if (image === null) {
             addNotification({
               key: 'no-image-in-clipboard',
@@ -1686,6 +1714,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             image.mediaType,
             undefined,
             image.dimensions,
+            undefined,
+            image.byteLength,
           )
         })()
       },
@@ -2610,6 +2640,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onHistoryReset: history.resetHistory,
     onPaste: handleTextPaste,
     onImagePaste: handleImagePaste,
+    onImageError: handleImageError,
     onIsPastingChange: setIsPasting,
     focus: inputFocused,
     showCursor,

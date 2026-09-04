@@ -2,6 +2,7 @@ import type { WorkRowV1 } from './types.js'
 import { workRowRuns } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
+import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
@@ -27,6 +28,7 @@ export interface CrewAgentFacts {
   unpricedTurns: number
   toolUses: number | null
   activity: string | null
+  wait: string | null
   toolUseId: string | null
   startedAt: number
   endedAt: number | null
@@ -35,6 +37,7 @@ export interface CrewAgentFacts {
   description: string | null
   error: string | null
   stopReason: string | null
+  phase: AgentWaitV1 | null
   pendingAsks: number
   sessionId: string | null
 }
@@ -87,6 +90,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     unpricedTurns: positive(row.unpricedTurns) ?? 0,
     toolUses: typeof row.toolUses === 'number' && Number.isFinite(row.toolUses) && row.toolUses >= 0 ? row.toolUses : null,
     activity: typeof row.activity === 'string' && row.activity !== '' ? row.activity : null,
+    wait: typeof row.wait === 'string' && row.wait !== '' ? row.wait : null,
     toolUseId: typeof row.toolUseId === 'string' && row.toolUseId !== '' ? row.toolUseId : null,
     startedAt: row.startTime,
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
@@ -95,6 +99,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     description: row.description ?? null,
     error: row.error ?? null,
     stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,
+    phase: row.phase ?? null,
     pendingAsks: row.pendingAsks ?? 0,
     sessionId,
   }
@@ -152,7 +157,21 @@ export function crewModelLabel(facts: CrewAgentFacts): string {
 }
 
 export function crewStateLabel(facts: CrewAgentFacts): string {
-  return facts.state
+  return facts.running && facts.wait !== null ? 'waiting' : facts.state
+}
+
+export function crewWaitLine(facts: CrewAgentFacts): string | null {
+  return facts.running ? facts.wait : null
+}
+
+export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
+  if (!facts.running) return null
+  return facts.wait ?? agentWaitWords(facts.phase, nowMs) ?? facts.activity
+}
+
+export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
+  if (facts.running && facts.wait !== null) return crewStateLabel(facts)
+  return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
 }
 
 export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {

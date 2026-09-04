@@ -575,6 +575,38 @@ let typescriptVersion: string | null = null;
   }
 }
 
+const { IMAGE_PACK_PATH: imagePackRelPath, imagePackPlatform, imagePackPackages } = await import('./src/tools/FileReadTool/imageProcessor.ts');
+let imagePackVendored = false;
+let imagePackMeta: { platform: string; packages: string[]; sharp: string; libvips: string | null } | null = null;
+{
+  const packPlatform = imagePackPlatform();
+  const packDest = resolve(OUT, imagePackRelPath, packPlatform);
+  rmSync(resolve(OUT, imagePackRelPath), { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_IMAGE === '1';
+  const packages = imagePackPackages(packPlatform);
+  const sources = packages.map((name) => resolve(ROOT, 'node_modules', ...name.split('/')));
+  const present = sources.every((dir) => statSync(resolve(dir, 'package.json'), { throwIfNoEntry: false })?.isFile());
+  if (!forceNo && present) {
+    try {
+      const { cpSync } = await import('node:fs');
+      for (const [index, name] of packages.entries()) {
+        cpSync(sources[index]!, resolve(packDest, 'node_modules', ...name.split('/')), { recursive: true, dereference: true });
+      }
+      const versionOf = (dir: string): string => (JSON.parse(readFileSync(resolve(dir, 'package.json'), 'utf8')) as { version: string }).version;
+      imagePackMeta = { platform: packPlatform, packages, sharp: versionOf(sources[0]!), libvips: sources[1] ? versionOf(sources[1]) : null };
+      writeFileSync(resolve(packDest, 'vendor.json'), JSON.stringify({ ...imagePackMeta, source: 'repo dependency (sharp prebuilt packages)' }, null, 2) + '\n');
+      imagePackVendored = true;
+      console.log(`VENDORED image processor ${packPlatform} (${packages.join(' + ')})\n  -> ${packDest}`);
+    } catch (e) {
+      console.warn(`image processor vendor copy failed — SKIPPED (degraded: image-processing): ${String(e)}`);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_IMAGE=1 — image processor NOT vendored (degraded: image-processing; proof seam).');
+  } else {
+    console.warn(`no prebuilt image processor for ${packPlatform} under node_modules/@img — the artifact ships WITHOUT it (degraded: image-processing; the runtime takes the pure-JavaScript image road: PNG/BMP shrink, other formats pass through unshrunk).`);
+  }
+}
+
 const treesitterRelPath = 'vendor/treesitter';
 let treesitterVendored = false;
 let treesitterVersion: string | null = null;
@@ -914,11 +946,22 @@ const manifest = {
         remedy:
           'restore node_modules/@vscode/tree-sitter-wasm (bun install), then re-run `bun run build.ts` — the polyglot pattern lane answers unavailable meanwhile; JS/TS select queries are unaffected',
       },
-  imageProcessing: {
-    binding: 'node_modules-resident (sharp native)',
-    selfContained: false,
-    degradesTo: 'iterm/kitty native tiers + artifact links (sixel/cells need the binding)',
-  },
+  imageProcessing: imagePackVendored && imagePackMeta
+    ? {
+        vendored: true,
+        path: `${imagePackRelPath}/${imagePackMeta.platform}`,
+        platform: imagePackMeta.platform,
+        packages: imagePackMeta.packages,
+        sharp: imagePackMeta.sharp,
+        libvips: imagePackMeta.libvips,
+        degradesTo: 'the pure-JavaScript image road (PNG/BMP shrink; JPEG/WebP/GIF pass through unshrunk)',
+      }
+    : {
+        vendored: false,
+        path: imagePackRelPath,
+        remedy:
+          'install the platform\'s prebuilt sharp packages (bun install fetches node_modules/@img/*), then re-run `bun run build.ts` — the runtime takes the pure-JavaScript image road meanwhile (PNG/BMP shrink; JPEG/WebP/GIF pass through unshrunk)',
+      },
   degraded: [
     ...(rgVendored ? [] : ['search']),
     ...(debugpyVendored ? [] : ['python-debugger']),
@@ -926,6 +969,7 @@ const manifest = {
     ...(jsDebugVendored ? [] : ['js-debugger']),
     ...(nodeVendored ? [] : ['runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
+    ...(imagePackVendored ? [] : ['image-processing']),
     ...(typescriptVendored ? [] : ['structural-intelligence']),
     ...(treesitterVendored ? [] : ['structure-polyglot']),
     ...(treesitterVendored && !grammarPackVendored ? ['structure-polyglot-extended'] : []),

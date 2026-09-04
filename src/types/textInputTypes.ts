@@ -40,7 +40,9 @@ export type BaseTextInputProps = {
     filename?: string,
     dimensions?: ImageDimensions,
     sourcePath?: string,
+    byteLength?: number,
   ) => void
+  onImageError?: (message: string) => void
   onPaste?: (text: string) => void
   onIsPastingChange?: (isPasting: boolean) => void
   disableCursorMovementForUpDownKeys?: boolean
