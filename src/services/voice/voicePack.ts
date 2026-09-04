@@ -14,6 +14,23 @@ export function voicePackPlatform(platform: string = process.platform, arch: str
   return `${platform}-${arch}`
 }
 
+export function voiceCargoTriple(packPlatform: string): string | null {
+  switch (packPlatform) {
+    case 'darwin-arm64':
+      return 'aarch64-apple-darwin'
+    case 'darwin-x64':
+      return 'x86_64-apple-darwin'
+    case 'linux-x64':
+      return 'x86_64-unknown-linux-gnu'
+    case 'linux-arm64':
+      return 'aarch64-unknown-linux-gnu'
+    case 'win32-x64':
+      return 'x86_64-pc-windows-msvc'
+    default:
+      return null
+  }
+}
+
 export interface VoicePackCrate {
   name: string
   version: string

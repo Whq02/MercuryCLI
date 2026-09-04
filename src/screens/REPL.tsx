@@ -80,6 +80,8 @@ import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { useNotifications } from '../context/notifications.js';
+import { transitionPermissionMode } from '../utils/permissions/permissionSetup.js';
+import { permissionModeTitle } from '../utils/permissions/PermissionMode.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
 import { currentSurfaceRoute, settleAbsentChat, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
 import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
@@ -253,6 +255,7 @@ const getFocusedSeatLive = (): SessionLiveV1 => {
   return hasSeatLive(connector) ? connector.live() : IDLE_LIVE;
 };
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
+const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener));
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
 const subscribeFocusedTail = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.tail().subscribe(listener) : () => {},
@@ -829,18 +832,48 @@ export function REPL({
     if (head !== undefined) focused.settleAsk(head.id);
   }, []);
 
+  const adoptRunnerMode = useCallback(() => {
+    const held = getFocusedSessionConnector().permissionMode();
+    if (held === null) return;
+    setAppState(prev => {
+      if (prev.toolPermissionContext.mode === held) return prev;
+      let next = prev.toolPermissionContext;
+      try {
+        next = transitionPermissionMode(prev.toolPermissionContext.mode, held, prev.toolPermissionContext);
+      } catch (error) {
+        logForDebugging(`permission mode adoption ${prev.toolPermissionContext.mode} → ${held} kept the standing context: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      return { ...prev, toolPermissionContext: { ...next, mode: held } };
+    });
+  }, [setAppState]);
+  useEffect(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
+
   const setToolPermissionContext = useCallback(
     (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
       setAppState(prev => {
         const preserved = options?.preserveMode ? prev.toolPermissionContext.mode : context.mode;
         return { ...prev, toolPermissionContext: { ...context, mode: preserved } };
       });
-      if (!options?.preserveMode) getFocusedSessionConnector().setPermissionMode(context.mode);
+      if (!options?.preserveMode) {
+        void getFocusedSessionConnector()
+          .setPermissionMode(context.mode)
+          .then(receipt => {
+            if (receipt.outcome !== 'refused') return;
+            adoptRunnerMode();
+            addNotification({
+              key: 'permission-mode-refused',
+              text: `${permissionModeTitle(context.mode)} refused by the session — ${receipt.detail ?? 'the runner did not take it'}`,
+              priority: 'high',
+              color: 'error' as const,
+              timeoutMs: RECEIPT_TIMEOUT_MS,
+            });
+          });
+      }
       setTimeout(() => {
         for (const entry of getFocusedSessionConnector().asks()) entry.confirm.recheckPermission?.();
       }, 0);
     },
-    [setAppState],
+    [setAppState, adoptRunnerMode, addNotification],
   );
 
   const [showIdeOnboarding, setShowIdeOnboarding] = useState(false);
@@ -1315,7 +1348,7 @@ export function REPL({
         }
       }
       if (armedMessage.permissionMode) {
-        getFocusedSessionConnector().setPermissionMode(armedMessage.permissionMode as PermissionMode);
+        void getFocusedSessionConnector().setPermissionMode(armedMessage.permissionMode as PermissionMode);
       }
       if (armedMessage.bashMode) pendingInput.setMode('bash');
       await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);

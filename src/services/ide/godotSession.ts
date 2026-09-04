@@ -28,6 +28,7 @@ import {
   vulcanInstallStatus,
   type VulcanInstallStatus,
 } from '../vulcan/addonInstaller.js'
+import { presenceNudge, probeGodotEditorPresence } from '../vulcan/editorPresence.js'
 import { getVulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
 
 export const GODOT_LANES_ARM_SURFACE =
@@ -282,15 +283,13 @@ async function probeVulcanState(root: string | undefined): Promise<GodotVulcanSt
     }
   }
   const addon = vulcanInstallStatus(root)
-  const reachable = await probeGodotEditorReachable(port)
-  if (!reachable) {
+  const presence = await probeGodotEditorPresence(root, port)
+  if (!presence.reachable) {
     return {
       state: 'unreachable',
       port,
       addon,
-      detail:
-        `editor not answering on 127.0.0.1:${port} — ${godotEditorHint(port)}` +
-        (addon.installed ? '' : '; addon not installed (op:"vulcan_install")'),
+      detail: `${presence.words} — 127.0.0.1:${port} dark; ${presenceNudge(presence, addon)}`,
     }
   }
   const client = getVulcanClient()

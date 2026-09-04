@@ -10,7 +10,7 @@ export function vulcanEnabled(): boolean {
 }
 
 export function vulcanToolCatalogEnabled(): boolean {
-  return vulcanEnabled() && findGodotProjectRoot() !== undefined
+  return vulcanEnabled()
 }
 
 export function vulcanPort(): number {
