@@ -501,6 +501,8 @@ wu.screen.noSelect[7 * WU_W + 11] = 1
   s.virtualFocusRow = 9
   s.clipLo = 2
   s.clipHi = 5
+  s.clipTop = 3
+  s.clipBottom = 8
   s.lastPressHadAlt = true
   startSelection(s, 4, 2)
   check(
@@ -509,7 +511,8 @@ wu.screen.noSelect[7 * WU_W + 11] = 1
       s.scrolledOffAbove.length === 0 && s.scrolledOffBelow.length === 0 &&
       s.scrolledOffAboveSW.length === 0 && s.scrolledOffBelowSW.length === 0 &&
       s.virtualAnchorRow === undefined && s.virtualFocusRow === undefined &&
-      s.clipLo === undefined && s.clipHi === undefined && s.lastPressHadAlt === false,
+      s.clipLo === undefined && s.clipHi === undefined &&
+      s.clipTop === undefined && s.clipBottom === undefined && s.lastPressHadAlt === false,
     JSON.stringify(s),
   )
 
@@ -546,6 +549,15 @@ wu.screen.noSelect[7 * WU_W + 11] = 1
   check('clip band: negative lo clamps to 0', s4.clipLo === 0 && s4.clipHi === 12)
   setSelectionClipBand(s4, 9, 4, 40)
   check('clip band: hi floors at lo', s4.clipLo === 9 && s4.clipHi === 9)
+  const s5 = createSelectionState()
+  setSelectionClipBand(s5, 4, 11, 40)
+  check('clip band: row args omitted leaves the row band undefined', s5.clipTop === undefined && s5.clipBottom === undefined)
+  setSelectionClipBand(s5, 4, 11, 40, 0, 23, 24)
+  check('clip band: full height stores undefined rows', s5.clipTop === undefined && s5.clipBottom === undefined)
+  setSelectionClipBand(s5, 4, 11, 40, -2, 9, 24)
+  check('clip band: negative top clamps to 0', s5.clipTop === 0 && s5.clipBottom === 9)
+  setSelectionClipBand(s5, 4, 11, 40, 12, 6, 24)
+  check('clip band: bottom floors at top', s5.clipTop === 12 && s5.clipBottom === 12)
 
   const s5 = createSelectionState()
   startSelection(s5, 1, 1)
@@ -1289,6 +1301,28 @@ function composeScrolled(scrollTop: number): Screen {
     check('shift guards: shiftSelection without focus no-ops', s.anchor?.row === 2)
     shiftAnchor(s, -2, 0, H - 1)
     check('shift guards: shiftAnchor moves a focus-less anchor', s.anchor?.row === 0, JSON.stringify(s.anchor))
+  }
+
+  {
+    const above = createSelectionState()
+    startSelection(above, 2, 1)
+    updateSelection(above, 5, 2)
+    const clearedAbove = shiftSelectionForFollow(above, -10, 0, H - 1)
+    check('follow clear: both ends past the TOP clears', clearedAbove === true && hasSelection(above) === false)
+    const below = createSelectionState()
+    startSelection(below, 2, 3)
+    updateSelection(below, 5, 4)
+    const clearedBelow = shiftSelectionForFollow(below, 10, 0, H - 1)
+    check('follow clear: both ends past the BOTTOM clears (the twin)', clearedBelow === true && hasSelection(below) === false)
+    const straddle = createSelectionState()
+    startSelection(straddle, 2, 0)
+    updateSelection(straddle, 5, 3)
+    const notCleared = shiftSelectionForFollow(straddle, 3, 0, H - 1)
+    check(
+      'follow clear: one end inside does not clear (the other clamps to the bottom edge)',
+      notCleared === false && hasSelection(straddle) && straddle.focus?.row === H - 1 && straddle.anchor?.row === 3,
+      JSON.stringify({ anchor: straddle.anchor, focus: straddle.focus }),
+    )
   }
 }
 
