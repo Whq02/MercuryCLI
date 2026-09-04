@@ -11,6 +11,7 @@ import type {
 import { getSettingsForSource, updateSettingsForSource } from '../settings/settings.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
+import { type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
 
 export type {
   AdditionalWorkingDirectory,
@@ -54,6 +55,7 @@ function ruleString(value: PermissionRuleValue): string {
 export function applyPermissionUpdate(
   context: ToolPermissionContext,
   update: PermissionUpdate,
+  road: ModeTransitionRoad = 'permission-answer',
 ): ToolPermissionContext {
   const next = structuredCloneContext(context)
   switch (update.type) {
@@ -79,6 +81,9 @@ export function applyPermissionUpdate(
       break
     }
     case 'setMode':
+      if (next.mode !== update.mode) {
+        recordModeTransition({ from: next.mode, to: update.mode, road, detail: `setMode at the ${update.destination} scope` })
+      }
       next.mode = update.mode
       logForDebugging(`permission update setMode → ${update.mode} (${update.destination})`)
       break
@@ -104,8 +109,9 @@ export function applyPermissionUpdate(
 export function applyPermissionUpdates(
   context: ToolPermissionContext,
   updates: PermissionUpdate[],
+  road: ModeTransitionRoad = 'permission-answer',
 ): ToolPermissionContext {
-  return updates.reduce(applyPermissionUpdate, context)
+  return updates.reduce((folded, update) => applyPermissionUpdate(folded, update, road), context)
 }
 
 export type PersistVerdict = { error: Error | null }

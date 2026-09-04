@@ -165,6 +165,7 @@ export const ApolloReviewTool = buildTool({
         target,
         context.getAppState().toolPermissionContext as ToolPermissionContext,
         updateAppState,
+        'review-approval',
       )
       if (result.ok) {
         settled = result.mode
