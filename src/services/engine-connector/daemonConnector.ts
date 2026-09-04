@@ -8,6 +8,7 @@ import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { decodeDecisionReasonFromWire } from '../../utils/permissions/decisionReasonWire.js'
 import type { PastedContent } from '../../utils/config/schema.js'
+import { storedImageRefBlock } from '../../utils/imageStore.js'
 import { submitTrace } from '../../utils/submitTrace.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
@@ -145,7 +146,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
     .sort((a, b) => a.id - b.id)
     .map(
       entry =>
-        ({
+        (storedImageRefBlock(entry.content) ?? {
           type: 'image',
           source: { type: 'base64', media_type: entry.content.mediaType ?? 'image/png', data: entry.content.content },
         }) as unknown as ContentBlockParam,
