@@ -226,8 +226,8 @@ check(
   /opts\.replayHistory \? 0 : statSync\(path\)\.size/.test(bus),
 )
 check(
-  'polling fallback (1s, unref) backs up fs.watch for missed appends on network/edited files',
-  /setInterval\(drainFrom, 1000\)/.test(bus) && /poll\.unref/.test(bus),
+  'the shared 1 Hz bucket backs up fs.watch for missed appends on network/edited files',
+  /subscribeUiClock\(1000, drainFrom\)/.test(bus),
 )
 
 section('/say — the retired door: one stub owner, no direct registration, no body')
