@@ -110,8 +110,14 @@ section('§4 the composed lines')
     plan,
   )
   check('the walk line leads with the LAST door\'s fact and carries the earlier one', line.startsWith('DuckDuckGo (lite) rate-limited this client') && line.includes('earlier: Brave Search refused the stored key'), line)
+  check('…and without a native family it names no ProviderSearch door and stays ONE line', !line.includes('ProviderSearch') && !line.includes('\n'), line)
+  const nativeLine = walkFailureLine([searchFailure('rate-limited', 'duckduckgo-lite', 'HTTP 202 with the bot challenge page')], resolveSearchDoorPlan({ keylessAllowed: true }), { nativeFamily: 'openai' })
+  check("with a native family the ONE line ends by naming ProviderSearch as the other door, after the key commands",
+    nativeLine.endsWith("ProviderSearch (OpenAI web search, the provider's own search) is listed for this session — the other door.") && nativeLine.includes('/router key brave · /router key tavily') && nativeLine.includes('free tier') && !nativeLine.includes('\n'), nativeLine)
   const empty = walkFailureLine([], resolveSearchDoorPlan({ keylessAllowed: false }))
   check('an empty plan\'s line is the no-backend sentence naming every absence', empty.includes('no open door') && empty.includes('MERCURY_SEARCH_KEYLESS=0'), empty)
+  const emptyNative = walkFailureLine([], resolveSearchDoorPlan({ keylessAllowed: false }), { nativeFamily: 'anthropic' })
+  check('…and with a native family the closed walk still names the ProviderSearch door', emptyNative.includes('ProviderSearch (Anthropic web search'), emptyNative)
   const described = describeSearchDoorPlan(resolveSearchDoorPlan({ tavilyKey: 'stored', keylessAllowed: true }))
   check('describeSearchDoorPlan reads as the walk', described.startsWith('Tavily (keyed, stored key) → DuckDuckGo (keyless)'), described)
 }
