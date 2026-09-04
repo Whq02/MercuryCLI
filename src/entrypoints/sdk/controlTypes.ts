@@ -244,6 +244,11 @@ export type SDKControlClaimSessionRequest = {
   permission_mode?: string
   effort?: string
   resume?: boolean
+  openai_catalogue?: {
+    sourceKind: 'chatgpt-subscription' | 'api-key'
+    models: unknown[]
+    fetchedAtMs: number
+  }
 }
 
 export type SDKControlSetEffortRequest = {
