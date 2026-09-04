@@ -79,6 +79,7 @@ import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
+import { streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
@@ -677,6 +678,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       }
     | undefined
   let fault: OpenaiFault | undefined
+  let settledOnFault: OpenaiInputItem[] = []
 
   function* ensureMessageStart(): Generator<StreamEvent> {
     if (messageStarted) return
@@ -876,6 +878,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
         break
       case 'stream-fault':
         fault = fault ?? event.fault
+        if (event.settledItems !== undefined) settledOnFault = event.settledItems
         break
     }
   }
@@ -887,6 +890,15 @@ export async function* streamOneOpenaiAttempt(ctx: {
   if (fault && nothingYielded && !finish) {
     return { kind: 'fault', fault, retryEligible: true }
   }
+  const typedEnd =
+    fault !== undefined && !finish
+      ? typedStreamEndOf({
+          fault,
+          provider: 'OpenAI',
+          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          silentMs: streamIdleTimeoutMs(),
+        })
+      : null
 
   yield* ensureMessageStart()
   yield* closeOpenBlock()
@@ -998,7 +1010,8 @@ export async function* streamOneOpenaiAttempt(ctx: {
   if (lastMessage) {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
-    const replayItems = replayableItems(finish?.orderedItems ?? [], refused)
+    if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    const replayItems = replayableItems(finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : []), refused)
     if (replayItems.length > 0) {
       lastMessage.apexProviderTurn = {
         provider: 'openai',
@@ -1017,7 +1030,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
-  if (fault) {
+  if (fault && typedEnd === null) {
     yield apiErrorMessage(
       streamFaultAfterPartialText('OpenAI', fault.code, fault.message),
       undefined,
