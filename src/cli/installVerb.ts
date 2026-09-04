@@ -28,7 +28,9 @@ export function describePathOutcome(path: PathEntryOutcome, isWindows: boolean, 
     case 'reachable':
       return `PATH: unchanged — a \`mercury\` command already runs from ${path.resolved}`
     case 'present':
-      return isWindows ? `PATH: your user PATH already lists ${path.dir} — ${openNew}` : `PATH: ${targets(path.targets)} already names ${path.dir} — ${openNew}`
+      return isWindows
+        ? `PATH: your user PATH already lists ${path.dir} — ${openNew}`
+        : `PATH: ${targets(path.targets)} already ${path.targets.length > 1 ? 'name' : 'names'} ${path.dir} — ${openNew}`
     case 'would-write':
       return isWindows ? `PATH: would add ${path.dir} to your user PATH` : `PATH: would add ${path.dir} in ${targets(path.targets)}`
     case 'written':
