@@ -1690,7 +1690,9 @@ export default class Ink {
           setCursorDeclaration={this.setCursorDeclaration}
           dispatchKeyboardEvent={this.dispatchKeyboardEvent.bind(this)}
         >
-          <TerminalWriteProvider value={this.writeRaw}>{node}</TerminalWriteProvider>
+          {
+}
+          <TerminalWriteProvider value={this.isTTY ? this.writeRaw : null}>{node}</TerminalWriteProvider>
         </App>
       </InkInstanceContext.Provider>
     )

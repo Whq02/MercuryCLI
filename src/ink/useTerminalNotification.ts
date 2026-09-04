@@ -1,5 +1,6 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react'
+import { noteModeAcquired, noteModeReleased } from './root/terminalModeLedger.js'
 import { isProgressReportingAvailable, type Progress } from './session/capabilities.js'
 import { BEL } from './termio/ansi.js'
 import { ITERM2, osc, OSC, PROGRESS, wrapForMultiplexer } from './termio/osc.js'
@@ -106,9 +107,11 @@ export function createTabRing(write: TerminalWrite, available: () => boolean): T
       if (!available()) return
       ringing = true
       emit(PROGRESS.INDETERMINATE)
+      noteModeAcquired('tab-ring', 'progress-ring')
     } else {
       ringing = false
       emit(PROGRESS.CLEAR)
+      noteModeReleased('tab-ring', 'progress-ring')
     }
   }
   return {

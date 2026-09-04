@@ -64,11 +64,15 @@ export function cleanupTerminalModes(): void {
     }
 
     restoreOriginalBackground()
-    writeSync(1, CLEAR_ITERM2_PROGRESS)
+    if (open.has('progress-ring')) {
+      writeSync(1, CLEAR_ITERM2_PROGRESS)
+      noteModeSettledEverywhere('progress-ring')
+    }
     if (supportsTabStatus()) writeSync(1, wrapForMultiplexer(CLEAR_TAB_STATUS))
-    if (resolveTerminalExperience().terminalTitle.effective) {
+    if (open.has('terminal-title') && resolveTerminalExperience().terminalTitle.effective) {
       if (process.platform === 'win32') process.title = ''
       else writeSync(1, CLEAR_TERMINAL_TITLE)
+      noteModeSettledEverywhere('terminal-title')
     }
   } catch {
   }
