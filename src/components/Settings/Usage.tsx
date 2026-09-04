@@ -4,7 +4,6 @@ import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
-  fetchUtilization,
   type RateLimit,
   type Utilization,
 } from '../../services/api/usage.js'
@@ -667,13 +666,11 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
   const load = useCallback((): void => {
     if (!subscriber) return
     setState(previous => ({ ...previous, loading: true, error: null }))
-    fetchUtilization()
-      .then(data => {
-        if (!disposedRef.current) setState({ loading: false, error: null, data })
-      })
-      .catch((error: unknown) => {
-        if (!disposedRef.current) setState({ loading: false, error, data: null })
-      })
+    void refreshProviderUsage('anthropic', { reason: 'operator' }).then(() => {
+      if (disposedRef.current) return
+      const note = usageForProvider('anthropic').readerNote
+      setState(note !== undefined ? { loading: false, error: note, data: null } : { loading: false, error: null, data: {} })
+    })
   }, [subscriber])
   useEffect(() => {
     load()

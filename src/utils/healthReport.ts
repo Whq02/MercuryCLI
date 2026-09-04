@@ -2705,12 +2705,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Eval languages',
           run: async () => {
             const { evalEnabled } = await import('../services/eval/contracts.js')
-            const { evalAvailability } = await import('../services/eval/interpreters.js')
+            const { primeEvalAvailability } = await import('../services/eval/interpreters.js')
             const { getCwd } = await import('./cwd.js')
             if (!evalEnabled()) {
               return { status: 'off', evidence: 'MERCURY_EVAL=0 — the Eval tool is out of the catalogue' }
             }
-            const rows = evalAvailability(getCwd())
+            const rows = await primeEvalAvailability(getCwd())
             const evidence = rows
               .map(row =>
                 row.available

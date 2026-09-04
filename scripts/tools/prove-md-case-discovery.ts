@@ -37,11 +37,11 @@ section('§2 THE UNDRIVABLE ROADS CARRY THE SAME FOLD (call-shaped)')
 {
   const loader = readFileSync(join(ROOT, 'src', 'utils', 'markdownConfigLoader.ts'), 'utf-8')
   check(
-    'the discovery glob is case-insensitive (--iglob)',
-    loader.includes("'--iglob', '*.md'") && !loader.includes("'--glob', '*.md'"),
+    'the discovery is an in-process walk (no search-engine glob to keep case-sensitive)',
+    !loader.includes("'--iglob'") && !loader.includes("'--glob'") && !loader.includes('ripgrep'),
   )
   check(
-    'the native fallback folds case at both its gates',
+    'the walk folds case at both its gates',
     (loader.match(/toLowerCase\(\)\.endsWith\('\.md'\)/g) ?? []).length === 2,
   )
   const watch = readFileSync(join(ROOT, 'src', 'services', 'agents', 'watch.ts'), 'utf-8')
