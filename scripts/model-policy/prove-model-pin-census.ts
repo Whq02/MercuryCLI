@@ -44,7 +44,6 @@ const ALLOW: ReadonlyArray<{ path: string; reason: string }> = [
 ]
 
 const DEBT: ReadonlyArray<{ path: string; carries: string; owner: string }> = [
-  { path: 'daemon/crewSpawn.ts', carries: "model: 'claude-…' class table", owner: 'crew estate — the opus/sonnet/fable class aliases resolve to Anthropic ids' },
   { path: 'utils/permissions/yoloClassifier.ts', carries: 'CLASSIFIER_FALLBACK_MODELS (sonnet-5/opus-5)', owner: 'permissions estate — the classifier fallback chain' },
 ]
 

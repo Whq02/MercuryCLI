@@ -120,7 +120,7 @@ const MODEL_NAMES = {
   "sonnet": "Sonnet 5",
   "opus": "Opus 5",
   "haiku": "Haiku 4.5",
-  "fable": "Fable 5",
+  "fable": "Fable 5.1",
   "fable51": "Fable 5.1",
   "mythos": "Mythos 5",
   "best": "Opus 5",

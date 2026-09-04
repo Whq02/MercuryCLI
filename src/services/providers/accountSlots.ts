@@ -5,7 +5,7 @@ import {
   forgetScopeIdentity,
   type ScopeIdentityState,
 } from '../../utils/accounts/accountIdentity.js'
-import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
+import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import {
   dropCredentialMemos,
   getAnthropicApiKeyWithSource,
@@ -1108,6 +1108,7 @@ export function signOutAnthropicSlot(
   clearScopeIdentitySnapshot(dir)
   forgetScopeIdentity(dir)
   dropCredentialMemos()
+  noteCredentialChange()
   resetUserCache()
   try {
     const { resetLimitsForCredentialSwitch } =
@@ -1138,7 +1139,6 @@ function afterCredentialLeft(slot: AccountSlot): void {
     clearCapHandoffForFamily(slot.family)
   } catch {
   }
-  noteCredentialRemoval()
 }
 
 function forgetFamilyObservations(family: string, kind: AccountSlotKind): void {
