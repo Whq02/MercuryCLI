@@ -109,9 +109,10 @@ command is refused, not clobbered. `--json` on every verb.
 
 ## `mercury update`
 
-`mercury update` speaks only to the private release repository through the
-collaborator's own signed-in `gh` — there is no anonymous endpoint and no
-other delivery path. Verbs:
+`mercury update` reads the repository's releases through your own signed-in
+`gh` (the GitHub CLI) — it is the one delivery path this version speaks; a
+machine without `gh` reinstalls by rerunning the install command in the
+README's Install section. Verbs:
 `--check`, `--status`, `--rollback`, `--json`; stdout carries the result,
 stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.
