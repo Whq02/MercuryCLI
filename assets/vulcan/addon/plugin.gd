@@ -16,8 +16,9 @@ func _enter_tree() -> void:
 	_ensure_setting(PORT_SETTING, DEFAULT_PORT)
 	_ensure_setting(ALLOW_EXECUTE_SETTING, true)
 	LogScript.install()
-	add_autoload_singleton(RUNTIME_AUTOLOAD, RUNTIME_BRIDGE_PATH)
-	ProjectSettings.save()
+	if not ProjectSettings.has_setting("autoload/" + RUNTIME_AUTOLOAD):
+		ProjectSettings.set_setting("autoload/" + RUNTIME_AUTOLOAD, "*" + RUNTIME_BRIDGE_PATH)
+		ProjectSettings.save()
 	_server = ServerScript.new()
 	_server.name = "MercuryVulcanServer"
 	_server.setup(get_undo_redo())
