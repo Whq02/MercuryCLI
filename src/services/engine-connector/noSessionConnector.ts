@@ -117,6 +117,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async setModel(): Promise<ModelSwitchReceiptV1> {
     return { state: 'refused', detail: NO_CHAT_OPEN }
   }
+  async setEffort(): Promise<ModelSwitchReceiptV1> {
+    return { state: 'refused', detail: NO_CHAT_OPEN }
+  }
   usage(): UsageFactsV1 {
     return ZERO_USAGE
   }
