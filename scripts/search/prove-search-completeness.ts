@@ -121,7 +121,7 @@ section('§4 every caller propagates incompleteness')
   const coordinator = readFileSync(join(ROOT, 'src/services/concourse/coordinatorTools.ts'), 'utf8')
   check("the coordinator's grep carries it too", /ripGrepAnswer\(|incomplete/.test(coordinator))
   const loader = readFileSync(join(ROOT, 'src/utils/markdownConfigLoader.ts'), 'utf8')
-  check('the config-estate discovery treats an incomplete walk as no answer at all (it walks natively instead)', /complete === false|!\w+\.complete/.test(loader), 'a partial agent/skill/command estate would read as the whole estate')
+  check('the config-estate discovery names a walk that stopped at its cap (never a silent partial estate)', /!\w+\.complete/.test(loader) && /addBootNote\('warn'/.test(loader), 'a partial agent/skill/command estate would read as the whole estate')
 }
 
 section('§5 the complete case is byte-identical')

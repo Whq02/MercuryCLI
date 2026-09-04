@@ -33,7 +33,8 @@ import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
-import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, pokeProviderUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
+import { usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import inkInstances from '../ink/instances.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -214,6 +215,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const usageFacts = getFocusedSessionConnector().usage()
   const cost = usageFacts.totalCostUSD
   const unpricedTurns = usageFacts.unpricedTurns ?? 0
+  useEffect(() => {
+    pokeProviderUsage()
+  }, [usageFacts.totalOutputTokens, usageFacts.totalAPIDurationMs])
+  const usageNow = useNowTick(tier.showFrameQuota ? Math.min(30_000, usagePollTtlMs()) : null)
   const costNode =
     (cost > 0 || unpricedTurns > 0) && getFocusedSessionConnector().identity().consoleBilling ? (
       <Text>
@@ -233,6 +238,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         ? usage.binding.window
         : usage.windows[1]
     const limited = usage.limited
+    const ageTail = first !== undefined ? usageAgeTail(first, usageNow) : undefined
     usageNode =
       first !== undefined || limited !== undefined ? (
         <Text>
@@ -255,6 +261,12 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
                 state={second.state}
                 value={second.usedPct ?? undefined}
               />
+            </Text>
+          ) : null}
+          {ageTail !== undefined && first !== undefined ? (
+            <Text>
+              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
+              <Text color={usageViewIsStale(first, usageNow) ? tok.warning : tok.textMuted}>{ageTail}</Text>
             </Text>
           ) : null}
           {limited !== undefined ? (

@@ -234,9 +234,24 @@ Opus and Sonnet weeks, folded into the same block; a family that reports
 no pools shows none), each with its percent and its reset in the operator's
 local time. The frame band's second chip is the binding window for the
 session model, under its own label. Every figure names its feed and age —
-endpoint-fed or header-fed, "read N ago" — and a read older than its reader's
-own refresh cadence says "stale · last read N min ago" rather than passing as
-live; a lane that has observed nothing says "no usage read", never 0%.
+endpoint-fed or header-fed, "read N ago", the rail's and the band's "↻12s" —
+and a read older than twice its reader's cadence says "stale" ("stale ↻2h",
+"stale · last read 2 h ago") rather than passing as live; a lane that has
+observed nothing says "no usage read", never 0%. The first-party subscription's
+reader samples the usage endpoint once a minute while the screen is up and
+again after every completed turn (a daemon-hosted chat's replies land in the
+runner's process, so the screen never waits on them); one request at a time,
+and the freshest observation wins each window — a reply's headers the instant
+they land, the endpoint's next answer a minute later. A read that fails (an
+HTTP status, a timeout, an unreachable host, an expired sign-in token) is on
+screen beside the last figure with the status and the host, backs off four
+minutes, is logged once per episode, and is written once to the doctor's record
+in the config home (`usage-reader.json`) with its recovery — `mercury doctor`
+names it from another process. `/usage` and its retry key ask at once regardless.
+A sign-in or a removal (the sign-in ledger's epoch, the one signal every family
+raises) forgets the reader's state and asks for the account now signed in at
+once — the meter never keeps a departed account's figure or waits out its
+cadence.
 
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and
