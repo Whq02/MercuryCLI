@@ -15,7 +15,7 @@ import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
 import { logError } from '../../utils/log.js'
 import { signOutEveryEngineCredential } from '../../services/providers/accountSlots.js'
 import { clearScopeIdentitySnapshot, forgetScopeIdentity } from '../../utils/accounts/accountIdentity.js'
-import { noteCredentialRemoval } from '../../utils/accounts/signInLedger.js'
+import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { getSecureStorage } from '../../utils/secureStorage/index.js'
 import { clearToolSchemaCache } from '../../utils/toolSchemaCache.js'
@@ -58,7 +58,7 @@ export async function performLogout({
   }
 
   await clearAuthRelatedCaches()
-  noteCredentialRemoval()
+  noteCredentialChange()
 
   saveGlobalConfig(current => {
     const next = { ...current, oauthAccount: undefined }

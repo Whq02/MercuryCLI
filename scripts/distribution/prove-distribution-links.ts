@@ -35,7 +35,7 @@ for (const rel of ACTIVE) {
 }
 
 const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
-check('README names the private release channel', /private release channel/.test(readme))
+check('README spells the public install channel', /mercury-cli\.ai\/install/.test(readme))
 check('README carries the notices pointer', readme.includes('THIRD_PARTY_NOTICES.md'))
 check('README states the computed default: the provider of the most recent sign-in', /most recent sign-in/.test(readme))
 check('README links the documentation map', readme.includes('docs/README.md'))
