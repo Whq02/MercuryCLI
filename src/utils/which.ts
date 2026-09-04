@@ -1,7 +1,5 @@
-import { spawnSync } from 'node:child_process'
-import { subprocessEnv } from './subprocessEnv.js'
-
-import { execFileNoThrow } from './execFileNoThrow.js'
+import { accessSync, constants, statSync } from 'node:fs'
+import * as path from 'node:path'
 
 
 type BunWhich = { which?: (command: string, options?: { PATH?: string }) => string | null }
@@ -26,41 +24,69 @@ export function spawnableSpellings(command: string, platform: string = process.p
   return [...WIN32_SPAWNABLE_EXTENSIONS.map(ext => `${command}${ext}`), command]
 }
 
+function isSpawnableSpelling(line: string): boolean {
+  const lower = line.toLowerCase()
+  return WIN32_SPAWNABLE_EXTENSIONS.some(ext => lower.endsWith(ext))
+}
+
 export function pickWin32ExecutableLine(lines: readonly string[]): string | null {
   const listed = lines.map(line => line.trim()).filter(line => line !== '')
-  const spawnable = listed.find(line => {
-    const lower = line.toLowerCase()
-    return WIN32_SPAWNABLE_EXTENSIONS.some(ext => lower.endsWith(ext))
-  })
+  const spawnable = listed.find(isSpawnableSpelling)
   return spawnable ?? listed[0] ?? null
+}
+
+function searchDirs(): string[] {
+  const entries = (process.env.PATH ?? '').split(path.delimiter).map(entry => (entry === '' ? '.' : entry))
+  return process.platform === 'win32' ? ['.', ...entries] : entries
+}
+
+function isExecutableFile(candidate: string): boolean {
+  try {
+    if (process.platform !== 'win32') accessSync(candidate, constants.X_OK)
+    return statSync(candidate).isFile()
+  } catch {
+    return false
+  }
+}
+
+function hasDirectoryPart(command: string): boolean {
+  return command.includes('/') || (process.platform === 'win32' && command.includes('\\'))
+}
+
+function lookup(command: string): string | null {
+  if (command === '') return null
+  const spellings = spawnableSpellings(command)
+  if (hasDirectoryPart(command)) {
+    for (const spelling of spellings) {
+      const candidate = path.resolve(spelling)
+      if (isExecutableFile(candidate)) return candidate
+    }
+    return null
+  }
+  if (process.platform === 'win32') {
+    const listed: string[] = []
+    for (const dir of searchDirs()) {
+      for (const spelling of spellings) {
+        const candidate = path.resolve(dir, spelling)
+        if (isExecutableFile(candidate)) listed.push(candidate)
+      }
+      if (listed.some(isSpawnableSpelling)) break
+    }
+    return pickWin32ExecutableLine(listed)
+  }
+  for (const dir of searchDirs()) {
+    const candidate = path.resolve(dir, command)
+    if (isExecutableFile(candidate)) return candidate
+  }
+  return null
 }
 
 const foundExecutables = new Map<string, string>()
 
+const KEY_JOIN = String.fromCharCode(0)
+
 function foundKey(command: string): string {
-  return `${command}\u0000${process.env.PATH ?? ''}`
-}
-
-export async function which(command: string): Promise<string | null> {
-  const fromBun = bunWhich(command)
-  if (fromBun !== undefined) return normalize(fromBun)
-
-  const key = foundKey(command)
-  const cached = foundExecutables.get(key)
-  if (cached !== undefined) return cached
-
-  if (process.platform === 'win32') {
-    const result = await execFileNoThrow('where.exe', [command])
-    if (result.code !== 0) return null
-    const path = pickWin32ExecutableLine(result.stdout.split(/\r?\n/))
-    if (path !== null) foundExecutables.set(key, path)
-    return path
-  }
-  const result = await execFileNoThrow('which', [command])
-  if (result.code !== 0) return null
-  const path = normalize(result.stdout)
-  if (path !== null) foundExecutables.set(key, path)
-  return path
+  return `${command}${KEY_JOIN}${process.env.PATH ?? ''}`
 }
 
 export function whichSync(command: string): string | null {
@@ -71,20 +97,11 @@ export function whichSync(command: string): string | null {
   const cached = foundExecutables.get(key)
   if (cached !== undefined) return cached
 
-  try {
-    if (process.platform === 'win32') {
-      const result = spawnSync('where.exe', [command], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: 5_000, env: { ...subprocessEnv() } })
-      if (result.status !== 0 || !result.stdout) return null
-      const path = pickWin32ExecutableLine(result.stdout.split(/\r?\n/))
-      if (path !== null) foundExecutables.set(key, path)
-      return path
-    }
-    const result = spawnSync('which', [command], { windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8', timeout: 5_000, env: { ...subprocessEnv() } })
-    if (result.status !== 0 || !result.stdout) return null
-    const path = normalize(result.stdout)
-    if (path !== null) foundExecutables.set(key, path)
-    return path
-  } catch {
-    return null
-  }
+  const found = lookup(command)
+  if (found !== null) foundExecutables.set(key, found)
+  return found
+}
+
+export async function which(command: string): Promise<string | null> {
+  return whichSync(command)
 }
