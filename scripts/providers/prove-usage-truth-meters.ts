@@ -82,7 +82,7 @@ section('§1 the per-model pools ride the active-source view, and every renderer
   const rail = src('src/components/HelmTelemetryRail.tsx')
   check('the rail folds the focused source\'s pools under its windows', rail.includes('usage.pools.filter(w => w.state === \'live\')'))
   check('…and every beside-account\'s pools under its own block', rail.includes('other.pools.filter(x => x.state === \'live\')'))
-  check('the rail\'s meter tail turns stale (the read\'s age) before the countdown', rail.includes('usageStaleTail(w, now)') && rail.includes('meterTail(w, pool)'))
+  check('the rail\'s meter tail carries the read\'s age and turns stale before the countdown', rail.includes('usageAgeTail(w, readNow)') && rail.includes('usageViewIsStale(w, readNow)') && rail.includes('meterTail(w, pool)'))
   const deck = src('src/components/Deck.tsx')
   check('/deck paints the pools beside the pair and one read line', deck.includes('[...usage.windows, ...usage.pools]') && deck.includes('usageSourceWords(freshest, now)'))
   const band = src('src/components/MercuryFrame.tsx')
