@@ -15,7 +15,7 @@ import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { logError } from '../../utils/log.js'
 import { escapeXml } from '../../utils/xml.js'
-import { evictTaskOutput, getTaskOutputPath } from '../../utils/task/diskOutput.js'
+import { ensureTaskOutputDir, evictTaskOutput, getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   PANEL_GRACE_MS,
   registerTask,
@@ -283,7 +283,9 @@ export function completeWorkflowTask(
     null,
     2,
   )
-  return writeFile(snapshot.outputFile, payload).then(
+  return ensureTaskOutputDir()
+    .then(() => writeFile(snapshot.outputFile, payload))
+    .then(
     () => null,
     (e: unknown) => {
       const msg = `Failed to write workflow output for ${taskId}: ${
