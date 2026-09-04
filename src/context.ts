@@ -12,7 +12,9 @@ import {
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode } from './utils/envUtils.js'
 import { execFileNoThrow } from './utils/execFileNoThrow.js'
+import { getCwd } from './utils/cwd.js'
 import { getBranch, getDefaultBranch, getIsGit, gitExe } from './utils/git.js'
+import { projectScopePathspec } from './utils/projectBoundary.js'
 import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
 import { logError } from './utils/log.js'
 
@@ -66,7 +68,7 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
     const [branch, mainBranch, status, log, userName] = await Promise.all([
       getBranch(),
       getDefaultBranch(),
-      rawGit(['--no-optional-locks', 'status', '--short']),
+      rawGit(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(getCwd())]),
       rawGit(['--no-optional-locks', 'log', '--oneline', '-5']),
       rawGit(['config', 'user.name']),
     ])

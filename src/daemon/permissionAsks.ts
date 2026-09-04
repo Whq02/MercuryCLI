@@ -22,6 +22,7 @@ import {
 import { daemonDir } from './controlSocket.js'
 import { readSessionWorkers } from './concourseSupervisor.js'
 import { initGitRepository } from './concourseWorktrees.js'
+import { countEntriesBounded, entryCountWords, gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 
 function gitInitAsksPath(): string {
   return join(daemonDir(), 'git-init-asks.json')
@@ -242,7 +243,12 @@ export function onWorkerControlRequest(
     })
 }
 
-export function mintGitInitAsk(folder: string): { requestId: string } {
+export function mintGitInitAsk(folder: string): { requestId: string } | { refused: GitInitRefusal } {
+  const refusal = gitInitRefusal(folder)
+  if (refusal !== null) {
+    logForDebugging(`[daemon] git-init ask not minted for ${folder}: ${refusal.words}`)
+    return { refused: refusal }
+  }
   for (const [id, a] of pending) {
     if (a.local === 'git-init' && a.workspaceId === folder) return { requestId: id }
   }
@@ -264,10 +270,11 @@ export function mintGitInitAsk(folder: string): { requestId: string } {
     local: 'git-init',
   }
   pending.set(requestId, ask)
+  const entries = entryCountWords(countEntriesBounded(folder))
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: ask.sessionId,
-    question: `this folder has no git — start one in ${folder} so sessions can fork it?`,
+    question: `this folder has no git — start one in ${folder} (${entries}) so sessions can fork it?`,
     owner: 'operator',
     scope: 'switchboard',
   })
@@ -280,6 +287,16 @@ export function mintGitInitAsk(folder: string): { requestId: string } {
       return undefined
     })
   return { requestId }
+}
+
+export function mintGitRefusedReceipt(clientMessageId: string, folder: string, refusal: GitInitRefusal): void {
+  void upsertObligation({
+    ref: `git-refused:${clientMessageId}`,
+    sessionId: `dispatch:${clientMessageId}`,
+    question: `no git offer for ${folder} — ${refusal.words} · kept without git: the launch waits until the folder frees`,
+    owner: 'operator',
+    scope: 'switchboard',
+  }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
 export function onWorkerControlCancel(requestId: string, dir?: string): void {
