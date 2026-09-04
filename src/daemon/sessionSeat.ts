@@ -116,6 +116,10 @@ function setSeatTail(seat: SeatState, text: string | null, dir?: string): void {
     publishTailNow(seat, dir)
     return
   }
+  scheduleTailPublish(seat, dir)
+}
+
+function scheduleTailPublish(seat: SeatState, dir?: string): void {
   seat.tailDirty = true
   if (seat.tailTimer !== null) return
   publishTailNow(seat, dir)
@@ -157,7 +161,7 @@ function streamBlockOf(type: string | undefined): SeatState['streamBlock'] {
 }
 
 function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string }; message?: { id?: string } } }
+  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string; thinking?: string }; message?: { id?: string } } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
@@ -183,6 +187,9 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     seat.streamedThisTurn = true
     seat.turnChars += ev.delta.text.length
     setSeatTail(seat, (seat.tail ?? '') + ev.delta.text, dir)
+  } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && typeof ev.delta.thinking === 'string') {
+    seat.turnChars += ev.delta.thinking.length
+    scheduleTailPublish(seat, dir)
   } else if (ev.type === 'content_block_stop' || ev.type === 'message_stop') {
     if (ev.type === 'message_stop') {
       seat.streamBlock = null

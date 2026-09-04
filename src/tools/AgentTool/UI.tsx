@@ -19,6 +19,9 @@ import type {
 import type { Tools } from '../../Tool.js'
 import { safeSearchOrReadClassification, safeUserFacingName } from '../../Tool.js'
 import { buildSubagentLookups } from '../../utils/messages.js'
+import { formatTokens } from '../../utils/format.js'
+import { getTokenCountFromUsage } from '../../utils/tokens.js'
+import type { ApiUsage } from '../../types/wire.js'
 import { renderModelName, getMainLoopModel } from '../../utils/model/model.js'
 import { Markdown } from '../../components/Markdown.js'
 import { getAgentColor } from './agentColorManager.js'
@@ -69,12 +72,6 @@ type AgentUiInput = {
 }
 
 
-function formatTokens(count: number): string {
-  if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}m`
-  if (count >= 1_000) return `${(count / 1_000).toFixed(1)}k`
-  return String(count)
-}
-
 function formatDuration(ms: number): string {
   if (ms >= 60_000) {
     const minutes = Math.floor(ms / 60_000)
@@ -118,12 +115,7 @@ function latestTokenTotal(
     if (!message || message.type !== 'assistant') continue
     const usage = (message as AssistantMessage).message.usage
     if (!usage) continue
-    return (
-      (usage.cache_creation_input_tokens ?? 0) +
-      (usage.cache_read_input_tokens ?? 0) +
-      (usage.input_tokens ?? 0) +
-      (usage.output_tokens ?? 0)
-    )
+    return getTokenCountFromUsage(usage as ApiUsage)
   }
   return 0
 }
@@ -268,7 +260,7 @@ export function renderToolUseProgressMessage(
       <MessageResponse height={1}>
         <Text dimColor>
           In progress… <Text bold>{pluralise(toolUseCount, 'tool use')}</Text>
-          {tokens > 0 ? ` · ${formatTokens(tokens)} tokens` : ''}
+          {tokens > 0 ? ` · ${formatTokens(tokens)} context` : ''}
           {' · '}
           <ExpandHint parens />
         </Text>
@@ -366,6 +358,7 @@ export function renderToolResultMessage(
     totalToolUseCount?: number
     totalTokens?: number
     totalDurationMs?: number
+    usage?: Partial<ApiUsage> | null
   }
   const content = record.content
 
@@ -393,10 +386,12 @@ export function renderToolResultMessage(
 
   if (record.status === 'completed' || record.status === 'failed') {
     const failed = record.status === 'failed'
+    const contextTokens = record.usage ? getTokenCountFromUsage(record.usage as ApiUsage) : 0
     const result = [
       pluralise(record.totalToolUseCount ?? 0, 'tool use'),
+      ...(contextTokens > 0 ? [`${formatTokens(contextTokens)} context`] : []),
       ...(typeof record.totalTokens === 'number' && record.totalTokens > 0
-        ? [`${formatTokens(record.totalTokens)} tokens`]
+        ? [`${formatTokens(record.totalTokens)} spent`]
         : []),
       formatDuration(record.totalDurationMs ?? 0),
     ]
@@ -656,7 +651,14 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
         const facts = factsForEntry(agents, entry)
         const resolved = entry.resolved || (facts !== null && !facts.running)
         const receiptTokens = (entry.output?.totalTokens ?? 0) > 0 ? entry.output!.totalTokens : undefined
-        const tokens = facts !== null ? facts.tokens?.total : (receiptTokens ?? (entry.tokens > 0 ? entry.tokens : undefined))
+        const tokensLabel =
+          facts !== null
+            ? (crewTokensLabel(facts) ?? undefined)
+            : receiptTokens !== undefined
+              ? `${formatTokens(receiptTokens)} spent`
+              : entry.tokens > 0
+                ? `${formatTokens(entry.tokens)} context`
+                : undefined
         const toolUses = facts?.toolUses ?? entry.output?.totalToolUseCount ?? entry.toolUseCount
         const statusLine = facts !== null ? factsStatusLine(facts, now) : null
         return (
@@ -670,7 +672,7 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
             {...(statusLine !== null ? { statusLine } : {})}
             {...(statusLine === null && entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}
             toolUseCount={toolUses}
-            {...(tokens !== undefined ? { tokens } : {})}
+            {...(tokensLabel !== undefined ? { tokensLabel } : {})}
             isLast={index === entries.length - 1}
             isResolved={resolved}
             isError={entry.isErrored || facts?.state === 'failed'}

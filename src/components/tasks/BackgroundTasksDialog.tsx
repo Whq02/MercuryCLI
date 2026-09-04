@@ -50,6 +50,7 @@ import {
   crewAgentFactsOf,
   crewCostLabel,
   crewModelLabel,
+  crewSpendLabel,
   crewStateLabel,
   crewTokensBreakdown,
   crewTokensLabel,
@@ -195,9 +196,11 @@ export function RosterWorkDetail({
     if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
     if (crew.team !== null) rows.push({ k: 'team', v: crew.team, tone: tokens.textPrimary })
     const crewTokens = crewTokensLabel(crew)
-    if (crewTokens !== null) {
+    if (crewTokens !== null) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}`, tone: tokens.textPrimary })
+    const crewSpend = crewSpendLabel(crew)
+    if (crewSpend !== null) {
       const breakdown = crewTokensBreakdown(crew)
-      rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}${breakdown !== null ? ` (${breakdown})` : ''}`, tone: tokens.textPrimary })
+      rows.push({ k: 'spent', v: `${GLYPH.tokens} ${crewSpend}${breakdown !== null ? ` (${breakdown})` : ''}`, tone: tokens.textPrimary })
     }
     const spend = crewCostLabel(crew)
     if (spend !== null && getFocusedSessionConnector().identity().consoleBilling) {
@@ -205,7 +208,7 @@ export function RosterWorkDetail({
     }
   } else {
     if (work.model !== undefined) rows.push({ k: 'model', v: work.model, tone: tokens.textPrimary })
-    if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)}`, tone: tokens.textPrimary })
+    if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)} spent`, tone: tokens.textPrimary })
   }
   if (work.kind === 'workflow' && (work.agentCount ?? 0) > 0) rows.push({ k: 'agents', v: String(work.agentCount), tone: tokens.textPrimary })
   return (
