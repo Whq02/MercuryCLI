@@ -94,6 +94,7 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
     model?: unknown
     inputTokens?: unknown
     outputTokens?: unknown
+    contextTokens?: unknown
     costUSD?: unknown
     unpricedTurns?: unknown
     toolUseCount?: unknown
@@ -101,6 +102,7 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
   }
   const input = finite(p.inputTokens)
   const output = finite(p.outputTokens)
+  const context = finite(p.contextTokens)
   const cost = finite(p.costUSD)
   const unpriced = finite(p.unpricedTurns)
   const toolUses = finite(p.toolUseCount)
@@ -119,7 +121,12 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
     ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
     ...(activity !== undefined ? { activity: clip(activity, MAX_NAME) } : {}),
     ...(input !== undefined && output !== undefined && input + output > 0
-      ? { inputTokens: input, outputTokens: output, totalTokens: input + output }
+      ? {
+          inputTokens: input,
+          outputTokens: output,
+          totalTokens: input + output,
+          ...(context !== undefined && context > 0 ? { contextTokens: context } : {}),
+        }
       : {}),
     ...(cost !== undefined && cost > 0 ? { costUSD: cost } : {}),
     ...(unpriced !== undefined && unpriced > 0 ? { unpricedTurns: unpriced } : {}),

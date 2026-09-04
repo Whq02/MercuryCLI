@@ -154,6 +154,7 @@ export type WorkRowV1 = {
   totalTokens?: number
   inputTokens?: number
   outputTokens?: number
+  contextTokens?: number
   costUSD?: number
   unpricedTurns?: number
   toolUses?: number

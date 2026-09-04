@@ -160,7 +160,7 @@ export const workflowAdapter: ResourceAdapter = {
         ref: ref.canonical,
         kind: 'workflow',
         title: manifest.workflowName ?? manifest.title ?? manifest.runId,
-        summary: `${liveness} · ${manifest.agentCount} agent(s) · ${manifest.totalTokens} tokens`,
+        summary: `${liveness} · ${manifest.agentCount} agent(s) · ${manifest.totalTokens} tokens spent`,
         version: `${manifest.status}-${manifest.agents.length}`,
         mutable: false,
         text: [

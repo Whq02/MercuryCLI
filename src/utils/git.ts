@@ -9,6 +9,7 @@ import { memoize } from 'lodash-es'
 import { hasBinaryExtension, isBinaryContent } from '../constants/files.js'
 import { getCwd } from './cwd.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
+import { projectScopePathspec } from './projectBoundary.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
@@ -237,6 +238,7 @@ export async function hasUnpushedCommits(): Promise<boolean> {
 export async function getIsClean(options?: { ignoreUntracked?: boolean }): Promise<boolean> {
   const args = ['-c', 'core.optionalLocks=false', 'status', '--porcelain']
   args.push(options?.ignoreUntracked ? '--untracked-files=no' : '--untracked-files=all')
+  args.push(...projectScopePathspec(getCwd()))
   const result = await execFileNoThrow(gitExe(), args, { preserveOutputOnError: false })
   if (result.code !== 0) return false
   const meaningful = result.stdout
@@ -258,7 +260,7 @@ export type GitFileStatus = {
 export async function getFileStatus(): Promise<GitFileStatus> {
   const result = await execFileNoThrow(
     gitExe(),
-    ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z'],
+    ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z', ...projectScopePathspec(getCwd())],
     { preserveOutputOnError: false },
   )
   const tracked: string[] = []
