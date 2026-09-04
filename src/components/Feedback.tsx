@@ -6,6 +6,7 @@ import type { Message } from '../types/message.js'
 import TextInput from './TextInput.js'
 import { Select } from './CustomSelect/select.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
+import { useRegisterOverlay } from '../context/overlayContext.js'
 import { useInput } from '../ink.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -614,6 +615,8 @@ export function Feedback({
   useEffect(() => {
     if (scroll > maxScroll) setScroll(maxScroll)
   }, [scroll, maxScroll])
+
+  useRegisterOverlay('feedback-review', step === 'review', { ownsPageKeys: true })
 
   useInput(
     (input, key) => {

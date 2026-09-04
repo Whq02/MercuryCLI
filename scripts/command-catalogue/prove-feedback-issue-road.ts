@@ -240,17 +240,26 @@ if (!existsSync(BIN)) {
 } else {
   const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-  const PROJ = join(SCRATCH, 'proj')
-  mkdirSync(PROJ, { recursive: true })
-  writeFileSync(join(PROJ, 'README.md'), '# proj\n')
-  const git = (args: string[]): number => spawnSync('git', ['-c', 'user.email=proof@example.invalid', '-c', 'user.name=proof', ...args], { cwd: PROJ, stdio: 'ignore' }).status ?? 1
-  git(['init', '-q'])
-  git(['add', '.'])
-  git(['commit', '-q', '-m', 'seed'])
+  function seedProject(id: string): string {
+    const dir = join(SCRATCH, `proj-${id}`)
+    mkdirSync(dir, { recursive: true })
+    writeFileSync(join(dir, 'README.md'), '# proj\n')
+    const git = (args: string[]): number => spawnSync('git', ['-c', 'user.email=proof@example.invalid', '-c', 'user.name=proof', ...args], { cwd: dir, stdio: 'ignore' }).status ?? 1
+    git(['init', '-q'])
+    git(['add', '.'])
+    git(['commit', '-q', '-m', 'seed'])
+    return dir
+  }
+
+  const CAPTURE_DIR = process.env.MERCURY_FEEDBACK_ROAD_CAPTURE_DIR ?? null
+  if (CAPTURE_DIR) mkdirSync(CAPTURE_DIR, { recursive: true })
+
+  const WARM_TICKS = 25
 
   type Capture = { status: number; marks: Record<string, string>; final: string; tail: string }
   async function capture(id: string, home: string, sends: Array<Record<string, unknown>>, total: number, extraEnv: Record<string, string>): Promise<Capture> {
     mkdirSync(home, { recursive: true })
+    const PROJ = seedProject(id)
     seedFirstRun(home, [PROJ])
     const api = await startFixtureApi([
       { kind: 'text', text: 'Composer drops the second /model' },
@@ -283,8 +292,8 @@ if (!existsSync(BIN)) {
     const result = await new Promise<Capture>(resolvePromise => {
       let tail = ''
       const guard = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(total * 200 + 30_000))
-      child.stdout.on('data', d => (tail = (tail + String(d)).slice(-800)))
-      child.stderr.on('data', d => (tail = (tail + String(d)).slice(-800)))
+      child.stdout.on('data', () => {})
+      child.stderr.on('data', d => (tail = (tail + String(d)).slice(-600)))
       child.on('close', status => {
         clearTimeout(guard)
         const marks: Record<string, string> = {}
@@ -294,6 +303,10 @@ if (!existsSync(BIN)) {
           const text = (grid: Array<Array<{ c: string }>>): string => grid.map(row => row.map(c => c.c).join('').replace(/\s+$/, '')).join('\n')
           final = text(payload.grid)
           for (const m of payload.marks ?? []) marks[m.label] = text(m.grid)
+          if (CAPTURE_DIR) {
+            writeFileSync(join(CAPTURE_DIR, `${id}-final.txt`), `${final}\n`)
+            for (const [label, frame] of Object.entries(marks)) writeFileSync(join(CAPTURE_DIR, `${id}--${label}.txt`), `${frame}\n`)
+          }
         } catch {
         }
         resolvePromise({ status: status ?? 1, marks, final, tail })
@@ -311,15 +324,17 @@ if (!existsSync(BIN)) {
     'bug',
     HOME_BUG,
     [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, data: '/bug the composer ate my second /model', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
-      { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, mark: 'words', data: '\r' },
-      { atTick: 170, requireAwait: true, awaitText: 'What you expected', awaitStableTicks: 2, data: '\r' },
-      { atTick: 190, requireAwait: true, awaitText: 'What happened instead', awaitStableTicks: 2, data: 'it opened the model picker twice' },
+      { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, awaitSettleTicks: 2, mark: 'words', data: '\r' },
+      { atTick: 170, requireAwait: true, awaitText: 'What you expected', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 190, requireAwait: true, awaitText: 'What happened instead', awaitStableTicks: 3, awaitSettleTicks: 2, data: 'it opened the model picker twice' },
       { afterPrevTicks: 3, data: '\r' },
       { atTick: 400, requireAwait: true, awaitText: 'enter to file it', awaitStableTicks: 3, mark: 'review', data: '' },
-      { afterPrevTicks: 2, data: '\r' },
+      { afterPrevTicks: 2, data: '\u001b[6~' },
+      { afterPrevTicks: 3, mark: 'paged', data: '\u001b[A' },
+      { afterPrevTicks: 3, mark: 'lined', data: '\r' },
       { atTick: 450, requireAwait: true, awaitText: 'Filed: ', awaitStableTicks: 3, mark: 'done', data: '' },
       { afterPrevTicks: 2, data: 'x' },
     ],
@@ -334,6 +349,15 @@ if (!existsSync(BIN)) {
   check('B4 the review frame names the repository, the road and the one yes', review.includes(`will be filed as a new issue in ${PUBLIC_HOME} through your own gh`) && review.includes('enter to file it · esc to keep the draft only'))
   check('B4 the review frame shows the body itself (the form headings)', review.includes('### Version') && review.includes('### Steps to reproduce'))
   check('B4 the review frame says the transcript stays local', review.includes('is not sent'))
+  const windowOf = (frame: string): number | null => {
+    const m = /lines (\d+)–(\d+) of (\d+)/.exec(frame)
+    return m ? Number(m[1]) : null
+  }
+  const atTop = windowOf(review)
+  const paged = windowOf(bug.marks.paged ?? '')
+  const lined = windowOf(bug.marks.lined ?? '')
+  check('B4 the body scrolls: PageDown pages the box (the review owns the page keys)', atTop === 1 && paged !== null && paged > 1, `top ${atTop} → paged ${paged}`)
+  check('B4 the body scrolls: ↑ walks one line back', paged !== null && lined === paged - 1, `paged ${paged} → lined ${lined}`)
   const shown = /\((\d+) bytes\)/.exec(reviewFlat)?.[1]
   const received = existsSync(bodyOut) ? readFileSync(bodyOut, 'utf8') : ''
   check('B4 the byte count shown equals the file gh received', shown !== undefined && received !== '' && Number(shown) === Buffer.byteLength(received, 'utf8'), `shown ${shown} vs received ${Buffer.byteLength(received, 'utf8')}`)
@@ -364,16 +388,45 @@ if (!existsSync(BIN)) {
   const bodies = existsSync(feedbackDir) ? readdirSync(feedbackDir).filter(f => f.startsWith('bug-') && f.endsWith('.md')) : []
   check('B4 the body that left the box sits beside the draft, byte-identical to what gh received', bodies.length === 1 && readFileSync(join(feedbackDir, bodies[0]!), 'utf8') === received)
 
+  const HOME_ESC = join(SCRATCH, 'home-esc')
+  const escLog = join(SCRATCH, 'gh-esc.log')
+  const esc = await capture(
+    'esc',
+    HOME_ESC,
+    [
+      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 90, data: '/bug it froze on the second model switch', awaitText: 'Type a prompt', minTick: 5 },
+      { afterPrevTicks: 4, data: '\r' },
+      { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 170, requireAwait: true, awaitText: 'What you expected', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 190, requireAwait: true, awaitText: 'What happened instead', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 400, requireAwait: true, awaitText: 'enter to file it', awaitStableTicks: 3, mark: 'review', data: '\u001b' },
+      { atTick: 440, requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 3, mark: 'kept', data: '' },
+    ],
+    460,
+    { MERCURY_GH_CMD: fakeGhCmd, GH_SHIM_LOG: escLog },
+  )
+  check('the esc journey delivered every send', esc.status === 0, `exit ${esc.status}: ${esc.tail.trim().slice(-300)}`)
+  const kept = esc.marks.kept ?? ''
+  check('B4 esc at the review closes the dialog without filing (no Filed:, no review left on screen)', kept.includes('Type a prompt') && !kept.includes('Filed:') && !kept.includes('enter to file it'))
+  const surface = readFileSync(join(REPO, 'src', 'components', 'Feedback.tsx'), 'utf8')
+  check('B4 the kept receipt says so: drafted locally, nothing was filed', surface.includes("drafted locally at ${p.json} — nothing was filed."))
+  const escLines = existsSync(escLog) ? readFileSync(escLog, 'utf8') : ''
+  check('B4 esc spawns no gh issue create', !escLines.includes('gh issue create'))
+  const escDir = join(HOME_ESC, 'feedback')
+  const escFiles = existsSync(escDir) ? readdirSync(escDir).sort() : []
+  check('B4 the draft and the body stay on disk after esc', escFiles.length === 2 && escFiles.some(f => f.endsWith('.json')) && escFiles.some(f => f.endsWith('.md')), escFiles.join(','))
+
   const HOME_PICK = join(SCRATCH, 'home-pick')
   const pick = await capture(
     'pick',
     HOME_PICK,
     [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, data: '/feedback', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
-      { atTick: 150, requireAwait: true, awaitText: 'Provider or model report', awaitStableTicks: 3, mark: 'chooser', data: '' },
-      { afterPrevTicks: 2, data: '' },
+      { atTick: 150, requireAwait: true, awaitText: 'Provider or model report', awaitStableTicks: 3, mark: 'chooser', data: '\u001b' },
+      { atTick: 190, requireAwait: true, awaitText: 'cancelled', awaitStableTicks: 3, mark: 'closed', data: '' },
     ],
     200,
     { MERCURY_GH_CMD: fakeGhCmd },
@@ -381,7 +434,8 @@ if (!existsSync(BIN)) {
   check('the /feedback journey delivered every send', pick.status === 0, `exit ${pick.status}: ${pick.tail.trim().slice(-300)}`)
   const chooser = pick.marks.chooser ?? ''
   check('B3 /feedback opens the three-row chooser with the yml names', chooser.includes('Feedback — which kind?') && forms.ISSUE_KINDS.every(k => chooser.includes(forms.ISSUE_FORMS[k].name)))
-  check('B3 esc on the chooser files nothing (no draft, no gh)', !existsSync(join(HOME_PICK, 'feedback')))
+  const closed = pick.marks.closed ?? ''
+  check('B3 esc on the chooser closes it and files nothing (no draft, no gh)', !closed.includes('Feedback — which kind?') && !existsSync(join(HOME_PICK, 'feedback')))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
