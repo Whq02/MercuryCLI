@@ -159,6 +159,7 @@ export type WorkRowV1 = {
   unpricedTurns?: number
   toolUses?: number
   activity?: string
+  wait?: string
   toolUseId?: string
   workflowRunId?: string
   phases?: WorkPhaseV1[]

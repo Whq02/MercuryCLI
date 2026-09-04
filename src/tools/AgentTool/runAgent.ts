@@ -49,6 +49,13 @@ import {
   STRUCTURED_OUTPUT_TOOL_NAME,
 } from '../WorkflowTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
+import {
+  chargeRecoveryWait,
+  makeRecoveryBudget,
+  recoveryBudgetSpentLine,
+  recoveryNoticeFacts,
+  retryWaitWords,
+} from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
@@ -142,6 +149,7 @@ export type RunAgentParams = {
   effortOverride?: string
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
+  onWait?: (words: string | null) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   structuredOutputSpec?: {
     schema: Record<string, unknown>
@@ -461,6 +469,7 @@ export async function* runAgent(
     effortOverride,
     instructionProfileOverride,
     onQueryProgress,
+    onWait,
     onResolvedIdentity,
     structuredOutputSpec,
   } = params
@@ -515,6 +524,14 @@ export async function* runAgent(
       events: eventsSeen,
       toolUses: toolUsesSeen,
     })
+  const recovery = makeRecoveryBudget()
+  let throttled: Error | null = null
+  let budgetCut: ReturnType<typeof setTimeout> | null = null
+  let retryWordsStanding = false
+  const cutAtBudget = (): void => {
+    throttled = new Error(recoveryBudgetSpentLine(recovery))
+    abortController.abort(throttled)
+  }
 
   const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
   let pendingAsks = 0
@@ -786,6 +803,8 @@ export async function* runAgent(
         : {}),
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
+    childContext.seatHolder = description ?? agentDefinition.agentType
+    if (onWait !== undefined) childContext.onSeatWait = onWait
     if (preserveToolUseResults) {
       ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
         true
@@ -859,6 +878,33 @@ export async function* runAgent(
         }, declaredWaitMs)
         deferredTouch.unref?.()
       }
+      const notice = recoveryNoticeFacts(message)
+      if (notice !== null) {
+        const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+        retryWordsStanding = true
+        onWait?.(
+          retryWaitWords({
+            attempt: notice.attempt ?? recovery.waits,
+            of: notice.of,
+            declaredMs: notice.declaredMs,
+            honoredMs,
+            status: notice.status,
+            budget: recovery,
+          }),
+        )
+        if (budgetCut !== null) clearTimeout(budgetCut)
+        budgetCut = null
+        if (spent && honoredMs <= 0) cutAtBudget()
+        else if (spent) {
+          budgetCut = setTimeout(cutAtBudget, honoredMs)
+          budgetCut.unref?.()
+        }
+      } else if (retryWordsStanding && (message as { type?: string }).type !== 'progress') {
+        retryWordsStanding = false
+        if (budgetCut !== null) clearTimeout(budgetCut)
+        budgetCut = null
+        onWait?.(null)
+      }
       if ((message as { type?: string }).type === 'assistant') {
         const content = (message as { message?: { content?: unknown } }).message?.content
         if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
@@ -908,6 +954,7 @@ export async function* runAgent(
     if (watchdog.fired) {
       throw stalledError()
     }
+    if (throttled !== null) throw throttled
     if (abortController.signal.aborted) {
       throw new AbortError()
     }
@@ -918,9 +965,12 @@ export async function* runAgent(
     if (watchdog.fired && !(error instanceof DeadlineExceededError)) {
       throw stalledError()
     }
+    if (throttled !== null && error !== throttled) throw throttled
     throw error
   } finally {
     watchdog.cancel()
+    if (budgetCut !== null) clearTimeout(budgetCut)
+    if (retryWordsStanding) onWait?.(null)
     if (askHeartbeat !== null) {
       clearInterval(askHeartbeat)
       askHeartbeat = null

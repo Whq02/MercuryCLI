@@ -144,6 +144,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...plainRow(task, 'agent', task.description || task.agentType),
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
+        ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
       })
     } else if (isInProcessTeammateTask(task)) {
       rows.push({
