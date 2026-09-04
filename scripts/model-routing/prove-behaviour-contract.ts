@@ -186,6 +186,24 @@ section('5 · unsigned-thinking strip (the Sol→Opus live-400 law)')
   check('a turn left empty gains the placeholder (row stays valid)', keptContent.length === 1 && keptContent[0]!.type === 'text')
   const untouched = [anthropicTurn]
   check('no unsigned thinking ⇒ the SAME array reference (zero-copy)', stripUnsignedThinkingBlocks(untouched as never) === (untouched as never))
+  const labelledTurn = mk([
+    { type: 'text', text: 'Working note.', citations: null, phase: 'commentary' },
+    { type: 'text', text: 'The answer.', citations: null, phase: 'final_answer' },
+  ])
+  const unlabelled = (stripUnsignedThinkingBlocks([labelledTurn] as never)[0] as { message: { content: Array<Record<string, unknown>> } }).message.content
+  check(
+    'a text block’s register label (phase) leaves before the request; words and citations byte-identical',
+    unlabelled.length === 2 &&
+      unlabelled.every(b => !('phase' in b)) &&
+      unlabelled[0]!.text === 'Working note.' &&
+      unlabelled[1]!.text === 'The answer.' &&
+      unlabelled[0]!.citations === null,
+    JSON.stringify(unlabelled),
+  )
+  check(
+    '…as a projection: the source message keeps its label (never a mutation)',
+    (labelledTurn as { message: { content: Array<Record<string, unknown>> } }).message.content[0]!.phase === 'commentary',
+  )
 }
 
 section('6 · section metadata — semantic names, owner, cacheClass')
