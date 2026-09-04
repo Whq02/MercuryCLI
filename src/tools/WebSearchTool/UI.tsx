@@ -53,6 +53,7 @@ function formatDuration(seconds: number): string {
 }
 
 function SearchResultLine({ output }: { output: Output }): React.ReactElement {
+  const tokens = useMercuryTokens()
   const searchEntries = output.results.filter(
     (entry): entry is Extract<Output['results'][number], { tool_use_id: string }> =>
       entry !== null && entry !== undefined && typeof entry !== 'string',
@@ -60,10 +61,11 @@ function SearchResultLine({ output }: { output: Output }): React.ReactElement {
   const searchCount = searchEntries.length
   const hitCount = searchEntries.reduce((sum, entry) => sum + entry.content.length, 0)
   const via = output.via && output.tier ? ` · ${viaChip(output.via as SearchBackendId, output.tier)}` : ''
+  const cached = output.cached ? ' · from the session cache' : ''
   const meta = `${formatDuration(output.durationSeconds)}${
     hitCount > 0 ? ` · ${hitCount} ${plural(hitCount, 'result')}` : ''
-  }${via}`
-  return (
+  }${via}${cached}`
+  const row = (
     <MessageResponse height={1}>
       <Text>
         <ToolCardMarker />
@@ -75,6 +77,15 @@ function SearchResultLine({ output }: { output: Output }): React.ReactElement {
         <ToolCardMeta text={meta} />
       </Text>
     </MessageResponse>
+  )
+  if (!output.hint) return row
+  return (
+    <Box flexDirection="column">
+      {row}
+      <MessageResponse height={1}>
+        <Text color={tokens.textMuted}>{output.hint}</Text>
+      </MessageResponse>
+    </Box>
   )
 }
 

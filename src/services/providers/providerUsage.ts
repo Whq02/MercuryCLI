@@ -24,6 +24,7 @@ import {
   type WeeklyPoolClaim,
 } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
+import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
@@ -347,7 +348,7 @@ export interface UsageRefreshIo {
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
-  reason?: 'poll' | 'turn' | 'operator'
+  reason?: 'poll' | 'turn' | 'operator' | 'sign-in'
 }
 
 export async function refreshProviderUsage(provider: RouterProviderId, io?: UsageRefreshIo): Promise<void> {
@@ -396,7 +397,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
   }
 }
 
-let usagePoll: { timer: ReturnType<typeof setInterval>; family: () => RouterProviderId | 'unrecognised' } | null = null
+let usagePoll: {
+  timer: ReturnType<typeof setInterval>
+  family: () => RouterProviderId | 'unrecognised'
+  unsubscribeSignIns: () => void
+} | null = null
 
 export function armProviderUsagePoll(opts: { family: () => RouterProviderId | 'unrecognised' }): () => void {
   if (usagePoll !== null) {
@@ -408,11 +413,17 @@ export function armProviderUsagePoll(opts: { family: () => RouterProviderId | 'u
       void refreshProviderUsage(family, { reason: 'poll' })
     }, usagePollTtlMs())
     timer.unref?.()
-    usagePoll = { timer, family: opts.family }
+    const unsubscribeSignIns = subscribeSignInEpoch(() => {
+      const family = usagePoll?.family() ?? 'unrecognised'
+      if (family === 'unrecognised') return
+      void refreshProviderUsage(family, { reason: 'sign-in' })
+    })
+    usagePoll = { timer, family: opts.family, unsubscribeSignIns }
   }
   return () => {
     if (usagePoll === null) return
     clearInterval(usagePoll.timer)
+    usagePoll.unsubscribeSignIns()
     usagePoll = null
   }
 }
