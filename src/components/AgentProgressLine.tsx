@@ -1,7 +1,6 @@
 
 import React from 'react'
 import { Box, Text } from '../ink.js'
-import { formatTokens } from '../utils/format.js'
 import { plural } from '../utils/stringUtils.js'
 
 export type AgentProgressLineProps = {
@@ -12,7 +11,7 @@ export type AgentProgressLineProps = {
   taskDescription?: string
   model?: string
   toolUseCount: number
-  tokens?: number
+  tokensLabel?: string
   color?: string
   isLast: boolean
   isResolved: boolean
@@ -32,7 +31,7 @@ export function AgentProgressLine({
   taskDescription,
   model,
   toolUseCount,
-  tokens,
+  tokensLabel,
   color,
   isLast,
   isResolved,
@@ -75,7 +74,7 @@ export function AgentProgressLine({
       {' '}
       {model !== undefined ? `· ${model} ` : ''}
       · {toolUseCount} {plural(toolUseCount, 'tool use')}
-      {tokens !== undefined ? ` · ${formatTokens(tokens)} tokens` : ''}
+      {tokensLabel !== undefined ? ` · ${tokensLabel}` : ''}
     </Text>
   )
 

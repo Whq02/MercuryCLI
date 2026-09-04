@@ -150,18 +150,21 @@ export type Progress = {
   percentage?: number
 }
 
-export function isProgressReportingAvailable(): boolean {
+export function isProgressReportingAvailable(
+  env: Record<string, string | undefined> = process.env,
+  tty: boolean = process.stdout.isTTY === true,
+): boolean {
   const setting = getInitialSettings()?.progressReporting
   if (setting !== undefined) return setting
-  if (!process.stdout.isTTY) return false
-  if (process.env.WT_SESSION) return false
-  if (process.env.ConEmuANSI || process.env.ConEmuPID || process.env.ConEmuTask) {
+  if (!tty) return false
+  if (env.WT_SESSION) return true
+  if (env.ConEmuANSI || env.ConEmuPID || env.ConEmuTask) {
     return true
   }
-  const version = coerce(process.env.TERM_PROGRAM_VERSION)
+  const version = coerce(env.TERM_PROGRAM_VERSION)
   if (!version) return false
-  if (process.env.TERM_PROGRAM === 'ghostty') return gte(version.version, '1.2.0')
-  if (process.env.TERM_PROGRAM === 'iTerm.app') return gte(version.version, '3.6.6')
+  if (env.TERM_PROGRAM === 'ghostty') return gte(version.version, '1.2.0')
+  if (env.TERM_PROGRAM === 'iTerm.app') return gte(version.version, '3.6.6')
   return false
 }
 

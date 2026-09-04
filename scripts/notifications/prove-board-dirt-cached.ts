@@ -54,9 +54,9 @@ git(repo, 'init', '-q')
 writeFileSync(join(repo, 'tracked.txt'), 'v1\n')
 git(repo, 'add', '-A')
 git(repo, 'commit', '-qm', 'seed')
-const BOUNDED = `-C ${repo} status --porcelain --untracked-files=normal -- .`
-
 const wt = await import('../../src/daemon/concourseWorktrees.ts')
+const { projectScopePathspec } = await import('../../src/utils/projectBoundary.ts')
+const BOUNDED = ['-C', repo, 'status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(repo)].join(' ')
 
 console.log('§1 the probe is bounded')
 {
@@ -111,7 +111,8 @@ console.log('§4 the board paints from the cache; the reap keeps the synchronous
   check("the board's main-checkout words ride cachedWorktreeDirt", board.includes('wt.cachedWorktreeDirt(workspaceId)') && !board.includes('wt.classifyWorktreeDirt('))
   const src = readFileSync(join(REPO_ROOT, 'src/daemon/concourseWorktrees.ts'), 'utf8')
   check('the reap still classifies synchronously (a reap sees the tree of its moment)', /dirt \?\?= classifyWorktreeDirt\(path\)/.test(src))
-  check('one probe spelling for both roads (the sync read and the cached refresh)', (src.match(/\.\.\.DIRT_PROBE\)/g) ?? []).length === 2)
+  check('one probe spelling for both roads (the sync read and the cached refresh)', (src.match(/\.\.\.dirtProbe\(path\)\)/g) ?? []).length === 2)
+  check('…and that spelling ends with the boundary owner\'s pathspec tail', src.includes("'--untracked-files=normal', ...projectScopePathspec(path)]"))
 }
 
 console.log('§5 the dirt law holds through the bounded probe')

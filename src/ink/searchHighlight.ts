@@ -2,10 +2,10 @@
 import {
   cellAt,
   CellWidth,
-  setCellStyleId,
   type Screen,
   type StylePool,
 } from './cell-grid.js'
+import { restyleCell, type OverlayRecord } from './geometry/overlay.js'
 
 type RowText = {
   text: string
@@ -44,6 +44,7 @@ export function applySearchHighlight(
   screen: Screen,
   query: string,
   stylePool: StylePool,
+  record?: OverlayRecord,
 ): boolean {
   if (!query) return false
   const needle = query.toLowerCase()
@@ -66,7 +67,7 @@ export function applySearchHighlight(
       for (let x = firstColumn; x <= lastColumn; x++) {
         const cell = cellAt(screen, x, y)
         if (!cell) continue
-        setCellStyleId(screen, x, y, stylePool.withInverse(cell.styleId))
+        restyleCell(screen, x, y, stylePool.withInverse(cell.styleId), record)
       }
       applied = true
     }

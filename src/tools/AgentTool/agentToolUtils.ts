@@ -11,10 +11,12 @@ import type { SetAppState } from '../../Task.js'
 import {
   completeAgentTask,
   createActivityDescriptionResolver,
+  createAgentLedger,
   createProgressTracker,
   drainPendingMessages,
   enqueueAgentNotification,
   failAgentTask,
+  foldResponseIntoLedger,
   getProgressUpdate,
   getTokenCountFromTracker,
   isLocalAgentTask,
@@ -368,11 +370,11 @@ export function finalizeAgentTool(
         } as AgentToolResult['usage'])
       : EMPTY_USAGE
 
-  const totalTokens =
-    (usage.input_tokens ?? 0) +
-    (usage.cache_creation_input_tokens ?? 0) +
-    (usage.cache_read_input_tokens ?? 0) +
-    (usage.output_tokens ?? 0)
+  const ledger = createAgentLedger()
+  for (const message of messages) {
+    if (message.type === 'assistant') foldResponseIntoLedger(ledger, message)
+  }
+  const totalTokens = ledger.inputTokens + ledger.outputTokens
 
   let structured: AgentToolResult['structured']
   let structuredOutcome: AgentTerminalOutcome | undefined
