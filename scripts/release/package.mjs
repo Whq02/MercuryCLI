@@ -43,9 +43,13 @@ if (degraded.includes('voice-input')) ok('the voice capture pack is absent from 
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]
+if (manifest.target && typeof manifest.target === 'object' && manifest.target.release !== TARGET) {
+  const builtFor = manifest.target.release ?? `${manifest.target.platform}/${manifest.target.arch} (no release archive exists for it)`
+  fail(`dist was built for ${builtFor} but --target is ${TARGET} — build for the target: bun run build.ts --target ${TARGET}`)
+}
 const runtime = manifest.runtime && manifest.runtime.vendored === true ? manifest.runtime : null
 if (runtime) {
-  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build on the target platform`)
+  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build for the target: bun run build.ts --target ${TARGET}`)
   const runtimeBinary = join(dist, ...runtime.path.split('/'), ...runtime.binary.split('/'))
   if (!existsSync(runtimeBinary)) fail(`dist manifest declares the vendored runtime at ${runtime.path}/${runtime.binary} but the file is missing — rebuild`)
 }
@@ -302,13 +306,16 @@ if (!existsSync(join(smoke, 'mercury', 'splash-core.mjs'))) fail('smoke: splash-
 const smokeHome = join(smoke, 'home')
 const smokeVersions = join(smokeHome, 'versions')
 const smokeLocalAppData = join(smokeHome, 'AppData', 'Local')
+const smokeUserPath = join(smokeHome, 'user-path.json')
 const smokeEnv = {
   ...process.env,
   MERCURY_CONFIG_DIR: smokeHome,
   HOME: smokeHome,
   LOCALAPPDATA: smokeLocalAppData,
   MERCURY_VERSIONS_DIR: smokeVersions,
+  MERCURY_USER_PATH_FILE: smokeUserPath,
   CI: '1',
+  ...(IS_WIN ? {} : { SHELL: '/bin/bash' }),
 }
 const run = (args) =>
   IS_WIN
@@ -409,6 +416,7 @@ if (!dryOut.includes(`would install version: ${VERSION}`)) fail(`smoke: install 
 if (existsSync(join(smokeVersions, VERSION))) fail('smoke: install --dry-run wrote a version directory')
 ok('install --dry-run describes without changing')
 
+if (IS_WIN) writeFileSync(smokeUserPath, JSON.stringify({ kind: 'ExpandString', value: '%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps' }) + '\n')
 const installOut = run(['install'])
 if (!existsSync(join(smokeVersions, VERSION, 'mercury.mjs'))) fail('smoke: install did not stage the version payload')
 if (!installOut.includes(`installed: ${VERSION}`)) fail(`smoke: install output unexpected: ${installOut.slice(0, 300)}`)
@@ -421,9 +429,33 @@ const shimVersion = (IS_WIN
 if (!shimVersion.includes(VERSION)) fail(`smoke: stable command printed "${shimVersion}" (expected ${VERSION})`)
 ok(`user-local install + stable command → ${shimVersion}`)
 
+const pathLineOf = (out) => out.split('\n').find(l => l.startsWith('PATH: ') || l.startsWith('note: ')) ?? ''
+const pathLine = pathLineOf(installOut)
+if (pathLine === '') fail(`smoke: install printed no PATH line: ${installOut.slice(0, 300)}`)
+if (pathLine.includes('already runs from')) {
+  ok(`PATH act: ${pathLine.slice('PATH: '.length)} (this machine's own command; the write leg is proven by prove-install-path)`)
+} else {
+  if (!pathLine.startsWith('PATH: added')) fail(`smoke: install did not put the stable command's folder on PATH: ${pathLine}`)
+  if (IS_WIN) {
+    const store = JSON.parse(readFileSync(smokeUserPath, 'utf8'))
+    const binDir = join(smokeLocalAppData, 'Mercury', 'bin')
+    if (store.kind !== 'ExpandString' || !store.value.startsWith('%USERPROFILE%') || !store.value.endsWith(`;${binDir}`)) {
+      fail(`smoke: the user PATH was not appended in place with its kind and spellings kept: ${JSON.stringify(store)}`)
+    }
+  } else {
+    for (const rc of ['.bashrc', '.profile']) {
+      const text = existsSync(join(smokeHome, rc)) ? readFileSync(join(smokeHome, rc), 'utf8') : ''
+      const lines = text.split('mercury-managed-path').length - 1
+      if (lines !== 1) fail(`smoke: ${rc} carries ${lines} managed PATH lines (expected exactly one)`)
+    }
+  }
+  ok(`PATH act: ${pathLine.slice('PATH: '.length)}`)
+}
+
 const repeatOut = run(['install'])
 if (!repeatOut.includes('already present')) fail(`smoke: repeat install was not a truthful no-op: ${repeatOut.slice(0, 300)}`)
-ok('repeat install is a truthful no-op (idempotent)')
+if (!/already (names|lists|runs from|on your PATH)/.test(pathLineOf(repeatOut))) fail(`smoke: the repeat install did not leave PATH as it found it: ${pathLineOf(repeatOut)}`)
+ok('repeat install is a truthful no-op (idempotent) and leaves PATH as it found it')
 
 const statusOut = run(['update', '--status'])
 if (!statusOut.includes(`installed version: ${VERSION}`)) fail(`smoke: update --status missing installed version: ${statusOut.slice(0, 300)}`)

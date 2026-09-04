@@ -728,7 +728,7 @@ async function* queryModel(
     }
   }
 
-  const effort = resolveAppliedEffort(options.model, options.effortValue)
+  const effort = resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
 
   const startIncludingRetries = Date.now()
   let start = Date.now()

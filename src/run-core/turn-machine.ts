@@ -28,6 +28,7 @@ const switchReceipts = new Set<string>()
 
 const responsesClassified = new Set<string>()
 const streamEndsReceipted = new Set<string>()
+const effortAdjustmentsReceipted = new Set<string>()
 const RESPONSES_CLASSIFIED_CAP = 64
 function rememberClassifiedResponse(id: string): void {
   responsesClassified.add(id)
@@ -63,6 +64,7 @@ import {
   applyTurnTierModel,
 } from '../utils/autopilot/tierState.js'
 import {
+  effortAdjustedReceiptLine,
   isTurnOwningQuerySource,
   resolveEffortTruth,
 } from '../utils/effort.js'
@@ -492,7 +494,7 @@ async function* streamModel(
         reference: callReference,
       })
       if (pulseMain) {
-        const truth = resolveEffortTruth(iter.currentModel, effortValue)
+        const truth = resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })
         const effortLabel = truth.wire === undefined ? undefined : truth.label
         notePulseModel(iter.currentModel, effortLabel)
         setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'dispatching', {
@@ -656,6 +658,17 @@ async function* streamModel(
           yield emit({
             kind: 'notice',
             message: createSystemMessage(streamEndReceiptLine(settled.streamEnd), 'warning'),
+          })
+        }
+        for (const settled of iter.assistantMessages) {
+          const adjusted = settled.effortAdjusted
+          if (adjusted === undefined) continue
+          const key = `${toolUseContext.agentId ?? 'main'}:${adjusted.model}:${adjusted.asked}>${adjusted.sent ?? ''}`
+          if (effortAdjustmentsReceipted.has(key)) continue
+          effortAdjustmentsReceipted.add(key)
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(effortAdjustedReceiptLine(adjusted), 'warning'),
           })
         }
       } catch (innerError) {

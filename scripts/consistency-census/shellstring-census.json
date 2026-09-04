@@ -476,7 +476,7 @@
     },
     {
       "file": "scripts/formal-models/prove-flag-interactions.ts",
-      "line": 152,
+      "line": 159,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
       "cls": "platform-owner",
@@ -1691,6 +1691,14 @@
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
+      "file": "scripts/streaming/prove-settle-ghost-drive.ts",
+      "line": 187,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
       "file": "scripts/streaming/prove-stream-faults.ts",
       "line": 39,
       "mechanism": "hardcoded-interpreter",
@@ -2115,6 +2123,14 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
+      "file": "scripts/ui/prove-crew-seats-drive.ts",
+      "line": 308,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
       "file": "scripts/ui/prove-critter-resize.ts",
       "line": 94,
       "mechanism": "hardcoded-interpreter",
@@ -2145,6 +2161,14 @@
       "excerpt": "execSync(`grep -c ${JSON.stringify(s)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/ui/prove-gpt6-astra-crew-drive.ts",
+      "line": 390,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
       "file": "scripts/ui/prove-helm-header-overflow.ts",
@@ -2249,6 +2273,14 @@
       "excerpt": "execFileSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/prove-row-fills-its-pane.ts",
+      "line": 316,
+      "mechanism": "execSync-string",
+      "excerpt": "const hits = execSync(`grep -rlE '<(MessageRow|Messages)\\\\b' src/components src/screens src/utils src/tools src/commands 2>/dev/null || true",
+      "cls": "intentional-shell",
+      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
       "file": "scripts/ui/prove-s32-acceptance.ts",
