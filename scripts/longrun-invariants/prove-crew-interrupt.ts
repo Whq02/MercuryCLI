@@ -271,6 +271,96 @@ section('§K4 the resume road — one owner behind every door')
   check('the run loop seeds its chain parent from the seed messages\' leaf — a resume replays the prompt', run.includes('let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid'))
 }
 
+section('§K10 the wait tells its truth — the phase fold, the one spelling, every surface')
+{
+  const { foldAgentWaitEvent, agentWaitWords, agentWaitElapsed } = await import('../../src/tasks/LocalAgentTask/agentWait.js')
+  const { createProgressTracker, foldQueryProgressIntoTracker, getProgressUpdate } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+  const t0 = 1_000_000
+  let wait = foldAgentWaitEvent(null, { type: 'stream_request_start' }, t0)
+  check('K10 the request leaves ⇒ request-sent', wait?.phase === 'request-sent' && agentWaitWords(wait, t0 + 2000) === 'request sent')
+  const same = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'ping' } }, t0 + 100)
+  check('K10 an event that moves nothing returns the SAME wait (no republish)', same === wait)
+  wait = foldAgentWaitEvent(wait, { type: 'request_wait', wait: { kind: 'first-byte', cold: true, promptTokens: 900, model: 'Fable 5.1', budgetMs: 60_000, sinceMs: t0 + 50, attempt: 1 } }, t0 + 60)
+  check('K10 the first-byte wait names its budget and counts from its own clock', wait?.phase === 'first-byte' && agentWaitWords(wait, t0 + 4050) === 'waiting for the first byte · 4s, within 60 s')
+  wait = foldAgentWaitEvent(wait, { type: 'request_wait', wait: null }, t0 + 3000)
+  check('K10 the wait ending ⇒ the first byte is in, no tokens yet', wait?.phase === 'replying' && agentWaitWords(wait, t0 + 3500) === 'first byte in, no tokens yet')
+  wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'weighing' } } }, t0 + 4000)
+  check('K10 a thinking delta ⇒ reasoning with the counter moving on the thinking clock', wait?.phase === 'reasoning' && agentWaitWords(wait, t0 + 4000 + 130_000) === 'reasoning 2m 10s, no tokens yet')
+  const stillReasoning = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'more' } } }, t0 + 9000)
+  check('K10 later thinking deltas keep the SAME reasoning wait (the clock stands)', stillReasoning === wait)
+  wait = foldAgentWaitEvent(wait, { type: 'stream_event', event: { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'hi' } } }, t0 + 10_000)
+  check('K10 a visible token ⇒ streaming', wait?.phase === 'streaming' && agentWaitWords(wait, t0 + 11_000) === 'streaming')
+  wait = foldAgentWaitEvent(wait, { type: 'assistant', message: { content: [{ type: 'tool_use', id: 't1', name: 'Read', input: {} }] } }, t0 + 12_000)
+  check('K10 a reply with tool calls ⇒ the tool phase, whose word is the activity line (null here)', wait?.phase === 'tool' && agentWaitWords(wait, t0 + 13_000) === null)
+  const retry = foldAgentWaitEvent(wait, { type: 'request_wait', wait: { kind: 'retry', attempt: 2, of: 3, reason: 'a 529', delayMs: 4000, sinceMs: t0 + 20_000 } }, t0 + 20_000)
+  check('K10 a scheduled retry names its delay, its cause and the ladder', retry?.phase === 'retry' && agentWaitWords(retry, t0 + 20_500) === 'retrying in 4 s — a 529 (retry 2 of 3)')
+  const backoff = foldAgentWaitEvent(wait, { type: 'system', subtype: 'api_error', retryInMs: 2500, retryAttempt: 1 }, t0 + 30_000)
+  check('K10 a provider fault with a retry delay is a retry too', backoff?.phase === 'retry' && agentWaitWords(backoff, t0 + 30_000) === 'retrying in 3 s — a provider fault (retry 1)')
+  check('K10 the seat phase is reserved for the gate owner\'s own sentence', agentWaitWords({ phase: 'seat', sinceMs: t0, words: 'waiting for a seat (3 of 3 held)' }, t0) === 'waiting for a seat (3 of 3 held)' && agentWaitWords({ phase: 'seat', sinceMs: t0 }, t0) === 'waiting for a seat')
+  check('K10 the counter\'s spelling', agentWaitElapsed(12_000) === '12s' && agentWaitElapsed(130_000) === '2m 10s' && agentWaitElapsed(3_900_000) === '1h 5m')
+  const tracker = createProgressTracker()
+  check('K10 the tracker folds and reports a change once', foldQueryProgressIntoTracker(tracker, { type: 'stream_request_start' }, t0) === true && foldQueryProgressIntoTracker(tracker, { type: 'stream_event', event: { type: 'ping' } }, t0 + 1) === false && getProgressUpdate(tracker).wait?.phase === 'request-sent')
+  const { projectWorkRoster } = await import('../../src/utils/task/workRoster.js')
+  const crew = await import('../../src/services/engine-connector/crewFacts.js')
+  const running = { id: 'ag-w', type: 'local_agent', status: 'running', description: 'crew-fable', agentId: 'ag-w', prompt: 'p', agentType: 'general-purpose', isBackgrounded: true, outputFile: '/n', outputOffset: 0, notified: false, startTime: t0, progress: { toolUseCount: 0, tokenCount: 0, recentActivities: [], wait: { phase: 'first-byte', sinceMs: t0, budgetMs: 45_000 } } }
+  const rows = projectWorkRoster({ 'ag-w': running } as never)
+  check('K10 the roster row carries the wait whole', rows[0]?.wait?.phase === 'first-byte' && rows[0]?.wait?.budgetMs === 45_000)
+  const facts = crew.crewAgentFactsOf(rows[0]!, 'fx')!
+  check('K10 the crew record carries it and the status cell speaks the phase', facts.wait?.phase === 'first-byte' && crew.crewStatusWords(facts, t0 + 2000) === 'waiting for the first byte · 2s, within 45 s' && crew.crewStateLabel(facts) === 'running')
+  const toolRow = projectWorkRoster({ 'ag-t': { ...running, id: 'ag-t', agentId: 'ag-t', progress: { toolUseCount: 1, tokenCount: 0, recentActivities: [], lastActivity: { toolName: 'Read', input: {}, activityDescription: 'Read notes.txt' }, wait: { phase: 'tool', sinceMs: t0 } } } } as never)
+  const toolFacts = crew.crewAgentFactsOf(toolRow[0]!, 'fx')!
+  check('K10 the tool phase speaks the running tool\'s own line', crew.crewPhaseWords(toolFacts, t0 + 1000) === 'Read notes.txt')
+  const landedFacts = crew.crewAgentFactsOf({ ...rows[0]!, status: 'completed', endTime: t0 + 9000 }, 'fx')!
+  check('K10 a settled row keeps the one status word', crew.crewPhaseWords(landedFacts, t0 + 9000) === null && crew.crewStatusWords(landedFacts, t0 + 9000) === 'landed')
+  const { agentPulse, agentPulseWord } = await import('../../src/tools/WorkflowTool/livePulse.js')
+  const budgeted = agentPulse({ state: 'progress', waiting: 'prefill', waitBudgetMs: 60_000, waitSinceMs: t0, lastProgressAt: t0 }, t0 + 3000)
+  check('K10 the workflow pulse speaks the budget in the one spelling', budgeted.kind === 'first-token' && agentPulseWord(budgeted) === 'waiting for the first byte · 3s, within 60 s')
+  check('K10 a prefill frame without a budget keeps its old word', agentPulseWord(agentPulse({ state: 'progress', waiting: 'prefill', lastProgressAt: t0 }, t0 + 3000)) === 'awaiting first token')
+  const run = src('src/tools/AgentTool/runAgent.ts')
+  check('K10 the run loop\'s wait door hands the provider\'s wait to the run\'s own progress callback', run.includes("childContext.setSDKStatus = (status: unknown) => {") && run.includes("type: 'request_wait'"))
+  check('K10 the three run sites feed the record (the background lifecycle, the foreground run, the resume)', src('src/tools/AgentTool/agentToolUtils.ts').includes('event => publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/foregroundExecution.tsx').includes('publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/resumeAgent.ts').includes('onQueryProgress !== undefined ? { onQueryProgress } : {}'))
+  check('K10 the workflow hook carries the budget on its prefill frame and the manifest keeps it', src('src/tools/WorkflowTool/agentHooks.ts').includes("waitBudgetMs: w.budgetMs") && src('src/tools/WorkflowTool/runManifest.ts').includes("waitBudgetMs: num(ev['waitBudgetMs'])"))
+  check('K10 the transcript\'s agent card and the crew view speak the phase', src('src/tools/AgentTool/UI.tsx').includes('crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)') && src('src/components/mercury-ui/screens/CrewView.tsx').includes('crewStatusWords(facts, now)'))
+}
+
+section('§K10b a GPT seat pays no per-runner catalogue fetch — the daemon\'s snapshot rides the claim')
+{
+  const cat = await import('../../src/services/providers/openai/openaiCatalogue.js')
+  cat.__resetOpenaiCatalogueForTest()
+  const env = { ...process.env, OPENAI_API_KEY: 'sk-test-crew-wait-prime', MERCURY_CREDENTIAL_STORE: 'file' } as NodeJS.ProcessEnv
+  const model = { id: 'gpt-5.6-sol', supportedReasoningEfforts: ['low', 'medium', 'high'], reasoningEffortsStated: true, defaultReasoningEffort: 'medium', supportedInApi: true, priority: 1 } as never
+  const fetchedAtMs = Date.now() - 20_000
+  check('K10b an empty snapshot never primes', cat.primeOpenaiCatalogue({ sourceKind: 'api-key', models: [], fetchedAtMs }, env) === false)
+  check('K10b the daemon\'s snapshot primes the runner\'s cache', cat.primeOpenaiCatalogue({ sourceKind: 'api-key', models: [model], fetchedAtMs }, env) === true && cat.getCachedOpenaiCatalogue('api-key', env)?.models.length === 1)
+  check('K10b an older snapshot never replaces a fresher one', cat.primeOpenaiCatalogue({ sourceKind: 'api-key', models: [model, model], fetchedAtMs: fetchedAtMs - 5000 }, env) === false && cat.getCachedOpenaiCatalogue('api-key', env)?.models.length === 1)
+  let fetched = 0
+  const refreshed = await cat.refreshOpenaiCatalogue('api-key', {
+    env,
+    fetchImpl: (async () => {
+      fetched++
+      throw new Error('the runner must not fetch — the primed snapshot serves')
+    }) as never,
+  })
+  check('K10b the runner\'s refresh within the TTL serves the primed snapshot and fetches nothing', fetched === 0 && refreshed?.models.length === 1 && refreshed.lastError === undefined)
+  cat.__resetOpenaiCatalogueForTest()
+  check('K10b the claim carries the snapshot and the runner primes it at the claim', src('src/daemon/warmRunner.ts').includes('openai_catalogue: openaiCatalogue') && src('src/cli/print.ts').includes('primeOpenaiCatalogue(request.openai_catalogue'))
+  check('K10b the daemon\'s live view keeps the snapshot warm', src('src/daemon/signInView.ts').includes('void refreshOpenaiCatalogue(openaiAccount.kind)'))
+}
+
+section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
+{
+  const { resolveWorkerTools } = await import('../../src/tools/AgentTool/agentToolUtils.js')
+  const def = { agentType: 'general-purpose', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+  const tool = (name: string): never => ({ name, description: '', inputSchema: {}, call: async () => ({}) }) as never
+  const pool = [tool('Read'), tool('Bash'), tool('Agent')] as never
+  const launch = resolveWorkerTools(def, 'implement', pool, true).map(t => t.name)
+  const resume = resolveWorkerTools(def, 'implement', pool, true).map(t => t.name)
+  check('K4b the same inputs derive the same pool for a launch and a resume', launch.join(',') === resume.join(','), `${launch.join(',')} vs ${resume.join(',')}`)
+  check('K4b the launch narrows through the worker derivation', src('src/tools/AgentTool/AgentTool.tsx').includes('resolveWorkerTools(\n          agentDef,\n          plan.workerPermissionMode,'))
+  const resumeSrc = src('src/tools/AgentTool/resumeAgent.ts')
+  check('K4b the resume narrows through the SAME derivation under the same mode, never the raw pool', resumeSrc.includes('resolveWorkerTools(\n        definition,\n        workerPermissionMode,') && !resumeSrc.includes('const tools = isForkResume\n    ? toolUseContext.options.tools\n    : assembleToolPool('))
+}
+
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {
