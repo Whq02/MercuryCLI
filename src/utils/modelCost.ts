@@ -4,7 +4,7 @@ import { geminiPricePin, geminiPriceTierFor } from '../services/providers/gemini
 import { huggingfaceDisplayPin } from '../services/providers/huggingface/huggingfacePins.js'
 import type { CallModelRoute } from '../services/providers/idSpaces.js'
 import { kimiDisplayPin } from '../services/providers/moonshot/kimiPins.js'
-import { gptDisplayPin } from '../services/providers/openai/gptPins.js'
+import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gptPins.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { glmPricePin } from '../services/providers/zai/glmPins.js'
 import { getCanonicalName, getDefaultMainLoopModelSetting, type ModelShortName } from './model/model.js'
@@ -165,7 +165,10 @@ type PricingOwner = (model: string, promptTokens: number | undefined) => Resolve
 
 const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   anthropic: model => firstPartyPricing(model),
-  openai: model => recorded(engineTier(gptDisplayPin(model))),
+  openai: (model, promptTokens) => {
+    const pin = gptDisplayPin(model)
+    return pin === undefined ? undefined : recorded(engineTier(gptPriceTierFor(pin, promptTokens)))
+  },
   zai: model => recorded(engineTier(glmPricePin(model))),
   moonshot: model => recorded(engineTier(kimiDisplayPin(model))),
   deepseek: model => recorded(engineTier(deepseekDisplayPin(model))),
