@@ -38,7 +38,7 @@ guard.unref?.()
 
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, shouldInduceEdit, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
+const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
 
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: `sig-${text}` })
@@ -138,14 +138,29 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const inducedTurn = applyInducedPrefixEdit(r2, { kind: 'turn', index: 0 })
   check('the turn edit appends a text block to the named message', j((inducedTurn.messages[0] as Block).content) === j([TEXT('first prompt'), TEXT('[induced edit]')]) && j((r2.messages[0] as Block).content) === j([TEXT('first prompt')]))
   check('a turn past the end is identity', applyInducedPrefixEdit(r2, { kind: 'turn', index: 9 }) === r2)
-  resetPrefixLedger()
-  check('no record ⇒ no induced edit', !shouldInduceEdit('main', KEY, '1|u1'))
-  judgeAndRecordPrefix('main', KEY, r1, { requestMark: '1|u1' })
-  check('a repeat pass over the FIRST request (same mark) ⇒ still no edit', !shouldInduceEdit('main', KEY, '1|u1'))
-  check('the second request (a new mark) ⇒ the edit rides', shouldInduceEdit('main', KEY, '3|u3'))
-  judgeAndRecordPrefix('main', KEY, applyInducedPrefixEdit(r2, { kind: 'system' }), { requestMark: '3|u3', induced: true })
-  check('…and a repeat pass over that request keeps it (the wire carries what was judged)', shouldInduceEdit('main', KEY, '3|u3'))
-  check('another key (a compaction) ⇒ no edit until its own second request', !shouldInduceEdit('main', 'owner|summary|m', '5|u5'))
+  check('a first request (no assistant row yet) ⇒ no induced edit', !inducedEditApplies([{ type: 'attachment' }, { type: 'user' }]))
+  check('a history with an assistant row ⇒ the edit rides (the second request, and a resume)', inducedEditApplies([{ type: 'user' }, { type: 'assistant' }, { type: 'user' }]))
+
+  const { deadMarksFromDrops, deadThinkingMarks, stripDeadThinking } = binding
+  const ids = [null, 'msg_1', null, 'msg_2', null]
+  const marks1 = deadMarksFromDrops([{ type: 'thinking_dropped', path: 'messages.1.content.0', reason: 'prefix_binding_mismatch' }, { type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }, { type: 'other', path: 'messages.3.content.1', reason: 'x' }], ids)
+  check('deadMarksFromDrops names each dropped block by its response id and block index (a user turn or an unknown path yields nothing)', j(marks1) === j([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }]) && deadMarksFromDrops([{ type: 'thinking_dropped', path: 'messages.0.content.0', reason: 'prefix_binding_mismatch' }], ids).length === 0, j(marks1))
+  const existing = new Map([['msg_1', new Set([0])]])
+  const later = deadMarksFromDrops([{ type: 'thinking_dropped', path: 'messages.1.content.1', reason: 'prefix_binding_mismatch' }], ids, existing)
+  check('a later report indexes the content AS SENT: with block 0 already dead, sent index 1 is original index 2', j(later) === j([{ messageId: 'msg_1', blockIndex: 2 }]), j(later))
+  const deadRow = { type: 'system', subtype: 'thinking_dead', dead: [{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }], content: '', level: 'info', uuid: 'dead-1', timestamp: 't' }
+  const collected = deadThinkingMarks([user(TEXT('x')), deadRow, { type: 'system', subtype: 'informational', content: 'noise' }] as never)
+  check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
+  const wire = [
+    { type: 'user', uuid: 'u1', message: { role: 'user', content: [TEXT('q')] } },
+    { type: 'assistant', uuid: 'a1', message: { id: 'msg_1', role: 'assistant', content: [THINK('one'), TEXT('a')] } },
+    { type: 'user', uuid: 'u2', message: { role: 'user', content: [TEXT('q2')] } },
+    { type: 'assistant', uuid: 'a2', message: { id: 'msg_2', role: 'assistant', content: [THINK('two')] } },
+    { type: 'assistant', uuid: 'a3', message: { id: 'msg_3', role: 'assistant', content: [THINK('three'), TEXT('c')] } },
+  ]
+  const stripped = stripDeadThinking(wire as never, collected) as unknown as Array<{ message: { content: Block[] } }>
+  check('stripDeadThinking leaves the marked blocks off: text stays, an emptied message keeps a placeholder, unmarked rows pass by reference', j(stripped[1]!.message.content) === j([TEXT('a')]) && stripped[3]!.message.content.length === 1 && stripped[3]!.message.content[0]!.type === 'text' && String(stripped[3]!.message.content[0]!.text).includes('dropped') && (stripped[4] as unknown) === wire[4] && (stripped[0] as unknown) === wire[0], j(stripped.map(m => m.message.content)))
+  check('…identity when no mark applies', stripDeadThinking(wire as never, new Map()) === (wire as never))
 }
 
 section('§2 the words and the doctor — the receipts carry the named part')
@@ -325,6 +340,66 @@ if (!existsSync(DIST)) {
       check('[no drop] the rewrite row paints, naming the part and the API\'s silence', notices.length === 1 && notices[0]!.includes("Mercury rewrote already-sent history before this request — the system prompt's") && notices[0]!.includes('the API reported no dropped block this turn'), j(notices))
       const row = existsSync(ledgerFile(arena)) ? (JSON.parse(readFileSync(ledgerFile(arena), 'utf8')) as { last?: { kind?: string; part?: string } }) : null
       check("[no drop] the doctor ledger row is kind 'rewrite' with the part", row?.last?.kind === 'rewrite' && (row.last.part ?? '').startsWith("the system prompt's"), j(row))
+      await fixture.close()
+    }
+
+    {
+      const fixture = await startFixtureApi(scripted('kill', 6), { bindingCheck: true })
+      const arena = makeArena(fixture, { MERCURY_PREFIX_INDUCE_EDIT: 'system' })
+      const SID = 'c0ffee00-0000-4000-8000-00000000d007'
+      const debugFile = join(arena.home, 'kill.debug.log')
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', debugFile], [1, 2, 3, 4, 5].map(n => ({ prompt: `kill turn ${n}` })))
+      check('[killer] the five-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const dropsPer = fixture.messageRequests().map(q => (fixture as unknown as { drops?: unknown }) && 0)
+      void dropsPer
+      const dropLines = debugText(debugFile).split('\n').filter(l => l.includes('preserved thinking: [{"type":"thinking_dropped"'))
+      check('[killer] exactly ONE drop report reached the product (request 2, the rewrite) — not one per turn', reqs.length === 5 && dropLines.length === 1, `${reqs.length} requests, ${dropLines.length} drop report(s)`)
+      const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ role?: string; content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
+      check('[killer] the dead block is off the wire from request 3 on: requests 3, 4, 5 replay only the blocks minted after the rewrite (1, 2, 3 blocks)', j(thinkingPer) === j([0, 1, 1, 2, 3]), j(thinkingPer))
+      const placeholder = j(reqs[2]?.messages?.[1]).includes('reasoning the API dropped') || j(reqs[2]?.messages?.[1]).includes('"type":"text"')
+      check('[killer] the emptied first reply keeps a legal text block where the dead thinking sat', placeholder, j(reqs[2]?.messages?.[1]).slice(0, 200))
+      const notices = transcriptNotices(arena, SID)
+      check('[killer] exactly one notice, naming the part — it never repeats', notices.length === 1 && notices[0]!.includes("Mercury's prefix ledger names the part that moved: the system prompt's"), j(notices))
+      const dead = debugText(debugFile).split('\n').filter(l => l.includes('marked dead on the record'))
+      check('[killer] the record carries the dead mark once (one row, one block)', dead.length === 1 && dead[0]!.includes('1 dropped block(s)'), j(dead))
+      const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
+      check('[killer] the thinking_dead row is persisted in the transcript with its marks', rowsText.includes('"noticeKind":"thinking_dead"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('thinking_dead')).join(' | ').slice(0, 300))
+      const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
+      const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--debug-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
+      check('[killer] the resumed turn exits 0 under `error` (nothing refused)', r2.exit === 0 && fixture.refusals.length === 0, `exit=${r2.exit} refusals=${j(fixture.refusals)} stderr=${r2.stderr.slice(0, 200)}`)
+      const resumed = fixture.messageRequests().map(q => q.body as Body)
+      const resumedThinking = ((resumed[5]?.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
+      check('[killer] the resumed request replays the four live blocks and never the dead one; the fixture dropped nothing', resumed.length === 6 && resumedThinking === 4 && !j(resumed[5]!.messages).includes('kill thinking 1') && !r2.stdout.includes('"type":"thinking_dropped"'), `${resumed.length} requests, ${resumedThinking} blocks`)
+      check('[killer] no new notice after the resume', transcriptNotices(arena, SID).length === 1, j(transcriptNotices(arena, SID)))
+      await fixture.close()
+    }
+
+    {
+      const fixture = await startFixtureApi([
+        { kind: 'text', text: 'WT-T1', thinking: 'wt one', model: 'claude-fable-5-1' },
+        { kind: 'tool_use', name: 'EnterWorktree', input: { name: 'proof-hop' }, thinking: 'wt hop', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'WT-T2', thinking: 'wt two', model: 'claude-fable-5-1' },
+        { kind: 'text', text: 'WT-T3', thinking: 'wt three', model: 'claude-fable-5-1' },
+      ], { bindingCheck: true })
+      const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error' })
+      const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' }
+      spawnSync('git', ['init', '-q'], { cwd: arena.cwd, stdio: 'ignore' })
+      spawnSync('git', ['add', '.'], { cwd: arena.cwd, stdio: 'ignore' })
+      spawnSync('git', ['commit', '-q', '-m', 'seed'], { cwd: arena.cwd, stdio: 'ignore', env: gitEnv })
+      const SID = 'c0ffee00-0000-4000-8000-00000000d008'
+      const debugFile = join(arena.home, 'wt.debug.log')
+      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowedTools', 'Read,EnterWorktree', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile], [
+        { prompt: 'worktree turn 1' },
+        { prompt: 'worktree turn 2: hop into a worktree' },
+        { prompt: 'worktree turn 3' },
+      ])
+      check('[worktree] the three-turn process exits 0 under `error` (nothing refused)', r.exit === 0 && fixture.refusals.length === 0, `exit=${r.exit} refusals=${j(fixture.refusals)} stderr=${r.stderr.slice(0, 300)}`)
+      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const hopped = j(reqs[2]?.messages ?? []).includes('Created worktree')
+      check('[worktree] the hop happened (the tool result names the new worktree in the history)', reqs.length === 4 && hopped, `${reqs.length} requests; hopped=${hopped}`)
+      check('[worktree] the system prompt is byte-identical across the hop (the cache survived it)', reqs.length === 4 && reqs.every(q => systemTextOf(q) === systemTextOf(reqs[0]!)), reqs.map(q => systemTextOf(q).length).join(','))
+      check('[worktree] no drop, no receipt', !r.stdout.includes('"type":"thinking_dropped"') && transcriptNotices(arena, SID).length === 0, j(transcriptNotices(arena, SID)))
       await fixture.close()
     }
 

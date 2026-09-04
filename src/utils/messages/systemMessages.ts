@@ -69,6 +69,22 @@ export function createRosterTransitionMessage(
   }
 }
 
+export function createThinkingDeadMessage(
+  dead: import('../../types/message.js').DeadThinkingMark[],
+  content: string,
+): import('../../types/message.js').SystemThinkingDeadMessage {
+  return {
+    type: 'system',
+    subtype: 'thinking_dead',
+    dead,
+    content,
+    level: 'info',
+    isMeta: false,
+    timestamp: new Date().toISOString(),
+    uuid: randomUUID(),
+  }
+}
+
 export function createSeatReceiptMessage(
   content: string,
   level: SystemMessageLevel = 'info',
