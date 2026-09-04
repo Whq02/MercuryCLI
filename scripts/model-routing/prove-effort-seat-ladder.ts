@@ -127,6 +127,20 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   catalogue.__resetOpenaiCatalogueForTest()
 }
 
+{
+  console.log('\n— §4 · the receipt line and the typed stamp —')
+  const line = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max', sent: 'xhigh' })
+  check('the line names the asked word, the model and the served word', line === 'effort max is not served on GPT-5.5 today — sent xhigh', line)
+  const omitted = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max' })
+  check('a wire that omits the key says so', omitted === 'effort max is not served on GPT-5.5 today — no effort key was sent (the model default applies)', omitted)
+  const messageTypes = readFileSync(join(ROOT, 'src/types/message.ts'), 'utf8')
+  check('the settled assistant message carries the typed stamp beside the typed end', /streamEnd\?: StreamEndV1[\s\S]{0,600}effortAdjusted\?: EffortAdjustedV1/.test(messageTypes))
+  const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
+  check('the GPT lane stamps the adjustment on the settled message and no longer folds it into the reply text', lane.includes('lastMessage.effortAdjusted = ') && !lane.includes("is not in ${modelId}'s live effort catalogue"))
+  const machine = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
+  check('the turn machine paints the receipt row from the stamp, once per thread and word pair', machine.includes('const adjusted = settled.effortAdjusted') && machine.includes('effortAdjustedReceiptLine(adjusted)') && /effortAdjustmentsReceipted\.has\(key\)/.test(machine))
+}
+
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]
   else process.env[key] = value

@@ -396,6 +396,15 @@ function resolveEffortTruthWithEnv(
 }
 
 
+export type EffortAdjustedV1 = { model: string; name: string; asked: string; sent?: string }
+
+export function effortAdjustedReceiptLine(adjusted: EffortAdjustedV1): string {
+  return adjusted.sent !== undefined
+    ? `effort ${adjusted.asked} is not served on ${adjusted.name} today — sent ${adjusted.sent}`
+    : `effort ${adjusted.asked} is not served on ${adjusted.name} today — no effort key was sent (the model default applies)`
+}
+
+
 export function resolveAppliedEffort(
   model: string,
   appStateEffortValue: EffortValue | undefined,
