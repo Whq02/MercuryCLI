@@ -336,6 +336,8 @@ export type GlobalConfig = {
 
   copyOnSelect?: boolean
 
+  mouseCapture?: boolean
+
   githubRepoPaths?: Record<string, string[]>
 
   deepLinkTerminal?: string
@@ -457,6 +459,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
   'copyOnSelect',
+  'mouseCapture',
   'defaultCritter',
   'defaultProvider',
   'concourseEnabled',

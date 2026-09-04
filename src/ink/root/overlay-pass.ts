@@ -1,5 +1,6 @@
 import type { Screen, StylePool } from '../cell-grid.js'
 import type { FollowScroll } from '../compose-walk.js'
+import type { OverlayRecord } from '../geometry/overlay.js'
 import { applyPositionedHighlight, type MatchPosition } from '../render-to-screen.js'
 import { applySearchHighlight } from '../searchHighlight.js'
 import {
@@ -28,6 +29,7 @@ export type OverlayPassInput = {
   searchQuery: string
   searchPositions: SearchPositions | null
   onSelectionCleared: () => void
+  record?: OverlayRecord
 }
 
 export type OverlayPassResult = { selActive: boolean; hlActive: boolean }
@@ -64,12 +66,12 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
   if (input.altScreen) {
     selActive = hasSelection(selection)
     if (selActive) {
-      applySelectionOverlay(input.screen, selection, input.stylePool)
+      applySelectionOverlay(input.screen, selection, input.stylePool, input.record)
     }
-    hlActive = applySearchHighlight(input.screen, input.searchQuery, input.stylePool)
+    hlActive = applySearchHighlight(input.screen, input.searchQuery, input.stylePool, input.record)
     if (input.searchPositions) {
       const sp = input.searchPositions
-      const posApplied = applyPositionedHighlight(input.screen, input.stylePool, sp.positions, sp.rowOffset, sp.colOffset, sp.currentIdx)
+      const posApplied = applyPositionedHighlight(input.screen, input.stylePool, sp.positions, sp.rowOffset, sp.colOffset, sp.currentIdx, input.record)
       hlActive = hlActive || posApplied
     }
   }
