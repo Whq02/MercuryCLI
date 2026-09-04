@@ -65,7 +65,7 @@ export interface CapturedRequest {
 export interface UsageEndpointControl {
   mode: 'ok' | 'error' | 'hang'
   status: number
-  payload: (n: number) => unknown
+  payload: (n: number, bearer?: string) => unknown
   next?: (n: number) => void
 }
 
@@ -468,8 +468,9 @@ export async function startFixtureApi(
           res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: `fixture usage endpoint answered ${usage.status}` } }))
           return
         }
+        const bearer = req.headers.authorization
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify(usage.payload(n)))
+        res.end(JSON.stringify(usage.payload(n, typeof bearer === 'string' ? bearer : undefined)))
         return
       }
 
