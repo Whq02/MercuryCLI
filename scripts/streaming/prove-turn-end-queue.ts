@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { firstByteBudgetMs } from '../../src/services/providers/streamIdleBudget.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -32,6 +33,7 @@ const REPLY = 'the reply stands here after its last item'
 const ASK = 'hold after settle please'
 const READ_ASK = 'read three files please'
 const SLEEP_ASK = 'run the long sleep please'
+const LAUNCH_ASK = 'launch one agent please'
 const FIRST = 'first queued words'
 const SECOND = 'second queued words'
 
@@ -40,7 +42,7 @@ type Mark = { label: string; atTick: number; grid: Array<Array<{ c: string }>> }
 const gridText = (grid: Array<Array<{ c: string }>>): string =>
   grid.map(r => r.map(c => c.c || ' ').join('').replace(/\s+$/, '')).join('\n')
 
-async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' | 'stop' = 'hold'): Promise<void> {
+async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' | 'stop' | 'crew' = 'hold'): Promise<void> {
   const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-turnend-${route}-${scene}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
   const PROBE_KEY = 'sk-ant-turnend-probe-key'
@@ -119,11 +121,18 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
       { requireAwait: true, minTick: 5, awaitText: 'PROMPTS (', awaitSettleTicks: 4, data: '\x1b', mark: 'workbench-stop' },
       { afterPrevTicks: 10, data: '', mark: 'settled' },
   ]
+  const crewSends = [
+      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${LAUNCH_ASK}\r` },
+      { requireAwait: true, minTick: 10, awaitText: 'first-byte-seat', awaitSettleTicks: 15, data: '', mark: 'seat-waiting' },
+      { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'after-seat' },
+      { afterPrevTicks: 10, data: '', mark: 'settled' },
+  ]
   const cfg = {
     argv: ['node', DIST, '--model', model],
     cwd: FIXTURE_CWD,
-    sends: scene === 'hold' ? holdSends : scene === 'tool' ? toolSends : stopSends,
-    total: 400,
+    sends: scene === 'hold' ? holdSends : scene === 'tool' ? toolSends : scene === 'stop' ? stopSends : crewSends,
+    total: scene === 'crew' ? 1100 : 400,
     cols: 120,
     rows: 40,
     out,
@@ -164,7 +173,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
 
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
     encoding: 'utf-8',
-    timeout: vshotBudgetMs(150_000),
+    timeout: vshotBudgetMs(scene === 'crew' ? 260_000 : 150_000),
     cwd: FIXTURE_CWD,
     env: childEnv,
   })
@@ -187,6 +196,33 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
   const bench = marks.get('workbench') ?? ''
   const after = marks.get('after-budget') ?? ''
   const tail = (s: string): string => s.split('\n').slice(-14).join('\n')
+
+  if (scene === 'crew') {
+    const waiting = marks.get('seat-waiting') ?? ''
+    const afterSeat = marks.get('after-seat') ?? ''
+    const settled = marks.get('settled') ?? fin
+    const heldHeaders = wire.filter(c => c.kind === 'held-headers')
+    const parent = calls.filter(c => c.arm === 'launch-agent')
+    section(`${label} — S2: a crew seat whose request never answers its headers ends typed within the budget`)
+    check(`${label}: vshot ran the crew journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
+    check(`${label}: the seat's request was parked with no headers (once, then at most the bounded retry)`, heldHeaders.length >= 1 && heldHeaders.length <= 2, JSON.stringify(heldHeaders))
+    check(`${label}: while parked, the agent's row stood on the card as running (its own wait word is the card owner's — see the receipt)`, /first-byte-seat/.test(waiting) && /running a tool/.test(waiting), tail(waiting))
+    check(`${label}: the parent's follow-up carried the seat's typed end and landed the final text`, parent.some(c => ((c as { step?: number }).step ?? 0) >= 1) && afterSeat.includes(REPLY), JSON.stringify(parent.map(c => [c.n, (c as { step?: number }).step])))
+    const seatCalls = calls.filter(c => c.arm === 'seat-hold')
+    const seatTokens = (seatCalls[0] as { promptTokens?: number } | undefined)?.promptTokens ?? 0
+    const seatBudget = firstByteBudgetMs({ cold: true, promptTokens: seatTokens, idleMs: BUDGET_MS })
+    const retryGap = heldHeaders.length >= 2 ? heldHeaders[1]!.at - heldHeaders[0]!.at : -1
+    check(`${label}: the bounded retry re-parked at the owner's budget for the seat's own prompt`, retryGap >= seatBudget - 500 && retryGap <= seatBudget + 6_000, `retry gap=${retryGap}ms budget=${seatBudget}ms tokens=${seatTokens}`)
+    const gap = heldHeaders.length > 0 && parent.length > 1 ? (parent[parent.length - 1]!.at - heldHeaders[0]!.at) : -1
+    check(`${label}: the seat ended inside two budgets — never the fifty-minute ceiling`, gap > 0 && gap <= 2 * seatBudget + 15_000, `gap=${gap}ms budget=${seatBudget}ms`)
+    check(`${label}: the turn is freed — the strip is back at ready`, /· ready/.test(settled) && !/esc interrupt/.test(settled), tail(settled))
+    const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
+    const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n'))
+    check(`${label}: the typed line reached the record ("no first byte from … after N s")`, rows.some(l => /no first byte from/.test(l)), `rows=${rows.length}`)
+    if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
+    else console.log(`[forensics] world kept: ${RUN_HOME}`)
+    return
+  }
 
   if (scene === 'stop') {
     const running = marks.get('tool-running') ?? ''
@@ -285,5 +321,6 @@ if (wants('tool')) {
   await driveWire('openai', 'tool')
 }
 if (wants('stop')) await driveWire('anthropic', 'stop')
+if (wants('crew')) await driveWire('openai', 'crew')
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

@@ -193,6 +193,7 @@ export function createUserMessage({
   sourceToolAssistantUUID,
   permissionMode,
   origin,
+  batchUuids,
 }: {
   content: string | ContentBlockParam[]
   isMeta?: true
@@ -215,6 +216,7 @@ export function createUserMessage({
     direction?: PartialCompactDirection
   }
   origin?: MessageOrigin
+  batchUuids?: string[]
 }): UserMessage {
   return {
     type: 'user',
@@ -232,6 +234,7 @@ export function createUserMessage({
     toolUseResult,
     mcpMeta,
     imagePasteIds,
+    ...(batchUuids !== undefined && batchUuids.length > 0 ? { batchUuids } : {}),
     sourceToolAssistantUUID,
     permissionMode,
     origin,
