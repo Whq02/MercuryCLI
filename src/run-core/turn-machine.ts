@@ -492,7 +492,7 @@ async function* streamModel(
         reference: callReference,
       })
       if (pulseMain) {
-        const truth = resolveEffortTruth(iter.currentModel, effortValue)
+        const truth = resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })
         const effortLabel = truth.wire === undefined ? undefined : truth.label
         notePulseModel(iter.currentModel, effortLabel)
         setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'dispatching', {

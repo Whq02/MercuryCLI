@@ -410,7 +410,7 @@ export async function* openaiCallModel(
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
-  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue)
+  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
