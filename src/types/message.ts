@@ -97,6 +97,7 @@ export type AssistantMessage = {
       inputTokensTotal: number
       cachedInputTokens: number
       outputTokens: number
+      cacheWriteInputTokens?: number
       reasoningOutputTokens?: number
       anomaly?: 'cached-exceeds-total'
     }
