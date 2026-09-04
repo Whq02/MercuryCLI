@@ -121,7 +121,7 @@ src/services/instructions/engine.ts :: getInstructionFiles :: invalidator=clearI
 src/services/internalLogging.ts :: getContainerId :: static-for-process
 src/services/lsp/clangdLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/pyrightLane.ts :: probeCache :: ttl-bounded
-src/services/lsp/ruffLane.ts :: probeCache :: ttl-bounded
+src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded
 src/services/lsp/unityLane.ts :: probeCache :: ttl-bounded
 src/services/mcp/auth.ts :: metadataCache :: static-for-process
 src/services/mcp/channelsRoot.ts :: channelsRootCache :: static-for-process
@@ -147,14 +147,15 @@ src/services/remoteManagedSettings/syncCacheState.ts :: sessionCache :: subscrip
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
+src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
+src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
+src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
 src/services/workbench/projection.ts :: snapshot :: subscription-fed
-src/services/workbench/projection.ts :: worktreeLanesMemo :: ttl-bounded
 src/services/workshop/runtime.ts :: cachedTs :: keyed-by-truth
 src/skills/loadSkillsDir.ts :: loadAllSkillsMemo :: invalidator=clearSkillCaches
-src/state/telemetryBus.ts :: gitStateMemo :: ttl-bounded
 src/state/telemetryBus.ts :: snapshots :: subscription-fed
 src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
@@ -227,6 +228,7 @@ src/utils/genericProcessUtils.ts :: cachedPowerShellExe :: static-for-process
 src/utils/genericProcessUtils.ts :: metaCache :: ttl-bounded
 src/utils/git.ts :: getIsGit :: invalidator=applyHarnessGround
 src/utils/git.ts :: gitExe :: static-for-process
+src/utils/git.ts :: lastSnapshot :: subscription-fed
 src/utils/git/gitFilesystem.ts :: cacheEntries :: invalidator=regroundGitWatch
 src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth
 src/utils/hooks/hookHelpers.ts :: hookResponseSchema :: static-for-process
@@ -258,6 +260,7 @@ src/utils/projectBoundary.ts :: refusalMemo :: ttl-bounded
 src/utils/proxy.ts :: proxyDispatcherCache :: keyed-by-truth
 src/utils/proxy.ts :: tunnelAgentCache :: keyed-by-truth
 src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
+src/utils/router/modelRegistry.ts :: snapshotMemo :: ttl-bounded
 src/utils/router/providerDiscovery.ts :: cache :: ttl-bounded
 src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process

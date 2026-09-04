@@ -1,10 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync as _mkdtemp } from 'node:fs'
+import { mkdtempSync as _mkdtemp, readFileSync } from 'node:fs'
 import { tmpdir as _tmpdir } from 'node:os'
 import { join as _join } from 'node:path'
 process.env.MERCURY_REVIEW_ARTIFACTS_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-review-'))
+process.env.MERCURY_CONFIG_DIR = _mkdtemp(_join(_tmpdir(), 'mosaic-proj-home-'))
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -301,6 +302,100 @@ section('(5) the mercury://workbench adapter through the REAL registry')
     'workbench kind is in the runtime census',
     resourceAdapterKinds().some(k => k.kind === 'workbench'),
   )
+}
+
+section('(6) the gather path spawns nothing synchronously; one gather per change signal')
+{
+  const cp = require('node:child_process') as Record<string, unknown>
+  let syncSpawns = 0
+  for (const fn of ['execFileSync', 'spawnSync', 'execSync']) {
+    const orig = cp[fn] as (...a: unknown[]) => unknown
+    cp[fn] = function (this: unknown, ...a: unknown[]) {
+      syncSpawns++
+      return orig.apply(this, a)
+    }
+  }
+  const esm = await import('node:child_process')
+  const wrapperVisible = (esm.execFileSync as unknown) === cp.execFileSync
+  const { resolveWorkbenchSnapshot, subscribeWorkbench, getWorkbenchSnapshot, _resetWorkbenchForTesting } =
+    await import('../../src/services/workbench/projection.js')
+  const gitMod = await import('../../src/utils/git.js')
+  _resetWorkbenchForTesting()
+  syncSpawns = 0
+  const one = await resolveWorkbenchSnapshot()
+  check('a one-shot gather composes in this repo', one !== null)
+  if (wrapperVisible) {
+    check('zero synchronous spawns across the gather (execFileSync · spawnSync · execSync)', syncSpawns === 0, `${syncSpawns} sync spawn(s)`)
+  } else {
+    console.log('  (the sync-spawn wrapper is not visible to the module graph under this runtime — the source pins carry the law)')
+  }
+  const src = readFileSync(_join(import.meta.dir, '..', '..', 'src', 'services', 'workbench', 'projection.ts'), 'utf8')
+  check('the gather imports no synchronous observer (no gitGraph/observe on the gather path)', !/from '\.\.\/gitGraph\/observe\.js'/.test(src))
+  check('the gather names no sync spawn', !/execFileSync|spawnSync|execSync\(/.test(src))
+  check('the lane list rides the git-facts owner (async)', src.includes('await getGitWorktreeLanes()'))
+  check('the generation reads the owner\'s snapshot, not a rail one refresh behind', src.includes("await getGitState({ untrackedFiles: 'normal' })"))
+  check('the engine no longer subscribes to the telemetry bus', !src.includes('subscribeTelemetry('))
+  check('the engine subscribes to the git-facts owner', src.includes('engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))'))
+
+  const { execFileSync: realExecFileSync } = await import('node:child_process')
+  const { mkdtempSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { setCwdState, getCwdState } = await import('../../src/bootstrap/state.js')
+  const { regroundGitWatch } = await import('../../src/utils/git/gitFilesystem.js')
+  const scratch = mkdtempSync(_join(tmpdir(), 'workbench-signal-'))
+  const g = (...a: string[]): void => {
+    realExecFileSync('git', ['-c', 'user.email=p@p', '-c', 'user.name=proof', ...a], { cwd: scratch, stdio: 'ignore' })
+  }
+  g('init', '-q', '-b', 'main')
+  writeFileSync(_join(scratch, 'README.md'), 'signal proof\n')
+  g('add', '-A')
+  g('commit', '-qm', 'seed')
+  const homeCwd = getCwdState()
+  const homeDir = process.cwd()
+  setCwdState(scratch)
+  process.chdir(scratch)
+  regroundGitWatch()
+  _resetWorkbenchForTesting()
+  const realNow = Date.now
+  let clockOffset = 0
+  Date.now = () => realNow() + clockOffset
+  try {
+    const unsub = subscribeWorkbench(() => {})
+    const settled = await (async (): Promise<boolean> => {
+      const t0 = realNow()
+      while (realNow() - t0 < 8_000) {
+        if ((getWorkbenchSnapshot()?.gatherGeneration ?? 0) >= 1) return true
+        await new Promise(r => setTimeout(r, 25))
+      }
+      return false
+    })()
+    check('the live engine gathered its initial fill in the scratch repository', settled)
+    await new Promise(r => setTimeout(r, 1_200))
+    const facts = gitMod._gitFactsForTesting()
+    check('the owner holds the workbench engine as a subscriber', facts.listeners >= 1, JSON.stringify(facts))
+    clockOffset += 61_000
+    const before = getWorkbenchSnapshot()?.version ?? 0
+    writeFileSync(_join(scratch, 'dirt.txt'), 'x\n')
+    g('add', 'dirt.txt')
+    const t0 = realNow()
+    let after = before
+    while (realNow() - t0 < 5_000) {
+      after = getWorkbenchSnapshot()?.version ?? 0
+      if (after > before) break
+      await new Promise(r => setTimeout(r, 25))
+    }
+    await new Promise(r => setTimeout(r, 1_200))
+    after = getWorkbenchSnapshot()?.version ?? 0
+    check('one change signal ⇒ exactly one gather', after - before === 1, `${after - before} gather(s) in ${realNow() - t0} ms`)
+    check('the gather carries the moved clean verdict', getWorkbenchSnapshot()?.generation.clean === false, JSON.stringify(getWorkbenchSnapshot()?.generation))
+    unsub()
+  } finally {
+    Date.now = realNow
+    setCwdState(homeCwd)
+    process.chdir(homeDir)
+    regroundGitWatch()
+    _resetWorkbenchForTesting()
+  }
 }
 
 console.log('')
