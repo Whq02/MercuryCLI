@@ -31,7 +31,12 @@ export function GeminiConnect({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const [leg, setLeg] = useState<'choice' | 'oauth' | 'key' | 'client'>('choice')
-  const [paste, setPaste] = useState('')
+  const [paste, setPasteState] = useState('')
+  const pasteRef = useRef('')
+  const setPaste = (next: string): void => {
+    pasteRef.current = next
+    setPasteState(next)
+  }
   const [cursorOffset, setCursorOffset] = useState(0)
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'exchanging'>('starting')
   const [listenerNote, setListenerNote] = useState<string | undefined>(undefined)
@@ -66,7 +71,7 @@ export function GeminiConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
 
-  useInput((input, key) => {
+  useInput((input, key, event) => {
     if (leg === 'choice') return
     if (key.escape) {
       if (leg === 'key' || leg === 'client') return
@@ -74,7 +79,8 @@ export function GeminiConnect({
       settle(GEMINI_CONNECT_STOPPED_RECEIPT)
       return
     }
-    if (input === 'c' && !key.ctrl && !key.meta && leg === 'oauth' && paste === '' && phase !== 'exchanging' && authorizeUrl) {
+    if (input === 'c' && !key.ctrl && !key.meta && leg === 'oauth' && pasteRef.current === '' && phase !== 'exchanging' && authorizeUrl) {
+      event.stopImmediatePropagation()
       void setClipboard(authorizeUrl).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)
