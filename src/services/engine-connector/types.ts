@@ -215,6 +215,11 @@ export type RewindRequestV1 = {
 export type RewindReceiptV1 = SessionRewindOutcomeV1
 
 
+export interface PermissionModeReceiptV1 {
+  outcome: 'applied' | 'refused' | 'noop'
+  detail?: string
+}
+
 export interface EngineConnectorV1 {
   readonly carrier: EngineCarrierKind
 
@@ -260,9 +265,9 @@ export interface EngineConnectorV1 {
   workRoster(): WorkRosterV1
   subscribeWork(listener: () => void): () => void
 
-  permissionMode(): PermissionMode
+  permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void
-  setPermissionMode(mode: PermissionMode): void
+  setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1>
 
   workspace(): WorkspaceFactsV1
 
