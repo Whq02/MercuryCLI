@@ -67,7 +67,8 @@ export function workflowPulse(
 
 export type AgentPulseInput = {
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
-  waiting?: 'prefill' | 'provider-backoff'
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window'
+  waitWords?: string
   retryInMs?: number
   recoveryTimeoutMs?: number
   retryAttempt?: number
@@ -87,12 +88,14 @@ export type AgentPulse =
       retryAttempt?: number
     }
   | { kind: 'working'; toolLine?: string }
+  | { kind: 'usage-window'; words: string }
   | { kind: 'quiet'; toolLine?: string; quietMs: number }
   | { kind: 'settled' }
 
 export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
   if (a.state === 'start') return { kind: 'queued' }
   if (a.state !== 'progress') return { kind: 'settled' }
+  if (a.waiting === 'usage-window') return { kind: 'usage-window', words: a.waitWords ?? 'waiting for the usage window' }
   const toolLine = a.lastToolName
     ? `${a.lastToolName}(${a.lastToolSummary ?? ''})`
     : undefined
@@ -133,6 +136,8 @@ export function agentPulseWord(p: AgentPulse): string {
     }
     case 'working':
       return p.toolLine ?? 'thinking'
+    case 'usage-window':
+      return p.words
     case 'quiet':
       return `quiet ${formatQuietAge(p.quietMs)}${p.toolLine ? ` · last: ${p.toolLine}` : ''}`
     case 'settled':
