@@ -12,7 +12,7 @@ const { ResponsesStreamFold } = await import('../../src/services/providers/opena
 const { buildOpenaiResponsesRequest, decodeOpenaiTurnRecord, mapMessagesToOpenaiInput } = await import(
   '../../src/services/providers/openai/responsesBridge.ts'
 )
-const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
+const { replayableItems, streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.ts')
 import type { OpenaiStreamEvent } from '../../src/services/providers/openai/openaiWire.ts'
 import type { BridgeMessage } from '../../src/services/providers/openai/responsesBridge.ts'
 
@@ -162,7 +162,8 @@ section('1 · the fold — the register rides the item events and the replay rec
 section('2 · the runtime — one message item mints one text block, labelled')
 type Minted = { text: string; phase?: string; hasKey: boolean }
 type StartBlock = { phase?: string; hasKey: boolean }
-async function mint(events: Array<Record<string, unknown>>): Promise<{ blocks: Minted[]; starts: StartBlock[] }> {
+type Settled = { apexProviderTurn?: { items?: unknown[] } }
+async function mint(events: Array<Record<string, unknown>>): Promise<{ blocks: Minted[]; starts: StartBlock[]; settled: Settled[] }> {
   const source = (async function* () {
     for (const e of events) yield e
   })() as never
@@ -186,10 +187,12 @@ async function mint(events: Array<Record<string, unknown>>): Promise<{ blocks: M
   })
   const blocks: Minted[] = []
   const starts: StartBlock[] = []
+  const settled: Settled[] = []
   let r = await gen.next()
   while (!r.done) {
     const v = r.value as { type: string; message?: { content?: Array<Record<string, unknown>> }; event?: Record<string, unknown> }
     if (v.type === 'assistant') {
+      settled.push(v as Settled)
       for (const b of v.message?.content ?? []) {
         if (b.type === 'text') blocks.push({ text: String(b.text), hasKey: 'phase' in b, ...(typeof b.phase === 'string' ? { phase: b.phase } : {}) })
       }
@@ -200,14 +203,14 @@ async function mint(events: Array<Record<string, unknown>>): Promise<{ blocks: M
     }
     r = await gen.next()
   }
-  return { blocks, starts }
+  return { blocks, starts, settled }
 }
-const finishEvent = (finalText: string): Record<string, unknown> => ({
+const finishEvent = (finalText: string, orderedItems: unknown[] = []): Record<string, unknown> => ({
   type: 'finish',
   reason: 'completed',
   toolCalls: [],
   reasoningItems: [],
-  orderedItems: [],
+  orderedItems,
   finalText,
   refusalText: '',
   unknownItemTypes: [],
@@ -265,6 +268,24 @@ const finishEvent = (finalText: string): Record<string, unknown> => ({
     'two unlabelled items are still two blocks (the item is the boundary), neither with a phase key',
     boundary.blocks.length === 2 && boundary.blocks[0]!.text === 'First item.' && boundary.blocks[1]!.text === 'Second item.' && boundary.blocks.every(b => !b.hasKey),
     JSON.stringify(boundary.blocks),
+  )
+
+  const labelledItem = { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'Working note.' }], phase: 'commentary' }
+  const call = { type: 'function_call', call_id: 'call_r', name: 'EchoTool', arguments: '{}', id: 'fc_r' }
+  const kept = replayableItems([labelledItem, call] as never, [])
+  check('replayableItems keeps the labelled message item as-is (same object, phase intact)', kept.length === 2 && kept[0] === (labelledItem as never) && (kept[0] as { phase?: string }).phase === 'commentary')
+  const recorded = await mint([
+    { type: 'text-item-start', phase: 'commentary' },
+    { type: 'text-delta', text: 'Working note.' },
+    { type: 'text-item-done', phase: 'commentary' },
+    finishEvent('Working note.', [labelledItem]),
+  ])
+  const record = recorded.settled.at(-1)?.apexProviderTurn
+  const recordedItem = record?.items?.[0] as { type?: string; phase?: string } | undefined
+  check(
+    'the settled turn record carries the labelled message item with phase commentary (the next request replays it)',
+    recordedItem?.type === 'message' && recordedItem.phase === 'commentary',
+    JSON.stringify(record),
   )
 }
 
