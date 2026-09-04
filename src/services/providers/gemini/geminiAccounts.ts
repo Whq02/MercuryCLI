@@ -15,7 +15,7 @@ import {
   generateState,
 } from '../../oauth/crypto.js'
 import { readStoredGeminiApiKey } from '../../../utils/router/providerSecrets.js'
-import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -87,6 +87,7 @@ function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
     chmodSync(path, 0o600)
   } catch {
   }
+  noteCredentialChange()
 }
 
 export function geminiAuthFileExists(): boolean {

@@ -1,6 +1,7 @@
 import { freemem, totalmem } from 'node:os'
 import { availableCores } from '../../utils/availableCores.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import { displayConfigHome } from '../../utils/envUtils.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 
 export function machineSeatReading(
@@ -9,6 +10,17 @@ export function machineSeatReading(
 ): number {
   const freeGb = freeMemBytes / 2 ** 30
   return Math.max(2, Math.min(Math.floor(cores / 2), Math.floor(freeGb / 2)))
+}
+
+let liveReadingHeld: number | null = null
+
+export function heldMachineSeatReading(): number {
+  if (liveReadingHeld === null) liveReadingHeld = machineSeatReading()
+  return liveReadingHeld
+}
+
+export function _setHeldMachineSeatReadingForTesting(reading: number | null): void {
+  liveReadingHeld = reading
 }
 
 export function describeSeatReading(ceiling: number): string {
@@ -137,10 +149,31 @@ export async function recordCapacityDecision(
 }
 
 export function resolveSeatCeiling(): number {
+  return seatCeilingFacts().seats
+}
+
+export type SeatCeilingSource = 'consented' | 'machine'
+
+export interface SeatCeilingFacts {
+  seats: number
+  source: SeatCeilingSource
+  sentence: string
+  lever: string
+}
+
+export function seatCeilingFacts(): SeatCeilingFacts {
   const decision = getGlobalConfig().switchboardCapacity
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
-  if (typeof stored === 'number' && Number.isFinite(stored)) {
-    return Math.max(1, Math.floor(stored))
+  const consented = typeof stored === 'number' && Number.isFinite(stored)
+  const seats = consented ? Math.max(1, Math.floor(stored)) : heldMachineSeatReading()
+  return {
+    seats,
+    source: consented ? 'consented' : 'machine',
+    sentence: describeSeatReading(seats),
+    lever: seatCeilingLever(),
   }
-  return machineSeatReading()
+}
+
+export function seatCeilingLever(): string {
+  return `set switchboardCapacity.recommendedSeats in ${displayConfigHome()}/.mercury.json with Mercury closed`
 }

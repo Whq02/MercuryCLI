@@ -50,13 +50,17 @@ import {
   crewAgentFactsOf,
   crewCostLabel,
   crewModelLabel,
+  crewPhaseWords,
   crewSpendLabel,
   crewStateLabel,
+  crewStatusWords,
   crewTokensBreakdown,
   crewTokensLabel,
   crewToolUsesLabel,
 } from '../../services/engine-connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { workRowRuns } from '../../services/engine-connector/workCounts.js'
+import { crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from '../mercury-ui/screens/crewStopChord.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import {
   focusedRunnerPresence,
@@ -148,7 +152,7 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
         </Text>
       )}
       <Text> {work.name}</Text>
-      <Text color={tokens.textMuted}> · {crew !== null ? crewStateLabel(crew) : work.status}</Text>
+      <Text color={tokens.textMuted}> · {crew !== null ? crewStatusWords(crew, Date.now()) : work.status}</Text>
       {crew !== null ? (
         <Text color={tokens.textMuted}>
           {' · '}{crewModelLabel(crew)}{crewTokens !== null ? ` · ${crewTokens}` : ''}
@@ -193,6 +197,9 @@ export function RosterWorkDetail({
     const toolUses = crewToolUsesLabel(crew)
     if (toolUses !== null) rows.push({ k: 'tools', v: toolUses, tone: tokens.textPrimary })
     if (crew.activity !== null) rows.push({ k: 'doing', v: crew.activity, tone: tokens.textSecondary })
+    if (crew.stopReason !== null) rows.push({ k: 'why', v: crew.stopReason, tone: tokens.warning })
+    const phase = crewPhaseWords(crew, now)
+    if (phase !== null) rows.push({ k: 'phase', v: phase, tone: tokens.textSecondary })
     if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
     if (crew.team !== null) rows.push({ k: 'team', v: crew.team, tone: tokens.textPrimary })
     const crewTokens = crewTokensLabel(crew)
@@ -395,9 +402,24 @@ export function BackgroundTasksDialog({
     setDetailTaskId(item.id)
   }
 
+  const [stopArm, setStopArm] = useState<CrewStopArm | null>(null)
+  const armedWork = stopArm !== null && crewStopArmed(stopArm, stopArm.id, now) ? (roster.rows.find(w => w.id === stopArm.id) ?? null) : null
+
   const stopSelected = (item: BoardItem): void => {
     const task = item.task
-    if (task === undefined || task.status !== 'running') return
+    if (task === undefined) {
+      const work = item.work
+      if (work === undefined || !workRowRuns(work)) return
+      const press = pressCrewStop(stopArm, work.id, Date.now())
+      if (!press.fire) {
+        setStopArm(press.arm)
+        return
+      }
+      setStopArm(null)
+      void getFocusedSessionConnector().stopAgent(work.id)
+      return
+    }
+    if (task.status !== 'running') return
     switch (item.kind) {
       case 'shell':
         void killTask(task.id, setAppState)
@@ -449,6 +471,11 @@ export function BackgroundTasksDialog({
     if (e.key === 'x' && selected !== undefined) {
       e.stopImmediatePropagation()
       stopSelected(selected)
+      return
+    }
+    if (e.key === 'r' && selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)) {
+      e.stopImmediatePropagation()
+      void getFocusedSessionConnector().resumeAgent(selected.work.id)
       return
     }
     if (e.key === 'X') {
@@ -639,7 +666,9 @@ export function BackgroundTasksDialog({
   const selectedTeammateRunning =
     selected?.kind === 'teammate' && selected.task?.status === 'running'
   const selectedStoppable =
-    selected?.task !== undefined && selected.task.status === 'running'
+    (selected?.task !== undefined && selected.task.status === 'running') ||
+    (selected?.work !== undefined && workRowRuns(selected.work))
+  const selectedResumable = selected?.work !== undefined && selected.kind === 'agent' && !workRowRuns(selected.work)
   const anyAgentRunning = agentTasks.some(task => task.status === 'running')
 
   return (
@@ -817,9 +846,20 @@ export function BackgroundTasksDialog({
                 {' · '}
               </>
             ) : null}
-            {selectedStoppable ? (
+            {armedWork !== null ? (
               <>
-                <KeyboardShortcutHint shortcut="x" action="stop" />
+                <Text color={tokens.warning}>{crewStopHint(armedWork.name)}</Text>
+                {' · '}
+              </>
+            ) : selectedStoppable ? (
+              <>
+                <KeyboardShortcutHint shortcut="x" action={selected?.work !== undefined ? 'x stop' : 'stop'} />
+                {' · '}
+              </>
+            ) : null}
+            {selectedResumable ? (
+              <>
+                <KeyboardShortcutHint shortcut="r" action="resume" />
                 {' · '}
               </>
             ) : null}

@@ -2,11 +2,11 @@
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 7
+export const MERCURY_DAEMON_PROTO = 8
 
 export const MIN_PROTO = 1
 
-export const DAEMON_PROTO_SHAPE = 'sha256:d4df48647d1dedb3896b278a6135f73e2ea9e3e41362625e987266fa45899a87'
+export const DAEMON_PROTO_SHAPE = 'sha256:a404ee2f11787c9b8566027997a867ddae7d8455c606084e8db9e70c0d8b758f'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -199,6 +199,8 @@ export type DaemonRequest =
         | 'set-kit'
         | 'set-schedule'
         | 'set-spawn-switch'
+        | 'stop-agent'
+        | 'resume-agent'
       sessionId: string
       by: string
       reason?: string
@@ -220,6 +222,8 @@ export type DaemonRequest =
       kitEdit?: SessionKitEditV1
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
       spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
+      agentId?: string
+      note?: string
       clientOpId?: string
     }
   | {

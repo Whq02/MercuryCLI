@@ -45,22 +45,28 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' /model — the frontier family\'s second member beside the family row')
+console.log(' /model — the frontier family\'s generations: the family row and its previous generation beside it')
 console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
-section('the rows: the alias row and the 5.1 literal row are adjacent, named, undescribed')
+section('the rows: the alias row and the previous generation\'s literal row are adjacent, named, undescribed')
 {
   const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
+  const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
+  const { renderModelName } = await import('../../src/utils/model/model.ts')
+  const strings = getModelStrings()
+  const newestId = strings[FAMILY_GENERATIONS.fable[0]]
+  const previousId = strings[previousGenerationKeys('fable')[0]!]
   const rows = getModelOptions({ anthropicCredentialed: () => true })
   const family = rows.findIndex(o => o.value === 'fable')
-  const member = rows.findIndex(o => o.value === 'claude-fable-5-1')
+  const member = rows.findIndex(o => o.value === previousId)
   check('the family alias row is present', family >= 0)
-  check('the 5.1 literal row is present', member >= 0)
-  check('the 5.1 row sits immediately after the family row', member === family + 1, `${family} / ${member}`)
-  check("the one display owner labels them 'Fable 5' and 'Fable 5.1'", rows[family]?.label === 'Fable 5' && rows[member]?.label === 'Fable 5.1', `${rows[family]?.label} / ${rows[member]?.label}`)
+  check("the previous generation's literal row is present", member >= 0)
+  check('the previous row sits immediately after the family row', member === family + 1, `${family} / ${member}`)
+  check("the one display owner labels them through the table ('Fable 5.1' / 'Fable 5')", rows[family]?.label === renderModelName(newestId) && rows[family]?.label === 'Fable 5.1' && rows[member]?.label === renderModelName(previousId) && rows[member]?.label === 'Fable 5', `${rows[family]?.label} / ${rows[member]?.label}`)
   check('both rows carry an empty description (the neutrality ruling)', rows[family]?.description === '' && rows[member]?.description === '')
   check('neither row is refused for a credentialed account', rows[family]?.unavailable === undefined && rows[member]?.unavailable === undefined)
 }
@@ -147,16 +153,16 @@ if (driver.kind !== 'posix-pty') {
     check('the picker moment was observed', picker !== undefined)
     check('the set moment was observed', set !== undefined)
     check('the reopened moment was observed', reopened !== undefined)
-    const familyRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5 {2,}/.test(l))
-    const memberRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5\.1 /.test(l))
+    const newestRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5\.1 {2,}/.test(l) && !l.includes('frontier:'))
+    const previousRow = (ls: string[]): number => ls.findIndex(l => /\bFable 5 {2,}/.test(l) && !l.includes('frontier:'))
     if (picker) {
       const ls = lines(picker.grid)
-      const f = familyRow(ls)
-      const m = memberRow(ls)
-      check('picker: the family row and the 5.1 row are both painted', f >= 0 && m >= 0, `${f} / ${m}`)
-      check('picker: the 5.1 row sits directly under the family row', m === f + 1, `${f} / ${m}`)
-      check("picker: both rows read 'switch' (neither is current yet)", /\bswitch\b/.test(ls[f] ?? '') && /\bswitch\b/.test(ls[m] ?? ''), `${(ls[f] ?? '').trim()} | ${(ls[m] ?? '').trim()}`)
-      check('picker: the 5.1 row carries its 1M ctx column', /1M ctx/.test(ls[m] ?? ''), (ls[m] ?? '').trim())
+      const n = newestRow(ls)
+      const p = previousRow(ls)
+      check('picker: the family row and the previous row are both painted', n >= 0 && p >= 0, `${n} / ${p}`)
+      check('picker: the previous row sits directly under the family row', p === n + 1, `${n} / ${p}`)
+      check("picker: both rows read 'switch' (neither is current yet)", /\bswitch\b/.test(ls[n] ?? '') && /\bswitch\b/.test(ls[p] ?? ''), `${(ls[n] ?? '').trim()} | ${(ls[p] ?? '').trim()}`)
+      check('picker: the newest row carries its 1M ctx column', /1M ctx/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
     }
     if (set) {
       const text = lines(set.grid).join('\n')
@@ -164,12 +170,12 @@ if (driver.kind !== 'posix-pty') {
     }
     if (reopened) {
       const ls = lines(reopened.grid)
-      const f = familyRow(ls)
-      const m = memberRow(ls)
-      check("reopened: the 5.1 row reads 'current'", m >= 0 && /\bcurrent\b/.test(ls[m] ?? ''), (ls[m] ?? '').trim())
-      check("reopened: the family row still reads 'switch' (the family default never moved)", f >= 0 && /\bswitch\b/.test(ls[f] ?? ''), (ls[f] ?? '').trim())
-      const under = (ls[m + 1] ?? '').replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
-      check('reopened: no description line under the selected 5.1 row', m >= 0 && under === '', `"${(ls[m + 1] ?? '').trim()}"`)
+      const n = newestRow(ls)
+      const p = previousRow(ls)
+      check("reopened: the newest row reads 'current' (the exact-generation alias set the row the family word resolves to)", n >= 0 && /\bcurrent\b/.test(ls[n] ?? ''), (ls[n] ?? '').trim())
+      check("reopened: the previous row still reads 'switch'", p >= 0 && /\bswitch\b/.test(ls[p] ?? ''), (ls[p] ?? '').trim())
+      const under = (ls[n + 1] ?? '').replace(/[╭╮╰╯─│┃┏┓┗┛━\s]/g, '')
+      check('reopened: no description line under the selected newest row (a blank, then the previous row)', n >= 0 && under === '' && (p === n + 1 || p === n + 2), `"${(ls[n + 1] ?? '').trim()}" ${n} / ${p}`)
       check('reopened: both moments belong to one product run (the picker header is back)', ls.join('\n').includes('CHOOSE A MODEL') && reopened.atTick > (picker?.atTick ?? 0))
     }
   } else {
@@ -178,5 +184,5 @@ if (driver.kind !== 'posix-pty') {
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
-console.log(failures === 0 ? '\n✅ the frontier family\'s second member rides the picker beside the family row' : `\n❌ ${failures} check(s) failed`)
+console.log(failures === 0 ? '\n✅ the frontier family\'s generations ride the picker: the family row and its previous generation beside it' : `\n❌ ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

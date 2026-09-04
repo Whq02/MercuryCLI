@@ -6,6 +6,7 @@ import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import type { MCPServerConnection } from '../mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
+import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
@@ -45,12 +46,19 @@ export type AskReceiptV1 =
   | { ok: false; detail: string }
 
 
+export type AgentControlReceiptV1 = {
+  outcome: 'applied' | 'refused'
+  detail?: string
+}
+
+
 export type ModelFactsV1 = {
   effective: string
   effectiveSource?: 'live' | 'record' | 'ambient'
   main: string
   setting: ModelSetting
   sessionPin: ModelSetting | null
+  effort?: string | null
   pendingSwitch: { setting: ModelSetting } | null
 }
 
@@ -159,6 +167,7 @@ export type WorkRowV1 = {
   unpricedTurns?: number
   toolUses?: number
   activity?: string
+  wait?: string
   toolUseId?: string
   workflowRunId?: string
   phases?: WorkPhaseV1[]
@@ -166,6 +175,8 @@ export type WorkRowV1 = {
   pendingAsks?: number
   agentType?: string
   team?: string
+  stopReason?: string
+  phase?: AgentWaitV1
 }
 
 export type MissionRowV1 = {
@@ -221,6 +232,9 @@ export interface EngineConnectorV1 {
   settleAsk(askId: string): void
 
   interrupt(): boolean
+
+  stopAgent(agentId: string): Promise<AgentControlReceiptV1>
+  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
