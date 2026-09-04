@@ -1,8 +1,6 @@
 import type { Message } from '../../types/message.js'
-import type { PermissionMode } from '../../types/permissions.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { getCwd } from '../../utils/cwd.js'
-import { seatInitialPermissionMode } from '../../daemon/concourseSupervisor.js'
 import type {
   AgentControlReceiptV1,
   AskReceiptV1,
@@ -13,6 +11,7 @@ import type {
   McpRosterV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
+  PermissionModeReceiptV1,
   RewindReceiptV1,
   RewindRequestV1,
   SeatIdentityV1,
@@ -147,13 +146,15 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
     return { outcome: 'refused', mode: req.mode, refusal: 'no-chat', detail: NO_CHAT_OPEN }
   }
-  permissionMode(): PermissionMode {
-    return seatInitialPermissionMode() as PermissionMode
+  permissionMode(): null {
+    return null
   }
   subscribePermissionMode(): () => void {
     return NOOP_UNSUBSCRIBE
   }
-  setPermissionMode(): void {}
+  setPermissionMode(): Promise<PermissionModeReceiptV1> {
+    return Promise.resolve({ outcome: 'noop', detail: 'no session is focused' })
+  }
   workspace(): WorkspaceFactsV1 {
     const cwd = getCwd()
     if (this.cachedWorkspace === null || this.cachedWorkspace.cwd !== cwd) {
