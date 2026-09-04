@@ -180,7 +180,16 @@ wire's models read.
   no-disclosure agent (`Mozilla/5.0 (compatible; Mercury/<version>)`), no
   cookies, one deadline each. The keyless door works the moment Mercury is
   installed, with no account anywhere; the vendored tool never spends a
-  provider account.
+  provider account. A rate limit is a wait, not a wall: a door that
+  throttles or challenges the client (the 202 challenge page, a 429/503) is
+  retried once after a short jittered back-off, then cools down (30 s,
+  doubling per repeat, capped at ten minutes) and is not knocked again
+  inside its window; a query that already landed answers from the session's
+  cache for ten minutes and says so; when every door refused, the model gets
+  ONE line naming what refused, the cool-down left, the key commands, and —
+  where the family has one — the `ProviderSearch` door. The first keyless
+  answer of a session carries the key-door hint once (both keyed engines
+  offer a free tier); no later result repeats it.
 
 Where both tools are listed, the MODEL chooses per query — the harness never
 forces one or hides the other. `MERCURY_SEARCH_BACKEND` names one vendored
@@ -248,6 +257,10 @@ screen beside the last figure with the status and the host, backs off four
 minutes, is logged once per episode, and is written once to the doctor's record
 in the config home (`usage-reader.json`) with its recovery — `mercury doctor`
 names it from another process. `/usage` and its retry key ask at once regardless.
+A sign-in or a removal (the sign-in ledger's epoch, the one signal every family
+raises) forgets the reader's state and asks for the account now signed in at
+once — the meter never keeps a departed account's figure or waits out its
+cadence.
 
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and

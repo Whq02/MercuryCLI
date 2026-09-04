@@ -270,6 +270,125 @@ section('§4 the subscription window: the OAuth account\'s windows and pools rid
   auth.dropCredentialMemos()
 }
 
+section('§5 the account behind the family moves: a sign-in or a removal forgets the reader and asks for the account now signed in at once — never the departed figure, never its cadence or backoff')
+{
+  const { saveOAuthTokensIfNeeded, clearOAuthTokenCache } = auth
+  const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
+  const { recordSignIn, noteCredentialRemoval, signInLedgerEpoch } = await import('../../src/utils/accounts/signInLedger.ts')
+  const { signOutAnthropicSlot } = await import('../../src/services/providers/accountSlots.ts')
+  const tokensFor = (name: 'A' | 'B') => ({
+    accessToken: `fixture-token-${name}`,
+    refreshToken: `fixture-refresh-${name}`,
+    expiresAt: Date.now() + 7 * 24 * 3600 * 1000,
+    scopes: ['user:inference', 'user:profile'],
+    subscriptionType: 'max' as const,
+    rateLimitTier: null,
+  })
+  const signIn = (name: 'A' | 'B'): void => {
+    storeOAuthAccountInfo({ accountUuid: `account-${name}`, emailAddress: `${name.toLowerCase()}@example.invalid` })
+    const saved = saveOAuthTokensIfNeeded(tokensFor(name))
+    if (!saved.success) throw new Error(saved.warning ?? 'the fixture credential did not save')
+    clearOAuthTokenCache()
+    recordSignIn('anthropic', 'oauth')
+  }
+  const removeSignIn = (): void => {
+    signOutAnthropicSlot(scratch, { revoke: async () => undefined })
+    noteCredentialRemoval()
+  }
+  const settled = async (): Promise<void> => {
+    for (let i = 0; i < 40; i++) {
+      await sleep(50)
+      if (!reader.anthropicUsageReadStatus().inFlight) return
+    }
+  }
+  const fiveHour = (): { pct?: number; at?: number; state: string } => {
+    const w = owner.anthropicWindowViews()[0]!
+    return { ...(w.usedPct !== undefined ? { pct: Math.round(w.usedPct) } : {}), ...(w.observedAtMs !== undefined ? { at: w.observedAtMs } : {}), state: w.state }
+  }
+  const bearers: string[] = []
+  api.usage.mode = 'ok'
+  api.usage.next = undefined
+  api.usage.payload = (_n, bearer) => {
+    bearers.push(bearer ?? '(none)')
+    if (bearer === 'Bearer fixture-token-A') return { five_hour: { utilization: 36, resets_at: hoursOn(2) }, seven_day: { utilization: 44, resets_at: hoursOn(24) } }
+    if (bearer === 'Bearer fixture-token-B') return { five_hour: { utilization: 77, resets_at: hoursOn(3) }, seven_day: { utilization: 12, resets_at: hoursOn(24) } }
+    return {}
+  }
+  removeSignIn()
+  reader._resetAnthropicUsageReaderForTesting()
+  limits.resetLimitsForCredentialSwitch()
+  const disarm = owner.armProviderUsagePoll({ family: () => 'anthropic' })
+  const asksBefore = reader.anthropicUsageReadStatus().requests
+
+  const epochBefore = signInLedgerEpoch()
+  const tA = Date.now()
+  signIn('A')
+  check('a sign-in bumps the ledger epoch (the one signal)', signInLedgerEpoch() === epochBefore + 1)
+  await settled()
+  let view = fiveHour()
+  check(`A's sign-in refetched at once through the epoch (5h ${view.pct}% for A, read at the sign-in)`, view.state === 'live' && view.pct === 36 && (view.at ?? 0) >= tA && reader.anthropicUsageReadStatus().requests === asksBefore + 1, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
+  check("…with A's bearer on the wire", bearers.at(-1) === 'Bearer fixture-token-A', bearers.join(','))
+
+  removeSignIn()
+  await settled()
+  view = fiveHour()
+  check("A's removal empties the meter (never A's figure) and asks nothing — no account is signed in", view.state === 'unavailable' && reader.anthropicUsageReadStatus().requests === asksBefore + 1 && reader.anthropicUsageReadStatus().failure === undefined, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
+
+  const tB = Date.now()
+  signIn('B')
+  await settled()
+  view = fiveHour()
+  check(`B's sign-in refetched at once — inside A's old cadence — and the meter paints B's figure (5h ${view.pct}%) with its own age`, view.state === 'live' && view.pct === 77 && (view.at ?? 0) >= tB && reader.anthropicUsageReadStatus().requests === asksBefore + 2, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
+  check("…with B's bearer on the wire, and A's number never painted after the removal", bearers.at(-1) === 'Bearer fixture-token-B' && Math.round(owner.anthropicWindowViews()[1]?.usedPct ?? -1) === 12, bearers.join(','))
+  check('the doctor\'s summary is B\'s (Claude Max · 5h 77%)', owner.usageSummaryWords(owner.usageForProvider('anthropic'), Date.now()).startsWith('Claude Max · 5h 77%'), owner.usageSummaryWords(owner.usageForProvider('anthropic'), Date.now()))
+
+  api.usage.mode = 'hang'
+  NOW = Date.now()
+  const hung = reader.refreshAnthropicUsage({ reason: 'operator' })
+  await sleep(100)
+  check('an operator ask is in flight against a hung endpoint', reader.anthropicUsageReadStatus().inFlight)
+  api.usage.mode = 'ok'
+  removeSignIn()
+  signIn('A')
+  await settled()
+  view = fiveHour()
+  check("the account moved while an ask hung: the new account's ask answered at once (5h 36% for A)", view.state === 'live' && view.pct === 36, JSON.stringify(view))
+  await hung
+  check('…and the hung ask settled into nothing — no failure, no backoff, the figure untouched', reader.anthropicUsageReadStatus().failure === undefined && reader.anthropicUsageReadStatus().retryAtMs === undefined && fiveHour().pct === 36, JSON.stringify(reader.anthropicUsageReadStatus()))
+  removeSignIn()
+  await settled()
+  view = fiveHour()
+  check('a removal with no successor paints the blank and asks nothing', view.state === 'unavailable' && reader.anthropicUsageReadStatus().requests === asksBefore + 4 && reader.anthropicUsageReadStatus().inFlight === false, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
+  signIn('A')
+  await settled()
+  check("A is back and read (5h 36%)", fiveHour().pct === 36 && bearers.at(-1) === 'Bearer fixture-token-A')
+  const saved = saveOAuthTokensIfNeeded(tokensFor('B'))
+  if (!saved.success) throw new Error('the fixture swap did not save')
+  const before = reader.anthropicUsageReadStatus().requests
+  recordSignIn('anthropic', 'oauth')
+  const dropped = fiveHour()
+  await settled()
+  view = fiveHour()
+  check("a bump whose road forgot the reset: the reader dropped A's figure at once (the blank on the bump) and painted B's (5h 77%)", dropped.state === 'unavailable' && view.pct === 77 && bearers.at(-1) === 'Bearer fixture-token-B' && reader.anthropicUsageReadStatus().requests === before + 1, JSON.stringify({ dropped, view }))
+  const standing = reader.anthropicUsageReadStatus().requests
+  recordSignIn('openai', 'api-key')
+  const held = fiveHour()
+  await settled()
+  check("another family's sign-in never blanks the meter: B's figure stood through the bump and was re-read once", held.state === 'live' && held.pct === 77 && fiveHour().pct === 77 && reader.anthropicUsageReadStatus().requests === standing + 1, JSON.stringify({ held, after: fiveHour() }))
+  check('the sign-in subscription is the driver\'s: disarmed, a sign-in asks nothing', (() => {
+    disarm()
+    const asks = reader.anthropicUsageReadStatus().requests
+    removeSignIn()
+    signIn('B')
+    return reader.anthropicUsageReadStatus().requests === asks
+  })())
+  const door = src('src/services/providers/providerUsage.ts')
+  check('by source: the driver subscribes the sign-in ledger\'s epoch and asks with the sign-in reason — no second signal', door.includes('subscribeSignInEpoch(() => {') && door.includes("reason: 'sign-in'") && !door.includes('subscribeAccountChange'))
+  removeSignIn()
+  seedSubscriber(Date.now() + 7 * 24 * 3600 * 1000)
+  auth.dropCredentialMemos()
+}
+
 await api.close()
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-freshness${failures ? ` (${failures} failure(s))` : ''}`)

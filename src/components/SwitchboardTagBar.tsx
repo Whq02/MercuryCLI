@@ -8,6 +8,7 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
+import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -34,15 +35,15 @@ export function statusDuration(ms: number): string {
 
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
   if (s.hardStopping) return 'stopping — the runner is cut if the turn is still open in a second'
-  if (s.interrupting) return 'interrupting — the request is torn down · esc again forces a stop'
+  if (s.interrupting) return 'interrupting — the request is torn down'
   if (!live.inFlight) return 'ready'
   if (s.wait !== null) {
     const waited = s.quietMs !== null && s.quietMs >= 10_000 ? ` · ${statusDuration(s.quietMs)} so far` : ''
-    const late = s.wait.kind === 'first-byte' && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now (esc stops)' : ''
+    const late = s.wait.kind === 'first-byte' && s.quietMs !== null && s.quietMs > s.wait.budgetMs ? ' — the budget is up; the lane reissues or aborts now' : ''
     return `${requestWaitLine(s.wait)}${waited}${late}`
   }
   if (live.phase === 'waiting') {
-    return `${crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'} · esc stops them`
+    return crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
   }
   if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {
     return `no stream events for ${statusDuration(s.quietMs)} — the session may be stuck (the watchdog aborts at ${statusDuration(s.watchdogMs)})`
@@ -53,6 +54,11 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
   const clock = s.phaseMs !== null && s.phaseMs >= 10_000 ? ` for ${statusDuration(s.phaseMs)}` : ''
   const budget = live.phase === 'tool' && s.toolBudgetMs !== null ? ` (its own timeout at ${statusDuration(s.toolBudgetMs)})` : ''
   return `${word}${clock}${budget}`
+}
+
+export function escBackHint(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping'>): string {
+  const hint = escRungHint(escRungOf({ inFlight: live.inFlight, interrupting: s.interrupting, hardStopping: s.hardStopping }))
+  return `${hint !== '' ? `${hint} · ` : ''}${keyHintLabel('⇧← back')}`
 }
 
 export function fitStatusLine(line: string, columns: number, fixedWidth: number): string {
@@ -110,7 +116,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const stalled = status.stuck
   const line = statusLine(live, status)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
-  const backHint = `${live.inFlight && !status.interrupting ? 'esc interrupts · ' : live.inFlight && !status.hardStopping ? 'esc again stops · ' : ''}${keyHintLabel('⇧← back')}`
+  const backHint = escBackHint(live, status)
   const stageOneTail = ` · ${status.projectLabel} · ready`
   const title = status.title.endsWith(stageOneTail) ? status.title.slice(0, -stageOneTail.length) : status.title
   const fixedWidth =

@@ -1,11 +1,12 @@
 import axios from 'axios'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { isClaudeAISubscriber } from '../../../utils/auth.js'
+import { dropCredentialMemos, getClaudeAIOAuthTokens, isClaudeAISubscriber } from '../../../utils/auth.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
-import { noteUsageRecordChanged } from '../../claudeAiLimits.js'
+import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../claudeAiLimits.js'
+import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, usagePollTtlMs } from '../usageFreshness.js'
 
 export type AnthropicUsageReadFailure = {
@@ -38,6 +39,16 @@ let consecutiveFailures = 0
 let retryAtMs: number | undefined
 let requests = 0
 let inFlight: Promise<AnthropicUsageReadStatus> | null = null
+let generation = 0
+let observedCredential = 'none'
+
+function currentCredential(): string {
+  try {
+    return credentialFingerprint(getClaudeAIOAuthTokens()?.accessToken)
+  } catch {
+    return 'none'
+  }
+}
 
 export function anthropicUsageReadStatus(): AnthropicUsageReadStatus {
   return {
@@ -209,9 +220,40 @@ function noteAnswer(now: number): void {
   retryAtMs = undefined
 }
 
-export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'operator'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
+export function forgetAnthropicUsageRead(): void {
+  generation += 1
+  lastAttemptAtMs = undefined
+  lastOkAtMs = undefined
+  failure = undefined
+  consecutiveFailures = 0
+  retryAtMs = undefined
+  inFlight = null
+  currentEpisode = undefined
+  noteUsageRecordChanged()
+}
+
+function dropIfAccountMoved(): boolean {
+  try {
+    dropCredentialMemos()
+  } catch {
+  }
+  const current = currentCredential()
+  if (current === observedCredential) return false
+  observedCredential = current
+  try {
+    resetLimitsForCredentialSwitch()
+  } catch {
+  }
+  return true
+}
+
+export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'operator' | 'sign-in'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
   const reason = opts?.reason ?? 'poll'
   const now = opts?.now ?? Date.now
+  if (reason === 'sign-in') {
+    dropIfAccountMoved()
+    forgetAnthropicUsageRead()
+  }
   if (inFlight !== null) return inFlight
   let subscriber = false
   try {
@@ -221,33 +263,39 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
   }
   if (!subscriber) return Promise.resolve(anthropicUsageReadStatus())
   const at = now()
-  if (reason !== 'operator') {
+  if (reason !== 'operator' && reason !== 'sign-in') {
     if (retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
     const ttl = usagePollTtlMs()
     const turnFloor = Math.min(TURN_ASK_FLOOR_MS, ttl / 2)
     const floor = reason === 'turn' ? turnFloor : Math.max(turnFloor, ttl - POLL_JITTER_MS)
     if (lastAttemptAtMs !== undefined && at - lastAttemptAtMs < floor) return Promise.resolve(anthropicUsageReadStatus())
   }
-  inFlight = (async (): Promise<AnthropicUsageReadStatus> => {
+  const issued = generation
+  observedCredential = currentCredential()
+  const ask = (async (): Promise<AnthropicUsageReadStatus> => {
     lastAttemptAtMs = at
     requests += 1
     const host = endpointHost()
     try {
       const answer = await fetchUtilization()
+      if (issued !== generation) return anthropicUsageReadStatus()
       if (answer === null) noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
       else noteAnswer(now())
     } catch (error) {
-      noteFailure(classify(error, host, now()), now())
+      if (issued === generation) noteFailure(classify(error, host, now()), now())
     } finally {
-      inFlight = null
+      if (issued === generation) inFlight = null
       noteUsageRecordChanged()
     }
     return anthropicUsageReadStatus()
   })()
-  return inFlight
+  inFlight = ask
+  return ask
 }
 
 export function _resetAnthropicUsageReaderForTesting(): void {
+  generation += 1
+  observedCredential = 'none'
   lastAttemptAtMs = undefined
   lastOkAtMs = undefined
   failure = undefined
