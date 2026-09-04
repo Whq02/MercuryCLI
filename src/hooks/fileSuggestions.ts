@@ -1,11 +1,12 @@
 
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, sep, dirname, isAbsolute, resolve } from 'node:path'
+import { join, sep, dirname, isAbsolute, relative, resolve } from 'node:path'
 import { FileIndex, yieldToEventLoop } from '../native-ts/file-index/index.js'
 import { execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
 import { ripgrepCommand } from '../utils/ripgrep.js'
 import { findGitRoot } from '../utils/git.js'
+import { launchFolderBoundsProject } from '../utils/projectBoundary.js'
 import { getCwd } from '../utils/cwd.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -137,22 +138,30 @@ function respectGitignore(): boolean {
   return true
 }
 
+function boundaryPathspec(gitRoot: string, cwd: string): string[] {
+  if (!launchFolderBoundsProject(cwd)) return []
+  const inside = relative(gitRoot, cwd)
+  return inside === '' ? [] : ['--', inside]
+}
+
 async function listTracked(
   gitRoot: string,
   signal: AbortSignal,
+  scope: string[],
 ): Promise<string[] | null> {
   const outcome = await execFileNoThrowWithCwd(
     'git',
-    ['-c', 'core.quotepath=false', 'ls-files', '--recurse-submodules'],
+    ['-c', 'core.quotepath=false', 'ls-files', '--recurse-submodules', ...scope],
     { cwd: gitRoot, timeout: GIT_TRACKED_TIMEOUT_MS, abortSignal: signal, maxBuffer: 64 * 1024 * 1024 },
   )
   if (outcome.code !== 0) return null
   return outcome.stdout.split('\n').filter(line => line !== '')
 }
 
-async function listUntracked(gitRoot: string): Promise<string[]> {
+async function listUntracked(gitRoot: string, scope: string[]): Promise<string[]> {
   const args = ['-c', 'core.quotepath=false', 'ls-files', '--others']
   if (respectGitignore()) args.push('--exclude-standard')
+  args.push(...scope)
   const outcome = await execFileNoThrowWithCwd('git', args, {
     cwd: gitRoot,
     timeout: GIT_UNTRACKED_TIMEOUT_MS,
@@ -342,7 +351,7 @@ async function refresh(): Promise<void> {
       return
     }
     if (gitRoot !== null) {
-      const tracked = await listTracked(gitRoot, abort.signal)
+      const tracked = await listTracked(gitRoot, abort.signal, boundaryPathspec(gitRoot, cwd))
       if (generation !== startGeneration) return
       if (tracked !== null) {
         const matcher = ignoreMatcher(gitRoot, cwd)
@@ -379,7 +388,7 @@ function kickUntrackedMerge(
 ): void {
   if (untrackedInFlight) return
   untrackedInFlight = true
-  void listUntracked(gitRoot)
+  void listUntracked(gitRoot, boundaryPathspec(gitRoot, cwd))
     .then(untracked => {
       if (generation !== startGeneration) return
       if (index === null) return

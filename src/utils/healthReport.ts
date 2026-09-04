@@ -2,6 +2,7 @@
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
+import { projectScopePathspec } from './projectBoundary.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
@@ -139,7 +140,7 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
     })
   try {
     if ((await run(['read-tree', 'HEAD'])) === null) return null
-    if ((await run(['add', '-A'])) === null) return null
+    if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
     const tree = await run(['write-tree'])
     return tree && tree.length > 0 ? tree : null
   } catch {
