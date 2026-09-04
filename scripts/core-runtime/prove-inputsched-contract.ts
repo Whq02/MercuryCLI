@@ -452,8 +452,9 @@ console.log('native-core T13/T14 — input-scheduling contract')
 
   check('lock: the face runs no auto-restore (no shouldAutoRestore call, no history rewind in the screen)',
     !repl.includes('shouldAutoRestore(') && !repl.includes('removeLastFromHistory'))
+  const cancelHook = readFileSync(join(import.meta.dir, '../../src/hooks/useCancelRequest.ts'), 'utf8')
   check('lock: esc reaches the focused session through its connector (the one interrupt door)',
-    repl.includes('getFocusedSessionConnector().interrupt()'))
+    cancelHook.includes('getFocusedSessionConnector()') && cancelHook.includes('focused.interrupt()') && repl.includes('interruptFocusedTurn'))
 
   const ownerSrc = readFileSync(join(repoRoot, 'src/input-core/pending-input.ts'), 'utf8')
   const cancelIdx = ownerSrc.indexOf('cancelPendingDraftSave()')

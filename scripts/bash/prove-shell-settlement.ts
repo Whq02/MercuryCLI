@@ -280,7 +280,7 @@ section('ST-3/4/7/8, XC-1/2 — source pins at their owners')
   const pins: [string, string, (src: string) => boolean][] = [
     ['ST-3: runAgent finally gates shared teardown on the executor claim', 'src/tools/AgentTool/runAgent.ts', s => s.includes('executorClaims') && /executorClaims\.get\(agentId\) === claim/.test(s)],
     ['ST-4: Monitor stop latch defers past pending stdio (setImmediate)', 'src/tools/MonitorTool/MonitorTool.ts', s => /result\.then\(async \(\) => \{[\s\S]{0,400}?setImmediate[\s\S]{0,200}?stopped = true/m.test(s)],
-    ['ST-7: workflow output write is awaited before the notification', 'src/tools/WorkflowTool/WorkflowTool.tsx', s => s.includes('await completeWorkflowTask(')],
+    ['ST-7: workflow output write is awaited before the notification (settleRun: manifest → transition → notification)', 'src/tools/WorkflowTool/WorkflowTool.tsx', s => s.includes('const outputWriteError = (await transition()) ?? undefined') && /await transition\(\)\) \?\? undefined[\s\S]{0,300}?enqueueWorkflowNotification\(/.test(s) && /completeWorkflowTask\(\s*taskId/.test(s)],
     ['ST-7: write failure reaches the notification args', 'src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx', s => s.includes('outputWriteError') && s.includes('the output file could not be written')],
     ['ST-8: daemon grace-kill settles from close (backstop-bounded), not finish(null)', 'src/daemon/headlessRun.ts', s => s.includes('finishOnCloseWithBackstop()') && !/SIGKILL'\)\s*\n\s*finish\(null\)/m.test(s)],
     ['XC-1: the restore is all-or-nothing on the commit core with typed refusals (the partial-restore class cannot exist)', 'src/utils/fileHistory.ts', s => s.includes('runTextChangeSetCommit') && s.includes("'restore-failed'")],

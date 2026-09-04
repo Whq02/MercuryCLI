@@ -42,7 +42,7 @@ section('§3 the shape')
   check('…and paints the em dash for it, the ramp only for a number', /usagePct === null \? <Text color=\{FAINT\}>—<\/Text> : <Text color=\{usagePct < 80/.test(rail))
 
   const picker = read('src/commands/model/mercuryModel.tsx')
-  check("/model's gauge reads the session-effective model the frame publishes (the focused pin, the session override, then the global model)", /getFocusedSessionConnector\(\)\.modelFacts\(\)\.sessionPin \?\? mainLoopModelForSession \?\? mainLoopModel \?\? getMainLoopModel\(\)/.test(picker))
+  check("/model's gauge reads the served model (the focused seat's effective row, the session override, then the global model)", /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(mainLoopModelForSession \?\? getMainLoopModel\(\)\)/.test(picker) && /contextFillView\(messages, servedModel\)/.test(picker))
   check('…and never the global model alone', !/contextFillView\(messages, getMainLoopModel\(\)\)/.test(picker))
   check('…carrying the unknown fill as null (the base initialised 0 and left it there)', /let ctxPct: number \| null = null/.test(picker) && !/let ctxPct = 0/.test(picker))
   const pickerView = read('src/components/MercuryModelPicker.tsx')
