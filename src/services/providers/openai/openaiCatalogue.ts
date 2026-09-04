@@ -136,6 +136,24 @@ export function refreshOpenaiCatalogue(
   return work
 }
 
+export function primeOpenaiCatalogue(
+  snapshot: { sourceKind: OpenaiAccountSourceKind; models: OpenaiLiveModel[]; fetchedAtMs: number },
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (!Array.isArray(snapshot.models) || snapshot.models.length === 0 || !(snapshot.fetchedAtMs > 0)) return false
+  const identity = catalogueIdentity(snapshot.sourceKind, env)
+  const cached = catalogueCache.get(identity)
+  if (cached && cached.fetchedAtMs >= snapshot.fetchedAtMs) return false
+  storeSnapshot(identity, {
+    sourceKind: snapshot.sourceKind,
+    models: snapshot.models,
+    fetchedAtMs: snapshot.fetchedAtMs,
+    lastAttemptAtMs: snapshot.fetchedAtMs,
+  })
+  bumpCatalogueEpoch()
+  return true
+}
+
 
 export const APEX_GPT_ROLES = [
   'primary',
