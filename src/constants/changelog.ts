@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.3
-- GPT-6 Astra (gpt-6-astra) is a first-class row: the 1,050,000 window, the 128,000 output ceiling, the low-to-max effort ladder and the published prices; it lists once the connected OpenAI account serves it
+- GPT-6 Astra (gpt-6-astra) is a first-class row, proven on the wire: it lists once the connected OpenAI account serves it (the account list decides the served window and effort ladder — a ChatGPT subscription serves a 272,000 default window and an 872,000 ceiling, and the gauge follows the served ceiling), the effort ladder reaches max, the published prices price every turn, the meter counts the wire's cache writes at the $12.5 write rate, and a prompt past 272,000 input tokens prices at the page's long-context tier (2x input and cache rates, 1.5x output)
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
