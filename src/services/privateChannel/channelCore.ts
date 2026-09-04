@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { RELEASE_TARGETS, archiveNameFor, releaseTargetFor } from './releaseTarget.js'
 
 export interface PrivateVersion {
   major: number
@@ -53,16 +54,12 @@ export type ReleaseSelection =
 export const CHECKSUM_MANIFEST_NAME = 'SHA256SUMS.txt'
 
 export function assetNameFor(version: string, platform: string, arch: string): string | null {
-  if (platform === 'linux' && arch === 'x64') return `mercury-v${version}-linux-x64.tar.gz`
-  if (platform === 'darwin' && arch === 'arm64') return `mercury-v${version}-macos-arm64.tar.gz`
-  if (platform === 'win32' && arch === 'x64') return `mercury-v${version}-windows-x64.zip`
-  return null
+  const target = releaseTargetFor(platform, arch)
+  return target === null ? null : archiveNameFor(version, target)
 }
 
 export function platformNote(platform: string, arch: string): string {
-  if (platform === 'darwin' && arch === 'x64')
-    return 'macOS x64 (Intel) has no channel archive — hosted Intel runners were retired; use the source build'
-  return `no private-channel archive is published for ${platform}/${arch}`
+  return `no release archive is published for ${platform}/${arch} — the archives are ${RELEASE_TARGETS.join(', ')}; build from source (README.md)`
 }
 
 export function selectRelease(
