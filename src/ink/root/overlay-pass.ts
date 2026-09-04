@@ -1,5 +1,5 @@
 import type { Screen, StylePool } from '../cell-grid.js'
-import type { FollowScroll } from '../compose-walk.js'
+import type { ScrollTranslation } from '../compose-walk.js'
 import type { OverlayRecord } from '../geometry/overlay.js'
 import { applyPositionedHighlight, type MatchPosition } from '../render-to-screen.js'
 import { applySearchHighlight } from '../searchHighlight.js'
@@ -9,7 +9,7 @@ import {
   hasSelection,
   type SelectionState,
   shiftAnchor,
-  shiftSelectionForFollow,
+  shiftSelection,
 } from '../geometry/selection.js'
 
 export type SearchPositions = {
@@ -21,7 +21,7 @@ export type SearchPositions = {
 
 export type OverlayPassInput = {
   altScreen: boolean
-  follow: FollowScroll | null
+  scrollTranslation: ScrollTranslation | null
   selection: SelectionState
   captureScreen: Screen
   screen: Screen
@@ -35,18 +35,21 @@ export type OverlayPassInput = {
 export type OverlayPassResult = { selActive: boolean; hlActive: boolean }
 
 export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
-  const { follow, selection } = input
+  const { scrollTranslation, selection } = input
 
   if (
-    follow &&
+    scrollTranslation &&
     selection.anchor &&
-    selection.anchor.row >= follow.viewportTop &&
-    selection.anchor.row <= follow.viewportBottom
+    selection.anchor.row >= scrollTranslation.viewportTop &&
+    selection.anchor.row <= scrollTranslation.viewportBottom
   ) {
-    const { delta, viewportTop, viewportBottom } = follow
+    const { delta, viewportTop, viewportBottom } = scrollTranslation
+    const capFirst = delta > 0 ? viewportTop : viewportBottom + delta + 1
+    const capLast = delta > 0 ? viewportTop + delta - 1 : viewportBottom
+    const side: 'above' | 'below' = delta > 0 ? 'above' : 'below'
     if (selection.isDragging) {
       if (hasSelection(selection)) {
-        captureScrolledRows(selection, input.captureScreen, viewportTop, viewportTop + delta - 1, 'above')
+        captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
       shiftAnchor(selection, -delta, viewportTop, viewportBottom)
     } else if (
@@ -54,10 +57,11 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
       (selection.focus.row >= viewportTop && selection.focus.row <= viewportBottom)
     ) {
       if (hasSelection(selection)) {
-        captureScrolledRows(selection, input.captureScreen, viewportTop, viewportTop + delta - 1, 'above')
+        captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
-      const cleared = shiftSelectionForFollow(selection, -delta, viewportTop, viewportBottom)
-      if (cleared) input.onSelectionCleared()
+      const had = hasSelection(selection)
+      shiftSelection(selection, -delta, viewportTop, viewportBottom, input.captureScreen.width)
+      if (had && !hasSelection(selection)) input.onSelectionCleared()
     }
   }
 

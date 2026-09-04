@@ -21,7 +21,7 @@ import wrapText, { truncateParts } from './wrap-text.js'
 
 
 export type ScrollHint = { top: number; bottom: number; delta: number }
-export type FollowScroll = {
+export type ScrollTranslation = {
   delta: number
   viewportTop: number
   viewportBottom: number
@@ -38,7 +38,7 @@ export class ComposeSignals {
   shiftLog: string[] = []
   scrollHint: ScrollHint | null = null
   scrollDrainNode: DOMElement | null = null
-  followScroll: FollowScroll | null = null
+  scrollTranslation: ScrollTranslation | null = null
   readonly absoluteRectsCur: Rectangle[] = []
 
   markLayoutShift(reason: () => string, divergentRow?: number): void {
@@ -61,10 +61,10 @@ export class ComposeSignals {
     return Math.max(0, Math.floor(this.shiftMinRow))
   }
 
-  consumeFollowScroll(): FollowScroll | null {
-    const f = this.followScroll
-    this.followScroll = null
-    return f
+  consumeScrollTranslation(): ScrollTranslation | null {
+    const t = this.scrollTranslation
+    this.scrollTranslation = null
+    return t
   }
 }
 
@@ -832,16 +832,6 @@ function composeScrollBox(
       fluxMark('scroll:restick', innerHeight)
     }
   }
-  const followDelta = (sc.scrollTop ?? 0) - scrollTopBeforeFollow
-  if (followDelta > 0) {
-    fluxMark('scroll:follow', innerHeight)
-    const vpTop = sc.scrollViewportTop ?? 0
-    signals.followScroll = {
-      delta: followDelta,
-      viewportTop: vpTop,
-      viewportBottom: vpTop + innerHeight - 1,
-    }
-  }
 
   let cur = sc.scrollTop ?? 0
   const pending = sc.pendingScrollDelta
@@ -884,26 +874,30 @@ function composeScrollBox(
   let hint: ScrollHint | null = null
   let rectShift: { top: number; bottom: number; delta: number; x0: number; x1: number } | null =
     null
-  if (rowSampler === undefined && contentCached && contentCached.y !== contentY) {
+  if (contentCached && contentCached.y !== contentY) {
     const delta = contentCached.y - contentY
     const regionTop = Math.floor(y + contentYoga.getComputedTop())
     const regionBottom = regionTop + innerHeight - 1
-    const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
-    const stableForShift =
-      cached?.y === y && cached.height === height && innerHeight > 0 && Math.abs(delta) < innerHeight
-    if (stableForShift && spansFullWidth && ctx.regionScrollUsable) {
-      hint = { top: regionTop, bottom: regionBottom, delta }
-      signals.scrollHint = hint
-    } else if (stableForShift) {
-      rectShift = {
-        top: regionTop,
-        bottom: regionBottom,
-        delta,
-        x0: Math.floor(x),
-        x1: Math.floor(x) + Math.floor(width),
+    signals.scrollTranslation = { delta, viewportTop: regionTop, viewportBottom: regionBottom }
+    if (delta > 0) fluxMark('scroll:follow', innerHeight)
+    if (rowSampler === undefined) {
+      const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
+      const stableForShift =
+        cached?.y === y && cached.height === height && innerHeight > 0 && Math.abs(delta) < innerHeight
+      if (stableForShift && spansFullWidth && ctx.regionScrollUsable) {
+        hint = { top: regionTop, bottom: regionBottom, delta }
+        signals.scrollHint = hint
+      } else if (stableForShift) {
+        rectShift = {
+          top: regionTop,
+          bottom: regionBottom,
+          delta,
+          x0: Math.floor(x),
+          x1: Math.floor(x) + Math.floor(width),
+        }
+      } else {
+        signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
       }
-    } else {
-      signals.markLayoutShift(() => `scroll-no-hint:${node.nodeName}`)
     }
   }
 
