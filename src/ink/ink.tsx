@@ -1315,9 +1315,10 @@ export default class Ink {
     }
   }
 
-  handleSelectionStart(col: number, row: number): void {
+  handleSelectionStart(col: number, row: number, pressHadAlt = false): void {
     if (!this.altScreenActive) return
     startSelection(this.selection, col, row)
+    this.selection.lastPressHadAlt = pressHadAlt
     this.applySelectionClipBand(col, row)
     this.notifySelectionChange()
   }

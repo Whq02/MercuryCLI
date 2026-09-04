@@ -107,7 +107,7 @@ type Props = {
   readonly openHyperlink: (url: string) => void
   readonly handleMultiClick: (col: number, row: number, count: 2 | 3) => void
   readonly handleSelectionDrag: (col: number, row: number) => void
-  readonly handleSelectionStart?: (col: number, row: number) => void
+  readonly handleSelectionStart?: (col: number, row: number, pressHadAlt: boolean) => void
   readonly onStdinResume: () => void
   readonly setCursorDeclaration?: CursorDeclarationSetter
   readonly dispatchKeyboardEvent: (key: ParsedKey) => void
@@ -647,13 +647,14 @@ export function handleMouseEvent(app: App, atom: ParsedMouse): void {
       props.handleMultiClick(col, row, count)
       return
     }
+    const pressHadAlt = (atom.button & ALT_MODIFIER_BIT) !== 0
     if (props.handleSelectionStart) {
-      props.handleSelectionStart(col, row)
+      props.handleSelectionStart(col, row, pressHadAlt)
     } else {
       startSelection(selection, col, row)
+      selection.lastPressHadAlt = pressHadAlt
+      props.notifySelectionChange()
     }
-    selection.lastPressHadAlt = (atom.button & ALT_MODIFIER_BIT) !== 0
-    props.notifySelectionChange()
     return
   }
 
