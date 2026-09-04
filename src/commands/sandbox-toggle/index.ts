@@ -13,21 +13,18 @@ const sandboxToggle = {
   name: 'sandbox',
   argumentHint: 'exclude "command pattern"',
   immediate: true,
-  get description() {
+  description: 'Sandboxing — Enter opens the configuration',
+  currentValue: () => {
     const check = SandboxManager.checkDependencies()
     const enabled = SandboxManager.isSandboxingEnabled()
     const glyph = check.errors.length > 0 ? GLYPH.warn : enabled ? '✓' : '◯'
-    let phrase = 'Sandboxing disabled'
+    let phrase = enabled ? 'enabled' : 'disabled'
     if (enabled) {
-      phrase = SandboxManager.isAutoAllowBashIfSandboxedEnabled()
-        ? 'Sandboxing enabled (auto-allow)'
-        : 'Sandboxing enabled'
-      if (SandboxManager.areUnsandboxedCommandsAllowed()) {
-        phrase += ', fallback allowed'
-      }
+      if (SandboxManager.isAutoAllowBashIfSandboxedEnabled()) phrase += ' · auto-allow'
+      if (SandboxManager.areUnsandboxedCommandsAllowed()) phrase += ' · fallback'
     }
-    const managed = SandboxManager.areSandboxSettingsLockedByPolicy() ? ' (managed)' : ''
-    return `${glyph} ${phrase}${managed} — Enter opens the configuration`
+    const managed = SandboxManager.areSandboxSettingsLockedByPolicy() ? ' · managed' : ''
+    return `${glyph} ${phrase}${managed}`
   },
   get isHidden() {
     return !platformLooksSupported() || !SandboxManager.isPlatformInEnabledList()

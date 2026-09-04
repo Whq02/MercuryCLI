@@ -187,17 +187,17 @@ section('§3 both Anthropic wire builders ride the one fold and the one thinking
   )
 }
 
-section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family default never moves')
+section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest')
 {
   const ID = 'claude-fable-5-1'
   const FAMILY = 'claude-fable-5'
   check('its own canonical (never swallowed by the fable-5 substring arm)', getCanonicalName(ID) === ID)
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID)
   check('the Mythos 5.1 mirror folds onto it', getCanonicalName('claude-mythos-5-1') === ID)
-  check('Mythos 5 still folds onto Fable 5 (the family default is untouched)', getCanonicalName('claude-mythos-5') === FAMILY)
+  check('Mythos 5 still folds onto Fable 5 (the previous generation keeps its own canonical)', getCanonicalName('claude-mythos-5') === FAMILY)
   check("the one display owner names it 'Fable 5.1'", renderModelName(ID) === 'Fable 5.1', renderModelName(ID))
   check("the exact-generation alias 'fable51' resolves to the bare id", parseUserSpecifiedModel('fable51') === ID, parseUserSpecifiedModel('fable51'))
-  check("the family alias 'fable' still resolves to the family default, not the second member", getCanonicalName(parseUserSpecifiedModel('fable')) === FAMILY, parseUserSpecifiedModel('fable'))
+  check("the family alias 'fable' resolves to the generation table's newest row — this member", getCanonicalName(parseUserSpecifiedModel('fable')) === ID, parseUserSpecifiedModel('fable'))
   check("the router classifies it 'fable'", classOfModel(ID) === 'fable', String(classOfModel(ID)))
   check('the seat allowlist carries it beside the family default', SEAT_ALLOWED_FAMILIES.includes(ID) && SEAT_ALLOWED_FAMILIES.includes(FAMILY))
   check('natively 1M on the bare id', getContextWindowForModel(ID) === 1_000_000, String(getContextWindowForModel(ID)))
@@ -217,7 +217,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check("the autopilot key table lists 'fable51' beside 'fable'", (AUTOPILOT_TIER_KEYS as readonly string[]).includes('fable') && (AUTOPILOT_TIER_KEYS as readonly string[]).includes('fable51'))
   check('the default autopilot allowlist admits both (unset env)', (autopilotAllowedModels() as readonly string[]).includes('fable51') && (autopilotAllowedModels() as readonly string[]).includes('fable'))
   check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
-  check("the crew spawn table carries fable51 → claude-fable-5-1 @ high beside fable → claude-fable-5 @ high", CREW_MODEL_CHOICES.fable51.model === ID && CREW_MODEL_CHOICES.fable51.effort === 'high' && CREW_MODEL_CHOICES.fable.model === FAMILY && CREW_MODEL_CHOICES.fable.effort === 'high')
+  check("the crew spawn table carries fable51 → claude-fable-5-1 @ high, and the family word resolves to the same newest row", CREW_MODEL_CHOICES.fable51.model === ID && CREW_MODEL_CHOICES.fable51.effort === 'high' && CREW_MODEL_CHOICES.fable.model === ID && CREW_MODEL_CHOICES.fable.effort === 'high')
   const daedalus = src('src/tools/WorkflowTool/bundled/daedalus.ts')
   const roster = src('src/tools/WorkflowTool/workflowPrompt.ts')
   const menu = src('src/substrate/startupMenu.ts')

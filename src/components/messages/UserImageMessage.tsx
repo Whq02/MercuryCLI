@@ -2,7 +2,7 @@
 import React from 'react'
 import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
-import { getStoredImagePath } from '../../utils/imageStore.js'
+import { storedImageState } from '../../utils/imageStore.js'
 
 export function UserImageMessage({
   addMargin = false,
@@ -12,18 +12,18 @@ export function UserImageMessage({
   imageId?: number
 }): React.ReactNode {
   const label = imageId !== undefined ? `[Image #${imageId}]` : '[Image]'
-  const storedPath =
-    imageId !== undefined ? getStoredImagePath(imageId) : null
+  const stored = imageId !== undefined ? storedImageState(imageId) : null
   return (
     <Box marginTop={addMargin ? 1 : 0}>
       <Text dimColor>
-        {storedPath ? (
-          <Link url={`file://${storedPath}`} fallback={label}>
+        {stored !== null && stored.present ? (
+          <Link url={`file://${stored.path}`} fallback={label}>
             {label}
           </Link>
         ) : (
           label
         )}
+        {stored !== null && !stored.present ? ` · file missing: ${stored.path}` : ''}
       </Text>
     </Box>
   )

@@ -4,7 +4,7 @@ import { Text } from '../ink.js'
 import Link from '../ink/components/Link.js'
 import { supportsHyperlinks } from '../ink/session/capabilities.js'
 import { formatImageRef } from '../history.js'
-import { getStoredImagePath } from '../utils/imageStore.js'
+import { storedImageState } from '../utils/imageStore.js'
 
 export function ClickableImageRef({
   imageId,
@@ -16,7 +16,8 @@ export function ClickableImageRef({
   isSelected?: boolean
 }): React.ReactNode {
   const label = formatImageRef(imageId)
-  const storedPath = getStoredImagePath(imageId)
+  const stored = storedImageState(imageId)
+  const storedPath = stored !== null && stored.present ? stored.path : null
 
   if (storedPath !== null && supportsHyperlinks()) {
     return (

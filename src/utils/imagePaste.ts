@@ -1,7 +1,7 @@
 
 import { randomBytes } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
-import { basename, extname, isAbsolute, join } from 'node:path'
+import { copyFile, mkdir, writeFile } from 'node:fs/promises'
+import { basename, extname, isAbsolute, join, resolve } from 'node:path'
 import { execa } from 'execa'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getFsImplementation } from './fsOperations.js'
@@ -11,6 +11,7 @@ import {
   maybeResizeAndDownsampleImageBuffer,
   type ImageDimensions,
 } from './imageResizer.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { logError } from './log.js'
 import { logForDebugging } from './debug.js'
 
@@ -22,10 +23,9 @@ export type ImageWithDimensions = {
   base64: string
   mediaType: string
   dimensions?: ImageDimensions
+  byteLength?: number
 }
 
-
-const ARTIFACT_NAME = 'mercury_latest_screenshot.png'
 
 type ClipboardPlatform = 'darwin' | 'linux' | 'win32'
 
@@ -42,8 +42,15 @@ function tempDir(): string {
   return '/tmp'
 }
 
-function artifactPath(): string {
-  return join(tempDir(), ARTIFACT_NAME)
+export function pasteArtifactDir(): string {
+  return join(tempDir(), `mercury-paste-${process.pid}`)
+}
+
+let pasteSequence = 0
+
+export function nextPasteArtifactPath(): string {
+  pasteSequence += 1
+  return join(pasteArtifactDir(), `paste-${pasteSequence}-${randomBytes(4).toString('hex')}.png`)
 }
 
 function psQuote(path: string): string {
@@ -51,11 +58,15 @@ function psQuote(path: string): string {
 }
 
 
+function fixtureClipboardFile(): string | null {
+  const file = flagEnv('MERCURY_CLIPBOARD_IMAGE_FILE')
+  return file !== undefined && file.trim() !== '' ? file : null
+}
+
+
 export async function hasImageInClipboard(): Promise<boolean> {
-  if (clipboardPlatform() !== 'darwin') return false
   try {
-    const result = await execFileNoThrow('osascript', ['-e', 'the clipboard as «class PNGf»'])
-    return result.code === 0
+    return await checkClipboardImage(clipboardPlatform())
   } catch {
     return false
   }
@@ -63,6 +74,8 @@ export async function hasImageInClipboard(): Promise<boolean> {
 
 
 async function checkClipboardImage(platform: ClipboardPlatform): Promise<boolean> {
+  const fixture = fixtureClipboardFile()
+  if (fixture !== null) return getFsImplementation().existsSync(fixture)
   if (platform === 'darwin') {
     const result = await execFileNoThrow('osascript', ['-e', 'the clipboard as «class PNGf»'])
     return result.code === 0
@@ -83,6 +96,15 @@ async function checkClipboardImage(platform: ClipboardPlatform): Promise<boolean
 }
 
 async function saveClipboardImage(platform: ClipboardPlatform, path: string): Promise<boolean> {
+  const fixture = fixtureClipboardFile()
+  if (fixture !== null) {
+    try {
+      await copyFile(fixture, path)
+      return true
+    } catch {
+      return false
+    }
+  }
   if (platform === 'darwin') {
     const script = [
       `set theFile to open for access POSIX file "${path}" with write permission`,
@@ -171,19 +193,24 @@ async function normalizeBmp(buffer: Buffer): Promise<Buffer> {
 
 export async function getImageFromClipboard(): Promise<ImageWithDimensions | null> {
   const platform = clipboardPlatform()
-  const path = artifactPath()
+  const path = nextPasteArtifactPath()
   try {
     if (!(await checkClipboardImage(platform))) return null
+    await mkdir(pasteArtifactDir(), { recursive: true })
     if (!(await saveClipboardImage(platform, path))) return null
+  } catch (error) {
+    logForDebugging(`imagePaste: clipboard save failed: ${String(error)}`)
+    return null
+  }
+  try {
     const raw = await getFsImplementation().readFileBytes(path)
     const normalized = await normalizeBmp(raw)
     const resized = await maybeResizeAndDownsampleImageBuffer(normalized, normalized.length, 'png')
     const base64 = resized.buffer.toString('base64')
     const mediaType = detectImageFormatFromBase64(base64)
+    return { base64, mediaType, dimensions: resized.dimensions, byteLength: resized.buffer.length }
+  } finally {
     deleteArtifact(platform, path)
-    return { base64, mediaType, dimensions: resized.dimensions }
-  } catch {
-    return null
   }
 }
 
@@ -228,30 +255,33 @@ export async function tryReadImageFromPath(
 ): Promise<(ImageWithDimensions & { path: string }) | null> {
   const cleaned = asImageFilePath(text)
   if (cleaned === null) return null
+  let readFrom: string | null = null
+  if (isAbsolute(cleaned)) {
+    readFrom = cleaned
+  } else if (getFsImplementation().existsSync(resolve(cleaned))) {
+    readFrom = resolve(cleaned)
+  } else {
+    const clipboardPath = await getImagePathFromClipboard()
+    if (clipboardPath && basename(clipboardPath) === basename(cleaned)) {
+      readFrom = clipboardPath
+    }
+  }
+  if (readFrom === null) return null
+  let raw: Buffer
   try {
-    let readFrom: string | null = null
-    if (isAbsolute(cleaned)) {
-      readFrom = cleaned
-    } else {
-      const clipboardPath = await getImagePathFromClipboard()
-      if (clipboardPath && basename(clipboardPath) === basename(cleaned)) {
-        readFrom = clipboardPath
-      }
-    }
-    if (readFrom === null) return null
-    const raw = await getFsImplementation().readFileBytes(readFrom)
-    if (raw.length === 0) {
-      logForDebugging(`imagePaste: pasted image file is empty: ${readFrom}`)
-      return null
-    }
-    const normalized = await normalizeBmp(raw)
-    const ext = extname(cleaned).slice(1).toLowerCase() || 'png'
-    const resized = await maybeResizeAndDownsampleImageBuffer(normalized, normalized.length, ext)
-    const base64 = resized.buffer.toString('base64')
-    const mediaType = detectImageFormatFromBase64(base64)
-    return { base64, mediaType, dimensions: resized.dimensions, path: cleaned }
+    raw = await getFsImplementation().readFileBytes(readFrom)
   } catch (error) {
     logError(error)
     return null
   }
+  if (raw.length === 0) {
+    logForDebugging(`imagePaste: pasted image file is empty: ${readFrom}`)
+    return null
+  }
+  const normalized = await normalizeBmp(raw)
+  const ext = extname(cleaned).slice(1).toLowerCase() || 'png'
+  const resized = await maybeResizeAndDownsampleImageBuffer(normalized, normalized.length, ext)
+  const base64 = resized.buffer.toString('base64')
+  const mediaType = detectImageFormatFromBase64(base64)
+  return { base64, mediaType, dimensions: resized.dimensions, byteLength: resized.buffer.length, path: cleaned }
 }

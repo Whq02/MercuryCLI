@@ -24,7 +24,7 @@ import {
   generateState,
 } from '../../oauth/crypto.js'
 import { readStoredOpenaiApiKey } from '../../../utils/router/providerSecrets.js'
-import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
+import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
 
 
@@ -96,6 +96,7 @@ function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
     chmodSync(path, 0o600)
   } catch {
   }
+  noteCredentialChange()
 }
 
 export function openaiAuthFileExists(): boolean {

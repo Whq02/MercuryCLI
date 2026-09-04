@@ -1838,6 +1838,27 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'seats',
+          label: 'Seats',
+          run: async () => {
+            const { seatCeilingFacts } = await import('../services/switchboard/capacityCheck.js')
+            const { liveCeilingFacts, composeGovernorCeilings, composeProvenance } = await import('../services/capacity/composeCeilings.js')
+            const { seatNarrowingWords } = await import('../services/capacity/seatWords.js')
+            const facts = seatCeilingFacts()
+            const live = liveCeilingFacts(null)
+            const composed = composeGovernorCeilings(live)
+            const provenance = composeProvenance(live, composed)
+            const source = facts.source === 'consented' ? 'the consented first-boot recommendation' : "the machine's own reading, held for this process"
+            const narrowed = seatNarrowingWords(provenance.narrowing)
+            const lanes = `${composed.delegationLanes} delegated lane${composed.delegationLanes === 1 ? '' : 's'} for the crew`
+            return {
+              status: narrowed !== null ? 'info' : 'ok',
+              evidence: `${facts.sentence} · source: ${source} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
+              detail: `Sessions, sub-agents and workflow agents all run under this one number; a crew member past it waits and its row says so. Manual lever: ${facts.lever}.`,
+            }
+          },
+        },
+        {
           id: 'spawn-switches',
           label: 'Sub-agents & workflows',
           run: async () => {
@@ -2603,6 +2624,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { describeVoiceReadiness } = await import('../services/voice/voiceSession.js')
             const readiness = describeVoiceReadiness()
             return { status: readiness.ready ? ('ok' as const) : ('info' as const), evidence: readiness.line, detail: readiness.detail }
+          },
+        },
+        {
+          id: 'iface-image-processor',
+          label: 'Image processor',
+          run: async () => {
+            const { describeImageProcessor } = await import('../tools/FileReadTool/imageProcessor.js')
+            const road = await describeImageProcessor()
+            return { status: road.ready ? ('ok' as const) : ('info' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
           },
         },
         {

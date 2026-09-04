@@ -30,6 +30,7 @@ for p in \
   scripts/prompt-input/prove-name-anchored-enter.ts \
   scripts/prompt-input/prove-history-scan-debounce.ts \
   scripts/prompt-input/prove-typing-survives-rekey.ts \
+  scripts/prompt-input/prove-image-paste-drive.ts \
 ; do
   echo "── $p"
   __t=$SECONDS; "$BUN" run "$p" || overall=1; prover_mark "$p" "$__t"

@@ -8,6 +8,7 @@ import type { ContentBlockParam } from '../../types/wire.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { decodeDecisionReasonFromWire } from '../../utils/permissions/decisionReasonWire.js'
 import type { PastedContent } from '../../utils/config/schema.js'
+import { storedImageRefBlock } from '../../utils/imageStore.js'
 import { submitTrace } from '../../utils/submitTrace.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
@@ -146,7 +147,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
     .sort((a, b) => a.id - b.id)
     .map(
       entry =>
-        ({
+        (storedImageRefBlock(entry.content) ?? {
           type: 'image',
           source: { type: 'base64', media_type: entry.content.mediaType ?? 'image/png', data: entry.content.content },
         }) as unknown as ContentBlockParam,
@@ -993,7 +994,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       prev === null ||
       prev.model.effective !== next.model.effective ||
       prev.model.setting !== next.model.setting ||
-      prev.pendingModel !== next.pendingModel
+      prev.pendingModel !== next.pendingModel ||
+      prev.effort !== next.effort
     const modeMoved = prev === null || prev.permissionMode !== next.permissionMode
     this.factsBusy = next.busy
     if (next.busy) this.armBusyStall()
@@ -1432,7 +1434,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       effectiveSource,
       main: effective,
       setting: this.facts?.model.setting ?? this.record.modelKey ?? null,
-      sessionPin: null,
+      sessionPin: this.facts?.model.setting ?? this.record.modelKey ?? null,
+      effort: this.facts?.effort ?? this.record.effort ?? null,
       pendingSwitch: this.facts?.pendingModel !== undefined && this.facts.pendingModel !== null ? { setting: this.facts.pendingModel } : null,
     }
   }
