@@ -7,10 +7,13 @@ export type CitationLocation = { type: string }
 export type ToolCaller = { type: string; tool_id?: string }
 
 
+export type TextPhase = 'commentary' | 'final_answer'
+
 export type TextBlock = {
   type: 'text'
   text: string
   citations: Array<TextCitation> | null
+  phase?: TextPhase
 }
 
 export type ThinkingBlock = {
@@ -326,6 +329,7 @@ export type TextBlockParam = {
   text: string
   cache_control?: CacheControlEphemeral | null
   citations?: Array<TextCitation> | null
+  phase?: TextPhase
 }
 
 export type ImageBlockParam = {
