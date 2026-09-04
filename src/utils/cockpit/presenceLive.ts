@@ -94,7 +94,6 @@ export function recordSelfPresence(p: Omit<PresenceSeat, 'ts'>): void {
   let dir: string
   try {
     dir = presenceDirPath()
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 })
   } catch (err) {
     logForDebugging(
       `[presence] dir init failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -118,6 +117,14 @@ export function recordSelfPresence(p: Omit<PresenceSeat, 'ts'>): void {
       return
     } catch {
     }
+  }
+  try {
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 })
+  } catch (err) {
+    logForDebugging(
+      `[presence] dir init failed: ${err instanceof Error ? err.message : String(err)}`,
+    )
+    return
   }
   const rec: PresenceSeat = {
     seat: p.seat,
@@ -225,8 +232,12 @@ export function startPresenceTail(): () => void {
     if (watcher !== null) return
     const dir = getPresenceDir()
     if (dir === null || !existsSync(dir)) return
+    const selfFile = `${sanitizeSegment(getOperatorName())}.json`
     try {
-      const w = watch(resolveWatchRoot(dir), () => tailPresence())
+      const w = watch(resolveWatchRoot(dir), (_event, filename) => {
+        if (filename !== undefined && filename !== null && String(filename) === selfFile) return
+        tailPresence()
+      })
       w.on('error', () => {
         try {
           w.close()
