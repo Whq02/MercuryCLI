@@ -52,7 +52,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 645,
+      "line": 651,
       "kind": "crab",
       "excerpt": "// crab here; a crab session renders byte-identically to the old <Crab/>.",
       "role": "compact-status-inline",
@@ -60,7 +60,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 652,
+      "line": 658,
       "kind": "session-mark",
       "excerpt": "<SessionMark />",
       "role": "compact-status-inline",
@@ -236,7 +236,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 293,
+      "line": 296,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -244,7 +244,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 295,
+      "line": 298,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
@@ -252,7 +252,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 812,
+      "line": 816,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -260,7 +260,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 814,
+      "line": 818,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
