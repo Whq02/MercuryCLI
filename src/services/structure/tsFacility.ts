@@ -54,7 +54,7 @@ function vendoredCandidates(): string[] {
 
 export function resolvePackagedTypescript(): { modulePath: string; version?: string } | null {
   for (const candidate of vendoredCandidates()) {
-    if (!existsSync(candidate) || !tryLoad(candidate)) continue
+    if (!existsSync(candidate)) continue
     let version: string | undefined
     try {
       const vendorJson = path.join(path.dirname(candidate), 'vendor.json')
