@@ -45,6 +45,12 @@ export type AskReceiptV1 =
   | { ok: false; detail: string }
 
 
+export type AgentControlReceiptV1 = {
+  outcome: 'applied' | 'refused'
+  detail?: string
+}
+
+
 export type ModelFactsV1 = {
   effective: string
   effectiveSource?: 'live' | 'record' | 'ambient'
@@ -166,6 +172,7 @@ export type WorkRowV1 = {
   pendingAsks?: number
   agentType?: string
   team?: string
+  stopReason?: string
 }
 
 export type MissionRowV1 = {
@@ -221,6 +228,9 @@ export interface EngineConnectorV1 {
   settleAsk(askId: string): void
 
   interrupt(): boolean
+
+  stopAgent(agentId: string): Promise<AgentControlReceiptV1>
+  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
