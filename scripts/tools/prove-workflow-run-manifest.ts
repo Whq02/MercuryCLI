@@ -177,7 +177,7 @@ section('runLiveness tri-state + partitionDiskRuns (trust-cockpit)')
 section('source: WorkflowTool.tsx wiring (bun-unloadable — text pins)')
 {
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'WorkflowTool.tsx'), 'utf-8')
-  check('initial manifest write at launch', /const writeManifest = \([\s\S]{0,3000}?writeManifest\(\)/.test(src))
+  check('initial manifest write at launch', /const writeManifest = \(/.test(src) && /if \(!\(await writeManifest\(\)\)\) \{/.test(src))
   check('flush path re-stamps, throttled', /RUN_MANIFEST_WRITE_THROTTLE_MS\)\s*\{\s*writeManifest\(\)/.test(src))
   check('heartbeat interval while running', /setInterval\(\s*\(\) => writeManifest\(\),\s*RUN_MANIFEST_HEARTBEAT_MS,?\s*\)/.test(src))
   check('heartbeat cleared in finally', /finally \{\s*clearInterval\(manifestHeartbeat\)/.test(src))
@@ -189,12 +189,12 @@ section('source: WorkflowTool.tsx wiring (bun-unloadable — text pins)')
     "crash path never stamps a paused run 'failed' (awaited terminal write — WS3)",
     /live\?\.status === 'paused'\) \{\s*\n\s*await writeManifest\(\{ status: 'paused' \}\)/.test(src),
   )
-  check("failed path finalizes with the error", /writeManifest\(\{ status: 'failed', error: msg \}\)/.test(src))
+  check("failed path finalizes with the error", /await settleRun\(\s*\{ status: terminal\.status, \.\.\.\(terminalError !== undefined \? \{ error: terminalError \} : \{\}\) \},/.test(src) && /await writeManifest\(\{\s*status: verdict\.status,\s*\.\.\.\(verdict\.error !== undefined \? \{ error: verdict\.error \} : \{\}\),/.test(src))
   check(
     'completed path finalizes with the DERIVED terminal status',
-    /deriveWorkflowTerminalStatus\(\{/.test(src) && /writeManifest\(\{ status: terminal\.status \}\)/.test(src),
+    /deriveWorkflowTerminalStatus\(\{/.test(src) && /await settleRun\(\s*\{ status: terminal\.status,/.test(src),
   )
-  check('crash path finalizes too', /writeManifest\(\{ status: 'failed', error: msg \}\)/.test(src))
+  check('crash path finalizes too', /await settleRun\(\s*\{ status: 'failed', error: msg \},/.test(src))
   check('straggler heartbeats cannot overwrite the terminal snapshot', /if \(manifestChain\.finalized\(\)\) return/.test(src))
   check('transcriptDir joined from sessionStorage (restart-safe join)', /getWorkflowTranscriptDir\(runId\)/.test(src))
 }
