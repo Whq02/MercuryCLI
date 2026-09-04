@@ -121,13 +121,28 @@ if [ ! -f "$dir/mercury.mjs" ]; then
   echo "         re-extract the release archive intact" >&2
   exit 1
 fi
-# ── artifact provenance (LANE LW: interactive boots; warn-only, never a gate)
+# ── the bare-boot decision (computed once; the provenance line and the enter
+# screen share it): a subcommand verb as the first argument, any leading-dash
+# first argument, or a print/help/version flag anywhere boots straight.
+MERCURY_TAKEOVER=1
+case "\${1:-}" in
+  ${SPLASH_SKIP_VERBS.join('|')}) MERCURY_TAKEOVER=0 ;;
+  -*) MERCURY_TAKEOVER=0 ;;
+esac
+for _mercury_arg in "$@"; do
+  case "$_mercury_arg" in
+    ${SPLASH_SKIP_FLAGS.join('|')}) MERCURY_TAKEOVER=0 ;;
+  esac
+done
+# ── artifact provenance (LANE LW: bare interactive boots; warn-only, never a gate)
 # The shipped verifier prints ONE stderr line when the payload is unsigned,
 # tampered, or signed by a key outside the trusted roster — and nothing when
 # signed. It always exits 0, and \`|| true\` holds even a crash harmless: a
-# provenance verdict may never cost a boot. Piped/scripted boots skip it so
-# automation stays byte-clean; \`mercury doctor\` carries the full record.
-if [ -t 0 ] && [ -t 2 ] && [ -f "$dir/verify-artifact.mjs" ]; then
+# provenance verdict may never cost a boot. Verbs (install, update, doctor),
+# flags (--version, --help) and piped/scripted boots skip it — ONE line per
+# session, never one per launcher run inside an install — and \`mercury
+# doctor\` carries the full record.
+if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 2 ] && [ -f "$dir/verify-artifact.mjs" ]; then
   "$node_bin" "$dir/verify-artifact.mjs" --launcher || true
 fi
 # ── the config home (three rungs — runtime + splash resolve identically) ────
@@ -146,19 +161,10 @@ if [ -z "\${NODE_COMPILE_CACHE:-}" ] && [ -z "\${NODE_DISABLE_COMPILE_CACHE:-}" 
   export NODE_COMPILE_CACHE
 fi
 # ── the enter screen (interactive TTY boots only) ───────────────────────────
-# Verbs, flags and piped/redirected stdio boot straight — the enter screen
-# never breaks scripted use. MERCURY_NO_BANNER=1 / MERCURY_SPLASH=off skip it;
-# MERCURY_SPLASH=static keeps the one-line wordmark.
-MERCURY_TAKEOVER=1
-case "\${1:-}" in
-  ${SPLASH_SKIP_VERBS.join('|')}) MERCURY_TAKEOVER=0 ;;
-  -*) MERCURY_TAKEOVER=0 ;;
-esac
-for _mercury_arg in "$@"; do
-  case "$_mercury_arg" in
-    ${SPLASH_SKIP_FLAGS.join('|')}) MERCURY_TAKEOVER=0 ;;
-  esac
-done
+# Verbs, flags and piped/redirected stdio boot straight (the bare-boot
+# decision above) — the enter screen never breaks scripted use.
+# MERCURY_NO_BANNER=1 / MERCURY_SPLASH=off skip it; MERCURY_SPLASH=static
+# keeps the one-line wordmark.
 if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
    && [ "\${MERCURY_NO_BANNER:-0}" != "1" ] && [ "\${MERCURY_SPLASH:-}" != "off" ]; then
   if [ -f "$dir/splash.mjs" ] && [ "\${MERCURY_SPLASH:-}" != "static" ]; then
@@ -276,12 +282,20 @@ if not exist "%DIR%mercury.mjs" (\r
   echo mercury: mercury.mjs is missing beside this launcher 1>&2\r
   exit /b 1\r
 )\r
-rem ── artifact provenance (LANE LW: interactive boots; warn-only, no gate) ──\r
+rem ── the bare-boot decision (computed once; the provenance line and the\r
+rem enter screen share it): the probe folded the TTY, dash and flag laws\r
+rem into NODETTY; a subcommand verb as the first argument boots straight too.\r
+set "MERCURY_TAKEOVER=1"\r
+for %%v in (${SPLASH_SKIP_VERBS.join(' ')}) do if "%~1"=="%%v" set "MERCURY_TAKEOVER=0"\r
+if not "%NODETTY%"=="1" set "MERCURY_TAKEOVER=0"\r
+rem ── artifact provenance (LANE LW: bare interactive boots; warn-only, no gate)\r
 rem One stderr line on unsigned/tampered/unknown-key, silence when signed;\r
 rem the errorlevel is deliberately never consulted — a provenance verdict\r
-rem (or a verifier crash) can never cost a boot. Piped/scripted boots skip\r
-rem it (NODETTY from the probe above) so automation stays byte-clean.\r
-if "%NODETTY%"=="1" if exist "%DIR%verify-artifact.mjs" "%NODEBIN%" "%DIR%verify-artifact.mjs" --launcher\r
+rem (or a verifier crash) can never cost a boot. Verbs, flags and piped/\r
+rem scripted boots skip it (the bare-boot decision above) — ONE line per\r
+rem session, never one per launcher run inside an install — so automation\r
+rem stays byte-clean.\r
+if "%MERCURY_TAKEOVER%"=="1" if exist "%DIR%verify-artifact.mjs" "%NODEBIN%" "%DIR%verify-artifact.mjs" --launcher\r
 rem ── the config home (three rungs — runtime + splash resolve identically) ──\r
 set "MERCURY_SA_HOME="\r
 if defined MERCURY_CONFIG_DIR set "MERCURY_SA_HOME=%MERCURY_CONFIG_DIR%"\r
@@ -305,12 +319,8 @@ if not defined MERCURY_SA_CACHE_OVER if not defined NODE_COMPILE_CACHE if not de
 set "MERCURY_SA_CACHE="\r
 set "MERCURY_SA_CACHE_OVER="\r
 rem ── the enter screen (interactive TTY boots only) ──────────────────────────\r
-rem Verbs, flags and piped stdio boot straight; the probe above carried the\r
-rem TTY+flag decision. The splash self-guards non-TTY too — every gap stays\r
-rem safe.\r
-set "MERCURY_TAKEOVER=1"\r
-for %%v in (${SPLASH_SKIP_VERBS.join(' ')}) do if "%~1"=="%%v" set "MERCURY_TAKEOVER=0"\r
-if not "%NODETTY%"=="1" set "MERCURY_TAKEOVER=0"\r
+rem Verbs, flags and piped stdio boot straight (the bare-boot decision\r
+rem above). The splash self-guards non-TTY too — every gap stays safe.\r
 if not "%MERCURY_TAKEOVER%"=="1" goto :boot\r
 if not exist "%DIR%splash.mjs" goto :boot\r
 if "%MERCURY_NO_BANNER%"=="1" goto :boot\r
@@ -451,11 +461,13 @@ if ($args.Count -gt 0 -and ([string]$args[0]).StartsWith('-')) { $takeover = $fa
 foreach ($mercuryArg in $args) { if ($skipFlags -ccontains [string]$mercuryArg) { $takeover = $false } }
 $interactive = $false
 try { $interactive = (-not [Console]::IsInputRedirected) -and (-not [Console]::IsOutputRedirected) } catch { }
-# -- artifact provenance (LANE LW: interactive boots; warn-only, never a gate)
+# -- artifact provenance (LANE LW: bare interactive boots; warn-only, never a gate)
 # One stderr line on unsigned/tampered/unknown-key, silence when signed; the
 # exit code is deliberately never consulted and a crash is swallowed — a
-# provenance verdict can never cost a boot. Non-interactive runs skip it.
-if ($interactive -and (Test-Path (Join-Path $dir 'verify-artifact.mjs'))) {
+# provenance verdict can never cost a boot. Verbs, flags and non-interactive
+# runs skip it (the bare-boot decision above) — ONE line per session, never
+# one per launcher run inside an install.
+if ($takeover -and $interactive -and (Test-Path (Join-Path $dir 'verify-artifact.mjs'))) {
   try { & $nodeBin (Join-Path $dir 'verify-artifact.mjs') --launcher } catch { }
 }
 $splashPath = Join-Path $dir 'splash.mjs'
