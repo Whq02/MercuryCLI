@@ -11,6 +11,8 @@ import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
 import {
   classifyThinkingDrops,
+  deadMarksFromDrops,
+  deadThinkingMarks,
   describePrefixRewrite,
   describeThinkingDrops,
   inputTransformationsOf,
@@ -87,6 +89,7 @@ import {
   createUserInterruptionMessage,
   normalizeMessagesForAPI,
   createSystemMessage,
+  createThinkingDeadMessage,
   createAssistantAPIErrorMessage,
   createToolUseSummaryMessage,
 } from '../utils/messages.js'
@@ -593,6 +596,11 @@ async function* streamModel(
               } else if (rewrite !== null && outcome.kind === 'none') {
                 recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel)
                 yield emit({ kind: 'notice', message: createSystemMessage(describePrefixRewrite(rewrite.part, rewrite.path), 'warning') })
+              }
+              const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
+              if (dead.length > 0) {
+                logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
+                yield emit({ kind: 'notice', message: createThinkingDeadMessage(dead, `${dead.length} dropped thinking ${dead.length === 1 ? 'block' : 'blocks'} left off every later request`) })
               }
             }
             if (callId === `${iter.turnId}.c1`) {

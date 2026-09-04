@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import type { Message } from '../../../types/message.js'
+import type { DeadThinkingMark, Message } from '../../../types/message.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
@@ -323,6 +323,85 @@ export function describeThinkingDrops(
     case 'recurrent':
       return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} at an earlier request with no compaction, model switch or transcript edit to explain it (${describePathClass(outcome.path)}); every thinking block after that point keeps dropping on each request until the conversation compacts. This row paints once.${ledgerClause(outcome)} This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
   }
+}
+
+
+export function deadMarksFromDrops(
+  list: readonly InputTransformation[],
+  wireMessageIds: readonly (string | null)[],
+  existing: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+): DeadThinkingMark[] {
+  const out: DeadThinkingMark[] = []
+  for (const entry of list) {
+    if (entry.type !== 'thinking_dropped') continue
+    const match = /^messages\.(\d+)\.content\.(\d+)$/.exec(entry.path ?? '')
+    if (match === null) continue
+    const messageId = wireMessageIds[Number(match[1])]
+    if (typeof messageId !== 'string' || messageId.length === 0) continue
+    const sentIndex = Number(match[2])
+    const dead = existing.get(messageId)
+    let original = sentIndex
+    if (dead !== undefined && dead.size > 0) {
+      let seen = -1
+      original = -1
+      for (let index = 0; index < sentIndex + dead.size + 1; index++) {
+        if (dead.has(index)) continue
+        seen++
+        if (seen === sentIndex) {
+          original = index
+          break
+        }
+      }
+      if (original < 0) continue
+    }
+    if (!out.some(mark => mark.messageId === messageId && mark.blockIndex === original)) out.push({ messageId, blockIndex: original })
+  }
+  return out
+}
+
+export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
+  const marks = new Map<string, Set<number>>()
+  for (const message of messages) {
+    if (message.type !== 'system' || (message as { subtype?: string }).subtype !== 'thinking_dead') continue
+    const dead = (message as { dead?: unknown }).dead
+    if (!Array.isArray(dead)) continue
+    for (const mark of dead) {
+      const m = mark as { messageId?: unknown; blockIndex?: unknown }
+      if (typeof m.messageId !== 'string' || typeof m.blockIndex !== 'number') continue
+      let set = marks.get(m.messageId)
+      if (set === undefined) {
+        set = new Set<number>()
+        marks.set(m.messageId, set)
+      }
+      set.add(m.blockIndex)
+    }
+  }
+  return marks
+}
+
+const isThinkingContent = (block: unknown): boolean => {
+  const type = (block as { type?: unknown } | null)?.type
+  return type === 'thinking' || type === 'redacted_thinking'
+}
+
+export function stripDeadThinking<M extends Message>(messages: M[], marks: ReadonlyMap<string, ReadonlySet<number>>): M[] {
+  if (marks.size === 0) return messages
+  let changed = false
+  const result = messages.map(msg => {
+    if (msg.type !== 'assistant') return msg
+    const indices = marks.get(msg.message.id)
+    if (indices === undefined) return msg
+    const content = msg.message.content
+    if (!Array.isArray(content)) return msg
+    const filtered = content.filter((block, index) => !(indices.has(index) && isThinkingContent(block)))
+    if (filtered.length === content.length) return msg
+    changed = true
+    if (filtered.length === 0) {
+      filtered.push({ type: 'text' as const, text: '[reasoning the API dropped — not carried forward]', citations: [] })
+    }
+    return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
+  })
+  return changed ? result : messages
 }
 
 

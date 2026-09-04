@@ -20,6 +20,7 @@ export interface PrefixVerdict {
   lastThinkingIndex: number
   compared: boolean
   key: string
+  wireMessageIds: Array<string | null>
 }
 
 interface SystemBlockRecord {
@@ -48,8 +49,7 @@ interface PrefixRecord {
   system: SystemBlockRecord[]
   tools: ToolRecord[]
   messages: MessageRecord[]
-  requestMark: string | null
-  induced: boolean
+  wireMessageIds: Array<string | null>
 }
 
 const j = (v: unknown): string => JSON.stringify(v)
@@ -155,7 +155,7 @@ function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
     return { role: String(m.role ?? '?'), digest: sha(j({ role: m.role, content })), blocks }
   })
   const whole = sha(j({ system: system.map(s => s.digest), tools: tools.map(t => `${t.name}|${t.deferred}|${t.description}|${t.schema}`), messages: messages.map(m => m.digest) }))
-  return { key, whole, system, tools, messages, requestMark: null, induced: false }
+  return { key, whole, system, tools, messages, wireMessageIds: [] }
 }
 
 export function lastThinkingMessageIndex(messages: readonly unknown[]): number {
@@ -253,15 +253,14 @@ export function judgeAndRecordPrefix(
   owner: string,
   key: string,
   parts: WirePrefixParts,
-  request: { requestMark?: string; induced?: boolean } = {},
+  wireMessageIds: ReadonlyArray<string | null> = [],
 ): PrefixVerdict {
   const current = recordOf(key, parts)
-  current.requestMark = request.requestMark ?? null
-  current.induced = request.induced === true
+  current.wireMessageIds = [...wireMessageIds]
   const previous = records.get(owner)
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
     records.set(owner, current)
-    return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, key }
+    return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, key, wireMessageIds: current.wireMessageIds }
   }
   const lastThinkingIndex = lastThinkingMessageIndex(parts.messages)
   let mismatch: PrefixMismatch | null = null
@@ -273,7 +272,7 @@ export function judgeAndRecordPrefix(
     }
   }
   records.set(owner, current)
-  const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, key }
+  const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, key, wireMessageIds: current.wireMessageIds }
   verdicts.set(owner, verdict)
   return verdict
 }
@@ -308,10 +307,8 @@ export function resolveInducedPrefixEdit(raw: string | undefined = flagEnv('MERC
   return null
 }
 
-export function shouldInduceEdit(owner: string, key: string, requestMark: string): boolean {
-  const record = records.get(owner)
-  if (record === undefined || record.key !== key) return false
-  return record.requestMark !== requestMark || record.induced
+export function inducedEditApplies(messages: readonly { type?: string }[]): boolean {
+  return messages.some(message => message.type === 'assistant')
 }
 
 export function applyInducedPrefixEdit(parts: WirePrefixParts, edit: InducedPrefixEdit): WirePrefixParts {
