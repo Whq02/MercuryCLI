@@ -70,7 +70,7 @@ function focusedSwitchSentence(receipt: ModelSwitchReceiptV1, target: ModelSetti
   const label = renderModelLabel(target)
   switch (receipt.state) {
     case 'applied':
-      return `Model set to ${label} — this session's next message runs it`
+      return `Model set to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}`
     case 'queued':
       return `Model switch queued: ${label} takes effect when this session's turn settles — the running turn keeps its model`
     case 'no-op':

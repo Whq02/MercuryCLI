@@ -612,7 +612,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
               }
             : {
                 key: 'model-switched',
-                text: `Set model to ${label} — this session's next message runs it${doorCross}${doorLossNote}`,
+                text: `Set model to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 3000,
               },
