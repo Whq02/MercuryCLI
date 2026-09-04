@@ -624,7 +624,7 @@ export async function processSlashCommand(
     let result: ProcessUserInputBaseResult
     switch (command.type) {
       case 'local-jsx':
-        result = await runLocalJsxCommand(command, args, context, setToolJSX)
+        result = await runLocalJsxCommand(command, commandName, args, context, setToolJSX)
         break
       case 'local':
         result = await runLocalCommand(command, commandName, args, context, uuid)
@@ -689,6 +689,7 @@ export async function processSlashCommand(
 
 async function runLocalJsxCommand(
   command: Command & { type: 'local-jsx' },
+  commandName: string,
   args: string,
   context: ProcessUserInputContext,
   setToolJSX: SetToolJSXFn,
@@ -757,7 +758,7 @@ async function runLocalJsxCommand(
       try {
         markTransitionStart(getCommandName(command) === 'model' ? 'picker-open' : 'screen-switch')
         const module = await command.load()
-        const element = await module.call(done, context, args)
+        const element = await module.call(done, context, args, commandName)
         if ((context as { options?: { isNonInteractiveSession?: boolean } }).options
           ?.isNonInteractiveSession === true && element) {
           finish({ messages: [], shouldQuery: false })

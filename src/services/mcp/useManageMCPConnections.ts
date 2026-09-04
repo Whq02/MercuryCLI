@@ -6,7 +6,8 @@ import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getBranch } from '../../utils/git.js'
 import { logMCPError } from '../../utils/log.js'
-import { getOperatorName, recordSelfPresence, tailPresence } from '../../utils/cockpit/presenceLive.js'
+import { getOperatorName, recordSelfPresence, startPresenceTail } from '../../utils/cockpit/presenceLive.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { clearClaudeAIMcpConfigsCache, fetchClaudeAIMcpConfigsIfEligible } from './claudeai.js'
 import {
   clearServerCache,
@@ -42,7 +43,6 @@ import {
 const HOOK_LABEL = 'useManageMCPConnections'
 const BATCH_WINDOW_MS = 16
 const PRESENCE_HEARTBEAT_MS = 3000
-const PRESENCE_TAIL_MS = 2000
 
 type Tool = McpConnectOutcome['tools'][number]
 type Command = McpConnectOutcome['commands'][number]
@@ -373,16 +373,12 @@ export function useManageMCPConnections(
         publish()
       })
       .catch(() => {})
-    const heartbeat = setInterval(publish, PRESENCE_HEARTBEAT_MS)
-    heartbeat.unref?.()
-    const tail = setInterval(() => {
-      tailPresence()
-    }, PRESENCE_TAIL_MS)
-    tail.unref?.()
+    const stopHeartbeat = subscribeUiClock(PRESENCE_HEARTBEAT_MS, publish)
+    const stopTail = startPresenceTail()
 
     return () => {
-      clearInterval(heartbeat)
-      clearInterval(tail)
+      stopHeartbeat()
+      stopTail()
       bus.stop()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per session

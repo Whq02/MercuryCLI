@@ -14,7 +14,8 @@ import {
   resolveGeminiAccount,
   resolveGeminiApiKey,
 } from '../providers/gemini/geminiAccounts.js'
-import { readStoredOpenrouterApiKey } from '../../utils/router/providerSecrets.js'
+import { credentialEnvNames, readStoredOpenrouterApiKey } from '../../utils/router/providerSecrets.js'
+import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
 
 export type WalletProvider = 'anthropic' | 'openai' | 'openrouter' | 'gemini'
@@ -37,7 +38,30 @@ export interface WalletEntry {
     | 'provider-secrets'
 }
 
+const ENTRIES_TTL_MS = 5_000
+let entriesMemo: { at: number; key: string; entries: WalletEntry[] } | null = null
+
+function entriesKey(): string {
+  let env = ''
+  for (const name of credentialEnvNames()) env += `${name}=${process.env[name] ?? ''}\u0000`
+  return `${signInLedgerEpoch()}:${env}`
+}
+
+export function resetWalletEntriesMemo(): void {
+  entriesMemo = null
+  activeMemo.clear()
+}
+
 export function walletEntries(): WalletEntry[] {
+  const key = entriesKey()
+  const now = Date.now()
+  if (entriesMemo !== null && entriesMemo.key === key && now - entriesMemo.at < ENTRIES_TTL_MS) return entriesMemo.entries
+  const entries = composeWalletEntries()
+  entriesMemo = { at: now, key, entries }
+  return entries
+}
+
+function composeWalletEntries(): WalletEntry[] {
   const entries: WalletEntry[] = []
 
   for (const scope of scanAccountScopes()) {
@@ -179,6 +203,18 @@ export function notLoggedInGateDecision(
 }
 
 export function activeWalletEntry(provider: WalletProvider): WalletEntry | undefined {
+  const key = entriesKey()
+  const now = Date.now()
+  const hit = activeMemo.get(provider)
+  if (hit !== undefined && hit.key === key && now - hit.at < ENTRIES_TTL_MS) return hit.entry
+  const entry = composeActiveWalletEntry(provider)
+  activeMemo.set(provider, { at: now, key, entry })
+  return entry
+}
+
+const activeMemo = new Map<WalletProvider, { at: number; key: string; entry: WalletEntry | undefined }>()
+
+function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undefined {
   const entries = walletEntries()
   if (provider === 'openrouter') {
     const active = resolveOpenrouterApiKey()
