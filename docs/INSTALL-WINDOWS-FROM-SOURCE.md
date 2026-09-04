@@ -299,6 +299,14 @@ The first run asks you to choose a theme, then to sign in to a model
 provider. Type `/logins` later to add or change providers, and `/accounts`
 to see them. Type `/exit` to leave.
 
+To attach a screenshot, copy it and press **alt+v** in the chat (on Windows
+the terminal owns ctrl+v, and an image-only clipboard gives it nothing to
+paste); Mercury also says so when you come back to it with an image on the
+clipboard. Dragging an image file onto the window attaches it too. A big
+screenshot is shrunk to the model provider's limits, never refused for its
+size; `node dist\mercury.mjs doctor --json` names the image processor in
+its `iface-image-processor` row.
+
 Where you land: every start with no explicit journey lands on the Boot face
 — the card of New Session · Continue Last Session (once session history
 exists) · Boot Menu · MCPs & Skills · Agents · Doctor / Health Check ·
