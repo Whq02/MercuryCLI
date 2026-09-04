@@ -46,6 +46,7 @@ export interface CrewModelChoice {
 }
 
 export function crewModelChoices(): CrewModelChoice[] {
+  ;(require('./signInView.js') as typeof import('./signInView.js')).refreshSignInReads(true)
   const families = seatOwner().seatFamilyChoices()
   const out: CrewModelChoice[] = families.map(f => ({ key: f.family, model: f.setting, effort: 'high', label: f.row }))
   if (families.some(f => f.family === 'anthropic')) {
@@ -69,6 +70,7 @@ export async function resolveCrewSeatModel(
   const { validateWorkerModelChoice } = await import('../services/concourse/workerModels.js')
   let validated: WorkerModelValidation
   try {
+    ;(await import('./signInView.js')).refreshSignInReads(true)
     validated = await validateWorkerModelChoice(named, 'crew')
   } catch (e) {
     return {

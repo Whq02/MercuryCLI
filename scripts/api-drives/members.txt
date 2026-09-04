@@ -1,0 +1,6 @@
+# scripts/api-drives/members.txt — the api suite's real-terminal drives, one
+# basename per line (the files live in scripts/api/). Each member boots the
+# built bundle in a pseudo-terminal; the api suite runs an explicit list, so a
+# prover moves here by joining this list and leaving that one. A name listed
+# here but missing on disk is a loud red in this runner.
+prove-prefix-frozen-drive.ts

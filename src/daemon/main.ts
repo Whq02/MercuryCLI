@@ -70,6 +70,7 @@ import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle }
 import { applyConcourseContractOp } from './sessionContract.js'
 import { applyConcourseScheduleOp } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
+import { composeSignInView, refreshSignInReads } from './signInView.js'
 import { startSaturnTicker } from './saturnTicker.js'
 import { makeSaturnBirthPort } from './saturnBirth.js'
 import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptFrame, failWorkingDispatchesForRunner, heldGitLaunchesFor, reconcileWorkingDispatches, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from './concourseDispatch.js'
@@ -590,6 +591,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           if (action === 'set-schedule') {
             if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: 'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }' }
+            refreshSignInReads()
             return settle(
               applyConcourseScheduleOp(sessionId, scheduleEdit, by, {
                 deriveAccount: deriveScheduleAccountForModel,
@@ -801,6 +803,7 @@ async function daemonRun(args: string[]): Promise<void> {
           warm: warmRunnerCount(),
           restartArmed,
         }),
+        signIns: opts => composeSignInView(opts),
         restartWhenIdle: by => {
           const { live } = liveWorkers()
           if (foreground) {
@@ -908,8 +911,14 @@ async function daemonRun(args: string[]): Promise<void> {
         {
           now: () => Date.now(),
           records: () => Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined),
-          liveFacts: account => readLiveAccountFacts(account),
-          deriveAccount: modelKey => deriveScheduleAccountForModel(modelKey),
+          liveFacts: account => {
+            refreshSignInReads()
+            return readLiveAccountFacts(account)
+          },
+          deriveAccount: modelKey => {
+            refreshSignInReads()
+            return deriveScheduleAccountForModel(modelKey)
+          },
           deliver: async d => {
             const result = await concourseDispatchHandler({
               clientMessageId: d.clientMessageId,

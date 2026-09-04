@@ -52,6 +52,7 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/utils/auth.ts',
     'src/utils/healthReport.ts',
     'src/daemon/saturnAccount.ts',
+    'src/daemon/signInView.ts',
   ])
   const callers = callerFiles('getAuthConfigHomeDir()')
   check(callers.length > 0, 'the seam is actually wired (has callers)', callers.join(', '))
