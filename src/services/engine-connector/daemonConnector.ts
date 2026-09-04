@@ -1482,6 +1482,34 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
+  async setEffort(level: string): Promise<ModelSwitchReceiptV1> {
+    const current = this.modelFacts()
+    if (current.effort === level) return { state: 'no-op' }
+    const busy = this.effectiveLive.inFlight
+    if (this.facts !== null && !busy) {
+      this.facts = { ...this.facts, effort: level }
+      emitAll(this.modelListeners, 'model')
+    }
+    const refuse = (detail: string): ModelSwitchReceiptV1 => {
+      logForDebugging(`[engine-connector] daemon set-effort refused: ${detail}`)
+      this.readFacts()
+      return { state: 'refused', detail }
+    }
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'set-effort', sessionId: this.record.sessionId, by: 'operator', effort: level })
+      if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the effort'))
+      const outcome = reply.outcome
+      const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined
+      if (outcome === 'refused') return refuse(detail ?? 'the daemon refused the effort')
+      if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
+      if ((outcome === 'queued') !== busy) this.readFacts()
+      if (outcome === 'noop') return { state: 'no-op' }
+      return { state: outcome }
+    } catch (e) {
+      return refuse(`the daemon is not answering — the effort did not land (${e instanceof Error ? e.message : String(e)})`)
+    }
+  }
+
   usage(): UsageFactsV1 {
     return (
       this.facts?.usage ?? {

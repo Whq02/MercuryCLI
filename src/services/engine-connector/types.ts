@@ -239,6 +239,7 @@ export interface EngineConnectorV1 {
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
   setModel(setting: ModelSetting): Promise<ModelSwitchReceiptV1>
+  setEffort(level: string): Promise<ModelSwitchReceiptV1>
 
   usage(): UsageFactsV1
   identity(): SeatIdentityV1
