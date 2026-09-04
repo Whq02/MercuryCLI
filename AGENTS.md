@@ -55,8 +55,8 @@ back by `--concourse-on` or `/config`). The lifecycle is [docs/SESSIONS.md](docs
   your `PATH`; `mercury --version` checks it. The launcher runs `MERCURY_NODE`,
   else the vendored `vendor/node` beside the build, else a PATH node. A missing
   runtime is a loud launcher failure, never a silent fallback.
-- Release archives use `mercury install`, `mercury update`, and
-  `mercury update --rollback` instead; they never touch the config home.
+- A release install (README.md, Install: one command per channel) uses
+  `mercury install` and `mercury update` instead; neither touches sessions.
 
 ## Checks
 
