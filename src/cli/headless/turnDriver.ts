@@ -80,6 +80,7 @@ export type TurnDriver = {
   phase(): DriverPhase
   isRunning(): boolean
   hasHeldResult(): boolean
+  releaseHold(): void
   closeOutputOnce(): Promise<void>
 }
 
@@ -87,6 +88,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let phase: DriverPhase = 'idle'
   let heldBackResult: StdoutMessage | null = null
   let outputClosed = false
+  let holdReleased = false
 
   const flushSdkEvents = (): void => {
     for (const event of ports.drainSdkEvents()) {
@@ -129,7 +131,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     await ports.executeTurn(command, batch.length > 1 ? batchUuids : [], message => {
       if (message.type === 'result') {
         flushSdkEvents()
-        if (ports.hasHoldableBackgroundAgents()) {
+        if (!holdReleased && ports.hasHoldableBackgroundAgents()) {
           heldBackResult = message
         } else {
           heldBackResult = null
@@ -150,6 +152,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
 
   async function cycle(): Promise<void> {
     phase = 'starting'
+    holdReleased = false
     ports.notifySessionState('running')
     ports.idleTimerStop()
 
@@ -185,7 +188,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         }
 
         waitingForAgents = false
-        if (ports.hasWaitableBackgroundTasks() || ports.peek() !== undefined) {
+        if ((!holdReleased && ports.hasWaitableBackgroundTasks()) || ports.peek() !== undefined) {
           waitingForAgents = true
           if (ports.peek() === undefined) {
             phase = 'waiting_for_agents'
@@ -257,6 +260,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     phase: () => phase,
     isRunning: () => phase !== 'idle',
     hasHeldResult: () => heldBackResult !== null,
+    releaseHold: () => {
+      if (phase === 'idle') return
+      holdReleased = true
+    },
     closeOutputOnce,
   }
 }

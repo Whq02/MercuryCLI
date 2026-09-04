@@ -45,6 +45,16 @@ keeps for the repository, one color-coded chat each, side by side. There is
 no eager boot spawn: every named agent is an explicit, billed operator act
 through the spawn wizard.
 
+The crew own their stop. Esc in the chat interrupts the chat's own turn and
+nothing else: the sub-agents and workflows the turn launched keep running on
+their own controllers, and the interrupted turn's receipt says how many. To
+stop one, open the Crew view (or the `/tasks` board), select it and press `x`
+twice within two seconds — the first press names the agent the second press
+stops. A stopped agent's row reads `stopped` with the reason and its
+transcript stands on disk; `r` resumes it from that transcript under the same
+id. Every stop, resume and failure reaches the main agent as a notification
+of its own kind, never silently.
+
 Named agents spawn on demand over the daemon's authed control socket. The RPC
 carries only intent — a name and a model choice — and the daemon enforces the
 floor server-side, where a client bug cannot bypass it:

@@ -51,8 +51,12 @@ function bumpEpoch(): void {
   }
 }
 
-export function noteCredentialRemoval(): void {
+export function noteCredentialChange(): void {
   bumpEpoch()
+}
+
+export function noteCredentialRemoval(): void {
+  noteCredentialChange()
 }
 
 function normaliseFamily(family: string): string | undefined {

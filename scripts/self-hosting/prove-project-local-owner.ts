@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { mkdtempSync, mkdirSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'plo-home-'))
@@ -12,6 +12,7 @@ const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)
 enableConfigs()
 const owner = await import(`${repo}/src/services/projectLocal/paths.js`)
+const { getMercuryHome } = await import(`${repo}/src/utils/envUtils.js`)
 const { apolloSpecDirectory } = await import(`${repo}/src/prompt/apolloMode.js`)
 const { lastCertPath } = await import(`${repo}/src/utils/healthReport.js`)
 const { lastPreflightPath } = await import(`${repo}/src/utils/healthPreflight.js`)
@@ -40,13 +41,12 @@ check(
   'doctor last-cert routes through the owner at the pinned state root',
 )
 check(
-  lastPreflightPath() ===
-    join(owner.adoptiveProjectLocalPath(stateRoot, 'doctor'), 'last-preflight.json'),
-  'doctor last-preflight routes through the owner at the pinned state root',
+  lastPreflightPath().startsWith(join(getMercuryHome(), 'doctor') + sep) && lastPreflightPath().endsWith('last-preflight.json'),
+  "doctor last-preflight lives under the config home's doctor store (a boot writes nothing into the repository)",
 )
 check(
-  lastPreflightPath() === join(stateRoot, '.mercury', 'doctor', 'last-preflight.json'),
-  'and that is `<state-root>/.mercury/doctor/last-preflight.json`',
+  !lastPreflightPath().startsWith(stateRoot + sep) && !lastPreflightPath().startsWith(join(stateRoot, '.mercury')),
+  'and never under `<state-root>/.mercury` — the certificate keeps that estate, the preflight does not',
 )
 
 console.log('resolution is pure — deriving creates nothing')
