@@ -1,6 +1,9 @@
+//  global-classes slice reads the class cache through classCache, which also
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
+import { classCacheReport, type StaleClass } from './classCache.js'
+import { editorOnlySliceWords, staticCapsuleSource, type GodotEditorPresence } from './editorPresence.js'
 
 export interface GodotStaticCapsule {
   source: string
@@ -13,6 +16,7 @@ export interface GodotStaticCapsule {
   input_action_count: number
   global_classes: Array<{ class: string; base: string; path: string }>
   global_class_count: number
+  class_cache: { state: 'fresh' | 'stale' | 'absent'; stale: Array<Pick<StaleClass, 'class' | 'path' | 'reason'>>; hint: string }
   scene_count: number
   script_count: number
   scene_paths: string[]
@@ -96,24 +100,6 @@ function walkCensus(
   }
 }
 
-function globalClasses(projectRoot: string, budget: number): { list: Array<{ class: string; base: string; path: string }>; total: number } {
-  const cache = join(projectRoot, '.godot', 'global_script_class_cache.cfg')
-  if (!existsSync(cache)) return { list: [], total: 0 }
-  let text: string
-  try {
-    text = readFileSync(cache, 'utf8')
-  } catch {
-    return { list: [], total: 0 }
-  }
-  const list: Array<{ class: string; base: string; path: string }> = []
-  let total = 0
-  for (const m of text.matchAll(/\{[^}]*"base"\s*:\s*&?"([^"]*)"[^}]*"class"\s*:\s*&?"([^"]*)"[^}]*"path"\s*:\s*"([^"]*)"[^}]*\}/g)) {
-    total++
-    if (list.length < budget) list.push({ class: m[2]!, base: m[1]!, path: m[3]! })
-  }
-  return { list, total }
-}
-
 function exportPresets(projectRoot: string): Array<{ name: string; platform: string }> {
   const file = join(projectRoot, 'export_presets.cfg')
   if (!existsSync(file)) return []
@@ -137,7 +123,7 @@ function exportPresets(projectRoot: string): Array<{ name: string; platform: str
   return out
 }
 
-export function staticGodotCapsule(projectRoot: string, budgetArg?: unknown): GodotStaticCapsule {
+export function staticGodotCapsule(projectRoot: string, budgetArg: unknown, presence: GodotEditorPresence): GodotStaticCapsule {
   const budget = Math.min(200, Math.max(5, Number(budgetArg) || 40))
   const text = readFileSync(join(projectRoot, 'project.godot'), 'utf8')
   const sections = iniSections(text)
@@ -170,27 +156,33 @@ export function staticGodotCapsule(projectRoot: string, budgetArg?: unknown): Go
     if (keyOf(line) === 'enabled') plugins.push(...packedStrings(valueOf(line)))
   }
 
-  const classes = globalClasses(projectRoot, budget)
+  const cache = classCacheReport(projectRoot, budget)
   const census = { scenes: 0, scripts: 0, paths: [] as string[], visited: 0 }
   walkCensus(projectRoot, projectRoot, census, budget)
 
   const versionFeature = features.find(f => /^\d+\.\d+/.test(f))
+  const sliceWords = editorOnlySliceWords(presence)
   return {
-    source: 'static (editor closed — derived from project files; unsaved editor state and uid:// resolution need the live editor)',
-    engine: versionFeature ? `${versionFeature} (from project features; editor closed)` : '(unknown — editor closed)',
+    source: staticCapsuleSource(presence),
+    engine: versionFeature ? `${versionFeature} (from project features; ${presence.words})` : `(unknown — ${presence.words})`,
     project,
     main_scene: mainScene.length > 0 ? mainScene : '(none)',
     features,
     autoloads,
     input_actions: inputActions.slice(0, budget),
     input_action_count: inputActions.length,
-    global_classes: classes.list,
-    global_class_count: classes.total,
+    global_classes: cache.classes,
+    global_class_count: cache.classTotal,
+    class_cache: {
+      state: cache.state,
+      stale: cache.stale.slice(0, budget).map(s => ({ class: s.class, path: s.path, reason: s.reason })),
+      hint: cache.hint,
+    },
     scene_count: census.scenes,
     script_count: census.scripts,
     scene_paths: census.paths,
     open_scenes: [],
-    edited_scene: '(editor closed)',
+    edited_scene: sliceWords,
     plugins,
     export_presets: exportPresets(projectRoot),
   }

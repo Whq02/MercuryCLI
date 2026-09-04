@@ -170,6 +170,7 @@ const CLASSES := {
 	"vulcan_uninstall": "mutate",
 	"editor_doctor": "read",
 	"project_capsule": "read",
+	"project_refresh_classes": "exec",
 	"scene_diff": "read",
 	"batch_transaction": "mutate",
 	"broken_refs": "read",

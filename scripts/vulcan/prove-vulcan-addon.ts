@@ -19,7 +19,7 @@ const addon = path.join(repo, 'assets', 'vulcan', 'addon')
 const catDir = path.join(addon, 'categories')
 
 section('1. handler coverage vs the optable')
-const MERCURY_SIDE = new Set(['vulcan_status', 'vulcan_install', 'vulcan_uninstall'])
+const MERCURY_SIDE = new Set(['vulcan_status', 'vulcan_install', 'vulcan_uninstall', 'project_refresh_classes'])
 const owned = new Map<string, string>()
 const claimed: string[] = []
 for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
@@ -80,29 +80,47 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
   const BASE = '[application]\n\nconfig/name="Deadnight"\nrun/main_scene="res://main.tscn"\n\n[rendering]\n\nquality=2\n'
   try {
     wf(proj, BASE)
-    const r1 = mutateProjectGodot(scratch, (text: string) => ({ text: text + '\n[mercury_vulcan]\n\nport=6010\n', notes: [] }))
+    const r1 = await mutateProjectGodot(scratch, (text: string) => ({
+      text: text + '\n[mercury_vulcan]\n\nport=6010\n',
+      edits: [{ section: 'mercury_vulcan', key: 'port', next: '6010', why: 'the addon listens here' }],
+    }))
     check('mutation publishes atomically and preserves unrelated bytes', r1.ok === true && rf(proj, 'utf8').startsWith(BASE), rf(proj, 'utf8').slice(0, 40))
+    check('the seam returns one receipt line per edited row', r1.ok === true && r1.receipts.length === 1 && r1.receipts[0] === 'project.godot [mercury_vulcan] port: (absent) → 6010 — the addon listens here', JSON.stringify(r1).slice(0, 120))
 
     wf(proj, BASE)
     let calls = 0
-    const r2 = mutateProjectGodot(scratch, (text: string) => {
+    const r2 = await mutateProjectGodot(scratch, (text: string) => {
       calls++
       if (calls === 1) {
         wf(proj, BASE + '\n[editor_saved]\n\nvalue=1\n')
       }
-      return { text: text + '\n[mercury_added]\n\nx=1\n', notes: [] }
+      return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
     const after = rf(proj, 'utf8')
     check('concurrent editor save survives (re-merge on fresh content)', r2.ok === true && calls === 2 && after.includes('[editor_saved]') && after.includes('[mercury_added]'), `calls=${calls}`)
 
     wf(proj, BASE)
     let always = 0
-    const r3 = mutateProjectGodot(scratch, (text: string) => {
+    const r3 = await mutateProjectGodot(scratch, (text: string) => {
       always++
       wf(proj, BASE + `\n[churn]\n\nv=${always}\n`)
-      return { text: text + '\n[mercury_added]\n\nx=1\n', notes: [] }
+      return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
     check('exhaustion ⇒ conflict receipt, zero partial writes', r3.ok === false && !rf(proj, 'utf8').includes('[mercury_added]'), JSON.stringify(r3).slice(0, 90))
+
+    wf(proj, BASE)
+    const trace: string[] = []
+    const road = {
+      before: async (file: string) => {
+        trace.push(`before:${rf(file, 'utf8') === BASE}`)
+      },
+      after: (file: string, previous: string, next: string) => {
+        trace.push(`after:${previous === BASE}:${next.includes('[mercury_added]')}`)
+      },
+    }
+    const r4 = await mutateProjectGodot(scratch, (text: string) => ({ text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }), road)
+    const r5 = await mutateProjectGodot(scratch, (text: string) => ({ text, edits: [] }), road)
+    check('the road fires before (file still original) then after (previous/next), never for a no-op', r4.ok === true && r5.ok === true && JSON.stringify(trace) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(trace))
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
