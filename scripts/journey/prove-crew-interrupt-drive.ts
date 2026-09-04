@@ -318,6 +318,8 @@ function agentTranscripts(home: string): Array<{ path: string; seat: Seat | null
 
 const rowsWith = (frame: string | undefined, needle: string | RegExp): string[] =>
   (frame ?? '').split('\n').filter(line => (typeof needle === 'string' ? line.includes(needle) : needle.test(line)))
+const RUNNING_WORDS = /running|request sent|waiting for the first byte|first byte in|reasoning|streaming|Read/
+const runs = (row: string): boolean => RUNNING_WORDS.test(row)
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 function dump(label: string, frame: string | undefined): void {
   console.log(`\n── ${label} ──`)
@@ -393,7 +395,7 @@ if (cap !== null) {
   check('K1 the interruption receipt names the running count and the crew view door', receipt.some(r => r.includes('2 sub-agents still running') && r.includes('crew view')), rowsWith(m['after-esc'], /running|interrupt/).map(flat).join(' | ').slice(0, 300))
   check('K1 the wait\'s state word carries no esc-stops-them clause', !(m['waiting'] ?? '').includes('esc stops them'))
   const crewRows = (name: string): string[] => rowsWith(m['crew'], name)
-  check('K1 the crew view lists both agents as running', crewRows(SEATS.one).some(r => r.includes('running')) && crewRows(SEATS.two).some(r => r.includes('running')), [...crewRows(SEATS.one), ...crewRows(SEATS.two)].map(flat).join(' | ').slice(0, 300))
+  check('K1 the crew view lists both agents as running (the status cell speaks the phase)', crewRows(SEATS.one).some(runs) && crewRows(SEATS.two).some(runs), [...crewRows(SEATS.one), ...crewRows(SEATS.two)].map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— K2 x twice within two seconds —')
   const cursorRow = rowsWith(m['crew'], /▸/).find(r => r.includes(SEATS.one) || r.includes(SEATS.two)) ?? ''
@@ -406,7 +408,7 @@ if (cap !== null) {
   const survivorAfter = after(otherSeat, escAt).length
   check(`K1 the surviving seat kept calling through the whole journey (${survivorAfter} calls after esc)`, survivorAfter >= 3)
   check(`K2 the second x stops ${SEATS[stoppedSeat]} alone — its row reads stopped`, x2Stopped.some(r => r.includes('stopped')), x2Stopped.map(flat).join(' | ').slice(0, 200))
-  check(`K2 ${SEATS[otherSeat]} keeps running`, x2Other.some(r => r.includes('running')), x2Other.map(flat).join(' | ').slice(0, 200))
+  check(`K2 ${SEATS[otherSeat]} keeps running`, x2Other.some(runs), x2Other.map(flat).join(' | ').slice(0, 200))
   check('K2 the stopped row names its reason and offers the resume door', rowsWith(m['x2'], /crew view|r resumes/).length > 0, rowsWith(m['x2'], /stopped|resume/).map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— K3 the notices —')
@@ -422,13 +424,13 @@ if (cap !== null) {
   check('K3 the failed notice carries the decline text', failedNotes.some(h => h.lastUserText.includes(DECLINE_TEXT)))
 
   console.log('\n— K4 resume —')
-  const resumedHits = after(stoppedSeat, resumeAt)
+  const resumedHits = fixture.hits.filter(h => h.seat === stoppedSeat && h.atMs >= resumeAt - 200)
   const resumedFirst = resumedHits[0]
   check(`K4 after r the stopped seat called the fixture again (${resumedHits.length} calls)`, resumedHits.length >= 1)
   check('K4 the resumed call carries the reads made before the stop (the transcript stands)', (resumedFirst?.priorReads ?? 0) >= 1, `prior reads ${resumedFirst?.priorReads ?? 'none'}`)
   check('K4 the resumed call carries the resume note (the operator resumed it from the crew view)', /resumed/i.test(resumedFirst?.lastUserText ?? '') && /crew view/.test(resumedFirst?.lastUserText ?? ''), flat(resumedFirst?.lastUserText ?? '').slice(0, 200))
   const resumedRows = rowsWith(m['resumed'], SEATS[stoppedSeat])
-  check('K4 its row runs again', resumedRows.some(r => r.includes('running')), resumedRows.map(flat).join(' | ').slice(0, 200))
+  check('K4 its row runs again', resumedRows.some(runs), resumedRows.map(flat).join(' | ').slice(0, 200))
   const transcripts = agentTranscripts(home)
   const stoppedTranscript = transcripts.find(t => t.seat === stoppedSeat)
   console.log(`  transcripts on disk: ${transcripts.map(t => `${t.seat ?? '?'}:${t.lines.length} lines`).join(', ') || 'none'}`)

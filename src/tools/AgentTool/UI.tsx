@@ -33,6 +33,7 @@ import {
   crewAgentsOf,
   crewElapsedLabel,
   crewModelLabel,
+  crewPhaseWords,
   crewStateLabel,
   crewTokensLabel,
   crewToolUsesLabel,
@@ -637,14 +638,15 @@ function factsForEntry(agents: readonly CrewAgentFacts[], entry: GroupedEntry): 
 }
 
 function factsStatusLine(facts: CrewAgentFacts, nowMs: number): string {
-  const doing = facts.running ? (facts.wait ?? facts.activity ?? crewStateLabel(facts)) : crewStateLabel(facts)
+  const doing = crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
   return `${doing} · ${crewElapsedLabel(facts, nowMs)}`
 }
 
 function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate: boolean }): React.ReactNode {
   const roster = useFocusedWorkRoster()
   const agents = React.useMemo(() => crewAgentsOf(roster.rows, null), [roster])
-  const now = useNowTick(animate ? 1000 : null)
+  const anyRunning = React.useMemo(() => entries.some(entry => factsForEntry(agents, entry)?.running === true), [agents, entries])
+  const now = useNowTick(animate || anyRunning ? 1000 : null)
   return (
     <>
       {entries.map((entry, index) => {

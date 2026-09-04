@@ -81,7 +81,7 @@ import {
 import {
   agentToolResultSchema,
   PROMOTED_NARRATION_NOTE,
-  resolveAgentTools,
+  resolveWorkerTools,
   runAsyncAgentLifecycle,
 } from './agentToolUtils.js'
 import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
@@ -596,8 +596,9 @@ export const AgentTool = buildTool({
 
     const workerTools = isFork
       ? options.tools
-      : resolveAgentTools(
-          { ...agentDef, permissionMode: plan.workerPermissionMode },
+      : resolveWorkerTools(
+          agentDef,
+          plan.workerPermissionMode,
           assembleToolPool(
             {
               ...context.getAppState().toolPermissionContext,
@@ -606,8 +607,7 @@ export const AgentTool = buildTool({
             context.getAppState().mcp.tools ?? [],
           ),
           plan.shouldRunAsync,
-          false,
-        ).resolvedTools
+        )
 
     if (plan.isolation === 'worktree') {
       const capability = preflightWorktreeCapability()
@@ -786,7 +786,7 @@ export const AgentTool = buildTool({
         runAsyncAgentLifecycle({
           taskId: earlyAgentId,
           abortController: task.abortController!,
-          makeStream: onCacheSafeParams =>
+          makeStream: (onCacheSafeParams, onQueryProgress) =>
             runAgent({
               ...runAgentParams,
               override: {
@@ -795,6 +795,7 @@ export const AgentTool = buildTool({
                 abortController: task.abortController!,
               },
               onCacheSafeParams: onCacheSafeParams as never,
+              ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
             }),
           metadata,
           description: input.description,

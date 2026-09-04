@@ -5,6 +5,8 @@ import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { minutesKnobToMs } from '../utils/deadline.js'
 import { logForDebugging } from '../utils/debug.js'
 import { validateWorkerModelChoice } from '../services/concourse/workerModels.js'
+import { resolveOpenaiAccount } from '../services/providers/openai/openaiAccounts.js'
+import { getCachedOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
 import { deriveSessionKitForWorkspace, type SessionKitV1 } from './sessionKit.js'
 import {
   buildConcourseWorkerSpec,
@@ -333,6 +335,18 @@ export async function claimWarmRunner(
     return { claimed: false, reason: 'the launch consent differs from the warm boot' }
   }
   const requestId = `${WARM_CLAIM_REQUEST_PREFIX}${entry.short}-${Date.now().toString(36)}`
+  const openaiAccount = resolveOpenaiAccount()
+  const openaiSnapshot = openaiAccount ? getCachedOpenaiCatalogue(openaiAccount.kind) : null
+  const openaiCatalogue =
+    openaiSnapshot !== null && openaiSnapshot.models.length > 0 && openaiSnapshot.fetchedAtMs > 0
+      ? { sourceKind: openaiSnapshot.sourceKind, models: openaiSnapshot.models, fetchedAtMs: openaiSnapshot.fetchedAtMs }
+      : null
+  // eslint-disable-next-line no-console
+  console.error(
+    openaiCatalogue !== null
+      ? `[daemon] warm claim carries the OpenAI catalogue: ${openaiCatalogue.models.length} model(s), fetched ${Math.round((Date.now() - openaiCatalogue.fetchedAtMs) / 1000)}s ago`
+      : `[daemon] warm claim carries no OpenAI catalogue (${openaiAccount ? `${openaiAccount.kind}: nothing cached yet${openaiSnapshot?.lastError ? ` — ${openaiSnapshot.lastError}` : ''}` : 'no OpenAI account on this daemon'})`,
+  )
   const frame = JSON.stringify({
     type: 'control_request',
     request_id: requestId,
@@ -343,6 +357,7 @@ export async function claimWarmRunner(
       permission_mode: args.permissionMode,
       effort: args.effort,
       ...(args.resume === true ? { resume: true } : {}),
+      ...(openaiCatalogue !== null ? { openai_catalogue: openaiCatalogue } : {}),
     },
   })
   const answered = new Promise<{ ok: boolean; error?: string }>(resolve => {

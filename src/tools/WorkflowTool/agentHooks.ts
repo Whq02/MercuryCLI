@@ -47,6 +47,7 @@ import { observedFamilyWindow } from '../../services/capFailover.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
+import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
 
 import {
   getSchemaBoundStructuredOutputTool,
@@ -976,6 +977,18 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           return
         }
         if (m !== undefined && m.type !== 'progress') clearBudgetCut()
+        if (m?.type === 'request_wait') {
+          const wait = (m as { wait?: unknown }).wait
+          if (wait !== null && typeof wait === 'object' && (wait as { kind?: unknown }).kind === 'first-byte') {
+            const w = wait as { budgetMs?: unknown; sinceMs?: unknown }
+            const waitWords =
+              typeof w.budgetMs === 'number' && w.budgetMs > 0
+                ? agentWaitWords({ phase: 'first-byte', sinceMs: typeof w.sinceMs === 'number' ? w.sinceMs : Date.now(), budgetMs: w.budgetMs }, null)
+                : null
+            emitFrame('progress', { waiting: 'prefill', ...(waitWords !== null ? { waitWords } : {}) })
+          }
+          return
+        }
         if (m?.type === 'stream_request_start') awaitingFirstToken = true
         else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()
