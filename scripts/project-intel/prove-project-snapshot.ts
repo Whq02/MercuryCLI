@@ -25,6 +25,7 @@ async function main(): Promise<void> {
   delete process.env.MERCURY_PROJECT_INTEL
   const { materializeFixture } = await import('./fixtures/materialize.js')
   const intel = await import('../../src/services/projectIntel/snapshot.js')
+  const verification = await import('../../src/utils/verification/verificationState.js')
   const contracts = await import('../../src/services/projectIntel/contracts.js')
   const owner = await import('../../src/services/primitives/owner.js')
   const registry = await import('../../src/services/resources/registry.js')
@@ -70,15 +71,15 @@ async function main(): Promise<void> {
   writeFileSync(join(dir, 'src', 'core', 'NEW_FACT.ts'), 'export const flip = 1\n')
   const withinTtl = intel.getProjectSnapshot(dir)
   check(
-    'within the digest TTL a mutation is invisible (cache-validated, the documented ≤10s bound)',
+    'an unobserved mutation is invisible before a turn boundary (cache-validated — the turn boundary is the only clock)',
     withinTtl?.from === 'cache-validated',
     withinTtl?.from,
   )
   const tolerant = intel.getProjectSnapshot(dir, { maxStaleMs: 60_000 })
   check('maxStaleMs read reuses WITHOUT digest work and says cache-ttl', tolerant?.from === 'cache-ttl', tolerant?.from)
-  await new Promise(r => setTimeout(r, 10_100))
+  verification.markTreeSuspectAfterTurn()
   const r4 = intel.getProjectSnapshot(dir)
-  check('mutation ⇒ rebuild (fresh)', r4?.from === 'fresh', r4?.from)
+  check('after the turn boundary the mutation ⇒ rebuild (fresh)', r4?.from === 'fresh', r4?.from)
   check(
     'new generation digest after mutation',
     r4 !== null && r4.snapshot.generation.treeDigest !== s1.generation.treeDigest,
