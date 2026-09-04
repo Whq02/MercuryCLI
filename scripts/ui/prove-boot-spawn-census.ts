@@ -198,9 +198,9 @@ if (iface) {
   const beforeOther = before.filter(s => !isGit(s))
   check('interface: at most one synchronous non-git spawn before the face paints', beforeOther.length <= 1, beforeOther.map(describe).join(' · '))
   check('interface: a PATH lookup never spawns a process', sync.filter(isLookup).length === 0 && iface.spawns.filter(isLookup).length === 0, iface.spawns.filter(isLookup).map(describe).join(' · '))
-  check('interface: the git facts spawn at most three times before the face paints (their owner lowers this)', before.filter(isGit).length <= 3, before.filter(isGit).map(describe).join(' · '))
-  check('interface: nothing non-git spawns synchronously after the first paint', after.filter(s => !isGit(s)).length === 0, after.filter(s => !isGit(s)).map(describe).join(' · '))
-  check(`interface: the submitted turn spawns nothing non-git synchronously before its first wire request (${turn.filter(isGit).length} git in the window)`, turn.filter(s => !isGit(s)).length === 0, turn.filter(s => !isGit(s)).map(describe).join(' · '))
+  check('interface: the git facts spawn nothing synchronously before the face paints', before.filter(isGit).length === 0, before.filter(isGit).map(describe).join(' · '))
+  check('interface: nothing spawns synchronously after the first paint, git included', after.length === 0, after.map(describe).join(' · '))
+  check('interface: the submitted turn spawns nothing synchronously before its first wire request, git included', turn.length === 0, turn.map(describe).join(' · '))
   check('interface: the typescript compiler file is never read by the interface', iface.tsReads.length === 0, iface.tsReads.map(r => `${r.path} (${r.ms} ms)`).join(' · '))
 }
 for (const role of ['daemon', 'runner'] as const) {

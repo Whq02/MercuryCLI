@@ -156,14 +156,51 @@ let generation = 0
 let watchedGitDir: string | null = null
 let watchedCommonDir: string | null = null
 let watchedBranchRefPath: string | null = null
+let watchedUpstreamRefPath: string | null = null
 let cleanupRegistered = false
 const watchedPaths = new Map<string, WatchListener>()
 type CacheEntry = { value: unknown; dirty: boolean; inflight: Promise<unknown> | null }
 const cacheEntries = new Map<string, CacheEntry>()
 
+
+export type GitChangeSignal =
+  | 'head'
+  | 'config'
+  | 'branch-ref'
+  | 'upstream-ref'
+  | 'packed-refs'
+  | 'index'
+  | 'worktrees'
+  | 'reground'
+
+type ChangeListener = (signal: GitChangeSignal) => void
+const changeListeners = new Set<ChangeListener>()
+
+export function subscribeGitChanges(listener: ChangeListener): () => void {
+  changeListeners.add(listener)
+  return () => {
+    changeListeners.delete(listener)
+  }
+}
+
+function signalChange(signal: GitChangeSignal): void {
+  for (const listener of changeListeners) {
+    try {
+      listener(signal)
+    } catch {
+    }
+  }
+}
+
 function watchPath(path: string, listener: WatchListener): void {
-  watchFile(path, { interval: POLL_INTERVAL_MS, persistent: false }, listener as never)
-  watchedPaths.set(path, listener)
+  const guarded: WatchListener = (curr, prev) => {
+    const c = curr as { ino?: number; mtimeMs?: number }
+    const p = prev as { ino?: number; mtimeMs?: number }
+    if (!(c.ino || c.mtimeMs) && !(p.ino || p.mtimeMs)) return
+    listener(curr, prev)
+  }
+  watchFile(path, { interval: POLL_INTERVAL_MS, persistent: false }, guarded as never)
+  watchedPaths.set(path, guarded)
 }
 
 function unwatchPath(path: string): void {
@@ -185,16 +222,47 @@ async function reattachBranchWatch(): Promise<void> {
   if (generation !== startGeneration) return
   const refsDir = watchedCommonDir ?? watchedGitDir
   const nextRefPath = head?.type === 'branch' ? join(refsDir, 'refs', 'heads', head.name) : null
+  const nextUpstreamPath = head?.type === 'branch' ? await upstreamRefPath(watchedGitDir, refsDir, head.name) : null
+  if (generation !== startGeneration) return
+  if (nextUpstreamPath !== watchedUpstreamRefPath) {
+    if (watchedUpstreamRefPath !== null) unwatchPath(watchedUpstreamRefPath)
+    watchedUpstreamRefPath = nextUpstreamPath
+    if (nextUpstreamPath !== null) {
+      watchPath(nextUpstreamPath, () => signalChange('upstream-ref'))
+    }
+  }
   if (nextRefPath === watchedBranchRefPath) return
   if (watchedBranchRefPath !== null) unwatchPath(watchedBranchRefPath)
   watchedBranchRefPath = nextRefPath
   if (nextRefPath !== null) {
-    watchPath(nextRefPath, () => invalidateAllEntries())
+    watchPath(nextRefPath, () => {
+      invalidateAllEntries()
+      signalChange('branch-ref')
+    })
   }
+}
+
+async function upstreamRefPath(gitDir: string, refsDir: string, branch: string): Promise<string | null> {
+  const read = async (key: string): Promise<string | null> => {
+    const own = await parseGitConfigValue(gitDir, 'branch', branch, key)
+    if (own !== null) return own
+    if (watchedCommonDir !== null && watchedCommonDir !== gitDir) {
+      return parseGitConfigValue(watchedCommonDir, 'branch', branch, key)
+    }
+    return null
+  }
+  const remote = await read('remote')
+  const merge = await read('merge')
+  if (remote === null || merge === null || !isSafeRefName(merge)) return null
+  if (remote === '.') return join(refsDir, merge)
+  if (!isSafeRefName(remote)) return null
+  const tail = merge.startsWith('refs/heads/') ? merge.slice('refs/heads/'.length) : merge
+  return join(refsDir, 'refs', 'remotes', remote, tail)
 }
 
 async function onHeadChange(): Promise<void> {
   invalidateAllEntries()
+  signalChange('head')
   await waitForScrollIdle()
   await reattachBranchWatch()
 }
@@ -207,8 +275,10 @@ export function regroundGitWatch(): void {
   watchedGitDir = null
   watchedCommonDir = null
   watchedBranchRefPath = null
+  watchedUpstreamRefPath = null
   cacheEntries.clear()
   clearResolveGitDirCache()
+  signalChange('reground')
 }
 
 function teardownWatches(): void {
@@ -234,8 +304,19 @@ async function ensureWatcherStarted(): Promise<void> {
     watchedGitDir = gitDir
     watchedCommonDir = await getCommonDir(gitDir)
     if (generation !== startGeneration) return
+    const commonDir = watchedCommonDir ?? gitDir
     watchPath(join(gitDir, 'HEAD'), () => void onHeadChange())
-    watchPath(join(watchedCommonDir ?? gitDir, 'config'), () => invalidateAllEntries())
+    watchPath(join(commonDir, 'config'), () => {
+      invalidateAllEntries()
+      signalChange('config')
+      void reattachBranchWatch()
+    })
+    watchPath(join(gitDir, 'index'), () => signalChange('index'))
+    watchPath(join(commonDir, 'packed-refs'), () => {
+      invalidateAllEntries()
+      signalChange('packed-refs')
+    })
+    watchPath(join(commonDir, 'worktrees'), () => signalChange('worktrees'))
     await reattachBranchWatch()
   })().finally(() => {
     watcherStarting = null
