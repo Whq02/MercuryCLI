@@ -47,6 +47,7 @@ import { observedFamilyWindow } from '../../services/capFailover.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
+import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
 
 import {
   getSchemaBoundStructuredOutputTool,
@@ -980,11 +981,11 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           const wait = (m as { wait?: unknown }).wait
           if (wait !== null && typeof wait === 'object' && (wait as { kind?: unknown }).kind === 'first-byte') {
             const w = wait as { budgetMs?: unknown; sinceMs?: unknown }
-            emitFrame('progress', {
-              waiting: 'prefill',
-              ...(typeof w.budgetMs === 'number' ? { waitBudgetMs: w.budgetMs } : {}),
-              ...(typeof w.sinceMs === 'number' ? { waitSinceMs: w.sinceMs } : {}),
-            })
+            const waitWords =
+              typeof w.budgetMs === 'number' && w.budgetMs > 0
+                ? agentWaitWords({ phase: 'first-byte', sinceMs: typeof w.sinceMs === 'number' ? w.sinceMs : Date.now(), budgetMs: w.budgetMs }, null)
+                : null
+            emitFrame('progress', { waiting: 'prefill', ...(waitWords !== null ? { waitWords } : {}) })
           }
           return
         }

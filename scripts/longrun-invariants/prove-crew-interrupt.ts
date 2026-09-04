@@ -315,13 +315,17 @@ section('§K10 the wait tells its truth — the phase fold, the one spelling, ev
   const seatFacts = crew.crewAgentFactsOf(seatRow[0]!, 'fx')!
   check('K10 the seat gate\'s own sentence outranks the phase on the card line and the status cell keeps its short word', crew.crewPhaseWords(seatFacts, t0 + 2000) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && crew.crewStatusWords(seatFacts, t0 + 2000) === 'waiting' && crew.crewWaitLine(seatFacts) === 'waiting for a seat — 3 of 3 held (a, b, the chat)' && seatFacts.phase?.phase === 'first-byte')
   const { agentPulse, agentPulseWord } = await import('../../src/tools/WorkflowTool/livePulse.js')
-  const budgeted = agentPulse({ state: 'progress', waiting: 'prefill', waitBudgetMs: 60_000, waitSinceMs: t0, lastProgressAt: t0 }, t0 + 3000)
-  check('K10 the workflow pulse speaks the budget in the one spelling', budgeted.kind === 'first-token' && agentPulseWord(budgeted) === 'waiting for the first byte · 3s, within 60 s')
+  const aw = await import('../../src/tasks/LocalAgentTask/agentWait.js')
+  const stillWords = aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, null)
+  check('K10 the one spelling without a counter — the still for a per-frame channel', stillWords === 'waiting for the first byte, within 60 s' && aw.agentWaitWords({ phase: 'reasoning', sinceMs: t0 }, null) === 'reasoning, no tokens yet' && aw.agentWaitWords({ phase: 'first-byte', sinceMs: t0, budgetMs: 60_000 }, t0 + 3000) === 'waiting for the first byte · 3s, within 60 s')
+  const budgeted = agentPulse({ state: 'progress', waiting: 'prefill', waitWords: stillWords ?? '', lastProgressAt: t0 }, t0 + 3000)
+  check('K10 the workflow pulse speaks the budget from the frame\'s one words channel', budgeted.kind === 'first-token' && agentPulseWord(budgeted) === 'waiting for the first byte, within 60 s')
   check('K10 a prefill frame without a budget keeps its old word', agentPulseWord(agentPulse({ state: 'progress', waiting: 'prefill', lastProgressAt: t0 }, t0 + 3000)) === 'awaiting first token')
   const run = src('src/tools/AgentTool/runAgent.ts')
   check('K10 the run loop\'s wait door hands the provider\'s wait to the run\'s own progress callback', run.includes("childContext.setSDKStatus = (status: unknown) => {") && run.includes("type: 'request_wait'"))
   check('K10 the three run sites feed the record (the background lifecycle, the foreground run, the resume)', src('src/tools/AgentTool/agentToolUtils.ts').includes('event => publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/foregroundExecution.tsx').includes('publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState)') && src('src/tools/AgentTool/resumeAgent.ts').includes('onQueryProgress !== undefined ? { onQueryProgress } : {}'))
-  check('K10 the workflow hook carries the budget on its prefill frame and the manifest keeps it', src('src/tools/WorkflowTool/agentHooks.ts').includes("waitBudgetMs: w.budgetMs") && src('src/tools/WorkflowTool/runManifest.ts').includes("waitBudgetMs: num(ev['waitBudgetMs'])"))
+  const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
+  check('K10 the workflow hook speaks the budget on its prefill frame through waitWords — the one channel — and no second field exists on the manifest or the pulse', hooks.includes("agentWaitWords({ phase: 'first-byte'") && hooks.includes("emitFrame('progress', { waiting: 'prefill', ...(waitWords !== null ? { waitWords } : {}) })") && !src('src/tools/WorkflowTool/runManifest.ts').includes('waitBudgetMs') && !src('src/tools/WorkflowTool/livePulse.ts').includes('waitBudgetMs') && src('src/tools/WorkflowTool/livePulse.ts').includes("{ kind: 'first-token', words: a.waitWords }"))
   check('K10 the transcript\'s agent card and the crew view speak the phase', src('src/tools/AgentTool/UI.tsx').includes('crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)') && src('src/components/mercury-ui/screens/CrewView.tsx').includes('crewStatusWords(facts, now)'))
 }
 

@@ -120,14 +120,14 @@ export function agentWaitElapsed(ms: number): string {
   return `${h}h ${m % 60}m`
 }
 
-export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: number): string | null {
+export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: number | null): string | null {
   if (!wait) return null
-  const elapsed = agentWaitElapsed(nowMs - wait.sinceMs)
+  const counter = nowMs === null ? null : agentWaitElapsed(nowMs - wait.sinceMs)
   switch (wait.phase) {
     case 'request-sent':
       return 'request sent'
     case 'first-byte':
-      return `waiting for the first byte · ${elapsed}, within ${Math.max(1, Math.round((wait.budgetMs ?? 0) / 1000))} s`
+      return `waiting for the first byte${counter !== null ? ` · ${counter}` : ''}, within ${Math.max(1, Math.round((wait.budgetMs ?? 0) / 1000))} s`
     case 'retry': {
       const delay = Math.max(1, Math.round((wait.budgetMs ?? 0) / 1000))
       const ladder = wait.attempt !== undefined ? ` (retry ${wait.attempt}${wait.of !== undefined ? ` of ${wait.of}` : ''})` : ''
@@ -136,7 +136,7 @@ export function agentWaitWords(wait: AgentWaitV1 | null | undefined, nowMs: numb
     case 'replying':
       return 'first byte in, no tokens yet'
     case 'reasoning':
-      return `reasoning ${elapsed}, no tokens yet`
+      return `reasoning${counter !== null ? ` ${counter}` : ''}, no tokens yet`
     case 'streaming':
       return 'streaming'
     case 'tool':
