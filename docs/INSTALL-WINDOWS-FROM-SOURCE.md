@@ -172,7 +172,7 @@ in the path are fine.
 ```powershell
 mkdir C:\src -Force | Out-Null
 cd C:\src
-git clone https://github.com/Whq02/PreRelease.git mercury
+git clone https://github.com/Whq02/MercuryCLI.git mercury
 cd C:\src\mercury
 ```
 
