@@ -53,7 +53,7 @@ const EMPTY_NAMED: readonly CrewGlanceMember[] = []
 const NAME_W = 20
 const MODEL_W = 18
 const STATUS_W = 9
-const TOKENS_W = 13
+const TOKENS_W = 14
 
 export function CrewView({
   onClose,

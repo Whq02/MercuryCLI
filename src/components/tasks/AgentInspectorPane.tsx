@@ -215,8 +215,9 @@ export function AgentInspectorPane({
 
   const usageBits: string[] = []
   if (view?.usage) {
+    if (view.usage.contextTokens > 0) usageBits.push(`${GLYPH.tokens} ${formatTokens(view.usage.contextTokens)} context`)
     usageBits.push(
-      `${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out ${GLYPH.tokens}`,
+      `${formatTokens(view.usage.inputTokens + view.usage.outputTokens)} spent (${formatTokens(view.usage.inputTokens)} in / ${formatTokens(view.usage.outputTokens)} out)`,
     )
     usageBits.push(`${view.usage.apiTurns} api ${plural(view.usage.apiTurns, 'turn')}`)
   }

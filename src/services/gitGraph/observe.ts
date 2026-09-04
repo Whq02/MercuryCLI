@@ -1,6 +1,7 @@
 
 import { execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { projectScopePathspec } from '../../utils/projectBoundary.js'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join as joinPath } from 'node:path'
@@ -68,7 +69,7 @@ const notARepo = (): GitUnavailable => ({
 
 export function gitStatus(root: string): GitStatus | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
-  const raw = tryGit(root, ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch'])
+  const raw = tryGit(root, ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', ...projectScopePathspec(root)])
   if (raw === null) return notARepo()
   const head = tryGit(root, ['rev-parse', 'HEAD'])?.trim() ?? '(unborn)'
   let branch = '(detached)'

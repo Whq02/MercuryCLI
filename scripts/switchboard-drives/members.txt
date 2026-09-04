@@ -13,3 +13,4 @@ prove-manager-self-managed-drive.ts
 prove-reap-focus-drive.ts
 prove-seat-needs-you.ts
 prove-consent-rides-every-door-drive.ts
+prove-home-repo-drive.ts

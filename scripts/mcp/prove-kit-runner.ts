@@ -117,7 +117,7 @@ section('§K3 call-site census (source-shape: every non-warm road passes the kit
 {
   const supervisor = readFileSync(join(REPO, 'src', 'daemon', 'concourseSupervisor.ts'), 'utf8')
   t('K12 the cold mint HOISTS one kit for spec and stamp (record and process can never disagree)', supervisor.includes('const kit = req.kit ?? preset?.kit ?? deriveSessionKitForWorkspace(workspaceId)') && supervisor.includes('...kitStampOf(kit),'))
-  t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", supervisor.includes('kitOverride: kit }'))
+  t("K13 the reactivate cold road hands the revive its restamp kit (the spec is built BEFORE the restamp writes)", supervisor.includes('kitOverride: kit,'))
   t("K14 the revive's default is the record's standing kit; the hand-back road carries rec.kit", supervisor.includes('const reviveKit = opts?.kitOverride ?? rec.kit') && supervisor.includes('...(rec.kit !== undefined ? { kit: rec.kit } : {})'))
   const spawnEnvWrites = supervisor.split('MERCURY_SESSION_KIT: JSON.stringify').length - 1
   t('K15 the spec builder is the ONE env writer in the daemon (a single key-write site; comments free to name the spelling)', spawnEnvWrites === 1, `${spawnEnvWrites} sites`)

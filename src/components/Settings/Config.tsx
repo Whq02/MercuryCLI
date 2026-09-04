@@ -39,6 +39,7 @@ import {
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
+import inkInstances from '../../ink/instances.js'
 import { stripFacts } from '../../context/surfaceRoute.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -722,6 +723,18 @@ export function Config({
       change: () => {
         writeGlobal(c => ({ ...c, copyOnSelect: c.copyOnSelect === false }))
         recordToggle('copyOnSelect', `set copy-on-select to ${config.copyOnSelect === false ? 'on' : 'off'}`)
+      },
+    })
+    items.push({
+      id: 'mouseCapture',
+      label: 'Mouse capture',
+      kind: 'boolean',
+      value: boolValue(config.mouseCapture !== false),
+      change: () => {
+        const next = config.mouseCapture === false
+        writeGlobal(c => ({ ...c, mouseCapture: next }))
+        inkInstances.get(process.stdout)?.setMouseTrackingEnabled(next)
+        recordToggle('mouseCapture', `set mouse capture to ${next ? 'on' : 'off'}`)
       },
     })
   }

@@ -2,6 +2,8 @@
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
+import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
+import { findGitRoot } from './git.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
@@ -9,11 +11,11 @@ import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn } from 'node:child_process'
 import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, homedir, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
-import { basename, delimiter, dirname, join, relative, resolve as resolvePath } from 'node:path'
+import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
@@ -156,7 +158,7 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
     })
   try {
     if ((await run(['read-tree', 'HEAD'])) === null) return null
-    if ((await run(['add', '-A'])) === null) return null
+    if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
     const tree = await run(['write-tree', '--missing-ok'])
     return tree && tree.length > 0 ? tree : null
   } catch {
@@ -166,6 +168,137 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
       rmSync(idxDir, { recursive: true, force: true })
     } catch {
     }
+  }
+}
+
+function gitLogSubjects(dir: string, limit: number): Promise<string[] | null> {
+  return new Promise(resolve => {
+    execFile(
+      'git',
+      ['-C', dir, 'log', `--max-count=${limit}`, '--format=%s'],
+      { windowsHide: true, env: { ...subprocessEnv() }, timeout: 10_000 },
+      (err, stdout) => resolve(err ? null : stdout.split('\n').filter(line => line !== '')),
+    )
+  })
+}
+
+export function homeRepositoryRemovalWords(dir: string, platform: NodeJS.Platform = process.platform): { inspect: string; remove: string } {
+  const inside = isHomeDirectory(dir) ? [] : [basename(dir)]
+  if (platform === 'win32') {
+    const segments = ['$env:USERPROFILE', ...inside.map(s => `'${s}'`)]
+    const folder = inside.length === 0 ? '$env:USERPROFILE' : `([IO.Path]::Combine(${segments.join(', ')}))`
+    return {
+      inspect: `git -C ${folder} log --oneline`,
+      remove: `Remove-Item -Recurse -Force ([IO.Path]::Combine(${[...segments, "'.git'"].join(', ')}))`,
+    }
+  }
+  const folder = inside.length === 0 ? '"$HOME"' : `"$HOME/${inside.join('/')}"`
+  return { inspect: `git -C ${folder} log --oneline`, remove: `rm -rf ${folder.slice(0, -1)}/.git"` }
+}
+
+const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (sign out and back in on Windows if unsure)'
+
+async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }> {
+  const runners: string[] = []
+  try {
+    const { readSessionWorkers } = await import('../daemon/concourseSupervisor.js')
+    for (const rec of Object.values(readSessionWorkers())) {
+      if (rec.endedAt !== undefined || rec.pid === undefined || !pidAlive(rec.pid)) continue
+      let ws: string
+      try {
+        ws = realpathSync(rec.workspaceId)
+      } catch {
+        continue
+      }
+      if (ws !== repo && !ws.startsWith(repo + sep)) continue
+      if (findGitRoot(ws) !== repo) continue
+      const warm = (rec as { warm?: boolean }).warm === true
+      runners.push(`${rec.runnerId}${warm ? ' (warm)' : ''} pid ${rec.pid}`)
+    }
+  } catch {
+  }
+  let indexLockAgeS: number | null = null
+  try {
+    indexLockAgeS = Math.max(0, Math.round((Date.now() - statSync(join(repo, '.git', 'index.lock')).mtimeMs) / 1000))
+  } catch {
+    indexLockAgeS = null
+  }
+  let objectsInFlight = 0
+  try {
+    objectsInFlight = readdirSync(join(repo, '.git', 'objects')).filter(n => /^tmp_obj_|^tmpobj/i.test(n)).length
+  } catch {
+    objectsInFlight = 0
+  }
+  return { runners, indexLockAgeS, objectsInFlight }
+}
+
+function holdersWords(h: { runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }): string {
+  const parts: string[] = []
+  if (h.runners.length > 0) parts.push(`${h.runners.length} live session${h.runners.length === 1 ? '' : 's'} rooted here (${h.runners.join(', ')})`)
+  if (h.indexLockAgeS !== null) parts.push(`a git writer holds .git/index.lock (${h.indexLockAgeS} s old)`)
+  if (h.objectsInFlight > 0) parts.push(`${h.objectsInFlight} object${h.objectsInFlight === 1 ? '' : 's'} being written under .git/objects`)
+  return parts.length === 0 ? 'no Mercury process holds it now' : `held by Mercury now: ${parts.join(' · ')}`
+}
+
+export async function homeRepositoryCheck(): Promise<CheckResult> {
+  const home = homeDirectory()
+  const candidates: string[] = [home]
+  let names: string[] = []
+  try {
+    names = readdirSync(home)
+  } catch {
+    names = []
+  }
+  for (const name of names) {
+    const lower = name.toLowerCase()
+    if (USER_ROOT_NAMES.some(n => n.toLowerCase() === lower) || lower.startsWith('onedrive')) candidates.push(join(home, name))
+  }
+  const repositories = candidates.filter(dir => {
+    try {
+      return statSync(join(dir, '.git')).isDirectory()
+    } catch {
+      return false
+    }
+  })
+  if (repositories.length === 0) {
+    return { status: 'ok', evidence: `no git repository at ${home} or its user folders`, probe: 'functional' }
+  }
+  const { FORK_BASE_COMMIT_SUBJECT } = await import('../daemon/concourseWorktrees.js')
+  const facts = await Promise.all(
+    repositories.map(async dir => {
+      let created = 'creation date unknown'
+      try {
+        const st = statSync(join(dir, '.git'))
+        const at = st.birthtimeMs > 0 ? st.birthtime : st.ctime
+        created = `.git created ${at.toISOString().slice(0, 10)}`
+      } catch {
+      }
+      const subjects = await gitLogSubjects(dir, 20)
+      const madeByMercury = subjects !== null && subjects.length === 1 && subjects[0] === FORK_BASE_COMMIT_SUBJECT
+      const startedByMercury = subjects !== null && subjects.includes(FORK_BASE_COMMIT_SUBJECT)
+      const who =
+        subjects === null
+          ? 'history unreadable'
+          : madeByMercury
+            ? 'made by Mercury (its base commit is the only commit)'
+            : startedByMercury
+              ? `started by Mercury, ${subjects.length - 1}${subjects.length >= 20 ? '+' : ''} commits since`
+              : `not Mercury's (${subjects.length}${subjects.length >= 20 ? '+' : ''} commits, none is Mercury's base commit)`
+      const words = homeRepositoryRemovalWords(dir)
+      const holders = holdersWords(await mercuryHoldersOf(dir))
+      const fix = madeByMercury
+        ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
+        : `keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
+      return { evidence: `${dir} is a git repository (${created}; ${who}; ${holders})`, fix }
+    }),
+  )
+  return {
+    status: 'fail',
+    evidence: facts.map(f => f.evidence).join(' · '),
+    detail:
+      'every folder beneath it without its own .git resolves to this repository, so repository-wide probes walk the whole profile; Mercury bounds its own probes to the launch folder and removes nothing here — remove it only with Mercury quit, or the deletion races the objects a live writer is still writing',
+    fix: facts.map(f => f.fix).join(' · '),
+    probe: 'functional',
   }
 }
 
@@ -986,6 +1119,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             else if (!repo.isHeadOnRemote) parts.push('no upstream for this branch')
             return { status: 'ok', evidence: parts.join(' · ') + ' (getGitState)' }
           },
+        },
+        {
+          id: 'home-repository',
+          label: 'Home repository',
+          probe: 'functional',
+          run: () => homeRepositoryCheck(),
         },
       ],
     },
