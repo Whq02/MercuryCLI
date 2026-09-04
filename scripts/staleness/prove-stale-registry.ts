@@ -150,6 +150,8 @@ src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
 src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
+src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
+src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
 src/services/workbench/projection.ts :: snapshot :: subscription-fed
 src/services/workshop/runtime.ts :: cachedTs :: keyed-by-truth
@@ -258,6 +260,7 @@ src/utils/projectBoundary.ts :: refusalMemo :: ttl-bounded
 src/utils/proxy.ts :: proxyDispatcherCache :: keyed-by-truth
 src/utils/proxy.ts :: tunnelAgentCache :: keyed-by-truth
 src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
+src/utils/router/modelRegistry.ts :: snapshotMemo :: ttl-bounded
 src/utils/router/providerDiscovery.ts :: cache :: ttl-bounded
 src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process
