@@ -502,7 +502,7 @@ function MercuryModelWrapper({
         onDone(
           receipt.state === 'queued'
             ? `Model switch queued: ${label} applies when this session's turn settles (the running turn keeps its model)${doorCross}${lossNote}`
-            : `Set model to ${label} — this session's next message runs it${doorCross}${lossNote}`,
+            : `Set model to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${lossNote}`,
         )
       })
       return

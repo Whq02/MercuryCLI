@@ -1373,6 +1373,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (outcome !== 'applied' && outcome !== 'queued' && outcome !== 'noop') return refuse(`unexpected outcome ${String(outcome)}`)
       if ((outcome === 'queued') !== busy) this.readFacts()
       if (outcome === 'noop') return { state: 'no-op' }
+      if (outcome === 'applied' && (reply as { respawned?: unknown }).respawned === true) {
+        this.readFacts()
+        return detail !== undefined ? { state: 'applied', note: detail } : { state: 'applied' }
+      }
       return { state: outcome }
     } catch (e) {
       return refuse(`the daemon is not answering — the switch did not land (${e instanceof Error ? e.message : String(e)})`)
