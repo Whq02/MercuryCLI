@@ -70,7 +70,7 @@ export async function resizeShellImageOutput(
   if (!parsed) return null
   const buffer = Buffer.from(parsed.data, 'base64')
   const subtype = mediaSubtype(parsed.mediaType)
-  const resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.byteLength, subtype)
+  const resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.byteLength, subtype, { role: 'tool-result' })
   return `data:image/${resized.mediaType};base64,${resized.buffer.toString('base64')}`
 }
 

@@ -44,7 +44,7 @@ export function useClipboardImageHint(
           lastShownRef.current = Date.now()
           addRef.current({
             key: 'clipboard-image-hint',
-            text: `image on the clipboard — ${chordRef.current} pastes it`,
+            text: `clipboard holds an image — ${chordRef.current} attaches it`,
             priority: 'immediate',
             timeoutMs: HINT_TIMEOUT_MS,
           })
