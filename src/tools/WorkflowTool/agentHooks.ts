@@ -35,6 +35,10 @@ import {
 } from '../../utils/worktree.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
+import { observedFamilyWindow } from '../../services/capFailover.js'
+import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
+import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
 
 import {
   getSchemaBoundStructuredOutputTool,
@@ -45,6 +49,8 @@ export { STRUCTURED_OUTPUT_TOOL_NAME }
 const AGENT_LIFETIME_CAP = 1000
 const DEFAULT_STALL_MS = 180_000
 const MAX_STALL_RETRIES = 5
+const MAX_CAP_PAUSES = 3
+const CAP_KEEPALIVE_MS = 15_000
 const PREVIEW_MAX_CHARS = 400
 const JOURNAL_VERSION = 'v2'
 const THROTTLE_BACKOFF_MS = 45_000
@@ -327,6 +333,7 @@ export type SubagentStreamEvent =
   | {
       type: 'assistant'
       isApiErrorMessage?: boolean
+      error?: string
       message: {
         content: Array<{ type: string; name?: string; input?: unknown; [k: string]: unknown }>
         usage?: { output_tokens?: number; [k: string]: unknown }
@@ -540,6 +547,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
   const STALL_RESUME_PROMPT =
     'Your previous turn was cut off by a no-progress timeout (the provider went quiet). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
+  const CAP_RESUME_PROMPT =
+    'Your previous turn ended on a spent usage window (the provider refused the request until its window resets). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
 
   const stableSchemaByRaw = new WeakMap<object, unknown>()
 
@@ -799,9 +808,11 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       attemptNo: number,
       reason?: string,
       continuation?: unknown[],
+      modelOverride?: string,
     ): Promise<AttemptReport> => {
       const agentId = createAgentId()
       onAttemptStarted(agentId)
+      if (modelOverride !== undefined) statics.model = modelOverride
 
       const childAbort = new AbortController()
       const parentSignal = ctx.abortController?.signal
@@ -1012,7 +1023,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           transcriptSubdir: runId ? `workflows/${runId}` : undefined,
           workflowRunId: runId,
           agentId,
-          model: opts?.model != null ? String(opts.model) : undefined,
+          model: modelOverride ?? (opts?.model != null ? String(opts.model) : undefined),
           effort: opts?.effort != null ? String(opts.effort) : undefined,
           worktreePath,
           description: attemptPromptPreview,
@@ -1152,6 +1163,49 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         ? extractTextContent(lastAssistant.message.content, '\n')
         : ''
       const finalOutputTokens = lastAssistant?.message.usage?.output_tokens
+      if (lastAssistant?.isApiErrorMessage && lastAssistant.error === 'rate_limit' && structured === undefined) {
+        const model = modelOverride ?? statics.model
+        const family = providerFamilyOfSetting(model ?? null)
+        const window = ((): { resetsAtMs?: number; windowName?: string } => {
+          try {
+            return observedFamilyWindow(family, undefined, { model: model ?? null })
+          } catch {
+            return {}
+          }
+        })()
+        const who = ((): string => {
+          if (model === undefined) return family
+          try {
+            return getMarketingNameForModel(model) ?? model
+          } catch {
+            return model
+          }
+        })()
+        const words = `waiting for ${who}'s ${window.windowName ?? 'usage window'} — ${window.resetsAtMs !== undefined ? `resets at ${clockOf(window.resetsAtMs)}` : 'no reset stated'}; /model switches this agent`
+        const pausedFrame = (): void => emitFrame('progress', { waiting: 'usage-window', waitWords: words, ...settledTotals(elapsed) })
+        pausedFrame()
+        return {
+          structured,
+          text: finalText,
+          tokens,
+          toolCalls,
+          stallCut: false,
+          skipped: false,
+          durationMs: elapsed,
+          stopReason: null,
+          outputTokens: finalOutputTokens,
+          schemaCallCount,
+          lastSchemaCallInput,
+          capPause: {
+            words,
+            family,
+            model,
+            resetsAtMs: window.resetsAtMs,
+            transcript: balancedTranscriptPrefix(conversation.filter(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage !== true)),
+            keepAlive: pausedFrame,
+          },
+        }
+      }
       if (lastAssistant?.isApiErrorMessage) {
         if (structured !== undefined) return deliveredSettle(elapsed)
         const apiError = finalText || 'API error'
@@ -1196,19 +1250,21 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       attemptNo: number,
       reason?: string,
       continuation?: unknown[],
+      modelOverride?: string,
     ): Promise<AttemptReport> =>
       worktreePath
         ? Promise.resolve(
             runWithCwdOverride(worktreePath, () =>
-              runAttempt(attemptLabel, attemptNo, reason, continuation),
+              runAttempt(attemptLabel, attemptNo, reason, continuation, modelOverride),
             ),
           )
-        : runAttempt(attemptLabel, attemptNo, reason, continuation)
+        : runAttempt(attemptLabel, attemptNo, reason, continuation, modelOverride)
 
     try {
       let report = await attempt(label, 1)
 
       const looksThrottled = (r: AttemptReport): boolean =>
+        r.capPause === undefined &&
         (r.apiError === undefined ||
           (!DETERMINISTIC_400_RE.test(r.apiError) &&
             !r.apiError.startsWith('provider throttled'))) &&
@@ -1229,6 +1285,36 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (looksThrottled(report)) {
           log(`[${label}] throttle-retry also degraded — giving up on throttle backoff`)
         }
+      }
+
+      let attemptsSoFar = tookThrottleRescue ? 2 : 1
+      let resumedModel: string | undefined
+      for (let p = 0; report.capPause !== undefined; p++) {
+        const pause = report.capPause
+        if (p >= MAX_CAP_PAUSES) {
+          report = { ...report, capPause: undefined, apiError: pause.words }
+          break
+        }
+        log(`[${label}] paused — ${pause.words}`)
+        const lift = await waitForCapLift(pause, ctx.abortController?.signal)
+        if (lift.kind === 'aborted') throw new Error('Workflow aborted')
+        if (lift.kind === 'switched') resumedModel = lift.model
+        const why =
+          lift.kind === 'switched'
+            ? `the model switched${lift.model !== undefined ? ` to ${lift.model}` : ''} — resumed`
+            : 'the usage window reset — resumed'
+        log(`[${label}] ${why}`)
+        foldIn(report)
+        attemptsSoFar++
+        report = pause.transcript
+          ? await attempt(
+              `${label} (resumed)`,
+              attemptsSoFar,
+              why,
+              [...pause.transcript, createUserMessage({ content: CAP_RESUME_PROMPT })],
+              resumedModel,
+            )
+          : await attempt(`${label} (resumed)`, attemptsSoFar, why, undefined, resumedModel)
       }
 
       const cutTrail: string[] = []
@@ -1434,7 +1520,57 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   return hooks
 }
 
+interface CapPause {
+  words: string
+  family: string
+  model: string | undefined
+  resetsAtMs: number | undefined
+  transcript: unknown[] | null
+  keepAlive: () => void
+}
+
+type CapLift = { kind: 'switched'; model: string | undefined } | { kind: 'reset' } | { kind: 'aborted' }
+
+function clockOf(atMs: number): string {
+  return new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function waitForCapLift(pause: CapPause, signal: AbortSignal | undefined): Promise<CapLift> {
+  return new Promise<CapLift>(resolve => {
+    let done = false
+    let resetTimer: ReturnType<typeof setTimeout> | undefined
+    let keep: ReturnType<typeof setInterval> | undefined
+    let unsubscribe: (() => void) | undefined
+    const onAbort = (): void => settle({ kind: 'aborted' })
+    const settle = (lift: CapLift): void => {
+      if (done) return
+      done = true
+      if (resetTimer !== undefined) clearTimeout(resetTimer)
+      if (keep !== undefined) clearInterval(keep)
+      unsubscribe?.()
+      signal?.removeEventListener('abort', onAbort)
+      resolve(lift)
+    }
+    if (signal?.aborted) {
+      settle({ kind: 'aborted' })
+      return
+    }
+    signal?.addEventListener('abort', onAbort)
+    unsubscribe = subscribeMainLoopModelOverride(model => {
+      const next = model === undefined || model === null ? undefined : String(model)
+      if (next !== pause.model) settle({ kind: 'switched', model: next })
+    })
+    if (pause.resetsAtMs !== undefined) {
+      resetTimer = setTimeout(() => settle({ kind: 'reset' }), Math.max(1_000, pause.resetsAtMs - Date.now() + 1_000))
+      resetTimer.unref?.()
+    }
+    keep = setInterval(() => pause.keepAlive(), CAP_KEEPALIVE_MS)
+    keep.unref?.()
+  })
+}
+
 interface AttemptReport {
+  capPause?: CapPause
   structured: unknown
   text: string
   apiError?: string
