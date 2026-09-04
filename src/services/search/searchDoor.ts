@@ -180,7 +180,9 @@ export function walkFailureLine(failures: readonly SearchFailure[], plan: Search
   const last = failures[failures.length - 1]!
   const earlier = failures.slice(0, -1).map(failureLine)
   const closed = plan.closed.length > 0 ? ` Not in the walk: ${plan.closed.join('; ')}.` : ''
-  return `${failureLine(last)}${earlier.length > 0 ? ` (earlier: ${earlier.join(' · ')})` : ''}${closed}${native}`
+  const facts = `${failureLine(last)}${earlier.length > 0 ? ` (earlier: ${earlier.join(' · ')})` : ''}`
+  const tail = `${closed}${native}`
+  return tail === '' || facts.endsWith('.') ? `${facts}${tail}` : `${facts}.${tail}`
 }
 
 function coolingKeyedFailure(backend: 'brave' | 'tavily', leftMs: number): SearchFailure {
