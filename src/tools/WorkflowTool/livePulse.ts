@@ -1,5 +1,6 @@
 
 import type { WorkflowProgressEvent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
 
 export const WORKFLOW_QUIET_MS = 120_000
 
@@ -69,6 +70,8 @@ export type AgentPulseInput = {
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
   waiting?: 'prefill' | 'provider-backoff' | 'usage-window'
   waitWords?: string
+  waitBudgetMs?: number
+  waitSinceMs?: number
   retryInMs?: number
   recoveryTimeoutMs?: number
   retryAttempt?: number
@@ -80,7 +83,7 @@ export type AgentPulseInput = {
 
 export type AgentPulse =
   | { kind: 'queued' }
-  | { kind: 'first-token' }
+  | { kind: 'first-token'; words?: string }
   | {
       kind: 'backoff'
       retryInMs?: number
@@ -110,7 +113,13 @@ export function agentPulse(a: AgentPulseInput, nowMs: number): AgentPulse {
       recoveryTimeoutMs: a.recoveryTimeoutMs,
       retryAttempt: a.retryAttempt,
     }
-  if (a.waiting === 'prefill') return { kind: 'first-token' }
+  if (a.waiting === 'prefill') {
+    const words =
+      typeof a.waitBudgetMs === 'number' && a.waitBudgetMs > 0
+        ? agentWaitWords({ phase: 'first-byte', sinceMs: a.waitSinceMs ?? lastSignal ?? nowMs, budgetMs: a.waitBudgetMs }, nowMs)
+        : null
+    return words !== null ? { kind: 'first-token', words } : { kind: 'first-token' }
+  }
   return { kind: 'working', toolLine }
 }
 
@@ -119,7 +128,7 @@ export function agentPulseWord(p: AgentPulse): string {
     case 'queued':
       return 'queued'
     case 'first-token':
-      return 'awaiting first token'
+      return p.words ?? 'awaiting first token'
     case 'backoff': {
       if (
         (typeof p.retryInMs !== 'number' || p.retryInMs <= 0) &&

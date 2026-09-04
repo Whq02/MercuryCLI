@@ -941,6 +941,18 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             return
           }
         }
+        if (m?.type === 'request_wait') {
+          const wait = (m as { wait?: unknown }).wait
+          if (wait !== null && typeof wait === 'object' && (wait as { kind?: unknown }).kind === 'first-byte') {
+            const w = wait as { budgetMs?: unknown; sinceMs?: unknown }
+            emitFrame('progress', {
+              waiting: 'prefill',
+              ...(typeof w.budgetMs === 'number' ? { waitBudgetMs: w.budgetMs } : {}),
+              ...(typeof w.sinceMs === 'number' ? { waitSinceMs: w.sinceMs } : {}),
+            })
+          }
+          return
+        }
         if (m?.type === 'stream_request_start') awaitingFirstToken = true
         else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()

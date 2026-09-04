@@ -18,6 +18,7 @@ import {
   isLocalAgentTask,
   killAsyncAgent,
   publishAgentProgressSoon,
+  publishAgentWaitFromEvent,
   registerAgentForeground,
   settleAgentForeground,
   unregisterAgentForeground,
@@ -194,6 +195,7 @@ export async function runForegroundAgentExecution(
   const foregroundTaskId = foregroundTask?.taskId
   let stopForegroundSummarization: (() => void) | undefined
 
+  const foregroundRecordId = foregroundTask?.taskId
   const agentIterator = runAgent({
     ...runAgentParams,
     override: {
@@ -201,6 +203,9 @@ export async function runForegroundAgentExecution(
       agentId: syncAgentId,
       ...(foregroundTask !== undefined ? { abortController: foregroundTask.abortController } : {}),
     },
+    ...(foregroundRecordId !== undefined
+      ? { onQueryProgress: (event: unknown) => publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState) }
+      : {}),
     ...(foregroundTaskId !== undefined && getSdkAgentProgressSummariesEnabled()
       ? {
           onCacheSafeParams: (params: CacheSafeParams) => {
