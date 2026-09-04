@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/anthropic/** src/services/api/client* src/services/api/transportEvidence*
+# gate-watch: src/services/providers/streamIdleBudget* src/services/providers/openai/** src/services/providers/zai/**
 # gate-watch: src/utils/proxy* src/utils/mtls* src/components/messages/SystemAPIErrorMessage*
 set -uo pipefail
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss\n' "$p" "$(( SECONDS - $2 ))"; }
@@ -15,6 +16,7 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ingestion-truths.ts"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-watchdog-posture.ts" || fail=1; prover_mark "scripts/api/prove-stream-watchdog-posture.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-pool-reset.ts" || fail=1; prover_mark "scripts/api/prove-watchdog-pool-reset.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-watchdog-timer-economy.ts" || fail=1; prover_mark "scripts/api/prove-watchdog-timer-economy.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-end-typed.ts" || fail=1; prover_mark "scripts/api/prove-turn-end-typed.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-key-memo.ts" || fail=1; prover_mark "scripts/api/prove-tool-schema-key-memo.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-door.ts" || fail=1; prover_mark "scripts/api/prove-client-contract-door.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-binding.ts" || fail=1; prover_mark "scripts/api/prove-transcript-binding.ts" "$__t"
