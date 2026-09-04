@@ -10,8 +10,8 @@ cd "$root" || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
-echo "── PRIVATE CHANNEL — updater/installer proofs ──"
-for prover in prove-channel-core prove-status-check-agreement prove-install-layout prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack; do
+echo "── RELEASE CHANNEL — updater/installer proofs ──"
+for prover in prove-channel-core prove-status-check-agreement prove-install-layout prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-anonymous-channel prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack; do
   echo ""
   echo "▶ $prover"
   "$BUN" run "$here/$prover.ts" || fail=1
