@@ -10,6 +10,7 @@ import type {
   ApiStreamEvent,
   ContentBlock,
   MessageParam,
+  TextPhase,
 } from '../../../types/wire.js'
 import type { Tools } from '../../../Tool.js'
 import type {
@@ -644,7 +645,11 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const blocks = {
     index: -1,
     open: null as
-      | { kind: 'thinking' | 'text'; value: string }
+      | {
+          kind: 'thinking' | 'text'
+          value: string
+          phase?: TextPhase
+        }
       | {
           kind: 'tool'
           itemId: string
@@ -655,6 +660,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       | null,
   }
   const livePaintComplete = new Set<string>()
+  let pendingTextPhase: TextPhase | undefined
   const minted: AssistantMessage[] = []
   let usageSeen: OpenaiUsage | undefined
   let responseId: string | undefined
@@ -687,7 +693,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
     const settled: ContentBlock =
       blocks.open.kind === 'thinking'
         ? { type: 'thinking', thinking: blocks.open.value, signature: '' }
-        : { type: 'text', text: blocks.open.value, citations: null }
+        : {
+            type: 'text',
+            text: blocks.open.value,
+            citations: null,
+            ...(blocks.open.phase ? { phase: blocks.open.phase } : {}),
+          }
     blocks.open = null
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
     const m = mintBlock(settled)
@@ -697,14 +708,15 @@ export async function* streamOneOpenaiAttempt(ctx: {
   function* openNewBlock(kind: 'thinking' | 'text'): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
     blocks.index += 1
-    blocks.open = { kind, value: '' }
+    const phase = kind === 'text' ? pendingTextPhase : undefined
+    blocks.open = { kind, value: '', ...(phase ? { phase } : {}) }
     yield streamEvent({
       type: 'content_block_start',
       index: blocks.index,
       content_block:
         kind === 'thinking'
           ? { type: 'thinking', thinking: '', signature: '' }
-          : { type: 'text', text: '', citations: null },
+          : { type: 'text', text: '', citations: null, ...(phase ? { phase } : {}) },
     })
   }
   function* streamDelta(kind: 'thinking' | 'text', text: string): Generator<StreamEvent | AssistantMessage> {
@@ -788,6 +800,17 @@ export async function* streamOneOpenaiAttempt(ctx: {
         break
       case 'refusal-delta':
         yield* streamDelta('text', event.text)
+        break
+      case 'text-item-start':
+        if (blocks.open?.kind === 'text') yield* closeOpenBlock()
+        pendingTextPhase = event.phase
+        break
+      case 'text-item-done':
+        if (blocks.open?.kind === 'text') {
+          if (event.phase && !blocks.open.phase) blocks.open.phase = event.phase
+          yield* closeOpenBlock()
+        }
+        pendingTextPhase = undefined
         break
       case 'tool-args-start': {
         yield* ensureMessageStart()

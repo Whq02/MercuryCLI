@@ -47,6 +47,11 @@ check('OpenAI render == Anthropic render (same content, join shape apart)', open
 check('generic render == OpenAI render (chat lanes carry the same content)', contractMod.renderGenericInstructions(contract) === openai)
 check('no section is family-scoped (every scope is "all")', contract.sections.every(s => s.scope === 'all'))
 check('identity floor provider-neutral in the composed output', /model is the engine/.test(anthropic) && anthropic.includes('Mercury was not built by the maker of any model it runs'))
+const WORKING_NOTE_RULE =
+  'Text written before a tool call is a one-line working note about the next step; the final answer never restates it and stands on its own.'
+check('the working-note rule rides the Anthropic render', anthropic.includes(WORKING_NOTE_RULE))
+check('the working-note rule rides the OpenAI render', openai.includes(WORKING_NOTE_RULE))
+check('the working-note rule names no vendor or model', !/claude|anthropic|openai|gpt/i.test(WORKING_NOTE_RULE))
 
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
@@ -54,6 +59,7 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
     ['methodName-to-snake-case example', /methodName.{0,60}snake/s],
     ['authorization-scope-bound', /Authorization stands for the scope/],
     ['no-colon-before-tool-calls', /colon before tool calls/],
+    ['working-note-before-a-tool-call', /working note about the next step/],
     ['outcome-first close', /outcome-first|answer "what happened"/],
     ['end-turn-on-promise guard', /promise about work (you have not done|not yet done)/],
     ['audit-claims-against-tool-results', /audit each claim against a tool result/],

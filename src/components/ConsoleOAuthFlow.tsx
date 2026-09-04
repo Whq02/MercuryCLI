@@ -1,6 +1,7 @@
 
 import React, {
   useCallback,
+  useRef,
   useState,
 } from 'react'
 import { Box, Text } from '../ink.js'
@@ -90,7 +91,12 @@ export function ConsoleOAuthFlow({
   const accountLabel = model.accountLabel
 
   const [leg, setLeg] = useState<EngineLeg | null>(null)
-  const [code, setCode] = useState('')
+  const [code, setCodeState] = useState('')
+  const codeRef = useRef('')
+  const setCode = useCallback((next: string): void => {
+    codeRef.current = next
+    setCodeState(next)
+  }, [])
   const [codeCursor, setCodeCursor] = useState(0)
 
   useInput(
@@ -105,17 +111,16 @@ export function ConsoleOAuthFlow({
   )
 
   useInput(
-    (input, key) => {
+    (input, key, event) => {
       if (
         input === 'c' &&
         !key.ctrl && !key.meta &&
         state.name === 'waiting' &&
         pastePromptUp &&
-        code === ''
+        codeRef.current === ''
       ) {
+        event.stopImmediatePropagation()
         model.copyUrl()
-        setCode('')
-        setCodeCursor(0)
       }
     },
     { isActive: state.name === 'waiting' && pastePromptUp },

@@ -71,7 +71,7 @@ export function HuggingfaceConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
 
-  useInput((input, key) => {
+  useInput((input, key, event) => {
     if (leg === 'choice') return
     if (key.escape) {
       if (leg === 'token') {
@@ -83,6 +83,7 @@ export function HuggingfaceConnect({
       return
     }
     if (input === 'c' && !key.ctrl && !key.meta && leg === 'device' && start && phase === 'waiting') {
+      event.stopImmediatePropagation()
       void setClipboard(start.verificationUriComplete ?? start.verificationUri).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)

@@ -28,7 +28,12 @@ export function RouterOpenrouterConnect({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const [leg, setLeg] = useState<'choice' | 'browser' | 'headless' | 'key'>('choice')
-  const [paste, setPaste] = useState('')
+  const [paste, setPasteState] = useState('')
+  const pasteRef = useRef('')
+  const setPaste = (next: string): void => {
+    pasteRef.current = next
+    setPasteState(next)
+  }
   const [cursorOffset, setCursorOffset] = useState(0)
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'exchanging'>('starting')
   const [listenerNote, setListenerNote] = useState<string | undefined>(undefined)
@@ -66,7 +71,7 @@ export function RouterOpenrouterConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
 
-  useInput((input, key) => {
+  useInput((input, key, event) => {
     if (leg === 'choice') return
     if (key.escape) {
       if (leg === 'key') {
@@ -81,10 +86,11 @@ export function RouterOpenrouterConnect({
       input === 'c' &&
       !key.ctrl && !key.meta &&
       (leg === 'browser' || leg === 'headless') &&
-      paste === '' &&
+      pasteRef.current === '' &&
       phase !== 'exchanging' &&
       authorizeUrl
     ) {
+      event.stopImmediatePropagation()
       void setClipboard(authorizeUrl).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)
