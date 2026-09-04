@@ -38,6 +38,7 @@ let consecutiveFailures = 0
 let retryAtMs: number | undefined
 let requests = 0
 let inFlight: Promise<AnthropicUsageReadStatus> | null = null
+let generation = 0
 
 export function anthropicUsageReadStatus(): AnthropicUsageReadStatus {
   return {
@@ -209,9 +210,22 @@ function noteAnswer(now: number): void {
   retryAtMs = undefined
 }
 
-export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'operator'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
+export function forgetAnthropicUsageRead(): void {
+  generation += 1
+  lastAttemptAtMs = undefined
+  lastOkAtMs = undefined
+  failure = undefined
+  consecutiveFailures = 0
+  retryAtMs = undefined
+  inFlight = null
+  currentEpisode = undefined
+  noteUsageRecordChanged()
+}
+
+export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'operator' | 'sign-in'; now?: () => number }): Promise<AnthropicUsageReadStatus> {
   const reason = opts?.reason ?? 'poll'
   const now = opts?.now ?? Date.now
+  if (reason === 'sign-in') forgetAnthropicUsageRead()
   if (inFlight !== null) return inFlight
   let subscriber = false
   try {
@@ -221,33 +235,37 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
   }
   if (!subscriber) return Promise.resolve(anthropicUsageReadStatus())
   const at = now()
-  if (reason !== 'operator') {
+  if (reason !== 'operator' && reason !== 'sign-in') {
     if (retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
     const ttl = usagePollTtlMs()
     const turnFloor = Math.min(TURN_ASK_FLOOR_MS, ttl / 2)
     const floor = reason === 'turn' ? turnFloor : Math.max(turnFloor, ttl - POLL_JITTER_MS)
     if (lastAttemptAtMs !== undefined && at - lastAttemptAtMs < floor) return Promise.resolve(anthropicUsageReadStatus())
   }
-  inFlight = (async (): Promise<AnthropicUsageReadStatus> => {
+  const issued = generation
+  const ask = (async (): Promise<AnthropicUsageReadStatus> => {
     lastAttemptAtMs = at
     requests += 1
     const host = endpointHost()
     try {
       const answer = await fetchUtilization()
+      if (issued !== generation) return anthropicUsageReadStatus()
       if (answer === null) noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
       else noteAnswer(now())
     } catch (error) {
-      noteFailure(classify(error, host, now()), now())
+      if (issued === generation) noteFailure(classify(error, host, now()), now())
     } finally {
-      inFlight = null
+      if (issued === generation) inFlight = null
       noteUsageRecordChanged()
     }
     return anthropicUsageReadStatus()
   })()
-  return inFlight
+  inFlight = ask
+  return ask
 }
 
 export function _resetAnthropicUsageReaderForTesting(): void {
+  generation += 1
   lastAttemptAtMs = undefined
   lastOkAtMs = undefined
   failure = undefined

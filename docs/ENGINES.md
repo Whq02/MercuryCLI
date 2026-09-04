@@ -248,6 +248,10 @@ screen beside the last figure with the status and the host, backs off four
 minutes, is logged once per episode, and is written once to the doctor's record
 in the config home (`usage-reader.json`) with its recovery — `mercury doctor`
 names it from another process. `/usage` and its retry key ask at once regardless.
+A sign-in or a removal (the sign-in ledger's epoch, the one signal every family
+raises) forgets the reader's state and asks for the account now signed in at
+once — the meter never keeps a departed account's figure or waits out its
+cadence.
 
 `/usage` lists every provider, the signed-in ones first in the order of their
 most recent sign-in — the same sign-in record the computed default reads — and
