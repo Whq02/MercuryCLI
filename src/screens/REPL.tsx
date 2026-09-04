@@ -131,6 +131,7 @@ import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/model
 import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js';
+import { workWaitingWords } from '../services/engine-connector/workCounts.js';
 import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
@@ -2083,7 +2084,9 @@ export function REPL({
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
   const viewAgentWait =
-    seatLive.phase === 'waiting' ? (crewWaitingWords(seatLive.agentsWaiting) ?? 'waiting on agents') : null;
+    seatLive.phase === 'waiting'
+      ? ((seatLive.waitingOn !== undefined ? workWaitingWords(seatLive.waitingOn) : null) ?? crewWaitingWords(seatLive.agentsWaiting) ?? 'waiting on agents')
+      : null;
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
