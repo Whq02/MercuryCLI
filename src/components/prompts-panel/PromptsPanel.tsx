@@ -115,6 +115,7 @@ export function PromptsPanel({
   const startedAtRef = useRef(processStartedAtIso())
 
   const prompts = useMemo(() => promptRows(records), [records])
+  const queuedCount = prompts.filter(row => row.queued === true).length
   const crew = useMemo(() => crewTrafficRows(records), [records])
   const saved = useMemo<SavedRow[]>(
     () => (drafts ?? []).map((d, i) => ({ kind: 'saved', key: `saved:${d.id}`, n: i + 1, draft: d })),
@@ -273,8 +274,8 @@ export function PromptsPanel({
       {
         key: 'time',
         header: 'time',
-        width: 5,
-        cell: row => <Text color={tokens.textMuted}>{row.kind === 'prompt' ? clockOf(row.at) : ''}</Text>,
+        width: 6,
+        cell: row => <Text color={tokens.textMuted}>{row.kind === 'prompt' ? (row.queued ? 'queued' : clockOf(row.at)) : ''}</Text>,
       },
       {
         key: 'mode',
@@ -476,7 +477,9 @@ export function PromptsPanel({
   const factsOf = (row: Row): KVRow[] => {
     if (row.kind === 'prompt') {
       return [
-        { k: 'sent', v: clockSecondsOf(row.at) },
+        row.queued
+          ? { k: 'queued', v: 'waiting for the running turn to end' }
+          : { k: 'sent', v: clockSecondsOf(row.at) },
         { k: 'mode', v: modeLabel(row.mode) },
         { k: 'length', v: `${row.lines === 1 ? '1 line' : `${row.lines} lines`} · ${row.chars} chars` },
         { k: 'prompt', v: `#${row.n} of ${prompts.length}` },
@@ -573,7 +576,7 @@ export function PromptsPanel({
   const headerLine = (
     <Text color={tokens.textMuted} wrap="truncate-end">
       {section === 'prompts'
-        ? limitsLine(limits, prompts.length, clockOf)
+        ? limitsLine(limits, prompts.length - queuedCount, clockOf, queuedCount)
         : section === 'crew'
           ? crew.length === 0
             ? 'no agent traffic this session · the threads fill as the lead delegates'

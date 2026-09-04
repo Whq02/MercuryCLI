@@ -22,6 +22,7 @@ export type PromptRow = {
   text: string
   lines: number
   chars: number
+  queued?: true
 }
 
 export type CrewDirection = 'to' | 'from'
@@ -97,11 +98,27 @@ export function classifyPrompt(raw: string): { mode: PromptMode; text: string } 
 }
 
 
+function drainedPromptTextOf(m: Message): string | null {
+  if (m.type !== 'attachment') return null
+  const att = m.attachment as { type?: string; prompt?: unknown; commandMode?: string; origin?: unknown; isMeta?: boolean }
+  if (att.type !== 'queued_command') return null
+  if (att.isMeta === true || att.origin !== undefined) return null
+  if (att.commandMode !== undefined && att.commandMode !== 'prompt') return null
+  const prompt = att.prompt
+  if (typeof prompt === 'string') return prompt
+  if (!Array.isArray(prompt)) return null
+  return prompt
+    .map(block => ((block as { type?: string; text?: string }).type === 'text' ? ((block as { text?: string }).text ?? '') : ''))
+    .filter(part => part !== '')
+    .join('\n')
+}
+
 export function promptRows(records: readonly Message[]): PromptRow[] {
   const rows: PromptRow[] = []
   for (const m of records) {
-    if (!selectableUserMessagesFilter(m)) continue
-    const { mode, text } = classifyPrompt(textOf(m.message.content))
+    const drained = drainedPromptTextOf(m)
+    if (drained === null && !selectableUserMessagesFilter(m)) continue
+    const { mode, text } = classifyPrompt(drained ?? textOf((m as { message: { content: unknown } }).message.content as never))
     const body = text === '' ? '(no prompt text)' : text
     rows.push({
       kind: 'prompt',
@@ -113,6 +130,7 @@ export function promptRows(records: readonly Message[]): PromptRow[] {
       text: body,
       lines: Math.max(1, lineCount(body)),
       chars: body.length,
+      ...((m as { queued?: true }).queued === true ? { queued: true as const } : {}),
     })
   }
   return rows
@@ -262,13 +280,14 @@ export function recordLimits(records: readonly Message[], processStartedAt?: str
   return { since, compacted, resumed }
 }
 
-export function limitsLine(limits: RecordLimits, promptCount: number, clock: (iso: string) => string): string {
+export function limitsLine(limits: RecordLimits, promptCount: number, clock: (iso: string) => string, queuedCount = 0): string {
   const head = promptCount === 1 ? '1 prompt' : `${promptCount} prompts`
-  if (limits.since === null) return `${head} · nothing sent in this chat yet`
+  const queued = queuedCount > 0 ? ` · ${queuedCount} queued` : ''
+  if (limits.since === null) return `${head} · nothing sent in this chat yet${queued}`
   const parts = [`${head} since ${clock(limits.since)}`]
   parts.push(limits.resumed ? 'resumed transcript included' : 'from the start of this session')
   if (limits.compacted) parts.push('a compaction hides the earlier prompts')
-  return parts.join(' · ')
+  return parts.join(' · ') + queued
 }
 
 export function clockOf(iso: string): string {

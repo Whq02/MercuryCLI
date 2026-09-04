@@ -145,7 +145,7 @@ section('§4 — the two seams: the child answers from the one owner; the hook r
   const hookSrc = readFileSync(join(REPO, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
   check('the hook reads the FOCUSED connector', hookSrc.includes('useSessionConnector()'))
   check('…and prefers its usage readout’s fact through the owner’s law', /preferSessionLimitWarning\(\s*connector\.usage\(\)\.limitWarning,/.test(hookSrc))
-  check('…re-reading on the connector change and the engine tick', /\[limits, model, tick, connector, addNotification\]/.test(hookSrc))
+  check("…re-reading on the connector change, the engine tick and the usage records' own signals", /\[limits, model, tick, connector, addNotification, usageRecordVersion, openaiObservedVersion\]/.test(hookSrc))
 }
 
 section('§5 — the resting slot carries no fact')

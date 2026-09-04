@@ -179,6 +179,8 @@ import {
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
+import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
+import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
   getDefaultMainLoopModelSetting,
   getMainLoopModel,
@@ -1658,6 +1660,11 @@ export async function runHeadless(
           }
           inFlightAbort?.abort()
           stopRunningAgentTasks(getAppState().tasks, setAppState)
+          if ((request as { hard?: boolean }).hard === true) {
+            for (const task of Object.values(getAppState().tasks)) {
+              if (isLocalShellTask(task) && task.status === 'running') void killTask(task.id, setAppState)
+            }
+          }
           abortSuggestion()
           lastEmittedSuggestion = null
           respondSuccess(requestId)
