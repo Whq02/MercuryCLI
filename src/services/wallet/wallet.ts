@@ -49,6 +49,7 @@ function entriesKey(): string {
 
 export function resetWalletEntriesMemo(): void {
   entriesMemo = null
+  activeMemo.clear()
 }
 
 export function walletEntries(): WalletEntry[] {
@@ -202,6 +203,18 @@ export function notLoggedInGateDecision(
 }
 
 export function activeWalletEntry(provider: WalletProvider): WalletEntry | undefined {
+  const key = entriesKey()
+  const now = Date.now()
+  const hit = activeMemo.get(provider)
+  if (hit !== undefined && hit.key === key && now - hit.at < ENTRIES_TTL_MS) return hit.entry
+  const entry = composeActiveWalletEntry(provider)
+  activeMemo.set(provider, { at: now, key, entry })
+  return entry
+}
+
+const activeMemo = new Map<WalletProvider, { at: number; key: string; entry: WalletEntry | undefined }>()
+
+function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undefined {
   const entries = walletEntries()
   if (provider === 'openrouter') {
     const active = resolveOpenrouterApiKey()
