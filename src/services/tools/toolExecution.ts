@@ -572,20 +572,17 @@ async function runTransactionBody(args: {
   }
 
   const decisionReason = (decision as { decisionReason?: PermissionDecisionReason }).decisionReason
-  if (
+  const hookDecisionRow =
     decisionReason?.type === 'hook' &&
     decisionReason.hookName?.includes(PERMISSION_REQUEST_HOOK_NAME) &&
     decision.behavior !== 'ask'
-  ) {
-    push({
-      message: createAttachmentMessage({
-        type: 'hook_permission_decision',
-        decision: decision.behavior === 'allow' ? 'allow' : 'deny',
-        toolUseID,
-        hookEvent: PERMISSION_REQUEST_HOOK_NAME,
-      } as never),
-    })
-  }
+      ? createAttachmentMessage({
+          type: 'hook_permission_decision',
+          decision: decision.behavior === 'allow' ? 'allow' : 'deny',
+          toolUseID,
+          hookEvent: PERMISSION_REQUEST_HOOK_NAME,
+        } as never)
+      : null
 
   const allowanceRow =
     decision.behavior === 'allow' && decisionReason?.type === 'bypassedAsk'
@@ -910,6 +907,7 @@ async function runTransactionBody(args: {
       push({ message: failureMessage })
     }
   } finally {
+    if (executed && hookDecisionRow !== null) push({ message: hookDecisionRow })
     if (executed && allowanceRow !== null) push({ message: allowanceRow })
     if (executed) {
       traceOnce({ durationMs, ok: success })
