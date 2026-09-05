@@ -7,6 +7,7 @@ import {
   ERROR_MESSAGE_INCOMPLETE_RESPONSE,
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
   type CompactionResult,
+  withFoldStatus,
 } from '../../services/compact/compact.js'
 import { getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
@@ -126,6 +127,13 @@ function shouldEnrichForLiveDisplay(context: LocalJSXCommandContext): boolean {
 }
 
 export async function call(
+  args: string,
+  context: LocalJSXCommandContext,
+): Promise<LocalCommandResult> {
+  return withFoldStatus(context, () => callUnderFoldStatus(args, context))
+}
+
+async function callUnderFoldStatus(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {

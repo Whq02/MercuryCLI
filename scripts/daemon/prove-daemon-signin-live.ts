@@ -204,6 +204,7 @@ try {
     },
   })
   landAnthropicSignIn(Date.now() + 3_600_000)
+  await Promise.resolve()
   check('the sign-in landing pokes the daemon (signIns with refresh) through the ledger epoch', pokes.length === 1 && pokes[0]?.op === 'signIns' && pokes[0]?.refresh === true, JSON.stringify(pokes))
   clientModel = screenBirthModel()
   check('the client now computes a Claude birth model (the screen would send it)', clientModel !== undefined && /claude/.test(clientModel ?? ''), String(clientModel))
