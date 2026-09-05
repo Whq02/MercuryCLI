@@ -374,6 +374,7 @@ try {
         { data: '\r', afterPrevTicks: 3 },
         { data: '', afterPrevTicks: 4, mark: 'run-early' },
         { data: '', afterPrevTicks: 10, mark: 'run-early-2' },
+        { data: '', afterPrevTicks: 10, mark: 'run-early-3' },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '', afterPrevTicks: 30, mark: 'cockpit-busy' },
@@ -407,8 +408,8 @@ if (cap !== null) {
   console.log(`  sends' clocks: ${cap.receipts.map((r, i) => `${i}@${r.ts}`).join(' ')}`)
   console.log(`  routes: ${fixture.hits.map(h => (h.station !== null ? `seat:${h.station}(${h.priorReads})` : h.route)).join(' → ')}`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  for (const label of ['composer', 'skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'launched', 'run-early', 'run-early-2', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
-  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 27, `${cap.receipts.length}/27 · end ${cap.endReason}`)
+  for (const label of ['composer', 'skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'launched', 'run-early', 'run-early-2', 'run-early-3', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
+  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 28, `${cap.receipts.length}/28 · end ${cap.endReason}`)
 
   const seatHits = (s: Station): Hit[] => fixture.hits.filter(h => h.station === s)
   check(`both seats ran on the wire (one: ${seatHits('one').length}, two: ${seatHits('two').length} calls)`, seatHits('one').length >= 3 && seatHits('two').length >= 3)
@@ -453,7 +454,7 @@ if (cap !== null) {
       const hit = /⦿ running · (\d+)s ·/.exec(frame ?? '')
       return hit ? Number(hit[1]) : -1
     }
-    const candidates = (['run-early', 'run-early-2'] as const).map(label => ({ label, frame: m[label] ?? '', clock: clockOf(m[label]) }))
+    const candidates = (['run-early', 'run-early-2', 'run-early-3'] as const).map(label => ({ label, frame: m[label] ?? '', clock: clockOf(m[label]) }))
     const pick = candidates.filter(c => c.clock >= 3).at(-1) ?? candidates.at(-1)!
     const early = pick.frame
     const header = rowsWith(early, /⦿ running|◆ 0\/1/)

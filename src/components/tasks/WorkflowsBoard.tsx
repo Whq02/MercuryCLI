@@ -55,9 +55,10 @@ import { groupByPhase, pidAlive, settledCount } from './RunDetailPane.js'
 import { agentSnapshotState, buildTree, statusTone } from './WorkflowDetailDialog.js'
 import type { AgentNode } from './WorkflowDetailDialog.js'
 import { agentsDoneOf, phaseTone, workflowRollupLine } from './workflowRollup.js'
-import { WORK_UNREPORTED_LINE, workUnreported } from '../../services/engine-connector/workCounts.js'
+import { WORK_UNREPORTED_LINE, workRowRuns, workUnreported } from '../../services/engine-connector/workCounts.js'
 
 const PAST_POLL_MS = 5_000
+const LIVE_MANIFEST_POLL_MS = 1_000
 
 export function sameRunListing(
   prev: ReadonlyArray<Pick<WorkflowRunManifest, 'runId' | 'status'> & { mtimeMs: number }>,
@@ -585,8 +586,12 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
   const lastActivatedKey = useRef<string | undefined>(undefined)
 
   const onBoard = view.view === 'board'
+  const watchingHostedRun =
+    view.view !== 'board' &&
+    view.taskId === undefined &&
+    roster.rows.some(w => w.kind === 'workflow' && w.workflowRunId === view.runId && workRowRuns(w))
   useEffect(() => {
-    if (!onBoard) return
+    if (!onBoard && !watchingHostedRun) return
     const loader = createPastRunsLoader({
       list: () => listWorkflowRunsDetailed(cwd),
       apply: listing => {
@@ -596,12 +601,12 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       },
     })
     loader.load()
-    const t = setInterval(loader.load, PAST_POLL_MS)
+    const t = setInterval(loader.load, watchingHostedRun ? LIVE_MANIFEST_POLL_MS : PAST_POLL_MS)
     return () => {
       loader.dispose()
       clearInterval(t)
     }
-  }, [cwd, onBoard])
+  }, [cwd, onBoard, watchingHostedRun])
 
   if (view.view === 'run') {
     return (
