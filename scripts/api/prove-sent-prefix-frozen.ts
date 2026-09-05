@@ -641,21 +641,32 @@ if (!existsSync(DIST)) {
     const toolNamesOf = (body: Body): string[] => (Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => String(t.name)) : [])
     const godotProject = '; Engine configuration file.\nconfig_version=5\n\n[application]\n\nconfig/name="Fixture"\n'
     {
-      const turns: ScriptedTurn[] = [1, 2, 3].map(n => ({ kind: 'text' as const, text: `S6A-TURN-${n}`, thinking: `godot a ${n}`, inputTransformations: [] }))
+      const turns: ScriptedTurn[] = [
+        { kind: 'text', text: 'S6A-TURN-1', thinking: 'godot a 1', inputTransformations: [] },
+        { kind: 'tool_use', name: 'ToolSearch', input: { query: 'select:Godot' }, thinking: 'godot a lookup' },
+        { kind: 'tool_use', name: 'Godot', input: { op: 'vulcan_status' }, thinking: 'godot a status' },
+        { kind: 'text', text: 'S6A-TURN-2', thinking: 'godot a 2', inputTransformations: [] },
+        { kind: 'text', text: 'S6A-TURN-3', thinking: 'godot a 3', inputTransformations: [] },
+      ]
       const fixture = await startFixtureApi(turns)
       const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f8'
       const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID], [
         { prompt: 'start a game' },
-        { prompt: 'the project exists now', before: () => writeFileSync(join(arena.cwd, 'project.godot'), godotProject) },
+        { prompt: 'the project exists now — probe the Godot surface', before: () => writeFileSync(join(arena.cwd, 'project.godot'), godotProject) },
         { prompt: 'carry on' },
       ])
       check('§6a three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
       const reqs = fixture.messageRequests()
-      check('§6a three message requests', reqs.length === 3, String(reqs.length))
+      check('§6a five message requests (turn 2 carries the lookup round and the Godot round)', reqs.length === 5, String(reqs.length))
       census('§6a', reqs, true)
-      check('§6a the section stays absent (no project at the first request) and the Godot tool never enters the tools array', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface') && !toolNamesOf(q.body as Body).includes('Godot')), reqs.map(q => toolNamesOf(q.body as Body).includes('Godot')).join(','))
-      check('§6a the first request never offered the Godot tool; a later offer rides a new row only', !/\\nGodot\\n/.test(reqs[0]!.raw), reqs.map(q => /\\nGodot\\n/.test(q.raw)).join(','))
+      check('§6a the section stays absent (no project at the first request)', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface')), reqs.map(q => systemTextOf(q.body as Body).includes('Godot control surface')).join(','))
+      const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
+      check('§6a the Godot tool is offered from the FIRST request (the flag alone seats it) and on every request across the project\'s birth', reqs.every(offersGodot), reqs.map(offersGodot).join(','))
+      const messagesTextOf = (q: { body: unknown }): string => j((q.body as Body).messages ?? [])
+      const cwdTail = arena.cwd.slice(arena.cwd.lastIndexOf('/') + 1)
+      check('§6a the Godot tool answered vulcan_status for the project born mid-session (callable at once, no compaction needed)', reqs.slice(3).some(q => messagesTextOf(q).includes('flag: armed') && messagesTextOf(q).includes(`project: `) && messagesTextOf(q).includes(cwdTail)), reqs.slice(3).map(q => messagesTextOf(q).includes('flag: armed')).join(','))
+      check('§6a no drop notice: the prefix held across the birth', transcriptNotices(arena, SID).length === 0, j(transcriptNotices(arena, SID)))
       await fixture.close()
     }
     {

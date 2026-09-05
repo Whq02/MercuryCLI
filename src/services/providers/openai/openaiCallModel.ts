@@ -35,6 +35,7 @@ import {
 import { toolToAPISchema } from '../../../utils/api.js'
 import {
   createAssistantAPIErrorMessage,
+  createSystemAPIErrorMessage,
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
@@ -76,7 +77,7 @@ import {
 } from './openaiCatalogue.js'
 import { recordLiveQualification } from './qualificationStore.js'
 import { recordOpenaiUsageLimit } from './openaiLimitState.js'
-import { resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
 import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
@@ -258,11 +259,13 @@ async function buildApiShapedTools(
 export function mapOpenaiUsageToAnthropic(usage: OpenaiUsage | undefined, webSearchRequests = 0): typeof EMPTY_USAGE {
   const total = usage?.inputTokens ?? 0
   const cached = usage?.cachedInputTokens ?? 0
+  const written = usage?.cacheWriteInputTokens ?? 0
   return {
     ...EMPTY_USAGE,
-    input_tokens: Math.max(0, total - cached),
+    input_tokens: Math.max(0, total - cached - written),
     output_tokens: usage?.outputTokens ?? 0,
     cache_read_input_tokens: cached,
+    cache_creation_input_tokens: written,
     server_tool_use: { ...EMPTY_USAGE.server_tool_use, web_search_requests: webSearchRequests },
   }
 }
@@ -276,6 +279,9 @@ export function buildProviderUsageReceipt(usage: OpenaiUsage): NonNullable<
     inputTokensTotal: total,
     cachedInputTokens: cached,
     outputTokens: usage.outputTokens ?? 0,
+    ...(typeof usage.cacheWriteInputTokens === 'number'
+      ? { cacheWriteInputTokens: usage.cacheWriteInputTokens }
+      : {}),
     ...(typeof usage.reasoningOutputTokens === 'number'
       ? { reasoningOutputTokens: usage.reasoningOutputTokens }
       : {}),
@@ -410,16 +416,20 @@ export async function* openaiCallModel(
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
-  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue)
+  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
-  if (profile.source === 'unsupported-fallback' && profile.adjustedFrom) {
-    settlementNotes.push(
-      `[openai] requested reasoning effort '${profile.adjustedFrom}' is not in ${modelId}'s live effort catalogue — using '${profile.wireEffort ?? 'the model default'}'.`,
-    )
-  }
+  const effortAdjusted: EffortAdjustedV1 | undefined =
+    profile.source === 'unsupported-fallback' && profile.adjustedFrom !== undefined
+      ? {
+          model: modelId,
+          name: getPublicModelDisplayName(modelId) ?? modelId,
+          asked: profile.adjustedFrom,
+          ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
+        }
+      : undefined
   if (qualification.kind === 'degraded') {
     settlementNotes.push(qualification.note)
   }
@@ -439,7 +449,7 @@ export async function* openaiCallModel(
     providerScope: `openai:${auth.account.kind}`,
     servedModel: modelId,
     projectPath: getCwd(),
-    behaviorContractDigest: createHash('sha256').update(renderedInstructions).digest('hex').slice(0, 16),
+    behaviorContractDigest: contract.digest,
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
@@ -488,6 +498,7 @@ export async function* openaiCallModel(
       messages,
       attempt,
       settlementNotes,
+      ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       pulseMain,
       pulseGeneration,
       contractDigest: contract.digest,
@@ -534,8 +545,10 @@ export async function* openaiCallModel(
     const retryable =
       outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS
     if (retryable) {
+      const delayMs = openaiRetryDelayMs(attempt)
+      yield createSystemAPIErrorMessage(new Error(outcome.fault.message), delayMs, attempt, OPENAI_MAX_ATTEMPTS - 1)
       await new Promise(resolve => {
-        const t = setTimeout(resolve, openaiRetryDelayMs(attempt))
+        const t = setTimeout(resolve, delayMs)
         ;(t as any).unref?.()
       })
       if (signal.aborted) return
@@ -609,6 +622,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   modelId: string
   messages: Message[]
   settlementNotes: readonly string[]
+  effortAdjusted?: EffortAdjustedV1
   pulseMain: boolean
   pulseGeneration: number
   contractDigest: string
@@ -1021,6 +1035,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    if (ctx.effortAdjusted !== undefined) lastMessage.effortAdjusted = ctx.effortAdjusted
     const replayItems = replayableItems(finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : []), refused)
     if (replayItems.length > 0) {
       lastMessage.apexProviderTurn = {

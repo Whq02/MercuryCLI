@@ -1,0 +1,7 @@
+# scripts/updater-drives/members.txt — the updater suite's real-terminal drives, one
+# basename per line (the files live in scripts/updater/). Each member boots a
+# real pseudo-terminal (the install road under a PTY); the parent suite runs
+# every prover NOT named here, so a new prover lands there and moves here
+# only by editing this list. A name listed here but missing on disk is a
+# loud red in this runner.
+prove-install-path.ts

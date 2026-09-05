@@ -344,7 +344,7 @@ export type InstallOutcome =
   | { state: 'already-installed'; versionDir: string; changed: false }
   | { state: 'failed'; note: string; retryable?: boolean }
 
-export function installPayload(roots: LayoutRoots, payloadDir: string, version: string): InstallOutcome {
+export function installPayload(roots: LayoutRoots, payloadDir: string, version: string, onStage?: () => void): InstallOutcome {
   const versionDir = join(roots.versionsDir, version)
   mkdirSync(roots.versionsDir, { recursive: true })
 
@@ -361,6 +361,7 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
   rmSync(staging, { recursive: true, force: true })
   let displaced: string | null = null
   try {
+    onStage?.()
     cpSync(payloadDir, staging, { recursive: true })
     const check = validatePayloadDir(staging)
     if (check.state !== 'ok') {

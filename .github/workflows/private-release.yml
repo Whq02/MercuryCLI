@@ -6,6 +6,11 @@ on:
       tag:
         description: 'Release tag to publish (e.g. v1.0.0-beta.1) — must exist'
         required: true
+      unsigned:
+        description: 'Publish WITHOUT the release key (no MERCURY_SIGNING_KEY secret): the archives carry no provenance signature, their names end in -unsigned, and mercury update in earlier installs does not pick them up'
+        type: boolean
+        required: false
+        default: false
   push:
     tags:
       - 'v*'
@@ -50,6 +55,10 @@ jobs:
           node-version-file: .node-version
       - name: Print selected Node
         run: node --version
+      - name: the licence documents are true for this tag
+        run: |
+          TAG='${{ github.event.inputs.tag || github.ref_name }}'
+          node scripts/release/releaseDocuments.mjs check --version "${TAG#v}"
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.11
@@ -86,6 +95,11 @@ jobs:
           - os: macos-14
             target: macos-arm64
             node_pack: darwin-arm64
+          - os: macos-14
+            target: macos-x64
+            node_pack: darwin-x64
+            cross: true
+            rust_targets: x86_64-apple-darwin
           - os: windows-latest
             target: windows-x64
             node_pack: win-x64
@@ -111,7 +125,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'bun.lock') }}
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
@@ -119,21 +133,73 @@ jobs:
           bun run scripts/vendor/fetch-js-debug.ts
           bun run scripts/vendor/fetch-grammars.ts
           bun run scripts/vendor/fetch-node.ts --platform ${{ matrix.node_pack }}
+          bun run scripts/vendor/fetch-platform-packages.ts --target ${{ matrix.target }}
+      - name: Rosetta 2 for the cross-packaged archive
+        if: matrix.cross
+        run: |
+          arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          arch -x86_64 /usr/bin/true
       - name: Rust toolchain (pinned stable)
         id: rust
         continue-on-error: true
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable
+        with:
+          targets: ${{ matrix.rust_targets || '' }}
       - name: ALSA headers for the voice pack (Linux)
         if: runner.os == 'Linux'
         continue-on-error: true
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
       - name: Build the voice capture pack
         continue-on-error: true
-        run: bun run scripts/vendor/build-voice.ts
+        run: bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}
       - name: native build
-        run: bun run build.ts
+        run: bun run build.ts --target ${{ matrix.target }}
+      - name: signing key (the secret, or the unsigned decision)
+        id: signing
+        shell: bash
+        env:
+          MERCURY_SIGNING_KEY: ${{ secrets.MERCURY_SIGNING_KEY }}
+          UNSIGNED_DECISION: ${{ github.event.inputs.unsigned }}
+        run: |
+          set +x
+          if [ -n "$MERCURY_SIGNING_KEY" ]; then
+            while IFS= read -r line; do [ -n "$line" ] && echo "::add-mask::$line"; done <<< "$MERCURY_SIGNING_KEY"
+            KEY_FILE="${RUNNER_TEMP//\\//}/mercury-signing.pem"
+            umask 077
+            printf '%s\n' "$MERCURY_SIGNING_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            echo "key_file=$KEY_FILE" >> "$GITHUB_OUTPUT"
+            echo "expect=signed" >> "$GITHUB_OUTPUT"
+            echo "packager_flags=" >> "$GITHUB_OUTPUT"
+            echo "the release key is present — the archive will be signed"
+          elif [ "$UNSIGNED_DECISION" = "true" ]; then
+            echo "key_file=" >> "$GITHUB_OUTPUT"
+            echo "expect=unsigned" >> "$GITHUB_OUTPUT"
+            echo "packager_flags=--unsigned" >> "$GITHUB_OUTPUT"
+            echo "::warning::UNSIGNED BY DECISION — the dispatch input unsigned=true was given and no MERCURY_SIGNING_KEY secret is set; the archive will carry -unsigned in its name"
+          else
+            echo "::error::the repository secret MERCURY_SIGNING_KEY is not set — release archives are signed. Set the secret (Settings, Secrets and variables, Actions, New repository secret: name MERCURY_SIGNING_KEY, value the PEM text of the release key) and re-run; or dispatch this workflow with unsigned=true to publish an unsigned build deliberately."
+            exit 1
+          fi
       - name: package + friend-path smoke
-        run: node scripts/release/package.mjs --target ${{ matrix.target }}
+        env:
+          MERCURY_SIGNING_KEY_FILE: ${{ steps.signing.outputs.key_file }}
+        run: node scripts/release/package.mjs --target ${{ matrix.target }} ${{ steps.signing.outputs.packager_flags }}
+      - name: verify the packaged archive (the shipped verifier, full depth)
+        shell: bash
+        run: |
+          for archive in release-out/*.tar.gz release-out/*.zip; do
+            [ -e "$archive" ] || continue
+            node scripts/release/verifyArchive.mjs --archive "$archive" --expect '${{ steps.signing.outputs.expect }}'
+          done
+      - name: remove the signing key file
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RUNNER_TEMP//\\//}/mercury-signing.pem"
+          KEY_FILE='${{ steps.signing.outputs.key_file }}'
+          if [ -n "$KEY_FILE" ]; then rm -f "$KEY_FILE"; fi
+          echo "no signing key remains on this runner"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: mercury-${{ matrix.target }}
@@ -153,6 +219,9 @@ jobs:
             target: linux-x64
           - os: macos-14
             target: macos-arm64
+          - os: macos-14
+            target: macos-x64
+            cross: true
           - os: windows-latest
             target: windows-x64
     runs-on: ${{ matrix.os }}
@@ -173,6 +242,14 @@ jobs:
         with:
           name: mercury-${{ matrix.target }}
           path: release-out
+      - name: Rosetta 2 for the cross-packaged archive
+        if: matrix.cross
+        run: |
+          arch -x86_64 /usr/bin/true 2>/dev/null || sudo softwareupdate --install-rosetta --agree-to-license
+          arch -x86_64 /usr/bin/true
+      - name: the Intel archive under Rosetta
+        if: matrix.cross
+        run: bun run scripts/updater/prove-cross-archive-rosetta.ts --target ${{ matrix.target }} --require
       - name: update journey against the candidate bundle
         shell: bash
         run: |
@@ -185,9 +262,14 @@ jobs:
           esac
           MERCURY_JOURNEY_DIST="$PWD/bridge-extract/mercury/mercury.mjs" bun run scripts/updater/prove-update-journey.ts
       - name: previous shipped reader consumes the candidate archive
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bun run scripts/updater/prove-release-bridge.ts
+        run: |
+          for f in release-out/*-unsigned.tar.gz release-out/*-unsigned.zip; do
+            [ -e "$f" ] && export MERCURY_BRIDGE_CANDIDATE="$PWD/$f"
+          done
+          bun run scripts/updater/prove-release-bridge.ts --target ${{ matrix.target }}
 
   release:
     name: publish to Releases
@@ -222,14 +304,19 @@ jobs:
           fi
           PRERELEASE=''
           case "$TAG" in *-*.*) PRERELEASE='--prerelease';; esac
+          PROVENANCE_NOTE='Provenance: every archive manifest is signed with the Mercury release key (`mercury doctor` shows the verdict; docs/TRUST.md says how to check).'
+          for f in assets/*-unsigned.tar.gz assets/*-unsigned.zip; do
+            [ -e "$f" ] && PROVENANCE_NOTE='**UNSIGNED BUILD** — published by decision without the release key: these archives carry no provenance signature (their names end in `-unsigned`, `mercury doctor` reports "unsigned"), and `mercury update` in earlier installs does not pick them up — install from this page.'
+          done
           if node scripts/release/notesFromChangelog.mjs "$TAG" > release-notes.md; then
+            { printf '%s\n\n' "$PROVENANCE_NOTE"; cat release-notes.md; } > release-notes-final.md
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
-              --notes-file release-notes.md \
+              --notes-file release-notes-final.md \
               assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
           else
             RANGE="$(python3 -c 'import json;print(json.load(open("package.json"))["engines"]["node"])')"
-            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$GITHUB_SHA" "$RANGE")
+            NOTES=$(printf '%s\n\nPrivate collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$PROVENANCE_NOTE" "$GITHUB_SHA" "$RANGE")
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
               --notes "$NOTES" \
