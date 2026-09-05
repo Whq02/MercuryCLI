@@ -4,14 +4,13 @@ import { writeOutAndExit } from './healthPresentation.js'
 
 /* eslint-disable custom-rules/no-process-exit -- CLI subcommand handler intentionally exits */
 
-function emitAndExit(value: unknown, code: number): never {
+function emitAndExit(value: unknown, code: number): Promise<never> {
   let text = '{}\n'
   try {
     text = jsonStringify(value, null, 2) + '\n'
   } catch {
   }
-  writeOutAndExit(text, code)
-  throw new Error('unreachable')
+  return writeOutAndExit(text, code)
 }
 
 interface RunTrace {
@@ -36,7 +35,7 @@ function armSilenceGuards(
   const onBeforeExit = (): void => {
     if (!armed) return
     armed = false
-    emitAndExit(stallRecord('drained its event loop'), 1)
+    void emitAndExit(stallRecord('drained its event loop'), 1)
   }
   process.on('beforeExit', onBeforeExit)
   const deadline =
@@ -45,7 +44,7 @@ function armSilenceGuards(
           if (!armed) return
           armed = false
           process.removeListener('beforeExit', onBeforeExit)
-          emitAndExit(stallRecord(`exceeded its ${Math.round(deadlineMs / 1000)}s bound`), 1)
+          void emitAndExit(stallRecord(`exceeded its ${Math.round(deadlineMs / 1000)}s bound`), 1)
         }, deadlineMs)
       : null
   return () => {
@@ -65,11 +64,11 @@ export async function runHealthFixCli(opts: { only?: string; yes: boolean }): Pr
     ])
     if (!healthCertEnabled()) {
       disarm()
-      emitAndExit({ error: 'health --fix requires MERCURY_DOCTOR_CERT enabled', code: 'cert-unavailable' }, 1)
+      return emitAndExit({ error: 'health --fix requires MERCURY_DOCTOR_CERT enabled', code: 'cert-unavailable' }, 1)
     }
     if (!fixMod.healthFixEnabled()) {
       disarm()
-      emitAndExit({ error: 'MERCURY_DOCTOR_FIX=0 — diagnose-only; no remedies applied', code: 'fix-disabled' }, 1)
+      return emitAndExit({ error: 'MERCURY_DOCTOR_FIX=0 — diagnose-only; no remedies applied', code: 'fix-disabled' }, 1)
     }
     const onProgress = (ev: { check: { id: string }; done: number; total: number }): void => {
       trace.settled = ev.done
@@ -80,7 +79,7 @@ export async function runHealthFixCli(opts: { only?: string; yes: boolean }): Pr
     const { fixes, skipped } = await fixMod.runHeadlessFix(before, opts)
     const after = fixes.length > 0 ? await runAndRecordHealthReport({ onProgress }) : before
     disarm()
-    emitAndExit({
+    return emitAndExit({
       before: { verdict: before.verdict, ranAt: before.ranAt },
       fixes: fixes.map(f => ({
         id: f.id,
@@ -94,7 +93,7 @@ export async function runHealthFixCli(opts: { only?: string; yes: boolean }): Pr
     }, fixes.some(f => !(f.verified?.ok ?? false)) ? 2 : 0)
   } catch (e: unknown) {
     disarm()
-    emitAndExit({ error: e instanceof Error && e.message ? e.message : 'health --fix threw', code: 'fix-failed' }, 1)
+    return emitAndExit({ error: e instanceof Error && e.message ? e.message : 'health --fix threw', code: 'fix-failed' }, 1)
   }
 }
 
@@ -108,7 +107,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
     const { healthCertEnabled, runAndRecordHealthReport } = await import('../utils/healthReport.js')
     if (!healthCertEnabled()) {
       disarm()
-      emitAndExit({
+      return emitAndExit({
         error: 'the health certificate requires MERCURY_DOCTOR_CERT enabled',
         code: 'cert-unavailable',
       }, 1)
@@ -126,14 +125,14 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
       const filtered = filterCertificateToCheck(cert, opts.only)
       if (filtered === null) {
         disarm()
-        emitAndExit({
+        return emitAndExit({
           error: `no health check has id '${opts.only}'`,
           code: 'unknown-check-id',
           knownIds: flattenChecks(cert).map(c => c.id),
         }, 1)
       }
       disarm()
-      emitAndExit({ certSchema: 2, ...filtered }, (filtered as { verdict?: string }).verdict === 'fault' ? 3 : 0)
+      return emitAndExit({ certSchema: 2, ...filtered }, (filtered as { verdict?: string }).verdict === 'fault' ? 3 : 0)
     }
     let readiness: unknown
     let readinessError: string | undefined
@@ -144,13 +143,13 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
       readinessError = e instanceof Error ? e.message : String(e)
     }
     disarm()
-    emitAndExit(
+    return emitAndExit(
       { certSchema: 2, ...cert, ...(readiness ? { readiness } : {}), ...(readinessError ? { readinessError } : {}) },
       (cert as { verdict?: string }).verdict === 'fault' ? 3 : 0,
     )
   } catch (e: unknown) {
     disarm()
-    emitAndExit({
+    return emitAndExit({
       error: e instanceof Error && e.message ? e.message : 'the certificate run threw',
       code: 'cert-failed',
     }, 1)

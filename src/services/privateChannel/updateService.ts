@@ -551,8 +551,7 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
   }
   sweepUpdaterResidue(roots)
   try {
-    progress('staging', payload.version)
-    const installed = installPayload(roots, payloadDir, payload.version)
+    const installed = installPayload(roots, payloadDir, payload.version, () => progress('staging', payload.version))
     if (installed.state === 'failed') {
       return { state: 'refused', reason: installed.note, remedy: 'free disk space and rerun `mercury install`' }
     }
@@ -560,8 +559,9 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
     if (staged.state !== 'ok') {
       return { state: 'refused', reason: `installed copy fails its smoke: ${staged.note}`, remedy: 're-extract the archive and rerun `mercury install`' }
     }
-    progress('activating', payload.version)
     const before = readCurrentVersion(roots)
+    const pointerMoves = before !== payload.version
+    if (pointerMoves) progress('activating', payload.version)
     switchCurrent(roots, payload.version)
     const post = smokeVersion(join(roots.versionsDir, payload.version), payload.version, payload.bundle)
     if (post.state !== 'ok') {
@@ -577,7 +577,7 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
       shim.state === 'refused-foreign'
         ? { state: 'refused', dir: roots.binDir, reason: 'the stable command was not written', line: manualPathLine(roots, io) }
         : ensureBinDirOnPath(roots, io)
-    progress('complete', payload.version)
+    progress('complete', installed.changed || pointerMoves ? payload.version : `${payload.version} (already present — no bytes changed)`)
     return {
       state: 'installed',
       version: payload.version,

@@ -313,6 +313,7 @@ export type Attachment =
   | {
       type: 'mode_pack_exit'
       mode: 'apollo' | 'autopilot'
+      reason?: string
     }
   | {
       type: 'repo_surface_map'

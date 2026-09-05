@@ -11,7 +11,29 @@ stops = sorted(int(x) for x in sys.argv[4:])
 
 OSC52 = re.compile(rb'\x1b\]52;[^;]*;([A-Za-z0-9+/=]*)(?:\x07|\x1b\\)')
 
-screen = pyte.Screen(cols, rows)
+
+class MarginScreen(pyte.Screen):
+    def _scroll(self, count, upward):
+        top, bottom = self.margins or (0, self.lines - 1)
+        saved = self.cursor.y
+        self.cursor.y = bottom if upward else top
+        for _ in range(max(1, int(count or 1))):
+            if upward:
+                self.index()
+            else:
+                self.reverse_index()
+        self.cursor.y = saved
+
+    def scroll_up(self, count=1, *args, **kwargs):
+        self._scroll(count, True)
+
+    def scroll_down(self, count=1, *args, **kwargs):
+        self._scroll(count, False)
+
+
+pyte.ByteStream.csi = dict(pyte.ByteStream.csi, S='scroll_up', T='scroll_down')
+
+screen = MarginScreen(cols, rows)
 stream = pyte.ByteStream(screen)
 
 recs = []

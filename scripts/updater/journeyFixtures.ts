@@ -5,7 +5,8 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync
 import { join } from 'node:path'
 import { assetNameFor } from '../../src/services/privateChannel/channelCore.js'
 
-const { readCompatFloor, releaseLayoutSection, topAllowlist } = (await import('../release/payloadContract.mjs')) as {
+const { DOC_SET, readCompatFloor, releaseLayoutSection, topAllowlist } = (await import('../release/payloadContract.mjs')) as {
+  DOC_SET: string[]
   readCompatFloor: () => { floorVersion: string; forwarder: string }
   releaseLayoutSection: (dir: string, target: string, floor: unknown) => Record<string, unknown>
   topAllowlist: (target: string, floor: unknown) => string[]
@@ -63,7 +64,7 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
     writeFileSync(join(dir, 'mercury'), posixLauncher(NODE_POLICY))
     writeFileSync(join(dir, 'install.sh'), `#!/bin/sh\n# fixture installer stub\n`)
   }
-  for (const doc of ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md']) {
+  for (const doc of DOC_SET) {
     writeFileSync(join(dir, doc), `# fixture ${doc} ${version}\n`)
   }
   writeFileSync(join(dir, 'mercury-vscode.vsix'), `fixture-vsix ${version}\n`)

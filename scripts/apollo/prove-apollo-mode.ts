@@ -255,8 +255,9 @@ try {
   check('esc stays the plain hold (reject path preserved)', /onCancel=\{handleCancel\}/.test(card) && /onReject\(\)/.test(card))
   const filesystem = src('utils', 'permissions', 'filesystem.ts')
   check(
-    "modeSuggestion counts apollo with the ask-posture modes (the session tier moves apollo → implement)",
-    /context\.mode === 'default' \|\| context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
+    "modeSuggestion lists the two ask-posture modes only (apollo never moves through a consent card)",
+    /context\.mode === 'default' \|\| context\.mode === 'strategy'\) \{/.test(filesystem) &&
+      !/context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
   check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
