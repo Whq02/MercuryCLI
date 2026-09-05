@@ -6,7 +6,7 @@ import type {
   HookEvent,
   SyncHookJSONOutput,
 } from 'src/entrypoints/agentSdkTypes.js'
-import type { BoundPrefixSection, BoundPrefixToolMark, MessageOrigin } from 'src/types/message.js'
+import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, MessageOrigin } from 'src/types/message.js'
 import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
 import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
@@ -475,6 +475,10 @@ export type Attachment =
       roster: BoundPrefixToolMark[]
       sections: BoundPrefixSection[]
       systemContext: Record<string, string>
+    }
+  | {
+      type: 'dead_thinking'
+      dead: DeadThinkingMark[]
     }
   | {
       type: 'agent_listing_delta'

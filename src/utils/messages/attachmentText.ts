@@ -1251,6 +1251,8 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       return []
     case 'bound_prefix':
       return []
+    case 'dead_thinking':
+      return []
   }
 
   const LEGACY_ATTACHMENT_TYPES = [
