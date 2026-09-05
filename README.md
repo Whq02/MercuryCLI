@@ -52,12 +52,17 @@ release list through your own signed-in GitHub CLI (`gh`); without one,
 rerun the install command above, which installs the newest release over
 the old one.
 
-The 1.0.0-beta.2 archives are unsigned: a release install prints a
-`provenance — unsigned` line on a bare interactive boot (a plain `mercury`
-with no verb or flag), and `mercury doctor` carries the same row. The line means the archive's
-manifest carries no signature; the download itself is checked against the
-release's `SHA256SUMS.txt`. The boot-time verification is described in
-[docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+From 1.0.0-beta.3 every release archive is signed with the Mercury release
+key at packaging, and the release is verified against that signature before
+it is published; a verified install prints nothing about it on boot, and
+`mercury doctor` shows `signed — key 627b54b734ca0e72`. The 1.0.0-beta.2
+archives are unsigned: such an install prints a `provenance — unsigned` line
+on a bare interactive boot (a plain `mercury` with no verb or flag), once per
+install, and `mercury doctor` carries the row every time. The line means the
+archive's manifest carries no signature; the download itself is checked
+against the release's `SHA256SUMS.txt`. What the verdicts mean and how to
+check an archive by hand is in [docs/TRUST.md](docs/TRUST.md); the boot-time
+verification is described in [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
 
 No archive ships for a Linux arm64 machine or Windows on arm64: the installer
 says so on the first and points at building from source (below); on Windows
