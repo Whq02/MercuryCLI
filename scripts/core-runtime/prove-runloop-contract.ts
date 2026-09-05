@@ -697,6 +697,48 @@ section('L7 ABORT MID-STREAM — synthetic pairing + the interrupt exemption')
   check("reason 'interrupt': pairing still synthesized", synth2.length === 1)
 }
 
+section('L7b ABORT under a typed reason — the row names the reason, never the operator')
+{
+  const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+  const mk = (reason: unknown): RunOpts => {
+    let controller: AbortController
+    return {
+      beforeRun: rig => {
+        controller = rig.abortController
+      },
+      script: [[y(asstToolUse('tu_ab', 'EchoTool', { text: 'x' })), { kind: 'do', fn: () => controller.abort(reason) }]],
+    }
+  }
+  const noOperatorRow = (rows: string[]): boolean => !rows.includes(INTERRUPT_MESSAGE) && !rows.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)
+  const stalled = record(await run(mk('stalled')))
+  const stalledRows = userTextMessages(stalled.yields)
+  check("'stalled' (the workflow's no-progress watchdog): terminal aborted_streaming", stalled.terminal.reason === 'aborted_streaming')
+  check("'stalled' never writes the operator's interruption row", noOperatorRow(stalledRows), stalledRows.join(' | '))
+  check("'stalled': the row names the no-progress timeout", stalledRows.some(t => /^\[Request cut off by a no-progress timeout \(the provider went quiet\)/.test(t)), stalledRows.join(' | '))
+  const stalledSynth = toolResultBlocks(stalled.yields).filter(b => b.tool_use_id === 'tu_ab')
+  check("'stalled': the synthetic tool result names the timeout, never 'Interrupted by user'", stalledSynth.length === 1 && /no-progress timeout/.test(String(stalledSynth[0]?.content)), String(stalledSynth[0]?.content))
+  const deadline = record(await run(mk(new DeadlineExceededError('sub-agent scout (a1)', 900_000, 901_000, 3, 'it never used a tool'))))
+  const deadlineRows = userTextMessages(deadline.yields)
+  check('an inactivity deadline (the agent idle limit): the row names the timeout and its seam', noOperatorRow(deadlineRows) && deadlineRows.some(t => /no-progress timeout/.test(t) && /sub-agent scout/.test(t)), deadlineRows.join(' | '))
+  const parent = record(await run(mk('workflow-abort')))
+  const parentRows = userTextMessages(parent.yields)
+  check("'workflow-abort': the row names the workflow's stop", noOperatorRow(parentRows) && parentRows.some(t => /^\[Request cut off: the workflow that ran this agent stopped\]$/.test(t)), parentRows.join(' | '))
+  const budget = record(await run(mk(new Error('the retry budget is spent: three declared waits'))))
+  const budgetRows = userTextMessages(budget.yields)
+  check('an Error reason (the retry budget): the row carries its words', noOperatorRow(budgetRows) && budgetRows.some(t => /^\[Request cut off: the retry budget is spent: three declared waits\]$/.test(t)), budgetRows.join(' | '))
+  for (const operator of ['crew-stop', 'user-skip', 'user-retry'] as const) {
+    const r = record(await run(mk(operator)))
+    const rows = userTextMessages(r.yields)
+    check(`'${operator}' is the operator's door: the row reads interrupted by user`, rows.filter(t => t === INTERRUPT_MESSAGE).length === 1, rows.join(' | '))
+  }
+  const { turnCutOfText } = await import('../../src/utils/messages/rejectionText.ts')
+  const readBack = (rows: string[]): string[] => rows.map(t => turnCutOfText(t)?.kind ?? 'none').filter(k => k !== 'none')
+  check('the rows read back as their reasons: stalled → idle-timeout, a deadline → idle-timeout (with its seam), workflow-abort → parent-stop, an Error → cut, the operator → operator',
+    readBack(stalledRows).join(',') === 'idle-timeout' && turnCutOfText(deadlineRows.find(t => /no-progress timeout/.test(t)) ?? '')?.detail?.includes('sub-agent scout') === true && readBack(parentRows).join(',') === 'parent-stop' && readBack(budgetRows).join(',') === 'cut' && turnCutOfText(INTERRUPT_MESSAGE)?.kind === 'operator' && turnCutOfText(INTERRUPT_MESSAGE_FOR_TOOL_USE)?.kind === 'operator',
+    `${readBack(stalledRows)} · ${readBack(deadlineRows)} · ${readBack(parentRows)} · ${readBack(budgetRows)}`)
+  check('an ordinary user row is no cut', turnCutOfText('please read the notes') === null && turnCutOfText('[Request interrupted by user] and more') === null)
+}
+
 section('L8 ABORT MID-TOOL — aborted_tools + the maxTurns attachment')
 {
   const makeAbortingTool = (rigRef: { controller?: AbortController }) =>

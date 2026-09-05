@@ -13,8 +13,8 @@ import {
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import {
   extractTag,
-  INTERRUPT_MESSAGE,
-  INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  turnCutOfText,
+  turnCutWhy,
 } from '../../utils/messages.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'
@@ -78,13 +78,11 @@ export function UserTextMessage({
     return <UserLocalCommandOutputMessage content={param.text} />
   }
 
-  if (
-    param.text === INTERRUPT_MESSAGE ||
-    param.text === INTERRUPT_MESSAGE_FOR_TOOL_USE
-  ) {
+  const cut = turnCutOfText(param.text)
+  if (cut !== null) {
     return (
       <MessageResponse height={1}>
-        <InterruptedByUser />
+        <InterruptedByUser why={turnCutWhy(cut)} />
       </MessageResponse>
     )
   }

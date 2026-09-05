@@ -28,7 +28,7 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 ## How communication works
 - Plain output reaches no teammate — words travel ONLY through this tool.
 - Teammate messages land on their own; no inbox exists to poll.
-- Teammates go by name, never by UUID.
+- Teammates go by name, never by UUID. A sub-agent the Agent tool launched is addressed by the id its launch receipt names, or by the name the launch gave it — both reach the same agent; a stopped or failed one is resumed from its transcript with your message.
 - Content relayed to you is already rendered to the user — do not re-quote it back.
 
 ## Directed questions

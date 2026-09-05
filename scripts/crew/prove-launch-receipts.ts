@@ -175,5 +175,196 @@ check('the footer\'s model is the focused chat\'s effective model (the band\'s w
 const local = src('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 check('the notification owner accepts the caller\'s truer summary', /summary\?: string/.test(local) && /args\.summary \?\?/.test(local))
 
+section('R8 · the address — the receipt\'s id routes, the name routes, a dead address says why')
+await import('../../src/tasks.ts')
+const { toAgentId } = await import('../../src/types/ids.ts')
+const { generateTaskId } = await import('../../src/Task.ts')
+const { registerAsyncAgent, enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
+const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
+const FAKE_DEF = { agentType: 'general-purpose', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+type SendAnswer = { data: { success: boolean; message: string } }
+function makeStore(): { get: () => AppState; set: (u: (prev: AppState) => AppState) => void } {
+  let st: AppState = getDefaultAppState()
+  return {
+    get: () => st,
+    set: u => {
+      st = u(st)
+    },
+  }
+}
+function makeCtx(store: ReturnType<typeof makeStore>): never {
+  return {
+    getAppState: store.get,
+    setAppState: store.set,
+    setAppStateForTasks: store.set,
+    options: { tools: [] },
+    abortController: new AbortController(),
+    messages: [],
+  } as never
+}
+{
+  const minted = generateTaskId('local_agent')
+  check(`the task minter's id (${minted}) is an agent id to the validator the resolver reads`, toAgentId(minted) !== null)
+  const parsed = lr.backgroundLaunchReceipts([assistantLaunch(), userReceipts()])
+  check('the receipt parser reads the id the receipt names', parsed.length === 2 && parsed[0]?.agentId === 'agent-one')
+  const store = makeStore()
+  const ctx = makeCtx(store)
+  registerAsyncAgent({ agentId: minted, description: 'harbour-count', prompt: 'count the harbour', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  const byId = (await SendMessageTool.call({ to: minted, message: 'a word for the harbour' } as never, ctx, undefined as never, { requestId: 'req_1' } as never)) as SendAnswer
+  check("SendMessage to the receipt's id queues the message for the running agent", byId.data.success === true && /Message queued for/.test(byId.data.message), byId.data.message)
+  const pending = (): string[] => ((store.get().tasks[minted] as { pendingMessages?: string[] } | undefined)?.pendingMessages ?? [])
+  check("…and the words sit in that task's pending queue", pending().includes('a word for the harbour'))
+  store.set(prev => ({ ...prev, agentNameRegistry: new Map([['harbour', minted]]) }))
+  const byName = (await SendMessageTool.call({ to: 'harbour', message: 'a second word' } as never, ctx, undefined as never, { requestId: 'req_2' } as never)) as SendAnswer
+  check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /Message queued for/.test(byName.data.message) && pending().includes('a second word'), byName.data.message)
+  const ghost = generateTaskId('local_agent')
+  const toGhost = (await SendMessageTool.call({ to: ghost, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_3' } as never)) as SendAnswer
+  check('an id with no running task and no transcript is refused with the facts — no running task, no transcript, which address to use', toGhost.data.success === false && !/is registered/.test(toGhost.data.message) && /no running task/i.test(toGhost.data.message) && /no transcript/i.test(toGhost.data.message), toGhost.data.message)
+  const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
+  check("the receipt's address line names the id and, for a named launch, the name — the two addresses the resolver reads", /continuationHint\(async\.agentId, async\.agentName\)/.test(agentTool) && agentTool.includes('or to its name "${name}"') && agentTool.includes("input.name ? { agentName: input.name } : {}"))
+  const prompt = src('src/tools/SendMessageTool/prompt.ts')
+  check("the tool's prompt tells the model both addresses reach a launched sub-agent", prompt.includes('addressed by the id its launch receipt names, or by the name the launch gave it'))
+  const ids = src('src/types/ids.ts')
+  const task = src('src/Task.ts')
+  check('the id grammar has one owner: the minter reads the alphabet the validator reads', ids.includes('export const TASK_ID_ALPHABET') && task.includes("import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'") && !/const TASK_ID_ALPHABET = /.test(task))
+}
+
+section('R9 · one status per agent — the inspection verbs read one fact, on the registry or on disk')
+const { agentAdapter } = await import('../../src/services/resources/adapters/agent.ts')
+const { transcriptAdapter } = await import('../../src/services/resources/adapters/transcript.ts')
+const { parseMercuryRef } = await import('../../src/services/resources/contracts.ts')
+const { getAgentTranscriptPath, getTranscriptPathForSession } = await import('../../src/utils/sessionStorage/paths.ts')
+const { getSessionId } = await import('../../src/bootstrap/state.ts')
+const { asAgentId } = await import('../../src/types/ids.ts')
+const { getTaskOutputPath } = await import('../../src/utils/task/diskOutput.ts')
+const { mkdirSync } = await import('node:fs')
+const { dirname } = await import('node:path')
+const { INTERRUPT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
+type Resolved = { state: string; note?: string; resource?: { summary?: string; text?: string; structured?: Record<string, unknown> } }
+const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
+const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
+let rowSeq = 0
+const recordWriter = { sessionId: 'launch-receipts-proof' as never, nextOrdinal: () => ordinalOf(++rowSeq), observedAt: '2026-06-19T12:00:00.000Z', source: { channel: 'sdk' } as const }
+const row = (type: 'user' | 'assistant', content: unknown, extra: Record<string, unknown> = {}): string =>
+  JSON.stringify(entryToRecord({ type, uuid: `00000000-0000-4000-8000-${String(rowSeq + 1).padStart(12, '0')}`, timestamp: stamp(), message: { role: type, content }, ...extra } as never, recordWriter as never))
+function writeTranscript(id: string, rows: string[]): string {
+  const file = getAgentTranscriptPath(asAgentId(id))
+  mkdirSync(dirname(file), { recursive: true })
+  writeFileSync(file, rows.join('\n') + '\n')
+  return file
+}
+const PROMPT_ROW = row('user', 'plant the foliage')
+const CALL_ROW = (id: string): string => row('assistant', [{ type: 'tool_use', id, name: 'Read', input: { file_path: '/tmp/notes.md' } }])
+const RESULT_ROW = (id: string): string => row('user', [{ type: 'tool_result', tool_use_id: id, content: 'the notes' }])
+const transcripts = {
+  stopped: [PROMPT_ROW, CALL_ROW('toolu_s1'), RESULT_ROW('toolu_s1'), row('user', [{ type: 'text', text: INTERRUPT_MESSAGE }])],
+  failed: [PROMPT_ROW, row('assistant', [{ type: 'text', text: 'half the foliage is planted' }]), row('assistant', [{ type: 'text', text: 'API Error: OpenAI stream fault after partial content (read-failed) — terminated' }], { isApiErrorMessage: true })],
+  completed: [PROMPT_ROW, CALL_ROW('toolu_c1'), RESULT_ROW('toolu_c1'), row('assistant', [{ type: 'text', text: 'the foliage is planted' }])],
+  cut: [PROMPT_ROW, CALL_ROW('toolu_x1'), RESULT_ROW('toolu_x1'), CALL_ROW('toolu_x2')],
+} as const
+const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
+  stopped: /^stopped \(transcript on disk\)/,
+  failed: /^failed \(transcript on disk\)/,
+  completed: /^completed \(transcript on disk\)/,
+  cut: /^cut off mid-turn \(transcript on disk\)/,
+}
+{
+  const empty = { getAppState: () => ({ tasks: {} }), owner: '@proof', cwd: scratch } as never
+  for (const kind of Object.keys(transcripts) as Array<keyof typeof transcripts>) {
+    const id = generateTaskId('local_agent')
+    writeTranscript(id, [...transcripts[kind]])
+    const detail = (await agentAdapter.resolve(parseMercuryRef(`mercury://agent/${id}`)!, empty)) as Resolved
+    check(`a registry miss with a transcript that ended ${kind}: the detail view reads it from the transcript's own end`, detail.state === 'ok' && EXPECTED[kind].test(detail.resource?.summary ?? ''), detail.resource?.summary ?? detail.note)
+    const report = (await agentAdapter.resolve(parseMercuryRef(`mercury://agent/${id}?child=report`)!, empty)) as Resolved
+    check(`…and the report view speaks the same word`, report.state === 'ok' && EXPECTED[kind].test(report.resource?.summary ?? ''), report.resource?.summary ?? report.note)
+    const sid = getSessionId()
+    const viaTranscript = (await transcriptAdapter.resolve(parseMercuryRef(`mercury://transcript/agent/${sid}/agent-${id}`)!, empty)) as Resolved
+    check(`…and the transcript verb, never "finished agent execution" (${kind})`, viaTranscript.state === 'ok' && !/finished agent execution/.test(viaTranscript.resource?.summary ?? '') && new RegExp(`\\b${kind === 'cut' ? 'cut off mid-turn' : kind}\\b`).test(viaTranscript.resource?.summary ?? ''), viaTranscript.resource?.summary ?? viaTranscript.note)
+  }
+  const live = generateTaskId('local_agent')
+  writeTranscript(live, [...transcripts.completed])
+  const withRow = { getAppState: () => ({ tasks: { [live]: { id: live, type: 'local_agent', status: 'killed', description: 'foliage', startTime: Date.now() - 5000, endTime: Date.now() } } }), owner: '@proof', cwd: scratch } as never
+  const killed = (await agentAdapter.resolve(parseMercuryRef(`mercury://agent/${live}`)!, withRow)) as Resolved
+  check('a killed registry row reads stopped on the detail view', /^stopped /.test(killed.resource?.summary ?? ''), killed.resource?.summary)
+  const sid = getSessionId()
+  const killedTranscript = (await transcriptAdapter.resolve(parseMercuryRef(`mercury://transcript/agent/${sid}/agent-${live}`)!, withRow)) as Resolved
+  check('…and the transcript verb reads the registry\'s word too', /\bstopped\b/.test(killedTranscript.resource?.summary ?? '') && !/finished agent execution/.test(killedTranscript.resource?.summary ?? ''), killedTranscript.resource?.summary)
+  const runningRow = { getAppState: () => ({ tasks: { [live]: { id: live, type: 'local_agent', status: 'running', description: 'foliage', startTime: Date.now() - 5000 } } }), owner: '@proof', cwd: scratch } as never
+  const runningTranscript = (await transcriptAdapter.resolve(parseMercuryRef(`mercury://transcript/agent/${sid}/agent-${live}`)!, runningRow)) as Resolved
+  check('a running registry row reads running on the transcript verb', /\brunning\b/.test(runningTranscript.resource?.summary ?? '') && !/finished/.test(runningTranscript.resource?.summary ?? ''), runningTranscript.resource?.summary)
+  const stubbed = generateTaskId('local_agent')
+  writeTranscript(stubbed, [...transcripts.completed])
+  const stub = getTaskOutputPath(stubbed)
+  mkdirSync(dirname(stub), { recursive: true })
+  writeFileSync(stub, '')
+  const stubRow = { getAppState: () => ({ tasks: { [stubbed]: { id: stubbed, type: 'local_agent', status: 'running', description: 'foliage', startTime: Date.now(), outputFile: stub } } }), owner: '@proof', cwd: scratch } as never
+  const stubReport = (await agentAdapter.resolve(parseMercuryRef(`mercury://agent/${stubbed}?child=report`)!, stubRow)) as Resolved
+  check('an empty .output stub beside a real transcript: the report reads the transcript (1 tool call), never 0 entries', /1 tool call\(s\)/.test(stubReport.resource?.summary ?? '') && !/0 entries/.test(stubReport.resource?.summary ?? ''), stubReport.resource?.summary ?? stubReport.note)
+  const { taskNotFoundWords } = await import('../../src/tasks/stopTask.ts')
+  const evicted = generateTaskId('local_agent')
+  writeTranscript(evicted, [...transcripts.stopped])
+  const words = await taskNotFoundWords(evicted)
+  check("TaskStop on an evicted agent names the transcript's end and the resume door", /No running task with id/.test(words) && /ends stopped/.test(words) && /SendMessage/.test(words), words)
+  check('TaskStop on an id with nothing behind it keeps the plain miss', (await taskNotFoundWords(generateTaskId('local_agent'))).startsWith('No task found with id'))
+}
+
+section('R10 · a death is delivered once — the typed cause, what landed, never a second notice')
+const { runAsyncAgentLifecycle } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
+const META = { prompt: 'plant the foliage', resolvedAgentModel: 'gpt-5.6-sol', isBuiltInAgent: false, startTime: Date.now(), agentType: 'general-purpose', isAsync: true }
+const FAULT = streamFaultAfterPartialText('OpenAI', 'read-failed', 'terminated')
+async function deathOf(name: string, writes: string[]): Promise<{ record: { status?: string; error?: string; notified?: boolean } | undefined; notes: string[]; id: string }> {
+  queue.resetCommandQueue()
+  const store = makeStore()
+  const id = generateTaskId('local_agent')
+  const task = registerAsyncAgent({ agentId: id, description: name, prompt: 'plant the foliage', selectedAgent: FAKE_DEF, setAppState: store.set as never })
+  async function* stream(): AsyncGenerator<Message, void> {
+    yield createUserMessage({ content: 'plant the foliage' })
+    let w = 0
+    for (const path of writes) {
+      const toolUseId = `toolu_w${++w}`
+      yield createAssistantMessage({ content: [{ type: 'tool_use', id: toolUseId, name: 'Write', input: { file_path: path, content: 'x' } }] })
+      yield createUserMessage({ content: [{ type: 'tool_result', tool_use_id: toolUseId, content: `File created successfully at: ${path}` }] })
+    }
+    yield createAssistantMessage({ content: 'half the foliage is planted' })
+    yield createAssistantAPIErrorMessage({ content: FAULT })
+    yield createUserMessage({ content: STREAM_FAULT_RECOVERY_NUDGE, isMeta: true })
+    yield createAssistantAPIErrorMessage({ content: FAULT })
+  }
+  await runAsyncAgentLifecycle({
+    taskId: id,
+    abortController: task.abortController!,
+    makeStream: () => stream() as never,
+    metadata: META,
+    description: name,
+    toolUseContext: { options: { tools: [] }, toolUseId: `toolu_${name}` } as never,
+    rootSetAppState: store.set as never,
+    agentIdForCleanup: id,
+    enableSummarization: false,
+    getWorktreeResult: async () => ({}),
+  })
+  return {
+    record: store.get().tasks[id] as { status?: string; error?: string; notified?: boolean } | undefined,
+    notes: queue.getCommandQueue().filter(c => c.mode === 'task-notification').map(c => String(c.value ?? '')),
+    id,
+  }
+}
+{
+  const death = await deathOf('foliage', ['/tmp/foliage.gd'])
+  check('the exhausted ladder settles the task failed once, carrying the typed cause', death.record?.status === 'failed' && death.record.error === FAULT, JSON.stringify(death.record))
+  check("exactly one failed notice reached the queue, at the 'next' band", death.notes.length === 1 && /<status>failed<\/status>/.test(death.notes[0] ?? '') && queue.getCommandQueue().every(c => c.priority === 'next'), `${death.notes.length} notes`)
+  check('the notice carries the typed cause', (death.notes[0] ?? '').includes(FAULT))
+  check('the notice says what landed on disk — the one write', /1 file write landed: \/tmp\/foliage\.gd/.test(death.notes[0] ?? ''), (death.notes[0] ?? '').slice(0, 400))
+  check('the partial text rides the notice as partial work, never as a report', /half the foliage is planted/.test(death.notes[0] ?? ''))
+  enqueueAgentNotification({ taskId: death.id, description: 'foliage', status: 'failed', error: FAULT, setAppState: () => {} })
+  check('a second death report for the same task is swallowed by the notified latch', queue.getCommandQueue().filter(c => c.mode === 'task-notification').length === 1)
+  const bare = await deathOf('bare-foliage', [])
+  check('a child that wrote nothing says so', bare.notes.length === 1 && /no file writes landed/.test(bare.notes[0] ?? ''), (bare.notes[0] ?? '').slice(0, 400))
+  const send = src('src/tools/SendMessageTool/SendMessageTool.ts')
+  check('a resume of a settled agent names its real end — never "was stopped" for a failure', !send.includes('was stopped (status: ${liveLocal.status})'))
+  queue.resetCommandQueue()
+}
+
 console.log(failures === 0 ? '\nprove-launch-receipts: ALL LAWS HOLD' : `\nprove-launch-receipts: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

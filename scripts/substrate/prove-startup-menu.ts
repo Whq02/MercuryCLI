@@ -167,12 +167,13 @@ section('THEMIS audit — an applied boot-env writes a boot row when the plane i
   const r = applyBootMenuEnv(file, env)
   check('applied under an active plane', r !== null && r.applied.length === 1)
   await new Promise(res => setTimeout(res, 250))
-  const auditDir = join(scratch, '.mercury', 'themis')
+  const { themisDirs } = await import('../../src/substrate/themis/auditChain.js')
   let chain = ''
-  try {
-    chain = readdirSync(auditDir).filter(f => f.startsWith('audit-')).map(f => readFileSync(join(auditDir, f), 'utf8')).join('\n')
-  } catch {
-    chain = ''
+  for (const auditDir of themisDirs(scratch)) {
+    try {
+      chain += readdirSync(auditDir).filter(f => f.startsWith('audit-')).map(f => readFileSync(join(auditDir, f), 'utf8')).join('\n')
+    } catch {
+    }
   }
   check("audit row 'boot-env-applied' recorded (actor boot)", chain.includes('boot-env-applied') && chain.includes('MERCURY_MNEME=1'))
   delete process.env.MERCURY_THEMIS

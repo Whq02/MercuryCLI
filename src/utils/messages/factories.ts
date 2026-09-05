@@ -26,6 +26,8 @@ import {
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
   NO_RESPONSE_REQUESTED,
   REJECT_MESSAGE,
+  turnCutLine,
+  turnCutOf,
 } from './rejectionText.js'
 
 
@@ -254,14 +256,16 @@ export function prepareUserContent({
 
 export function createUserInterruptionMessage({
   toolUse = false,
+  reason,
 }: {
   toolUse?: boolean
+  reason?: unknown
 }): UserMessage {
   return createUserMessage({
     content: [
       {
         type: 'text',
-        text: toolUse ? INTERRUPT_MESSAGE_FOR_TOOL_USE : INTERRUPT_MESSAGE,
+        text: turnCutLine(turnCutOf(reason), toolUse),
       },
     ],
   })

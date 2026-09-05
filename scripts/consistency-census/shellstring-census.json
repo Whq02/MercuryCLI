@@ -444,11 +444,19 @@
     },
     {
       "file": "scripts/engine-connector/prove-busy-stall-drive.ts",
-      "line": 170,
+      "line": 182,
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=busy@proof.invalid -c user.name=busy commit -q --allow-empty -m seed', {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/engine-connector/prove-esc-latch-turn-drive.ts",
+      "line": 232,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
     {
       "file": "scripts/eval/prove-env-filter.ts",
@@ -788,7 +796,7 @@
     },
     {
       "file": "scripts/journey/prove-apollo-consent-journey.ts",
-      "line": 208,
+      "line": 227,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1268,7 +1276,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 258,
+      "line": 290,
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1276,7 +1284,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 479,
+      "line": 540,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + launched + '\"', ...args].join(' '), {",
       "cls": "intentional-shell",
@@ -1284,7 +1292,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 597,
+      "line": 670,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + shim + '\"', '--version'].join(' '), { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })",
       "cls": "intentional-shell",
@@ -1708,7 +1716,7 @@
     },
     {
       "file": "scripts/streaming/prove-turn-end-queue.ts",
-      "line": 245,
+      "line": 272,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -1764,7 +1772,7 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 217,
+      "line": 361,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",
       "cls": "platform-owner",
@@ -1772,7 +1780,7 @@
     },
     {
       "file": "scripts/switchboard/prove-close-chord.ts",
-      "line": 284,
+      "line": 456,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-",
       "cls": "platform-owner",
@@ -1860,7 +1868,7 @@
     },
     {
       "file": "scripts/switchboard/prove-reap-focus-drive.ts",
-      "line": 144,
+      "line": 145,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })",
       "cls": "platform-owner",
@@ -2164,7 +2172,7 @@
     },
     {
       "file": "scripts/ui/prove-gpt6-astra-crew-drive.ts",
-      "line": 390,
+      "line": 395,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2172,7 +2180,7 @@
     },
     {
       "file": "scripts/ui/prove-helm-header-overflow.ts",
-      "line": 47,
+      "line": 48,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
       "cls": "platform-owner",
@@ -2321,6 +2329,14 @@
       "excerpt": "execSync(`rm -rf ${dir}`)",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/ui/prove-select-scroll-drive.ts",
+      "line": 90,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "'/usr/bin/python3',",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
       "file": "scripts/ui/prove-sessiontab-switch.ts",
@@ -2769,6 +2785,38 @@
       "excerpt": "execSync(",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
+    },
+    {
+      "file": "scripts/updater/prove-install-path.ts",
+      "line": 186,
+      "mechanism": "shell-dash-c",
+      "excerpt": "const once = spawnSync('sh', ['-c', `${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/updater/prove-install-path.ts",
+      "line": 187,
+      "mechanism": "shell-dash-c",
+      "excerpt": "const twice = spawnSync('sh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/b",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/updater/prove-install-path.ts",
+      "line": 191,
+      "mechanism": "shell-dash-c",
+      "excerpt": "? spawnSync('zsh', ['-c', `${guard}\\n${guard}\\nprintf '%s' \"$PATH\"`], { encoding: 'utf8', env: { HOME: HOME_P, PATH: '/usr/bin:/bin' } }).st",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
+      "file": "scripts/updater/prove-install-path.ts",
+      "line": 424,
+      "mechanism": "shell-dash-c",
+      "excerpt": "const nodeBin = spawnSync('sh', ['-c', 'command -v node'], { encoding: 'utf8' }).stdout.trim()",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
       "file": "scripts/usage-warning/prove-usage-pools-captures.ts",
