@@ -587,17 +587,16 @@ async function runTransactionBody(args: {
     })
   }
 
-  if (decision.behavior === 'allow' && decisionReason?.type === 'bypassedAsk') {
-    push({
-      message: createAttachmentMessage({
-        type: 'bypassed_ask',
-        toolUseID,
-        mode: decisionReason.mode,
-        road: decisionReason.road,
-        reason: createPermissionRequestMessage(tool.name, decisionReason.reason),
-      }),
-    })
-  }
+  const allowanceRow =
+    decision.behavior === 'allow' && decisionReason?.type === 'bypassedAsk'
+      ? createAttachmentMessage({
+          type: 'bypassed_ask',
+          toolUseID,
+          mode: decisionReason.mode,
+          road: decisionReason.road,
+          reason: createPermissionRequestMessage(tool.name, decisionReason.reason),
+        })
+      : null
 
   if (decision.behavior !== 'allow') {
     traceOnce({ ok: false })
@@ -911,6 +910,7 @@ async function runTransactionBody(args: {
       push({ message: failureMessage })
     }
   } finally {
+    if (executed && allowanceRow !== null) push({ message: allowanceRow })
     if (executed) {
       traceOnce({ durationMs, ok: success })
       try {

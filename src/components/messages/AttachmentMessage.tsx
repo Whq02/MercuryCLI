@@ -445,9 +445,11 @@ export function AttachmentMessage({
 
     case 'bypassed_ask':
       return (
-        <AttachmentLine>
-          Allowed by {permissionModeTitle(attachment.mode).toLowerCase()} · {attachment.reason}
-        </AttachmentLine>
+        <MessageResponse>
+          <Text dimColor wrap="wrap">
+            Allowed by {permissionModeTitle(attachment.mode).toLowerCase()} · {attachment.reason}
+          </Text>
+        </MessageResponse>
       )
 
     case 'task_status': {
