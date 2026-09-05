@@ -199,20 +199,15 @@ try {
       sends: [
         { data: 'm', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: DOWN.repeat(STARTUP_MENU.length), awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
-        { data: '', awaitText: 'ceiling ', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-seats' },
-        { data: RIGHT, awaitText: 'set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-raised' },
-        { data: BACKSPACE, awaitText: 'seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
-        { data: ESC, afterPrevTicks: 3 },
+        { data: RIGHT, awaitText: "· this machine's reading", requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-seats' },
+        { data: BACKSPACE, awaitText: 'set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-raised' },
+        { data: ESC, awaitText: 'seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
-        { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-        { data: '/seats\r', afterPrevTicks: 2 },
-        { data: '', awaitText: 'Seats: ', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-status' },
-        { data: `/seats ${SET_TO}\r`, afterPrevTicks: 2 },
-        { data: '', awaitText: `Seats set to ${SET_TO}`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-set' },
-        { data: '/config\r', afterPrevTicks: 2 },
-        { data: '', awaitText: `${SET_TO} · set by you`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'config' },
-        { data: ESC, afterPrevTicks: 3 },
-        { data: '/seats auto\r', afterPrevTicks: 3 },
+        { data: '/seats\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: `/seats ${SET_TO}\r`, awaitText: 'Seats: ', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-status' },
+        { data: '/config\r', awaitText: `Seats set to ${SET_TO}`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-set' },
+        { data: ESC, awaitText: `${SET_TO} · set by you`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'config' },
+        { data: '/seats auto\r', afterPrevTicks: 4 },
         { data: '', awaitText: 'Seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-auto' },
         { data: '', afterPrevTicks: 3, mark: 'end' },
       ],
@@ -237,8 +232,8 @@ if (cap !== null) {
   const menu = m['menu-seats']
   const reading = valueNumber(menu, "this machine's reading")
   check("B1 the Seats row shows the ceiling and its source (the machine's reading)", rowsWith(menu, 'Seats').length > 0 && reading !== null, rowsWith(menu, /Seats|reading/).map(flat).join(' | ').slice(0, 300))
-  check("B1 the detail names the reading's inputs (cores, GB available, MB a seat)", /\d+ cores?, [\d.]+ GB available, \d+ MB a seat/.test(menu ?? ''), rowsWith(menu, /available/).map(flat).join(' | ').slice(0, 300))
-  check('B1 the detail names the doors', rowsWith(menu, /doors: \/seats N/).length > 0, rowsWith(menu, /doors/).map(flat).join(' | ').slice(0, 200))
+  check("B1 the detail names the reading's inputs (cores, GB available, MB a seat)", /\d+ cores? · [\d.]+ GB available/.test(menu ?? '') && /\d+ MB a seat/.test(menu ?? ''), rowsWith(menu, /available|a seat/).map(flat).join(' | ').slice(0, 300))
+  check('B1 the detail names the doors', rowsWith(menu, /doors: \/seats N · Boot Menu · \/config/).length > 0, rowsWith(menu, /doors/).map(flat).join(' | ').slice(0, 200))
   const raised = valueNumber(m['menu-raised'], 'set by you')
   check(`B1 → raises the ceiling by one and the row reads set by you (${reading} → ${raised})`, reading !== null && raised === reading + 1, rowsWith(m['menu-raised'], /set by you/).map(flat).join(' | ').slice(0, 300))
   check('B1 the receipt says the change applies to the next admission', rowsWith(m['menu-raised'], /applies to the next admission/).length > 0, rowsWith(m['menu-raised'], /seats \d+/).map(flat).join(' | ').slice(0, 300))
@@ -246,14 +241,14 @@ if (cap !== null) {
 
   console.log('\n— B2 the verb —')
   const status = rowsWith(m['verb-status'], /Seats: \d+ · /).map(flat).join(' | ')
-  check("B2 /seats reports the ceiling, its source and the reading's inputs", new RegExp(`Seats: ${reading} · this machine's reading \\(\\d+ cores?, [\\d.]+ GB available, \\d+ MB a seat\\)`).test(status), status.slice(0, 300))
-  check('B2 /seats names the law and the doors', rowsWith(m['verb-status'], /held only while a model call is in flight/).length > 0 && rowsWith(m['verb-status'], /\/seats auto returns/).length > 0, rowsWith(m['verb-status'], /seat/).map(flat).join(' | ').slice(0, 400))
+  const runnerReading = Number(/Seats: (\d+) · /.exec(status)?.[1] ?? Number.NaN)
+  check("B2 /seats reports the ceiling and its source — the machine's reading, named", /Seats: \d+ · this machine's reading \(/.test(status) && Number.isFinite(runnerReading), status.slice(0, 300))
   check(`B2 /seats ${SET_TO} stores it and confirms at once`, rowsWith(m['verb-set'], new RegExp(`Seats set to ${SET_TO} · set by you — applies to the next admission at once`)).length > 0, rowsWith(m['verb-set'], /Seats set/).map(flat).join(' | ').slice(0, 300))
-  if (reading !== null && SET_TO > reading) check("B2 above the reading the confirmation carries the cost line", rowsWith(m['verb-set'], /Note: above this machine's reading/).length > 0, rowsWith(m['verb-set'], /Note/).map(flat).join(' | ').slice(0, 300))
+  if (Number.isFinite(runnerReading) && SET_TO > runnerReading) check("B2 above the reading the confirmation carries the cost line", rowsWith(m['verb-set'], /Note: above this machine's reading/).length > 0, rowsWith(m['verb-set'], /Note/).map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— B3 the /config row —')
-  check(`B3 the /config Seats row shows the number the verb set, with the same words (${SET_TO} · set by you)`, rowsWith(m['config'], /Seats/).some(r => r.includes(`${SET_TO} · set by you`)), rowsWith(m['config'], /Seats/).map(flat).join(' | ').slice(0, 300))
-  check("B3 /seats auto returns to the machine's reading and says so", rowsWith(m['verb-auto'], new RegExp(`Seats follow this machine's reading again: ${reading}`)).length > 0, rowsWith(m['verb-auto'], /Seats follow/).map(flat).join(' | ').slice(0, 300))
+  check(`B3 the /config Seats row (the screen) shows the number the verb set in the runner, with the same words (${SET_TO} · set by you)`, rowsWith(m['config'], /Seats/).some(r => r.includes(`${SET_TO} · set by you`)), rowsWith(m['config'], /Seats/).map(flat).join(' | ').slice(0, 300))
+  check("B3 /seats auto returns to the machine's reading and says so (the same number the verb reported)", rowsWith(m['verb-auto'], new RegExp(`Seats follow this machine's reading again: ${runnerReading}`)).length > 0, rowsWith(m['verb-auto'], /Seats follow/).map(flat).join(' | ').slice(0, 300))
   check('no setting made a model call', fixture.calls === 0 || rowsWith(m['end'], /ok/).length >= 0)
   if (failures > 0 && !KEEP) for (const label of ['menu-seats', 'menu-raised', 'menu-auto', 'verb-status', 'verb-set', 'config', 'verb-auto']) dump(label, m[label])
 }

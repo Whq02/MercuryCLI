@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { freemem, totalmem } from 'node:os'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { availableCores } from '../../utils/availableCores.js'
 import { getGlobalConfig, saveGlobalConfig, isConfigReadingAllowed } from '../../utils/config.js'
-import { displayConfigHome } from '../../utils/envUtils.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
@@ -135,6 +135,11 @@ export function _setMemorySamplerForTesting(next: (() => { cores: number; availa
   lastSampledAt = 0
 }
 
+export function stampedSeats(): number | null {
+  const n = Number.parseInt(flagEnv('MERCURY_SEATS') ?? '', 10)
+  return Number.isFinite(n) && n >= 1 ? n : null
+}
+
 export function seatReadingInputsWords(sample: SeatReadingSample): string {
   const gb = sample.availableBytes / GB
   const available = gb >= 10 ? gb.toFixed(0) : gb.toFixed(1)
@@ -160,9 +165,7 @@ export function describeSeatReading(ceiling: number): string {
         : ''
     return `the consented capacity reading${when}: ${ceiling} seat${ceiling === 1 ? '' : 's'} (stored at the first-boot ask)`
   }
-  const sample = heldMachineSeatFacts().sample
-  const inputs = sample !== null ? ` (${seatReadingInputsWords(sample)})` : ''
-  return `this machine's reading: ${ceiling} seat${ceiling === 1 ? '' : 's'}${inputs}`
+  return machineReadingSentence(ceiling)
 }
 
 export interface CapacityProbe {
@@ -305,7 +308,7 @@ export function seatCeilingFacts(): SeatCeilingFacts {
   const operator = operatorSeatsOf(decision)
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
   const consented = typeof stored === 'number' && Number.isFinite(stored) ? Math.max(1, Math.floor(stored)) : null
-  const reading = heldMachineSeatReading()
+  const reading = stampedSeats() ?? heldMachineSeatReading()
   const seats = operator ?? consented ?? reading
   return {
     seats,
@@ -318,10 +321,11 @@ export function seatCeilingFacts(): SeatCeilingFacts {
   }
 }
 
-export function machineReadingSentence(reading: number = heldMachineSeatReading()): string {
+export function machineReadingSentence(reading: number = stampedSeats() ?? heldMachineSeatReading()): string {
+  const head = `this machine's reading: ${reading} seat${reading === 1 ? '' : 's'}`
+  if (stampedSeats() !== null) return `${head} (the daemon's reading, stamped on this session at its spawn)`
   const sample = heldMachineSeatFacts().sample
-  const inputs = sample !== null ? ` (${seatReadingInputsWords(sample)})` : ''
-  return `this machine's reading: ${reading} seat${reading === 1 ? '' : 's'}${inputs}`
+  return sample !== null ? `${head} (${seatReadingInputsWords(sample)})` : head
 }
 
 export const SEAT_DOORS = "/seats N in a chat, the Seats row of the Boot Menu, or the Seats row of /config (one setting; /seats auto returns to the machine's reading)"
@@ -344,15 +348,17 @@ export function seatCostWarning(facts: SeatCeilingFacts = seatCeilingFacts()): s
 }
 
 export function seatCeilingDetailLines(facts: SeatCeilingFacts = seatCeilingFacts()): string[] {
+  const stamped = stampedSeats() !== null
+  const sample = stamped ? null : heldMachineSeatFacts().sample
+  const gb = sample === null ? null : sample.availableBytes / GB
   const lines = [
-    `ceiling ${seatCeilingValueWords(facts)}`,
-    facts.readingSentence,
-    ...(facts.consented !== null ? [`the first-boot probe stored ${facts.consented} seat${facts.consented === 1 ? '' : 's'}`] : []),
-    `a seat is one model call in flight; in the concourse, a session runner of about ${Math.round(SEAT_COST_BYTES.runner / MB)} MB`,
+    `reading: ${facts.reading} seat${facts.reading === 1 ? '' : 's'} (${stamped ? "the daemon's, at spawn" : 'this machine'})`,
+    ...(sample !== null && gb !== null ? [`${sample.cores} core${sample.cores === 1 ? '' : 's'} · ${gb >= 10 ? gb.toFixed(0) : gb.toFixed(1)} GB available`] : []),
+    `${Math.round(SEAT_COST_BYTES.runner / MB)} MB a seat (a session runner)`,
+    ...(facts.consented !== null ? [`first-boot probe: ${facts.consented} seat${facts.consented === 1 ? '' : 's'}`] : []),
   ]
-  const warning = seatCostWarning(facts)
-  if (warning !== null) lines.push(warning)
-  lines.push(`doors: ${SEAT_DOORS}`)
+  if (seatCostWarning(facts) !== null) lines.push('above the reading — the machine may swap')
+  lines.push('doors: /seats N · Boot Menu · /config', '/seats auto returns to the reading')
   return lines
 }
 
@@ -378,7 +384,7 @@ export const SEATS_MENU_ROW = {
   summary: 'how many model calls may be in flight at once across your sessions, sub-agents and workflow agents — the machine reads it; you can set it',
   detail: {
     controls:
-      "The seat ceiling: sessions the daemon admits, and the sub-agents and workflow agents a session runs at once, share this one number. A seat is held only while a model call is in flight — an idle agent holds none. → raises it by one, ← lowers it, ⌫ returns to the machine's reading (available memory over a runner's cost, two seats a core). Applies to the next admission at once.",
+      "Sessions, sub-agents and workflow agents share this one number: how many model calls may be in flight at once. A seat is held only while a call is in flight. → raises it by one, ← lowers it, ⌫ returns to the machine's reading. Applies to the next admission at once.",
     on: ['every seat runs a model call; past the machine\'s reading each seat may cost a runner process of memory the machine does not have'],
     off: ["the machine's own reading decides — it rises as memory frees and never falls under the seats already sitting"],
   },

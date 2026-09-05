@@ -1,8 +1,7 @@
 import { harnessEffortFact, resolveActiveHarnessProfile } from '../mission/harnessApplication.js'
 import type { EffortValue } from '../../utils/effort.js'
 import { harnessProfileById } from '../mission/harnessProfiles.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
-import { seatCeilingFacts, type SeatCeilingSource } from '../switchboard/capacityCheck.js'
+import { seatCeilingFacts, stampedSeats, type SeatCeilingSource } from '../switchboard/capacityCheck.js'
 import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type GovernorCeilings } from './governor.js'
 import type { SeatNarrowing } from './seatWords.js'
 
@@ -66,7 +65,7 @@ export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = process.env): num
 export function seatsForProcess(): { seats: number; source: SeatCeilingSource | 'inherited' } {
   const facts = seatCeilingFacts()
   if (facts.source === 'operator') return { seats: facts.seats, source: 'operator' }
-  const inherited = inheritedSeatsFromEnv({ MERCURY_SEATS: flagEnv('MERCURY_SEATS') ?? '' })
+  const inherited = stampedSeats()
   if (inherited !== null) return { seats: inherited, source: 'inherited' }
   return { seats: facts.seats, source: facts.source }
 }

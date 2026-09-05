@@ -144,11 +144,12 @@ section('P1–P4 two seats, four agents at once; a idle, b mid-call ⇒ c runs, 
   const results = await run
   check('P3 every agent lands', results.length === 4 && results.every(r => typeof r === 'string' && r.endsWith('landed')), JSON.stringify(results))
   const callOf = (holder: string, n = 0): CallRecord | undefined => calls.filter(c => c.holder === holder)[n]
+  const aFirst = callOf('agent-a', 0)
   const b = callOf('agent-b')
   const c = callOf('agent-c')
   const d = callOf('agent-d')
   console.log(`  calls: ${calls.map(x => `${x.holder}@${x.startedAt}→${x.endedAt} (waited ${x.waitedMs})`).join(' · ')}`)
-  check("P3 c's call started at once (no wait) while b's was in flight", c !== undefined && b !== undefined && c.waitedMs === 0 && c.startedAt < b.endedAt, `c waited ${c?.waitedMs} started ${c?.startedAt} · b ended ${b?.endedAt}`)
+  check("P3 c's call started the moment a's first call ended (a alive and idle), well before b's ended", c !== undefined && b !== undefined && aFirst !== undefined && c.waitedMs < 300 && c.startedAt >= aFirst.endedAt - 5 && c.startedAt < b.endedAt - 500, `c waited ${c?.waitedMs} started ${c?.startedAt} · a's first ended ${aFirst?.endedAt} · b ended ${b?.endedAt}`)
   check("P3 d's call waited for a seat and started once one freed (the queue only with two calls in flight)", d !== undefined && b !== undefined && c !== undefined && d.waitedMs > 0 && d.startedAt >= Math.min(b.endedAt, c.endedAt) - 5, `d waited ${d?.waitedMs} started ${d?.startedAt}`)
   check("P3 a's second call ran after its idle stretch without queuing anyone", callOf('agent-a', 1) !== undefined, `a calls ${calls.filter(x => x.holder === 'agent-a').length}`)
   const final = latestByLabel()

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { execFile, spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -38,7 +38,8 @@ type Station = (typeof STATIONS)[number]
 const labelOf = (s: Station): string => `seat-${s}`
 const SEAT_CEILING = 2
 const HOLD_MS = 20_000
-const IDLE_S = 25
+const IDLE_FIRST_S = 5
+const IDLE_SECOND_S = 20
 const WF_SCRIPT = [
   `export const meta = { name: '${WF_NAME}', description: 'four agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
   `phase('${PHASE}')`,
@@ -168,8 +169,9 @@ async function startFixture(port: number): Promise<{ base: string; hits: Hit[]; 
           break
         case 'seat':
           if (station === 'a') {
-            if (toolCallsOf(items, 'Bash') === 0) {
-              blocks = [{ type: 'tool_use', id: `toolu_seats_sleep_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${IDLE_S}`, description: 'the station survey' } }]
+            const bashes = toolCallsOf(items, 'Bash')
+            if (bashes < 2) {
+              blocks = [{ type: 'tool_use', id: `toolu_seats_sleep_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${bashes === 0 ? IDLE_FIRST_S : IDLE_SECOND_S}`, description: 'the station survey' } }]
               kind = 'tool'
             } else {
               blocks = [{ type: 'text', text: `SEAT-DONE-${station}` }]
@@ -224,16 +226,20 @@ type RssSample = { at: number; pid: number; rssBytes: number; role: 'daemon' | '
 function startRssSampler(): { stop(): RssSample[] } {
   const samples: RssSample[] = []
   const tick = (): void => {
-    execFile('ps', ['-axo', 'pid=,rss=,command='], { encoding: 'utf8' }, (err, out) => {
+    execFile('ps', ['-axo', 'pid=,ppid=,rss=,command='], { encoding: 'utf8' }, (err, out) => {
       if (err) return
       const at = Date.now()
+      const rows: Array<{ pid: number; ppid: number; rss: number; command: string }> = []
       for (const line of out.split('\n')) {
         if (!line.includes(BIN)) continue
-        const m = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)
+        const m = /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/.exec(line)
         if (!m) continue
-        const command = m[3] ?? ''
-        const role: RssSample['role'] = /\bdaemon\b/.test(command) ? 'daemon' : /MERCURY_CONCOURSE_WORKER|--stream-json|concourse-w|--session-runner|--runner/.test(command) ? 'runner' : 'other'
-        samples.push({ at, pid: Number(m[1]), rssBytes: Number(m[2]) * 1024, role })
+        rows.push({ pid: Number(m[1]), ppid: Number(m[2]), rss: Number(m[3]) * 1024, command: m[4] ?? '' })
+      }
+      const daemons = new Set(rows.filter(r => /\bdaemon\b/.test(r.command)).map(r => r.pid))
+      for (const r of rows) {
+        const role: RssSample['role'] = daemons.has(r.pid) ? 'daemon' : daemons.has(r.ppid) ? 'runner' : /^\S*node \S*mercury\.mjs\s*$/.test(r.command.trim()) ? 'screen' : 'other'
+        samples.push({ at, pid: r.pid, rssBytes: r.rss, role })
       }
     })
   }
@@ -355,7 +361,39 @@ function dump(label: string, frame: string | undefined): void {
   for (const row of frame.split('\n')) if (row.trim()) console.log(`│ ${row}`)
 }
 const laneOf = (frame: string | undefined, s: Station): string =>
-  rowsWith(frame, new RegExp(`${labelOf(s)}|${SEAT_MARK}${s} `)).map(flat).join(' | ')
+  rowsWith(frame, `${labelOf(s)} · `).map(flat).join(' | ')
+
+type AgentSummary = { index: number; label: string; state: string; waiting?: string; waitWords?: string; startedAt?: number }
+function readRunManifest(cwd: string): AgentSummary[] | null {
+  const runs = join(cwd, '.mercury', 'workflows', 'runs')
+  if (!existsSync(runs)) return null
+  let newest: { path: string; mtime: number } | null = null
+  for (const dir of readdirSync(runs)) {
+    const path = join(runs, dir, 'run.json')
+    if (!existsSync(path)) continue
+    const mtime = statSync(path).mtimeMs
+    if (newest === null || mtime > newest.mtime) newest = { path, mtime }
+  }
+  if (newest === null) return null
+  try {
+    const parsed = JSON.parse(readFileSync(newest.path, 'utf8')) as { agents?: AgentSummary[] }
+    return Array.isArray(parsed.agents) ? parsed.agents : null
+  } catch {
+    return null
+  }
+}
+function manifestAtBusyMoment(cwd: string, hits: Hit[], afterMs: number): Promise<{ agents: AgentSummary[] | null; atMs: number }> {
+  return new Promise(resolve => {
+    const poll = setInterval(() => {
+      const first = hits.find(h => h.route === 'seat')
+      if (first === undefined) return
+      if (Date.now() - first.startMs < afterMs) return
+      clearInterval(poll)
+      resolve({ agents: readRunManifest(cwd), atMs: Date.now() - first.startMs })
+    }, 250)
+    poll.unref?.()
+  })
+}
 
 console.log('============================================================')
 console.log(' the seats are the calls in flight — real bundle, PTY, four agents on two seats')
@@ -366,6 +404,7 @@ const fixture = await startFixture(Number(process.env.SEATS_DRIVE_PORT ?? 25183)
 const COLS = 160
 const ROWS = 44
 let cap: Capture | null = null
+const busyManifest = manifestAtBusyMoment(cwd, fixture.hits, 8_000)
 try {
   cap = await capture(
     {
@@ -380,7 +419,7 @@ try {
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
         { data: '/workflows\r', afterPrevTicks: 30 },
         { data: '\r', awaitText: WF_NAME, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
-        { data: '', awaitText: labelOf('d'), requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'run-busy' },
+        { data: '', afterPrevTicks: 12, mark: 'run-busy' },
         { data: '\x1b', afterPrevTicks: 2 },
         { data: '\x1b', afterPrevTicks: 3 },
         { data: '', awaitText: NOTED, requireAwait: true, minTick: 2, awaitSettleTicks: 12, mark: 'settled' },
@@ -432,18 +471,31 @@ if (cap !== null) {
     check('D1 d starts once a held call ends (the queue forms only with two calls in flight)', d.startMs >= freedAt - 1500, `d@${d.startMs - clock0} · freed@${freedAt - clock0}`)
   }
 
-  console.log('\n— D2 the run view —')
+  console.log('\n— D2 the words at the busy moment —')
+  const manifest = await busyManifest
+  const summary = (s: Station): AgentSummary | undefined => manifest.agents?.find(a => a.label === labelOf(s))
+  const wordsOf = (s: Station): string => {
+    const a = summary(s)
+    return a === undefined ? '(no summary)' : `${a.state}${a.waiting !== undefined ? `/${a.waiting}` : ''}${a.waitWords !== undefined ? ` "${a.waitWords}"` : ''}`
+  }
+  console.log(`  manifest ${(manifest.atMs / 1000).toFixed(1)}s after the first seat call: ${STATIONS.map(s => `${labelOf(s)} ${wordsOf(s)}`).join(' · ')}`)
+  const dTile = summary('d')
+  const aTile = summary('a')
+  check('D2 the manifest carries every agent', STATIONS.every(s => summary(s) !== undefined), String(manifest.agents?.map(a => a.label).join(',')))
+  check("D2 d's tile says why it waits — the seat sentence (2 of 2 held)", dTile?.waiting === 'seat' && /^waiting for a seat — 2 of 2 held/.test(dTile.waitWords ?? ''), wordsOf('d'))
+  check('D2 the sentence names the two holders by their labels — the calls in flight (b, c), never a waiter', /\(seat-b, seat-c\)$/.test(dTile?.waitWords ?? ''), wordsOf('d'))
+  check("D2 b's and c's tiles hold seats: neither waits for one", summary('b')?.waiting !== 'seat' && summary('c')?.waiting !== 'seat', `${wordsOf('b')} || ${wordsOf('c')}`)
+  check("D2 a's second call waits for a seat like any other (its seat was free while its tool ran)", aTile?.waiting === 'seat' && /\(seat-b, seat-c\)$/.test(aTile.waitWords ?? ''), wordsOf('a'))
+  check('D2 no tile wears a gate sentence of its own (a start tile carries no words)', (manifest.agents ?? []).every(a => a.state !== 'start' || a.waitWords === undefined), String(manifest.agents?.map(a => `${a.label}:${a.state}`).join(',')))
   const busy = m['run-busy']
-  for (const s of STATIONS) console.log(`    ${labelOf(s)}: ${laneOf(busy, s).slice(0, 220)}`)
-  const laneD = laneOf(busy, 'd')
-  check("D2 d's lane says why it waits — the seat sentence (2 of 2 held)", /waiting for a seat/.test(laneD) && /2 of 2 held/.test(laneD), laneD.slice(0, 200))
-  check("D2 the sentence names the two holders whose calls are in flight (b, c), never the idle a", /seat-b/.test(laneD) && /seat-c/.test(laneD) && !/\(seat-a|seat-a[,)]/.test(laneD), laneD.slice(0, 200))
-  check("D2 b's and c's lanes do not wait", !/waiting for a seat/.test(laneOf(busy, 'b')) && !/waiting for a seat/.test(laneOf(busy, 'c')), `${laneOf(busy, 'b')} || ${laneOf(busy, 'c')}`.slice(0, 300))
-  check("D2 a's lane is alive in its tool, not waiting", laneOf(busy, 'a') !== '' && !/waiting for a seat/.test(laneOf(busy, 'a')), laneOf(busy, 'a').slice(0, 200))
-  check('D2 no lane reads a bare queued', !STATIONS.some(s => /\bqueued\b/.test(laneOf(busy, s))), STATIONS.map(s => laneOf(busy, s)).join(' || ').slice(0, 300))
+  const lanes = STATIONS.map(s => laneOf(busy, s))
+  console.log(`  run view lanes: ${lanes.map((l, i) => `${labelOf(STATIONS[i]!)}: ${l.slice(0, 120) || '(none)'}`).join(' | ')}`)
+  check('D2 no lane on the screen reads a bare queued', !lanes.some(l => /\bqueued\b/.test(l)), lanes.join(' || ').slice(0, 300))
+  check("D2 d's lane on the screen wears the seat sentence", /waiting for a seat — 2 of 2 held/.test(laneOf(busy, 'd')), laneOf(busy, 'd').slice(0, 200))
 
   console.log('\n— D3 the settle —')
   check('D3 every station reported (SEAT-DONE on the wire)', STATIONS.every(s => seatHits.some(h => h.station === s && (h.kind === 'held' || h.kind === 'done'))), seatHits.map(h => `${h.station}:${h.kind}`).join(','))
+  check("D3 the idle agent's calls were short and its seat was free between them (two tool calls, then the report)", seatHits.filter(h => h.station === 'a' && h.kind === 'tool').length === 2 && seatHits.some(h => h.station === 'a' && h.kind === 'done'), seatHits.filter(h => h.station === 'a').map(h => h.kind).join(','))
   check('D3 the completion notice reached the main agent', fixture.hits.some(h => h.route === 'note' && h.lastUserText.includes('<status>completed</status>')), fixture.hits.filter(h => h.route === 'note').map(h => h.lastUserText.slice(0, 160)).join(' | '))
   check('D3 the main saw the notice (NOTED painted)', rowsWith(m['settled'], NOTED).length > 0)
   check('nothing read stuck', !Object.values(m).some(f => /may be stuck/.test(f)))
