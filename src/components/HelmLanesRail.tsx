@@ -4,6 +4,7 @@ import { getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state
 import { formatSessionCost } from '../cost-tracker.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { crewAgentsOf, crewStateLabel, crewTokensLabel, type CrewAgentFacts } from '../services/engine-connector/crewFacts.js'
+import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { promptRows } from './prompts-panel/rows.js'
 import { filterResumableSessions } from '../commands/resume/resume.js'
@@ -505,7 +506,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const crewShown = crewEntries.slice(0, CREW_ROWS)
   const crewMore = crewEntries.length - crewShown.length
 
-  const runsAll: RunRow[] = Object.values(tasks)
+  const localRuns: RunRow[] = Object.values(tasks)
     .filter(t => !isLocalAgentTask(t) && !isInProcessTeammateTask(t))
     .filter(t => !isTerminalTaskStatus(t.status))
     .map(t => ({
@@ -515,6 +516,17 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
       kind: runKindOf(t),
       startedAtMs: t.startTime,
     }))
+  const localRunIds = new Set(localRuns.map(r => r.id))
+  const hostedRuns: RunRow[] = roster.rows
+    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && row.kind !== 'teammate' && workRowRuns(row))
+    .map(row => ({
+      id: row.id,
+      title: row.name,
+      status: row.status === 'pending' ? 'pending' : 'running',
+      kind: row.kind === 'workflow' ? 'workflow' : row.kind === 'monitor' ? 'monitor' : row.kind === 'dream' ? 'dream' : 'shell',
+      startedAtMs: row.startTime,
+    }))
+  const runsAll: RunRow[] = [...localRuns, ...hostedRuns]
     .sort(
       (a, b) =>
         (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1) ||

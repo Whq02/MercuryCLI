@@ -127,7 +127,13 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   check('at exactly 272,000 the base tier stands (the rule says more than)', edge.costs.inputTokens === 10 && edge.costs.outputTokens === 50, JSON.stringify(edge))
   const longUsd = cost.calculateUSDCost(ID, { input_tokens: 200_000, output_tokens: 1_000, cache_read_input_tokens: 100_000, cache_creation_input_tokens: 0 })
   check('a 300,000-token prompt (200,000 plain + 100,000 cached) with 1,000 out: 4 + 0.2 + 0.075 = 4.275 USD', Math.abs(longUsd - 4.275) < 1e-6, String(longUsd))
-  check('the 5.6 rows state no long-context rule (their pages were not re-read here)', pins.gptDisplayPin('gpt-5.6-sol')?.longContext === undefined)
+  check(
+    'the 5.6 rows carry the same long-context rule (their pages re-read 2026-09-05: >272K input ⇒ 2x input, 1.5x output, the full request)',
+    (['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] as const).every(id => {
+      const row = pins.gptDisplayPin(id)?.longContext
+      return row?.aboveInputTokens === 272_000 && row.inputMultiplier === 2 && row.outputMultiplier === 1.5
+    }),
+  )
   check(
     "the pin's tier function is the one owner: the base at no prompt size and at the edge, the multiples past it",
     pin !== undefined &&
@@ -138,10 +144,25 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   )
   const sol = cost.resolveModelPricing('gpt-5.6-sol')
   check(
-    'a pin stating no cache-write rate still writes at its input rate (the 5.6 rows unchanged)',
-    sol.basis === 'recorded' && sol.costs.promptCacheWriteTokens === sol.costs.inputTokens,
+    'the 5.6 rows price at the pricing page (2026-09-05): Sol $4 in · $0.40 cached · $5 write · $20 out, the write at 1.25x the input rate',
+    sol.basis === 'recorded' &&
+      sol.costs.inputTokens === 4 &&
+      sol.costs.promptCacheReadTokens === 0.4 &&
+      sol.costs.promptCacheWriteTokens === 5 &&
+      sol.costs.outputTokens === 20,
     JSON.stringify(sol),
   )
+  const terraLong = cost.resolveModelPricing('gpt-5.6-terra', { promptTokens: 300_000 })
+  check(
+    "a 5.6 row past 272,000 input tokens prices the whole request at its long tier (Terra: $4 in · $0.40 cached · $5 write · $18 out — the pricing page's long-context columns)",
+    terraLong.costs.inputTokens === 4 &&
+      Math.abs(terraLong.costs.promptCacheReadTokens - 0.4) < 1e-9 &&
+      terraLong.costs.promptCacheWriteTokens === 5 &&
+      terraLong.costs.outputTokens === 18,
+    JSON.stringify(terraLong),
+  )
+  const luna = cost.resolveModelPricing('gpt-5.6-luna')
+  check('Luna at its page: $0.20 in · $0.02 cached · $0.25 write · $1.20 out', luna.costs.inputTokens === 0.2 && luna.costs.promptCacheReadTokens === 0.02 && luna.costs.promptCacheWriteTokens === 0.25 && luna.costs.outputTokens === 1.2, JSON.stringify(luna))
 
   const out = capabilities.getModelMaxOutputTokens(ID)
   check('the output pair reads the pin: 64,000 default · 128,000 ceiling', out.default === 64_000 && out.upperLimit === 128_000, JSON.stringify(out))
