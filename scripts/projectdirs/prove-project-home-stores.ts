@@ -97,7 +97,7 @@ section('H2 — a fresh project: the spec in the folder, every local store in th
   check('the route state is under the config home', routerStateDir().startsWith(HOME))
   check('the audit chains are under the config home', themisDir(REPO).startsWith(HOME))
   check('local-scope agent memory is under the config home; project scope stays in the folder', getAgentMemoryDir('scout', 'local').startsWith(HOME) && getAgentMemoryDir('scout', 'project').startsWith(join(REPO, '.mercury')))
-  check('the unity results path is under the config home', unityTestResultsPath(REPO, 'EditMode').startsWith(HOME))
+  check("the unity results path is the editor's output inside the project (the bridge package's fence), never a home store", unityTestResultsPath(REPO, 'EditMode').startsWith(join(REPO, '.mercury')) && !unityTestResultsPath(REPO, 'EditMode').startsWith(HOME))
   check('the folder holds no local store', !existsSync(join(REPO, '.mercury', 'workflows')) && !existsSync(join(REPO, '.mercury', 'evolution')) && !existsSync(join(REPO, '.mercury', 'test-runs')) && !existsSync(join(REPO, '.mercury', 'doctor')) && !existsSync(join(REPO, '.mercury', 'router')))
   const estate = await projectEstateCheck()
   check('the doctor\'s Project estate row reads ok', estate.status === 'ok', JSON.stringify(estate))
@@ -150,7 +150,7 @@ section('H4 — the shared set stays in the project folder')
 section('H5 — the census')
 {
   const named = homeStores.PROJECT_HOME_STORES.map(s => s.join('/')).sort()
-  check('every store the home road serves is in the census', JSON.stringify(named) === JSON.stringify(['agent-memory-local', 'doctor', 'evolution', 'ide-transactions', 'reviews', 'router', 'test-runs', 'themis', 'unity-test-results', 'workflows/runs']), JSON.stringify(named))
+  check('every store the home road serves is in the census', JSON.stringify(named) === JSON.stringify(['agent-memory-local', 'doctor', 'evolution', 'ide-transactions', 'reviews', 'router', 'test-runs', 'themis', 'workflows/runs']), JSON.stringify(named))
   check('the census is a path list, relative to the folder home', named.every(n => !n.startsWith('/') && !n.includes('..')))
   console.log(`  [record] the config home's project directory: ${relative(HOME, getProjectDir(REPO))}`)
 }
