@@ -34,7 +34,6 @@ import {
 import { isCritterAsleep, subscribeCritterSleep } from './critterSleep.js'
 import { toCritterState } from './critterVariant.js'
 import type { CritterState } from './critterData.js'
-import { agentStateSnapshot } from './index.js'
 import { subscribeUiClock } from './uiClock.js'
 
 export const SETTLE_MS = 8_000
@@ -60,7 +59,7 @@ type PerSessionState = {
   sawFailThisTurn: boolean
   blockedSince: number | null
   holdingSpoken: boolean
-  failureSpoken: boolean
+  failureSpokenAt: number | null
   lastTurnStartSeen: number | null
   lastActivityAt: number
   returnPending: boolean
@@ -76,7 +75,7 @@ const freshSessionState = (now: number): PerSessionState => ({
   sawFailThisTurn: false,
   blockedSince: null,
   holdingSpoken: false,
-  failureSpoken: false,
+  failureSpokenAt: null,
   lastTurnStartSeen: null,
   lastActivityAt: now,
   returnPending: false,
@@ -146,14 +145,14 @@ function deck(): Deck {
   return per.deck
 }
 
-function desiredCadence(mood: BuddyState): number {
-  if (per.quip) return 1_000
+function desiredCadence(mood: BuddyState, failurePending: boolean): number {
+  if (per.quip || failurePending) return 1_000
   if ((mood === 'blocked' && !per.holdingSpoken) || !per.bootTipDone || per.returnPending) return 5_000
   return 30_000
 }
 
-function armClock(mood: BuddyState): void {
-  const want = desiredCadence(mood)
+function armClock(mood: BuddyState, failurePending = false): void {
+  const want = desiredCadence(mood, failurePending)
   if (clockCadence === want) return
   unsubClock?.()
   clockCadence = want
@@ -217,12 +216,10 @@ function recompute(): void {
   const sig = companionTurnSignals()
   const typing = now - lastTypingAt < TYPING_QUIET_MS
 
-  const agent = agentStateSnapshot()
   const failFresh =
-    agent.state === 'live' &&
-    agent.data.verdict?.state === 'failed' &&
-    sig.lastTurnEndTs != null &&
-    now - sig.lastTurnEndTs < BUDDY_FRESH_MS
+    sig.lastTurnEndedInError &&
+    sig.lastTurnErrorTs !== null &&
+    now - sig.lastTurnErrorTs < BUDDY_FRESH_MS
 
   const mood = buddyStateFor(
     { isMain: true, status: 'running' },
@@ -245,7 +242,6 @@ function recompute(): void {
     if (per.returnPending || (per.lastActivityAt > 0 && now - per.lastActivityAt >= RETURN_AFTER_MS)) returned = true
     per.returnPending = false
     per.lastActivityAt = now
-    per.failureSpoken = false
   } else if (per.returnPending && !typing) {
     returned = true
     per.returnPending = false
@@ -281,10 +277,8 @@ function recompute(): void {
   } else {
     per.blockedSince = null
   }
-  if (prev !== null && prev !== 'sad' && mood === 'sad' && !per.failureSpoken) {
-    per.failureSpoken = true
-    speak('failure', now, typing)
-  }
+  const failurePending = mood === 'sad' && sig.lastTurnErrorTs !== null && per.failureSpokenAt !== sig.lastTurnErrorTs
+  if (failurePending && speak('failure', now, typing)) per.failureSpokenAt = sig.lastTurnErrorTs
   if (!per.bootTipDone && now - per.bootedAt >= TIP_BOOT_QUIET_MS && !sig.turnLive && !typing) {
     per.bootTipDone = true
     if (per.quip === null) tryTip(now, typing)
@@ -307,7 +301,7 @@ function recompute(): void {
     }
     emit()
   }
-  if (listeners.size > 0) armClock(mood)
+  if (listeners.size > 0) armClock(mood, failurePending)
 }
 
 export function requestCompanionTip(): string | null {

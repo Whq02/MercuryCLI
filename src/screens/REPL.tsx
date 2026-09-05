@@ -52,7 +52,7 @@ import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
-import { publishCompanionTurn } from '../utils/cockpit/companionSignals.js';
+import { publishCompanionTurn, turnEndedInError } from '../utils/cockpit/companionSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { dynamicMcpConfigSnapshot, ideAutoConnectSeed, setDynamicMcpConfig } from '../services/mcp/dynamicMcpSeed.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
@@ -1458,8 +1458,9 @@ export function REPL({
       turnLive: isLoading,
       streaming: textActive,
       awaitingPermission: toolUseConfirmQueue.length > 0,
+      endedInError: !isLoading && turnEndedInError(messages),
     });
-  }, [isLoading, textActive, toolUseConfirmQueue.length]);
+  }, [isLoading, textActive, toolUseConfirmQueue.length, messages]);
 
   useEffect(() => {
     const paint = (): void => {
