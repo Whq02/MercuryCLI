@@ -79,8 +79,8 @@ const localDiscovery = await import('../../src/services/providers/local/localDis
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const sideQuestion = await import('../../src/utils/sideQuestion.ts')
 
-type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
+type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
+const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
 type Container = 'minerva' | 'console'
 const CONTAINERS: Container[] = ['minerva', 'console']
 
@@ -184,7 +184,7 @@ section('§1 the persistence owner: normalize · refuse typed · per container �
   check('…the receipt says it applies when a model is pinned (Minerva is unset)', spoken.ok && spoken.receipt === 'Minerva effort set to xhigh — applies when a model is pinned', JSON.stringify(spoken))
   const low = slots.setSubModelEffort('console', 'low')
   check('the two containers persist independently', low.ok && getGlobalConfig().subModels?.effort?.minerva === 'xhigh' && getGlobalConfig().subModels?.effort?.console === 'low' && slots.resolveSubModelEffort('console') === 'low')
-  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, minerva: 'ultra' } } }))
+  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, minerva: 'hyper' } } }))
   check('a hand-poisoned spelling reads absent (no guess, no substitute); the sibling stands', slots.resolveSubModelEffort('minerva') === undefined && slots.resolveSubModelEffort('console') === 'low')
   const cleared = slots.setSubModelEffort('minerva', null)
   check('null clears the one container alone', cleared.ok && getGlobalConfig().subModels?.effort?.minerva === undefined && getGlobalConfig().subModels?.effort?.console === 'low', JSON.stringify(getGlobalConfig().subModels))
@@ -226,15 +226,16 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
           JSON.stringify(strip),
         )
       } else {
-        const why = !truth.supportsEffort ? 'no effort control' : truth.suppressedBy === 'thinking-off' ? 'thinking-off suppressed' : 'UNEXPLAINED'
-        if (truth.supportsEffort && truth.suppressedBy === 'thinking-off') gatedSeen++
+        const why = !truth.supportsEffort ? 'no effort control' : truth.suppressedBy === 'thinking-off' ? 'thinking-off suppressed' : truth.flooredBy === 'thinking-off' ? 'thinking-off floored' : 'UNEXPLAINED'
+        if (truth.supportsEffort && (truth.suppressedBy === 'thinking-off' || truth.flooredBy === 'thinking-off')) gatedSeen++
         check(`${container} · ${model}: no strip — ${why}; the receipt names the model`, why !== 'UNEXPLAINED' && strip.receipt.includes(model), JSON.stringify(strip))
       }
     }
   }
   check('Minerva (thinking off) turns at least one reasoning-dial lane into the receipt', gatedSeen > 0, String(gatedSeen))
   for (const model of roster) {
-    const gated = effort.resolveEffortTruth(model, 'high', { thinkingEnabled: false }).suppressedBy === 'thinking-off'
+    const gatedTruth = effort.resolveEffortTruth(model, 'high', { thinkingEnabled: false })
+    const gated = gatedTruth.suppressedBy === 'thinking-off' || gatedTruth.flooredBy === 'thinking-off'
     const supports = effort.resolveEffortTruth(model, undefined).supportsEffort
     const minerva = slots.subModelEffortStrip('minerva', model).kind
     const console_ = slots.subModelEffortStrip('console', model).kind
@@ -249,7 +250,7 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
   const restStrip = slots.subModelEffortStrip('console', 'claude-opus-5')
   check('no pick ⇒ the bracket is the model default (opus-5: high)', restStrip.kind === 'levels' && restStrip.current === 'high' && restStrip.current === effort.resolveEffortTruth('claude-opus-5', undefined).applied, JSON.stringify(restStrip))
   const bareStrip = slots.subModelEffortStrip('console', 'gpt-5.6-bare')
-  check("an unstated GPT catalogue row offers the owner's full ladder (dispatch re-validates live); the bracket rests on high", bareStrip.kind === 'levels' && bareStrip.levels.length === 5 && bareStrip.current === 'high', JSON.stringify(bareStrip))
+  check("an unstated GPT catalogue row offers the owner's full ladder (dispatch re-validates live); the bracket rests on high", bareStrip.kind === 'levels' && JSON.stringify(bareStrip.levels) === JSON.stringify(LEVELS) && bareStrip.current === 'high', JSON.stringify(bareStrip))
 }
 
 section("§3 the dispatch: the chosen level rides each family's wire field; a model that lacks it runs the model default, never a foreign level")

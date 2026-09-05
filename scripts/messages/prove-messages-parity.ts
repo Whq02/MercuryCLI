@@ -262,6 +262,12 @@ add('buildYoloRejectionMessage', 'basic', () =>
 add('buildFlowBlockDeclinedMessage', 'basic', () =>
   M.buildFlowBlockDeclinedMessage('rm -rf /'),
 );
+add('buildClassifierUnreadableMessage', 'basic', () =>
+  M.buildClassifierUnreadableMessage('Bash', 'stub-model', 'shouldBlock: expected boolean, received string'),
+);
+add('buildClassifierUnreadableMessage', 'no-detail', () =>
+  M.buildClassifierUnreadableMessage('Bash', 'stub-model'),
+);
 add('buildClassifierUnavailableMessage', 'basic', () =>
   M.buildClassifierUnavailableMessage('Bash' as never),
 );
@@ -331,6 +337,48 @@ add('createUserInterruptionMessage', 'basic', () => M.createUserInterruptionMess
 add('createUserInterruptionMessage', 'tool-use', () =>
   M.createUserInterruptionMessage({ toolUse: true }),
 );
+const CUTS = [
+  { kind: 'operator' },
+  { kind: 'idle-timeout' },
+  { kind: 'idle-timeout', detail: 'sub-agent scout (a1): no progress for 15m' },
+  { kind: 'parent-stop' },
+  { kind: 'cut', detail: 'the retry budget is spent' },
+  { kind: 'cut' },
+] as const;
+const CUT_ROWS = [
+  M.INTERRUPT_MESSAGE,
+  M.INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  '[Request cut off by a no-progress timeout (the provider went quiet)]',
+  '[Request cut off during tool use by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m]',
+  '[Request cut off: the workflow that ran this agent stopped]',
+  '[Request cut off during tool use: the retry budget is spent]',
+  'plain words',
+  '[Request interrupted by user] and more',
+];
+add('createUserInterruptionMessage', 'stalled', () =>
+  M.createUserInterruptionMessage({ reason: 'stalled' }),
+);
+add('turnCutOf', 'operator', () =>
+  [undefined, null, 'interrupt', 'crew-stop', 'user-skip', 'user-retry', { name: 'AbortError', message: 'This operation was aborted' }].map(r => M.turnCutOf(r)),
+);
+add('turnCutOf', 'typed', () =>
+  [
+    'stalled',
+    'workflow-abort',
+    'terminal-400',
+    new Error('the retry budget is spent'),
+    { name: 'DeadlineExceededError', message: 'sub-agent scout (a1): no progress for 15m' },
+    { code: 'DEADLINE_EXCEEDED', message: 'unattended turn: no progress for 30m' },
+    42,
+  ].map(r => M.turnCutOf(r)),
+);
+add('turnCutWhy', 'family', () => CUTS.map(cut => M.turnCutWhy(cut as never)));
+add('turnCutLine', 'family', () =>
+  [false, true].flatMap(toolUse => CUTS.map(cut => M.turnCutLine(cut as never, toolUse))),
+);
+add('turnCutResultText', 'family', () => CUTS.map(cut => M.turnCutResultText(cut as never)));
+add('turnCutOfText', 'pair', () => CUT_ROWS.map(t => M.turnCutOfText(t)));
+add('isTurnCutText', 'pair', () => CUT_ROWS.map(t => M.isTurnCutText(t)));
 add('createSyntheticUserCaveatMessage', 'basic', () =>
   snapSafe(() => M.createSyntheticUserCaveatMessage('caveat body' as never)),
 );
@@ -424,6 +472,8 @@ add('createToolUseSummaryMessage', 'basic', () =>
 );
 
 const SKIPPED: Record<string, string> = {
+  createThinkingDeadMessage: 'a system row constructor for the dead-thinking mark — its identity rides the response id and block index; pinned by scripts/api/prove-prefix-ledger.ts',
+  createThinkingNoteMessage: 'a system row constructor for the one quiet, dim line a LAWFUL preserved-thinking drop earns (never the warning glyph); pinned by scripts/api/prove-thinking-drop-notice.ts',
   handleMessageFromStream: 'needs a live SSE stream context — covered by QueryEngine suites',
   isDroppedLateStreamFrame:
     'behaviorally covered by scripts/permissions/prove-permission-abort-total.ts (late-frame gate)',

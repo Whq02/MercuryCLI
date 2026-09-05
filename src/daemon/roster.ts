@@ -25,6 +25,7 @@ import {
   usageOfStreamJsonFrame,
   normalizeStreamJsonFrame,
   isTurnResultParsedFrame,
+  isTurnStartedParsedFrame,
   errorTextOfParsedResultFrame,
   decideWorkerBusy,
   deriveWireSpec,
@@ -178,6 +179,7 @@ export class TaskRoster {
         })
         e.model = wire.model
         e.effort = wire.effort
+        if (h.longLived.turnActive && h.longLived.turnStartedAt !== undefined) e.turnStartedAt = h.longLived.turnStartedAt
         if (wire.pendingModel !== undefined) e.pendingModel = wire.pendingModel
         if (wire.pendingEffort !== undefined) e.pendingEffort = wire.pendingEffort
         e.respawns = h.longLived.respawns
@@ -597,6 +599,12 @@ export class TaskRoster {
             this.opts.onChildLine(short, line)
           } catch (e) {
             logForDebugging(`[daemon] onChildLine(${short}) hook threw (ignored): ${e}`)
+          }
+        }
+        if (isTurnStartedParsedFrame(frame)) {
+          if (!ll.turnActive) {
+            ll.turnActive = true
+            ll.turnStartedAt = Date.now()
           }
         }
         if (isTurnResultParsedFrame(frame)) {

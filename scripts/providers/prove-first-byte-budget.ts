@@ -89,7 +89,7 @@ section('B5 · the wiring (structural)')
   const connector = src('src/services/engine-connector/daemonConnector.ts')
   check("the connector's 'aborts at' reads the wait's budget while the first byte is outstanding", /wait\?\.kind === 'first-byte' \? wait\.budgetMs : typeof this\.facts\?\.streamIdleTimeoutMs === 'number'/.test(connector))
   const row = src('src/components/SwitchboardTagBar.tsx')
-  check('the status row speaks the wait, and past its budget says the lane is due', /if \(s\.wait !== null\) \{[\s\S]{0,600}requestWaitLine\(s\.wait\)/.test(row) && /the budget is up; the lane reissues or aborts now \(esc stops\)/.test(row))
+  check('the status row speaks the wait, and past its budget says the lane is due', /if \(s\.wait !== null\) \{[\s\S]{0,600}requestWaitLine\(s\.wait\)/.test(row) && /the budget is up; the lane reissues or aborts now/.test(row))
   const byline = src('src/components/Spinner/pulseByline.ts')
   check("the spinner's byline heads with the wait's words", /const waitHeads = detail\.wait \? \[verb \? `\$\{verb\} · \$\{detail\.wait\}` : detail\.wait\] : \[\]/.test(byline))
 }

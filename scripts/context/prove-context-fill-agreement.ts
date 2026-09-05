@@ -158,7 +158,8 @@ section('N5 · the ONE fill derivation every surface reads')
   const analyze = src('src/utils/analyzeContext.ts')
   check('/context headline is contextFill (the trigger count) when usage exists', /const fill = contextFill\(originalMessages \?\? messages\)/.test(analyze) && /fill\.source === 'usage' \? fill\.tokens : actualUsage/.test(analyze))
   const picker = src('src/commands/model/mercuryModel.tsx')
-  check('/model header gauge reads contextFillView over the session-effective model', /contextFillView\(messages, windowModel\)/.test(picker) && /const windowModel = getFocusedSessionConnector\(\)\.modelFacts\(\)\.sessionPin \?\? mainLoopModelForSession \?\? mainLoopModel \?\? getMainLoopModel\(\)/.test(picker))
+  // global model — never the global model alone.
+  check('/model header gauge reads contextFillView over the served model', /contextFillView\(messages, servedModel\)/.test(picker) && /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(mainLoopModelForSession \?\? getMainLoopModel\(\)\)/.test(picker))
   for (const rail of ['src/components/HelmLanesRail.tsx', 'src/components/HelmTelemetryRail.tsx', 'src/components/DeckPane.tsx']) {
     const text = src(rail)
     check(`${rail.split('/').pop()} subscribes to the publish version and labels via the owner`, /useSyncExternalStore\(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion\)/.test(text) && /contextWindowLabel\(/.test(text))

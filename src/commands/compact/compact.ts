@@ -1,4 +1,6 @@
 import chalk from 'chalk'
+import { APIUserAbortError } from '../../services/api/sdkErrors.js'
+import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
 import { markPostCompaction } from '../../bootstrap/state.js'
 import { getUserContext } from '../../context.js'
 import {
@@ -7,12 +9,14 @@ import {
   ERROR_MESSAGE_INCOMPLETE_RESPONSE,
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
   type CompactionResult,
+  withFoldStatus,
+  ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
 import { microcompactMessages } from '../../services/compact/microCompact.js'
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
-import { trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
+import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
 import { getBindingDisplayText } from '../../keybindings/resolver.js'
 import { loadKeybindingsSync } from '../../keybindings/loadUserBindings.js'
@@ -35,6 +39,10 @@ async function buildCompactCacheSafeParams(
   context: LocalJSXCommandContext,
 ): Promise<CacheSafeParams> {
   const { options } = context
+  const lastSent = getLastCacheSafeParams()
+  if (lastSent !== null) {
+    return { ...lastSent, toolUseContext: context, forkContextMessages: messages }
+  }
   const additionalWorkingDirectories = Array.from(
     context.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
   )
@@ -129,6 +137,17 @@ export async function call(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
+  return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
+    trigger: 'manual',
+    sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
+    microcompaction: true,
+  })
+}
+
+async function callUnderFoldStatus(
+  args: string,
+  context: LocalJSXCommandContext,
+): Promise<LocalCommandResult> {
   const projected = getMessagesAfterCompactBoundary(context.messages)
   if (projected.length === 0) {
     throw new Error('No messages to compact.')
@@ -137,7 +156,8 @@ export async function call(
 
   try {
     if (!customInstructions) {
-      const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId)
+      if (shouldUseSessionMemoryCompaction()) context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
+      const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId, undefined, context)
       if (sessionMemoryResult !== null) {
         getUserContext.cache?.clear?.()
         runPostCompactCleanup()
@@ -154,6 +174,7 @@ export async function call(
     if (reactiveCompact !== null && reactiveCompact.isReactiveOnlyMode()) {
     }
 
+    context.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
     const { messages: microcompacted } = await microcompactMessages(projected, context, 'compact')
     const cacheSafeParams = await buildCompactCacheSafeParams(microcompacted, context)
     const result = await compactConversation(
@@ -183,7 +204,7 @@ export async function call(
     }
   } catch (error) {
     if (context.abortController.signal.aborted || isAbortError(error)) {
-      throw new Error('Compaction canceled.')
+      throw new APIUserAbortError({ message: ERROR_MESSAGE_USER_ABORT })
     }
     if (
       hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||

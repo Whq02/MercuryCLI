@@ -6,14 +6,7 @@ import { AFK_MODE_BETA_HEADER } from '../../constants/betas.js'
 import { describeAnthropicClientContract } from '../../constants/oauth.js'
 import { API_PDF_MAX_PAGES, PDF_TARGET_RAW_SIZE } from '../../constants/apiLimits.js'
 import type { AssistantMessage, AssistantMessageError, Message } from '../../types/message.js'
-import {
-  getAnthropicApiKeyWithSource,
-  getApiKeyHelperFailure,
-  getAuthTokenSource,
-  hasStoredOAuthToken,
-  isClaudeAISubscriber,
-  isAnthropicOAuthSignInExpired,
-} from '../../utils/auth.js'
+import { getAnthropicApiKeyWithSource, getApiKeyHelperFailure, getAuthTokenSource, hasStoredOAuthToken, isClaudeAISubscriber, isAnthropicOAuthSignInExpired, wireCredentialSource, type WireCredentialSource } from '../../utils/auth.js'
 import { formatFileSize } from '../../utils/format.js'
 import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -34,7 +27,8 @@ import { ImageResizeError } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
 
-export const API_ERROR_MESSAGE_PREFIX = 'API Error'
+import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
+export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
   frameType: string,
@@ -63,6 +57,25 @@ export const INVALID_API_KEY_ERROR_MESSAGE =
 
 export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
   'Invalid API key · Fix external API key'
+
+export function invalidCredentialWords(source: WireCredentialSource): string {
+  switch (source.kind) {
+    case 'env':
+      return source.name === 'ANTHROPIC_API_KEY'
+        ? `Invalid API key · Fix ${source.name}`
+        : `Invalid credential · Fix ${source.name}`
+    case 'helper':
+      return 'Invalid API key · Fix the apiKeyHelper'
+    default:
+      return INVALID_API_KEY_ERROR_MESSAGE
+  }
+}
+
+const INVALID_CREDENTIAL_WORDS = /^Invalid (?:API key|credential) · Fix /
+
+export function isInvalidCredentialWords(text: string): boolean {
+  return text === INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL || INVALID_CREDENTIAL_WORDS.test(text)
+}
 
 export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY =
   'The organization associated with ANTHROPIC_API_KEY has been disabled. Update or unset the ANTHROPIC_API_KEY environment variable.'
@@ -225,14 +238,6 @@ export function getOauthOrgNotAllowedErrorMessage(): string {
   return 'Your account does not have access to Mercury — run /logins.'
 }
 
-
-export function startsWithApiErrorPrefix(text: string): boolean {
-  return (
-    text.startsWith(API_ERROR_MESSAGE_PREFIX) ||
-    text.startsWith(`Please run /logins. ${API_ERROR_MESSAGE_PREFIX}`) ||
-    text.startsWith(`Please run /logins · ${API_ERROR_MESSAGE_PREFIX}`)
-  )
-}
 
 export function streamFaultAfterPartialText(provider: string, code: string, message: string): string {
   return `${API_ERROR_MESSAGE_PREFIX}: ${provider} ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (${code}) — ${message}`
@@ -606,10 +611,8 @@ export function getAssistantMessageFromError(
   }
 
   if (message.toLowerCase().includes('x-api-key')) {
-    const { source } = getAnthropicApiKeyWithSource()
-    const external = source === 'ANTHROPIC_API_KEY' || source === 'apiKeyHelper'
     return createAssistantAPIErrorMessage({
-      content: external ? INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL : INVALID_API_KEY_ERROR_MESSAGE,
+      content: invalidCredentialWords(wireCredentialSource('x-api-key')),
       error: 'authentication_failed',
     })
   }

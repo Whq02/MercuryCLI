@@ -153,6 +153,12 @@ export type SDKControlStopTaskRequest = {
   task_id: string
 }
 
+export type SDKControlResumeTaskRequest = {
+  subtype: 'resume_task'
+  task_id: string
+  note?: string
+}
+
 export type SDKControlApplyFlagSettingsRequest = {
   subtype: 'apply_flag_settings'
   settings: Record<string, unknown>
@@ -238,11 +244,21 @@ export type SDKControlClaimSessionRequest = {
   permission_mode?: string
   effort?: string
   resume?: boolean
+  openai_catalogue?: {
+    sourceKind: 'chatgpt-subscription' | 'api-key'
+    models: unknown[]
+    fetchedAtMs: number
+  }
 }
 
 export type SDKControlSetEffortRequest = {
   subtype: 'set_effort'
   effort: string
+}
+
+export type SDKControlWithdrawSendRequest = {
+  subtype: 'withdraw_send'
+  client_message_id: string
 }
 
 export type SDKControlRequestInner =
@@ -270,6 +286,7 @@ export type SDKControlRequestInner =
   | SDKControlSpawnSwitchRequest
   | SDKControlScheduleRosterRequest
   | SDKControlStopTaskRequest
+  | SDKControlResumeTaskRequest
   | SDKControlApplyFlagSettingsRequest
   | SDKControlGetSettingsRequest
   | SDKControlElicitationRequest
@@ -286,6 +303,7 @@ export type SDKControlRequestInner =
   | SDKControlRemoteControlRequest
   | SDKControlClaimSessionRequest
   | SDKControlSetEffortRequest
+  | SDKControlWithdrawSendRequest
 
 export type SDKControlRequest = {
   type: 'control_request'

@@ -14,7 +14,17 @@ import {
   selectRelease,
   type ReleaseSelection,
 } from './channelCore.js'
-import { channelRepoSlug, checkAccess, downloadReleaseAssets, listReleases, type GhAccess } from './ghRelease.js'
+import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
+import { verifyPayloadDir } from './artifactVerify.js'
+import {
+  channelRepoSlug,
+  checkChannelAccess,
+  downloadChannelAssets,
+  listChannelReleases,
+  type ChannelAccess,
+  type ChannelAccessRefusal,
+  type ChannelRoadName,
+} from './channelTransport.js'
 import {
   acquireUpdateLock,
   installPayload,
@@ -37,6 +47,7 @@ import {
   type ShimOutcome,
 } from './installLayout.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryOutcome } from './installPath.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
 
 export function runningRuntime(): RunningRuntime {
@@ -80,7 +91,7 @@ export interface ChannelStatus {
   shimPath: string
   runtime: RunningRuntime
   channelRepo: string
-  access: GhAccess
+  access: ChannelAccess
 }
 
 export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> {
@@ -96,7 +107,7 @@ export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> 
     shimPath: roots.shimPath,
     runtime: runningRuntime(),
     channelRepo: slug,
-    access: await checkAccess(slug),
+    access: await checkChannelAccess(slug),
   }
 }
 
@@ -104,10 +115,20 @@ export const statusRuntimeLine = (status: Pick<ChannelStatus, 'runtime'>): strin
 
 
 export type CheckOutcome =
-  | { state: 'update-available'; installed: string; tag: string; version: string; assetName: string; channelRepo: string }
-  | { state: 'current'; installed: string; channelRepo: string }
-  | { state: 'no-releases'; installed: string; channelRepo: string }
-  | { state: 'access-unavailable'; access: Exclude<GhAccess, { state: 'ok' }> }
+  | {
+      state: 'update-available'
+      installed: string
+      tag: string
+      version: string
+      assetName: string
+      channelRepo: string
+      road: ChannelRoadName
+      assetUrl: string | null
+      checksumUrl: string | null
+    }
+  | { state: 'current'; installed: string; channelRepo: string; road: ChannelRoadName }
+  | { state: 'no-releases'; installed: string; channelRepo: string; road: ChannelRoadName }
+  | { state: 'access-unavailable'; access: ChannelAccessRefusal }
   | { state: 'unsupported-platform'; note: string }
   | { state: 'malformed-release'; tag: string; note: string }
   | { state: 'invalid-installed-version'; installed: string }
@@ -122,16 +143,8 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
   const installedParsed = parsePrivateVersion(installed.version)
   if (!installedParsed) return { state: 'invalid-installed-version', installed: installed.version }
 
-  const access = await checkAccess(slug)
-  if (access.state !== 'ok') return { state: 'access-unavailable', access }
-
-  const listed = await listReleases(slug)
-  if (listed.state !== 'ok') {
-    return {
-      state: 'access-unavailable',
-      access: { state: 'no-repo-access', note: listed.note, remedy: listed.remedy },
-    }
-  }
+  const listed = await listChannelReleases(slug)
+  if (listed.state !== 'ok') return { state: 'access-unavailable', access: listed.access }
   const selection: ReleaseSelection = selectRelease(listed.releases, installedParsed, process.platform, process.arch)
   switch (selection.state) {
     case 'update-available':
@@ -143,13 +156,16 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
         version: formatPrivateVersion(selection.version),
         assetName: selection.assetName,
         channelRepo: slug,
+        road: listed.road,
+        assetUrl: selection.assetUrl,
+        checksumUrl: selection.checksumUrl,
       }
     case 'current':
       progress('no update')
-      return { state: 'current', installed: installed.version, channelRepo: slug }
+      return { state: 'current', installed: installed.version, channelRepo: slug, road: listed.road }
     case 'no-releases':
       progress('no update')
-      return { state: 'no-releases', installed: installed.version, channelRepo: slug }
+      return { state: 'no-releases', installed: installed.version, channelRepo: slug, road: listed.road }
     case 'unsupported-platform':
       return { state: 'unsupported-platform', note: selection.note }
     case 'malformed-release':
@@ -157,6 +173,8 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
   }
 }
 
+
+export const NOTHING_ACTIVATED_WORDS = 'nothing was activated — the active installation was not changed'
 
 export type UpdateStage =
   | 'lock'
@@ -166,22 +184,32 @@ export type UpdateStage =
   | 'extract'
   | 'envelope'
   | 'payload'
+  | 'verify'
   | 'staged-smoke'
   | 'staging'
   | 'pointer'
   | 'post-switch-smoke'
 
 export type UpdateOutcome =
-  | { state: 'updated'; from: string; to: string; previousKept: boolean; shim: ShimOutcome; receiptPath?: string }
+  | {
+      state: 'updated'
+      from: string
+      to: string
+      previousKept: boolean
+      shim: ShimOutcome
+      road: ChannelRoadName
+      signature: SignatureVerdict['state']
+      receiptPath?: string
+    }
   | { state: 'no-update'; check: CheckOutcome }
-  | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; receiptPath?: string }
-  | { state: 'restored'; stage: UpdateStage; reason: string; activeVersion: string; receiptPath?: string }
+  | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; road?: ChannelRoadName; receiptPath?: string }
+  | { state: 'restored'; stage: UpdateStage; reason: string; activeVersion: string; road?: ChannelRoadName; receiptPath?: string }
 
 const sha256File = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
 
 type ExtractOutcome = { state: 'ok' } | { state: 'tool-absent'; note: string } | { state: 'failed'; note: string }
 
-function resolveWindowsShell(): string | null {
+export function resolveWindowsShell(): string | null {
   for (const exe of ['pwsh', 'powershell']) {
     try {
       execFileSync(exe, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { windowsHide: true, stdio: 'pipe', timeout: 30_000, env: { ...subprocessEnv() } })
@@ -232,7 +260,8 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
           finishedAt: new Date().toISOString(),
           outcome: outcome.state,
           stage: 'stage' in outcome ? outcome.stage : outcome.state === 'updated' ? 'complete' : undefined,
-          ...(outcome.state === 'updated' ? { from: outcome.from, to: outcome.to } : {}),
+          ...('road' in outcome && outcome.road !== undefined ? { road: outcome.road } : {}),
+          ...(outcome.state === 'updated' ? { from: outcome.from, to: outcome.to, signature: outcome.signature } : {}),
           ...(outcome.state === 'refused' ? { reason: outcome.reason, retryable: outcome.retryable ?? false } : {}),
           ...(outcome.state === 'restored' ? { reason: outcome.reason, activeVersion: outcome.activeVersion } : {}),
         },
@@ -257,7 +286,15 @@ export async function performUpdate(roots: LayoutRoots, progress: Progress): Pro
 async function performUpdateTransaction(roots: LayoutRoots, progress: Progress): Promise<UpdateOutcome> {
   const check = await checkForUpdate(roots, progress)
   if (check.state !== 'update-available') return { state: 'no-update', check }
+  const outcome = await acquireAndActivate(roots, progress, check)
+  return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
+}
 
+async function acquireAndActivate(
+  roots: LayoutRoots,
+  progress: Progress,
+  check: Extract<CheckOutcome, { state: 'update-available' }>,
+): Promise<UpdateOutcome> {
   const lock = acquireUpdateLock(roots)
   if (lock.state === 'held') {
     return {
@@ -273,8 +310,17 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
     rmSync(staging, { recursive: true, force: true })
     mkdirSync(staging, { recursive: true })
 
-    progress('downloading', `${check.assetName} + ${CHECKSUM_MANIFEST_NAME} from ${check.tag}`)
-    const dl = await downloadReleaseAssets(check.channelRepo, check.tag, [check.assetName, CHECKSUM_MANIFEST_NAME], staging)
+    progress('downloading', `${check.assetName} + ${CHECKSUM_MANIFEST_NAME} from ${check.tag} (${check.road === 'gh' ? 'through gh' : 'anonymously'})`)
+    const dl = await downloadChannelAssets(
+      check.road,
+      check.channelRepo,
+      check.tag,
+      [
+        { name: check.assetName, url: check.assetUrl },
+        { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl },
+      ],
+      staging,
+    )
     if (dl.state !== 'ok') return { state: 'refused', stage: 'download', reason: dl.note, remedy: dl.remedy, retryable: true }
 
     progress('verifying')
@@ -295,7 +341,7 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
             : looked.state === 'duplicate-entry'
               ? `${CHECKSUM_MANIFEST_NAME} lists ${check.assetName} ${looked.count} times`
               : `checksum manifest malformed: ${looked.note}`,
-        remedy: 'the release publication is inconsistent — report it; nothing was activated',
+        remedy: `the release publication is inconsistent — report it; ${NOTHING_ACTIVATED_WORDS}`,
       }
     }
     const actual = sha256File(archivePath)
@@ -304,7 +350,7 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
         state: 'refused',
         stage: 'checksum',
         reason: `SHA-256 mismatch for ${check.assetName} (expected ${looked.sha256.slice(0, 12)}…, got ${actual.slice(0, 12)}…)`,
-        remedy: 'the downloaded bytes do not match the release manifest — rerun `mercury update`; nothing was activated',
+        remedy: `the downloaded bytes do not match the release manifest — rerun \`mercury update\`; ${NOTHING_ACTIVATED_WORDS}`,
         retryable: true,
       }
     }
@@ -328,26 +374,36 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
       existsSync(join(extracted, PAYLOAD_ROOT)) ? readdirSync(join(extracted, PAYLOAD_ROOT)) : [],
     )
     if (layout.state !== 'ok') {
-      return { state: 'refused', stage: 'envelope', reason: `unexpected archive layout: ${layout.note}`, remedy: 'report the release as malformed; nothing was activated' }
+      return { state: 'refused', stage: 'envelope', reason: `unexpected archive layout: ${layout.note}`, remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}` }
     }
     const payloadDir = join(extracted, PAYLOAD_ROOT)
     const payload = validatePayloadDir(payloadDir)
     if (payload.state !== 'ok') {
-      return { state: 'refused', stage: 'payload', reason: `payload incomplete: ${payload.note}`, remedy: 'report the release as malformed; nothing was activated' }
+      return { state: 'refused', stage: 'payload', reason: `payload incomplete: ${payload.note}`, remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}` }
     }
     if (payload.version !== check.version) {
       return {
         state: 'refused',
         stage: 'payload',
         reason: `embedded version ${payload.version} does not equal the selected release ${check.version}`,
-        remedy: 'report the release as malformed; nothing was activated',
+        remedy: `report the release as malformed; ${NOTHING_ACTIVATED_WORDS}`,
+      }
+    }
+    const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
+    progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
+    if (provenance.verdict.state === 'tampered') {
+      return {
+        state: 'refused',
+        stage: 'verify',
+        reason: `the payload's signing block does not verify: ${provenance.verdict.note}`,
+        remedy: `${NOTHING_ACTIVATED_WORDS}; download the release again, and if it repeats report it through the repository's Security tab`,
       }
     }
 
     progress('staging')
     const staged = smokeVersion(payloadDir, check.version, payload.bundle)
     if (staged.state !== 'ok') {
-      return { state: 'refused', stage: 'staged-smoke', reason: `staged smoke failed: ${staged.note}`, remedy: 'nothing was activated; report this build' }
+      return { state: 'refused', stage: 'staged-smoke', reason: `staged smoke failed: ${staged.note}`, remedy: `${NOTHING_ACTIVATED_WORDS}; report this build` }
     }
     const installed = installPayload(roots, payloadDir, check.version)
     if (installed.state === 'failed') {
@@ -355,7 +411,7 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
         state: 'refused',
         stage: 'staging',
         reason: `staging into the versions directory failed: ${installed.note}`,
-        remedy: installed.retryable ? 'nothing was activated; rerun `mercury update`' : 'nothing was activated; free disk space and retry',
+        remedy: installed.retryable ? `${NOTHING_ACTIVATED_WORDS}; rerun \`mercury update\`` : `${NOTHING_ACTIVATED_WORDS}; free disk space and retry`,
         retryable: installed.retryable,
       }
     }
@@ -387,7 +443,15 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
     }
     const shim = writeShim(roots)
     progress('complete', check.version)
-    return { state: 'updated', from, to: check.version, previousKept: previous !== null && versionDirIntact(roots, previous), shim }
+    return {
+      state: 'updated',
+      from,
+      to: check.version,
+      previousKept: previous !== null && versionDirIntact(roots, previous),
+      shim,
+      road: check.road,
+      signature: provenance.verdict.state,
+    }
   } finally {
     try {
       rmSync(staging, { recursive: true, force: true })
@@ -454,9 +518,12 @@ export type InstallVerbOutcome =
       activated: boolean
       shim: ReturnType<typeof writeShim>
       binDirOnPath: boolean
+      path: PathEntryOutcome
     }
   | { state: 'refused'; reason: string; remedy: string }
-  | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string }
+  | { state: 'dry-run'; version: string | null; wouldInstallTo: string; shimPath: string; runtime: string; note: string; path: PathEntryOutcome }
+
+const pathEntryIo = () => realPathEntryIo({ powershell: resolveWindowsShell })
 
 export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
   const payloadDir = runningPayloadDir()
@@ -471,6 +538,7 @@ export function describeInstall(roots: LayoutRoots): InstallVerbOutcome {
       payload.state === 'ok'
         ? 'no changes made (dry run); configuration and sessions are never touched'
         : `refusal expected: ${payload.note}`,
+    path: planBinDirOnPath(roots, pathEntryIo()),
   }
 }
 
@@ -494,8 +562,7 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
   }
   sweepUpdaterResidue(roots)
   try {
-    progress('staging', payload.version)
-    const installed = installPayload(roots, payloadDir, payload.version)
+    const installed = installPayload(roots, payloadDir, payload.version, () => progress('staging', payload.version))
     if (installed.state === 'failed') {
       return { state: 'refused', reason: installed.note, remedy: 'free disk space and rerun `mercury install`' }
     }
@@ -503,8 +570,9 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
     if (staged.state !== 'ok') {
       return { state: 'refused', reason: `installed copy fails its smoke: ${staged.note}`, remedy: 're-extract the archive and rerun `mercury install`' }
     }
-    progress('activating', payload.version)
     const before = readCurrentVersion(roots)
+    const pointerMoves = before !== payload.version
+    if (pointerMoves) progress('activating', payload.version)
     switchCurrent(roots, payload.version)
     const post = smokeVersion(join(roots.versionsDir, payload.version), payload.version, payload.bundle)
     if (post.state !== 'ok') {
@@ -515,7 +583,12 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
     const binDirOnPath = (process.env.PATH ?? '')
       .split(roots.isWindows ? ';' : ':')
       .some(p => pathEntryEquals(p, roots.binDir, roots.isWindows))
-    progress('complete', payload.version)
+    const io = pathEntryIo()
+    const path: PathEntryOutcome =
+      shim.state === 'refused-foreign'
+        ? { state: 'refused', dir: roots.binDir, reason: 'the stable command was not written', line: manualPathLine(roots, io) }
+        : ensureBinDirOnPath(roots, io)
+    progress('complete', installed.changed || pointerMoves ? payload.version : `${payload.version} (already present — no bytes changed)`)
     return {
       state: 'installed',
       version: payload.version,
@@ -524,6 +597,7 @@ export async function performInstall(roots: LayoutRoots, progress: Progress, opt
       activated: true,
       shim,
       binDirOnPath,
+      path,
     }
   } finally {
     releaseUpdateLock(roots)

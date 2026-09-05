@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { EffortValue } from './effort.js'
 import type { UUID } from 'node:crypto'
 
 import type { QuerySource } from '../constants/querySource.js'
@@ -65,8 +66,10 @@ export type ForkedAgentParams = {
   maxOutputTokens?: number
   maxTurns?: number
   onMessage?: (message: Message) => void
+  onStreamEvent?: (event: unknown) => void
   skipTranscript?: boolean
   skipCacheWrite?: boolean
+  effortMessage?: EffortValue
 }
 
 export type ForkedAgentResult = {
@@ -237,8 +240,10 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     maxOutputTokens,
     maxTurns,
     onMessage,
+    onStreamEvent,
     skipTranscript,
     skipCacheWrite,
+    effortMessage,
   } = params
   const startedAt = Date.now()
   const context: ToolUseContext = {
@@ -271,9 +276,11 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       maxOutputTokensOverride: maxOutputTokens,
       maxTurns,
       skipCacheWrite,
+      effortMessage,
     })) {
       if (item.type === 'stream_event') {
         fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })
+        onStreamEvent?.(item.event)
         continue
       }
       if (item.type === 'stream_request_start') continue

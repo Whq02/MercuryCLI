@@ -1,4 +1,5 @@
 import type { ToolResultBlockParam, ToolUseBlock } from '../types/wire.js'
+import type { EffortValue } from '../utils/effort.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from '../services/api/withRetry.js'
 import {
@@ -9,19 +10,32 @@ import {
 } from '../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
+import { isClearedOrDigested } from '../services/compact/microCompactDigest.js'
+import { getThinkingClearLatched } from '../bootstrap/state.js'
 import {
   classifyThinkingDrops,
+  createDeadThinkingAttachment,
+  deadMarksFromDrops,
+  deadThinkingMarks,
+  describePrefixRewrite,
   describeThinkingDrops,
+  turnOrdinalOfWirePath,
   inputTransformationsOf,
   modelSwitchReceipt,
   prefixMarkOf,
+  recordPrefixRewriteLedger,
   recordThinkingDropLedger,
+  takeRewriteNoticeOnce,
 } from '../services/providers/anthropic/thinkingBinding.js'
+import { takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { logForDebugging } from '../utils/debug.js'
 
 const switchReceipts = new Set<string>()
 
 const responsesClassified = new Set<string>()
+const streamEndsReceipted = new Set<string>()
+const effortAdjustmentsReceipted = new Set<string>()
 const RESPONSES_CLASSIFIED_CAP = 64
 function rememberClassifiedResponse(id: string): void {
   responsesClassified.add(id)
@@ -57,6 +71,7 @@ import {
   applyTurnTierModel,
 } from '../utils/autopilot/tierState.js'
 import {
+  effortAdjustedReceiptLine,
   isTurnOwningQuerySource,
   resolveEffortTruth,
 } from '../utils/effort.js'
@@ -84,6 +99,7 @@ import {
   createUserInterruptionMessage,
   normalizeMessagesForAPI,
   createSystemMessage,
+  createThinkingNoteMessage,
   createAssistantAPIErrorMessage,
   createToolUseSummaryMessage,
 } from '../utils/messages.js'
@@ -151,6 +167,8 @@ import { buildRequestContextPlan, reconcileAppliedPlanUsage } from '../services/
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
+import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
+import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
@@ -175,6 +193,19 @@ import { count } from '../utils/array.js'
 
 const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
 
+function historyCarriesClearedToolResult(messages: readonly Message[]): boolean {
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    const content = (message as { message?: { content?: unknown } }).message?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      const b = block as { type?: string; content?: never }
+      if (b.type === 'tool_result' && isClearedOrDigested(b.content)) return true
+    }
+  }
+  return false
+}
+
 type EventMint = ReturnType<typeof createEventMint>
 
 export type QueryParams = {
@@ -189,6 +220,7 @@ export type QueryParams = {
   maxOutputTokensOverride?: number
   maxTurns?: number
   skipCacheWrite?: boolean
+  effortMessage?: EffortValue
   taskBudget?: { total: number }
   deps?: QueryDeps
 }
@@ -218,6 +250,7 @@ type RunCtx = {
   fallbackModel: string | undefined
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
+  effortMessage: EffortValue | undefined
   deps: QueryDeps
   config: QueryConfig
   budgetGuard: BudgetGuard
@@ -440,15 +473,24 @@ async function* streamModel(
       const callId = `${iter.turnId}.c${++iter.callOrdinal}`
       const permitKey = `${iter.queryTracking.chainId}:${callId}`
       refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)
-      const permit = await acquireModelPermit({
-        lane:
-          toolUseContext.agentId !== undefined
-            ? 'background-session'
-            : isTurnOwningQuerySource(run.querySource)
-              ? 'foreground'
-              : 'service',
-        callId: permitKey,
-      })
+      let permit: Awaited<ReturnType<typeof acquireModelPermit>>
+      try {
+        permit = await acquireModelPermit({
+          lane:
+            toolUseContext.agentId !== undefined
+              ? 'background-session'
+              : isTurnOwningQuerySource(run.querySource)
+                ? 'foreground'
+                : 'service',
+          callId: permitKey,
+          ...(toolUseContext.seatHolder !== undefined ? { holder: toolUseContext.seatHolder } : {}),
+          signal: toolUseContext.abortController.signal,
+          ...(toolUseContext.onSeatWait !== undefined ? { onWait: toolUseContext.onSeatWait } : {}),
+        })
+      } catch (waitError) {
+        if (toolUseContext.abortController.signal.aborted) return { kind: 'streamed' }
+        throw waitError
+      }
       yield emit({
         kind: 'model_permit',
         callId,
@@ -474,7 +516,7 @@ async function* streamModel(
         reference: callReference,
       })
       if (pulseMain) {
-        const truth = resolveEffortTruth(iter.currentModel, effortValue)
+        const truth = resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })
         const effortLabel = truth.wire === undefined ? undefined : truth.label
         notePulseModel(iter.currentModel, effortLabel)
         setPulsePhase(getActivePulseTrace()?.generation ?? 0, 'dispatching', {
@@ -537,6 +579,7 @@ async function* streamModel(
             effortValue,
             advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
+            effortMessage: run.effortMessage,
             agentId: toolUseContext.agentId,
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
@@ -570,21 +613,51 @@ async function* streamModel(
             if (!responsesClassified.has(message.message.id)) {
               rememberClassifiedResponse(message.message.id)
               const drops = inputTransformationsOf(message.message)
+              const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              const rewrite = prefixVerdict?.mismatch ?? null
               const outcome = classifyThinkingDrops(
                 String(ownerFromToolUseContext(toolUseContext)),
                 drops,
-                prefixMarkOf(iter.messagesForQuery, iter.currentModel, {
-                  permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
-                }),
+                prefixMarkOf(
+                  iter.messagesForQuery,
+                  iter.currentModel,
+                  { permissionMode: toolUseContext.getAppState().toolPermissionContext.mode },
+                  {
+                    thinkingClearActive: getThinkingClearLatched() === true,
+                    contextEditActive: historyCarriesClearedToolResult(iter.messagesForQuery),
+                  },
+                ),
+                { byteMoved: rewrite !== null },
               )
+              if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
               if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
               }
-              const dropNotice = describeThinkingDrops(drops, outcome)
+              const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
               if (dropNotice !== null) {
-                yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+                const lawful = outcome.kind === 'lawful'
+                logForDebugging(`preserved thinking: ${lawful ? 'note' : 'warning'}: ${dropNotice}`)
+                yield emit({ kind: 'notice', message: lawful ? createThinkingNoteMessage(dropNotice) : createSystemMessage(dropNotice, 'warning') })
+              } else if (rewrite !== null && outcome.kind === 'none') {
+                recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel)
+                if (takeRewriteNoticeOnce(String(ownerFromToolUseContext(toolUseContext)))) {
+                  yield emit({ kind: 'notice', message: createSystemMessage(describePrefixRewrite(rewrite.part, rewrite.path), 'warning') })
+                }
               }
+              const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
+              if (dead.length > 0) {
+                logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
+                yield emit({ kind: 'attachment', message: createDeadThinkingAttachment(dead) })
+              }
+            }
+            if (toolUseContext.agentId == null) {
+              const boundRecord = await boundPrefixRecordToEmit(
+                String(rosterOwnerFromToolUseContext(toolUseContext)),
+                iter.messagesForQuery,
+                iter.currentModel,
+              )
+              if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }
             if (callId === `${iter.turnId}.c1`) {
               const u = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage
@@ -621,6 +694,25 @@ async function* streamModel(
           }
         }
         if (pulseMain) pulseMark('model_call_stream_end')
+        for (const settled of iter.assistantMessages) {
+          if (settled.streamEnd === undefined || streamEndsReceipted.has(settled.uuid)) continue
+          streamEndsReceipted.add(settled.uuid)
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(streamEndReceiptLine(settled.streamEnd), 'warning'),
+          })
+        }
+        for (const settled of iter.assistantMessages) {
+          const adjusted = settled.effortAdjusted
+          if (adjusted === undefined) continue
+          const key = `${toolUseContext.agentId ?? 'main'}:${adjusted.model}:${adjusted.asked}>${adjusted.sent ?? ''}`
+          if (effortAdjustmentsReceipted.has(key)) continue
+          effortAdjustmentsReceipted.add(key)
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(effortAdjustedReceiptLine(adjusted), 'warning'),
+          })
+        }
       } catch (innerError) {
         if (innerError instanceof FallbackTriggeredError && run.fallbackModel) {
           iter.currentModel = run.fallbackModel
@@ -704,6 +796,7 @@ export async function* runEventCore(
     querySource,
     maxTurns,
     skipCacheWrite,
+    effortMessage,
   } = params
   const deps = params.deps ?? productionDeps()
 
@@ -735,6 +828,7 @@ export async function* runEventCore(
     fallbackModel,
     querySource,
     skipCacheWrite,
+    effortMessage,
     deps,
     config,
     budgetGuard,
@@ -849,6 +943,11 @@ export async function* runEventCore(
       'apply',
     )
     let messagesForQuery = requestPlan.messages
+    {
+      const known = deadThinkingMarks(messages)
+      const fresh = (requestPlan.reductions.deadThinkingMarks ?? []).filter(mark => !known.get(mark.messageId)?.has(mark.blockIndex))
+      if (fresh.length > 0) yield emit({ kind: 'attachment', message: createDeadThinkingAttachment(fresh) })
+    }
     if (pendingOverflow?.rung === 'prune') {
       const pruned = requestPlan.reductions.pressurePruned
       yield emit({
@@ -1140,19 +1239,19 @@ export async function* runEventCore(
     }
 
     if (toolUseContext.abortController.signal.aborted) {
+      const cutReason = toolUseContext.abortController.signal.reason
       yield* emitSyntheticSettlements(
         assistantMessages,
-        'Interrupted by user',
+        turnCutResultText(turnCutOf(cutReason)),
         'aborted',
         emit,
       )
-      const steer =
-        toolUseContext.abortController.signal.reason === 'interrupt'
+      const steer = cutReason === 'interrupt'
       yield emit({
         kind: 'interruption',
         phase: 'stream',
         steer,
-        message: steer ? null : createUserInterruptionMessage({ toolUse: false }),
+        message: steer ? null : createUserInterruptionMessage({ toolUse: false, reason: cutReason }),
       })
       const terminal: Terminal = { reason: 'aborted_streaming' }
       yield emit({ kind: 'run_terminal', terminal })
@@ -1602,13 +1701,17 @@ export async function* runEventCore(
     }
 
     if (toolUseContext.abortController.signal.aborted) {
-      const steer =
-        toolUseContext.abortController.signal.reason === 'interrupt'
+      const cutReason = toolUseContext.abortController.signal.reason
+      const steer = cutReason === 'interrupt'
       yield emit({
         kind: 'interruption',
         phase: 'tools',
         steer,
-        message: steer ? null : createUserInterruptionMessage({ toolUse: true }),
+        message: steer ? null : createUserInterruptionMessage({ toolUse: true, reason: cutReason }),
+      })
+      yield emit({
+        kind: 'notice',
+        message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
       })
       const nextTurnCountOnAbort = turnCount + 1
       if (

@@ -12,6 +12,7 @@ import type {
 } from '../../types/message.js'
 import type { CompactMetadata, HookResultMessage } from '../../types/message.js'
 import type { UUID } from 'node:crypto'
+import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../utils/attachments/agentRoster.js'
 import { getDeferredToolsDeltaAttachment, getAgentListingDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
 import { generateFileAttachment } from '../../utils/attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
@@ -19,6 +20,10 @@ import { getUserContextAttachment } from '../../utils/attachments/userContext.js
 import { getMemoryPath } from '../../utils/config/derived.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
+import { appendSystemContext } from '../../utils/api.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import type { EffortValue } from '../../utils/effort.js'
+import { getCommandQueue } from '../../utils/messageQueueManager.js'
 import { classifyModelRoute } from '../providers/routeLaw.js'
 import { executePostCompactHooks, executePreCompactHooks } from '../../utils/hooks/events.js'
 import { logError } from '../../utils/log.js'
@@ -38,12 +43,11 @@ import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../.
 import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import { reAppendSessionMetadata } from '../../utils/sessionStorage/logs.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
-import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
-import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { checkFeatureGate_CACHED_MAY_BE_STALE, getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
@@ -51,6 +55,7 @@ import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api
 import { routedCallModel } from '../providers/callModelRouter.js'
 import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
+import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
 import { getRetryDelay } from '../api/withRetry.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import { isInstructionFilePath } from '../../services/instructions/engine.js'
@@ -69,6 +74,16 @@ import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
+import type { CompactProgressEvent } from '../../Tool.js'
+import {
+  FOLD_STAMP_THROTTLE_MS,
+  type FoldExit,
+  type FoldStatusV1,
+  type FoldTrigger,
+  beginFoldStatus,
+  foldStatusExit,
+  foldStatusOnEvent,
+} from './foldStatus.js'
 
 
 void notifyCompaction
@@ -85,7 +100,7 @@ export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
   'This conversation has outgrown one pass: after three narrowing retries the summariser itself was refused as too long. Start a fresh conversation with /clear, or switch to a model with a larger context window and run /compact again.'
-export const ERROR_MESSAGE_USER_ABORT = 'Compaction canceled.'
+export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'
 export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
   'Compaction was interrupted before a summary arrived — likely a network issue; try again.'
 
@@ -97,6 +112,29 @@ const DEGRADED_SUMMARY_LENGTH = 80
 
 
 export const MECHANICAL_FOLD_EFFORT = 'low' as const
+
+export function foldEffortFor(model: string, sessionEffort: EffortValue | undefined): EffortValue | undefined {
+  const verdict = classifyModelRoute(model)
+  const anthropic = verdict.kind === 'route' && verdict.route === 'anthropic'
+  return anthropic ? sessionEffort : MECHANICAL_FOLD_EFFORT
+}
+
+export function foldEffortMessageFor(model: string): EffortValue | undefined {
+  return servesPerMessageEffort(model) ? MECHANICAL_FOLD_EFFORT : undefined
+}
+
+export function learnsPerMessageEffortRefusal(row: AssistantMessage | undefined, model: string): boolean {
+  if (row?.isApiErrorMessage !== true || foldEffortMessageFor(model) === undefined) return false
+  const words = getAssistantMessageText(row) ?? ''
+  if (!refusesPerMessageEffortRow(words)) return false
+  notePerMessageEffortRefused(model)
+  logForDebugging(`compact: the host refused the per-message effort row for ${model} — the next fold request rides without it: ${words.slice(0, 160)}`, { level: 'warn' })
+  return true
+}
+
+function isOverflowAnswer(row: AssistantMessage): boolean {
+  return overflowSignalOf(row) !== null || (getAssistantMessageText(row) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)
+}
 const FOLD_DEADLINE_MS = 10 * 60 * 1000
 const FOLD_STALL_MS = 120_000
 
@@ -155,6 +193,28 @@ export function shouldRideCacheSharingFork(model: string, thinkingConfig?: { typ
   if (verdict.kind === 'absence') return false
   if (verdict.kind === 'unrecognised') return true
   return verdict.route === 'anthropic'
+}
+
+export function foldFamilyOf(model: string): string {
+  const verdict = classifyModelRoute(model)
+  return verdict.kind === 'route' ? verdict.route : verdict.kind
+}
+
+function recordFoldRoad(
+  model: string,
+  road: WireFoldRow['road'],
+  startedAt: number,
+  outcome: WireFoldRow['outcome'],
+  detail?: string,
+): void {
+  recordWireFoldRow({
+    family: foldFamilyOf(model),
+    road,
+    model,
+    outcome,
+    ms: Date.now() - startedAt,
+    ...(detail !== undefined ? { detail } : {}),
+  })
 }
 
 
@@ -522,37 +582,13 @@ export async function createPlanModeAttachmentIfNeeded(context: ToolUseContext):
 }
 
 export async function createAsyncAgentAttachmentsIfNeeded(context: ToolUseContext): Promise<AttachmentMessage[]> {
-  const tasks = context.getAppState().tasks
-  const attachments: AttachmentMessage[] = []
-  for (const task of Object.values(tasks ?? {})) {
-    const record = task as {
-      id: string
-      type: string
-      status: string
-      description: string
-      agentId?: string
-      retrieved?: boolean
-      progress?: { summary?: string }
-      error?: string
-    }
-    if (record.type !== 'local_agent') continue
-    if (record.retrieved === true) continue
-    if (record.status === 'pending') continue
-    if (record.agentId !== undefined && record.agentId === context.agentId) continue
-    attachments.push(
-      createAttachmentMessage({
-        type: 'task_status',
-        taskId: record.agentId ?? record.id,
-        taskType: 'local_agent',
-        status: record.status as never,
-        description: record.description,
-        deltaSummary:
-          record.status === 'running' ? (record.progress?.summary ?? null) : (record.error ?? null),
-        outputFilePath: getTaskOutputPath(record.id),
-      }),
-    )
-  }
-  return attachments
+  const state = context.getAppState()
+  return getAgentRosterAttachment({
+    tasks: state.tasks,
+    agentNameRegistry: state.agentNameRegistry,
+    excludeAgentId: context.agentId,
+    queuedNoticeIds: queuedNoticeTaskIds(getCommandQueue()),
+  }).map(createAttachmentMessage)
 }
 
 
@@ -579,7 +615,10 @@ async function summarizeViaCacheSharingFork(
   context: ToolUseContext,
 ): Promise<AssistantMessage | null> {
   const bound = armFoldBound(context.abortController.signal)
+  const startedAt = Date.now()
+  const model = context.options.mainLoopModel
   try {
+    context.setResponseLength?.(() => 0)
     const result = await runForkedAgent({
       promptMessages: [promptMessage],
       cacheSafeParams: { ...cacheSafeParams, forkContextMessages: messages },
@@ -588,45 +627,72 @@ async function summarizeViaCacheSharingFork(
       forkLabel: 'compact',
       maxTurns: 1,
       skipCacheWrite: true,
+      effortMessage: foldEffortMessageFor(context.options.mainLoopModel),
+      onStreamEvent: event => {
+        bound.touch()
+        const inner = event as { type?: string; delta?: { type?: string; text?: string } }
+        if (inner.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
+          const length = inner.delta.text?.length ?? 0
+          context.setResponseLength?.(prev => prev + length)
+        }
+      },
       overrides: {
         abortController: bound.controller,
         getAppState: () => {
           const state = context.getAppState()
-          const shielded = state.toolPermissionContext.shouldAvoidPermissionPrompts
+          return state.toolPermissionContext.shouldAvoidPermissionPrompts
             ? state
             : {
                 ...state,
                 toolPermissionContext: { ...state.toolPermissionContext, shouldAvoidPermissionPrompts: true },
               }
-          return shielded.effortValue === MECHANICAL_FOLD_EFFORT
-            ? shielded
-            : { ...shielded, effortValue: MECHANICAL_FOLD_EFFORT }
         },
       },
     })
+    if (bound.hitDeadline()) {
+      const elapsedMs = Date.now() - startedAt
+      logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms mid-stream — its partial output is discarded; handing over to the direct call`, { level: 'warn' })
+      recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsedMs} ms (partial output discarded)`)
+      return null
+    }
+    if (context.abortController.signal.aborted) {
+      recordFoldRoad(model, 'fork', startedAt, 'aborted')
+      return null
+    }
     const last = [...result.messages].reverse().find(message => message.type === 'assistant') as
       | AssistantMessage
       | undefined
     if (last !== undefined && last.isApiErrorMessage !== true) {
       const text = getAssistantMessageText(last)
-      if (text !== null && text !== '') return last
+      if (text !== null && text !== '') {
+        recordFoldRoad(model, 'fork', startedAt, 'summary')
+        return last
+      }
     }
-    if (
-      last !== undefined &&
-      (overflowSignalOf(last) !== null || (getAssistantMessageText(last) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE))
-    ) {
+    if (last !== undefined && isOverflowAnswer(last)) {
+      recordFoldRoad(model, 'fork', startedAt, 'overflow')
       return last
     }
+    if (last !== undefined) learnsPerMessageEffortRefusal(last, model)
     logForDebugging(`compact: fork path produced no usable summary: ${JSON.stringify(result.messages).slice(0, 500)}`, {
       level: 'warn',
     })
+    recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (err) {
+    const elapsedMs = Date.now() - startedAt
     if (bound.hitDeadline()) {
-      logForDebugging(`compact: fork lane hit its fold bound — handing over to the direct call`, { level: 'warn' })
+      logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms — handing over to the direct call`, { level: 'warn' })
+      recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsedMs} ms`)
+      return null
+    }
+    if (context.abortController.signal.aborted) {
+      recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
     }
     logError(err)
+    logForDebugging(`compact: fork lane failed after ${elapsedMs} ms — handing over to the direct call: ${err instanceof Error ? err.message : String(err)}`, { level: 'warn' })
+    recordFoldRoad(model, 'fork', startedAt, 'handover', (err instanceof Error ? err.message : String(err)).slice(0, 160))
     return null
   } finally {
     bound.dispose()
@@ -640,8 +706,28 @@ async function summarizeViaStreamingFallback(
   context: ToolUseContext,
 ): Promise<AssistantMessage> {
   const bound = armFoldBound(context.abortController.signal)
+  const startedAt = Date.now()
+  const model = context.options.mainLoopModel
   try {
-    return await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
+    const settled = await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
+    recordFoldRoad(model, 'direct', startedAt, settled.isApiErrorMessage === true ? 'refused' : 'summary')
+    return settled
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    recordFoldRoad(
+      model,
+      'direct',
+      startedAt,
+      message === ERROR_MESSAGE_FOLD_TIMEOUT
+        ? 'timeout'
+        : message === ERROR_MESSAGE_INCOMPLETE_RESPONSE
+          ? 'incomplete'
+          : context.abortController.signal.aborted || err instanceof APIUserAbortError
+            ? 'aborted'
+            : 'refused',
+      message.slice(0, 160),
+    )
+    throw err
   } finally {
     bound.dispose()
   }
@@ -654,9 +740,10 @@ async function streamingFallbackAttempts(
   context: ToolUseContext,
   bound: FoldBound,
 ): Promise<AssistantMessage> {
-  const attempts = checkFeatureGate_CACHED_MAY_BE_STALE('mercury_compact_streaming_retry') ? 2 : 1
+  let attempts = checkFeatureGate_CACHED_MAY_BE_STALE('mercury_compact_streaming_retry') ? 2 : 1
   const model = context.options.mainLoopModel
   let streamingStarted = false
+  let rowRefusalRetried = false
   for (let attempt = 1; attempt <= attempts; attempt++) {
     streamingStarted = false
     context.setResponseLength?.(() => 0)
@@ -668,12 +755,12 @@ async function streamingFallbackAttempts(
       'compact',
     )
     const toolMap = new Map<string, (typeof context.options.tools)[number]>()
-    toolMap.set(FileReadTool.name, FileReadTool)
-    if (toolSearchEnabled) {
-      toolMap.set(ToolSearchTool.name, ToolSearchTool)
-      for (const tool of context.options.tools) {
-        if (tool.name.startsWith('mcp__') && !toolMap.has(tool.name)) toolMap.set(tool.name, tool)
-      }
+    for (const tool of context.options.tools) {
+      if (!toolMap.has(tool.name)) toolMap.set(tool.name, tool)
+    }
+    if (toolMap.size === 0) {
+      toolMap.set(FileReadTool.name, FileReadTool)
+      if (toolSearchEnabled) toolMap.set(ToolSearchTool.name, ToolSearchTool)
     }
     const tools = [...toolMap.values()]
 
@@ -690,7 +777,7 @@ async function streamingFallbackAttempts(
     let captured: AssistantMessage | undefined
     const stream = routedCallModel({
       messages: apiMessages,
-      systemPrompt: cacheSafeParams.systemPrompt,
+      systemPrompt: asSystemPrompt(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {})),
       thinkingConfig: { type: 'disabled' },
       tools,
       signal: bound.signal,
@@ -703,7 +790,8 @@ async function streamingFallbackAttempts(
         querySource: 'compact' as never,
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],
-        effortValue: MECHANICAL_FOLD_EFFORT,
+        effortValue: foldEffortFor(model, context.getAppState().effortValue),
+        effortMessage: foldEffortMessageFor(model),
         ownerKey: String(rosterOwnerFromToolUseContext(context)),
       },
     })
@@ -728,8 +816,17 @@ async function streamingFallbackAttempts(
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
       throw err
     }
-    if (captured !== undefined) return captured
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
+    if (bound.signal.aborted) throw new APIUserAbortError()
+    if (captured?.isApiErrorMessage === true) {
+      if (!rowRefusalRetried && learnsPerMessageEffortRefusal(captured, model)) {
+        rowRefusalRetried = true
+        attempts += 1
+        continue
+      }
+      if (!isOverflowAnswer(captured)) throw new Error(getAssistantMessageText(captured) ?? ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+    }
+    if (captured !== undefined) return captured
     if (attempt < attempts) {
       await sleep(getRetryDelay(attempt), bound.signal).catch(() => {
         if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
@@ -773,6 +870,7 @@ async function summarizeWithPtlRetry(
   let messages = initialMessages
   let response: AssistantMessage | null = null
   for (let attempt = 0; attempt <= PTL_RETRY_LIMIT; attempt++) {
+    if (attempt > 0) context.onCompactProgress?.({ type: 'retry', attempt: attempt + 1 })
     const promptMessage = createUserMessage({ content: promptText })
     response = await runSummarization(messages, cacheSafeParams, promptMessage, context)
     const text = getAssistantMessageText(response) ?? ''
@@ -876,11 +974,71 @@ function notifyCompactionError(context: ToolUseContext, err: unknown): void {
   })
 }
 
-function restoreAfterCompaction(context: ToolUseContext): void {
+function restoreAfterCompaction(context: ToolUseContext, word: unknown = null): void {
   context.setStreamMode?.('requesting')
   context.setResponseLength?.(() => 0)
   context.onCompactProgress?.({ type: 'compact_end' })
-  context.setSDKStatus?.(null)
+  context.setSDKStatus?.(word)
+}
+
+export async function withFoldStatus<T, C extends ToolUseContext>(
+  context: C,
+  work: (scoped: C) => Promise<T>,
+  facts: { trigger: FoldTrigger; sessionMemory: boolean; microcompaction: boolean },
+): Promise<T> {
+  let status: FoldStatusV1 = beginFoldStatus({ ...facts, startedAtMs: Date.now() })
+  let chars = 0
+  let pending: NodeJS.Timeout | null = null
+  const send = (): void => {
+    if (pending !== null) {
+      clearTimeout(pending)
+      pending = null
+    }
+    context.setSDKStatus?.({ compacting: status })
+  }
+  const stamp = (now: boolean): void => {
+    if (context.setSDKStatus === undefined) return
+    if (now) {
+      send()
+      return
+    }
+    if (pending !== null) return
+    pending = setTimeout(send, FOLD_STAMP_THROTTLE_MS)
+    pending.unref?.()
+  }
+  const onEvent = (event: CompactProgressEvent): void => {
+    status = foldStatusOnEvent(status, event)
+    stamp(event.type !== 'summary_progress')
+  }
+  const scoped: C = {
+    ...context,
+    setSDKStatus: (word: unknown) => {
+      if (word === 'compacting') stamp(true)
+      else if (word !== null) context.setSDKStatus?.(word)
+    },
+    onCompactProgress: (event: CompactProgressEvent) => {
+      onEvent(event)
+      context.onCompactProgress?.(event)
+    },
+    setResponseLength: (updater: (prev: number) => number) => {
+      chars = Math.max(0, updater(chars))
+      onEvent({ type: 'summary_progress', chars })
+      context.setResponseLength?.(updater)
+    },
+  }
+  stamp(true)
+  let exit: FoldExit = 'landed'
+  try {
+    return await work(scoped)
+  } catch (err) {
+    const aborted = context.abortController?.signal.aborted === true
+    exit = aborted || err instanceof APIUserAbortError ? 'cancelled' : 'failed'
+    throw err
+  } finally {
+    if (pending !== null) clearTimeout(pending)
+    status = foldStatusExit(status, exit, Date.now())
+    restoreAfterCompaction(context, facts.trigger === 'manual' ? { compacting: status } : null)
+  }
 }
 
 
@@ -918,6 +1076,7 @@ export async function compactConversation(
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
     const response = await summarizeWithPtlRetry(messages, cacheSafeParams, promptText, context)
     const rawSummary = validateSummary(response, true)
+    context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
 
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined

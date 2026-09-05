@@ -33,7 +33,7 @@ import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
-import { parseEffortValue, type EffortValue } from '../../utils/effort.js'
+import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
 import { createSubagentContext } from '../../utils/forkedAgent.js'
 import {
   cloneFileStateCache,
@@ -49,6 +49,13 @@ import {
   STRUCTURED_OUTPUT_TOOL_NAME,
 } from '../WorkflowTool/structuredOutputTool.js'
 import { armInactivityDeadline, DeadlineExceededError, formatLimit, minutesKnobToMs } from '../../utils/deadline.js'
+import {
+  chargeRecoveryWait,
+  makeRecoveryBudget,
+  recoveryBudgetSpentLine,
+  recoveryNoticeFacts,
+  retryWaitWords,
+} from '../../services/api/recoveryBudget.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
@@ -138,10 +145,13 @@ export type RunAgentParams = {
   useExactTools?: boolean
   worktreePath?: string
   description?: string
+  seatHolder?: string
   transcriptSubdir?: string
   effortOverride?: string
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
+  onWait?: (words: string | null) => void
+  onPendingAsks?: (count: number) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   structuredOutputSpec?: {
     schema: Record<string, unknown>
@@ -427,11 +437,19 @@ export function resolveAgentEffort(facts: {
   definitionEffort: EffortValue | undefined
   sessionEffort: EffortValue | undefined
 }): EffortValue | undefined {
+  return agentOwnEffortWord(facts) ?? facts.sessionEffort
+}
+
+export function agentOwnEffortWord(facts: {
+  effortOverride: string | undefined
+  useExactTools: boolean | undefined
+  definitionEffort: EffortValue | undefined
+}): EffortValue | undefined {
   const pin =
     facts.effortOverride !== undefined && !facts.useExactTools
       ? parseEffortValue(facts.effortOverride)
       : undefined
-  return pin ?? facts.definitionEffort ?? facts.sessionEffort
+  return pin ?? facts.definitionEffort
 }
 
 export async function* runAgent(
@@ -457,10 +475,13 @@ export async function* runAgent(
     useExactTools,
     worktreePath,
     description,
+    seatHolder,
     transcriptSubdir,
     effortOverride,
     instructionProfileOverride,
     onQueryProgress,
+    onWait,
+    onPendingAsks,
     onResolvedIdentity,
     structuredOutputSpec,
   } = params
@@ -515,6 +536,14 @@ export async function* runAgent(
       events: eventsSeen,
       toolUses: toolUsesSeen,
     })
+  const recovery = makeRecoveryBudget()
+  let throttled: Error | null = null
+  let budgetCut: ReturnType<typeof setTimeout> | null = null
+  let retryWordsStanding = false
+  const cutAtBudget = (): void => {
+    throttled = new Error(recoveryBudgetSpentLine(recovery))
+    abortController.abort(throttled)
+  }
 
   const askHeartbeatMs = Math.max(1_000, Math.min(30_000, Math.floor(idleLimitMs / 4)))
   let pendingAsks = 0
@@ -522,6 +551,7 @@ export async function* runAgent(
   const canUseToolAskLively: typeof canUseTool = canUseTool
     ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
         pendingAsks++
+        onPendingAsks?.(pendingAsks)
         watchdog.touch()
         if (askHeartbeat === null) {
           askHeartbeat = setInterval(() => watchdog.touch(), askHeartbeatMs)
@@ -531,6 +561,7 @@ export async function* runAgent(
           return await canUseTool(...args)
         } finally {
           pendingAsks--
+          onPendingAsks?.(pendingAsks)
           if (pendingAsks === 0 && askHeartbeat !== null) {
             clearInterval(askHeartbeat)
             askHeartbeat = null
@@ -545,6 +576,7 @@ export async function* runAgent(
 
   const claim = Symbol('agent-executor')
   executorClaims.set(agentId, claim)
+  noteAgentEffortWord(agentId, agentOwnEffortWord({ effortOverride, useExactTools, definitionEffort: agentDefinition.effort }))
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
 
@@ -637,6 +669,7 @@ export async function* runAgent(
         parentGetAppState?.()?.toolPermissionContext
           .shouldAvoidPermissionPrompts === true,
       parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
+      parentChannel: toolUseContext.options.permissionChannel,
     })
     const avoidPrompts = posture.avoidPrompts
     const agentGetAppState: typeof parentGetAppState = () => {
@@ -765,6 +798,7 @@ export async function* runAgent(
       shareSetResponseLength: true,
       options: {
         isNonInteractiveSession,
+        ...(posture.permissionChannel !== undefined ? { permissionChannel: posture.permissionChannel } : {}),
         appendSystemPrompt: parentOptions.appendSystemPrompt,
         tools,
         commands: [],
@@ -786,9 +820,16 @@ export async function* runAgent(
         : {}),
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
+    childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
+    if (onWait !== undefined) childContext.onSeatWait = onWait
     if (preserveToolUseResults) {
       ;(childContext as { preserveToolResults?: boolean }).preserveToolResults =
         true
+    }
+    childContext.setSDKStatus = (status: unknown) => {
+      if (status !== null && typeof status === 'object' && 'wait' in status) {
+        onQueryProgress?.({ type: 'request_wait', wait: (status as { wait?: unknown }).wait ?? null } as never)
+      }
     }
 
     const messages: Message[] = [
@@ -833,7 +874,7 @@ export async function* runAgent(
         : {}),
     }).catch(() => {})
 
-    let lastRecordedUuid: string | undefined
+    let lastRecordedUuid: string | undefined = messages[messages.length - 1]?.uuid
     const effectiveMaxTurns = maxTurns ?? agentDefinition.maxTurns
 
     const queryParams: QueryParams = {
@@ -859,6 +900,33 @@ export async function* runAgent(
         }, declaredWaitMs)
         deferredTouch.unref?.()
       }
+      const notice = recoveryNoticeFacts(message)
+      if (notice !== null) {
+        const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+        retryWordsStanding = true
+        onWait?.(
+          retryWaitWords({
+            attempt: notice.attempt ?? recovery.waits,
+            of: notice.of,
+            declaredMs: notice.declaredMs,
+            honoredMs,
+            status: notice.status,
+            budget: recovery,
+          }),
+        )
+        if (budgetCut !== null) clearTimeout(budgetCut)
+        budgetCut = null
+        if (spent && honoredMs <= 0) cutAtBudget()
+        else if (spent) {
+          budgetCut = setTimeout(cutAtBudget, honoredMs)
+          budgetCut.unref?.()
+        }
+      } else if (retryWordsStanding && (message as { type?: string }).type !== 'progress') {
+        retryWordsStanding = false
+        if (budgetCut !== null) clearTimeout(budgetCut)
+        budgetCut = null
+        onWait?.(null)
+      }
       if ((message as { type?: string }).type === 'assistant') {
         const content = (message as { message?: { content?: unknown } }).message?.content
         if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
@@ -873,6 +941,12 @@ export async function* runAgent(
       }
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
+        void recordSidechainTranscript(
+          [message as Message],
+          agentId,
+          lastRecordedUuid as never,
+        ).catch(() => {})
+        lastRecordedUuid = (message as { uuid?: string }).uuid
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
             ?.type === 'max_turns_reached'
@@ -886,12 +960,13 @@ export async function* runAgent(
         yield message as Message
         continue
       }
+      const subtype = (anyMessage as { subtype?: string }).subtype
       const recordable =
         anyMessage.type === 'assistant' ||
         anyMessage.type === 'user' ||
         anyMessage.type === 'progress' ||
         (anyMessage.type === 'system' &&
-          (anyMessage as { subtype?: string }).subtype === 'compact_boundary')
+          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
       if (!recordable) continue
 
       void recordSidechainTranscript(
@@ -908,6 +983,7 @@ export async function* runAgent(
     if (watchdog.fired) {
       throw stalledError()
     }
+    if (throttled !== null) throw throttled
     if (abortController.signal.aborted) {
       throw new AbortError()
     }
@@ -918,9 +994,12 @@ export async function* runAgent(
     if (watchdog.fired && !(error instanceof DeadlineExceededError)) {
       throw stalledError()
     }
+    if (throttled !== null && error !== throttled) throw throttled
     throw error
   } finally {
     watchdog.cancel()
+    if (budgetCut !== null) clearTimeout(budgetCut)
+    if (retryWordsStanding) onWait?.(null)
     if (askHeartbeat !== null) {
       clearInterval(askHeartbeat)
       askHeartbeat = null
@@ -932,6 +1011,7 @@ export async function* runAgent(
 
     if (executorClaims.get(agentId) === claim) {
       executorClaims.delete(agentId)
+      forgetAgentEffortWord(agentId)
       if (agentDefinition.hooks) {
         clearSessionHooks(rootSetAppState, agentId)
       }

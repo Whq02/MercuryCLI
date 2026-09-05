@@ -18,6 +18,7 @@ console.log('============================================================')
 console.log(' unity headless launch profiles (MERCURY_UNITY) — proof')
 console.log('============================================================')
 
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'unity-profiles-home-'))
 const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.js')
 const { UNITY_LICENSE_DISCLAIMER, unityTestResultsPath } = await import(
   '../../src/services/ide/unityProject.js'
@@ -113,10 +114,24 @@ section('§2 · the three shapes (doc-law pinned)')
 
 section('§3 · results-XML convention')
 {
+  const { PROJECT_HOME_STORES } = await import('../../src/utils/projectHomeStores.js')
+  const insideProject = (root: string, p: string): boolean => {
+    const full = path.resolve(p)
+    const top = path.resolve(root)
+    return full.startsWith(top + path.sep) || full === top
+  }
   check(
-    'unityTestResultsPath: .mercury/unity-test-results/<mode>.xml',
+    'unityTestResultsPath: <root>/.mercury/unity-test-results/<mode>.xml',
     unityTestResultsPath('/r', 'EditMode') === path.join('/r', '.mercury', 'unity-test-results', 'editmode.xml') &&
       unityTestResultsPath('/r', 'PlayMode') === path.join('/r', '.mercury', 'unity-test-results', 'playmode.xml'),
+  )
+  check(
+    "the path satisfies the package's InsideProject fence (a bridged tests_run is never refused)",
+    insideProject('/r', unityTestResultsPath('/r', 'EditMode')) && insideProject('/r', unityTestResultsPath('/r', 'PlayMode')),
+  )
+  check(
+    "the editor's output is no Mercury store (the doctor's estate row never names it)",
+    !PROJECT_HOME_STORES.some(segments => segments.join('/') === 'unity-test-results'),
   )
 }
 

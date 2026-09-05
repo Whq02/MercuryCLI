@@ -1,5 +1,5 @@
 import type { RenderableMessage, Message } from '../types/message.js'
-import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } from './messages.js'
+import { isTurnCutText } from './messages.js'
 
 
 const searchTextCache = new WeakMap<object, string>()
@@ -62,7 +62,7 @@ function stripSystemReminders(text: string): string {
 }
 
 function isInterruptionSentinel(text: string): boolean {
-  return text === INTERRUPT_MESSAGE || text === INTERRUPT_MESSAGE_FOR_TOOL_USE
+  return isTurnCutText(text)
 }
 
 type BlockLike = {

@@ -386,7 +386,7 @@ export async function discoverLaunchProfiles(from: string = getCwd()): Promise<L
           profiles.push(
             mk(
               'test',
-              `unity ${mode} tests (headless; results XML → .mercury/unity-test-results/${mode.toLowerCase()}.xml)`,
+              `unity ${mode} tests (headless; results XML → ${path.relative(unity.root, unityTestResultsPath(unity.root, mode))})`,
               [
                 '-runTests',
                 '-batchmode',

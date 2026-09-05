@@ -341,6 +341,12 @@ export function subModelEffortStrip(container: SubModelContainer, model: string)
       receipt: `${model}: its effort dial is its reasoning dial, and ${containerLabel(container)} calls with thinking off — no level applies`,
     }
   }
+  if (truth.flooredBy === 'thinking-off') {
+    return {
+      kind: 'none',
+      receipt: `${model}: its effort dial is its reasoning dial, and ${containerLabel(container)} calls with thinking off — it sends ${truth.wire}, the lowest it serves`,
+    }
+  }
   const levels = truth.selectable
   const chosen = resolveSubModelEffort(container)
   const current =
@@ -377,6 +383,13 @@ export function subModelDispatchEffort(container: SubModelContainer, model: stri
       effortValue: undefined,
       chosen,
       fallback: `${model} sends no effort dial on ${label}'s thinking-off calls and runs its provider default — ${chosen} stays saved, not sent`,
+    }
+  }
+  if (truth.flooredBy === 'thinking-off') {
+    return {
+      effortValue: undefined,
+      chosen,
+      fallback: `${model} sends ${truth.wire} on ${label}'s thinking-off calls (the lowest it serves) — ${chosen} stays saved, not sent`,
     }
   }
   if (!truth.selectable.includes(chosen)) {

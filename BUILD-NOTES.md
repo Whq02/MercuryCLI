@@ -86,7 +86,7 @@ field and the packaged launchers project the range from the one owner.
 build injects it, and the banner, manifest, release archives, and CLI all
 render the same value.
 Same pattern for the repository URL: `MACRO.PACKAGE_URL` derives from
-`package.json` `repository.url`, and the private update channel resolves its
+`package.json` `repository.url`, and the update channel resolves its
 release slug from it — never a second hand-held literal. A missing
 `engines.node` or an unrecognized `repository.url` fails the build.
 
@@ -247,12 +247,17 @@ against their checked-in lock files before a byte is consumed.
   engine. WASM is platform-independent — one asset set serves every
   platform. `MERCURY_BUILD_NO_VENDOR_TREESITTER=1` and
   `MERCURY_BUILD_NO_VENDOR_GRAMMARPACK=1` force the degraded arms.
-- **sharp** (deliberately not vendored). Its native
-  binding is `node_modules`-resident, so a clean-machine artifact loses
-  sixel/half-cell image decode at call time with sharp's own named error
-  while the iTerm/kitty native image tiers keep working. The manifest's
-  `imageProcessing` entry states this so the absence is a stated trade, not
-  a silent surprise.
+- **Image-processor pack** (optional at build; from the repo dependency,
+  never fetched). sharp's prebuilt binding and the libvips library it links
+  arrive with `bun install` as the platform's `node_modules/@img/*`
+  packages; the build copies them to
+  `dist/vendor/image-processor/<platform>/` with a `vendor.json` stamp and
+  records them as the manifest's `imageProcessing` (sharp and libvips
+  versions). The runtime arms the pack beside the bundle before the first
+  image decode. Absent ⇒ degraded `image-processing`, and the runtime takes
+  the pure-JavaScript image road (PNG and BMP shrink; other formats pass
+  through unshrunk); the release packager refuses to publish that
+  degradation, so an archive packaged from this tree carries the pack.
 
 ## The NOTICE stamp
 
@@ -299,18 +304,50 @@ bundle, `manifest.json`, the platform ripgrep, the platform Node runtime
 (`vendor/node` — a fresh machine needs only git), the platform launcher
 (`mercury`, or `mercury.cmd` + `mercury.ps1`), the enter-screen pair
 (`splash.mjs` + `splash-core.mjs`, canonical in `assets/splash/`),
-`verify-artifact.mjs`, optional install scripts, `README-FIRST.md`, and
-`NOTICES.md` (the generated `THIRD_PARTY_NOTICES.md` verbatim). A degraded
-manifest refuses to package unless `--allow-degraded` says so explicitly.
+`verify-artifact.mjs`, optional install scripts, `README-FIRST.md`,
+`NOTICES.md` (the generated `THIRD_PARTY_NOTICES.md` verbatim), and Mercury's
+own licence documents verbatim — `LICENSE.md`, `TRADEMARKS.md`,
+`MERCURY-COMMUNITY-PRODUCTION-TERMS.md`. A degraded manifest refuses to
+package unless `--allow-degraded` says so explicitly.
+
+The licence documents are read on the release path
+(`scripts/release/releaseDocuments.mjs`, one owner): the packager refuses a
+`LICENSE.md` that still carries a bracketed placeholder or the review banner,
+names another version than the version root, states a change date that is
+not three years after the release date, or states a terms hash the terms
+file does not have — and reads the three files back out of the archive it
+smoked. `node scripts/release/releaseDocuments.mjs stamp` fills the version,
+the release date (today), the change date and the terms hash with the version
+bump before a tag; `check` is what the release verify job runs for the tag.
+
+The build ships for its host unless `bun run build.ts --target <target>` names
+another release target (`src/services/privateChannel/releaseTarget.ts` owns the
+vocabulary); the manifest's `target` record declares the platform, and the
+packager refuses a dist built for another target than its own. The Intel Mac
+archive is cross-packaged this way on the Apple silicon runner: the target's
+Node runtime comes from `fetch-node.ts --platform darwin-x64`, its search binary
+and image processor from `scripts/vendor/fetch-platform-packages.ts --target
+macos-x64` (the npm platform packages, each verified against the integrity
+`bun.lock` pins, into `vendor/platform-packages/`), and the voice addon from
+`build-voice.ts --target macos-x64` (cargo `--target x86_64-apple-darwin`, a
+loud skip without that rustup target). A cross build never takes the host's
+system `rg`. The packaged Intel archive is booted under `arch -x86_64` on a
+Mac with Rosetta 2 before it publishes.
 
 Launcher templates live in `scripts/release/launcherTemplates.mjs`; every
 launcher resolves its Node in one order — `MERCURY_NODE`, the vendored
 `vendor/node` beside the bundle, then a PATH node — and projects the Node
 policy from `engines.node` through a parser that refuses unrecognized
-shapes. Signing is optional at packaging:
-a signing key enters only through `MERCURY_SIGNING_KEY_FILE`
-(Ed25519 over the release-manifest tuple); an unsigned archive says so
-plainly. Release publication (tag ≡ version, `SHA256SUMS.txt`, the release
+shapes. Signing is a decision at packaging, never an accident: the release
+key enters only through `MERCURY_SIGNING_KEY_FILE` (Ed25519 over the
+release-manifest tuple, self-verified at full depth after signing); without
+it the packager refuses unless `--unsigned` was passed deliberately, and then
+the archive name ends in `-unsigned`. `scripts/release/verifyArchive.mjs`
+reads a packaged archive back and requires the expected verdict. The hosted
+release workflow holds the key as the repository secret `MERCURY_SIGNING_KEY`
+for the packaging step alone, fails without it (the dispatch input `unsigned`
+is the one road round), and verifies every archive before publishing.
+Release publication (tag ≡ version, `SHA256SUMS.txt`, the release
 notes extracted from the bundled changelog's `## <version>` section —
 `src/constants/changelog.ts`, by `scripts/release/notesFromChangelog.mjs`) is
 the release workflow under `.github/workflows/`.

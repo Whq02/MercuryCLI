@@ -2,6 +2,10 @@
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
+import { projectHomeLeftovers, projectHomeStore } from './projectHomeStores.js'
+import { MERCURY_PROJECT_DIR } from './projectConfig.js'
+import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
+import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { adoptiveProjectLocalPath } from '../services/projectLocal/paths.js'
@@ -9,14 +13,14 @@ import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
 import { execFile, spawn } from 'node:child_process'
 import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readFile, rename } from 'node:fs/promises'
 import { cpus, homedir, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
-import { basename, delimiter, dirname, join, relative } from 'node:path'
+import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from '../components/mercury-ui/glyphs.js'
 import { crashReportDir } from './crashReport.js'
 import { getAuthConfigHomeDir, getMercuryHome } from './envUtils.js'
 import { classifyHarnessHome, harnessArtifactPath, type HarnessHomeReport } from './knownAgentClis.js'
@@ -94,6 +98,7 @@ import { getLiveContextUsage } from './cockpit/contextUsageLive.js'
 import { ctxForecastEnabled } from './cockpit/ctxForecast.js'
 import { daemonSnapshot } from './cockpit/daemonSnapshot.js'
 import { daemonDir } from '../daemon/controlSocket.js'
+import type { DaemonSignInViewV1 } from '../daemon/protocol.js'
 import { getGlobalMercuryFile } from './env.js'
 import { getMacOsKeychainStorageServiceName } from './secureStorage/macOsKeychainHelpers.js'
 import { fleetGauge } from './cockpit/fleetGauge.js'
@@ -124,23 +129,40 @@ import {
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
-  const { mkdtempSync, rmSync } = await import('node:fs')
+  const { mkdirSync, mkdtempSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const idxDir = mkdtempSync(join(tmpdir(), 'gate-tree-'))
   const idx = join(idxDir, 'index')
+  const objects = join(idxDir, 'objects')
+  mkdirSync(objects, { recursive: true })
+  const repoObjects = await new Promise<string | null>(resolve => {
+    execFile(
+      'git',
+      ['rev-parse', '--git-path', 'objects'],
+      { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv() }, timeout: 15_000 },
+      (err, stdout) => resolve(err ? null : stdout.trim()),
+    )
+  })
+  const env = {
+    ...subprocessEnv(),
+    GIT_INDEX_FILE: idx,
+    ...(repoObjects
+      ? { GIT_OBJECT_DIRECTORY: objects, GIT_ALTERNATE_OBJECT_DIRECTORIES: resolvePath(cwdDir, repoObjects) }
+      : {}),
+  }
   const run = (args: string[]): Promise<string | null> =>
-    new Promise(resolve => {
+    new Promise(resolvePromise => {
       execFile(
         'git',
         args,
-        { windowsHide: true, cwd: cwdDir, env: { ...subprocessEnv(), GIT_INDEX_FILE: idx }, timeout: 15_000 },
-        (err, stdout) => resolve(err ? null : stdout.trim()),
+        { windowsHide: true, cwd: cwdDir, env, timeout: 15_000 },
+        (err, stdout) => resolvePromise(err ? null : stdout.trim()),
       )
     })
   try {
     if ((await run(['read-tree', 'HEAD'])) === null) return null
-    if ((await run(['add', '-A'])) === null) return null
-    const tree = await run(['write-tree'])
+    if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
+    const tree = await run(['write-tree', '--missing-ok'])
     return tree && tree.length > 0 ? tree : null
   } catch {
     return null
@@ -149,6 +171,167 @@ export async function computeWorkingTreeSha(cwdDir: string): Promise<string | nu
       rmSync(idxDir, { recursive: true, force: true })
     } catch {
     }
+  }
+}
+
+function gitLogSubjects(dir: string, limit: number): Promise<string[] | null> {
+  return new Promise(resolve => {
+    execFile(
+      'git',
+      ['-C', dir, 'log', `--max-count=${limit}`, '--format=%s'],
+      { windowsHide: true, env: { ...subprocessEnv() }, timeout: 10_000 },
+      (err, stdout) => resolve(err ? null : stdout.split('\n').filter(line => line !== '')),
+    )
+  })
+}
+
+export function homeRepositoryRemovalWords(dir: string, platform: NodeJS.Platform = process.platform): { inspect: string; remove: string } {
+  const inside = isHomeDirectory(dir) ? [] : [basename(dir)]
+  if (platform === 'win32') {
+    const segments = ['$env:USERPROFILE', ...inside.map(s => `'${s}'`)]
+    const folder = inside.length === 0 ? '$env:USERPROFILE' : `([IO.Path]::Combine(${segments.join(', ')}))`
+    return {
+      inspect: `git -C ${folder} log --oneline`,
+      remove: `Remove-Item -Recurse -Force ([IO.Path]::Combine(${[...segments, "'.git'"].join(', ')}))`,
+    }
+  }
+  const folder = inside.length === 0 ? '"$HOME"' : `"$HOME/${inside.join('/')}"`
+  return { inspect: `git -C ${folder} log --oneline`, remove: `rm -rf ${folder.slice(0, -1)}/.git"` }
+}
+
+const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (sign out and back in on Windows if unsure)'
+
+async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }> {
+  const runners: string[] = []
+  try {
+    const { readSessionWorkers } = await import('../daemon/concourseSupervisor.js')
+    for (const rec of Object.values(readSessionWorkers())) {
+      if (rec.endedAt !== undefined || rec.pid === undefined || !pidAlive(rec.pid)) continue
+      let ws: string
+      try {
+        ws = realpathSync(rec.workspaceId)
+      } catch {
+        continue
+      }
+      if (ws !== repo && !ws.startsWith(repo + sep)) continue
+      if (findGitRoot(ws) !== repo) continue
+      const warm = (rec as { warm?: boolean }).warm === true
+      runners.push(`${rec.runnerId}${warm ? ' (warm)' : ''} pid ${rec.pid}`)
+    }
+  } catch {
+  }
+  let indexLockAgeS: number | null = null
+  try {
+    indexLockAgeS = Math.max(0, Math.round((Date.now() - statSync(join(repo, '.git', 'index.lock')).mtimeMs) / 1000))
+  } catch {
+    indexLockAgeS = null
+  }
+  let objectsInFlight = 0
+  try {
+    objectsInFlight = readdirSync(join(repo, '.git', 'objects')).filter(n => /^tmp_obj_|^tmpobj/i.test(n)).length
+  } catch {
+    objectsInFlight = 0
+  }
+  return { runners, indexLockAgeS, objectsInFlight }
+}
+
+function holdersWords(h: { runners: string[]; indexLockAgeS: number | null; objectsInFlight: number }): string {
+  const parts: string[] = []
+  if (h.runners.length > 0) parts.push(`${h.runners.length} live session${h.runners.length === 1 ? '' : 's'} rooted here (${h.runners.join(', ')})`)
+  if (h.indexLockAgeS !== null) parts.push(`a git writer holds .git/index.lock (${h.indexLockAgeS} s old)`)
+  if (h.objectsInFlight > 0) parts.push(`${h.objectsInFlight} object${h.objectsInFlight === 1 ? '' : 's'} being written under .git/objects`)
+  return parts.length === 0 ? 'no Mercury process holds it now' : `held by Mercury now: ${parts.join(' · ')}`
+}
+
+export async function projectEstateCheck(): Promise<CheckResult> {
+  const root = healthStateRoot()
+  const leftovers = projectHomeLeftovers(root)
+  if (leftovers.length === 0) {
+    return { status: 'ok', evidence: `${MERCURY_PROJECT_DIR} holds shared configuration only — every machine-local store lives under the config home`, probe: 'functional' }
+  }
+  let tracked: string[] = []
+  try {
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { stdout } = await promisify(execFile)('git', ['ls-files', '-z', '--', ...leftovers], { cwd: root, timeout: 5_000, maxBuffer: 4 * 1024 * 1024 })
+    const files = stdout.split('\0').filter(f => f !== '')
+    tracked = leftovers.filter(dir => files.some(f => f === dir || f.startsWith(`${dir}/`)))
+  } catch {
+    tracked = []
+  }
+  const named = leftovers.map(dir => `${dir}${tracked.includes(dir) ? ' (tracked by git)' : ''}`).join(' · ')
+  return {
+    status: 'warn',
+    evidence: `machine-local stores still standing in the project folder: ${named}`,
+    detail:
+      'each was read once and migrated to the config home on its first touch; the project folder keeps its copy (Mercury never deletes it, and never writes an ignore rule)',
+    fix:
+      tracked.length > 0
+        ? `to stop committing them: git rm -r --cached ${tracked.map(dir => JSON.stringify(dir)).join(' ')} — then delete the folder copies when you are done with them`
+        : 'delete the folder copies when you are done with them (they are not tracked by git)',
+    probe: 'functional',
+  }
+}
+
+export async function homeRepositoryCheck(): Promise<CheckResult> {
+  const home = homeDirectory()
+  const candidates: string[] = [home]
+  let names: string[] = []
+  try {
+    names = readdirSync(home)
+  } catch {
+    names = []
+  }
+  for (const name of names) {
+    const lower = name.toLowerCase()
+    if (USER_ROOT_NAMES.some(n => n.toLowerCase() === lower) || lower.startsWith('onedrive')) candidates.push(join(home, name))
+  }
+  const repositories = candidates.filter(dir => {
+    try {
+      return statSync(join(dir, '.git')).isDirectory()
+    } catch {
+      return false
+    }
+  })
+  if (repositories.length === 0) {
+    return { status: 'ok', evidence: `no git repository at ${home} or its user folders`, probe: 'functional' }
+  }
+  const { FORK_BASE_COMMIT_SUBJECT } = await import('../daemon/concourseWorktrees.js')
+  const facts = await Promise.all(
+    repositories.map(async dir => {
+      let created = 'creation date unknown'
+      try {
+        const st = statSync(join(dir, '.git'))
+        const at = st.birthtimeMs > 0 ? st.birthtime : st.ctime
+        created = `.git created ${at.toISOString().slice(0, 10)}`
+      } catch {
+      }
+      const subjects = await gitLogSubjects(dir, 20)
+      const madeByMercury = subjects !== null && subjects.length === 1 && subjects[0] === FORK_BASE_COMMIT_SUBJECT
+      const startedByMercury = subjects !== null && subjects.includes(FORK_BASE_COMMIT_SUBJECT)
+      const who =
+        subjects === null
+          ? 'history unreadable'
+          : madeByMercury
+            ? 'made by Mercury (its base commit is the only commit)'
+            : startedByMercury
+              ? `started by Mercury, ${subjects.length - 1}${subjects.length >= 20 ? '+' : ''} commits since`
+              : `not Mercury's (${subjects.length}${subjects.length >= 20 ? '+' : ''} commits, none is Mercury's base commit)`
+      const words = homeRepositoryRemovalWords(dir)
+      const holders = holdersWords(await mercuryHoldersOf(dir))
+      const fix = madeByMercury
+        ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
+        : `Mercury keys every project beneath it as one: memory and project settings mix, and a forked worktree is a worktree of the home — keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
+      return { evidence: `${dir} is a git repository (${created}; ${who}; ${holders})`, fix }
+    }),
+  )
+  return {
+    status: 'fail',
+    evidence: facts.map(f => f.evidence).join(' · '),
+    detail:
+      'every folder beneath it without its own .git resolves to this repository, so repository-wide probes walk the whole profile; Mercury bounds its own probes to the launch folder and removes nothing here — remove it only with Mercury quit, or the deletion races the objects a live writer is still writing',
+    fix: facts.map(f => f.fix).join(' · '),
+    probe: 'functional',
   }
 }
 
@@ -232,7 +415,7 @@ function getProjectRootSafe(): string {
 }
 
 export function lastCertPath(): string {
-  return join(adoptiveProjectLocalPath(healthStateRoot(), 'doctor'), 'last-cert.json')
+  return join(projectHomeStore(healthStateRoot(), 'doctor'), 'last-cert.json')
 }
 
 export function gateVerdictPath(): string {
@@ -529,7 +712,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
   const t0 = Date.now()
   const cwd = getCwd()
 
-  const git = await gitSnapshot()
+  const git = await gitSnapshot({ fresh: true })
   const repo = git.state === 'live' ? git.data.git : null
   const head: CertHead = repo
     ? { sha: repo.commitHash, branch: repo.branchName, dirty: !repo.isClean }
@@ -961,14 +1144,28 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const parts = [
-              `${GLYPH.branch} ${repo.branchName} @ ${sha7(repo.commitHash)}`,
+              `${branchChip(repo.branchName)} @ ${sha7(repo.commitHash)}`,
               repo.isClean ? 'clean' : 'uncommitted changes',
             ]
             if (repo.unpushedCount > 0) parts.push(`${repo.unpushedCount} unpushed`)
             else if (repo.remoteUrl === null) parts.push('no remote configured')
             else if (!repo.isHeadOnRemote) parts.push('no upstream for this branch')
+            const note = gitProbeNote()
+            if (note !== null) return { status: 'warn', evidence: `${parts.join(' · ')} · ${note}` }
             return { status: 'ok', evidence: parts.join(' · ') + ' (getGitState)' }
           },
+        },
+        {
+          id: 'home-repository',
+          label: 'Home repository',
+          probe: 'functional',
+          run: () => homeRepositoryCheck(),
+        },
+        {
+          id: 'project-estate',
+          label: 'Project estate',
+          probe: 'functional',
+          run: () => projectEstateCheck(),
         },
       ],
     },
@@ -1184,6 +1381,45 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'daemon-sign-ins',
+          label: 'Daemon sign-in view',
+          run: async () => {
+            const d = daemonSnapshot()
+            if (d.state !== 'live') {
+              return { status: 'off', evidence: `no live daemon to compare with — ${d.reason}`, link: '/daemon' }
+            }
+            const { daemonControlRpc, restartDaemonWords } = await import('../daemon/controlSocket.js')
+            const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../daemon/signInView.js')
+            const reply = (await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 3000 })) as
+              | { ok: true; view: DaemonSignInViewV1 }
+              | { ok: false; code?: string; error?: string }
+            const restart = restartDaemonWords(binaryName())
+            if (!reply.ok) {
+              return {
+                status: 'warn',
+                evidence: `the daemon did not answer signIns (${reply.code ?? '?'}${reply.error ? `: ${reply.error}` : ''}) — a daemon of an older build`,
+                fix: `${restart} — the successor answers the sign-in verb.`,
+                link: '/daemon',
+              }
+            }
+            const mine = composeSignInView()
+            const gaps = compareSignInViews(mine, reply.view)
+            const sameEstate = reply.view.home === mine.home && reply.view.store === mine.store
+            const where = `daemon read ${reply.view.store} in ${reply.view.home}; this process reads ${mine.store} in ${mine.home}`
+            if (gaps.length === 0 && sameEstate) {
+              return { status: 'ok', evidence: `daemon and client agree — ${summarizeSignInView(reply.view)} · ${where}`, link: '/daemon' }
+            }
+            const named = gaps.map(g => `${g.family}: client ${g.client} vs daemon ${g.daemon}`).join('; ')
+            const lists = `daemon: [${summarizeSignInView(reply.view)}] · client: [${summarizeSignInView(mine)}]`
+            return {
+              status: 'fail',
+              evidence: `daemon ≠ client${named !== '' ? ` — ${named}` : ' — different home or store'} · ${lists} · ${where}`,
+              fix: `${restart} — a restarted daemon reads the estate this screen reads; a gap that stands means the two run on different homes, stores or env keys (the evidence names both).`,
+              link: '/daemon',
+            }
+          },
+        },
+        {
           id: 'daemon',
           label: 'Scheduler daemon',
           run: async () => {
@@ -1306,16 +1542,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'launch-spine',
           label: 'Boot milestones',
           run: async () => {
-            const { lastBootReachedInputLive, readLaunchMilestones } = await import(
+            const { lastBootReachedInputLive, lastInteractiveBootSpine } = await import(
               '../substrate/launchMilestones.js'
             )
             const reached = lastBootReachedInputLive()
-            if (reached === null) return { status: 'off', evidence: 'no milestones recorded yet' }
-            const rows = readLaunchMilestones()
-            const lastPid = rows[rows.length - 1]?.pid
-            const lastRungs = rows.filter(r => r.pid === lastPid).map(r => r.milestone)
-            const spine = lastRungs.join(' → ')
+            if (reached === null) return { status: 'off', evidence: 'no interactive boot recorded yet' }
             const RANK: Record<string, number> = { 'runtime-entry': 0, 'route-ready': 1, 'first-frame': 2, 'input-live': 3 }
+            const lastRungs = lastInteractiveBootSpine().map(r => r.milestone).filter(m => m in RANK)
+            const spine = lastRungs.join(' → ')
             const ranks = lastRungs.map(m => RANK[m] ?? -1)
             const inOrder = ranks.every((r, i) => r >= 0 && (i === 0 || r > ranks[i - 1]!))
             if (reached && !inOrder) {
@@ -1637,6 +1871,27 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             return { status: 'ok', evidence, link: '/fleet' }
+          },
+        },
+        {
+          id: 'seats',
+          label: 'Seats',
+          run: async () => {
+            const { seatCeilingFacts, seatCeilingValueWords, seatCostWarning } = await import('../services/switchboard/capacityCheck.js')
+            const { liveCeilingFacts, composeGovernorCeilings, composeProvenance } = await import('../services/capacity/composeCeilings.js')
+            const { seatNarrowingWords } = await import('../services/capacity/seatWords.js')
+            const facts = seatCeilingFacts()
+            const live = liveCeilingFacts(null)
+            const composed = composeGovernorCeilings(live)
+            const provenance = composeProvenance(live, composed)
+            const narrowed = seatNarrowingWords(provenance.narrowing)
+            const warning = seatCostWarning(facts)
+            const lanes = `${composed.delegationLanes} delegated lane${composed.delegationLanes === 1 ? '' : 's'} for the crew`
+            return {
+              status: narrowed !== null || warning !== null ? 'info' : 'ok',
+              evidence: `${seatCeilingValueWords(facts)} · ${facts.readingSentence} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
+              detail: `Sessions, sub-agents and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
+            }
           },
         },
         {
@@ -2408,6 +2663,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'iface-image-processor',
+          label: 'Image processor',
+          run: async () => {
+            const { describeImageProcessor } = await import('../tools/FileReadTool/imageProcessor.js')
+            const road = await describeImageProcessor()
+            return { status: road.ready ? ('ok' as const) : ('info' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
+          },
+        },
+        {
           id: 'iface-inventory',
           label: 'Interaction inventory',
           run: () => {
@@ -2509,12 +2773,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Eval languages',
           run: async () => {
             const { evalEnabled } = await import('../services/eval/contracts.js')
-            const { evalAvailability } = await import('../services/eval/interpreters.js')
+            const { primeEvalAvailability } = await import('../services/eval/interpreters.js')
             const { getCwd } = await import('./cwd.js')
             if (!evalEnabled()) {
               return { status: 'off', evidence: 'MERCURY_EVAL=0 — the Eval tool is out of the catalogue' }
             }
-            const rows = evalAvailability(getCwd())
+            const rows = await primeEvalAvailability(getCwd())
             const evidence = rows
               .map(row =>
                 row.available
@@ -2877,27 +3141,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const { vulcanInstallStatus } = await import('../services/vulcan/addonInstaller.js')
-            const { probeGodotEditorReachable } = await import('../services/lsp/godotLane.js')
+            const { probeGodotEditorPresence, presenceNudge } = await import('../services/vulcan/editorPresence.js')
             const s = vulcanInstallStatus(root)
-            const reachable = await probeGodotEditorReachable(port)
+            const presence = await probeGodotEditorPresence(root, port)
             const parts = [
               `project ${root}`,
               s.installed ? `addon installed${s.digestMatch ? '' : s.bundledFiles === 0 ? ' (dev bundle empty)' : ' (DRIFTED from bundle)'}` : 'addon NOT installed',
               s.enabled ? 'addon enabled' : 'addon not enabled',
-              reachable ? `editor answering :${port}` : `editor NOT answering :${port}`,
+              presence.reachable ? `bridge up :${port}` : `${presence.words} (:${port} dark)`,
             ]
-            if (!s.installed || !s.enabled) {
+            if (!s.installed || !s.enabled || !presence.reachable) {
               return {
                 status: 'warn' as const,
                 evidence: parts.join(' · ') + lite,
-                fix: 'Run the Godot tool op:"vulcan_install" (writes the addon and enables it), then focus/restart the editor.',
-              }
-            }
-            if (!reachable) {
-              return {
-                status: 'warn' as const,
-                evidence: parts.join(' · ') + lite,
-                fix: 'Open the project in the Godot editor (godot --editor --headless works; macOS app bundle: <Godot.app>/Contents/MacOS/Godot); the addon listens once the editor loads it.',
+                fix: presenceNudge(presence, s),
               }
             }
             return { status: 'ok' as const, evidence: parts.join(' · ') + lite }

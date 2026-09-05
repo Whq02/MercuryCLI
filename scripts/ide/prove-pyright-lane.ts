@@ -117,13 +117,15 @@ section('(4) ruff probe honesty + version floor (PATH-controlled shims)')
 
     mkShim('0.4.0')
     ruff._resetRuffProbeCacheForTesting()
-    const old = ruff.probeRuff()
+    const old = await ruff.primeRuffProbe()
     check('pre-server ruff (0.4.0) ⇒ refused with the version floor', !old.available && (old.reason ?? '').includes('0.5.3'), JSON.stringify(old))
 
     mkShim('0.8.1')
     ruff._resetRuffProbeCacheForTesting()
-    const good = ruff.probeRuff()
-    check('modern ruff (0.8.1) ⇒ available with version', good.available && good.version === '0.8.1', JSON.stringify(good))
+    const first = ruff.probeRuff()
+    check('a present ruff answers at once — present, version probing (never a synchronous version spawn)', first.available && first.probing === true && first.version === undefined, JSON.stringify(first))
+    const good = await ruff.primeRuffProbe()
+    check('modern ruff (0.8.1) ⇒ available with version once settled', good.available && good.version === '0.8.1' && good.probing === undefined, JSON.stringify(good))
 
     const cfg = ruff.builtinRuffServer()
     const row = cfg['mercury-ruff']

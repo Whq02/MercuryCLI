@@ -213,6 +213,7 @@ export function dequeue(
   const [dequeued] = queue.splice(idx, 1)
   commit()
   logOperation('dequeue')
+  rememberTaken(dequeued ? [dequeued] : [])
   emitConsumption('dequeued', dequeued ? [dequeued] : [])
   return dequeued
 }
@@ -227,6 +228,7 @@ export function dequeueAll(): QueuedCommand[] {
   for (const _cmd of commands) {
     logOperation('dequeue')
   }
+  rememberTaken(commands)
   emitConsumption('dequeued', commands)
   return commands
 }
@@ -252,6 +254,7 @@ export function dequeueAllMatching(
   for (const _cmd of matched) {
     logOperation('dequeue')
   }
+  rememberTaken(matched)
   emitConsumption('dequeued', matched)
   return matched
 }
@@ -281,9 +284,42 @@ export function remove(commandsToRemove: QueuedCommand[]): void {
   for (const _cmd of commandsToRemove) {
     logOperation('remove')
   }
+  rememberTaken(removed)
   emitConsumption('removed', removed)
 }
 
+
+const TAKEN_MEMORY = 256
+const takenUuids: string[] = []
+function rememberTaken(commands: readonly QueuedCommand[]): void {
+  for (const cmd of commands) {
+    if (cmd.uuid === undefined) continue
+    takenUuids.push(String(cmd.uuid))
+  }
+  if (takenUuids.length > TAKEN_MEMORY) takenUuids.splice(0, takenUuids.length - TAKEN_MEMORY)
+}
+
+export type PopReceipt =
+  | { popped: true; command: QueuedCommand; text: string }
+  | { popped: false; reason: 'taken' | 'unknown' }
+
+function textOfCommand(cmd: QueuedCommand): string {
+  if (typeof cmd.value === 'string') return cmd.value
+  return Array.isArray(cmd.value) ? extractTextContent(cmd.value, '\n') : ''
+}
+
+export function popById(uuid: string): PopReceipt {
+  if (uuid === '') return { popped: false, reason: 'unknown' }
+  const idx = queue.findIndex(cmd => cmd.uuid !== undefined && String(cmd.uuid) === uuid)
+  if (idx === -1) return { popped: false, reason: takenUuids.includes(uuid) ? 'taken' : 'unknown' }
+  const cmd = queue[idx]!
+  if (drainingNow.has(cmd)) return { popped: false, reason: 'taken' }
+  queue.splice(idx, 1)
+  commit()
+  logOperation('pop', typeof cmd.value === 'string' ? cmd.value : undefined)
+  emitConsumption('popped', [cmd])
+  return { popped: true, command: cmd, text: textOfCommand(cmd) }
+}
 
 export function resetCommandQueue(): void {
   queue.length = 0
@@ -291,6 +327,7 @@ export function resetCommandQueue(): void {
   drainingNow = new Set()
   owningSessionId = null
   parkedQueues.clear()
+  takenUuids.length = 0
 }
 
 

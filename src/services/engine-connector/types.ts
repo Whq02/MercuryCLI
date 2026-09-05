@@ -6,6 +6,7 @@ import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import type { MCPServerConnection } from '../mcp/types.js'
 import type { ContentBlockParam } from '../../types/wire.js'
+import type { AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { SessionKitEditV1 } from '../../daemon/sessionKit.js'
 import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwitches.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
@@ -22,6 +23,12 @@ export type SendWordsOptions = {
 export type SendReceiptV1 =
   | { state: 'accepted' }
   | { state: 'refused'; detail: string }
+
+export type RecallableSendV1 = { clientMessageId: string; text: string }
+
+export type WithdrawReceiptV1 =
+  | { withdrawn: true; text: string; mode: PromptInputMode; pastedContents: Record<number, PastedContent> }
+  | { withdrawn: false; reason: 'taken' | 'unknown' | 'refused'; detail: string }
 
 
 export type SessionAskV1 = {
@@ -45,17 +52,25 @@ export type AskReceiptV1 =
   | { ok: false; detail: string }
 
 
+export type AgentControlReceiptV1 = {
+  outcome: 'applied' | 'refused'
+  detail?: string
+}
+
+
 export type ModelFactsV1 = {
   effective: string
   effectiveSource?: 'live' | 'record' | 'ambient'
   main: string
   setting: ModelSetting
   sessionPin: ModelSetting | null
+  effort?: string | null
+  effortSent?: string | null
   pendingSwitch: { setting: ModelSetting } | null
 }
 
 export type ModelSwitchReceiptV1 =
-  | { state: 'applied' }
+  | { state: 'applied'; note?: string }
   | { state: 'queued' }
   | { state: 'no-op' }
   | { state: 'refused'; detail: string }
@@ -141,6 +156,14 @@ export type WorkPhaseV1 = {
   agents: WorkAgentV1[]
 }
 
+export type WorkflowPulseV1 = {
+  phaseTitle?: string
+  running: number
+  settled: number
+  maxAttempt: number
+  lastEventAt: number
+}
+
 export type WorkRowV1 = {
   id: string
   kind: 'workflow' | 'agent' | 'teammate' | 'shell' | 'monitor' | 'dream'
@@ -154,20 +177,28 @@ export type WorkRowV1 = {
   totalTokens?: number
   inputTokens?: number
   outputTokens?: number
+  contextTokens?: number
   costUSD?: number
   unpricedTurns?: number
   toolUses?: number
   activity?: string
+  wait?: string
   toolUseId?: string
   workflowRunId?: string
   phases?: WorkPhaseV1[]
   agentCount?: number
+  pulse?: WorkflowPulseV1
   pendingAsks?: number
   agentType?: string
   team?: string
+  stopReason?: string
+  phase?: AgentWaitV1
 }
 
 export type MissionRowV1 = {
+  blocks?: readonly string[]
+  blockedBy?: readonly string[]
+  ledger?: string
   id: string
   subject: string
   activeForm?: string
@@ -177,6 +208,7 @@ export type MissionRowV1 = {
 export type WorkRosterV1 = {
   rows: readonly WorkRowV1[]
   mission: readonly MissionRowV1[]
+  reported?: boolean
 }
 
 
@@ -202,6 +234,11 @@ export type RewindRequestV1 = {
 export type RewindReceiptV1 = SessionRewindOutcomeV1
 
 
+export interface PermissionModeReceiptV1 {
+  outcome: 'applied' | 'refused' | 'noop'
+  detail?: string
+}
+
 export interface EngineConnectorV1 {
   readonly carrier: EngineCarrierKind
 
@@ -221,9 +258,16 @@ export interface EngineConnectorV1 {
 
   interrupt(): boolean
 
+  recallableSend(): RecallableSendV1 | null
+  withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1>
+
+  stopAgent(agentId: string): Promise<AgentControlReceiptV1>
+  resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
+
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
   setModel(setting: ModelSetting): Promise<ModelSwitchReceiptV1>
+  setEffort(level: string): Promise<ModelSwitchReceiptV1>
 
   usage(): UsageFactsV1
   identity(): SeatIdentityV1
@@ -243,9 +287,9 @@ export interface EngineConnectorV1 {
   workRoster(): WorkRosterV1
   subscribeWork(listener: () => void): () => void
 
-  permissionMode(): PermissionMode
+  permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void
-  setPermissionMode(mode: PermissionMode): void
+  setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1>
 
   workspace(): WorkspaceFactsV1
 

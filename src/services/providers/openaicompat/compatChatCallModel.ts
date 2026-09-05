@@ -1,4 +1,5 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { randomUUID } from 'crypto'
 import type {
   ApiContentBlockDelta,
@@ -15,6 +16,8 @@ import type {
   SystemAPIErrorMessage,
 } from '../../../types/message.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
 import {
@@ -340,12 +343,13 @@ export async function* compatChatCallModel(
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
-  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue)
+  const effortValue = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const systemText = renderGenericInstructions(resolveBehaviourContract([...systemPrompt]))
   const wireModel = profile.wireModelId(modelId)
   const thinkingEnabled = thinkingConfig.type !== 'disabled'
@@ -603,6 +607,12 @@ async function* streamOneCompatAttempt(ctx: {
     url: requestUrl,
     request,
     signal,
+    firstByte: {
+      cold: coldPrefixOf(ctx.messages, modelId),
+      promptTokens: estimateRequestTokens(request),
+      model: getPublicModelDisplayName(modelId) ?? modelId,
+      ...(options.onWait ? { onWait: options.onWait } : {}),
+    },
   })
   for await (const event of events) {
     if (!firstEventSeen) {
@@ -661,6 +671,15 @@ async function* streamOneCompatAttempt(ctx: {
   if (fault && nothingYielded && !finish) {
     return { kind: 'fault', fault, retryEligible: true }
   }
+  const typedEnd =
+    fault !== undefined && !finish
+      ? typedStreamEndOf({
+          fault,
+          provider: profile.providerLabel,
+          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          silentMs: streamIdleTimeoutMs(),
+        })
+      : null
 
   yield* ensureMessageStart()
   yield* closeOpenBlock()
@@ -756,6 +775,7 @@ async function* streamOneCompatAttempt(ctx: {
   if (lastMessage) {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
+    if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     void settleTranscriptMessage(lastMessage)
   }
   yield streamEvent({
@@ -765,7 +785,7 @@ async function* streamOneCompatAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
-  if (fault) {
+  if (fault && typedEnd === null) {
     yield apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),
       compatFaultToTypedError(fault),

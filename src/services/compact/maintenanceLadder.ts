@@ -82,6 +82,7 @@ export async function runMaintenanceLadder(
           input.messages,
           input.toolUseContext.agentId,
           input.recompactionInfo.autoCompactThreshold,
+          input.toolUseContext,
         )
         if (result !== null) {
           steps.push({ method, outcome: 'applied' })

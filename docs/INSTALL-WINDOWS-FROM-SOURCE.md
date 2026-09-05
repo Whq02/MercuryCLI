@@ -1,9 +1,12 @@
 # Mercury on Windows — install from source
 
-This page is for an agent (or a person) with a Windows machine, a terminal, and
-no release archive. Follow it top to bottom. Every step has a check; do not
-move to the next step until the check passes. Nothing here needs admin rights
-unless the installer you pick asks for them.
+The release route on Windows is one line in PowerShell 7 — the
+`irm … | iex` command in the README's Install section — and needs Git and
+nothing else. This page is the other route: building Mercury from source on
+a Windows machine, for an agent (or a person) with a terminal and no release
+archive. Follow it top to bottom. Every step has a check; do not move to the
+next step until the check passes. Nothing here needs admin rights unless the
+installer you pick asks for them.
 
 Time: about 15 minutes, most of it downloads.
 
@@ -176,9 +179,6 @@ git clone https://github.com/Whq02/MercuryCLI.git mercury
 cd C:\src\mercury
 ```
 
-The repository is private: Git will ask you to sign in to GitHub in a browser
-window the first time. Use the account that was given access.
-
 Check:
 
 ```powershell
@@ -299,6 +299,14 @@ The first run asks you to choose a theme, then to sign in to a model
 provider. Type `/logins` later to add or change providers, and `/accounts`
 to see them. Type `/exit` to leave.
 
+To attach a screenshot, copy it and press **alt+v** in the chat (on Windows
+the terminal owns ctrl+v, and an image-only clipboard gives it nothing to
+paste); Mercury also says so when you come back to it with an image on the
+clipboard. Dragging an image file onto the window attaches it too. A big
+screenshot is shrunk to the model provider's limits, never refused for its
+size; `node dist\mercury.mjs doctor --json` names the image processor in
+its `iface-image-processor` row.
+
 Where you land: every start with no explicit journey lands on the Boot face
 — the card of New Session · Continue Last Session (once session history
 exists) · Boot Menu · MCPs & Skills · Agents · Doctor / Health Check ·
@@ -371,4 +379,3 @@ Common cases:
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
 | the interface says the window is too small | fewer than 80 columns or 22 rows | widen or maximise the window |
 | an immediate exit that mentions `--print` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
-| `git pull` asks you to sign in again | the GitHub token expired | sign in in the browser window it opens |

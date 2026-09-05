@@ -4,6 +4,7 @@ import { getInitialSettings, getSettingsForSource } from '../../utils/settings/s
 import { actionAffordance } from '../../keybindings/atlas.js'
 import { loadKeybindingsSync } from '../../keybindings/loadUserBindings.js'
 import { getPlatform } from '../../utils/platform.js'
+import { getNewlineInstructions } from '../../components/PromptInput/utils.js'
 import type { Tip, TipContext } from './types.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
 
@@ -15,10 +16,6 @@ function chordForChatAction(action: string, fallback: string): string {
   } catch {
     return fallback
   }
-}
-
-function isAppleTerminal(): boolean {
-  return process.env.TERM_PROGRAM === 'Apple_Terminal'
 }
 
 function daysSince(timestamp: number | undefined): number {
@@ -40,26 +37,66 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
-    id: 'apollo-interview',
-    cooldownSessions: 10,
+    id: 'help-browse',
+    cooldownSessions: 8,
     async content() {
-      return 'Apollo mode interviews you before the build — the closing review asks your go.'
+      return '/help browses every command Mercury answers to, and every shortcut.'
     },
     async isRelevant() {
       return true
     },
   },
   {
-    id: 'strategy-first',
-    cooldownSessions: 20,
+    id: 'prompt-queue',
+    cooldownSessions: 8,
     async content() {
-      return 'Ask for the plan first — strategy mode drafts it and acts only on your yes.'
+      return 'Keep typing while Mercury works — the queued message runs next, in order.'
     },
     async isRelevant() {
-      return daysSince(getGlobalConfig().lastPlanModeUse) > 7
+      return (getGlobalConfig().promptQueueUseCount ?? 0) === 0
+    },
+  },
+  {
+    id: 'sessions-switch',
+    cooldownSessions: 8,
+    async content() {
+      return '/sessions switches sessions in place — the one you leave keeps working.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'concourse-board',
+    cooldownSessions: 8,
+    async content() {
+      return "/concourse opens the Session Concourse — this project's sessions on one board, live."
+    },
+    async isRelevant() {
+      return !chatOnlyBoot()
     },
   },
 
+  {
+    id: 'compact-fold',
+    cooldownSessions: 10,
+    async content() {
+      return '/compact folds the conversation into a summary; the words after it steer the fold.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'effort',
+    cooldownSessions: 10,
+    async content() {
+      return "/effort picks the model's reasoning effort — low is fastest, high is thorough."
+    },
+    async isRelevant() {
+      return getSettingsForSource('policySettings')?.effortLevel === undefined
+    },
+  },
   {
     id: 'multi-family',
     cooldownSessions: 8,
@@ -71,10 +108,122 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
-    id: 'accounts-board',
+    id: 'strategy-first',
+    cooldownSessions: 12,
+    async content() {
+      return '/plan enters strategy mode — the plan comes first, the build only on your yes.'
+    },
+    async isRelevant() {
+      return daysSince(getGlobalConfig().lastPlanModeUse) > 7
+    },
+  },
+  {
+    id: 'apollo-interview',
+    cooldownSessions: 12,
+    async content() {
+      return 'Apollo mode interviews you before the build — the closing review asks your go.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'bang-shell',
+    cooldownSessions: 12,
+    async content() {
+      return 'Start with ! to run a shell command yourself; the output joins the conversation.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'image-paste',
+    cooldownSessions: 15,
+    async content() {
+      const chord = chordForChatAction('chat:imagePaste', 'ctrl+v')
+      return `Paste a screenshot straight from the clipboard with ${chord}.`
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'newline-terminal',
+    cooldownSessions: 15,
+    async content() {
+      return `Multi-line prompt: ${getNewlineInstructions()}.`
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'resume-session',
+    cooldownSessions: 10,
+    async content() {
+      return '/resume reopens an earlier session — pick one and keep working.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'continue-flag',
     cooldownSessions: 20,
     async content() {
-      return '/accounts shows every provider slot with its live-verified identity — tokens never shown.'
+      return 'mercury --continue reopens the last session straight from the terminal.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'rewind-checkpoint',
+    cooldownSessions: 12,
+    async content() {
+      return '/rewind winds back code, conversation, or both — pick the saved point to return to.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'diff-review',
+    cooldownSessions: 15,
+    async content() {
+      return "/diff reviews the workspace's uncommitted changes — sources, files, hunks."
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'pr-review',
+    cooldownSessions: 15,
+    async content() {
+      return '/review has Mercury review a pull request — bare, it picks from the open ones.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+
+  {
+    id: 'workflows-board',
+    cooldownSessions: 20,
+    async content() {
+      return 'Workflows are scripted multi-step agent runs — /workflows boards the active and the past.'
+    },
+    async isRelevant() {
+      return !chatOnlyBoot()
+    },
+  },
+  {
+    id: 'submodels-seats',
+    cooldownSessions: 20,
+    async content() {
+      return '/submodels seats the sub-models — Console for side questions, Minerva for the notepad.'
     },
     async isRelevant() {
       return true
@@ -84,7 +233,17 @@ const GENERAL_TIPS: Tip[] = [
     id: 'usage-meters',
     cooldownSessions: 20,
     async content() {
-      return '/usage meters every signed-in account; where a lane reports nothing, it says so.'
+      return '/usage shows what each signed-in provider has left.'
+    },
+    async isRelevant() {
+      return true
+    },
+  },
+  {
+    id: 'accounts-board',
+    cooldownSessions: 20,
+    async content() {
+      return '/accounts boards every signed-in account by provider, with re-login per slot.'
     },
     async isRelevant() {
       return true
@@ -100,62 +259,19 @@ const GENERAL_TIPS: Tip[] = [
       return true
     },
   },
-
-  {
-    id: 'concourse-board',
-    cooldownSessions: 8,
-    async content() {
-      return "/concourse boards this project's sessions — live status, step into the one that needs you."
-    },
-    async isRelevant() {
-      return !chatOnlyBoot()
-    },
-  },
-  {
-    id: 'sessions-switch',
-    cooldownSessions: 12,
-    async content() {
-      return '/sessions swaps sessions in place — the current pauses, state kept; switch back anytime.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
-    id: 'workflows-board',
-    cooldownSessions: 20,
-    async content() {
-      return 'Workflows are scripted multi-step agent runs — /workflows boards the active and the past.'
-    },
-    async isRelevant() {
-      return !chatOnlyBoot()
-    },
-  },
-
-  {
-    id: 'memory-note',
-    cooldownSessions: 12,
-    async content() {
-      return 'Start a message with # to bank a durable note — later sessions load it on their own.'
-    },
-    async isRelevant() {
-      return (getGlobalConfig().memoryUsageCount ?? 0) === 0
-    },
-  },
   {
     id: 'remember-card',
     cooldownSessions: 15,
     async content() {
-      return '/remember banks a lesson as a card; /remember project: <rule> records a house convention.'
+      return '/remember banks a lesson as a card; /remember project: <rule> records a project convention.'
     },
     async isRelevant() {
       return true
     },
   },
-
   {
     id: 'themis-mission',
-    cooldownSessions: 15,
+    cooldownSessions: 20,
     async content() {
       return '/themis start opens a bounded mission — named criteria, drift warnings, done only on evidence.'
     },
@@ -163,93 +279,6 @@ const GENERAL_TIPS: Tip[] = [
       return true
     },
   },
-
-  {
-    id: 'resume-session',
-    cooldownSessions: 10,
-    async content() {
-      return 'mercury --continue reopens the last session; /resume lists them all to pick up any.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
-    id: 'rewind-checkpoint',
-    cooldownSessions: 10,
-    async content() {
-      return '/rewind winds back code, conversation, or both — pick the saved point to return to.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
-    id: 'compact-fold',
-    cooldownSessions: 15,
-    async content() {
-      return '/compact folds the conversation into a summary and keeps going — steer it with instructions.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-
-  {
-    id: 'review-surfaces',
-    cooldownSessions: 15,
-    async content() {
-      return "/review reads a pull request; /diff reviews the workspace's uncommitted changes."
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-
-  {
-    id: 'prompt-queue',
-    cooldownSessions: 12,
-    async content() {
-      return 'Keep typing while Mercury works — the queued message runs next, in order.'
-    },
-    async isRelevant() {
-      return (getGlobalConfig().promptQueueUseCount ?? 0) === 0
-    },
-  },
-  {
-    id: 'newline-terminal',
-    cooldownSessions: 25,
-    async content() {
-      return isAppleTerminal()
-        ? 'Add a newline with option+enter.'
-        : 'Add a newline with shift+enter.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
-    id: 'image-paste',
-    cooldownSessions: 25,
-    async content() {
-      const chord = chordForChatAction('chat:imagePaste', 'ctrl+v')
-      return `Paste a screenshot straight from the clipboard with ${chord}.`
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
-    id: 'bang-shell',
-    cooldownSessions: 20,
-    async content() {
-      return 'Start with ! to run a shell command yourself; the output joins the conversation.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-
   {
     id: 'mouse-toggle',
     cooldownSessions: 30,
@@ -261,33 +290,13 @@ const GENERAL_TIPS: Tip[] = [
     },
   },
   {
-    id: 'submodels-seats',
-    cooldownSessions: 25,
-    async content() {
-      return '/submodels seats the side models — Console for side questions, Minerva for the notepad.'
-    },
-    async isRelevant() {
-      return true
-    },
-  },
-  {
     id: 'appearance-command',
     cooldownSessions: 25,
     async content() {
-      return '/appearance holds the look — theme, accent, and motion in one center.'
+      return '/appearance holds the look — theme, accent, and motion in one place.'
     },
     async isRelevant() {
       return true
-    },
-  },
-  {
-    id: 'effort',
-    cooldownSessions: 20,
-    async content() {
-      return '/effort dials how hard the model thinks — spend it on the gnarly work.'
-    },
-    async isRelevant() {
-      return getSettingsForSource('policySettings')?.effortLevel === undefined
     },
   },
   {

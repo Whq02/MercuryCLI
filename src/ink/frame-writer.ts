@@ -543,6 +543,11 @@ export class FrameWriter {
   }
 
   private renderFullFrameString(frame: Frame): Diff {
+    if (frame.screen.height === 0) return []
+    return [{ type: 'stdout', content: this.fullFrameText(frame) }]
+  }
+
+  fullFrameText(frame: Frame): string {
     const { screen } = frame
     const pool = this.options.stylePool
     const lines: string[] = []
@@ -571,8 +576,7 @@ export class FrameWriter {
       styleId = pool.none
       lines.push(line.trimEnd())
     }
-    if (lines.length === 0) return []
-    return [{ type: 'stdout', content: lines.join('\n') }]
+    return lines.join('\n')
   }
 }
 

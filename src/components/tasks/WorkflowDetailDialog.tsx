@@ -99,7 +99,7 @@ function agentStateLabel(state: AgentNode['state']): string {
       return 'running'
     case 'start':
     default:
-      return 'queued'
+      return 'starting'
   }
 }
 

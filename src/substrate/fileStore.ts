@@ -1,6 +1,7 @@
 
 import { resolveWatchRoot } from '../utils/watchRoot.js'
-import { existsSync, realpathSync } from 'node:fs'
+import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
+import { existsSync, realpathSync, watch as fsWatch, type FSWatcher as NodeFSWatcher } from 'node:fs'
 import { mkdir, readFile, stat, writeFile } from 'fs/promises'
 import { dirname } from 'path'
 import type { FSWatcher } from 'chokidar'
@@ -89,6 +90,13 @@ const DEFAULT_WATCH_DEBOUNCE_MS = 25
 
 const DEFAULT_POLL_FALLBACK_MS = 1000
 
+const DEFAULT_POLL_FLOOR_MS = 2000
+
+const STAT_KEY_ABSENT = 'absent'
+function statKeyOf(st: { mtimeMs: number; size: number; ino: number }): string {
+  return `${st.mtimeMs}:${st.size}:${st.ino}`
+}
+
 export async function publishAtomic(
   path: string,
   contents: string,
@@ -140,6 +148,7 @@ export interface StoreHandle<T> {
     publishEpoch: number
     lastSeenRevision: number | null
     lastEmittedOpId: string | null
+    lastStatKey: string | null
   }
 }
 
@@ -148,9 +157,11 @@ type Runtime = {
   watcher: FSWatcher | null
   watcherStarting: Promise<void> | null
   pollTimer: ReturnType<typeof setInterval> | null
-  pollFloorTimer: ReturnType<typeof setInterval> | null
+  pollLadderStop: (() => void) | null
+  pollFloorStop: (() => void) | null
   debounceTimer: ReturnType<typeof setTimeout> | null
   lastEmittedRaw: string | null
+  lastStatKey: string | null
   lastSeenRevision: number | null
   lastEmittedOpId: string | null
   emissionSeq: number
@@ -293,9 +304,11 @@ export function defineStore<T, A extends unknown[] = []>(
         watcher: null,
         watcherStarting: null,
         pollTimer: null,
-        pollFloorTimer: null,
+        pollLadderStop: null,
+        pollFloorStop: null,
         debounceTimer: null,
         lastEmittedRaw: null,
+        lastStatKey: null,
         lastSeenRevision: null,
         lastEmittedOpId: null,
         emissionSeq: 0,
@@ -328,6 +341,13 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const emitOnce = async (path: string, rt: Runtime): Promise<void> => {
     const epochAtRead = rt.publishEpoch
+    let statKey: string
+    try {
+      statKey = statKeyOf(await stat(path))
+    } catch (e) {
+      statKey = getErrnoCode(e) === 'ENOENT' ? STAT_KEY_ABSENT : ''
+    }
+    if (statKey !== '' && statKey === rt.lastStatKey && rt.publishEpoch === epochAtRead) return
     let raw: string | null
     try {
       raw = await readFile(path, 'utf-8')
@@ -335,6 +355,7 @@ export function defineStore<T, A extends unknown[] = []>(
       raw = getErrnoCode(e) === 'ENOENT' ? null : rt.lastEmittedRaw
       if (raw === rt.lastEmittedRaw && raw !== null) return
     }
+    if (statKey !== '' && rt.publishEpoch === epochAtRead) rt.lastStatKey = statKey
     if (emitReadGateForProofs) await emitReadGateForProofs()
     if (rt.publishEpoch !== epochAtRead) {
       rt.emitDirty = true
@@ -342,6 +363,10 @@ export function defineStore<T, A extends unknown[] = []>(
     }
     if (rt.listeners.size === 0) return
     if (raw === rt.lastEmittedRaw) return
+    if (rt.lastEmittedRaw === null && raw !== null && raw === encodeValue(cfg.empty())) {
+      rt.lastEmittedRaw = raw
+      return
+    }
     let value: T
     let revision: StoreRevision | null = null
     try {
@@ -386,6 +411,7 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const scheduleEmit = (path: string, rt: Runtime): void => {
     if (rt.listeners.size === 0) return
+    rt.lastStatKey = null
     if (rt.debounceTimer) clearTimeout(rt.debounceTimer)
     rt.debounceTimer = setTimeout(() => {
       rt.debounceTimer = null
@@ -420,9 +446,9 @@ export function defineStore<T, A extends unknown[] = []>(
           scheduleEmit(path, rt)
           void watcher.close().catch(() => {})
           if (rt.watcher === watcher) rt.watcher = null
-          if (rt.pollFloorTimer) {
-            clearInterval(rt.pollFloorTimer)
-            rt.pollFloorTimer = null
+          if (rt.pollFloorStop) {
+            rt.pollFloorStop()
+            rt.pollFloorStop = null
           }
           if (rt.listeners.size > 0) startPollUntilExists(path, rt)
         })
@@ -452,9 +478,9 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const startPollFallback = (path: string, rt: Runtime): void => {
     if (rt.pollTimer || rt.listeners.size === 0) return
-    if (rt.pollFloorTimer) {
-      clearInterval(rt.pollFloorTimer)
-      rt.pollFloorTimer = null
+    if (rt.pollFloorStop) {
+      rt.pollFloorStop()
+      rt.pollFloorStop = null
     }
     rt.pollTimer = setInterval(
       () => void emitIfChanged(path, rt),
@@ -464,34 +490,60 @@ export function defineStore<T, A extends unknown[] = []>(
   }
 
   const startPollFloor = (path: string, rt: Runtime): void => {
-    const floorMs = cfg.pollFloorMs ?? cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS
+    const floorMs = cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS
     if (!floorMs || floorMs <= 0) return
-    if (rt.pollFloorTimer || rt.listeners.size === 0) return
-    rt.pollFloorTimer = setInterval(
-      () => void emitIfChanged(path, rt),
-      floorMs,
-    )
-    rt.pollFloorTimer.unref?.()
+    if (rt.pollFloorStop || rt.listeners.size === 0) return
+    rt.pollFloorStop = subscribeUiClock(floorMs, () => void emitIfChanged(path, rt))
   }
 
   const startPollUntilExists = (path: string, rt: Runtime): void => {
     if (rt.pollTimer || rt.listeners.size === 0) return
-    rt.pollTimer = setInterval(() => {
-      void (async () => {
-        await emitIfChanged(path, rt)
+    let ancestor: NodeFSWatcher | null = null
+    const upgrade = (): void => {
+      if (rt.pollTimer) {
+        clearInterval(rt.pollTimer)
+        rt.pollTimer = null
+      }
+      stopFloor()
+      try {
+        ancestor?.close()
+      } catch {
+      }
+      ancestor = null
+      startWatcher(path, rt)
+    }
+    const probe = async (): Promise<void> => {
+      await emitIfChanged(path, rt)
+      if (rt.pollTimer === null) return
+      if (rt.lastStatKey === STAT_KEY_ABSENT || rt.lastStatKey === null) return
+      upgrade()
+    }
+    let dir = dirname(path)
+    while (dir !== dirname(dir) && !existsSync(dir)) dir = dirname(dir)
+    try {
+      const w = fsWatch(resolveWatchRoot(dir), () => void probe())
+      w.on('error', () => {
         try {
-          await stat(path)
+          w.close()
         } catch {
-          return
         }
-        if (rt.pollTimer) {
-          clearInterval(rt.pollTimer)
-          rt.pollTimer = null
-        }
-        startWatcher(path, rt)
-      })()
-    }, cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
+        if (ancestor === w) ancestor = null
+      })
+      ancestor = w
+    } catch {
+    }
+    const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
+    const stopFloor = subscribeUiClock(floorMs, () => void probe())
+    rt.pollTimer = setInterval(() => {}, 0x7fffffff)
     rt.pollTimer.unref?.()
+    rt.pollLadderStop = () => {
+      stopFloor()
+      try {
+        ancestor?.close()
+      } catch {
+      }
+      ancestor = null
+    }
   }
 
   const stopWatching = (path: string, rt: Runtime): void => {
@@ -503,15 +555,20 @@ export function defineStore<T, A extends unknown[] = []>(
       clearInterval(rt.pollTimer)
       rt.pollTimer = null
     }
-    if (rt.pollFloorTimer) {
-      clearInterval(rt.pollFloorTimer)
-      rt.pollFloorTimer = null
+    if (rt.pollLadderStop) {
+      rt.pollLadderStop()
+      rt.pollLadderStop = null
+    }
+    if (rt.pollFloorStop) {
+      rt.pollFloorStop()
+      rt.pollFloorStop = null
     }
     if (rt.debounceTimer) {
       clearTimeout(rt.debounceTimer)
       rt.debounceTimer = null
     }
     rt.lastEmittedRaw = null
+    rt.lastStatKey = null
     rt.lastSeenRevision = null
     rt.lastEmittedOpId = null
     rt.emitDirty = false
@@ -549,14 +606,16 @@ export function defineStore<T, A extends unknown[] = []>(
         : encoded
       const raw = jsonStringify(stampedPayload, null, 2) + '\n'
       await publishAtomic(path, raw)
+      rt.lastStatKey = null
       const emitted = revision ?? revisionFor(null, value)
+      const echoed = rt.lastEmittedRaw === raw
       rt.publishEpoch += 1
       rt.lastEmittedRaw = raw
       rt.lastEmittedOpId = revision?.operationId ?? null
       if (emitted) {
         rt.lastSeenRevision = Math.max(rt.lastSeenRevision ?? 0, emitted.revision)
       }
-      if (rt.listeners.size > 0) {
+      if (!echoed && rt.listeners.size > 0) {
         queueMicrotask(() =>
           fanOut(rt, { value, revision: emitted, cause, skippedRevisions: 0 }),
         )
@@ -668,12 +727,13 @@ export function defineStore<T, A extends unknown[] = []>(
         watcher: rt.watcher !== null,
         watcherStarting: rt.watcherStarting !== null,
         pollTimer: rt.pollTimer !== null,
-        pollFloorTimer: rt.pollFloorTimer !== null,
+        pollFloorTimer: rt.pollFloorStop !== null,
         debounceTimer: rt.debounceTimer !== null,
         emissionSeq: rt.emissionSeq,
         publishEpoch: rt.publishEpoch,
         lastSeenRevision: rt.lastSeenRevision,
         lastEmittedOpId: rt.lastEmittedOpId,
+        lastStatKey: rt.lastStatKey,
       }),
     }
   }

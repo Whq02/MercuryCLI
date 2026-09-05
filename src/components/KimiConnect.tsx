@@ -75,7 +75,7 @@ export function KimiConnect({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])
 
-  useInput((input, key) => {
+  useInput((input, key, event) => {
     if (leg === 'choice' || leg === 'region') return
     if (key.escape) {
       if (leg === 'key') {
@@ -87,6 +87,7 @@ export function KimiConnect({
       return
     }
     if (input === 'c' && !key.ctrl && !key.meta && leg === 'device' && start && phase === 'waiting') {
+      event.stopImmediatePropagation()
       void setClipboard(start.verificationUriComplete ?? start.verificationUri).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)

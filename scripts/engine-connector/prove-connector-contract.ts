@@ -26,6 +26,7 @@ const DOORS = [
   'modelFacts',
   'subscribeModel',
   'setModel',
+  'setEffort',
   'usage',
   'identity',
   'skillsRoster',
@@ -38,12 +39,16 @@ const DOORS = [
   'workspace',
   'dispatchSlash',
   'sendAgentNote',
+  'stopAgent',
+  'resumeAgent',
   'setKit',
   'checkpointFacts',
   'subscribeCheckpoints',
   'rewind',
   'spawnSwitches',
   'setSpawnSwitch',
+  'recallableSend',
+  'withdrawSend',
 ] as const
 
 {

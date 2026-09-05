@@ -638,12 +638,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
             return
           }
         }
-        const liveState = appStateStore.getState()
-        const generated = generateCommandSuggestions(input, commands, {
-          effortValue: liveState.effortValue,
-          permissionMode: liveState.toolPermissionContext?.mode,
-          mainLoopModelForSession: liveState.mainLoopModelForSession,
-        })
+        const generated = generateCommandSuggestions(input, commands)
         if (generated.length > 0) {
           const longest = Math.max(
             0,

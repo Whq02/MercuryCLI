@@ -2,7 +2,9 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import type { Message } from '../../../types/message.js'
+import type { AttachmentMessage, DeadThinkingMark, Message } from '../../../types/message.js'
+import { isToolResultMessage } from '../../../utils/messages/merge.js'
+import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
@@ -12,6 +14,7 @@ import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/mode
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
+import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -97,7 +100,14 @@ export function describeInputTransformations(list: readonly InputTransformation[
 }
 
 
-export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting' | 'declared' | 'roster-switch'
+export type LawfulPrefixChange =
+  | 'compaction'
+  | 'model-switch'
+  | 'operator-setting'
+  | 'declared'
+  | 'roster-switch'
+  | 'thinking-cleared'
+  | 'context-edited'
 
 export interface PrefixMark {
   firstRow: string | null
@@ -107,6 +117,8 @@ export interface PrefixMark {
   rosterChange: string | null
   model: string
   settings: string
+  thinkingClearActive: boolean
+  contextEditActive: boolean
 }
 
 export interface LiveOperatorSettings {
@@ -152,6 +164,7 @@ export function prefixMarkOf(
   messages: readonly Message[],
   model: string,
   live?: LiveOperatorSettings,
+  context?: { thinkingClearActive?: boolean; contextEditActive?: boolean },
 ): PrefixMark {
   let firstRow: string | null = null
   let compactBoundary: string | null = null
@@ -177,7 +190,17 @@ export function prefixMarkOf(
     }
     if (compactBoundary !== null && modelTransition !== null && rosterTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, rosterTransition, rosterChange, model, settings: spellOperatorSettings(live) }
+  return {
+    firstRow,
+    compactBoundary,
+    modelTransition,
+    rosterTransition,
+    rosterChange,
+    model,
+    settings: spellOperatorSettings(live),
+    thinkingClearActive: context?.thinkingClearActive === true,
+    contextEditActive: context?.contextEditActive === true,
+  }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -192,6 +215,7 @@ export interface DropOutcome {
   path: string | null
   reason: string | null
   paint: boolean
+  part: string | null
 }
 
 interface OwnerDropState {
@@ -199,25 +223,36 @@ interface OwnerDropState {
   kind: DropKind
   consecutive: number
   defectNoticed: boolean
+  editNoticed: boolean
 }
 
 const dropStates = new Map<string, OwnerDropState>()
 
+const rewriteNoticed = new Set<string>()
+
+export function takeRewriteNoticeOnce(owner: string): boolean {
+  if (rewriteNoticed.has(owner)) return false
+  rewriteNoticed.add(owner)
+  return true
+}
+
 export function resetThinkingDropStates(): void {
   dropStates.clear()
+  rewriteNoticed.clear()
 }
 
 export function classifyThinkingDrops(
   owner: string,
   list: readonly InputTransformation[],
   mark: PrefixMark,
+  opts?: { byteMoved?: boolean },
 ): DropOutcome {
   const dropped = list.filter(entry => entry.type === 'thinking_dropped')
   const previous = dropStates.get(owner)
   const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
-    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false })
-    return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null, paint: false }
+    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false, editNoticed: previous?.editNoticed ?? false })
+    return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null, paint: false, part: null }
   }
   let lawful: LawfulPrefixChange | null = null
   let detail: string | null = null
@@ -241,6 +276,10 @@ export function classifyThinkingDrops(
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
   if (reasons.size === 1 && reasons.has('model_binding_mismatch')) lawful = 'model-switch'
+  if (lawful === null && opts?.byteMoved !== true) {
+    if (mark.contextEditActive) lawful = 'context-edited'
+    else if (mark.thinkingClearActive) lawful = 'thinking-cleared'
+  }
   let kind: DropKind
   let consecutive: number
   if (lawful !== null) {
@@ -253,9 +292,17 @@ export function classifyThinkingDrops(
     kind = 'first'
     consecutive = 1
   }
+  const isSelfEdit = lawful === 'thinking-cleared' || lawful === 'context-edited'
   const defectNoticed = previous?.defectNoticed ?? false
-  const paint = kind !== 'recurrent' || !defectNoticed
-  dropStates.set(owner, { mark, kind, consecutive, defectNoticed: defectNoticed || kind === 'recurrent' })
+  const editNoticed = previous?.editNoticed ?? false
+  const paint = isSelfEdit ? !editNoticed : kind !== 'recurrent'
+  dropStates.set(owner, {
+    mark,
+    kind,
+    consecutive,
+    defectNoticed: defectNoticed || kind === 'recurrent',
+    editNoticed: editNoticed || isSelfEdit,
+  })
   const first = dropped[0]!
   return {
     kind,
@@ -267,7 +314,40 @@ export function classifyThinkingDrops(
     path: first.path,
     reason: first.reason,
     paint,
+    part: null,
   }
+}
+
+function ledgerClause(outcome: DropOutcome): string {
+  return outcome.part === null ? '' : ` Mercury's prefix ledger names the part that moved: ${outcome.part}.`
+}
+
+export function describePrefixRewrite(part: string, path: string): string {
+  return `Preserved thinking: Mercury rewrote already-sent history before this request — ${part} (${path}); the API reported no dropped block this turn. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+}
+
+function describePathTurn(path: string | null, turn: number | null): string {
+  const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
+  if (match === null) return 'an earlier turn'
+  if (turn !== null) return turn <= 1 ? 'the first turn' : `turn ${turn}`
+  return Number(match[1]) <= 1 ? 'the first turn' : 'an earlier turn'
+}
+
+export function turnOrdinalOfWirePath(
+  path: string | null,
+  wireMessageIds: readonly (string | null)[],
+  history: readonly Message[],
+): number | null {
+  const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
+  if (match === null) return null
+  const messageId = wireMessageIds[Number(match[1])]
+  if (typeof messageId !== 'string' || messageId.length === 0) return null
+  let turns = 0
+  for (const row of history) {
+    if (row.type === 'user' && !isToolResultMessage(row) && (row as { isMeta?: boolean }).isMeta !== true) turns++
+    if (row.type === 'assistant' && row.message.id === messageId) return turns
+  }
+  return null
 }
 
 function describePathClass(path: string | null): string {
@@ -287,11 +367,12 @@ function issuesUrl(): string {
 export function describeThinkingDrops(
   list: readonly InputTransformation[],
   outcome: DropOutcome,
+  turn: number | null = null,
 ): string | null {
   if (outcome.kind === 'none' || !outcome.paint) return null
   const count = outcome.count
   const noun = count === 1 ? 'thinking block' : 'thinking blocks'
-  const path = outcome.path ?? 'an earlier turn'
+  const path = describePathTurn(outcome.path ?? null, turn)
   switch (outcome.kind) {
     case 'lawful':
       if (outcome.lawful === 'compaction') {
@@ -306,13 +387,106 @@ export function describeThinkingDrops(
       if (outcome.lawful === 'declared') {
         return `Preserved thinking: the API dropped ${count} ${noun} after ${outcome.detail ?? 'a change you asked for'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
       }
+      if (outcome.lawful === 'thinking-cleared') {
+        return `Preserved thinking: the API dropped ${count} ${noun} — Mercury cleared reasoning older than the last turn after an hour idle (its own context edit), so the model re-plans without that earlier reasoning; later requests carry it no more (expected once).`
+      }
+      if (outcome.lawful === 'context-edited') {
+        return `Preserved thinking: the API dropped ${count} ${noun} — Mercury pruned superseded tool results to fit the context window, and the reasoning bound to them was cleared with them, so the model re-plans without it; later requests carry it no more (expected once).`
+      }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
     case 'first':
-      return describeInputTransformations(list)
+      return `${describeInputTransformations(list) ?? ''}${ledgerClause(outcome)}`
     case 'recurrent':
-      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} at an earlier request with no compaction, model switch or transcript edit to explain it (${describePathClass(outcome.path)}); every thinking block after that point keeps dropping on each request until the conversation compacts. This row paints once. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+      return null
   }
+}
+
+
+export function deadMarksFromDrops(
+  list: readonly InputTransformation[],
+  wireMessageIds: readonly (string | null)[],
+  existing: ReadonlyMap<string, ReadonlySet<number>> = new Map(),
+): DeadThinkingMark[] {
+  const out: DeadThinkingMark[] = []
+  for (const entry of list) {
+    if (entry.type !== 'thinking_dropped') continue
+    const match = /^messages\.(\d+)\.content\.(\d+)$/.exec(entry.path ?? '')
+    if (match === null) continue
+    const messageId = wireMessageIds[Number(match[1])]
+    if (typeof messageId !== 'string' || messageId.length === 0) continue
+    const sentIndex = Number(match[2])
+    const dead = existing.get(messageId)
+    let original = sentIndex
+    if (dead !== undefined && dead.size > 0) {
+      let seen = -1
+      original = -1
+      for (let index = 0; index < sentIndex + dead.size + 1; index++) {
+        if (dead.has(index)) continue
+        seen++
+        if (seen === sentIndex) {
+          original = index
+          break
+        }
+      }
+      if (original < 0) continue
+    }
+    if (!out.some(mark => mark.messageId === messageId && mark.blockIndex === original)) out.push({ messageId, blockIndex: original })
+  }
+  return out
+}
+
+export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
+  const marks = new Map<string, Set<number>>()
+  for (const message of messages) {
+    const dead =
+      message.type === 'attachment' && (message.attachment as { type?: string }).type === 'dead_thinking'
+        ? (message.attachment as { dead?: unknown }).dead
+        : message.type === 'system' && (message as { subtype?: string }).subtype === 'thinking_dead'
+          ? (message as { dead?: unknown }).dead
+          : undefined
+    if (!Array.isArray(dead)) continue
+    for (const mark of dead) {
+      const m = mark as { messageId?: unknown; blockIndex?: unknown }
+      if (typeof m.messageId !== 'string' || typeof m.blockIndex !== 'number') continue
+      let set = marks.get(m.messageId)
+      if (set === undefined) {
+        set = new Set<number>()
+        marks.set(m.messageId, set)
+      }
+      set.add(m.blockIndex)
+    }
+  }
+  return marks
+}
+
+export function createDeadThinkingAttachment(dead: DeadThinkingMark[]): AttachmentMessage {
+  return createAttachmentMessage({ type: 'dead_thinking', dead })
+}
+
+const isThinkingContent = (block: unknown): boolean => {
+  const type = (block as { type?: unknown } | null)?.type
+  return type === 'thinking' || type === 'redacted_thinking'
+}
+
+export function stripDeadThinking<M extends Message>(messages: M[], marks: ReadonlyMap<string, ReadonlySet<number>>): M[] {
+  if (marks.size === 0) return messages
+  let changed = false
+  const result = messages.map(msg => {
+    if (msg.type !== 'assistant') return msg
+    const indices = marks.get(msg.message.id)
+    if (indices === undefined) return msg
+    const content = msg.message.content
+    if (!Array.isArray(content)) return msg
+    const filtered = content.filter((block, index) => !(indices.has(index) && isThinkingContent(block)))
+    if (filtered.length === content.length) return msg
+    changed = true
+    if (filtered.length === 0) {
+      filtered.push({ type: 'text' as const, text: DEAD_THINKING_PLACEHOLDER, citations: [] })
+    }
+    return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
+  })
+  return changed ? result : messages
 }
 
 
@@ -340,7 +514,7 @@ export function modelSwitchReceipt(
 export interface ThinkingDropLedger {
   last: {
     at: string
-    kind: Exclude<DropKind, 'none'>
+    kind: Exclude<DropKind, 'none'> | 'rewrite'
     lawful: LawfulPrefixChange | null
     detail?: string | null
     reason: string | null
@@ -348,6 +522,7 @@ export interface ThinkingDropLedger {
     count: number
     consecutive: number
     model: string
+    part?: string | null
   }
   longestRun: number
 }
@@ -360,6 +535,9 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
   if (outcome.kind === 'none') return
   try {
     const previous = readThinkingDropLedger()
+    if (outcome.part === null && outcome.kind === 'recurrent' && typeof previous?.last.part === 'string' && previous.last.kind !== 'lawful') {
+      outcome.part = previous.last.part
+    }
     const ledger: ThinkingDropLedger = {
       last: {
         at: new Date().toISOString(),
@@ -371,17 +549,34 @@ export function recordThinkingDropLedger(outcome: DropOutcome, model: string): v
         count: outcome.count,
         consecutive: outcome.consecutive,
         model,
+        ...(outcome.part !== null ? { part: outcome.part } : {}),
       },
       longestRun: Math.max(previous?.longestRun ?? 0, outcome.kind === 'lawful' ? 0 : outcome.consecutive),
     }
-    const path = thinkingDropLedgerPath()
-    mkdirSync(dirname(path), { recursive: true })
-    const staging = `${path}.${process.pid}.tmp`
-    writeFileSync(staging, JSON.stringify(ledger, null, 2) + '\n')
-    renameSync(staging, path)
+    writeThinkingDropLedger(ledger)
   } catch (error) {
     logForDebugging(`preserved thinking: the doctor ledger could not be written (${String(error)})`, { level: 'warn' })
   }
+}
+
+export function recordPrefixRewriteLedger(part: string, path: string, model: string): void {
+  try {
+    const previous = readThinkingDropLedger()
+    writeThinkingDropLedger({
+      last: { at: new Date().toISOString(), kind: 'rewrite', lawful: null, reason: null, path, count: 0, consecutive: 1, model, part },
+      longestRun: Math.max(previous?.longestRun ?? 0, 1),
+    })
+  } catch (error) {
+    logForDebugging(`preserved thinking: the doctor ledger could not be written (${String(error)})`, { level: 'warn' })
+  }
+}
+
+function writeThinkingDropLedger(ledger: ThinkingDropLedger): void {
+  const path = thinkingDropLedgerPath()
+  mkdirSync(dirname(path), { recursive: true })
+  const staging = `${path}.${process.pid}.tmp`
+  writeFileSync(staging, JSON.stringify(ledger, null, 2) + '\n')
+  renameSync(staging, path)
 }
 
 export function readThinkingDropLedger(): ThinkingDropLedger | null {
@@ -408,6 +603,15 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   const { last } = ledger
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
+  const named = typeof last.part === 'string' && last.part.length > 0 ? ` Mercury's prefix ledger named the part that moved: ${last.part}.` : ''
+  if (last.kind === 'rewrite') {
+    return {
+      status: 'warn',
+      evidence: `Mercury rewrote sent history at ${last.at} — ${last.part ?? 'an unnamed part'} (${last.path ?? 'unknown path'}, model ${last.model}); the API reported no dropped block on that response`,
+      detail: `Longest run on this machine: ${ledger.longestRun}.`,
+      fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
+    }
+  }
   if (last.kind === 'lawful') {
     const cause =
       last.lawful === 'compaction'
@@ -418,7 +622,11 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
             ? `a change you asked for (${last.detail ?? 'unnamed'})`
             : last.lawful === 'roster-switch'
               ? "the operator's spawn-switch toggle"
-              : 'a model switch'
+              : last.lawful === 'thinking-cleared'
+                ? "Mercury's idle-hour thinking clear (its own context edit)"
+                : last.lawful === 'context-edited'
+                  ? "Mercury's tool-result prune (its own context edit)"
+                  : 'a model switch'
     return {
       status: 'info',
       evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
@@ -426,14 +634,15 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
   }
   if (last.kind === 'first') {
     return {
-      status: 'info',
-      evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — a single drop; a resumed session's first request or a client-side edit`,
+      status: named.length > 0 ? 'warn' : 'info',
+      evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — ${named.length > 0 ? `a rewrite of sent history.${named}` : "a single drop; a resumed session's first request or a client-side edit"}`,
       detail: `Longest run of consecutive drops on this machine: ${ledger.longestRun}.`,
+      ...(named.length > 0 ? { fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).` } : {}),
     }
   }
   return {
     status: 'warn',
-    evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}`,
+    evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}${named}`,
     detail: `${describePathClass(last.path)}. Longest run on this machine: ${ledger.longestRun}.`,
     fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
   }

@@ -42,6 +42,46 @@ export function clearToolRosterLatches(owner?: string): void {
   }
 }
 
+
+export interface RosterRestore {
+  key: string
+  enabled: boolean
+  marks: Array<{ name: string; deferred: boolean }>
+}
+let armedRosterRestore: RosterRestore | null = null
+
+export function armToolRosterRestore(restore: RosterRestore): void {
+  armedRosterRestore = restore
+}
+
+export function pendingToolRosterRestore(): RosterRestore | null {
+  return armedRosterRestore
+}
+
+export function clearToolRosterRestore(): void {
+  armedRosterRestore = null
+}
+
+function seedRosterLatchFromRestore(latchKey: string, restore: RosterRestore, tools: Tools): string[] {
+  const byName = new Map((tools as ReadonlyArray<Tool>).map(t => [t.name, t] as const))
+  const names: string[] = []
+  const seededTools: Tool[] = []
+  const deferred = new Set<string>()
+  const missingBound: string[] = []
+  for (const mark of restore.marks) {
+    const tool = byName.get(mark.name)
+    if (tool === undefined) {
+      if (!mark.deferred) missingBound.push(mark.name)
+      continue
+    }
+    names.push(mark.name)
+    seededTools.push(tool)
+    if (mark.deferred) deferred.add(mark.name)
+  }
+  rosterLatches.set(latchKey, { enabled: restore.enabled, names, tools: seededTools, deferred })
+  return missingBound
+}
+
 function firstConversationRow(messages: readonly Message[]): string {
   for (const message of messages) {
     if (message.type === 'user' || message.type === 'assistant') return message.uuid
@@ -49,8 +89,16 @@ function firstConversationRow(messages: readonly Message[]): string {
   return 'empty'
 }
 
-function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string): string {
+export function conversationRosterKey(latchKey: string, messages: readonly Message[], model: string): string {
   return `${latchKey}|${firstConversationRow(messages)}|${model}`
+}
+
+function conversationSuffixOf(key: string): string {
+  return key.split('|').slice(-2).join('|')
+}
+
+function rosterLatchKey(latchKey: string, messages: readonly Message[], model: string): string {
+  return conversationRosterKey(latchKey, messages, model)
 }
 
 export function toolRosterLatchFor(
@@ -70,6 +118,7 @@ export interface ToolPayloadPlan {
   admittedNames: ReadonlySet<string>
   announcement: string | null
   isDeferredUnadmitted(name: string): boolean
+  restoredMissingTools: readonly string[]
 }
 
 const ANNOUNCEMENT_OPEN = '<available-deferred-tools>'
@@ -89,6 +138,15 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
   const { model, tools, messages } = input
   const wire = deferralWireFormFor(model)
   const latchKey = input.latchKey === undefined ? null : rosterLatchKey(input.latchKey, messages, model)
+  let restoredMissingTools: string[] = []
+  if (
+    latchKey !== null &&
+    armedRosterRestore !== null &&
+    conversationSuffixOf(armedRosterRestore.key) === conversationSuffixOf(latchKey) &&
+    !rosterLatches.has(latchKey)
+  ) {
+    restoredMissingTools = seedRosterLatchFromRestore(latchKey, armedRosterRestore, tools)
+  }
   const latched = latchKey === null ? undefined : rosterLatches.get(latchKey)
 
   let enabled: boolean
@@ -168,6 +226,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     admittedNames,
     announcement,
     isDeferredUnadmitted: (name: string) => enabled && deferredNames.has(name) && !admittedNames.has(name),
+    restoredMissingTools,
   }
 }
 

@@ -1,4 +1,4 @@
-import type { EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { nearestSupportedWireEffort } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
@@ -9,6 +9,7 @@ import {
   getMaxSupportedEffortLevel,
   gptEffortVocabularyView,
   gptModelDefaultEffort,
+  modelOffersEffortLevel,
   modelSupportsEffort,
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
@@ -21,10 +22,9 @@ import { isDeepthinkEnabled, sessionThinkingEnabled } from './thinking.js'
 export type { EffortLevel }
 export type EffortValue = EffortLevel | number
 
-// prettier-ignore
-export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as readonly EffortLevel[]
+export { EFFORT_LEVELS }
 
-export { modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort, getMaxSupportedEffortLevel }
+export { modelOffersEffortLevel, modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort, getMaxSupportedEffortLevel }
 
 const FIRST_PARTY_DEFAULT_LEVEL: EffortLevel = 'high'
 const EXTERNAL_DEFAULT_LABEL = 'default'
@@ -97,6 +97,22 @@ export function getEffortEnvOverride(): EffortLevel | null | undefined {
   return describeEffortEnvOverride().override
 }
 
+
+const agentEffortWords = new Map<string, EffortValue>()
+
+export function noteAgentEffortWord(agentId: string, word: EffortValue | undefined): void {
+  if (word === undefined) agentEffortWords.delete(agentId)
+  else agentEffortWords.set(agentId, word)
+}
+
+export function forgetAgentEffortWord(agentId: string): void {
+  agentEffortWords.delete(agentId)
+}
+
+export function agentOwnEffortWordOf(agentId: string | undefined): EffortValue | undefined {
+  return agentId === undefined ? undefined : agentEffortWords.get(agentId)
+}
+
 export type EffortEnvOverrideView =
   | { state: 'absent'; override: undefined }
   | { state: 'deferred'; raw: string; override: null }
@@ -130,7 +146,7 @@ export type EffortResolution = {
   readonly model: string
   readonly catalogue: EffortCatalogueState
   readonly requested: EffortValue | undefined
-  readonly requestedSource: 'env' | 'env-suppressed' | 'session' | 'none'
+  readonly requestedSource: 'agent' | 'env' | 'env-suppressed' | 'session' | 'none'
   readonly supportsEffort: boolean
   readonly selectable: readonly EffortLevel[]
   readonly appliedValue: EffortValue | undefined
@@ -141,10 +157,12 @@ export type EffortResolution = {
   readonly providerVocabulary?: readonly string[]
   readonly providerDefault?: string
   readonly suppressedBy?: 'thinking-off'
+  readonly flooredBy?: 'thinking-off'
 }
 
 export type EffortTruthContext = {
   readonly thinkingEnabled?: boolean
+  readonly agentId?: string
 }
 
 export function selectableEffortLevelsForLadder(model: string): readonly EffortLevel[] {
@@ -153,12 +171,10 @@ export function selectableEffortLevelsForLadder(model: string): readonly EffortL
 }
 
 function stepDown(model: string, value: EffortValue): EffortValue {
-  if (typeof value !== 'string') return value
-  if (value === 'max' && !modelSupportsMaxEffort(model)) {
-    return modelSupportsXHighEffort(model) ? 'xhigh' : 'high'
-  }
-  if (value === 'xhigh' && !modelSupportsXHighEffort(model)) {
-    return 'high'
+  if (typeof value !== 'string' || !isEffortLevel(value)) return value
+  for (let rank = EFFORT_LEVELS.indexOf(value); rank >= 0; rank--) {
+    const level = EFFORT_LEVELS[rank] as EffortLevel
+    if (modelOffersEffortLevel(model, level)) return level
   }
   return value
 }
@@ -181,21 +197,27 @@ export function resolveStampedEffortTruth(
 
 function resolveEffortTruthWithEnv(
   model: string,
-  appStateEffortValue: EffortValue | undefined,
-  envOverride: EffortValue | null | undefined,
+  sessionEffortValue: EffortValue | undefined,
+  sessionEnvOverride: EffortValue | null | undefined,
   context: EffortTruthContext,
 ): EffortResolution {
   resolveAntModel(model)
   const freeze = (record: EffortResolution): EffortResolution => Object.freeze(record)
 
+  const ownWord = agentOwnEffortWordOf(context.agentId)
+  const envOverride = ownWord !== undefined ? undefined : sessionEnvOverride
+  const appStateEffortValue = ownWord !== undefined ? (sessionEffortValue ?? ownWord) : sessionEffortValue
+
   const requestedSource: EffortResolution['requestedSource'] =
-    envOverride === null
-      ? 'env-suppressed'
-      : envOverride !== undefined
-        ? 'env'
-        : appStateEffortValue !== undefined
-          ? 'session'
-          : 'none'
+    ownWord !== undefined
+      ? 'agent'
+      : envOverride === null
+        ? 'env-suppressed'
+        : envOverride !== undefined
+          ? 'env'
+          : appStateEffortValue !== undefined
+            ? 'session'
+            : 'none'
 
   const gptView = gptEffortVocabularyView(model)
   if (gptView.state !== 'not-gpt') {
@@ -293,15 +315,18 @@ function resolveEffortTruthWithEnv(
   if (view.kind === 'provider') {
     const vocabulary = view.vocabulary
     const request = typeof rawRequest === 'string' ? rawRequest : undefined
-    const suppressed = view.thinkingGated && !(context.thinkingEnabled ?? sessionThinkingEnabled())
-    const wire =
-      suppressed || request === undefined
+    const thinkingOff = view.thinkingGated && !(context.thinkingEnabled ?? sessionThinkingEnabled())
+    const floor = thinkingOff ? view.thinkingOffWire : undefined
+    const suppressed = thinkingOff && floor === undefined
+    const wire = thinkingOff
+      ? floor
+      : request === undefined
         ? undefined
         : vocabulary.includes(request)
           ? request
           : nearestSupportedWireEffort(request, [...vocabulary])
     const adjustedFrom =
-      !suppressed && request !== undefined && isEffortLevel(request) && request !== wire ? request : undefined
+      !thinkingOff && request !== undefined && isEffortLevel(request) && request !== wire ? request : undefined
     const applied = wire !== undefined && isEffortLevel(wire) ? wire : undefined
     return freeze({
       model,
@@ -318,6 +343,7 @@ function resolveEffortTruthWithEnv(
       providerVocabulary: [...vocabulary],
       ...(view.defaultEffort !== undefined ? { providerDefault: view.defaultEffort } : {}),
       ...(suppressed ? { suppressedBy: 'thinking-off' as const } : {}),
+      ...(thinkingOff && floor !== undefined ? { flooredBy: 'thinking-off' as const } : {}),
     })
   }
 
@@ -373,16 +399,33 @@ function resolveEffortTruthWithEnv(
 }
 
 
-export function resolveAppliedEffort(model: string, appStateEffortValue: EffortValue | undefined): EffortValue | undefined {
-  return resolveEffortTruth(model, appStateEffortValue).appliedValue
+export type EffortAdjustedV1 = { model: string; name: string; asked: string; sent?: string }
+
+export function effortAdjustedReceiptLine(adjusted: EffortAdjustedV1): string {
+  return adjusted.sent !== undefined
+    ? `effort ${adjusted.asked} is not served on ${adjusted.name} today — sent ${adjusted.sent}`
+    : `effort ${adjusted.asked} is not served on ${adjusted.name} today — no effort key was sent (the model default applies)`
+}
+
+
+export function resolveAppliedEffort(
+  model: string,
+  appStateEffortValue: EffortValue | undefined,
+  context: EffortTruthContext = {},
+): EffortValue | undefined {
+  return resolveEffortTruth(model, appStateEffortValue, context).appliedValue
 }
 
 export function selectableEffortLevels(model: string): readonly EffortLevel[] {
   return resolveEffortTruth(model, undefined).selectable
 }
 
-export function resolveWireRequestedEffort(model: string, appStateEffortValue: EffortValue | undefined): string | undefined {
-  const requested = resolveEffortTruth(model, appStateEffortValue).requested
+export function resolveWireRequestedEffort(
+  model: string,
+  appStateEffortValue: EffortValue | undefined,
+  context: EffortTruthContext = {},
+): string | undefined {
+  const requested = resolveEffortTruth(model, appStateEffortValue, context).requested
   return typeof requested === 'string' ? requested : undefined
 }
 
@@ -439,7 +482,7 @@ const FAMILY_PROBES: Array<{ display: string; probes: string[] }> = [
   { display: 'Sonnet 4.6+', probes: ['claude-sonnet-4-6'] },
   { display: 'Sonnet 5', probes: ['claude-sonnet-5'] },
   { display: 'Fable', probes: ['claude-fable-5', 'claude-fable-5-1'] },
-  { display: 'GPT', probes: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
+  { display: 'GPT', probes: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
 ]
 
 export function effortFamiliesLabel(supports: (modelId: string) => boolean): string {
@@ -464,6 +507,8 @@ export function getEffortLevelDescription(level: EffortLevel): string {
       return `Extra depth of reasoning — the right pick for difficult coding and long agentic runs · ${effortFamiliesLabel(modelSupportsXHighEffort)}`
     case 'max':
       return `The model's fullest capability and deepest reasoning · ${effortFamiliesLabel(modelSupportsMaxEffort)}`
+    case 'ultra':
+      return `Beyond max — the deepest rung a served ladder carries, where the account serves it · ${effortFamiliesLabel(model => modelOffersEffortLevel(model, 'ultra'))}`
   }
 }
 

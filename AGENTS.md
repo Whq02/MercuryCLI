@@ -55,8 +55,8 @@ back by `--concourse-on` or `/config`). The lifecycle is [docs/SESSIONS.md](docs
   your `PATH`; `mercury --version` checks it. The launcher runs `MERCURY_NODE`,
   else the vendored `vendor/node` beside the build, else a PATH node. A missing
   runtime is a loud launcher failure, never a silent fallback.
-- Release archives use `mercury install`, `mercury update`, and
-  `mercury update --rollback` instead; they never touch the config home.
+- A release install (README.md, Install: one command per channel) uses
+  `mercury install` and `mercury update` instead; neither touches sessions.
 
 ## Checks
 
@@ -71,9 +71,9 @@ Run the suite nearest your change; `bun run verify` closes — read its exit sta
 
 ## Reporting a problem
 
-Open an issue at https://github.com/Whq02/MercuryCLI/issues through one of its
-templates (bug · provider or model report · feature request) with the
-`--version` line, the OS and terminal, the exact steps, and the output of
-`node dist/mercury.mjs doctor --json` (`mercury doctor --json` for a release
-install). A pasted transcript of the failing screen helps. A security problem
-goes through the repository's Security tab (see SECURITY.md), never an issue.
+Inside Mercury, `/bug <what happened>` shows the exact report, then files it at
+https://github.com/Whq02/MercuryCLI/issues through your own signed-in `gh`;
+without gh it stays a local draft under the config home. By hand, open an issue
+there through a template (bug · provider or model report · feature request)
+with the `--version` line, the OS and terminal, the exact steps and `mercury
+doctor --json`. A security problem goes through the Security tab, never an issue.

@@ -61,6 +61,36 @@ export function getTaskListId(): string {
   return getTeamName() || leaderTeamName || getSessionId()
 }
 
+export async function listSessionMission(): Promise<Task[]> {
+  const own = String(getSessionId())
+  const current = getTaskListId()
+  const lists = current === own ? [own] : [own, current]
+  const seen = new Set<string>()
+  const rows: Task[] = []
+  for (const listId of lists) {
+    let tasks: Task[] = []
+    try {
+      tasks = await listTasks(listId)
+    } catch {
+      tasks = []
+    }
+    for (const task of tasks) {
+      if (listId === own) {
+        if (seen.has(task.id)) continue
+        seen.add(task.id)
+        rows.push(task)
+        continue
+      }
+      const keyed = (taskId: string): string => `${listId}:${taskId}`
+      const id = keyed(task.id)
+      if (seen.has(id)) continue
+      seen.add(id)
+      rows.push({ ...task, id, blocks: task.blocks.map(keyed), blockedBy: task.blockedBy.map(keyed) })
+    }
+  }
+  return rows
+}
+
 export function setLeaderTeamName(teamName: string): void {
   if (leaderTeamName === teamName) return
   leaderTeamName = teamName

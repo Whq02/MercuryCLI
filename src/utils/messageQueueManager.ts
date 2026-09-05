@@ -11,6 +11,8 @@ export {
   dequeueAll,
   dequeueAllMatching,
   remove,
+  popById,
+  type PopReceipt,
   getDrainableCommands,
   markDraining,
   resetCommandQueue,

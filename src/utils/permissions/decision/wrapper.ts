@@ -41,6 +41,7 @@ import { executePermissionRequestHooks } from '../../hooks.js'
 import {
   AUTO_REJECT_MESSAGE,
   buildClassifierUnavailableMessage,
+  buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
   buildYoloRejectionMessage,
   DONT_ASK_REJECT_MESSAGE,
@@ -498,8 +499,10 @@ export async function decideToolPermissionWithModes(
     ) {
       const headless =
         appState.toolPermissionContext.shouldAvoidPermissionPrompts
-      const cardAvailable =
-        !headless && context.options.isNonInteractiveSession !== true
+      const operatorReachable =
+        !headless &&
+        (context.options.isNonInteractiveSession !== true ||
+          context.options.permissionChannel !== undefined)
 
       if (
         engineDecision.decisionReason?.type === 'safetyCheck' &&
@@ -692,7 +695,7 @@ export async function decideToolPermissionWithModes(
 
       if (classifierResult.shouldBlock) {
         if (classifierResult.transcriptTooLong) {
-          if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
+          if (!operatorReachable) {
             throw new AbortError(
               "Run aborted: the flow classifier's transcript outgrew its context window with no prompt available",
             )
@@ -716,9 +719,9 @@ export async function decideToolPermissionWithModes(
         }
 
         if (classifierResult.unavailable) {
-          if (!headless) {
+          if (operatorReachable) {
             logForDebugging(
-              'Flow classifier unavailable, falling back to the human ask (interactive)',
+              'Flow classifier unavailable, falling back to the human ask (an operator is reachable)',
               { level: 'warn' },
             )
             return decide(
@@ -763,6 +766,52 @@ export async function decideToolPermissionWithModes(
           return decide('classifier', engineDecision, 'unavailable — fail open')
         }
 
+        if (classifierResult.unreadable) {
+          const model = classifierResult.model
+          const detail = classifierResult.verdictIssues?.join('; ')
+          if (operatorReachable) {
+            logForDebugging(
+              `Flow classifier verdict unreadable (${model}) — handing the ask to the operator`,
+              { level: 'warn' },
+            )
+            return decide(
+              'classifier',
+              {
+                ...engineDecision,
+                decisionReason: {
+                  type: 'other',
+                  reason: `Flow's safety check could not read its verdict from ${model}${detail ? ` (${detail})` : ''} — this approval returns to you`,
+                },
+              },
+              'unreadable verdict — human ask',
+            )
+          }
+          if (ports.ironGateClosed()) {
+            logForDebugging(
+              `Flow classifier verdict unreadable (${model}) — iron gate closed; denying without a policy verdict`,
+              { level: 'warn' },
+            )
+            return decide(
+              'classifier',
+              {
+                behavior: 'deny',
+                decisionReason: {
+                  type: 'classifier',
+                  classifier: 'auto-mode',
+                  reason: `Classifier verdict unreadable (${model})`,
+                },
+                message: buildClassifierUnreadableMessage(tool.name, model, detail),
+              },
+              'unreadable verdict — fail closed',
+            )
+          }
+          logForDebugging(
+            `Flow classifier verdict unreadable (${model}) — iron gate open; the ask returns to the operator path`,
+            { level: 'warn' },
+          )
+          return decide('classifier', engineDecision, 'unreadable verdict — fail open')
+        }
+
         const afterDenial = recordDenial(denialState)
         writeDenialState(context, afterDenial)
 
@@ -771,7 +820,7 @@ export async function decideToolPermissionWithModes(
           { level: 'warn' },
         )
 
-        if (!cardAvailable) {
+        if (!operatorReachable) {
           const capFallback = denialCapFallback(
             afterDenial,
             appState,

@@ -35,7 +35,16 @@ export interface WireBody {
   tools?: unknown
   messages?: unknown[]
   thinking?: unknown
+  instructions?: unknown
+  input?: unknown[]
   [key: string]: unknown
+}
+
+export function normalizeWireBody(body: WireBody): WireBody {
+  if (body.messages === undefined && Array.isArray(body.input)) {
+    return { ...body, system: body.instructions ?? '', messages: body.input }
+  }
+  return body
 }
 
 export function readCapture(file: string): CaptureRow[] {
@@ -44,7 +53,7 @@ export function readCapture(file: string): CaptureRow[] {
     if (line.trim() === '') continue
     try {
       const row = JSON.parse(line) as CaptureRow
-      if (row && typeof row === 'object' && row.body && typeof row.body === 'object') rows.push(row)
+      if (row && typeof row === 'object' && row.body && typeof row.body === 'object') rows.push({ ...row, body: normalizeWireBody(row.body) })
     } catch {
     }
   }
@@ -55,7 +64,7 @@ export function messageRows(rows: CaptureRow[]): CaptureRow[] {
   return rows.filter(row => {
     const url = row.url ?? row.path ?? ''
     const body = row.body
-    return url.includes('/messages') || (body !== undefined && Array.isArray(body.messages))
+    return url.includes('/messages') || url.endsWith('/responses') || (body !== undefined && Array.isArray(body.messages))
   })
 }
 
@@ -188,7 +197,7 @@ const textOfContent = (content: unknown): string => {
   return content
     .map(block => {
       const b = block as { type?: string; text?: string; content?: unknown }
-      if (b.type === 'text' && typeof b.text === 'string') return b.text
+      if ((b.type === 'text' || b.type === 'input_text' || b.type === 'output_text') && typeof b.text === 'string') return b.text
       if (b.type === 'tool_result') return textOfContent(b.content)
       return ''
     })
@@ -291,7 +300,7 @@ export function reportPairs(rows: CaptureRow[]): PairReport[] {
       model: curModel,
       verdict,
       lawful,
-      cacheRead: typeof usage?.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : null,
+      cacheRead: typeof usage?.cache_read_input_tokens === 'number' ? usage.cache_read_input_tokens : typeof usage?.cached_tokens === 'number' ? usage.cached_tokens : null,
       drops: dropped === null ? null : dropped.length,
       firstDropPath: dropped !== null && dropped.length > 0 ? String(dropped[0]!.path ?? '') : null,
       replayedThinking: thinkingBlockCount(cb),
@@ -321,7 +330,7 @@ export function printReport(rows: CaptureRow[], opts: { all?: boolean; quiet?: b
     const tools = toolNames(body.tools)
     const kind = isSummariserRequest(body) ? 'summariser' : isPostCompactionRequest(body) ? 'post-compaction' : 'conversation'
     const refused = refusalOf(row)
-    console.log(`  #${row.seq ?? '?'}  ${String(body.model ?? row.model ?? '?')}  ${kind}${row.source ? ` [${row.source}]` : ''}  system=${systemBytes(body)}B tools=${tools.length} messages=${Array.isArray(body.messages) ? body.messages.length : 0} thinking=${thinkingBlockCount(body)}${row.response?.usage ? ` cache_read=${row.response.usage.cache_read_input_tokens ?? 0}` : ''}${row.response?.input_transformations?.length ? ` drops=${row.response.input_transformations.length}` : ''}${refused !== null ? ` REFUSED ${refused}` : ''}${typeof row.response?.ms === 'number' ? ` ${row.response.ms}ms` : ''}`)
+    console.log(`  #${row.seq ?? '?'}  ${String(body.model ?? row.model ?? '?')}  ${kind}${row.source ? ` [${row.source}]` : ''}  system=${systemBytes(body)}B tools=${tools.length} messages=${Array.isArray(body.messages) ? body.messages.length : 0} thinking=${thinkingBlockCount(body)}${row.response?.usage ? ` cache_read=${row.response.usage.cache_read_input_tokens ?? row.response.usage.cached_tokens ?? 0}` : ''}${row.response?.input_transformations?.length ? ` drops=${row.response.input_transformations.length}` : ''}${refused !== null ? ` REFUSED ${refused}` : ''}${typeof row.response?.ms === 'number' ? ` ${row.response.ms}ms` : ''}`)
   }
   const pairs = reportPairs(stream)
   console.log('')

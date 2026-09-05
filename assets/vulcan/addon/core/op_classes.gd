@@ -1,6 +1,8 @@
 @tool
 extends RefCounted
 
+const STEP_WALL_MS_PER_FRAME := 50
+
 const CLASSES := {
 	"project_info": "read",
 	"project_file_search": "read",
@@ -170,6 +172,7 @@ const CLASSES := {
 	"vulcan_uninstall": "mutate",
 	"editor_doctor": "read",
 	"project_capsule": "read",
+	"project_refresh_classes": "exec",
 	"scene_diff": "read",
 	"batch_transaction": "mutate",
 	"broken_refs": "read",
@@ -180,6 +183,9 @@ const CLASSES := {
 	"runtime_frames": "read",
 	"playtest_run": "exec",
 	"runtime_wait_signal": "exec",
+	"runtime_pause": "exec",
+	"runtime_step": "exec",
+	"runtime_resume": "exec",
 }
 
 static func of(op: String) -> String:

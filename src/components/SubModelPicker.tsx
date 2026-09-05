@@ -13,6 +13,7 @@ import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.j
 import type { EffortLevel } from '../utils/effort.js'
 import { providerFrontierLine } from '../utils/model/providerFrontier.js'
 import { getMainLoopModel, renderModelName } from '../utils/model/model.js'
+import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import {
   canonicalSubModelId,
   composeSubModelRegistry,
@@ -228,7 +229,7 @@ function ContainerList({
       : resolved.origin === 'saved'
         ? 'saved pick'
         : 'no model pinned'
-  const mainModel = canonicalSubModelId(getMainLoopModel())
+  const mainModel = canonicalSubModelId(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
   const cacheWords =
     container === 'console' && resolved.origin !== 'unset'
       ? resolved.model === mainModel
@@ -408,7 +409,7 @@ export function SubModelPicker({
 
   const width = Math.max(56, Math.min(100, columns - 6))
   const listRows = Math.max(4, termRows - 12)
-  const mainModel = renderModelName(getMainLoopModel())
+  const mainModel = renderModelName(focusedSessionModelFacts()?.effective ?? getMainLoopModel())
 
   return (
     <Box flexDirection="column" width={width}>

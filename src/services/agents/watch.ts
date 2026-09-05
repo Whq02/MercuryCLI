@@ -1,6 +1,6 @@
 import chokidar, { type FSWatcher } from 'chokidar'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { existsSync, readdirSync, realpathSync } from 'node:fs'
+import { existsSync, readdirSync, realpathSync, watch as fsWatch, type FSWatcher as NodeWatcher } from 'node:fs'
 import * as platformPath from 'node:path'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -10,6 +10,7 @@ import { getProjectDirsUpToHome } from '../../utils/markdownConfigLoader.js'
 import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { createSignal } from '../../utils/signal.js'
 import { clearAgentDefinitionsCache } from '../../tools/AgentTool/loadAgentsDir.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 
 const USE_POLLING = typeof Bun !== 'undefined'
 
@@ -19,7 +20,7 @@ const DEFAULTS = {
   reloadDebounce: 300,
   chokidarInterval: 2000,
   selfWriteWindowMs: 2500,
-  rootProbeIntervalMs: 2000,
+  rootProbeIntervalMs: 30_000,
 }
 
 let overrides: Partial<typeof DEFAULTS> | null = null
@@ -35,7 +36,7 @@ function timing(): typeof DEFAULTS {
 let watcher: FSWatcher | null = null
 let watchedCwd: string | null = null
 let reloadTimer: ReturnType<typeof setTimeout> | null = null
-let rootProbeTimer: ReturnType<typeof setInterval> | null = null
+let stopRootLadder: (() => void) | null = null
 let missingRoots: string[] = []
 let pendingHadForeignWrite = false
 let unregisterCleanup: (() => void) | null = null
@@ -130,9 +131,67 @@ function probeMissingRoots(): void {
     }
   }
   missingRoots = still
-  if (missingRoots.length === 0 && rootProbeTimer) {
-    clearInterval(rootProbeTimer)
-    rootProbeTimer = null
+  if (missingRoots.length === 0 && stopRootLadder) {
+    stopRootLadder()
+    stopRootLadder = null
+  }
+}
+
+function nearestExistingAncestor(root: string): string {
+  let dir = platformPath.dirname(root)
+  while (dir !== platformPath.dirname(dir) && !existsSync(dir)) dir = platformPath.dirname(dir)
+  return dir
+}
+
+function armMissingRootLadder(floorMs: number): void {
+  if (stopRootLadder !== null) return
+  const ancestors = new Map<string, NodeWatcher>()
+  let alive = true
+  const rearm = (): void => {
+    if (!alive) return
+    const wanted = new Set(missingRoots.map(nearestExistingAncestor))
+    for (const [dir, w] of ancestors) {
+      if (wanted.has(dir)) continue
+      try {
+        w.close()
+      } catch {
+      }
+      ancestors.delete(dir)
+    }
+    for (const dir of wanted) {
+      if (ancestors.has(dir)) continue
+      try {
+        const w = fsWatch(resolveWatchRoot(dir), () => {
+          probeMissingRoots()
+          rearm()
+        })
+        w.on('error', () => {
+          try {
+            w.close()
+          } catch {
+          }
+          if (ancestors.get(dir) === w) ancestors.delete(dir)
+        })
+        ancestors.set(dir, w)
+      } catch {
+      }
+    }
+  }
+  rearm()
+  const stopFloor = subscribeUiClock(floorMs, () => {
+    probeMissingRoots()
+    rearm()
+  })
+  stopRootLadder = () => {
+    alive = false
+    stopFloor()
+    for (const w of ancestors.values()) {
+      try {
+        w.close()
+      } catch {
+      }
+    }
+    ancestors.clear()
   }
 }
 
@@ -150,10 +209,7 @@ export async function startAgentWatch(cwd: string): Promise<void> {
         ? ` (probing for: ${missingRoots.join(', ')})`
         : ''),
   )
-  if (missingRoots.length > 0) {
-    rootProbeTimer = setInterval(probeMissingRoots, t.rootProbeIntervalMs)
-    rootProbeTimer.unref?.()
-  }
+  if (missingRoots.length > 0) armMissingRootLadder(t.rootProbeIntervalMs)
   watcher = chokidar.watch(roots.map(resolveWatchRoot), {
     persistent: true,
     ignoreInitial: true,
@@ -193,9 +249,9 @@ export async function stopAgentWatch(): Promise<void> {
     clearTimeout(reloadTimer)
     reloadTimer = null
   }
-  if (rootProbeTimer) {
-    clearInterval(rootProbeTimer)
-    rootProbeTimer = null
+  if (stopRootLadder) {
+    stopRootLadder()
+    stopRootLadder = null
   }
   missingRoots = []
   pendingHadForeignWrite = false

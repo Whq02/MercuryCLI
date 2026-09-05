@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text, useAnimationValue, useInput } from '../../ink.js'
 import ScrollBox, { type ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import { TerminalSizeContext } from '../../ink/components/TerminalSizeContext.js'
 import { isXtermJs } from '../../ink/session/capabilities.js'
 import { topOverlay } from '../../context/overlayStack.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
@@ -255,7 +256,9 @@ export function SessionMirror({
         : 0
   const clusterReserve = Math.min(clusterDesired, Math.max(10, Math.floor(paneWidth / 2)))
   const titleBudget = Math.max(8, paneWidth - clusterReserve - 2)
+  const paneSize = useMemo(() => ({ columns: paneWidth, rows: paneRows }), [paneWidth, paneRows])
   return (
+    <TerminalSizeContext.Provider value={paneSize}>
     <Box flexDirection="column" height={paneRows} width={paneWidth} flexShrink={0} overflow="hidden">
       {bare ? null : (
       <Box height={1} flexShrink={0} overflow="hidden">
@@ -419,5 +422,6 @@ export function SessionMirror({
         </Box>
       ) : null}
     </Box>
+    </TerminalSizeContext.Provider>
   )
 }

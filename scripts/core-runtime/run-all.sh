@@ -53,6 +53,9 @@ __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-runsurface-contract.ts || fa
 echo "── core-runtime: input-scheduling contract (T13/T14)"
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-inputsched-contract.ts || fail=1; prover_mark scripts/core-runtime/prove-inputsched-contract.ts "$__t"
 
+echo "── core-runtime: the queue's recall pop (by identity)"
+__t=$SECONDS; "$BUN" run scripts/core-runtime/prove-queue-pop.ts || fail=1; prover_mark scripts/core-runtime/prove-queue-pop.ts "$__t"
+
 echo "── core-runtime: delivery exactly-once (steer-removal)"
 __t=$SECONDS; "$BUN" run scripts/core-runtime/prove-delivery-exactly-once.ts || fail=1; prover_mark scripts/core-runtime/prove-delivery-exactly-once.ts "$__t"
 

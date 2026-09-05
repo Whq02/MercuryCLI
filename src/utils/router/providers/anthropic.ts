@@ -1,6 +1,6 @@
 import { getContextWindowForModel } from '../../context.js'
 import { modelSupportsMaxEffort, modelSupportsXHighEffort } from '../../model/capabilities.js'
-import { getCanonicalName, renderModelChip } from '../../model/model.js'
+import { getCanonicalName, getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../model/model.js'
 import { SEAT_ALLOWED_FAMILIES, validateSeatModel } from '../../model/seatSlots.js'
 import type {
   ProviderDescription,
@@ -20,10 +20,11 @@ function isAnthropicModelClass(modelClass: RouterModelClass): modelClass is Anth
   return modelClass === 'opus' || modelClass === 'sonnet' || modelClass === 'fable'
 }
 
-const CLASS_DEFAULT_MODEL: Readonly<Record<AnthropicModelClass, string>> = {
-  opus: 'claude-opus-5',
-  sonnet: 'claude-sonnet-5',
-  fable: 'claude-fable-5[1m]',
+function classDefaultModel(modelClass: AnthropicModelClass): string {
+  if (modelClass === 'opus') return getDefaultOpusModel()
+  if (modelClass === 'sonnet') return getDefaultSonnetModel()
+  const fable = getDefaultFableModel()
+  return getContextWindowForModel(fable) >= 1_000_000 ? fable : `${fable}[1m]`
 }
 
 function classForCanonical(canonical: string): AnthropicModelClass | null {
@@ -57,7 +58,7 @@ export function resolveAnthropicModel(
   posture: RouterPosture,
 ): RouteModelRef | null {
   if (!isAnthropicModelClass(modelClass)) return null
-  const fallback = CLASS_DEFAULT_MODEL[modelClass]
+  const fallback = classDefaultModel(modelClass)
   const validated = validateSeatModel(fallback, fallback)
   if (validated.note) return null
   const model = validated.model

@@ -140,6 +140,16 @@ export type PermissionDecisionReason =
   | { type: 'workingDir'; reason: string }
   | { type: 'safetyCheck'; reason: string; classifierApprovable: boolean }
   | { type: 'other'; reason: string }
+  | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: PermissionDecisionReason }
+
+export type BypassedAskRoad = 'toolAskRule' | 'contentAskRule' | 'orgAskCeiling' | 'safetyCheckAsk'
+
+export const BYPASSED_ASK_ROAD_WORDS: Readonly<Record<BypassedAskRoad, string>> = Object.freeze({
+  toolAskRule: 'a tool ask rule',
+  contentAskRule: 'an ask rule',
+  orgAskCeiling: "the server's ask ceiling",
+  safetyCheckAsk: 'the path-safety check',
+})
 
 export type PendingClassifierCheck = {
   command: string
@@ -227,6 +237,8 @@ export type YoloClassifierResult = {
   thinking?: string
   unavailable?: boolean
   retryable?: boolean
+  unreadable?: boolean
+  verdictIssues?: string[]
   transcriptTooLong?: boolean
   usage?: ClassifierUsage
   durationMs?: number

@@ -88,28 +88,29 @@ console.log('§5 C6 — the tool header is one row by fold, both shells')
   check('the two-line truncations are retired', !bash.includes('truncateCommandDisplay') && !pwsh.includes('lines.slice(0, 2)'))
 }
 
-console.log('§6 C5 — the consent preview is height-bound and names its cut')
+console.log('§6 — the consent command is height-bound and names its cut')
 {
-  const { consentCommandPreview, consentPreviewBudget } = await import('../../src/components/permissions/consentPreview.ts')
-  check('the budget floors at 6 and follows the terminal', consentPreviewBudget(12) === 6 && consentPreviewBudget(40) === 26)
-  const short = consentCommandPreview('ls -la\npwd', 100, 30)
-  check('a short command is whole with nothing hidden', short.text === 'ls -la\npwd' && short.hiddenLines === 0)
-  const heredoc = Array.from({ length: 60 }, (_, i) => `line ${i}`).join('\n')
-  const bounded = consentCommandPreview(heredoc, 100, 30)
-  check('a 60-line heredoc at 30 rows is cut with the hidden count named', bounded.hiddenLines === 60 - bounded.text.split('\n').length && bounded.hiddenLines > 0)
-  check('the kept lines fit the row budget', bounded.text.split('\n').length <= consentPreviewBudget(30))
-  const wrapped = consentCommandPreview('x'.repeat(2000) + '\nsecond', 80, 24)
-  check('a monster one-liner keeps a head sized to the budget and hides the rest', wrapped.text.endsWith('…') && wrapped.hiddenLines === 2)
-  const cjk = consentCommandPreview(Array.from({ length: 30 }, () => '漢'.repeat(60)).join('\n'), 80, 24)
-  check('wrapped-row accounting rides the width oracle (CJK rows cost double)', cjk.text.split('\n').length <= Math.ceil(consentPreviewBudget(24) / 2) + 1)
+  const { boundLines, consentBodyBudget, consentContentWidth, CONSENT_BODY_MIN_ROWS } = await import('../../src/components/permissions/consentBodyBudget.ts')
+  check('the budget floors and follows the terminal', consentBodyBudget(12) === CONSENT_BODY_MIN_ROWS && consentBodyBudget(40) > consentBodyBudget(30))
+  const width = consentContentWidth(100)
+  const short = boundLines('ls -la\npwd'.split('\n'), width, consentBodyBudget(30))
+  check('a short command is whole with nothing hidden', short.lines.join('\n') === 'ls -la\npwd' && short.hiddenLines === 0)
+  const heredoc = Array.from({ length: 60 }, (_, i) => `line ${i}`)
+  const bounded = boundLines(heredoc, width, consentBodyBudget(30))
+  check('a 60-line heredoc at 30 rows is cut with the hidden count named', bounded.hiddenLines === 60 - bounded.lines.length && bounded.hiddenLines > 0)
+  check('the kept lines fit the row budget', bounded.lines.length <= consentBodyBudget(30))
+  const wrapped = boundLines(['x'.repeat(2000), 'second'], consentContentWidth(80), consentBodyBudget(24))
+  check('a monster one-liner keeps a head sized to the budget and counts the rest', wrapped.lines[0]!.endsWith('…') && wrapped.hiddenLines === 2)
+  const cjk = boundLines(Array.from({ length: 30 }, () => '漢'.repeat(60)), consentContentWidth(80), consentBodyBudget(24))
+  check('wrapped-row accounting rides the width oracle (CJK rows cost double)', cjk.lines.length <= Math.ceil(consentBodyBudget(24) / 2) + 1)
   for (const rel of [
     'src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx',
     'src/components/permissions/PowerShellPermissionRequest/PowerShellPermissionRequest.tsx',
   ]) {
     const card = read(rel)
     check(
-      `${rel.split('/').pop()} rides the bounded preview and names its cut`,
-      card.includes('consentCommandPreview(') && card.includes('more lines (the whole command runs)'),
+      `${rel.split('/').pop()} rides the bounded body and names its cut`,
+      card.includes('<ConsentBodyText') && card.includes('(the whole command runs)'),
     )
   }
 }

@@ -8,7 +8,6 @@ import {
   setProjectRoot,
 } from '../../bootstrap/state.js'
 import { clearInstructionFileCaches } from '../../services/instructions/engine.js'
-import { clearSystemPromptSections } from '../../constants/systemPromptSections.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { updateHooksConfigSnapshot } from '../../utils/hooks/hooksConfigSnapshot.js'
 import { getPlansDirectory } from '../../utils/plans.js'
@@ -95,7 +94,6 @@ function restoreSessionState(originalCwd: string, projectRootMoved: boolean): vo
     setProjectRoot(originalCwd)
     updateHooksConfigSnapshot()
   }
-  clearSystemPromptSections()
   clearInstructionFileCaches()
   getPlansDirectory.cache?.clear?.()
 }

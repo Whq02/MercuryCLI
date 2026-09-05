@@ -227,7 +227,7 @@ console.log('§5 — arm-then-enter: the first ↵ arms the row as the live comp
   check('the arm is a DECLARED control and the list legend teaches ↵↵', manifest.CONCOURSE_CONTROLS.some(c => c.id === 'board:arm') && manifest.CONCOURSE_REGION_KEYS.list.some(k => k.keys === '↵↵' && k.label === 'enter session'))
   const enterAt = screen.indexOf('const enterSession = (sessionId: string, opts')
   const enterBody = screen.slice(enterAt, screen.indexOf('// ── the git offer', enterAt))
-  check('the arm stage sits AFTER the door/older/queued grammars (they keep one press) and skips pointer + the reduced stage', ordered(enterBody, 'door !== undefined', "opts.pointer !== true && boardArmedRef.current !== sessionId") && enterBody.includes('!reducedStage && opts.pointer !== true'))
+  check('the arm stage sits AFTER the door/older/queued grammars (they keep one press) and skips pointer, the reduced stage and a parked row', ordered(enterBody, 'door !== undefined', "opts.pointer !== true && boardArmedRef.current !== sessionId") && enterBody.includes('!reducedStage && !parked && opts.pointer !== true') && enterBody.includes("?.state === 'parked'"))
   check('a second ↵ on the ARMED row enters (the arm clears at the door)', ordered(enterBody, 'setBoardArmed(sessionId)', 'boardArmedRef.current = null') && enterBody.includes('callbacks.enterSession(sessionId)'))
   check('→ on an ARMED row enters (both the list and the live panel arms)', screen.split('boardArmedRef.current === sel.sessionId').length - 1 >= 2)
   check('esc disarms as its own layer (after the older fold, before the peek)', ordered(screen, '// ITEM 7: esc folds the drop-down', '// ARM-THEN-ENTER (item 2): esc disarms') && ordered(screen, '// ARM-THEN-ENTER (item 2): esc disarms', '// Line 5: esc closes the row peek first'))
@@ -282,7 +282,7 @@ console.log('§6 — the lock: an open ask ⇒ the live composer refuses with "n
     const { liveComposerPaintOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
     const parkedGate = liveComposerGateOf(row({ state: 'parked' }), false)
     const parkedPaint = liveComposerPaintOf(parkedGate, null)
-    check('PARKED: the placeholder EMPTIES and the BOTTOM hint carries the line, standing (no send needed)', parkedGate.ok === false && parkedPaint.restHint === '' && parkedPaint.note?.text === 'parked — ↵↵ brings it back; a sleeping chat takes no queue')
+    check('PARKED: the placeholder EMPTIES and the BOTTOM hint carries the line, standing (no send needed)', parkedGate.ok === false && parkedPaint.restHint === '' && parkedPaint.note?.text === 'parked — ↵ brings it back; a sleeping chat takes no queue')
     const dupNote = { tone: 'muted' as const, text: parkedGate.ok === false ? parkedGate.line : '' }
     const parkedAfterSend = liveComposerPaintOf(parkedGate, dupNote)
     check('PARKED after a refused send (the screenshot): ONE paint — the note keeps the line, the placeholder stays empty', parkedAfterSend.restHint === '' && parkedAfterSend.note === dupNote)

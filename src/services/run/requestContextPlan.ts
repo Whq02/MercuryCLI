@@ -1,4 +1,5 @@
 
+import type { DeadThinkingMark } from '../../types/message.js'
 import { createHash } from 'node:crypto'
 import type { QuerySource } from '../../constants/querySource.js'
 import {
@@ -62,6 +63,7 @@ export interface RequestContextPlan {
     toolResultBudgetReplacements: number
     timeBasedCleared: number
     pressurePruned?: { cleared: number; tokensSaved: number }
+    deadThinkingMarks?: DeadThinkingMark[]
     reasons: string[]
   }
   digest: string
@@ -188,6 +190,7 @@ export async function buildRequestContextPlan(
 
   let timeBasedCleared = 0
   let pressurePruned: RequestContextPlan['reductions']['pressurePruned']
+  let deadThinkingMarks: RequestContextPlan['reductions']['deadThinkingMarks']
   {
     const projected = projectTimeBasedMicrocompact(view, input.querySource)
     if (projected) {
@@ -206,6 +209,7 @@ export async function buildRequestContextPlan(
         input.pressurePrune === true ? { pressure: true } : undefined,
       )
       view = result.messages
+      if (result.deadMarks !== undefined && result.deadMarks.length > 0) deadThinkingMarks = result.deadMarks
       if (input.pressurePrune === true && result.pruned !== undefined && result.pruned.cleared > 0) {
         pressurePruned = { cleared: result.pruned.cleared, tokensSaved: result.pruned.tokensSaved }
         reasons.push(
@@ -249,6 +253,7 @@ export async function buildRequestContextPlan(
     afterBoundaryCount,
     messages: view,
     reductions: {
+      ...(deadThinkingMarks !== undefined ? { deadThinkingMarks } : {}),
       toolResultBudgetReplacements: budgetReplacements,
       timeBasedCleared,
       ...(pressurePruned !== undefined ? { pressurePruned } : {}),

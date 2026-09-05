@@ -6,6 +6,8 @@ import {
 import { startAgentSummarization } from '../../services/AgentSummary/agentSummary.js'
 import { clearDumpState } from '../../services/api/dumpPrompts.js'
 import {
+  agentStopReasonOf,
+  backgroundAgentTask,
   completeAgentTask,
   createActivityDescriptionResolver,
   createProgressTracker,
@@ -16,6 +18,7 @@ import {
   isLocalAgentTask,
   killAsyncAgent,
   publishAgentProgressSoon,
+  publishAgentWaitFromEvent,
   registerAgentForeground,
   settleAgentForeground,
   unregisterAgentForeground,
@@ -43,7 +46,6 @@ import {
   normalizeMessages,
 } from '../../utils/messages.js'
 import { enqueueSdkEvent } from '../../utils/sdkEventQueue.js'
-import { sleep } from '../../utils/sleep.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../utils/tokens.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
@@ -55,17 +57,19 @@ import {
   extractPartialResult,
   finalizeAgentTool,
   getLastToolUseName,
+  landedWritesOf,
   PROMOTED_NARRATION_NOTE,
   type AgentToolResult,
+  REPETITION_STOP_WORDS,
 } from './agentToolUtils.js'
+import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
 
 const BACKGROUND_HINT_DELAY_MS = 2_000
 
-const ITERATOR_CLOSE_TIMEOUT_MS = 1_000
-
 const BACKGROUNDED = Symbol('foreground-agent-backgrounded')
+const TURN_ABORTED = Symbol('foreground-agent-turn-aborted')
 
 export type ForegroundAgentMetadata = {
   prompt: string
@@ -96,6 +100,7 @@ export type ForegroundAgentResult = {
         outputFile: string
         canReadOutputFile: boolean
         modelNote?: string
+        backgroundReason: BackgroundHandoverReason
       }
 }
 
@@ -171,6 +176,7 @@ export async function runForegroundAgentExecution(
   let foregroundTask:
     | {
         taskId: string
+        abortController: AbortController
         backgroundSignal: Promise<void>
         cancelAutoBackground?: () => void
       }
@@ -193,9 +199,17 @@ export async function runForegroundAgentExecution(
   const foregroundTaskId = foregroundTask?.taskId
   let stopForegroundSummarization: (() => void) | undefined
 
+  const foregroundRecordId = foregroundTask?.taskId
   const agentIterator = runAgent({
     ...runAgentParams,
-    override: { ...runAgentParams.override, agentId: syncAgentId },
+    override: {
+      ...runAgentParams.override,
+      agentId: syncAgentId,
+      ...(foregroundTask !== undefined ? { abortController: foregroundTask.abortController } : {}),
+    },
+    ...(foregroundRecordId !== undefined
+      ? { onQueryProgress: (event: unknown) => publishAgentWaitFromEvent(foregroundRecordId, tracker, event, rootSetAppState) }
+      : {}),
     ...(foregroundTaskId !== undefined && getSdkAgentProgressSummariesEnabled()
       ? {
           onCacheSafeParams: (params: CacheSafeParams) => {
@@ -211,68 +225,26 @@ export async function runForegroundAgentExecution(
       : {}),
   })
 
-  const continueInBackground = async (
+  const continueDetached = async (
     backgroundedTaskId: string,
-    taskAbortController: AbortController | undefined,
+    pending: Promise<IteratorResult<Message, void>>,
   ): Promise<void> => {
-    let stopBackgroundedSummarization: (() => void) | undefined
     try {
-      try {
-        await Promise.race([
-          agentIterator.return(undefined),
-          sleep(ITERATOR_CLOSE_TIMEOUT_MS),
-        ])
-      } catch {
-      }
-
-      const bgTracker = createProgressTracker()
-      for (const replayed of agentMessages) {
-        updateProgressFromMessage(
-          bgTracker,
-          replayed,
-          resolveActivity,
-          toolUseContext.options.tools,
-        )
-      }
-
-      const stream = runAgent({
-        ...runAgentParams,
-        isAsync: true,
-        override: {
-          ...runAgentParams.override,
-          agentId: backgroundedTaskId,
-          ...(taskAbortController
-            ? { abortController: taskAbortController }
-            : {}),
-        },
-        ...(getSdkAgentProgressSummariesEnabled()
-          ? {
-              onCacheSafeParams: (params: CacheSafeParams) => {
-                const { stop } = startAgentSummarization(
-                  backgroundedTaskId,
-                  backgroundedTaskId,
-                  params,
-                  rootSetAppState,
-                )
-                stopBackgroundedSummarization = stop
-              },
-            }
-          : {}),
-      })
-
-      for await (const message of stream) {
+      let step = await pending
+      while (!step.done) {
+        const message = step.value
         agentMessages.push(message)
         updateProgressFromMessage(
-          bgTracker,
+          tracker,
           message,
           resolveActivity,
           toolUseContext.options.tools,
         )
-        publishAgentProgressSoon(backgroundedTaskId, bgTracker, rootSetAppState)
+        publishAgentProgressSoon(backgroundedTaskId, tracker, rootSetAppState)
         const lastToolName = getLastToolUseName(message)
         if (lastToolName) {
           emitTaskProgress(
-            bgTracker,
+            tracker,
             backgroundedTaskId,
             toolUseContext.toolUseId,
             description,
@@ -280,6 +252,7 @@ export async function runForegroundAgentExecution(
             lastToolName,
           )
         }
+        step = await agentIterator.next()
       }
 
       const finalized = finalizeAgentTool(agentMessages, backgroundedTaskId, metadata)
@@ -314,7 +287,7 @@ export async function runForegroundAgentExecution(
             status: declined ? 'failed' : 'completed',
             finalText: finalMessage ?? '',
             usage: {
-              totalTokens: getTokenCountFromTracker(bgTracker),
+              totalTokens: getTokenCountFromTracker(tracker),
               toolUseCount: finalized.totalToolUseCount,
               durationMs: finalized.totalDurationMs,
             },
@@ -327,11 +300,11 @@ export async function runForegroundAgentExecution(
         taskId: backgroundedTaskId,
         description,
         status: declined ? 'failed' : 'completed',
-        ...(declined ? { error: declined.error } : {}),
+        ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages) } : {}),
         setAppState: rootSetAppState,
         finalMessage,
         usage: {
-          totalTokens: getTokenCountFromTracker(bgTracker),
+          totalTokens: getTokenCountFromTracker(tracker),
           toolUses: finalized.totalToolUseCount,
           durationMs: finalized.totalDurationMs,
         },
@@ -341,7 +314,8 @@ export async function runForegroundAgentExecution(
       })
     } catch (error) {
       if (error instanceof AbortError) {
-        killAsyncAgent(backgroundedTaskId, rootSetAppState)
+        const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
+        killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)
         const worktreeResult = await cleanupWorktreeIfNeeded()
         enqueueAgentNotification({
           taskId: backgroundedTaskId,
@@ -350,6 +324,8 @@ export async function runForegroundAgentExecution(
           setAppState: rootSetAppState,
           toolUseId: toolUseContext.toolUseId,
           finalMessage: extractPartialResult(agentMessages),
+          landedWrites: landedWritesOf(agentMessages),
+          ...(stopReason !== undefined ? { stopReason } : {}),
           ...worktreeResult,
         })
         return
@@ -362,12 +338,13 @@ export async function runForegroundAgentExecution(
         description,
         status: 'failed',
         error: failure,
+        landedWrites: landedWritesOf(agentMessages),
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         ...worktreeResult,
       })
     } finally {
-      stopBackgroundedSummarization?.()
+      stopForegroundSummarization?.()
       try {
         clearInvokedSkillsForAgent(syncAgentId)
         clearDumpState(syncAgentId)
@@ -383,6 +360,19 @@ export async function runForegroundAgentExecution(
   let hintShown = false
   let heldError: unknown
   let worktreeFields: WorktreeFields = {}
+
+  const turnSignal = toolUseContext.abortController.signal
+  let onTurnAbort: (() => void) | undefined
+  const turnAbortRace: Promise<typeof TURN_ABORTED> | undefined = foregroundTask
+    ? new Promise<typeof TURN_ABORTED>(resolve => {
+        if (turnSignal.aborted) {
+          resolve(TURN_ABORTED)
+          return
+        }
+        onTurnAbort = () => resolve(TURN_ABORTED)
+        turnSignal.addEventListener('abort', onTurnAbort, { once: true })
+      })
+    : undefined
 
   try {
     while (true) {
@@ -402,18 +392,21 @@ export async function runForegroundAgentExecution(
 
       const nextPromise = agentIterator.next()
       let step: IteratorResult<Message, void>
-      if (foregroundTask && backgroundRace) {
-        const winner = await Promise.race([nextPromise, backgroundRace])
+      if (foregroundTask && backgroundRace && turnAbortRace) {
+        let winner = await Promise.race([nextPromise, backgroundRace, turnAbortRace])
+        const handedByTurnAbort = winner === TURN_ABORTED
+        if (winner === TURN_ABORTED) {
+          backgroundAgentTask(foregroundTask.taskId, toolUseContext.getAppState, rootSetAppState)
+          winner = BACKGROUNDED
+        }
         if (winner === BACKGROUNDED) {
           const task =
             toolUseContext.getAppState().tasks[foregroundTask.taskId]
           if (isLocalAgentTask(task) && task.isBackgrounded) {
             backgrounded = true
-            stopForegroundSummarization?.()
             const backgroundedTaskId = foregroundTask.taskId
-            const taskAbortController = task.abortController
             void runWithAgentContext(syncAgentContext, () =>
-              continueInBackground(backgroundedTaskId, taskAbortController),
+              continueDetached(backgroundedTaskId, nextPromise),
             )
             const canReadOutputFile = toolUseContext.options.tools.some(
               tool =>
@@ -430,6 +423,7 @@ export async function runForegroundAgentExecution(
                 outputFile: getTaskOutputPath(backgroundedTaskId),
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
+                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : 'backgrounded',
               },
             }
           }
@@ -511,18 +505,24 @@ export async function runForegroundAgentExecution(
     })
   } finally {
     toolUseContext.setToolJSX?.(null)
-    stopForegroundSummarization?.()
+    if (onTurnAbort !== undefined) turnSignal.removeEventListener('abort', onTurnAbort)
+    if (!backgrounded) stopForegroundSummarization?.()
     if (foregroundTask) {
       if (backgrounded) {
         unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
       } else {
+        const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null
         const status: 'completed' | 'failed' | 'stopped' =
           heldError instanceof AbortError
             ? 'stopped'
             : heldError !== undefined
               ? 'failed'
-              : deriveAgentTerminalOutcome(agentMessages).status
-        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker))
+              : outcome!.status
+        const why =
+          outcome !== null && outcome.status === 'failed'
+            ? { error: outcome.error, ...(outcome.reason === 'repetition-stop' ? { stopReason: REPETITION_STOP_WORDS } : {}) }
+            : undefined
+        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
         enqueueSdkEvent({
           type: 'system',
           subtype: 'task_notification',

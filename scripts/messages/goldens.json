@@ -24279,6 +24279,8 @@
  "isClassifierDenial/no": false,
  "buildYoloRejectionMessage/basic": "Permission for this action has been denied. Reason: Bash. Flow's safety check blocked this action, and this session cannot show the operator a consent card, so it was not run. The operator can allow it with a permission rule for the action, or by running the session interactively and approving it there. Work that does not depend on this action can continue. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
  "buildFlowBlockDeclinedMessage/basic": "Permission for this action has been denied. Reason: rm -rf /. The operator was asked about this same action earlier in this turn and declined it, so it was not asked again and was not run. Follow what the operator said. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
+ "buildClassifierUnreadableMessage/basic": "The flow safety check could not read its own verdict, so Bash was not run: stub-model answered in a shape Mercury could not parse (shouldBlock: expected boolean, received string), and this session cannot show the operator a consent card. This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.",
+ "buildClassifierUnreadableMessage/no-detail": "The flow safety check could not read its own verdict, so Bash was not run: stub-model answered in a shape Mercury could not parse, and this session cannot show the operator a consent card. This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.",
  "buildClassifierUnavailableMessage/basic": "The flow safety check is temporarily unavailable, so Bash was not run: flow runs nothing its check has not cleared, and this session cannot show the operator a consent card. The check may recover shortly, and the same action can be tried again then; work that does not need the check can continue. The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.",
  "normalizeContentFromAPI/blocks": [
   {
@@ -24633,6 +24635,135 @@
   "type": "user",
   "uuid": "«u1»"
  },
+ "createUserInterruptionMessage/stalled": {
+  "message": {
+   "content": [
+    {
+     "text": "[Request cut off by a no-progress timeout (the provider went quiet)]",
+     "type": "text"
+    }
+   ],
+   "role": "user"
+  },
+  "timestamp": "«ts»",
+  "type": "user",
+  "uuid": "«u1»"
+ },
+ "turnCutOf/operator": [
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  }
+ ],
+ "turnCutOf/typed": [
+  {
+   "kind": "idle-timeout"
+  },
+  {
+   "kind": "parent-stop"
+  },
+  {
+   "detail": "the provider refused the request outright",
+   "kind": "cut"
+  },
+  {
+   "detail": "the retry budget is spent",
+   "kind": "cut"
+  },
+  {
+   "detail": "sub-agent scout (a1): no progress for 15m",
+   "kind": "idle-timeout"
+  },
+  {
+   "detail": "unattended turn: no progress for 30m",
+   "kind": "idle-timeout"
+  },
+  {
+   "detail": "42",
+   "kind": "cut"
+  }
+ ],
+ "turnCutWhy/family": [
+  null,
+  "a no-progress timeout (the provider went quiet)",
+  "a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m",
+  "the workflow that ran this agent stopped",
+  "the retry budget is spent",
+  "the run was aborted"
+ ],
+ "turnCutLine/family": [
+  "[Request interrupted by user]",
+  "[Request cut off by a no-progress timeout (the provider went quiet)]",
+  "[Request cut off by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m]",
+  "[Request cut off: the workflow that ran this agent stopped]",
+  "[Request cut off: the retry budget is spent]",
+  "[Request cut off: the run was aborted]",
+  "[Request interrupted by user for tool use]",
+  "[Request cut off during tool use by a no-progress timeout (the provider went quiet)]",
+  "[Request cut off during tool use by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m]",
+  "[Request cut off during tool use: the workflow that ran this agent stopped]",
+  "[Request cut off during tool use: the retry budget is spent]",
+  "[Request cut off during tool use: the run was aborted]"
+ ],
+ "turnCutResultText/family": [
+  "Interrupted by user",
+  "Cut off by a no-progress timeout (the provider went quiet)",
+  "Cut off by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m",
+  "Cut off: the workflow that ran this agent stopped",
+  "Cut off: the retry budget is spent",
+  "Cut off: the run was aborted"
+ ],
+ "turnCutOfText/pair": [
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "operator"
+  },
+  {
+   "kind": "idle-timeout"
+  },
+  {
+   "detail": "sub-agent scout (a1): no progress for 15m",
+   "kind": "idle-timeout"
+  },
+  {
+   "kind": "parent-stop"
+  },
+  {
+   "detail": "the retry budget is spent",
+   "kind": "cut"
+  },
+  null,
+  null
+ ],
+ "isTurnCutText/pair": [
+  true,
+  true,
+  true,
+  true,
+  true,
+  true,
+  false,
+  false
+ ],
  "createSyntheticUserCaveatMessage/basic": {
   "isMeta": true,
   "message": {

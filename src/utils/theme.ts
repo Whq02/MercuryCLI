@@ -75,20 +75,6 @@ export type Theme = {
   rate_limit_empty: string
   briefLabelYou: string
   briefLabelAssistant: string
-  rainbow_red: string
-  rainbow_red_shimmer: string
-  rainbow_orange: string
-  rainbow_orange_shimmer: string
-  rainbow_yellow: string
-  rainbow_yellow_shimmer: string
-  rainbow_green: string
-  rainbow_green_shimmer: string
-  rainbow_blue: string
-  rainbow_blue_shimmer: string
-  rainbow_indigo: string
-  rainbow_indigo_shimmer: string
-  rainbow_violet: string
-  rainbow_violet_shimmer: string
 }
 
 export const THEME_NAMES = [
@@ -184,20 +170,6 @@ const DARK: Theme = {
   rate_limit_empty: 'rgb(35, 58, 64)',
   briefLabelYou: 'rgb(169, 180, 172)',
   briefLabelAssistant: 'rgb(221, 68, 68)',
-  rainbow_red: 'rgb(235, 90, 90)',
-  rainbow_red_shimmer: 'rgb(240, 140, 130)',
-  rainbow_orange: 'rgb(235, 155, 90)',
-  rainbow_orange_shimmer: 'rgb(240, 185, 140)',
-  rainbow_yellow: 'rgb(229, 199, 107)',
-  rainbow_yellow_shimmer: 'rgb(238, 218, 155)',
-  rainbow_green: 'rgb(120, 199, 144)',
-  rainbow_green_shimmer: 'rgb(165, 219, 180)',
-  rainbow_blue: 'rgb(107, 166, 239)',
-  rainbow_blue_shimmer: 'rgb(155, 195, 243)',
-  rainbow_indigo: 'rgb(130, 130, 235)',
-  rainbow_indigo_shimmer: 'rgb(170, 170, 241)',
-  rainbow_violet: 'rgb(186, 130, 235)',
-  rainbow_violet_shimmer: 'rgb(207, 170, 241)',
 }
 
 const TRUE_BLACK: Theme = {
@@ -269,20 +241,6 @@ const LIGHT: Theme = {
   rate_limit_empty: 'rgb(213, 222, 218)',
   briefLabelYou: 'rgb(94, 110, 104)',
   briefLabelAssistant: 'rgb(196, 54, 54)',
-  rainbow_red: 'rgb(191, 42, 66)',
-  rainbow_red_shimmer: 'rgb(216, 108, 98)',
-  rainbow_orange: 'rgb(184, 95, 22)',
-  rainbow_orange_shimmer: 'rgb(214, 140, 80)',
-  rainbow_yellow: 'rgb(158, 112, 24)',
-  rainbow_yellow_shimmer: 'rgb(191, 152, 72)',
-  rainbow_green: 'rgb(34, 128, 62)',
-  rainbow_green_shimmer: 'rgb(94, 168, 116)',
-  rainbow_blue: 'rgb(31, 102, 189)',
-  rainbow_blue_shimmer: 'rgb(101, 150, 213)',
-  rainbow_indigo: 'rgb(84, 84, 189)',
-  rainbow_indigo_shimmer: 'rgb(134, 134, 213)',
-  rainbow_violet: 'rgb(123, 76, 181)',
-  rainbow_violet_shimmer: 'rgb(163, 126, 209)',
 }
 
 const DARK_DALTONIZED: Theme = {
@@ -340,20 +298,6 @@ const DARK_DALTONIZED: Theme = {
   rate_limit_empty: 'rgb(35, 58, 64)',
   briefLabelYou: 'rgb(169, 180, 172)',
   briefLabelAssistant: 'rgb(170, 111, 214)',
-  rainbow_red: 'rgb(196, 120, 84)',
-  rainbow_red_shimmer: 'rgb(214, 160, 136)',
-  rainbow_orange: 'rgb(226, 168, 92)',
-  rainbow_orange_shimmer: 'rgb(236, 196, 144)',
-  rainbow_yellow: 'rgb(229, 199, 107)',
-  rainbow_yellow_shimmer: 'rgb(238, 218, 155)',
-  rainbow_green: 'rgb(148, 208, 220)',
-  rainbow_green_shimmer: 'rgb(180, 224, 232)',
-  rainbow_blue: 'rgb(96, 148, 244)',
-  rainbow_blue_shimmer: 'rgb(148, 183, 247)',
-  rainbow_indigo: 'rgb(130, 130, 235)',
-  rainbow_indigo_shimmer: 'rgb(170, 170, 241)',
-  rainbow_violet: 'rgb(176, 141, 232)',
-  rainbow_violet_shimmer: 'rgb(203, 180, 240)',
 }
 
 const LIGHT_DALTONIZED: Theme = {
@@ -411,20 +355,6 @@ const LIGHT_DALTONIZED: Theme = {
   rate_limit_empty: 'rgb(213, 222, 218)',
   briefLabelYou: 'rgb(94, 110, 104)',
   briefLabelAssistant: 'rgb(123, 76, 181)',
-  rainbow_red: 'rgb(152, 86, 54)',
-  rainbow_red_shimmer: 'rgb(190, 134, 106)',
-  rainbow_orange: 'rgb(178, 124, 32)',
-  rainbow_orange_shimmer: 'rgb(205, 162, 88)',
-  rainbow_yellow: 'rgb(158, 112, 24)',
-  rainbow_yellow_shimmer: 'rgb(191, 152, 72)',
-  rainbow_green: 'rgb(18, 127, 138)',
-  rainbow_green_shimmer: 'rgb(94, 168, 176)',
-  rainbow_blue: 'rgb(31, 102, 189)',
-  rainbow_blue_shimmer: 'rgb(101, 150, 213)',
-  rainbow_indigo: 'rgb(84, 84, 189)',
-  rainbow_indigo_shimmer: 'rgb(134, 134, 213)',
-  rainbow_violet: 'rgb(123, 76, 181)',
-  rainbow_violet_shimmer: 'rgb(163, 126, 209)',
 }
 
 const DARK_ANSI: Theme = {
@@ -482,20 +412,6 @@ const DARK_ANSI: Theme = {
   rate_limit_empty: 'ansi:blackBright',
   briefLabelYou: 'ansi:white',
   briefLabelAssistant: 'ansi:red',
-  rainbow_red: 'ansi:red',
-  rainbow_red_shimmer: 'ansi:redBright',
-  rainbow_orange: 'ansi:yellow',
-  rainbow_orange_shimmer: 'ansi:yellowBright',
-  rainbow_yellow: 'ansi:yellowBright',
-  rainbow_yellow_shimmer: 'ansi:yellowBright',
-  rainbow_green: 'ansi:green',
-  rainbow_green_shimmer: 'ansi:greenBright',
-  rainbow_blue: 'ansi:blue',
-  rainbow_blue_shimmer: 'ansi:blueBright',
-  rainbow_indigo: 'ansi:blueBright',
-  rainbow_indigo_shimmer: 'ansi:blueBright',
-  rainbow_violet: 'ansi:magenta',
-  rainbow_violet_shimmer: 'ansi:magentaBright',
 }
 
 const LIGHT_ANSI: Theme = {
@@ -553,20 +469,6 @@ const LIGHT_ANSI: Theme = {
   rate_limit_empty: 'ansi:white',
   briefLabelYou: 'ansi:blackBright',
   briefLabelAssistant: 'ansi:red',
-  rainbow_red: 'ansi:red',
-  rainbow_red_shimmer: 'ansi:redBright',
-  rainbow_orange: 'ansi:yellow',
-  rainbow_orange_shimmer: 'ansi:yellowBright',
-  rainbow_yellow: 'ansi:yellow',
-  rainbow_yellow_shimmer: 'ansi:yellowBright',
-  rainbow_green: 'ansi:green',
-  rainbow_green_shimmer: 'ansi:greenBright',
-  rainbow_blue: 'ansi:blue',
-  rainbow_blue_shimmer: 'ansi:blueBright',
-  rainbow_indigo: 'ansi:blue',
-  rainbow_indigo_shimmer: 'ansi:blueBright',
-  rainbow_violet: 'ansi:magenta',
-  rainbow_violet_shimmer: 'ansi:magentaBright',
 }
 
 const BASE_PALETTES: Record<string, Theme> = {

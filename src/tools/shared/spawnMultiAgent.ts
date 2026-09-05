@@ -45,7 +45,7 @@ import { resolveTeammateRole, type ResolvedTeammateRole } from '../../utils/swar
 import { spawnInProcessTeammate } from '../../utils/swarm/spawnInProcess.js'
 import { buildInheritedEnvVars, getTeammateCommand } from '../../utils/swarm/spawnUtils.js'
 import { parseTeamCharter } from '../../utils/swarm/teamCharter.js'
-import { appendTeamMember, readTeamFileAsync, type TeamFile } from '../../utils/swarm/teamHelpers.js'
+import { appendTeamMember, readTeamFileAsync, removeTeammateFromTeamFile, type TeamFile } from '../../utils/swarm/teamHelpers.js'
 import {
   assignTeammateColor,
   createTeammatePaneInSwarmView,
@@ -609,7 +609,23 @@ async function spawnInProcessStrategy(
     throw new Error(spawnResult.error ?? 'In-process teammate spawn failed')
   }
 
+  await appendTeamMember(teamName, {
+    agentId: teammateId,
+    name: teammateName,
+    agentType: canonicalAgentType ?? teammateName,
+    model: prepared.model,
+    prompt: prepared.prompt,
+    color: prepared.color,
+    planModeRequired: prepared.planModeRequired,
+    joinedAt: Date.now(),
+    tmuxPaneId: 'in-process',
+    cwd: getCwd(),
+    subscriptions: [],
+    backendType: 'in-process',
+  } as never)
+
   if (spawnResult.taskId && spawnResult.teammateContext && spawnResult.abortController) {
+    try {
     startInProcessTeammate({
       identity: {
         agentId: teammateId,
@@ -630,6 +646,10 @@ async function spawnInProcessStrategy(
       ...(config.invokingRequestId ? { invokingRequestId: config.invokingRequestId } : {}),
       toolUseContext: { ...context, messages: [] },
     })
+    } catch (error) {
+      removeTeammateFromTeamFile(teamName, { agentId: teammateId })
+      throw error
+    }
   }
 
   context.setAppState(prevState => {
@@ -675,21 +695,6 @@ async function spawnInProcessStrategy(
       teamContext: { ...teamContext, leadAgentId, teammates },
     } as typeof prevState
   })
-
-  await appendTeamMember(teamName, {
-    agentId: teammateId,
-    name: teammateName,
-    agentType: canonicalAgentType ?? teammateName,
-    model: prepared.model,
-    prompt: prepared.prompt,
-    color: prepared.color,
-    planModeRequired: prepared.planModeRequired,
-    joinedAt: Date.now(),
-    tmuxPaneId: 'in-process',
-    cwd: getCwd(),
-    subscriptions: [],
-    backendType: 'in-process',
-  } as never)
 
 
   return {

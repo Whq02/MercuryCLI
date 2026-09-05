@@ -15,19 +15,20 @@ import {
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
-import { getGitState, type GitRepoState } from '../utils/git.js'
-import { getTaskListId, listTasks, onTasksUpdated, type Task } from '../utils/tasks.js'
+import { getGitState, subscribeGitFacts, type GitRepoState } from '../utils/git.js'
+import type { MissionRowV1 } from '../services/engine-connector/types.js'
 import {
   fleetGauge,
   traceSnapshot,
 } from '../utils/cockpit/index.js'
-import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
 const TRANSCRIPT_DEBOUNCE_MS = 500
 const HEARTBEAT_MS = 15_000
+const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
 const WORKFLOWS_DISK_MAX = 10
 
 export interface CrewGlanceMember {
@@ -39,7 +40,7 @@ export interface CrewGlanceMember {
 
 export interface TelemetrySnapshots {
   git: GitRepoState | null
-  tasks: Task[]
+  tasks: readonly MissionRowV1[]
   fleet: { state: string; team?: string | null; conflicts: number; drifting: number }
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
@@ -67,6 +68,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let unsubTranscript: (() => void) | null = null
 let unsubTasks: (() => void) | null = null
 let unsubExecutions: (() => void) | null = null
+let unsubGitFacts: (() => void) | null = null
 let coalescer: SerialCoalescer | null = null
 
 function emit(): void {
@@ -80,18 +82,22 @@ function emit(): void {
   }
 }
 
+async function gitStateForRefresh(): Promise<GitRepoState | null> {
+  return getGitState({ untrackedFiles: 'normal' })
+}
+
 async function refreshOnce(): Promise<void> {
   const next: Partial<TelemetrySnapshots> = {}
   next.crew = null
   await Promise.all([
-    getGitState()
+    gitStateForRefresh()
       .then(g => {
         next.git = g
       })
       .catch(() => {}),
-    listTasks(getTaskListId())
-      .then(t => {
-        next.tasks = t
+    Promise.resolve()
+      .then(() => {
+        next.tasks = hasFocusedSession() ? getFocusedSessionConnector().workRoster().mission : []
       })
       .catch(() => {
         next.tasks = []
@@ -180,8 +186,9 @@ function startEngine(): void {
   heartbeat = setInterval(() => pokeTelemetry(), HEARTBEAT_MS)
   heartbeat.unref?.()
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
-  unsubTasks = onTasksUpdated(() => scheduleDebounced())
+  unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
+  unsubGitFacts = subscribeGitFacts(() => pokeTelemetry())
   pokeTelemetry()
 }
 
@@ -200,6 +207,8 @@ function stopEngine(): void {
   unsubTasks = null
   unsubExecutions?.()
   unsubExecutions = null
+  unsubGitFacts?.()
+  unsubGitFacts = null
   coalescer?.release()
   coalescer = null
 }
@@ -229,7 +238,10 @@ export function _statsForProofs(): {
     heartbeat: heartbeat !== null,
     debounceTimer: debounceTimer !== null,
     sourceUnsubs:
-      (unsubTranscript !== null ? 1 : 0) + (unsubTasks !== null ? 1 : 0) + (unsubExecutions !== null ? 1 : 0),
+      (unsubTranscript !== null ? 1 : 0) +
+      (unsubTasks !== null ? 1 : 0) +
+      (unsubExecutions !== null ? 1 : 0) +
+      (unsubGitFacts !== null ? 1 : 0),
     coalescer: coalescer !== null,
   }
 }

@@ -1,5 +1,7 @@
 import * as React from 'react'
 import { getSessionId } from '../../bootstrap/state.js'
+import { conversationIdHere, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { hasSeatLive } from '../../services/engine-connector/seatLive.js'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import {
   SettingsStatusView,
@@ -10,7 +12,6 @@ import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mer
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import type { ModelName } from '../../utils/model/model.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
 import { getCwd } from '../../utils/cwd.js'
 import { concourseWayBack, plainWorldWhy } from '../../context/surfaceRoute.js'
 import { recordingsUnderSweep, retentionWindowDays } from '../../utils/cleanup.js'
@@ -63,8 +64,14 @@ export function buildFacts(messages: Message[], model: ModelName): {
 } {
   const modelInfo = modelGauge(model).data
   const usage = contextGauge(messages, model)
-  const sessionId: ReturnType<typeof getSessionId> | undefined = getSessionId()
-  const title = sessionId ? getCurrentSessionTitle(sessionId) : undefined
+  const focused = getFocusedSessionConnector()
+  const focusedId = conversationIdHere()
+  const sessionId: string | undefined = focusedId !== '' ? focusedId : undefined
+  const title = hasSeatLive(focused)
+    ? focused.status().title || undefined
+    : sessionId
+      ? getCurrentSessionTitle(sessionId as ReturnType<typeof getSessionId>)
+      : undefined
 
   let ctxFact: StatusFact
   if (usage.state === 'live' && usage.data.usedPct != null) {
@@ -210,7 +217,7 @@ export async function call(
     return base.call(onDone, context)
   }
   const messages = (context.messages ?? []) as Message[]
-  const model = getMainLoopModel()
+  const model = context.options.mainLoopModel
   const retention = retentionFacts(await readRetentionNumbers())
   return <MercuryStatusWrapper messages={messages} model={model} retention={retention} onDone={onDone} />
 }

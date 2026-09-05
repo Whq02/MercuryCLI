@@ -1,5 +1,5 @@
 
-import { existsSync } from 'node:fs'
+import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { readdir, readFile, stat, unlink } from 'node:fs/promises'
 import { Socket } from 'node:net'
 import { homedir } from 'node:os'
@@ -25,6 +25,7 @@ import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from './editorExtensionPac
 import { isJetBrainsPluginInstalledCached } from './jetbrains.js'
 import { logError } from './log.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
+import { resolveWatchRoot } from './watchRoot.js'
 import { whichSync } from './which.js'
 
 export { callIdeRpc } from '../services/mcp/client.js'
@@ -45,7 +46,7 @@ const GENERIC_IDE_DISPLAY_NAME = 'IDE'
 const REACHABILITY_TIMEOUT_MS = 500
 
 const AUTO_PICK_BUDGET_MS = 30_000
-const AUTO_PICK_INTERVAL_MS = 1_000
+const AUTO_PICK_FLOOR_MS = 10_000
 
 const CLI_INVOCATION_DELAY_MS = 500
 
@@ -780,8 +781,9 @@ export async function detectIDEs(includeInvalid: boolean = false): Promise<Detec
 
 
 let activePickController: AbortController | null = null
+let activePick: Promise<DetectedIDEInfo | null> | null = null
 
-function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
+function abortableDelay(ms: number, signal: AbortSignal, arm?: (wake: () => void) => void): Promise<void> {
   return new Promise(resolve => {
     const done = (): void => {
       clearTimeout(timer)
@@ -790,32 +792,73 @@ function abortableDelay(ms: number, signal: AbortSignal): Promise<void> {
     }
     const timer = setTimeout(done, ms)
     signal.addEventListener('abort', done)
+    arm?.(done)
   })
 }
 
-export async function findAvailableIDE(): Promise<DetectedIDEInfo | null> {
-  activePickController?.abort()
+function watchBridgeHomes(homes: readonly string[], onChange: () => void): () => void {
+  const watchers: FSWatcher[] = []
+  for (const home of homes) {
+    if (!existsSync(home)) continue
+    try {
+      const w = watch(resolveWatchRoot(home), () => onChange())
+      w.on('error', () => {
+        try {
+          w.close()
+        } catch {
+        }
+      })
+      watchers.push(w)
+    } catch {
+    }
+  }
+  return () => {
+    for (const w of watchers) {
+      try {
+        w.close()
+      } catch {
+      }
+    }
+  }
+}
+
+export function findAvailableIDE(): Promise<DetectedIDEInfo | null> {
+  if (activePick !== null) return activePick
   const controller = new AbortController()
   activePickController = controller
-  try {
-    await cleanStaleIdeLockfiles()
-    const deadline = Date.now() + AUTO_PICK_BUDGET_MS
-    while (!controller.signal.aborted && Date.now() < deadline) {
-      if (!getIsScrollDraining()) {
-        const valid = await detectIDEs(false)
-        if (controller.signal.aborted) return null
-        const sole = valid[0]
-        if (valid.length === 1 && sole !== undefined) return sole
+  let wake: (() => void) | null = null
+  let stopWatch: () => void = () => {}
+  let pick: Promise<DetectedIDEInfo | null> | null = null
+  const run = async (): Promise<DetectedIDEInfo | null> => {
+    try {
+      await cleanStaleIdeLockfiles()
+      stopWatch = watchBridgeHomes(await candidateBridgeHomes(), () => wake?.())
+      const deadline = Date.now() + AUTO_PICK_BUDGET_MS
+      while (!controller.signal.aborted && Date.now() < deadline) {
+        if (!getIsScrollDraining()) {
+          const valid = await detectIDEs(false)
+          if (controller.signal.aborted) return null
+          const sole = valid[0]
+          if (valid.length === 1 && sole !== undefined) return sole
+        }
+        await abortableDelay(Math.max(0, Math.min(AUTO_PICK_FLOOR_MS, deadline - Date.now())), controller.signal, w => {
+          wake = w
+        })
+        wake = null
       }
-      await abortableDelay(AUTO_PICK_INTERVAL_MS, controller.signal)
+      return null
+    } catch (error) {
+      logError(error)
+      return null
+    } finally {
+      stopWatch()
+      if (activePickController === controller) activePickController = null
+      if (activePick === pick) activePick = null
     }
-    return null
-  } catch (error) {
-    logError(error)
-    return null
-  } finally {
-    if (activePickController === controller) activePickController = null
   }
+  pick = run()
+  activePick = pick
+  return pick
 }
 
 

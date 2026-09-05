@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cmdLauncher, installingDoc, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, updatingDoc } from './launcherTemplates.mjs'
-import { readCompatFloor, releaseLayoutSection, topAllowlist } from './payloadContract.mjs'
+import { readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
+import { checkReleaseDocuments, LICENCE_DOCUMENTS } from './releaseDocuments.mjs'
 import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } from './verifyReceiptBind.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -21,7 +22,6 @@ const IS_WIN = TARGET === 'windows-x64'
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
 const VERSION = PKG.version
 const NODE_POLICY = parseEnginesNode(PKG.engines?.node)
-const NAME = `mercury-v${VERSION}-${TARGET}`
 
 const fail = (msg) => {
   console.error(`✗ ${msg}`)
@@ -30,6 +30,10 @@ const fail = (msg) => {
 const ok = (msg) => console.log(`  · ${msg}`)
 
 const dist = join(ROOT, 'dist')
+const verifierForNames = join(dist, 'verify-artifact.mjs')
+if (!existsSync(verifierForNames)) fail('dist/verify-artifact.mjs missing — run bun run build.ts (the build produces the shipped verifier)')
+const { archiveBaseNameFor } = await import(pathToFileURL(verifierForNames).href)
+const NAME = archiveBaseNameFor(VERSION, TARGET)
 if (!existsSync(join(dist, 'mercury.mjs'))) fail('dist/mercury.mjs missing — run bun run build.ts first')
 if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
@@ -43,9 +47,13 @@ if (degraded.includes('voice-input')) ok('the voice capture pack is absent from 
 const rgDirs = existsSync(join(dist, 'vendor', 'ripgrep')) ? readdirSync(join(dist, 'vendor', 'ripgrep')) : []
 if (rgDirs.length === 0) fail('dist/vendor/ripgrep missing — the build must vendor the platform rg')
 const TARGET_NODE_PACK = { 'linux-x64': 'linux-x64', 'macos-arm64': 'darwin-arm64', 'macos-x64': 'darwin-x64', 'windows-x64': 'win-x64' }[TARGET]
+if (manifest.target && typeof manifest.target === 'object' && manifest.target.release !== TARGET) {
+  const builtFor = manifest.target.release ?? `${manifest.target.platform}/${manifest.target.arch} (no release archive exists for it)`
+  fail(`dist was built for ${builtFor} but --target is ${TARGET} — build for the target: bun run build.ts --target ${TARGET}`)
+}
 const runtime = manifest.runtime && manifest.runtime.vendored === true ? manifest.runtime : null
 if (runtime) {
-  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build on the target platform`)
+  if (runtime.platform !== TARGET_NODE_PACK) fail(`dist carries a ${runtime.platform} Node runtime but --target ${TARGET} ships ${TARGET_NODE_PACK} — build for the target: bun run build.ts --target ${TARGET}`)
   const runtimeBinary = join(dist, ...runtime.path.split('/'), ...runtime.binary.split('/'))
   if (!existsSync(runtimeBinary)) fail(`dist manifest declares the vendored runtime at ${runtime.path}/${runtime.binary} but the file is missing — rebuild`)
 }
@@ -148,6 +156,15 @@ writeFileSync(join(pkgDir, 'UPDATING.md'), UPDATING_MD)
 writeFileSync(join(pkgDir, 'RELEASE-NOTES.md'), RELEASE_NOTES)
 writeFileSync(join(pkgDir, 'NOTICES.md'), NOTICES)
 
+{
+  const docs = checkReleaseDocuments({ root: ROOT, version: VERSION })
+  if (!docs.ok) {
+    fail(`the licence documents are not true for ${VERSION}:\n    ${docs.findings.join('\n    ')}\n  (node scripts/release/releaseDocuments.mjs stamp fills the version, the dates and the terms hash)`)
+  }
+  for (const name of LICENCE_DOCUMENTS) cpSync(join(ROOT, name), join(pkgDir, name))
+  ok(`licence documents: ${LICENCE_DOCUMENTS.join(', ')} (${docs.parameters.version}, released ${docs.parameters.releaseDate}, change date ${docs.parameters.changeDate}, terms hash matches)`)
+}
+
 try {
   execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })
 } catch (e) {
@@ -170,9 +187,10 @@ for (const f of FORBIDDEN) if (existsSync(join(pkgDir, f))) fail(`dev residue in
 
 const argLicense = process.argv.indexOf('--license-id')
 const LICENSE_ID = argLicense !== -1 && process.argv[argLicense + 1] ? process.argv[argLicense + 1] : null
+const UNSIGNED_BY_DECISION = process.argv.includes('--unsigned')
 let shippedSignatureState = 'unsigned'
+const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs')).href)
 {
-  const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs')).href)
   const stagedManifestPath = join(pkgDir, 'manifest.json')
   const stagedManifest = JSON.parse(readFileSync(stagedManifestPath, 'utf8'))
   const rl = stagedManifest.releaseLayout
@@ -190,6 +208,7 @@ let shippedSignatureState = 'unsigned'
   }
   const keyFile = process.env.MERCURY_SIGNING_KEY_FILE
   if (keyFile) {
+    if (UNSIGNED_BY_DECISION) fail('--unsigned given with MERCURY_SIGNING_KEY_FILE set — choose one: sign with the key, or ship unsigned by decision')
     if (!existsSync(keyFile)) fail(`MERCURY_SIGNING_KEY_FILE names ${keyFile} — no such file`)
     let block
     try {
@@ -215,9 +234,14 @@ let shippedSignatureState = 'unsigned'
     }
   } else {
     if (LICENSE_ID) fail('--license-id given without MERCURY_SIGNING_KEY_FILE — the license attribution seam is signature-covered by design; sign or drop the id')
-    ok('UNSIGNED — MERCURY_SIGNING_KEY_FILE not set; the archive ships without a provenance signature (operator key ceremony pending; launcher and /health report the fact plainly)')
+    if (!UNSIGNED_BY_DECISION) {
+      fail('no MERCURY_SIGNING_KEY_FILE and no --unsigned — an unsigned archive is a decision, never an accident: set MERCURY_SIGNING_KEY_FILE=<the release key PEM> to sign, or pass --unsigned deliberately (the archive name then says -unsigned)')
+    }
+    ok('UNSIGNED — by decision (--unsigned): the archive ships without a provenance signature and its name says so; the launcher states it once per install, `mercury doctor` every time')
   }
 }
+const SIGNED_ARCHIVE_NAME = signingLib.archiveNameFor(VERSION, TARGET)
+const ARCHIVE_NAME = UNSIGNED_BY_DECISION ? unsignedArchiveName(SIGNED_ARCHIVE_NAME) : SIGNED_ARCHIVE_NAME
 
 const TOP_ALLOWLIST = new Set(topAllowlist(TARGET, FLOOR))
 for (const entry of readdirSync(pkgDir)) {
@@ -251,7 +275,8 @@ const dryRunRecord = {
   buildTree: manifest.buildTree,
   bundleSha256: createHash('sha256').update(readFileSync(join(pkgDir, 'mercury.mjs'))).digest('hex'),
   verifyReceipts,
-  signing: { state: shippedSignatureState, licenseId: LICENSE_ID },
+  signing: { state: shippedSignatureState, licenseId: LICENSE_ID, unsignedByDecision: UNSIGNED_BY_DECISION },
+  archive: ARCHIVE_NAME,
   fileCount: files.length,
   totalBytes: files.reduce((n, f) => n + f.bytes, 0),
   bytesByFamily,
@@ -264,7 +289,7 @@ ok(`dry-run record: release-out/${NAME}.dryrun.json (${files.length} files, noti
 
 const outDir = join(ROOT, 'release-out')
 mkdirSync(outDir, { recursive: true })
-const archive = join(outDir, IS_WIN ? `${NAME}.zip` : `${NAME}.tar.gz`)
+const archive = join(outDir, ARCHIVE_NAME)
 rmSync(archive, { force: true })
 const resolvePwshExe = () => {
   for (const exe of ['pwsh', 'powershell']) {
@@ -302,13 +327,16 @@ if (!existsSync(join(smoke, 'mercury', 'splash-core.mjs'))) fail('smoke: splash-
 const smokeHome = join(smoke, 'home')
 const smokeVersions = join(smokeHome, 'versions')
 const smokeLocalAppData = join(smokeHome, 'AppData', 'Local')
+const smokeUserPath = join(smokeHome, 'user-path.json')
 const smokeEnv = {
   ...process.env,
   MERCURY_CONFIG_DIR: smokeHome,
   HOME: smokeHome,
   LOCALAPPDATA: smokeLocalAppData,
   MERCURY_VERSIONS_DIR: smokeVersions,
+  MERCURY_USER_PATH_FILE: smokeUserPath,
   CI: '1',
+  ...(IS_WIN ? {} : { SHELL: '/bin/bash' }),
 }
 const run = (args) =>
   IS_WIN
@@ -400,6 +428,12 @@ if (runtime) ok(`manifest names the vendored runtime (node ${mf.runtime.version}
   ok(`shipped verifier answers '${verdictState}' at full depth (exit ${status})`)
 }
 
+{
+  const docs = checkReleaseDocuments({ root: ROOT, version: VERSION, archiveDir: join(smoke, 'mercury') })
+  if (!docs.ok) fail(`smoke: the archive's licence documents: ${docs.findings.join('; ')}`)
+  ok('the archive carries LICENSE.md, TRADEMARKS.md and the production terms verbatim (the terms hash the licence states)')
+}
+
 const stateMarker = join(smokeHome, 'user-state-marker.json')
 mkdirSync(smokeHome, { recursive: true })
 writeFileSync(stateMarker, '{"survives":true}\n')
@@ -409,6 +443,7 @@ if (!dryOut.includes(`would install version: ${VERSION}`)) fail(`smoke: install 
 if (existsSync(join(smokeVersions, VERSION))) fail('smoke: install --dry-run wrote a version directory')
 ok('install --dry-run describes without changing')
 
+if (IS_WIN) writeFileSync(smokeUserPath, JSON.stringify({ kind: 'ExpandString', value: '%USERPROFILE%\\AppData\\Local\\Microsoft\\WindowsApps' }) + '\n')
 const installOut = run(['install'])
 if (!existsSync(join(smokeVersions, VERSION, 'mercury.mjs'))) fail('smoke: install did not stage the version payload')
 if (!installOut.includes(`installed: ${VERSION}`)) fail(`smoke: install output unexpected: ${installOut.slice(0, 300)}`)
@@ -421,9 +456,33 @@ const shimVersion = (IS_WIN
 if (!shimVersion.includes(VERSION)) fail(`smoke: stable command printed "${shimVersion}" (expected ${VERSION})`)
 ok(`user-local install + stable command → ${shimVersion}`)
 
+const pathLineOf = (out) => out.split('\n').find(l => l.startsWith('PATH: ') || l.startsWith('note: ')) ?? ''
+const pathLine = pathLineOf(installOut)
+if (pathLine === '') fail(`smoke: install printed no PATH line: ${installOut.slice(0, 300)}`)
+if (pathLine.includes('already runs from')) {
+  ok(`PATH act: ${pathLine.slice('PATH: '.length)} (this machine's own command; the write leg is proven by prove-install-path)`)
+} else {
+  if (!pathLine.startsWith('PATH: added')) fail(`smoke: install did not put the stable command's folder on PATH: ${pathLine}`)
+  if (IS_WIN) {
+    const store = JSON.parse(readFileSync(smokeUserPath, 'utf8'))
+    const binDir = join(smokeLocalAppData, 'Mercury', 'bin')
+    if (store.kind !== 'ExpandString' || !store.value.startsWith('%USERPROFILE%') || !store.value.endsWith(`;${binDir}`)) {
+      fail(`smoke: the user PATH was not appended in place with its kind and spellings kept: ${JSON.stringify(store)}`)
+    }
+  } else {
+    for (const rc of ['.bashrc', '.profile']) {
+      const text = existsSync(join(smokeHome, rc)) ? readFileSync(join(smokeHome, rc), 'utf8') : ''
+      const lines = text.split('mercury-managed-path').length - 1
+      if (lines !== 1) fail(`smoke: ${rc} carries ${lines} managed PATH lines (expected exactly one)`)
+    }
+  }
+  ok(`PATH act: ${pathLine.slice('PATH: '.length)}`)
+}
+
 const repeatOut = run(['install'])
 if (!repeatOut.includes('already present')) fail(`smoke: repeat install was not a truthful no-op: ${repeatOut.slice(0, 300)}`)
-ok('repeat install is a truthful no-op (idempotent)')
+if (!/already (names|lists|runs from|on your PATH)/.test(pathLineOf(repeatOut))) fail(`smoke: the repeat install did not leave PATH as it found it: ${pathLineOf(repeatOut)}`)
+ok('repeat install is a truthful no-op (idempotent) and leaves PATH as it found it')
 
 const statusOut = run(['update', '--status'])
 if (!statusOut.includes(`installed version: ${VERSION}`)) fail(`smoke: update --status missing installed version: ${statusOut.slice(0, 300)}`)

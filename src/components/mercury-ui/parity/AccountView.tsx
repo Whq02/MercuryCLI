@@ -42,6 +42,7 @@ import {
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
 import { getMainLoopModel, renderModelName } from '../../../utils/model/model.js'
+import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'
 import { InteractiveRow } from '../InteractiveRow.js'
@@ -115,8 +116,9 @@ export function AccountView({
   }, [scopeDirsKey, version])
 
   const acct = getGlobalConfig().oauthAccount
+  const servedModel = useFocusedServedModel()
   const sessionModel = useAppState(state => state.mainLoopModelForSession ?? state.mainLoopModel)
-  const mainLoopModel = sessionModel ?? getMainLoopModel()
+  const mainLoopModel = servedModel ?? sessionModel ?? getMainLoopModel()
 
   const rerouteToLogins = (family: string, why: string): string => {
     onClose(why, { nextInput: `/logins ${family}`, submitNextInput: true })

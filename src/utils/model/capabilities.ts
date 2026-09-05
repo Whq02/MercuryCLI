@@ -4,7 +4,7 @@ import {
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from 'src/services/analytics/featureGates.js'
 import { flagEnabled } from 'src/substrate/flagRegistry.js'
-import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
 import {
   CODING_20250219_BETA_HEADER,
@@ -50,6 +50,7 @@ import {
   KIMI_EFFORTS,
   KIMI_EFFORT_MODELS,
 } from '../../services/providers/moonshot/kimiPins.js'
+import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -144,6 +145,27 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   )
 }
 
+const perMessageEffortRefused = new Set<string>()
+
+export function notePerMessageEffortRefused(model: string): void {
+  perMessageEffortRefused.add(getCanonicalName(model))
+}
+
+export function resetPerMessageEffortRefusals(): void {
+  perMessageEffortRefused.clear()
+}
+
+export function refusesPerMessageEffortRow(errorText: string): boolean {
+  return /mid-conversation-output-config|output_config/i.test(errorText)
+}
+
+export function servesPerMessageEffort(model: string): boolean {
+  if (declaredRouteOf(model) !== 'anthropic') return false
+  const canonical = getCanonicalName(model)
+  if (perMessageEffortRefused.has(canonical)) return false
+  return canonical.includes('claude-fable-5-1') || canonical.includes('claude-mythos-5-1')
+}
+
 export function modelSupportsAutoMode(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return true
   {
@@ -208,6 +230,7 @@ export type EffortVocabularyView =
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
+      thinkingOffWire?: string
     }
   | { kind: 'offered'; source: 'gpt-unstated' | 'gpt-unavailable'; defaultEffort?: string }
   | {
@@ -279,7 +302,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
     const vocabulary = openrouterEffortVocabularyFor(model)
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'openrouter', vocabulary, thinkingGated: true }
+      ? { kind: 'provider', source: 'openrouter', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'openrouter' }
   }
   if (route === 'gemini') {
@@ -287,7 +310,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
     const vocabulary = geminiEffortVocabularyFor(model)
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'gemini', vocabulary, thinkingGated: true }
+      ? { kind: 'provider', source: 'gemini', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'gemini' }
   }
   if (route === 'openai-compat') return { kind: 'none', source: 'compat' }
@@ -339,9 +362,7 @@ function vocabularyOffers(view: EffortVocabularyView, level: EffortLevel): boole
 
 export function gptModelDefaultEffort(model: string): EffortLevel | undefined {
   const live = gptModelDefaultEffortRaw(model)
-  return live === 'low' || live === 'medium' || live === 'high' || live === 'xhigh' || live === 'max'
-    ? live
-    : undefined
+  return live !== undefined && (EFFORT_LEVELS as readonly string[]).includes(live) ? (live as EffortLevel) : undefined
 }
 
 export function gptModelDefaultEffortRaw(model: string): string | undefined {
@@ -354,18 +375,22 @@ export function modelSupportsEffort(model: string): boolean {
   return effortVocabularyFor(model).kind !== 'none'
 }
 
+export function modelOffersEffortLevel(model: string, level: EffortLevel): boolean {
+  return vocabularyOffers(effortVocabularyFor(model), level)
+}
+
 export function modelSupportsMaxEffort(model: string): boolean {
-  return vocabularyOffers(effortVocabularyFor(model), 'max')
+  return modelOffersEffortLevel(model, 'max')
 }
 
 export function modelSupportsXHighEffort(model: string): boolean {
-  return vocabularyOffers(effortVocabularyFor(model), 'xhigh')
+  return modelOffersEffortLevel(model, 'xhigh')
 }
 
 export function getMaxSupportedEffortLevel(model: string): EffortLevel {
-  if (modelSupportsMaxEffort(model)) return 'max'
-  if (modelSupportsXHighEffort(model)) return 'xhigh'
-  return 'high'
+  const view = effortVocabularyFor(model)
+  const aboveHigh = EFFORT_LEVELS.slice(EFFORT_LEVELS.indexOf('high') + 1).reverse()
+  return aboveHigh.find(level => vocabularyOffers(view, level)) ?? 'high'
 }
 
 
@@ -1105,6 +1130,7 @@ export type ModelCapabilityRecord = Readonly<{
     supported: boolean
     max: boolean
     xhigh: boolean
+    ultra: boolean
     ceiling: EffortLevel
   }>
   tools: Readonly<{
@@ -1148,6 +1174,7 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       supported: modelSupportsEffort(model),
       max: modelSupportsMaxEffort(model),
       xhigh: modelSupportsXHighEffort(model),
+      ultra: modelOffersEffortLevel(model, 'ultra'),
       ceiling: getMaxSupportedEffortLevel(model),
     }),
     tools: Object.freeze({

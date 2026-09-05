@@ -25,6 +25,7 @@ import {
   getThinkingClearLatched,
   setLastMainRequestId,
   setThinkingClearLatched,
+  setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
 import {
   CONTEXT_1M_BETA_HEADER,
@@ -81,12 +82,9 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import {
-  foldToolChoiceForModel,
-  refusalFallbackRequest,
-} from 'src/utils/model/capabilities.js'
+import { foldToolChoiceForModel, refusalFallbackRequest, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
-import { ADVISOR_BETA_HEADER } from '../../../constants/betas.js'
+import { ADVISOR_BETA_HEADER, MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
 import {
   getAttributionHeader,
   getCLISyspromptPrefix,
@@ -102,7 +100,10 @@ import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer } from '../deferralProbe.js'
 import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
-import { announcementMessage, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { announcementMessage, conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
+import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
+import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
 import type {
   ConnectorTextBlock,
   ConnectorTextDelta,
@@ -129,7 +130,7 @@ import {
   getModelMaxOutputTokens,
   getSonnet1mExpTreatmentEnabled,
 } from '../../../utils/context.js'
-import { resolveAppliedEffort } from '../../../utils/effort.js'
+import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
 import { apiTimeoutMsOverride, validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
@@ -148,7 +149,7 @@ import {
   stripToolReferenceBlocksFromUserMessage,
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
-import { stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   getCanonicalName,
@@ -224,9 +225,12 @@ import {
   firstByteTimeoutLine,
   requestWaitLine,
   retryReasonWords,
+  createStreamIdleWatchdog,
+  streamEndReceiptLine,
   streamIdleTimeoutMs,
   streamIdleWarningMsOf,
   type RequestWaitV1,
+  type StreamEndV1,
 } from '../streamIdleBudget.js'
 import {
   configureEffortParams,
@@ -263,6 +267,7 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
+  effortMessage?: EffortValue
   temperatureOverride?: number
   effortValue?: EffortValue
   mcpTools: Tools
@@ -541,6 +546,7 @@ async function* queryModel(
     }
   }
 
+  const rosterOwnerKey = options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null))
   const plan = await planToolPayload({
     model: options.model,
     tools,
@@ -549,7 +555,7 @@ async function* queryModel(
     agents: options.agents,
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
-    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
+    latchKey: rosterOwnerKey,
     alsoDefer: shouldDeferLspTool,
   })
   const useToolSearch = plan.enabled
@@ -558,6 +564,12 @@ async function* queryModel(
   const filteredTools: Tools = plan.roster
   if (!useToolSearch) {
     logForDebugging('Tool search disabled for this request (the payload plan)')
+  }
+  if (plan.restoredMissingTools.length > 0) {
+    declareLawfulPrefixChange(
+      rosterOwnerKey,
+      `a tool the earlier session offered is no longer available (${plan.restoredMissingTools.join(', ')})`,
+    )
   }
 
   if (useToolSearch && plan.wireWhy === 'gateway-unprobed' && gatewayProbePolicyAllows()) {
@@ -656,6 +668,9 @@ async function* queryModel(
     API_MAX_MEDIA_PER_REQUEST,
   )
 
+  messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
+  if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)
+
   const fingerprint = computeFingerprintFromMessages(messages)
 
   const announcement = announcementMessage(plan)
@@ -712,15 +727,16 @@ async function* queryModel(
   if (!thinkingClearLatched && isAgenticQuery) {
     const lastCompletion = getLastApiCompletionTimestamp()
     if (
-      lastCompletion !== null &&
-      Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS
+      isEnvTruthy(process.env.MERCURY_THINKING_CLEAR_NOW) ||
+      (lastCompletion !== null &&
+        Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS)
     ) {
       thinkingClearLatched = true
       setThinkingClearLatched(true)
     }
   }
 
-  const effort = resolveAppliedEffort(options.model, options.effortValue)
+  const effort = resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })
 
   const startIncludingRetries = Date.now()
   let start = Date.now()
@@ -856,8 +872,10 @@ async function* queryModel(
       )
     }
 
-    return {
-      model: normalizeModelStringForAPI(options.model),
+    const prefixKey = conversationRosterKey(rosterOwnerKey, messages, options.model)
+    let wireParts: WirePrefixParts = {
+      system,
+      tools: allTools,
       messages: addCacheBreakpoints(
         messagesForAPI,
         enablePromptCaching,
@@ -867,11 +885,30 @@ async function* queryModel(
         consumedPinnedEdits as CachedMCPinnedEdits[],
         options.skipCacheWrite,
       ),
-      system,
-      tools: allTools,
+    }
+    const inducedEdit = resolveInducedPrefixEdit()
+    if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
+    const effortRow = perMessageEffortRow(options.model, options.effortMessage)
+    const wireMessages = effortRow === null ? wireParts.messages : insertBeforeLastUserRow(wireParts.messages as ReadonlyArray<{ role?: string }>, effortRow)
+    const rowAt = effortRow === null ? -1 : (wireMessages as ReadonlyArray<unknown>).indexOf(effortRow)
+    const sourceIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
+    const wireMessageIds = rowAt === -1 ? sourceIds : [...sourceIds.slice(0, rowAt), null, ...sourceIds.slice(rowAt)]
+    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, {
+      replaceRecord: isTurnOwningQuerySource(options.querySource),
+    })
+
+    if (effortRow !== null && !betasParams.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)) {
+      betasParams.push(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)
+    }
+
+    return {
+      model: normalizeModelStringForAPI(options.model),
+      messages: wireMessages as ReturnType<typeof addCacheBreakpoints>,
+      system: wireParts.system as typeof system,
+      tools: wireParts.tools as typeof allTools,
       tool_choice: toolChoice,
       ...(refusalFallback && { fallbacks: refusalFallback.fallbacks }),
-      ...(sendBetas && { betas: betasParams }),
+      ...((sendBetas || effortRow !== null) && { betas: betasParams }),
       metadata: getAPIMetadata(),
       max_tokens: maxOutputTokens,
       thinking,
@@ -1187,19 +1224,17 @@ async function* queryModel(
     let sawFirstStreamEvent = false
     let streamEventCount = 0
     let streamWatchdogFiredAt: number | null = null
-    let lastStreamEventAtMs = 0
-    let idleWarnedForMs = -1
-    let streamIdleTimer: ReturnType<typeof setTimeout> | null = null
-    function clearStreamIdleTimers(): void {
-      if (streamIdleTimer !== null) {
-        clearTimeout(streamIdleTimer)
-        streamIdleTimer = null
-      }
-    }
-    function onStreamIdleDeadline(): void {
-      streamIdleTimer = null
-      const silentMs = Date.now() - lastStreamEventAtMs
-      if (silentMs >= STREAM_IDLE_TIMEOUT_MS) {
+    let sawMessageStop = false
+    const streamIdleWatchdog = createStreamIdleWatchdog({
+      timeoutMs: STREAM_IDLE_TIMEOUT_MS,
+      onWarning: () => {
+        logForDebugging(
+          `stream silent for ${STREAM_IDLE_WARNING_MS / 1000}s — watchdog warning`,
+          { level: 'warn' },
+        )
+        logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
+      },
+      onFire: () => {
         streamIdleAborted = true
         streamWatchdogFiredAt = performance.now()
         logForDebugging(
@@ -1208,34 +1243,44 @@ async function* queryModel(
         )
         logForDiagnosticsNoPII('error', 'cli_streaming_idle_timeout')
         releaseStreamResources()
-        return
-      }
-      if (
-        silentMs >= STREAM_IDLE_WARNING_MS &&
-        idleWarnedForMs !== lastStreamEventAtMs
-      ) {
-        idleWarnedForMs = lastStreamEventAtMs
-        logForDebugging(
-          `stream silent for ${STREAM_IDLE_WARNING_MS / 1000}s — watchdog warning`,
-          { level: 'warn' },
-        )
-        logForDiagnosticsNoPII('warn', 'cli_streaming_idle_warning')
-      }
-      armStreamIdleWatchdog()
+      },
+    })
+    function clearStreamIdleTimers(): void {
+      streamIdleWatchdog.stop()
     }
-    function armStreamIdleWatchdog(): void {
-      const nextDeadlineAt =
-        lastStreamEventAtMs +
-        (idleWarnedForMs === lastStreamEventAtMs
-          ? STREAM_IDLE_TIMEOUT_MS
-          : STREAM_IDLE_WARNING_MS)
-      streamIdleTimer = setTimeout(
-        onStreamIdleDeadline,
-        Math.max(0, nextDeadlineAt - Date.now()),
-      )
+    function settledTailStands(): boolean {
+      if (!partialMessage || newMessages.length === 0 || stopReason !== null || streamedToolUse) return false
+      let last: (typeof contentBlocks)[number] | undefined
+      for (let i = 0; i < contentBlocks.length; i++) {
+        const block = contentBlocks[i]
+        if (block === undefined) continue
+        if (!stoppedBlockIndices.has(i)) return false
+        last = block
+      }
+      return last !== undefined && last.type === 'text'
     }
-    lastStreamEventAtMs = Date.now()
-    armStreamIdleWatchdog()
+    function* settleTypedEnd(end: StreamEndV1) {
+      const lastMsg = newMessages.at(-1)
+      if (!lastMsg) return
+      stopReason = 'end_turn'
+      lastMsg.message.usage = usage as AssistantMessage['message']['usage']
+      lastMsg.message.stop_reason = 'end_turn'
+      lastMsg.streamEnd = end
+      void settleTranscriptMessage(lastMsg)
+      logForDebugging(streamEndReceiptLine(end), { level: 'warn' })
+      yield {
+        type: 'stream_event' as const,
+        event: {
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage,
+        } as unknown as BetaRawMessageStreamEvent,
+      }
+      yield {
+        type: 'stream_event' as const,
+        event: { type: 'message_stop' } as BetaRawMessageStreamEvent,
+      }
+    }
 
     startSessionActivity('api_call')
     try {
@@ -1246,7 +1291,7 @@ async function* queryModel(
       let stallCount = 0
 
       for await (const part of stream) {
-        lastStreamEventAtMs = Date.now()
+        streamIdleWatchdog.noteActivity()
         sawFirstStreamEvent = true
         streamEventCount++
         const now = Date.now()
@@ -1460,6 +1505,8 @@ async function* queryModel(
             break
           }
           case 'message_stop':
+            sawMessageStop = true
+            setLastApiCompletionTimestamp(Date.now())
             break
         }
 
@@ -1468,6 +1515,7 @@ async function* queryModel(
           event: part,
           ...(part.type === 'message_start' ? { ttftMs } : undefined),
         }
+        if (sawMessageStop) break
       }
       clearStreamIdleTimers()
 
@@ -1484,7 +1532,15 @@ async function* queryModel(
           `stream loop exited ${exitDelayMs}ms after watchdog abort (clean exit)`,
         )
         streamWatchdogFiredAt = null
-        throw new Error('Stream idle timeout - no chunks received')
+        if (settledTailStands()) {
+          yield* settleTypedEnd({
+            reason: 'silent-after-last-item',
+            provider: 'Anthropic',
+            silentMs: streamIdleWatchdog.fired()?.silentMs ?? STREAM_IDLE_TIMEOUT_MS,
+          })
+        } else {
+          throw new Error('Stream idle timeout - no chunks received')
+        }
       }
 
       if (!partialMessage || (newMessages.length === 0 && !stopReason)) {
@@ -1495,6 +1551,9 @@ async function* queryModel(
           { level: 'error' },
         )
         throw new Error('Stream ended without receiving any events')
+      }
+      if (stopReason === null && settledTailStands()) {
+        yield* settleTypedEnd({ reason: 'closed-after-last-item', provider: 'Anthropic' })
       }
 
       if (stallCount > 0) {
@@ -1532,6 +1591,15 @@ async function* queryModel(
         logForDebugging(
           `stream loop exited ${exitDelayMs}ms after watchdog abort (error exit)`,
         )
+      }
+
+      if (streamIdleAborted && !signal.aborted && settledTailStands()) {
+        yield* settleTypedEnd({
+          reason: 'silent-after-last-item',
+          provider: 'Anthropic',
+          silentMs: streamIdleWatchdog.fired()?.silentMs ?? STREAM_IDLE_TIMEOUT_MS,
+        })
+        break
       }
 
       if (streamingError instanceof APIUserAbortError) {
@@ -1933,4 +2001,16 @@ export function getMaxOutputTokensForModel(model: string): number {
     maxOutputTokens.upperLimit,
   )
   return result.effective
+}
+
+export function perMessageEffortRow(model: string, effort: EffortValue | undefined): { role: 'system'; content: []; output_config: { effort: string } } | null {
+  if (typeof effort !== 'string' || !servesPerMessageEffort(model)) return null
+  return { role: 'system', content: [], output_config: { effort } }
+}
+
+export function insertBeforeLastUserRow<T extends { role?: string }>(messages: readonly T[], row: unknown): T[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]!.role === 'user') return [...messages.slice(0, i), row as T, ...messages.slice(i)]
+  }
+  return [...messages, row as T]
 }

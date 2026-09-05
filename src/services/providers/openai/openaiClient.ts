@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { SseDecoder } from '../sseDecoder.js'
@@ -10,9 +11,16 @@ import {
 } from './openaiWire.js'
 import { recordOpenaiRateHeaders } from './openaiLimitState.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
-import { compatStreamIdleTimeoutMs } from '../streamIdleBudget.js'
+import {
+  createStreamIdleWatchdog,
+  firstByteBudgetMs,
+  firstByteTimeoutLine,
+  streamIdleTimeoutMs,
+  StreamIdleTimeoutError,
+  type RequestWaitV1,
+  type StreamIdleWatchdog,
+} from '../streamIdleBudget.js'
 
-const IDLE_TIMEOUT_MS = compatStreamIdleTimeoutMs()
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -23,25 +31,54 @@ export interface OpenaiStreamOptions {
   signal?: AbortSignal
   fetchImpl?: typeof fetch
   idleTimeoutMs?: number
+  firstByte?: {
+    cold: boolean
+    promptTokens: number
+    model: string
+    attempt?: number
+    onWait?: (wait: RequestWaitV1 | null) => void
+  }
 }
 
 export async function* streamOpenaiResponses(
   options: OpenaiStreamOptions,
 ): AsyncGenerator<OpenaiStreamEvent> {
-  const idleMs = options.idleTimeoutMs ?? IDLE_TIMEOUT_MS
+  const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const url = `${options.baseUrl.replace(/\/$/, '')}/responses`
   const controller = new AbortController()
   const onOuterAbort = () => controller.abort()
   options.signal?.addEventListener('abort', onOuterAbort, { once: true })
   const totalTimer = setTimeout(() => controller.abort(), TOTAL_TIMEOUT_MS)
   totalTimer.unref?.()
+  let idleWatchdog: StreamIdleWatchdog | null = null
 
   const fold = new ResponsesStreamFold()
 
   try {
     let response: Response
+    const firstByteBudget = firstByteBudgetMs({
+      cold: options.firstByte?.cold === true,
+      promptTokens: options.firstByte?.promptTokens ?? 0,
+      idleMs: idleMs,
+    })
+    const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
+      kind: 'first-byte',
+      cold: options.firstByte?.cold === true,
+      promptTokens: options.firstByte?.promptTokens ?? 0,
+      model: options.firstByte?.model ?? 'the model',
+      budgetMs: firstByteBudget,
+      sinceMs: Date.now(),
+      attempt: options.firstByte?.attempt ?? 1,
+    }
+    options.firstByte?.onWait?.(wait)
+    let firstByteFired = false
+    const firstByteTimer = setTimeout(() => {
+      firstByteFired = true
+      controller.abort()
+    }, firstByteBudget)
+    firstByteTimer.unref?.()
     try {
-      const fetchImpl = options.fetchImpl ?? getApiFetch()
+      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       response = await fetchImpl(url, {
         method: 'POST',
@@ -56,7 +93,15 @@ export async function* streamOpenaiResponses(
         ...(proxyOptions as Record<string, unknown>),
       } as RequestInit)
     } catch (error) {
+      clearTimeout(firstByteTimer)
       const cancelled = options.signal?.aborted === true
+      if (!cancelled && firstByteFired) {
+        yield {
+          type: 'stream-fault',
+          fault: { kind: 'timeout', code: 'first-byte-timeout', message: firstByteTimeoutLine(wait), retryable: true },
+        }
+        return
+      }
       yield {
         type: 'stream-fault',
         fault: cancelled
@@ -70,6 +115,9 @@ export async function* streamOpenaiResponses(
       }
       return
     }
+
+    clearTimeout(firstByteTimer)
+    options.firstByte?.onWait?.(null)
 
     recordOpenaiRateHeaders(response.headers)
 
@@ -93,26 +141,15 @@ export async function* streamOpenaiResponses(
 
     const reader = response.body.getReader()
     const decoder = new SseDecoder()
-
-    const readWithIdleGuard = async (): Promise<ReadableStreamReadResult<Uint8Array>> => {
-      let idleTimer: ReturnType<typeof setTimeout> | undefined
-      const idle = new Promise<never>((_, reject) => {
-        idleTimer = setTimeout(() => reject(new Error('idle-timeout')), idleMs)
-        idleTimer.unref?.()
-      })
-      try {
-        return await Promise.race([reader.read(), idle])
-      } finally {
-        clearTimeout(idleTimer)
-      }
-    }
+    const watchdog = createStreamIdleWatchdog({ timeoutMs: idleMs })
+    idleWatchdog = watchdog
 
     readLoop: for (;;) {
       let chunk: ReadableStreamReadResult<Uint8Array>
       try {
-        chunk = await readWithIdleGuard()
+        chunk = await watchdog.guard(reader.read())
       } catch (error) {
-        const isIdle = error instanceof Error && error.message === 'idle-timeout'
+        const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
         yield {
           type: 'stream-fault',
@@ -126,11 +163,9 @@ export async function* streamOpenaiResponses(
                   message: error instanceof Error ? error.message : String(error),
                   retryable: true,
                 },
+          settledItems: fold.settledItems(),
         }
-        try {
-          await reader.cancel()
-        } catch {
-        }
+        void reader.cancel().catch(() => {})
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
@@ -147,6 +182,7 @@ export async function* streamOpenaiResponses(
           }
           continue
         }
+        watchdog.noteActivity()
         const payload = item.event.data
         if (payload.trim() === '[DONE]') break readLoop
         let parsed: unknown
@@ -181,10 +217,12 @@ export async function* streamOpenaiResponses(
           message: 'stream ended without response.completed/failed/incomplete',
           retryable: true,
         },
+        settledItems: fold.settledItems(),
       }
     }
   } finally {
     clearTimeout(totalTimer)
+    idleWatchdog?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
   }
@@ -270,7 +308,7 @@ export async function fetchOpenaiLiveModels(options: {
   signal?: AbortSignal
 }): Promise<OpenaiCatalogueResult> {
   // global fetch beside the bundled dispatcher and failed on every node run.
-  const fetchImpl = options.fetchImpl ?? getApiFetch()
+  const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
   const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
   const response = await fetchWithProviderDeadline(
     fetchImpl,

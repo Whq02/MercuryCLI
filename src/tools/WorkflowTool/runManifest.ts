@@ -1,5 +1,6 @@
 
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -41,7 +42,8 @@ export type WorkflowRunAgentSummary = {
   startedAt?: number
   queuedAt?: number
   attempt?: number
-  waiting?: 'prefill' | 'provider-backoff'
+  waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat'
+  waitWords?: string
   retryInMs?: number
   recoveryTimeoutMs?: number
   retryAttempt?: number
@@ -111,9 +113,10 @@ export function buildAgentSummaries(
       queuedAt: num(ev['queuedAt']),
       attempt: num(ev['attempt']),
       waiting:
-        ev['waiting'] === 'prefill' || ev['waiting'] === 'provider-backoff'
+        ev['waiting'] === 'prefill' || ev['waiting'] === 'provider-backoff' || ev['waiting'] === 'usage-window' || ev['waiting'] === 'seat'
           ? ev['waiting']
           : undefined,
+      waitWords: str(ev['waitWords']),
       retryInMs: num(ev['retryInMs']),
       recoveryTimeoutMs: num(ev['recoveryTimeoutMs']),
       retryAttempt: num(ev['retryAttempt']),
@@ -311,7 +314,7 @@ export function workflowsDir(cwd: string): string {
 }
 
 export function workflowRunsRoot(cwd: string): string {
-  return path.join(workflowsDir(cwd), 'runs')
+  return projectHomeStore(cwd, 'workflows', 'runs')
 }
 
 const manifestParseCache = new Map<

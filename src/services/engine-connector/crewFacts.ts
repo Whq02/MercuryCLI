@@ -1,7 +1,9 @@
 import type { WorkRowV1 } from './types.js'
+import { splitWaitSentence } from '../capacity/seatWords.js'
 import { workRowRuns } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
+import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
@@ -9,6 +11,7 @@ export type CrewAgentState = 'running' | 'landed' | 'stopped' | 'failed'
 
 export interface CrewAgentTokens {
   total: number
+  context: number | null
   input: number | null
   output: number | null
 }
@@ -26,6 +29,7 @@ export interface CrewAgentFacts {
   unpricedTurns: number
   toolUses: number | null
   activity: string | null
+  wait: string | null
   toolUseId: string | null
   startedAt: number
   endedAt: number | null
@@ -33,6 +37,8 @@ export interface CrewAgentFacts {
   team: string | null
   description: string | null
   error: string | null
+  stopReason: string | null
+  phase: AgentWaitV1 | null
   pendingAsks: number
   sessionId: string | null
 }
@@ -47,11 +53,12 @@ const positive = (v: unknown): number | null =>
 function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   const input = typeof row.inputTokens === 'number' && Number.isFinite(row.inputTokens) ? row.inputTokens : null
   const output = typeof row.outputTokens === 'number' && Number.isFinite(row.outputTokens) ? row.outputTokens : null
+  const context = positive(row.contextTokens)
   if (input !== null && output !== null && input + output > 0) {
-    return { total: input + output, input, output }
+    return { total: input + output, context, input, output }
   }
   const total = positive(row.totalTokens)
-  return total === null ? null : { total, input: null, output: null }
+  return total === null ? null : { total, context, input: null, output: null }
 }
 
 export function crewStateOf(row: Pick<WorkRowV1, 'status'>): CrewAgentState {
@@ -84,6 +91,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     unpricedTurns: positive(row.unpricedTurns) ?? 0,
     toolUses: typeof row.toolUses === 'number' && Number.isFinite(row.toolUses) && row.toolUses >= 0 ? row.toolUses : null,
     activity: typeof row.activity === 'string' && row.activity !== '' ? row.activity : null,
+    wait: typeof row.wait === 'string' && row.wait !== '' ? row.wait : null,
     toolUseId: typeof row.toolUseId === 'string' && row.toolUseId !== '' ? row.toolUseId : null,
     startedAt: row.startTime,
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
@@ -91,6 +99,8 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     team: row.team ?? null,
     description: row.description ?? null,
     error: row.error ?? null,
+    stopReason: typeof row.stopReason === 'string' && row.stopReason !== '' ? row.stopReason : null,
+    phase: row.phase ?? null,
     pendingAsks: row.pendingAsks ?? 0,
     sessionId,
   }
@@ -148,7 +158,31 @@ export function crewModelLabel(facts: CrewAgentFacts): string {
 }
 
 export function crewStateLabel(facts: CrewAgentFacts): string {
-  return facts.state
+  return facts.running && facts.wait !== null ? 'waiting' : facts.state
+}
+
+export function crewWaitLine(facts: CrewAgentFacts): string | null {
+  return facts.running ? facts.wait : null
+}
+
+export function crewWaitHolders(facts: CrewAgentFacts): string | null {
+  const line = crewWaitLine(facts)
+  if (line === null) return null
+  const { holders } = splitWaitSentence(line)
+  return holders === '' ? null : `held by ${holders}`
+}
+
+export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
+  if (!facts.running) return null
+  return facts.wait ?? agentWaitWords(facts.phase, nowMs) ?? facts.activity
+}
+
+export const CREW_ASK_WAIT_WORDS = 'waiting for your answer'
+
+export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
+  if (facts.running && facts.pendingAsks > 0) return CREW_ASK_WAIT_WORDS
+  if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
+  return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
 }
 
 export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
@@ -165,8 +199,19 @@ export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | nul
   return crewWaitingWords(crewRunning(agents).length)
 }
 
+export function crewStillRunningLine(running: number): string | null {
+  if (!(running > 0)) return null
+  return `${running} sub-agent${running === 1 ? '' : 's'} still running — open the crew view (/teammates) to stop one`
+}
+
 export function crewTokensLabel(facts: CrewAgentFacts): string | null {
-  return facts.tokens === null ? null : `${formatTokens(facts.tokens.total)} tokens`
+  const t = facts.tokens
+  if (t === null) return null
+  return t.context !== null ? `${formatTokens(t.context)} context` : `${formatTokens(t.total)} spent`
+}
+
+export function crewSpendLabel(facts: CrewAgentFacts): string | null {
+  return facts.tokens === null ? null : `${formatTokens(facts.tokens.total)} spent`
 }
 
 export function crewTokensBreakdown(facts: CrewAgentFacts): string | null {
@@ -199,7 +244,7 @@ export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null 
   const n = counted.length
   const spend = crewSpendOf(counted)
   const spendPart = spend.costUSD > 0 || spend.unpricedTurns > 0 ? ` · ${formatSessionCost(spend.costUSD, spend.unpricedTurns)}` : ''
-  return `sub-agents ${formatTokens(crewTokenSum(counted))} tokens · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
+  return `sub-agents ${formatTokens(crewTokenSum(counted))} spent · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
 }
 
 export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {

@@ -1,9 +1,10 @@
 
 import { useSyncExternalStore } from 'react'
-import { getTelemetry, subscribeTelemetry } from '../../state/telemetryBus.js'
+import { getTelemetry } from '../../state/telemetryBus.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { getGitState, getGitWorktreeLanes, subscribeGitFacts } from '../../utils/git.js'
 import {
   readAgentMetadata,
 } from '../../utils/sessionStorage/paths.js'
@@ -23,7 +24,6 @@ import {
   valueOr,
   type SourceState,
 } from '../../substrate/sourceState.js'
-import { gitWorktrees } from '../gitGraph/observe.js'
 import { subscribeExecutionEvents, listExecutions } from '../primitives/executionPlane.js'
 import { getRunSnapshot, subscribeRuns } from '../run/runCoordinator.js'
 import { loadRunSidecar } from '../run/runSidecar.js'
@@ -249,7 +249,14 @@ export async function gatherWorkbenchInputs(opts?: {
     'contextLanes',
     listContextLaneFacts(sessionId),
   )
-  const gitWorktreesSrc = remember(opts?.lastGood, 'gitWorktrees', listGitWorktreeLanes(cwd))
+  const gitWorktreesSrc = remember(opts?.lastGood, 'gitWorktrees', await listGitWorktreeLanes())
+
+  let git: Awaited<ReturnType<typeof getGitState>> = null
+  try {
+    git = await getGitState({ untrackedFiles: 'normal' })
+  } catch {
+    git = null
+  }
 
   return {
     now,
@@ -257,9 +264,9 @@ export async function gatherWorkbenchInputs(opts?: {
     sessionId,
     generation: {
       ...(treeDigest !== null && { treeDigest }),
-      ...(telemetry.git?.commitHash !== undefined && { headSha: telemetry.git.commitHash }),
-      ...(telemetry.git?.branchName !== undefined && { branch: telemetry.git.branchName }),
-      ...(telemetry.git?.isClean !== undefined && { clean: telemetry.git.isClean }),
+      ...(git !== null && { headSha: git.commitHash }),
+      ...(git !== null && { branch: git.branchName }),
+      ...(git !== null && { clean: git.isClean }),
     },
     executions,
     mainRun: pickRunFacts(mainRunSnap),
@@ -303,11 +310,9 @@ function remember<T>(
   return prior === undefined ? s : sourceStale(prior as T, s.reason)
 }
 
-function listGitWorktreeLanes(
-  cwd: string,
-): SourceState<WorkbenchSourceInputs['gitWorktreeLanes']> {
+async function listGitWorktreeLanes(): Promise<SourceState<WorkbenchSourceInputs['gitWorktreeLanes']>> {
   try {
-    const worktrees = gitWorktrees(cwd)
+    const worktrees = await getGitWorktreeLanes()
     if (!Array.isArray(worktrees)) {
       return sourceUnavailable(worktrees.note, false)
     }
@@ -414,7 +419,7 @@ function startEngine(): void {
   }, 'workbench')
   heartbeat = setInterval(() => pokeWorkbench(), HEARTBEAT_MS)
   heartbeat.unref?.()
-  engineUnsubs.push(subscribeTelemetry(() => scheduleDebounced()))
+  engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))
   engineUnsubs.push(subscribeRuns(() => scheduleDebounced()))
   engineUnsubs.push(subscribeExecutionEvents(() => scheduleDebounced()))
   pokeWorkbench()

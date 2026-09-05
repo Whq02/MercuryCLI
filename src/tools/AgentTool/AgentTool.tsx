@@ -16,8 +16,11 @@ import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthor
 import { harnessEffortFact, noteHarnessBoundary } from '../../services/mission/harnessApplication.js'
 import {
   registerAsyncAgent,
+  setAgentPendingAsks,
+  setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { foregroundNotKeptLine, type BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { getRunningTasks } from '../../utils/task/framework.js'
 import {
   buildTool,
@@ -39,6 +42,7 @@ import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { AGENT_DISPATCH_MODELS } from '../../utils/model/aliases.js'
+import { SEAT_ALLOWED_FAMILIES } from '../../utils/model/seatSlots.js'
 import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
@@ -80,7 +84,7 @@ import {
 import {
   agentToolResultSchema,
   PROMOTED_NARRATION_NOTE,
-  resolveAgentTools,
+  resolveWorkerTools,
   runAsyncAgentLifecycle,
 } from './agentToolUtils.js'
 import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
@@ -143,6 +147,7 @@ export type AgentToolInput = {
 function modelEnumValues(): [string, ...string[]] {
   return [
     ...AGENT_DISPATCH_MODELS,
+    ...SEAT_ALLOWED_FAMILIES,
     ...engineDispatchModelsForSchema(),
   ] as [string, ...string[]]
 }
@@ -150,7 +155,7 @@ function modelEnumValues(): [string, ...string[]] {
 function modelParamDescription(): string {
   const engines = engineDispatchModelsForSchema()
   const base =
-    'Model override for this launch. Aliases select the family tier (their [1m] forms select the 1M-context variant); an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
+    'Model override for this launch. Aliases select the family tier (their [1m] forms select the 1M-context variant) and a served Anthropic id names its model exactly; an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
   const exactIds = engines.filter(id => id.includes('-') || id.includes('/'))
   return `${base} Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router); exact catalogue-validated engine ids (gemini-*/openrouter/* included): ${exactIds.join(', ')}.`
 }
@@ -242,6 +247,11 @@ export const outputSchema = lazySchema(() => {
         .optional()
         .describe('Whether the caller can read the output file'),
       modelNote: z.string().optional().describe('The model-floor note'),
+      agentName: z.string().optional().describe('The name the launch gave the agent — an address beside the id'),
+      backgroundReason: z
+        .enum(['turn-interrupted', 'backgrounded', 'agent-type'])
+        .optional()
+        .describe('Why a foreground ask ran in the background: the turn was interrupted, the agent was moved, or the type always does'),
     }),
   ])
 })
@@ -316,10 +326,13 @@ function usageBlock(data: {
   return rows.length > 0 ? `<usage>${rows.join('\n')}</usage>` : '<usage>unreported</usage>'
 }
 
-function continuationHint(agentId: string): string {
-  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${SEND_MESSAGE_TOOL_NAME} addressed to that id.`
+function continuationHint(agentId: string, name?: string): string {
+  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${SEND_MESSAGE_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
 }
 
+
+export const SUBAGENT_BRIEFING_LEAD =
+  'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
 
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
@@ -380,9 +393,8 @@ export const AgentTool = buildTool({
     const tags: string[] = []
     if (input.subagent_type) tags.push(input.subagent_type)
     if (input.mode) tags.push(`mode=${input.mode}`)
-    return tags.length > 0
-      ? `(${tags.join(', ')}): ${input.prompt}`
-      : `: ${input.prompt}`
+    const lead = tags.length > 0 ? `(${tags.join(', ')}) ` : ''
+    return `${lead}${SUBAGENT_BRIEFING_LEAD} ${input.prompt}`
   },
   extractSearchText(output: AgentToolOutput): string {
     const content = (output as { content?: Array<{ text?: string }> }).content
@@ -595,8 +607,9 @@ export const AgentTool = buildTool({
 
     const workerTools = isFork
       ? options.tools
-      : resolveAgentTools(
-          { ...agentDef, permissionMode: plan.workerPermissionMode },
+      : resolveWorkerTools(
+          agentDef,
+          plan.workerPermissionMode,
           assembleToolPool(
             {
               ...context.getAppState().toolPermissionContext,
@@ -605,8 +618,7 @@ export const AgentTool = buildTool({
             context.getAppState().mcp.tools ?? [],
           ),
           plan.shouldRunAsync,
-          false,
-        ).resolvedTools
+        )
 
     if (plan.isolation === 'worktree') {
       const capability = preflightWorktreeCapability()
@@ -744,6 +756,8 @@ export const AgentTool = buildTool({
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
       description: input.description,
+      onWait: line => setAgentWaitLine(earlyAgentId, line, rootSetAppState),
+      onPendingAsks: count => setAgentPendingAsks(earlyAgentId, count, rootSetAppState),
     }
 
     const agentContext: SubagentContext = {
@@ -784,7 +798,7 @@ export const AgentTool = buildTool({
         runAsyncAgentLifecycle({
           taskId: earlyAgentId,
           abortController: task.abortController!,
-          makeStream: onCacheSafeParams =>
+          makeStream: (onCacheSafeParams, onQueryProgress) =>
             runAgent({
               ...runAgentParams,
               override: {
@@ -793,6 +807,7 @@ export const AgentTool = buildTool({
                 abortController: task.abortController!,
               },
               onCacheSafeParams: onCacheSafeParams as never,
+              ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
             }),
           metadata,
           description: input.description,
@@ -825,6 +840,10 @@ export const AgentTool = buildTool({
           outputFile: getTaskOutputPath(earlyAgentId),
           canReadOutputFile,
           ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
+          ...(input.name ? { agentName: input.name } : {}),
+          ...(input.run_in_background === false && agentDef.background === true
+            ? { backgroundReason: 'agent-type' as const }
+            : {}),
           runtimeRef: describeAgentRuntimeRef(plan.model),
         } as never,
       }
@@ -898,11 +917,14 @@ export const AgentTool = buildTool({
         outputFile: string
         canReadOutputFile: boolean
         modelNote?: string
+        agentName?: string
+        backgroundReason?: BackgroundHandoverReason
       }
       const lines = [
         'Agent launched in the background.',
+        ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason)] : []),
         ...(async.modelNote ? [async.modelNote] : []),
-        continuationHint(async.agentId),
+        continuationHint(async.agentId, async.agentName),
         'The agent is working in the background — you will be notified automatically when it completes.',
       ]
       if (async.canReadOutputFile) {

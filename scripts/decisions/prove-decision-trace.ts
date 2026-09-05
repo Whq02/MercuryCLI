@@ -185,6 +185,13 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
     ['allow rule', makeTool(), makeContext({ allow: ['FakeTool'] }), 'toolAllowRule', 'allow'],
     ['passthrough → ask at resolution', makeTool(), makeContext({}), 'resolution', 'ask'],
     ['tool allow stands at resolution', makeTool({ verdict: { behavior: 'allow' } }), makeContext({}), 'resolution', 'allow'],
+    ['sovereign × content ask-rule', makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'sovereign' }), 'contentAskRule', 'allow'],
+    ['sovereign × whole-tool ask rule (carried past the verdict, decided at its road)', makeTool(), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolAskRuleCarried', 'allow'],
+    ['sovereign × whole-tool ask rule + a deny verdict → the deny wins', makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolVerdictDeny', 'deny'],
+    ['sovereign × org ask-ceiling', makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }), 'orgAskCeiling', 'allow'],
+    ['sovereign × safetyCheck ask', makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }), 'safetyCheckAsk', 'allow'],
+    ['autopilot × safetyCheck ask', makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'autopilot' }), 'safetyCheckAsk', 'allow'],
+    ['strategy + bypassAvailable × content ask-rule', makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'strategy', bypassAvailable: true }), 'contentAskRule', 'allow'],
   ]
   for (const [label, tool, ctx, wantStage, wantBehavior] of rows) {
     const { decision, trace } = await full(tool, ctx)
@@ -195,6 +202,13 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
     )
     checkPrefixLaw(label, trace)
   }
+  const stoodDown = await full(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }))
+  const roadRecord = stoodDown.trace.stages.find(s => s.stage === 'safetyCheckAsk')
+  check(
+    'the road that stood down is noted with the posture\'s word',
+    roadRecord?.outcome === 'decided' && (roadRecord.note ?? '').includes('sovereign') && (roadRecord.note ?? '').includes('stands down'),
+    j(stoodDown.trace),
+  )
 }
 
 section('ruleSubset entry — null on no-objection, subset order, no abort gate')
@@ -207,9 +221,24 @@ section('ruleSubset entry — null on no-objection, subset order, no abort gate'
   r = await subset(makeTool({ verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({}))
   check('plain tool ask → null (mode layer decides later)', r.decision === null)
 
-  r = await subset(makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }))
+  r = await subset(makeTool({ orgAskCeiling: true }), makeContext({}))
   check('org ask-ceiling → decidedBy orgAskCeiling', r.trace.decidedBy === 'orgAskCeiling', j(r.trace))
   checkPrefixLaw('subset org-ceiling', r.trace)
+
+  for (const [label, tool, road] of [
+    ['content ask-rule', makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), 'contentAskRule'],
+    ['org ask-ceiling', makeTool({ orgAskCeiling: true }), 'orgAskCeiling'],
+    ['safetyCheck', makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), 'safetyCheckAsk'],
+  ] as Array<[string, unknown, string]>) {
+    r = await subset(tool, makeContext({ mode: 'sovereign' }))
+    const record = r.trace.stages.find(s => s.stage === road)
+    check(
+      `sovereign × ${label} → null, decidedBy 'none', the road passed and noted`,
+      r.decision === null && r.trace.decidedBy === 'none' && record?.outcome === 'pass' && (record.note ?? '').includes('stands down'),
+      j(r.trace),
+    )
+    checkPrefixLaw(`subset sovereign ${label}`, r.trace)
+  }
 
   const aborted = makeContext({}) as { abortController: AbortController }
   aborted.abortController.abort()

@@ -114,14 +114,17 @@ static func _normalize(op: String, args: Dictionary, ctx: MercuryVulcanContext) 
 		"input_sequence":
 			var steps = args.get("steps", [])
 			if typeof(steps) != TYPE_ARRAY or steps.is_empty():
-				return { "err": ctx.err("BAD_ARG", "steps must be a non-empty array", "entries: {\"key\": ...} | {\"button\": ..., \"position\": ...} | {\"action\": ...} | {\"wait_ms\": 250}") }
+				return { "err": ctx.err("BAD_ARG", "steps must be a non-empty array", "entries: {\"key\": ...} | {\"button\": ..., \"position\": ...} | {\"action\": ...} | {\"wait_ms\": 250} | {\"step_frames\": 30} | {\"step_ms\": 500}") }
 			var normed := []
 			var i := 0
 			for step in steps:
 				if typeof(step) != TYPE_DICTIONARY:
-					return { "err": ctx.err("BAD_ARG", "step %d is not a dict" % i, "each step is one of key|button|action|wait_ms") }
-				if not (step.has("key") or step.has("button") or step.has("action") or step.has("wait_ms")):
-					return { "err": ctx.err("BAD_ARG", "step %d needs key|button|action|wait_ms" % i, "e.g. {\"key\": \"Space\"}, then {\"wait_ms\": 250}") }
+					return { "err": ctx.err("BAD_ARG", "step %d is not a dict" % i, "each step is one of key|button|action|wait_ms|step_frames|step_ms") }
+				if not (step.has("key") or step.has("button") or step.has("action") or step.has("wait_ms") or step.has("step_frames") or step.has("step_ms")):
+					return { "err": ctx.err("BAD_ARG", "step %d needs key|button|action|wait_ms|step_frames|step_ms" % i, "e.g. {\"action\": \"left\", \"pressed\": true, \"step_frames\": 30}, then {\"action\": \"left\", \"pressed\": false}") }
+				var bad := MercuryVulcanRuntime.step_window_error(step, "step_frames", "step_ms", ctx)
+				if not bad.is_empty():
+					return { "err": bad }
 				var s: Dictionary = step.duplicate(true)
 				if s.has("position"):
 					var pos := _position_arg(s.get("position"), ctx)

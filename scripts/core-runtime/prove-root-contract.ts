@@ -926,6 +926,15 @@ process.exit(0)
   check('ledger-unit: a deliberate reset syncs the generations', led.frontSeq() === led.deliveredGeneration())
   led.contaminate('stderr-leak')
   check('ledger-unit: external contamination lands', led.contaminationReason() === 'stderr-leak')
+  const same = new FrameLedger()
+  same.commitFrame()
+  same.settle(true, null)
+  const front = same.frontSeq()
+  same.commitFrame(false)
+  same.settle(true, null)
+  check('ledger-unit: an unchanged frame re-committed opens no generation', same.frontSeq() === front && same.deliveredGeneration() === front && !same.isContaminated(), `${same.frontSeq()} vs ${front}`)
+  same.commitFrame(true)
+  check('ledger-unit: the next changed frame advances as before', same.frontSeq() === front + 1)
 }
 
 {
@@ -1118,7 +1127,7 @@ process.exit(0)
     let cleared = false
     applyOverlayPass({
       altScreen: false,
-      follow: { delta: 2, viewportTop: VT, viewportBottom: VB },
+      scrollTranslation: { delta: 2, viewportTop: VT, viewportBottom: VB },
       selection: sel,
       captureScreen: mk(),
       screen: mk(),

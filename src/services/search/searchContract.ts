@@ -63,6 +63,7 @@ export interface SearchSuccess {
   commentary?: string[]
   queries?: string[]
   sequence?: Array<string | { toolUseId: string; hits: SearchHit[] }>
+  notes?: string[]
 }
 
 export type SearchOutcome = SearchSuccess | SearchFailure
@@ -141,19 +142,17 @@ export function normaliseHits(hits: readonly SearchHit[], maxResults = DEFAULT_M
 }
 
 
-export const KEYED_DOOR_REMEDY = 'add a Brave or Tavily key with /router key brave (or /router key tavily) for richer results'
+export const KEYED_DOOR_COMMANDS = '/router key brave · /router key tavily'
+export const KEYED_DOOR_FREE_TIER = 'both offer a free tier'
+
+export const KEYED_DOOR_REMEDY = `a Brave or Tavily key lifts the keyless door's rate limit — ${KEYED_DOOR_COMMANDS} (${KEYED_DOOR_FREE_TIER})`
 
 export function viaLine(via: SearchBackendId, tier: SearchTier): string {
-  const label = searchBackendLabel(via)
-  if (tier === 'keyless') return `via ${label} (keyless — ${KEYED_DOOR_REMEDY})`
-  if (tier === 'keyed') return `via ${label} (keyed)`
-  return `via ${label} (native)`
+  return `via ${searchBackendLabel(via)} (${tier})`
 }
 
 export function viaChip(via: SearchBackendId, tier: SearchTier): string {
-  const label = searchBackendLabel(via)
-  if (tier === 'keyless') return `via ${label} (keyless — add a Brave or Tavily key for richer results)`
-  return `via ${label} (${tier})`
+  return viaLine(via, tier)
 }
 
 export function failureLine(failure: SearchFailure): string {

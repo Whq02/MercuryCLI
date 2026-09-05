@@ -57,8 +57,12 @@ const mark = (over: Partial<ReturnType<typeof prefixMarkOf>> = {}): ReturnType<t
   firstRow: 'row-1',
   compactBoundary: null,
   modelTransition: null,
+  rosterTransition: null,
+  rosterChange: null,
   model: 'claude-fable-5-1',
   settings: 'mode=default;profile=balanced',
+  thinkingClearActive: false,
+  contextEditActive: false,
   ...over,
 })
 
@@ -73,8 +77,8 @@ section('§1 the classifier')
   check('a drop after a drop with unchanged marks is recurrent (run 2, the count is this response\'s)', second.kind === 'recurrent' && second.consecutive === 2 && second.count === 2, j(second))
   const third = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
   check('…and the run keeps counting (3)', third.kind === 'recurrent' && third.consecutive === 3, j(third))
-  check('the first recurrent drop paints; the next does not (once per conversation)', second.paint === true && third.paint === false, `${second.paint} ${third.paint}`)
-  check('…the words follow: a sentence for the first, null for the next', (describeThinkingDrops([DROP('messages.1.content.0')], second) ?? '').includes('Mercury rewrote') && describeThinkingDrops([DROP('messages.1.content.0')], third) === null)
+  check('the first drop paints the one warning of its episode; no recurrent drop paints', first.paint === true && second.paint === false && third.paint === false, `${first.paint} ${second.paint} ${third.paint}`)
+  check('…the words follow: a sentence for the first, null for every recurrent', (describeThinkingDrops([DROP('messages.1.content.0')], first) ?? '').includes('dropped 1 thinking block') && describeThinkingDrops([DROP('messages.1.content.0')], second) === null && describeThinkingDrops([DROP('messages.1.content.0')], third) === null)
   const fourth = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark())
   check('…and the run keeps counting for the ledger while nothing paints (4)', fourth.kind === 'recurrent' && fourth.consecutive === 4 && fourth.paint === false, j(fourth))
   const quiet = classifyThinkingDrops('main', [], mark())
@@ -116,7 +120,9 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced', thinkingClearActive: false, contextEditActive: false }), j(m))
+  const ctxMark = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default' }, { thinkingClearActive: true, contextEditActive: true })
+  check('prefixMarkOf carries the context-edit signals when the caller passes them', ctxMark.thinkingClearActive === true && ctxMark.contextEditActive === true, j(ctxMark))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
 
@@ -159,14 +165,73 @@ section('§1 the classifier')
   resetLawfulPrefixChanges()
 }
 
+section('§1b Mercury\'s own context edits are named, not read as a rewrite')
+{
+  const { preservedThinkingHealth } = binding
+  resetThinkingDropStates()
+  classifyThinkingDrops('pruned', [], mark({ contextEditActive: true }))
+  const pruned = classifyThinkingDrops('pruned', [DROP('messages.102.content.0')], mark({ contextEditActive: true }))
+  check('a drop while a cleared tool result rides is lawful context-edited (not first/recurrent)', pruned.kind === 'lawful' && pruned.lawful === 'context-edited' && pruned.consecutive === 1, j(pruned))
+  const prunedWords = describeThinkingDrops([DROP('messages.102.content.0')], pruned) ?? ''
+  check('the words name the prune, say expected once, and never accuse Mercury of a rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('Mercury rewrote') && !prunedWords.includes('doctor'), prunedWords)
+  const pruned2 = classifyThinkingDrops('pruned', [DROP('messages.102.content.0'), DROP('messages.104.content.0')], mark({ contextEditActive: true }))
+  check('the next context-edit drop stays lawful, paints no second row, and never becomes a growing recurrent run', pruned2.kind === 'lawful' && pruned2.lawful === 'context-edited' && pruned2.paint === false && pruned2.consecutive === 1, j(pruned2))
+  check('…and its words are null (painted once already)', describeThinkingDrops([DROP('messages.102.content.0')], pruned2) === null)
+
+  resetThinkingDropStates()
+  classifyThinkingDrops('both', [], mark({ contextEditActive: true }))
+  const byteMoved = classifyThinkingDrops('both', [DROP('messages.1.content.0')], mark({ contextEditActive: true }), { byteMoved: true })
+  check('a named byte move takes precedence over the context-edit reading', byteMoved.kind === 'first' && byteMoved.lawful === null, j(byteMoved))
+
+  resetThinkingDropStates()
+  classifyThinkingDrops('noswitch', [], mark())
+  const noSwitch = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
+  check('a no-switch byte move is a first rewrite (one warning), never a lawful model switch', noSwitch.kind === 'first' && noSwitch.lawful === null && noSwitch.paint === true, j(noSwitch))
+  const noSwitch2 = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
+  check('…and its recurrence paints nothing (the strip ends it; the doctor keeps the run)', noSwitch2.kind === 'recurrent' && noSwitch2.paint === false && describeThinkingDrops([DROP('messages.1.content.0')], noSwitch2) === null, j(noSwitch2))
+
+  resetThinkingDropStates()
+  classifyThinkingDrops('idle', [], mark({ thinkingClearActive: true }))
+  const cleared = classifyThinkingDrops('idle', [DROP('messages.50.content.0')], mark({ thinkingClearActive: true }))
+  check('a drop while the idle thinking-clear latch is armed is lawful thinking-cleared', cleared.kind === 'lawful' && cleared.lawful === 'thinking-cleared', j(cleared))
+  const clearedWords = describeThinkingDrops([DROP('messages.50.content.0')], cleared) ?? ''
+  check('the words name the idle clear and never accuse a rewrite', clearedWords.includes('cleared reasoning older than the last turn after an hour idle') && !clearedWords.includes('Mercury rewrote'), clearedWords)
+  resetThinkingDropStates()
+  classifyThinkingDrops('bothedits', [], mark({ thinkingClearActive: true, contextEditActive: true }))
+  const bothEdits = classifyThinkingDrops('bothedits', [DROP('messages.1.content.0')], mark({ thinkingClearActive: true, contextEditActive: true }))
+  check('a cleared tool result is named ahead of the idle latch when both are active', bothEdits.lawful === 'context-edited', j(bothEdits))
+
+  const now = new Date().toISOString()
+  const ctxHealth = preservedThinkingHealth({ last: { at: now, kind: 'lawful', lawful: 'context-edited', reason: 'prefix_binding_mismatch', path: 'messages.102.content.0', count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
+  check('the doctor row for a context-edit drop is info and names the prune', ctxHealth.status === 'info' && ctxHealth.evidence.includes("Mercury's tool-result prune"), j(ctxHealth))
+  const idleHealth = preservedThinkingHealth({ last: { at: now, kind: 'lawful', lawful: 'thinking-cleared', reason: 'prefix_binding_mismatch', path: 'messages.50.content.0', count: 2, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
+  check('the doctor row for an idle-clear drop is info and names the idle-hour clear', idleHealth.status === 'info' && idleHealth.evidence.includes("Mercury's idle-hour thinking clear"), j(idleHealth))
+}
+
+section('§1c the count cannot fire the prune early — a session at 88% never prunes')
+{
+  const { getBlockingLimit, calculateTokenWarningState, getEffectiveContextWindowSize } = await import('../../src/services/compact/autoCompact.ts')
+  const model = 'claude-fable-5-1'
+  const window = getEffectiveContextWindowSize(model)
+  const blockingLimit = getBlockingLimit(model)
+  const at88 = calculateTokenWarningState(Math.round(window * 0.88), model).level
+  check('the blocking limit sits below the full window (the manual-compact buffer)', blockingLimit < window && blockingLimit > 0, `limit=${blockingLimit} window=${window}`)
+  check('a session at 88% of the window is NOT blocked — the overflow ladder never arms, so the pressure prune never fires and never rewrites', at88 !== 'blocked', `88%=${Math.round(window * 0.88)} level=${at88} limit=${blockingLimit}`)
+  const atLimit = calculateTokenWarningState(blockingLimit + 1, model).level
+  check('a session past the blocking limit IS blocked (the prune rung is reachable only there)', atLimit === 'blocked', `level=${atLimit}`)
+}
+
 section('§2 the words')
 {
   resetThinkingDropStates()
   const list = [DROP('messages.1.content.0')]
   classifyThinkingDrops('w', [], mark())
   const lawful = describeThinkingDrops(list, classifyThinkingDrops('w', list, mark({ firstRow: 'summary-row' }))) ?? ''
-  check('a single lawful drop is the one-line receipt naming compaction', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
+  check('a single lawful drop is the one-line receipt naming compaction and a turn, never a wire path', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('the first turn') && !lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
   check('…with no Mercury blame, no doctor pointer', !lawful.includes('Mercury') && !lawful.includes('doctor'), lawful)
+  const { createThinkingNoteMessage } = await import('../../src/utils/messages/systemMessages.ts')
+  const note = createThinkingNoteMessage(lawful)
+  check('the lawful note is a thinking_note system row at info level (dim), carrying the sentence', note.type === 'system' && note.subtype === 'thinking_note' && note.level === 'info' && note.content === lawful, j(note))
 
   resetThinkingDropStates()
   classifyThinkingDrops('w', [], mark())
@@ -174,16 +239,13 @@ section('§2 the words')
   check('a first drop keeps the client-side-edit sentence', first === binding.describeInputTransformations(list), first)
 
   const two = [DROP('messages.1.content.0'), DROP('messages.3.content.0')]
-  const recurrent = describeThinkingDrops(two, classifyThinkingDrops('w', two, mark())) ?? ''
-  check('consecutive unlawful drops name Mercury, the earlier rewrite and the cascade until compaction', recurrent.includes('Mercury rewrote already-sent history before messages.1.content.0 at an earlier request') && recurrent.includes('keeps dropping on each request until the conversation compacts') && recurrent.includes('This row paints once'), recurrent)
-  check('…name the block class (the first exchange)', recurrent.includes('the first exchange changed: the top-level system prompt, the tools array or the first user turn'), recurrent)
-  check('…point at the doctor row and the bug-report road', recurrent.includes('mercury doctor') && recurrent.includes('"Preserved thinking" row') && recurrent.includes('https://github.com/example/mercury/issues'), recurrent)
-  check('…and never at switching models', !/switch(ing)? (the )?model/i.test(recurrent) && !recurrent.includes('/model'), recurrent)
-  check('…the plural counts this response\'s blocks', recurrent.includes('dropped 2 thinking blocks again'), recurrent)
+  const recurrentOutcome = classifyThinkingDrops('w', two, mark())
+  check('consecutive unlawful drops are recurrent (run 2) and paint nothing new', recurrentOutcome.kind === 'recurrent' && recurrentOutcome.consecutive === 2 && recurrentOutcome.paint === false && describeThinkingDrops(two, recurrentOutcome) === null, j(recurrentOutcome))
+  check('…the doctor row, not the transcript, names Mercury, the run and the road', (() => { const h = binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 2, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }); return h.status === 'warn' && h.evidence.includes('Mercury rewrote sent history on 2 consecutive requests') && (h.fix ?? '').includes('/issues') && (h.detail ?? '').includes('the first exchange changed') })())
 
   classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
-  const deep = describeThinkingDrops([DROP('messages.7.content.0')], classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())) ?? ''
-  check('a later path names the earlier turn class', deep.includes('a turn before messages.7 changed, or the system prompt or the tools array'), deep)
+  const deepOutcome = classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
+  check('a later recurrent drop paints nothing; the doctor row names the earlier turn class for its path', describeThinkingDrops([DROP('messages.7.content.0')], deepOutcome) === null && (binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.7.content.0', count: 1, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }).detail ?? '').includes('a turn before messages.7 changed, or the system prompt or the tools array'), j(deepOutcome))
 
   resetThinkingDropStates()
   classifyThinkingDrops('w', [], mark())
@@ -354,6 +416,32 @@ if (!existsSync(DIST)) {
       check('the doctor never rewrites the ledger', readFileSync(join(stagedHome, '.mercury', 'preserved-thinking.json'), 'utf8').includes('"consecutive":4'))
     }
   }
+}
+
+section("§8 the turn word: the conversation's own units, never an API round")
+{
+  resetThinkingDropStates()
+  const { turnOrdinalOfWirePath } = binding
+  const a = assistant([THINK('first-round'), TEXT('calling a tool'), { type: 'tool_use', id: 'tu_1', name: 'Bash', input: {} }])
+  const b = assistant([THINK('second-round'), TEXT('done with the tool')])
+  const c = assistant([THINK('second-turn'), TEXT('the answer')])
+  const idOf = (m: Record<string, unknown>): string => String((m.message as { id: string }).id)
+  const history = [user('first ask'), a, user([{ type: 'tool_result', tool_use_id: 'tu_1', content: 'ok' }]), b, user('second ask'), c] as never[]
+  const wireIds: Array<string | null> = [null, idOf(a), null, idOf(b), null, null, idOf(c)]
+  check('the drop at the second turn\'s response reads turn 2 through the wireMessageIds map (an API round is not a turn)', turnOrdinalOfWirePath('messages.6.content.0', wireIds, history) === 2, String(turnOrdinalOfWirePath('messages.6.content.0', wireIds, history)))
+  check("the tool loop's second round still reads the FIRST turn (the tool result is no operator row)", turnOrdinalOfWirePath('messages.3.content.0', wireIds, history) === 1 && turnOrdinalOfWirePath('messages.1.content.0', wireIds, history) === 1)
+  check('a path the request did not send (no id at that index), a user row, or no path resolves to no ordinal', turnOrdinalOfWirePath('messages.2.content.0', wireIds, history) === null && turnOrdinalOfWirePath('messages.9.content.0', wireIds, history) === null && turnOrdinalOfWirePath(null, wireIds, history) === null)
+  const meta = { ...user('a meta row the operator never typed'), isMeta: true } as Record<string, unknown>
+  check('a meta user row is not a turn', turnOrdinalOfWirePath('messages.1.content.0', [null, idOf(a)], [meta, user('the real first ask'), a] as never[]) === 1)
+  const afterCompaction = (owner: string, drops: Entry[]): ReturnType<typeof classifyThinkingDrops> => {
+    classifyThinkingDrops(owner, [], mark())
+    return classifyThinkingDrops(owner, drops, mark({ firstRow: 'summary-row' }))
+  }
+  const words = describeThinkingDrops([DROP('messages.6.content.0')], afterCompaction('turn-word', [DROP('messages.6.content.0')]), 2) ?? ''
+  check('the quiet line names "turn 2" from the ordinal, never "turn 4" from the wire index', words.includes('the history before turn 2 was folded') && !words.includes('turn 4'), words)
+  const unmapped = describeThinkingDrops([DROP('messages.6.content.0')], afterCompaction('turn-word-2', [DROP('messages.6.content.0')]), null) ?? ''
+  check('without an ordinal a deep path names an earlier turn — never a number counted off the wire', unmapped.includes('the history before an earlier turn was folded') && !/turn \d/.test(unmapped), unmapped)
+  check('the first exchange keeps its name with or without an ordinal (wire index 0 or 1 is the first turn on any wire)', (describeThinkingDrops([DROP('messages.1.content.0')], afterCompaction('turn-word-3', [DROP('messages.1.content.0')]), 1) ?? '').includes('the first turn') && (describeThinkingDrops([DROP('messages.1.content.0')], afterCompaction('turn-word-4', [DROP('messages.1.content.0')]), null) ?? '').includes('the first turn'))
 }
 
 console.log('\n============================================================')

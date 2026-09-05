@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 import { verifyPayloadDir } from './artifactVerify.js'
 import { describeSignatureVerdict } from './artifactSigning.js'
+import { provenanceNoticeIsOnce, provenanceNoticeMarkerPath, provenanceNoticeSaid, recordProvenanceNotice } from './installProvenance.js'
 
 export {
   canonicalStatementBytes,
@@ -17,6 +18,7 @@ export {
 } from './artifactSigning.js'
 export { verifyPayloadDir, type PayloadVerification } from './artifactVerify.js'
 export { trustedSigningKeys, PRODUCTION_SIGNING_KEY, type TrustedSigningKey } from './signingTrust.js'
+export { archiveBaseNameFor, archiveNameFor, isReleaseTarget, releaseTargetFor, RELEASE_TARGETS, type ReleaseTarget } from './releaseTarget.js'
 
 const EXIT_BY_STATE: Record<string, number> = {
   signed: 0,
@@ -38,8 +40,12 @@ function cliMain(): void {
   const line = describeSignatureVerdict(result.verdict)
 
   if (launcherMode) {
-    if (result.verdict.state !== 'signed') {
-      process.stderr.write(`mercury: provenance — ${line} (\`mercury doctor\` shows the full record)\n`)
+    const state = result.verdict.state
+    const once = provenanceNoticeIsOnce(state)
+    if (state !== 'signed' && (!once || !provenanceNoticeSaid(dir, state))) {
+      const onceWords = once && provenanceNoticeMarkerPath(dir) !== null ? 'said once for this install; ' : ''
+      process.stderr.write(`mercury: provenance — ${line} (${onceWords}\`mercury doctor\` shows the full record)\n`)
+      if (once) recordProvenanceNotice(dir, state)
     }
     process.exit(0)
   }

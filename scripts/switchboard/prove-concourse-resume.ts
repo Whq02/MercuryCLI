@@ -305,7 +305,7 @@ console.log('A3 — ↵ reactivates through the ONE resume door; the close chord
   const screen = read('src/components/concourse/ConcourseScreen.tsx')
   const chordAt = screen.indexOf('const closeChordGesture = (): void => {')
   const chordBody = screen.slice(chordAt, screen.indexOf('const closeChordRoutineRef', chordAt))
-  check('the chord on a parked row: the first completed gesture says nothing runs, the same gesture inside the stage window clears — the release grammar on the new key', chordAt !== -1 && chordBody.indexOf("sel.state === 'parked'") !== -1 && chordBody.indexOf("sel.state === 'parked'") < chordBody.indexOf('callbacks.stopSession?.(sel.sessionId)') && chordBody.includes('Date.now() - prior.at < CLOSE_CHORD_STAGE_WINDOW_MS') && chordBody.includes('callbacks.removeSession?.(sel.sessionId)') && chordBody.includes('nothing to stop'))
+  check('the chord on a parked row: a fresh completed gesture ARMS the delete (nothing runs), the same gesture inside the stage window ends the record — the release grammar on the new key', chordAt !== -1 && chordBody.includes('closeChordRungOf(boardSelectionClassOf(sel), closeChordStage.standsFor(sel.sessionId))') && chordBody.includes("case 'arm-delete':") && chordBody.includes("case 'delete':") && chordBody.indexOf("case 'delete':") > chordBody.indexOf("case 'arm-delete':") && chordBody.includes('callbacks.removeSession?.(sel.sessionId)'))
   check('plain x carries no board verb any more (the poison the chord retired)', !screen.includes("input === 'x'"))
   check('a parked row subscribes to no work chip (the calm law)', screen.includes("peekSelRow.workspaceDir !== undefined && peekSelRow.state !== 'parked'"))
   const cell = read('src/components/concourse/LiveNowCell.tsx')

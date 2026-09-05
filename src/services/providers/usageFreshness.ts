@@ -1,7 +1,18 @@
+import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export type UsageFeed = 'endpoint' | 'headers' | 'seed'
 
 export const USAGE_POLL_TTL_MS = 60_000
+
+export function usagePollTtlMs(): number {
+  const raw = flagEnv('MERCURY_USAGE_POLL_MS')
+  const ms = raw === undefined || raw === '' ? Number.NaN : Number(raw)
+  return Number.isFinite(ms) && ms >= 1_000 && ms <= 3_600_000 ? ms : USAGE_POLL_TTL_MS
+}
+
+export function usageStaleAfterMs(): number {
+  return 2 * usagePollTtlMs()
+}
 
 export const USAGE_RESPONSE_FRESH_MS = 5 * 60_000
 
@@ -18,7 +29,7 @@ export type UsageFreshness =
 
 export function usageFreshHorizonMs(source: UsageFeed | undefined): number {
   if (source === 'seed') return Number.POSITIVE_INFINITY
-  if (source === 'endpoint') return USAGE_POLL_TTL_MS
+  if (source === 'endpoint') return usageStaleAfterMs()
   return USAGE_RESPONSE_FRESH_MS
 }
 
@@ -71,6 +82,19 @@ export function usageSourceWords(facts: UsageFreshnessFacts, now: number = Date.
 export function usageStaleTail(facts: UsageFreshnessFacts, now: number = Date.now()): string | undefined {
   const fresh = usageFreshness(facts, now)
   return fresh.state === 'stale' ? `↻${formatUsageAgeShort(fresh.ageMs)}` : undefined
+}
+
+export function usageAgeTail(facts: UsageFreshnessFacts, now: number = Date.now()): string | undefined {
+  const fresh = usageFreshness(facts, now)
+  if (fresh.state === 'unstamped' || facts.source === 'seed') return undefined
+  const age = `↻${formatUsageAgeShort(fresh.ageMs)}`
+  return fresh.state === 'stale' ? `stale ${age}` : age
+}
+
+export function usageAgeWords(facts: UsageFreshnessFacts, now: number = Date.now()): string | undefined {
+  const fresh = usageFreshness(facts, now)
+  if (fresh.state === 'unstamped' || facts.source === 'seed') return undefined
+  return fresh.state === 'stale' ? `stale · last read ${formatUsageAge(fresh.ageMs)} ago` : `read ${formatUsageAge(fresh.ageMs)} ago`
 }
 
 export const NO_USAGE_READ_WORDS = 'no usage read'

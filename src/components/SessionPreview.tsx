@@ -1,6 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { Box, Text } from '../ink.js'
+import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
 import type { LogOption } from '../types/logs.js'
 import { Messages } from './Messages.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
@@ -23,9 +24,14 @@ export function SessionPreview({
   onSelect: (log: LogOption) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const { rows } = useTerminalSize()
+  const { columns, rows } = useTerminalSize()
   const [fullLog, setFullLog] = useState<LogOption | null>(
     isLiteLog(log) ? null : log,
+  )
+  const cardHeight = Math.max(6, rows)
+  const interior = useMemo(
+    () => ({ columns: Math.max(20, columns - 4), rows: Math.max(1, cardHeight - 2) }),
+    [columns, cardHeight],
   )
 
   useEffect(() => {
@@ -91,24 +97,26 @@ export function SessionPreview({
   return (
     <Box
       flexDirection="column"
-      height={Math.max(6, rows)}
+      height={cardHeight}
       borderStyle="round"
       borderColor={tokens.borderSubtle}
       paddingX={1}
       key={(fullLog ?? log).sessionId ?? 'preview'}
     >
-      <Box flexDirection="row" gap={1}>
-        <Text bold color={tokens.accent}>
-          Mercury · resume · preview
-        </Text>
+      <TerminalSizeContext.Provider value={interior}>
+        <Box flexDirection="row" gap={1}>
+          <Text bold color={tokens.accent}>
+            Mercury · resume · preview
+          </Text>
+          <Text dimColor wrap="truncate">
+            {title}
+          </Text>
+        </Box>
+        {body}
         <Text dimColor wrap="truncate">
-          {title}
+          {meta} · <Text color={tokens.info}>↵ resume</Text> · esc back
         </Text>
-      </Box>
-      {body}
-      <Text dimColor wrap="truncate">
-        {meta} · <Text color={tokens.info}>↵ resume</Text> · esc back
-      </Text>
+      </TerminalSizeContext.Provider>
     </Box>
   )
 }

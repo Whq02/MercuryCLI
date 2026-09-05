@@ -7,8 +7,10 @@ every page under `docs/` is listed here, by task.
 ## Getting started
 
 1. [The README](../README.md): what Mercury is, who it is for, the
-   requirements, the first run, the daily loop, providers and models, the
-   headless verbs, and every slash command.
+   install (one command per channel: the curl and PowerShell one-liners,
+   Homebrew, npm, mise), the requirements, the first run, the daily loop,
+   providers and models, the headless verbs, every slash command, and the
+   licence in plain words.
 2. [AGENTS.md](../AGENTS.md): build, run and check a fresh checkout in one
    screen. [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md)
    is the step-by-step Windows install, every step with its check;
@@ -124,7 +126,11 @@ the concourse ever comes to require it.
 - Inventories render on demand to untracked paths, never into the tree: the
   flag table from `src/substrate/flagRegistry.ts`, the durable-operation
   matrix, the state-lifecycle manifest, and the reachability manifest.
-- Releases: the notes ride each release itself and `/release-notes` prints
-  the bundled history; the repository carries the product.
+- Releases: [releases/README.md](releases/README.md) keeps one page per
+  tag — its state, the verdict it stands on, what shipped, its known gaps
+  and the queue for the next one ([1.0.0-beta.2](releases/1.0.0-beta.2.md)
+  is the published release; [1.0.0-beta.3](releases/1.0.0-beta.3.md) is
+  the release candidate). The notes themselves ride each release and `/release-notes`
+  prints the bundled history.
 - Generated sections are regenerated from their sources, never hand-edited;
   each names its generator in its own header.

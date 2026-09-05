@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { RELEASE_TARGETS, archiveNameFor, releaseTargetFor } from './releaseTarget.js'
 
 export interface PrivateVersion {
   major: number
@@ -41,10 +42,49 @@ export interface ChannelRelease {
   isDraft: boolean
   isPrerelease: boolean
   assetNames: string[]
+  assetUrls?: Record<string, string>
+}
+
+interface RawRelease {
+  tag_name?: unknown
+  draft?: unknown
+  prerelease?: unknown
+  assets?: unknown
+}
+
+export function projectReleases(raw: unknown): ChannelRelease[] | null {
+  if (!Array.isArray(raw)) return null
+  const releases: ChannelRelease[] = []
+  for (const item of raw as RawRelease[]) {
+    if (typeof item !== 'object' || item === null) continue
+    const assetNames: string[] = []
+    const assetUrls: Record<string, string> = {}
+    for (const asset of Array.isArray(item.assets) ? (item.assets as Array<{ name?: unknown; browser_download_url?: unknown }>) : []) {
+      if (typeof asset !== 'object' || asset === null || typeof asset.name !== 'string' || asset.name.length === 0) continue
+      assetNames.push(asset.name)
+      if (typeof asset.browser_download_url === 'string' && asset.browser_download_url.length > 0) assetUrls[asset.name] = asset.browser_download_url
+    }
+    releases.push({
+      tagName: typeof item.tag_name === 'string' ? item.tag_name : '',
+      isDraft: item.draft === true,
+      isPrerelease: item.prerelease === true,
+      assetNames,
+      ...(Object.keys(assetUrls).length > 0 ? { assetUrls } : {}),
+    })
+  }
+  return releases
 }
 
 export type ReleaseSelection =
-  | { state: 'update-available'; tag: string; version: PrivateVersion; assetName: string; checksumName: string }
+  | {
+      state: 'update-available'
+      tag: string
+      version: PrivateVersion
+      assetName: string
+      checksumName: string
+      assetUrl: string | null
+      checksumUrl: string | null
+    }
   | { state: 'current' }
   | { state: 'no-releases' }
   | { state: 'unsupported-platform'; note: string }
@@ -53,16 +93,12 @@ export type ReleaseSelection =
 export const CHECKSUM_MANIFEST_NAME = 'SHA256SUMS.txt'
 
 export function assetNameFor(version: string, platform: string, arch: string): string | null {
-  if (platform === 'linux' && arch === 'x64') return `mercury-v${version}-linux-x64.tar.gz`
-  if (platform === 'darwin' && arch === 'arm64') return `mercury-v${version}-macos-arm64.tar.gz`
-  if (platform === 'win32' && arch === 'x64') return `mercury-v${version}-windows-x64.zip`
-  return null
+  const target = releaseTargetFor(platform, arch)
+  return target === null ? null : archiveNameFor(version, target)
 }
 
 export function platformNote(platform: string, arch: string): string {
-  if (platform === 'darwin' && arch === 'x64')
-    return 'macOS x64 (Intel) has no channel archive — hosted Intel runners were retired; use the source build'
-  return `no private-channel archive is published for ${platform}/${arch}`
+  return `no release archive is published for ${platform}/${arch} — the archives are ${RELEASE_TARGETS.join(', ')}; build from source (README.md)`
 }
 
 export function selectRelease(
@@ -85,7 +121,7 @@ export function selectRelease(
     return {
       state: 'malformed-release',
       tag: pick.r.tagName,
-      note: 'the newest channel tag is not marked prerelease — the private-release workflow did not publish it; refusing to select it',
+      note: 'the newest channel tag is not marked prerelease — the release workflow did not publish it; refusing to select it',
     }
   }
   const version = formatPrivateVersion(pick.v)
@@ -105,7 +141,15 @@ export function selectRelease(
       note: `release ${pick.r.tagName} has no ${CHECKSUM_MANIFEST_NAME} — checksums must come from the same release`,
     }
   }
-  return { state: 'update-available', tag: pick.r.tagName, version: pick.v, assetName, checksumName: CHECKSUM_MANIFEST_NAME }
+  return {
+    state: 'update-available',
+    tag: pick.r.tagName,
+    version: pick.v,
+    assetName,
+    checksumName: CHECKSUM_MANIFEST_NAME,
+    assetUrl: pick.r.assetUrls?.[assetName] ?? null,
+    checksumUrl: pick.r.assetUrls?.[CHECKSUM_MANIFEST_NAME] ?? null,
+  }
 }
 
 export type BridgePrevious =
@@ -286,8 +330,37 @@ export function describePayload(
 }
 
 
+export const PUBLIC_HOME_SLUG = 'Whq02/MercuryCLI'
+
 export function repoSlugFromUrl(url: string): string | null {
   const m = /github\.com[/:]([^/]+)\/([^/]+?)(?:\.git)?\/?$/.exec(url)
   if (!m) return null
   return `${m[1]}/${m[2]}`
+}
+
+export interface ChannelRepo {
+  slug: string
+  source: 'override' | 'packaged' | 'fallback'
+}
+
+export function resolveChannelRepo(override: string | undefined, packagedUrl: string | undefined): ChannelRepo {
+  const pinned = override?.trim() ?? ''
+  if (/^[^/\s]+\/[^/\s]+$/.test(pinned)) return { slug: pinned, source: 'override' }
+  const packaged = packagedUrl ? repoSlugFromUrl(packagedUrl) : null
+  if (packaged) return { slug: packaged, source: 'packaged' }
+  return { slug: PUBLIC_HOME_SLUG, source: 'fallback' }
+}
+
+
+export function rateLimitResetMinutes(
+  headers: { rateLimitReset?: string | null; retryAfter?: string | null },
+  nowMs: number,
+): number | null {
+  const reset = Number(headers.rateLimitReset)
+  if (headers.rateLimitReset && Number.isFinite(reset) && reset > 0) {
+    return Math.max(1, Math.ceil((reset * 1000 - nowMs) / 60_000))
+  }
+  const retry = Number(headers.retryAfter)
+  if (headers.retryAfter && Number.isFinite(retry) && retry >= 0) return Math.max(1, Math.ceil(retry / 60))
+  return null
 }

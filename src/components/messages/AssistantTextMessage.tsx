@@ -11,12 +11,12 @@ import {
   CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE,
   CUSTOM_OFF_SWITCH_MESSAGE,
   INVALID_API_KEY_ERROR_MESSAGE,
-  INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL,
   ORG_DISABLED_ERROR_MESSAGE_ENV_KEY,
   ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
   TOKEN_REVOKED_ERROR_MESSAGE,
   isContinuableStreamFaultText,
+  isInvalidCredentialWords,
   startsWithApiErrorPrefix,
 } from '../../services/api/errors.js'
 import { walletEntries } from '../../services/wallet/wallet.js'
@@ -224,7 +224,7 @@ export function AssistantTextMessage({
     )
   }
   if (
-    text === INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL ||
+    isInvalidCredentialWords(text) ||
     text === ORG_DISABLED_ERROR_MESSAGE_ENV_KEY ||
     text === ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH ||
     text === TOKEN_REVOKED_ERROR_MESSAGE ||
@@ -266,6 +266,7 @@ export function AssistantTextMessage({
     )
   }
 
+  const workingNote = param.phase === 'commentary'
   return (
     <Box
       flexDirection="column"
@@ -273,6 +274,7 @@ export function AssistantTextMessage({
       width={width}
     >
       <Markdown
+        color={workingNote ? 'subtle' : undefined}
         leadingInline={shouldShowDot ? <TranscriptNameplate /> : undefined}
       >
         {text}

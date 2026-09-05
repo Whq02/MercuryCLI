@@ -26,6 +26,7 @@ type MessageMeta = {
   timestamp?: string
   role: MessageRole
   attachedAuthor?: AttachedAuthor
+  queued?: boolean
 }
 
 const MessageMetaContext = React.createContext<MessageMeta | null>(null)
@@ -40,7 +41,7 @@ export function MessageMetaProvider({
   message,
   children,
 }: {
-  message: { type?: string; timestamp?: string }
+  message: { type?: string; timestamp?: string; queued?: true }
   children: React.ReactNode
 }): React.ReactNode {
   const role: MessageRole =
@@ -50,12 +51,13 @@ export function MessageMetaProvider({
       ? 'assistant'
       : 'user'
   const timestamp = message?.timestamp
+  const queued = message?.queued === true
   const attachedClassify = React.useContext(AttachedAttributionContext)
   const attachedAuthor: AttachedAuthor | undefined =
     attachedClassify !== null ? (role === 'assistant' ? 'agent' : attachedClassify(message)) : undefined
   const value = React.useMemo<MessageMeta>(
-    () => ({ timestamp, role, attachedAuthor }),
-    [timestamp, role, attachedAuthor],
+    () => ({ timestamp, role, attachedAuthor, queued }),
+    [timestamp, role, attachedAuthor, queued],
   )
   return (
     <MessageMetaContext.Provider value={value}>
@@ -83,11 +85,22 @@ export function userHandle(): string {
 
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
 
+export const QUEUED_PLATE = 'queued'.padEnd(8)
+
 export function formatClock(ts?: string): string | null {
   if (!ts) return null
   const d = new Date(ts)
   if (Number.isNaN(d.getTime())) return null
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+}
+
+export function NameplateClock(): React.ReactNode {
+  const meta = React.useContext(MessageMetaContext)
+  if (!meta) return null
+  if (meta.queued) return <Text color={FAINT}>{QUEUED_PLATE} </Text>
+  const clock = formatClock(meta.timestamp)
+  if (!clock) return null
+  return <Text color={FAINT}>{clock} </Text>
 }
 
 export function TranscriptNameplate(): React.ReactNode {
@@ -118,7 +131,11 @@ export function TranscriptNameplate(): React.ReactNode {
   }
   return (
     <Text>
-      {clock ? <Text color={FAINT}>{clock} </Text> : null}
+      {meta.queued ? (
+        <Text color={FAINT}>{QUEUED_PLATE} </Text>
+      ) : clock ? (
+        <Text color={FAINT}>{clock} </Text>
+      ) : null}
       <Text color={FAINT}>[</Text>
       <Text color={nameColor}>{name}</Text>
       <Text color={FAINT}>] </Text>

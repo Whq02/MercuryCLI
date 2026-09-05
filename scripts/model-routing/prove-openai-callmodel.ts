@@ -28,9 +28,11 @@ for (const key of [
   'MERCURY_OPENAI_API_BASE',
   'MERCURY_OPENAI_CHATGPT_BASE',
   'MERCURY_OPENAI_AUTH_BASE',
+  'MERCURY_AUTH_SCOPE_DIR',
 ]) {
   savedEnv[key] = process.env[key]
 }
+delete process.env.MERCURY_AUTH_SCOPE_DIR
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(joinPath(tmpdir(), 'prove-apex-home-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:1'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'http://127.0.0.1:1'
@@ -124,11 +126,11 @@ const echoTool = {
   isReadOnly: () => true,
 } as never
 
-const callParams = (model: string, effort = 'high') => ({
+const callParams = (model: string, effort = 'high', systemPrompt: string[] = ['You are a specialist.']) => ({
   messages: [
     { type: 'user', message: { role: 'user', content: 'add 2+2' }, uuid: 'u1', timestamp: 't' },
   ] as unknown as Message[],
-  systemPrompt: ['You are a specialist.'] as unknown as Parameters<typeof openaiCallModel>[0]['systemPrompt'],
+  systemPrompt: systemPrompt as unknown as Parameters<typeof openaiCallModel>[0]['systemPrompt'],
   thinkingConfig: { type: 'enabled', budgetTokens: 4096 } as const,
   tools: [echoTool] as unknown as Parameters<typeof openaiCallModel>[0]['tools'],
   signal: new AbortController().signal,
@@ -144,9 +146,9 @@ const callParams = (model: string, effort = 'high') => ({
   } as unknown as Parameters<typeof openaiCallModel>[0]['options'],
 })
 
-async function collect(model: string, effort?: string): Promise<Array<StreamEvent | AssistantMessage>> {
+async function collect(model: string, effort?: string, systemPrompt?: string[]): Promise<Array<StreamEvent | AssistantMessage>> {
   const out: Array<StreamEvent | AssistantMessage> = []
-  for await (const item of openaiCallModel(callParams(model, effort))) {
+  for await (const item of openaiCallModel(callParams(model, effort, systemPrompt))) {
     out.push(item as StreamEvent | AssistantMessage)
   }
   return out
@@ -264,6 +266,23 @@ section('1 · the yield contract + the turn record')
   check("live-resolved reasoning effort 'high' + summary auto", body?.reasoning?.effort === 'high' && body?.reasoning?.summary === 'auto')
   check('instructions carry the system prompt', body?.instructions === 'You are a specialist.')
   check('mercury prompt_cache_key rides as the STABLE domain digest', typeof body?.prompt_cache_key === 'string' && body.prompt_cache_key.startsWith('mercury-domain:'))
+  {
+    const { registerComposedContract, contractFromSegments } = await import('../../src/prompt/behaviourContract.js')
+    registerComposedContract(contractFromSegments(['You are a specialist.']))
+    const keyOf = async (systemPrompt: string[]): Promise<string | undefined> => {
+      patchWire()
+      makeResponses = () => sseResponse(HAPPY_STREAM)
+      await collect('gpt-5.6-sol', undefined, systemPrompt)
+      restoreWire()
+      return (lastResponsesBody as { prompt_cache_key?: string } | undefined)?.prompt_cache_key
+    }
+    const tailOne = await keyOf(['You are a specialist.', 'git status snapshot: one file changed'])
+    const tailTwo = await keyOf(['You are a specialist.', 'git status snapshot: two files changed'])
+    const otherBase = await keyOf(['You are a different specialist.', 'git status snapshot: one file changed'])
+    check('the key stays put when only the appended context tail moves (the git status snapshot)', tailOne !== undefined && tailOne === tailTwo, `${tailOne} vs ${tailTwo}`)
+    check('the key moves with the base contract', otherBase !== undefined && otherBase !== tailOne, `${otherBase} vs ${tailOne}`)
+    check('…and the two tails still render into the instructions (delivery, not the key)', typeof (lastResponsesBody as { instructions?: string } | undefined)?.instructions === 'string' && ((lastResponsesBody as { instructions?: string }).instructions ?? '').includes('git status snapshot: one file changed'))
+  }
   check('max_output_tokens is NOT sent (live-proved unsupported)', body?.max_output_tokens === undefined)
   check('the key never rides the body', !JSON.stringify(body).includes('sk-apex-proof-fake'))
   check(
@@ -311,9 +330,13 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const adjusted = await collect('gpt-5.6-sol', 'xhigh')
   const adjustedBody = lastResponsesBody as { reasoning?: { effort?: string } }
   check("unsupported 'xhigh' adjusts to the NEAREST supported 'high' on the wire", adjustedBody?.reasoning?.effort === 'high')
+  const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
+    items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
+  const xhighStamp = stampOf(adjusted)
   check(
-    'the adjustment is VISIBLE (a settled note block names both levels)',
-    JSON.stringify(adjusted).includes("requested reasoning effort 'xhigh'") && JSON.stringify(adjusted).includes("'high'"),
+    'the adjustment is RECEIPTED — the settled message carries the typed stamp (asked xhigh, sent high, the row named) and the reply text carries no note',
+    xhighStamp !== undefined && xhighStamp.model === 'gpt-5.6-sol' && xhighStamp.asked === 'xhigh' && xhighStamp.sent === 'high' && xhighStamp.name.length > 0 && !JSON.stringify(adjusted).includes('requested reasoning effort'),
+    JSON.stringify(xhighStamp),
   )
 
   __resetOpenaiCatalogueForTest()
@@ -331,10 +354,35 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const maxAdjusted = await collect('gpt-5.6-sol', 'max')
   const maxBody = lastResponsesBody as { reasoning?: { effort?: string } }
   check("unsupported 'max' adjusts to the deepest supported 'xhigh' on the wire", maxBody?.reasoning?.effort === 'xhigh')
+  const maxStamp = stampOf(maxAdjusted)
   check(
-    "the max→xhigh adjustment is VISIBLE",
-    JSON.stringify(maxAdjusted).includes("requested reasoning effort 'max'") && JSON.stringify(maxAdjusted).includes("'xhigh'"),
+    'the max→xhigh adjustment is RECEIPTED on the settled message (asked max, sent xhigh)',
+    maxStamp !== undefined && maxStamp.asked === 'max' && maxStamp.sent === 'xhigh',
+    JSON.stringify(maxStamp),
   )
+
+  __resetOpenaiCatalogueForTest()
+  patchWire()
+  makeResponses = () => sseResponse(HAPPY_STREAM)
+  const ultraServed = await collect('gpt-5.6-sol', 'ultra')
+  const ultraBody = lastResponsesBody as { reasoning?: { effort?: string } }
+  check("a served 'ultra' reaches the wire as reasoning.effort ultra, unclamped and unreceipted", ultraBody?.reasoning?.effort === 'ultra' && stampOf(ultraServed) === undefined, JSON.stringify(ultraBody?.reasoning))
+  __resetOpenaiCatalogueForTest()
+  patchWire({
+    data: [
+      {
+        slug: 'gpt-5.6-sol',
+        display_name: 'GPT-5.6 Sol',
+        supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        default_reasoning_level: 'medium',
+      },
+    ],
+  })
+  makeResponses = () => sseResponse(HAPPY_STREAM)
+  const ultraAdjusted = await collect('gpt-5.6-sol', 'ultra')
+  const ultraAdjustedBody = lastResponsesBody as { reasoning?: { effort?: string } }
+  const ultraStamp = stampOf(ultraAdjusted)
+  check("unsupported 'ultra' adjusts to the deepest served 'max' on the wire and is RECEIPTED (asked ultra, sent max)", ultraAdjustedBody?.reasoning?.effort === 'max' && ultraStamp !== undefined && ultraStamp.asked === 'ultra' && ultraStamp.sent === 'max', JSON.stringify(ultraStamp))
 
   __resetOpenaiCatalogueForTest()
   patchWire({
@@ -359,7 +407,107 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const retried = await collect('gpt-5.6-sol')
   restoreWire()
   check('retryable pre-content fault: exactly two attempts (bounded)', responsesCalls === 2, String(responsesCalls))
-  check('…then ONE API-error assistant message', retried.length === 1 && isApiErrorAssistant(retried[0]))
+  const retryRows = retried.filter(m => (m as { type?: string }).type === 'system')
+  const retryAssistants = retried.filter(m => (m as { type?: string }).type === 'assistant')
+  check("the reissue is a row: ONE retry notice names the fault and the attempt (never a silent sleep)", retryRows.length === 1 && (retryRows[0] as { subtype?: string; retryAttempt?: number; maxRetries?: number }).subtype === 'api_error' && (retryRows[0] as { retryAttempt?: number }).retryAttempt === 1 && (retryRows[0] as { maxRetries?: number }).maxRetries === 1, JSON.stringify(retryRows[0]).slice(0, 200))
+  check('…then ONE API-error assistant message', retryAssistants.length === 1 && isApiErrorAssistant(retryAssistants[0]))
+}
+
+section("2b · the wire's own vocabulary: a refused word is remembered, re-issued once, and narrows the row")
+{
+  const store = await import('../../src/services/providers/openai/qualificationStore.js')
+  const effort = await import('../../src/utils/effort.js')
+  const capabilities = await import('../../src/utils/model/capabilities.js')
+  const { effortVocabularyRefusalOf } = await import('../../src/services/providers/openai/openaiCallModel.js')
+  const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
+    items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
+  const sentEffort = (): string | undefined => (lastResponsesBody as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort
+  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+  const REFUSAL = "Invalid value: 'ultra'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', and 'max'."
+  const refusalResponse = (): Response =>
+    new Response(
+      JSON.stringify({ error: { message: REFUSAL, type: 'invalid_request_error', param: 'reasoning.effort', code: 'invalid_value' } }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    )
+  check('no memory before the wire has spoken', store.readWireEffortVocabularies().length === 0, JSON.stringify(store.readWireEffortVocabularies()))
+
+  __resetOpenaiCatalogueForTest()
+  patchWire()
+  let refusals = 0
+  const refusingHost = (): Response => {
+    if (sentEffort() === 'ultra') {
+      refusals++
+      return refusalResponse()
+    }
+    return sseResponse(HAPPY_STREAM)
+  }
+  makeResponses = refusingHost
+  const probed = await collect('gpt-5.6-sol', 'ultra')
+  check(
+    'the refused call is re-issued ONCE at the nearest word the endpoint serves (max) — two wire calls, one refusal',
+    responsesCalls === 2 && refusals === 1 && sentEffort() === 'max',
+    `calls=${responsesCalls} refusals=${refusals} last=${String(sentEffort())}`,
+  )
+  const probedRows = probed.filter(m => (m as { type?: string }).type === 'system')
+  check(
+    "the re-issue is a row: the retry notice carries the endpoint's own sentence and the attempt",
+    probedRows.length === 1 && JSON.stringify(probedRows[0]).includes("Invalid value: 'ultra'") && (probedRows[0] as { retryAttempt?: number }).retryAttempt === 1,
+    JSON.stringify(probedRows[0]).slice(0, 220),
+  )
+  const probedStamp = stampOf(probed)
+  check(
+    'the settled message carries the downgrade receipt (asked ultra, sent max) and the turn answered',
+    probedStamp !== undefined && probedStamp.asked === 'ultra' && probedStamp.sent === 'max' && probed.some(m => (m as { type?: string }).type === 'assistant') && !probed.some(isApiErrorAssistant),
+    JSON.stringify(probedStamp),
+  )
+  const memory = store.readWireEffortVocabularies()
+  check(
+    "the store remembers the row's WIRE vocabulary, dated, verbatim from the refusal",
+    memory.length === 1 && memory[0]!.modelId === 'gpt-5.6-sol' && memory[0]!.sourceKind === 'api-key' && memory[0]!.refused === 'ultra' && JSON.stringify(memory[0]!.levels) === JSON.stringify(WIRE_LIST) && typeof memory[0]!.observedAtMs === 'number',
+    JSON.stringify(memory),
+  )
+  const narrowed = effort.resolveEffortTruth('gpt-5.6-sol', 'ultra')
+  check(
+    "the controls' ladder is narrowed on the next read: ultra is not offered on the row, the ceiling is max, the owner steps ultra to max with the asked word on the record",
+    !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'max' && effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max' && narrowed.wire === 'max' && narrowed.adjustedFrom === 'ultra',
+    JSON.stringify({ selectable: effort.selectableEffortLevels('gpt-5.6-sol'), wire: narrowed.wire, adjustedFrom: narrowed.adjustedFrom }),
+  )
+
+  patchWire()
+  makeResponses = refusingHost
+  const again = await collect('gpt-5.6-sol', 'ultra')
+  const againStamp = stampOf(again)
+  check(
+    'the next request at the word goes out at max directly — ONE wire call, no refusal, the receipt',
+    responsesCalls === 1 && refusals === 1 && sentEffort() === 'max' && againStamp?.asked === 'ultra' && againStamp.sent === 'max',
+    `calls=${responsesCalls} refusals=${refusals} last=${String(sentEffort())} stamp=${JSON.stringify(againStamp)}`,
+  )
+
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST, now: () => Date.now() - store.WIRE_EFFORT_MEMORY_PROBE_MS - 1 })
+  check('past the probe window the row offers the word again (the wire will be asked again)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && effort.selectableEffortLevels('gpt-5.6-sol').includes('ultra'), JSON.stringify(effort.selectableEffortLevels('gpt-5.6-sol')))
+  patchWire()
+  makeResponses = () => sseResponse(HAPPY_STREAM)
+  const accepted = await collect('gpt-5.6-sol', 'ultra')
+  check(
+    'a served-and-accepted ultra reaches the wire unclamped and unreceipted, and clears the memory',
+    responsesCalls === 1 && sentEffort() === 'ultra' && stampOf(accepted) === undefined && store.readWireEffortVocabularies().length === 0,
+    `calls=${responsesCalls} last=${String(sentEffort())} memory=${JSON.stringify(store.readWireEffortVocabularies())}`,
+  )
+  check('a host that accepts the word leaves no memory and no clamp', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && effort.selectableEffortLevels('gpt-5.6-sol').includes('ultra'))
+
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST })
+  check('an accepted word inside the remembered list keeps the memory; a word beyond it clears the memory', store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'max' }) === false && store.readWireEffortVocabularies().length === 1 && store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'ultra' }) === true && store.readWireEffortVocabularies().length === 0)
+
+  check(
+    "the parser reads the endpoint's list from the refusal of the sent word, and nothing else",
+    JSON.stringify(effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, 'ultra')) === JSON.stringify({ refused: 'ultra', levels: WIRE_LIST }) &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, 'max') === undefined &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: "Invalid value: 'ultra'. Supported values are: 'low' and 'high'." }, 'ultra')?.levels.join(',') === 'low,high' &&
+      effortVocabularyRefusalOf({ code: 'http-400', message: REFUSAL }, 'ultra') === undefined &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: 'Unsupported parameter: max_output_tokens' }, 'ultra') === undefined &&
+      effortVocabularyRefusalOf({ code: 'openai-invalid_value', message: REFUSAL }, undefined) === undefined,
+  )
+  restoreWire()
 }
 
 section('3 · stateless replay round-trip (the transcript is canonical)')

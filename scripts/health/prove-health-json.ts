@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -99,8 +99,12 @@ try {
         JSON.stringify(row))
     }
     check('the legacy single-provider auth row is gone', !authSection?.checks.some(c => c.id === 'auth'))
-    const lastCert = join(dir, '.mercury', 'doctor', 'last-cert.json')
-    check('last-cert summary artifact written', existsSync(lastCert))
+    const projectsDir = join(scratchHome, '.mercury', 'projects')
+    const slugs = existsSync(projectsDir) ? readdirSync(projectsDir) : []
+    check('the bare run wrote ONE project store under the config home', slugs.length === 1, JSON.stringify(slugs))
+    const lastCert = join(projectsDir, slugs[0] ?? '(none)', 'doctor', 'last-cert.json')
+    check('last-cert summary artifact written under the config home\'s project store', existsSync(lastCert), lastCert)
+    check('POISON: nothing was written into the project folder\'s .mercury/doctor', !existsSync(join(dir, '.mercury', 'doctor', 'last-cert.json')))
     const sum = JSON.parse(readFileSync(lastCert, 'utf8')) as { verdict?: string; counts?: unknown }
     check('last-cert summary carries verdict + counts', typeof sum.verdict === 'string' && !!sum.counts)
   }
@@ -225,6 +229,40 @@ try {
     check('…and ONLY that row', (pipedOut.match(/^\s*\[[A-Z]+\]/gm) ?? []).length === 1, pipedOut.slice(0, 300))
     check('…with the verdict line', /verdict: [A-Z]+/.test(pipedOut))
 
+  }
+
+  console.log('\n§slow-reader: a consumer slower than the writer still reads exactly one record')
+  {
+    const errFile = join(scratch, 'slow-reader.stderr')
+    let piped = ''
+    let status = 0
+    try {
+      piped = execFileSync(
+        'bash',
+        ['-c', 'node "$0" health --json 2>"$1" | (sleep 3; cat); exit "${PIPESTATUS[0]}"', BIN, errFile],
+        {
+          cwd: scratch,
+          env: { ...process.env, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') },
+          encoding: 'utf8',
+          timeout: 90_000,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      )
+    } catch (e: unknown) {
+      const err = e as { status?: number; stdout?: string }
+      status = err.status ?? -1
+      piped = err.stdout ?? ''
+    }
+    const stderrText = existsSync(errFile) ? readFileSync(errFile, 'utf8') : ''
+    let record: { verdict?: string } | null = null
+    try {
+      record = JSON.parse(piped) as { verdict?: string }
+    } catch {
+      record = null
+    }
+    check('stdout is exactly one JSON record (a second document would fail the parse)', record !== null, `${piped.length} bytes; tail: ${JSON.stringify(piped.slice(-160))}`)
+    check('the exit code is the verdict\'s own (3 = fault, else 0), not a crash', record !== null && status === (record.verdict === 'fault' ? 3 : 0), `status ${status}, verdict ${record?.verdict}`)
+    check('stderr carries no crash banner', stderrText.trim() === '', stderrText.slice(0, 200))
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

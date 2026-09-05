@@ -16,7 +16,10 @@ export function asAgentId(value: string): AgentId {
   return value as AgentId
 }
 
-const AGENT_ID_RE = /^a(?:.+-)?[0-9a-f]{16}$/
+export const TASK_ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz'
+export const TASK_ID_SUFFIX_LENGTH = 8
+
+const AGENT_ID_RE = new RegExp(`^a(?:[${TASK_ID_ALPHABET}]{${TASK_ID_SUFFIX_LENGTH}}|(?:.+-)?[0-9a-f]{16})$`)
 
 export function toAgentId(value: string): AgentId | null {
   return AGENT_ID_RE.test(value) ? (value as AgentId) : null

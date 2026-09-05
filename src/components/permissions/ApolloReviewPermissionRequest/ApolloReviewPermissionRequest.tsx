@@ -1,9 +1,12 @@
 
 import * as React from 'react'
-import { useMemo } from 'react'
-import { Box } from '../../../ink.js'
+import { useMemo, useState } from 'react'
+import { Box, Text } from '../../../ink.js'
+import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
+import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import { ApolloReviewCard } from '../../../tools/ApolloReviewTool/UI.js'
 import type { Input } from '../../../tools/ApolloReviewTool/ApolloReviewTool.js'
+import { boundLines, consentBodyBudget, consentContentWidth } from '../consentBodyBudget.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import {
   PermissionPrompt,
@@ -13,6 +16,9 @@ import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
 type ApolloOptionValue = 'build' | 'build-ask-first' | 'more-questions'
+
+const REVIEW_CHROME_ROWS = 6
+const REVIEW_INDENT_COLUMNS = 4
 
 export function ApolloReviewPermissionRequest({
   toolUseConfirm,
@@ -26,6 +32,32 @@ export function ApolloReviewPermissionRequest({
     toolUseConfirm,
     useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
   )
+
+  const { columns, rows } = useTerminalSize()
+  const [expanded, setExpanded] = useState(false)
+  useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
+    context: 'Confirmation',
+  })
+  const summary = input.summary ?? ''
+  const blockers = input.blockers ?? []
+  const specFiles = input.specFiles ?? []
+  const runNote = input.runNote
+  const bounded = useMemo(() => {
+    const parts = [summary, ...specFiles, ...(runNote ? [runNote] : [])]
+    const projection = boundLines(
+      parts,
+      Math.max(1, consentContentWidth(columns) - REVIEW_INDENT_COLUMNS),
+      expanded ? null : Math.max(1, consentBodyBudget(rows) - REVIEW_CHROME_ROWS),
+    )
+    const shownSpec = projection.lines.slice(1, 1 + specFiles.length)
+    const shownNote = runNote ? projection.lines[1 + specFiles.length] : undefined
+    return {
+      summary: projection.lines[0] ?? '',
+      specFiles: shownSpec,
+      runNote: shownNote,
+      hiddenLines: projection.hiddenLines,
+    }
+  }, [summary, specFiles, runNote, columns, rows, expanded])
 
   const options = useMemo<PermissionPromptOption<ApolloOptionValue>[]>(
     () => [
@@ -74,12 +106,20 @@ export function ApolloReviewPermissionRequest({
   return (
     <PermissionDialog title="Apollo pre-flight review" workerBadge={workerBadge}>
       <Box flexDirection="column" gap={1}>
-        <ApolloReviewCard
-          summary={input.summary ?? ''}
-          blockers={input.blockers ?? []}
-          specFiles={input.specFiles ?? []}
-          runNote={input.runNote}
-        />
+        <Box flexDirection="column">
+          <ApolloReviewCard
+            summary={bounded.summary}
+            blockers={blockers}
+            specFiles={bounded.specFiles}
+            runNote={bounded.runNote}
+          />
+          {bounded.hiddenLines > 0 ? (
+            <Text dimColor>
+              … +{bounded.hiddenLines} more line{bounded.hiddenLines === 1 ? '' : 's'} · ctrl+f expands
+            </Text>
+          ) : null}
+          {expanded ? <Text dimColor>ctrl+f collapses the preview</Text> : null}
+        </Box>
         <PermissionPrompt
           question="Begin the prototype build?"
           options={options}

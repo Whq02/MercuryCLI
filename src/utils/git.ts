@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, accessSync, constants as fsConstants } from 'node:fs'
 import { homedir } from 'node:os'
@@ -7,8 +8,10 @@ import { LRUCache } from 'lru-cache'
 import { memoize } from 'lodash-es'
 
 import { hasBinaryExtension, isBinaryContent } from '../constants/files.js'
+import type { GitUnavailable, GitWorktreeInfo } from '../services/gitGraph/contracts.js'
 import { getCwd } from './cwd.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
+import { projectScopePathspec } from './projectBoundary.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
@@ -21,8 +24,11 @@ import {
   getWorktreeCountFromFs,
   isShallowClone,
   resolveGitDir,
+  subscribeGitChanges,
+  type GitChangeSignal,
 } from './git/gitFilesystem.js'
 import { logError } from './log.js'
+import { subprocessEnv } from './subprocessEnv.js'
 import { whichSync } from './which.js'
 
 
@@ -214,40 +220,80 @@ export async function getRepoRemoteHash(): Promise<string | null> {
 }
 
 
+const PROBE_TIMEOUT_MS = 30_000
+const PROBE_MAX_BUFFER = 16 * 1024 * 1024
+
+type ProbeOutcome = { status: number; stdout: string; fault: null } | { status: null; stdout: ''; fault: string }
+
+function runGitProbe(args: string[], extraEnv?: NodeJS.ProcessEnv): Promise<ProbeOutcome> {
+  return new Promise(resolvePromise => {
+    execFile(
+      gitExe(),
+      args,
+      {
+        windowsHide: true,
+        cwd: getCwd(),
+        env: { ...subprocessEnv(), ...(extraEnv ?? {}) },
+        timeout: PROBE_TIMEOUT_MS,
+        maxBuffer: PROBE_MAX_BUFFER,
+        encoding: 'utf8',
+      },
+      (err, stdout) => {
+        if (err === null) resolvePromise({ status: 0, stdout, fault: null })
+        else if (typeof err.code === 'number') resolvePromise({ status: err.code, stdout: stdout ?? '', fault: null })
+        else resolvePromise({ status: null, stdout: '', fault: String(err.code ?? err.signal ?? 'exec-failure') })
+      },
+    )
+  })
+}
+
+type UpstreamFact = { hasUpstream: boolean; unpushed: number }
+
+async function probeUpstream(): Promise<{ value: UpstreamFact | null; fault: string | null }> {
+  const r = await runGitProbe(['rev-list', '--count', '@{upstream}..HEAD'])
+  if (r.fault !== null) return { value: null, fault: r.fault }
+  if (r.status !== 0) return { value: { hasUpstream: false, unpushed: 0 }, fault: null }
+  const count = parseInt(r.stdout.trim(), 10)
+  return { value: { hasUpstream: true, unpushed: Number.isFinite(count) ? count : 0 }, fault: null }
+}
+
 export async function getIsHeadOnRemote(): Promise<boolean> {
-  const result = await execFileNoThrow(gitExe(), ['rev-parse', '--verify', '@{upstream}'], { preserveOutputOnError: false })
-  return result.code === 0
+  return (await readFact('upstream')).hasUpstream
 }
 
 export async function getUnpushedCount(): Promise<number> {
-  try {
-    const result = await execFileNoThrow(gitExe(), ['rev-list', '--count', '@{upstream}..HEAD'], { preserveOutputOnError: false })
-    if (result.code !== 0) return 0
-    const count = parseInt(result.stdout.trim(), 10)
-    return Number.isFinite(count) ? count : 0
-  } catch {
-    return 0
-  }
+  return (await readFact('upstream')).unpushed
 }
 
 export async function hasUnpushedCommits(): Promise<boolean> {
   return (await getUnpushedCount()) > 0
 }
 
-export async function getIsClean(options?: { ignoreUntracked?: boolean }): Promise<boolean> {
-  const args = ['-c', 'core.optionalLocks=false', 'status', '--porcelain']
-  args.push(options?.ignoreUntracked ? '--untracked-files=no' : '--untracked-files=all')
-  const result = await execFileNoThrow(gitExe(), args, { preserveOutputOnError: false })
-  if (result.code !== 0) return false
-  const meaningful = result.stdout
+type UntrackedMode = 'all' | 'normal' | 'no'
+
+async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null; fault: string | null }> {
+  const args = ['status', '--porcelain', `--untracked-files=${mode}`, ...projectScopePathspec(getCwd())]
+  const r = await runGitProbe(args, { GIT_OPTIONAL_LOCKS: '0' })
+  if (r.fault !== null) return { value: null, fault: r.fault }
+  if (r.status !== 0) return { value: false, fault: null }
+  const meaningful = r.stdout
     .split('\n')
     .map(line => line.trim())
     .filter(line => line !== '')
     .filter(line => {
       const path = line.replace(/^..\s+/, '').replace(/^"|"$/g, '')
-      return !path.startsWith(`${MERCURY_PROJECT_DIR}/doctor/`)
+      if (path.startsWith(`${MERCURY_PROJECT_DIR}/doctor/`)) return false
+      return !(mode === 'normal' && path === `${MERCURY_PROJECT_DIR}/`)
     })
-  return meaningful.length === 0
+  return { value: meaningful.length === 0, fault: null }
+}
+
+export async function getIsClean(options?: {
+  ignoreUntracked?: boolean
+  untrackedFiles?: 'all' | 'normal'
+}): Promise<boolean> {
+  const mode: UntrackedMode = options?.ignoreUntracked ? 'no' : (options?.untrackedFiles ?? 'all')
+  return (await probeClean(mode)).value ?? false
 }
 
 export type GitFileStatus = {
@@ -258,7 +304,7 @@ export type GitFileStatus = {
 export async function getFileStatus(): Promise<GitFileStatus> {
   const result = await execFileNoThrow(
     gitExe(),
-    ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z'],
+    ['-c', 'core.quotePath=false', 'status', '--porcelain', '-z', ...projectScopePathspec(getCwd())],
     { preserveOutputOnError: false },
   )
   const tracked: string[] = []
@@ -317,6 +363,249 @@ export async function stashToCleanState(message?: string): Promise<boolean> {
   }
 }
 
+
+const PROBE_FLOOR_MS = 60_000
+const PROBE_BACKOFF_FACTOR = 4
+const PROBE_BACKOFF_CAP_MS = 600_000
+const SIGNAL_SETTLE_MS = 500
+
+type LanesFact = GitWorktreeInfo[] | GitUnavailable
+type FactValue = { upstream: UpstreamFact; clean: boolean; lanes: LanesFact }
+type ProbeKey = keyof FactValue
+const PROBE_KEYS: readonly ProbeKey[] = ['upstream', 'clean', 'lanes']
+
+interface ProbeEntry<K extends ProbeKey> {
+  value: FactValue[K] | undefined
+  dirty: boolean
+  inflight: Promise<FactValue[K] | undefined> | null
+  restir: boolean
+  computedAt: number
+  notBefore: number
+  secondLookAt: number
+  failures: number
+}
+
+function newEntry<K extends ProbeKey>(): ProbeEntry<K> {
+  return { value: undefined, dirty: true, inflight: null, restir: false, computedAt: 0, notBefore: 0, secondLookAt: 0, failures: 0 }
+}
+
+type ProbeEntries = { [K in ProbeKey]: ProbeEntry<K> }
+function freshEntries(): ProbeEntries {
+  return { upstream: newEntry(), clean: newEntry(), lanes: newEntry() }
+}
+let probeEntries: ProbeEntries = freshEntries()
+
+const SIGNAL_KEYS: Record<Exclude<GitChangeSignal, 'reground'>, readonly ProbeKey[]> = {
+  index: ['clean'],
+  'upstream-ref': ['upstream'],
+  worktrees: ['lanes'],
+  head: PROBE_KEYS,
+  'branch-ref': PROBE_KEYS,
+  'packed-refs': PROBE_KEYS,
+  config: PROBE_KEYS,
+}
+
+const FACT_DEFAULTS: FactValue = {
+  upstream: { hasUpstream: false, unpushed: 0 },
+  clean: false,
+  lanes: { state: 'unavailable', note: 'git worktree list failed' },
+}
+
+const factListeners = new Set<() => void>()
+let signalArmed = false
+let settleTimer: ReturnType<typeof setTimeout> | null = null
+let trailingTimer: ReturnType<typeof setTimeout> | null = null
+let lastSnapshot: GitRepoState | null | undefined
+let snapshotVersion = 0
+let probeNotice: string | null = null
+
+async function probeLanes(): Promise<{ value: LanesFact | null; fault: string | null }> {
+  const { gitWorktreesAsync } = await import('../services/gitGraph/observe.js')
+  const value = await gitWorktreesAsync(getCwd())
+  if (!Array.isArray(value) && value.failure) return { value, fault: value.failure }
+  return { value, fault: null }
+}
+
+const PROBES: { [K in ProbeKey]: (mode: UntrackedMode) => Promise<{ value: FactValue[K] | null; fault: string | null }> } = {
+  upstream: () => probeUpstream(),
+  clean: mode => probeClean(mode),
+  lanes: () => probeLanes(),
+}
+
+function fmtWindow(ms: number): string {
+  return ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${Math.round(ms / 1000)} s`
+}
+
+function recordProbeFault<K extends ProbeKey>(key: K, entry: ProbeEntry<K>, fault: string): void {
+  entry.failures++
+  const backoff = Math.min(PROBE_BACKOFF_CAP_MS, PROBE_FLOOR_MS * PROBE_BACKOFF_FACTOR * 2 ** (entry.failures - 1))
+  entry.notBefore = entry.computedAt + backoff
+  if (probeNotice !== null) return
+  probeNotice = `git ${key === 'lanes' ? 'worktree list' : key === 'clean' ? 'status' : 'rev-list'} probe failed (${fault}) — the git facts refresh at most every ${fmtWindow(backoff)} until it succeeds`
+  logForDebugging(`[git] ${probeNotice}`, { level: 'warn' })
+}
+
+function compute<K extends ProbeKey>(key: K, mode: UntrackedMode): Promise<FactValue[K] | undefined> {
+  const entry = probeEntries[key] as ProbeEntry<K>
+  entry.dirty = false
+  entry.restir = false
+  const run = (async (): Promise<FactValue[K] | undefined> => {
+    let outcome: { value: FactValue[K] | null; fault: string | null }
+    try {
+      outcome = await PROBES[key](mode)
+    } catch (e) {
+      outcome = { value: null, fault: e instanceof Error ? e.message : String(e) }
+    }
+    entry.computedAt = Date.now()
+    if (outcome.fault !== null || outcome.value === null) {
+      recordProbeFault(key, entry, outcome.fault ?? 'exec-failure')
+      return entry.value
+    }
+    entry.value = outcome.value
+    entry.failures = 0
+    entry.notBefore = entry.computedAt + PROBE_FLOOR_MS
+    return outcome.value
+  })()
+  entry.inflight = run
+  void run.then(() => {
+    if (entry.inflight === run) entry.inflight = null
+    if (entry.restir) {
+      entry.restir = false
+      entry.dirty = true
+      if (entry.failures === 0 && entry.computedAt - entry.secondLookAt >= PROBE_FLOOR_MS) {
+        entry.secondLookAt = entry.computedAt
+        entry.notBefore = 0
+      }
+      scheduleRecompute()
+    }
+  })
+  return run
+}
+
+async function readFact<K extends ProbeKey>(key: K, opts?: { fresh?: boolean; mode?: UntrackedMode }): Promise<FactValue[K]> {
+  ensureSignalArmed()
+  const entry = probeEntries[key] as ProbeEntry<K>
+  const mode = opts?.mode ?? 'normal'
+  if (opts?.fresh) {
+    if (entry.inflight !== null) await entry.inflight
+    return (await compute(key, mode)) ?? entry.value ?? FACT_DEFAULTS[key]
+  }
+  if (entry.inflight !== null) return (await entry.inflight) ?? entry.value ?? FACT_DEFAULTS[key]
+  if (entry.value !== undefined && (!entry.dirty || Date.now() < entry.notBefore)) return entry.value
+  if (entry.value === undefined && entry.failures > 0 && Date.now() < entry.notBefore) return FACT_DEFAULTS[key]
+  return (await compute(key, mode)) ?? entry.value ?? FACT_DEFAULTS[key]
+}
+
+function ensureSignalArmed(): void {
+  if (signalArmed) return
+  signalArmed = true
+  subscribeGitChanges(onGitSignal)
+}
+
+function onGitSignal(signal: GitChangeSignal): void {
+  if (signal === 'reground') {
+    resetEntries()
+    return
+  }
+  markDirty(SIGNAL_KEYS[signal])
+}
+
+function markDirty(keys: readonly ProbeKey[]): void {
+  for (const key of keys) {
+    const entry = probeEntries[key]
+    if (entry.inflight !== null) entry.restir = true
+    else entry.dirty = true
+  }
+  scheduleRecompute()
+}
+
+export function markGitTreeSuspect(scope: 'tree' | 'git' = 'tree'): void {
+  markDirty(scope === 'git' ? PROBE_KEYS : ['clean'])
+}
+
+function scheduleRecompute(): void {
+  if (factListeners.size === 0 || settleTimer !== null) return
+  settleTimer = setTimeout(() => {
+    settleTimer = null
+    void recomputeDirty()
+  }, SIGNAL_SETTLE_MS)
+  settleTimer.unref?.()
+}
+
+function armTrailing(ms: number): void {
+  if (trailingTimer !== null) return
+  trailingTimer = setTimeout(() => {
+    trailingTimer = null
+    void recomputeDirty()
+  }, Math.max(1, ms))
+  trailingTimer.unref?.()
+}
+
+async function recomputeDirty(): Promise<void> {
+  if (factListeners.size === 0) return
+  const now = Date.now()
+  let deferredUntil = Number.POSITIVE_INFINITY
+  const runs: Promise<unknown>[] = []
+  for (const key of PROBE_KEYS) {
+    const entry = probeEntries[key]
+    if (!entry.dirty || entry.inflight !== null) continue
+    if (entry.value === undefined && entry.failures === 0) continue
+    if (now < entry.notBefore) {
+      deferredUntil = Math.min(deferredUntil, entry.notBefore)
+      continue
+    }
+    runs.push(compute(key, 'normal'))
+  }
+  if (deferredUntil !== Number.POSITIVE_INFINITY) armTrailing(deferredUntil - now)
+  if (runs.length === 0) return
+  await Promise.all(runs)
+  await publishIfMoved()
+}
+
+async function publishIfMoved(): Promise<void> {
+  const before = lastSnapshot
+  const beforeVersion = snapshotVersion
+  try {
+    await getGitState()
+  } catch {
+    return
+  }
+  if (lastSnapshot === before && snapshotVersion === beforeVersion) return
+  for (const listener of factListeners) {
+    try {
+      listener()
+    } catch (e) {
+      logForDebugging(`[git] facts listener threw (ignored): ${e}`)
+    }
+  }
+}
+
+export function subscribeGitFacts(listener: () => void): () => void {
+  ensureSignalArmed()
+  factListeners.add(listener)
+  return () => {
+    factListeners.delete(listener)
+    if (factListeners.size > 0) return
+    if (settleTimer !== null) {
+      clearTimeout(settleTimer)
+      settleTimer = null
+    }
+    if (trailingTimer !== null) {
+      clearTimeout(trailingTimer)
+      trailingTimer = null
+    }
+  }
+}
+
+function resetEntries(): void {
+  probeEntries = freshEntries()
+  lastSnapshot = undefined
+}
+
+export function gitProbeNote(): string | null {
+  return probeNotice
+}
+
 export type GitRepoState = {
   commitHash: string
   branchName: string
@@ -327,22 +616,81 @@ export type GitRepoState = {
   unpushedCount: number
 }
 
-export async function getGitState(): Promise<GitRepoState | null> {
+function sameState(a: GitRepoState, b: GitRepoState): boolean {
+  return (
+    a.commitHash === b.commitHash &&
+    a.branchName === b.branchName &&
+    a.remoteUrl === b.remoteUrl &&
+    a.isHeadOnRemote === b.isHeadOnRemote &&
+    a.isClean === b.isClean &&
+    a.worktreeCount === b.worktreeCount &&
+    a.unpushedCount === b.unpushedCount
+  )
+}
+
+export async function getGitState(options?: { untrackedFiles?: 'all' | 'normal'; fresh?: boolean }): Promise<GitRepoState | null> {
   try {
-    const [commitHash, branchName, remoteUrl, isHeadOnRemote, isClean, worktreeCount, unpushedCount] =
-      await Promise.all([
-        getHead(),
-        getBranch(),
-        getRemoteUrl(),
-        getIsHeadOnRemote(),
-        getIsClean(),
-        getWorktreeCount(),
-        getUnpushedCount(),
-      ])
-    if (!commitHash && (!branchName || branchName === 'HEAD')) return null
-    return { commitHash, branchName, remoteUrl, isHeadOnRemote, isClean, worktreeCount, unpushedCount }
+    const fresh = options?.fresh === true
+    const mode: UntrackedMode = options?.untrackedFiles ?? (fresh ? 'all' : 'normal')
+    const [commitHash, branchName, remoteUrl, worktreeCount, upstream, isClean] = await Promise.all([
+      getHead(),
+      getBranch(),
+      getRemoteUrl(),
+      getWorktreeCount(),
+      readFact('upstream', { fresh }),
+      readFact('clean', { fresh, mode }),
+    ])
+    if (!commitHash && (!branchName || branchName === 'HEAD')) {
+      lastSnapshot = null
+      return null
+    }
+    const next: GitRepoState = {
+      commitHash,
+      branchName,
+      remoteUrl,
+      isHeadOnRemote: upstream.hasUpstream,
+      isClean,
+      worktreeCount,
+      unpushedCount: upstream.unpushed,
+    }
+    if (lastSnapshot && sameState(lastSnapshot, next)) return lastSnapshot
+    lastSnapshot = Object.freeze(next)
+    snapshotVersion++
+    return lastSnapshot
   } catch {
     return null
+  }
+}
+
+export async function getGitWorktreeLanes(): Promise<LanesFact> {
+  return readFact('lanes')
+}
+
+export function _gitFactsForTesting(): {
+  entries: Record<ProbeKey, { hasValue: boolean; dirty: boolean; inflight: boolean; computedAt: number; notBefore: number; failures: number }>
+  listeners: number
+  version: number
+  notice: string | null
+  trailingArmed: boolean
+} {
+  const entries = {} as ReturnType<typeof _gitFactsForTesting>['entries']
+  for (const key of PROBE_KEYS) {
+    const e = probeEntries[key]
+    entries[key] = { hasValue: e.value !== undefined, dirty: e.dirty, inflight: e.inflight !== null, computedAt: e.computedAt, notBefore: e.notBefore, failures: e.failures }
+  }
+  return { entries, listeners: factListeners.size, version: snapshotVersion, notice: probeNotice, trailingArmed: trailingTimer !== null }
+}
+
+export function _resetGitFactsForTesting(): void {
+  resetEntries()
+  probeNotice = null
+  if (settleTimer !== null) {
+    clearTimeout(settleTimer)
+    settleTimer = null
+  }
+  if (trailingTimer !== null) {
+    clearTimeout(trailingTimer)
+    trailingTimer = null
   }
 }
 

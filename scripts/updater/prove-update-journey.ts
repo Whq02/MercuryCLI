@@ -1,22 +1,9 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { assetNameFor } from '../../src/services/privateChannel/channelCore.js'
-
-const { readCompatFloor, releaseLayoutSection, topAllowlist } = (await import('../release/payloadContract.mjs')) as {
-  readCompatFloor: () => { floorVersion: string; forwarder: string }
-  releaseLayoutSection: (dir: string, target: string, floor: unknown) => Record<string, unknown>
-  topAllowlist: (target: string, floor: unknown) => string[]
-}
-const { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher } = (await import('../release/launcherTemplates.mjs')) as {
-  cmdLauncher: (p: unknown) => string
-  parseEnginesNode: (range: string | undefined) => unknown
-  posixLauncher: (p: unknown) => string
-  ps1Launcher: (p: unknown) => string
-}
+import { closedLoopbackPort, FLOOR, IS_WIN, hostAllowlist, makeFixtures as mintFixtures, makePayload, spawnFixtureReleaseServer, type ReleaseFixtureSpec } from './journeyFixtures.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_JOURNEY_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -29,14 +16,19 @@ if (!existsSync(DIST)) {
   execFileSync(process.execPath, ['run', 'build.ts'], { cwd: ROOT, stdio: 'inherit' })
 }
 
-const IS_WIN = process.platform === 'win32'
-const TARGET = IS_WIN ? 'windows-x64' : process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
-const FLOOR = readCompatFloor()
-const NODE_POLICY = parseEnginesNode(
-  (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { engines?: { node?: string } }).engines?.node,
-)
-
 let failures = 0
+{
+  const { readFileSync: readSource } = await import('node:fs')
+  const { join: joinPath, resolve: resolvePath } = await import('node:path')
+  const svc = readSource(joinPath(resolvePath(import.meta.dir, '..', '..'), 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
+  const { NOTHING_ACTIVATED_WORDS } = await import('../../src/services/privateChannel/updateService.ts')
+  const spellings = svc.match(/nothing was activated/g) ?? []
+  const remedies = svc.match(/remedy: [^\n]*(?:activated|NOTHING_ACTIVATED_WORDS)[^\n]*/g) ?? []
+  const handSpelled = remedies.filter(r => !r.includes('${NOTHING_ACTIVATED_WORDS}'))
+  const ok = NOTHING_ACTIVATED_WORDS === 'nothing was activated — the active installation was not changed' && spellings.length === 1 && handSpelled.length === 0 && remedies.length >= 8
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] the activation sentence has one spelling in the source (the exported owner) and every 'activated' remedy interpolates it (${remedies.length} remedies, ${spellings.length} spelling(s))${handSpelled.length ? ` — hand-spelled: ${handSpelled[0]!.slice(0, 120)}` : ''}`)
+  if (!ok) failures++
+}
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
   if (!cond) failures++
@@ -58,137 +50,12 @@ for (const p of [home, versionsDir, binDir, fixturesRoot]) {
 }
 
 const SLUG = 'fixture-owner/fixture-private-repo'
-const HOST_ASSET = (version: string): string => {
-  const name = assetNameFor(version, process.platform, process.arch)
-  if (!name) throw new Error(`host platform ${process.platform}/${process.arch} has no channel asset — run this prover on linux-x64/macos-arm64/windows-x64`)
-  return name
-}
 
 const FAKE_GH = join(ROOT, 'scripts', 'updater', 'fake-gh.mjs')
 const GH_CMD = JSON.stringify(['node', FAKE_GH])
+const DEAD_API_BASE = `http://127.0.0.1:${await closedLoopbackPort()}`
 
-type PayloadShape = 'release-layout' | 'schema2-single'
-
-interface PayloadOpts {
-  manifestVersion?: string
-  stagedFail?: boolean
-  postSwitchFail?: boolean
-  shape?: PayloadShape
-}
-
-function makePayload(dir: string, version: string, opts: PayloadOpts = {}): void {
-  const shape = opts.shape ?? 'release-layout'
-  mkdirSync(join(dir, 'vendor', 'ripgrep', 'stub'), { recursive: true })
-  writeFileSync(join(dir, 'vendor', 'ripgrep', 'stub', 'rg'), 'stub\n')
-  const body = opts.stagedFail
-    ? 'process.exit(1)\n'
-    : `import { readFileSync } from 'node:fs'
-const m = JSON.parse(readFileSync(new URL('./manifest.json', import.meta.url), 'utf8'))
-${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta.url).pathname)\nif (/[\\/\\\\]${version.replace(/\./g, '\\.')}[\\/\\\\]$/.test(dir)) process.exit(1)\n` : ''}console.log('Mercury ' + m.version)
-`
-  writeFileSync(join(dir, 'mercury.mjs'), body)
-  writeFileSync(join(dir, 'splash.mjs'), `// fixture splash ${version}\n`)
-  writeFileSync(join(dir, 'splash-core.mjs'), `// fixture splash core ${version}\n`)
-  if (IS_WIN) {
-    writeFileSync(join(dir, 'mercury.cmd'), cmdLauncher(NODE_POLICY))
-    writeFileSync(join(dir, 'mercury.ps1'), ps1Launcher(NODE_POLICY))
-    writeFileSync(join(dir, 'install.ps1'), `# fixture installer stub\n`)
-  } else {
-    writeFileSync(join(dir, 'mercury'), posixLauncher(NODE_POLICY))
-    writeFileSync(join(dir, 'install.sh'), `#!/bin/sh\n# fixture installer stub\n`)
-  }
-  for (const doc of ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md']) {
-    writeFileSync(join(dir, doc), `# fixture ${doc} ${version}\n`)
-  }
-  writeFileSync(join(dir, 'mercury-vscode.vsix'), `fixture-vsix ${version}\n`)
-  writeFileSync(join(dir, 'verify-artifact.mjs'), `// fixture provenance verifier ${version}\n`)
-  const manifest: Record<string, unknown> = {
-    schema: 2,
-    name: 'mercury',
-    version: opts.manifestVersion ?? version,
-    bundle: 'mercury.mjs',
-    bundleBytes: statSync(join(dir, 'mercury.mjs')).size,
-  }
-  writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest) + '\n')
-  if (shape === 'release-layout') {
-    manifest.releaseLayout = releaseLayoutSection(dir, TARGET, FLOOR)
-    writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
-  }
-  if (!IS_WIN) {
-    for (const f of ['mercury', 'install.sh']) {
-      if (existsSync(join(dir, f))) chmodSync(join(dir, f), 0o755)
-    }
-  }
-}
-
-const sha256 = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
-
-interface ReleaseFixtureSpec {
-  version: string
-  tag?: string
-  draft?: boolean
-  prerelease?: boolean
-  payload?: PayloadOpts
-  archiveRoot?: string
-  sums?: 'ok' | 'missing-entry' | 'duplicate' | 'malformed' | 'mismatch'
-  omitAsset?: boolean
-}
-
-function archiveStage(stage: string, rootName: string, archivePath: string): void {
-  if (IS_WIN) {
-    execFileSync(
-      'pwsh',
-      ['-NoProfile', '-NonInteractive', '-Command', 'Compress-Archive -LiteralPath $env:MJ_SRC -DestinationPath $env:MJ_DEST -Force'],
-      { stdio: 'pipe', timeout: 300_000, env: { ...process.env, MJ_SRC: join(stage, rootName), MJ_DEST: archivePath } },
-    )
-  } else {
-    execFileSync('tar', ['-czf', archivePath, '-C', stage, rootName])
-  }
-}
-
-function makeFixtures(name: string, specs: ReleaseFixtureSpec[]): string {
-  const dir = join(fixturesRoot, name)
-  const releases: unknown[] = []
-  for (const spec of specs) {
-    const tag = spec.tag ?? `v${spec.version}`
-    const assetName = HOST_ASSET(spec.version)
-    const tagDir = join(dir, 'assets', tag)
-    mkdirSync(tagDir, { recursive: true })
-    const stage = join(dir, 'stage', tag)
-    const rootName = spec.archiveRoot ?? 'mercury'
-    makePayload(join(stage, rootName), spec.version, spec.payload ?? {})
-    const archivePath = join(tagDir, assetName)
-    archiveStage(stage, rootName, archivePath)
-    const digest = sha256(archivePath)
-    let sumsText: string
-    switch (spec.sums ?? 'ok') {
-      case 'ok':
-        sumsText = `${digest}  ${assetName}\n`
-        break
-      case 'missing-entry':
-        sumsText = `${'0'.repeat(64)}  some-other-file.tar.gz\n`
-        break
-      case 'duplicate':
-        sumsText = `${digest}  ${assetName}\n${'1'.repeat(64)}  ${assetName}\n`
-        break
-      case 'malformed':
-        sumsText = `this is not a checksum manifest\n`
-        break
-      case 'mismatch':
-        sumsText = `${'2'.repeat(64)}  ${assetName}\n`
-        break
-    }
-    writeFileSync(join(tagDir, 'SHA256SUMS.txt'), sumsText)
-    releases.push({
-      tag_name: tag,
-      draft: spec.draft ?? false,
-      prerelease: spec.prerelease ?? true,
-      assets: [...(spec.omitAsset ? [] : [{ name: assetName }]), { name: 'SHA256SUMS.txt' }],
-    })
-  }
-  writeFileSync(join(dir, 'releases.json'), JSON.stringify(releases, null, 1))
-  return dir
-}
+const makeFixtures = (name: string, specs: ReleaseFixtureSpec[]): string => mintFixtures(fixturesRoot, name, specs)
 
 function runCli(
   args: string[],
@@ -205,6 +72,7 @@ function runCli(
       MERCURY_CONFIG_DIR: configHome,
       MERCURY_VERSIONS_DIR: versionsDir,
       MERCURY_UPDATE_CHANNEL_REPO: SLUG,
+      MERCURY_UPDATE_API_BASE_URL: DEAD_API_BASE,
       MERCURY_GH_CMD: GH_CMD,
       GH_SHIM_FIXTURES: opts.fixtures,
       GH_SHIM_LOG: ghLog,
@@ -240,7 +108,7 @@ console.log('── §0 fixture provenance (UPD-07: one member-role authority) �
   const provenance = join(scratch, 'provenance-payload')
   makePayload(provenance, '9.9.0-beta.9')
   const built = readdirSync(provenance).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
-  const expected = topAllowlist(TARGET, FLOOR)
+  const expected = hostAllowlist()
   check(
     'the default fixture payload carries EXACTLY the packager allowlist members',
     JSON.stringify(built) === JSON.stringify(expected),
@@ -304,7 +172,7 @@ seedInstalled(V_OLD)
   mkdirSync(f, { recursive: true })
   writeFileSync(join(f, 'releases.json'), JSON.stringify([{ tag_name: 'bench-corpus-v1', draft: false, prerelease: true, assets: [] }]))
   const r = runCli(['update', '--check'], { fixtures: f })
-  check('foreign tags ⇒ no private releases (exit 0)', r.code === 0 && r.stdout.includes('no private releases found'))
+  check('foreign tags ⇒ no releases (exit 0)', r.code === 0 && r.stdout.includes('no releases found'))
 }
 {
   const f = makeFixtures('no-platform-asset', [{ version: V_OLD }, { version: V_NEW, omitAsset: true }])
@@ -333,6 +201,19 @@ for (const c of refusalCases) {
   check(`${c.name}: staging cleaned`, !existsSync(join(versionsDir)) || !readFileSync(join(versionsDir, 'current.txt'), 'utf8').includes('.download'))
 }
 
+console.log('── §3b tampered provenance ⇒ refused at verify, nothing staged; unsigned still activates ──')
+{
+  seedInstalled(V_OLD)
+  const f = makeFixtures('tampered', [{ version: V_OLD }, { version: V_NEW, payload: { tampered: true } }])
+  const r = runCli(['update'], { fixtures: f })
+  const all = r.stdout + r.stderr
+  check('a signing block that does not verify refuses at verify, naming the signed sha256 mismatch', r.code === 1 && all.includes('refused at verify') && all.includes('differ from the signed sha256'), all.slice(0, 300))
+  check('nothing was staged: the active install untouched, no new version directory', currentPointer() === V_OLD && !existsSync(join(versionsDir, V_NEW)))
+  const unsigned = makeFixtures('unsigned-activates', [{ version: V_OLD }, { version: V_NEW }])
+  const ok = runCli(['update'], { fixtures: unsigned })
+  check('an unsigned release still activates and its verdict is said (the ruled tolerance)', ok.code === 0 && currentPointer() === V_NEW && (ok.stdout + ok.stderr).includes('unsigned'), (ok.stdout + ok.stderr).slice(0, 300))
+}
+
 console.log('── §4 post-switch smoke failure ⇒ automatic restore ──')
 {
   seedInstalled(V_OLD)
@@ -346,9 +227,11 @@ console.log('── §4 post-switch smoke failure ⇒ automatic restore ──')
 console.log('── §5 access unavailable · concurrent lock · rollback refusals ──')
 {
   seedInstalled(V_OLD)
-  const r = runCli(['update', '--check'], { fixtures: happyFixtures, env: { GH_SHIM_AUTH: 'fail' } })
+  const privateChannel = await spawnFixtureReleaseServer({ fixtures: happyFixtures, visibility: 'private' })
+  const r = runCli(['update', '--check'], { fixtures: happyFixtures, env: { GH_SHIM_AUTH: 'fail', MERCURY_UPDATE_API_BASE_URL: privateChannel.url } })
+  await privateChannel.close()
   const all = r.stdout + r.stderr
-  check('signed-out gh ⇒ exit 1 + sign-in remedy', r.code === 1 && all.includes('gh auth login'))
+  check('signed-out gh + a private channel ⇒ exit 1 + the not-visible words with the sign-in remedy', r.code === 1 && all.includes('not visible') && all.includes('gh auth login'), all.slice(0, 300))
 }
 {
   seedInstalled(V_OLD)

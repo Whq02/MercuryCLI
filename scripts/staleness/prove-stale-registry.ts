@@ -68,6 +68,7 @@ src/context.ts :: getGitStatus :: invalidator=applyHarnessGround
 src/context.ts :: getSystemContext :: invalidator=applyHarnessGround
 src/context.ts :: getUserContext :: invalidator=applyHarnessGround
 src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth
+src/daemon/concourseWorktrees.ts :: worktreeDirtCache :: ttl-bounded
 src/daemon/controlSocket.ts :: controlKeyMemo :: invalidator=clearControlKeyMemo
 src/daemon/handshake.ts :: clientMemo :: static-for-process
 src/daemon/ownerWatch.ts :: startTokenCache :: ttl-bounded
@@ -120,7 +121,7 @@ src/services/instructions/engine.ts :: getInstructionFiles :: invalidator=clearI
 src/services/internalLogging.ts :: getContainerId :: static-for-process
 src/services/lsp/clangdLane.ts :: probeCache :: ttl-bounded
 src/services/lsp/pyrightLane.ts :: probeCache :: ttl-bounded
-src/services/lsp/ruffLane.ts :: probeCache :: ttl-bounded
+src/services/lsp/ruffLane.ts :: versionCache :: ttl-bounded
 src/services/lsp/unityLane.ts :: probeCache :: ttl-bounded
 src/services/mcp/auth.ts :: metadataCache :: static-for-process
 src/services/mcp/channelsRoot.ts :: channelsRootCache :: static-for-process
@@ -139,6 +140,7 @@ src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounde
 src/services/providers/huggingface/huggingfaceCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/local/localDiscovery.ts :: cached :: ttl-bounded
 src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounded
+src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bounded
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
@@ -146,8 +148,11 @@ src/services/remoteManagedSettings/syncCacheState.ts :: sessionCache :: subscrip
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed
 src/services/schema/jsonSchemaEngine.ts :: compileCache :: keyed-by-truth
+src/services/search/searchPacing.ts :: cache :: ttl-bounded
 src/services/switchboard/ensureDaemon.ts :: bootRunnerOptionsMemo :: static-for-process
 src/services/switchboard/ensureDaemon.ts :: usableMemo :: ttl-bounded
+src/services/wallet/wallet.ts :: activeMemo :: ttl-bounded
+src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
 src/services/workbench/projection.ts :: snapshot :: subscription-fed
 src/services/workshop/runtime.ts :: cachedTs :: keyed-by-truth
@@ -224,6 +229,7 @@ src/utils/genericProcessUtils.ts :: cachedPowerShellExe :: static-for-process
 src/utils/genericProcessUtils.ts :: metaCache :: ttl-bounded
 src/utils/git.ts :: getIsGit :: invalidator=applyHarnessGround
 src/utils/git.ts :: gitExe :: static-for-process
+src/utils/git.ts :: lastSnapshot :: subscription-fed
 src/utils/git/gitFilesystem.ts :: cacheEntries :: invalidator=regroundGitWatch
 src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth
 src/utils/hooks/hookHelpers.ts :: hookResponseSchema :: static-for-process
@@ -251,9 +257,11 @@ src/utils/plans.ts :: plansDirectoryMemo :: invalidator=applyHarnessGround
 src/utils/platform.ts :: getLinuxDistroInfo :: static-for-process
 src/utils/platform.ts :: getPlatform :: static-for-process
 src/utils/platform.ts :: getWslVersion :: static-for-process
+src/utils/projectBoundary.ts :: refusalMemo :: ttl-bounded
 src/utils/proxy.ts :: proxyDispatcherCache :: keyed-by-truth
 src/utils/proxy.ts :: tunnelAgentCache :: keyed-by-truth
 src/utils/ripgrep.ts :: roundedCountMemo :: keyed-by-truth
+src/utils/router/modelRegistry.ts :: snapshotMemo :: ttl-bounded
 src/utils/router/providerDiscovery.ts :: cache :: ttl-bounded
 src/utils/sandbox/sandbox-adapter.ts :: cachedWorktreeMainRepo :: static-for-process
 src/utils/sandbox/sandbox-adapter.ts :: isSupportedPlatformMemo :: static-for-process

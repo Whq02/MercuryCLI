@@ -8,6 +8,7 @@ import {
   permissionModeFromString,
   toExternalPermissionMode,
 } from '../utils/permissions/PermissionMode.js'
+import { auditModeChange } from '../utils/permissions/modeTransitions.js'
 import type { SessionExternalMetadata } from '../utils/sessionState.js'
 import { setMainLoopModelOverride } from '../bootstrap/state.js'
 import { getUserContext } from '../context.js'
@@ -27,6 +28,7 @@ export function onChangeAppState({
   const newMode = newState.toolPermissionContext.mode
   const oldMode = oldState.toolPermissionContext.mode
   if (newMode !== oldMode) {
+    auditModeChange(oldMode, newMode)
     const newExternal = toExternalPermissionMode(newMode)
     const oldExternal = toExternalPermissionMode(oldMode)
     if (newExternal !== oldExternal) {

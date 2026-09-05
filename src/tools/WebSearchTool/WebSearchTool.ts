@@ -49,6 +49,8 @@ const outputSchema = z.object({
     .array(z.string())
     .optional()
     .describe('Doors tried before the one that answered, one honest line each'),
+  hint: z.string().optional().describe("The once-per-session key-door hint (the session's first keyless answer only)"),
+  cached: z.boolean().optional().describe("Answered from the session's search cache — no door was knocked"),
 })
 
 export type Output = z.infer<typeof outputSchema>
@@ -79,6 +81,8 @@ async function runSearch(
     via: run.via,
     tier: run.tier,
     ...(run.notes.length > 0 ? { notes: run.notes } : {}),
+    ...(run.hint ? { hint: run.hint } : {}),
+    ...(run.cached ? { cached: true } : {}),
   }
 }
 
@@ -134,6 +138,7 @@ export const WebSearchTool = buildTool({
     const lines: string[] = [`Web search results for query: "${output.query}"`]
     if (output.via && output.tier) lines.push(`Searched ${viaLine(output.via as never, output.tier as SearchTier)}.`)
     for (const note of output.notes ?? []) lines.push(`Note: ${note}`)
+    if (output.hint) lines.push(`Hint (tell the user once): ${output.hint}.`)
     lines.push('')
     for (const entry of output.results) {
       if (entry === null || entry === undefined) continue

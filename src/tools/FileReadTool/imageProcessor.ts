@@ -1,5 +1,8 @@
-import { isInBundledMode } from '../../utils/bundledMode.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
+import { armImagePack, imagePackPackages, imagePackPlatform, vendoredImagePackDir } from './imagePackArm.js'
+import { javascriptImageProcessor } from './imageProcessorJs.js'
 
+export { IMAGE_PACK_PATH, armImagePack, imagePackPackages, imagePackPlatform, vendoredImagePackDir } from './imagePackArm.js'
 
 export type SharpInstance = {
   metadata(): Promise<{ width?: number; height?: number; format?: string }>
@@ -21,38 +24,79 @@ export type SharpInstance = {
 
 export type SharpFunction = (input?: Buffer | string) => SharpInstance
 
+export type ImageProcessorState =
+  | {
+      road: 'native'
+      source: 'vendored' | 'node_modules'
+      sharp: string
+      libvips: string
+      packDir: string
+    }
+  | {
+      road: 'javascript'
+      reason: string
+      packDir: string
+    }
+
+type Loaded = { processor: SharpFunction; state: ImageProcessorState }
+
+let loadedPromise: Promise<Loaded> | undefined
+
+function load(): Promise<Loaded> {
+  if (loadedPromise === undefined) loadedPromise = loadProcessor()
+  return loadedPromise
+}
+
+export async function getImageProcessor(): Promise<SharpFunction> {
+  return (await load()).processor
+}
+
+export async function imageProcessorState(): Promise<ImageProcessorState> {
+  return (await load()).state
+}
+
 function unwrapModule(loaded: unknown): SharpFunction {
   const candidate = loaded as { default?: unknown }
   if (typeof candidate === 'function') return candidate as SharpFunction
   if (typeof candidate?.default === 'function') return candidate.default as SharpFunction
-  throw new Error('image processor module did not export a callable entry point')
+  const shape = candidate && typeof candidate === 'object' ? Object.keys(candidate).slice(0, 12).join(', ') : typeof candidate
+  throw new Error(`image processor module did not export a callable entry point (module shape: ${shape || 'empty'})`)
 }
 
-let processorPromise: Promise<SharpFunction> | undefined
-
-export function getImageProcessor(): Promise<SharpFunction> {
-  if (processorPromise === undefined) {
-    processorPromise = loadProcessor()
+async function loadProcessor(): Promise<Loaded> {
+  const packPlatform = imagePackPlatform()
+  const packDir = vendoredImagePackDir(packPlatform)
+  const forced = flagEnv('MERCURY_IMAGE_PROCESSOR')
+  if (forced === 'javascript') {
+    return { processor: javascriptImageProcessor, state: { road: 'javascript', reason: 'MERCURY_IMAGE_PROCESSOR=javascript', packDir } }
   }
-  return processorPromise
+  try {
+    const arm = armImagePack(packPlatform)
+    const source: 'vendored' | 'node_modules' = arm.armed ? 'vendored' : 'node_modules'
+    const native = unwrapModule(await import('sharp'))
+    const versions = (native as unknown as { versions?: { sharp?: string; vips?: string } }).versions
+    return {
+      processor: native,
+      state: { road: 'native', source, sharp: versions?.sharp ?? 'unknown', libvips: versions?.vips ?? 'unknown', packDir },
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const reason = message.split('\n')[0] ?? message
+    return { processor: javascriptImageProcessor, state: { road: 'javascript', reason, packDir } }
+  }
 }
 
-async function loadProcessor(): Promise<SharpFunction> {
-  if (isInBundledMode()) {
-    try {
-      const native = (await import('image-processor-napi')) as {
-        sharp?: unknown
-        default?: unknown
-      }
-      if (typeof native.sharp === 'function') return native.sharp as SharpFunction
-      if (typeof native.default === 'function') return native.default as SharpFunction
-      throw new Error('native image module exported no callable entry point')
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `Native image processor unavailable, falling back to sharp: ${err instanceof Error ? err.message : String(err)}`,
-      )
+export async function describeImageProcessor(): Promise<{ ready: boolean; line: string; detail?: string }> {
+  const state = await imageProcessorState()
+  if (state.road === 'native') {
+    return {
+      ready: true,
+      line: `native image processor — sharp ${state.sharp} · libvips ${state.libvips} (${state.source === 'vendored' ? `vendored pack ${state.packDir}` : 'node_modules beside the bundle'})`,
     }
   }
-  return unwrapModule(await import('sharp'))
+  return {
+    ready: false,
+    line: `JavaScript image road — the native processor did not load (${state.reason})`,
+    detail: `PNG and BMP images still shrink to the provider's limits here; a JPEG, WebP or GIF over a limit cannot be re-encoded until the pack is present. The pack for this platform sits at ${state.packDir} in a build that vendored it (${imagePackPackages(imagePackPlatform()).join(' + ')}).`,
+  }
 }

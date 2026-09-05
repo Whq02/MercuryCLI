@@ -28,7 +28,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 321,
+      "line": 327,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -36,7 +36,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 372,
+      "line": 378,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -52,7 +52,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 645,
+      "line": 677,
       "kind": "crab",
       "excerpt": "// crab here; a crab session renders byte-identically to the old <Crab/>.",
       "role": "compact-status-inline",
@@ -60,7 +60,7 @@
     },
     {
       "file": "src/components/MercuryFrame.tsx",
-      "line": 652,
+      "line": 684,
       "kind": "session-mark",
       "excerpt": "<SessionMark />",
       "role": "compact-status-inline",
@@ -108,9 +108,9 @@
     },
     {
       "file": "src/components/MercuryStatusline.tsx",
-      "line": 15,
+      "line": 18,
       "kind": "session-mark",
-      "excerpt": "<Text><SessionMark /><Text color={FAINT}> {'│'} Fable 5 {'│'} ctx </Text><Text color={TEAL}>{'███░░'}</Text></Text>",
+      "excerpt": "<Text><SessionMark /><Text color={FAINT}> {'│'} {frontier} {'│'} ctx </Text><Text color={TEAL}>{'███░░'}</Text></Text>",
       "role": "product-identity-header",
       "why": "statusline PREVIEW lockup — migrated to the shared Crab primitive in W4 (a preview drawn with different code than the live frame was the imitation class)"
     },
@@ -220,7 +220,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 165,
+      "line": 166,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -228,7 +228,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 167,
+      "line": 168,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
@@ -236,7 +236,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 293,
+      "line": 297,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -244,7 +244,7 @@
     },
     {
       "file": "src/components/tasks/AgentInspectorPane.tsx",
-      "line": 295,
+      "line": 299,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",
@@ -252,7 +252,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 812,
+      "line": 819,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "session-identity",
@@ -260,7 +260,7 @@
     },
     {
       "file": "src/components/tasks/RunDetailPane.tsx",
-      "line": 814,
+      "line": 821,
       "kind": "wordmark",
       "excerpt": "<Wordmark />",
       "role": "session-identity",

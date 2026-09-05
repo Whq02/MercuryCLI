@@ -2,14 +2,17 @@
 import * as React from 'react'
 import { Box, Text, useAnimationFrame, useInput } from '../../ink.js'
 import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
+import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { useAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
-import type { EffortValue } from '../../utils/effort.js'
+import type { EffortLevel, EffortValue } from '../../utils/effort.js'
 import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
 import {
+  EFFORT_LEVELS,
   effortFamiliesLabel,
   getDisplayedEffortLabel,
   getDisplayedEffortLevel,
+  modelOffersEffortLevel,
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
   selectableEffortLevels,
@@ -30,9 +33,9 @@ import { interpolateColor, toRGBColor } from '../../components/Spinner/utils.js'
 import { CHALK_DISABLED_FOR_NO_COLOR } from '../../ink/colorize.js'
 import { useSettings } from '../../hooks/useSettings.js'
 
-const TRACK_WIDTH = 42
-const STOP_COLUMNS = [1, 10, 20, 30, 40]
-const LABEL_GAPS = [5, 5, 5, 6]
+const TRACK_WIDTH = 53
+const STOP_COLUMNS = [1, 10, 20, 30, 40, 50]
+const LABEL_GAPS = [5, 5, 5, 6, 6]
 const PREFERRED_SLOT = 3
 
 type Treatment =
@@ -41,6 +44,7 @@ type Treatment =
   | 'accent'
   | 'shimmer'
   | 'rainbow'
+  | 'blaze'
   | 'code-trace'
 
 type SliderLevel = {
@@ -50,13 +54,19 @@ type SliderLevel = {
   supported: boolean
 }
 
-const BASE_TIERS: Omit<SliderLevel, 'supported'>[] = [
-  { value: 'low', label: 'low', treatment: 'amber' },
-  { value: 'medium', label: 'medium', treatment: 'teal' },
-  { value: 'high', label: 'high', treatment: 'accent' },
-  { value: 'xhigh', label: 'xhigh', treatment: 'shimmer' },
-  { value: 'max', label: 'max', treatment: 'rainbow' },
-]
+const TREATMENTS: Record<EffortLevel, Treatment> = {
+  low: 'amber',
+  medium: 'teal',
+  high: 'accent',
+  xhigh: 'shimmer',
+  max: 'rainbow',
+  ultra: 'blaze',
+}
+const BASE_TIERS: Omit<SliderLevel, 'supported'>[] = EFFORT_LEVELS.map(level => ({
+  value: level,
+  label: level,
+  treatment: TREATMENTS[level],
+}))
 
 function computeLabelStarts(levels: SliderLevel[], gaps: number[]): number[] {
   return levels.map((_lvl, i) =>
@@ -84,22 +94,22 @@ export function getSliderGeometry(model: string): SliderGeometry {
     supported: vocabulary.has(String(tier.value)),
   }))
   if (modelSupportsMaxEffort(model)) {
-    const ultraStop = TRACK_WIDTH + 3
+    const supercodeStop = TRACK_WIDTH + 3
     const levels: SliderLevel[] = [
       ...base,
       { value: 'supercode', label: 'supercode', treatment: 'code-trace', supported: true },
     ]
-    const sublabelStart = ultraStop + 4
+    const sublabelStart = supercodeStop + 4
     const spacers = [...LABEL_GAPS, sublabelStart - TRACK_WIDTH]
     return {
       levels,
-      width: ultraStop + 17,
-      trianglePositions: [...STOP_COLUMNS, ultraStop + 8],
+      width: supercodeStop + 17,
+      trianglePositions: [...STOP_COLUMNS, supercodeStop + 8],
       labelStarts: computeLabelStarts(levels, spacers),
       spacers,
       trackChars: '─'.repeat(TRACK_WIDTH + 1) + '┆' + '─'.repeat(18),
       accentStart: TRACK_WIDTH + 2,
-      sublabel: { text: 'max + workflows', start: ultraStop },
+      sublabel: { text: 'max + workflows', start: supercodeStop },
     }
   }
   return {
@@ -201,13 +211,14 @@ function BreathingLabel({
 }
 
 const EMBER_RING: RGB[] = [RGB_CLAW, RGB_TERRA, RGB_BELLY, RGB_AMBER]
+const BLAZE_RING: RGB[] = [RGB_TERRA, RGB_BELLY, RGB_IVORY, RGB_AMBER]
 
-function emberAt(pos: number): string {
-  const n = EMBER_RING.length
+function ringAt(ring: RGB[], pos: number): string {
+  const n = ring.length
   const f = ((pos % n) + n) % n
   const lo = Math.floor(f)
   const hi = (lo + 1) % n
-  return toRGBColor(interpolateColor(EMBER_RING[lo]!, EMBER_RING[hi]!, f - lo))
+  return toRGBColor(interpolateColor(ring[lo]!, ring[hi]!, f - lo))
 }
 
 function EmberLabel({
@@ -215,24 +226,27 @@ function EmberLabel({
   active,
   time,
   bold,
+  blaze,
 }: {
   text: string
   active: boolean
   time: number
   bold?: boolean
+  blaze?: boolean
 }): React.ReactNode {
   if (!active) {
     return (
-      <Text color={TERRA} bold={bold}>
+      <Text color={blaze ? AMBER : TERRA} bold={bold}>
         {text}
       </Text>
     )
   }
-  const drift = time / 140
+  const ring = blaze ? BLAZE_RING : EMBER_RING
+  const drift = time / (blaze ? 100 : 140)
   return (
     <Text bold={bold}>
       {[...text].map((ch, i) => (
-        <Text key={i} color={emberAt(drift + i * 0.5)}>
+        <Text key={i} color={ringAt(ring, drift + i * 0.5)}>
           {ch}
         </Text>
       ))}
@@ -295,8 +309,9 @@ export function EffortSlider({
   modelOverride?: string
   initialEffortOverride?: EffortValue
 }): React.ReactNode {
-  const sessionModel = useMainLoopModel()
-  const model = modelOverride ?? sessionModel
+  const servedModel = useFocusedServedModel()
+  const processModel = useMainLoopModel()
+  const model = modelOverride ?? servedModel ?? processModel
   const { accent } = useSessionAccent()
 
   const geo = React.useMemo(() => getSliderGeometry(model), [model])
@@ -372,7 +387,13 @@ export function EffortSlider({
       if (key.return) {
         const chosen = geo.levels[selected]
         if (!chosen) return
-        finish(apply(chosen.value))
+        const applied = apply(chosen.value)
+        if (typeof applied === 'string') {
+          finish(applied)
+          return
+        }
+        setDone(true)
+        void applied.then(onDone)
         return
       }
     },
@@ -397,9 +418,9 @@ export function EffortSlider({
     }
     if (stopIdx >= 0) {
       const isSel = stopIdx === selected
-      const isUltra = geo.levels[stopIdx]?.value === 'supercode'
+      const isSupercode = geo.levels[stopIdx]?.value === 'supercode'
       trackCells.push(
-        <Text key={col} color={isSel ? (isUltra ? BELLY : accent) : FAINT} bold={isSel}>
+        <Text key={col} color={isSel ? (isSupercode ? BELLY : accent) : FAINT} bold={isSel}>
           {isSel ? '▲' : '△'}
         </Text>,
       )
@@ -545,6 +566,8 @@ function TierWord({
       )
     case 'rainbow':
       return <EmberLabel text={tier.label} active={selected} time={time} bold={bold} />
+    case 'blaze':
+      return <EmberLabel text={tier.label} active={selected} time={time} bold={bold} blaze />
     case 'code-trace':
       return selected ? (
         <BreathingLabel text={tier.label} active time={time} bold={bold} />
@@ -572,6 +595,10 @@ function tierSummary(level: SliderLevel | undefined): string {
     }
     case 'max':
       return 'max — maximum capability with the deepest reasoning'
+    case 'ultra': {
+      const families = effortFamiliesLabel(model => modelOffersEffortLevel(model, 'ultra'))
+      return `ultra — beyond max, the deepest rung the served ladder carries${families ? ` (${families})` : ''}`
+    }
     case 'supercode':
       return 'supercode — max + standing dynamic-orchestration (session-only)'
     default:
@@ -579,5 +606,5 @@ function tierSummary(level: SliderLevel | undefined): string {
   }
 }
 
-export type EffortApplier = (value: EffortValue | 'supercode') => string
+export type EffortApplier = (value: EffortValue | 'supercode') => string | Promise<string>
 export const EffortApplyContext = React.createContext<EffortApplier>(() => '')

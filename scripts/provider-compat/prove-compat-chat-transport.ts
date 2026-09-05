@@ -15,6 +15,7 @@ import {
   buildOpenrouterExtras,
   GEMINI_REASONING_EFFORTS,
   OPENROUTER_REASONING_EFFORTS,
+  thinkingOffWireEffort,
 } from '../../src/services/providers/openaicompat/compatWire.ts'
 import { mapMessagesToZai } from '../../src/services/providers/zai/zaiCodec.ts'
 import type { MessageParam } from '../../src/types/wire.ts'
@@ -180,7 +181,15 @@ section('2 · wire knobs (the pure lane builders)')
   const orNone = buildOpenrouterExtras({ ...base, wireModel: 'x', effortValue: 'max', vocabulary: [] })
   check('openrouter: no row vocabulary ⇒ no reasoning key', !('reasoning' in orNone))
   const orOff = buildOpenrouterExtras({ ...base, thinkingEnabled: false, wireModel: 'x', effortValue: 'max', vocabulary: orRow })
-  check('openrouter: thinking disabled ⇒ no reasoning key', !('reasoning' in orOff))
+  check("openrouter: thinking disabled ⇒ the row's lowest rung (low on a low…xhigh row)", (orOff.reasoning as Record<string, unknown>)?.effort === 'low', JSON.stringify(orOff))
+  const orOffNone = buildOpenrouterExtras({ ...base, thinkingEnabled: false, wireModel: 'x', effortValue: 'max', vocabulary: OPENROUTER_REASONING_EFFORTS })
+  check("openrouter: thinking disabled ⇒ 'none' where the row lists it", (orOffNone.reasoning as Record<string, unknown>)?.effort === 'none', JSON.stringify(orOffNone))
+  const orOffNoRow = buildOpenrouterExtras({ ...base, thinkingEnabled: false, wireModel: 'x', effortValue: 'max', vocabulary: [] })
+  check('openrouter: thinking disabled on a row with no vocabulary ⇒ no reasoning key', !('reasoning' in orOffNoRow))
+  const orOffUnasked = buildOpenrouterExtras({ ...base, thinkingEnabled: false, wireModel: 'x', effortValue: undefined, vocabulary: orRow })
+  check('openrouter: thinking disabled with no request still sends the lowest rung (the off word is the session\'s, not the request\'s)', (orOffUnasked.reasoning as Record<string, unknown>)?.effort === 'low')
+  check('openrouter: thinking on is unchanged (high rides high)', (buildOpenrouterExtras({ ...base, thinkingEnabled: true, wireModel: 'x', effortValue: 'high', vocabulary: orRow }).reasoning as Record<string, unknown>)?.effort === 'high')
+  check('the one owner: thinkingOffWireEffort spells none where listed, the lowest rung otherwise, nothing on an empty list', thinkingOffWireEffort(OPENROUTER_REASONING_EFFORTS) === 'none' && thinkingOffWireEffort(orRow) === 'low' && thinkingOffWireEffort(['high', 'max']) === 'high' && thinkingOffWireEffort([]) === undefined)
   check('openrouter: include_usage rides; max_tokens only on an override', (orHigh.stream_options as Record<string, unknown>).include_usage === true && !('max_tokens' in orHigh) && buildOpenrouterExtras({ ...base, wireModel: 'x', effortValue: undefined, vocabulary: [], maxOutputTokensOverride: 4096 }).max_tokens === 4096)
   check('openrouter: never a temperature key', !('temperature' in orHigh))
 
@@ -191,7 +200,10 @@ section('2 · wire knobs (the pure lane builders)')
   const gmNo = buildGeminiExtras({ ...base, wireModel: 'gemini-fixture-lite', effortValue: 'high', acceptsEffort: false })
   check('gemini: a non-thinking row sends no reasoning_effort', !('reasoning_effort' in gmNo))
   const gmOff = buildGeminiExtras({ ...base, thinkingEnabled: false, wireModel: 'gemini-fixture-pro', effortValue: 'high', acceptsEffort: true })
-  check('gemini: thinking disabled ⇒ no reasoning_effort', !('reasoning_effort' in gmOff))
+  check("gemini: thinking disabled ⇒ 'low' (the lowest budget a thinking row serves; none is refused on Pro and 3)", gmOff.reasoning_effort === 'low', JSON.stringify(gmOff))
+  const gmOffLite = buildGeminiExtras({ ...base, thinkingEnabled: false, wireModel: 'gemini-fixture-lite', effortValue: 'high', acceptsEffort: false })
+  check('gemini: thinking disabled on a non-thinking row ⇒ no reasoning_effort', !('reasoning_effort' in gmOffLite))
+  check('gemini: thinking on is unchanged (medium rides medium)', buildGeminiExtras({ ...base, thinkingEnabled: true, wireModel: 'gemini-fixture-pro', effortValue: 'medium', acceptsEffort: true }).reasoning_effort === 'medium')
   check('gemini: include_usage rides; the ladder never names none/max', (gmHigh.stream_options as Record<string, unknown>).include_usage === true && !GEMINI_REASONING_EFFORTS.includes('none') && !GEMINI_REASONING_EFFORTS.includes('max'))
 }
 

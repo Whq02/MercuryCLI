@@ -38,13 +38,14 @@ import { peekProject } from '../utils/sessionStorage/writer.js'
 import type { PermissionMode as WirePermissionMode } from '../types/permissions.js'
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
-import { declareLawfulPrefixChange } from '../services/providers/lawfulPrefixChange.js'
+import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
+import { effortSentOf } from '../services/engine-connector/seatProjections.js'
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
@@ -103,6 +104,7 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
+import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/runnerFrames.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
@@ -173,12 +175,15 @@ import {
   dequeue,
   enqueue,
   peek,
+  popById,
   remove as removeQueuedCommands,
   subscribeToCommandQueue,
   getCommandQueue,
 } from '../utils/messageQueueManager.js'
 import type { QueuedCommand } from '../types/textInputTypes.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
+import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
+import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
   getDefaultMainLoopModelSetting,
   getMainLoopModel,
@@ -219,12 +224,22 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
 import { getRunningTasks } from '../utils/task/framework.js'
-import { stopRunningAgentTasks } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_RESUME_NOTE, AGENT_STOP_BY_OPERATOR } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { isLocalWorkflowTask, killWorkflowTask } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { primeOpenaiCatalogue } from '../services/providers/openai/openaiCatalogue.js'
 import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
-import { getTaskListId as missionListId, listTasks as listMissionTasks } from '../utils/tasks.js'
+import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
+
+function missionLedgerOf(metadata: Record<string, unknown> | undefined): string | undefined {
+  const ledger = metadata?.ledger
+  if (typeof ledger === 'string' && ledger.trim() !== '') return ledger.trim()
+  const mission = metadata?.missionId
+  if (typeof mission === 'string' && mission.trim() !== '') return mission.trim()
+  return undefined
+}
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
@@ -408,6 +423,17 @@ export async function runHeadless(
     normalizeInputPrompt(inputPrompt),
     options.replayUserMessages,
   )
+  {
+    let missionTimer: NodeJS.Timeout | null = null
+    onTasksUpdated(() => {
+      if (missionTimer !== null) return
+      missionTimer = setTimeout(() => {
+        missionTimer = null
+        io.outbound.enqueue(missionUpdatedFrame(getSessionId(), randomUUID()))
+      }, 50)
+      missionTimer.unref?.()
+    })
+  }
   if (options.outputFormat === 'stream-json') {
     installStreamJsonStdoutGuard()
   }
@@ -482,6 +508,7 @@ export async function runHeadless(
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  let sessionFactsHoldSpent = false
   const sessionWiringModules = (): Promise<
     [
       typeof import('../utils/hooks/wardsHook.js'),
@@ -676,7 +703,7 @@ export async function runHeadless(
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
     messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
-    declareLawfulPrefixChange(processMainOwner(), `the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
+    declareLawfulPrefixChangeForEveryOwner(`the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
   }
 
   const dynamicMcp: DynamicMcpState = {
@@ -1031,6 +1058,7 @@ export async function runHeadless(
 
   const executeTurn = async (
     command: QueuedCommand,
+    batchUuids: string[],
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void> => {
     if (command.mode === 'task-notification' || /<task-notification>/.test(String(command.value ?? ''))) {
@@ -1123,6 +1151,7 @@ export async function runHeadless(
           commands: dedupedCommands,
           prompt: command.value,
           promptUuid: command.uuid,
+          ...(batchUuids.length > 0 ? { batchUuids } : {}),
           isMeta: command.isMeta,
           ...(command.mode === 'bash' ? { promptMode: 'bash' as const } : {}),
           cwd: getCwd(),
@@ -1134,6 +1163,9 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           taskBudget: options.taskBudget,
           canUseTool,
+          ...(options.permissionPromptToolName === undefined
+            ? {}
+            : { permissionChannel: options.permissionPromptToolName === 'stdio' ? ('stdio' as const) : ('prompt-tool' as const) }),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
@@ -1313,6 +1345,8 @@ export async function runHeadless(
     'streamlined_tool_use_summary',
   ])
   const EXCLUDED_SYSTEM_SUBTYPES = new Set([
+    TURN_STARTED_SUBTYPE,
+    MISSION_UPDATED_SUBTYPE,
     'session_state_changed',
     'task_notification',
     'task_started',
@@ -1360,6 +1394,11 @@ export async function runHeadless(
       await updateSdkMcp()
     },
     onTurnStart: (command, batch) => {
+      const openEdge = turnStartedFrame(
+        getSessionId(),
+        batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined),
+        randomUUID(),
+      )
       if (options.replayUserMessages && batch.length > 1) {
         const surviving = command.uuid
         for (const member of batch) {
@@ -1375,9 +1414,10 @@ export async function runHeadless(
           })
         }
       }
+      return openEdge
     },
-    executeTurn: (command, onMessage) =>
-      executeTurn(command, message => {
+    executeTurn: (command, batchUuids, onMessage) =>
+      executeTurn(command, batchUuids, message => {
         onMessage(message)
       }),
     onTurnSettled: () => {
@@ -1462,6 +1502,9 @@ export async function runHeadless(
     const queued = getCommandQueue()
     if (queued.some(command => command.priority === 'now')) {
       inFlightAbort?.abort()
+    }
+    if (!inputClosed && sessionInitialized && !driver.isRunning() && queued.some(isMainThreadCommand)) {
+      driver.kick()
     }
   })
 
@@ -1657,10 +1700,20 @@ export async function runHeadless(
             seenInterruptIds.add(requestId)
           }
           inFlightAbort?.abort()
-          stopRunningAgentTasks(getAppState().tasks, setAppState)
+          driver.releaseHold()
+          if ((request as { hard?: boolean }).hard === true) {
+            for (const task of Object.values(getAppState().tasks)) {
+              if (isLocalShellTask(task) && task.status === 'running') void killTask(task.id, setAppState)
+            }
+          }
           abortSuggestion()
           lastEmittedSuggestion = null
           respondSuccess(requestId)
+          return
+        }
+        case 'withdraw_send': {
+          const popped = popById(String(request.client_message_id ?? ''))
+          respondSuccess(requestId, popped.popped ? { withdrawn: true, text: popped.text } : { withdrawn: false, reason: popped.reason })
           return
         }
         case 'end_session': {
@@ -1718,6 +1771,7 @@ export async function runHeadless(
             const transition = resolvePermissionModeTransition(
               claimedMode as WirePermissionMode,
               getAppState().toolPermissionContext,
+              'claim',
             )
             if (!transition.ok) {
               respondError(requestId, `claim refused — ${transition.error}`)
@@ -1730,6 +1784,9 @@ export async function runHeadless(
             return
           }
           dropCredentialMemos()
+          if (request.openai_catalogue !== undefined) {
+            primeOpenaiCatalogue(request.openai_catalogue as Parameters<typeof primeOpenaiCatalogue>[0])
+          }
           const claimedHome = consumeSessionHomePin()
           if (request.resume === true) {
             const pinnedFile = claimedHome !== null ? join(claimedHome, `${sid}.jsonl`) : undefined
@@ -1785,6 +1842,11 @@ export async function runHeadless(
           return
         }
         case 'session_facts': {
+          if (!sessionFactsHoldSpent) {
+            sessionFactsHoldSpent = true
+            const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)
+            if (Number.isFinite(holdMs) && holdMs > 0) await new Promise(resolve => setTimeout(resolve, holdMs))
+          }
           const state = getAppState()
           const answer: SessionFactsAnswerV1 = {
             model: {
@@ -1818,6 +1880,10 @@ export async function runHeadless(
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
             permissionMode: state.toolPermissionContext.mode,
+            ...((): { effortSent?: string | null } => {
+              const sent = effortSentOf(resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue))
+              return sent === undefined ? {} : { effortSent: sent }
+            })(),
             spawnSwitches: spawnSwitchFacts(),
             workspace: {
               cwd: getCwd(),
@@ -1839,11 +1905,14 @@ export async function runHeadless(
               ...(command.priority !== undefined ? { priority: command.priority } : {}),
             })),
             work: projectWorkRoster(state.tasks),
-            mission: (await listMissionTasks(missionListId()).catch((): Awaited<ReturnType<typeof listMissionTasks>> => [])).map(task => ({
+            mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,
               subject: task.subject.slice(0, 120),
               ...(task.activeForm !== undefined ? { activeForm: task.activeForm.slice(0, 120) } : {}),
               status: task.status,
+              ...(task.blocks.length > 0 ? { blocks: task.blocks } : {}),
+              ...(task.blockedBy.length > 0 ? { blockedBy: task.blockedBy } : {}),
+              ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
             })),
             ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
             ...((): Record<string, unknown> => {
@@ -2440,8 +2509,44 @@ export async function runHeadless(
         }
         case 'stop_task': {
           try {
-            stopOrDismissAgent(request.task_id, setAppState)
-            respondSuccess(requestId, {})
+            const target = getAppState().tasks[request.task_id]
+            if (isLocalWorkflowTask(target)) {
+              respondSuccess(requestId, { receipt: killWorkflowTask(request.task_id, setAppState) })
+            } else {
+              stopOrDismissAgent(request.task_id, setAppState, AGENT_STOP_BY_OPERATOR)
+              respondSuccess(requestId, {})
+            }
+          } catch (error) {
+            respondError(requestId, errorMessage(error))
+          }
+          return
+        }
+        case 'resume_task': {
+          const params = getLastCacheSafeParams()
+          if (params === null) {
+            respondError(requestId, 'nothing to resume from yet — the session has not run a turn')
+            return
+          }
+          const target = getAppState().tasks[request.task_id]
+          if (target !== undefined && target.status === 'running') {
+            respondError(requestId, 'the agent is running — nothing to resume')
+            return
+          }
+          try {
+            const { resumeAgentBackground } = await import('../tools/AgentTool/resumeAgent.js')
+            const { toolUseId: _staleToolUseId, ...lastContext } = params.toolUseContext
+            void _staleToolUseId
+            const resumed = await resumeAgentBackground({
+              agentId: request.task_id,
+              prompt: request.note !== undefined && request.note.trim() !== '' ? request.note : AGENT_RESUME_NOTE,
+              toolUseContext: { ...lastContext, abortController: new AbortController() } as typeof params.toolUseContext,
+              canUseTool,
+            })
+            respondSuccess(requestId, {
+              agentId: resumed.agentId,
+              outputFile: resumed.outputFile,
+              ...(resumed.cwdFallback !== undefined ? { cwdFallback: resumed.cwdFallback } : {}),
+            })
           } catch (error) {
             respondError(requestId, errorMessage(error))
           }

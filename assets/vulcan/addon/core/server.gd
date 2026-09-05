@@ -18,7 +18,7 @@ const MAX_CONNECTIONS := 8
 const UNAUTHED_GRACE_MS := 10000
 const RUNTIME_TIMEOUT_MS := 10000
 const PLAY_POLL_INTERVAL := 0.25
-const MERCURY_SIDE_OPS := ["vulcan_install", "vulcan_uninstall", "vulcan_status"]
+const MERCURY_SIDE_OPS := ["vulcan_install", "vulcan_uninstall", "vulcan_status", "project_refresh_classes"]
 const LOOPBACK_HOSTS := ["127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "::ffff:127.0.0.1"]
 
 class Conn:
@@ -54,6 +54,7 @@ var _play_accum := 0.0
 var _was_playing := false
 var _runtime_next_id := 1
 var _runtime_pending := {}
+var started_ms := 0
 
 func setup(undo_manager: Object) -> void:
 	_undo = UndoScript.new()
@@ -77,6 +78,7 @@ func start() -> void:
 	var pf := FileAccess.open(PORT_FILE, FileAccess.WRITE)
 	if pf != null:
 		pf.store_string(str(port))
+	started_ms = Time.get_ticks_msec()
 	set_process(true)
 	print("mercury_vulcan: listening on 127.0.0.1:%d" % port)
 
@@ -332,14 +334,21 @@ func proxy_to_runtime(op: String, args: Dictionary) -> Dictionary:
 
 func _runtime_deadline_ms(op: String, args: Dictionary) -> int:
 	var ms := RUNTIME_TIMEOUT_MS
-	for key in ["timeout_ms", "duration_ms"]:
+	for key in ["timeout_ms", "duration_ms", "ms"]:
 		if args.has(key) and str(args[key]).is_valid_float():
 			ms = maxi(ms, int(args[key]) + RUNTIME_TIMEOUT_MS)
+	if args.has("frames") and str(args["frames"]).is_valid_float():
+		ms = maxi(ms, int(args["frames"]) * OpClassesScript.STEP_WALL_MS_PER_FRAME + RUNTIME_TIMEOUT_MS)
 	if op == "input_sequence" and args.get("steps") is Array:
 		var total := 0
 		for step in args.get("steps"):
-			if step is Dictionary and step.has("wait_ms"):
-				total += maxi(0, int(step["wait_ms"]))
+			if not (step is Dictionary):
+				continue
+			for key in ["wait_ms", "step_ms"]:
+				if step.has(key) and str(step[key]).is_valid_float():
+					total += maxi(0, int(step[key]))
+			if step.has("step_frames") and str(step["step_frames"]).is_valid_float():
+				total += maxi(0, int(step["step_frames"])) * OpClassesScript.STEP_WALL_MS_PER_FRAME
 		ms = maxi(ms, total + RUNTIME_TIMEOUT_MS)
 	if op == "runtime_replay":
 		ms = maxi(ms, 120000)

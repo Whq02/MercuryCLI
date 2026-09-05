@@ -1698,7 +1698,7 @@ section('T10 ORDERING — transcript persistence discipline (source-anchored)')
   check(
     'progress + attachment records stay inline (the dedup-walk anchoring rule)',
     /case 'progress':[\s\S]{0,700}void recordDelta\(\)/.test(engineSrc) &&
-      /case 'attachment':[\s\S]{0,400}void recordDelta\(\)/.test(engineSrc),
+      /case 'attachment':[\s\S]{0,1200}await recordDelta\(\)[\s\S]{0,300}void recordDelta\(\)/.test(engineSrc),
   )
 }
 

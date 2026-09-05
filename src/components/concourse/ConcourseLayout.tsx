@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text, paletteCollapsed } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { GLYPH, padStartTo } from '../mercury-ui/glyphs.js'
+import { GLYPH, padStartTo, branchChip } from '../mercury-ui/glyphs.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 import { truncateToWidth } from '../../utils/truncate.js'
@@ -260,6 +260,7 @@ export function ConcourseLayout({
   rowChipRows = 0,
   olderRows = 0,
   armedSelected = false,
+  closeChordStaged = false,
   markedIds,
   coordinatorNode,
   mirrorNode,
@@ -290,6 +291,7 @@ export function ConcourseLayout({
   rowChipRows?: number
   olderRows?: number
   armedSelected?: boolean
+  closeChordStaged?: boolean
   markedIds?: ReadonlySet<string>
   coordinatorNode: (rows: number, width: number) => React.ReactNode
   mirrorNode: (rows: number, width: number) => React.ReactNode
@@ -605,7 +607,7 @@ export function ConcourseLayout({
                     {
 }
                     <Text wrap="truncate-end">
-                      {r.worktreeBranch !== undefined ? <Text color={t.info}>{GLYPH.branch} </Text> : null}
+                      {r.worktreeBranch !== undefined ? <Text color={t.info}>{branchChip('')}</Text> : null}
                       <Text color={t.textSecondary}>{r.projectLabel}</Text>
                     </Text>
                   </Box>
@@ -789,6 +791,7 @@ export function ConcourseLayout({
                 : (() => {
                     const prio = (keys: string): number => legendPriorityOf(keys, { splitOn })
                     const olderBrowse = olderRows > 0
+                    const selectionClass = boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId))
                     const composerEnter =
                       region === 'live' && liveDraftEmpty && !olderBrowse
                         ? armedSelected
@@ -797,7 +800,11 @@ export function ConcourseLayout({
                               { keys: '→', label: 'enter' },
                             ]
                           : [
-                              { keys: '↵↵', label: 'enter session' },
+                              selectionClass === 'parked'
+                                ? { keys: '↵', label: 'brings it back' }
+                                : selectionClass === 'door'
+                                  ? { keys: '↵', label: 'open' }
+                                  : { keys: '↵↵', label: 'enter session' },
                               { keys: '→', label: rowPeekOpen ? 'close peek' : 'peek' },
                             ]
                         : []
@@ -809,7 +816,7 @@ export function ConcourseLayout({
                         newSession: wiring.newSession !== undefined,
                         olderBrowse,
                         ...(region === 'list'
-                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty }
+                          ? { selection: boardSelectionClassOf(sessionRows.find(r => r.sessionId === boardSelectedId)), armed: armedSelected, liveDraftHeld: !liveDraftEmpty, chordStaged: closeChordStaged }
                           : {}),
                         ...(region === 'chat' ? { chatSession: chat, landing: landingInFlight() } : {}),
                         }),

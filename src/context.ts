@@ -12,7 +12,9 @@ import {
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode } from './utils/envUtils.js'
 import { execFileNoThrow } from './utils/execFileNoThrow.js'
+import { getCwd } from './utils/cwd.js'
 import { getBranch, getDefaultBranch, getIsGit, gitExe } from './utils/git.js'
+import { projectScopePathspec } from './utils/projectBoundary.js'
 import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
 import { logError } from './utils/log.js'
 
@@ -66,7 +68,7 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
     const [branch, mainBranch, status, log, userName] = await Promise.all([
       getBranch(),
       getDefaultBranch(),
-      rawGit(['--no-optional-locks', 'status', '--short']),
+      rawGit(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(getCwd())]),
       rawGit(['--no-optional-locks', 'log', '--oneline', '-5']),
       rawGit(['config', 'user.name']),
     ])
@@ -155,6 +157,7 @@ export const getUserContext = memoize(
       instructionPrompt = composed || null
       setCachedInstructionPrompt(instructionPrompt)
     }
+    const isGit = await getIsGit()
     logForDiagnosticsNoPII('info', 'user_context_completed', {
       duration_ms: Date.now() - startedAt,
       content_length: instructionPrompt?.length ?? 0,
@@ -162,6 +165,7 @@ export const getUserContext = memoize(
     })
     return {
       ...(instructionPrompt ? { claudeMd: instructionPrompt } : {}),
+      environment: `Is a git repository: ${isGit ? 'Yes' : 'No'}`,
       currentDate: `Today's date is ${localIsoDate()}.`,
     }
   },

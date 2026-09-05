@@ -10,8 +10,15 @@ cd "$root" || exit 1
 BUN="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
-echo "── PRIVATE CHANNEL — updater/installer proofs ──"
-for prover in prove-channel-core prove-status-check-agreement prove-install-layout prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack; do
+claimed=$(cat scripts/updater-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
+
+echo "── RELEASE CHANNEL — updater/installer proofs ──"
+for prover in prove-channel-core prove-status-check-agreement prove-install-layout prove-install-path prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-anonymous-channel prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-verify-receipt-bind prove-node-pack prove-release-targets; do
+  if printf '%s\n' "$claimed" | grep -qx "$prover.ts"; then
+    echo ""
+    echo "· $prover runs with the updater drives (scripts/updater-drives/members.txt)"
+    continue
+  fi
   echo ""
   echo "▶ $prover"
   "$BUN" run "$here/$prover.ts" || fail=1
@@ -20,6 +27,10 @@ done
 echo ""
 echo "▶ prove-archive-journey (archive lane — runs when release-out/ holds the host archive)"
 "$BUN" run "$here/prove-archive-journey.ts" || fail=1
+
+echo ""
+echo "▶ prove-cross-archive-rosetta (archive lane — runs when release-out/ holds the macos-x64 archive on a Mac with Rosetta)"
+"$BUN" run "$here/prove-cross-archive-rosetta.ts" || fail=1
 
 if [[ "${MERCURY_UPDATER_NETWORK:-}" == "1" ]]; then
   echo ""

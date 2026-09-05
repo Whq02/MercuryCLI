@@ -1,9 +1,12 @@
+import type { FoldStatusV1 } from '../compact/foldStatus.js'
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
+import type { EffortResolution } from '../../utils/effort.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
+import type { TextPhase } from '../../types/wire.js'
 import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReasonWire.js'
 import type { PromptInputMode, QueuePriority } from '../../types/textInputTypes.js'
 import type {
@@ -34,6 +37,7 @@ export interface SessionFactsAnswerV1 {
   skills: SkillsRosterEntryV1[]
   mcp: McpRosterEntryV1[]
   permissionMode: PermissionMode
+  effortSent?: string | null
   workspace: WorkspaceFactsV1
   queue: QueuedFactV1[]
   work?: WorkRowV1[]
@@ -50,14 +54,17 @@ export interface FileCheckpointFactsV1 {
   restorable: string[]
 }
 
-export interface SessionFactsV1 extends SessionFactsAnswerV1 {
+export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMode'> {
   schema: 1
   sessionId: string
   atMs: number
+  permissionMode?: PermissionMode
   pendingModel: string | null
+  effort?: string
   pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
   modelSettled?: { from: string; to: string; atMs: number }
   busy: boolean
+  turnStartedAt?: number
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
 }
@@ -89,8 +96,10 @@ export interface SessionTailV1 {
   text: string | null
   turnChars?: number
   messageId?: string
+  phase?: TextPhase
   stateWord?: 'compacting' | 'waiting-on-agents'
   waitingOnAgents?: number
+  fold?: FoldStatusV1
   wait?: RequestWaitV1
   lastEventAtMs?: number
   streamBlock?: 'thinking' | 'text' | 'tool_use'
@@ -268,4 +277,10 @@ export function retireSeatProjections(sessionId: string, dir?: string): void {
   for (const p of [sessionFactsPath(sessionId, dir), sessionAsksPath(sessionId, dir), sessionTailPath(sessionId, dir), sessionProgressPath(sessionId, dir)]) {
     rmSync(p, { force: true })
   }
+}
+
+export function effortSentOf(truth: Pick<EffortResolution, 'supportsEffort' | 'wire' | 'catalogue'>): string | null | undefined {
+  if (!truth.supportsEffort) return null
+  if (truth.catalogue === 'gpt-unstated') return undefined
+  return truth.wire ?? null
 }

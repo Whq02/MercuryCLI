@@ -4,7 +4,9 @@ import { Box, Text } from '../ink.js'
 import type { CommandResultDisplay } from '../commands.js'
 import type { Message } from '../types/message.js'
 import TextInput from './TextInput.js'
+import { Select } from './CustomSelect/select.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
+import { useRegisterOverlay } from '../context/overlayContext.js'
 import { useInput } from '../ink.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -14,11 +16,12 @@ import {
   getLastAPIRequest,
   getLastMainRequestId,
 } from '../bootstrap/state.js'
-import { getIsGit, getBranch, getHead, getRemoteUrl, getIsClean, hasUnpushedCommits } from '../utils/git.js'
-import { getCwd } from '../utils/cwd.js'
+import { getIsGit } from '../utils/git.js'
 import { mkdirSync } from 'node:fs'
+import { homedir, release, type as osType } from 'node:os'
 import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { escapeRegExp } from '../utils/stringUtils.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { sessionSmallFastModel } from '../utils/model/providerFrontier.js'
 import { routedCallModelSettled } from '../services/providers/callModelRouter.js'
@@ -34,21 +37,40 @@ import { getSessionId } from '../bootstrap/state.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { openBrowser } from '../utils/browser.js'
 import { logForDebugging } from '../utils/debug.js'
+import {
+  ISSUE_FORMS,
+  ISSUE_KINDS,
+  composeIssueBody,
+  fullIssueTitle,
+  noGhParagraph,
+  promptedFields,
+  type IssueForm,
+  type IssueKind,
+} from '../commands/feedback/issueForms.js'
+import { gatherDoctorSection } from '../commands/feedback/doctorSection.js'
+import {
+  checkIssueAccess,
+  fileIssue,
+  issueRepoSlug,
+  issuesPageUrl,
+  type IssueAccess,
+} from '../services/repoHost/ghIssue.js'
+import { provenanceLine, resolveInstallProvenance } from '../services/privateChannel/installProvenance.js'
+import { getMainLoopModel } from '../utils/model/model.js'
+import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
+import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
+import { providerDisplayName } from '../services/providers/routeLaw.js'
+import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
 
 
 export function redactSensitiveInfo(text: string): string {
   let result = text
   result = result.replace(/["']sk-ant[A-Za-z0-9_-]{24,}["']/g, '[REDACTED_API_KEY]')
-  result = result.replace(
-    /(?<![A-Za-z0-9"'])sk-ant[A-Za-z0-9_-]{10,}(?![A-Za-z0-9"'])/g,
-    '[REDACTED_API_KEY]',
-  )
+  for (const pass of CREDENTIAL_VALUE_PASSES) {
+    result = result.replace(new RegExp(pass.pattern.source, pass.pattern.flags), pass.marker)
+  }
   result = result.replace(/AWS[ _-]?key["'\s:=]+["']AWS[A-Z0-9]{20,}["']/gi, '[REDACTED_AWS_KEY]')
   result = result.replace(/(?<![A-Za-z0-9])AKIA[A-Z0-9]{16}(?![A-Za-z0-9])/g, '[REDACTED_AWS_KEY]')
-  result = result.replace(
-    /(?<![A-Za-z0-9])AIza[A-Za-z0-9_-]{35}(?![A-Za-z0-9])/g,
-    '[REDACTED_GCP_KEY]',
-  )
   result = result.replace(
     /[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com/g,
     '[REDACTED_GCP_SERVICE_ACCOUNT]',
@@ -70,6 +92,13 @@ export function redactSensitiveInfo(text: string): string {
     /((?:API[_-]?KEY|TOKEN|SECRET|PASSWORD)["'\s:=]+)["']?[^\s"'[]+["']?/gi,
     '$1[REDACTED_TOKEN]',
   )
+  const home = homedir()
+  if (home.length > 1) {
+    const spellings = new Set([home, ...(process.platform === 'win32' ? [home.replace(/\\/g, '/')] : [])])
+    for (const spelling of spellings) {
+      result = result.replace(new RegExp(`${escapeRegExp(spelling)}(?=$|[\\\\/\\s"'\`:;,)\\]>])`, 'g'), '~')
+    }
+  }
   return result
 }
 
@@ -130,7 +159,7 @@ export function createGitHubIssueUrl(
 
 const GENERIC_TITLE = 'Bug report from Mercury'
 
-export function fallbackTitle(description: string): string {
+export function fallbackTitle(description: string, generic: string = GENERIC_TITLE): string {
   const firstLine = (description.split('\n')[0] ?? '').trim()
   let candidate: string
   if (firstLine.length >= 6 && firstLine.length <= 60) {
@@ -141,48 +170,63 @@ export function fallbackTitle(description: string): string {
     if (boundary > 30) cut = cut.slice(0, boundary)
     candidate = firstLine.length > 60 ? `${cut}…` : cut
   }
-  if (candidate.length < 10) return GENERIC_TITLE
+  if (candidate.length < 10) return generic
   return candidate
 }
 
-const TITLE_SYSTEM_PROMPT = [
-  'Generate a concise, technical issue title (max 80 chars) for this bug report for Mercury, a terminal software-development harness.',
-  'The first element must be a bracketed type marker, e.g. [Bug], [Crash], [Performance], [UI].',
-  'Be specific and use technical vocabulary. For long error messages, extract the key error. Be direct — no filler.',
-  'If the issue cannot be determined, answer exactly: [Bug] Report needs triage.',
-  'Any model API errors mentioned come from the configured provider.',
-  'Your response is used directly as the title with no commentary.',
-  'Examples:',
-  '[Bug] Scroll position resets when a background task completes',
-  '[Crash] TypeError in transcript renderer on empty tool result',
-  '[Performance] Startup takes 8s with large session index',
-].join('\n')
+function titleSystemPrompt(form: IssueForm): string {
+  return [
+    `Generate a concise, technical issue title (max 80 chars) for this ${form.name.toLowerCase()} about Mercury, a terminal software-development harness.`,
+    'No prefix, no brackets, no trailing period — the title starts with the subject.',
+    'Be specific and use technical vocabulary. For long error messages, extract the key error. Be direct — no filler.',
+    'If the issue cannot be determined, answer exactly: Report needs triage.',
+    'Any model API errors mentioned come from the configured provider.',
+    'Your response is used directly as the title with no commentary.',
+    'Examples:',
+    'Scroll position resets when a background task completes',
+    'TypeError in transcript renderer on empty tool result',
+    'Startup takes 8s with large session index',
+  ].join('\n')
+}
+
+const TITLE_DEADLINE_MS = 15_000
 
 async function generateTitle(
+  form: IssueForm,
   description: string,
-  signal: AbortSignal,
+  outer: AbortSignal,
 ): Promise<string> {
+  const generic = `${form.name} from Mercury`
+  const controller = new AbortController()
+  const onOuter = (): void => controller.abort(outer.reason)
+  outer.addEventListener('abort', onOuter, { once: true })
+  const timer = setTimeout(() => controller.abort(new Error('title deadline')), TITLE_DEADLINE_MS)
   try {
-    const answer = await routedCallModelSettled({
-      messages: [createUserMessage({ content: description })],
-      systemPrompt: asSystemPrompt([TITLE_SYSTEM_PROMPT]),
-      thinkingConfig: { type: 'disabled' },
-      tools: [],
-      signal,
-      options: {
-        getToolPermissionContext: async () => ({}) as ToolPermissionContext,
-        model: sessionSmallFastModel(),
-        maxOutputTokensOverride: 100,
-        isNonInteractiveSession: false,
-        querySource: 'feedback',
-        agents: [],
-        hasAppendSystemPrompt: false,
-        skipCacheWrite: true,
-        mcpTools: [],
-      },
-    })
+    const answer = await Promise.race([
+      routedCallModelSettled({
+        messages: [createUserMessage({ content: description })],
+        systemPrompt: asSystemPrompt([titleSystemPrompt(form)]),
+        thinkingConfig: { type: 'disabled' },
+        tools: [],
+        signal: controller.signal,
+        options: {
+          getToolPermissionContext: async () => ({}) as ToolPermissionContext,
+          model: sessionSmallFastModel(),
+          maxOutputTokensOverride: 100,
+          isNonInteractiveSession: false,
+          querySource: 'feedback',
+          agents: [],
+          hasAppendSystemPrompt: false,
+          skipCacheWrite: true,
+          mcpTools: [],
+        },
+      }),
+      new Promise<never>((_, reject) => {
+        controller.signal.addEventListener('abort', () => reject(controller.signal.reason), { once: true })
+      }),
+    ])
     if ((answer as { isApiErrorMessage?: boolean }).isApiErrorMessage) {
-      return fallbackTitle(description)
+      return fallbackTitle(description, generic)
     }
     const content = answer.message.content
     const text = (Array.isArray(content) ? content : [])
@@ -190,27 +234,64 @@ async function generateTitle(
       .map(block => (block as { text?: string }).text ?? '')
       .join('')
       .trim()
-    if (text === '' || text.startsWith('API Error')) return fallbackTitle(description)
+    if (text === '' || text.startsWith('API Error')) return fallbackTitle(description, generic)
     return text
   } catch {
-    return fallbackTitle(description)
+    return fallbackTitle(description, generic)
+  } finally {
+    clearTimeout(timer)
+    outer.removeEventListener('abort', onOuter)
   }
 }
 
 
-function persistDraftLocally(report: Record<string, unknown>, title: string | null): string | null {
+function productVersion(): string {
+  return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown'
+}
+
+function platformLine(): string {
+  const name =
+    process.platform === 'darwin'
+      ? 'macOS'
+      : process.platform === 'win32'
+        ? 'Windows'
+        : process.platform === 'linux'
+          ? 'Linux'
+          : process.platform
+  return `${name} · ${osType()} ${release()} · ${process.arch} · ${envDynamic.terminal ?? 'unknown terminal'}`
+}
+
+function installLine(): string {
   try {
-    const dir = join(getMercuryHome(), 'feedback')
-    mkdirSync(dir, { recursive: true })
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const path = join(dir, `bug-${stamp}.json`)
-    durableAtomicPublishSync(path, `${JSON.stringify({ title, ...report }, null, 2)}\n`)
-    return path
-  } catch (persistError) {
-    logError(persistError)
-    return null
+    const p = resolveInstallProvenance()
+    const option =
+      p.kind === 'development'
+        ? 'Built from source (node dist/mercury.mjs)'
+        : p.kind === 'managed'
+          ? 'A release archive (mercury install)'
+          : p.kind === 'extracted-release'
+            ? 'A release archive (run in place, not installed)'
+            : p.invokedPath.startsWith(join(getMercuryHome(), 'runtime'))
+              ? 'The mercury launcher over a deployed runtime'
+              : 'Unrecognized install shape'
+    return `${option} — ${provenanceLine(p)}`
+  } catch {
+    return 'unknown — the install probe threw'
   }
 }
+
+function modelFacts(): { family: string; model: string } {
+  try {
+    const model = focusedSessionModelFacts()?.effective ?? getMainLoopModel()
+    const route = providerFamilyOfSetting(model)
+    return { family: route === 'unrecognised' ? 'Not sure' : providerDisplayName(route), model }
+  } catch {
+    return { family: 'Not sure', model: '(unknown)' }
+  }
+}
+
+
+type RecentError = { error: string; timestamp: string }
 
 async function gatherReport(
   description: string,
@@ -222,7 +303,7 @@ async function gatherReport(
       messages?: Message[]
     }
   },
-): Promise<Record<string, unknown>> {
+): Promise<{ report: Record<string, unknown>; errors: RecentError[] }> {
   const lastAssistant = [...messages]
     .reverse()
     .find(message => message.type === 'assistant')
@@ -257,24 +338,96 @@ async function gatherReport(
   }
 
   return {
-    message_count: messages.length,
-    datetime: new Date().toISOString(),
-    description,
-    platform: process.platform,
-    is_git: isGit,
-    terminal: envDynamic.terminal ?? 'unknown',
-    version: typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : 'unknown',
-    transcript: normalizeMessagesForAPI(messages),
     errors,
-    last_api_request: getLastAPIRequest(),
-    last_request_id: (lastAssistant as { requestId?: string } | undefined)?.requestId ?? getLastMainRequestId(),
-    subagent_transcripts: { ...fromDisk, ...fromTasks },
-    raw_transcript: rawTranscript,
+    report: {
+      message_count: messages.length,
+      datetime: new Date().toISOString(),
+      description,
+      platform: process.platform,
+      is_git: isGit,
+      terminal: envDynamic.terminal ?? 'unknown',
+      version: productVersion(),
+      transcript: normalizeMessagesForAPI(messages),
+      errors,
+      last_api_request: getLastAPIRequest(),
+      last_request_id: (lastAssistant as { requestId?: string } | undefined)?.requestId ?? getLastMainRequestId(),
+      subagent_transcripts: { ...fromDisk, ...fromTasks },
+      raw_transcript: rawTranscript,
+    },
   }
 }
 
+function draftPaths(kind: IssueKind): { json: string; body: string } | null {
+  try {
+    const dir = join(getMercuryHome(), 'feedback')
+    mkdirSync(dir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    return { json: join(dir, `${kind}-${stamp}.json`), body: join(dir, `${kind}-${stamp}.md`) }
+  } catch (pathError) {
+    logError(pathError)
+    return null
+  }
+}
 
-type Step = 'description' | 'consent' | 'preparing' | 'done'
+function writeDraftFile(path: string, content: string): boolean {
+  try {
+    durableAtomicPublishSync(path, content)
+    return true
+  } catch (persistError) {
+    logError(persistError)
+    return false
+  }
+}
+
+function draftJson(record: Record<string, unknown>): string {
+  return `${JSON.stringify(record, null, 2)}\n`
+}
+
+
+function wrapLine(line: string, width: number): string[] {
+  if (line.length <= width) return [line]
+  const out: string[] = []
+  let rest = line
+  while (rest.length > width) {
+    let cut = rest.lastIndexOf(' ', width)
+    if (cut < width / 2) cut = width
+    out.push(rest.slice(0, cut))
+    rest = rest.slice(cut).replace(/^ /, '')
+  }
+  out.push(rest)
+  return out
+}
+
+export function bodyLines(body: string, width: number): string[] {
+  return body.replace(/\n$/, '').split('\n').flatMap(line => wrapLine(line, width))
+}
+
+export function bodyByteCount(body: string): number {
+  return Buffer.byteLength(body, 'utf8')
+}
+
+
+type Step =
+  | 'kind'
+  | 'ask'
+  | 'preparing'
+  | 'review'
+  | 'filing'
+  | 'done'
+  | 'unavailable'
+  | 'failed'
+
+function surfaceTitle(form: IssueForm | null): string {
+  if (form === null) return 'Feedback — which kind?'
+  switch (form.kind) {
+    case 'bug':
+      return 'Report a bug'
+    case 'provider':
+      return 'Report a provider or model problem'
+    case 'feature':
+      return 'Request a feature'
+  }
+}
 
 export function Feedback({
   abortSignal,
@@ -282,6 +435,7 @@ export function Feedback({
   initialDescription = '',
   onDone,
   backgroundTasks = {},
+  kind,
 }: {
   abortSignal: AbortSignal
   messages: Message[]
@@ -294,79 +448,220 @@ export function Feedback({
       messages?: Message[]
     }
   }
+  kind?: IssueKind
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const { columns } = useTerminalSize()
-  const [step, setStep] = useState<Step>('description')
-  const [description, setDescription] = useState(initialDescription)
+  const { columns, rows } = useTerminalSize()
+  const [form, setForm] = useState<IssueForm | null>(kind !== undefined ? ISSUE_FORMS[kind] : null)
+  const [step, setStep] = useState<Step>(kind !== undefined ? 'ask' : 'kind')
+  const [askIndex, setAskIndex] = useState(0)
+  const [draft, setDraft] = useState(initialDescription)
   const [cursorOffset, setCursorOffset] = useState(initialDescription.length)
-  const [error, setError] = useState<string | null>(null)
+  const answersRef = useRef<Record<string, string>>({})
   const [title, setTitle] = useState<string | null>(null)
-  const [savedPath, setSavedPath] = useState<string | null>(null)
+  const [body, setBody] = useState('')
+  const [scroll, setScroll] = useState(0)
+  const [paths, setPaths] = useState<{ json: string; body: string } | null>(null)
+  const [access, setAccess] = useState<IssueAccess | null>(null)
+  const [failure, setFailure] = useState<{ note: string; remedy: string } | null>(null)
+  const [issueUrl, setIssueUrl] = useState<string | null>(null)
+  const slugRef = useRef(issueRepoSlug())
+  const recordRef = useRef<Record<string, unknown> | null>(null)
   const preparedRef = useRef(false)
-  const doneMessageRef = useRef<string>(
-    'Bug report drafted locally — nothing was uploaded.',
-  )
+  const finishedRef = useRef(false)
+  const doneMessageRef = useRef<string>('Report closed — nothing was filed.')
 
   const finish = useCallback(
     (message: string) => {
+      if (finishedRef.current) return
+      finishedRef.current = true
       onDone(message, { display: 'system' })
     },
     [onDone],
   )
 
+  const cancel = useCallback(() => {
+    finish(`${form?.name ?? 'Feedback'} cancelled — nothing was filed.`)
+  }, [finish, form])
+
+  const prompted = form !== null ? promptedFields(form) : []
+  const field = prompted[askIndex] ?? null
+
+  const keptMessage = useCallback(
+    (p: { json: string; body: string } | null): string =>
+      p !== null
+        ? `${form?.name ?? 'Report'} drafted locally at ${p.json} — nothing was filed.`
+        : `${form?.name ?? 'Report'} drafted locally — the draft file could not be written (see the error log); nothing was filed.`,
+    [form],
+  )
+
   const prepare = useCallback(async () => {
-    if (preparedRef.current) return
+    if (form === null || preparedRef.current) return
     preparedRef.current = true
     setStep('preparing')
+    const words = answersRef.current
+    const description = prompted.find(f => f.source === 'words') !== undefined
+      ? (words[prompted.find(f => f.source === 'words')!.id] ?? '')
+      : ''
+    const slug = slugRef.current
     try {
-      const titlePromise = generateTitle(description, abortSignal)
-      const report = await gatherReport(description, messages, backgroundTasks)
-      const generated = await titlePromise
-      const draftPath = persistDraftLocally(report, generated)
-      setSavedPath(draftPath)
-      doneMessageRef.current =
-        draftPath !== null
-          ? `Bug report drafted locally at ${draftPath} — nothing was uploaded.`
-          : 'Bug report drafted locally — the draft file could not be written (see the error log); nothing was uploaded.'
-      setTitle(generated)
-      setStep('done')
+      const [gathered, generated, doctor, reach] = await Promise.all([
+        gatherReport(description, messages, backgroundTasks),
+        generateTitle(form, description, abortSignal),
+        gatherDoctorSection({ signal: abortSignal }),
+        checkIssueAccess(slug),
+      ])
+      const facts = modelFacts()
+      const values: Record<string, string> = {
+        ...words,
+        version: `Mercury ${productVersion()}`,
+        platform: platformLine(),
+        install: installLine(),
+        family: facts.family,
+        model: facts.model,
+        doctor,
+      }
+      const composed = redactSensitiveInfo(composeIssueBody(form, { values, recentErrors: gathered.errors }))
+      const fullTitle = fullIssueTitle(form, redactSensitiveInfo(generated))
+      const p = draftPaths(form.kind)
+      const bodyWritten = p !== null && writeDraftFile(p.body, composed)
+      const record: Record<string, unknown> = {
+        title: fullTitle,
+        kind: form.kind,
+        issue_repo: slug,
+        body_path: bodyWritten ? p!.body : null,
+        ...gathered.report,
+      }
+      recordRef.current = record
+      const draftWritten = p !== null && writeDraftFile(p.json, draftJson(record))
+      const written = draftWritten && bodyWritten ? p : null
+      setPaths(written)
+      setBody(composed)
+      setTitle(fullTitle)
+      setAccess(reach)
+      setScroll(0)
+      if (written === null) {
+        setFailure({
+          note: 'the draft files could not be written under the config home (see the error log)',
+          remedy: 'free disk space or fix the permissions of the config home, then run the command again',
+        })
+        doneMessageRef.current = keptMessage(null)
+        setStep('failed')
+        return
+      }
+      if (reach.state !== 'ok') {
+        doneMessageRef.current = keptMessage(written)
+        setStep('unavailable')
+        return
+      }
+      doneMessageRef.current = keptMessage(written)
+      setStep('review')
     } catch (prepareError) {
       logError(prepareError)
       preparedRef.current = false
-      setError('Preparing the report failed — try again.')
-      setStep('description')
+      setFailure({
+        note: `preparing the report failed: ${prepareError instanceof Error ? prepareError.message : String(prepareError)}`,
+        remedy: 'run the command again',
+      })
+      doneMessageRef.current = keptMessage(null)
+      setStep('failed')
     }
-  }, [description, messages, backgroundTasks, abortSignal])
+  }, [form, prompted, messages, backgroundTasks, abortSignal, keptMessage])
+
+  const file = useCallback(async () => {
+    if (form === null || paths === null || title === null) return
+    setStep('filing')
+    const result = await fileIssue({ slug: slugRef.current, title, bodyFile: paths.body })
+    if (result.state === 'filed') {
+      if (recordRef.current !== null) {
+        writeDraftFile(paths.json, draftJson({ ...recordRef.current, issue_url: result.url }))
+      }
+      setIssueUrl(result.url)
+      doneMessageRef.current = `${form.name} filed at ${result.url} — the local draft is at ${paths.json}`
+      setStep('done')
+      return
+    }
+    setFailure(result)
+    doneMessageRef.current = `${form.name} not filed — ${result.note}; the draft is at ${paths.json}`
+    setStep('failed')
+  }, [form, paths, title])
+
+  const advance = useCallback(
+    (value: string) => {
+      if (field === null || form === null) return
+      const text = value.trim()
+      if (field.source === 'words' && text === '') return
+      answersRef.current[field.id] = text
+      if (askIndex + 1 < prompted.length) {
+        setAskIndex(askIndex + 1)
+        setDraft('')
+        setCursorOffset(0)
+        return
+      }
+      void prepare()
+    },
+    [field, form, askIndex, prompted.length, prepare],
+  )
+
+  const boxWidth = Math.max(30, columns - 8)
+  const lines = step === 'review' ? bodyLines(body, boxWidth) : []
+  const viewRows = Math.max(6, Math.min(lines.length, rows - 16))
+  const maxScroll = Math.max(0, lines.length - viewRows)
+  const bytes = bodyByteCount(body)
+
+  useEffect(() => {
+    if (scroll > maxScroll) setScroll(maxScroll)
+  }, [scroll, maxScroll])
+
+  useRegisterOverlay('feedback-review', step === 'review', { ownsPageKeys: true })
 
   useInput(
     (input, key) => {
-      if (step === 'consent' && (key.return || input === ' ')) {
-        void prepare()
-      } else if (step === 'done') {
+      if (step === 'review') {
+        if (key.return) {
+          void file()
+        } else if (key.upArrow) {
+          setScroll(s => Math.max(0, s - 1))
+        } else if (key.downArrow) {
+          setScroll(s => Math.min(maxScroll, s + 1))
+        } else if (key.pageUp) {
+          setScroll(s => Math.max(0, s - viewRows))
+        } else if (key.pageDown) {
+          setScroll(s => Math.min(maxScroll, s + viewRows))
+        }
+        return
+      }
+      if (step === 'done' || step === 'failed') {
+        finish(doneMessageRef.current)
+        return
+      }
+      if (step === 'unavailable') {
         const repoConfigured = Boolean(flagEnv('MERCURY_ISSUES_REPO_URL'))
         if (key.return && repoConfigured && title !== null) {
+          const description = answersRef.current[prompted.find(f => f.source === 'words')?.id ?? ''] ?? ''
           const url = createGitHubIssueUrl('', title, description, getInMemoryErrors())
           if (url !== '') void openBrowser(url)
-          finish(doneMessageRef.current)
-        } else {
-          finish(doneMessageRef.current)
         }
+        finish(doneMessageRef.current)
       }
     },
-    { isActive: step === 'consent' || step === 'done' },
+    { isActive: step === 'review' || step === 'done' || step === 'unavailable' || step === 'failed' },
   )
 
   useKeybinding(
     'confirm:no',
     () => {
-      if (step === 'done') finish(doneMessageRef.current)
-      else onDone('Bug report cancelled', { display: 'system' })
+      if (step === 'review' || step === 'done' || step === 'unavailable' || step === 'failed') {
+        finish(doneMessageRef.current)
+      } else {
+        cancel()
+      }
     },
-    { context: 'Confirmation', isActive: step !== 'preparing' },
+    { context: 'Confirmation', isActive: step !== 'preparing' && step !== 'filing' },
   )
 
   const repoConfigured = Boolean(flagEnv('MERCURY_ISSUES_REPO_URL'))
+  const slug = slugRef.current
 
   return (
     <Box
@@ -376,107 +671,113 @@ export function Feedback({
       paddingX={1}
       gap={1}
     >
-      <Text bold>Report a bug</Text>
-      {step === 'description' ? (
+      <Text bold>{surfaceTitle(form)}</Text>
+      {step === 'kind' ? (
         <Box flexDirection="column" gap={1}>
-          <Text>Describe what happened:</Text>
-          <TextInput
-            value={description}
+          <Text>Which form does this follow?</Text>
+          <Select
+            options={ISSUE_KINDS.map(k => ({
+              label: ISSUE_FORMS[k].name,
+              value: k,
+              description: ISSUE_FORMS[k].description,
+            }))}
             onChange={value => {
-              if (error !== null) setError(null)
-              setDescription(value)
+              const chosen = ISSUE_FORMS[value as IssueKind]
+              setForm(chosen)
+              setAskIndex(0)
+              setStep('ask')
             }}
-            onSubmit={value => {
-              if (value.trim() !== '') setStep('consent')
-            }}
-            onExit={() => onDone('Bug report cancelled', { display: 'system' })}
+            onCancel={cancel}
+          />
+          <Text dimColor>↑↓ choose · enter to continue · esc to cancel</Text>
+        </Box>
+      ) : null}
+      {step === 'ask' && field !== null ? (
+        <Box flexDirection="column" gap={1}>
+          <Text>
+            {field.label}
+            {field.source === 'ask' ? <Text dimColor> (optional — enter to skip)</Text> : null}:
+          </Text>
+          {field.prompt !== undefined ? <Text dimColor>{field.prompt}</Text> : null}
+          <TextInput
+            value={draft}
+            onChange={setDraft}
+            onSubmit={advance}
+            onExit={cancel}
             columns={Math.max(30, columns - 6)}
             multiline
             cursorOffset={cursorOffset}
             onChangeCursorOffset={setCursorOffset}
-            placeholder="What went wrong?"
+            placeholder={field.source === 'words' ? 'What happened?' : ''}
           />
-          {error !== null ? <Text color={tokens.failureText}>{error}</Text> : null}
           <Text dimColor>enter to continue · esc to cancel</Text>
         </Box>
       ) : null}
-      {step === 'consent' ? (
+      {step === 'preparing' ? <Text dimColor>Preparing the report…</Text> : null}
+      {step === 'review' && form !== null ? (
         <Box flexDirection="column" gap={1}>
-          <Text>This report will include:</Text>
-          <Box flexDirection="column">
-            <Text>- Your description of the problem</Text>
-            <Text>
-              - Environment: {process.platform}, {envDynamic.terminal ?? 'unknown terminal'},
-              v{typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : '?'}
-            </Text>
-            <GitStateLine />
-            <Text>- The current session transcript</Text>
-          </Box>
           <Text>
-            The report is drafted locally — nothing is uploaded anywhere.
+            This exact body ({bytes} bytes) will be filed as a new issue in {slug} through your own gh, titled:
           </Text>
-          <Text dimColor>enter or space to prepare · esc to cancel</Text>
+          <Text bold>{title}</Text>
+          <Box flexDirection="column" borderStyle="single" borderColor={tokens.borderSubtle} paddingX={1}>
+            {lines.slice(scroll, scroll + viewRows).map((line, i) => (
+              <Text key={scroll + i}>{line === '' ? ' ' : line}</Text>
+            ))}
+          </Box>
+          <Text dimColor>
+            {lines.length > viewRows
+              ? `lines ${scroll + 1}–${Math.min(lines.length, scroll + viewRows)} of ${lines.length} · ↑↓ pgup pgdn scroll · `
+              : ''}
+            The session transcript stays in the local draft ({paths?.json}) and is not sent.
+          </Text>
+          <Text dimColor>enter to file it · esc to keep the draft only</Text>
         </Box>
       ) : null}
-      {step === 'preparing' ? <Text dimColor>Preparing the report…</Text> : null}
-      {step === 'done' ? (
+      {step === 'filing' ? <Text dimColor>Filing through gh…</Text> : null}
+      {step === 'done' && form !== null ? (
         <Box flexDirection="column" gap={1}>
-          <Text color={tokens.success}>
-            {savedPath !== null
-              ? `Report drafted locally — saved to ${savedPath} · nothing was uploaded.`
-              : 'Report drafted locally — the draft file could not be written (see the error log) · nothing was uploaded.'}
+          <Text color={tokens.success}>Filed: {issueUrl}</Text>
+          <Text dimColor>
+            The body that left the box: {paths?.body} · the local draft (with the transcript): {paths?.json}
           </Text>
-          {title !== null ? <Text dimColor>Title: {title}</Text> : null}
+          <Text dimColor>press any key to close</Text>
+        </Box>
+      ) : null}
+      {step === 'unavailable' && access !== null && access.state !== 'ok' ? (
+        <Box flexDirection="column" gap={1}>
+          <Text>
+            {noGhParagraph({
+              note: access.note,
+              remedy: access.remedy,
+              slug,
+              draftPath: paths?.json ?? null,
+              bodyPath: paths?.body ?? null,
+            })}
+          </Text>
           {repoConfigured ? (
             <Text dimColor>
-              enter to open a pre-filled issue draft in the browser · any other
-              key to close
+              enter to open a pre-filled issue draft in the browser · any other key to close
             </Text>
           ) : (
-            <Text dimColor>
-              Set MERCURY_ISSUES_REPO_URL to enable a pre-filled issue draft.
-              Press any key to close.
-            </Text>
+            <Text dimColor>press any key to close</Text>
           )}
+        </Box>
+      ) : null}
+      {step === 'failed' && failure !== null ? (
+        <Box flexDirection="column" gap={1}>
+          <Text color={tokens.failureText}>Not filed: {failure.note}</Text>
+          <Text>
+            {failure.remedy}.
+            {paths !== null
+              ? ` The body to paste is at ${paths.body} and the local draft at ${paths.json}; the issues page is ${issuesPageUrl(slug)}.`
+              : ''}
+          </Text>
+          <Text dimColor>press any key to close</Text>
         </Box>
       ) : null}
     </Box>
   )
-}
-
-function GitStateLine(): React.ReactNode {
-  const [line, setLine] = useState<string | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    void (async () => {
-      const isGit = await getIsGit().catch(() => false)
-      if (!isGit) {
-        if (!cancelled) setLine(null)
-        return
-      }
-      const cwd = getCwd()
-      const [branch, head, remote, clean, unpushed] = await Promise.all([
-        getBranch(cwd).catch(() => ''),
-        getHead().catch(() => ''),
-        getRemoteUrl().catch(() => null),
-        getIsClean().catch(() => true),
-        hasUnpushedCommits().catch(() => false),
-      ])
-      const parts = [
-        branch && `branch ${branch}`,
-        head && `commit ${head.slice(0, 8)}`,
-        remote && `remote ${remote}`,
-        unpushed ? 'unsynced' : null,
-        clean ? null : 'local changes',
-      ].filter(Boolean)
-      if (!cancelled) setLine(parts.join(', '))
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [])
-  if (line === null) return null
-  return <Text>- Git repository state: {line}</Text>
 }
 
 export default Feedback

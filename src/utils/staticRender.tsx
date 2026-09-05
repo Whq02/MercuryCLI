@@ -9,9 +9,6 @@ import { chromeModeLive } from '../hooks/useLayoutTier.js'
 import { railPlan } from './helmGeometry.js'
 
 
-const SYNC_BEGIN = '\u001b[?2026h'
-const SYNC_END = '\u001b[?2026l'
-
 function ExitAfterCommit({ children }: { children: React.ReactNode }): React.ReactNode {
   const { exit } = useApp()
   useLayoutEffect(() => {
@@ -27,25 +24,6 @@ function ExitAfterCommit({ children }: { children: React.ReactNode }): React.Rea
   return children
 }
 
-function settledFrame(output: string): string {
-  const windows: string[] = []
-  let cursor = 0
-  for (;;) {
-    const begin = output.indexOf(SYNC_BEGIN, cursor)
-    if (begin === -1) break
-    const contentStart = begin + SYNC_BEGIN.length
-    const end = output.indexOf(SYNC_END, contentStart)
-    if (end === -1) break
-    windows.push(output.slice(contentStart, end))
-    cursor = end + SYNC_END.length
-  }
-  if (windows.length === 0) return output
-  for (let i = windows.length - 1; i >= 0; i--) {
-    if (stripAnsi(windows[i]!).trim() !== '') return windows[i]!
-  }
-  return windows[windows.length - 1]!
-}
-
 export function staticPrintColumns(): number {
   const cols = process.stdout.columns ?? 80
   const rows = process.stdout.rows
@@ -57,10 +35,7 @@ export function staticPrintColumns(): number {
 
 export async function renderToAnsiString(node: React.ReactNode, columns?: number): Promise<string> {
   const stream = new PassThrough()
-  let output = ''
-  stream.on('data', (chunk: Buffer | string) => {
-    output += chunk.toString()
-  })
+  stream.resume()
   const target = stream as unknown as NodeJS.WriteStream
   if (columns !== undefined) {
     ;(target as { columns?: number }).columns = columns
@@ -82,7 +57,7 @@ export async function renderToAnsiString(node: React.ReactNode, columns?: number
     patchConsole: false,
   })
   await instance.waitUntilExit()
-  return settledFrame(output)
+  return instance.lastFrame()
 }
 
 export async function renderToString(node: React.ReactNode, columns?: number): Promise<string> {

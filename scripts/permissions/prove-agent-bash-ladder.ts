@@ -52,7 +52,12 @@ guard.unref?.()
 section('§1 the prompt-posture owner — an agent inherits its parent\'s ask road')
 {
   const base = { isAsync: false, canShowPermissionPrompts: undefined, definitionMode: undefined, parentAvoidsPrompts: false, parentNonInteractive: false as boolean | undefined }
-  const rows: Array<{ label: string; facts: Parameters<typeof resolveAgentPromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean } }> = [
+  const rows: Array<{ label: string; facts: Parameters<typeof resolveAgentPromptPosture>[0]; want: { avoidPrompts: boolean; isNonInteractiveSession: boolean; permissionChannel?: 'stdio' | 'prompt-tool' } }> = [
+    { label: "a background agent of a daemon seat asks through the seat's stdio channel", facts: { ...base, isAsync: true, parentNonInteractive: true, parentChannel: 'stdio' }, want: { avoidPrompts: false, isNonInteractiveSession: true, permissionChannel: 'stdio' } },
+    { label: 'a foreground agent of a print run with a prompt tool inherits that road', facts: { ...base, parentNonInteractive: true, parentChannel: 'prompt-tool' }, want: { avoidPrompts: false, isNonInteractiveSession: true, permissionChannel: 'prompt-tool' } },
+    { label: 'a prompt-less child of a seat has no road (it avoids prompts by law)', facts: { ...base, isAsync: true, parentNonInteractive: true, parentChannel: 'stdio', parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
+    { label: 'an explicit "cannot show prompts" drops the road too', facts: { ...base, parentNonInteractive: true, parentChannel: 'stdio', canShowPermissionPrompts: false }, want: { avoidPrompts: true, isNonInteractiveSession: true } },
+    { label: 'a print run with no channel gives its child none', facts: { ...base, isAsync: true, parentNonInteractive: true }, want: { avoidPrompts: false, isNonInteractiveSession: true } },
     { label: 'a foreground agent of an interactive parent prompts', facts: base, want: { avoidPrompts: false, isNonInteractiveSession: false } },
     { label: 'a BACKGROUND agent of an interactive parent prompts too — the parent\'s ask road is its own', facts: { ...base, isAsync: true }, want: { avoidPrompts: false, isNonInteractiveSession: false } },
     { label: 'a background agent of a prompt-less parent stays prompt-less', facts: { ...base, isAsync: true, parentAvoidsPrompts: true }, want: { avoidPrompts: true, isNonInteractiveSession: false } },
@@ -66,7 +71,7 @@ section('§1 the prompt-posture owner — an agent inherits its parent\'s ask ro
   ]
   for (const row of rows) {
     const got = resolveAgentPromptPosture(row.facts)
-    check(row.label, got.avoidPrompts === row.want.avoidPrompts && got.isNonInteractiveSession === row.want.isNonInteractiveSession, `got ${j(got)} want ${j(row.want)}`)
+    check(row.label, got.avoidPrompts === row.want.avoidPrompts && got.isNonInteractiveSession === row.want.isNonInteractiveSession && got.permissionChannel === row.want.permissionChannel, `got ${j(got)} want ${j(row.want)}`)
   }
 }
 
@@ -74,8 +79,11 @@ section('§2 the ladder — the agent\'s Bash answers from the stage the main th
 
 const READ_ONLY = 'git rev-parse --short HEAD'
 const WRITING = 'git commit --allow-empty -q -m agent-bash-probe && git rev-parse --short HEAD'
+const ASKING = 'git commit --allow-empty -q -m agent-bash-probe'
 const ALLOW_RULES = ['Bash(git commit:*)']
 const DENY_RULES = ['Bash(git commit:*)']
+const ASK_RULES = ['Bash(git commit:*)']
+const ASK_TOOL_RULES = ['Bash']
 
 const bashTool = {
   name: 'Bash',
@@ -84,9 +92,9 @@ const bashTool = {
     bashToolHasPermission(input as never, context.getAppState().toolPermissionContext as never),
 }
 
-type Rules = 'none' | 'allow' | 'deny'
+type Rules = 'none' | 'allow' | 'deny' | 'ask' | 'ask-tool'
 type Mode = 'default' | 'flow' | 'autopilot' | 'sovereign' | 'dontAsk'
-type Subject = 'main' | 'fg-agent' | 'bg-agent' | 'main-headless' | 'bg-agent-of-headless' | 'main-print' | 'fg-agent-of-print' | 'bg-agent-of-print'
+type Subject = 'main' | 'fg-agent' | 'bg-agent' | 'main-headless' | 'bg-agent-of-headless' | 'main-print' | 'fg-agent-of-print' | 'bg-agent-of-print' | 'main-seat' | 'bg-agent-of-seat'
 const PEER: Record<Subject, Subject> = {
   main: 'main',
   'fg-agent': 'main',
@@ -96,6 +104,8 @@ const PEER: Record<Subject, Subject> = {
   'main-print': 'main-print',
   'fg-agent-of-print': 'main-print',
   'bg-agent-of-print': 'main-print',
+  'main-seat': 'main-seat',
+  'bg-agent-of-seat': 'main-seat',
 }
 const SUBJECTS = Object.keys(PEER) as Subject[]
 
@@ -106,7 +116,7 @@ function parentState(mode: Mode, rules: Rules, headless: boolean): Record<string
       mode,
       alwaysAllowRules: rules === 'allow' ? { userSettings: ALLOW_RULES } : {},
       alwaysDenyRules: rules === 'deny' ? { userSettings: DENY_RULES } : {},
-      alwaysAskRules: {},
+      alwaysAskRules: rules === 'ask' ? { userSettings: ASK_RULES } : rules === 'ask-tool' ? { userSettings: ASK_TOOL_RULES } : {},
       isBypassPermissionsModeAvailable: mode === 'autopilot' || mode === 'sovereign',
       ...(headless ? { shouldAvoidPermissionPrompts: true } : {}),
     },
@@ -119,20 +129,24 @@ function parentState(mode: Mode, rules: Rules, headless: boolean): Record<string
 function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
   const parentHeadless = subject === 'main-headless' || subject === 'bg-agent-of-headless'
   const parentPrint = subject === 'main-print' || subject === 'fg-agent-of-print' || subject === 'bg-agent-of-print'
+  const parentSeat = subject === 'main-seat' || subject === 'bg-agent-of-seat'
   const parent = parentState(mode, rules, parentHeadless)
   const isAgent = subject.includes('agent')
   const isAsync = subject.startsWith('bg-')
   let getAppState = (): unknown => parent
-  let isNonInteractiveSession: boolean | undefined = parentPrint
+  let isNonInteractiveSession: boolean | undefined = parentPrint || parentSeat
+  let permissionChannel: 'stdio' | 'prompt-tool' | undefined = parentSeat ? 'stdio' : undefined
   if (isAgent) {
     const posture = resolveAgentPromptPosture({
       isAsync,
       canShowPermissionPrompts: undefined,
       definitionMode: undefined,
       parentAvoidsPrompts: parentHeadless,
-      parentNonInteractive: parentPrint,
+      parentNonInteractive: parentPrint || parentSeat,
+      parentChannel: permissionChannel,
     })
     isNonInteractiveSession = posture.isNonInteractiveSession
+    permissionChannel = posture.permissionChannel
     getAppState = () => composeAgentAppState(parent as never, { definitionMode: undefined, avoidPrompts: posture.avoidPrompts, isAsync, allowedTools: undefined, effortValue: undefined })
   }
   return {
@@ -142,7 +156,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
     messages: [],
     agentId: isAgent ? `agent-${subject}` : undefined,
     agentType: isAgent ? 'general-purpose' : undefined,
-    options: { isNonInteractiveSession, tools: [] },
+    options: { isNonInteractiveSession, tools: [], ...(permissionChannel !== undefined ? { permissionChannel } : {}) },
     ...(isAsync ? { localDenialTracking: createDenialTrackingState() } : {}),
   }
 }
@@ -192,6 +206,7 @@ interface Row {
   main: Partial<Cell>
   headless?: Partial<Cell>
   print?: Partial<Cell>
+  seat?: Partial<Cell>
 }
 
 const ROWS: Row[] = [
@@ -210,6 +225,7 @@ const ROWS: Row[] = [
     main: { behavior: 'ask', wrapper: 'engine', engine: 'resolution', classifier: 0 },
     headless: { behavior: 'deny', wrapper: 'headlessAutoDeny', classifier: 0 },
     print: { behavior: 'ask', wrapper: 'engine', classifier: 0 },
+    seat: { behavior: 'ask', wrapper: 'engine', classifier: 0 },
   },
   {
     label: 'flow · no rule · writing command · classifier allows → ONE classifier call, then allow — every subject',
@@ -219,9 +235,10 @@ const ROWS: Row[] = [
     main: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
     headless: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
     print: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
+    seat: { behavior: 'allow', wrapper: 'classifier', classifier: 1 },
   },
   {
-    label: 'flow · no rule · writing command · classifier BLOCKS → the operator\'s card where a card exists; a machine deny where none does',
+    label: 'flow · no rule · writing command · classifier BLOCKS → the operator\'s card where a card exists; a machine deny where no operator can be reached; a daemon seat parks it as the operator\'s ask',
     mode: 'flow',
     rules: 'none',
     command: WRITING,
@@ -229,11 +246,26 @@ const ROWS: Row[] = [
     main: { behavior: 'ask', wrapper: 'classifier', classifier: 1 },
     headless: { behavior: 'deny', wrapper: 'classifier', classifier: 1 },
     print: { behavior: 'deny', wrapper: 'classifier', classifier: 1 },
+    seat: { behavior: 'ask', wrapper: 'classifier', classifier: 1 },
   },
   { label: 'autopilot · no rule · writing command → the bypass posture allows in the engine', mode: 'autopilot', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture', classifier: 0 } },
   { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture', classifier: 0 } },
   { label: 'dontAsk · no rule · writing command → the ask converts to a deny, no classifier', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion', classifier: 0 } },
   { label: 'dontAsk · allow rule · writing command → the rule still allows', mode: 'dontAsk', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', classifier: 0 } },
+  {
+    label: 'default · ask rule · simple command → the content ask road asks the operator; a prompt-less parent denies',
+    mode: 'default',
+    rules: 'ask',
+    command: ASKING,
+    main: { behavior: 'ask', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 },
+    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny', classifier: 0 },
+  },
+  { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
+  { label: 'default · whole-tool ask rule → the 1b road asks, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRule', classifier: 0 } },
+  { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
+  { label: 'autopilot · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
+  { label: 'autopilot · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
+  { label: 'flow · ask rule · simple command → the floor keeps the human ask; no classifier', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule', classifier: 0 } },
 ]
 
 const matches = (cell: Cell, want: Partial<Cell>): boolean =>
@@ -248,6 +280,7 @@ for (const row of ROWS) {
   check(`${row.label} — main`, matches(cells.main, row.main), j(cells.main))
   if (row.headless) check(`${row.label} — a prompt-less parent`, matches(cells['main-headless'], row.headless), j(cells['main-headless']))
   if (row.print) check(`${row.label} — a print run`, matches(cells['main-print'], row.print), j(cells['main-print']))
+  if (row.seat) check(`${row.label} — a daemon seat`, matches(cells['main-seat'], row.seat), j(cells['main-seat']))
   for (const subject of SUBJECTS) {
     const peer = PEER[subject]
     if (peer === subject) continue

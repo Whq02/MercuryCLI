@@ -1,5 +1,6 @@
 
 import type { UUID } from 'node:crypto';
+import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
 import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../utils/sessionStorage/writer.js';
@@ -52,7 +53,7 @@ import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
-import { publishCompanionTurn } from '../utils/cockpit/companionSignals.js';
+import { publishCompanionTurn, turnEndedInError } from '../utils/cockpit/companionSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { dynamicMcpConfigSnapshot, ideAutoConnectSeed, setDynamicMcpConfig } from '../services/mcp/dynamicMcpSeed.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
@@ -80,6 +81,8 @@ import { LOCAL_COMMAND_STDOUT_TAG, BASH_INPUT_TAG } from '../constants/xml.js';
 import { CockpitBottomStatus } from '../context/cockpitActiveContext.js';
 import { MercuryFrame } from '../components/MercuryFrame.js';
 import { useNotifications } from '../context/notifications.js';
+import { transitionPermissionMode } from '../utils/permissions/permissionSetup.js';
+import { permissionModeTitle } from '../utils/permissions/PermissionMode.js';
 import { performUiRouteAlias } from '../context/routeAliases.js';
 import { currentSurfaceRoute, settleAbsentChat, subscribeSurfaceRoute } from '../context/surfaceRoute.js';
 import { CancelRequestHandler } from '../hooks/useCancelRequest.js';
@@ -109,7 +112,7 @@ import { useLspInitializationNotification } from '../hooks/notifs/useLspInitiali
 import { useModelMigrationNotifications } from '../hooks/notifs/useModelMigrationNotifications.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
-import { Box, Text, useStdin, useTheme } from '../ink.js';
+import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import useInput from '../ink/hooks/use-input.js';
@@ -131,6 +134,8 @@ import { crossProviderNote, settlePendingAtBoundary } from '../utils/model/model
 import { createBranchSession } from '../services/branches/branchManifest.js';
 import { hasSeatLive, IDLE_LIVE, type SessionLiveV1 } from '../services/engine-connector/seatLive.js';
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js';
+import { workWaitingWords } from '../services/engine-connector/workCounts.js';
+import { interruptFocusedTurn } from '../hooks/useCancelRequest.js';
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js';
 import { useAppState, useAppStateStore, useSetAppState } from '../state/AppState.js';
 import type { AppState } from '../state/AppStateStore.js';
@@ -192,6 +197,7 @@ import { getCurrentSessionTitle } from '../utils/sessionStorage/logs.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { registerComposerSeeder } from '../utils/cockpit/composerSeed.js';
 import { registerPermissionFocusNotifier } from '../utils/permissions/permissionFocus.js';
+import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
 import { publishCockpitActivity, type ActivityState } from '../utils/cockpit/cockpitActivity.js';
 import { parseSearchQuery } from '../utils/transcriptSearch.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
@@ -252,6 +258,7 @@ const getFocusedSeatLive = (): SessionLiveV1 => {
   return hasSeatLive(connector) ? connector.live() : IDLE_LIVE;
 };
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
+const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener));
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
 const subscribeFocusedTail = subscribeThroughFocused((connector, listener) =>
   hasSeatLive(connector) ? connector.tail().subscribe(listener) : () => {},
@@ -828,18 +835,52 @@ export function REPL({
     if (head !== undefined) focused.settleAsk(head.id);
   }, []);
 
+  const adoptRunnerMode = useCallback(() => {
+    const held = getFocusedSessionConnector().permissionMode();
+    if (held === null) return;
+    setAppState(prev => {
+      if (prev.toolPermissionContext.mode === held) return prev;
+      let next = prev.toolPermissionContext;
+      try {
+        next = transitionPermissionMode(prev.toolPermissionContext.mode, held, prev.toolPermissionContext);
+      } catch (error) {
+        logForDebugging(`permission mode adoption ${prev.toolPermissionContext.mode} → ${held} kept the standing context: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      recordModeTransition({ from: prev.toolPermissionContext.mode, to: held, road: 'screen-mirror', detail: "the runner's own mode adopted" });
+      return { ...prev, toolPermissionContext: { ...next, mode: held } };
+    });
+  }, [setAppState]);
+  useEffect(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
+
   const setToolPermissionContext = useCallback(
     (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
       setAppState(prev => {
         const preserved = options?.preserveMode ? prev.toolPermissionContext.mode : context.mode;
+        if (preserved !== prev.toolPermissionContext.mode) {
+          recordModeTransition({ from: prev.toolPermissionContext.mode, to: preserved, road: 'screen-mirror' });
+        }
         return { ...prev, toolPermissionContext: { ...context, mode: preserved } };
       });
-      if (!options?.preserveMode) getFocusedSessionConnector().setPermissionMode(context.mode);
+      if (!options?.preserveMode) {
+        void getFocusedSessionConnector()
+          .setPermissionMode(context.mode)
+          .then(receipt => {
+            if (receipt.outcome !== 'refused') return;
+            adoptRunnerMode();
+            addNotification({
+              key: 'permission-mode-refused',
+              text: `${permissionModeTitle(context.mode)} refused by the session — ${receipt.detail ?? 'the runner did not take it'}`,
+              priority: 'high',
+              color: 'error' as const,
+              timeoutMs: RECEIPT_TIMEOUT_MS,
+            });
+          });
+      }
       setTimeout(() => {
         for (const entry of getFocusedSessionConnector().asks()) entry.confirm.recheckPermission?.();
       }, 0);
     },
-    [setAppState],
+    [setAppState, adoptRunnerMode, addNotification],
   );
 
   const [showIdeOnboarding, setShowIdeOnboarding] = useState(false);
@@ -1116,6 +1157,21 @@ export function REPL({
     }
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
+  const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
+  const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string }>>([]);
+  const dialogSlotRef = useRef<DOMElement | null>(null);
+  const [dialogPaints, setDialogPaints] = useState(false);
+  useEffect(() => {
+    const node = dialogSlotRef.current;
+    const paints = toolJSX?.isLocalJSXCommand === true && node !== null && measureElement(node).height > 0;
+    setDialogPaints(prev => (prev === paints ? prev : paints));
+  });
+  const dialogOwnsKeys = toolJSX?.isLocalJSXCommand === true && dialogPaints;
+  const drainQueuedDialogCommand = useCallback((): void => {
+    const next = queuedDialogCommandsRef.current.shift();
+    if (next === undefined) return;
+    void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true });
+  }, []);
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean }): Promise<void> => {
     const text = input.trim();
     if (text === '') return;
@@ -1241,6 +1297,28 @@ export function REPL({
       return;
     }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {
+      const dialogName = getCommandName(seatCommand);
+      const inFlight = dialogInFlightRef.current;
+      if (inFlight !== null) {
+        takeComposer();
+        queuedDialogCommandsRef.current.push({ input, name: dialogName });
+        submitTrace('repl-dialog-queued', input, { name: dialogName, behind: inFlight.name });
+        addNotification({
+          key: 'dialog-command-queued',
+          text: `/${dialogName} queued — runs when /${inFlight.name} settles`,
+          priority: 'immediate',
+          timeoutMs: RECEIPT_TIMEOUT_MS,
+        });
+        return;
+      }
+      const slot = { name: dialogName, mounted: false };
+      dialogInFlightRef.current = slot;
+      submitTrace('repl-dialog-dispatch', input, { name: dialogName, rearmed: options?.rearmed === true });
+      const releaseDialogSlot = (): void => {
+        if (dialogInFlightRef.current !== slot) return;
+        dialogInFlightRef.current = null;
+        if (!slot.mounted) drainQueuedDialogCommand();
+      };
       if (pendingInput.text().replace(/\s+$/, '') === input) setInputValue('');
       const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
       let completed = false;
@@ -1249,6 +1327,8 @@ export function REPL({
         doneOptions?: { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean },
       ): void => {
         completed = true;
+        submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user' });
+        releaseDialogSlot();
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
           addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
@@ -1265,8 +1345,9 @@ export function REPL({
       };
       try {
         const module = await seatCommand.load();
-        const element = await module.call(onDone, context, args);
+        const element = await module.call(onDone, context, args, text.slice(1, spaceAt === -1 ? undefined : spaceAt));
         if (element && !completed) {
+          slot.mounted = true;
           setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
         } else if (!element && !completed) {
           addNotification({
@@ -1275,6 +1356,7 @@ export function REPL({
             priority: 'immediate',
             timeoutMs: RECEIPT_TIMEOUT_MS,
           });
+          releaseDialogSlot();
         }
       } catch (error) {
         logForDebugging(`dialog command /${seatCommand.name} failed: ${String(error)}`);
@@ -1285,15 +1367,22 @@ export function REPL({
           color: 'error' as const,
           timeoutMs: RECEIPT_TIMEOUT_MS,
         });
+        releaseDialogSlot();
       }
     }
-  }, [addNotification, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
+  }, [addNotification, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
+  useEffect(() => {
+    if (toolJSX !== null) return;
+    const slot = dialogInFlightRef.current;
+    if (slot !== null && slot.mounted) dialogInFlightRef.current = null;
+    if (dialogInFlightRef.current === null) drainQueuedDialogCommand();
+  }, [toolJSX, drainQueuedDialogCommand]);
 
   const onCancel = useCallback(() => {
     idleCheckLatchedOffRef.current = false;
-    getFocusedSessionConnector().interrupt();
+    interruptFocusedTurn();
   }, []);
 
   const landing = useSyncExternalStore(subscribeFocusedSessionConnector, landingInFlight, landingInFlight);
@@ -1314,7 +1403,7 @@ export function REPL({
         }
       }
       if (armedMessage.permissionMode) {
-        getFocusedSessionConnector().setPermissionMode(armedMessage.permissionMode as PermissionMode);
+        void getFocusedSessionConnector().setPermissionMode(armedMessage.permissionMode as PermissionMode);
       }
       if (armedMessage.bashMode) pendingInput.setMode('bash');
       await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);
@@ -1410,8 +1499,9 @@ export function REPL({
       turnLive: isLoading,
       streaming: textActive,
       awaitingPermission: toolUseConfirmQueue.length > 0,
+      endedInError: !isLoading && turnEndedInError(messages),
     });
-  }, [isLoading, textActive, toolUseConfirmQueue.length]);
+  }, [isLoading, textActive, toolUseConfirmQueue.length, messages]);
 
   useEffect(() => {
     const paint = (): void => {
@@ -2082,7 +2172,9 @@ export function REPL({
     seatLive.phase === 'thinking' ? 'thinking' : seatLive.phase === 'tool' ? 'tool-use' : seatLive.phase === 'compacting' || seatLive.phase === 'waiting' ? 'requesting' : 'responding';
   const viewCompacting = seatLive.phase === 'compacting';
   const viewAgentWait =
-    seatLive.phase === 'waiting' ? `${crewWaitingWords(seatLive.agentsWaiting) ?? 'waiting on agents'} · esc stops them` : null;
+    seatLive.phase === 'waiting'
+      ? ((seatLive.waitingOn !== undefined ? workWaitingWords(seatLive.waitingOn) : null) ?? crewWaitingWords(seatLive.agentsWaiting) ?? 'waiting on agents')
+      : null;
   const responseLengthRef = useMemo(
     () => ({
       get current(): number {
@@ -2124,7 +2216,8 @@ export function REPL({
         responseLengthRef={responseLengthRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={viewCompacting ? 'compacting context…' : viewAgentWait}
+        overrideMessage={viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
+        still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
         verbose={verbose}
         hasActiveTools={viewInProgressToolUseIDs.size > 0}
@@ -2236,19 +2329,14 @@ export function REPL({
       />
     ) : null;
 
-  const centredModal: React.ReactNode = centredModalUp ? toolJSX!.jsx : null;
-  const bottomImmediateJsx: React.ReactNode =
-    localJsx && !fullscreen && toolJSX!.isImmediate ? (
-      <Box width="100%" flexDirection="column">
-        {toolJSX!.jsx}
-      </Box>
-    ) : null;
-  const inlineToolJsx =
-    toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? (
-      <Box width="100%" flexDirection="column">
-        {toolJSX.jsx}
-      </Box>
-    ) : null;
+  const dialogSlot: React.ReactNode = toolJSX?.jsx ? (
+    <Box ref={dialogSlotRef} width="100%" flexDirection="column">
+      {toolJSX.jsx}
+    </Box>
+  ) : null;
+  const centredModal: React.ReactNode = centredModalUp ? dialogSlot : null;
+  const bottomImmediateJsx: React.ReactNode = localJsx && !fullscreen && toolJSX!.isImmediate ? dialogSlot : null;
+  const inlineToolJsx = toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? dialogSlot : null;
 
   const focusedBottomDialog: React.ReactNode = replSurfaceCovered ? null :
     focusedInputDialog === 'elicitation' && elicitationQueue[0] ? (
@@ -2381,7 +2469,7 @@ export function REPL({
       helpOpen={helpOpen}
       setHelpOpen={setHelpOpen}
       hasSuppressedDialogs={dialogsHiddenWhileTyping}
-      isLocalJSXCommandActive={toolJSX?.isLocalJSXCommand === true}
+      isLocalJSXCommandActive={dialogOwnsKeys}
       insertTextRef={insertTextRef}
     />
   ) : null;
@@ -2532,7 +2620,7 @@ export function REPL({
     isMessageSelectorVisible: showMessageSelector || showBashesDialog !== false,
     screen,
     vimMode: isVimModeEnabled() ? vimMode : undefined,
-    isLocalJSXCommand: toolJSX?.isLocalJSXCommand === true,
+    isLocalJSXCommand: dialogOwnsKeys,
     isSearchingHistory,
     isHelpOpen: helpOpen,
     isInputDialogFocused: focusedInputDialog !== undefined,
@@ -2546,7 +2634,7 @@ export function REPL({
       <KeybindingSetup>
         <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
+        <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
         {cancelHandler}
         <Box flexDirection="column">
           {messagesList}
@@ -2571,7 +2659,7 @@ export function REPL({
     <KeybindingSetup>
       <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
       <GlobalKeybindingHandlers {...globalKeybindingProps} />
-      <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
+      <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
       <ScrollKeybindingHandler
         scrollRef={scrollRef}
         isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
