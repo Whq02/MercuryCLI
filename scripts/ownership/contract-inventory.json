@@ -347,6 +347,7 @@
     "VALID_PERMISSION_MODES",
     "decodePermissionModeSpelling",
     "type:AdditionalWorkingDirectory",
+    "type:BypassedAskRoad",
     "type:ClassifierBehavior",
     "type:ClassifierResult",
     "type:ClassifierUsage",
@@ -543,6 +544,7 @@
     "createPostCompactFileAttachments",
     "createSkillAttachmentIfNeeded",
     "fitPostCompactUnderThreshold",
+    "foldFamilyOf",
     "isCompactCapsuleMessage",
     "mergeHookInstructions",
     "partialCompactConversation",
@@ -554,7 +556,8 @@
     "truncateHeadForPTLRetry",
     "type:CompactionResult",
     "type:PostCompactFit",
-    "type:RecompactionInfo"
+    "type:RecompactionInfo",
+    "withFoldStatus"
    ],
    "src/services/compact/autoCompact.ts": [
     "AUTOCOMPACT_THRASH_MESSAGE",

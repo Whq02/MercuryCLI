@@ -372,7 +372,7 @@ export async function autoCompactIfNeeded(
     }
 
     if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
-    const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold)
+    const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
