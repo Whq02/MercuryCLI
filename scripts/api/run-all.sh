@@ -20,6 +20,7 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-turn-end-typed.ts" |
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tool-schema-key-memo.ts" || fail=1; prover_mark "scripts/api/prove-tool-schema-key-memo.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-door.ts" || fail=1; prover_mark "scripts/api/prove-client-contract-door.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-binding.ts" || fail=1; prover_mark "scripts/api/prove-transcript-binding.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-credential-refusal-words.ts" || fail=1; prover_mark "scripts/api/prove-credential-refusal-words.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || fail=1; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-thinking-drop-notice.ts" || fail=1; prover_mark "scripts/api/prove-thinking-drop-notice.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wire-dump.ts" || fail=1; prover_mark "scripts/api/prove-wire-dump.ts" "$__t"
