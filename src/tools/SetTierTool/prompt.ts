@@ -1,4 +1,6 @@
 
+import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
+
 export const SET_TIER_TOOL_DESCRIPTION =
   'Retune your own model/effort tier under autopilot rails (turn- or session-scoped)'
 
@@ -6,7 +8,7 @@ export const SET_TIER_TOOL_PROMPT = `Change your own model tier and/or reasoning
 
 Input:
 - model (optional): 'opus' | 'sonnet' | 'fable' | 'fable51' — a family key resolves to that family's default model with the session's 1M-context posture preserved; 'fable51' is Claude Fable 5.1 itself (natively 1M, no posture to carry). The operator allowlist (MERCURY_AUTOPILOT_MODELS, default "opus,sonnet,fable,fable51") gates which keys are accepted — a key the operator narrowed out is refused. Haiku is unrepresentable.
-- effort (optional): 'low' | 'medium' | 'high' | 'xhigh' | 'max' — clamped to the target model's real ceiling. An active deepthink turn floor stays raise-only above whatever you set, and MERCURY_EFFORT_LEVEL remains supreme.
+- effort (optional): ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')} — clamped to the target model's real ceiling. An active deepthink turn floor stays raise-only above whatever you set, and MERCURY_EFFORT_LEVEL remains supreme.
 - scope (required): 'turn' reverts automatically when the current turn ends; 'session' persists until changed (the operator can always retune via /model — the picker shows the truth).
 - reason (required): one line, surfaced to the operator verbatim.
 

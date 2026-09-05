@@ -68,6 +68,7 @@ export interface StoredQualificationReceipt {
 interface QualificationFile {
   version: number
   receipts: StoredQualificationReceipt[]
+  wireEfforts?: StoredWireEffortVocabulary[]
   [k: string]: unknown
 }
 
@@ -146,6 +147,101 @@ export function receiptCurrency(receipt: StoredQualificationReceipt): ReceiptCur
 
 export function readQualificationReceipts(): ReceiptCurrency[] {
   return readFile().receipts.map(receiptCurrency)
+}
+
+
+export const WIRE_EFFORT_MEMORY_PROBE_MS = 24 * 60 * 60 * 1000
+
+export interface StoredWireEffortVocabulary {
+  modelId: string
+  sourceKind: OpenaiAccountSourceKind
+  levels: string[]
+  refused: string
+  observedAtMs: number
+}
+
+const WIRE_MEMORY_READ_CACHE_MS = 1000
+let wireMemoryCache: { path: string; readAtMs: number; entries: StoredWireEffortVocabulary[] } | null = null
+
+function isStoredWireEffortVocabulary(v: unknown): v is StoredWireEffortVocabulary {
+  const o = v as Partial<StoredWireEffortVocabulary> | null
+  return (
+    typeof o === 'object' &&
+    o !== null &&
+    typeof o.modelId === 'string' &&
+    typeof o.sourceKind === 'string' &&
+    Array.isArray(o.levels) &&
+    typeof o.refused === 'string' &&
+    typeof o.observedAtMs === 'number'
+  )
+}
+
+function readWireMemories(now: () => number): StoredWireEffortVocabulary[] {
+  const path = filePath()
+  if (wireMemoryCache !== null && wireMemoryCache.path === path && now() - wireMemoryCache.readAtMs < WIRE_MEMORY_READ_CACHE_MS) {
+    return wireMemoryCache.entries
+  }
+  const raw = readFile().wireEfforts
+  const entries = Array.isArray(raw) ? raw.filter(isStoredWireEffortVocabulary) : []
+  wireMemoryCache = { path, readAtMs: now(), entries }
+  return entries
+}
+
+function writeWireMemories(entries: StoredWireEffortVocabulary[]): boolean {
+  try {
+    const file = readFile()
+    writeFileSync(filePath(), JSON.stringify({ ...file, version: FILE_VERSION, wireEfforts: entries }, null, 2) + '\n', 'utf8')
+    wireMemoryCache = null
+    return true
+  } catch {
+    return false
+  }
+}
+
+const memoryKey = (modelId: string, sourceKind: OpenaiAccountSourceKind): string => `${sourceKind}:${modelId.toLowerCase()}`
+
+export function recordWireEffortRefusal(i: {
+  modelId: string
+  sourceKind: OpenaiAccountSourceKind
+  refused: string
+  levels: readonly string[]
+  now?: () => number
+}): StoredWireEffortVocabulary | undefined {
+  const now = i.now ?? Date.now
+  const entry: StoredWireEffortVocabulary = {
+    modelId: i.modelId.toLowerCase(),
+    sourceKind: i.sourceKind,
+    levels: [...i.levels],
+    refused: i.refused,
+    observedAtMs: now(),
+  }
+  const kept = readWireMemories(Date.now).filter(e => memoryKey(e.modelId, e.sourceKind) !== memoryKey(entry.modelId, entry.sourceKind))
+  kept.push(entry)
+  return writeWireMemories(kept) ? entry : undefined
+}
+
+export function wireEffortVocabularyOf(
+  modelId: string,
+  sourceKind: OpenaiAccountSourceKind,
+  now: () => number = Date.now,
+): StoredWireEffortVocabulary | undefined {
+  const key = memoryKey(modelId, sourceKind)
+  const entry = readWireMemories(now).find(e => memoryKey(e.modelId, e.sourceKind) === key)
+  if (entry === undefined) return undefined
+  return now() - entry.observedAtMs < WIRE_EFFORT_MEMORY_PROBE_MS ? entry : undefined
+}
+
+export function noteWireEffortAccepted(i: { modelId: string; sourceKind: OpenaiAccountSourceKind; word: string }): boolean {
+  const key = memoryKey(i.modelId, i.sourceKind)
+  const entries = readWireMemories(Date.now)
+  const stale = entries.find(e => memoryKey(e.modelId, e.sourceKind) === key && !e.levels.includes(i.word))
+  if (stale === undefined) return false
+  return writeWireMemories(entries.filter(e => e !== stale))
+}
+
+export function readWireEffortVocabularies(): StoredWireEffortVocabulary[] {
+  wireMemoryCache = null
+  return readWireMemories(Date.now)
 }
 
 export function __qualificationFilePathForTest(): string {

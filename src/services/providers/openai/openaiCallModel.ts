@@ -75,7 +75,7 @@ import {
   type GptCandidate,
   type GptReasoningProfile,
 } from './openaiCatalogue.js'
-import { recordLiveQualification } from './qualificationStore.js'
+import { noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
 import { recordOpenaiUsageLimit } from './openaiLimitState.js'
 import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
@@ -111,6 +111,17 @@ const OPENAI_RETRY_BACKOFF_MS = 400
 
 export function openaiRetryDelayMs(attempt: number): number {
   return OPENAI_RETRY_BACKOFF_MS * attempt
+}
+
+export function effortVocabularyRefusalOf(
+  fault: Pick<OpenaiFault, 'code' | 'message'>,
+  sentEffort: string | undefined,
+): { refused: string; levels: string[] } | undefined {
+  if (sentEffort === undefined || fault.code !== 'openai-invalid_value') return undefined
+  const match = /Invalid value: '([^']+)'\. Supported values are: (.+?)\.?\s*$/.exec(fault.message)
+  if (match === null || match[1] !== sentEffort) return undefined
+  const levels = [...match[2]!.matchAll(/'([^']+)'/g)].map(m => m[1]!)
+  return levels.length > 0 ? { refused: match[1]!, levels } : undefined
 }
 
 export function openaiFaultToTypedError(
@@ -417,11 +428,11 @@ export async function* openaiCallModel(
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
-  const profile: GptReasoningProfile = candidate
+  let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
-  const effortAdjusted: EffortAdjustedV1 | undefined =
+  const receiptOf = (profile: GptReasoningProfile): EffortAdjustedV1 | undefined =>
     profile.source === 'unsupported-fallback' && profile.adjustedFrom !== undefined
       ? {
           model: modelId,
@@ -430,6 +441,7 @@ export async function* openaiCallModel(
           ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
         }
       : undefined
+  let effortAdjusted: EffortAdjustedV1 | undefined = receiptOf(profile)
   if (qualification.kind === 'degraded') {
     settlementNotes.push(qualification.note)
   }
@@ -453,12 +465,12 @@ export async function* openaiCallModel(
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
-  const request = buildOpenaiResponsesRequest({
+  const buildRequest = (wireEffort: string | undefined) => buildOpenaiResponsesRequest({
     model: modelId,
     instructions: renderedInstructions,
     messages: bridge.rows,
     tools: apiTools,
-    ...(profile.wireEffort ? { reasoningEffort: profile.wireEffort } : {}),
+    ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     promptCacheKey,
     imagesSupported: candidate?.live.inputModalities
       ? candidate.live.inputModalities.includes('image')
@@ -466,6 +478,7 @@ export async function* openaiCallModel(
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
   })
+  let request = buildRequest(profile.wireEffort)
 
   recordPromptState({
     system: [{ text: request.instructions ?? '' }],
@@ -519,6 +532,9 @@ export async function* openaiCallModel(
         behaviourContractDigest: contract.digest,
         ...(profile.wireEffort ? { liveEffort: profile.wireEffort } : {}),
       })
+      if (profile.wireEffort !== undefined) {
+        noteWireEffortAccepted({ modelId, sourceKind: auth.account.kind, word: profile.wireEffort })
+      }
       return
     }
     if (outcome.kind === 'cancelled') return
@@ -542,8 +558,18 @@ export async function* openaiCallModel(
       }
       recovery = 'no-new-credential'
     }
+    const refusal = candidate !== undefined ? effortVocabularyRefusalOf(outcome.fault, profile.wireEffort) : undefined
+    const reissueAtServedWord =
+      refusal !== undefined && candidate !== undefined && outcome.retryEligible && attempt < OPENAI_MAX_ATTEMPTS
+    if (reissueAtServedWord) {
+      recordWireEffortRefusal({ modelId, sourceKind: auth.account.kind, refused: refusal.refused, levels: refusal.levels })
+      const served = candidate.live.supportedReasoningEfforts.filter(level => refusal.levels.includes(level))
+      profile = resolveGptReasoningProfile(requestedEffort, { ...candidate.live, supportedReasoningEfforts: served })
+      effortAdjusted = receiptOf(profile)
+      request = buildRequest(profile.wireEffort)
+    }
     const retryable =
-      outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS
+      reissueAtServedWord || (outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS)
     if (retryable) {
       const delayMs = openaiRetryDelayMs(attempt)
       yield createSystemAPIErrorMessage(new Error(outcome.fault.message), delayMs, attempt, OPENAI_MAX_ATTEMPTS - 1)

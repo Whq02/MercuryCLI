@@ -223,7 +223,7 @@ export function evaluateGptCandidate(
     ok: true,
     candidate: {
       identity,
-      live,
+      live: rowAsWireServes(live, sourceKind),
       displayName: live.displayName ?? pin?.displayName ?? identity.canonicalId,
       ...(pin ? { pin } : {}),
     },
@@ -380,7 +380,18 @@ function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
   const account = discovery?.provider === 'openai' ? discovery.account : undefined
   if (!account) return undefined
   const snapshot = getCachedOpenaiCatalogue(account.kind)
-  return snapshot?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  const row = snapshot?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  return row === undefined ? undefined : rowAsWireServes(row, account.kind)
+}
+
+export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccountSourceKind): OpenaiLiveModel {
+  const { wireEffortVocabularyOf } =
+    require('./qualificationStore.js') as typeof import('./qualificationStore.js')
+  const memory = wireEffortVocabularyOf(live.id, sourceKind)
+  if (memory === undefined) return live
+  const wire = new Set(memory.levels)
+  const served = live.supportedReasoningEfforts.filter(level => wire.has(level))
+  return served.length === live.supportedReasoningEfforts.length ? live : { ...live, supportedReasoningEfforts: served }
 }
 
 export function liveGptEffortCatalogue(modelId: string):
