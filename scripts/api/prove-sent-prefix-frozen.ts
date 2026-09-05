@@ -961,7 +961,7 @@ if (!existsSync(DIST)) {
       check("§9 the seat's rounds straddled the fold (a seat request before the summary, one or more during it)", summaryIndex > 0 && postIndex > summaryIndex && seatIndexes.some(i => i < summaryIndex) && seatIndexes.some(i => i > summaryIndex && i < postIndex), `summary@${summaryIndex + 1} post@${postIndex + 1} seat@${seatIndexes.map(i => i + 1).join(',')}`)
       census('§9 the seat', seatReqs, true)
       const seatLast = seatReqs[seatReqs.length - 1]?.body as Body | undefined
-      check("§9 the seat's last request replays its three earlier thinking blocks", seatLast !== undefined && thinkingBlocksOf(seatLast) === 3, String(seatLast && thinkingBlocksOf(seatLast)))
+      check("§9 the seat's last request carries no thinking block (a thinking-off seat declares none and sends none)", seatLast !== undefined && thinkingBlocksOf(seatLast) === 0, String(seatLast && thinkingBlocksOf(seatLast)))
       check('§9 the API-faithful fixture REFUSED nothing under the error behaviour (0 dropped blocks, 0 refusals) — the seat never saw a rewritten prefix', fixture.refusals.length === 0 && !debugText.includes('thinking_dropped') && !r.stdout.includes('thinking_dropped'), j(fixture.refusals))
       check("§9 every one of the main's requests carried the error behaviour on the wire", mainReqs.every(q => (q.body as Body).thinking?.block_binding?.prefix_mismatch_behavior === 'error'), reqs.map(q => String((q.body as Body).thinking?.block_binding?.prefix_mismatch_behavior)).join(','))
       const lastSeatIndex = seatIndexes[seatIndexes.length - 1] ?? -1
