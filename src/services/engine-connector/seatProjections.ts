@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
 import { publishAtomic } from '../../substrate/fileStore.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
+import type { EffortResolution } from '../../utils/effort.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import type { TextPhase } from '../../types/wire.js'
 import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReasonWire.js'
@@ -273,4 +274,10 @@ export function retireSeatProjections(sessionId: string, dir?: string): void {
   for (const p of [sessionFactsPath(sessionId, dir), sessionAsksPath(sessionId, dir), sessionTailPath(sessionId, dir), sessionProgressPath(sessionId, dir)]) {
     rmSync(p, { force: true })
   }
+}
+
+export function effortSentOf(truth: Pick<EffortResolution, 'supportsEffort' | 'wire' | 'catalogue'>): string | null | undefined {
+  if (!truth.supportsEffort) return null
+  if (truth.catalogue === 'gpt-unstated') return undefined
+  return truth.wire ?? null
 }

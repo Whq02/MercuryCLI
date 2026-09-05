@@ -45,6 +45,7 @@ import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/bill
 import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { mcpRosterEntriesOf, skillsRosterOf } from '../services/engine-connector/rosterTerms.js'
 import type { SessionFactsAnswerV1 } from '../services/engine-connector/seatProjections.js'
+import { effortSentOf } from '../services/engine-connector/seatProjections.js'
 import { openaiObservedUsage } from '../services/providers/openai/openaiLimitState.js'
 import { ask } from '../QueryEngine.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
@@ -1841,9 +1842,9 @@ export async function runHeadless(
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
             permissionMode: state.toolPermissionContext.mode,
-            effortSent: ((): string | null => {
-              const truth = resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue)
-              return truth.supportsEffort ? (truth.wire ?? null) : null
+            ...((): { effortSent?: string | null } => {
+              const sent = effortSentOf(resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue))
+              return sent === undefined ? {} : { effortSent: sent }
             })(),
             spawnSwitches: spawnSwitchFacts(),
             workspace: {
