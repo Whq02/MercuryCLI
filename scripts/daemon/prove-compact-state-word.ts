@@ -78,7 +78,7 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
 {
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const service = read('src/services/compact/compact.ts')
-  check("the compact service stamps setSDKStatus('compacting')", service.includes("setSDKStatus?.('compacting')"))
+  check("the compact service stamps the fold's status (the record under the compacting key)", service.includes("context.setSDKStatus?.({ compacting: status })"))
   const print = read('src/cli/print.ts')
   check("the hosted child relays the stamp as a system/status frame", print.includes("subtype: 'status'"))
   const seatLive = read('src/services/engine-connector/seatLive.ts')
@@ -96,36 +96,78 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   )
 }
 
-console.log('\nC7 the word covers the WHOLE fold — the entries stamp first, restore on every exit')
+console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, the one finally stamps the exit')
 {
   const { withFoldStatus } = await import('../../src/services/compact/compact.ts')
-  const stamps: Array<string | null> = []
-  const context = { setSDKStatus: (word: string | null) => stamps.push(word) } as never
-  const seenAtWork: Array<string | null> = []
+  const compactingOf = (stamp: unknown): { stage?: unknown; exit?: unknown; trigger?: unknown } | null =>
+    stamp !== null && typeof stamp === 'object' && 'compacting' in (stamp as object) ? ((stamp as { compacting: { stage?: unknown; exit?: unknown; trigger?: unknown } }).compacting ?? null) : null
+  const stamps: unknown[] = []
+  const context = { setSDKStatus: (word: unknown) => stamps.push(word), abortController: new AbortController() } as never
+  const seenAtWork: unknown[] = []
   const out = await withFoldStatus(context, async () => {
     seenAtWork.push(...stamps)
     return 'folded'
-  })
-  check("the stamp lands BEFORE the work runs (the session-memory wait and the prompt build sit inside it)", seenAtWork.length === 1 && seenAtWork[0] === 'compacting')
-  check('the work\'s answer rides through', out === 'folded')
-  check('the restore follows the work (one stamp, one restore)', stamps.length === 2 && stamps[1] === null)
-  const thrown: Array<string | null> = []
+  }, { trigger: 'manual', sessionMemory: false, microcompaction: true })
+  check("the stamp lands BEFORE the work runs (the session-memory wait and the prompt build sit inside it)", seenAtWork.length === 1 && compactingOf(seenAtWork[0])?.stage === null)
+  check("the work's answer rides through", out === 'folded')
+  check('the one finally stamps the landed exit (one stamp in, one exit out)', stamps.length === 2 && compactingOf(stamps[1])?.exit === 'landed')
+  const thrown: unknown[] = []
   let caught: unknown = null
   try {
-    await withFoldStatus({ setSDKStatus: (word: string | null) => thrown.push(word) } as never, async () => {
+    await withFoldStatus({ setSDKStatus: (word: unknown) => thrown.push(word), abortController: new AbortController() } as never, async () => {
       throw new Error('Compaction canceled.')
-    })
+    }, { trigger: 'manual', sessionMemory: false, microcompaction: true })
   } catch (e) {
     caught = e
   }
-  check('a thrown fold still restores (a stamp never outlives the command)', caught instanceof Error && caught.message === 'Compaction canceled.' && thrown.length === 2 && thrown[0] === 'compacting' && thrown[1] === null)
-  const bare = await withFoldStatus({} as never, async () => 'no status door')
+  check('a thrown fold still exits (a stamp never outlives the command) — cancelled, by name', caught instanceof Error && caught.message === 'Compaction canceled.' && thrown.length === 2 && compactingOf(thrown[1])?.exit === 'cancelled')
+  const auto: unknown[] = []
+  await withFoldStatus({ setSDKStatus: (word: unknown) => auto.push(word), abortController: new AbortController() } as never, async () => 'auto', { trigger: 'auto', sessionMemory: false, microcompaction: false })
+  check('the automatic road stamps its record and clears with null (the turn goes on)', auto.length === 2 && compactingOf(auto[0])?.trigger === 'auto' && auto[1] === null)
+  const bare = await withFoldStatus({} as never, async () => 'no status door', { trigger: 'manual', sessionMemory: false, microcompaction: true })
   check('a context with no status door folds unstamped and unharmed', bare === 'no status door')
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
   const command = read('src/commands/compact/compact.ts')
-  check('the /compact command wraps its WHOLE body — every strategy under the word', command.includes('return withFoldStatus(context, () => callUnderFoldStatus(args, context))'))
-  const auto = read('src/services/compact/autoCompact.ts')
-  check('the automatic road wraps its fold under the word once the decision is made', auto.includes('return await withFoldStatus(toolUseContext, async () => {'))
+  check('the /compact command wraps its WHOLE body — every strategy under the status', command.includes('return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {'))
+  const autoRoad = read('src/services/compact/autoCompact.ts')
+  check('the automatic road wraps its fold under the status once the decision is made', autoRoad.includes('return await withFoldStatus(toolUseContext, async scoped => {'))
+}
+
+console.log('\nC8 the fold\'s record rides the word — the seat relays the stages, the fill and the exit')
+{
+  const record = {
+    schema: 1,
+    trigger: 'manual',
+    startedAtMs: 1_700_000_000_000,
+    stages: ['micro-compaction', 'summarising', 'restoring'],
+    stage: 'summarising',
+    fill: 0.25,
+    summaryTokens: 5000,
+    summaryCapTokens: 20_000,
+    attempt: 1,
+  }
+  onSeatLine(SHORT, statusFrame({ compacting: record }), roster as never, dir)
+  const stamped = tail() as { stateWord?: string; fold?: unknown } | null
+  check("a status frame carrying the record sets the word", stamped?.stateWord === 'compacting', JSON.stringify(stamped))
+  check('…and the tail projection carries the record, verbatim', JSON.stringify(stamped?.fold) === JSON.stringify(record), JSON.stringify(stamped?.fold))
+  const moved = { ...record, stage: 'restoring', fill: null }
+  onSeatLine(SHORT, statusFrame({ compacting: moved }), roster as never, dir)
+  check('a moved record republishes (the stage flipped)', JSON.stringify((tail() as { fold?: unknown } | null)?.fold) === JSON.stringify(moved))
+  onSeatLine(SHORT, statusFrame({ compacting: { ...moved, exit: 'landed', endedAtMs: 1_700_000_009_000 } }), roster as never, dir)
+  check('the exit rides the same word', (tail() as { fold?: { exit?: string } } | null)?.fold?.exit === 'landed' && word() === 'compacting')
+  onSeatLine(SHORT, JSON.stringify({ type: 'result', subtype: 'success' }), roster as never, dir)
+  check('the result frame retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
+  onSeatLine(SHORT, statusFrame({ compacting: { schema: 7, stage: 'warming' } }), roster as never, dir)
+  const malformed = tail() as { stateWord?: string; fold?: unknown } | null
+  check('a record this build cannot read still sets the word — with no detail (the mixed-version law)', malformed?.stateWord === 'compacting' && malformed?.fold === undefined, JSON.stringify(malformed))
+  onSeatLine(SHORT, statusFrame('compacting'), roster as never, dir)
+  const bareWord = tail() as { stateWord?: string; fold?: unknown } | null
+  check('the bare word (an older runner) sets the word with no detail', bareWord?.stateWord === 'compacting' && bareWord?.fold === undefined)
+  onSeatLine(SHORT, statusFrame(null), roster as never, dir)
+  check('null clears both', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
+  onSeatLine(SHORT, statusFrame({ compacting: record }), roster as never, dir)
+  onSeatSpawned(SHORT, roster as never, dir)
+  check('a respawn retires the record with the word', word() === undefined && (tail() as { fold?: unknown } | null)?.fold === undefined)
 }
 
 console.log(
