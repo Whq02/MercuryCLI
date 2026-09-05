@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { UNNAMED_SESSION_WORD } from '../services/concourse/sessionNaming.js'
 import { useSyncExternalStore } from 'react'
 import { Box, Text } from '../ink.js'
 import { getActiveMission } from '../utils/hooks/missionHook.js'
@@ -28,7 +29,7 @@ function getFocusedSeatName(): string {
 }
 
 export const SESSION_LABEL = 'SESSION'
-export const UNNAMED_SESSION = 'new session'
+export const UNNAMED_SESSION = UNNAMED_SESSION_WORD
 
 export function headerSessionName(name: string, budget: number): string {
   const word = name.trim() === '' ? UNNAMED_SESSION : name.trim()
