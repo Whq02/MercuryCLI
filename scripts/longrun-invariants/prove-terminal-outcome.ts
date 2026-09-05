@@ -5,13 +5,16 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'terminal-outcome-home-'))
 
+const ROOT = join(import.meta.dir, '..', '..')
 await import('../../src/tasks.js')
 const {
   deriveAgentTerminalOutcome,
   finalizeAgentTool,
   runAsyncAgentLifecycle,
   PROMOTED_NARRATION_NOTE,
+  REPETITION_STOP_WORDS,
 } = await import('../../src/tools/AgentTool/agentToolUtils.js')
+const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.js')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.js')
 const { registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { createAssistantMessage, createAssistantAPIErrorMessage } = await import(
@@ -101,6 +104,23 @@ section('§A ONE derivation: decline fails, promotion is labeled, report survive
     r.content.map(c => c.text).join('').slice(0, 60))
   check('declined finalize: usage anchors on the real message (non-zero tokens)',
     r.totalTokens === 150, String(r.totalTokens))
+}
+{
+  const cause = 'the model ran the identical Bash call 3 times with the identical failure; the turn stopped'
+  const breaker = (): unknown => createAttachmentMessage({ type: 'repetition_breaker', toolName: 'Bash', outcome: 'failure', streak: 3, cause })
+  const stopped = [userMsg('go'), realReport('partial words before the loop'), breaker()]
+  const o = deriveAgentTerminalOutcome(stopped as never)
+  check('a repetition-breaker tail derives failed/repetition-stop carrying the breaker\'s cause',
+    o.status === 'failed' && o.reason === 'repetition-stop' && o.error === cause,
+    JSON.stringify(o))
+  const recovered = [userMsg('go'), breaker(), realReport('the report after a later turn')]
+  check('a breaker answered by a later assistant row is not a stop (the last turn decides)',
+    deriveAgentTerminalOutcome(recovered as never).status === 'completed')
+  check('the crew row\'s stop words are the one export the settle writes',
+    REPETITION_STOP_WORDS === 'stopped by the repetition breaker')
+  const src = readFileSync(join(ROOT, 'src/tools/AgentTool/foregroundExecution.tsx'), 'utf8')
+  check('the foreground settle hands a derived failure\'s reason to the record (the row\'s tail says why)',
+    src.includes('stopReason: REPETITION_STOP_WORDS') && src.includes('settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)'))
 }
 {
   const immediate = [userMsg('go'), declineTail('API Error: 400 context')]
@@ -286,8 +306,8 @@ resetCommandQueue()
 section('§D wiring pins (source locks on the threaded surfaces)')
 {
   const fg = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'foregroundExecution.tsx'), 'utf8')
-  check('SDK bookend derives its clean-exit status from the ONE derivation',
-    fg.includes('deriveAgentTerminalOutcome(agentMessages).status'))
+  check('SDK bookend derives its clean-exit status from the ONE derivation (the outcome kept, its reason handed to the settle)',
+    fg.includes('const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null') && fg.includes(': outcome!.status'))
   check('backgrounded closure settles by outcome (fail path wired)',
     fg.includes("failAsyncAgent(backgroundedTaskId, declined.error"))
   check('sync result forks failed/completed on the same outcome',
