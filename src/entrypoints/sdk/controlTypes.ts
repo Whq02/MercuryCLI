@@ -256,6 +256,11 @@ export type SDKControlSetEffortRequest = {
   effort: string
 }
 
+export type SDKControlWithdrawSendRequest = {
+  subtype: 'withdraw_send'
+  client_message_id: string
+}
+
 export type SDKControlRequestInner =
   | SDKControlInterruptRequest
   | SDKControlPermissionRequest
@@ -298,6 +303,7 @@ export type SDKControlRequestInner =
   | SDKControlRemoteControlRequest
   | SDKControlClaimSessionRequest
   | SDKControlSetEffortRequest
+  | SDKControlWithdrawSendRequest
 
 export type SDKControlRequest = {
   type: 'control_request'

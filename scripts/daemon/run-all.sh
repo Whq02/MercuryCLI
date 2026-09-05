@@ -41,6 +41,8 @@ __t=$SECONDS; "$bun" run "$here/prove-first-byte-drive.ts" || fail=1; prover_mar
 __t=$SECONDS; "$bun" run "$here/prove-reissue-rows-drive.ts" || fail=1; prover_mark "$here/prove-reissue-rows-drive.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-daemon-handshake.ts" || fail=1; prover_mark "$here/prove-daemon-handshake.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-field-findings-daemon-older.ts" || fail=1; prover_mark "$here/prove-field-findings-daemon-older.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-recall-relay.ts" || fail=1; prover_mark "$here/prove-recall-relay.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-recall-runner.ts" || fail=1; prover_mark "$here/prove-recall-runner.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-starting-door.ts" || fail=1; prover_mark "$here/prove-starting-door.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-send-hops.ts" || fail=1; prover_mark "$here/prove-send-hops.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-rename-migration.ts" || fail=1; prover_mark "$here/prove-rename-migration.ts" "$__t"

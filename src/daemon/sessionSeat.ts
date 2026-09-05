@@ -629,6 +629,12 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       } catch {
       }
     }
+    if (line.includes(SEAT_WITHDRAW_REQUEST_PREFIX)) {
+      try {
+        settleWithdrawAnswer(JSON.parse(line) as Parameters<typeof settleWithdrawAnswer>[0])
+      } catch {
+      }
+    }
     if (line.includes(SEAT_MODE_REQUEST_PREFIX)) {
       try {
         settleModeAnswer(JSON.parse(line) as Parameters<typeof settleModeAnswer>[0])
@@ -761,6 +767,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
 export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: string): void {
   rejectRewindWaiters(short, "the session's runner restarted before it answered the rewind — nothing is assumed restored")
   rejectAgentVerbWaiters(short, "the session's runner restarted before it answered — nothing is assumed stopped or resumed")
+  rejectWithdrawWaiters(short, "the session's runner restarted before it answered the withdraw — nothing is assumed taken back")
   rejectModeWaiters(short, "the session's runner restarted before it answered the mode change — the band follows its facts")
   const seat = seatOf(short)
   seat.lastAnswer = null
@@ -795,6 +802,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
 export function onSeatSettled(short: string): void {
   rejectRewindWaiters(short, "the session's runner ended before it answered the rewind — nothing is assumed restored")
   rejectAgentVerbWaiters(short, "the session's runner ended before it answered — nothing is assumed stopped or resumed")
+  rejectWithdrawWaiters(short, "the session's runner ended before it answered the withdraw — nothing is assumed taken back")
   rejectModeWaiters(short, "the session's runner ended before it answered the mode change")
   const seat = seats.get(short)
   if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
@@ -1003,6 +1011,94 @@ function rejectAgentVerbWaiters(short: string, detail: string): void {
 
 export function _pendingAgentVerbWaitersForTesting(): number {
   return agentVerbWaiters.size
+}
+
+
+const SEAT_WITHDRAW_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}withdraw-`
+export const WITHDRAW_ANSWER_DEADLINE_MS = 5_000
+
+export type SeatWithdrawOutcome = SeatVerbOutcome & { withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown' }
+
+interface WithdrawWaiter {
+  short: string
+  settle: (outcome: SeatWithdrawOutcome) => void
+}
+
+const withdrawWaiters = new Map<string, WithdrawWaiter>()
+let withdrawSeq = 0
+
+export function withdrawSessionSend(
+  sessionId: string,
+  clientMessageId: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatWithdrawOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  if (clientMessageId === '') return Promise.resolve({ outcome: 'refused', detail: 'withdraw-send requires clientMessageId' })
+  const requestId = `${SEAT_WITHDRAW_REQUEST_PREFIX}${rec.runnerId}-${Date.now().toString(36)}-${(++withdrawSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? WITHDRAW_ANSWER_DEADLINE_MS
+  return new Promise<SeatWithdrawOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!withdrawWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the withdraw within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    withdrawWaiters.set(requestId, {
+      short: rec.runnerId,
+      settle: outcome => {
+        clearTimeout(timer)
+        withdrawWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const delivered = roster.control(
+      rec.runnerId,
+      JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'withdraw_send', client_message_id: clientMessageId } }),
+    )
+    if (!delivered) {
+      clearTimeout(timer)
+      withdrawWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+    }
+  })
+}
+
+function settleWithdrawAnswer(frame: { type?: string; response?: { subtype?: string; request_id?: string; response?: unknown; error?: unknown } }): boolean {
+  const response = frame.response
+  if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
+  const waiter = withdrawWaiters.get(response.request_id)
+  if (waiter === undefined) return false
+  if (response.subtype === 'success') {
+    const payload = response.response && typeof response.response === 'object' ? (response.response as Record<string, unknown>) : {}
+    if (payload.withdrawn === true) {
+      waiter.settle({ outcome: 'applied', withdrawn: true, text: typeof payload.text === 'string' ? payload.text : '' })
+      return true
+    }
+    const reason: 'taken' | 'unknown' = payload.reason === 'taken' ? 'taken' : 'unknown'
+    waiter.settle({ outcome: 'refused', withdrawn: false, reason, detail: reason === 'taken' ? 'the runner already took the line' : "the runner's queue never held the line" })
+    return true
+  }
+  const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the withdraw'
+  const older = /unsupported control request subtype/i.test(error)
+  waiter.settle({
+    outcome: 'refused',
+    detail: older ? "the session's runner predates the recall — /daemon restart when ready, then reopen the session" : error,
+  })
+  return true
+}
+
+function rejectWithdrawWaiters(short: string, detail: string): void {
+  for (const [requestId, waiter] of withdrawWaiters) {
+    if (waiter.short !== short) continue
+    withdrawWaiters.delete(requestId)
+    waiter.settle({ outcome: 'refused', detail })
+  }
+}
+
+export function _pendingWithdrawWaitersForTesting(): number {
+  return withdrawWaiters.size
 }
 
 async function applyModelNow(

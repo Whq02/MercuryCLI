@@ -34,7 +34,14 @@ import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 
-export type ControlOutcome = { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true }
+export type ControlOutcome = {
+  outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
+  detail?: string
+  respawned?: true
+  withdrawn?: boolean
+  text?: string
+  reason?: 'taken' | 'unknown'
+}
 
 export interface ControlServerDeps {
   roster: TaskRoster
@@ -157,10 +164,12 @@ export interface ControlServerDeps {
       | 'set-spawn-switch'
       | 'stop-agent'
       | 'resume-agent'
+      | 'withdraw-send'
     sessionId: string
     by: string
     reason?: string
     hard?: boolean
+    clientMessageId?: string
     requestId?: string
     allow?: boolean
     answer?: { updatedInput?: Record<string, unknown>; permissionUpdates?: unknown[]; feedback?: string; interrupt?: boolean }
@@ -237,7 +246,7 @@ const dispatchWhole: Whole<
 > = true
 
 type ControlResult = ControlOutcome
-const CONTROL_WIRE_KEYS = ['outcome', 'detail', 'respawned'] as const satisfies readonly (keyof ControlResult)[]
+const CONTROL_WIRE_KEYS = ['outcome', 'detail', 'respawned', 'withdrawn', 'text', 'reason'] as const satisfies readonly (keyof ControlResult)[]
 const controlWhole: Whole<ControlResult, (typeof CONTROL_WIRE_KEYS)[number]> = true
 
 type WarmResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseWarm']>>>
@@ -877,13 +886,14 @@ async function routeControlRequest(
         raw.action === 'set-schedule' ||
         raw.action === 'set-spawn-switch' ||
         raw.action === 'stop-agent' ||
-        raw.action === 'resume-agent'
+        raw.action === 'resume-agent' ||
+        raw.action === 'withdraw-send'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send, sessionId, by }' })
       }
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {
@@ -970,6 +980,7 @@ async function routeControlRequest(
         ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
         ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
+        ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
       })
       return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
     }

@@ -1262,6 +1262,22 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     recallFitsOneRow,
   )
   historyRecallActiveRef.current = history.historyIndex !== 0
+  const recallQueuedSend = useCallback((): boolean => {
+    const focused = getFocusedSessionConnector()
+    const queued = focused.recallableSend()
+    if (queued === null) return false
+    void focused.withdrawSend(queued.clientMessageId).then(receipt => {
+      if (receipt.withdrawn) {
+        const meanwhile = pendingInput.text()
+        const value = meanwhile === '' ? receipt.text : `${receipt.text}${meanwhile}`
+        applyRecalledEntry(value, receipt.mode, receipt.pastedContents)
+        setCursorOffset(value.length)
+        return
+      }
+      addNotification({ key: 'recall-send', text: receipt.detail, priority: 'immediate', timeoutMs: 4000 })
+    })
+    return true
+  }, [applyRecalledEntry, setCursorOffset, addNotification])
 
   const helpers: PromptInputHelpers = useMemo(
     () => ({
@@ -2616,6 +2632,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onExitMessage: exitStateChange,
     onHistoryUp: () => {
       if (!historyNavAllowed('first')) return
+      if (input === '' && recallQueuedSend()) return
       history.onHistoryUp()
     },
     onHistoryDown: () => {
