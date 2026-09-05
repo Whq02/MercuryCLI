@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import { spawn } from 'node:child_process'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -54,6 +55,17 @@ const guard = setTimeout(() => {
   process.exit(1)
 }, 240_000)
 guard.unref?.()
+const WALL_CLOCK_SECONDS = 300
+if (process.platform !== 'win32') {
+  const wallClock = spawn('/bin/sh', ['-c', `sleep ${WALL_CLOCK_SECONDS} && kill -9 ${process.pid}`], { detached: true, stdio: 'ignore' })
+  wallClock.unref()
+  process.on('exit', () => {
+    try {
+      if (wallClock.pid !== undefined) process.kill(-wallClock.pid, 'SIGKILL')
+    } catch {
+    }
+  })
+}
 
 
 type AnyState = Record<string, unknown> & { tasks: Record<string, unknown> }
@@ -576,12 +588,18 @@ section('§7b — mail queued while working is delivered AT the interrupt; the t
   await writeToMailbox('probe7', { from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() }, team)
   check('the mail is queued, unread, while the turn still hangs', (await readMailbox('probe7', team)).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
 
+  const abortedAt = Date.now()
+  const pulse = setInterval(() => {
+    console.error(`  [§7b] alive +${Math.round((Date.now() - abortedAt) / 1000)}s — requests=${s.api.messageRequests().length} pending=${(task(s.store, s.taskId)?.pendingUserMessages ?? []).length}`)
+  }, 5_000)
   task(s.store, s.taskId).currentWorkAbortController!.abort()
+  console.error(`  [§7b] abort() returned after ${Date.now() - abortedAt} ms`)
   check(
     'four further turns run on their own — one per queued message',
     await waitFor(() => s.api.messageRequests().length === 5, 60_000),
     `requests=${s.api.messageRequests().length}`,
   )
+  clearInterval(pulse)
   check('…and the teammate settles idle, alive', await waitFor(() => task(s.store, s.taskId)?.isIdle === true && s.api.messageRequests().length === 5, 30_000))
   const lastUserText = (req: { body: unknown }): string => {
     const msgs = (req.body as { messages?: Array<{ role: string; content: unknown }> }).messages ?? []
