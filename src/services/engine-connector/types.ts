@@ -199,6 +199,7 @@ export type MissionRowV1 = {
 export type WorkRosterV1 = {
   rows: readonly WorkRowV1[]
   mission: readonly MissionRowV1[]
+  reported?: boolean
 }
 
 

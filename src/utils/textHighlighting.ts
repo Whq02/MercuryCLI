@@ -1,15 +1,16 @@
 import { reduceAnsiCodes, tokenize, undoAnsiCodes, type AnsiCode } from '@alcalzone/ansi-tokenize'
 
 import type { Theme } from './theme.js'
+import type { HexColor } from '../ink/styles.js'
 
 
 export type TextHighlight = {
   start: number
   end: number
-  color?: keyof Theme | null | undefined
+  color?: keyof Theme | HexColor | null | undefined
   dimColor?: boolean
   inverse?: boolean
-  shimmerColor?: keyof Theme
+  shimmerColor?: keyof Theme | HexColor
   priority: number
 }
 

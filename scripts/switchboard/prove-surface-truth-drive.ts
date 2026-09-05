@@ -30,8 +30,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const SCREEN_MODEL_SETTING = 'claude-fable-5[1m]'
 const SCREEN_MODEL_LABEL = 'Fable 5 (1M context)'
-const SEAT_MODEL = 'gpt-5.5'
-const SEAT_MODEL_LABEL = 'GPT-5.5'
+const SEAT_MODEL = 'gpt-5.6-sol'
+const SEAT_MODEL_LABEL = 'GPT-5.6 Sol'
+const SEAT_MODEL_WIRE_NAME = 'GPT-5.6-Sol'
 const SEAT_EFFORT = 'xhigh'
 const SEAT_TITLE = 'Truth Seat'
 
@@ -42,6 +43,8 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 const fixture = await startCrossfamilyFixture({
   port: Number(process.env.SURFACE_TRUTH_PORT ?? '25161'),
+  gptId: SEAT_MODEL,
+  gptDisplayName: SEAT_MODEL_WIRE_NAME,
   gptReasoningLevels: ['low', 'medium', 'high', 'xhigh'],
 })
 
@@ -151,7 +154,7 @@ try {
   const entered = frames.some(f => f.text.includes('gpt-live body') || f.text.includes('gpt-landed body') || f.text.includes('seat-task-gpt'))
   check('the seat was entered from the board (its own body on screen)', entered, `frames: ${frames.length}`)
 
-  check(`the seat's runner honoured ${SEAT_EFFORT} (no live-catalogue downgrade note)`, !frames.some(f => f.text.includes('is not in gpt-5.5') && f.text.includes("using 'high'")))
+  check(`the seat's runner honoured ${SEAT_EFFORT} (no live-catalogue downgrade note)`, !frames.some(f => f.text.includes(`is not in ${SEAT_MODEL}`) && f.text.includes("using 'high'")))
 
   const modelRows = allRows('/model').filter(r => /Choose the AI model|Set the model/.test(r))
   const modelRow = modelRows[modelRows.length - 1] ?? ''
@@ -181,6 +184,11 @@ try {
   check(`P4 the picker's current dot is the session's model (${SEAT_MODEL_LABEL})`, currentRows.length > 0 && currentRows.every(r => r.includes(SEAT_MODEL_LABEL)), currentRows.join(' | ').slice(0, 300))
   const keptRows = allRows('Kept model as')
   check(`P4 closing the picker keeps the SESSION's model ("Kept model as ${SEAT_MODEL_LABEL}"), never the screen's`, keptRows.length > 0 && keptRows.every(r => r.includes(`Kept model as ${SEAT_MODEL_LABEL}`)), keptRows.join(' | ').slice(0, 300))
+
+  check(`P6 the picker's current row spells the page's name (${SEAT_MODEL_LABEL}), never the wire's (${SEAT_MODEL_WIRE_NAME})`, currentRows.length > 0 && currentRows.every(r => r.includes(SEAT_MODEL_LABEL) && !r.includes(SEAT_MODEL_WIRE_NAME)), currentRows.join(' | ').slice(0, 300))
+  const wireRows = distinct.flatMap(f => rowsWith(f.text, SEAT_MODEL_WIRE_NAME))
+  check(`P6 no surface spells the row the wire's way (${SEAT_MODEL_WIRE_NAME}) — one owner, one spelling`, wireRows.length === 0, wireRows.slice(0, 3).join(' | ').slice(0, 300))
+  check(`P6 the strip spells the same row the same way (${SEAT_MODEL_LABEL} ·)`, stripRows.length > 0 && stripRows.every(r => r.includes(`${SEAT_MODEL_LABEL} ·`)), stripRows[0] ?? '')
 } finally {
   if (process.env.SURFACE_TRUTH_KEEP === '1') console.log(`[keep] arena home ${run.paths.home} cwd ${run.paths.cwd}`)
   else run.cleanup()
