@@ -629,6 +629,16 @@ async function summarizeViaCacheSharingFork(
         },
       },
     })
+    if (bound.hitDeadline()) {
+      const elapsedMs = Date.now() - startedAt
+      logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms mid-stream — its partial output is discarded; handing over to the direct call`, { level: 'warn' })
+      recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsedMs} ms (partial output discarded)`)
+      return null
+    }
+    if (context.abortController.signal.aborted) {
+      recordFoldRoad(model, 'fork', startedAt, 'aborted')
+      return null
+    }
     const last = [...result.messages].reverse().find(message => message.type === 'assistant') as
       | AssistantMessage
       | undefined
@@ -786,8 +796,9 @@ async function streamingFallbackAttempts(
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
       throw err
     }
-    if (captured !== undefined) return captured
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
+    if (bound.signal.aborted) throw new APIUserAbortError()
+    if (captured !== undefined) return captured
     if (attempt < attempts) {
       await sleep(getRetryDelay(attempt), bound.signal).catch(() => {
         if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
