@@ -1,3 +1,5 @@
+import { isThinkingBlock } from '../../utils/messages/apiFilters.js'
+import type { DeadThinkingMark } from '../../types/message.js'
 import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { expandPath } from '../../utils/path.js'
@@ -36,6 +38,7 @@ export type MicrocompactResult = {
     baselineCacheDeletedTokens: number | null
   }
   pruned?: { cleared: number; tokensSaved: number; clearedIds: string[] }
+  deadMarks?: DeadThinkingMark[]
 }
 
 export type MicrocompactTrigger = { pressure: true }
@@ -176,6 +179,7 @@ export function projectTimeBasedMicrocompact(
   gapMinutes: number
   clearedReadPaths: string[]
   clearedIds: string[]
+  deadMarks: DeadThinkingMark[]
 } | null {
   const fired =
     trigger?.pressure === true
@@ -248,7 +252,19 @@ export function projectTimeBasedMicrocompact(
   if (tokensSaved === 0) return null
   const firstCleared = projected.findIndex((message, index) => message !== messages[index])
   const withValidThinking = firstCleared === -1 ? projected : stripThinkingFromIndex(projected, firstCleared)
-  return { messages: withValidThinking, cleared, tokensSaved, gapMinutes: fired.gapMinutes, clearedReadPaths, clearedIds }
+  const deadMarks: DeadThinkingMark[] = []
+  if (firstCleared !== -1) {
+    for (let index = firstCleared; index < projected.length; index++) {
+      const message = projected[index]!
+      if (message.type !== 'assistant') continue
+      const content = message.message.content
+      if (!Array.isArray(content) || typeof message.message.id !== 'string') continue
+      content.forEach((block, blockIndex) => {
+        if (isThinkingBlock(block)) deadMarks.push({ messageId: message.message.id, blockIndex })
+      })
+    }
+  }
+  return { messages: withValidThinking, cleared, tokensSaved, gapMinutes: fired.gapMinutes, clearedReadPaths, clearedIds, deadMarks }
 }
 
 
@@ -336,6 +352,7 @@ export async function microcompactMessages(
     return {
       messages: projected.messages,
       pruned: { cleared: projected.cleared, tokensSaved: projected.tokensSaved, clearedIds: projected.clearedIds },
+      deadMarks: projected.deadMarks,
     }
   }
 
