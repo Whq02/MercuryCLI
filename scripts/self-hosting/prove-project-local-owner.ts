@@ -15,6 +15,7 @@ const owner = await import(`${repo}/src/services/projectLocal/paths.js`)
 const { getMercuryHome } = await import(`${repo}/src/utils/envUtils.js`)
 const { apolloSpecDirectory } = await import(`${repo}/src/prompt/apolloMode.js`)
 const { lastCertPath } = await import(`${repo}/src/utils/healthReport.js`)
+const { projectHomePath } = await import(`${repo}/src/utils/projectHomeStores.js`)
 const { lastPreflightPath } = await import(`${repo}/src/utils/healthPreflight.js`)
 
 let failures = 0
@@ -37,8 +38,8 @@ check(
   'and that is `<root>/.mercury/apollo`',
 )
 check(
-  lastCertPath() === join(owner.adoptiveProjectLocalPath(stateRoot, 'doctor'), 'last-cert.json'),
-  'doctor last-cert routes through the owner at the pinned state root',
+  lastCertPath() === join(projectHomePath(stateRoot, 'doctor'), 'last-cert.json'),
+  "doctor last-cert routes through the HOME store owner at the pinned state root (the config home's project store, never the project folder)",
 )
 check(
   lastPreflightPath().startsWith(join(getMercuryHome(), 'doctor') + sep) && lastPreflightPath().endsWith('last-preflight.json'),
