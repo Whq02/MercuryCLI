@@ -11,6 +11,7 @@ export const PROMPT_CACHING_SCOPE_BETA_HEADER = 'prompt-caching-scope-2026-01-05
 export const REDACT_THINKING_BETA_HEADER = 'redact-thinking-2026-02-12'
 export const TOKEN_EFFICIENT_TOOLS_BETA_HEADER = 'token-efficient-tools-2026-03-28'
 export const ADVISOR_BETA_HEADER = 'advisor-tool-2026-03-01'
+export const MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER = 'mid-conversation-output-config-2026-07-01'
 export const THINKING_BINDING_CONTROLS_BETA_HEADER = 'thinking-binding-controls-2026-08-01'
 export const SERVER_SIDE_FALLBACK_BETA_HEADER = 'server-side-fallback-2026-07-01'
 

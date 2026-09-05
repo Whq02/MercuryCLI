@@ -1,4 +1,5 @@
 import type { ToolResultBlockParam, ToolUseBlock } from '../types/wire.js'
+import type { EffortValue } from '../utils/effort.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from '../services/api/withRetry.js'
 import {
@@ -216,6 +217,7 @@ export type QueryParams = {
   maxOutputTokensOverride?: number
   maxTurns?: number
   skipCacheWrite?: boolean
+  effortMessage?: EffortValue
   taskBudget?: { total: number }
   deps?: QueryDeps
 }
@@ -245,6 +247,7 @@ type RunCtx = {
   fallbackModel: string | undefined
   querySource: QuerySource
   skipCacheWrite: boolean | undefined
+  effortMessage: EffortValue | undefined
   deps: QueryDeps
   config: QueryConfig
   budgetGuard: BudgetGuard
@@ -573,6 +576,7 @@ async function* streamModel(
             effortValue,
             advisorModel: iter.appState.advisorModel,
             skipCacheWrite: run.skipCacheWrite,
+            effortMessage: run.effortMessage,
             agentId: toolUseContext.agentId,
             ownerKey: String(rosterOwnerFromToolUseContext(toolUseContext)),
             addNotification: toolUseContext.addNotification,
@@ -785,6 +789,7 @@ export async function* runEventCore(
     querySource,
     maxTurns,
     skipCacheWrite,
+    effortMessage,
   } = params
   const deps = params.deps ?? productionDeps()
 
@@ -816,6 +821,7 @@ export async function* runEventCore(
     fallbackModel,
     querySource,
     skipCacheWrite,
+    effortMessage,
     deps,
     config,
     budgetGuard,

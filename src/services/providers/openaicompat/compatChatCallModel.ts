@@ -1,4 +1,5 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { randomUUID } from 'crypto'
 import type {
   ApiContentBlockDelta,
@@ -342,6 +343,7 @@ export async function* compatChatCallModel(
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })

@@ -25,6 +25,7 @@ import {
   getThinkingClearLatched,
   setLastMainRequestId,
   setThinkingClearLatched,
+  setLastApiCompletionTimestamp,
 } from 'src/bootstrap/state.js'
 import {
   CONTEXT_1M_BETA_HEADER,
@@ -81,12 +82,9 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import {
-  foldToolChoiceForModel,
-  refusalFallbackRequest,
-} from 'src/utils/model/capabilities.js'
+import { foldToolChoiceForModel, refusalFallbackRequest, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
-import { ADVISOR_BETA_HEADER } from '../../../constants/betas.js'
+import { ADVISOR_BETA_HEADER, MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
 import {
   getAttributionHeader,
   getCLISyspromptPrefix,
@@ -269,6 +267,7 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
+  effortMessage?: EffortValue
   temperatureOverride?: number
   effortValue?: EffortValue
   mcpTools: Tools
@@ -891,14 +890,20 @@ async function* queryModel(
     const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
     judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, { querySource: options.querySource })
 
+    const effortRow = perMessageEffortRow(options.model, options.effortMessage)
+    const wireMessages = effortRow === null ? wireParts.messages : insertBeforeLastUserRow(wireParts.messages as ReadonlyArray<{ role?: string }>, effortRow)
+    if (effortRow !== null && !betasParams.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)) {
+      betasParams.push(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)
+    }
+
     return {
       model: normalizeModelStringForAPI(options.model),
-      messages: wireParts.messages as ReturnType<typeof addCacheBreakpoints>,
+      messages: wireMessages as ReturnType<typeof addCacheBreakpoints>,
       system: wireParts.system as typeof system,
       tools: wireParts.tools as typeof allTools,
       tool_choice: toolChoice,
       ...(refusalFallback && { fallbacks: refusalFallback.fallbacks }),
-      ...(sendBetas && { betas: betasParams }),
+      ...((sendBetas || effortRow !== null) && { betas: betasParams }),
       metadata: getAPIMetadata(),
       max_tokens: maxOutputTokens,
       thinking,
@@ -1496,6 +1501,7 @@ async function* queryModel(
           }
           case 'message_stop':
             sawMessageStop = true
+            setLastApiCompletionTimestamp(Date.now())
             break
         }
 
@@ -1990,4 +1996,16 @@ export function getMaxOutputTokensForModel(model: string): number {
     maxOutputTokens.upperLimit,
   )
   return result.effective
+}
+
+export function perMessageEffortRow(model: string, effort: EffortValue | undefined): { role: 'system'; content: []; output_config: { effort: string } } | null {
+  if (typeof effort !== 'string' || !servesPerMessageEffort(model)) return null
+  return { role: 'system', content: [], output_config: { effort } }
+}
+
+export function insertBeforeLastUserRow<T extends { role?: string }>(messages: readonly T[], row: unknown): T[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]!.role === 'user') return [...messages.slice(0, i), row as T, ...messages.slice(i)]
+  }
+  return [...messages, row as T]
 }
