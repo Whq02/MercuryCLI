@@ -74,6 +74,12 @@ const liveModel = (efforts: string[], def?: string) =>
 
   const p7 = resolveGptReasoningProfile(undefined, full)
   check("no request ⇒ the model default ('low'), source 'model-default'", p7.wireEffort === 'low' && p7.source === 'model-default')
+
+  const six = liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')
+  const p8 = resolveGptReasoningProfile('ultra', six)
+  check("a served 'ultra' passes through as the user's choice", p8.wireEffort === 'ultra' && p8.source === 'user', JSON.stringify(p8))
+  const p9 = resolveGptReasoningProfile('ultra', full)
+  check("'ultra' on a low…max vocabulary steps DOWN to 'max' with the adjustment named", p9.wireEffort === 'max' && p9.source === 'unsupported-fallback' && p9.adjustedFrom === 'ultra', JSON.stringify(p9))
 }
 
 {
@@ -100,6 +106,7 @@ const liveModel = (efforts: string[], def?: string) =>
           { id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'], default_reasoning_level: 'low' },
           { id: 'gpt-5.6-terra', display_name: 'GPT-5.6 Terra', visibility: 'list', priority: 2, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh'], default_reasoning_level: 'medium' },
           { id: 'gpt-5.6-luna', display_name: 'GPT-5.6 Luna', visibility: 'list', priority: 3, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium' },
+          { id: 'gpt-6-astra', display_name: 'GPT-6 Astra', visibility: 'list', priority: 4, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'medium' },
         ],
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
@@ -115,6 +122,10 @@ const liveModel = (efforts: string[], def?: string) =>
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-terra') === 'xhigh' &&
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-luna') === 'high')
   check("Sol's Mercury-ladder default follows the LIVE default ('low')", capabilities.gptModelDefaultEffort('gpt-5.6-sol') === 'low')
+  check('Astra (live …ultra) serves ultra, Sol (live …max) does not, and the ceilings say so', capabilities.modelOffersEffortLevel('gpt-6-astra', 'ultra') && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'ultra')
+  check("applied 'ultra' on Astra stays 'ultra'; on Sol it steps to 'max'; on Luna to 'high'", effort.resolveAppliedEffort('gpt-6-astra', 'ultra') === 'ultra' && effort.resolveAppliedEffort('gpt-5.6-sol', 'ultra') === 'max' && effort.resolveAppliedEffort('gpt-5.6-luna', 'ultra') === 'high')
+  check('DISPLAY ≡ DISPATCH on Astra at ultra', effort.getDisplayedEffortLevel('gpt-6-astra', 'ultra') === 'ultra' && resolveGptReasoningProfile('ultra', liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')).wireEffort === 'ultra')
+  check("the 'ultra' description names the GPT family when a live vocabulary serves it", effort.getEffortLevelDescription('ultra').includes('GPT'), effort.getEffortLevelDescription('ultra'))
 
   check("applied 'max' on Sol stays 'max' (the reported bug: it clamped to high)", effort.resolveAppliedEffort('gpt-5.6-sol', 'max') === 'max')
   check("applied 'max' on Terra steps to 'xhigh' (never straight past it)", effort.resolveAppliedEffort('gpt-5.6-terra', 'max') === 'xhigh')
@@ -146,7 +157,7 @@ const liveModel = (efforts: string[], def?: string) =>
 }
 
 {
-  console.log('\n— 6 · EF prep: the FULL provider vocabulary rides the resolution —')
+  console.log('\n— 6 · the FULL provider vocabulary rides the resolution; the served top rung is selectable —')
   const ultraFetch: typeof fetch = (async () =>
     new Response(
       JSON.stringify({
@@ -167,14 +178,15 @@ const liveModel = (efforts: string[], def?: string) =>
     `got ${JSON.stringify(solTruth.providerVocabulary)}`,
   )
   check(
-    "EF-09 prep: `selectable` (what controls OFFER today) still ends at the shared ladder — 'ultra' becomes offerable only when the EF-08 capture verifies it",
-    !solTruth.selectable.includes('ultra' as never) && solTruth.selectable.includes('max'),
+    "`selectable` (what controls OFFER) reaches the served top: 'ultra' is a stop on the row that serves it, directly above max",
+    solTruth.selectable.includes('ultra') && solTruth.selectable.indexOf('ultra') === solTruth.selectable.indexOf('max') + 1,
+    JSON.stringify(solTruth.selectable),
   )
   check(
-    "EF-03 shape: a provider default of 'ultra' is REPRESENTED coherently — wire sends it, label shows it, applied is honestly out-of-ladder, providerDefault records it",
+    "EF-03 shape: a provider default of 'ultra' is REPRESENTED coherently — wire sends it, label shows it, applied is the ladder word, providerDefault records it",
     solTruth.wire === 'ultra' &&
       solTruth.label === 'ultra' &&
-      solTruth.applied === undefined &&
+      solTruth.applied === 'ultra' &&
       solTruth.providerDefault === 'ultra',
     `wire=${String(solTruth.wire)} label=${solTruth.label} providerDefault=${String(solTruth.providerDefault)}`,
   )
@@ -183,6 +195,7 @@ const liveModel = (efforts: string[], def?: string) =>
     'EF-01: a ladder-terminal vocabulary carries no ultra anywhere (vocabulary, selectable, default)',
     JSON.stringify(lunaTruth.providerVocabulary) === JSON.stringify(['low', 'medium', 'high']) &&
       !lunaTruth.selectable.includes('max') &&
+      !lunaTruth.selectable.includes('ultra') &&
       lunaTruth.providerDefault === 'medium',
   )
   const stepDown = effort.resolveEffortTruth('gpt-5.6-luna', 'max')
@@ -205,8 +218,10 @@ const liveModel = (efforts: string[], def?: string) =>
 
   const slider = readFileSync(join(ROOT, 'src/commands/effort/EffortSlider.tsx'), 'utf8')
   check(
-    "EF-06: the slider never offers literal 'ultra' and supercode rides max-support (separate mode, never masquerading)",
-    !slider.includes("'ultra'") &&
+    'EF-06: the slider derives its base stops from the ladder owner (ultra among them, stamped from the vocabulary) and supercode rides max-support (separate mode, never masquerading)',
+    slider.includes('EFFORT_LEVELS.map(level => ({') &&
+      slider.includes("ultra: 'blaze'") &&
+      slider.includes('supported: vocabulary.has(String(tier.value))') &&
       /modelSupportsMaxEffort\(model\)[\s\S]{0,400}value: 'supercode'/.test(slider),
   )
 

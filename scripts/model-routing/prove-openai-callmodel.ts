@@ -360,6 +360,29 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   )
 
   __resetOpenaiCatalogueForTest()
+  patchWire()
+  makeResponses = () => sseResponse(HAPPY_STREAM)
+  const ultraServed = await collect('gpt-5.6-sol', 'ultra')
+  const ultraBody = lastResponsesBody as { reasoning?: { effort?: string } }
+  check("a served 'ultra' reaches the wire as reasoning.effort ultra, unclamped and unreceipted", ultraBody?.reasoning?.effort === 'ultra' && stampOf(ultraServed) === undefined, JSON.stringify(ultraBody?.reasoning))
+  __resetOpenaiCatalogueForTest()
+  patchWire({
+    data: [
+      {
+        slug: 'gpt-5.6-sol',
+        display_name: 'GPT-5.6 Sol',
+        supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'],
+        default_reasoning_level: 'medium',
+      },
+    ],
+  })
+  makeResponses = () => sseResponse(HAPPY_STREAM)
+  const ultraAdjusted = await collect('gpt-5.6-sol', 'ultra')
+  const ultraAdjustedBody = lastResponsesBody as { reasoning?: { effort?: string } }
+  const ultraStamp = stampOf(ultraAdjusted)
+  check("unsupported 'ultra' adjusts to the deepest served 'max' on the wire and is RECEIPTED (asked ultra, sent max)", ultraAdjustedBody?.reasoning?.effort === 'max' && ultraStamp !== undefined && ultraStamp.asked === 'ultra' && ultraStamp.sent === 'max', JSON.stringify(ultraStamp))
+
+  __resetOpenaiCatalogueForTest()
   patchWire({
     data: [
       {
