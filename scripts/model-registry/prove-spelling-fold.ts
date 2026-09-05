@@ -137,7 +137,7 @@ check(
     const err = `${run.stderr ?? ''}${run.stdout ?? ''}`
     check(
       "-p --model 'Sonnet 5' resolves through the fold (reaches auth; never 'no family declares')",
-      !err.includes('not a model id any provider family declares') && /Authentication|401/i.test(err),
+      !err.includes('not a model id any provider family declares') && /Authentication|401|Not logged in|Invalid API key/i.test(err),
       err.slice(0, 140).replace(/\s+/g, ' '),
     )
   }
