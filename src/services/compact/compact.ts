@@ -1012,7 +1012,7 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
     return await work(scoped)
   } catch (err) {
     const aborted = context.abortController?.signal.aborted === true
-    exit = aborted || err instanceof APIUserAbortError || (err instanceof Error && err.message === ERROR_MESSAGE_USER_ABORT) ? 'cancelled' : 'failed'
+    exit = aborted || err instanceof APIUserAbortError ? 'cancelled' : 'failed'
     throw err
   } finally {
     if (pending !== null) clearTimeout(pending)

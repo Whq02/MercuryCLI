@@ -34,6 +34,7 @@ import { estimateMessageTokens } from './microCompact.js'
 import { isMaintenanceLadderEnabled, runMaintenanceLadder } from './maintenanceLadder.js'
 import { runPostCompactCleanup } from './postCompactCleanup.js'
 import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './sessionMemoryCompact.js'
+import { APIUserAbortError } from '../api/sdkErrors.js'
 
 
 void notifyCompaction
@@ -400,7 +401,7 @@ export async function autoCompactIfNeeded(
     }
     }, { trigger: 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
   } catch (err) {
-    if (err instanceof Error && err.message === ERROR_MESSAGE_USER_ABORT) {
+    if (err instanceof APIUserAbortError) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted
     }
     logError(err)
