@@ -162,6 +162,7 @@ export interface CrossfamilyFixture {
   base: string
   captured: FixtureHit[]
   env: Record<string, string>
+  refuseNextAnthropicSeat(status: number, message: string): void
   close(): Promise<void>
 }
 
@@ -180,6 +181,7 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
   }
   const seatStyle = opts.seatStyle ?? 'instant'
   const sleepS = opts.seatSleepSeconds ?? 6
+  const seatRefusals: Array<{ status: number; message: string }> = []
 
   function coordinatorScript(serialized: string, body: unknown, dialect: 'anthropic' | 'openai' | 'zai'): string {
     const emit = dialect === 'anthropic' ? anthropicSse : dialect === 'openai' ? responsesSse : chatSse
@@ -314,6 +316,12 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
       if (req.method === 'POST' && path.endsWith('/v1/messages')) {
         const isCoordinator = raw.includes('<switchboard')
         record({ lane: isCoordinator ? 'anthropic-coordinator' : 'anthropic-seat', path, model: String(body.model ?? ''), body })
+        const refusal = isCoordinator ? undefined : seatRefusals.shift()
+        if (refusal !== undefined) {
+          res.writeHead(refusal.status, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: refusal.message } }))
+          return
+        }
         res.writeHead(200, { 'content-type': 'text/event-stream' })
         res.end(isCoordinator ? coordinatorScript(raw, body, 'anthropic') : seatScript(raw))
         return
@@ -362,6 +370,9 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
     base,
     captured,
     env,
+    refuseNextAnthropicSeat: (status, message) => {
+      seatRefusals.push({ status, message })
+    },
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
 }

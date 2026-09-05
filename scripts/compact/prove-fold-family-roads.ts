@@ -347,6 +347,30 @@ section("§2c the home wire that serves per-message effort (Claude Fable 5.1 —
   await runFold('claude-opus-4-8', 'direct')
   const plain = (shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat').pop()?.body ?? {}) as { messages?: Array<{ role?: string }> }
   check('opus-4-8/direct: no per-message row where the wire does not serve it', !(plain.messages ?? []).some(r => r.role === 'system'))
+
+  const { resetPerMessageEffortRefusals, servesPerMessageEffort: servesRow } = await import('../../src/utils/model/capabilities.ts')
+  const systemRowsOf = (hit: { body?: Record<string, unknown> } | undefined): number => (((hit?.body ?? {}) as { messages?: Array<{ role?: string }> }).messages ?? []).filter(r => r.role === 'system').length
+  {
+    resetPerMessageEffortRefusals()
+    shared.refuseNextAnthropicSeat(400, 'unexpected value(s) `mid-conversation-output-config-2026-07-01` for the `anthropic-beta` header')
+    const from = shared.captured.length
+    const run = await runFold('claude-fable-5-1', 'direct')
+    const hits = shared.captured.slice(from).filter(h => h.lane === 'anthropic-seat')
+    const summary = j(run.result?.summaryMessages ?? [])
+    check('fable-5-1/direct, the row refused: the fold resolved in TWO requests — the 400 naming the beta, then the 200', run.error === undefined && hits.length === 2, `${hits.length} request(s) · ${(run.error?.message ?? '').slice(0, 200)}`)
+    check('…the first request rode the row; the second rode WITHOUT it (the refusal learned from the answer row)', systemRowsOf(hits[0]) === 1 && systemRowsOf(hits[1]) === 0, `rows ${hits.map(h => systemRowsOf(h)).join(',')}`)
+    check("…the summary is the 200's text — never the 400's words returned as a summary", summary.includes('spare-landed body.') && !summary.includes('API Error'), summary.slice(0, 200))
+    check('…the model is remembered refused for the process (the next fold rides without the row from the start)', !servesRow('claude-fable-5-1'))
+    resetPerMessageEffortRefusals()
+  }
+  {
+    shared.refuseNextAnthropicSeat(400, 'this request shape is refused for a reason of its own')
+    const from = shared.captured.length
+    const run = await runFold('claude-fable-5-1', 'direct')
+    const hits = shared.captured.slice(from).filter(h => h.lane === 'anthropic-seat')
+    check('fable-5-1/direct, a plain 400: the fold fails typed in the wire\'s words after one request — never a summary', run.error !== undefined && run.result === undefined && hits.length === 1 && (run.error?.message ?? '').includes('refused for a reason of its own'), `${hits.length} request(s) · ${(run.error?.message ?? '').slice(0, 200)}`)
+    check('…and the model still serves the row (a plain 400 teaches nothing)', servesRow('claude-fable-5-1'))
+  }
 }
 
 section("§2d Claude Opus 5 — measured: the row costs it the whole prefix (0 read, 63,865 written) — so NO row rides and the session's word is the request's")
