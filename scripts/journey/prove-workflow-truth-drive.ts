@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -315,6 +315,42 @@ const { home, cwd } = seedWorld()
 const fixture = await startFixture(Number(process.env.WF_TRUTH_PORT ?? 25199), cwd)
 const COLS = 160
 const ROWS = 44
+const factsDir = join(home, 'daemon', 'session-facts')
+const factsLog: string[] = []
+const factsEdges: { file?: number; work?: number } = {}
+const factsSampler = ((): { stop(): void } => {
+  const t0 = Date.now()
+  let seenFile = false
+  let seenWork = false
+  const timer = setInterval(() => {
+    let names: string[] = []
+    try {
+      names = readdirSync(factsDir)
+    } catch {
+      return
+    }
+    for (const name of names) {
+      let facts: Record<string, unknown> | null = null
+      try {
+        facts = JSON.parse(readFileSync(join(factsDir, name), 'utf8')) as Record<string, unknown>
+      } catch {
+        continue
+      }
+      if (!seenFile) {
+        seenFile = true
+        factsEdges.file = Date.now()
+        factsLog.push(`facts file at +${((Date.now() - t0) / 1000).toFixed(1)}s (${Date.now()}): keys ${Object.keys(facts).join(',')}`)
+      }
+      if (!seenWork && 'work' in facts) {
+        seenWork = true
+        factsEdges.work = Date.now()
+        factsLog.push(`work reported at +${((Date.now() - t0) / 1000).toFixed(1)}s (${Date.now()})`)
+      }
+    }
+    if (seenWork) clearInterval(timer)
+  }, 100)
+  return { stop: () => clearInterval(timer) }
+})()
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -325,7 +361,11 @@ try {
       rows: ROWS,
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-        { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 0, mark: 'skeleton' },
+        { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 0, mark: 'composer' },
+        { data: '', afterPrevTicks: 3, mark: 'skeleton-1' },
+        { data: '', afterPrevTicks: 3, mark: 'skeleton-2' },
+        { data: '', afterPrevTicks: 3, mark: 'skeleton-3' },
+        { data: '', afterPrevTicks: 3, mark: 'skeleton-4' },
         { data: `${ASK}\r`, afterPrevTicks: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'ask' },
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
@@ -352,13 +392,16 @@ try {
   check('the capture ran', false, String(error).slice(0, 400))
 }
 await fixture.close()
+factsSampler.stop()
 
 if (cap !== null) {
   const m = cap.marks
+  for (const line of factsLog) console.log(`  ${line}`)
+  console.log(`  sends' clocks: ${cap.receipts.map((r, i) => `${i}@${r.ts}`).join(' ')}`)
   console.log(`  routes: ${fixture.hits.map(h => (h.station !== null ? `seat:${h.station}(${h.priorReads})` : h.route)).join(' → ')}`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  for (const label of ['skeleton', 'launched', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
-  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 17, `${cap.receipts.length}/17 · end ${cap.endReason}`)
+  for (const label of ['composer', 'skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'launched', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
+  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 21, `${cap.receipts.length}/21 · end ${cap.endReason}`)
 
   const seatHits = (s: Station): Hit[] => fixture.hits.filter(h => h.station === s)
   check(`both seats ran on the wire (one: ${seatHits('one').length}, two: ${seatHits('two').length} calls)`, seatHits('one').length >= 3 && seatHits('two').length >= 3)
@@ -399,10 +442,16 @@ if (cap !== null) {
 
   console.log('\n— W7 the skeleton window —')
   {
-    const panel = panelRows(m['skeleton'], 'WORKFLOW', 'HEALTH')
-    const words = panel.map(flat).filter(Boolean).join(' | ')
-    check('W7 before the runner\'s first answer the panel never reads idle (a skeleton fact is not a fact)', panel.length > 0 && !panel.some(r => /\bidle\b/.test(r)), words.slice(0, 200))
-    check('W7 …it paints the unknown mark instead', panel.some(r => /—/.test(r)), words.slice(0, 200))
+    const fileAt = factsEdges.file ?? Number.POSITIVE_INFINITY
+    const workAt = factsEdges.work ?? Number.POSITIVE_INFINITY
+    const inWindow = (['skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4'] as const)
+      .map((label, i) => ({ label, ts: cap!.receipts[2 + i]?.ts ?? 0 }))
+      .filter(f => f.ts >= fileAt && f.ts < workAt)
+    const panels = inWindow.map(f => ({ label: f.label, rows: panelRows(m[f.label], 'WORKFLOW', 'HEALTH') }))
+    const words = panels.map(p => `${p.label}: ${p.rows.map(flat).filter(Boolean).join(' | ')}`).join(' ‖ ')
+    check(`W7 the window was photographed (the skeleton stood ${((workAt - fileAt) / 1000).toFixed(1)} s; ${inWindow.length} frame(s) inside it)`, inWindow.length >= 1, `file ${fileAt} · work ${workAt} · frames ${cap!.receipts.slice(2, 6).map(r => r.ts).join(',')}`)
+    check('W7 before the runner\'s first answer the panel never reads idle (a skeleton fact is not a fact)', panels.length > 0 && panels.every(p => p.rows.length > 0 && !p.rows.some(r => /\bidle\b/.test(r))), words.slice(0, 300))
+    check('W7 …it paints the unknown mark instead', panels.length > 0 && panels.every(p => p.rows.some(r => /—/.test(r))), words.slice(0, 300))
   }
 
   console.log('\n— W6 the wait words —')
