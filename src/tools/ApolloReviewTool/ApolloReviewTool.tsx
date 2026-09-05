@@ -10,10 +10,26 @@ import {
   permissionModeTitle,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
+import {
+  bootModeTransition,
+  describeModeRoad,
+  lastModeTransitionFrom,
+} from '../../utils/permissions/modeTransitions.js'
 import { APOLLO_REVIEW_TOOL_NAME, APOLLO_REVIEW_TOOL_PROMPT } from './prompt.js'
 import * as UI from './UI.js'
 
 const RESULT_SIZE_CAP = 100_000
+
+export function apolloReviewRefusal(mode: PermissionMode): string {
+  const now = permissionModeTitle(mode)
+  const exit = lastModeTransitionFrom('apollo')
+  if (exit !== undefined) {
+    return `Apollo Mode ended before this review: ${describeModeRoad(exit.road)} moved the session to ${permissionModeTitle(exit.to)}${exit.detail !== undefined ? ` (${exit.detail})` : ''}; the session is now in ${now}. ApolloReview closes only an Apollo pre-flight interview — if the interview should continue, ask the user to re-enter Apollo Mode (shift+tab cycles to it); if the spec was already approved, simply build it.`
+  }
+  const boot = bootModeTransition()
+  const since = boot !== undefined ? `this runner started in ${permissionModeTitle(boot.to)} and ` : 'this runner '
+  return `This session is not in Apollo Mode: it is in ${now}, and ${since}never entered Apollo Mode. ApolloReview exists solely to close an Apollo pre-flight interview — enter Apollo Mode (shift+tab cycles to it) to run one; if a spec was already approved, simply build it.`
+}
 
 const inputSchema = z.object({
   summary: z
@@ -101,8 +117,7 @@ export const ApolloReviewTool = buildTool({
     if (mode !== 'apollo') {
       return {
         result: false as const,
-        message:
-          'This session is not in Apollo Mode. ApolloReview exists solely to close an Apollo pre-flight interview — if a spec was already approved, simply build it.',
+        message: apolloReviewRefusal(mode),
         errorCode: 1,
       }
     }
@@ -165,6 +180,7 @@ export const ApolloReviewTool = buildTool({
         target,
         context.getAppState().toolPermissionContext as ToolPermissionContext,
         updateAppState,
+        'review-approval',
       )
       if (result.ok) {
         settled = result.mode

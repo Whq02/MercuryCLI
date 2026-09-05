@@ -883,6 +883,15 @@ function restoreAfterCompaction(context: ToolUseContext): void {
   context.setSDKStatus?.(null)
 }
 
+export async function withFoldStatus<T>(context: ToolUseContext, work: () => Promise<T>): Promise<T> {
+  context.setSDKStatus?.('compacting')
+  try {
+    return await work()
+  } finally {
+    restoreAfterCompaction(context)
+  }
+}
+
 
 export async function compactConversation(
   messages: Message[],

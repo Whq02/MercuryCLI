@@ -15,7 +15,7 @@ if (!mode || !proj) {
 }
 
 if (mode === 'install') {
-  const report = runWithCwdOverride(proj, () => applyVulcanInstall(proj))
+  const report = await runWithCwdOverride(proj, () => applyVulcanInstall(proj))
   console.log(report)
   if (report.includes('bundle is empty')) process.exit(1)
   process.exit(0)

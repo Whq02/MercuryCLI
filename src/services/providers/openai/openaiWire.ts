@@ -87,6 +87,7 @@ export interface OpenaiUsage {
   inputTokens: number
   outputTokens: number
   cachedInputTokens?: number
+  cacheWriteInputTokens?: number
   reasoningOutputTokens?: number
 }
 
@@ -305,6 +306,9 @@ function parseUsage(usage: Record<string, unknown>): OpenaiUsage {
     outputTokens: typeof usage.output_tokens === 'number' ? usage.output_tokens : 0,
     ...(typeof inputDetails?.cached_tokens === 'number'
       ? { cachedInputTokens: inputDetails.cached_tokens }
+      : {}),
+    ...(typeof inputDetails?.cache_write_tokens === 'number'
+      ? { cacheWriteInputTokens: inputDetails.cache_write_tokens }
       : {}),
     ...(typeof outputDetails?.reasoning_tokens === 'number'
       ? { reasoningOutputTokens: outputDetails.reasoning_tokens }

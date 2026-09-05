@@ -11,19 +11,19 @@ import {
   VOICE_PACK_PATH,
   checkVoicePackDir,
   readVoicePackManifest,
+  voiceCargoTriple,
   voicePackPlatform,
   voicePackTreeDigest,
   voiceSourceTreeDigest,
   type VoicePackCrate,
   type VoicePackManifest,
 } from '../../src/services/voice/voicePack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const NATIVE_DIR = join(ROOT, ...VOICE_NATIVE_PATH.split('/'))
 const MANIFEST_PATH = join(NATIVE_DIR, 'Cargo.toml')
 const TARGET_DIR = join(NATIVE_DIR, 'target')
-const PLATFORM = voicePackPlatform()
-const OUT_DIR = join(ROOT, ...VOICE_PACK_PATH.split('/'), PLATFORM)
 
 const argv = process.argv.slice(2)
 const checkOnly = argv.includes('--check')
@@ -34,11 +34,20 @@ function fail(msg: string): never {
   process.exit(1)
 }
 
+const targetAt = argv.indexOf('--target')
+const TARGET_ARG = targetAt === -1 ? null : (argv[targetAt + 1] ?? '')
+if (TARGET_ARG !== null && !isReleaseTarget(TARGET_ARG)) fail(`--target wants one of ${RELEASE_TARGETS.join(', ')} (got ${TARGET_ARG || 'nothing'})`)
+const SHIP = TARGET_ARG === null ? { platform: process.platform, arch: process.arch } : buildPlatformOf(TARGET_ARG)
+const PLATFORM = voicePackPlatform(SHIP.platform, SHIP.arch)
+const CROSS = PLATFORM !== voicePackPlatform()
+const TRIPLE = voiceCargoTriple(PLATFORM)
+const OUT_DIR = join(ROOT, ...VOICE_PACK_PATH.split('/'), PLATFORM)
+
 const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
 
 function cargoArtifactName(): string {
-  if (process.platform === 'win32') return 'mercury_voice.dll'
-  if (process.platform === 'darwin') return 'libmercury_voice.dylib'
+  if (SHIP.platform === 'win32') return 'mercury_voice.dll'
+  if (SHIP.platform === 'darwin') return 'libmercury_voice.dylib'
   return 'libmercury_voice.so'
 }
 
@@ -90,7 +99,7 @@ interface CargoPackage {
 
 function linkedCrates(): CargoPackage[] {
   const host = run('rustc', ['-vV'], { capture: true })
-  const triple = /host:\s*(\S+)/.exec(host.stdout)?.[1]
+  const triple = CROSS ? (TRIPLE ?? undefined) : /host:\s*(\S+)/.exec(host.stdout)?.[1]
   const args = ['metadata', '--format-version', '1', '--manifest-path', MANIFEST_PATH, ...(triple ? ['--filter-platform', triple] : [])]
   const res = run('cargo', args, { capture: true })
   if (res.status !== 0) fail(`cargo metadata failed: ${res.stderr.trim().slice(-400)}`)
@@ -108,7 +117,7 @@ function linkedCrates(): CargoPackage[] {
 const LICENSE_FILE = /^(LICENSE|LICENCE|COPYING|NOTICE)([-._].*)?$/i
 
 function installPack(cargo: string): void {
-  const artifact = join(TARGET_DIR, 'release', cargoArtifactName())
+  const artifact = join(TARGET_DIR, ...(CROSS && TRIPLE ? [TRIPLE] : []), 'release', cargoArtifactName())
   if (!existsSync(artifact)) fail(`cargo reported success but ${artifact} is absent`)
   const tmp = `${OUT_DIR}.tmp-${process.pid}`
   rmSync(tmp, { recursive: true, force: true })
@@ -187,9 +196,24 @@ function main(): void {
     )
     process.exit(0)
   }
+  if (CROSS) {
+    if (TRIPLE === null) {
+      console.log(`build-voice: SKIPPED — no cargo target triple is known for ${PLATFORM}; the build ships without voice input (degraded: voice-input) and the doctor says so.`)
+      process.exit(0)
+    }
+    const installed = run('rustup', ['target', 'list', '--installed'], { capture: true })
+    const present = installed.status === 0 && installed.stdout.split('\n').map(l => l.trim()).includes(TRIPLE)
+    if (!present) {
+      console.log(
+        `build-voice: SKIPPED — the rustup target ${TRIPLE} is not installed on this machine, so the voice capture pack is not cross-compiled for ${PLATFORM}. ` +
+          `The build ships without voice input (degraded: voice-input) and the doctor says so; install it (rustup target add ${TRIPLE}) and re-run bun run scripts/vendor/build-voice.ts --target ${TARGET_ARG}.`,
+      )
+      process.exit(0)
+    }
+  }
   if (invalid !== null && existsSync(OUT_DIR)) console.log(`build-voice: rebuilding — ${invalid}`)
-  console.log(`build-voice: ${cargo} — cargo build --release (${VOICE_NATIVE_PATH}, ${PLATFORM})`)
-  const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR])
+  console.log(`build-voice: ${cargo} — cargo build --release (${VOICE_NATIVE_PATH}, ${PLATFORM}${CROSS ? `, --target ${TRIPLE}` : ''})`)
+  const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])])
   if (build.error) fail(`cargo could not be started: ${build.error.message}`)
   if (build.status !== 0) {
     fail(

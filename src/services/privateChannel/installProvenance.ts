@@ -1,5 +1,5 @@
 
-import { existsSync, readFileSync, realpathSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join, resolve, sep } from 'node:path'
 import { resolveLayoutRoots } from './installLayout.js'
 
@@ -282,4 +282,33 @@ export function provenanceLine(p: InstallProvenanceV1): string {
     : ''
   const dis = p.disagreements.length > 0 ? ` · ${p.disagreements.join(' · ')}` : ''
   return `${p.kind} ${p.version}${p.buildSha ? ` (${p.buildSha.slice(0, 9)})` : ''} at ${p.activeRoot}${co}${dis}`
+}
+
+
+export const PROVENANCE_NOTICE_MARKER_PREFIX = 'provenance-noted-'
+
+export function provenanceNoticeMarkerPath(payloadDir: string): string | null {
+  const dir = realpathSafe(payloadDir)
+  const parent = dirname(dir)
+  if (!existsSync(join(parent, 'current.txt'))) return null
+  return join(parent, `${PROVENANCE_NOTICE_MARKER_PREFIX}${basename(dir)}.txt`)
+}
+
+export function provenanceNoticeSaid(payloadDir: string, state: string): boolean {
+  const marker = provenanceNoticeMarkerPath(payloadDir)
+  if (marker === null) return false
+  try {
+    return readFileSync(marker, 'utf8').split('\n')[0]?.trim() === state
+  } catch {
+    return false
+  }
+}
+
+export function recordProvenanceNotice(payloadDir: string, state: string): void {
+  const marker = provenanceNoticeMarkerPath(payloadDir)
+  if (marker === null) return
+  try {
+    writeFileSync(marker, `${state}\n${new Date().toISOString()}\n`)
+  } catch {
+  }
 }
