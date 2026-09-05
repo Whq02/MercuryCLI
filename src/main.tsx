@@ -1046,7 +1046,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   program
     .command('update')
     .alias('upgrade')
-    .description('Update to the latest private-channel release')
+    .description('Update to the newest release (no GitHub sign-in needed)')
     .option('--check', 'Only check for updates')
     .option('--status', 'Show update status')
     .option('--rollback', 'Roll back to the previous version')
@@ -1113,11 +1113,9 @@ async function healthAction(options: {
         )
         process.exit(1)
       }
-      writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
-      return
+      return writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
     }
-    writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
-    return
+    return writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
   }
   const { healthHandler } = await import('./cli/handlers/util.js')
   const { createRoot } = await import('./ink.js')

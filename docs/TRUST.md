@@ -98,3 +98,43 @@ bypass is armed, what armed it (standing env consent, CLI flag, or session
 choice), whether the consent dialog was shown or suppressed, and whether
 workspace trust was accepted. A fresh config read alone answers "what permission
 posture does this project run under".
+
+## Release provenance — what "signed" means
+
+Every release archive carries a `manifest.json`, and from 1.0.0-beta.3 on that
+manifest carries a signature: an Ed25519 signature over the release record
+(the version, the platform target, the packaging time, the source tree, the
+SHA-256 of the runtime bundle and a digest of every other shipped byte). The
+signing key is the Mercury release key, id `627b54b734ca0e72`, whose public
+half is compiled into every build (the trust roster,
+`src/services/privateChannel/signingTrust.ts`). The private key is held by the
+operator alone: it never enters the repository, and it reaches the hosted
+release workflow only as a repository secret for the packaging step.
+
+Signing is evidence, never a gate: nothing refuses to run on its verdict.
+The verdicts are:
+
+- **signed** — a valid signature under the release key; the bytes are what
+  was packaged. The launcher says nothing.
+- **unsigned** — the manifest carries no signature. 1.0.0-beta.2 shipped this
+  way: the hosted workflow never held the key, and every interactive launch of
+  that release prints `mercury: provenance — unsigned …`. From 1.0.0-beta.3
+  the launcher says it on a bare interactive boot (a plain `mercury`, no verb
+  or flag) once per install — a marker beside the version pointer of the
+  managed layout records that it was said; an archive run in place says it
+  at every bare boot — and `mercury doctor` says it every time.
+- **unrecognized-key** — a valid signature under a key that is not in this
+  build's roster; unattested.
+- **tampered** — the bytes differ from what was signed, or the signature does
+  not verify; re-download.
+
+How to check:
+
+- `mercury doctor` — the rows **Artifact signature** (the bundle's bytes) and
+  **Payload signature** (`--deep`: the whole payload tree).
+- From an extracted archive, the shipped verifier:
+  `node mercury/verify-artifact.mjs --deep` prints the verdict and exits
+  0 signed · 3 unsigned · 4 unrecognized-key · 5 tampered · 6 malformed.
+- A release published without the key is a decision, never an accident: its
+  archives end in `-unsigned`, its notes say so at the top, and `mercury
+  update` in earlier installs does not pick them up.

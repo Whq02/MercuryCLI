@@ -479,6 +479,7 @@ export function isLoggableMessage(m: Message): boolean {
     const att = m.attachment
     if (att.type === 'hook_non_blocking_error' || att.type === 'hook_error_during_execution') return true
     if (att.type === 'bypassed_ask') return true
+    if (att.type === 'bound_prefix') return true
     return normalizeAttachmentForAPI(att).length > 0
   }
   return true

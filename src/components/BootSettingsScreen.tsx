@@ -21,6 +21,15 @@ import {
   type MenuRow,
 } from '../substrate/startupMenu.js';
 import { flagSpellings } from '../substrate/flagRegistry.js';
+import {
+  SEATS_MENU_ROW,
+  seatCeilingDetailLines,
+  seatCeilingFacts,
+  seatCeilingValueWords,
+  seatCostWarning,
+  seatSourceWords,
+  setOperatorSeats,
+} from '../services/switchboard/capacityCheck.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import type { DaemonRequest } from '../daemon/protocol.js';
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js';
@@ -111,6 +120,21 @@ export function BootSettingsScreen({
     () => new Map(snapshot.rows.map(r => [r.env, r])),
     [snapshot],
   );
+  const [seatsTick, setSeatsTick] = useState(0);
+  const seatFacts = useMemo(() => seatCeilingFacts(), [seatsTick, saveTick]);
+  const menuRows = useMemo<readonly MenuRow[]>(() => [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow], []);
+  const isSeatsRow = (row: MenuRow): boolean => row.env === SEATS_MENU_ROW.env;
+  const commitSeats = (next: number | null): string => {
+    const facts = setOperatorSeats(next);
+    setSeatsTick(n => n + 1);
+    const warning = seatCostWarning(facts);
+    const words =
+      next === null
+        ? `seats follow ${seatSourceWords(facts.source)}: ${facts.seats} — applies to the next admission`
+        : `seats ${facts.seats} · set by you — applies to the next admission${warning !== null ? ` · ${warning}` : ''}`;
+    setLastReceipt(words);
+    return words;
+  };
 
   const [liveCount, setLiveCount] = useState<number | null>(null);
   const [apply, setApply] = useState<ApplyState>({ phase: 'closed' });
@@ -203,6 +227,7 @@ export function BootSettingsScreen({
   }, [apply.phase, path]);
 
   const commitRow = (row: MenuRow, value: string | null): string => {
+    if (isSeatsRow(row)) return commitSeats(value === null ? null : Number(value));
     const env: Record<string, string> = { ...saved };
     if (value === null) delete env[row.env];
     else env[row.env] = value;
@@ -222,6 +247,7 @@ export function BootSettingsScreen({
   };
 
   const cycleRow = (row: MenuRow, direction: 1 | -1): string => {
+    if (isSeatsRow(row)) return commitSeats(direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1));
     const choices = menuRowChoices(row);
     const currentValue = saved[row.env] ?? null;
     const idx = Math.max(0, choices.findIndex(c => c.value === currentValue));
@@ -234,7 +260,7 @@ export function BootSettingsScreen({
   const chatBoot = stripFacts().chatBoot;
 
   const list = useInteractiveList<MenuRow>({
-    rows: STARTUP_MENU as readonly MenuRow[],
+    rows: menuRows,
     rowId: r => r.env,
     idNamespace: 'boot-settings',
     onClose: () => {
@@ -307,7 +333,19 @@ export function BootSettingsScreen({
 
   const changed = useMemo(() => STARTUP_MENU.filter(r => saved[r.env] !== undefined).length, [saved]);
   const menuM = useMemo(() => {
-    const entries = (STARTUP_MENU as readonly MenuRow[]).map(row => {
+    const entries = menuRows.map(row => {
+      if (isSeatsRow(row)) {
+        return {
+          label: row.label,
+          group: row.group,
+          summary: row.summary,
+          valueLabel: seatCeilingValueWords(seatFacts),
+          valueIsDefault: seatFacts.source !== 'operator',
+          pinnedVal: null,
+          detail: row.detail ?? null,
+          detailExtra: seatCeilingDetailLines(seatFacts),
+        };
+      }
       const effective = effectiveByEnv.get(row.env);
       const envPinned = effective?.source === 'process-env';
       return {
@@ -361,7 +399,7 @@ export function BootSettingsScreen({
         : {}),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, effectiveByEnv, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [saved, effectiveByEnv, seatFacts, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {
@@ -380,8 +418,8 @@ export function BootSettingsScreen({
       {Array.from({ length: rows }, (_, i) => {
         const line = composition.placed[i] ?? '';
         const entryIdx = composition.entryAt.get(i);
-        if (entryIdx !== undefined && (STARTUP_MENU as readonly MenuRow[])[entryIdx] !== undefined) {
-          const row = (STARTUP_MENU as readonly MenuRow[])[entryIdx]!;
+        if (entryIdx !== undefined && menuRows[entryIdx] !== undefined) {
+          const row = menuRows[entryIdx]!;
           const props = list.rowProps(row, entryIdx);
           return (
             <InteractiveRow

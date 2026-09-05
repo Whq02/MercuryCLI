@@ -103,6 +103,7 @@ import workbench from './commands/workbench/index.js'
 import router from './commands/router/index.js'
 import daemon from './commands/daemon/index.js'
 import saturn from './commands/saturn/index.js'
+import seats from './commands/seats/index.js'
 import realms from './commands/realms/index.js'
 import accounts from './commands/accounts/index.js'
 import agentForm from './commands/agent-form/index.js'
@@ -294,6 +295,7 @@ const COMMANDS = memoize((): Command[] => [
   router,
   daemon,
   saturn,
+  seats,
   realms,
   accounts,
   agentForm,

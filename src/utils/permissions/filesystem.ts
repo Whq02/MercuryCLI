@@ -17,6 +17,7 @@ import {
 import { getPlatform } from '../platform.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { PROJECT_CONFIG_DIR_NAMES, apolloSpecDirectory } from '../projectConfig.js'
+import { APOLLO_REVIEW_TOOL_NAME } from '../../tools/ApolloReviewTool/constants.js'
 import { checkFeatureGate_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { getSettingsFilePathForSource } from '../settings/settings.js'
 import { getEnabledSettingSources } from '../settings/constants.js'
@@ -769,6 +770,9 @@ export function checkWritePermissionForTool(
       return allow(input, { type: 'mode', mode: context.mode } as never)
     }
   }
+  if (context.mode === 'apollo') {
+    return deny(apolloWriteRefusal(path), { type: 'mode', mode: 'apollo' } as never)
+  }
   const safety = checkPathSafetyForAutoEdit(path, resolutionSet, context)
   if (!safety.safe) {
     const skill = getClaudeSkillScope(path)
@@ -884,8 +888,12 @@ export function generateSuggestions(
   return suggestions
 }
 
+export function apolloWriteRefusal(path: string): string {
+  return `Apollo Mode refused writing ${path}: during the pre-flight interview the only files that may be written are the spec files under ${apolloSpecDirectory(getOriginalCwd())}/ — the build begins only after the user approves the closing review (${APOLLO_REVIEW_TOOL_NAME}). Write the spec there, then present the review.`
+}
+
 function modeSuggestion(context: ToolPermissionContext): PermissionUpdate[] {
-  if (context.mode === 'default' || context.mode === 'strategy' || context.mode === 'apollo') {
+  if (context.mode === 'default' || context.mode === 'strategy') {
     return [{ type: 'setMode', mode: 'implement', destination: 'session' } as unknown as PermissionUpdate]
   }
   return []
