@@ -64,6 +64,7 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   pendingSpawnSwitches?: Array<{ kind: 'subagents' | 'workflows'; on: boolean }>
   modelSettled?: { from: string; to: string; atMs: number }
   busy: boolean
+  turnStartedAt?: number
   schedules?: import('../../daemon/saturn.js').SaturnFactsRowV1[]
   heldFireCount?: number
 }

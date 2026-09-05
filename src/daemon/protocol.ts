@@ -343,6 +343,7 @@ export interface WireRosterEntry {
   cliVersion: string
   outcome?: string
   via?: string
+  turnStartedAt?: number
   model?: string
   effort?: string
   pendingModel?: string

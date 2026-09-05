@@ -34,7 +34,7 @@ import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
 export interface SeatRosterPort {
   control(short: string, frame: string): boolean
-  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean; state?: string }>
+  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean; state?: string; turnStartedAt?: number }>
   patchSeatModel(short: string, model: string): boolean
   patchSeatEffort(short: string, effort: string): boolean
   has?(short: string): { present: boolean }
@@ -350,6 +350,10 @@ function seatBusy(short: string, roster: SeatRosterPort): boolean {
   return seatTurnOpen(roster.list().find(j => j.short === short))
 }
 
+function seatTurnStartedAt(short: string, roster: SeatRosterPort): number | undefined {
+  return roster.list().find(j => j.short === short)?.turnStartedAt
+}
+
 export function switchAppliesWhileAgentsHold(turnOpen: boolean, stateWord: SeatState['stateWord']): boolean {
   if (!turnOpen) return true
   return stateWord === 'waiting-on-agents'
@@ -413,6 +417,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
       : {}),
     ...(seat.lastModelSettle !== null ? { modelSettled: seat.lastModelSettle } : {}),
     busy: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
+    ...(roster !== undefined && seatTurnStartedAt(short, roster) !== undefined ? { turnStartedAt: seatTurnStartedAt(short, roster) } : {}),
     ...saturnFactsOf(rec, Date.now()),
   }
   seat.lastBusy = facts.busy

@@ -45,13 +45,14 @@ section('§1 the fold hands a start for an in-flight turn only')
   check('a record of one unanswered prompt (a fresh session) is in flight from THAT prompt\'s clock', t.inFlight === true && t.turnStartedAtMs === Date.parse('2026-09-05T09:00:00.000Z'), j(t))
 }
 
-section('§2 the seat latches the clock once, through one owner')
+section("§2 the seat reads the roster's clock through the facts — never one it minted")
 {
   const src = readFileSync(join(ROOT, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-  check('the effective facts read the record\'s start, else the latch — one call', src.includes('turnStartedAtMs: this.liveState.turnStartedAtMs ?? this.turnStartLatch(inFlight)'))
-  check('no facts path mints a clock inline per tick', !/turnStartedAtMs: [^\n]*\(inFlight \? Date\.now\(\)/.test(src))
-  const latch = src.slice(src.indexOf('private turnStartLatch(inFlight: boolean)'), src.indexOf('private turnStartLatch(inFlight: boolean)') + 400)
-  check('the latch mints once while in flight and clears when the turn ends', latch.includes('if (this.turnStartLatchMs === null) this.turnStartLatchMs = Date.now()') && latch.includes('this.turnStartLatchMs = null'))
+  check("the effective facts read the daemon's turnStartedAt, else the record's fold, else nothing", src.includes('turnStartedAtMs: this.facts?.turnStartedAt ?? this.liveState.turnStartedAtMs ?? null'))
+  check('no facts path mints a clock of its own (no latch, no inline Date.now())', !/turnStartedAtMs: [^\n]*Date\.now\(\)/.test(src) && !src.includes('turnStartLatch'))
+  const seat = readFileSync(join(ROOT, 'src/daemon/sessionSeat.ts'), 'utf8')
+  const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
+  check("the daemon's facts carry the roster's open-turn start (one clock, the roster's edge)", seat.includes('turnStartedAt: seatTurnStartedAt(short, roster)') && roster.includes('e.turnStartedAt = h.longLived.turnStartedAt'))
   const fold = readFileSync(join(ROOT, 'src/utils/conversationRecovery.ts'), 'utf8')
   check('the fold\'s start is conditional on the turn being in flight', fold.includes('turnStartedAtMs: inFlight ? acc.lastPromptMs : null'))
 }
