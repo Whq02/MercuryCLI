@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -15,7 +15,8 @@ const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0.0.0.0', '::'])
 const FAMILY_BASE = /^MERCURY_[A-Z0-9]+_(?:[A-Z]+_)*BASE$/
 const NOT_A_FAMILY = new Set(['MERCURY_DESCRIPTOR_STOCK_BASE'])
 const UPDATE_SEAM = 'MERCURY_UPDATE_API_BASE_URL'
-const SLOTS = ['MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_CUSTOM_OAUTH_URL']
+const SLOTS = ['MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL']
+const OAUTH_SEAM = 'MERCURY_CUSTOM_OAUTH_URL'
 const INHERITED_GATEWAY = 'https://gateway.example.invalid'
 const DEADLINE_BOUND_MS = 15_000
 const INVALID_KEY = /Invalid API key/
@@ -214,6 +215,7 @@ check(
 )
 check(`the update channel's anonymous road rides the box (${UPDATE_SEAM})`, dump[UPDATE_SEAM] === box, `dump=${dump[UPDATE_SEAM] ?? '(unset)'}`)
 for (const k of SLOTS) check(`${k} is left as the runner found it (a base there configures a slot, or throws)`, dump[k] === baseEnv[k], `dump=${dump[k] ?? '(unset)'} env=${baseEnv[k] ?? '(unset)'}`)
+check(`the sign-in endpoint rides the box (${OAUTH_SEAM})`, dump[OAUTH_SEAM] === box, `dump=${dump[OAUTH_SEAM] ?? '(unset)'}`)
 
 section('§2 — the box answers like the real host, in milliseconds')
 let probe: { messages: { status: number; retry: string | null; body: string; ms: number }; root: { status: number; ms: number } } | null = null
@@ -239,6 +241,67 @@ check('the turn reports the invalid key — the real host\'s answer, now from th
 const ms = Number(readTrim(pinned.ms))
 check(`the turn ends inside the deadline bound — ${ms} ms (bound ${DEADLINE_BOUND_MS})`, ms > 0 && ms < DEADLINE_BOUND_MS)
 console.log(`  · the pinned turn's report: ${pinnedText.replace(/\s+/g, ' ').slice(0, 220)}`)
+
+section('§4 — the sign-in refresh road under the pin: a home seeded expired-with-refresh, one headless turn, the census')
+{
+  const oauthHome = join(work, 'oauth-home')
+  mkdirSync(oauthHome, { recursive: true })
+  seedFirstRun(oauthHome, [ROOT, cwd])
+  process.env.MERCURY_CONFIG_DIR = oauthHome
+  process.env.MERCURY_CREDENTIAL_STORE = 'file'
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const auth = await import('../../src/utils/auth.ts')
+  const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
+  storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-00000000c0de', emailAddress: 'sam@example.com' })
+  auth.saveOAuthTokensIfNeeded({
+    accessToken: 'fixture-access-token',
+    refreshToken: 'fixture-refresh-token',
+    expiresAt: Date.now() - 60_000,
+    scopes: ['user:inference', 'user:profile'],
+    subscriptionType: 'max',
+    rateLimitTier: 'default_claude_max_20x',
+  })
+  const boxDir = join(work, 'box')
+  mkdirSync(boxDir, { recursive: true })
+  const ownBox = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'gate', 'dead-letter.py'), join(boxDir, 'port')], { stdio: 'ignore' })
+  const portFile = join(boxDir, 'port')
+  const boxUp = await new Promise<boolean>(resolve => {
+    const t0 = Date.now()
+    const tick = (): void => {
+      if (existsSync(portFile) && readTrim(portFile) !== '') return resolve(true)
+      if (Date.now() - t0 > 10_000) return resolve(false)
+      setTimeout(tick, 100)
+    }
+    tick()
+  })
+  check('a box of this section\'s own answers for the pinned base', boxUp)
+  const refreshRoad = {
+    netlog: join(work, 'net-refresh.log'),
+    out: join(work, 'turn-refresh.json'),
+    err: join(work, 'turn-refresh.err'),
+    rc: join(work, 'turn-refresh.rc'),
+    ms: join(work, 'turn-refresh.ms'),
+  }
+  const boxBase = `http://${BOX_HOST}:${readTrim(portFile)}`
+  const env: NodeJS.ProcessEnv = { ...baseEnv, MERCURY_CONFIG_DIR: oauthHome, ANTHROPIC_BASE_URL: boxBase, MERCURY_CUSTOM_OAUTH_URL: boxBase }
+  delete env.ANTHROPIC_API_KEY
+  spawnSync('bash', ['-c', turnScript({ cwd, ...refreshRoad })], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' })
+  try {
+    ownBox.kill('SIGKILL')
+  } catch {
+  }
+  const refreshLines = censusOf(refreshRoad.netlog)
+  const refreshOutside = outsideOf(refreshLines)
+  const refreshText = readTrim(refreshRoad.out) + readTrim(refreshRoad.err)
+  console.log(`  · the refresh road's census: ${refreshLines.length} lines; outside the loopback: ${refreshOutside.join(' · ') || 'none'}`)
+  console.log(`  · the refresh road's report: ${refreshText.replace(/\s+/g, ' ').slice(0, 220)}`)
+  check('the census was taken on the refresh road (a signed-in home; lines recorded)', refreshLines.length > 0, refreshText.slice(0, 200))
+  check('the refresh road makes no connection, lookup or fetch outside the loopback under the two pins', refreshOutside.length === 0, refreshOutside.slice(0, 5).join(' · '))
+  check('the refresh went to the box (the census names its port)', refreshLines.some(l => l.endsWith(`tcp ${BOX_HOST}:${readTrim(portFile)}`)), refreshLines.slice(0, 6).join(' · '))
+  const shard = readFileSync(join(ROOT, 'scripts', 'gate', 'ci-shard.sh'), 'utf8')
+  check('the shard pins the sign-in endpoint to its box beside the messages base', shard.includes('export MERCURY_CUSTOM_OAUTH_URL="$HERMETIC_DEAD_BASE"'))
+}
 
 clearTimeout(guard)
 cleanup()

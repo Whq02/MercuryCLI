@@ -89,11 +89,22 @@ function trimmedCustomUrl(): string | undefined {
   return raw.endsWith('/') ? raw.slice(0, -1) : raw
 }
 
+export function isLoopbackOauthOrigin(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+    const host = parsed.hostname.replace(/^\[|\]$/g, '')
+    return host === '127.0.0.1' || host === '::1' || host === 'localhost'
+  } catch {
+    return false
+  }
+}
+
 export function getOauthConfig(): OauthConfig {
   const config: OauthConfig = { ...PRODUCTION_CONFIG }
   const custom = trimmedCustomUrl()
   if (custom !== undefined) {
-    if (!CUSTOM_OAUTH_ALLOWLIST.includes(custom)) {
+    if (!CUSTOM_OAUTH_ALLOWLIST.includes(custom) && !isLoopbackOauthOrigin(custom)) {
       throw new Error(
         `MERCURY_CUSTOM_OAUTH_URL is set to ${custom}, which is not an approved OAuth endpoint`,
       )
