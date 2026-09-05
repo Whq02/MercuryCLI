@@ -181,6 +181,9 @@ const CLASSES := {
 	"runtime_frames": "read",
 	"playtest_run": "exec",
 	"runtime_wait_signal": "exec",
+	"runtime_pause": "exec",
+	"runtime_step": "exec",
+	"runtime_resume": "exec",
 }
 
 static func of(op: String) -> String:

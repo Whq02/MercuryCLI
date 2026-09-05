@@ -111,6 +111,26 @@ async function classCacheHint(args: Record<string, unknown> | undefined): Promis
   return `\nclass cache: ${report.hint}${own ? ` (this script's ${own.class}: ${own.reason})` : ''}`
 }
 
+export function vulcanDeclaredBudgetMs(op: string, args: Record<string, unknown> | undefined): number {
+  const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0)
+  const declared = (a: Record<string, unknown> | undefined): number =>
+    num(a?.duration_ms) +
+    num(a?.settle_ms) +
+    num(a?.attach_timeout_ms) +
+    num(a?.timeout_ms) +
+    num(a?.ms) +
+    num(a?.wait_ms) +
+    num(a?.step_ms) +
+    (num(a?.frames) + num(a?.step_frames)) * 50
+  let total = declared(args)
+  if (op === 'input_sequence' && Array.isArray(args?.steps)) {
+    for (const step of args.steps as unknown[]) {
+      if (step && typeof step === 'object') total += declared(step as Record<string, unknown>)
+    }
+  }
+  return total
+}
+
 async function runOp(input: Input, context: ToolUseContext, parentMessage: AssistantMessage): Promise<string> {
   const spec = vulcanOp(input.op)
   if (!spec) {
@@ -126,12 +146,8 @@ async function runOp(input: Input, context: ToolUseContext, parentMessage: Assis
     if (input.op === 'project_capsule') return staticCapsuleAnswer(input)
     return `the VULCAN surface is not available here (flag off or no project.godot from cwd) — op:"vulcan_status" explains`
   }
-  const declaredMs = ['duration_ms', 'settle_ms', 'attach_timeout_ms', 'timeout_ms'].reduce(
-    (sum, key) => sum + (typeof input.args?.[key] === 'number' ? (input.args[key] as number) : 0),
-    0,
-  )
   const baseMs = input.op === 'playtest_run' ? 120_000 : 30_000
-  const r: VulcanResult = await client.request(input.op, input.args, baseMs + declaredMs)
+  const r: VulcanResult = await client.request(input.op, input.args, baseMs + vulcanDeclaredBudgetMs(input.op, input.args))
   if (!r.ok && input.op === 'project_capsule' && UNREACHABLE_CODES.has(r.error.code)) {
     return staticCapsuleAnswer(input)
   }
