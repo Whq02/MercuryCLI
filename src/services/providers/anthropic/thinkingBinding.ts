@@ -2,7 +2,8 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import type { DeadThinkingMark, Message } from '../../../types/message.js'
+import type { AttachmentMessage, DeadThinkingMark, Message } from '../../../types/message.js'
+import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getGlobalConfig } from '../../../utils/config/globalConfig.js'
@@ -402,8 +403,12 @@ export function deadMarksFromDrops(
 export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set<number>> {
   const marks = new Map<string, Set<number>>()
   for (const message of messages) {
-    if (message.type !== 'system' || (message as { subtype?: string }).subtype !== 'thinking_dead') continue
-    const dead = (message as { dead?: unknown }).dead
+    const dead =
+      message.type === 'attachment' && (message.attachment as { type?: string }).type === 'dead_thinking'
+        ? (message.attachment as { dead?: unknown }).dead
+        : message.type === 'system' && (message as { subtype?: string }).subtype === 'thinking_dead'
+          ? (message as { dead?: unknown }).dead
+          : undefined
     if (!Array.isArray(dead)) continue
     for (const mark of dead) {
       const m = mark as { messageId?: unknown; blockIndex?: unknown }
@@ -417,6 +422,10 @@ export function deadThinkingMarks(messages: readonly Message[]): Map<string, Set
     }
   }
   return marks
+}
+
+export function createDeadThinkingAttachment(dead: DeadThinkingMark[]): AttachmentMessage {
+  return createAttachmentMessage({ type: 'dead_thinking', dead })
 }
 
 const isThinkingContent = (block: unknown): boolean => {
