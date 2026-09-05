@@ -1,7 +1,8 @@
+import { statSync } from 'node:fs'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
-import type { ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { concourseWorkersPath, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import {
   describeWhen,
   holdSaturnFire,
@@ -29,6 +30,7 @@ import {
   markBoxScheduleFired,
   readBoxSchedules,
   refreshBoxScheduleAccount,
+  saturnBoxSchedulesPath,
   takeBoxHeldFires,
 } from './saturnBoxSchedules.js'
 
@@ -160,10 +162,11 @@ export interface SaturnTickReportV1 {
   held: number
   missed: number
   replayed: number
+  pending: number
 }
 
 export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<SaturnTickReportV1> {
-  const report: SaturnTickReportV1 = { fired: 0, held: 0, missed: 0, replayed: 0 }
+  const report: SaturnTickReportV1 = { fired: 0, held: 0, missed: 0, replayed: 0, pending: 0 }
   if (isSaturnDisabled()) return report
   const now = ports.now()
   const windowMs = saturnCatchupWindowMs()
@@ -174,6 +177,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
 
     const heldList = Array.isArray(rec.heldFires) ? rec.heldFires.filter(saturnHeldRowUsable) : []
     const scheduleList = Array.isArray(rec.schedules) ? rec.schedules.filter(saturnScheduleRowUsable) : []
+    report.pending += heldList.length + scheduleList.length
     const mangledCount =
       (Array.isArray(rec.heldFires) ? rec.heldFires.length - heldList.length : rec.heldFires !== undefined ? 1 : 0) +
       (Array.isArray(rec.schedules) ? rec.schedules.length - scheduleList.length : rec.schedules !== undefined ? 1 : 0)
@@ -411,6 +415,7 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
 
   {
     const box = readBoxSchedules(ports.dir)
+    report.pending += box.schedules.length + box.heldFires.length
     if (box.heldFires.length > 0) {
       const releasable: Array<{ scheduleId: string; dueAt: number }> = []
       const boxRefreshOnRelease = new Map<string, ScheduleAccountV1>()
@@ -576,14 +581,33 @@ function loopChainOf(sessionId: string): LoopFireChainStateV1 {
 
 export const SATURN_TICK_MS = 30_000
 
+export function fileMoveStamp(path: string): string {
+  try {
+    const st = statSync(path)
+    return `${st.ino}:${st.mtimeMs}:${st.size}`
+  } catch {
+    return 'absent'
+  }
+}
+
+export function saturnStoreStamp(dir?: string): string {
+  return `${fileMoveStamp(concourseWorkersPath(dir))}|${fileMoveStamp(saturnBoxSchedulesPath(dir))}`
+}
+
 export function startSaturnTicker(ports: SaturnTickerPortsV1, onReport?: (r: SaturnTickReportV1) => void): () => void {
   let running = false
   let stopped = false
+  let storeStamp: string | undefined
+  let pending = -1
   const timer = setInterval(() => {
     if (running || stopped) return
+    const stamp = saturnStoreStamp(ports.dir)
+    if (pending === 0 && stamp === storeStamp) return
+    storeStamp = stamp
     running = true
     void tickSaturnOnce(ports)
       .then(r => {
+        pending = r.pending
         if (onReport && r.fired + r.held + r.missed + r.replayed > 0) onReport(r)
       })
       .catch(() => {})
