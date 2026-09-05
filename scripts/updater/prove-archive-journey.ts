@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, st
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { assetNameFor, formatPrivateVersion, parsePrivateVersion } from '../../src/services/privateChannel/channelCore.js'
+import { releaseTargetFor } from '../../src/services/privateChannel/releaseTarget.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string; engines?: { node?: string } }
@@ -14,19 +15,19 @@ if (process.platform === 'win32') {
   console.log('  [SKIP] archive journey — POSIX hosts only (windows-launcher.yml drives the shipped mercury.cmd on a real ConPTY)')
   process.exit(0)
 }
-const { archiveFileName, readCompatFloor, releaseLayoutSection } = (await import('../release/payloadContract.mjs')) as {
-  archiveFileName: (version: string, target: string, opts?: { unsigned?: boolean }) => string
+const { readCompatFloor, releaseLayoutSection, unsignedArchiveName } = (await import('../release/payloadContract.mjs')) as {
   readCompatFloor: () => { floorVersion: string; forwarder: string }
   releaseLayoutSection: (dir: string, target: string, floor: unknown) => Record<string, unknown>
+  unsignedArchiveName: (archiveName: string) => string
 }
-const TARGET = process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
+const TARGET = releaseTargetFor(process.platform, process.arch)
 const SIGNED_ASSET = assetNameFor(VERSION, process.platform, process.arch)
 const ASSET = SIGNED_ASSET
-  ? [SIGNED_ASSET, archiveFileName(VERSION, TARGET, { unsigned: true })].find(a => existsSync(join(ROOT, 'release-out', a))) ?? null
+  ? [SIGNED_ASSET, unsignedArchiveName(SIGNED_ASSET)].find(a => existsSync(join(ROOT, 'release-out', a))) ?? null
   : null
 const ARCHIVE = ASSET ? join(ROOT, 'release-out', ASSET) : null
-if (!SIGNED_ASSET || !ASSET || !ARCHIVE) {
-  console.log(`  [SKIP] archive journey — no packaged host archive at release-out/${SIGNED_ASSET ?? '(unsupported host)'} (or its -unsigned twin); package one first: node scripts/release/package.mjs --target ${TARGET} --unsigned`)
+if (!TARGET || !SIGNED_ASSET || !ASSET || !ARCHIVE) {
+  console.log(`  [SKIP] archive journey — no packaged host archive at release-out/${SIGNED_ASSET ?? '(unsupported host)'} (or its -unsigned twin); package one first: node scripts/release/package.mjs --target ${TARGET ?? '<target>'} --unsigned`)
   process.exit(0)
 }
 const { parseEnginesNode, posixLauncher } = (await import('../release/launcherTemplates.mjs')) as {
