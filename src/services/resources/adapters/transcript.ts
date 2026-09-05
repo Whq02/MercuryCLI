@@ -2,9 +2,22 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { registerResourceAdapter } from '../registry.js'
-import { boundedTextView, type ResourceAdapter, type ResourceChild } from '../contracts.js'
+import { boundedTextView, type ResourceAdapter, type ResourceChild, type ResourceContext } from '../contracts.js'
 import { parseOwnerKey } from '../../primitives/owner.js'
 import { projectIntelEnabled } from '../../projectIntel/contracts.js'
+import { readAgentTranscript, transcriptEndWords } from '../../../tools/WorkflowTool/agentTranscriptReader.js'
+import { agentStatusWord } from './agent.js'
+
+function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
+  if (!ctx.getAppState) return null
+  try {
+    const state = ctx.getAppState() as { tasks?: Record<string, { status?: unknown }> } | null
+    const status = state?.tasks?.[taskId]?.status
+    return typeof status === 'string' ? status : null
+  } catch {
+    return null
+  }
+}
 
 const SID_RE = /^[0-9a-f-]{8,64}$/i
 const STEM_RE = /^[A-Za-z0-9._-]{1,80}$/
@@ -95,7 +108,7 @@ async function sessionRows(sessionId: string): Promise<{ rows: string[]; source:
 export const transcriptAdapter: ResourceAdapter = {
   kind: 'transcript',
   describe: 'bounded concise transcript views (session/<sid> · agent/<sid>/<stem>)',
-  async resolve(ref, _ctx) {
+  async resolve(ref, ctx) {
     if (!projectIntelEnabled()) {
       return { state: 'unavailable', note: 'project intelligence is disabled (MERCURY_PROJECT_INTEL=0)' }
     }
@@ -142,13 +155,15 @@ export const transcriptAdapter: ResourceAdapter = {
       }
       const rows = jsonlConciseRows(agentFile)
       const view = boundedTextView(rows.join('\n'), ref.selectors, 100)
+      const registryStatus = stem.startsWith('agent-') ? registryStatusOf(ctx, stem.slice('agent-'.length)) : null
+      const status = registryStatus !== null ? agentStatusWord(registryStatus) : transcriptEndWords((await readAgentTranscript(agentFile))?.end)
       return {
         state: 'ok',
         resource: {
           ref: `mercury://transcript/agent/${sid}/${stem}`,
           kind: 'transcript',
           title: `subagent ${stem} — concise transcript`,
-          summary: `${rows.length} row(s) · finished agent execution`,
+          summary: `${rows.length} row(s) · ${status}`,
           mutable: false,
           text: view.text,
           page: view.page,

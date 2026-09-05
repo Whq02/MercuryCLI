@@ -1,6 +1,6 @@
 import { z } from 'zod/v4'
 
-import { stopTask } from '../../tasks/stopTask.js'
+import { stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { DESCRIPTION as PROMPT, TASK_STOP_TOOL_NAME } from './prompt.js'
@@ -83,7 +83,7 @@ export const TaskStopTool = buildTool({
     }
     const task = context.getAppState().tasks?.[taskId]
     if (!task) {
-      return { result: false, message: `No task found with id ${taskId}`, errorCode: 1 }
+      return { result: false, message: await taskNotFoundWords(taskId), errorCode: 1 }
     }
     if (task.status !== 'running') {
       return {
