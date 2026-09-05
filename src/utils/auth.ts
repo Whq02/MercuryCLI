@@ -139,6 +139,29 @@ export function loginShadowWarning(): string | null {
   return loginShadowWarningFor(getAuthTokenSource().source)
 }
 
+export type WireCredentialSource =
+  | { kind: 'env'; name: 'ANTHROPIC_API_KEY' | 'ANTHROPIC_AUTH_TOKEN' | 'MERCURY_OAUTH_TOKEN' | 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR' }
+  | { kind: 'helper' }
+  | { kind: 'managed' }
+  | { kind: 'none' }
+
+export function wireCredentialSource(): WireCredentialSource {
+  const bearer = getAuthTokenSource().source
+  if (bearer === 'ANTHROPIC_AUTH_TOKEN' || bearer === 'MERCURY_OAUTH_TOKEN' || bearer === 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR') {
+    return { kind: 'env', name: bearer }
+  }
+  if (bearer === 'claude.ai') return { kind: 'managed' }
+  let key: ApiKeySource = 'none'
+  try {
+    key = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source
+  } catch {
+  }
+  if (key === 'ANTHROPIC_API_KEY') return { kind: 'env', name: 'ANTHROPIC_API_KEY' }
+  if (key === 'apiKeyHelper' || bearer === 'apiKeyHelper') return { kind: 'helper' }
+  if (key === '/logins managed key') return { kind: 'managed' }
+  return { kind: 'none' }
+}
+
 
 export type ApiKeySource = 'ANTHROPIC_API_KEY' | 'apiKeyHelper' | '/logins managed key' | 'none'
 
