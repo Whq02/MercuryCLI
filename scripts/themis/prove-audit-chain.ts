@@ -133,32 +133,36 @@ section('§7 explicit OFF ⇒ byte-identical; unset ⇒ the default-on plane WRI
   check('unset (the default) DOES write the chain', existsSync(themisDir(scratch)))
 }
 
-section('§8 dir-vanish self-heal: rows persist again after the pinned dir dies')
+section('§8 the project folder vanishes: the chain lives in the config home and loses no rows (AFTERMATH C)')
 {
+  const startCwd = process.cwd()
   const scratchA = mkdtempSync(join(tmpdir(), 'themis-heal-a-'))
   process.chdir(scratchA)
   resetAuditChainForTests()
   process.env.MERCURY_THEMIS = 'warn'
-  await appendAuditRow({ actor: 'proof', action: 'pre-heal' })
-  check('pre-heal row landed in dir A', existsSync(themisDir(scratchA)))
+  await appendAuditRow({ actor: 'proof', action: 'pre-vanish' })
+  const dirA = themisDir(scratchA)
+  check('the first row landed in the config home store, never the project folder', existsSync(dirA) && !existsSync(join(scratchA, '.mercury', 'themis')))
   const scratchB = mkdtempSync(join(tmpdir(), 'themis-heal-b-'))
   process.chdir(scratchB)
   rmSync(scratchA, { recursive: true, force: true })
-  await appendAuditRow({ actor: 'proof', action: 'lost-in-flight' })
-  await appendAuditRow({ actor: 'proof', action: 'post-heal' })
-  const sweep = await verifyAllChains(themisDir(scratchB))
-  check('fresh chain born at the live cwd', sweep.chains.length === 1, `chains=${sweep.chains.length}`)
-  check('fresh chain verifies ok', sweep.ok, JSON.stringify(sweep.chains.map(c => c.verdict)))
+  await appendAuditRow({ actor: 'proof', action: 'after-vanish' })
+  await appendAuditRow({ actor: 'proof', action: 'after-vanish-2' })
+  const sweep = await verifyAllChains(dirA)
+  check('the chain stands in its home after the project folder vanished (one chain, no heal needed)', sweep.chains.length === 1, `chains=${sweep.chains.length}`)
+  check('the chain verifies ok', sweep.ok, JSON.stringify(sweep.chains.map(c => c.verdict)))
   if (sweep.chains.length === 1) {
     const rows = readFileSync(sweep.chains[0]!.file, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l) as Row)
     check(
-      'healed chain restarts at genesis/seq 1 with the post-heal row',
-      rows.length === 1 && rows[0]!.prev === 'genesis' && rows[0]!.seq === 1 && rows[0]!.action === 'post-heal',
-      JSON.stringify(rows[0]),
+      'every row landed in order — nothing was lost in flight',
+      rows.length === 3 && rows.map(r => r.action).join(',') === 'pre-vanish,after-vanish,after-vanish-2' && rows[0]!.prev === 'genesis' && rows[2]!.seq === 3,
+      JSON.stringify(rows.map(r => [r.seq, r.action])),
     )
   } else {
-    check('healed chain rows inspectable', false, 'no single chain file to inspect')
+    check('the chain rows are inspectable', false, 'no single chain file to inspect')
   }
+  process.chdir(startCwd)
+  rmSync(scratchB, { recursive: true, force: true })
 }
 
 section('§9 sweep honesty: missing dir ok · UNREADABLE dir is a named problem')
