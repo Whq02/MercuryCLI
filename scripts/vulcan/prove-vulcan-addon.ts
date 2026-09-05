@@ -152,6 +152,12 @@ section('5. the one injection road — a press is an event; step mode is served'
   check('the editor side forwards the three verbs from the runtime category', /"runtime_step", "runtime_pause", "runtime_resume",/.test(runtime))
   check('the editor pre-flights the step window (frames or ms, never both) before the wire', /if op == "runtime_step":\n\t\tvar bad := step_window_error\(args, "frames", "ms", ctx\)/.test(runtime) && /pass %s or %s, not both/.test(runtime))
   check('the proxy deadline budgets stepped frames (server.gd mirrors the bridge figure)', /STEP_WALL_MS_PER_FRAME := 50/.test(server) && /int\(args\["frames"\]\) \* STEP_WALL_MS_PER_FRAME/.test(server) && /STEP_WALL_MS_PER_FRAME := 50/.test(bridge))
+  const sequence = bodies.get('_rop_input_sequence') ?? ''
+  check('input_sequence steps carry step_frames | step_ms and advance after the input', /_step_window\(step, "step_frames", "step_ms", false\)/.test(sequence) && /await _advance\(int\(window\["frames"\]\), int\(window\["ms"\]\)\)/.test(sequence))
+  check('a wait_ms is game time while stepped, a timer while live', /if _step_mode:\n\t\t\t\tvar w: Dictionary = await _advance\(0, /.test(sequence) && /create_timer\(wait_ms \/ 1000\.0\)\.timeout/.test(sequence))
+  const input = readFileSync(path.join(catDir, 'input.gd'), 'utf8')
+  check('input_sequence validation admits step_frames | step_ms and checks their shape', /step\.has\("step_frames"\) or step\.has\("step_ms"\)/.test(input) && /MercuryVulcanRuntime\.step_window_error\(step, "step_frames", "step_ms", ctx\)/.test(input))
+  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* STEP_WALL_MS_PER_FRAME/.test(server))
 }
 
 console.log('\n' + (failures === 0 ? '✅ vulcan addon proof PASS' : `❌ ${failures} FAILURES`))

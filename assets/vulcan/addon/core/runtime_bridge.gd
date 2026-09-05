@@ -848,29 +848,60 @@ func _rop_input_action(args: Dictionary) -> Dictionary:
 func _rop_input_sequence(args: Dictionary) -> Dictionary:
 	var steps = args.get("steps", [])
 	if typeof(steps) != TYPE_ARRAY or steps.is_empty():
-		return _err("BAD_ARG", "steps must be a non-empty array", "entries: {\"key\": ...} | {\"button\": ..., \"position\": ...} | {\"action\": ...} | {\"wait_ms\": 250}")
+		return _err("BAD_ARG", "steps must be a non-empty array", "entries: {\"key\": ...} | {\"button\": ..., \"position\": ...} | {\"action\": ...} | {\"wait_ms\": 250} | {\"step_frames\": 30} | {\"step_ms\": 500}")
+	if _stepping:
+		return _step_in_flight()
 	var done := 0
+	var frames_total := 0
+	var physics_total := 0
+	var delivered_total := 0
 	for step in steps:
 		if typeof(step) != TYPE_DICTIONARY:
-			return _err("BAD_ARG", "step %d is not a dict" % done, "each step is one of key|button|action|wait_ms")
-		if step.has("wait_ms"):
-			await get_tree().create_timer(maxf(0.001, float(step["wait_ms"]) / 1000.0)).timeout
-		elif step.has("key"):
+			return _err("BAD_ARG", "step %d is not a dict" % done, "each step is one of key|button|action|wait_ms|step_frames|step_ms")
+		var acted := false
+		if step.has("key"):
 			var r := _rop_input_key(step)
 			if not r["ok"]:
 				return r
+			acted = true
 		elif step.has("button"):
 			var r := _rop_input_mouse_button(step)
 			if not r["ok"]:
 				return r
+			acted = true
 		elif step.has("action"):
 			var r := _rop_input_action(step)
 			if not r["ok"]:
 				return r
-		else:
-			return _err("BAD_ARG", "step %d needs key|button|action|wait_ms" % done, "e.g. {\"key\": \"Space\"}, then {\"wait_ms\": 250}")
+			acted = true
+		if step.has("wait_ms"):
+			var wait_ms := maxi(1, int(step["wait_ms"]))
+			if _step_mode:
+				var w: Dictionary = await _advance(0, mini(wait_ms, STEP_MS_MAX))
+				frames_total += int(w["frames"])
+				physics_total += int(w["physics_frames"])
+				delivered_total += int(w["delivered"])
+			else:
+				await get_tree().create_timer(wait_ms / 1000.0).timeout
+			acted = true
+		var window := _step_window(step, "step_frames", "step_ms", false)
+		if window.has("err"):
+			return window["err"]
+		if int(window["frames"]) > 0 or int(window["ms"]) > 0:
+			var a: Dictionary = await _advance(int(window["frames"]), int(window["ms"]))
+			frames_total += int(a["frames"])
+			physics_total += int(a["physics_frames"])
+			delivered_total += int(a["delivered"])
+			acted = true
+		if not acted:
+			return _err("BAD_ARG", "step %d needs key|button|action|wait_ms|step_frames|step_ms" % done, "e.g. {\"action\": \"left\", \"pressed\": true, \"step_frames\": 30}, then {\"action\": \"left\", \"pressed\": false}")
 		done += 1
-	return _ok({ "steps": done })
+	var out := _mode_state()
+	out["steps"] = done
+	out["frames"] = frames_total
+	out["physics_frames"] = physics_total
+	out["delivered"] = delivered_total
+	return _ok(out)
 
 
 func _inject(ev: InputEvent) -> bool:

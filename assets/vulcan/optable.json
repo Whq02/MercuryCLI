@@ -66,7 +66,7 @@
       { "name": "input_mouse_button", "class": "exec", "lite": false, "summary": "Simulate a mouse button at a position", "args": { "button": "left|right|middle|wheel_up|wheel_down", "position": "Vector2", "pressed": "optional bool (click when omitted)" } },
       { "name": "input_mouse_move", "class": "exec", "lite": false, "summary": "Simulate mouse motion", "args": { "position": "Vector2", "relative": "optional Vector2" } },
       { "name": "input_action", "class": "exec", "lite": false, "summary": "Press/release a mapped input action — a real InputEventAction the game's _input/_unhandled_input callbacks and the polled action state both see (queued while the game is parked in step mode)", "args": { "action": "action name", "pressed": "optional bool (tap when omitted)", "strength": "optional 0..1" } },
-      { "name": "input_sequence", "class": "exec", "lite": false, "summary": "Run a timed input sequence", "args": { "steps": "array of {key|button|action|wait_ms, …}" } }
+      { "name": "input_sequence", "class": "exec", "lite": false, "summary": "Run an input sequence as one call: inputs, waits, and advances (step_frames | step_ms) — in step mode each advance delivers the queued inputs and moves the parked game exactly that far", "args": { "steps": "array of {key|button|action|wait_ms|step_frames|step_ms, …}; an input step may carry step_frames/step_ms (advance after it); in step mode wait_ms is game time" } }
     ] },
     { "key": "runtime", "label": "Runtime", "ops": [
       { "name": "runtime_status", "class": "read", "lite": true, "summary": "Is a play session live; scene, uptime, bridge state", "args": {} },
