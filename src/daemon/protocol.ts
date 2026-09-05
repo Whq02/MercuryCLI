@@ -6,6 +6,31 @@ export const MERCURY_DAEMON_PROTO = 8
 
 export const MIN_PROTO = 1
 
+export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
+  hello: 2,
+  'restart-when-idle': 2,
+  sessionAdmit: 3,
+  sessionDispatch: 3,
+  sessionList: 3,
+  sessionRelease: 3,
+  sessionControl: 3,
+  'sessionControl/set-effort': 3,
+  'sessionControl/contract': 3,
+  sessionRewind: 5,
+  'sessionControl/set-spawn-switch': 6,
+  signIns: 7,
+  'sessionControl/stop-agent': 8,
+  'sessionControl/resume-agent': 8,
+}
+
+export function verbBornAt(op: string, action?: string): number {
+  if (action !== undefined) {
+    const own = DAEMON_VERB_BORN_AT[`${op}/${action}`]
+    if (own !== undefined) return own
+  }
+  return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
+}
+
 export const DAEMON_PROTO_SHAPE = 'sha256:a404ee2f11787c9b8566027997a867ddae7d8455c606084e8db9e70c0d8b758f'
 
 export const CONTROL_FRAME_CAP = 1 << 20

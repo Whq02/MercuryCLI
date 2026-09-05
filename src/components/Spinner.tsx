@@ -59,6 +59,7 @@ export type SpinnerWithVerbProps = {
   overrideColor?: ThemeKey | null
   overrideShimmerColor?: ThemeKey | null
   overrideMessage?: string | null
+  still?: boolean
   spinnerSuffix?: string | null
   verbose: boolean
   hasActiveTools: boolean
@@ -111,6 +112,7 @@ export function SpinnerWithVerb({
   overrideColor,
   overrideShimmerColor,
   overrideMessage,
+  still = false,
   spinnerSuffix,
   verbose,
   hasActiveTools,
@@ -193,7 +195,7 @@ export function SpinnerWithVerb({
     chosenVerb = whimsyVerb
   }
   const effectiveVerb = chosenVerb
-  const message = effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
+  const message = still || effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
   const phaseBylineEligible = !overrideMessage && !(foregroundedTeammate && !foregroundedTeammate.isIdle)
 
   const requesting =
@@ -242,8 +244,9 @@ export function SpinnerWithVerb({
   const spinnerTipsDisabled = useAppState(
     state => state.settings.spinnerTipsEnabled === false,
   )
-  const effectiveTip =
-    elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
+  const effectiveTip = still
+    ? null
+    : elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
       ? 'This turn has been running a while — esc interrupts it; a fresh conversation keeps context sharp.'
       : (spinnerTip ?? null)
 
@@ -324,6 +327,7 @@ export function SpinnerWithVerb({
       bylineVerb={effectiveVerb}
       ttftText={ttftText}
       inWorkCapsule={inWorkCapsule}
+      still={still}
     />
   )
 

@@ -1388,12 +1388,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (d.state !== 'live') {
               return { status: 'off', evidence: `no live daemon to compare with — ${d.reason}`, link: '/daemon' }
             }
-            const { daemonControlRpc } = await import('../daemon/controlSocket.js')
+            const { daemonControlRpc, restartDaemonWords } = await import('../daemon/controlSocket.js')
             const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../daemon/signInView.js')
             const reply = (await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 3000 })) as
               | { ok: true; view: DaemonSignInViewV1 }
               | { ok: false; code?: string; error?: string }
-            const restart = `restart the daemon: \`${binaryName()} daemon restart\``
+            const restart = restartDaemonWords(binaryName())
             if (!reply.ok) {
               return {
                 status: 'warn',
