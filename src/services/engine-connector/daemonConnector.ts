@@ -76,8 +76,10 @@ import type {
   RewindReceiptV1,
   RewindRequestV1,
   SeatIdentityV1,
+  RecallableSendV1,
   SendReceiptV1,
   SendWordsOptions,
+  WithdrawReceiptV1,
   SessionAskV1,
   SkillsRosterV1,
   UsageFactsV1,
@@ -117,9 +119,14 @@ interface SeatSend {
   sentAtMs: number
   state: 'pending' | 'delivered' | 'queued' | 'taken'
   mode: 'prompt' | 'bash'
+  source?: { text: string; mode: 'prompt' | 'bash'; pastedContents: Record<number, PastedContent> }
+  withdrawing?: true
 }
 
 const REFUSED_EMPTY: SendReceiptV1 = { state: 'refused', detail: 'nothing to send' }
+export const RECALL_TAKEN_LINE = 'already taken — esc interrupts the turn'
+export const RECALL_UNKNOWN_LINE = 'nothing queued to take back — esc interrupts the turn'
+const PENDING_WITHDRAW_WAIT_MS = 10_000
 
 function reconstructedProgressMessage(parentToolUseID: string, entry: SessionProgressEntryV1): ProgressMessage {
   let data: ShellProgress | MCPProgress
@@ -911,7 +918,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (isNoticeFact(entry)) queuedIds.add(noticeKeyOf(entry.value))
     }
     for (const s of this.sends) {
-      if (s.state === 'pending') continue
+      if (s.state === 'pending' || s.withdrawing === true) continue
       if (queuedIds.has(s.clientMessageId)) {
         if (s.state !== 'queued') this.dressSend(s.clientMessageId, 'queued')
       } else if (s.state === 'queued' || (s.state === 'delivered' && facts.atMs >= s.sentAtMs)) {
@@ -1340,11 +1347,12 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       for (const [key, row] of rows) this.echoRows.set(key === provisionalId ? clientMessageId : key, row)
     }
     submitTrace('connector-deliver', expanded, { mode, clientMessageId })
-    const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode }
+    const send: SeatSend = { clientMessageId, text: expanded, sentAtMs: Date.now(), state: 'pending', mode, source: { text, mode, pastedContents: pastes } }
     this.sends = [...this.sends.filter(s => s.clientMessageId !== clientMessageId), send]
     this.paint()
     emitAll(this.liveListeners, 'live')
     const settle = (state: 'delivered' | 'held' | 'refused' | 'failed', detail?: string): SendReceiptV1 => {
+      this.noteSettled(clientMessageId)
       if (state !== 'delivered') {
         this.sends = this.sends.filter(s => s.clientMessageId !== clientMessageId)
         this.echoRows.delete(clientMessageId)
@@ -1523,6 +1531,106 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       })
       .catch(undo)
     return true
+  }
+
+
+  recallableSend(): RecallableSendV1 | null {
+    let latest: SeatSend | null = null
+    for (const s of this.sends) {
+      if (s.state === 'taken' || s.withdrawing === true || s.source === undefined) continue
+      if (!UUID_SHAPE.test(s.clientMessageId)) continue
+      if (s.source.text === '' && Object.keys(s.source.pastedContents).length === 0) continue
+      if (latest === null || s.sentAtMs >= latest.sentAtMs) latest = s
+    }
+    return latest === null || latest.source === undefined ? null : { clientMessageId: latest.clientMessageId, text: latest.source.text }
+  }
+
+  async withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1> {
+    const taken: WithdrawReceiptV1 = { withdrawn: false, reason: 'taken', detail: RECALL_TAKEN_LINE }
+    const nothing: WithdrawReceiptV1 = { withdrawn: false, reason: 'unknown', detail: RECALL_UNKNOWN_LINE }
+    let send = this.sends.find(s => s.clientMessageId === clientMessageId)
+    if (send === undefined) return nothing
+    if (send.state === 'taken') return taken
+    if (send.withdrawing === true) return { withdrawn: false, reason: 'refused', detail: 'a withdraw is already on its way' }
+    if (send.state === 'pending') {
+      const settled = await this.settled(clientMessageId)
+      send = this.sends.find(s => s.clientMessageId === clientMessageId)
+      if (send === undefined) return nothing
+      if (!settled) return { withdrawn: false, reason: 'refused', detail: 'the line is still on its way to the session — ↑ again in a moment' }
+      if (send.state === 'taken') return taken
+    }
+    this.markWithdrawing(clientMessageId, true)
+    connectorTrace({ ev: 'withdraw', sid: this.record.sessionId, state: send.state })
+    const refuse = (detail: string): WithdrawReceiptV1 => {
+      this.markWithdrawing(clientMessageId, false)
+      connectorTrace({ ev: 'withdrawn', sid: this.record.sessionId, withdrawn: false, reason: 'refused' })
+      return { withdrawn: false, reason: 'refused', detail }
+    }
+    try {
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'withdraw-send', sessionId: this.record.sessionId, by: 'operator', clientMessageId })
+      if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the withdraw'))
+      if (reply.withdrawn === true) {
+        this.sends = this.sends.filter(s => s.clientMessageId !== clientMessageId)
+        this.echoRows.delete(clientMessageId)
+        if (this.sends.length === 0) this.textRetiredRowUuids.clear()
+        this.paint()
+        emitAll(this.liveListeners, 'live')
+        connectorTrace({ ev: 'withdrawn', sid: this.record.sessionId, withdrawn: true })
+        const source = send.source
+        return {
+          withdrawn: true,
+          text: source?.text ?? (typeof reply.text === 'string' ? reply.text : send.text),
+          mode: source?.mode ?? send.mode,
+          pastedContents: source?.pastedContents ?? {},
+        }
+      }
+      if (reply.reason !== 'taken' && reply.reason !== 'unknown') {
+        return refuse(typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : 'the daemon refused the withdraw')
+      }
+      this.markWithdrawing(clientMessageId, false)
+      connectorTrace({ ev: 'withdrawn', sid: this.record.sessionId, withdrawn: false, reason: reply.reason })
+      if (reply.reason === 'taken') {
+        this.dressSend(clientMessageId, 'taken')
+        return taken
+      }
+      return nothing
+    } catch (e) {
+      return refuse(`the daemon is not answering — ${e instanceof Error ? e.message : String(e)}`)
+    }
+  }
+
+  private markWithdrawing(clientMessageId: string, on: boolean): void {
+    this.sends = this.sends.map(s => {
+      if (s.clientMessageId !== clientMessageId) return s
+      if (on) return { ...s, withdrawing: true as const }
+      const { withdrawing: _off, ...rest } = s
+      return rest
+    })
+  }
+
+  private settleWaiters = new Map<string, Array<() => void>>()
+  private noteSettled(clientMessageId: string): void {
+    const waiters = this.settleWaiters.get(clientMessageId)
+    if (waiters === undefined) return
+    this.settleWaiters.delete(clientMessageId)
+    for (const w of waiters) w()
+  }
+  private settled(clientMessageId: string): Promise<boolean> {
+    const send = this.sends.find(s => s.clientMessageId === clientMessageId)
+    if (send === undefined || send.state !== 'pending') return Promise.resolve(true)
+    return new Promise<boolean>(resolve => {
+      const timer = setTimeout(() => {
+        const list = this.settleWaiters.get(clientMessageId)
+        if (list !== undefined) this.settleWaiters.set(clientMessageId, list.filter(w => w !== done))
+        resolve(false)
+      }, PENDING_WITHDRAW_WAIT_MS)
+      timer.unref?.()
+      const done = (): void => {
+        clearTimeout(timer)
+        resolve(true)
+      }
+      this.settleWaiters.set(clientMessageId, [...(this.settleWaiters.get(clientMessageId) ?? []), done])
+    })
   }
 
   stopAgent(agentId: string): Promise<AgentControlReceiptV1> {
