@@ -182,6 +182,69 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   check('…and recovers', reader.anthropicUsageReadStatus().failure === undefined)
 }
 
+section("§2b the 429 road: a Retry-After is HONOURED (never the fixed cadence on top), every asker — the operator included — is held inside it so no read re-trips the window, and the words say the wait; a 429 with no header keeps the four-cadence back-off")
+{
+  reader._resetAnthropicUsageReaderForTesting()
+  limits.resetLimitsForCredentialSwitch()
+  const ttl = fresh.usagePollTtlMs()
+  const host = `127.0.0.1:${api.port}`
+  api.usage.mode = 'ok'
+  api.usage.next = undefined
+  api.usage.status = 500
+  api.usage.payload = () => ({ five_hour: { utilization: 50, resets_at: hoursOn(2) }, seven_day: { utilization: 44, resets_at: hoursOn(24) } })
+  api.usage.rateLimit = { limit: 1, windowMs: 30_000, retryAfterS: 30 }
+  NOW += 10 * ttl
+  let s = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  check('the first read is admitted and folds (5h 50%)', s.failure === undefined && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 50, JSON.stringify(s.failure))
+  NOW += ttl
+  s = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  check('the next read trips the limiter: a 429 that carries Retry-After 30 s', s.failure?.kind === 'http' && s.failure.status === 429 && s.failure.retryAfterMs === 30_000, JSON.stringify(s.failure))
+  check('the reader HONOURS the server wait: retry = now + 30 s, NOT the fixed four cadences', s.retryAtMs === NOW + 30_000 && s.retryAtMs !== NOW + 4 * ttl, `retryAt ${s.retryAtMs} vs now ${NOW} (+30s ${NOW + 30_000}, +4ttl ${NOW + 4 * ttl})`)
+  check("the compact note is a wait, not a failure: 'wait 30s · HTTP 429'", reader.anthropicUsageReaderNote(NOW, 'compact') === 'wait 30s · HTTP 429', reader.anthropicUsageReaderNote(NOW, 'compact'))
+  check("the prose note: 'the usage endpoint asked us to wait 30 s (HTTP 429, host) · retry in 30 s'", reader.anthropicUsageReaderNote(NOW) === `the usage endpoint asked us to wait 30 s (HTTP 429, ${host}) · retry in 30 s`, reader.anthropicUsageReaderNote(NOW))
+  const held = api.usageRequests.length
+  s = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
+  check("the operator's own 'r' is HELD inside the server wait — no read re-trips the window", api.usageRequests.length === held && s.failure?.status === 429, `${api.usageRequests.length - held} request(s) fired`)
+  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  await reader.refreshAnthropicUsage({ reason: 'turn', now: clock })
+  check('a poll and a turn inside the wait ask nothing either', api.usageRequests.length === held)
+  NOW += 20_000
+  await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
+  check('…and the operator is still held at 20 s (inside the 30 s the server asked)', api.usageRequests.length === held)
+  api.usage.rateLimit = undefined
+  NOW += 11_000
+  s = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
+  check('past the stated wait the next read lands and recovers (5h 50%)', api.usageRequests.length === held + 1 && s.failure === undefined && Math.round(owner.anthropicWindowViews()[0]?.usedPct ?? -1) === 50, JSON.stringify({ n: api.usageRequests.length - held, failure: s.failure }))
+
+  reader._resetAnthropicUsageReaderForTesting()
+  limits.resetLimitsForCredentialSwitch()
+  NOW += 10 * ttl
+  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  api.usage.mode = 'error'
+  api.usage.status = 429
+  NOW += ttl
+  s = await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  check('a 429 with NO Retry-After is a failed read on the fixed four-cadence back-off', s.failure?.kind === 'http' && s.failure.status === 429 && s.failure.retryAfterMs === undefined && s.retryAtMs === NOW + 4 * ttl, JSON.stringify({ failure: s.failure, retryAt: s.retryAtMs, want: NOW + 4 * ttl }))
+  check("…its words are the failure spelling ('read failed · HTTP 429')", reader.anthropicUsageReaderNote(NOW, 'compact') === 'read failed · HTTP 429', reader.anthropicUsageReaderNote(NOW, 'compact'))
+  const opBefore = reader.anthropicUsageReadStatus().requests
+  s = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
+  check("…and the operator's ask is NOT held by an ordinary back-off (it fires)", s.requests === opBefore + 1, `${s.requests - opBefore} operator request(s)`)
+  check('the Retry-After parser: seconds → ms', reader.retryAfterMsOf('30', NOW) === 30_000 && reader.retryAfterMsOf(45, NOW) === 45_000)
+  check('the Retry-After parser: an HTTP date → ms from now', reader.retryAfterMsOf(new Date(NOW + 90_000).toUTCString(), NOW) !== undefined && Math.abs((reader.retryAfterMsOf(new Date(NOW + 90_000).toUTCString(), NOW) ?? 0) - 90_000) <= 1_000)
+  check('the Retry-After parser: absent/junk/negative → undefined', reader.retryAfterMsOf(undefined, NOW) === undefined && reader.retryAfterMsOf('soon', NOW) === undefined && reader.retryAfterMsOf('-5', NOW) === undefined)
+  api.usage.mode = 'ok'
+  api.usage.status = 500
+  NOW += 4 * ttl + 1_000
+  await reader.refreshAnthropicUsage({ reason: 'poll', now: clock })
+  reader._resetAnthropicUsageReaderForTesting()
+  limits.resetLimitsForCredentialSwitch()
+  api.usage.payload = (n: number) => ({
+    five_hour: { utilization: 26 + 10 * n, resets_at: hoursOn(2) },
+    seven_day: { utilization: 44, resets_at: hoursOn(6 * 24) },
+    seven_day_fable: { utilization: 87, resets_at: hoursOn(22) },
+  })
+}
+
 section('§3 one owner: the door routes through the reader · the freshest observation wins per window · every painter reads the one age composer · the poll driver')
 {
   const before = reader.anthropicUsageReadStatus().requests

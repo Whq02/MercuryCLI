@@ -7,7 +7,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { fetchUtilization, usageEndpointBase } from '../../api/usage.js'
 import { noteUsageRecordChanged, resetLimitsForCredentialSwitch } from '../../claudeAiLimits.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
-import { formatUsageAge, usagePollTtlMs } from '../usageFreshness.js'
+import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'
 
 export type AnthropicUsageReadFailure = {
   kind: 'http' | 'timeout' | 'network' | 'token'
@@ -15,6 +15,7 @@ export type AnthropicUsageReadFailure = {
   host: string
   detail: string
   atMs: number
+  retryAfterMs?: number
 }
 
 export interface AnthropicUsageReadStatus {
@@ -71,10 +72,30 @@ function endpointHost(): string {
   }
 }
 
+export function retryAfterMsOf(value: unknown, now: number): number | undefined {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (typeof raw !== 'string' && typeof raw !== 'number') return undefined
+  const text = String(raw).trim()
+  if (text === '') return undefined
+  const seconds = Number(text)
+  if (Number.isFinite(seconds)) return seconds >= 0 ? Math.round(seconds * 1000) : undefined
+  const at = Date.parse(text)
+  return Number.isFinite(at) ? Math.max(0, at - now) : undefined
+}
+
 function classify(error: unknown, host: string, atMs: number): AnthropicUsageReadFailure {
   if (axios.isAxiosError(error)) {
     if (error.response !== undefined) {
-      return { kind: 'http', status: error.response.status, host, detail: `HTTP ${error.response.status}`, atMs }
+      const headers = error.response.headers as { 'retry-after'?: unknown } | undefined
+      const retryAfterMs = retryAfterMsOf(headers?.['retry-after'], atMs)
+      return {
+        kind: 'http',
+        status: error.response.status,
+        host,
+        detail: `HTTP ${error.response.status}`,
+        atMs,
+        ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+      }
     }
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message)) {
       return { kind: 'timeout', host, detail: `no answer within ${READ_TIMEOUT_S} s`, atMs }
@@ -88,9 +109,14 @@ function sameEpisode(a: AnthropicUsageReadFailure | undefined, b: AnthropicUsage
   return a !== undefined && a.kind === b.kind && a.status === b.status && a.host === b.host
 }
 
+function isServerWait(f: AnthropicUsageReadFailure | undefined): boolean {
+  return f !== undefined && f.kind === 'http' && f.status === 429 && f.retryAfterMs !== undefined
+}
+
 function failedWords(f: AnthropicUsageReadFailure): string {
   switch (f.kind) {
     case 'http':
+      if (isServerWait(f)) return `the usage endpoint asked us to wait ${formatUsageAge(f.retryAfterMs!)} (HTTP 429, ${f.host})`
       return `usage endpoint answered ${f.detail} (${f.host})`
     case 'timeout':
       return `usage endpoint did not answer within ${READ_TIMEOUT_S} s (${f.host})`
@@ -104,6 +130,7 @@ function failedWords(f: AnthropicUsageReadFailure): string {
 function failedWordsCompact(f: AnthropicUsageReadFailure): string {
   switch (f.kind) {
     case 'http':
+      if (isServerWait(f)) return `wait ${formatUsageAgeShort(f.retryAfterMs!)} · HTTP 429`
       return `read failed · ${f.detail}`
     case 'timeout':
       return 'read failed · timeout'
@@ -134,6 +161,7 @@ export interface UsageReaderEpisodeRecord {
   host: string
   detail: string
   failedAtMs: number
+  retryAfterMs?: number
   recoveredAtMs?: number
 }
 
@@ -178,7 +206,12 @@ export function usageReaderRecordWords(configHome?: string): string | undefined 
     const d = new Date(ms)
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
-  const what = record.kind === 'token' ? 'sign-in token expired' : record.detail
+  const what =
+    record.kind === 'token'
+      ? 'sign-in token expired'
+      : record.retryAfterMs !== undefined && record.status === 429
+        ? `the endpoint asked us to wait ${formatUsageAge(record.retryAfterMs)} (HTTP 429)`
+        : record.detail
   const tail = record.recoveredAtMs !== undefined ? `recovered ${clock(record.recoveredAtMs)}` : 'not yet recovered'
   return `last usage read failure: ${what} from ${record.host} at ${clock(record.failedAtMs)} · ${tail}`
 }
@@ -191,10 +224,15 @@ function noteFailure(next: AnthropicUsageReadFailure, now: number): void {
   const fresh = !sameEpisode(failure, next)
   failure = next
   consecutiveFailures += 1
-  retryAtMs = now + FAILURE_BACKOFF_CADENCES * ttl
+  const backoffMs = FAILURE_BACKOFF_CADENCES * ttl
+  const waitMs = next.retryAfterMs !== undefined ? Math.max(next.retryAfterMs, 0) : backoffMs
+  retryAtMs = now + waitMs
   if (!fresh) return
+  const nextTry = formatUsageAge(waitMs)
   logForDebugging(
-    `[usage] the first-party usage endpoint read failed: ${next.detail} from ${next.host} — retrying in ${formatUsageAge(FAILURE_BACKOFF_CADENCES * ttl)}, then every ${formatUsageAge(FAILURE_BACKOFF_CADENCES * ttl)} until it answers`,
+    next.retryAfterMs !== undefined
+      ? `[usage] the first-party usage endpoint asked us to wait: ${next.detail} from ${next.host} — honouring its Retry-After of ${nextTry} before the next read`
+      : `[usage] the first-party usage endpoint read failed: ${next.detail} from ${next.host} — retrying in ${nextTry}, then every ${nextTry} until it answers`,
   )
   currentEpisode = {
     kind: next.kind,
@@ -202,6 +240,7 @@ function noteFailure(next: AnthropicUsageReadFailure, now: number): void {
     host: next.host,
     detail: next.detail,
     failedAtMs: now,
+    ...(next.retryAfterMs !== undefined ? { retryAfterMs: next.retryAfterMs } : {}),
   }
   writeUsageReaderRecord(currentEpisode)
 }
@@ -263,6 +302,9 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
   }
   if (!subscriber) return Promise.resolve(anthropicUsageReadStatus())
   const at = now()
+  if (reason === 'operator') {
+    if (isServerWait(failure) && retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
+  }
   if (reason !== 'operator' && reason !== 'sign-in') {
     if (retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
     const ttl = usagePollTtlMs()
@@ -276,13 +318,28 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
     lastAttemptAtMs = at
     requests += 1
     const host = endpointHost()
+    const request = requests
+    const started = Date.now()
+    const trace = (outcome: string): void => {
+      logForDebugging(`[usage] read #${request} (${reason}) GET ${host}/api/oauth/usage → ${outcome} in ${Date.now() - started} ms`)
+    }
     try {
       const answer = await fetchUtilization()
-      if (issued !== generation) return anthropicUsageReadStatus()
-      if (answer === null) noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
-      else noteAnswer(now())
+      if (issued !== generation) {
+        trace('settled after the account moved (discarded)')
+        return anthropicUsageReadStatus()
+      }
+      if (answer === null) {
+        trace('not asked — the sign-in token is expired')
+        noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
+      } else {
+        trace('ok')
+        noteAnswer(now())
+      }
     } catch (error) {
-      if (issued === generation) noteFailure(classify(error, host, now()), now())
+      const failed = classify(error, host, now())
+      trace(`${failed.detail}${failed.retryAfterMs !== undefined ? ` · retry-after ${Math.round(failed.retryAfterMs / 1000)} s` : ''}`)
+      if (issued === generation) noteFailure(failed, now())
     } finally {
       if (issued === generation) inFlight = null
       noteUsageRecordChanged()

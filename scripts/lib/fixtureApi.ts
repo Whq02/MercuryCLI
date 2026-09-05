@@ -67,6 +67,15 @@ export interface UsageEndpointControl {
   status: number
   payload: (n: number, bearer?: string) => unknown
   next?: (n: number) => void
+  rateLimit?: { limit: number; windowMs: number; retryAfterS?: number }
+}
+
+export interface UsageRequestRecord {
+  at: number
+  mode: UsageEndpointControl['mode']
+  n: number
+  status: number
+  headers: { 'user-agent'?: string; 'content-type'?: string; 'anthropic-beta'?: string; authScheme?: string }
 }
 
 export interface FixtureApi {
@@ -74,7 +83,7 @@ export interface FixtureApi {
   url: string
   requests: CapturedRequest[]
   usage: UsageEndpointControl
-  usageRequests: { at: number; mode: UsageEndpointControl['mode']; n: number }[]
+  usageRequests: UsageRequestRecord[]
   pacedEmits: { turn: number; index: number; text: string; at: number }[]
   toolEmits: { turn: number; name: string; id: string; at: number }[]
   streamEmits: {
@@ -406,6 +415,8 @@ export async function startFixtureApi(
   const requests: CapturedRequest[] = []
   const usage: UsageEndpointControl = { mode: 'ok', status: 500, payload: () => ({}) }
   const usageRequests: FixtureApi['usageRequests'] = []
+  const admittedUsageAt: number[] = []
+  let usageWaitUntil = 0
   const refusals: { request: number; message: string }[] = []
   const messagesServedBySocket = new WeakMap<object, number>()
   let destroyedReplays = 0
@@ -457,20 +468,50 @@ export async function startFixtureApi(
       if ((req.url ?? '').includes('/api/oauth/usage')) {
         const n = usageRequests.length + 1
         usage.next?.(n)
-        usageRequests.push({ at: Date.now(), mode: usage.mode, n })
+        const now = Date.now()
+        const authorization = req.headers.authorization
+        const record: UsageRequestRecord = {
+          at: now,
+          mode: usage.mode,
+          n,
+          status: 200,
+          headers: {
+            ...(typeof headers['user-agent'] === 'string' ? { 'user-agent': headers['user-agent'] } : {}),
+            ...(typeof headers['content-type'] === 'string' ? { 'content-type': headers['content-type'] } : {}),
+            ...(typeof headers['anthropic-beta'] === 'string' ? { 'anthropic-beta': headers['anthropic-beta'] } : {}),
+            ...(typeof authorization === 'string' && authorization !== '' ? { authScheme: authorization.split(' ')[0] ?? '' } : {}),
+          },
+        }
+        usageRequests.push(record)
+        const limiter = usage.rateLimit
+        if (limiter !== undefined) {
+          const inWindow = admittedUsageAt.filter(at => now - at < limiter.windowMs)
+          const refused = now < usageWaitUntil || inWindow.length >= limiter.limit
+          if (refused) {
+            if (limiter.retryAfterS !== undefined) usageWaitUntil = now + limiter.retryAfterS * 1000
+            record.status = 429
+            res.writeHead(429, {
+              'content-type': 'application/json',
+              ...(limiter.retryAfterS !== undefined ? { 'retry-after': String(limiter.retryAfterS) } : {}),
+            })
+            res.end(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'fixture usage endpoint: too many requests' } }))
+            return
+          }
+          admittedUsageAt.push(now)
+        }
         if (usage.mode === 'hang') {
           openResponses.add(res)
           req.socket.on('close', () => openResponses.delete(res))
           return
         }
         if (usage.mode === 'error') {
+          record.status = usage.status
           res.writeHead(usage.status, { 'content-type': 'application/json' })
           res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: `fixture usage endpoint answered ${usage.status}` } }))
           return
         }
-        const bearer = req.headers.authorization
         res.writeHead(200, { 'content-type': 'application/json' })
-        res.end(JSON.stringify(usage.payload(n, typeof bearer === 'string' ? bearer : undefined)))
+        res.end(JSON.stringify(usage.payload(n, typeof authorization === 'string' ? authorization : undefined)))
         return
       }
 
