@@ -56,6 +56,7 @@ import { agentSnapshotState, buildTree, statusTone } from './WorkflowDetailDialo
 import type { AgentNode } from './WorkflowDetailDialog.js'
 import { agentsDoneOf, phaseTone, workflowRollupLine } from './workflowRollup.js'
 import { WORK_UNREPORTED_LINE, workRowRuns, workUnreported } from '../../services/engine-connector/workCounts.js'
+import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js'
 
 const PAST_POLL_MS = 5_000
 const LIVE_MANIFEST_POLL_MS = 1_000
@@ -385,7 +386,7 @@ function RunInfoPane({ row, now }: { row: RunRow; now: number }): React.ReactNod
       ) : null}
       {(f.pendingAsks ?? 0) > 0 ? (
         <Text color={tokens.warning} wrap="truncate-end">
-          {f.pendingAsks} ask{f.pendingAsks === 1 ? '' : 's'} waiting — a answers
+          {CREW_ASK_WAIT_WORDS}{(f.pendingAsks ?? 0) > 1 ? ` (${f.pendingAsks} asks)` : ''} — a answers
         </Text>
       ) : null}
       {row.section === 'past' && row.manifest ? (
