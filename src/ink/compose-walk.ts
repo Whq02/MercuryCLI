@@ -880,6 +880,7 @@ function composeScrollBox(
     const regionBottom = regionTop + innerHeight - 1
     signals.scrollTranslation = { delta, viewportTop: regionTop, viewportBottom: regionBottom }
     if (delta > 0) fluxMark('scroll:follow', innerHeight)
+    fluxMark('scroll:xlate', regionTop * 1000 + delta + 500)
     if (rowSampler === undefined) {
       const spansFullWidth = Math.floor(x) <= 0 && Math.ceil(x + width) >= buffer.width
       const stableForShift =
