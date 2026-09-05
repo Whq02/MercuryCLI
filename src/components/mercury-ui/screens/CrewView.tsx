@@ -18,6 +18,7 @@ import {
   crewTokensLabel,
   type CrewAgentFacts,
 } from '../../../services/engine-connector/crewFacts.js'
+import { WORK_UNREPORTED_LINE, workUnreported } from '../../../services/engine-connector/workCounts.js'
 import {
   getFocusedSessionConnector,
   hasFocusedSession,
@@ -233,7 +234,7 @@ export function CrewView({
         </SectionHeader>
         {agents.length === 0 ? (
           <Text color={tokens.textMuted}>
-            · {CREW_EMPTY_LINE} — {CREW_EMPTY_DOOR}
+            {workUnreported(roster) ? `· ${WORK_UNREPORTED_LINE}` : `· ${CREW_EMPTY_LINE} — ${CREW_EMPTY_DOOR}`}
           </Text>
         ) : null}
         {win.above > 0 ? <Text color={tokens.textMuted}>  ↑ {win.above} earlier</Text> : null}
