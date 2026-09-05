@@ -40,7 +40,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Effort has a sixth level, ultra, above max, wherever the connected account serves it; a level the wire refuses is remembered, the nearest served level runs, and the transcript says so
 - Idle agents no longer hold a seat, the machine's seat reading counts available memory (near ten on an 8 GB Mac), and /seats, the Boot Menu or /config set the ceiling
 - A resumed or restarted session keeps its reasoning: the preserved-thinking notice no longer appears after a resume, even when a tool, a project file or the working tree changed meanwhile
-- mercury update reads the public release channel anonymously, so no GitHub CLI or sign-in is needed; a signed-in gh only speeds it up, and every answer says which road it took
+- mercury update reads the public release channel anonymously, so no GitHub CLI or sign-in is needed; gh is asked only when that road is refused, and every answer says which road it took
 - A dialog command typed while another still settles queues and runs after it; a finished turn with one refused tool paints no failure card; an older daemon's refusal reads as one doctor sentence
 - Consent cards fit the screen: a long edit, file or command is cut with a "+N more lines" line and ctrl+f shows the whole thing, so the Yes/No answers never leave the pane
 - Sovereign mode asks nothing: edits to sensitive files, ask rules and a server's ask ceiling run without a card, and the transcript says what would have asked and why
@@ -61,14 +61,14 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - After a switch back to a model you used earlier, Mercury notes the dropped older reasoning once, instead of repeating it every turn with a growing count
 - After a model switch or a context trim, Mercury shows one quiet grey line the first time it drops old reasoning, never a repeating warning on every message
 - A failed background compaction no longer makes Mercury falsely warn that it rewrote your history
-- Compacting on Claude no longer re-pays the conversation's cache: the summary rides the session's prompt, tools and effort word; on the OpenAI road it shares the key and runs at low
+- Compacting on Claude reads the whole conversation from cache (measured): the summary rides the session's prompt, tools and effort word
 - A refused key or token names the setting to fix, so an env bearer no longer reads "Not logged in"; an update whose signature does not verify is refused before it is staged and said at every boot
 - Under sovereign mode a whole-tool ask rule stands down like the other ask roads and the transcript names the rule; a turn typed into a running one reads busy on the strip, so esc can interrupt it
 - Unity test results land inside the project again, where the editor can write them; a bridged test run is no longer refused
 - The Anthropic usage panel no longer gets stuck on "Failed to load … HTTP 429": Mercury honours the server's retry wait, stops retrying into it, and says how long to wait
 - The Crew view's seat wait keeps its gate in the status cell and names the holders on the row's tail; a resumed session's first turn no longer paints a days-old clock
 - /rename works again (it was refused in every session) and, in a hosted chat, renames the session record the title row and board read; a repetition-stopped agent reads failed, with the reason
-- The doctor's launch-spine row judges the last interactive boot's four rungs in their true order; mercury update reads the public home anonymously and asks gh only when refused
+- The doctor's launch-spine row judges the last interactive boot's four rungs in their true order, and a headless run is never judged as a broken boot
 - The branch chip is spelled by one owner on every screen, so the glyph never overdraws the branch name; esc during /compact lands as a plain "cancelled" row, never an error
 - The /bug redactor masks every provider's bare key shape (sk-proj-, sk-or-v1-, hf_, AIza…) and GitHub tokens, not only sk-ant keys
 - An Agent launch accepts a served model id (claude-fable-5-1) wherever its alias is taken; a workflow's notices name the run by its name
