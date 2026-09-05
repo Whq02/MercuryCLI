@@ -200,7 +200,7 @@ for (const family of [
   )
 }
 
-section('§2 the home family — output_config.effort is the mechanical word, never the session tier')
+section("§2 the home family — output_config.effort is the SESSION's word (the messages cache keys on it), never the mechanical pin")
 {
   console.log('\n  · anthropic — session effort xhigh, model claude-opus-4-8')
   const run = await runFold('claude-opus-4-8')
@@ -208,8 +208,8 @@ section('§2 the home family — output_config.effort is the mechanical word, ne
   check(`anthropic: the wire saw the fold (count ${run.hits.length} ≥ 1)`, run.hits.length >= 1)
   const words = run.hits.flatMap(h => effortWordsOf(h.body))
   check(
-    'anthropic: no fold hit carries a session effort tier (mechanical low or absent)',
-    words.every(w => !SESSION_TIERS.has(w.toLowerCase())),
+    "anthropic: every fold hit carries the session's effort tier (a pinned 'low' re-wrote the messages cache on every fold)",
+    words.length >= 1 && words.every(w => SESSION_TIERS.has(w.toLowerCase())),
     `effort words on the wire: ${j(words)}`,
   )
 }

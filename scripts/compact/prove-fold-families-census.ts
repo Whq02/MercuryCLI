@@ -206,6 +206,25 @@ for (const leg of SHARED_LEGS) {
 
 check('the census fixture saw no stray lane', census.captured.every(h => h.lane !== 'other'), j(census.captured.filter(h => h.lane === 'other').map(h => h.path)))
 
+section('§3 the roster latch — every lane plans its tools under the one owner key')
+{
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const ROOT = join(import.meta.dir, '..', '..')
+  const LANES = [
+    'src/services/providers/anthropic/streamCore.ts',
+    'src/services/providers/openai/openaiCallModel.ts',
+    'src/services/providers/zai/zaiCallModel.ts',
+    'src/services/providers/openaicompat/compatChatCallModel.ts',
+  ]
+  const LATCH = /planToolPayload\(\{[\s\S]{0,900}?latchKey: (?:rosterOwnerKey|options\.ownerKey \?\? String\(processOwnerForLane\(options\.agentId \?\? null\)\))/
+  for (const lane of LANES) {
+    const text = readFileSync(join(ROOT, lane), 'utf8')
+    const plans = text.split('planToolPayload({').length - 1
+    check(`${lane.split('/').slice(-1)[0]}: its tool plan carries the owner's latch key`, plans >= 1 && LATCH.test(text), `${plans} plan(s)`)
+  }
+}
+
 await census.close()
 await shared.close()
 clearTimeout(guard)

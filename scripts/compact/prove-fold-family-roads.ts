@@ -140,11 +140,18 @@ function makeContext(model: string, opts?: { thinking?: { type: string } }): Ctx
 
 type Run = { result?: Record<string, unknown>; error?: Error; readFileState: { size: number }; ms: number }
 
-async function runFold(model: string, road: 'direct' | 'fork', messages: unknown[] = makeMessages(), opts?: { thinking?: { type: string } }): Promise<Run> {
+async function runFold(model: string, road: 'direct' | 'fork', messages: unknown[] = makeMessages(), opts?: { thinking?: { type: string } }, parts?: { systemPrompt: unknown; systemContext: Record<string, string> }): Promise<Run> {
   const { ctx, readFileState } = makeContext(model, opts)
+  if (parts !== undefined) {
+    const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+    const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+    ;(ctx.options as Record<string, unknown>).tools = [FileReadTool, ToolSearchTool]
+  }
   const cacheSafe =
     road === 'direct'
-      ? { systemPrompt: asSystemPrompt([`You are a ${POSTURE_MARK}.`]) }
+      ? parts !== undefined
+        ? { systemPrompt: parts.systemPrompt, systemContext: parts.systemContext }
+        : { systemPrompt: asSystemPrompt([`You are a ${POSTURE_MARK}.`]) }
       : { systemPrompt: asSystemPrompt([`You are a ${POSTURE_MARK}.`]), userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages }
   const startedAt = Date.now()
   let result: Record<string, unknown> | undefined
@@ -248,7 +255,7 @@ section('§1 the route verdict per family, pure — fork or direct, and the fami
 
 section('§2 the request shape per family — the mechanical profile in each family\'s own spelling, no other family\'s field')
 type Expect = {
-  effort: 'low' | 'absent'
+  effort: 'low' | 'absent' | 'session'
   thinking: 'off' | 'disabled-object'
   cap: 'max_tokens' | 'max_completion_tokens' | 'none'
   cacheControl: boolean
@@ -261,8 +268,8 @@ type Expect = {
 type Leg = { family: string; model: string; fixture: 'shared' | 'census'; lane: string; road: 'direct' | 'fork'; expect: Expect }
 const OFF = { cacheControl: false, outputConfig: false, reasoningObject: false, reasoningEffortKey: false, storeInclude: false }
 const LEGS: Leg[] = [
-  { family: 'anthropic', model: 'claude-opus-4-8', fixture: 'shared', lane: 'anthropic-seat', road: 'direct', expect: { effort: 'low', thinking: 'off', cap: 'max_tokens', cacheControl: true, outputConfig: true, reasoningObject: false, reasoningEffortKey: false, storeInclude: false, streamOptions: null } },
-  { family: 'anthropic', model: 'claude-opus-4-8', fixture: 'shared', lane: 'anthropic-seat', road: 'fork', expect: { effort: 'low', thinking: 'off', cap: 'max_tokens', cacheControl: true, outputConfig: true, reasoningObject: false, reasoningEffortKey: false, storeInclude: false, streamOptions: null } },
+  { family: 'anthropic', model: 'claude-opus-4-8', fixture: 'shared', lane: 'anthropic-seat', road: 'direct', expect: { effort: 'session', thinking: 'off', cap: 'max_tokens', cacheControl: true, outputConfig: true, reasoningObject: false, reasoningEffortKey: false, storeInclude: false, streamOptions: null } },
+  { family: 'anthropic', model: 'claude-opus-4-8', fixture: 'shared', lane: 'anthropic-seat', road: 'fork', expect: { effort: 'session', thinking: 'off', cap: 'max_tokens', cacheControl: true, outputConfig: true, reasoningObject: false, reasoningEffortKey: false, storeInclude: false, streamOptions: null } },
   { family: 'openai', model: 'gpt-5.5', fixture: 'shared', lane: 'openai-seat', road: 'direct', expect: { ...OFF, effort: 'low', thinking: 'off', cap: 'none', reasoningObject: true, storeInclude: true, streamOptions: null } },
   { family: 'zai', model: 'glm-5.2', fixture: 'shared', lane: 'zai-seat', road: 'direct', expect: { ...OFF, effort: 'low', thinking: 'disabled-object', cap: 'max_tokens', reasoningEffortKey: true, streamOptions: null } },
   { family: 'openrouter', model: 'openrouter/nvidia/nemotron-nano-9b-v2:free', fixture: 'shared', lane: 'openrouter-seat', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
@@ -289,7 +296,11 @@ for (const leg of LEGS) {
   shapes.push({ family: leg.family, road: leg.road, shape })
   const e = leg.expect
   check(`${leg.family}/${leg.road}: the session's own posture rides the wire`, shape.posture)
-  check(`${leg.family}/${leg.road}: effort ${e.effort === 'low' ? "is the mechanical word 'low' in the family's spelling" : 'has no dial (this row states no reasoning vocabulary; §2b seeds one)'} — never the session tier`, e.effort === 'low' ? shape.effort.length >= 1 && shape.effort.every(w => w === 'low') : shape.effort.length === 0, j(shape.effort))
+  if (e.effort === 'session') {
+    check(`${leg.family}/${leg.road}: effort is the SESSION's own word (the messages cache keys on it) — never the mechanical 'low'`, shape.effort.length >= 1 && shape.effort.every(w => w !== 'low' && SESSION_TIERS.has(w)), j(shape.effort))
+  } else {
+    check(`${leg.family}/${leg.road}: effort ${e.effort === 'low' ? "is the mechanical word 'low' in the family's spelling" : 'has no dial (this row states no reasoning vocabulary; §2b seeds one)'} — never the session tier`, e.effort === 'low' ? shape.effort.length >= 1 && shape.effort.every(w => w === 'low') : shape.effort.length === 0, j(shape.effort))
+  }
   const thinking = shape.thinking as { type?: string } | undefined
   check(
     `${leg.family}/${leg.road}: thinking ${e.thinking === 'off' ? 'is off the wire (absent or disabled)' : "rides as the family's own disabled object"}`,
@@ -313,6 +324,93 @@ for (const leg of LEGS) {
   if (e.streamOptions !== null) check(`${leg.family}/${leg.road}: stream_options.include_usage rides the chat wire`, shape.streamOptions === e.streamOptions)
   check(`${leg.family}/${leg.road}: no server-side context edits ride (context_management)`, !shape.contextManagement)
 }
+section("§2c the home wire that serves per-message effort: the session's word top-level, the mechanical pin as a row, the beta with it")
+{
+  const { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } = await import('../../src/constants/betas.ts')
+  for (const road of ['fork', 'direct'] as const) {
+    const before = shared.captured.length
+    const run = await runFold('claude-opus-5', road)
+    const hits = shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat')
+    check(`opus-5/${road}: the fold resolved and reached the home wire`, run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+    const body = (hits[hits.length - 1]?.body ?? {}) as { messages?: Array<{ role?: string; content?: unknown; output_config?: { effort?: string } }>; output_config?: { effort?: string } }
+    const rows = body.messages ?? []
+    const effortRows = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.role === 'system')
+    check(`opus-5/${road}: the top-level effort is the SESSION's word (never the pin)`, typeof body.output_config?.effort === 'string' && body.output_config.effort !== 'low' && SESSION_TIERS.has(body.output_config.effort), j(body.output_config))
+    check(`opus-5/${road}: exactly one per-message effort row rides — no content, the mechanical 'low'`, effortRows.length === 1 && Array.isArray(effortRows[0]!.r.content) && effortRows[0]!.r.content.length === 0 && effortRows[0]!.r.output_config?.effort === 'low', j(effortRows))
+    const lastUser = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.role === 'user').pop()
+    check(`opus-5/${road}: the row sits right before the last user row (the summariser prompt)`, lastUser !== undefined && effortRows[0]?.i === lastUser.i - 1, `row ${effortRows[0]?.i} last user ${lastUser?.i}`)
+    const betas = String((hits[hits.length - 1] as { headers?: Record<string, string> })?.headers?.['anthropic-beta'] ?? (hits[hits.length - 1] as { betas?: string })?.betas ?? '')
+    console.log(`  [record] opus-5/${road}: the beta header as the wire saw it: ${betas || '(the fixture records no headers)'}`)
+    if (betas !== '') check(`opus-5/${road}: the per-message effort beta rides the header`, betas.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER))
+  }
+  const before = shared.captured.length
+  await runFold('claude-opus-4-8', 'direct')
+  const plain = (shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat').pop()?.body ?? {}) as { messages?: Array<{ role?: string }> }
+  check('opus-4-8/direct: no per-message row where the wire does not serve it', !(plain.messages ?? []).some(r => r.role === 'system'))
+}
+
+section("§8 the OpenAI road: the fold's request IS the session's last request plus the summariser prompt")
+{
+  const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+  const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
+  const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
+  const { appendSystemContext } = await import('../../src/utils/api.ts')
+  const model = 'gpt-5.5'
+  const pool = [FileReadTool, ToolSearchTool]
+  const { ctx } = makeContext(model)
+  ;(ctx.options as Record<string, unknown>).tools = pool
+  const posture = asSystemPrompt([`You are a ${POSTURE_MARK}.`])
+  const systemContext = { gitStatus: 'clean' }
+  const messages = makeMessages()
+  const before = shared.captured.length
+  const sessionStream = routedCallModel({
+    messages: messages as never,
+    systemPrompt: asSystemPrompt(appendSystemContext([...posture], systemContext)),
+    thinkingConfig: { type: 'disabled' },
+    tools: pool as never,
+    signal: new AbortController().signal,
+    options: {
+      getToolPermissionContext: () => Promise.resolve((ctx.getAppState as () => { toolPermissionContext: unknown })().toolPermissionContext as never),
+      model,
+      isNonInteractiveSession: true,
+      hasAppendSystemPrompt: false,
+      querySource: 'repl_main_thread' as never,
+      agents: [],
+      mcpTools: [],
+      effortValue: 'xhigh' as never,
+    } as never,
+  })
+  for await (const _event of sessionStream) {
+  }
+  const sessionHits = shared.captured.slice(before).filter(h => h.lane === 'openai-seat')
+  check('§8: the session request reached the OpenAI wire', sessionHits.length === 1, `${sessionHits.length}`)
+  const foldFrom = shared.captured.length
+  const run = await runFold(model, 'direct', messages, undefined, { systemPrompt: posture, systemContext })
+  const foldHits = shared.captured.slice(foldFrom).filter(h => h.lane === 'openai-seat')
+  check('§8: the fold resolved and reached the same wire', run.error === undefined && foldHits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+  const sessionBody = (sessionHits[0]?.body ?? {}) as { instructions?: string; tools?: unknown[]; prompt_cache_key?: string; input?: unknown[] }
+  const foldBody = (foldHits[foldHits.length - 1]?.body ?? {}) as { instructions?: string; tools?: unknown[]; prompt_cache_key?: string; input?: unknown[] }
+  check("§8: the fold's instructions are the session's byte-for-byte (the posture WITH its context tail)", typeof foldBody.instructions === 'string' && foldBody.instructions === sessionBody.instructions && foldBody.instructions.includes('gitStatus: clean'), `fold ${foldBody.instructions?.length} chars vs session ${sessionBody.instructions?.length}`)
+  console.log(`  [record] §8 session tools: ${j(sessionBody.tools).slice(0, 400)}`)
+  console.log(`  [record] §8 fold tools:    ${j(foldBody.tools).slice(0, 400)}`)
+  console.log(`  [record] §8 session items: ${j((sessionBody.input ?? []).map(it => ({ ...(it as Record<string, unknown>), content: j((it as { content?: unknown }).content).slice(0, 120) }))).slice(0, 1200)}`)
+  console.log(`  [record] §8 fold items:    ${j((foldBody.input ?? []).map(it => ({ ...(it as Record<string, unknown>), content: j((it as { content?: unknown }).content).slice(0, 120) }))).slice(0, 1200)}`)
+  check("§8: the fold's tools are the session's pool, byte-for-byte", j(foldBody.tools) === j(sessionBody.tools) && (foldBody.tools?.length ?? 0) >= 1, `fold ${foldBody.tools?.length} vs session ${sessionBody.tools?.length}`)
+  check("§8: the fold's prompt_cache_key equals the session's — the prefix hits by construction", typeof foldBody.prompt_cache_key === 'string' && foldBody.prompt_cache_key === sessionBody.prompt_cache_key, `${foldBody.prompt_cache_key} vs ${sessionBody.prompt_cache_key}`)
+  const sessionItems = sessionBody.input ?? []
+  const foldItems = foldBody.input ?? []
+  const textOf = (item: unknown): string => {
+    const content = (item as { content?: unknown }).content
+    if (typeof content === 'string') return content
+    return Array.isArray(content) ? content.map(b => String((b as { text?: string }).text ?? '')).join('\n') : ''
+  }
+  const sameHead = j(foldItems.slice(0, sessionItems.length - 1)) === j(sessionItems.slice(0, -1))
+  const lastSession = sessionItems[sessionItems.length - 1]
+  const lastFold = foldItems[sessionItems.length - 1]
+  const lastCarries = lastSession !== undefined && lastFold !== undefined && textOf(lastFold).startsWith(textOf(lastSession)) && textOf(lastFold).length > textOf(lastSession).length
+  check("§8: the fold's input is the session's items with the summariser prompt appended (merged into the last user item, the head byte-identical)", foldItems.length === sessionItems.length && sameHead && lastCarries, `fold ${foldItems.length} items vs session ${sessionItems.length}; head ${sameHead}; last ${lastCarries}`)
+}
+
 console.log('\n  the census as the wire saw it:')
 for (const row of shapes) {
   const s = row.shape

@@ -145,6 +145,16 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   )
 }
 
+export function servesPerMessageEffort(model: string): boolean {
+  if (declaredRouteOf(model) !== 'anthropic') return false
+  const canonical = getCanonicalName(model)
+  return (
+    canonical.includes('claude-fable-5-1') ||
+    canonical.includes('claude-mythos-5-1') ||
+    canonical.includes('claude-opus-5')
+  )
+}
+
 export function modelSupportsAutoMode(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return true
   {
