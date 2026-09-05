@@ -282,21 +282,28 @@ section('§4 the compat wires, thinking on: every builder\'s dial ≡ the owner\
   check('a local model with no thinking capability: no dial sent, none offered', llamaExtras.reasoning_effort === undefined && !caps.modelSupportsEffort('local/llama3.2:latest'))
 }
 
-section('§5 thinking off: the dial-is-the-reasoning-dial lanes send nothing and the owner says so; the independent knobs are sent')
+section('§5 thinking off: DeepSeek sends nothing (its thinking object spells off), Gemini and OpenRouter send their thinking-off word, and the owner says so; the independent knobs are sent')
 {
   thinking.noteSessionThinkingConfig({ type: 'disabled' })
   const off = (wireModel: string, request: Level, model = wireModel) => ({ wireModel, effortValue: effort.resolveWireRequestedEffort(model, request), thinkingEnabled: false, maxOutputTokensOverride: undefined })
-  const gated: Array<[string, string | undefined]> = [
-    ['deepseek-v4-flash', ((wire.buildDeepseekExtras(off('deepseek-v4-flash', 'high')) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort],
-    ['gemini-fixture-pro', (wire.buildGeminiExtras({ ...off('gemini-fixture-pro', 'high'), acceptsEffort: true }) as { reasoning_effort?: string }).reasoning_effort],
-    ['openrouter/google/gemini-fixture-pro', ((wire.buildOpenrouterExtras({ ...off('google/gemini-fixture-pro', 'high', 'openrouter/google/gemini-fixture-pro'), vocabulary: openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro') }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort],
+  const orVocabulary = openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro')
+  const gated: Array<{ model: string; sent: string | undefined; floor: string | undefined }> = [
+    { model: 'deepseek-v4-flash', sent: ((wire.buildDeepseekExtras(off('deepseek-v4-flash', 'high')) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort, floor: undefined },
+    { model: 'gemini-fixture-pro', sent: (wire.buildGeminiExtras({ ...off('gemini-fixture-pro', 'high'), acceptsEffort: true }) as { reasoning_effort?: string }).reasoning_effort, floor: 'low' },
+    { model: 'openrouter/google/gemini-fixture-pro', sent: ((wire.buildOpenrouterExtras({ ...off('google/gemini-fixture-pro', 'high', 'openrouter/google/gemini-fixture-pro'), vocabulary: orVocabulary }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort, floor: wire.thinkingOffWireEffort(orVocabulary) },
   ]
-  for (const [model, sent] of gated) {
+  for (const { model, sent, floor } of gated) {
     const truth = effort.resolveEffortTruth(model, 'high')
-    check(`${model}: the builder sends no dial while thinking is off`, sent === undefined, `sent ${String(sent)}`)
-    check(`${model}: the owner says so — wire undefined, suppressedBy thinking-off, label 'default', the request kept as intent`, truth.wire === undefined && truth.suppressedBy === 'thinking-off' && truth.label === DEFAULT_LABEL && truth.requested === 'high' && truth.adjustedFrom === undefined, JSON.stringify(truth))
+    if (floor === undefined) {
+      check(`${model}: the builder sends no dial while thinking is off (its thinking object spells off)`, sent === undefined, `sent ${String(sent)}`)
+      check(`${model}: the owner says so — wire undefined, suppressedBy thinking-off, label 'default', the request kept as intent`, truth.wire === undefined && truth.suppressedBy === 'thinking-off' && truth.flooredBy === undefined && truth.label === DEFAULT_LABEL && truth.requested === 'high' && truth.adjustedFrom === undefined, JSON.stringify(truth))
+    } else {
+      check(`${model}: the builder sends the family's thinking-off word (${floor}) while thinking is off — never silence`, sent === floor && sent !== undefined, `sent ${String(sent)}`)
+      check(`${model}: the owner says so — wire ${floor}, flooredBy thinking-off, the label names it, the request kept as intent`, truth.wire === floor && truth.flooredBy === 'thinking-off' && truth.suppressedBy === undefined && truth.label === floor && truth.requested === 'high' && truth.adjustedFrom === undefined, JSON.stringify(truth))
+    }
     check(`${model}: the stops stay offered (the dial exists; thinking is what is off)`, truth.supportsEffort && truth.selectable.length > 0)
   }
+  check("the floor is the row's own: 'none' where a row lists it, the lowest rung otherwise", wire.thinkingOffWireEffort(wire.OPENROUTER_REASONING_EFFORTS) === 'none' && wire.thinkingOffWireEffort(['low', 'medium', 'high', 'xhigh']) === 'low' && wire.thinkingOffWireEffort(['high', 'max']) === 'high' && wire.thinkingOffWireEffort([]) === undefined)
   const qwen = localCatalogue.localRecordFor('local/qwen3:8b')!
   const independent: Array<[string, string | undefined]> = [
     ['kimi-k3', (wire.buildMoonshotExtras(off('kimi-k3', 'high')) as { reasoning_effort?: string }).reasoning_effort],
