@@ -22,6 +22,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'todo_reminder',
   'context_efficiency',
   'deferred_tools_delta',
+  'agent_roster',
   'mcp_instructions_delta',
   'harness_map_delta',
   'lane_boundary',
