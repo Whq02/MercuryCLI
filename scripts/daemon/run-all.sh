@@ -16,6 +16,7 @@ __t=$SECONDS; "$bun" run "$here/prove-daemon-verbs.ts" || fail=1; prover_mark "$
 __t=$SECONDS; "$bun" run "$here/prove-daemon-signin-live.ts" || fail=1; prover_mark "$here/prove-daemon-signin-live.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-dispatch-death-settles.ts" || fail=1; prover_mark "$here/prove-dispatch-death-settles.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-daemon-env-scrub.ts" || fail=1; prover_mark "$here/prove-daemon-env-scrub.ts" "$__t"
+__t=$SECONDS; "$bun" run "$here/prove-drained-turn-edge.ts" || fail=1; prover_mark "$here/prove-drained-turn-edge.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-reconfigure-respawn.ts" || fail=1; prover_mark "$here/prove-reconfigure-respawn.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-headless-permission-mode.ts" || fail=1; prover_mark "$here/prove-headless-permission-mode.ts" "$__t"
 __t=$SECONDS; "$bun" run "$here/prove-daemon-dir-seam.ts" || fail=1; prover_mark "$here/prove-daemon-dir-seam.ts" "$__t"
