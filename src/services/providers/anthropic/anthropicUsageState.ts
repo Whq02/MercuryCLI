@@ -109,14 +109,19 @@ function sameEpisode(a: AnthropicUsageReadFailure | undefined, b: AnthropicUsage
   return a !== undefined && a.kind === b.kind && a.status === b.status && a.host === b.host
 }
 
-function isServerWait(f: AnthropicUsageReadFailure | undefined): boolean {
-  return f !== undefined && f.kind === 'http' && f.status === 429 && f.retryAfterMs !== undefined
+export function isServerWait(f: { kind?: string; status?: number; retryAfterMs?: number } | undefined): boolean {
+  return f !== undefined && (f.kind === undefined || f.kind === 'http') && f.status === 429 && f.retryAfterMs !== undefined
 }
+
+export const SERVER_WAIT_CEILING_MS = 15 * 60_000
 
 function failedWords(f: AnthropicUsageReadFailure): string {
   switch (f.kind) {
     case 'http':
-      if (isServerWait(f)) return `the usage endpoint asked us to wait ${formatUsageAge(f.retryAfterMs!)} (HTTP 429, ${f.host})`
+      if (isServerWait(f)) {
+        const past = f.retryAfterMs! > SERVER_WAIT_CEILING_MS ? ` — past Mercury's ${Math.round(SERVER_WAIT_CEILING_MS / 60_000)}-minute hold, r asks again` : ''
+        return `the usage endpoint asked us to wait ${formatUsageAge(f.retryAfterMs!)} (HTTP 429, ${f.host})${past}`
+      }
       return `usage endpoint answered ${f.detail} (${f.host})`
     case 'timeout':
       return `usage endpoint did not answer within ${READ_TIMEOUT_S} s (${f.host})`
@@ -209,8 +214,8 @@ export function usageReaderRecordWords(configHome?: string): string | undefined 
   const what =
     record.kind === 'token'
       ? 'sign-in token expired'
-      : record.retryAfterMs !== undefined && record.status === 429
-        ? `the endpoint asked us to wait ${formatUsageAge(record.retryAfterMs)} (HTTP 429)`
+      : isServerWait(record)
+        ? `the endpoint asked us to wait ${formatUsageAge(record.retryAfterMs!)} (HTTP 429)`
         : record.detail
   const tail = record.recoveredAtMs !== undefined ? `recovered ${clock(record.recoveredAtMs)}` : 'not yet recovered'
   return `last usage read failure: ${what} from ${record.host} at ${clock(record.failedAtMs)} · ${tail}`
@@ -219,9 +224,12 @@ export function usageReaderRecordWords(configHome?: string): string | undefined 
 
 let currentEpisode: UsageReaderEpisodeRecord | undefined
 
+let operatorAdmitted = false
+
 function noteFailure(next: AnthropicUsageReadFailure, now: number): void {
   const ttl = usagePollTtlMs()
   const fresh = !sameEpisode(failure, next)
+  if (fresh) operatorAdmitted = false
   failure = next
   consecutiveFailures += 1
   const backoffMs = FAILURE_BACKOFF_CADENCES * ttl
@@ -303,7 +311,11 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
   if (!subscriber) return Promise.resolve(anthropicUsageReadStatus())
   const at = now()
   if (reason === 'operator') {
-    if (isServerWait(failure) && retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
+    if (isServerWait(failure) && retryAtMs !== undefined && at < retryAtMs) {
+      const heldFor = at - failure!.atMs
+      if (heldFor < SERVER_WAIT_CEILING_MS || operatorAdmitted) return Promise.resolve(anthropicUsageReadStatus())
+      operatorAdmitted = true
+    }
   }
   if (reason !== 'operator' && reason !== 'sign-in') {
     if (retryAtMs !== undefined && at < retryAtMs) return Promise.resolve(anthropicUsageReadStatus())
