@@ -388,7 +388,7 @@ for (const [cols, rows] of [
       ...enterNewChat,
       { afterPrevTicks: 2, data: 'stream a long reply please' },
       { afterPrevTicks: 4, data: '\r' },
-      g('· replying', '/concourse\r', { awaitSettleTicks: 8, mark: 'mid-turn-chat' }),
+      g('esc interrupts', '/concourse\r', { awaitSettleTicks: 8, mark: 'mid-turn-chat' }),
       g('WORKING', '\t', { awaitSettleTicks: 4, mark: 'board' }),
       { afterPrevTicks: 3, data: '\r' },
       { afterPrevTicks: 3, data: '\r' },
@@ -404,13 +404,13 @@ for (const [cols, rows] of [
       const midTurn = markText('mid-turn-chat')
       const board = markText('board')
       const back = markText('back')
-      check(`u5 ${cols}x${rows}: mid-turn the status row says the session is replying`, midTurn.includes('· replying'))
+      check(`u5 ${cols}x${rows}: mid-turn the status row shows the turn in flight (the esc rung hint)`, midTurn.includes('esc interrupts'))
       const partialOnScreen = /streaming-word-0[1-9]/.test(midTurn)
       console.log(`  [PAINT] u5 ${cols}x${rows}: partial reply text visible mid-turn: ${partialOnScreen ? 'YES' : 'NO (the reply lands whole when the runner settles it)'}`)
       check(`u5 ${cols}x${rows}: the reply streams on screen mid-turn (the live tail paints partial words)`, partialOnScreen)
       check(`u5 ${cols}x${rows}: the board shows the boot session as an ordinary WORKING row`, board.includes('WORKING'), board === '' ? 'no mark' : '')
       check(`u5 ${cols}x${rows}: hopping back lands in the same session mid-turn (status row + ⇧← back)`, back.includes('⇧← back') && back.includes('stream a long reply please'))
-      const backMidTurn = back.includes('· replying')
+      const backMidTurn = back.includes('esc interrupts')
       console.log(`  [PAINT] u5 ${cols}x${rows}: the hopped-into chat caught the reply ${backMidTurn ? 'MID-TURN (partial words + the live status row)' : 'SETTLED (the hop landed after the settle)'}`)
       check(`u5 ${cols}x${rows}: the hopped-into chat paints the reply's words (the reveal rides the hop)`, /streaming-word-\d\d/.test(back))
       check(`u5 ${cols}x${rows}: the reply settled whole in the chat after the hop`, r.text.includes('streaming-word-24') && r.text.includes('streaming-word-01'))
@@ -547,7 +547,7 @@ drives.push({
     ...enterNewChat,
     { afterPrevTicks: 2, data: 'stay alive for a while' },
     { afterPrevTicks: 4, data: '\r' },
-    g('· replying', '', { awaitSettleTicks: 4, mark: 'before-close', signal: 'SIGHUP' }),
+    g('esc interrupts', '', { awaitSettleTicks: 4, mark: 'before-close', signal: 'SIGHUP' }),
   ],
   total: 120,
   turns: [{ kind: 'paced', whenModel: 'sonnet', deltas: STREAM_WORDS, gapMs: Math.round(400 * PACE), settleDelayMs: Math.round(800 * PACE) }, { kind: 'text', text: 'Spare.' }],
