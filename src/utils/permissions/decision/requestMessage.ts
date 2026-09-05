@@ -67,6 +67,8 @@ export function createPermissionRequestMessage(
       }
       case 'asyncAgent':
         return decisionReason.reason
+      case 'bypassedAsk':
+        return createPermissionRequestMessage(toolName, decisionReason.reason)
     }
   }
 

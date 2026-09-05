@@ -86,6 +86,13 @@ function ReasonView({
       return <Text>{reason.reason}</Text>
     case 'asyncAgent':
       return <Text>{reason.reason}</Text>
+    case 'bypassedAsk':
+      return (
+        <Text>
+          {permissionModeTitle(reason.mode)} allowed it; {reason.road} would have asked:{' '}
+          <ReasonView reason={reason.reason} nested={nested} />
+        </Text>
+      )
     case 'permissionPromptTool':
       return (
         <Text>
