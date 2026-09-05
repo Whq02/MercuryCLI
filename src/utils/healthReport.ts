@@ -1542,16 +1542,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'launch-spine',
           label: 'Boot milestones',
           run: async () => {
-            const { lastBootReachedInputLive, readLaunchMilestones } = await import(
+            const { lastBootReachedInputLive, lastInteractiveBootSpine } = await import(
               '../substrate/launchMilestones.js'
             )
             const reached = lastBootReachedInputLive()
-            if (reached === null) return { status: 'off', evidence: 'no milestones recorded yet' }
-            const rows = readLaunchMilestones()
-            const lastPid = rows[rows.length - 1]?.pid
-            const lastRungs = rows.filter(r => r.pid === lastPid).map(r => r.milestone)
-            const spine = lastRungs.join(' → ')
+            if (reached === null) return { status: 'off', evidence: 'no interactive boot recorded yet' }
             const RANK: Record<string, number> = { 'runtime-entry': 0, 'route-ready': 1, 'first-frame': 2, 'input-live': 3 }
+            const lastRungs = lastInteractiveBootSpine().map(r => r.milestone).filter(m => m in RANK)
+            const spine = lastRungs.join(' → ')
             const ranks = lastRungs.map(m => RANK[m] ?? -1)
             const inOrder = ranks.every((r, i) => r >= 0 && (i === 0 || r > ranks[i - 1]!))
             if (reached && !inOrder) {

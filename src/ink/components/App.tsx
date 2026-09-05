@@ -182,9 +182,6 @@ export default class App extends PureComponent<Props, State> {
       termWrite(this.props.stdout, HIDE_CURSOR, 'mode')
       noteModeAcquired(CURSOR_LEDGER_OWNER, 'cursor-hidden')
     }
-    import('../../substrate/launchMilestones.js')
-      .then(m => m.recordLaunchMilestone('first-frame'))
-      .catch(() => {})
   }
 
   override componentWillUnmount(): void {
