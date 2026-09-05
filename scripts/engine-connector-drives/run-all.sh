@@ -10,6 +10,7 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 cd "$(dirname "$0")/../.." || exit 1
 bun="${BUN:-$HOME/.bun/bin/bun}"
 here="scripts/engine-connector-drives"
+export BUSY_STALL_DRIVE=1
 if [ ! -f dist/mercury.mjs ]; then
   echo "❌ engine-connector-drives: dist/mercury.mjs absent — every member boots the built bundle; build first (~/.bun/bin/bun run build.ts)"
   exit 1
