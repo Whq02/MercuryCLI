@@ -44,6 +44,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A dialog command typed while another still settles queues and runs after it; a finished turn with one refused tool paints no failure card; an older daemon's refusal reads as one doctor sentence
 - Consent cards fit the screen: a long edit, file or command is cut with a "+N more lines" line and ctrl+f shows the whole thing, so the Yes/No answers never leave the pane
 - Sovereign mode asks nothing: edits to sensitive files, ask rules and a server's ask ceiling run without a card, and the transcript says what would have asked and why
+- /compact shows its progress in the chat: one row under your /compact with the stage, a bar and a clock until the summary card takes its place; the star under the critter stands still
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
