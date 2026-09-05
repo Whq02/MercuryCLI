@@ -212,6 +212,17 @@ export type SystemThinkingDeadMessage = {
   timestamp: string
 }
 
+export type BoundPrefixToolMark = {
+  name: string
+  deferred: boolean
+}
+
+export type BoundPrefixSection = {
+  name: string
+  key: string | null
+  value: string | null
+}
+
 export type SystemPermissionRetryMessage = {
   type: 'system'
   subtype: 'permission_retry'

@@ -22,6 +22,7 @@ import {
   recordThinkingDropLedger,
 } from '../services/providers/anthropic/thinkingBinding.js'
 import { takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
+import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
 import { logForDebugging } from '../utils/debug.js'
 
 const switchReceipts = new Set<string>()
@@ -614,6 +615,14 @@ async function* streamModel(
                 logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
                 yield emit({ kind: 'notice', message: createThinkingDeadMessage(dead, `${dead.length} dropped thinking ${dead.length === 1 ? 'block' : 'blocks'} left off every later request`) })
               }
+            }
+            if (toolUseContext.agentId == null) {
+              const boundRecord = boundPrefixRecordToEmit(
+                String(rosterOwnerFromToolUseContext(toolUseContext)),
+                iter.messagesForQuery,
+                iter.currentModel,
+              )
+              if (boundRecord !== null) yield emit({ kind: 'attachment', message: boundRecord })
             }
             if (callId === `${iter.turnId}.c1`) {
               const u = (message.message as { usage?: { input_tokens?: number; cache_read_input_tokens?: number; cache_creation_input_tokens?: number } }).usage
