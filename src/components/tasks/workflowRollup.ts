@@ -1,5 +1,6 @@
 
 import { formatDuration, formatTokens } from '../../utils/format.js'
+import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 
 export type WorkflowRollupFacts = {
@@ -19,6 +20,29 @@ export function workflowRollupLine(f: WorkflowRollupFacts): string {
 
 export function agentsDoneOf(agents: readonly { state: string }[]): number {
   return agents.filter(a => a.state === 'done').length
+}
+
+export function workflowRowFacts(row: WorkRowV1): {
+  agentsDone: number
+  agentCount: number
+  phaseTitle: string | undefined
+} {
+  const groups = row.phases ?? []
+  const flat = groups.flatMap(g => g.agents)
+  const lastWithAgents = [...groups].reverse().find(g => g.agents.length > 0)
+  return {
+    agentsDone: agentsDoneOf(flat),
+    agentCount: row.agentCount ?? flat.length,
+    phaseTitle: row.pulse?.phaseTitle ?? lastWithAgents?.title,
+  }
+}
+
+export function workflowRowDetail(row: WorkRowV1): string | null {
+  const f = workflowRowFacts(row)
+  if (f.agentCount > 0) {
+    return `${f.agentsDone}/${f.agentCount} agent${f.agentCount === 1 ? '' : 's'}${f.phaseTitle ? ` · ${f.phaseTitle}` : ''}`
+  }
+  return f.phaseTitle ?? null
 }
 
 export type WorkflowPhaseTone = 'settled' | 'active' | 'error' | 'pending'
