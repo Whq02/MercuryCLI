@@ -23,6 +23,19 @@ export function restartStopSummary(description: string): string {
   return `Agent "${description}" was stopped — the session's runner restarted before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
+export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type'
+
+export function foregroundNotKeptLine(reason: BackgroundHandoverReason): string {
+  switch (reason) {
+    case 'turn-interrupted':
+      return 'The foreground request was not kept: the turn it ran in was interrupted, so the agent was handed to the background to finish on its own.'
+    case 'backgrounded':
+      return 'The foreground request was not kept: the agent was moved to the background (ctrl+b, or it ran past the foreground threshold).'
+    case 'agent-type':
+      return 'The foreground request was not kept: this agent type always runs in the background.'
+  }
+}
+
 type Block = { type?: string; id?: string; name?: string; input?: unknown; tool_use_id?: string; content?: unknown; text?: string }
 
 function blocksOf(content: unknown): Block[] {

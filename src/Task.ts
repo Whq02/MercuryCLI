@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
 
 import type { AppState } from './state/AppState.js'
+import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'
 import { getTaskOutputPath } from './utils/task/diskOutput.js'
 
 
@@ -80,11 +81,9 @@ const TASK_ID_PREFIXES: Record<TaskType, string> = {
   dream: 'd',
 }
 
-const TASK_ID_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz'
-
 export function generateTaskId(type: TaskType): string {
   const prefix = TASK_ID_PREFIXES[type] ?? 'x'
-  const bytes = randomBytes(8)
+  const bytes = randomBytes(TASK_ID_SUFFIX_LENGTH)
   let suffix = ''
   for (const byte of bytes) {
     suffix += TASK_ID_ALPHABET[byte % TASK_ID_ALPHABET.length]
