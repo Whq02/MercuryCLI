@@ -695,7 +695,7 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
     if (showingError) {
       const readerWords = typeof state.error === 'string' ? state.error : (humanizeUsageError(state.error) ?? '')
       const raw = state.error instanceof Error ? state.error.message : ''
-      const isWait = readerWords.includes('asked us to wait')
+      const isWait = usageForProvider('anthropic').readerWait === true
       return (
         <Box flexDirection="column">
           <Text color={isWait ? tokens.warning : tokens.failure}>

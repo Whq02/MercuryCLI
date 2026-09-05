@@ -305,6 +305,7 @@ export interface ActiveSourceUsage {
   figures?: UsageFigureView[]
   readerNote?: string
   readerNoteCompact?: string
+  readerWait?: boolean
   readerRecord?: string
   absence?: string
   whyNot?: string
@@ -1131,6 +1132,7 @@ export function usageForProvider(
       ...(reader.note !== undefined ? { readerNote: reader.note } : {}),
       ...(reader.compact !== undefined ? { readerNoteCompact: reader.compact } : {}),
       ...(reader.record !== undefined ? { readerRecord: reader.record } : {}),
+      ...(reader.wait === true ? { readerWait: true } : {}),
     }
   }
   const limitedWindow = (reads?.openaiLimited ?? (() => openaiLimitWindow('chatgpt-subscription')))()
@@ -1148,18 +1150,20 @@ export function usageForProvider(
   }
 }
 
-function liveAnthropicReaderWords(): { note?: string; compact?: string; record?: string } {
+function liveAnthropicReaderWords(): { note?: string; compact?: string; record?: string; wait?: boolean } {
   try {
-    const { anthropicUsageReaderNote, usageReaderRecordWords } =
+    const { anthropicUsageReaderNote, anthropicUsageReadStatus, isServerWait, usageReaderRecordWords } =
       require('./anthropic/anthropicUsageState.js') as typeof import('./anthropic/anthropicUsageState.js')
     const now = Date.now()
     const note = anthropicUsageReaderNote(now, 'prose')
     const compact = anthropicUsageReaderNote(now, 'compact')
     const record = usageReaderRecordWords()
+    const wait = isServerWait(anthropicUsageReadStatus().failure)
     return {
       ...(note !== undefined ? { note } : {}),
       ...(compact !== undefined ? { compact } : {}),
       ...(record !== undefined ? { record } : {}),
+      ...(wait ? { wait: true } : {}),
     }
   } catch {
     return {}
