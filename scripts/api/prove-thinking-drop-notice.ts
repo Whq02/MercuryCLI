@@ -227,7 +227,7 @@ section('§2 the words')
   const list = [DROP('messages.1.content.0')]
   classifyThinkingDrops('w', [], mark())
   const lawful = describeThinkingDrops(list, classifyThinkingDrops('w', list, mark({ firstRow: 'summary-row' }))) ?? ''
-  check('a single lawful drop is the one-line receipt naming compaction', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
+  check('a single lawful drop is the one-line receipt naming compaction and a turn, never a wire path', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('the first turn') && !lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
   check('…with no Mercury blame, no doctor pointer', !lawful.includes('Mercury') && !lawful.includes('doctor'), lawful)
   const { createThinkingNoteMessage } = await import('../../src/utils/messages/systemMessages.ts')
   const note = createThinkingNoteMessage(lawful)

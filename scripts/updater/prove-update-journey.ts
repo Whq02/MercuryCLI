@@ -17,6 +17,15 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
+{
+  const { readFileSync: readSource } = await import('node:fs')
+  const { join: joinPath, resolve: resolvePath } = await import('node:path')
+  const svc = readSource(joinPath(resolvePath(import.meta.dir, '..', '..'), 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
+  const remedies = svc.match(/remedy: [^\n]*nothing was activated[^\n]*/g) ?? []
+  const halved = remedies.filter(r => !r.includes('nothing was activated — the active installation was not changed'))
+  console.log(`  [${halved.length === 0 && remedies.length >= 8 ? 'PASS' : 'FAIL'}] every refusal remedy that says nothing was activated also says the active installation was not changed (${remedies.length} remedies)${halved.length ? ` — ${halved[0]!.slice(0, 120)}` : ''}`)
+  if (halved.length !== 0 || remedies.length < 8) failures++
+}
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
   if (!cond) failures++
