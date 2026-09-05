@@ -278,6 +278,9 @@ export function coordinatorEffortDetail(model: string, level: import('../../util
   if (truth.suppressedBy === 'thinking-off') {
     return `${model} sends no effort dial on the coordinator's thinking-off calls and runs its provider default — ${level} is saved, not sent`
   }
+  if (truth.flooredBy === 'thinking-off') {
+    return `${model} sends ${truth.wire} on the coordinator's thinking-off calls (the lowest it serves) — ${level} is saved, not sent`
+  }
   if (truth.wire === undefined) {
     return `${model} runs its provider default (no live effort vocabulary to resolve against) — ${level} is saved`
   }

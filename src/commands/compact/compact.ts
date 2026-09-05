@@ -13,7 +13,7 @@ import { getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
 import { microcompactMessages } from '../../services/compact/microCompact.js'
 import { runPostCompactCleanup } from '../../services/compact/postCompactCleanup.js'
-import { trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
+import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '../../services/compact/sessionMemoryCompact.js'
 import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
 import { getBindingDisplayText } from '../../keybindings/resolver.js'
 import { loadKeybindingsSync } from '../../keybindings/loadUserBindings.js'
@@ -130,7 +130,11 @@ export async function call(
   args: string,
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> {
-  return withFoldStatus(context, () => callUnderFoldStatus(args, context))
+  return withFoldStatus(context, scoped => callUnderFoldStatus(args, scoped), {
+    trigger: 'manual',
+    sessionMemory: args.trim() === '' && shouldUseSessionMemoryCompaction(),
+    microcompaction: true,
+  })
 }
 
 async function callUnderFoldStatus(
@@ -145,6 +149,7 @@ async function callUnderFoldStatus(
 
   try {
     if (!customInstructions) {
+      if (shouldUseSessionMemoryCompaction()) context.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
       const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId)
       if (sessionMemoryResult !== null) {
         getUserContext.cache?.clear?.()
@@ -162,6 +167,7 @@ async function callUnderFoldStatus(
     if (reactiveCompact !== null && reactiveCompact.isReactiveOnlyMode()) {
     }
 
+    context.onCompactProgress?.({ type: 'stage', stage: 'micro-compaction' })
     const { messages: microcompacted } = await microcompactMessages(projected, context, 'compact')
     const cacheSafeParams = await buildCompactCacheSafeParams(microcompacted, context)
     const result = await compactConversation(

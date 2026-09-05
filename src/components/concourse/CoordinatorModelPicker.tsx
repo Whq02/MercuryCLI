@@ -71,7 +71,9 @@ function coordinatorEffortOptions(modelId: string): Array<{ id: string; label: s
   const stops = truth.selectable.map(level => ({ id: level, label: level }));
   return truth.suppressedBy === 'thinking-off'
     ? stops.map(stop => ({ ...stop, label: `${stop.label} · saved, not sent — the coordinator calls with thinking off` }))
-    : stops;
+    : truth.flooredBy === 'thinking-off'
+      ? stops.map(stop => ({ ...stop, label: `${stop.label} · saved, not sent — the coordinator calls with thinking off and sends ${truth.wire}` }))
+      : stops;
 }
 
 export function CoordinatorModelPicker({

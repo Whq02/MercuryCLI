@@ -1,3 +1,4 @@
+import type { FoldStatusV1 } from '../compact/foldStatus.js'
 import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonDir } from '../../daemon/controlSocket.js'
@@ -96,6 +97,7 @@ export interface SessionTailV1 {
   phase?: TextPhase
   stateWord?: 'compacting' | 'waiting-on-agents'
   waitingOnAgents?: number
+  fold?: FoldStatusV1
   wait?: RequestWaitV1
   lastEventAtMs?: number
   streamBlock?: 'thinking' | 'text' | 'tool_use'
