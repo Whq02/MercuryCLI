@@ -41,6 +41,7 @@ import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { AGENT_DISPATCH_MODELS } from '../../utils/model/aliases.js'
+import { SEAT_ALLOWED_FAMILIES } from '../../utils/model/seatSlots.js'
 import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
@@ -145,6 +146,7 @@ export type AgentToolInput = {
 function modelEnumValues(): [string, ...string[]] {
   return [
     ...AGENT_DISPATCH_MODELS,
+    ...SEAT_ALLOWED_FAMILIES,
     ...engineDispatchModelsForSchema(),
   ] as [string, ...string[]]
 }
@@ -152,7 +154,7 @@ function modelEnumValues(): [string, ...string[]] {
 function modelParamDescription(): string {
   const engines = engineDispatchModelsForSchema()
   const base =
-    'Model override for this launch. Aliases select the family tier (their [1m] forms select the 1M-context variant); an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
+    'Model override for this launch. Aliases select the family tier (their [1m] forms select the 1M-context variant) and a served Anthropic id names its model exactly; an explicit model here wins over the agent definition\'s own model; omitted, the agent inherits the parent\'s model.'
   const exactIds = engines.filter(id => id.includes('-') || id.includes('/'))
   return `${base} Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI pin) · 'kimi' (Moonshot pin) · 'deepseek' (DeepSeek pin) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router); exact catalogue-validated engine ids (gemini-*/openrouter/* included): ${exactIds.join(', ')}.`
 }
