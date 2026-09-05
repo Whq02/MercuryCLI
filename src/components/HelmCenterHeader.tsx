@@ -95,7 +95,11 @@ export function HelmCenterHeader({ width }: { width: number }): React.ReactNode 
         ) : null}
       </Box>
       <Box flexShrink={0} marginLeft={1}>
-        <Text color={t.textMuted}>{name}</Text>
+        {
+}
+        <Text color={accent} bold>
+          {name}
+        </Text>
       </Box>
     </Box>
   )
