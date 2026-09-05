@@ -76,6 +76,9 @@ export function foldStatusOnEvent(status: FoldStatusV1, event: CompactProgressEv
     case 'compact_start':
       return advanceStage(status, 'summarising')
     case 'summary_progress': {
+      const summarisingAt = status.stages.indexOf('summarising')
+      const currentAt = status.stage === null ? -1 : status.stages.indexOf(status.stage)
+      if (currentAt > summarisingAt) return status
       const tokens = Math.max(0, Math.floor(event.chars / 4))
       const measured = status.summaryCapTokens > 0 ? Math.min(1, tokens / status.summaryCapTokens) : 0
       const fill = Math.max(status.fill ?? 0, measured)
