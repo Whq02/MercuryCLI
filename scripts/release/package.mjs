@@ -22,7 +22,6 @@ const IS_WIN = TARGET === 'windows-x64'
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'))
 const VERSION = PKG.version
 const NODE_POLICY = parseEnginesNode(PKG.engines?.node)
-const NAME = `mercury-v${VERSION}-${TARGET}`
 
 const fail = (msg) => {
   console.error(`✗ ${msg}`)
@@ -31,6 +30,10 @@ const fail = (msg) => {
 const ok = (msg) => console.log(`  · ${msg}`)
 
 const dist = join(ROOT, 'dist')
+const verifierForNames = join(dist, 'verify-artifact.mjs')
+if (!existsSync(verifierForNames)) fail('dist/verify-artifact.mjs missing — run bun run build.ts (the build produces the shipped verifier)')
+const { archiveBaseNameFor } = await import(pathToFileURL(verifierForNames).href)
+const NAME = archiveBaseNameFor(VERSION, TARGET)
 if (!existsSync(join(dist, 'mercury.mjs'))) fail('dist/mercury.mjs missing — run bun run build.ts first')
 if (!existsSync(join(dist, 'manifest.json'))) fail('dist/manifest.json missing')
 const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))

@@ -40,6 +40,7 @@ const EXEC_OPS = new Set([
   'test_run', 'test_assert', 'test_screenshot_baseline', 'test_screenshot_compare',
   'export_run', 'runtime_wait_signal',
   'project_refresh_classes',
+  'runtime_pause', 'runtime_step', 'runtime_resume',
 ])
 
 section('1. per-category counts — the 163-op contract')
@@ -55,7 +56,7 @@ check(
   [...byCat.keys()].every(c => c === 'frontier' || c in CONTRACT),
   [...byCat.keys()].filter(c => c !== 'frontier' && !(c in CONTRACT)).join(','),
 )
-check('frontier exists and is small', (byCat.get('frontier') ?? 0) >= 5 && (byCat.get('frontier') ?? 0) <= 16)
+check('frontier exists and is small', (byCat.get('frontier') ?? 0) >= 5 && (byCat.get('frontier') ?? 0) <= 20, `got ${byCat.get('frontier') ?? 0}`)
 
 section('2. the lite subset')
 const lite = VULCAN_OPS.filter(o => o.lite)
@@ -88,6 +89,19 @@ try {
   checkOk = false
 }
 check('regen --check clean', checkOk)
+
+section('5. the game-driving verbs — a press is an event; step mode rides the frontier')
+{
+  check('input_action is documented as a real InputEventAction both roads see', /InputEventAction/.test(vulcanOp('input_action')?.summary ?? '') && /polled action state/.test(vulcanOp('input_action')?.summary ?? ''))
+  const step = vulcanOp('runtime_step')
+  check('runtime_step: a frontier exec op taking frames or ms', step?.cls === 'exec' && step?.category === 'frontier' && /^optional/.test(step?.args.frames ?? '') && /^optional/.test(step?.args.ms ?? ''), JSON.stringify(step?.args))
+  check('runtime_step names the exact frame window and the default physics tick', /exactly N process frames/.test(step?.summary ?? '') && /physics tick/.test(step?.summary ?? ''))
+  check('runtime_pause / runtime_resume: frontier exec ops, no args', ['runtime_pause', 'runtime_resume'].every(n => vulcanOp(n)?.cls === 'exec' && vulcanOp(n)?.category === 'frontier' && Object.keys(vulcanOp(n)?.args ?? { x: 1 }).length === 0))
+  check('runtime_pause says input queues for the next step', /queues for the next runtime_step/.test(vulcanOp('runtime_pause')?.summary ?? ''))
+  check('the 163 contract is untouched by the step verbs (all three above it)', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(n => vulcanOp(n)?.category === 'frontier'))
+  const seq = vulcanOp('input_sequence')
+  check('input_sequence steps accept step_frames and step_ms', /step_frames/.test(seq?.args.steps ?? '') && /step_ms/.test(seq?.args.steps ?? ''), seq?.args.steps)
+}
 
 console.log('\n' + (failures === 0 ? '✅ vulcan optable proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)

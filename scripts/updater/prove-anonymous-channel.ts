@@ -50,7 +50,7 @@ type GhPresence = 'absent' | 'signed-out' | 'signed-in'
 
 function runCli(
   args: string[],
-  opts: { base: string; gh: GhPresence; ghFixtures?: string; ghLog?: string; env?: Record<string, string> },
+  opts: { base: string; gh: GhPresence; ghFixtures?: string; ghLog?: string; env?: Record<string, string>; pinned?: boolean },
 ): { code: number; stdout: string; stderr: string; all: string } {
   const ghEnv: Record<string, string> =
     opts.gh === 'absent'
@@ -71,7 +71,7 @@ function runCli(
       ...(IS_WIN ? { LOCALAPPDATA: join(home, 'AppData', 'Local') } : {}),
       MERCURY_CONFIG_DIR: configHome,
       MERCURY_VERSIONS_DIR: versionsDir,
-      MERCURY_UPDATE_CHANNEL_REPO: SLUG,
+      ...(opts.pinned === false ? {} : { MERCURY_UPDATE_CHANNEL_REPO: SLUG }),
       MERCURY_UPDATE_API_BASE_URL: opts.base,
       ...ghEnv,
       CI: '1',
@@ -251,6 +251,40 @@ console.log('── §7 gh signed in: the gh road answers; the anonymous channel
   check('the anonymous channel received no request at all', readLog(log).length === 0, readLog(log).join(' | '))
   const ghCalls = readLog(ghLog)
   check('gh did the listing and the download', ghCalls.some(l => l.startsWith(`gh api repos/${SLUG}/releases`)) && ghCalls.some(l => l.startsWith(`gh release download v${V_NEW}`)), ghCalls.join(' | '))
+  await server.close()
+}
+
+console.log('── §8 the public home: anonymous first, gh not asked, with gh signed in ──')
+const PACKAGED = (() => {
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { repository?: { url?: string } }
+  const m = /github\.com\/([^/]+\/[^/.]+)/.exec(pkg.repository?.url ?? '')
+  return m?.[1] ?? ''
+})()
+{
+  check('the packaged repository slug is readable from package.json', PACKAGED !== '', PACKAGED)
+  const log = join(logsDir, 'public-home-requests.log')
+  const ghLog = join(logsDir, 'public-home-gh.log')
+  const server = await spawnFixtureReleaseServer({ fixtures: happyFixtures, log })
+  seedInstalled(V_OLD)
+  const c = runCli(['update', '--check'], { base: server.url, gh: 'signed-in', ghFixtures: happyFixtures, ghLog, pinned: false })
+  check('--check on the public home names the anonymous road', c.code === 0 && c.stdout.includes(`update available: v${V_NEW}`) && c.stdout.includes('read anonymously — no sign-in needed'), c.all.slice(0, 300))
+  check('the listing went to the packaged repository over the anonymous channel', readLog(log).some(l => l.includes(`/repos/${PACKAGED}/releases`)), readLog(log).join(' | '))
+  check('gh was not asked at all — not even for its sign-in state', !existsSync(ghLog) || readLog(ghLog).length === 0, existsSync(ghLog) ? readLog(ghLog).join(' | ') : '')
+  await server.close()
+}
+
+console.log('── §9 the home not visible anonymously: the gh road answers second; absent gh names the refusal ──')
+{
+  const log = join(logsDir, 'home-private-requests.log')
+  const ghLog = join(logsDir, 'home-private-gh.log')
+  const server = await spawnFixtureReleaseServer({ fixtures: happyFixtures, log, visibility: 'private' })
+  seedInstalled(V_OLD)
+  const c = runCli(['update', '--check'], { base: server.url, gh: 'signed-in', ghFixtures: happyFixtures, ghLog, pinned: false })
+  check('--check names the gh road after the anonymous refusal', c.code === 0 && c.stdout.includes(`update available: v${V_NEW}`) && c.stdout.includes('read through your signed-in GitHub CLI'), c.all.slice(0, 300))
+  check('the anonymous channel saw the one refused listing request first', readLog(log).length >= 1 && readLog(log).some(l => l.includes(`/repos/${PACKAGED}/releases`)), readLog(log).join(' | '))
+  check('gh did the listing', readLog(ghLog).some(l => l.startsWith(`gh api repos/${PACKAGED}/releases`)), readLog(ghLog).join(' | '))
+  const absent = runCli(['update', '--check'], { base: server.url, gh: 'absent', pinned: false })
+  check('with no gh the refusal names the not-visible case and why gh did not answer', absent.code === 1 && absent.all.includes('not visible without a sign-in') && absent.all.includes('gh) is not installed'), absent.all.slice(0, 300))
   await server.close()
 }
 

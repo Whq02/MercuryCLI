@@ -1,4 +1,5 @@
 import React, { useMemo, useSyncExternalStore } from 'react'
+import { UNNAMED_SESSION_WORD } from '../services/concourse/sessionNaming.js'
 import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -16,7 +17,7 @@ import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH, branchChip, branchChipWidth } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { focusedWorkflowRows, useFocusedWorkRows } from './tasks/useFocusedWork.js'
@@ -39,7 +40,7 @@ export function statusDuration(ms: number): string {
 export function seatDisplayTitle(status: Pick<SeatStatusV1, 'title' | 'projectLabel'>): string {
   const stageOneTail = ` · ${status.projectLabel} · ready`
   const title = status.title.endsWith(stageOneTail) ? status.title.slice(0, -stageOneTail.length) : status.title
-  return title.trim() === '' ? 'new session' : title
+  return title.trim() === '' ? UNNAMED_SESSION_WORD : title
 }
 
 export type CrewClockV1 = {
@@ -171,7 +172,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
     1 +
     stringWidth(status.projectLabel) +
     (line !== '' ? 3 : 0) +
-    (worktree !== null ? stringWidth(` · ${GLYPH.branch} ${worktree}`) : 0) +
+    (worktree !== null ? stringWidth(' · ') + branchChipWidth(worktree) : 0) +
     2 +
     stringWidth(backHint)
   const fitted = fitStatusLine(line, columns, fixedWidth)
@@ -190,7 +191,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
         {worktree !== null ? (
           <Text>
             <Text color={t.textMuted}> · </Text>
-            <Text color={t.info}>{GLYPH.branch} </Text>
+            <Text color={t.info}>{branchChip('')}</Text>
             <Text color={t.infoText}>{worktree}</Text>
           </Text>
         ) : null}

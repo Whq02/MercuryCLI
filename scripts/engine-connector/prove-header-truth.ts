@@ -108,7 +108,8 @@ section('§3 the title row\'s name')
   check('a stored name reads verbatim', bar.seatDisplayTitle({ title: 'fix-auth-tests', projectLabel: 'proj' }) === 'fix-auth-tests')
   check('the chat\'s first words read verbatim', bar.seatDisplayTitle({ title: 'hello plain world', projectLabel: 'proj' }) === 'hello plain world')
   check('an empty title is never blank', bar.seatDisplayTitle({ title: '', projectLabel: 'proj' }) === 'new session')
-  check('the header\'s unnamed word is the naming owner\'s stage-1 word', header.UNNAMED_SESSION === 'new session' && header.headerSessionName('', 40) === 'new session')
+  const naming = await import('../../src/services/concourse/sessionNaming.ts')
+  check('the header\'s unnamed word IS the naming owner\'s stage-1 word (one export, read by the header and the tag bar)', header.UNNAMED_SESSION === naming.UNNAMED_SESSION_WORD && header.headerSessionName('', 40) === naming.UNNAMED_SESSION_WORD && bar.seatDisplayTitle({ title: '', projectLabel: 'proj' }) === naming.UNNAMED_SESSION_WORD && naming.newSessionTitle('/tmp/proj').startsWith(`${naming.UNNAMED_SESSION_WORD} · `))
   const long = 'a session name long enough to outrun the row at every cockpit width, and then some more words so the cut is real at one hundred and twenty columns'
   for (const cols of [100, 110, 120]) {
     const budget = header.headerNameBudget(cols, false)

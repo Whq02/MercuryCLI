@@ -66,6 +66,14 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Under sovereign mode a whole-tool ask rule stands down like the other ask roads and the transcript names the rule; a turn typed into a running one reads busy on the strip, so esc can interrupt it
 - Unity test results land inside the project again, where the editor can write them; a bridged test run is no longer refused
 - The Anthropic usage panel no longer gets stuck on "Failed to load … HTTP 429": Mercury honours the server's retry wait, stops retrying into it, and says how long to wait
+- The Crew view's seat wait keeps its gate in the status cell and names the holders on the row's tail; a resumed session's first turn no longer paints a days-old clock
+- /rename works again (it was refused in every session) and, in a hosted chat, renames the session record the title row and board read; a repetition-stopped agent reads failed, with the reason
+- The doctor's launch-spine row judges the last interactive boot's four rungs in their true order; mercury update reads the public home anonymously and asks gh only when refused
+- The branch chip is spelled by one owner on every screen, so the glyph never overdraws the branch name; esc during /compact lands as a plain "cancelled" row, never an error
+- The /bug redactor masks every provider's bare key shape (sk-proj-, sk-or-v1-, hf_, AIza…) and GitHub tokens, not only sk-ant keys
+- An Agent launch accepts a served model id (claude-fable-5-1) wherever its alias is taken; a workflow's notices name the run by its name
+- A stopped workflow watchdog re-arms after a fast tool round, so a silent stream is cut at the stall budget instead of the provider's guard
+- Godot bridge: action presses are real input events the game's callbacks hear; runtime_pause, runtime_step and runtime_resume drive a game frame by frame, so time passes only while the agent acts
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published

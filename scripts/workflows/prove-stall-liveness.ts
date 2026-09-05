@@ -272,6 +272,38 @@ section('source locks — the forward stays live and honest')
   )
 }
 
+section("(g) a fast tool round then silence: the round's end un-parks the watchdog, throttle or not")
+{
+  const { hooks, calls } = makeRig({
+    behaviors: [
+      async function* (args) {
+        const call = assistantToolUse('toolu_fast')
+        args.onQueryProgress?.(call)
+        yield call
+        await sleep(2)
+        const result = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_fast', content: 'ok' }] } }
+        args.onQueryProgress?.(result)
+        yield result
+        await hangUntilAbort(args)
+      },
+    ],
+  })
+  const t0 = Date.now()
+  let threw = ''
+  try {
+    await Promise.race([
+      hooks.agent('fast round then silence', { stallMs: 200 }),
+      sleep(8_000).then(() => {
+        throw new Error('no cut within 8 s — the watchdog stayed parked past the fast round')
+      }),
+    ])
+  } catch (e) {
+    threw = String(e)
+  }
+  check("the silence after a fast round is cut by the stall budget — never left to the provider's guard", /stalled on all/.test(threw), threw.slice(0, 140))
+  check('the ladder ran its attempts inside the bound (the watchdog armed on every round\'s end)', calls.length === 6 && Date.now() - t0 < 8_000, `${calls.length} attempts in ${Date.now() - t0} ms`)
+}
+
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

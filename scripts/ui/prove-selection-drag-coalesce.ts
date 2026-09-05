@@ -35,7 +35,16 @@ const { default: instances } = await import(`${ROOT}/src/ink/instances.js`)
 const { default: useInput } = await import(`${ROOT}/src/ink/hooks/use-input.js`)
 const { lastComposeCounts } = await import(`${ROOT}/src/ink/compose-buffer.js`)
 const { AppStateProvider } = await import(`${ROOT}/src/state/AppState.js`)
-const { default: ScrollKeybindingHandler } = await import(`${ROOT}/src/components/ScrollKeybindingHandler.js`)
+const { default: ScrollKeybindingHandler, AUTOSCROLL_STEP_ROWS, AUTOSCROLL_TICK_MS } = await import(`${ROOT}/src/components/ScrollKeybindingHandler.js`)
+const { subscribeUiClock } = await import(`${ROOT}/src/utils/cockpit/uiClock.js`)
+const countTicks = (): { ticks: () => number; stop: () => void } => {
+  let n = 0
+  const stop = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
+    n++
+  })
+  return { ticks: () => n, stop }
+}
+const rowsForTicks = (rows: number, ticks: number): boolean => Math.abs(rows - AUTOSCROLL_STEP_ROWS * ticks) <= AUTOSCROLL_STEP_ROWS
 type ScrollHandle = { getScrollTop: () => number; getViewportTop: () => number; getViewportHeight: () => number; getPendingDelta: () => number }
 const { AnsiEmulator, defaultSgr } = await import('../ink-runtime/ansiEmulator.js')
 type SgrState = ReturnType<typeof defaultSgr>
@@ -418,20 +427,35 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   const top0 = scrollTop()
   push(sgr(LEFT | MOTION, above))
   await twoTicks()
+  const held = countTicks()
   await settle(320)
+  held.stop()
   console.log(`  after the hold: ${facts()}`)
   const heldStill = top0 - scrollTop()
-  check('a pointer held still above the pane scrolls the content by the tick (≈ 2 rows per 50 ms)', heldStill >= 8 && heldStill <= 16, `${heldStill} rows in 320 ms`)
+  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`)
   const top1 = scrollTop()
-  const t1 = performance.now()
+  const moving = countTicks()
   for (let k = 0; k < 30; k++) {
     push(sgr(LEFT | MOTION, { col: above.col + (k % 3), row: 0 }))
     await settle(5)
   }
-  const elapsed = performance.now() - t1
+  await twoTicks()
+  moving.stop()
   const heldMoving = top1 - scrollTop()
-  const expected = 2 * Math.floor(elapsed / 50)
-  check('thirty reports at the edge scroll the tick\'s rows, not thirty (the rate, not the count)', Math.abs(heldMoving - expected) <= 4 && heldMoving < 30, `${heldMoving} rows for 30 reports over ${elapsed.toFixed(0)} ms (tick rate ⇒ ${expected})`)
+  check("thirty reports at the edge scroll the tick's rows, not thirty (the rate, not the count)", rowsForTicks(heldMoving, moving.ticks()) && heldMoving < 30, `${heldMoving} rows for 30 reports over ${moving.ticks()} ticks`)
+  const top2 = scrollTop()
+  const blocked = countTicks()
+  await settle(60)
+  {
+    const until = performance.now() + 200
+    while (performance.now() < until) {
+    }
+  }
+  await settle(120)
+  await twoTicks()
+  blocked.stop()
+  const heldBlocked = top2 - scrollTop()
+  check('the loop blocked 200 ms mid-hold: the rows are still the delivered ticks × the step (the law holds under load)', rowsForTicks(heldBlocked, blocked.ticks()), `${heldBlocked} rows for ${blocked.ticks()} ticks`)
 
   await twoTicks()
   flushGlass()
@@ -490,11 +514,14 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   const atomBytes = Buffer.byteLength(atom)
   const queueSamples: number[] = []
   const keyLatencies: number[] = []
+  const keyFrameDeltas: number[] = []
   const scrollSamples: number[] = []
   let keyPushedAt = 0
+  let keyPushedFrame = 0
   keyLanded = (input, at) => {
     if (input === 'x' && keyPushedAt > 0) {
       keyLatencies.push(at - keyPushedAt)
+      keyFrameDeltas.push(frames - keyPushedFrame)
       keyPushedAt = 0
     }
   }
@@ -507,6 +534,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
     push(sgr(LEFT | MOTION, { col: 40 + (k % 40), row: 0 }))
     if (k % 62 === 61) {
       keyPushedAt = performance.now()
+      keyPushedFrame = frames
       push('\x1bx')
       scrollSamples.push(scrollTop())
       if (scrollSamples.length === 2) console.log(`  backlog leg mid: ${facts()}`)
@@ -517,7 +545,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   await twoTicks()
   const worstQueue = Math.max(...queueSamples)
   check(`${k} reports over 5 s with the pane scrolling: the input queue stays ≤ 1 report at every sample`, worstQueue <= 1, `worst ${worstQueue.toFixed(2)} reports pending; ${frames - f0} frames painted`)
-  check('keystrokes typed through the drag land within one frame', keyLatencies.length >= 5 && Math.max(...keyLatencies) <= 16, `${keyLatencies.length} keys, worst ${keyLatencies.length ? Math.max(...keyLatencies).toFixed(1) : 'n/a'} ms`)
+  check('keystrokes typed through the drag land within one painted frame (the frame index, never the wall clock)', keyFrameDeltas.length >= 5 && Math.max(...keyFrameDeltas) <= 1, `${keyFrameDeltas.length} keys, worst ${keyFrameDeltas.length ? Math.max(...keyFrameDeltas) : '?'} frames (${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms)`)
   console.log(`  ${k} reports · ${frames - f0} frames · worst queue ${worstQueue.toFixed(2)} · keys ${keyLatencies.map(x => x.toFixed(1)).join(' ')} ms · scrollTop every half second ${scrollSamples.join(' ')} → ${scrollTop()}`)
   keyLanded = null
   await releaseAt({ col: 40, row: 0 })
