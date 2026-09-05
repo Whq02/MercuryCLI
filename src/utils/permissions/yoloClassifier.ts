@@ -253,7 +253,7 @@ export function getAutoModeClassifierTranscript(): string | null {
 function writeErrorDump(errorText: string, action: string, systemPrompt: string, userPrompt: string): string | undefined {
   try {
     const path = getAutoModeClassifierErrorDumpPath()
-    mkdirSync(dirname(path), { recursive: true })
+    mkdirSync(dirname(path), { recursive: true, mode: 0o700 })
     const body = [
       errorText,
       '--- context comparison ---',
@@ -264,7 +264,7 @@ function writeErrorDump(errorText: string, action: string, systemPrompt: string,
       '--- user prompt ---',
       userPrompt,
     ].join('\n')
-    writeFileSync(path, body, 'utf8')
+    writeFileSync(path, body, { encoding: 'utf8', mode: 0o600 })
     return path
   } catch {
     return undefined
