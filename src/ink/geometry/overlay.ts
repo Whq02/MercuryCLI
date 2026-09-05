@@ -85,7 +85,11 @@ export function applySelectionOverlay(
   const noSelect = screen.noSelect
   const clipLo = selection.clipLo ?? 0
   const clipHi = selection.clipHi ?? width - 1
-  for (let row = start.row; row <= end.row && row < screen.height; row++) {
+  const clipTop = selection.clipTop ?? 0
+  const clipBottom = selection.clipBottom ?? screen.height - 1
+  const firstRow = Math.max(start.row, clipTop)
+  const lastRow = Math.min(end.row, clipBottom)
+  for (let row = firstRow; row <= lastRow && row < screen.height; row++) {
     const colStart = Math.max(row === start.row ? start.col : 0, clipLo)
     const colEnd = Math.min(row === end.row ? Math.min(end.col, width - 1) : width - 1, clipHi)
     const rowOff = row * width
