@@ -35,7 +35,7 @@ t.section('S1 — the seat reading is stable under its own seats; the facts name
   t.check('five seats read once stay five on the re-read (held for the process)', first === 5 && again === 5, `${first} → ${again}`)
   const machineFacts = cap.seatCeilingFacts()
   t.check("the facts name the machine as the source with the reading's own sentence", machineFacts.seats === 5 && machineFacts.source === 'machine' && machineFacts.sentence === "this machine's reading: 5 seats", JSON.stringify(machineFacts))
-  t.check('the lever names the config key and the rule', machineFacts.lever.includes('switchboardCapacity.recommendedSeats') && machineFacts.lever.includes('.mercury.json') && machineFacts.lever.includes('with Mercury closed'), machineFacts.lever)
+  t.check('the lever names the three doors and the at-once law', machineFacts.lever.includes('/seats N') && machineFacts.lever.includes('Boot Menu') && machineFacts.lever.includes('/config') && machineFacts.lever.includes('at once'), machineFacts.lever)
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.UTC(2026, 0, 2), allowed: true, recommendedSeats: 3 } }))
   const consented = cap.seatCeilingFacts()
   t.check('a consented recommendation is the ceiling as-is, named as consented and dated', consented.seats === 3 && consented.source === 'consented' && consented.sentence.startsWith('the consented capacity reading from 2026-01-02: 3 seats'), JSON.stringify(consented))

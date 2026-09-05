@@ -387,6 +387,7 @@ async function* adapterSpawnStream(
     transcriptSubdir: args.transcriptSubdir,
     worktreePath: args.worktreePath,
     description: args.description,
+    seatHolder: args.seatHolder,
     override: {
       agentId: args.agentId,
       abortController: (args.toolUseContext as { abortController?: AbortController }).abortController,

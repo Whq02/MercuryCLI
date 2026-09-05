@@ -51,10 +51,11 @@ cap._setHeldMachineSeatReadingForTesting(6, SAMPLE)
   check('T1 a consented probe number is the ceiling when nothing is set by hand', consented.seats === 3 && consented.source === 'consented' && consented.consented === 3, JSON.stringify(consented))
   const over = cap.setOperatorSeats(5)
   check('T1 the operator number outranks the consented one and keeps it on record', over.seats === 5 && over.source === 'operator' && over.consented === 3 && getGlobalConfig().switchboardCapacity?.recommendedSeats === 3, JSON.stringify(over))
-  check('T1 the detail lines: the ceiling, the reading, the probe, the cost, the doors', (() => {
+  check('T1 the detail lines: the reading, its inputs, the cost a seat, the probe, the doors — one short line each', (() => {
     const lines = cap.seatCeilingDetailLines(over)
-    return lines[0] === 'ceiling 5 · set by you' && lines[1] === over.readingSentence && lines.some(l => l === 'the first-boot probe stored 3 seats') && lines.some(l => l.includes('a seat is one model call in flight')) && lines[lines.length - 1] === `doors: ${cap.SEAT_DOORS}`
+    return lines[0] === 'reading: 6 seats (this machine)' && lines[1] === '8 cores · 2.3 GB available' && lines[2] === '384 MB a seat (a session runner)' && lines[3] === 'first-boot probe: 3 seats' && lines.includes('doors: /seats N · Boot Menu · /config') && lines[lines.length - 1] === '/seats auto returns to the reading' && lines.every(l => l.length <= 42)
   })(), JSON.stringify(cap.seatCeilingDetailLines(over)))
+  check('T1 above the reading the detail carries the cost line', cap.seatCeilingDetailLines(cap.setOperatorSeats(9)).includes('above the reading — the machine may swap') && !cap.seatCeilingDetailLines(cap.setOperatorSeats(5)).includes('above the reading — the machine may swap'))
   const back = cap.setOperatorSeats(null)
   check('T1 clearing returns to the probe\'s number when one is stored', back.seats === 3 && back.source === 'consented')
   check('T1 the lever names the three doors', cap.seatCeilingLever().includes('/seats N') && cap.seatCeilingLever().includes('Boot Menu') && cap.seatCeilingLever().includes('/config') && cap.seatCeilingLever().includes('at once'), cap.seatCeilingLever())
