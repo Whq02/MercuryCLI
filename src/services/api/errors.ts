@@ -34,7 +34,8 @@ import { ImageResizeError } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
 
-export const API_ERROR_MESSAGE_PREFIX = 'API Error'
+import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
+export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
   frameType: string,
@@ -225,14 +226,6 @@ export function getOauthOrgNotAllowedErrorMessage(): string {
   return 'Your account does not have access to Mercury — run /logins.'
 }
 
-
-export function startsWithApiErrorPrefix(text: string): boolean {
-  return (
-    text.startsWith(API_ERROR_MESSAGE_PREFIX) ||
-    text.startsWith(`Please run /logins. ${API_ERROR_MESSAGE_PREFIX}`) ||
-    text.startsWith(`Please run /logins · ${API_ERROR_MESSAGE_PREFIX}`)
-  )
-}
 
 export function streamFaultAfterPartialText(provider: string, code: string, message: string): string {
   return `${API_ERROR_MESSAGE_PREFIX}: ${provider} ${STREAM_FAULT_AFTER_PARTIAL_MARKER} (${code}) — ${message}`

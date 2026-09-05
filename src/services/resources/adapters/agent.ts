@@ -38,9 +38,8 @@ export function readTailWindow(path: string, cap: number = AGENT_TAIL_READ_CAP_B
   }
 }
 
-export function agentStatusWord(status: string): string {
-  return status === 'killed' ? 'stopped' : status
-}
+import { agentStatusWord } from './agentStatusWord.js'
+export { agentStatusWord } from './agentStatusWord.js'
 
 interface TaskRow {
   id: string
