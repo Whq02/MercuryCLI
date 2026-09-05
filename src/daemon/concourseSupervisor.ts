@@ -18,7 +18,7 @@ import { describeSignInRead, refreshSignInReads } from './signInView.js'
 import { describeSeatReading, resolveSeatCeiling } from '../services/switchboard/capacityCheck.js'
 import { retireSeatProjections } from '../services/engine-connector/seatProjections.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
-import { HEADLESS_PERMISSION_MODES, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
+import { HEADLESS_PERMISSION_MODES, getHeadlessPermissionMode, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import { decodePermissionModeSpelling, type PermissionMode } from '../types/permissions.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
@@ -111,6 +111,8 @@ export interface ConcourseWorkerRecordV1 {
   agentName?: string
   seatsMax?: 1 | 2
   effort?: string
+  permissionMode?: SeatPermissionMode
+  bypassConsent?: true
   spawnedAt: number
   endedAt?: number
   pausedAt?: number
@@ -479,6 +481,19 @@ export function buildConcourseWorkerSpec(args: {
   }
 }
 
+export function spawnPostureOf(spec: Pick<StreamJsonChildSpec, 'permissionMode' | 'allowBypass'>): { permissionMode: SeatPermissionMode; bypassConsent?: true } {
+  return {
+    permissionMode: getHeadlessPermissionMode(spec.permissionMode),
+    ...(spec.allowBypass === true ? { bypassConsent: true as const } : {}),
+  }
+}
+
+export function stampSpawnPosture(rec: ConcourseWorkerRecordV1, posture: { permissionMode: SeatPermissionMode; bypassConsent?: true }): void {
+  rec.permissionMode = posture.permissionMode
+  if (posture.bypassConsent === true) rec.bypassConsent = true
+  else delete rec.bypassConsent
+}
+
 
 export interface ConcourseAdmitDeps {
   roster: () => (CrewRosterPort & { kill?(short: string): boolean }) | undefined
@@ -781,13 +796,14 @@ export function makeConcourseAdmitHandler(
     ) {
       const claimSessionId = randomUUID()
       const claimEffort = req.effort ?? 'high'
+      const claimPosture = seatInitialPermissionMode(req.permissionMode)
       const claimStartedAt = Date.now()
       const claimed = await deps.claimWarm({
         workspaceId,
         sessionId: claimSessionId,
         modelKey,
         effort: claimEffort,
-        permissionMode: seatInitialPermissionMode(req.permissionMode),
+        permissionMode: claimPosture,
         bypassConsent: req.bypassConsent === true,
         kit,
       })
@@ -817,6 +833,8 @@ export function makeConcourseAdmitHandler(
             ...(req.title !== undefined ? { title: req.title } : {}),
             ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
             ...kitStampOf(kit),
+            permissionMode: claimPosture,
+            ...(req.bypassConsent === true ? { bypassConsent: true as const } : {}),
           }
         }, deps.dir)
         deps.onSpawned?.(runnerId, claimed.spec, claimed.pid)
@@ -960,6 +978,7 @@ export function makeConcourseAdmitHandler(
         ...(req.title !== undefined ? { title: req.title } : {}),
         ...(runnerArgv !== undefined && runnerArgv.length > 0 ? { runnerArgv: [...runnerArgv] } : {}),
         ...(req.bornBlank === true ? { bornBlankAt: Date.now() } : {}),
+        ...spawnPostureOf(spec),
         ...kitStampOf(kit),
       }
     }, deps.dir)
@@ -1566,7 +1585,7 @@ export function reviveConcourseWorker(
     kitOverride?: SessionKitV1
     modelOverride?: string
     permissionMode?: PermissionMode
-    bypassConsent?: true
+    bypassConsent?: boolean
   },
   dir?: string,
 ): ConcourseReviveOutcome {
@@ -1588,6 +1607,8 @@ export function reviveConcourseWorker(
     return { outcome: 'refused', reason: 'respawn-failed', detail: 'daemon roster not ready' }
   const reviveKit = opts?.kitOverride ?? rec.kit
   const reviveModel = opts?.modelOverride ?? rec.modelKey
+  const revivePosture = opts?.permissionMode ?? rec.permissionMode
+  const reviveConsent = opts?.bypassConsent ?? rec.bypassConsent === true
   const spec = buildConcourseWorkerSpec({
     runnerId: rec.runnerId,
     sessionId: rec.sessionId,
@@ -1597,8 +1618,8 @@ export function reviveConcourseWorker(
     ...(rec.title !== undefined ? { title: rec.title } : {}),
     ...(rec.runnerArgv !== undefined ? { runnerArgv: rec.runnerArgv } : {}),
     ...(reviveKit !== undefined ? { kit: reviveKit } : {}),
-    ...(opts?.permissionMode !== undefined ? { permissionMode: opts.permissionMode } : {}),
-    ...(opts?.bypassConsent === true ? { bypassConsent: true as const } : {}),
+    ...(revivePosture !== undefined ? { permissionMode: revivePosture } : {}),
+    ...(reviveConsent ? { bypassConsent: true as const } : {}),
     resume: true,
     cwd: rec.worktreePath ?? rec.workspaceId,
   })
@@ -1625,6 +1646,7 @@ export function reviveConcourseWorker(
       w.modelKey = opts.modelOverride
       delete w.pendingModelKey
     }
+    stampSpawnPosture(w, spawnPostureOf(spec))
     w.lastLiveAt = Date.now()
     if (reg.pid !== undefined) Object.assign(w, pidFieldsOf(reg.pid))
   }, dir)
@@ -1722,12 +1744,13 @@ export async function reactivateConcourseSession(
     (rec.runnerArgv === undefined || rec.runnerArgv.length === 0)
   ) {
     const claimStartedAt = Date.now()
+    const claimPosture = seatInitialPermissionMode(args.permissionMode)
     const claimed = await deps.claimWarm({
       workspaceId: rec.workspaceId,
       sessionId: rec.sessionId,
       modelKey: args.modelKey,
       effort,
-      permissionMode: seatInitialPermissionMode(args.permissionMode),
+      permissionMode: claimPosture,
       bypassConsent: args.bypassConsent === true,
       kit,
       resume: true,
@@ -1748,6 +1771,7 @@ export async function reactivateConcourseSession(
         if (isolationDrift) next.isolation = claimIsolation
         clearReactivatedFields(next)
         restampSessionKit(next, kit, kitSource, args.by)
+        stampSpawnPosture(next, { permissionMode: claimPosture, ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}) })
         workers[short] = next
       }, deps.dir)
       deps.onSpawned?.(short, claimed.spec, claimed.pid)
@@ -1800,7 +1824,7 @@ export async function reactivateConcourseSession(
       clearCrash: true,
       kitOverride: kit,
       ...(args.permissionMode !== undefined ? { permissionMode: args.permissionMode } : {}),
-      ...(args.bypassConsent === true ? { bypassConsent: true as const } : {}),
+      bypassConsent: args.bypassConsent === true,
     },
     deps.dir,
   )

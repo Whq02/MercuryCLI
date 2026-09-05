@@ -108,6 +108,8 @@ function drive(tag: string, sends: Send[], total: number, cols = 120, rows = 40)
   return lines
 }
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const ARCHIVE_LEGEND = keyHintLabel('⌃x ⌃x archive · delete')
+const DELETE_LEGEND = keyHintLabel('⌃x ⌃x delete')
 const TAG = keyHintLabel('⇧← back')
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
@@ -120,7 +122,9 @@ const CTRL_X = '\x18'
 const REAP_CHORDS: Send[] = [
   { atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: CTRL_X },
   { afterPrevTicks: 2, data: CTRL_X },
-  { afterPrevTicks: 8, data: CTRL_X },
+  { atTick: 999, awaitText: ARCHIVE_LEGEND, minTick: 2, awaitSettleTicks: 3, data: CTRL_X },
+  { afterPrevTicks: 2, data: CTRL_X },
+  { atTick: 999, awaitText: DELETE_LEGEND, minTick: 2, awaitSettleTicks: 3, data: CTRL_X },
   { afterPrevTicks: 2, data: CTRL_X },
 ]
 const enterSelected = (title: string): Send[] => [

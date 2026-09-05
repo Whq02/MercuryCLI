@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
-import { runnerRecordAlive, workChipLine, workCounts, workRowRuns } from '../../src/services/engine-connector/workCounts.ts'
+import { runnerRecordAlive, workChipLine, workCounts, workRowRuns, workWaitingWords } from '../../src/services/engine-connector/workCounts.ts'
 import { rosterRowsOf } from '../../src/components/tasks/BackgroundTasksDialog.tsx'
 import { projectWorkRoster } from '../../src/utils/task/workRoster.ts'
 import type { WorkRowV1 } from '../../src/services/engine-connector/types.ts'
@@ -121,6 +121,22 @@ console.log('— C6 one spelling —')
   const seat = readFileSync('src/daemon/sessionSeat.ts', 'utf8')
   check("C6 the seat's work poll rides workRowRuns", seat.includes('.some(workRowRuns)'))
   check('C6 …and keeps no private running/pending test', !seat.includes("r => r.status === 'running' || r.status === 'pending'"))
+}
+
+console.log('\nC7 the held turn\'s wait words name the KINDS over the same counts')
+{
+  const counts = (over: Partial<ReturnType<typeof workCounts>>): ReturnType<typeof workCounts> => ({ workflows: 0, agents: 0, teammates: 0, shells: 0, asks: 0, ...over })
+  check('C7 a workflow is a workflow, never an agent', workWaitingWords(counts({ workflows: 1 })) === 'waiting on 1 workflow')
+  check('C7 a workflow beside two agents', workWaitingWords(counts({ workflows: 1, agents: 2 })) === 'waiting on 1 workflow · 2 agents')
+  check('C7 a background shell is a shell', workWaitingWords(counts({ shells: 1 })) === 'waiting on 1 shell')
+  check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 agent · 1 ask')
+  check('C7 nothing running answers null (the count\'s own words stand)', workWaitingWords(counts({})) === null)
+  const read = (rel: string): string => readFileSync(rel, 'utf8')
+  const connector = read('src/services/engine-connector/daemonConnector.ts')
+  check("C7 the connector counts the wait's kinds over the runner's roster (the same facts read)", connector.includes("phase === 'waiting' ? workCounts(this.facts?.work ?? [])"))
+  const tagBar = read('src/components/SwitchboardTagBar.tsx')
+  const repl = read('src/screens/REPL.tsx')
+  check('C7 the status strip and the working strip spell the kinds first, the bare count second', tagBar.includes('workWaitingWords(live.waitingOn)') && tagBar.includes('crewWaitingWords(live.agentsWaiting)') && repl.includes('workWaitingWords(seatLive.waitingOn)') && repl.includes('crewWaitingWords(seatLive.agentsWaiting)'))
   const views = readFileSync('src/components/tasks/useFocusedWork.ts', 'utf8')
   check("C6 the work views' presence rides the runner-liveness law", views.includes('runnerRecordAlive(rec, pidAlive)'))
   check('C6 …and trusts endedAt alone nowhere', !views.includes('rec.sessionId === sessionId && rec.endedAt === undefined'))

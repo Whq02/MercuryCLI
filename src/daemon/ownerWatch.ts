@@ -1,10 +1,13 @@
 
 import { execFile, spawnSync } from 'node:child_process'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
-import { existsSync } from 'node:fs'
+import { existsSync, fstatSync } from 'node:fs'
+import { Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
 
 export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
+
+export const OWNER_FD_ENV = 'MERCURY_DAEMON_OWNER_FD'
 
 let win32PsExeCached: string | null = null
 function win32PsExe(): string {
@@ -146,12 +149,21 @@ export function ownerIdentityMatches(
 
 export const OWNER_WATCH_INTERVAL_MS = 4000
 export const OWNER_WATCH_GRACE_CHECKS = 2
+export const OWNER_IDENTITY_FLOOR_MS = 60_000
+export const OWNER_PROBE_BACKOFF_FACTOR = 4
 
 export function parseOwnerPid(env: NodeJS.ProcessEnv = process.env): number | null {
   const raw = (env[OWNER_PID_ENV] ?? env.MERCURY_DAEMON_OWNER_PID)?.trim()
   if (!raw) return null
   const pid = Number(raw)
   return Number.isInteger(pid) && pid > 0 ? pid : null
+}
+
+export function parseOwnerFd(env: NodeJS.ProcessEnv = process.env): number | null {
+  const raw = env[OWNER_FD_ENV]?.trim()
+  if (!raw) return null
+  const fd = Number(raw)
+  return Number.isInteger(fd) && fd > 2 ? fd : null
 }
 
 export function isProcessAlive(pid: number): boolean {
@@ -174,4 +186,202 @@ export function decideOrphanShutdown(args: {
   if (args.ownerPid === null) return false
   if (args.ownerAlive) return false
   return args.deadStreak >= args.graceChecks
+}
+
+
+export interface OwnerPipeHandleV1 {
+  armed: boolean
+  why?: string
+  close(): void
+}
+
+export function armOwnerPipe(fd: number, onClosed: () => void, log: (line: string) => void): OwnerPipeHandleV1 {
+  const unarmed = (why: string): OwnerPipeHandleV1 => ({ armed: false, why, close: () => {} })
+  try {
+    const st = fstatSync(fd)
+    if (!st.isSocket() && !st.isFIFO()) return unarmed(`fd ${fd} is not a pipe`)
+  } catch (e) {
+    return unarmed(`fd ${fd} is not open (${(e as NodeJS.ErrnoException).code ?? String(e)})`)
+  }
+  let sock: Socket
+  try {
+    sock = new Socket({ fd, readable: true, writable: false })
+  } catch (e) {
+    return unarmed(`fd ${fd} could not be wrapped (${String(e)})`)
+  }
+  let settled = false
+  const gone = (): void => {
+    if (settled) return
+    settled = true
+    onClosed()
+  }
+  sock.on('data', () => {
+  })
+  sock.on('end', gone)
+  sock.on('close', gone)
+  sock.on('error', (e: NodeJS.ErrnoException) => {
+    if (e.code === 'ECONNRESET' || e.code === 'EPIPE' || e.code === 'EOF') {
+      gone()
+      return
+    }
+    if (settled) return
+    settled = true
+    log(`[daemon] owner pipe errored (${e.code ?? String(e)}) — the liveness beat and the identity probe watch alone`)
+  })
+  sock.resume()
+  sock.unref()
+  return {
+    armed: true,
+    close: () => {
+      settled = true
+      sock.destroy()
+    },
+  }
+}
+
+
+export type OwnerGoneWhy = 'owner-gone' | 'owner-replaced' | 'owner-pipe-eof'
+
+export interface OwnerWatchPortsV1 {
+  ownerPid: number
+  baselineToken: string | null
+  onOrphan: (why: OwnerGoneWhy) => void
+  log: (line: string) => void
+  alive?: (pid: number) => boolean
+  probeToken?: (pid: number) => Promise<string | null>
+  now?: () => number
+  intervalMs?: number
+  identityFloorMs?: number
+  graceChecks?: number
+  schedule?: boolean
+}
+
+export interface OwnerWatchFactsV1 {
+  deadStreak: number
+  probes: number
+  probeFailures: number
+  backoffUntil: number
+  lastProbeAt: number
+  identityLost: boolean
+  pipeClosed: boolean
+  reaped: OwnerGoneWhy | null
+}
+
+export interface OwnerWatchHandleV1 {
+  beat(): Promise<void>
+  ownerPipeClosed(): void
+  stop(): void
+  facts(): OwnerWatchFactsV1
+}
+
+export function startOwnerWatch(ports: OwnerWatchPortsV1): OwnerWatchHandleV1 {
+  const alive = ports.alive ?? isProcessAlive
+  const probeToken = ports.probeToken ?? getProcessStartTokenAsync
+  const now = ports.now ?? Date.now
+  const intervalMs = ports.intervalMs ?? OWNER_WATCH_INTERVAL_MS
+  const floorMs = ports.identityFloorMs ?? OWNER_IDENTITY_FLOOR_MS
+  const graceChecks = ports.graceChecks ?? OWNER_WATCH_GRACE_CHECKS
+  const identityCheckable = ports.baselineToken !== null && ports.baselineToken !== ''
+  const facts: OwnerWatchFactsV1 = {
+    deadStreak: 0,
+    probes: 0,
+    probeFailures: 0,
+    backoffUntil: 0,
+    lastProbeAt: now(),
+    identityLost: false,
+    pipeClosed: false,
+    reaped: null,
+  }
+  let inflight = false
+  let stopped = false
+  let failureLogged = false
+  let timer: ReturnType<typeof setInterval> | undefined
+
+  const probeDue = (t: number): boolean => {
+    if (!identityCheckable || inflight || t < facts.backoffUntil) return false
+    return facts.identityLost || t - facts.lastProbeAt >= floorMs
+  }
+  const probe = async (): Promise<void> => {
+    inflight = true
+    facts.probes++
+    try {
+      const token = await probeToken(ports.ownerPid)
+      const t = now()
+      facts.lastProbeAt = t
+      if (token === null) {
+        facts.probeFailures++
+        facts.backoffUntil = t + floorMs * OWNER_PROBE_BACKOFF_FACTOR
+        facts.identityLost = false
+        if (!failureLogged) {
+          failureLogged = true
+          ports.log(
+            `[daemon] owner identity probe could not run for pid ${ports.ownerPid} — next try in ${Math.round((floorMs * OWNER_PROBE_BACKOFF_FACTOR) / 1000)}s; the liveness beat keeps watching`,
+          )
+        }
+        return
+      }
+      if (failureLogged) {
+        failureLogged = false
+        ports.log(`[daemon] owner identity probe answers again for pid ${ports.ownerPid}`)
+      }
+      facts.probeFailures = 0
+      facts.backoffUntil = 0
+      facts.identityLost = !ownerIdentityMatches(token, ports.baselineToken)
+    } finally {
+      inflight = false
+    }
+  }
+  const stop = (): void => {
+    stopped = true
+    if (timer !== undefined) {
+      clearInterval(timer)
+      timer = undefined
+    }
+  }
+  const beat = async (): Promise<void> => {
+    if (stopped) return
+    let ownerAlive: boolean
+    let why: OwnerGoneWhy = 'owner-gone'
+    if (facts.pipeClosed) {
+      ownerAlive = false
+      why = 'owner-pipe-eof'
+    } else if (!alive(ports.ownerPid)) {
+      ownerAlive = false
+    } else {
+      if (probeDue(now())) await probe()
+      ownerAlive = !facts.identityLost
+      if (!ownerAlive) why = 'owner-replaced'
+    }
+    if (stopped) return
+    facts.deadStreak = ownerAlive ? 0 : facts.deadStreak + 1
+    if (
+      decideOrphanShutdown({
+        ownerPid: ports.ownerPid,
+        ownerAlive,
+        deadStreak: facts.deadStreak,
+        graceChecks,
+        persist: false,
+      })
+    ) {
+      stop()
+      facts.reaped = why
+      ports.onOrphan(why)
+    }
+  }
+  if (ports.schedule !== false) {
+    timer = setInterval(() => {
+      void beat()
+    }, intervalMs)
+    timer.unref?.()
+  }
+  return {
+    beat,
+    ownerPipeClosed: () => {
+      if (stopped || facts.pipeClosed) return
+      facts.pipeClosed = true
+      void beat()
+    },
+    stop,
+    facts: () => ({ ...facts }),
+  }
 }

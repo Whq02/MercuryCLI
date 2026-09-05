@@ -2,7 +2,8 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.3
-- GPT-6 Astra (gpt-6-astra) is a first-class row: the 1,050,000 window, the 128,000 output ceiling, the low-to-max effort ladder and the published prices; it lists once the connected OpenAI account serves it
+- GPT-6 Astra (gpt-6-astra) is a first-class row, proven on the wire: it lists once the connected OpenAI account serves it (the account list decides the served window and effort ladder — a ChatGPT subscription serves a 272,000 default window and an 872,000 ceiling, and the gauge follows the served ceiling), the effort ladder reaches max, the published prices price every turn, the meter counts the wire's cache writes at the $12.5 write rate, and a prompt past 272,000 input tokens prices at the page's long-context tier (2x input and cache rates, 1.5x output)
+- The Intel Mac archive (macos-x64) ships from the release: cross-packaged on the Apple silicon runner with the Intel runtime, search binary and image processor, booted under Rosetta before it publishes; mercury update names it on an Intel Mac
 - Images paste into the composer on every platform (ctrl+v; alt+v on Windows) at any size: a big image is shrunk to the provider's published limits, never refused for its size, and the composer says what it attached; the build vendors the image processor beside the bundle
 - /bug <what happened> shows the exact report, then files it in the repository through your own signed-in GitHub CLI; the draft and the transcript stay local under the config home; /feedback opens the three-form chooser
 - mercury install puts the stable command's folder on your PATH once (a guarded line in the shell's startup file; the user PATH on Windows), so a new terminal finds mercury; the provenance line prints on a bare interactive boot only
@@ -23,6 +24,13 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - The daemon reads sign-ins live, so a fresh /logins reaches the sessions it hosts without a restart; the doctor's daemon-sign-ins row compares both reads
 - Mouse: a drag that moves nothing paints nothing, a burst of drag reports paints once, and /mouse off is saved for later boots (the /config row Mouse capture)
 - Painting: a one-shot render settles on its last frame, a headless render writes no terminal bytes, the streaming tail wears its ink from the first byte, a critter frame commits once per tick, and a workflow's end lands its manifest, status and notification from one writer
+- An agent's own effort word ranks above the session's stamp; /effort and the picker set the running seat; a downgrade to what the model serves is a one-line receipt, never silent
+- The mode band paints the mode the runner actually holds, from the first frame, on every road that boots a runner; a refused mode change reaches the screen with its reason
+- Godot: the editor is found where it lives (a running one included), the bridge says open-but-unbridged instead of editor closed, every project.godot edit is receipted, and project_refresh_classes rebuilds the class cache
+- The Concourse close chord does exactly what its hint says at every second (stop, then archive, then delete), the hint never goes stale, and a parked session reopens on one Enter
+- Every summary of a session's work reads one owner: the workflow panel, the launch line, the chip and the RUNS lane agree with the running agents; idle only when nothing runs; /compact shows compacting, never thinking
+- Removing or switching an account announces the change once; a store's first write never shows a blank; a headless run whose login lives outside the keychain prints no keychain error
+- The daemon idles quietly: it watches its owner without spawning a process every few seconds, heals its files only when they change, and reads its schedules on change (30 spawns and 142 file operations per two idle minutes became 2 and 24)
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
