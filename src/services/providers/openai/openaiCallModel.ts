@@ -432,13 +432,13 @@ export async function* openaiCallModel(
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
-  const receiptOf = (p: GptReasoningProfile): EffortAdjustedV1 | undefined =>
-    p.source === 'unsupported-fallback' && p.adjustedFrom !== undefined
+  const receiptOf = (profile: GptReasoningProfile): EffortAdjustedV1 | undefined =>
+    profile.source === 'unsupported-fallback' && profile.adjustedFrom !== undefined
       ? {
           model: modelId,
           name: getPublicModelDisplayName(modelId) ?? modelId,
-          asked: p.adjustedFrom,
-          ...(p.wireEffort !== undefined ? { sent: p.wireEffort } : {}),
+          asked: profile.adjustedFrom,
+          ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
         }
       : undefined
   let effortAdjusted: EffortAdjustedV1 | undefined = receiptOf(profile)
@@ -525,9 +525,6 @@ export async function* openaiCallModel(
       }
       openaiLiveProof = { at: Date.now(), model: modelId }
       recordLaneTurnSettled('openai')
-      if (profile.wireEffort !== undefined) {
-        noteWireEffortAccepted({ modelId, sourceKind: auth.account.kind, word: profile.wireEffort })
-      }
       recordLiveQualification({
         modelId,
         role: activeApexRole(options),
@@ -535,6 +532,9 @@ export async function* openaiCallModel(
         behaviourContractDigest: contract.digest,
         ...(profile.wireEffort ? { liveEffort: profile.wireEffort } : {}),
       })
+      if (profile.wireEffort !== undefined) {
+        noteWireEffortAccepted({ modelId, sourceKind: auth.account.kind, word: profile.wireEffort })
+      }
       return
     }
     if (outcome.kind === 'cancelled') return
