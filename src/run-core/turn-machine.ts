@@ -19,6 +19,7 @@ import {
   deadThinkingMarks,
   describePrefixRewrite,
   describeThinkingDrops,
+  turnOrdinalOfWirePath,
   inputTransformationsOf,
   modelSwitchReceipt,
   prefixMarkOf,
@@ -633,7 +634,7 @@ async function* streamModel(
                 recordThinkingDropLedger(outcome, iter.currentModel)
                 logForDebugging(`preserved thinking: ${JSON.stringify(drops)}`, { level: 'warn' })
               }
-              const dropNotice = describeThinkingDrops(drops, outcome)
+              const dropNotice = describeThinkingDrops(drops, outcome, turnOrdinalOfWirePath(outcome.path, prefixVerdict?.wireMessageIds ?? [], iter.messagesForQuery))
               if (dropNotice !== null) {
                 const lawful = outcome.kind === 'lawful'
                 logForDebugging(`preserved thinking: ${lawful ? 'note' : 'warning'}: ${dropNotice}`)
