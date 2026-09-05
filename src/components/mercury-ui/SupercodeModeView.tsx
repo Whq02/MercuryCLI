@@ -78,7 +78,7 @@ export function SupercodeModeView({ onClose }: { onClose: () => void }): React.R
       {
 }
       <SectionHeader count={axis.length}>Effort axis</SectionHeader>
-      <Text color={FAINT}>↑↓ to move · ↵ explains the selected level · the axis is low→medium→high→xhigh→max</Text>
+      <Text color={FAINT}>{`↑↓ to move · ↵ explains the selected level · the axis is ${EFFORT_AXIS.join('→')}`}</Text>
       {axis.map((a, i) => {
         const reachColor = a.reach === 'live' ? TEAL : a.reach === 'gated' ? AMBER : SECOND
         const reachGlyph = a.reach === 'live' ? '●' : a.reach === 'gated' ? '⦿' : '◇'
@@ -96,7 +96,7 @@ export function SupercodeModeView({ onClose }: { onClose: () => void }): React.R
 
       {}
       <SectionHeader>Run it</SectionHeader>
-      <Text color={FAINT}>live levels (low/medium/high/xhigh/max): set with /effort — applies this session</Text>
+      <Text color={FAINT}>{`live levels (${EFFORT_AXIS.join('/')}): set with /effort — applies this session`}</Text>
       <Text color={FAINT}>supercode: /effort supercode — flips the session mode (pins max; needs a max-capable model)</Text>
       <Text color={FAINT}>while on, a standing system-reminder keeps you orchestrating + exhaustive until /effort clears it</Text>
 

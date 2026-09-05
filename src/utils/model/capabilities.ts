@@ -4,7 +4,7 @@ import {
   getFeatureValue_CACHED_MAY_BE_STALE,
 } from 'src/services/analytics/featureGates.js'
 import { flagEnabled } from 'src/substrate/flagRegistry.js'
-import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 import { getIsNonInteractiveSession, getSdkBetas } from '../../bootstrap/state.js'
 import {
   CODING_20250219_BETA_HEADER,
@@ -339,9 +339,7 @@ function vocabularyOffers(view: EffortVocabularyView, level: EffortLevel): boole
 
 export function gptModelDefaultEffort(model: string): EffortLevel | undefined {
   const live = gptModelDefaultEffortRaw(model)
-  return live === 'low' || live === 'medium' || live === 'high' || live === 'xhigh' || live === 'max'
-    ? live
-    : undefined
+  return live !== undefined && (EFFORT_LEVELS as readonly string[]).includes(live) ? (live as EffortLevel) : undefined
 }
 
 export function gptModelDefaultEffortRaw(model: string): string | undefined {
@@ -354,18 +352,22 @@ export function modelSupportsEffort(model: string): boolean {
   return effortVocabularyFor(model).kind !== 'none'
 }
 
+export function modelOffersEffortLevel(model: string, level: EffortLevel): boolean {
+  return vocabularyOffers(effortVocabularyFor(model), level)
+}
+
 export function modelSupportsMaxEffort(model: string): boolean {
-  return vocabularyOffers(effortVocabularyFor(model), 'max')
+  return modelOffersEffortLevel(model, 'max')
 }
 
 export function modelSupportsXHighEffort(model: string): boolean {
-  return vocabularyOffers(effortVocabularyFor(model), 'xhigh')
+  return modelOffersEffortLevel(model, 'xhigh')
 }
 
 export function getMaxSupportedEffortLevel(model: string): EffortLevel {
-  if (modelSupportsMaxEffort(model)) return 'max'
-  if (modelSupportsXHighEffort(model)) return 'xhigh'
-  return 'high'
+  const view = effortVocabularyFor(model)
+  const aboveHigh = EFFORT_LEVELS.slice(EFFORT_LEVELS.indexOf('high') + 1).reverse()
+  return aboveHigh.find(level => vocabularyOffers(view, level)) ?? 'high'
 }
 
 
@@ -1105,6 +1107,7 @@ export type ModelCapabilityRecord = Readonly<{
     supported: boolean
     max: boolean
     xhigh: boolean
+    ultra: boolean
     ceiling: EffortLevel
   }>
   tools: Readonly<{
@@ -1148,6 +1151,7 @@ export function resolveModelCapabilities(model: string): ModelCapabilityRecord {
       supported: modelSupportsEffort(model),
       max: modelSupportsMaxEffort(model),
       xhigh: modelSupportsXHighEffort(model),
+      ultra: modelOffersEffortLevel(model, 'ultra'),
       ceiling: getMaxSupportedEffortLevel(model),
     }),
     tools: Object.freeze({

@@ -67,6 +67,8 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 
   const stamped = effort.resolveStampedEffortTruth(MODEL, 'xhigh')
   check("a seat row's stamped truth resolves the seat's own word (no env, no agent)", stamped.requested === 'xhigh' && stamped.requestedSource === 'session')
+  const capped = effort.resolveStampedEffortTruth(MODEL, 'ultra')
+  check('ultra asked on a first-party row runs max (the first-party ladder ends at max) and the record keeps the asked word', capped.applied === 'max' && capped.wire === 'max' && capped.adjustedFrom === 'ultra' && !effort.selectableEffortLevels(MODEL).includes('ultra'), JSON.stringify(capped))
   delete process.env.MERCURY_EFFORT_LEVEL
 }
 
@@ -102,7 +104,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
     new Response(
       JSON.stringify({
         data: [
-          { id: 'gpt-6-astra', display_name: 'GPT-6 Astra', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'], default_reasoning_level: 'high' },
+          { id: 'gpt-6-astra', display_name: 'GPT-6 Astra', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'high' },
           { id: 'gpt-5.5', display_name: 'GPT-5.5', visibility: 'list', priority: 2, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh'], default_reasoning_level: 'high' },
         ],
       }),
@@ -121,6 +123,12 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check("the seat's own request still carries its stamp (high)", seat.wire === 'high' && seat.requestedSource === 'env', JSON.stringify(seat))
   const stepped = effort.resolveEffortTruth('gpt-5.5', 'max', { agentId: 'astra-deep' })
   check("an own word the row lacks steps to the nearest served word (max → xhigh) and the record keeps both", stepped.wire === 'xhigh' && stepped.requested === 'max' && stepped.adjustedFrom === 'max', JSON.stringify(stepped))
+  effort.noteAgentEffortWord('astra-top', 'ultra')
+  const top = effort.resolveEffortTruth('gpt-6-astra', 'ultra', { agentId: 'astra-top' })
+  check('an agent asking the served top word sends it (asked ultra → sent ultra)', top.wire === 'ultra' && top.applied === 'ultra' && top.requestedSource === 'agent' && top.adjustedFrom === undefined, JSON.stringify(top))
+  const topStepped = effort.resolveEffortTruth('gpt-5.5', 'ultra', { agentId: 'astra-top' })
+  check('the same word on a row that lacks it steps to the nearest served word (ultra → xhigh) with both words on the record', topStepped.wire === 'xhigh' && topStepped.requested === 'ultra' && topStepped.adjustedFrom === 'ultra', JSON.stringify(topStepped))
+  effort.forgetAgentEffortWord('astra-top')
   effort.forgetAgentEffortWord('astra-deep')
   effort.forgetAgentEffortWord('astra-quick')
   delete process.env.MERCURY_EFFORT_LEVEL
@@ -133,6 +141,8 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the line names the asked word, the model and the served word', line === 'effort max is not served on GPT-5.5 today — sent xhigh', line)
   const omitted = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'max' })
   check('a wire that omits the key says so', omitted === 'effort max is not served on GPT-5.5 today — no effort key was sent (the model default applies)', omitted)
+  const sixth = effort.effortAdjustedReceiptLine({ model: 'gpt-5.5', name: 'GPT-5.5', asked: 'ultra', sent: 'xhigh' })
+  check('the line names the sixth word the same way', sixth === 'effort ultra is not served on GPT-5.5 today — sent xhigh', sixth)
   const messageTypes = readFileSync(join(ROOT, 'src/types/message.ts'), 'utf8')
   check('the settled assistant message carries the typed stamp beside the typed end', /streamEnd\?: StreamEndV1[\s\S]{0,600}effortAdjusted\?: EffortAdjustedV1/.test(messageTypes))
   const lane = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
