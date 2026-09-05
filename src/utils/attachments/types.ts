@@ -463,6 +463,7 @@ export type Attachment =
       rosterEnabled: boolean
       roster: BoundPrefixToolMark[]
       sections: BoundPrefixSection[]
+      systemContext: Record<string, string>
     }
   | {
       type: 'agent_listing_delta'
