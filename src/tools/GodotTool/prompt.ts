@@ -38,6 +38,8 @@ Setup: the mercury_vulcan addon must be installed in the project and the editor 
 
 Routing: GDScript SYMBOL work (outline, definitions, references, rename) → the LSP tool. BREAKPOINT debugging (breakpoints, stepping, stack) → the Debug tool's godot adapter. Play-test flows (scene_play → runtime_* → scene_stop), scene/node/resource editing, and profiling live HERE.
 
+Driving a game turn by turn: op:"runtime_pause" (or the first op:"runtime_step") parks the game while you think, op:"runtime_step" {frames | ms} advances it exactly that far and answers with the frames run and the errors/log since — every press you sent meanwhile is delivered at the window's start, and a press is a real InputEventAction the game's _input/_unhandled_input callbacks and Input.is_action_pressed both see — and op:"runtime_resume" lets it run live again. One call per act: op:"input_sequence" steps carry step_frames (advance after the step), so a walk-and-attack is one call: steps [{action:"left", pressed:true, step_frames:30}, {action:"left", pressed:false}, {action:"attack", step_frames:10}].
+
 Op catalog (name(args) — ? marks optional):
 ${getGodotOpCatalog()}`
 }
