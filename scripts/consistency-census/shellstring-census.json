@@ -452,7 +452,15 @@
     },
     {
       "file": "scripts/engine-connector/prove-esc-latch-turn-drive.ts",
-      "line": 232,
+      "line": 231,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/engine-connector/prove-recall-send-drive.ts",
+      "line": 239,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -489,6 +497,22 @@
       "excerpt": "MERCURY_EVAL_PYTHON: ['', '/usr/bin/python3'],",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-hermetic-shard.ts",
+      "line": 336,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const ownBox = spawn('/usr/bin/python3', [join(ROOT, 'scripts', 'gate', 'dead-letter.py'), join(boxDir, 'port')], { stdio: 'ignore' })",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/gate/prove-hermetic-shard.ts",
+      "line": 362,
+      "mechanism": "shell-dash-c",
+      "excerpt": "spawnSync('bash', ['-c', turnScript({ cwd, ...refreshRoad })], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000, killSignal: 'SIGKILL' }",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
       "file": "scripts/gate/prove-suite-class-census.ts",
@@ -1132,7 +1156,7 @@
     },
     {
       "file": "scripts/permissions/prove-flow-block-asks.ts",
-      "line": 358,
+      "line": 456,
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
@@ -1276,7 +1300,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 290,
+      "line": 296,
       "mechanism": "execSync-string",
       "excerpt": "execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })",
       "cls": "intentional-shell",
@@ -1284,7 +1308,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 540,
+      "line": 546,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + launched + '\"', ...args].join(' '), {",
       "cls": "intentional-shell",
@@ -1292,7 +1316,7 @@
     },
     {
       "file": "scripts/release/package.mjs",
-      "line": 670,
+      "line": 676,
       "mechanism": "execSync-string",
       "excerpt": "? execSync(['\"' + shim + '\"', '--version'].join(' '), { encoding: 'utf8', env: smokeEnv, timeout: 120_000 })",
       "cls": "intentional-shell",
@@ -1991,6 +2015,14 @@
       "line": 68,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
+    },
+    {
+      "file": "scripts/transcript-rows/prove-clear-empties-transcript.ts",
+      "line": 179,
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
