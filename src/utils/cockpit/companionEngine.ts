@@ -21,7 +21,7 @@ import {
   type Moment,
   type VoiceState,
 } from './companionVoice.js'
-import { MOMENT_LINES, TIP_BANK } from './companionWords.js'
+import { MOMENT_LINES, tipBank } from './companionWords.js'
 import { getLiveContextUsage } from './contextUsageLive.js'
 import {
   companionDeckSeed,
@@ -186,8 +186,8 @@ function speak(moment: Moment, now: number, typing: boolean): boolean {
   return true
 }
 
-function fittingTips(): typeof TIP_BANK {
-  return TIP_BANK.filter(t => fitsCompanionBudget(t.text))
+function fittingTips(): ReturnType<typeof tipBank> {
+  return tipBank().filter(t => fitsCompanionBudget(t.text))
 }
 
 function tipSignals(): { contextPct: number | null; openedSurfaces: ReadonlySet<string> } {
