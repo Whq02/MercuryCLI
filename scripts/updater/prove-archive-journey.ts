@@ -149,8 +149,14 @@ console.log('── 2 · install lands the payload, the pointer and the stable c
   check('current.txt names the archive version, no previous yet', pointer('current') === VERSION && pointer('previous') === null)
   check('the payload is complete under versions/<v> (bundle · manifest · vendor/ripgrep · launcher · splash pair · verifier)',
     ['mercury.mjs', 'manifest.json', 'vendor/ripgrep', 'mercury', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs'].every(m => existsSync(join(versionsDir, VERSION, m))))
+  check('the first install narrates its acts on stderr: staging, activating, complete', /^staging: /m.test(r.stderr) && /^activating: /m.test(r.stderr) && /^complete: /m.test(r.stderr), r.stderr.slice(0, 300))
   const again = run(launcher, ['install'])
   check('a second install is a truthful no-op', again.code === 0 && again.stdout.includes('already present — no bytes changed'), again.all.slice(0, 300))
+  check(
+    '…and narrates nothing it did not do: no staging or activating line; complete says already present',
+    !/^(staging|activating)\b/m.test(again.stderr) && /^complete: .*already present/m.test(again.stderr),
+    again.stderr.slice(0, 300),
+  )
 }
 
 console.log('── 3 · the stable command answers ──')
