@@ -10,8 +10,12 @@ import {
   lookupChecksum,
   parsePrivateTag,
   parsePrivateVersion,
+  projectReleases,
+  PUBLIC_HOME_SLUG,
+  rateLimitResetMinutes,
   repoSlugFromUrl,
   resolveBundleMember,
+  resolveChannelRepo,
   selectBridgePrevious,
   selectRelease,
   type ChannelRelease,
@@ -209,6 +213,63 @@ check('https URL', repoSlugFromUrl('https://github.com/Whq02/PreRelease') === 'W
 check('.git suffix stripped', repoSlugFromUrl('https://github.com/Whq02/PreRelease.git') === 'Whq02/PreRelease')
 check('trailing slash tolerated', repoSlugFromUrl('https://github.com/Whq02/PreRelease/') === 'Whq02/PreRelease')
 check('non-github refused', repoSlugFromUrl('https://gitlab.com/a/b') === null)
+
+console.log('── §8 the release-record projection (one projector, both roads) ──')
+{
+  const raw = [
+    {
+      tag_name: 'v1.2.0-beta.2',
+      draft: false,
+      prerelease: true,
+      assets: [
+        { name: 'mercury-v1.2.0-beta.2-linux-x64.tar.gz', browser_download_url: 'https://github.com/o/r/releases/download/v1.2.0-beta.2/mercury-v1.2.0-beta.2-linux-x64.tar.gz', size: 1 },
+        { name: CHECKSUM_MANIFEST_NAME, browser_download_url: 'https://github.com/o/r/releases/download/v1.2.0-beta.2/SHA256SUMS.txt' },
+        { name: '', browser_download_url: 'https://github.com/o/r/nameless' },
+        { browser_download_url: 'https://github.com/o/r/no-name' },
+        'not an asset',
+      ],
+      body: 'ignored',
+    },
+    { tag_name: 'v1.2.0-beta.1', draft: true, assets: [{ name: 'mercury-v1.2.0-beta.1-linux-x64.tar.gz' }] },
+    null,
+    { assets: 'not an array' },
+  ]
+  const projected = projectReleases(raw)!
+  check('a release array projects one row per object record (null records dropped)', Array.isArray(projected) && projected.length === 3)
+  const newest = projected[0]!
+  check('tag, draft and prerelease project by name', newest.tagName === 'v1.2.0-beta.2' && newest.isDraft === false && newest.isPrerelease === true)
+  check('asset names project in order; nameless and non-object assets are dropped', JSON.stringify(newest.assetNames) === JSON.stringify(['mercury-v1.2.0-beta.2-linux-x64.tar.gz', CHECKSUM_MANIFEST_NAME]))
+  check('every named asset keeps its own download URL', newest.assetUrls?.['mercury-v1.2.0-beta.2-linux-x64.tar.gz']?.endsWith('linux-x64.tar.gz') === true && newest.assetUrls?.[CHECKSUM_MANIFEST_NAME]?.endsWith('SHA256SUMS.txt') === true)
+  const draft = projected[1]!
+  check('a record without prerelease projects false; a record without URLs carries no assetUrls', draft.isPrerelease === false && draft.isDraft === true && draft.assetUrls === undefined)
+  const empty = projected[2]!
+  check('a record without a tag or assets projects empty, never throws', empty.tagName === '' && empty.assetNames.length === 0)
+  check('a non-array document is null (the transport names it)', projectReleases({ message: 'Not Found' }) === null && projectReleases('x') === null && projectReleases(undefined) === null)
+  const installed = parsePrivateVersion('1.1.0-beta.1')!
+  const picked = selectRelease(projected, installed, 'linux', 'x64')
+  check('selection carries the picked asset\'s URL and the checksum manifest\'s URL', picked.state === 'update-available' && picked.assetUrl?.endsWith('linux-x64.tar.gz') === true && picked.checksumUrl?.endsWith('SHA256SUMS.txt') === true)
+  const noUrls = selectRelease([{ tagName: 'v1.2.0-beta.2', isDraft: false, isPrerelease: true, assetNames: ['mercury-v1.2.0-beta.2-linux-x64.tar.gz', CHECKSUM_MANIFEST_NAME] }], installed, 'linux', 'x64')
+  check('selection over a record without URLs says null, never a guessed URL', noUrls.state === 'update-available' && noUrls.assetUrl === null && noUrls.checksumUrl === null)
+}
+
+console.log('── §9 the one channel fact ──')
+{
+  check('the packaged repository URL is the root', JSON.stringify(resolveChannelRepo(undefined, 'https://github.com/Whq02/MercuryCLI.git')) === JSON.stringify({ slug: 'Whq02/MercuryCLI', source: 'packaged' }))
+  check('a registered override wins (a collaborator\'s private channel, a prover\'s fixture slug)', JSON.stringify(resolveChannelRepo(' fixture-owner/fixture-repo ', 'https://github.com/Whq02/MercuryCLI')) === JSON.stringify({ slug: 'fixture-owner/fixture-repo', source: 'override' }))
+  check('an override that is not owner/repo is ignored whole, never half-applied', resolveChannelRepo('not a slug', 'https://github.com/Whq02/MercuryCLI').source === 'packaged' && resolveChannelRepo('', 'https://github.com/Whq02/MercuryCLI').source === 'packaged' && resolveChannelRepo('a/b/c', 'https://github.com/Whq02/MercuryCLI').source === 'packaged')
+  check('no packaged URL ⇒ the public home, said as the fallback', JSON.stringify(resolveChannelRepo(undefined, undefined)) === JSON.stringify({ slug: PUBLIC_HOME_SLUG, source: 'fallback' }) && resolveChannelRepo(undefined, 'https://gitlab.com/a/b').source === 'fallback')
+  check('the public home is the packaged repository', PUBLIC_HOME_SLUG === 'Whq02/MercuryCLI')
+}
+
+console.log('── §10 the anonymous rate-limit arithmetic ──')
+{
+  const now = 1_700_000_000_000
+  check('x-ratelimit-reset (epoch seconds) ⇒ minutes, rounded up', rateLimitResetMinutes({ rateLimitReset: String(1_700_000_000 + 1500) }, now) === 25 && rateLimitResetMinutes({ rateLimitReset: String(1_700_000_000 + 61) }, now) === 2)
+  check('a reset already past still reads one minute (the words are owed)', rateLimitResetMinutes({ rateLimitReset: String(1_700_000_000 - 30) }, now) === 1)
+  check('retry-after seconds answer when the reset header is absent', rateLimitResetMinutes({ retryAfter: '90' }, now) === 2 && rateLimitResetMinutes({ rateLimitReset: null, retryAfter: '0' }, now) === 1)
+  check('the reset header wins over retry-after', rateLimitResetMinutes({ rateLimitReset: String(1_700_000_000 + 600), retryAfter: '5' }, now) === 10)
+  check('neither header ⇒ null (the words say "within the hour")', rateLimitResetMinutes({}, now) === null && rateLimitResetMinutes({ rateLimitReset: 'soon', retryAfter: 'later' }, now) === null)
+}
 
 console.log('')
 if (failures === 0) {

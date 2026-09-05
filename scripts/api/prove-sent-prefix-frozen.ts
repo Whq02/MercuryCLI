@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
@@ -243,6 +243,7 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const { buildBoundPrefixRecordData, boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted, boundPrefixRecordExists } =
     await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
   const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
+  const { getSystemContext } = await import('../../src/context.ts')
   const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
   const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -265,31 +266,35 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const marks = (plan: { deferredNames: ReadonlySet<string> }): string => j([...plan.deferredNames].sort())
   const doPlan = (tools: Record<string, unknown>[], key: string = owner, msgs = messages) =>
     planToolPayload({ model: MODEL, tools: tools as never, messages: msgs as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: key })
-  const freshProcess = (): void => { clearToolRosterLatches(); clearToolRosterRestore(); clearSystemPromptSectionState(); resetBoundPrefixEmitted() }
+  const contextCache = getSystemContext.cache as { set: (k: unknown, v: unknown) => unknown; clear?: () => void; has: (k: unknown) => boolean }
+  const freshProcess = (): void => { clearToolRosterLatches(); clearToolRosterRestore(); clearSystemPromptSectionState(); resetBoundPrefixEmitted(); contextCache.clear?.() }
 
   freshProcess()
   setSystemPromptSectionCacheEntry('mode-vulcan', null, null)
   setSystemPromptSectionCacheEntry('memory', 'the memory as first seen', null)
+  contextCache.set(undefined, Promise.resolve({ gitStatus: 'the tree as first seen' }))
   const p1 = await doPlan([search, read, browser])
   const names1 = rosterNames(p1)
   const marks1 = marks(p1)
   const boundKey = conversationRosterKey(owner, messages as never, MODEL)
 
-  const record = buildBoundPrefixRecordData(owner, messages as never, MODEL)
+  const record = await buildBoundPrefixRecordData(owner, messages as never, MODEL)
   check('§1c the record captures the frozen roster (names in first-sent order + deferral marks)', record !== null && j(record.roster.map(t => t.name)) === j(p1.roster.map(t => t.name)) && record.roster.some(t => t.name === 'Browser' && t.deferred), record ? j(record.roster) : 'null')
   check('§1c the record captures the cached sections (name, key, text — an absent section as null)', record !== null && record.sections.some(s => s.name === 'mode-vulcan' && s.value === null) && record.sections.some(s => s.name === 'memory' && s.value === 'the memory as first seen'), record ? j(record.sections) : 'null')
+  check('§1c the record captures the system context the request appended (the git-status snapshot)', record?.systemContext.gitStatus === 'the tree as first seen', j(record?.systemContext))
   check('§1c the record key is the conversation key (owner | first row | model)', record?.boundKey === boundKey, `${record?.boundKey} vs ${boundKey}`)
 
-  const emitted = boundPrefixRecordToEmit(owner, messages as never, MODEL)
+  const emitted = await boundPrefixRecordToEmit(owner, messages as never, MODEL)
   check('§1c the record emits as an attachment (bound_prefix), null-rendering AND projecting NOTHING to the wire', emitted !== null && emitted.type === 'attachment' && emitted.attachment.type === 'bound_prefix' && normalizeAttachmentForAPI(emitted.attachment).length === 0 && isNullRenderingAttachment(emitted), emitted ? `render=${isNullRenderingAttachment(emitted)} wire=${normalizeAttachmentForAPI(emitted.attachment).length}` : 'null')
-  check('§1c a second emit is null (one record per conversation)', boundPrefixRecordToEmit(owner, messages as never, MODEL) === null)
+  check('§1c a second emit is null (one record per conversation)', (await boundPrefixRecordToEmit(owner, messages as never, MODEL)) === null)
   check('§1c the record is found in a history that carries it', emitted !== null && boundPrefixRecordExists([emitted as never], boundKey))
   const recordMessage = emitted!
 
   freshProcess()
-  check('§1c a new process has no latch and no cached sections (the freeze does not survive a process)', getSystemPromptSectionCache().size === 0 && pendingToolRosterRestore() === null)
+  check('§1c a new process has no latch, no cached sections and no composed context (the freeze does not survive a process)', getSystemPromptSectionCache().size === 0 && pendingToolRosterRestore() === null && !contextCache.has(undefined))
   const restoredKey = restoreBoundPrefixFromMessages([recordMessage as never])
   check('§1c the resume loader restored the record: the sections seeded into the cache, the roster armed', restoredKey === boundKey && getSystemPromptSectionCache().get('mode-vulcan')?.value === null && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen' && pendingToolRosterRestore()?.key === boundKey, `${restoredKey}; sections=${getSystemPromptSectionCache().size}`)
+  check('§1c …and the system-context memo serves the recorded snapshot (a tree that moved since never rewrites the last system block)', contextCache.has(undefined) && (await getSystemContext()).gitStatus === 'the tree as first seen', j(await getSystemContext()))
 
   const p2 = await doPlan([search, read, browser])
   check('§1c the resumed plan re-sends the frozen roster byte for byte (names + deferral marks)', rosterNames(p2) === names1 && marks(p2) === marks1 && p2.restoredMissingTools.length === 0, `${rosterNames(p2)} vs ${names1}`)
@@ -689,7 +694,7 @@ if (!existsSync(DIST)) {
       await fixture.close()
     }
 
-    section('§6c the resume road — a project BORN between two processes never rewrites the frozen prefix (the operator\'s Godot session, on the real binding check)')
+    section('§6c the resume road — a gate that flips between two processes never rewrites the frozen prefix (the operator\'s Godot session, on the real binding check)')
     const transcriptText = (arena: Arena, sessionId: string): string => {
       const files: string[] = []
       const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${sessionId}.jsonl`) files.push(f) } }
@@ -700,21 +705,53 @@ if (!existsSync(DIST)) {
     {
       const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6C-T${n}`, thinking: `godot c ${n}` }))
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
-      const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1', MERCURY_THINKING_BINDING: 'error' })
+      const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error' })
+      delete arena.env.MERCURY_GODOT_TOOLS
       const SID = 'c0ffee00-0000-4000-8000-00000000c06c'
       const r1 = await run(arena, ['-p', 'start a game', ...common, '--session-id', SID])
-      check('§6c turn 1 (no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('§6c turn 1 (the flag off, no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       check('§6c the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
+      arena.env.MERCURY_GODOT_TOOLS = '1'
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
       const r2 = await run(arena, ['-p', 'inspect the scene', ...common, '--resume', SID])
-      check('§6c turn 2 (resumed, project BORN) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      check('§6c turn 2 (resumed, the flag armed, the project born) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
       const reqs = fixture.messageRequests()
       check('§6c two message requests', reqs.length === 2, String(reqs.length))
       const sysA = systemTextOf(reqs[0]!.body as Body)
       const sysB = systemTextOf(reqs[1]!.body as Body)
-      check('§6c the resumed request never gained the Godot section (the system is byte-identical across the resume)', sysA === sysB && !sysB.includes('Godot control surface'), `A=${sysA.length}B B=${sysB.length}B godot=${sysB.includes('Godot control surface')}`)
-      check('§6c the resumed bound tools are byte-identical (the Godot tool did not enter the bound roster)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
+      check('§6c the first request carried no Godot at all (the control: the flag was off)', !sysA.includes('Godot') && !toolNamesOf(reqs[0]!.body as Body).includes('Godot'), `godotInSystem=${sysA.includes('Godot')}`)
+      check('§6c the resumed request never gained the Godot section, doctrine or harness-map line (the system is byte-identical across the resume)', sysA === sysB && !sysB.includes('Godot'), `A=${sysA.length}B B=${sysB.length}B godot=${sysB.includes('Godot')}`)
+      check('§6c the resumed bound tools are byte-identical (the Godot tool the flag now seats is a joiner outside the bound prefix)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
       check('§6c the fixture refused nothing and the API dropped no thinking block on the resumed request', fixture.refusals.length === 0 && bindingDropsFor(reqs[1]!.body).length === 0, `refusals=${fixture.refusals.length} drops=${bindingDropsFor(reqs[1]!.body).length}`)
+      await fixture.close()
+    }
+
+    section('§6d the resume road — the git-status snapshot (the last system block) never rewrites across two processes; a tree that moved reaches the model on a new row')
+    {
+      const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6D-T${n}`, thinking: `tree ${n}` }))
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error' })
+      const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' }
+      const git = (args: string[]): void => { spawnSync('git', args, { cwd: arena.cwd, stdio: 'ignore', env: gitEnv }) }
+      writeFileSync(join(arena.cwd, 'README.md'), '# a repository\n')
+      git(['init', '-q'])
+      git(['add', '.'])
+      git(['commit', '-q', '-m', 'seed'])
+      const SID = 'c0ffee00-0000-4000-8000-00000000c06d'
+      const r1 = await run(arena, ['-p', 'look around', ...common, '--session-id', SID])
+      check('§6d turn 1 (a clean repository) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      const reqs1 = fixture.messageRequests()
+      const sysA = systemTextOf(reqs1[0]!.body as Body)
+      check('§6d the first request appended the git-status snapshot as its last system block', sysA.includes('gitStatus:'), sysA.slice(-200))
+      check('§6d the record carries that snapshot', /"systemContext":\{"gitStatus":/.test(transcriptText(arena, SID)) || transcriptText(arena, SID).includes('"gitStatus"'), transcriptText(arena, SID).includes('bound_prefix') ? 'record present, snapshot absent' : 'no record')
+      writeFileSync(join(arena.cwd, 'notes.txt'), 'saved between the turns\n')
+      const r2 = await run(arena, ['-p', 'and now?', ...common, '--resume', SID])
+      check('§6d turn 2 (resumed, the tree moved) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      const reqs = fixture.messageRequests()
+      check('§6d two message requests', reqs.length === 2, String(reqs.length))
+      const sysB = systemTextOf(reqs[1]!.body as Body)
+      check('§6d the resumed request re-sent the FIRST snapshot (the system is byte-identical; the saved file is not in the prefix)', sysA === sysB && !sysB.includes('notes.txt'), `A=${sysA.length}B B=${sysB.length}B notes=${sysB.includes('notes.txt')}`)
+      check('§6d the fixture refused nothing and the API dropped no thinking block on the resumed request', fixture.refusals.length === 0 && bindingDropsFor(reqs[1]!.body).length === 0, `refusals=${fixture.refusals.length} drops=${bindingDropsFor(reqs[1]!.body).length}`)
       await fixture.close()
     }
 
