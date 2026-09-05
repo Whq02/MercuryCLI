@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Text } from '../../../ink.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
+import { ConsentBodyText } from '../ConsentBodyText.js'
 import { FallbackPermissionRequest } from '../FallbackPermissionRequest.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
 import type { ToolInput } from '../FilePermissionDialog/permissionOptions.js'
@@ -48,6 +49,12 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
     )
   }
 
+  const name = tool.userFacingName(toolUseConfirm.input as never)
+  const useMessage = tool.renderToolUseMessage(toolUseConfirm.input as never, {
+    theme: resolveThemeName(),
+    verbose,
+  })
+
   return (
     <FilePermissionDialog<ToolInput>
       toolUseConfirm={toolUseConfirm}
@@ -56,13 +63,13 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
       onReject={onReject}
       title={readOnly ? 'Read file' : 'Edit file'}
       content={
-        <Text>
-          {tool.userFacingName(toolUseConfirm.input as never)}(
-          {tool.renderToolUseMessage(toolUseConfirm.input as never, {
-            theme: resolveThemeName(),
-            verbose,
-          })})
-        </Text>
+        typeof useMessage === 'string' ? (
+          <ConsentBodyText text={`${name}(${useMessage})`} />
+        ) : (
+          <Text>
+            {name}({useMessage})
+          </Text>
+        )
       }
       operationType={readOnly ? 'read' : 'write'}
       path={path}
