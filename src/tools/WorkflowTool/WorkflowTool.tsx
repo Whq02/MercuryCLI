@@ -105,6 +105,14 @@ export class WorkflowInputError extends Error {
   }
 }
 
+export function workflowRunLabel(meta: { name?: string; title?: string; description?: string }): string {
+  const name = meta.name?.trim() ?? ''
+  if (name !== '') return name
+  const title = meta.title?.trim() ?? ''
+  if (title !== '') return title
+  return meta.description?.trim() ?? ''
+}
+
 type WorkflowInput = {
   script?: string
   name?: string
@@ -549,7 +557,7 @@ const WorkflowToolDef = {
         taskType: 'local_workflow' as const,
         workflowName: meta.name,
         runId,
-        summary: meta.description,
+        summary: workflowRunLabel(meta),
         error,
       },
     })
@@ -639,7 +647,7 @@ const WorkflowToolDef = {
       taskId,
       script,
       scriptPath,
-      summary: meta.description,
+      summary: workflowRunLabel(meta),
       workflowName: meta.name,
       title: meta.title,
       phases: meta.phases as WorkflowPhase[] | undefined,
@@ -856,7 +864,7 @@ const WorkflowToolDef = {
           if (!pausedLive) {
             enqueueWorkflowNotification({
               taskId,
-              summary: meta.description,
+              summary: workflowRunLabel(meta),
               status: 'killed',
               agentCount: live?.agentCount ?? 0,
               totalTokens,
@@ -904,7 +912,7 @@ const WorkflowToolDef = {
                 ),
           {
             taskId,
-            summary: meta.description,
+            summary: workflowRunLabel(meta),
             result: result.result,
             failures: result.failures,
             agentCount: result.agentCount,
@@ -944,7 +952,7 @@ const WorkflowToolDef = {
             ),
           {
             taskId,
-            summary: meta.description,
+            summary: workflowRunLabel(meta),
             agentCount: live?.agentCount ?? 0,
             totalTokens: live?.totalTokens ?? 0,
             totalToolCalls: live?.totalToolCalls ?? 0,
@@ -971,7 +979,7 @@ const WorkflowToolDef = {
         taskType: 'local_workflow' as const,
         workflowName: meta.name,
         runId,
-        summary: meta.description,
+        summary: workflowRunLabel(meta),
         transcriptDir: runDir,
         scriptPath,
       },

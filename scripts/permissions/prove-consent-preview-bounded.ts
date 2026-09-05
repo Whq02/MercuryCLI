@@ -172,6 +172,16 @@ section('§5 the expand door — one chord, Confirmation context, the tail\'s wo
   }
 }
 
+{
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const budget = await import('../../src/components/permissions/consentBodyBudget.ts')
+  const ui = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'FileEditTool', 'UI.tsx'), 'utf8')
+  const rejected = ui.slice(ui.indexOf('export function renderToolUseRejectedMessage'))
+  check("the rejected-edit row's diff reads the card's content width at the row's columns (never unbounded)", rejected.includes('availableWidth: consentContentWidth(options.width)'))
+  check('at 100 columns the diff paints inside the row (the card\'s borders and paddings spent)', budget.consentContentWidth(100) < 100 && budget.consentContentWidth(100) >= 90, `${budget.consentContentWidth(100)}`)
+}
+
 console.log(
   failures === 0
     ? '\n ✅ CONSENT BODIES BOUNDED — every card fits the pane; the cut is counted as painted'

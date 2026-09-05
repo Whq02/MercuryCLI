@@ -126,5 +126,39 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
   }
 }
 
+section('5. the one injection road — a press is an event; step mode is served')
+{
+  const bridge = readFileSync(path.join(addon, 'core', 'runtime_bridge.gd'), 'utf8')
+  const bodies = new Map<string, string>()
+  for (const m of bridge.matchAll(/^(?:static )?func (\w+)\([^\n]*\n([\s\S]*?)(?=^(?:static )?func |(?![\s\S]))/gm)) bodies.set(m[1]!, m[2]!)
+  const parsers = [...bodies].filter(([, body]) => /Input\.parse_input_event\(/.test(body)).map(([name]) => name).sort()
+  check('Input.parse_input_event is called only by _inject and _deliver_queued', JSON.stringify(parsers) === JSON.stringify(['_deliver_queued', '_inject']), parsers.join(','))
+  check('the action-state-only road is gone (no Input.action_press / action_release)', !/Input\.action_(press|release)\(/.test(bridge))
+  const action = bodies.get('_rop_input_action') ?? ''
+  check('input_action builds an InputEventAction with action, pressed, strength and injects it', /InputEventAction\.new\(\)/.test(action) && /ev\.action = action/.test(action) && /ev\.pressed = pressed/.test(action) && /ev\.strength = /.test(action) && /_inject\(ev\)/.test(action))
+  for (const road of ['_rop_input_key', '_rop_input_mouse_button', '_rop_input_mouse_move', '_rop_click', '_rop_navigate', '_rop_replay', '_rop_input_sequence']) {
+    const body = bodies.get(road) ?? ''
+    check(`${road} rides the injection road (or the rops that do)`, /_inject\(|_rop_input_(key|mouse_button|action)\(/.test(body), road)
+  }
+  const inject = bodies.get('_inject') ?? ''
+  check('_inject queues only while step mode holds the tree paused', /_step_mode and get_tree\(\)\.paused/.test(inject) && /_queued_input\.append\(ev\)/.test(inject))
+  const deliver = bodies.get('_deliver_queued') ?? ''
+  check('the queue is delivered by parsing AND flushing (the callbacks see it before the first stepped frame)', /Input\.parse_input_event\(ev\)/.test(deliver) && /Input\.flush_buffered_events\(\)/.test(deliver))
+  const advance = bodies.get('_advance') ?? ''
+  check('a step window is frame-aligned: unpause and re-pause at process_frame boundaries, exact frames', /await tree\.process_frame\n\tvar delivered/.test(advance) && /tree\.paused = false\n\t\tdelivered = _deliver_queued\(\)/.test(advance) && /while ran < frames and/.test(advance) && /if stepped:\n\t\ttree\.paused = true\n\t_stepping = false/.test(advance))
+  check('the bridge serves the three step rops', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(r => new RegExp(`"${r}":\\n\\t\\t\\treturn (await )?_rop_`).test(bridge)))
+  check('runtime_status names the mode (live | step)', /"mode": "step" if _step_mode else "live"/.test(bridge) && /st\.merge\(_mode_state\(\)\)/.test(bodies.get('_rop_status') ?? ''))
+  const runtime = readFileSync(path.join(catDir, 'runtime.gd'), 'utf8')
+  check('the editor side forwards the three verbs from the runtime category', /"runtime_step", "runtime_pause", "runtime_resume",/.test(runtime))
+  check('the editor pre-flights the step window (frames or ms, never both) before the wire', /if op == "runtime_step":\n\t\tvar bad := step_window_error\(args, "frames", "ms", ctx\)/.test(runtime) && /pass %s or %s, not both/.test(runtime))
+  check('the proxy deadline budgets stepped frames (server.gd mirrors the bridge figure)', /STEP_WALL_MS_PER_FRAME := 50/.test(server) && /int\(args\["frames"\]\) \* STEP_WALL_MS_PER_FRAME/.test(server) && /STEP_WALL_MS_PER_FRAME := 50/.test(bridge))
+  const sequence = bodies.get('_rop_input_sequence') ?? ''
+  check('input_sequence steps carry step_frames | step_ms and advance after the input', /_step_window\(step, "step_frames", "step_ms", false\)/.test(sequence) && /await _advance\(int\(window\["frames"\]\), int\(window\["ms"\]\)\)/.test(sequence))
+  check('a wait_ms is game time while stepped, a timer while live', /if _step_mode:\n\t\t\t\tvar w: Dictionary = await _advance\(0, /.test(sequence) && /create_timer\(wait_ms \/ 1000\.0\)\.timeout/.test(sequence))
+  const input = readFileSync(path.join(catDir, 'input.gd'), 'utf8')
+  check('input_sequence validation admits step_frames | step_ms and checks their shape', /step\.has\("step_frames"\) or step\.has\("step_ms"\)/.test(input) && /MercuryVulcanRuntime\.step_window_error\(step, "step_frames", "step_ms", ctx\)/.test(input))
+  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* STEP_WALL_MS_PER_FRAME/.test(server))
+}
+
 console.log('\n' + (failures === 0 ? '✅ vulcan addon proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)

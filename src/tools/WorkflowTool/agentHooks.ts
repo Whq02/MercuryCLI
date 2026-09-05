@@ -907,6 +907,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
       let lastBumpAt = 0
       const bumpThrottleMs = Math.min(stallMs * 0.1, 1000)
+      let parked = false
       const onQueryProgress = (evt?: unknown): void => {
         const m = evt as
           | {
@@ -975,6 +976,13 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (m?.type === 'stream_request_start') awaitingFirstToken = true
         else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()
+        if (parked) {
+          parked = false
+          lastBumpAt = now
+          clearHeartbeat()
+          armStallTimer()
+          return
+        }
         if (now - lastBumpAt < bumpThrottleMs) return
         lastBumpAt = now
         clearHeartbeat()
@@ -1144,6 +1152,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           toolCalls += toolUsesHere
           if (toolUsesHere > 0) {
             clearStallTimer()
+            parked = true
           } else {
             armStallTimer()
           }

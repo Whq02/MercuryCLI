@@ -18,6 +18,7 @@ import { peekInputSelectionRange } from '../utils/cockpit/inputSelectionBridge.j
 import { isXtermJs } from '../ink/session/capabilities.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 
 
 export type WheelAccelState = {
@@ -218,8 +219,8 @@ export function dragScrollDirection(
 
 
 const PAGE_OVERLAP_ROWS = 2
-const AUTOSCROLL_STEP_ROWS = 2
-const AUTOSCROLL_TICK_MS = 50
+export const AUTOSCROLL_STEP_ROWS = 2
+export const AUTOSCROLL_TICK_MS = 50
 const AUTOSCROLL_MAX_TICKS = 200
 const COPY_TOAST_KEY = 'selection-copy'
 
@@ -477,7 +478,7 @@ export function ScrollKeybindingHandler({
   const autoscrollTicksRef = useRef(0)
   useEffect(() => {
     if (!isActive) return
-    const timer = setInterval(() => {
+    const stopTick = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
       const handle = activeHandle()
       const state = selection.getState()
       const dragging = state !== null && state.isDragging
@@ -526,8 +527,8 @@ export function ScrollKeybindingHandler({
         handle.scrollBy(AUTOSCROLL_STEP_ROWS)
         notifyScroll(handle)
       }
-    }, AUTOSCROLL_TICK_MS)
-    return () => clearInterval(timer)
+    })
+    return () => stopTick()
   }, [isActive, activeHandle, selection, notifyScroll])
 
   void isModal

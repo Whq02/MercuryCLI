@@ -60,21 +60,17 @@ import { getMainLoopModel } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
+import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
 
 
 export function redactSensitiveInfo(text: string): string {
   let result = text
   result = result.replace(/["']sk-ant[A-Za-z0-9_-]{24,}["']/g, '[REDACTED_API_KEY]')
-  result = result.replace(
-    /(?<![A-Za-z0-9"'])sk-ant[A-Za-z0-9_-]{10,}(?![A-Za-z0-9"'])/g,
-    '[REDACTED_API_KEY]',
-  )
+  for (const pass of CREDENTIAL_VALUE_PASSES) {
+    result = result.replace(new RegExp(pass.pattern.source, pass.pattern.flags), pass.marker)
+  }
   result = result.replace(/AWS[ _-]?key["'\s:=]+["']AWS[A-Z0-9]{20,}["']/gi, '[REDACTED_AWS_KEY]')
   result = result.replace(/(?<![A-Za-z0-9])AKIA[A-Z0-9]{16}(?![A-Za-z0-9])/g, '[REDACTED_AWS_KEY]')
-  result = result.replace(
-    /(?<![A-Za-z0-9])AIza[A-Za-z0-9_-]{35}(?![A-Za-z0-9])/g,
-    '[REDACTED_GCP_KEY]',
-  )
   result = result.replace(
     /[A-Za-z0-9._-]+@[A-Za-z0-9.-]+\.iam\.gserviceaccount\.com/g,
     '[REDACTED_GCP_SERVICE_ACCOUNT]',

@@ -58,8 +58,15 @@ echo ">>> booting the headless editor (first boot imports, second serves)"
 "$GODOT" --editor --headless --path "$proj" >"$work/editor.log" 2>&1 &
 GODOT_PID=$!
 
-echo ">>> driving the live loop"
-MERCURY_GODOT_TOOLS=1 "$bun" run "$here/smoke-driver.ts" drive "$proj"
+LEGS="${LIVE_LEGS:-drive game}"
+for leg in $LEGS; do
+  case "$leg" in
+    drive) echo ">>> driving the live loop" ;;
+    game) echo ">>> driving the fixture game through the play-mode bridge" ;;
+    *) echo "live-vulcan-smoke: unknown leg '$leg' (LIVE_LEGS takes drive and/or game)"; exit 2 ;;
+  esac
+  MERCURY_GODOT_TOOLS=1 "$bun" run "$here/smoke-driver.ts" "$leg" "$proj"
+done
 
 smoke_ok=1
 echo "✅ live vulcan smoke PASS"

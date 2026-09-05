@@ -1,8 +1,10 @@
 
 import { projectDisplayName } from '../../utils/bootCardFacts.js'
 
+export const UNNAMED_SESSION_WORD = 'new session'
+
 export function newSessionTitle(workspaceDir: string): string {
-  return `new session · ${projectDisplayName(workspaceDir)} · ready`
+  return `${UNNAMED_SESSION_WORD} · ${projectDisplayName(workspaceDir)} · ready`
 }
 
 export function isWorkerIdTitle(title: string): boolean {

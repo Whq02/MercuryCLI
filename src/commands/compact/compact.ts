@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { APIUserAbortError } from '../../services/api/sdkErrors.js'
 import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
 import { markPostCompaction } from '../../bootstrap/state.js'
 import { getUserContext } from '../../context.js'
@@ -9,6 +10,7 @@ import {
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
   type CompactionResult,
   withFoldStatus,
+  ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { getAutoCompactThreshold } from '../../services/compact/autoCompact.js'
 import { suppressCompactWarning } from '../../services/compact/compactWarningState.js'
@@ -202,7 +204,7 @@ async function callUnderFoldStatus(
     }
   } catch (error) {
     if (context.abortController.signal.aborted || isAbortError(error)) {
-      throw new Error('Compaction canceled.')
+      throw new APIUserAbortError({ message: ERROR_MESSAGE_USER_ABORT })
     }
     if (
       hasExactErrorMessage(error, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES) ||

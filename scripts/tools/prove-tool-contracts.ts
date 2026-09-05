@@ -42,6 +42,11 @@ t(
   'Agent schema REJECTS haiku at the public contract',
   agentSchema.safeParse({ ...agentBase, model: 'haiku' }).success === false,
 )
+const seatSlots = await import('../../src/utils/model/seatSlots.ts')
+for (const id of seatSlots.SEAT_ALLOWED_FAMILIES) {
+  t(`Agent schema accepts the served id '${id}'`, agentSchema.safeParse({ ...agentBase, model: id }).success === true)
+}
+t('Agent schema still refuses an unserved id', agentSchema.safeParse({ ...agentBase, model: 'claude-haiku-4-5' }).success === false)
 
 process.env['MERCURY_CONFIG_DIR'] ??= (await import('node:fs')).mkdtempSync(
   (await import('node:path')).join((await import('node:os')).tmpdir(), 'tool-contracts-'),

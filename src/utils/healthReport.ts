@@ -20,7 +20,7 @@ import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
 import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from '../components/mercury-ui/glyphs.js'
 import { crashReportDir } from './crashReport.js'
 import { getAuthConfigHomeDir, getMercuryHome } from './envUtils.js'
 import { classifyHarnessHome, harnessArtifactPath, type HarnessHomeReport } from './knownAgentClis.js'
@@ -321,7 +321,7 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
       const holders = holdersWords(await mercuryHoldersOf(dir))
       const fix = madeByMercury
         ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
-        : `keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
+        : `Mercury keys every project beneath it as one: memory and project settings mix, and a forked worktree is a worktree of the home — keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
       return { evidence: `${dir} is a git repository (${created}; ${who}; ${holders})`, fix }
     }),
   )
@@ -1144,7 +1144,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const parts = [
-              `${GLYPH.branch} ${repo.branchName} @ ${sha7(repo.commitHash)}`,
+              `${branchChip(repo.branchName)} @ ${sha7(repo.commitHash)}`,
               repo.isClean ? 'clean' : 'uncommitted changes',
             ]
             if (repo.unpushedCount > 0) parts.push(`${repo.unpushedCount} unpushed`)
@@ -1542,16 +1542,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'launch-spine',
           label: 'Boot milestones',
           run: async () => {
-            const { lastBootReachedInputLive, readLaunchMilestones } = await import(
+            const { lastBootReachedInputLive, lastInteractiveBootSpine } = await import(
               '../substrate/launchMilestones.js'
             )
             const reached = lastBootReachedInputLive()
-            if (reached === null) return { status: 'off', evidence: 'no milestones recorded yet' }
-            const rows = readLaunchMilestones()
-            const lastPid = rows[rows.length - 1]?.pid
-            const lastRungs = rows.filter(r => r.pid === lastPid).map(r => r.milestone)
-            const spine = lastRungs.join(' → ')
+            if (reached === null) return { status: 'off', evidence: 'no interactive boot recorded yet' }
             const RANK: Record<string, number> = { 'runtime-entry': 0, 'route-ready': 1, 'first-frame': 2, 'input-live': 3 }
+            const lastRungs = lastInteractiveBootSpine().map(r => r.milestone).filter(m => m in RANK)
+            const spine = lastRungs.join(' → ')
             const ranks = lastRungs.map(m => RANK[m] ?? -1)
             const inOrder = ranks.every((r, i) => r >= 0 && (i === 0 || r > ranks[i - 1]!))
             if (reached && !inOrder) {
