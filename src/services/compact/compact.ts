@@ -100,7 +100,7 @@ export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
 export const ERROR_MESSAGE_PROMPT_TOO_LONG =
   'This conversation has outgrown one pass: after three narrowing retries the summariser itself was refused as too long. Start a fresh conversation with /clear, or switch to a model with a larger context window and run /compact again.'
-export const ERROR_MESSAGE_USER_ABORT = 'Compaction canceled.'
+export const ERROR_MESSAGE_USER_ABORT = 'Compaction cancelled.'
 export const ERROR_MESSAGE_INCOMPLETE_RESPONSE =
   'Compaction was interrupted before a summary arrived — likely a network issue; try again.'
 
