@@ -124,11 +124,11 @@ const echoTool = {
   isReadOnly: () => true,
 } as never
 
-const callParams = (model: string, effort = 'high') => ({
+const callParams = (model: string, effort = 'high', systemPrompt: string[] = ['You are a specialist.']) => ({
   messages: [
     { type: 'user', message: { role: 'user', content: 'add 2+2' }, uuid: 'u1', timestamp: 't' },
   ] as unknown as Message[],
-  systemPrompt: ['You are a specialist.'] as unknown as Parameters<typeof openaiCallModel>[0]['systemPrompt'],
+  systemPrompt: systemPrompt as unknown as Parameters<typeof openaiCallModel>[0]['systemPrompt'],
   thinkingConfig: { type: 'enabled', budgetTokens: 4096 } as const,
   tools: [echoTool] as unknown as Parameters<typeof openaiCallModel>[0]['tools'],
   signal: new AbortController().signal,
@@ -144,9 +144,9 @@ const callParams = (model: string, effort = 'high') => ({
   } as unknown as Parameters<typeof openaiCallModel>[0]['options'],
 })
 
-async function collect(model: string, effort?: string): Promise<Array<StreamEvent | AssistantMessage>> {
+async function collect(model: string, effort?: string, systemPrompt?: string[]): Promise<Array<StreamEvent | AssistantMessage>> {
   const out: Array<StreamEvent | AssistantMessage> = []
-  for await (const item of openaiCallModel(callParams(model, effort))) {
+  for await (const item of openaiCallModel(callParams(model, effort, systemPrompt))) {
     out.push(item as StreamEvent | AssistantMessage)
   }
   return out
@@ -264,6 +264,23 @@ section('1 · the yield contract + the turn record')
   check("live-resolved reasoning effort 'high' + summary auto", body?.reasoning?.effort === 'high' && body?.reasoning?.summary === 'auto')
   check('instructions carry the system prompt', body?.instructions === 'You are a specialist.')
   check('mercury prompt_cache_key rides as the STABLE domain digest', typeof body?.prompt_cache_key === 'string' && body.prompt_cache_key.startsWith('mercury-domain:'))
+  {
+    const { registerComposedContract, contractFromSegments } = await import('../../src/prompt/behaviourContract.js')
+    registerComposedContract(contractFromSegments(['You are a specialist.']))
+    const keyOf = async (systemPrompt: string[]): Promise<string | undefined> => {
+      patchWire()
+      makeResponses = () => sseResponse(HAPPY_STREAM)
+      await collect('gpt-5.6-sol', undefined, systemPrompt)
+      restoreWire()
+      return (lastResponsesBody as { prompt_cache_key?: string } | undefined)?.prompt_cache_key
+    }
+    const tailOne = await keyOf(['You are a specialist.', 'git status snapshot: one file changed'])
+    const tailTwo = await keyOf(['You are a specialist.', 'git status snapshot: two files changed'])
+    const otherBase = await keyOf(['You are a different specialist.', 'git status snapshot: one file changed'])
+    check('the key stays put when only the appended context tail moves (the git status snapshot)', tailOne !== undefined && tailOne === tailTwo, `${tailOne} vs ${tailTwo}`)
+    check('the key moves with the base contract', otherBase !== undefined && otherBase !== tailOne, `${otherBase} vs ${tailOne}`)
+    check('…and the two tails still render into the instructions (delivery, not the key)', typeof (lastResponsesBody as { instructions?: string } | undefined)?.instructions === 'string' && ((lastResponsesBody as { instructions?: string }).instructions ?? '').includes('git status snapshot: one file changed'))
+  }
   check('max_output_tokens is NOT sent (live-proved unsupported)', body?.max_output_tokens === undefined)
   check('the key never rides the body', !JSON.stringify(body).includes('sk-apex-proof-fake'))
   check(
@@ -311,9 +328,13 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const adjusted = await collect('gpt-5.6-sol', 'xhigh')
   const adjustedBody = lastResponsesBody as { reasoning?: { effort?: string } }
   check("unsupported 'xhigh' adjusts to the NEAREST supported 'high' on the wire", adjustedBody?.reasoning?.effort === 'high')
+  const stampOf = (items: Array<StreamEvent | AssistantMessage>): AssistantMessage['effortAdjusted'] | undefined =>
+    items.map(m => (m as AssistantMessage).effortAdjusted).find(s => s !== undefined)
+  const xhighStamp = stampOf(adjusted)
   check(
-    'the adjustment is VISIBLE (a settled note block names both levels)',
-    JSON.stringify(adjusted).includes("requested reasoning effort 'xhigh'") && JSON.stringify(adjusted).includes("'high'"),
+    'the adjustment is RECEIPTED — the settled message carries the typed stamp (asked xhigh, sent high, the row named) and the reply text carries no note',
+    xhighStamp !== undefined && xhighStamp.model === 'gpt-5.6-sol' && xhighStamp.asked === 'xhigh' && xhighStamp.sent === 'high' && xhighStamp.name.length > 0 && !JSON.stringify(adjusted).includes('requested reasoning effort'),
+    JSON.stringify(xhighStamp),
   )
 
   __resetOpenaiCatalogueForTest()
@@ -331,9 +352,11 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const maxAdjusted = await collect('gpt-5.6-sol', 'max')
   const maxBody = lastResponsesBody as { reasoning?: { effort?: string } }
   check("unsupported 'max' adjusts to the deepest supported 'xhigh' on the wire", maxBody?.reasoning?.effort === 'xhigh')
+  const maxStamp = stampOf(maxAdjusted)
   check(
-    "the max→xhigh adjustment is VISIBLE",
-    JSON.stringify(maxAdjusted).includes("requested reasoning effort 'max'") && JSON.stringify(maxAdjusted).includes("'xhigh'"),
+    'the max→xhigh adjustment is RECEIPTED on the settled message (asked max, sent xhigh)',
+    maxStamp !== undefined && maxStamp.asked === 'max' && maxStamp.sent === 'xhigh',
+    JSON.stringify(maxStamp),
   )
 
   __resetOpenaiCatalogueForTest()
@@ -359,7 +382,10 @@ section('2 · honest refusals + the §10 effort-adjustment note')
   const retried = await collect('gpt-5.6-sol')
   restoreWire()
   check('retryable pre-content fault: exactly two attempts (bounded)', responsesCalls === 2, String(responsesCalls))
-  check('…then ONE API-error assistant message', retried.length === 1 && isApiErrorAssistant(retried[0]))
+  const retryRows = retried.filter(m => (m as { type?: string }).type === 'system')
+  const retryAssistants = retried.filter(m => (m as { type?: string }).type === 'assistant')
+  check("the reissue is a row: ONE retry notice names the fault and the attempt (never a silent sleep)", retryRows.length === 1 && (retryRows[0] as { subtype?: string; retryAttempt?: number; maxRetries?: number }).subtype === 'api_error' && (retryRows[0] as { retryAttempt?: number }).retryAttempt === 1 && (retryRows[0] as { maxRetries?: number }).maxRetries === 1, JSON.stringify(retryRows[0]).slice(0, 200))
+  check('…then ONE API-error assistant message', retryAssistants.length === 1 && isApiErrorAssistant(retryAssistants[0]))
 }
 
 section('3 · stateless replay round-trip (the transcript is canonical)')

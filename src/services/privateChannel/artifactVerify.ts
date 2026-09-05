@@ -146,13 +146,13 @@ export function artifactSignatureCheck(
       return {
         status: 'warn',
         evidence,
-        fix: 'expected until the operator signing ceremony is live; once releases are signed, re-download to get an attested artifact',
+        fix: 'releases from 1.0.0-beta.3 on are signed at packaging — an unsigned payload is 1.0.0-beta.2 (shipped without the key) or a build made without it; `mercury update`, or a fresh download from github.com/Whq02/MercuryCLI/releases, brings a signed release',
       }
     case 'unrecognized-key':
       return {
         status: 'warn',
         evidence,
-        fix: 'a trusted artifact must be signed by a roster key (src/services/privateChannel/signingTrust.ts); treat this payload as unattested otherwise',
+        fix: 'a trusted payload is signed by the Mercury release key compiled into this build (the roster in src/services/privateChannel/signingTrust.ts); one signed by another key is unattested — re-download from github.com/Whq02/MercuryCLI/releases',
       }
     case 'tampered':
       return {

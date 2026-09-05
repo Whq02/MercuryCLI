@@ -13,14 +13,39 @@ export type WorkflowPulse = {
   moving: boolean
 }
 
+export type WorkflowPulseFacts = Pick<
+  WorkflowPulse,
+  'phaseTitle' | 'running' | 'settled' | 'maxAttempt' | 'lastEventAt'
+>
+
 const num = (v: unknown): number | undefined =>
   typeof v === 'number' && Number.isFinite(v) ? v : undefined
+
+export function workflowPulseAt(facts: WorkflowPulseFacts, nowMs: number): WorkflowPulse {
+  const quietMs = Math.max(0, nowMs - facts.lastEventAt)
+  return {
+    phaseTitle: facts.phaseTitle,
+    running: facts.running,
+    settled: facts.settled,
+    maxAttempt: facts.maxAttempt,
+    lastEventAt: facts.lastEventAt,
+    quietMs,
+    moving: quietMs < WORKFLOW_QUIET_MS,
+  }
+}
 
 export function workflowPulse(
   events: readonly WorkflowProgressEvent[],
   startTime: number,
   nowMs: number,
 ): WorkflowPulse {
+  return workflowPulseAt(workflowPulseFacts(events, startTime), nowMs)
+}
+
+export function workflowPulseFacts(
+  events: readonly WorkflowProgressEvent[],
+  startTime: number,
+): WorkflowPulseFacts {
   let phaseTitle: string | undefined
   let newestAgentAt = 0
   let newestAgentPhase: string | undefined
@@ -52,15 +77,12 @@ export function workflowPulse(
     }
   }
   if (newestAgentPhase !== undefined) phaseTitle = newestAgentPhase
-  const quietMs = Math.max(0, nowMs - lastEventAt)
   return {
-    phaseTitle,
+    ...(phaseTitle !== undefined ? { phaseTitle } : {}),
     running,
     settled,
     maxAttempt,
     lastEventAt,
-    quietMs,
-    moving: quietMs < WORKFLOW_QUIET_MS,
   }
 }
 

@@ -3105,27 +3105,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const { vulcanInstallStatus } = await import('../services/vulcan/addonInstaller.js')
-            const { probeGodotEditorReachable } = await import('../services/lsp/godotLane.js')
+            const { probeGodotEditorPresence, presenceNudge } = await import('../services/vulcan/editorPresence.js')
             const s = vulcanInstallStatus(root)
-            const reachable = await probeGodotEditorReachable(port)
+            const presence = await probeGodotEditorPresence(root, port)
             const parts = [
               `project ${root}`,
               s.installed ? `addon installed${s.digestMatch ? '' : s.bundledFiles === 0 ? ' (dev bundle empty)' : ' (DRIFTED from bundle)'}` : 'addon NOT installed',
               s.enabled ? 'addon enabled' : 'addon not enabled',
-              reachable ? `editor answering :${port}` : `editor NOT answering :${port}`,
+              presence.reachable ? `bridge up :${port}` : `${presence.words} (:${port} dark)`,
             ]
-            if (!s.installed || !s.enabled) {
+            if (!s.installed || !s.enabled || !presence.reachable) {
               return {
                 status: 'warn' as const,
                 evidence: parts.join(' · ') + lite,
-                fix: 'Run the Godot tool op:"vulcan_install" (writes the addon and enables it), then focus/restart the editor.',
-              }
-            }
-            if (!reachable) {
-              return {
-                status: 'warn' as const,
-                evidence: parts.join(' · ') + lite,
-                fix: 'Open the project in the Godot editor (godot --editor --headless works; macOS app bundle: <Godot.app>/Contents/MacOS/Godot); the addon listens once the editor loads it.',
+                fix: presenceNudge(presence, s),
               }
             }
             return { status: 'ok' as const, evidence: parts.join(' · ') + lite }

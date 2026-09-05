@@ -50,6 +50,11 @@ export function workChipLine(counts: WorkCountsV1): string | null {
   return counts.asks > 0 ? `${line} · ${counts.asks} ask${counts.asks === 1 ? '' : 's'}` : line
 }
 
+export function workWaitingWords(counts: WorkCountsV1): string | null {
+  const line = workChipLine(counts)
+  return line === null ? null : `waiting on ${line}`
+}
+
 export function runnerRecordAlive(
   rec: Pick<ConcourseWorkerRecordV1, 'endedAt' | 'attachedAt' | 'pid'>,
   alive: (pid: number) => boolean,
