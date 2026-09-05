@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text, paletteCollapsed } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import { GLYPH, padStartTo } from '../mercury-ui/glyphs.js'
+import { GLYPH, padStartTo, branchChip } from '../mercury-ui/glyphs.js'
 import { keyHintLabel } from '../mercury-ui/keyHintLabel.js'
 import { VIEWPORT_FLOOR_COLS, VIEWPORT_FLOOR_ROWS } from '../../ink/viewportFloor.js'
 import { truncateToWidth } from '../../utils/truncate.js'
@@ -607,7 +607,7 @@ export function ConcourseLayout({
                     {
 }
                     <Text wrap="truncate-end">
-                      {r.worktreeBranch !== undefined ? <Text color={t.info}>{GLYPH.branch} </Text> : null}
+                      {r.worktreeBranch !== undefined ? <Text color={t.info}>{branchChip('')}</Text> : null}
                       <Text color={t.textSecondary}>{r.projectLabel}</Text>
                     </Text>
                   </Box>

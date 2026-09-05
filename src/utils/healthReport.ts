@@ -20,7 +20,7 @@ import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
 import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
 import { artifactIdentityLine, describeArtifactIdentity } from './artifactIdentity.js'
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from '../components/mercury-ui/glyphs.js'
 import { crashReportDir } from './crashReport.js'
 import { getAuthConfigHomeDir, getMercuryHome } from './envUtils.js'
 import { classifyHarnessHome, harnessArtifactPath, type HarnessHomeReport } from './knownAgentClis.js'
@@ -1144,7 +1144,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               }
             }
             const parts = [
-              `${GLYPH.branch} ${repo.branchName} @ ${sha7(repo.commitHash)}`,
+              `${branchChip(repo.branchName)} @ ${sha7(repo.commitHash)}`,
               repo.isClean ? 'clean' : 'uncommitted changes',
             ]
             if (repo.unpushedCount > 0) parts.push(`${repo.unpushedCount} unpushed`)
