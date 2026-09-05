@@ -196,6 +196,7 @@ import { getCurrentSessionTitle } from '../utils/sessionStorage/logs.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
 import { registerComposerSeeder } from '../utils/cockpit/composerSeed.js';
 import { registerPermissionFocusNotifier } from '../utils/permissions/permissionFocus.js';
+import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
 import { publishCockpitActivity, type ActivityState } from '../utils/cockpit/cockpitActivity.js';
 import { parseSearchQuery } from '../utils/transcriptSearch.js';
 import type { StreamingToolUse } from '../utils/messages/streaming.js';
@@ -844,6 +845,7 @@ export function REPL({
       } catch (error) {
         logForDebugging(`permission mode adoption ${prev.toolPermissionContext.mode} → ${held} kept the standing context: ${error instanceof Error ? error.message : String(error)}`);
       }
+      recordModeTransition({ from: prev.toolPermissionContext.mode, to: held, road: 'screen-mirror', detail: "the runner's own mode adopted" });
       return { ...prev, toolPermissionContext: { ...next, mode: held } };
     });
   }, [setAppState]);
@@ -853,6 +855,9 @@ export function REPL({
     (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
       setAppState(prev => {
         const preserved = options?.preserveMode ? prev.toolPermissionContext.mode : context.mode;
+        if (preserved !== prev.toolPermissionContext.mode) {
+          recordModeTransition({ from: prev.toolPermissionContext.mode, to: preserved, road: 'screen-mirror' });
+        }
         return { ...prev, toolPermissionContext: { ...context, mode: preserved } };
       });
       if (!options?.preserveMode) {
