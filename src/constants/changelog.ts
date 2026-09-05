@@ -41,6 +41,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Idle agents no longer hold a seat, the machine's seat reading counts available memory (near ten on an 8 GB Mac), and /seats, the Boot Menu or /config set the ceiling
 - A resumed or restarted session keeps its reasoning: the preserved-thinking notice no longer appears after a resume, even when a tool, a project file or the working tree changed meanwhile
 - mercury update reads the public release channel anonymously, so no GitHub CLI or sign-in is needed; a signed-in gh only speeds it up, and every answer says which road it took
+- A dialog command typed while another still settles queues and runs after it; a finished turn with one refused tool paints no failure card; an older daemon's refusal reads as one doctor sentence
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
