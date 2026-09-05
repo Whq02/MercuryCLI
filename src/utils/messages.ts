@@ -17,6 +17,14 @@ export {
   SUBAGENT_REJECT_MESSAGE,
   SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX,
   SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
+  isTurnCutText,
+  turnCutLine,
+  turnCutOf,
+  turnCutOfText,
+  turnCutResultText,
+  turnCutWhy,
+  type TurnCut,
+  type TurnCutKind,
   withMemoryCorrectionHint,
 } from './messages/rejectionText.js'
 
