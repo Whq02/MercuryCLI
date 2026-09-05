@@ -38,6 +38,7 @@ const STATIONS = ['one', 'two'] as const
 type Station = (typeof STATIONS)[number]
 const SEAT_READS = 12
 const SEAT_STEP_MS = 3000
+const FIRST_HOLD_MS = 6000
 const FACTS_HOLD_MS = 4000
 const WF_SCRIPT = [
   `export const meta = { name: '${WF_NAME}', description: 'two agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
@@ -173,7 +174,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             blocks = [{ type: 'text', text: `SEAT-DONE-${station}` }]
           } else {
             blocks = [{ type: 'tool_use', id: `toolu_wft_read_${++toolSeq}`, name: 'Read', input: { file_path: join(cwd, NOTES_FILE) } }]
-            delayMs = SEAT_STEP_MS
+            delayMs = priorReads === 0 ? FIRST_HOLD_MS : SEAT_STEP_MS
           }
           break
         default:
@@ -369,6 +370,12 @@ try {
         { data: `${ASK}\r`, afterPrevTicks: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'ask' },
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
+        { data: '/workflows\r', afterPrevTicks: 2 },
+        { data: '\r', afterPrevTicks: 3 },
+        { data: '', afterPrevTicks: 4, mark: 'run-early' },
+        { data: '', afterPrevTicks: 10, mark: 'run-early-2' },
+        { data: '\x1b', afterPrevTicks: 2 },
+        { data: '\x1b', afterPrevTicks: 2 },
         { data: '', afterPrevTicks: 30, mark: 'cockpit-busy' },
         { data: '/workflows\r', afterPrevTicks: 2 },
         { data: '\r', awaitText: WF_NAME, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'board' },
@@ -400,8 +407,8 @@ if (cap !== null) {
   console.log(`  sends' clocks: ${cap.receipts.map((r, i) => `${i}@${r.ts}`).join(' ')}`)
   console.log(`  routes: ${fixture.hits.map(h => (h.station !== null ? `seat:${h.station}(${h.priorReads})` : h.route)).join(' → ')}`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  for (const label of ['composer', 'skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'launched', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
-  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 21, `${cap.receipts.length}/21 · end ${cap.endReason}`)
+  for (const label of ['composer', 'skeleton-1', 'skeleton-2', 'skeleton-3', 'skeleton-4', 'launched', 'run-early', 'run-early-2', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
+  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 27, `${cap.receipts.length}/27 · end ${cap.endReason}`)
 
   const seatHits = (s: Station): Hit[] => fixture.hits.filter(h => h.station === s)
   check(`both seats ran on the wire (one: ${seatHits('one').length}, two: ${seatHits('two').length} calls)`, seatHits('one').length >= 3 && seatHits('two').length >= 3)
@@ -411,7 +418,7 @@ if (cap !== null) {
   const boardRow = rowsWith(m['board'], WF_NAME)
   check('W4 the board lists the run under Active', rowsWith(m['board'], 'Active').length > 0 && boardRow.length > 0, boardRow.map(flat).join(' | ').slice(0, 300))
   check('W4 the board\'s header rollup counts the run and its agents (1 running · 0/2 agents)', rowsWith(m['board'], /1 running · 0\/2 agents/).length > 0, rowsWith(m['board'], /running/).map(flat).join(' | ').slice(0, 300))
-  const laneWords = /running|queued|Read|thinking|request sent|first byte|reasoning|streaming/
+  const laneWords = /running|queued|starting|Read|thinking|request sent|first byte|reasoning|streaming/
   const runOne = rowsWith(m['run'], `${SEAT_MARK}one`)
   const runTwo = rowsWith(m['run'], `${SEAT_MARK}two`)
   check('W4 the run view shows both agents running', runOne.some(r => laneWords.test(r)) && runTwo.some(r => laneWords.test(r)), [...runOne, ...runTwo].map(flat).join(' | ').slice(0, 400))
@@ -438,6 +445,21 @@ if (cap !== null) {
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
     const chip = rowsWith(m[label], /◐ wf(\s|×)/)
     check(`W3 [${label}] the frame's wf chip stands while the run lives, naming the phase and the age`, chip.some(r => new RegExp(`◐ wf ${PHASE} \\d+[smh]`).test(r)), chip.map(flat).join(' | ').slice(0, 200))
+  }
+
+  console.log('\n— W8 the first frames on disk —')
+  {
+    const clockOf = (frame: string | undefined): number => {
+      const hit = /⦿ running · (\d+)s ·/.exec(frame ?? '')
+      return hit ? Number(hit[1]) : -1
+    }
+    const candidates = (['run-early', 'run-early-2'] as const).map(label => ({ label, frame: m[label] ?? '', clock: clockOf(m[label]) }))
+    const pick = candidates.filter(c => c.clock >= 3).at(-1) ?? candidates.at(-1)!
+    const early = pick.frame
+    const header = rowsWith(early, /⦿ running|◆ 0\/1/)
+    check(`W8 the run view was photographed past three seconds of the run's clock (frames at ${candidates.map(c => `${c.clock}s`).join(', ')}; judged ${pick.label} at ${pick.clock}s)`, pick.clock >= 3 && header.length > 0, flat(early).slice(0, 200))
+    check('W8 run.json already carried both agents (the header counts 2 agents)', header.some(r => /2 agents/.test(r)) && !header.some(r => /\b0 agents\b/.test(r)), header.map(flat).join(' | ').slice(0, 300))
+    check('W8 …and both lanes are on the run view', rowsWith(early, `${SEAT_MARK}one`).length > 0 && rowsWith(early, `${SEAT_MARK}two`).length > 0, rowsWith(early, SEAT_MARK).map(flat).join(' | ').slice(0, 300))
   }
 
   console.log('\n— W7 the skeleton window —')
