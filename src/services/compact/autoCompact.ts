@@ -370,7 +370,7 @@ export async function autoCompactIfNeeded(
       return notCompacted
     }
 
-    const viaMemory = await trySessionMemoryCompaction(messages, toolUseContext.agentId, threshold)
+    const viaMemory = await trySessionMemoryCompaction(messages, toolUseContext.agentId, threshold, toolUseContext)
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })

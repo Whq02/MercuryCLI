@@ -25,6 +25,7 @@ import {
 import { SEND_MESSAGE_TOOL_NAME } from '../../tools/SendMessageTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_OUTPUT_TOOL_NAME } from '../../tools/TaskOutputTool/constants.js'
+import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
@@ -989,6 +990,33 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           isMeta: true,
         }),
       ]
+    }
+    case 'agent_roster': {
+      if (attachment.rows.length === 0) return []
+      const lines = attachment.rows.map(row => {
+        const bits: string[] = [`${row.taskType} "${row.name}" [${row.taskId}]: ${row.status}`]
+        if (row.wait) bits.push(row.wait)
+        if (row.phase) bits.push(`phase: ${row.phase}`)
+        if (row.agents && row.agents.length > 0) {
+          bits.push(`agents: ${row.agents.map(agent => `${agent.label} — ${agent.state}`).join(', ')}`)
+        }
+        if (row.description && row.description !== row.name) bits.push(`asked: ${row.description}`)
+        if (row.error) bits.push(`error: ${row.error}`)
+        if (row.owed) bits.push(`owed: ${row.owed}`)
+        bits.push(
+          row.address !== null
+            ? `reach it: ${SEND_MESSAGE_TOOL_NAME} to "${row.address}"`
+            : `reach it: ${TASK_OUTPUT_TOOL_NAME} and ${TASK_STOP_TOOL_NAME} by its id`,
+        )
+        if (row.outputFilePath) bits.push(`output: ${row.outputFilePath}`)
+        return `- ${bits.join(' · ')}`
+      })
+      const text = [
+        'Agents in flight at the context turnover — every agent this session is running or owes a result from, one line each (kind "name" [id]: status · what it was asked · what is owed · how to reach it · output file):',
+        lines.join('\n'),
+        `A running agent is never re-spawned — its completion reaches you as a task notification on its own. A result that is owed is collected from that notification or from the output file, never re-derived. ${SEND_MESSAGE_TOOL_NAME} reaches a sub-agent by the id or name shown; ${TASK_OUTPUT_TOOL_NAME} reads a task's output; ${TASK_STOP_TOOL_NAME} stops one.`,
+      ].join('\n')
+      return [createUserMessage({ content: wrapInSystemReminder(text), isMeta: true })]
     }
     case 'async_hook_response': {
       const response = attachment.response
