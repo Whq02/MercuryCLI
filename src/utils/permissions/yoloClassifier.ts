@@ -189,10 +189,12 @@ export function formatActionForClassifier(toolName: string, toolInput: unknown):
   return { role: 'assistant', content: [{ type: 'tool_use', name: toolName, input: toolInput }] }
 }
 
-function serialiseBlock(block: TranscriptBlock, tools: Tools, jsonl: boolean): string {
+export const LATEST_REQUEST_LEAD = 'User (latest request, the current task): '
+
+function serialiseBlock(block: TranscriptBlock, tools: Tools, jsonl: boolean, latest = false): string {
   if (block.type === 'text') {
-    if (jsonl) return `${JSON.stringify({ user: block.text ?? '' })}\n`
-    return `User: ${block.text ?? ''}\n`
+    if (jsonl) return `${JSON.stringify({ user: block.text ?? '', ...(latest ? { latest_request: true } : {}) })}\n`
+    return `${latest ? LATEST_REQUEST_LEAD : 'User: '}${block.text ?? ''}\n`
   }
   if (block.type !== 'tool_use') return ''
   const tool = findTool(tools, block.name ?? '')
@@ -218,10 +220,17 @@ function findTool(tools: Tools, name: string): Tool | undefined {
 export function buildTranscriptForClassifier(messages: Message[], tools: Tools): string {
   const jsonl = (getAutoModeConfig() as { jsonlTranscript?: boolean } | undefined)?.jsonlTranscript === true
   const entries = buildTranscriptEntries(messages)
-  let out = ''
-  for (const entry of entries) {
-    for (const block of entry.content) out += serialiseBlock(block, tools, jsonl)
+  let latestUser = -1
+  for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i]!.role === 'user') {
+      latestUser = i
+      break
+    }
   }
+  let out = ''
+  entries.forEach((entry, index) => {
+    for (const block of entry.content) out += serialiseBlock(block, tools, jsonl, index === latestUser)
+  })
   return out
 }
 
