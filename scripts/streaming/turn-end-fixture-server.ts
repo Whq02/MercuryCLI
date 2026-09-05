@@ -283,7 +283,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const tool = toolArmOf(body)
       const arm = tool?.arm ?? armOf(ask)
       const carries = carriesWords(body, QUEUED_WORDS_WATCH)
-      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, order: orderOfWords(body, [...QUEUED_WORDS_WATCH, NOTICE_WATCH]), shape: shapeOf(body), texts: lastUserTextsOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
+      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, tools: Array.isArray(body.tools) ? body.tools.length : 0, ...(tool ? { step: tool.step } : {}), carries, order: orderOfWords(body, [...QUEUED_WORDS_WATCH, NOTICE_WATCH]), shape: shapeOf(body), texts: lastUserTextsOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const rid = `resp_turnend_${n}`
       const itemId = `msg_turnend_${n}`
@@ -348,7 +348,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const tool = toolArmOf(body)
       const arm = tool?.arm ?? armOf(ask)
       const carries = carriesWords(body, QUEUED_WORDS_WATCH)
-      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, order: orderOfWords(body, [...QUEUED_WORDS_WATCH, NOTICE_WATCH]), shape: shapeOf(body), texts: lastUserTextsOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
+      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, tools: Array.isArray(body.tools) ? body.tools.length : 0, ...(tool ? { step: tool.step } : {}), carries, order: orderOfWords(body, [...QUEUED_WORDS_WATCH, NOTICE_WATCH]), shape: shapeOf(body), texts: lastUserTextsOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       if (tool?.arm === 'seat-hold') return parkHeaders(res, 'anthropic', n)
       if (tool !== null) {
