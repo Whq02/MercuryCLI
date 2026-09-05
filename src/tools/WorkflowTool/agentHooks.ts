@@ -978,6 +978,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()
         if (parked) {
+          if (m?.type === 'progress') return
           parked = false
           lastBumpAt = now
           clearHeartbeat()

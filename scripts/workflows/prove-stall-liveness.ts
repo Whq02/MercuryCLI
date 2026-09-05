@@ -281,9 +281,7 @@ section("(g) a fast tool round then silence: the round's end un-parks the watchd
         args.onQueryProgress?.(call)
         yield call
         await sleep(2)
-        const result = { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_fast', content: 'ok' }] } }
-        args.onQueryProgress?.(result)
-        yield result
+        args.onQueryProgress?.({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_fast', content: 'ok' }] } })
         await hangUntilAbort(args)
       },
     ],
@@ -302,6 +300,39 @@ section("(g) a fast tool round then silence: the round's end un-parks the watchd
   }
   check("the silence after a fast round is cut by the stall budget — never left to the provider's guard", /stalled on all/.test(threw), threw.slice(0, 140))
   check('the ladder ran its attempts inside the bound (the watchdog armed on every round\'s end)', calls.length === 6 && Date.now() - t0 < 8_000, `${calls.length} attempts in ${Date.now() - t0} ms`)
+}
+
+section("(h) a tool round with progress ticks, then silence: a tool's own progress never un-parks the watchdog; the round's end does")
+{
+  const { hooks, calls } = makeRig({
+    behaviors: [
+      async function* (args) {
+        const call = assistantToolUse('toolu_ticking')
+        args.onQueryProgress?.(call)
+        yield call
+        for (let i = 0; i < 4; i++) {
+          await sleep(60)
+          args.onQueryProgress?.({ type: 'progress', toolUseID: 'toolu_ticking', data: { type: 'bash_progress', output: `line ${i}` } })
+        }
+        args.onQueryProgress?.({ type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'toolu_ticking', content: 'ok' }] } })
+        await hangUntilAbort(args)
+      },
+    ],
+  })
+  const t0 = Date.now()
+  let threw = ''
+  try {
+    await Promise.race([
+      hooks.agent('ticking round then silence', { stallMs: 200 }),
+      sleep(8_000).then(() => {
+        throw new Error('no cut within 8 s')
+      }),
+    ])
+  } catch (e) {
+    threw = String(e)
+  }
+  check("the silence after a ticking round is cut by the stall budget (the ticks never armed it; the result row did)", /stalled on all/.test(threw), threw.slice(0, 140))
+  check('the ladder ran its attempts inside the bound', calls.length === 6 && Date.now() - t0 < 8_000, `${calls.length} attempts in ${Date.now() - t0} ms`)
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })
