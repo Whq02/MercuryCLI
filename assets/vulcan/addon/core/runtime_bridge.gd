@@ -1,5 +1,7 @@
 extends Node
 
+const OpClassesScript := preload("op_classes.gd")
+
 const TOKEN_FILE := "res://.godot/mercury-vulcan-token"
 const PORT_FILE := "res://.godot/mercury-vulcan-port"
 const REC_DIR := "res://.godot/mercury-vulcan-recordings"
@@ -8,7 +10,6 @@ const RING_MAX := 400
 const MAX_BUF := 8 * 1024 * 1024
 const STEP_FRAMES_MAX := 3600
 const STEP_MS_MAX := 60000
-const STEP_WALL_MS_PER_FRAME := 50
 const STEP_WALL_MAX_MS := 60000
 const QUEUE_MAX := 256
 
@@ -297,7 +298,8 @@ func _advance(frames: int, ms: int) -> Dictionary:
 	var p0 := Engine.get_physics_frames()
 	var t0 := Time.get_ticks_msec()
 	var ran := 0
-	var budget := mini(STEP_WALL_MAX_MS, frames * STEP_WALL_MS_PER_FRAME + 1000)
+	var per_frame: int = OpClassesScript.STEP_WALL_MS_PER_FRAME
+	var budget := mini(STEP_WALL_MAX_MS, frames * per_frame + 1000)
 	if frames > 0:
 		while ran < frames and Time.get_ticks_msec() - t0 < budget:
 			await tree.process_frame
@@ -319,7 +321,7 @@ func _advance(frames: int, ms: int) -> Dictionary:
 	out["errors"] = _ring_since(_error_ring, _error_total - errors_before)
 	out["log"] = _ring_since(_log_ring, _log_total - log_before)
 	if frames > 0 and ran < frames:
-		out["note"] = "the wall budget (%d ms for %d frames) ended the window early: the game runs under %d fps" % [budget, frames, 1000 / STEP_WALL_MS_PER_FRAME]
+		out["note"] = "the wall budget (%d ms for %d frames) ended the window early: the game runs under %d fps" % [budget, frames, 1000 / per_frame]
 	return out
 
 

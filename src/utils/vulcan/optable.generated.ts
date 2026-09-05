@@ -8,7 +8,9 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '577898c9a77701ec9294bf01a30113c012c132292cf5953bb7f865d7d7f2045f'
+export const VULCAN_OPTABLE_DIGEST = '3840a5b785d44c0cfdf5e4c48198d49a00625f7c2a8dd5c197cd12f4c7a95f51'
+
+export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {

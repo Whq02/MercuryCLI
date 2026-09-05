@@ -74,6 +74,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - An Agent launch accepts a served model id (claude-fable-5-1) wherever its alias is taken; a workflow's notices name the run by its name
 - A stopped workflow watchdog re-arms after a fast tool round, so a silent stream is cut at the stall budget instead of the provider's guard
 - Godot bridge: action presses are real input events the game's callbacks hear; runtime_pause, runtime_step and runtime_resume drive a game frame by frame, so time passes only while the agent acts
+- Flow's safety check keeps the evidence when it cannot read its own verdict and says so plainly, naming the model, instead of denying the action as if it were unsafe
+- A sub-agent's briefing no longer reads as your rules to the safety check, and your latest request is the task it judges an action against
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
