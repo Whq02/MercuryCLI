@@ -23,11 +23,11 @@ export async function call(
     handlePlanModeTransition(currentMode, 'strategy')
     context.setAppState(prev => ({
       ...prev,
-      toolPermissionContext: applyPermissionUpdate(prepareContextForPlanMode(prev.toolPermissionContext), {
-        type: 'setMode',
-        mode: 'strategy',
-        destination: 'session',
-      }),
+      toolPermissionContext: applyPermissionUpdate(
+        prepareContextForPlanMode(prev.toolPermissionContext),
+        { type: 'setMode', mode: 'strategy', destination: 'session' },
+        'plan-entry',
+      ),
     }))
     if (trimmed && trimmed !== 'open') {
       onDone('Entered strategy mode.', { shouldQuery: true })

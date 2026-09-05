@@ -1127,7 +1127,7 @@ process.exit(0)
     let cleared = false
     applyOverlayPass({
       altScreen: false,
-      follow: { delta: 2, viewportTop: VT, viewportBottom: VB },
+      scrollTranslation: { delta: 2, viewportTop: VT, viewportBottom: VB },
       selection: sel,
       captureScreen: mk(),
       screen: mk(),

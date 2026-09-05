@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 
 import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
+import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import { HooksSchema } from '../../schemas/hooks.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { lazySchema } from '../lazySchema.js'
@@ -168,7 +169,7 @@ export const SettingsSchema = lazySchema(() => {
     availableModels: z.array(z.string()).optional(),
     modelOverrides: z.record(z.string(), z.string()).optional(),
     advisorModel: z.string().optional(),
-    effortLevel: z.enum(['low', 'medium', 'high', 'xhigh', 'max']).optional().catch(undefined),
+    effortLevel: z.enum(EFFORT_LEVELS).optional().catch(undefined),
     supercodeEffort: z.boolean().optional(),
     alwaysThinkingEnabled: z.boolean().optional(),
 

@@ -37,9 +37,9 @@ const { saveGlobalConfig } = await import('../../src/utils/config.js')
 {
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: false } }))
   const live = cap.resolveSeatCeiling()
-  check('a declined record reads the machine live', live === cap.machineSeatReading())
+  check('a declined record reads the machine live (the held reading)', live === cap.heldMachineSeatReading())
   const words = cap.describeSeatReading(live)
-  check('the live sentence is byte-stable (the C5 pin’s spelling)', words === `this machine's reading: ${live} seat${live === 1 ? '' : 's'} (cores/memory)`, words)
+  check("the live sentence keeps its spelling: the reading's number and its inputs (the C5 pin's spelling)", new RegExp(`^this machine's reading: ${live} seat${live === 1 ? '' : 's'} \\(\\d+ cores?, [\\d.]+ GB available, \\d+ MB a seat\\)$`).test(words), words)
 }
 
 {

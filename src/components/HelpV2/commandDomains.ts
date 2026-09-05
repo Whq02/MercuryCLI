@@ -17,7 +17,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'workflows', 'agents', 'subagents', 'agent-form', 'fleet',
       'teammates', 'crew', 'route', 'monitor', 'surfaces',
-      'daemon', 'saturn', 'halt', 'kill', 'unkill',
+      'daemon', 'saturn', 'seats', 'halt', 'kill', 'unkill',
       'multiplayer', 'say', 'live', 'remote-control',
       'team', 'router', 'invite', 'handoff',
       'delegate', 'request', 'prompt', 'share',

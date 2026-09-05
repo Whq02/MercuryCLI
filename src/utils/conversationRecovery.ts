@@ -2,6 +2,7 @@ import type { UUID } from 'crypto'
 import { basename, relative } from 'node:path'
 
 import { addInvokedSkill } from '../bootstrap/state.js'
+import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
 import type { LogOption, SerializedMessage, TranscriptMessage } from '../types/logs.js'
 import { PERMISSION_MODES, decodePermissionModeSpelling } from '../types/permissions.js'
@@ -513,6 +514,7 @@ export async function loadConversationForResume(
     const asMessages = (messages ?? []) as unknown as Message[]
     if (!hasConversationTurn(asMessages)) return null
     restoreSkillStateFromMessages(asMessages)
+    restoreBoundPrefixFromMessages(asMessages)
     const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
     const hookMessages = await processSessionStartHooks('resume', { sessionId })
     const dedupedHooks = filterDuplicateSessionStartHooks(hookMessages as Message[], deserialized)

@@ -802,9 +802,10 @@ Flow is off — the user likely wants a more interactive pace again. Where the a
     }
     case 'mode_pack_exit': {
       const label = attachment.mode === 'apollo' ? 'Apollo mode' : 'Autopilot'
+      const why = attachment.reason !== undefined ? ` What ended it: ${attachment.reason}.` : ''
       const content = `## Exited ${label}
 
-${label} is off: its instructions above no longer apply, and the session's standing instructions govern again.`
+${label} is off: its instructions above no longer apply, and the session's standing instructions govern again.${why}`
       return wrapMessagesInSystemReminder([
         createUserMessage({ content, isMeta: true }),
       ])
@@ -1246,6 +1247,8 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'hook_system_message':
     case 'structured_output':
     case 'hook_permission_decision':
+      return []
+    case 'bound_prefix':
       return []
   }
 
