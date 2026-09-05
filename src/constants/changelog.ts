@@ -24,6 +24,19 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - The daemon reads sign-ins live, so a fresh /logins reaches the sessions it hosts without a restart; the doctor's daemon-sign-ins row compares both reads
 - Mouse: a drag that moves nothing paints nothing, a burst of drag reports paints once, and /mouse off is saved for later boots (the /config row Mouse capture)
 - Painting: a one-shot render settles on its last frame, a headless render writes no terminal bytes, the streaming tail wears its ink from the first byte, a critter frame commits once per tick, and a workflow's end lands its manifest, status and notification from one writer
+- An agent's own effort word ranks above the session's stamp; /effort and the picker set the running seat; a downgrade to what the model serves is a one-line receipt, never silent
+- The mode band paints the mode the runner actually holds, from the first frame, on every road that boots a runner; a refused mode change reaches the screen with its reason
+- Godot: the editor is found where it lives (a running one included), the bridge says open-but-unbridged instead of editor closed, every project.godot edit is receipted, and project_refresh_classes rebuilds the class cache
+- The Concourse close chord does exactly what its hint says at every second (stop, then archive, then delete), the hint never goes stale, and a parked session reopens on one Enter
+- Every summary of a session's work reads one owner: the workflow panel, the launch line, the chip and the RUNS lane agree with the running agents; idle only when nothing runs; /compact shows compacting, never thinking
+- Removing or switching an account announces the change once; a store's first write never shows a blank; a headless run whose login lives outside the keychain prints no keychain error
+- The daemon idles quietly: it watches its owner without spawning a process every few seconds, heals its files only when they change, and reads its schedules on change (30 spawns and 142 file operations per two idle minutes became 2 and 24)
+- The GPT-5.6 rows price at today's pricing page: input, cached, cache-write and output per model, and the same over-272K long-context tier as GPT-6 Astra
+- Release archives are signed with the release key and verified before they publish; an unsigned build is a named decision, said once per install; the archive carries the licence documents
+- A repeat mercury install of the version already in place says so instead of narrating staging and activating again
+- A piped doctor --json prints exactly one record and exits with the verdict's code even when the reader drains slowly
+- Selected text follows the view when you scroll with the wheel, the page keys or a drag past the edge, and the highlight never paints outside the chat pane
+- Apollo mode ends only through the review's approval or shift+tab: a consent answer can no longer switch it off, writes outside the spec directory are refused, and the review says what ended it
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
