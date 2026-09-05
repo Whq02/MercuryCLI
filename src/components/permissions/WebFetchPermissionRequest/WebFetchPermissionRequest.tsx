@@ -6,6 +6,7 @@ import { getGlobalConfig } from '../../../utils/config.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
 import { WebFetchTool } from '../../../tools/WebFetchTool/WebFetchTool.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
+import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import { logUnaryPermissionEvent } from '../utils.js'
@@ -95,15 +96,19 @@ export function WebFetchPermissionRequest({
     }
   }
 
+  const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
+    theme: resolveThemeName(),
+    verbose,
+  })
+
   return (
     <PermissionDialog title="Fetch" workerBadge={workerBadge}>
       <Box flexDirection="column">
-        <Text>
-          {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
-            theme: resolveThemeName(),
-            verbose,
-          })}
-        </Text>
+        {typeof useMessage === 'string' ? (
+          <ConsentBodyText text={useMessage} />
+        ) : (
+          <Text>{useMessage}</Text>
+        )}
         <Text dimColor>{toolUseConfirm.description}</Text>
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
