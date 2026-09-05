@@ -69,6 +69,7 @@ import type { ExternalInstructionInclude } from '../../services/instructions/eng
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import { SEAT_DOORS, seatCeilingFacts, seatCeilingValueWords, seatCostWarning, setOperatorSeats } from '../../services/switchboard/capacityCheck.js'
 
 const LABEL_CELLS = 44
 
@@ -393,6 +394,22 @@ export function Config({
       const next = config.concourseEnabled === false
       writeGlobal(c => ({ ...c, concourseEnabled: next }))
       recordToggle('concourse', `set the session concourse to ${next ? 'on' : 'off (live view only)'}`)
+    },
+  })
+  const seatFacts = seatCeilingFacts()
+  const seatWarning = seatCostWarning(seatFacts)
+  items.push({
+    id: 'seats',
+    label: 'Seats',
+    searchText: 'seats seat ceiling capacity concurrency sessions sub-agents workflow agents in flight',
+    kind: 'enum',
+    value: <Text>{seatCeilingValueWords(seatFacts)}</Text>,
+    warning: seatWarning !== null ? seatWarning : `a seat is one model call in flight; ${seatFacts.readingSentence} · ←/→ move the ceiling by one · doors: ${SEAT_DOORS}`,
+    change: direction => {
+      const next = direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1)
+      const after = setOperatorSeats(next)
+      recordSet('seats', `set the seat ceiling to ${after.seats}`)
+      bump()
     },
   })
   items.push({
