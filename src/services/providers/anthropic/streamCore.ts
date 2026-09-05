@@ -149,7 +149,7 @@ import {
   stripToolReferenceBlocksFromUserMessage,
   stripUnsignedThinkingBlocks,
 } from '../../../utils/messages.js'
-import { stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
 import {
   getCanonicalName,
@@ -669,6 +669,7 @@ async function* queryModel(
   )
 
   messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
+  if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)
 
   const fingerprint = computeFingerprintFromMessages(messages)
 
@@ -896,8 +897,6 @@ async function* queryModel(
       replaceRecord: isTurnOwningQuerySource(options.querySource),
     })
 
-    const effortRow = perMessageEffortRow(options.model, options.effortMessage)
-    const wireMessages = effortRow === null ? wireParts.messages : insertBeforeLastUserRow(wireParts.messages as ReadonlyArray<{ role?: string }>, effortRow)
     if (effortRow !== null && !betasParams.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)) {
       betasParams.push(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)
     }

@@ -783,6 +783,22 @@ section('§7 the wire dump — every road writes its fold row beside the request
   check('the replay tool reads the request rows and skips the fold rows', messageRows(readCapture(join(DUMP_DIR, files[0] ?? ''))).length === requests.length, `${messageRows(readCapture(join(DUMP_DIR, files[0] ?? ''))).length} vs ${requests.length}`)
 }
 
+section('§9 the home direct lane under thinking disabled: replayed signed thinking never rides the wire')
+{
+  const model = 'claude-opus-4-8'
+  const history = makeMessages() as Array<{ type?: string; message?: { content?: unknown[] } }>
+  const row = history[1]!
+  row.message!.content = [{ type: 'thinking', thinking: 'earlier reasoning, signed', signature: 'sig-earlier' }, ...(row.message!.content as unknown[])]
+  const foldFrom = shared.captured.length
+  const run = await runFold(model, 'direct', history as never)
+  const foldHits = shared.captured.slice(foldFrom).filter(h => h.lane === 'anthropic-seat')
+  check('§9: the fold resolved on the home direct road', run.error === undefined && foldHits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+  const body = (foldHits[foldHits.length - 1]?.body ?? {}) as { thinking?: { type?: string }; messages?: Array<{ role?: string; content?: unknown }> }
+  const thinkingBlocks = (body.messages ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as Array<{ type?: string }>).filter(b => b.type === 'thinking' || b.type === 'redacted_thinking') : []))
+  check("§9: the request declares no thinking and carries NO thinking block (the strip is the one owner for every road)", (body.thinking === undefined || body.thinking.type === 'disabled') && thinkingBlocks.length === 0, `${thinkingBlocks.length} thinking block(s); thinking=${JSON.stringify(body.thinking)}`)
+  check("§9: the history's own text still rides", (body.messages ?? []).some(m => JSON.stringify(m.content).includes('Bumped the version')))
+}
+
 await shared.close()
 await census.close()
 clearTimeout(guard)
