@@ -38,7 +38,7 @@ guard.unref?.()
 
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
+const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, prefixSourceOwnsTurn, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
 
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: `sig-${text}` })
@@ -149,6 +149,18 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   check('a new conversation key (the post-compaction summary row) records fresh: compared=false, no mismatch', !folded.compared && folded.mismatch === null && folded.key === 'owner|summary-row|claude-fable-5-1', j(folded))
   const other = judgeAndRecordPrefix('agent:1', KEY, r2)
   check('another owner keeps its own record', !other.compared && prefixRecordFor('agent:1') !== null && prefixRecordFor('main')!.key === 'owner|summary-row|claude-fable-5-1')
+
+  resetPrefixLedger()
+  judgeAndRecordPrefix('main', KEY, r2, [], { querySource: 'repl_main_thread' })
+  takePrefixVerdict('main')
+  const mainWhole = prefixRecordFor('main')!.whole
+  const foldRequest = { system: [SYSTEM[0]], tools: [TOOLS[0]], messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt')), user(TEXT('summarise the conversation'))] }
+  const foldVerdict = judgeAndRecordPrefix('main', KEY, foldRequest, [], { querySource: 'compact' })
+  check("a 'compact'-source request under the owner is judged (its own debug verdict names the moved part)", foldVerdict.compared && foldVerdict.mismatch !== null, j(foldVerdict.mismatch))
+  check('…but never replaces the owner record, and leaves no verdict pending for the turn machine', prefixRecordFor('main')!.whole === mainWhole && pendingPrefixVerdict('main') === null)
+  const afterFold = judgeAndRecordPrefix('main', KEY, { ...r2, messages: [...r2.messages, assistant(THINK('two'), TEXT('b')), user(TEXT('third'))] }, [], { querySource: 'repl_main_thread' })
+  check('the next main request compares against the main record: no mismatch, no false rewrite', afterFold.compared && afterFold.mismatch === null, j(afterFold.mismatch))
+  check('the turn-owning sources write; the service sources do not', prefixSourceOwnsTurn('repl_main_thread') && prefixSourceOwnsTurn('agent:custom') && prefixSourceOwnsTurn('sdk') && prefixSourceOwnsTurn(undefined) && !prefixSourceOwnsTurn('compact') && !prefixSourceOwnsTurn('title_summary'))
 
   check('resolveInducedPrefixEdit parses the three spellings and refuses the rest', j(resolveInducedPrefixEdit('system')) === j({ kind: 'system' }) && j(resolveInducedPrefixEdit('TOOLS')) === j({ kind: 'tools' }) && j(resolveInducedPrefixEdit('turn:2')) === j({ kind: 'turn', index: 2 }) && resolveInducedPrefixEdit('') === null && resolveInducedPrefixEdit(undefined) === null && resolveInducedPrefixEdit('nonsense') === null)
   const inducedSystem = applyInducedPrefixEdit(r2, { kind: 'system' })
