@@ -1,4 +1,5 @@
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
+import { wrapFetchWithWireDump } from '../../api/dumpPrompts.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { SseDecoder } from '../sseDecoder.js'
@@ -77,7 +78,7 @@ export async function* streamOpenaiResponses(
     }, firstByteBudget)
     firstByteTimer.unref?.()
     try {
-      const fetchImpl = options.fetchImpl ?? getApiFetch()
+      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       response = await fetchImpl(url, {
         method: 'POST',
@@ -307,7 +308,7 @@ export async function fetchOpenaiLiveModels(options: {
   signal?: AbortSignal
 }): Promise<OpenaiCatalogueResult> {
   // global fetch beside the bundled dispatcher and failed on every node run.
-  const fetchImpl = options.fetchImpl ?? getApiFetch()
+  const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openai')
   const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
   const response = await fetchWithProviderDeadline(
     fetchImpl,

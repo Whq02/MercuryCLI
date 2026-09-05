@@ -84,6 +84,27 @@ export interface GptDisplayPin {
   cacheWritePerMtok?: number
   knowledgeCutoff?: string
   availabilityNote?: string
+  longContext?: { aboveInputTokens: number; inputMultiplier: number; outputMultiplier: number }
+}
+
+export function gptPriceTierFor(
+  pin: GptDisplayPin,
+  promptTokens: number | undefined,
+): Pick<GptDisplayPin, 'costInPerMtok' | 'costOutPerMtok' | 'cachedInPerMtok' | 'cacheWritePerMtok'> {
+  const base = {
+    ...(pin.costInPerMtok !== undefined ? { costInPerMtok: pin.costInPerMtok } : {}),
+    ...(pin.costOutPerMtok !== undefined ? { costOutPerMtok: pin.costOutPerMtok } : {}),
+    ...(pin.cachedInPerMtok !== undefined ? { cachedInPerMtok: pin.cachedInPerMtok } : {}),
+    ...(pin.cacheWritePerMtok !== undefined ? { cacheWritePerMtok: pin.cacheWritePerMtok } : {}),
+  }
+  const rule = pin.longContext
+  if (rule === undefined || promptTokens === undefined || !(promptTokens > rule.aboveInputTokens)) return base
+  return {
+    ...(base.costInPerMtok !== undefined ? { costInPerMtok: base.costInPerMtok * rule.inputMultiplier } : {}),
+    ...(base.costOutPerMtok !== undefined ? { costOutPerMtok: base.costOutPerMtok * rule.outputMultiplier } : {}),
+    ...(base.cachedInPerMtok !== undefined ? { cachedInPerMtok: base.cachedInPerMtok * rule.inputMultiplier } : {}),
+    ...(base.cacheWritePerMtok !== undefined ? { cacheWritePerMtok: base.cacheWritePerMtok * rule.inputMultiplier } : {}),
+  }
 }
 
 export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
@@ -98,7 +119,7 @@ export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
     cachedInPerMtok: 1,
     cacheWritePerMtok: 12.5,
     knowledgeCutoff: '2026-04-30',
-    availabilityNote: 'rolling out (enterprise Trusted Access first, then the API and the ChatGPT plans)',
+    longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
   {
     id: 'gpt-5.6-sol',
