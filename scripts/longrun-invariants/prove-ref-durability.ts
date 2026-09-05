@@ -50,8 +50,8 @@ section('§A a settled agent outlives the registry (disk probe on miss)')
 
   const hit = await resolve(`mercury://agent/${id}`)
   check('registry miss + record on disk resolves OK (never absent)', hit.state === 'ok', JSON.stringify(hit).slice(0, 120))
-  check("the summary says settled-on-disk, not a fabricated live status",
-    /settled \(record on disk\)/.test(hit.resource?.summary ?? ''), hit.resource?.summary)
+  check("the summary reads the transcript on disk for the end — a file of raw lines the codec cannot read says so, never a fabricated live status",
+    /^no readable rows \(transcript on disk\)/.test(hit.resource?.summary ?? ''), hit.resource?.summary)
 
   const missing = await resolve('mercury://agent/aref-nosuch')
   check('a genuinely recordless id still answers absent', missing.state === 'absent')

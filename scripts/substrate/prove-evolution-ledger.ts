@@ -183,7 +183,8 @@ section('slug — distinct programs never share a ledger file')
   check('sanitized names stay distinct via hash suffix', slugForProgram('a/b') !== slugForProgram('a b'))
   check('slug is filesystem-safe', /^[a-zA-Z0-9._-]+$/.test(slugForProgram('weird 🦀 name!!')))
   check('taxonomy is the documented closed set', EVOLUTION_OUTCOMES.length === 7)
-  check('default ledger dir rides the project-home isolation law (.mercury for a fresh root — sovereign §9)', defaultEvolutionLedgerDir('/x') === join('/x', '.mercury', 'evolution'))
+  const { projectHomePath } = await import('../../src/utils/projectHomeStores.js')
+  check('default ledger dir rides the project-home store law (the config home\'s project store for a fresh root)', defaultEvolutionLedgerDir('/x') === projectHomePath('/x', 'evolution'))
 }
 
 section('VM boundary — the `ledger` script global (real hardened context)')

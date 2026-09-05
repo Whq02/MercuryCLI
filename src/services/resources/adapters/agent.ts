@@ -2,6 +2,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
 import {
   readAgentTranscript,
+  transcriptEndWords,
   type AgentTranscriptView,
 } from '../../../tools/WorkflowTool/agentTranscriptReader.js'
 import type { AgentId } from '../../../types/ids.js'
@@ -64,13 +65,13 @@ function tasksFrom(ctx: ResourceContext): TaskRow[] | null {
 
 function contentPathFor(id: string, task: TaskRow | undefined): string | null {
   const candidates: string[] = []
+  try {
+    candidates.push(getAgentTranscriptPath(id as AgentId))
+  } catch {
+  }
   if (task?.outputFile) candidates.push(task.outputFile)
   try {
     candidates.push(getTaskOutputPath(id))
-  } catch {
-  }
-  try {
-    candidates.push(getAgentTranscriptPath(id as AgentId))
   } catch {
   }
   for (const p of candidates) {
@@ -155,7 +156,7 @@ export const agentAdapter: ResourceAdapter = {
         return { state: 'absent', note: `transcript for '${ref.id}' is unreadable (${contentPath})` }
       }
       const running = task?.status === 'running'
-      const status = task ? agentStatusWord(task.status) : 'unregistered (transcript on disk)'
+      const status = task ? agentStatusWord(task.status) : transcriptEndWords(view.end)
       return {
         state: 'ok',
         resource: {
@@ -207,7 +208,9 @@ export const agentAdapter: ResourceAdapter = {
     } else {
       outputTail = '(output not readable — the task may not have produced any)'
     }
-    const status = task ? agentStatusWord(task.status) : 'settled (record on disk)'
+    const status = task
+      ? agentStatusWord(task.status)
+      : transcriptEndWords(contentPath ? (await readAgentTranscript(contentPath))?.end : undefined)
     const elapsed = task ? (task.endTime ?? Date.now()) - task.startTime : undefined
     return {
       state: 'ok',
@@ -217,7 +220,7 @@ export const agentAdapter: ResourceAdapter = {
         title: task ? `${task.id} (${task.type})` : `${ref.id} (agent)`,
         summary: task
           ? `${status} · ${Math.round((elapsed ?? 0) / 1000)}s · ${task.description.slice(0, 100)}`
-          : `${status} · transcript on disk`,
+          : status,
         version: task
           ? `${status}-${task.endTime ?? 'live'}`
           : `${status}-${page?.total ?? 0}`,

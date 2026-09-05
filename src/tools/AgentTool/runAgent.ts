@@ -935,6 +935,12 @@ export async function* runAgent(
       }
       if (anyMessage.type === 'stream_event' as never) continue
       if (anyMessage.type === 'attachment') {
+        void recordSidechainTranscript(
+          [message as Message],
+          agentId,
+          lastRecordedUuid as never,
+        ).catch(() => {})
+        lastRecordedUuid = (message as { uuid?: string }).uuid
         if (
           (anyMessage as { attachment?: { type?: string } }).attachment
             ?.type === 'max_turns_reached'

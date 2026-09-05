@@ -1,9 +1,13 @@
+import { existsSync } from 'node:fs'
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } from '../../Tool.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { toAgentId } from '../../types/ids.js'
+import { asAgentId, toAgentId } from '../../types/ids.js'
+import { agentStatusWord } from '../../services/resources/adapters/agent.js'
+import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
+import { readAgentTranscript, transcriptEndWords } from '../WorkflowTool/agentTranscriptReader.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import { findTeammateTaskByAgentId } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
 import { isLocalAgentTask, queuePendingMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
@@ -475,6 +479,12 @@ async function routeToLocalAgent(
         message: `Message queued for ${rawTo}; it will be delivered at the agent's next tool round.`,
       }
     }
+    const ended =
+      liveLocal.status === 'failed'
+        ? `had failed${liveLocal.error ? ` (${liveLocal.error})` : ''}`
+        : liveLocal.status === 'completed'
+          ? 'had completed'
+          : `was ${agentStatusWord(liveLocal.status)}`
     try {
       const resumed = await (
         await import('../AgentTool/resumeAgent.js')
@@ -488,7 +498,7 @@ async function routeToLocalAgent(
       return {
         success: true,
         message:
-          `Agent ${rawTo} was stopped (status: ${liveLocal.status}); it was resumed in the background with your ` +
+          `Agent ${rawTo} ${ended}; it was resumed in the background with your ` +
           `message and you will be notified when it completes. Output file: ${resumed.outputFile}` +
           (resumed.cwdFallback === 'parent-checkout'
             ? ' NOTE: its worktree is gone (already folded or cleaned) — the revived agent runs in the PARENT checkout; anything it edits lands in the real tree.'
@@ -497,11 +507,26 @@ async function routeToLocalAgent(
     } catch (error) {
       return {
         success: false,
-        message: `Agent ${rawTo} (status: ${liveLocal.status}) could not be resumed: ${errorMessage(error)}`,
+        message: `Agent ${rawTo} ${ended} and could not be resumed: ${errorMessage(error)}`,
       }
     }
   }
 
+  const transcriptPath = agentTranscriptPathOf(String(agentId))
+  if (transcriptPath === null || !existsSync(transcriptPath)) {
+    if (registered === undefined && getTeamName(teamContextOf(context))) {
+      return undefined
+    }
+    return {
+      success: false,
+      message:
+        `Agent ${rawTo}: no running task by that id in this session and no transcript on disk to resume — ` +
+        `the agent may belong to another process, or its record was cleaned up. Address a live sub-agent by the ` +
+        `id its launch receipt names, or by the name its launch gave it.`,
+    }
+  }
+  const view = await readAgentTranscript(transcriptPath)
+  const endedOnDisk = view !== undefined ? transcriptEndWords(view.end) : 'transcript on disk'
   try {
     const resumed = await (
       await import('../AgentTool/resumeAgent.js')
@@ -515,7 +540,7 @@ async function routeToLocalAgent(
     return {
       success: true,
       message:
-        `Agent ${rawTo} was stopped; it was resumed in the background with your message and you will be ` +
+        `Agent ${rawTo} is not running (${endedOnDisk}); it was resumed in the background with your message and you will be ` +
         `notified when it completes. Output file: ${resumed.outputFile}` +
         (resumed.cwdFallback === 'parent-checkout'
           ? ' NOTE: its worktree is gone (already folded or cleaned) — the revived agent runs in the PARENT checkout; anything it edits lands in the real tree.'
@@ -525,9 +550,16 @@ async function routeToLocalAgent(
     return {
       success: false,
       message:
-        `Agent ${rawTo} is registered but has no transcript to resume — it may have been cleaned up. ` +
-        `(${errorMessage(error)})`,
+        `Agent ${rawTo} is not running (${endedOnDisk}) and could not be resumed: ${errorMessage(error)}`,
     }
+  }
+}
+
+function agentTranscriptPathOf(agentId: string): string | null {
+  try {
+    return getAgentTranscriptPath(asAgentId(agentId))
+  } catch {
+    return null
   }
 }
 

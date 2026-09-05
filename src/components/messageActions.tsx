@@ -12,6 +12,7 @@ import {
   CANCEL_MESSAGE,
   INTERRUPT_MESSAGE,
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
+  isTurnCutText,
   NO_RESPONSE_REQUESTED,
 } from '../utils/messages.js'
 
@@ -130,7 +131,7 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
       const first = msg.message.content[0]
       if (!first) return false
       if (first.type === 'text') {
-        return first.text !== '' && !SYNTHETIC_TEXTS.has(first.text)
+        return first.text !== '' && !SYNTHETIC_TEXTS.has(first.text) && !isTurnCutText(first.text)
       }
       if (first.type === 'tool_use') return first.name in PRIMARY_INPUT_TABLE
       return false
@@ -139,7 +140,7 @@ export function isNavigableMessage(msg: NavigableMessage): boolean {
       if (msg.isMeta || msg.isCompactSummary) return false
       const first = msg.message.content[0]
       if (!first || first.type !== 'text') return false
-      if (SYNTHETIC_TEXTS.has(first.text)) return false
+      if (SYNTHETIC_TEXTS.has(first.text) || isTurnCutText(first.text)) return false
       return !stripSystemReminders(first.text).startsWith('<')
     }
     case 'system':

@@ -468,7 +468,8 @@ try {
   check('P5 A\'s run is still live as B opens', stillRunning)
   check('P5 B\'s roster carries ZERO of A\'s rows while A runs', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
 
-  const runsRoot = join(work, '.mercury', 'workflows', 'runs')
+  const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
+  const runsRoot = workflowRunsRoot(work)
   check('P5 the run manifest exists in the SHARED workspace', await untilAsync(() => existsSync(runsRoot) && readdirSync(runsRoot).length > 0, 30_000))
   const fw = await import('../../src/components/tasks/useFocusedWork.ts')
   const manifestOwner = ((): number | undefined => {

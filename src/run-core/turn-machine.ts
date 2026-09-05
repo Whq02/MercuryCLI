@@ -164,7 +164,7 @@ import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { harnessContextPolicyRequest } from '../services/mission/harnessApplication.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
-import { interruptedToolsLine } from '../utils/messages/rejectionText.js'
+import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { evaluateCycleLease, renderHandoffReport } from '../services/run/cycleLease.js'
 import { getRunSnapshot, noteRunEvent } from '../services/run/runCoordinator.js'
@@ -1221,19 +1221,19 @@ export async function* runEventCore(
     }
 
     if (toolUseContext.abortController.signal.aborted) {
+      const cutReason = toolUseContext.abortController.signal.reason
       yield* emitSyntheticSettlements(
         assistantMessages,
-        'Interrupted by user',
+        turnCutResultText(turnCutOf(cutReason)),
         'aborted',
         emit,
       )
-      const steer =
-        toolUseContext.abortController.signal.reason === 'interrupt'
+      const steer = cutReason === 'interrupt'
       yield emit({
         kind: 'interruption',
         phase: 'stream',
         steer,
-        message: steer ? null : createUserInterruptionMessage({ toolUse: false }),
+        message: steer ? null : createUserInterruptionMessage({ toolUse: false, reason: cutReason }),
       })
       const terminal: Terminal = { reason: 'aborted_streaming' }
       yield emit({ kind: 'run_terminal', terminal })
@@ -1683,13 +1683,13 @@ export async function* runEventCore(
     }
 
     if (toolUseContext.abortController.signal.aborted) {
-      const steer =
-        toolUseContext.abortController.signal.reason === 'interrupt'
+      const cutReason = toolUseContext.abortController.signal.reason
+      const steer = cutReason === 'interrupt'
       yield emit({
         kind: 'interruption',
         phase: 'tools',
         steer,
-        message: steer ? null : createUserInterruptionMessage({ toolUse: true }),
+        message: steer ? null : createUserInterruptionMessage({ toolUse: true, reason: cutReason }),
       })
       yield emit({
         kind: 'notice',
