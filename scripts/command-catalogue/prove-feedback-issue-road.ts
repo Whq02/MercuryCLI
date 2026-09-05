@@ -180,6 +180,24 @@ section('B6 privacy: the `~` spelling, the bounded doctor, the gates')
   check('the home directory reads `~` (a path and the bare home)', spelled === 'at ~/.mercury/feedback/bug-1.json and ~', spelled)
   check('a longer name sharing the prefix is untouched', feedback.redactSensitiveInfo(`${home}xyz/file`) === `${home}xyz/file`)
   check('the secret classes still redact', feedback.redactSensitiveInfo('key sk-ant-abcdefghijklmnop end').includes('[REDACTED_API_KEY]'))
+  const spellings = await import('../../src/services/providers/credentialEnvSpellings.ts')
+  check('the value-shape table covers every family the env-spelling table covers (one key set)', JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES).sort()) === JSON.stringify(Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).sort()))
+  const bare: Array<[string, string, string]> = [
+    ['openai', 'sk-proj-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789', '[REDACTED_OPENAI_KEY]'],
+    ['openai (a plain sk- key)', 'sk-AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcd', '[REDACTED_OPENAI_KEY]'],
+    ['openrouter', 'sk-or-v1-0123456789abcdef0123456789abcdef0123456789abcdef', '[REDACTED_OPENROUTER_KEY]'],
+    ['huggingface', 'hf_AbCdEfGhIjKlMnOpQrStUvWxYz0123', '[REDACTED_HUGGINGFACE_TOKEN]'],
+    ['gemini', 'AIzaSyA1234567890abcdefghijklmnopqrstuv', '[REDACTED_GCP_KEY]'],
+    ['anthropic', 'sk-ant-api03-0123456789abcdefghij', '[REDACTED_API_KEY]'],
+    ['the repository host (ghp_)', 'ghp_0123456789abcdefghijklmnopqrstuvwxyzAB', '[REDACTED_GITHUB_TOKEN]'],
+    ['the repository host (github_pat_)', 'github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz0123456789', '[REDACTED_GITHUB_TOKEN]'],
+  ]
+  for (const [family, value, marker] of bare) {
+    const out = feedback.redactSensitiveInfo(`pasted: ${value} — see the log`)
+    check(`a bare ${family} value reads as ${marker}`, out.includes(marker) && !out.includes(value), out.slice(0, 120))
+  }
+  check('a family without a distinctive prefix declares none (the assignment pass stays its owner)', spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.zai === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.moonshot === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.deepseek === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES.local === null && spellings.PROVIDER_CREDENTIAL_VALUE_SHAPES['openai-compat'] === null)
+  check('the assignment pass still redacts a prefix-less family\'s value', feedback.redactSensitiveInfo('ZAI_API_KEY=abcdef0123456789.secret').includes('[REDACTED_TOKEN]'))
 
   const notRun = await doctor.runDoctorBounded(1)
   check('a passed deadline reads "doctor: not run — …deadline"', notRun.startsWith('doctor: not run — ') && notRun.includes('deadline'), notRun)
