@@ -4,7 +4,7 @@ import { readFile, stat, open } from 'node:fs/promises'
 import path from 'node:path'
 
 import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
-import { startsWithApiErrorPrefix } from '../../services/api/errors.js'
+import { startsWithApiErrorPrefix } from '../../services/api/errorPrefix.js'
 import type { ApiUsage } from '../../types/wire.js'
 import { turnCutOfText, turnCutResultText } from '../../utils/messages/rejectionText.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
