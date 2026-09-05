@@ -2,7 +2,7 @@
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 8
+export const MERCURY_DAEMON_PROTO = 9
 
 export const MIN_PROTO = 1
 
@@ -21,6 +21,7 @@ export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
   signIns: 7,
   'sessionControl/stop-agent': 8,
   'sessionControl/resume-agent': 8,
+  'sessionControl/withdraw-send': 9,
 }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -31,7 +32,7 @@ export function verbBornAt(op: string, action?: string): number {
   return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
 }
 
-export const DAEMON_PROTO_SHAPE = 'sha256:a404ee2f11787c9b8566027997a867ddae7d8455c606084e8db9e70c0d8b758f'
+export const DAEMON_PROTO_SHAPE = 'sha256:b4ab411a28f6732bab245bb3468c3eb39913624d60755445bb85e8561bc99b6e'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -226,6 +227,7 @@ export type DaemonRequest =
         | 'set-spawn-switch'
         | 'stop-agent'
         | 'resume-agent'
+        | 'withdraw-send'
       sessionId: string
       by: string
       reason?: string
@@ -250,6 +252,7 @@ export type DaemonRequest =
       agentId?: string
       note?: string
       clientOpId?: string
+      clientMessageId?: string
     }
   | {
       op: 'sessionDispatch'
@@ -413,7 +416,7 @@ export type DaemonReply =
       presetNote?: string
     }
   | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
-  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true }
+  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown' }
   | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
   | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }

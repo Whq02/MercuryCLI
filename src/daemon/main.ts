@@ -56,6 +56,7 @@ import {
   setSessionModel,
   setSessionPermissionMode,
   setSessionSpawnSwitch,
+  withdrawSessionSend,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { armChildRssWatchdog } from './rssWatchdog.js'
@@ -495,7 +496,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, clientOpId, mintedAtMs, title, titleSource, agentId, note }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -688,6 +689,11 @@ async function daemonRun(args: string[]): Promise<void> {
             if (agentId === undefined || agentId === '') return { outcome: 'refused' as const, detail: `${action} requires agentId` }
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return controlSessionAgent(sessionId, agentId, action, roster, undefined, note !== undefined ? { note } : undefined)
+          }
+          if (action === 'withdraw-send') {
+            if (clientMessageId === undefined || clientMessageId === '') return { outcome: 'refused' as const, detail: 'withdraw-send requires clientMessageId' }
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return withdrawSessionSend(sessionId, clientMessageId, roster)
           }
           if (action === 'stop') {
             if (roster !== null) {

@@ -116,6 +116,9 @@ section('§1 a proto-5 daemon refuses the verbs born after it: the client speaks
   check('POISON: the raw verb list is never relayed', !errorOf(toggle).includes('requires {') && !errorOf(toggle).includes('pause|resume'), errorOf(toggle))
   const signIns = await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 1000 })
   check('signIns (born at 7) answers the same sentence, marked', signIns.ok === false && refusalOf(signIns) === 'daemon-older' && errorOf(signIns).endsWith(RESTART) && errorOf(signIns).includes('needs protocol 7'), errorOf(signIns))
+  const withdraw = await daemonControlRpc({ op: 'sessionControl', action: 'withdraw-send', sessionId: 's-1', by: 'operator', clientMessageId: 'm-1' } as never, { timeoutMs: 1000 })
+  check("withdraw-send (born at 9 — the composer's recall) answers the same sentence, marked, naming its age", withdraw.ok === false && refusalOf(withdraw) === 'daemon-older' && errorOf(withdraw).endsWith(RESTART) && errorOf(withdraw).includes('needs protocol 9') && errorOf(withdraw).includes('sessionControl withdraw-send'), errorOf(withdraw))
+  check('POISON: the recall\'s refusal never relays the raw verb list', !errorOf(withdraw).includes('requires {') && !errorOf(withdraw).includes('pause|resume'), errorOf(withdraw))
   const rewind = await daemonControlRpc({ op: 'sessionRewind', sessionId: 's-1', by: 'operator', mode: 'conversation', userMessageId: 'u-1' } as never, { timeoutMs: 1000 })
   check('a verb the daemon knows (sessionRewind, born at 5) is served untouched — the fixture answers unknown op for it, so the door must NOT call that a gap', rewind.ok === false && refusalOf(rewind) !== 'daemon-older' && /^unknown op/.test(errorOf(rewind)), JSON.stringify(rewind))
   check('the verbs reached the daemon in its own dialect (proto 5 stamped)', daemon.received.some(r => r.op === 'sessionControl' && r.action === 'set-spawn-switch'))
@@ -125,7 +128,7 @@ section('§1 a proto-5 daemon refuses the verbs born after it: the client speaks
 section('§2 a same-proto daemon\'s genuine unknown-verb refusal keeps the daemon\'s own words')
 {
   freshPlane()
-  const daemon = await startDaemon({ proto: MERCURY_DAEMON_PROTO, version: '9.9.9', knownActions: [...V5_ACTIONS, 'set-spawn-switch', 'stop-agent', 'resume-agent'] })
+  const daemon = await startDaemon({ proto: MERCURY_DAEMON_PROTO, version: '9.9.9', knownActions: [...V5_ACTIONS, 'set-spawn-switch', 'stop-agent', 'resume-agent', 'withdraw-send'] })
   await hsMod.handshakeDaemon({ timeoutMs: 1000 })
   const reply = await daemonControlRpc({ op: 'no-such-verb' } as never, { timeoutMs: 1000 })
   check('an op this build does not register is refused with the daemon\'s own words', reply.ok === false && refusalOf(reply) === undefined && errorOf(reply) === 'unknown op: no-such-verb', JSON.stringify(reply))
@@ -177,6 +180,7 @@ section('§5 one owner: the verb ages, the doctor\'s sentence, the connector\'s 
       born['sessionControl/stop-agent'] = v
       born['sessionControl/resume-agent'] = v
     }
+    if (line.includes('withdraw-send')) born['sessionControl/withdraw-send'] = v
   }
   for (const [verb, v] of Object.entries(born)) check(`the age table agrees with the wire's history: ${verb} → v${v}`, DAEMON_VERB_BORN_AT[verb] === v, `table says ${DAEMON_VERB_BORN_AT[verb]}`)
   check('an action born after its op reads its own age; a verb the wire has always had reads the floor', verbBornAt('sessionControl', 'set-spawn-switch') === 6 && verbBornAt('sessionControl', 'pause') === 3 && verbBornAt('ping') === MIN_PROTO)
