@@ -324,6 +324,14 @@ export function describePrefixRewrite(part: string, path: string): string {
   return `Preserved thinking: Mercury rewrote already-sent history before this request — ${part} (${path}); the API reported no dropped block this turn. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
 }
 
+function describePathTurn(path: string | null): string {
+  const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
+  if (match === null) return 'an earlier turn'
+  const index = Number(match[1])
+  if (index <= 1) return 'the first turn'
+  return `turn ${Math.floor(index / 2) + 1}`
+}
+
 function describePathClass(path: string | null): string {
   const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
   if (match === null) return 'somewhere before the dropped block'
@@ -345,7 +353,7 @@ export function describeThinkingDrops(
   if (outcome.kind === 'none' || !outcome.paint) return null
   const count = outcome.count
   const noun = count === 1 ? 'thinking block' : 'thinking blocks'
-  const path = outcome.path ?? 'an earlier turn'
+  const path = describePathTurn(outcome.path ?? null)
   switch (outcome.kind) {
     case 'lawful':
       if (outcome.lawful === 'compaction') {
