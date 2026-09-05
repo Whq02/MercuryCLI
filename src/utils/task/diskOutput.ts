@@ -33,6 +33,10 @@ function ensureTasksDir(): Promise<void> {
   return fs.promises.mkdir(getTaskOutputDir(), { recursive: true }).then(() => {})
 }
 
+export function ensureTaskOutputDir(): Promise<void> {
+  return ensureTasksDir()
+}
+
 const pendingOperations = new Set<Promise<unknown>>()
 
 function track<T>(promise: Promise<T>): Promise<T> {

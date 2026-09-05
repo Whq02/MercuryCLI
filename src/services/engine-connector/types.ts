@@ -59,6 +59,7 @@ export type ModelFactsV1 = {
   setting: ModelSetting
   sessionPin: ModelSetting | null
   effort?: string | null
+  effortSent?: string | null
   pendingSwitch: { setting: ModelSetting } | null
 }
 
@@ -149,6 +150,14 @@ export type WorkPhaseV1 = {
   agents: WorkAgentV1[]
 }
 
+export type WorkflowPulseV1 = {
+  phaseTitle?: string
+  running: number
+  settled: number
+  maxAttempt: number
+  lastEventAt: number
+}
+
 export type WorkRowV1 = {
   id: string
   kind: 'workflow' | 'agent' | 'teammate' | 'shell' | 'monitor' | 'dream'
@@ -172,6 +181,7 @@ export type WorkRowV1 = {
   workflowRunId?: string
   phases?: WorkPhaseV1[]
   agentCount?: number
+  pulse?: WorkflowPulseV1
   pendingAsks?: number
   agentType?: string
   team?: string
@@ -214,6 +224,11 @@ export type RewindRequestV1 = {
 export type RewindReceiptV1 = SessionRewindOutcomeV1
 
 
+export interface PermissionModeReceiptV1 {
+  outcome: 'applied' | 'refused' | 'noop'
+  detail?: string
+}
+
 export interface EngineConnectorV1 {
   readonly carrier: EngineCarrierKind
 
@@ -239,6 +254,7 @@ export interface EngineConnectorV1 {
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
   setModel(setting: ModelSetting): Promise<ModelSwitchReceiptV1>
+  setEffort(level: string): Promise<ModelSwitchReceiptV1>
 
   usage(): UsageFactsV1
   identity(): SeatIdentityV1
@@ -258,9 +274,9 @@ export interface EngineConnectorV1 {
   workRoster(): WorkRosterV1
   subscribeWork(listener: () => void): () => void
 
-  permissionMode(): PermissionMode
+  permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void
-  setPermissionMode(mode: PermissionMode): void
+  setPermissionMode(mode: PermissionMode): Promise<PermissionModeReceiptV1>
 
   workspace(): WorkspaceFactsV1
 

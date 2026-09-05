@@ -4,6 +4,8 @@ import {
   formatQuietAge,
   WORKFLOW_QUIET_MS,
   workflowPulse,
+  workflowPulseAt,
+  workflowPulseFacts,
 } from '../../src/tools/WorkflowTool/livePulse.js'
 import type { WorkflowProgressEvent } from '../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 
@@ -77,16 +79,37 @@ t("4m", formatQuietAge(240_000) === '4m')
 t("1h", formatQuietAge(3_600_000) === '1h')
 t("1h15m", formatQuietAge(4_500_000) === '1h15m')
 
-console.log('— the three surfaces share the ONE projector —')
+console.log('— the pulse splits into the owner\'s clock-free facts and the paint-time verdict —')
+{
+  const facts = workflowPulseFacts(events, T0)
+  t('the facts carry no clock (no quietMs, no moving)', !('quietMs' in facts) && !('moving' in facts))
+  t('the facts keep the fold: running, settled, attempt, the newest signal, the phase', facts.running === 2 && facts.settled === 1 && facts.maxAttempt === 2 && facts.lastEventAt === T0 + 100_000 && facts.phaseTitle === 'Verify')
+  const at = workflowPulseAt(facts, T0 + 100_000 + 5_000)
+  t('the pulse at a clock counts the quiet age from the newest signal', at.quietMs === 5_000 && at.moving === true)
+  const late = workflowPulseAt(facts, T0 + 100_000 + WORKFLOW_QUIET_MS)
+  t('the pulse at a late clock reads quiet', late.moving === false && late.quietMs === WORKFLOW_QUIET_MS)
+  const whole = workflowPulse(events, T0, T0 + 100_000 + 5_000)
+  t('workflowPulse IS the facts at the clock (one fold, two entries)', JSON.stringify(whole) === JSON.stringify(at))
+  t('an empty run\'s facts floor at the start time', workflowPulseFacts([], T0).lastEventAt === T0 && workflowPulseFacts([], T0).running === 0)
+}
+
+console.log('— the surfaces share the ONE projector, over the ONE work-row owner —')
 const renderers = readFileSync('src/tools/WorkflowTool/workflowToolRenderers.tsx', 'utf8')
-t('transcript line reads workflowPulse', renderers.includes("from './livePulse.js'") && renderers.includes('workflowPulse(task.workflowProgress'))
+t('transcript line reads the run\'s work row (the focused session\'s rows, never the screen\'s store alone)', renderers.includes('useFocusedWorkRows()') && !renderers.includes('useAppState('))
+t('transcript line reads the row\'s pulse through the shared projector', renderers.includes("from './livePulse.js'") && renderers.includes('workflowPulseAt(task.pulse, nowMs)'))
 t('transcript line carries the age heartbeat', renderers.includes('last event {formatQuietAge(pulse.quietMs)} ago'))
 t('quiet age turns AMBER on the transcript line', renderers.includes('pulse.moving ? FAINT : AMBER'))
 t('transcript line carries the /tasks <id> probe pointer', renderers.includes('/tasks {taskId}'))
 t('transcript tick is coarse AND parked when settled', renderers.includes('useNowTick(live ? 10_000 : null)'))
 const frame = readFileSync('src/components/MercuryFrame.tsx', 'utf8')
-t('statusbar chip reads the shared projector', frame.includes("from '../tools/WorkflowTool/livePulse.js'"))
+t('statusbar chip reads the shared projector', frame.includes("from '../tools/WorkflowTool/livePulse.js'") && frame.includes('workflowPulseAt(w.pulse, wfNow)'))
+t('statusbar chip reads the focused session\'s work rows', frame.includes('runningWorkflowRows(focusedWorkRows(allTasks, workRoster))'))
 t('statusbar chip mounted in the status row', frame.includes('{wfNode}'))
+const projector = readFileSync('src/utils/task/workRoster.ts', 'utf8')
+t('the runner\'s projector speaks the pulse on the workflow row (the one fold)', projector.includes('pulse: workflowPulseFacts('))
+const rail = readFileSync('src/components/HelmTelemetryRail.tsx', 'utf8')
+t('the cockpit\'s WORKFLOW panel reads the focused session\'s work rows', rail.includes('runningWorkflowRows(workRows)') && !rail.includes("t.type === 'local_workflow'"))
+t('the panel\'s interior shares the board\'s rollup grammar', rail.includes('workflowRowDetail(runningWf[0]!)'))
 t('statusbar chip shows the WORST pulse (an active run must not mask a stuck one)', frame.includes('a.quietMs >= b.quietMs ? a : b'))
 t('statusbar tick parked when no workflow runs', frame.includes('useNowTick(wfLive.length > 0 ? 10_000 : null)'))
 const dialog = readFileSync('src/components/tasks/WorkflowDetailDialog.tsx', 'utf8')
