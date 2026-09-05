@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — proof exceeded 180s')
@@ -43,6 +43,7 @@ const REPO = join(new URL('.', import.meta.url).pathname, '../..')
 const BUN = process.env.BUN ?? join(homedir(), '.bun/bin/bun')
 const sha256 = (t: string): string => createHash('sha256').update(t).digest('hex')
 const scratch = mkdtempSync(join(tmpdir(), 'wf-durability-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wf-dur-home-'))
 
 console.log('============================================================')
 console.log(' Workflow durability — atomic launch · awaited finals · disk resume')
@@ -112,7 +113,8 @@ const CHILD = String.raw`
 import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wf-dur-home-'))
+// The runs live in the config home's project store (AFTERMATH C): the child shares the parent's home so the parent can list and resume what the child wrote.
+process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'wf-dur-home-'))
 await import('${REPO}/src/tasks.js')
 const { WorkflowTool } = await import('${REPO}/src/tools/WorkflowTool/WorkflowTool.js')
 const emit = (o: unknown) => console.log('@@' + JSON.stringify(o))
@@ -233,8 +235,11 @@ section('(2) atomic launch + terminal ordering (real WorkflowTool.call)')
 section('(3) launch-persistence failure → precise error, no half-run')
 {
   const cwd = join(scratch, 'sabotage-cwd')
-  mkdirSync(join(cwd, '.mercury', 'workflows'), { recursive: true })
-  writeFileSync(join(cwd, '.mercury', 'workflows', 'runs'), 'not a directory')
+  mkdirSync(cwd, { recursive: true })
+  const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
+  const runsRoot = workflowRunsRoot(cwd)
+  mkdirSync(dirname(runsRoot), { recursive: true })
+  writeFileSync(runsRoot, 'not a directory')
   const r = await runChild(cwd, {})
   const threw = r.lines.find(l => l.ev === 'threw') as Record<string, unknown> | undefined
   check('call() threw instead of launching', !!threw, JSON.stringify(r.lines).slice(0, 300))

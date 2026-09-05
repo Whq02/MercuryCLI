@@ -47,7 +47,7 @@
  },
  "J6": {
   "resumeCarriedTranscript": true,
-  "resumeMessageCount": 3,
+  "resumeMessageCount": 5,
   "turn1": {
    "exit": 0,
    "stdout": "J6-FIRST-REPLY\n"
