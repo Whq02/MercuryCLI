@@ -82,6 +82,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A hook's deny decision leaves its audit row in the transcript again; the working strip, the rail and the /tasks board read one session ledger, and a TeamCreate no longer hides earlier tasks
 - A request that declares no thinking carries none; the prune's dead marks persist, and a process-wide toggle reads as a lawful change for every conversation
 - On Claude Opus 5 the fold rides the session's effort word (measured: the per-message row cost the whole prefix cache); the classifier's error dump is the operator's alone
+- A headless stream-json run opens with its init line first; the turn's open-edge frame follows it, or precedes the result when the turn yielded no init
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
