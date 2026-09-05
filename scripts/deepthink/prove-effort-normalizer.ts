@@ -16,6 +16,9 @@ const effort = await import('../../src/utils/effort.js')
 
 console.log('— §1 the plain-spelling table —')
 const RESOLVES: Array<[string, string]> = [
+  ['ultra', 'ultra'],
+  ['ULTRA', 'ultra'],
+  ['ultra effort', 'ultra'],
   ['max', 'max'],
   ['MAX', 'max'],
   ['max effort', 'max'],
@@ -40,7 +43,7 @@ for (const [spoken, tier] of RESOLVES) {
 }
 
 console.log('— §2 junk refuses; nothing substitutes —')
-const REFUSES = ['ultra', 'supermax', 'mega', 'no effort', 'low high', 'effort', '', '  ', 'maximal', 'highest']
+const REFUSES = ['supermax', 'mega', 'no effort', 'low high', 'effort', '', '  ', 'maximal', 'highest', 'hyper']
 for (const junk of REFUSES) {
   t(`'${junk}' stays undefined`, effort.normalizeEffortLevelString(junk) === undefined)
 }
@@ -56,13 +59,18 @@ process.env.MERCURY_EFFORT_LEVEL = 'unset'
 t("…and 'unset' still means null (defer)", effort.getEffortEnvOverride() === null)
 delete process.env.MERCURY_EFFORT_LEVEL
 
-console.log('— §4 the ladder truth: max exists above xhigh, model-gated —')
-t('the ladder ends max', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 1] === 'max')
-t('xhigh sits directly below max', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 2] === 'xhigh')
+console.log('— §4 the ladder truth: six words, ultra above max, each model-gated —')
+t('the ladder ends ultra', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 1] === 'ultra')
+t('max sits directly below ultra', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 2] === 'max')
+t('xhigh sits directly below max', effort.EFFORT_LEVELS[effort.EFFORT_LEVELS.length - 3] === 'xhigh')
+const seats = await import('../../src/utils/model/seatSlots.js')
+t('the seat vocabulary IS the ladder tuple (one owner, no mirror)', seats.SEAT_EFFORTS === effort.EFFORT_LEVELS)
 t('claude-opus-5 serves the whole ladder (max included)', effort.modelSupportsMaxEffort('claude-opus-5') && effort.modelSupportsXHighEffort('claude-opus-5'))
 t('claude-fable-5 serves the whole ladder', effort.modelSupportsMaxEffort('claude-fable-5') && effort.modelSupportsXHighEffort('claude-fable-5'))
 t("claude-opus-4-6 serves max but NOT xhigh (the step-down specimen)", effort.modelSupportsMaxEffort('claude-opus-4-6') && !effort.modelSupportsXHighEffort('claude-opus-4-6'))
 t("getMaxSupportedEffortLevel('claude-opus-5') = max", effort.getMaxSupportedEffortLevel('claude-opus-5') === 'max')
+const cappedUltra = effort.resolveStampedEffortTruth('claude-opus-5', 'ultra')
+t('the first-party ladder ends at max: opus-5 does not serve ultra, and ultra asked there runs max with the asked word on the record', !effort.modelOffersEffortLevel('claude-opus-5', 'ultra') && cappedUltra.label === 'max' && cappedUltra.adjustedFrom === 'ultra', JSON.stringify(cappedUltra))
 
 console.log('— §5 the stamped-truth projection is env-free —')
 process.env.MERCURY_EFFORT_LEVEL = 'low'
