@@ -111,16 +111,27 @@ console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, 
   check("the stamp lands BEFORE the work runs (the session-memory wait and the prompt build sit inside it)", seenAtWork.length === 1 && compactingOf(seenAtWork[0])?.stage === null)
   check("the work's answer rides through", out === 'folded')
   check('the one finally stamps the landed exit (one stamp in, one exit out)', stamps.length === 2 && compactingOf(stamps[1])?.exit === 'landed')
+  const { APIUserAbortError } = await import('../../src/services/api/sdkErrors.ts')
   const thrown: unknown[] = []
   let caught: unknown = null
   try {
     await withFoldStatus({ setSDKStatus: (word: unknown) => thrown.push(word), abortController: new AbortController() } as never, async () => {
-      throw new Error('Compaction canceled.')
+      throw new APIUserAbortError()
     }, { trigger: 'manual', sessionMemory: false, microcompaction: true })
   } catch (e) {
     caught = e
   }
-  check('a thrown fold still exits (a stamp never outlives the command) — cancelled, by name', caught instanceof Error && caught.message === 'Compaction canceled.' && thrown.length === 2 && compactingOf(thrown[1])?.exit === 'cancelled')
+  check('a cancelled fold still exits (a stamp never outlives the command) — cancelled, by its typed class', caught instanceof APIUserAbortError && thrown.length === 2 && compactingOf(thrown[1])?.exit === 'cancelled')
+  const failed: unknown[] = []
+  let caughtFailure: unknown = null
+  try {
+    await withFoldStatus({ setSDKStatus: (word: unknown) => failed.push(word), abortController: new AbortController() } as never, async () => {
+      throw new Error('the provider refused the fold')
+    }, { trigger: 'manual', sessionMemory: false, microcompaction: true })
+  } catch (e) {
+    caughtFailure = e
+  }
+  check('a plain throw exits as a failure, never a cancel', caughtFailure instanceof Error && failed.length === 2 && compactingOf(failed[1])?.exit === 'failed')
   const auto: unknown[] = []
   await withFoldStatus({ setSDKStatus: (word: unknown) => auto.push(word), abortController: new AbortController() } as never, async () => 'auto', { trigger: 'auto', sessionMemory: false, microcompaction: false })
   check('the automatic road stamps its record and clears with null (the turn goes on)', auto.length === 2 && compactingOf(auto[0])?.trigger === 'auto' && auto[1] === null)
