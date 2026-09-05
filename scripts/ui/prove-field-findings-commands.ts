@@ -199,14 +199,17 @@ function stripModel(frame: string): string | null {
   return null
 }
 
-function traceRows(path: string): Array<{ site: string; at: number; name?: string; rearmed?: boolean }> {
+type CensusRow = { site: string; at: number; name?: string; rearmed?: boolean; result?: string }
+function traceRows(path: string): CensusRow[] {
   if (!existsSync(path)) return []
-  const rows: Array<{ site: string; at: number; name?: string; rearmed?: boolean }> = []
+  const rows: CensusRow[] = []
   for (const line of readFileSync(path, 'utf8').split('\n')) {
     if (!line.trim()) continue
     try {
-      const row = JSON.parse(line) as { site?: string; at?: number; name?: string; rearmed?: boolean }
-      if (typeof row.site === 'string' && row.site.startsWith('repl-dialog-') && typeof row.at === 'number') rows.push({ site: row.site, at: row.at, ...(row.name !== undefined ? { name: row.name } : {}), ...(row.rearmed !== undefined ? { rearmed: row.rearmed } : {}) })
+      const row = JSON.parse(line) as Partial<CensusRow>
+      if (typeof row.site === 'string' && row.site.startsWith('repl-dialog-') && typeof row.at === 'number') {
+        rows.push({ site: row.site, at: row.at, ...(row.name !== undefined ? { name: row.name } : {}), ...(row.rearmed !== undefined ? { rearmed: row.rearmed } : {}), ...(row.result !== undefined ? { result: row.result } : {}) })
+      }
     } catch {
     }
   }
@@ -239,7 +242,7 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
           { data: '\r', afterPrevTicks: 1, mark: 'second-enter' },
           { data: '', afterPrevTicks: 3, mark: 'after-second' },
           { data: '', afterPrevTicks: Math.ceil(PROBE_HOLD_MS / 200) + 4, mark: 'first-landed' },
-          { data: '', afterPrevTicks: 25, mark: 'settled' },
+          { data: '', afterPrevTicks: 40, mark: 'settled' },
         ],
         stableTicks: 5,
       },
@@ -256,17 +259,19 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
   const afterSecond = flat(marks['after-second'] ?? '')
   check(`${tag}: the composer said the second row was queued behind the first`, /\/model queued/.test(afterSecond), afterSecond.match(/[^.]*queued[^.]*/)?.[0] ?? 'no queued word')
   const trace = traceRows(tracePath)
-  const events = trace.map(r => `${r.site}:${r.name ?? ''}${r.rearmed === true ? ':rearmed' : ''}`)
+  const events = trace.map(r => `${r.site.replace('repl-dialog-', '')}${r.rearmed === true ? ':rearmed' : ''}`)
   check(
-    `${tag}: the census reads dispatch(first) → queued(second) → dispatch(second, re-armed), in order`,
-    events.join(' ') === 'repl-dialog-dispatch:model repl-dialog-queued:model repl-dialog-dispatch:model:rearmed',
+    `${tag}: the census reads dispatch(first) → queued(second) → done(first) → dispatch(second, re-armed) → done(second), in order`,
+    events.join(' ') === 'dispatch queued done dispatch:rearmed done',
     events.join(' ') || 'no census rows',
   )
   const dispatches = trace.filter(r => r.site === 'repl-dialog-dispatch')
   check(`${tag}: the second row ran only once the first had settled (after the held probe answered)`, dispatches.length === 2 && dispatches[1]!.at - dispatches[0]!.at >= PROBE_HOLD_MS, dispatches.length === 2 ? `${dispatches[1]!.at - dispatches[0]!.at} ms apart` : `${dispatches.length} dispatches`)
+  const dones = trace.filter(r => r.site === 'repl-dialog-done').map(r => r.result ?? '')
+  check(`${tag}: both dialogs completed with an applied receipt (the first's model, then the second's)`, dones.length === 2 && /Model set to Sonnet/.test(dones[0]!) && dones[1]!.includes(`Model set to ${SECOND_LABEL}`), dones.join(' ‖ ') || 'no done rows')
   const settled = marks['settled'] ?? ''
   const model = stripModel(settled)
-  check(`${tag}: the session strip names the SECOND model once both settled — the second row was applied, after the first`, model === SECOND_LABEL, `strip reads ${model ?? '∅'}`)
+  check(`${tag}: the session strip names the SECOND model once both settled — the second row was applied, after the first`, model === SECOND_LABEL, `strip reads ${model ?? '∅'} · done: ${dones.join(' ‖ ')}`)
   if (failures > 0 && process.env.FIELD_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > 0 || process.env.FIELD_KEEP === '1') dump(`${tag} · final grid`, cap.text)
   rmSync(home, { recursive: true, force: true })
