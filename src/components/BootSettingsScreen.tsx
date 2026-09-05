@@ -42,7 +42,7 @@ import {
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
-import { GLYPH } from './mercury-ui/glyphs.js';
+import { branchChip } from './mercury-ui/glyphs.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
 import { isFullscreenEnvEnabled, isHelmHomeEnabled } from '../utils/fullscreen.js';
@@ -87,7 +87,7 @@ function gitTailProbe(onTail: (tail: string) => void): () => void {
     execFile('git', ['status', '--porcelain', '-uno'], { windowsHide: true, encoding: 'utf8', timeout: 1500, env: { ...subprocessEnv() } }, (stErr, stOut) => {
       if (!alive) return;
       const clean = stErr ? null : stOut.trim() === '';
-      onTail(`  ${GLYPH.branch}${branch}` + (clean === null ? '' : clean ? ' · clean' : ' · uncommitted'));
+      onTail(`  ${branchChip(branch)}` + (clean === null ? '' : clean ? ' · clean' : ' · uncommitted'));
     });
   });
   return () => {

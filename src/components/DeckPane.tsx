@@ -52,7 +52,7 @@ import { Crab } from './mercury-ui/assets.js'
 import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
 import { ProgressBar, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
-import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'
 
@@ -223,7 +223,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               ) : null}
               {git !== null ? (
                 <>
-                  <Text color={tok.textMuted}>{' · ' + GLYPH.branch}</Text>
+                  <Text color={tok.textMuted}>{' · ' + branchChip('')}</Text>
                   <Text color={tok.textPrimary}>{truncateToWidth(git.branchName, 14)}</Text>
                   {git.isClean ? null : <Text color={tok.warning}>*</Text>}
                 </>
@@ -287,7 +287,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               ) : null}
               {s.branch ? (
                 <>
-                  <Text color={tok.textMuted}>{' · ' + GLYPH.branch}</Text>
+                  <Text color={tok.textMuted}>{' · ' + branchChip('')}</Text>
                   <Text color={tok.textPrimary}>{truncateToWidth(s.branch, 20)}</Text>
                 </>
               ) : null}
@@ -310,7 +310,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           <Text color={tok.textMuted}>git: not a repository</Text>
         ) : (
           <>
-            <Text color={tok.textMuted}>{GLYPH.branch}</Text>
+            <Text color={tok.textMuted}>{branchChip('')}</Text>
             <Text color={tok.textPrimary}>{truncateToWidth(git.branchName, 24)}</Text>
             <Text color={tok.textMuted}> · </Text>
             {git.isClean ? (

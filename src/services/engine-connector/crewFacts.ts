@@ -1,4 +1,5 @@
 import type { WorkRowV1 } from './types.js'
+import { splitWaitSentence } from '../capacity/seatWords.js'
 import { workRowRuns } from './workCounts.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { formatSessionCost } from '../../utils/spendSpelling.js'
@@ -164,13 +165,20 @@ export function crewWaitLine(facts: CrewAgentFacts): string | null {
   return facts.running ? facts.wait : null
 }
 
+export function crewWaitHolders(facts: CrewAgentFacts): string | null {
+  const line = crewWaitLine(facts)
+  if (line === null) return null
+  const { holders } = splitWaitSentence(line)
+  return holders === '' ? null : holders
+}
+
 export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
   if (!facts.running) return null
   return facts.wait ?? agentWaitWords(facts.phase, nowMs) ?? facts.activity
 }
 
 export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
-  if (facts.running && facts.wait !== null) return crewStateLabel(facts)
+  if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
   return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
 }
 

@@ -449,13 +449,17 @@ export function settleAgentForeground(
   status: 'completed' | 'failed' | 'stopped',
   setAppState: SetAppState,
   progress?: AgentProgress,
+  why?: { error: string; stopReason?: string },
 ): void {
   let settled = false
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
     if (task.isBackgrounded) return task
     if (task.status !== 'running') return progress !== undefined ? { ...task, progress } : task
     settled = true
-    return terminalPatch(task, status === 'stopped' ? 'killed' : status, progress !== undefined ? { progress } : {})
+    return terminalPatch(task, status === 'stopped' ? 'killed' : status, {
+      ...(progress !== undefined ? { progress } : {}),
+      ...(why !== undefined ? { error: why.error, ...(why.stopReason !== undefined ? { stopReason: why.stopReason } : {}) } : {}),
+    })
   })
   backgroundSignalResolvers.delete(taskId)
   if (settled) void evictTaskOutput(taskId)

@@ -416,7 +416,8 @@ async function leg(mainDialect: Dialect): Promise<void> {
   const mid = marks['crew-mid'] ?? ''
   const fourth = rowOf(mid, SEATS[3]) ?? ''
   check(`${tag}: S2 the fourth row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), flat(fourth))
-  check(`${tag}: S2 the three held rows read running`, SEATS.slice(0, 3).every(s => /\brunning\b/.test(rowOf(mid, s) ?? '')), flat(mid).slice(0, 400))
+  const heldWords = /(\brunning\b|first byte|request sent|streaming|reasoning|replying|retry)/
+  check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, SEATS.slice(0, 3).every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), SEATS.slice(0, 3).map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400))
 
   check(`${tag}: S3 every seat rode the seats' wire on ${seatModel}`, seatHits.every(h => h.lane === seatLane && seatIs(h.model)), seatHits.map(h => `${h.lane}:${h.model}`).join(','))
   if (seatModel === GPT_ID) check(`${tag}: S3 every GPT seat's request carries a reasoning effort`, seatHits.every(h => h.effort !== null), seatHits.map(h => String(h.effort)).join(','))

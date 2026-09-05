@@ -60,6 +60,7 @@ import {
   landedWritesOf,
   PROMOTED_NARRATION_NOTE,
   type AgentToolResult,
+  REPETITION_STOP_WORDS,
 } from './agentToolUtils.js'
 import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
@@ -510,13 +511,18 @@ export async function runForegroundAgentExecution(
       if (backgrounded) {
         unregisterAgentForeground(foregroundTask.taskId, rootSetAppState)
       } else {
+        const outcome = heldError === undefined ? deriveAgentTerminalOutcome(agentMessages) : null
         const status: 'completed' | 'failed' | 'stopped' =
           heldError instanceof AbortError
             ? 'stopped'
             : heldError !== undefined
               ? 'failed'
-              : deriveAgentTerminalOutcome(agentMessages).status
-        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker))
+              : outcome!.status
+        const why =
+          outcome !== null && outcome.status === 'failed'
+            ? { error: outcome.error, ...(outcome.reason === 'repetition-stop' ? { stopReason: REPETITION_STOP_WORDS } : {}) }
+            : undefined
+        settleAgentForeground(foregroundTask.taskId, status, rootSetAppState, getProgressUpdate(tracker), why)
         enqueueSdkEvent({
           type: 'system',
           subtype: 'task_notification',

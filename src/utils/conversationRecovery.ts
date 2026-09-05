@@ -298,7 +298,7 @@ function settleTurn(acc: TurnAccumulator): LiveTurnState {
     else if (acc.lastAssistantKind === 'thinking') phase = 'thinking'
     else phase = 'thinking'
   }
-  return { inFlight, phase, agentsWaiting: 0, inProgressToolUseIDs: unresolved, turnStartedAtMs: acc.lastPromptMs }
+  return { inFlight, phase, agentsWaiting: 0, inProgressToolUseIDs: unresolved, turnStartedAtMs: inFlight ? acc.lastPromptMs : null }
 }
 
 export interface LiveTurnFold {

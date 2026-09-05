@@ -9,7 +9,7 @@ import {
   SectionHeader,
   StateBadge,
 } from '../../components/mercury-ui/components.js'
-import { GLYPH, padTo, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
+import { GLYPH, padTo, truncateToWidth, branchChip } from '../../components/mercury-ui/glyphs.js'
 import { CursorCell } from '../../components/mercury-ui/LiveGlyphs.js'
 import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -459,7 +459,7 @@ function MercuryHealthCertificate({ onClose }: { onClose: () => void }): React.R
               {cert.head.branch ? (
                 <>
                   {' '}
-                  · {GLYPH.branch} {cert.head.branch} @ {sha7(cert.head.sha)}
+                  · {branchChip(cert.head.branch)} @ {sha7(cert.head.sha)}
                   {cert.head.dirty ? ' (dirty)' : ''}
                 </>
               ) : null}{' '}

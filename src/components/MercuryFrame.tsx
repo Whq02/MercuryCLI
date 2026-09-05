@@ -64,7 +64,7 @@ import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
 import { TrimChip } from './mercury-ui/TrimChip.js'
 import { HarnessChip } from './mercury-ui/HarnessChip.js'
-import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { SessionTabs } from './mercury-ui/SessionTabs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
@@ -432,7 +432,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         <Sep />
         <Text color={tok.textPrimary}>{dir}</Text>
         {!deckOwnsVitals && branch ? (
-          <Text color={tok.textMuted}> {GLYPH.branch}{truncateToWidth(branch, branchMax)}</Text>
+          <Text color={tok.textMuted}> {branchChip(truncateToWidth(branch, branchMax))}</Text>
         ) : null}
         {turnsNode}
         {needsNode}
