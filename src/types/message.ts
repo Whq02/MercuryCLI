@@ -199,6 +199,16 @@ export type SystemRosterTransitionMessage = {
   timestamp: string
 }
 
+export type SystemThinkingNoteMessage = {
+  type: 'system'
+  subtype: 'thinking_note'
+  content: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
 export type DeadThinkingMark = {
   messageId: string
   blockIndex: number
@@ -459,6 +469,7 @@ export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
   | SystemRosterTransitionMessage
+  | SystemThinkingNoteMessage
   | SystemThinkingDeadMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage

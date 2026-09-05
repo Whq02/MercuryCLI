@@ -751,7 +751,8 @@ export class QueryEngine {
               this.mutableMessages.push(systemMessage)
               if (
                 (systemMessage as { level?: string }).level === 'warning' ||
-                (systemMessage as { level?: string }).level === 'error'
+                (systemMessage as { level?: string }).level === 'error' ||
+                systemMessage.subtype === 'thinking_note'
               ) {
                 turnMessages.push(systemMessage)
                 await recordDelta()
