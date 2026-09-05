@@ -166,6 +166,24 @@ export function isTurnResultParsedFrame(frame: Record<string, unknown> | null): 
   return frame !== null && frame.type === 'result'
 }
 
+export const TURN_STARTED_SUBTYPE = 'turn_started'
+
+export type TurnStartedFrame = {
+  type: 'system'
+  subtype: typeof TURN_STARTED_SUBTYPE
+  uuids: string[]
+  uuid: string
+  session_id: string
+}
+
+export function turnStartedFrame(sessionId: string, uuids: readonly string[], uuid: string): TurnStartedFrame {
+  return { type: 'system', subtype: TURN_STARTED_SUBTYPE, uuids: [...uuids], uuid, session_id: sessionId }
+}
+
+export function isTurnStartedParsedFrame(frame: Record<string, unknown> | null): boolean {
+  return frame !== null && frame.type === 'system' && frame.subtype === TURN_STARTED_SUBTYPE
+}
+
 export function errorTextOfResultFrame(line: string): string | undefined {
   return errorTextOfParsedResultFrame(parseStreamJsonFrame(line))
 }
