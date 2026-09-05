@@ -845,6 +845,7 @@ export function REPL({
       } catch (error) {
         logForDebugging(`permission mode adoption ${prev.toolPermissionContext.mode} → ${held} kept the standing context: ${error instanceof Error ? error.message : String(error)}`);
       }
+      recordModeTransition({ from: prev.toolPermissionContext.mode, to: held, road: 'screen-mirror', detail: "the runner's own mode adopted" });
       return { ...prev, toolPermissionContext: { ...next, mode: held } };
     });
   }, [setAppState]);
