@@ -51,11 +51,13 @@ section('§3 the roster and the print road ride the one owner')
 {
   const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
   const drain = roster.slice(roster.indexOf('private drainChildStdout('))
-  check('the drain opens the edge on the turn-start frame BEFORE it reads the result frame (one line, both edges)', /isTurnStartedParsedFrame\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)/.test(drain) && drain.indexOf('isTurnStartedParsedFrame(frame)') < drain.indexOf('isTurnResultParsedFrame(frame)'))
+  check('the drain opens the edge on the turn-start frame BEFORE it reads the result frame (one line, both edges)', /isTurnStartedParsedFrame\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)/.test(drain) && drain.includes('isTurnStartedParsedFrame(frame)') && drain.indexOf('isTurnStartedParsedFrame(frame)') < drain.indexOf('isTurnResultParsedFrame(frame)'))
   check('reply() still opens the edge for a delivery (the same fact, two roads into one field)', /h\.longLived\.turnActive = true\n\s*h\.longLived\.turnStartedAt = Date\.now\(\)/.test(roster))
   const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   const onTurnStart = print.slice(print.indexOf('onTurnStart: (command, batch) => {'), print.indexOf('onTurnStart: (command, batch) => {') + 900)
-  check('the print road writes the frame at the turn\'s start through the owner, before the replay acks', /io\.outbound\.enqueue\(\s*turnStartedFrame\(/.test(onTurnStart) && onTurnStart.indexOf('turnStartedFrame(') < onTurnStart.indexOf('replayUserMessages'))
+  check('the print road mints the frame at the turn\'s start through the owner and hands it to the driver', /const openEdge = turnStartedFrame\(/.test(onTurnStart) && onTurnStart.includes('turnStartedFrame(') && onTurnStart.indexOf('turnStartedFrame(') < onTurnStart.indexOf('replayUserMessages') && /return openEdge\s*\n\s*\},/.test(print.slice(print.indexOf('onTurnStart: (command, batch) => {'), print.indexOf('onTurnStart: (command, batch) => {') + 1800)))
+  const driver = readFileSync(join(ROOT, 'src/cli/headless/turnDriver.ts'), 'utf8')
+  check('the driver writes the open edge after the turn\'s init, and before the result when no init came', /ports\.enqueueOutput\(message\)\n\s*if \(message\.type === 'system' && \(message as \{ subtype\?: unknown \}\)\.subtype === 'init'\) writeOpenEdge\(\)/.test(driver) && /if \(message\.type === 'result'\) \{[\s\S]{0,200}flushSdkEvents\(\)\n\s*writeOpenEdge\(\)/.test(driver))
   check('the frame never becomes the run\'s last message (excluded like the other bookkeeping frames)', /EXCLUDED_SYSTEM_SUBTYPES = new Set\(\[\s*TURN_STARTED_SUBTYPE,/.test(print))
 }
 

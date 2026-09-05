@@ -87,7 +87,7 @@ section('§3 the tool execution road: the hook row lands after the result on the
   const denied = await drive({ behavior: 'deny', message: 'denied by the hook', decisionReason: hook })
   check('DENY: the refusal result lands, then the hook-decision row — after it, never lost', denied.join(' → ') === 'result:error → attachment:hook_permission_decision:deny', denied.join(' → '))
   const allowed = await drive({ behavior: 'allow', updatedInput: {}, decisionReason: hook })
-  check('ALLOW: the tool ran, its result landed, then the hook-decision row', allowed[0] === 'result' && allowed.includes('attachment:hook_permission_decision:allow') && allowed.indexOf('attachment:hook_permission_decision:allow') > allowed.indexOf('result'), allowed.join(' → '))
+  check('ALLOW: the tool ran, its result landed, then the hook-decision row', allowed[0] === 'result' && allowed.includes('attachment:hook_permission_decision:allow') && allowed.includes('result') && allowed.indexOf('attachment:hook_permission_decision:allow') > allowed.indexOf('result'), allowed.join(' → '))
   const plain = await drive({ behavior: 'allow', updatedInput: {} })
   check('a decision no hook made leaves no hook row', !plain.some(x => x.startsWith('attachment:hook_permission_decision')), plain.join(' → '))
 }
