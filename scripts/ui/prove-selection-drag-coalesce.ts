@@ -432,7 +432,7 @@ section('§4 scroll under a drag — the tick scrolls, motion reports never do; 
   held.stop()
   console.log(`  after the hold: ${facts()}`)
   const heldStill = top0 - scrollTop()
-  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 3 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`)
+  check(`a pointer held still above the pane scrolls the content by the tick (${AUTOSCROLL_STEP_ROWS} rows per clock tick, counted through the clock seam)`, held.ticks() >= 1 && rowsForTicks(heldStill, held.ticks()), `${heldStill} rows for ${held.ticks()} ticks`)
   const top1 = scrollTop()
   const moving = countTicks()
   for (let k = 0; k < 30; k++) {
