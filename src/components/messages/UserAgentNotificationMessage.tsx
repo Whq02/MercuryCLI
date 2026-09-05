@@ -4,6 +4,7 @@ import { Box, Text } from '../../ink.js'
 import type { TextBlockParam } from '../../types/wire.js'
 import { extractTag } from '../../utils/messages.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
+import { NameplateClock } from './TranscriptNameplate.js'
 
 function statusColor(status: string | null, accent: string): string {
   switch (status) {
@@ -32,6 +33,7 @@ export function UserAgentNotificationMessage({
   return (
     <Box marginTop={addMargin ? 1 : 0}>
       <Text>
+        <NameplateClock />
         <Text color={statusColor(status, accent)}>● </Text>
         <Text dimColor>{summary}</Text>
       </Text>

@@ -1,5 +1,5 @@
 
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { gh as spawnGh } from '../privateChannel/ghRelease.js'
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -201,7 +201,7 @@ export interface ReviewRecord {
 }
 
 function reviewsDir(root: string): string {
-  return adoptiveProjectPath(root, 'reviews')
+  return projectHomeStore(root, 'reviews')
 }
 
 export function latestReview(root: string = getCwd()): ReviewRecord | null {
