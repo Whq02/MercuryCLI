@@ -214,11 +214,15 @@ export function useInboxPoller({
           continue
         }
         const targetMode = response.permissionMode ?? 'default'
-        const outcome = setPermissionModeWithGuards(targetMode, toolPermissionContextRef.current, updater =>
-          setAppState(previous => ({
-            ...previous,
-            toolPermissionContext: updater(previous.toolPermissionContext),
-          })),
+        const outcome = setPermissionModeWithGuards(
+          targetMode,
+          toolPermissionContextRef.current,
+          updater =>
+            setAppState(previous => ({
+              ...previous,
+              toolPermissionContext: updater(previous.toolPermissionContext),
+            })),
+          'crew-lead',
         )
         if (!outcome.ok) logForDebugging(`[InboxPoller] plan-approval mode change refused: ${outcome.error}`)
       }
@@ -377,11 +381,15 @@ export function useInboxPoller({
       if (m.from !== TEAM_LEAD_NAME) continue
       const request = isModeSetRequest(m.text)
       if (!request) continue
-      const outcome = setPermissionModeWithGuards(request.mode, toolPermissionContextRef.current, updater =>
-        setAppState(previous => ({
-          ...previous,
-          toolPermissionContext: updater(previous.toolPermissionContext),
-        })),
+      const outcome = setPermissionModeWithGuards(
+        request.mode,
+        toolPermissionContextRef.current,
+        updater =>
+          setAppState(previous => ({
+            ...previous,
+            toolPermissionContext: updater(previous.toolPermissionContext),
+          })),
+        'crew-lead',
       )
       if (!outcome.ok) {
         logForDebugging(`[InboxPoller] mode-set refused: ${outcome.error}`)

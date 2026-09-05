@@ -1733,6 +1733,7 @@ export async function runHeadless(
             const transition = resolvePermissionModeTransition(
               claimedMode as WirePermissionMode,
               getAppState().toolPermissionContext,
+              'claim',
             )
             if (!transition.ok) {
               respondError(requestId, `claim refused — ${transition.error}`)
