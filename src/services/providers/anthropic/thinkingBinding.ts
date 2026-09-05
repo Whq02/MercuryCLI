@@ -226,8 +226,17 @@ interface OwnerDropState {
 
 const dropStates = new Map<string, OwnerDropState>()
 
+const rewriteNoticed = new Set<string>()
+
+export function takeRewriteNoticeOnce(owner: string): boolean {
+  if (rewriteNoticed.has(owner)) return false
+  rewriteNoticed.add(owner)
+  return true
+}
+
 export function resetThinkingDropStates(): void {
   dropStates.clear()
+  rewriteNoticed.clear()
 }
 
 export function classifyThinkingDrops(
@@ -284,7 +293,7 @@ export function classifyThinkingDrops(
   const isSelfEdit = lawful === 'thinking-cleared' || lawful === 'context-edited'
   const defectNoticed = previous?.defectNoticed ?? false
   const editNoticed = previous?.editNoticed ?? false
-  const paint = isSelfEdit ? !editNoticed : kind !== 'recurrent' || !defectNoticed
+  const paint = isSelfEdit ? !editNoticed : kind !== 'recurrent'
   dropStates.set(owner, {
     mark,
     kind,
@@ -362,7 +371,7 @@ export function describeThinkingDrops(
     case 'first':
       return `${describeInputTransformations(list) ?? ''}${ledgerClause(outcome)}`
     case 'recurrent':
-      return `Preserved thinking: the API dropped ${count} ${noun} again — Mercury rewrote already-sent history before ${path} at an earlier request with no compaction, model switch or transcript edit to explain it (${describePathClass(outcome.path)}); every thinking block after that point keeps dropping on each request until the conversation compacts. This row paints once.${ledgerClause(outcome)} This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+      return null
   }
 }
 

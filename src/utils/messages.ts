@@ -131,6 +131,7 @@ export {
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,
   createThinkingDeadMessage,
+  createThinkingNoteMessage,
   createSystemMessage,
   createTurnDurationMessage,
   findLastCompactBoundaryIndex,

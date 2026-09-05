@@ -221,8 +221,7 @@ section('§2 the words and the doctor — the receipts carry the named part')
   check("a first drop's receipt ends with the ledger clause naming the part", words.includes('the history before messages.1.content.0 changed') && words.endsWith("Mercury's prefix ledger names the part that moved: the system prompt's Environment section."), words)
   const recurrent = classifyThinkingDrops('w', [DROP, { ...DROP, path: 'messages.3.content.0' }], mark)
   recurrent.part = "turn 0's user row: text block 0"
-  const again = describeThinkingDrops([DROP], recurrent) ?? ''
-  check('the recurrent receipt carries the clause before the doctor road', again.includes("This row paints once. Mercury's prefix ledger names the part that moved: turn 0's user row: text block 0. This is a Mercury defect"), again)
+  check('the recurrent drop paints nothing new — the clause rode the first warning', recurrent.paint === false && describeThinkingDrops([DROP], recurrent) === null, j(recurrent))
   recordThinkingDropLedger(recurrent, 'claude-fable-5-1')
   const row = readThinkingDropLedger()
   check('the doctor ledger records the named part', row?.last.part === "turn 0's user row: text block 0" && row.last.kind === 'recurrent', j(row))
