@@ -4,7 +4,9 @@ import { readFile, stat, open } from 'node:fs/promises'
 import path from 'node:path'
 
 import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
+import { startsWithApiErrorPrefix } from '../../services/api/errors.js'
 import type { ApiUsage } from '../../types/wire.js'
+import { turnCutOfText, turnCutResultText } from '../../utils/messages/rejectionText.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
 
 export const PROMPT_CAP_CHARS = 8_000
@@ -50,6 +52,21 @@ export type AgentTranscriptView = {
   usage?: AgentUsageRollup
   entryCount: number
   truncatedRead?: boolean
+  end: AgentTranscriptEnd
+}
+
+export type AgentTranscriptEnd = {
+  kind: 'completed' | 'failed' | 'stopped' | 'cut'
+  words: string
+}
+const OPEN_END: AgentTranscriptEnd = { kind: 'cut', words: 'cut off mid-turn' }
+const NO_ROWS_END: AgentTranscriptEnd = { kind: 'cut', words: 'no readable rows' }
+const COMPLETED_END: AgentTranscriptEnd = { kind: 'completed', words: 'completed' }
+const FAILED_END: AgentTranscriptEnd = { kind: 'failed', words: 'failed' }
+const STOPPED_END: AgentTranscriptEnd = { kind: 'stopped', words: 'stopped' }
+
+export function transcriptEndWords(end: AgentTranscriptEnd | undefined): string {
+  return end === undefined ? 'transcript on disk (unreadable)' : `${end.words} (transcript on disk)`
 }
 
 const clip = (s: string, max: number): string =>
@@ -104,6 +121,7 @@ function toolResultText(content: unknown): string {
 type RawEntry = {
   type?: unknown
   timestamp?: unknown
+  isApiErrorMessage?: unknown
   message?: {
     id?: unknown
     role?: unknown
@@ -162,11 +180,19 @@ export async function readAgentTranscript(
     apiTurns: 0,
   }
   const seenUsageIds = new Set<string>()
+  let end: AgentTranscriptEnd = OPEN_END
 
   for (const e of entries) {
     const msg = e.message
     const content = msg?.content
     if (e.type === 'user') {
+      end = OPEN_END
+      const cutOf = (text: string): void => {
+        const cut = turnCutOfText(text)
+        if (cut === null) return
+        end = cut.kind === 'operator' ? STOPPED_END : { kind: 'cut', words: turnCutResultText(cut).replace(/^Cut off/, 'cut off') }
+      }
+      if (typeof content === 'string') cutOf(content)
       if (prompt === undefined && typeof content === 'string') {
         promptTruncated = content.length > PROMPT_CAP_CHARS
         prompt = clip(content, PROMPT_CAP_CHARS)
@@ -176,6 +202,7 @@ export async function readAgentTranscript(
         for (const b of content) {
           if (!b || typeof b !== 'object') continue
           const block = b as Record<string, unknown>
+          if (block.type === 'text') cutOf(String(block.text ?? ''))
           if (prompt === undefined && block.type === 'text') {
             const t = String(block.text ?? '')
             promptTruncated = t.length > PROMPT_CAP_CHARS
@@ -218,10 +245,14 @@ export async function readAgentTranscript(
       } as ApiUsage)
     }
     if (!Array.isArray(content)) continue
+    let opensCall = false
+    let apiError = e.isApiErrorMessage === true
+    let spoke = false
     for (const b of content) {
       if (!b || typeof b !== 'object') continue
       const block = b as Record<string, unknown>
       if (block.type === 'tool_use') {
+        opensCall = true
         const call: AgentToolCallView = {
           name: String(block.name ?? '?'),
           inputSummary: summarizeToolInput(block.input),
@@ -237,12 +268,20 @@ export async function readAgentTranscript(
         unreadableReasoningTotal += 1
       } else if (block.type === 'text') {
         const t = String(block.text ?? '')
-        if (t.trim().length > 0) finalText = t
+        if (startsWithApiErrorPrefix(t)) apiError = true
+        if (t.trim().length > 0) {
+          spoke = true
+          if (!apiError) finalText = t
+        }
       }
     }
+    if (apiError) end = FAILED_END
+    else if (opensCall) end = OPEN_END
+    else if (spoke) end = COMPLETED_END
   }
 
   return {
+    end: entries.length === 0 ? NO_ROWS_END : end,
     prompt,
     promptTruncated: promptTruncated || undefined,
     toolCalls: toolCallsAll.slice(-ACTIVITY_LAST_N),
