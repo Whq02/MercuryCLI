@@ -562,7 +562,9 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
 }
 
 section('§7b — mail queued while working is delivered AT the interrupt; the teammate continues unnudged')
-{
+if (typeof Bun !== 'undefined') {
+  console.log('  [SKIP] §7b under bun: the fetch-abort park is the runtime\'s, not the product\'s — the law is driven on the built bundle by prove-teammate-mail-abort-drive')
+} else {
   const team = 'own7b-s7'
   const s = await launch({
     name: 'probe7',
