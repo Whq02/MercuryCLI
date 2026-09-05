@@ -145,12 +145,20 @@ export type WireCredentialSource =
   | { kind: 'managed' }
   | { kind: 'none' }
 
-export function wireCredentialSource(): WireCredentialSource {
+export function wireCredentialSource(named?: 'x-api-key' | 'authorization'): WireCredentialSource {
   const bearer = getAuthTokenSource().source
+  if (named === 'x-api-key') {
+    const keyed = keyCredentialSource(bearer)
+    if (keyed !== null) return keyed
+  }
   if (bearer === 'ANTHROPIC_AUTH_TOKEN' || bearer === 'MERCURY_OAUTH_TOKEN' || bearer === 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR') {
     return { kind: 'env', name: bearer }
   }
   if (bearer === 'claude.ai') return { kind: 'managed' }
+  return keyCredentialSource(bearer) ?? { kind: 'none' }
+}
+
+function keyCredentialSource(bearer: string): WireCredentialSource | null {
   let key: ApiKeySource = 'none'
   try {
     key = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source
@@ -159,7 +167,7 @@ export function wireCredentialSource(): WireCredentialSource {
   if (key === 'ANTHROPIC_API_KEY') return { kind: 'env', name: 'ANTHROPIC_API_KEY' }
   if (key === 'apiKeyHelper' || bearer === 'apiKeyHelper') return { kind: 'helper' }
   if (key === '/logins managed key') return { kind: 'managed' }
-  return { kind: 'none' }
+  return null
 }
 
 

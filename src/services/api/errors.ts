@@ -612,7 +612,7 @@ export function getAssistantMessageFromError(
 
   if (message.toLowerCase().includes('x-api-key')) {
     return createAssistantAPIErrorMessage({
-      content: invalidCredentialWords(wireCredentialSource()),
+      content: invalidCredentialWords(wireCredentialSource('x-api-key')),
       error: 'authentication_failed',
     })
   }
