@@ -618,6 +618,7 @@ export default class Ink {
   }
 
   private renderFaultStreak = 0
+  private firstFrameStamped = false
 
   onRender = (): void => {
     if (this.isUnmounted || this.isPaused) return
@@ -753,6 +754,15 @@ export default class Ink {
     const diffStart = performance.now()
     const patches = this.writer.render(baseFrame, frame, this.altScreenActive, regionScrollUsable)
     const diffMs = performance.now() - diffStart
+    if (!this.firstFrameStamped) {
+      this.firstFrameStamped = true
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
+        recordLaunchMilestone('first-frame')
+      } catch {
+      }
+    }
 
     this.backFrame = this.frontFrame
     this.frontFrame = frame
