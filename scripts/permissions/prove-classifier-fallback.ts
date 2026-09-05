@@ -191,6 +191,12 @@ try {
   const dump = dumpPath !== '' && existsSync(dumpPath) ? readFileSync(dumpPath, 'utf8') : ''
   t('…the dump names the model, the stop reason, the request id and the failing field, and keeps the raw input', dump.includes(`model: ${exhausted.model}`) && dump.includes('stop_reason: tool_use') && dump.includes('request id: req_fx_') && dump.includes('shouldBlock:') && dump.includes('"maybe"'), dump.slice(0, 500))
   t('…the dump sits under the home\'s temp root (never the box\'s)', dumpPath.startsWith(join(home, 'tmp')), dumpPath)
+  if (process.platform !== 'win32' && dumpPath !== '' && existsSync(dumpPath)) {
+    const { statSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    t('…the dump file is readable by the operator alone (0600)', (statSync(dumpPath).mode & 0o777) === 0o600, (statSync(dumpPath).mode & 0o777).toString(8))
+    t('…and its directory too (0700)', (statSync(dirname(dumpPath)).mode & 0o777) === 0o700, (statSync(dirname(dumpPath)).mode & 0o777).toString(8))
+  }
 
   queue.push({ kind: 'verdict', input: MALFORMED }, { kind: 'verdict', input: WELL_FORMED })
   const before2 = seen.length
