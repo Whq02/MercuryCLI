@@ -50,11 +50,18 @@ export function useFocusedServedEffort(): string | null {
   return effort === '' ? null : effort
 }
 
-const getFocusedSentEffort = (): string => focusedSessionModelFacts()?.effortSent ?? ''
+const getFocusedSentEffort = (): string => {
+  const facts = focusedSessionModelFacts()
+  if (facts === null || facts.effortSent === undefined) return 'unresolved'
+  if (facts.effortSent === null) return 'none'
+  return `sent:${facts.effortSent}`
+}
 
-export function useFocusedSentEffort(): string | null {
+export function useFocusedSentEffort(): string | null | undefined {
   const sent = useSyncExternalStore(subscribeFocusedModel, getFocusedSentEffort, getFocusedSentEffort)
-  return sent === '' ? null : sent
+  if (sent === 'unresolved') return undefined
+  if (sent === 'none') return null
+  return sent.slice('sent:'.length)
 }
 
 export function useDisplayedSessionModel(): DisplayedSessionModel {

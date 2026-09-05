@@ -1,8 +1,10 @@
 import * as React from 'react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Box, Text } from '../../../ink.js'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Box, Text, measureElement, type DOMElement } from '../../../ink.js'
 import { Markdown } from '../../Markdown.js'
+import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
+import { consentBodyBudget, consentContentWidth, totalLineRows } from '../consentBodyBudget.js'
 import { useShortcutDisplay } from '../../../keybindings/useShortcutDisplay.js'
 import { Select } from '../../CustomSelect/select.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
@@ -186,6 +188,25 @@ export function ExitPlanModePermissionRequest({
   const nextImageId = useRef(1)
 
   const planIsEmpty = (input.plan ?? getPlan() ?? '').trim() === ''
+
+  const { columns, rows: termRows } = useTerminalSize()
+  const [planExpanded, setPlanExpanded] = useState(false)
+  useKeybinding('confirm:toggleFullPreview', () => setPlanExpanded(prev => !prev), {
+    context: 'Confirmation',
+  })
+  const planBudget = consentBodyBudget(termRows)
+  const planBoxRef = useRef<DOMElement | null>(null)
+  const [planPaintedRows, setPlanPaintedRows] = useState<number | null>(null)
+  useLayoutEffect(() => {
+    if (planBoxRef.current) {
+      const { height } = measureElement(planBoxRef.current)
+      if (height > 0 && height !== planPaintedRows) setPlanPaintedRows(height)
+    }
+  })
+  const planRows =
+    planPaintedRows ?? totalLineRows(plan.split('\n'), consentContentWidth(columns, 0))
+  const planCapped = !planExpanded && planRows > planBudget
+  const planHiddenRows = planCapped ? planRows - planBudget : 0
 
   const approveChord = useShortcutDisplay('confirm:approveWithFeedback', 'Confirmation', 'shift+n')
 
@@ -470,9 +491,18 @@ export function ExitPlanModePermissionRequest({
             borderLeft={false}
             borderRight={false}
             overflow="hidden"
+            {...(planCapped ? { height: planBudget + 2 } : {})}
           >
-            <Markdown>{plan}</Markdown>
+            <Box ref={planBoxRef} flexDirection="column" flexShrink={0}>
+              <Markdown>{plan}</Markdown>
+            </Box>
           </Box>
+          {planCapped ? (
+            <Text dimColor>
+              … +{planHiddenRows} more line{planHiddenRows === 1 ? '' : 's'} · ctrl+f expands
+            </Text>
+          ) : null}
+          {planExpanded ? <Text dimColor>ctrl+f collapses the preview</Text> : null}
           <PermissionRuleExplanation
             permissionResult={toolUseConfirm.permissionResult}
             toolType="tool"

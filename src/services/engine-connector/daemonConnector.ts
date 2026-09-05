@@ -54,6 +54,7 @@ import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ep
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
+import { FOLD_COMMAND_SEND, FOLD_EXIT_LINGER_MS, decodeFoldStatus, foldRowVisible, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
@@ -391,7 +392,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly permissionListeners: Listeners = new Set()
   private readonly workListeners: Listeners = new Set()
   private workSnapshot: WorkRosterV1 = { rows: [], mission: [] }
-  private workStamp = '[[],[]]'
+  private workStamp = '[true,[],[]]'
   private readonly checkpointListeners: Listeners = new Set()
   private checkpointSnapshot: CheckpointFactsV1 = UNKNOWN_CHECKPOINTS
   private checkpointStamp = ''
@@ -407,6 +408,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
+  private liveFoldStatus: FoldStatusV1 | null = null
+  private foldExitLatch: FoldStatusV1 | null = null
+  private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
+  private foldSentHere = false
+  private readonly foldListeners = new Set<() => void>()
   private liveWait: RequestWaitV1 | null = null
   private hardStopping = false
 
@@ -427,6 +433,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
+    this.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
     this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
@@ -517,6 +524,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (tail === null) {
       this.liveTurnChars = 0
       this.setLiveStateWord(null)
+      this.setLiveFold(null)
       this.setStreamBlock(null, null)
       this.lastEventAtMs = null
       if (this.tailStore.read() !== null) this.tailStore.update(() => null)
@@ -527,6 +535,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
+    this.setLiveFold(tail.stateWord === 'compacting' && tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
     const wait = decodeRequestWait(tail.wait)
     if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
       this.liveWait = wait
@@ -553,6 +562,37 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveStateWord = word
     this.liveAgentsWaiting = count
     this.recomputeLive()
+  }
+
+  private setLiveFold(next: FoldStatusV1 | null): void {
+    if (JSON.stringify(this.liveFoldStatus) === JSON.stringify(next)) return
+    if (next === null && this.liveFoldStatus !== null && this.liveFoldStatus.exit !== undefined) {
+      this.foldExitLatch = this.liveFoldStatus
+      if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
+      this.foldLatchTimer = setTimeout(() => {
+        this.foldLatchTimer = null
+        this.foldExitLatch = null
+        emitAll(this.foldListeners, 'fold')
+      }, FOLD_EXIT_LINGER_MS)
+      this.foldLatchTimer.unref?.()
+    } else if (next !== null) {
+      this.foldExitLatch = null
+    }
+    this.liveFoldStatus = next
+    emitAll(this.foldListeners, 'fold')
+  }
+
+  fold(): FoldStatusV1 | null {
+    const status = this.liveFoldStatus ?? this.foldExitLatch
+    const sendUnlanded = this.sends.some(s => FOLD_COMMAND_SEND.test(s.text))
+    return foldRowVisible(status, { sentHere: this.foldSentHere, sendUnlanded, nowMs: Date.now() }) ? status : null
+  }
+
+  subscribeFold(listener: () => void): () => void {
+    this.foldListeners.add(listener)
+    return () => {
+      this.foldListeners.delete(listener)
+    }
   }
 
   private setStreamBlock(block: 'thinking' | 'text' | 'tool_use' | null, sinceMs: number | null): void {
@@ -789,6 +829,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveStateWord = null
+    if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
+      this.liveFoldStatus = null
+      emitAll(this.foldListeners, 'fold')
+    }
+    if (!inFlight && !this.sends.some(s => FOLD_COMMAND_SEND.test(s.text))) this.foldSentHere = false
     if (!inFlight && this.publishedProgressSeqs.size > 0) {
       clearEphemeralProgress()
       this.publishedProgressSeqs.clear()
@@ -909,6 +954,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
+    if (this.foldSentHere || this.liveFoldStatus !== null || this.foldExitLatch !== null) emitAll(this.foldListeners, 'fold')
   }
 
 
@@ -1026,12 +1072,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private refreshWork(): void {
+    const reported = this.facts?.work !== undefined
     const rows = this.facts?.work ?? []
     const mission = this.facts?.mission ?? []
-    const stamp = JSON.stringify([rows, mission])
+    const stamp = JSON.stringify([reported, rows, mission])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
-    this.workSnapshot = { rows, mission }
+    this.workSnapshot = reported ? { rows, mission } : { rows, mission, reported: false }
     emitAll(this.workListeners, 'work')
   }
 
@@ -1217,6 +1264,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
     const echo = createUserMessage({ content: expanded }) as unknown as Message
     this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
+    if (mode === 'prompt' && FOLD_COMMAND_SEND.test(expanded)) this.foldSentHere = true
     this.paint()
     const answering = await this.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId

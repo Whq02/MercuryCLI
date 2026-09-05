@@ -1,4 +1,3 @@
-import type { Theme } from './theme.js'
 import { getSettings_DEPRECATED } from './settings/settings.js'
 
 
@@ -30,30 +29,6 @@ export function findThinkingTriggerPositions(
     positions.push({ word: match[0], start: match.index, end: match.index + match[0].length })
   }
   return positions
-}
-
-const RAINBOW_COLORS: Array<keyof Theme> = [
-  'rainbow_red',
-  'rainbow_orange',
-  'rainbow_yellow',
-  'rainbow_green',
-  'rainbow_blue',
-  'rainbow_indigo',
-  'rainbow_violet',
-]
-const RAINBOW_SHIMMER_COLORS: Array<keyof Theme> = [
-  'rainbow_red_shimmer',
-  'rainbow_orange_shimmer',
-  'rainbow_yellow_shimmer',
-  'rainbow_green_shimmer',
-  'rainbow_blue_shimmer',
-  'rainbow_indigo_shimmer',
-  'rainbow_violet_shimmer',
-]
-
-export function getRainbowColor(charIndex: number, shimmer: boolean = false): keyof Theme {
-  const palette = shimmer ? RAINBOW_SHIMMER_COLORS : RAINBOW_COLORS
-  return palette[charIndex % palette.length] as keyof Theme
 }
 
 export function shouldEnableThinkingByDefault(): boolean {

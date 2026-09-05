@@ -768,11 +768,21 @@ const WorkflowToolDef = {
     }
 
     const driveRun = async (): Promise<void> => {
+      let trailingManifestWrite: NodeJS.Timeout | null = null
       const batcher = createProgressBatcher({
         apply: events => updateWorkflowProgressBatch(taskId, events, setAppState),
         afterFlush: () => {
-          if (Date.now() - lastManifestWrite >= RUN_MANIFEST_WRITE_THROTTLE_MS) {
+          const sinceLast = Date.now() - lastManifestWrite
+          if (sinceLast >= RUN_MANIFEST_WRITE_THROTTLE_MS) {
             writeManifest()
+            return
+          }
+          if (trailingManifestWrite === null) {
+            trailingManifestWrite = setTimeout(() => {
+              trailingManifestWrite = null
+              writeManifest()
+            }, RUN_MANIFEST_WRITE_THROTTLE_MS - sinceLast)
+            trailingManifestWrite.unref?.()
           }
         },
       })
@@ -949,6 +959,7 @@ const WorkflowToolDef = {
         )
       } finally {
         clearInterval(manifestHeartbeat)
+        if (trailingManifestWrite !== null) clearTimeout(trailingManifestWrite)
       }
     }
     void runWithCwdOverride(executionCwd, driveRun)
