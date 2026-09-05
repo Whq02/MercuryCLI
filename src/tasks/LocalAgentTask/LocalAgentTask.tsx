@@ -664,6 +664,11 @@ export function appendMessageToLocalAgent(
 
 
 export const NOTIFICATION_RESULT_CAP_CHARS = 16_000
+
+export function landedWritesWords(paths: readonly string[]): string {
+  if (paths.length === 0) return 'no file writes landed'
+  return `${paths.length} file write${paths.length === 1 ? '' : 's'} landed: ${paths.join(', ')}`
+}
 export function boundNotificationResult(finalMessage: string, cap: number = NOTIFICATION_RESULT_CAP_CHARS): string {
   if (finalMessage.length <= cap) return finalMessage
   const head = sliceHeadAtGrapheme(finalMessage, Math.floor(cap * 0.8))
@@ -686,6 +691,7 @@ export function enqueueAgentNotification(args: {
   envelopeBlock?: string
   summary?: string
   stopReason?: string
+  landedWrites?: readonly string[]
 }): void {
   let shouldEnqueue = false
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
@@ -697,13 +703,14 @@ export function enqueueAgentNotification(args: {
 
   abortSpeculation(args.setAppState)
 
+  const landed = args.landedWrites !== undefined ? ` — ${landedWritesWords(args.landedWrites)}` : ''
   const summary =
     args.summary ??
     (args.status === 'completed'
       ? `Agent "${args.description}" completed`
       : args.status === 'failed'
-        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}`
-        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'} — its transcript stands; ${AGENT_RESUME_DOOR}`)
+        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed}`
+        : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its transcript stands; ${AGENT_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`
