@@ -122,6 +122,19 @@ export function foldEffortFor(model: string, sessionEffort: EffortValue | undefi
 export function foldEffortMessageFor(model: string): EffortValue | undefined {
   return servesPerMessageEffort(model) ? MECHANICAL_FOLD_EFFORT : undefined
 }
+
+export function learnsPerMessageEffortRefusal(row: AssistantMessage | undefined, model: string): boolean {
+  if (row?.isApiErrorMessage !== true || foldEffortMessageFor(model) === undefined) return false
+  const words = getAssistantMessageText(row) ?? ''
+  if (!refusesPerMessageEffortRow(words)) return false
+  notePerMessageEffortRefused(model)
+  logForDebugging(`compact: the host refused the per-message effort row for ${model} — the next fold request rides without it: ${words.slice(0, 160)}`, { level: 'warn' })
+  return true
+}
+
+function isOverflowAnswer(row: AssistantMessage): boolean {
+  return overflowSignalOf(row) !== null || (getAssistantMessageText(row) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)
+}
 const FOLD_DEADLINE_MS = 10 * 60 * 1000
 const FOLD_STALL_MS = 120_000
 
@@ -656,13 +669,11 @@ async function summarizeViaCacheSharingFork(
         return last
       }
     }
-    if (
-      last !== undefined &&
-      (overflowSignalOf(last) !== null || (getAssistantMessageText(last) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE))
-    ) {
+    if (last !== undefined && isOverflowAnswer(last)) {
       recordFoldRoad(model, 'fork', startedAt, 'overflow')
       return last
     }
+    if (last !== undefined) learnsPerMessageEffortRefusal(last, model)
     logForDebugging(`compact: fork path produced no usable summary: ${JSON.stringify(result.messages).slice(0, 500)}`, {
       level: 'warn',
     })
@@ -803,20 +814,18 @@ async function streamingFallbackAttempts(
       }
     } catch (err) {
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
-    if (captured?.isApiErrorMessage === true && !rowRefusalRetried && foldEffortMessageFor(model) !== undefined) {
-      const words = typeof captured.message.content === 'string' ? captured.message.content : captured.message.content.map(block => ((block as { text?: string }).text ?? '')).join('\n')
-      if (refusesPerMessageEffortRow(words)) {
-        notePerMessageEffortRefused(model)
-        rowRefusalRetried = true
-        attempts += 1
-        logForDebugging(`compact: the host refused the per-message effort row for ${model} — retrying once without it: ${words.slice(0, 160)}`, { level: 'warn' })
-        continue
-      }
-    }
       throw err
     }
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
     if (bound.signal.aborted) throw new APIUserAbortError()
+    if (captured?.isApiErrorMessage === true) {
+      if (!rowRefusalRetried && learnsPerMessageEffortRefusal(captured, model)) {
+        rowRefusalRetried = true
+        attempts += 1
+        continue
+      }
+      if (!isOverflowAnswer(captured)) throw new Error(getAssistantMessageText(captured) ?? ERROR_MESSAGE_INCOMPLETE_RESPONSE)
+    }
     if (captured !== undefined) return captured
     if (attempt < attempts) {
       await sleep(getRetryDelay(attempt), bound.signal).catch(() => {
