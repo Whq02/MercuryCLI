@@ -324,29 +324,43 @@ for (const leg of LEGS) {
   if (e.streamOptions !== null) check(`${leg.family}/${leg.road}: stream_options.include_usage rides the chat wire`, shape.streamOptions === e.streamOptions)
   check(`${leg.family}/${leg.road}: no server-side context edits ride (context_management)`, !shape.contextManagement)
 }
-section("§2c the home wire that serves per-message effort: the session's word top-level, the mechanical pin as a row, the beta with it")
+section("§2c the home wire that serves per-message effort (Claude Fable 5.1 — measured: the whole prefix read under the row): the session's word top-level, the mechanical pin as a row, the beta with it")
 {
   const { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } = await import('../../src/constants/betas.ts')
   for (const road of ['fork', 'direct'] as const) {
     const before = shared.captured.length
-    const run = await runFold('claude-opus-5', road)
+    const run = await runFold('claude-fable-5-1', road)
     const hits = shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat')
-    check(`opus-5/${road}: the fold resolved and reached the home wire`, run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+    check(`fable-5-1/${road}: the fold resolved and reached the home wire`, run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 200))
     const body = (hits[hits.length - 1]?.body ?? {}) as { messages?: Array<{ role?: string; content?: unknown; output_config?: { effort?: string } }>; output_config?: { effort?: string } }
     const rows = body.messages ?? []
     const effortRows = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.role === 'system')
-    check(`opus-5/${road}: the top-level effort is the SESSION's word (never the pin)`, typeof body.output_config?.effort === 'string' && body.output_config.effort !== 'low' && SESSION_TIERS.has(body.output_config.effort), j(body.output_config))
-    check(`opus-5/${road}: exactly one per-message effort row rides — no content, the mechanical 'low'`, effortRows.length === 1 && Array.isArray(effortRows[0]!.r.content) && effortRows[0]!.r.content.length === 0 && effortRows[0]!.r.output_config?.effort === 'low', j(effortRows))
+    check(`fable-5-1/${road}: the top-level effort is the SESSION's word (never the pin)`, typeof body.output_config?.effort === 'string' && body.output_config.effort !== 'low' && SESSION_TIERS.has(body.output_config.effort), j(body.output_config))
+    check(`fable-5-1/${road}: exactly one per-message effort row rides — no content, the mechanical 'low'`, effortRows.length === 1 && Array.isArray(effortRows[0]!.r.content) && effortRows[0]!.r.content.length === 0 && effortRows[0]!.r.output_config?.effort === 'low', j(effortRows))
     const lastUser = rows.map((r, i) => ({ r, i })).filter(({ r }) => r.role === 'user').pop()
-    check(`opus-5/${road}: the row sits right before the last user row (the summariser prompt)`, lastUser !== undefined && effortRows[0]?.i === lastUser.i - 1, `row ${effortRows[0]?.i} last user ${lastUser?.i}`)
+    check(`fable-5-1/${road}: the row sits right before the last user row (the summariser prompt)`, lastUser !== undefined && effortRows[0]?.i === lastUser.i - 1, `row ${effortRows[0]?.i} last user ${lastUser?.i}`)
     const betas = String((hits[hits.length - 1] as { headers?: Record<string, string> })?.headers?.['anthropic-beta'] ?? (hits[hits.length - 1] as { betas?: string })?.betas ?? '')
-    console.log(`  [record] opus-5/${road}: the beta header as the wire saw it: ${betas || '(the fixture records no headers)'}`)
-    if (betas !== '') check(`opus-5/${road}: the per-message effort beta rides the header`, betas.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER))
+    console.log(`  [record] fable-5-1/${road}: the beta header as the wire saw it: ${betas || '(the fixture records no headers)'}`)
+    if (betas !== '') check(`fable-5-1/${road}: the per-message effort beta rides the header`, betas.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER))
   }
   const before = shared.captured.length
   await runFold('claude-opus-4-8', 'direct')
   const plain = (shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat').pop()?.body ?? {}) as { messages?: Array<{ role?: string }> }
   check('opus-4-8/direct: no per-message row where the wire does not serve it', !(plain.messages ?? []).some(r => r.role === 'system'))
+}
+
+section("§2d Claude Opus 5 — measured: the row costs it the whole prefix (0 read, 63,865 written) — so NO row rides and the session's word is the request's")
+{
+  for (const road of ['fork', 'direct'] as const) {
+    const before = shared.captured.length
+    const run = await runFold('claude-opus-5', road)
+    const hits = shared.captured.slice(before).filter(h => h.lane === 'anthropic-seat')
+    check(`opus-5/${road}: the fold resolved and reached the home wire`, run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+    const body = (hits[hits.length - 1]?.body ?? {}) as { messages?: Array<{ role?: string }>; output_config?: { effort?: string } }
+    const effortRows = (body.messages ?? []).filter(r => r.role === 'system')
+    check(`opus-5/${road}: no per-message effort row rides (the wire taught)`, effortRows.length === 0, `${effortRows.length} row(s)`)
+    check(`opus-5/${road}: the top-level effort is the SESSION's word (the cache keys on it)`, typeof body.output_config?.effort === 'string' && SESSION_TIERS.has(body.output_config.effort), j(body.output_config))
+  }
 }
 
 section("§8 the OpenAI road: the fold's request IS the session's last request plus the summariser prompt")
