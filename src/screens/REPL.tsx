@@ -2632,7 +2632,7 @@ export function REPL({
       <KeybindingSetup>
         <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!dialogOwnsKeys} />
+        <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
         {cancelHandler}
         <Box flexDirection="column">
           {messagesList}
@@ -2657,7 +2657,7 @@ export function REPL({
     <KeybindingSetup>
       <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
       <GlobalKeybindingHandlers {...globalKeybindingProps} />
-      <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!dialogOwnsKeys} />
+      <CommandKeybindingHandlers onSubmit={onSubmit} commands={commands} isActive={!dialogOwnsKeys} />
       <ScrollKeybindingHandler
         scrollRef={scrollRef}
         isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
