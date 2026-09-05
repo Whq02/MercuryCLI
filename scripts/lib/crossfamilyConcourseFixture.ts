@@ -152,6 +152,7 @@ export interface CrossfamilyFixtureOpts {
   seatSleepSeconds?: number
   launchProjects?: { plain?: string; glm?: string; gpt?: string; haiku?: string; nemotron?: string; pairOne?: string; pairTwo?: string }
   gptId?: string
+  gptDisplayName?: string
   gptReasoningLevels?: readonly string[]
   nemotronId?: string
   captureLog?: string
@@ -292,7 +293,7 @@ export async function startCrossfamilyFixture(opts: CrossfamilyFixtureOpts): Pro
               models: [
                 {
                   slug: gptId,
-                  display_name: gptId.toUpperCase(),
+                  display_name: opts.gptDisplayName ?? gptId.toUpperCase(),
                   supported_reasoning_levels: (opts.gptReasoningLevels ?? ['high']).map(effort => ({ effort, description: effort })),
                   default_reasoning_level: 'high',
                   visibility: 'list',

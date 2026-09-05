@@ -231,6 +231,11 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   const b = seat.daemonSessionConnectorFor(recordOf(SID_B, 'B'))
   check('P3 the constructor reads the facts synchronously — A has its row', a.workRoster().rows.length === 1 && a.workRoster().rows[0]!.name === 'scope-probe')
   check('P3 B answers the honest empty', b.workRoster().rows.length === 0)
+  check('P3 A\'s reported roster carries no unreported flag (the rows are the runner\'s word)', a.workRoster().reported !== false)
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_B, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer })
+  check('P3 a facts answer with NO work reads as UNREPORTED (reported: false), rows empty', await untilAsync(() => b.workRoster().reported === false && b.workRoster().rows.length === 0, 5_000), JSON.stringify(b.workRoster()))
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_B, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [] })
+  check('P3 a facts answer with an EMPTY work list reads as reported (the runner said nothing runs)', await untilAsync(() => b.workRoster().reported !== false && b.workRoster().rows.length === 0, 5_000), JSON.stringify(b.workRoster()))
   check('P3 the snapshot is stable between changes (the uSES law)', a.workRoster() === a.workRoster())
 
   await seat.focusDaemonSession(recordOf(SID_A, 'A'))
@@ -269,6 +274,7 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
   const blank = new NoSessionConnector()
   check('P3 the resting slot (no chat open) answers the stable honest empty', blank.workRoster().rows.length === 0 && blank.workRoster() === blank.workRoster())
+  check('P3 the resting slot\'s empty is reported (no session runs nothing — not an unreported runner)', blank.workRoster().reported !== false)
   slot._resetFocusedSessionConnectorForTesting()
 }
 

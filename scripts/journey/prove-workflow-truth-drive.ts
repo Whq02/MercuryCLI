@@ -38,6 +38,7 @@ const STATIONS = ['one', 'two'] as const
 type Station = (typeof STATIONS)[number]
 const SEAT_READS = 12
 const SEAT_STEP_MS = 3000
+const FACTS_HOLD_MS = 4000
 const WF_SCRIPT = [
   `export const meta = { name: '${WF_NAME}', description: 'two agents survey the stations', phases: [{ title: '${PHASE}' }] }`,
   `phase('${PHASE}')`,
@@ -271,6 +272,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
+    MERCURY_SESSION_FACTS_HOLD_MS: String(FACTS_HOLD_MS),
   }
 }
 
@@ -323,7 +325,8 @@ try {
       rows: ROWS,
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-        { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
+        { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 0, mark: 'skeleton' },
+        { data: `${ASK}\r`, afterPrevTicks: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '\r', awaitText: 'Yes, run this workflow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'ask' },
         { data: '', awaitText: LAUNCHED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'launched' },
         { data: '', afterPrevTicks: 30, mark: 'cockpit-busy' },
@@ -354,8 +357,8 @@ if (cap !== null) {
   const m = cap.marks
   console.log(`  routes: ${fixture.hits.map(h => (h.station !== null ? `seat:${h.station}(${h.priorReads})` : h.route)).join(' → ')}`)
   console.log(`  send ticks: ${cap.receipts.map(r => r.atTick).join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  for (const label of ['launched', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
-  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 16, `${cap.receipts.length}/16 · end ${cap.endReason}`)
+  for (const label of ['skeleton', 'launched', 'cockpit-busy', 'board', 'run', 'cockpit-again', 'settled', 'board-settled']) dump(label, m[label])
+  check('every send became due (the frames the sends waited on all painted)', cap.receipts.length === 17, `${cap.receipts.length}/17 · end ${cap.endReason}`)
 
   const seatHits = (s: Station): Hit[] => fixture.hits.filter(h => h.station === s)
   check(`both seats ran on the wire (one: ${seatHits('one').length}, two: ${seatHits('two').length} calls)`, seatHits('one').length >= 3 && seatHits('two').length >= 3)
@@ -392,6 +395,14 @@ if (cap !== null) {
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
     const chip = rowsWith(m[label], /◐ wf(\s|×)/)
     check(`W3 [${label}] the frame's wf chip stands while the run lives, naming the phase and the age`, chip.some(r => new RegExp(`◐ wf ${PHASE} \\d+[smh]`).test(r)), chip.map(flat).join(' | ').slice(0, 200))
+  }
+
+  console.log('\n— W7 the skeleton window —')
+  {
+    const panel = panelRows(m['skeleton'], 'WORKFLOW', 'HEALTH')
+    const words = panel.map(flat).filter(Boolean).join(' | ')
+    check('W7 before the runner\'s first answer the panel never reads idle (a skeleton fact is not a fact)', panel.length > 0 && !panel.some(r => /\bidle\b/.test(r)), words.slice(0, 200))
+    check('W7 …it paints the unknown mark instead', panel.some(r => /—/.test(r)), words.slice(0, 200))
   }
 
   console.log('\n— W6 the wait words —')
