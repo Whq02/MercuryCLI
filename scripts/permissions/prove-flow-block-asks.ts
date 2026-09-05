@@ -59,6 +59,7 @@ function makeContext(opts: {
   mode?: string
   avoidPrompts?: boolean
   nonInteractive?: boolean
+  channel?: 'stdio' | 'prompt-tool'
   denial?: { consecutiveDenials: number; totalDenials: number }
   abortController?: AbortController
 } = {}): unknown {
@@ -78,7 +79,10 @@ function makeContext(opts: {
     setAppState: () => {},
     messages: [],
     agentType: undefined,
-    options: opts.nonInteractive ? { isNonInteractiveSession: true } : {},
+    options: {
+      ...(opts.nonInteractive ? { isNonInteractiveSession: true } : {}),
+      ...(opts.channel !== undefined ? { permissionChannel: opts.channel } : {}),
+    },
     localDenialTracking: { ...(opts.denial ?? { consecutiveDenials: 0, totalDenials: 0 }) },
   }
 }
@@ -172,6 +176,33 @@ section('no consent card: the block stays a DENY (headless agent · non-interact
   const print = await run(makeTool(), makeContext({ mode: 'flow', nonInteractive: true }))
   check('non-interactive run (print) → deny', print.decision.behavior === 'deny', j(print.decision))
   check('…same no-card text', print.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON))
+}
+
+section('the operator road: a print run with a permission channel PARKS a block as the ask; without one it denies')
+{
+  const seat = makeContext({ mode: 'flow', nonInteractive: true, channel: 'stdio' })
+  const parked = await run(makeTool({ suggestions: true }), seat)
+  check('a print run WITH the stdio channel: a block → behavior ask (parked with the operator)', parked.decision.behavior === 'ask', j(parked.decision))
+  check('…the ask carries the verdict and its reason, on the engine ask (message + suggestions)', parked.decision.decisionReason?.type === 'classifier' && parked.decision.decisionReason.reason === BLOCK_REASON && parked.decision.message === 'engine ask' && j(parked.decision.suggestions) === j(SUGGESTIONS), j(parked.decision))
+  check('…decidedBy classifier, the operator is asked', parked.wrapper.decidedBy === 'classifier' && noteOf(parked).includes('operator is asked'), j(parked.wrapper))
+  check('…the ledger booked the block', (seat as Ctx).localDenialTracking.consecutiveDenials === 1, j((seat as Ctx).localDenialTracking))
+  checkSubsequenceLaw('seat block parks', parked.wrapper)
+
+  const promptTool = await run(makeTool(), makeContext({ mode: 'flow', nonInteractive: true, channel: 'prompt-tool' }))
+  check('a print run with a named prompt tool: a block → ask', promptTool.decision.behavior === 'ask', j(promptTool.decision))
+
+  const plain = await run(makeTool(), makeContext({ mode: 'flow', nonInteractive: true }))
+  check('a print run with NO channel: a block → deny with the no-card words (unchanged)', plain.decision.behavior === 'deny' && plain.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON), j(plain.decision))
+
+  const promptless = await run(makeTool(), makeContext({ mode: 'flow', avoidPrompts: true, channel: 'stdio' }))
+  check('a prompt-less view with a channel: still the deny (it avoids prompts by law)', promptless.decision.behavior === 'deny' && promptless.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON), j(promptless.decision))
+
+  const unreadableSeat = await run(
+    makeTool(),
+    makeContext({ mode: 'flow', nonInteractive: true, channel: 'stdio' }),
+    makePorts({ classify: async () => ({ shouldBlock: true, retryable: true, unreadable: true, reason: 'The classifier response did not parse — blocking for safety.', verdictIssues: ['shouldBlock: expected boolean'], model: 'stub-model' }) as never }),
+  )
+  check('a seat with an unreadable verdict: the ask returns to the operator naming the model', unreadableSeat.decision.behavior === 'ask' && /could not read its verdict from stub-model/.test(unreadableSeat.decision.decisionReason?.reason ?? ''), j(unreadableSeat.decision))
 }
 
 section('an unreadable verdict is its own outcome — never a policy denial, never the ledger')

@@ -177,7 +177,10 @@ export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | n
   return facts.wait ?? agentWaitWords(facts.phase, nowMs) ?? facts.activity
 }
 
+export const CREW_ASK_WAIT_WORDS = 'waiting for your answer'
+
 export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
+  if (facts.running && facts.pendingAsks > 0) return CREW_ASK_WAIT_WORDS
   if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
   return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
 }

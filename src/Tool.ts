@@ -208,6 +208,8 @@ export type AgentDefinitionsState = {
   [key: string]: any
 }
 
+export type PermissionChannel = 'stdio' | 'prompt-tool'
+
 export type ToolUseContext = {
   options: {
     commands: Command[]
@@ -221,6 +223,7 @@ export type ToolUseContext = {
     mcpClients: MCPServerConnection[]
     mcpResources?: Record<string, any[]>
     isNonInteractiveSession: boolean
+    permissionChannel?: PermissionChannel
     agentDefinitions: AgentDefinitionsState
     budget?: any
     customSystemPrompt?: string

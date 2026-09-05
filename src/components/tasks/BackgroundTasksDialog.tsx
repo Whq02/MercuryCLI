@@ -50,6 +50,7 @@ import {
   crewAgentFactsOf,
   crewCostLabel,
   crewModelLabel,
+  CREW_ASK_WAIT_WORDS,
   crewPhaseWords,
   crewSpendLabel,
   crewStateLabel,
@@ -162,7 +163,7 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
         <Text color={tokens.textMuted}> · {work.agentCount} agents</Text>
       ) : null}
       {(work.pendingAsks ?? 0) > 0 ? (
-        <Text color={tokens.warning}> · {work.pendingAsks} ask{(work.pendingAsks ?? 0) === 1 ? '' : 's'}</Text>
+        <Text color={tokens.warning}> · {CREW_ASK_WAIT_WORDS}{(work.pendingAsks ?? 0) > 1 ? ` (${work.pendingAsks} asks)` : ''}</Text>
       ) : null}
     </Text>
   )

@@ -83,6 +83,7 @@ interface PendingAsk {
   toolName: string
   input: Record<string, unknown>
   toolUseId?: string
+  agentId?: string
   suggestions?: PermissionUpdate[]
   blockedPath?: string
   decisionReason?: string
@@ -206,6 +207,7 @@ export function onWorkerControlRequest(
     toolName,
     input,
     ...(typeof request.tool_use_id === 'string' ? { toolUseId: request.tool_use_id } : {}),
+    ...(typeof request.agent_id === 'string' && request.agent_id !== '' ? { agentId: request.agent_id } : {}),
     ...(suggestions !== undefined && suggestions.length > 0 ? { suggestions } : {}),
     ...(typeof request.blocked_path === 'string' ? { blockedPath: request.blocked_path } : {}),
     ...(typeof request.decision_reason === 'string' ? { decisionReason: request.decision_reason } : {}),
@@ -411,6 +413,7 @@ export function listPendingPermissionAsks(): ReadonlyArray<{
   workerId: string
   sessionId: string
   toolName: string
+  agentId?: string
   askedAt?: number
 }> {
   return [...pending.entries()].map(([requestId, a]) => ({
@@ -418,6 +421,7 @@ export function listPendingPermissionAsks(): ReadonlyArray<{
     workerId: a.workerId,
     sessionId: a.sessionId,
     toolName: a.toolName,
+    ...(a.agentId !== undefined ? { agentId: a.agentId } : {}),
     ...(a.askedAt !== undefined ? { askedAt: a.askedAt } : {}),
   }))
 }

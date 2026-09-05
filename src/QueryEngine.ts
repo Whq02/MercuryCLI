@@ -16,7 +16,7 @@ import { categorizeRetryableAPIError } from './services/api/errors.js'
 import { accumulateUsage, updateUsage } from './services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from './services/api/logging.js'
 import type { NonNullableUsage } from './services/api/logging.js'
-import type { Tools, ToolUseContext } from './Tool.js'
+import type { PermissionChannel, Tools, ToolUseContext } from './Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from './tools/SyntheticOutputTool/constants.js'
 import type {
   AssistantMessage,
@@ -80,6 +80,7 @@ export type QueryEngineConfig = {
   mcpClients: McpClients
   agents: AgentDefinitions
   canUseTool: CanUseTool
+  permissionChannel?: PermissionChannel
   getAppState: GetAppState
   setAppState: SetAppState
   readFileState: FileStateCache
@@ -297,6 +298,7 @@ export class QueryEngine {
         mcpResources: {},
         ideInstallationStatus: null,
         isNonInteractiveSession: true,
+        ...(config.permissionChannel !== undefined ? { permissionChannel: config.permissionChannel } : {}),
         customSystemPrompt: config.customSystemPrompt,
         appendSystemPrompt: config.appendSystemPrompt,
         agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
