@@ -229,29 +229,36 @@ try {
 
   console.log('\n§slow-reader: a consumer slower than the writer still reads exactly one record')
   {
-    const { spawn } = await import('node:child_process')
-    const child = spawn('node', [BIN, 'health', '--json'], {
-      cwd: scratch,
-      env: { ...process.env, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
-    const out: Buffer[] = []
-    const err: Buffer[] = []
-    child.stderr.on('data', (b: Buffer) => err.push(b))
-    const closed = new Promise<number>(resolve => child.on('close', code => resolve(code ?? -1)))
-    await new Promise(resolve => setTimeout(resolve, 4_000))
-    child.stdout.on('data', (b: Buffer) => out.push(b))
-    const status = await closed
-    const text = Buffer.concat(out).toString('utf8')
+    const errFile = join(scratch, 'slow-reader.stderr')
+    let piped = ''
+    let status = 0
+    try {
+      piped = execFileSync(
+        'bash',
+        ['-c', 'node "$0" health --json 2>"$1" | (sleep 3; cat); exit "${PIPESTATUS[0]}"', BIN, errFile],
+        {
+          cwd: scratch,
+          env: { ...process.env, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') },
+          encoding: 'utf8',
+          timeout: 90_000,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      )
+    } catch (e: unknown) {
+      const err = e as { status?: number; stdout?: string }
+      status = err.status ?? -1
+      piped = err.stdout ?? ''
+    }
+    const stderrText = existsSync(errFile) ? readFileSync(errFile, 'utf8') : ''
     let record: { verdict?: string } | null = null
     try {
-      record = JSON.parse(text) as { verdict?: string }
+      record = JSON.parse(piped) as { verdict?: string }
     } catch {
       record = null
     }
-    check('stdout is exactly one JSON record (a second document would fail the parse)', record !== null, `${text.length} bytes; tail: ${JSON.stringify(text.slice(-160))}`)
+    check('stdout is exactly one JSON record (a second document would fail the parse)', record !== null, `${piped.length} bytes; tail: ${JSON.stringify(piped.slice(-160))}`)
     check('the exit code is the verdict\'s own (3 = fault, else 0), not a crash', record !== null && status === (record.verdict === 'fault' ? 3 : 0), `status ${status}, verdict ${record?.verdict}`)
-    check('stderr carries no crash banner', Buffer.concat(err).toString('utf8').trim() === '', Buffer.concat(err).toString('utf8').slice(0, 200))
+    check('stderr carries no crash banner', stderrText.trim() === '', stderrText.slice(0, 200))
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
