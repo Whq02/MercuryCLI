@@ -289,7 +289,7 @@ for (const leg of LEGS) {
   shapes.push({ family: leg.family, road: leg.road, shape })
   const e = leg.expect
   check(`${leg.family}/${leg.road}: the session's own posture rides the wire`, shape.posture)
-  check(`${leg.family}/${leg.road}: effort ${e.effort === 'low' ? "is the mechanical word 'low' in the family's spelling" : 'has no dial (the provider default governs)'} — never the session tier`, e.effort === 'low' ? shape.effort.length >= 1 && shape.effort.every(w => w === 'low') : shape.effort.length === 0, j(shape.effort))
+  check(`${leg.family}/${leg.road}: effort ${e.effort === 'low' ? "is the mechanical word 'low' in the family's spelling" : 'has no dial (this row states no reasoning vocabulary; §2b seeds one)'} — never the session tier`, e.effort === 'low' ? shape.effort.length >= 1 && shape.effort.every(w => w === 'low') : shape.effort.length === 0, j(shape.effort))
   const thinking = shape.thinking as { type?: string } | undefined
   check(
     `${leg.family}/${leg.road}: thinking ${e.thinking === 'off' ? 'is off the wire (absent or disabled)' : "rides as the family's own disabled object"}`,
@@ -318,7 +318,49 @@ for (const row of shapes) {
   const s = row.shape
   console.log(`    ${row.family.padEnd(14)} ${row.road.padEnd(6)} effort=${j(s.effort)} thinking=${j(s.thinking)} cap=${s.cap ? `${s.cap.key}:${s.cap.value}` : 'none'} cache_control=${s.cacheControl} output_config=${s.outputConfig} reasoning=${s.reasoningObject} reasoning_effort=${s.reasoningEffortKey} store=${j(s.store)} stream_options=${s.streamOptions}`)
 }
-note('gemini and openrouter: the direct lane\'s thinking-off posture leaves those builders without a dial, so the fold runs at the provider\'s default reasoning, not the lowest served rung — the builder\'s law (compatWire.ts), recorded here as the wire shows it.')
+
+section("§2b the thinking-off word on the wire — a fold on a Gemini thinking row or an OpenRouter reasoning row sends the family's lowest word, never silence")
+{
+  const gemini = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
+  const openrouter = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
+  const jsonFetch = (body: unknown): typeof fetch =>
+    (async () => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof fetch
+  gemini.__resetGeminiCatalogueForTest()
+  await gemini.refreshGeminiCatalogue('api-key', {
+    force: true,
+    fetchImpl: jsonFetch({ models: [{ name: 'models/gemini-fixture-pro', displayName: 'Gemini Fixture Pro', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent'], thinking: true }] }),
+  })
+  openrouter.__resetOpenrouterCatalogueForTest()
+  await openrouter.refreshOpenrouterCatalogue('env', {
+    force: true,
+    fetchImpl: jsonFetch({
+      data: [
+        { id: 'stealth/ox-alpha', name: 'Ox Alpha', context_length: 1_048_576, supported_parameters: ['reasoning', 'tools', 'tool_choice', 'max_tokens'], reasoning: { supported_efforts: ['none', 'low', 'medium', 'high'] } },
+        { id: 'stealth/ox-tall', name: 'Ox Tall', context_length: 1_048_576, supported_parameters: ['reasoning', 'tools', 'tool_choice', 'max_tokens'], reasoning: { supported_efforts: ['high', 'max'] } },
+      ],
+      total_count: 2,
+      links: { next: null },
+    }),
+  })
+  check('the seeded Gemini row states a thinking model (the dial exists)', gemini.geminiEffortVocabularyFor('gemini-fixture-pro').length > 0)
+  check("the seeded OpenRouter rows state their vocabularies ('none' listed on one, high|max on the other)", openrouter.openrouterEffortVocabularyFor('openrouter/stealth/ox-alpha').includes('none') && openrouter.openrouterEffortVocabularyFor('openrouter/stealth/ox-tall').join(',') === 'high,max')
+  const SEEDED: Array<{ family: string; model: string; captured: () => Array<{ lane: string; body: unknown }>; lane: string; word: string; key: 'reasoning_effort' | 'reasoning' }> = [
+    { family: 'gemini', model: 'gemini-fixture-pro', captured: () => census.captured, lane: 'gemini', word: 'low', key: 'reasoning_effort' },
+    { family: 'openrouter', model: 'openrouter/stealth/ox-alpha', captured: () => shared.captured, lane: 'openrouter-seat', word: 'none', key: 'reasoning' },
+    { family: 'openrouter', model: 'openrouter/stealth/ox-tall', captured: () => shared.captured, lane: 'openrouter-seat', word: 'high', key: 'reasoning' },
+  ]
+  for (const leg of SEEDED) {
+    console.log(`\n  · ${leg.family} — ${leg.model} (session effort xhigh; the fold's thinking off)`)
+    const before = leg.captured().length
+    const run = await runFold(leg.model, 'direct')
+    const hits = leg.captured().slice(before).filter(h => h.lane === leg.lane)
+    check(`${leg.family}: the fold resolved on its own lane (${run.ms} ms)`, run.result !== undefined && run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 300))
+    const body = (hits.at(-1)?.body ?? {}) as Record<string, unknown>
+    const sent = leg.key === 'reasoning' ? ((body.reasoning as { effort?: unknown } | undefined)?.effort) : body.reasoning_effort
+    check(`${leg.family}: the fold's wire carries the family's thinking-off word '${leg.word}' — ${leg.word === 'none' ? "the row lists none" : 'the lowest rung the row serves'} — never the session tier, never silence`, sent === leg.word, j({ sent, effort: effortWordsOf(body) }))
+    check(`${leg.family}: no other effort spelling rides beside it`, effortWordsOf(body).length === 1 && effortWordsOf(body)[0] === leg.word, j(effortWordsOf(body)))
+  }
+}
 
 section("§3 the stranger's road — a gateway carries it on the Anthropic dialect; the first-party origin refuses typed before any request")
 {
