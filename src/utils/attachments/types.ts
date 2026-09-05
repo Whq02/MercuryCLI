@@ -7,6 +7,7 @@ import type {
   SyncHookJSONOutput,
 } from 'src/entrypoints/agentSdkTypes.js'
 import type { BoundPrefixSection, BoundPrefixToolMark, MessageOrigin } from 'src/types/message.js'
+import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
 import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
@@ -126,6 +127,14 @@ export type HookPermissionDecisionAttachment = {
   decision: 'allow' | 'deny'
   toolUseID: string
   hookEvent: HookEvent
+}
+
+export type BypassedAskAttachment = {
+  type: 'bypassed_ask'
+  toolUseID: string
+  mode: PermissionMode
+  road: BypassedAskRoad
+  reason: string
 }
 
 export type HookSystemMessageAttachment = {
@@ -399,6 +408,7 @@ export type Attachment =
   | TeammateMailboxAttachment
   | TeamContextAttachment
   | HookAttachment
+  | BypassedAskAttachment
   | {
       type: 'invoked_skills'
       skills: Array<{

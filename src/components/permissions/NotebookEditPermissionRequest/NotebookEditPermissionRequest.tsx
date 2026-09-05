@@ -67,7 +67,6 @@ export function NotebookEditPermissionRequest({
           cell_type={parsed.cell_type}
           edit_mode={parsed.edit_mode}
           verbose={verbose}
-          width={verbose ? 120 : 80}
         />
       }
       languageName={parsed.cell_type === 'markdown' ? 'markdown' : 'python'}

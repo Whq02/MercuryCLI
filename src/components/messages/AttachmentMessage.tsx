@@ -11,6 +11,7 @@ import {
   isShutdownApproved,
 } from '../../utils/teammateMailbox.js'
 import { toInkColor } from '../../utils/ink.js'
+import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { DiagnosticsDisplay } from '../DiagnosticsDisplay.js'
 import { MessageResponse } from '../MessageResponse.js'
@@ -440,6 +441,15 @@ export function AttachmentMessage({
           {attachment.decision === 'allow' ? 'Allowed' : 'Denied'} by the{' '}
           {attachment.hookEvent} hook
         </AttachmentLine>
+      )
+
+    case 'bypassed_ask':
+      return (
+        <MessageResponse>
+          <Text dimColor wrap="wrap">
+            Allowed by {permissionModeTitle(attachment.mode).toLowerCase()} · {attachment.reason}
+          </Text>
+        </MessageResponse>
       )
 
     case 'task_status': {

@@ -8,10 +8,13 @@ import { getPatchForDisplay } from '../../../utils/diff.js'
 import { HighlightedCode } from '../../HighlightedCode.js'
 import { StructuredDiff } from '../../StructuredDiff.js'
 import {
-  boundHunksToRows,
-  boundedPreviewPlan,
-  consentDiffBudget,
-} from '../boundedDiffPreview.js'
+  boundHunks,
+  boundLines,
+  consentBodyBudget,
+  consentContentWidth,
+  diffPaintWidth,
+  filePaintWidth,
+} from '../consentBodyBudget.js'
 import type { StructuredPatchHunk } from 'diff'
 type Props = {
   file_path: string
@@ -19,6 +22,8 @@ type Props = {
   fileExists: boolean
   oldContent: string
 }
+
+const FRAME_COLUMNS = 2
 
 export function FileWriteToolDiff({
   file_path,
@@ -31,7 +36,7 @@ export function FileWriteToolDiff({
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
   })
-  const budget = consentDiffBudget(rows)
+  const budget = expanded ? null : consentBodyBudget(rows)
 
   const hunks = useMemo(() => {
     if (!fileExists) {
@@ -52,23 +57,17 @@ export function FileWriteToolDiff({
 
   const firstLine = content.split('\n')[0] ?? null
   const paddingX = 1
-  const bodyWidth = Math.max(1, columns - 4)
+  const bodyWidth = Math.max(1, consentContentWidth(columns) - FRAME_COLUMNS)
 
   const bounded = useMemo(() => {
     if (hunks) {
-      const total = hunks.reduce((n, h) => n + h.lines.length, 0)
-      const plan = boundedPreviewPlan(total, budget, expanded)
-      if (plan.hidden === 0) return { hunks, body: null, hidden: 0 }
-      return { hunks: boundHunksToRows(hunks, plan.shown), body: null, hidden: plan.hidden }
+      const plan = boundHunks(hunks, diffPaintWidth(bodyWidth, hunks), budget)
+      return { hunks: plan.hunks, body: null, hidden: plan.hiddenLines }
     }
     const lines = (content || '(No content)').split('\n')
-    const plan = boundedPreviewPlan(lines.length, budget, expanded)
-    return {
-      hunks: null,
-      body: lines.slice(0, plan.shown).join('\n'),
-      hidden: plan.hidden,
-    }
-  }, [hunks, content, budget, expanded])
+    const plan = boundLines(lines, filePaintWidth(bodyWidth, lines.length), budget)
+    return { hunks: null, body: plan.lines.join('\n'), hidden: plan.hiddenLines }
+  }, [hunks, content, bodyWidth, budget])
 
   return (
     <Box flexDirection="column">
