@@ -5,6 +5,8 @@ export type SelectionState = {
   anchor: Point | null
   clipLo?: number
   clipHi?: number
+  clipTop?: number
+  clipBottom?: number
   focus: Point | null
   isDragging: boolean
   anchorSpan: { lo: Point; hi: Point; kind: 'word' | 'line' } | null
@@ -35,6 +37,8 @@ export function startSelection(s: SelectionState, col: number, row: number): voi
   s.anchor = { col, row }
   s.clipLo = undefined
   s.clipHi = undefined
+  s.clipTop = undefined
+  s.clipBottom = undefined
   s.focus = null
   s.isDragging = true
   s.anchorSpan = null
@@ -102,12 +106,23 @@ export function setSelectionClipBand(
   lo: number,
   hi: number,
   screenWidth: number,
+  top?: number,
+  bottom?: number,
+  screenHeight?: number,
 ): void {
   if (lo <= 0 && hi >= screenWidth - 1) {
     s.clipLo = undefined
     s.clipHi = undefined
+  } else {
+    s.clipLo = Math.max(0, lo)
+    s.clipHi = Math.max(s.clipLo, hi)
+  }
+  if (top === undefined || bottom === undefined || screenHeight === undefined) return
+  if (top <= 0 && bottom >= screenHeight - 1) {
+    s.clipTop = undefined
+    s.clipBottom = undefined
     return
   }
-  s.clipLo = Math.max(0, lo)
-  s.clipHi = Math.max(s.clipLo, hi)
+  s.clipTop = Math.max(0, top)
+  s.clipBottom = Math.max(s.clipTop, bottom)
 }

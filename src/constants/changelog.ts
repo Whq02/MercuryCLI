@@ -32,6 +32,15 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Removing or switching an account announces the change once; a store's first write never shows a blank; a headless run whose login lives outside the keychain prints no keychain error
 - The daemon idles quietly: it watches its owner without spawning a process every few seconds, heals its files only when they change, and reads its schedules on change (30 spawns and 142 file operations per two idle minutes became 2 and 24)
 - The GPT-5.6 rows price at today's pricing page: input, cached, cache-write and output per model, and the same over-272K long-context tier as GPT-6 Astra
+- Release archives are signed with the release key and verified before they publish; an unsigned build is a named decision, said once per install; the archive carries the licence documents
+- A repeat mercury install of the version already in place says so instead of narrating staging and activating again
+- A piped doctor --json prints exactly one record and exits with the verdict's code even when the reader drains slowly
+- Selected text follows the view when you scroll with the wheel, the page keys or a drag past the edge, and the highlight never paints outside the chat pane
+- Apollo mode ends only through the review's approval or shift+tab: a consent answer can no longer switch it off, writes outside the spec directory are refused, and the review says what ended it
+- Effort has a sixth level, ultra, above max, wherever the connected account serves it; a level the wire refuses is remembered, the nearest served level runs, and the transcript says so
+- Idle agents no longer hold a seat, the machine's seat reading counts available memory (near ten on an 8 GB Mac), and /seats, the Boot Menu or /config set the ceiling
+- A resumed or respawned session re-sends its first exchange byte for byte, so preserved thinking is never dropped on a resume; a tool the build no longer offers is a named change
+- mercury update reads the public release channel anonymously, so no GitHub CLI or sign-in is needed; a signed-in gh only speeds it up, and every answer says which road it took
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published

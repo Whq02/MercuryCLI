@@ -7,6 +7,7 @@ import {
   statusRuntimeLine,
   type Progress,
 } from 'src/services/privateChannel/updateService.js'
+import { describeChannelRoad } from 'src/services/privateChannel/channelTransport.js'
 import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/bootBeacon.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliOk } from './exit.js'
@@ -61,8 +62,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       `versions dir:      ${status.versionsDir}`,
       `stable command:    ${status.shimPath} (${status.shim})`,
       `runtime:           ${statusRuntimeLine(status)}`,
-      `channel:           ${status.channelRepo} (private GitHub releases via your own gh sign-in)`,
-      `channel access:    ${status.access.state === 'ok' ? 'ok' : `${status.access.state} — ${status.access.note}`}`,
+      `channel:           ${status.channelRepo} (GitHub releases — read anonymously, or through gh when it is signed in)`,
+      `channel access:    ${status.access.state === 'ok' ? `ok (${describeChannelRoad(status.access.road)})` : `${status.access.state} — ${status.access.note}`}`,
     ]
     return pointerDamaged ? cliError(lines.join('\n')) : cliOk(lines.join('\n'))
   }
@@ -90,12 +91,12 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     switch (check.state) {
       case 'update-available':
         return cliOk(
-          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo}\nrun \`mercury update\` to install it`,
+          `update available: ${check.tag} (installed: ${check.installed})\n  asset: ${check.assetName}\n  channel: ${check.channelRepo} (${describeChannelRoad(check.road)})\nrun \`mercury update\` to install it`,
         )
       case 'current':
-        return cliOk(`Mercury is current: ${check.installed} (channel: ${check.channelRepo})`)
+        return cliOk(`Mercury is current: ${check.installed} (channel: ${check.channelRepo}, ${describeChannelRoad(check.road)})`)
       case 'no-releases':
-        return cliOk(`no private releases found on ${check.channelRepo}; installed: ${check.installed}`)
+        return cliOk(`no releases found on ${check.channelRepo} (${describeChannelRoad(check.road)}); installed: ${check.installed}`)
       case 'access-unavailable':
         return cliError(`update check unavailable: ${check.access.note}\n  ${check.access.remedy}`)
       case 'unsupported-platform':
@@ -104,7 +105,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
         return cliError(`update check refused: ${check.note}`)
       case 'invalid-installed-version':
         return cliError(
-          `installed version "${check.installed}" is not a private-channel version — this build cannot compare against the channel`,
+          `installed version "${check.installed}" is not a channel version (v<major>.<minor>.<patch>-<label>.<n>) — this build cannot compare against the channel`,
         )
       case 'pointer-unreadable':
         return cliError(
@@ -135,15 +136,15 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
             ? `\n  stable command refreshed: ${result.shim.path}`
             : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}`,
       )
     }
     case 'no-update':
       switch (result.check.state) {
         case 'current':
-          return cliOk(`Mercury is current: ${result.check.installed} (channel: ${result.check.channelRepo})`)
+          return cliOk(`Mercury is current: ${result.check.installed} (channel: ${result.check.channelRepo}, ${describeChannelRoad(result.check.road)})`)
         case 'no-releases':
-          return cliOk(`no private releases found on ${result.check.channelRepo}; installed: ${result.check.installed}`)
+          return cliOk(`no releases found on ${result.check.channelRepo} (${describeChannelRoad(result.check.road)}); installed: ${result.check.installed}`)
         case 'access-unavailable':
           return cliError(`update unavailable: ${result.check.access.note}\n  ${result.check.access.remedy}`)
         case 'unsupported-platform':
@@ -151,7 +152,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
         case 'malformed-release':
           return cliError(`update refused: ${result.check.note}`)
         case 'invalid-installed-version':
-          return cliError(`installed version "${result.check.installed}" is not a private-channel version`)
+          return cliError(`installed version "${result.check.installed}" is not a channel version (v<major>.<minor>.<patch>-<label>.<n>)`)
         case 'pointer-unreadable':
           return cliError(
             `update refused: the current-version pointer is unreadable (${result.check.note})\n  fix permissions on <versions>/current.txt — Mercury never guesses through filesystem damage`,

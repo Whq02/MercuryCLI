@@ -6,6 +6,11 @@ on:
       tag:
         description: 'Release tag to publish (e.g. v1.0.0-beta.1) — must exist'
         required: true
+      unsigned:
+        description: 'Publish WITHOUT the release key (no MERCURY_SIGNING_KEY secret): the archives carry no provenance signature, their names end in -unsigned, and mercury update in earlier installs does not pick them up'
+        type: boolean
+        required: false
+        default: false
   push:
     tags:
       - 'v*'
@@ -50,6 +55,10 @@ jobs:
           node-version-file: .node-version
       - name: Print selected Node
         run: node --version
+      - name: the licence documents are true for this tag
+        run: |
+          TAG='${{ github.event.inputs.tag || github.ref_name }}'
+          node scripts/release/releaseDocuments.mjs check --version "${TAG#v}"
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.11
@@ -145,8 +154,47 @@ jobs:
         run: bun run scripts/vendor/build-voice.ts --target ${{ matrix.target }}
       - name: native build
         run: bun run build.ts --target ${{ matrix.target }}
+      - name: signing key (the secret, or the unsigned decision)
+        id: signing
+        shell: bash
+        env:
+          MERCURY_SIGNING_KEY: ${{ secrets.MERCURY_SIGNING_KEY }}
+          UNSIGNED_DECISION: ${{ github.event.inputs.unsigned }}
+        run: |
+          set +x
+          if [ -n "$MERCURY_SIGNING_KEY" ]; then
+            while IFS= read -r line; do [ -n "$line" ] && echo "::add-mask::$line"; done <<< "$MERCURY_SIGNING_KEY"
+            KEY_FILE="${RUNNER_TEMP//\\//}/mercury-signing.pem"
+            umask 077
+            printf '%s\n' "$MERCURY_SIGNING_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+            echo "key_file=$KEY_FILE" >> "$GITHUB_OUTPUT"
+            echo "expect=signed" >> "$GITHUB_OUTPUT"
+            echo "packager_flags=" >> "$GITHUB_OUTPUT"
+            echo "the release key is present — the archive will be signed"
+          elif [ "$UNSIGNED_DECISION" = "true" ]; then
+            echo "key_file=" >> "$GITHUB_OUTPUT"
+            echo "expect=unsigned" >> "$GITHUB_OUTPUT"
+            echo "packager_flags=--unsigned" >> "$GITHUB_OUTPUT"
+            echo "::warning::UNSIGNED BY DECISION — the dispatch input unsigned=true was given and no MERCURY_SIGNING_KEY secret is set; the archive will carry -unsigned in its name"
+          else
+            echo "::error::the repository secret MERCURY_SIGNING_KEY is not set — release archives are signed. Set the secret (Settings, Secrets and variables, Actions, New repository secret: name MERCURY_SIGNING_KEY, value the PEM text of the release key) and re-run; or dispatch this workflow with unsigned=true to publish an unsigned build deliberately."
+            exit 1
+          fi
       - name: package + friend-path smoke
-        run: node scripts/release/package.mjs --target ${{ matrix.target }}
+        env:
+          MERCURY_SIGNING_KEY_FILE: ${{ steps.signing.outputs.key_file }}
+        run: node scripts/release/package.mjs --target ${{ matrix.target }} ${{ steps.signing.outputs.packager_flags }}
+      - name: verify the packaged archive (the shipped verifier, full depth)
+        run: node scripts/release/verifyArchive.mjs --target ${{ matrix.target }} --expect ${{ steps.signing.outputs.expect }}
+      - name: remove the signing key file
+        if: always()
+        shell: bash
+        run: |
+          rm -f "${RUNNER_TEMP//\\//}/mercury-signing.pem"
+          KEY_FILE='${{ steps.signing.outputs.key_file }}'
+          if [ -n "$KEY_FILE" ]; then rm -f "$KEY_FILE"; fi
+          echo "no signing key remains on this runner"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: mercury-${{ matrix.target }}
@@ -246,14 +294,19 @@ jobs:
           fi
           PRERELEASE=''
           case "$TAG" in *-*.*) PRERELEASE='--prerelease';; esac
+          PROVENANCE_NOTE='Provenance: every archive manifest is signed with the Mercury release key (`mercury doctor` shows the verdict; docs/TRUST.md says how to check).'
+          for f in assets/*-unsigned.tar.gz assets/*-unsigned.zip; do
+            [ -e "$f" ] && PROVENANCE_NOTE='**UNSIGNED BUILD** — published by decision without the release key: these archives carry no provenance signature (their names end in `-unsigned`, `mercury doctor` reports "unsigned"), and `mercury update` in earlier installs does not pick them up — install from this page.'
+          done
           if node scripts/release/notesFromChangelog.mjs "$TAG" > release-notes.md; then
+            { printf '%s\n\n' "$PROVENANCE_NOTE"; cat release-notes.md; } > release-notes-final.md
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
-              --notes-file release-notes.md \
+              --notes-file release-notes-final.md \
               assets/mercury-*.tar.gz assets/mercury-*.zip assets/SHA256SUMS.txt
           else
             RANGE="$(python3 -c 'import json;print(json.load(open("package.json"))["engines"]["node"])')"
-            NOTES=$(printf 'Private collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$GITHUB_SHA" "$RANGE")
+            NOTES=$(printf '%s\n\nPrivate collaborator build of commit %s.\n\nVerification: full local gate green at tag time; CI re-ran the typecheck ratchet, native builds, the isolated-artifact smoke, the core suites, and the per-OS friend-path smoke (spaced-path unpack, --version with no node on PATH, --help, no dev residue) before this release was created.\n\nInstall: download your OS archive, extract, run mercury/mercury (mercury\\mercury.cmd on Windows). The archive carries its own Node 24 LTS runtime, so no Node install is needed; MERCURY_NODE or a PATH Node inside %s may stand in for it. See README-FIRST.md inside the archive.' "$PROVENANCE_NOTE" "$GITHUB_SHA" "$RANGE")
             gh release create "$TAG" $PRERELEASE \
               --title "Mercury $TAG" \
               --notes "$NOTES" \
