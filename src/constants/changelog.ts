@@ -58,6 +58,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - After a compaction Mercury re-tells itself every agent, workflow and shell still running or owed a result, so it never re-spawns work or forgets what is due
 - After a long session, Mercury no longer flashes a scary "rewrote sent history" warning when it trims old tool results to fit the window; it names the routine cleanup for what it is
 - Sub-agents now tell you once how they ended, with the real cause and what they wrote; a timeout is never blamed on you; the id in a launch receipt works with SendMessage
+- After a switch back to a model you used earlier, Mercury notes the dropped older reasoning once, instead of repeating it every turn with a growing count
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
