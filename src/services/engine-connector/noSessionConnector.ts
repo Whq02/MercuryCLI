@@ -3,6 +3,7 @@ import { getMainLoopModel } from '../../utils/model/model.js'
 import { getCwd } from '../../utils/cwd.js'
 import type {
   AgentControlReceiptV1,
+  WithdrawReceiptV1,
   AskReceiptV1,
   CheckpointFactsV1,
   EngineConnectorV1,
@@ -96,6 +97,12 @@ export class NoSessionConnector implements EngineConnectorV1 {
   settleAsk(): void {}
   interrupt(): boolean {
     return false
+  }
+  recallableSend(): null {
+    return null
+  }
+  async withdrawSend(): Promise<WithdrawReceiptV1> {
+    return { withdrawn: false, reason: 'refused', detail: NO_CHAT_OPEN }
   }
   async stopAgent(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }

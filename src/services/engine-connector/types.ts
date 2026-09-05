@@ -24,6 +24,12 @@ export type SendReceiptV1 =
   | { state: 'accepted' }
   | { state: 'refused'; detail: string }
 
+export type RecallableSendV1 = { clientMessageId: string; text: string }
+
+export type WithdrawReceiptV1 =
+  | { withdrawn: true; text: string; mode: PromptInputMode; pastedContents: Record<number, PastedContent> }
+  | { withdrawn: false; reason: 'taken' | 'unknown' | 'refused'; detail: string }
+
 
 export type SessionAskV1 = {
   id: string
@@ -251,6 +257,9 @@ export interface EngineConnectorV1 {
   settleAsk(askId: string): void
 
   interrupt(): boolean
+
+  recallableSend(): RecallableSendV1 | null
+  withdrawSend(clientMessageId: string): Promise<WithdrawReceiptV1>
 
   stopAgent(agentId: string): Promise<AgentControlReceiptV1>
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>

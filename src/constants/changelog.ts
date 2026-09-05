@@ -78,6 +78,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A sub-agent's briefing no longer reads as your rules to the safety check, and your latest request is the task it judges an action against
 - When Flow's safety check blocks an action in a session you are not looking at, the ask now waits for you there instead of being denied on the spot; a sub-agent's ask waits the same way
 - A sub-agent waiting on your permission reads "waiting for your answer" in the crew view and the tasks list
+- Up arrow on an empty composer takes back a message you sent while the turn was busy, so it never reaches the model; once the session already has it, the up arrow says so instead
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published

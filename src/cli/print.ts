@@ -175,6 +175,7 @@ import {
   dequeue,
   enqueue,
   peek,
+  popById,
   remove as removeQueuedCommands,
   subscribeToCommandQueue,
   getCommandQueue,
@@ -1709,6 +1710,11 @@ export async function runHeadless(
           abortSuggestion()
           lastEmittedSuggestion = null
           respondSuccess(requestId)
+          return
+        }
+        case 'withdraw_send': {
+          const popped = popById(String(request.client_message_id ?? ''))
+          respondSuccess(requestId, popped.popped ? { withdrawn: true, text: popped.text } : { withdrawn: false, reason: popped.reason })
           return
         }
         case 'end_session': {
