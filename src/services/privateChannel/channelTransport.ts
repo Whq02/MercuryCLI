@@ -18,8 +18,12 @@ const packagedRepoUrl = (): string | undefined =>
   typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL === 'string' ? MACRO.PACKAGE_URL : undefined
 const runningVersion = (): string => (typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev')
 
+export function channelRepo(): ReturnType<typeof resolveChannelRepo> {
+  return resolveChannelRepo(flagEnv('MERCURY_UPDATE_CHANNEL_REPO'), packagedRepoUrl())
+}
+
 export function channelRepoSlug(): string {
-  return resolveChannelRepo(flagEnv('MERCURY_UPDATE_CHANNEL_REPO'), packagedRepoUrl()).slug
+  return channelRepo().slug
 }
 
 export function channelApiBaseUrl(): string {
@@ -32,12 +36,29 @@ export type ChannelRoadName = 'gh' | 'anonymous'
 
 export type ChannelRoad =
   | { road: 'gh' }
-  | { road: 'anonymous'; ghState: 'gh-missing' | 'not-signed-in'; ghNote: string }
+  | { road: 'anonymous'; ghState: 'gh-missing' | 'not-signed-in' | 'not-asked'; ghNote: string }
+
+export function channelRoadFirst(source: ReturnType<typeof resolveChannelRepo>['source']): ChannelRoadName {
+  return source === 'override' ? 'gh' : 'anonymous'
+}
 
 export async function resolveChannelRoad(): Promise<ChannelRoad> {
+  if (channelRoadFirst(channelRepo().source) === 'anonymous') {
+    return { road: 'anonymous', ghState: 'not-asked', ghNote: 'the public home needs no sign-in' }
+  }
+  return ghRoadOrAnonymous()
+}
+
+async function ghRoadOrAnonymous(): Promise<ChannelRoad> {
   const signIn = await ghSignIn()
   if (signIn.state === 'ok') return { road: 'gh' }
   return { road: 'anonymous', ghState: signIn.state, ghNote: signIn.note }
+}
+
+async function roadAfterRefusal(road: ChannelRoad, access: ChannelAccessRefusal): Promise<ChannelRoad | null> {
+  if (road.road !== 'anonymous' || road.ghState !== 'not-asked') return null
+  if (access.state !== 'not-visible' && access.state !== 'rate-limited') return null
+  return ghRoadOrAnonymous()
 }
 
 export function describeChannelRoad(road: ChannelRoadName): string {
@@ -204,10 +225,21 @@ async function anonymousListReleases(slug: string, road: Extract<ChannelRoad, { 
 
 export async function checkChannelAccess(slug: string): Promise<ChannelAccess> {
   const road = await resolveChannelRoad()
-  if (road.road === 'gh') {
-    const repo = await ghRepoAccess(slug)
-    return repo.state === 'ok' ? { state: 'ok', road: 'gh' } : { state: 'no-repo-access', road: 'gh', note: repo.note, remedy: repo.remedy }
-  }
+  if (road.road === 'gh') return ghChannelAccess(slug)
+  const probed = await anonymousChannelAccess(slug, road)
+  if (probed.state === 'ok') return probed
+  const retry = await roadAfterRefusal(road, probed)
+  if (retry === null) return probed
+  if (retry.road === 'gh') return ghChannelAccess(slug)
+  return probed.state === 'not-visible' ? notVisible(slug, retry) : probed
+}
+
+async function ghChannelAccess(slug: string): Promise<ChannelAccess> {
+  const repo = await ghRepoAccess(slug)
+  return repo.state === 'ok' ? { state: 'ok', road: 'gh' } : { state: 'no-repo-access', road: 'gh', note: repo.note, remedy: repo.remedy }
+}
+
+async function anonymousChannelAccess(slug: string, road: Extract<ChannelRoad, { road: 'anonymous' }>): Promise<ChannelAccess> {
   let got: { response: Response; deadline: InactivityDeadline }
   try {
     got = await anonymousGet(`${channelApiBaseUrl()}/repos/${slug}`, { seam: 'channel probe', advice: 'check your network', limitMs: LISTING_SILENCE_MS, accept: 'application/vnd.github+json' })
@@ -235,7 +267,12 @@ export async function listChannelReleases(slug: string): Promise<ChannelListing>
   const road = await resolveChannelRoad()
   if (road.road === 'anonymous') {
     const listed = await anonymousListReleases(slug, road)
-    return listed.state === 'ok' ? { state: 'ok', road: 'anonymous', releases: listed.releases } : listed
+    if (listed.state === 'ok') return { state: 'ok', road: 'anonymous', releases: listed.releases }
+    const retry = await roadAfterRefusal(road, listed.access)
+    if (retry === null) return listed
+    if (retry.road === 'anonymous') {
+      return listed.access.state === 'not-visible' ? { state: 'refused', access: notVisible(slug, retry) } : listed
+    }
   }
   const repo = await ghRepoAccess(slug)
   if (repo.state !== 'ok') return { state: 'refused', access: { state: 'no-repo-access', road: 'gh', note: repo.note, remedy: repo.remedy } }
