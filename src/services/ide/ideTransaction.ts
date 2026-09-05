@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { findPythonProjectRoot } from './pythonProject.js'
 
@@ -97,7 +97,7 @@ function resolveRoot(from?: string): string {
 }
 
 function storeDir(root: string): string {
-  return adoptiveProjectPath(root, STORE_SEGMENT)
+  return projectHomeStore(root, STORE_SEGMENT)
 }
 
 

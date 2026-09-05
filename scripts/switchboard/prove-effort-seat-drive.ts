@@ -30,10 +30,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const SEAT_MODEL = 'gpt-5.5'
 const SEAT_MODEL_LABEL = 'GPT-5.5'
-const SEAT_EFFORT = 'high'
 const LADDER = ['low', 'medium', 'high', 'xhigh'] as const
 const SERVED = 'xhigh'
 const ASKED = 'max'
+const SEAT_EFFORT = ASKED
 const SEAT_TITLE = 'Effort Seat'
 const TURN = 'hello effort seat'
 
@@ -81,6 +81,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 
 let seatId = ''
 let transcript = ''
+let bornSent = 'unread'
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const run = await runArtifactArena({
   turns: [],
@@ -118,6 +119,11 @@ const run = await runArtifactArena({
     seatId = a.sessionId ?? ''
     transcript = join(paths.getProjectDir(cwd), `${seatId}.jsonl`)
     check('the seat transcript is born', await untilAsync(() => existsSync(transcript) && statSync(transcript).size > 100, 30_000))
+    await untilAsync(() => (projections.readSessionFacts(seatId)?.atMs ?? 0) > 0 && existsSync(transcript), 20_000)
+    await new Promise(r => setTimeout(r, 2500))
+    const born = projections.readSessionFacts(seatId)
+    bornSent = born === null ? 'no-facts' : !('effortSent' in born) || born.effortSent === undefined ? 'absent' : born.effortSent === null ? 'null' : String(born.effortSent)
+    console.log(`  the seat's facts at birth: effort=${String(born?.effort)} effortSent=${bornSent}`)
   },
   extraEnv: {
     ...fixture.env,
@@ -152,6 +158,10 @@ try {
   const entered = frames.some(f => f.text.includes('gpt-live body') || f.text.includes('gpt-landed body') || f.text.includes('seat-task-gpt'))
   check('the seat was entered from the board (its own body on screen)', entered, `frames: ${frames.length}`)
 
+  check(`W0 at birth the runner's sent word is the served word (${SERVED}) or unresolved (absent) — never null, never the asked word`, bornSent === SERVED || bornSent === 'absent', `effortSent at birth: ${bornSent}`)
+  const windowStrip = frames.filter(f => f.atMs >= 6000 && f.atMs <= 8500).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞')))
+  check(`W1 in the window the strip's chip paints the runner's word (${SERVED}) or "${ASKED} (asked)" — never the asked word bare, never "default"`, windowStrip.length > 0 && windowStrip.every(r => new RegExp(`\\b${SERVED}\\b`).test(r) || r.includes(`${ASKED} (asked)`)) && !windowStrip.some(r => /\bdefault\b/.test(r) || /◉ max(?! \(asked\))/.test(r)), windowStrip.slice(0, 3).join(' | ').slice(0, 300))
+
   check(`E1 the /effort ${SERVED} receipt is the seat's ("Effort set to ${SERVED} for this session — its next request runs it")`, anyFrame(`Effort set to ${SERVED} for this session`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort')).map(t => t.slice(0, 200)).join(' | ').slice(0, 600))
   check(`E1 the screen never claims the old road's sentence ("Effort set to ${SERVED} — saved as your default")`, !anyFrame(`Effort set to ${SERVED} — saved`))
 
@@ -172,7 +182,7 @@ try {
   const stripRows = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞'))
   const lateStrip = distinct.filter(f => f.atMs >= 24000).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('▚▛▀▜▞')))
   check(`E2 after the turn the strip's chip paints the SENT word (${SERVED}), never the asked one`, lateStrip.length > 0 && lateStrip.every(r => new RegExp(`\\b${SERVED}\\b`).test(r) && !/\bmax\b/.test(r)), lateStrip.slice(-2).join(' | ').slice(0, 300))
-  check(`E1 the chip took ${SERVED} once the seat verb applied it (before ${ASKED} was asked)`, stripRows.some(r => new RegExp(`\\b${SERVED}\\b`).test(r)), stripRows.slice(0, 3).join(' | ').slice(0, 300))
+  check(`E1 the chip took ${SERVED} once the seat verb applied it`, stripRows.some(r => new RegExp(`\\b${SERVED}\\b`).test(r)), stripRows.slice(0, 3).join(' | ').slice(0, 300))
 
   check(`E3 "/effort current" says the seat's word and the sent word ("Effort is ${ASKED} (it runs ${SERVED} on ${SEAT_MODEL})")`, anyFrame(`Effort is ${ASKED} (it runs ${SERVED} on ${SEAT_MODEL})`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort is')).map(t => t.slice(t.indexOf('Effort is'), t.indexOf('Effort is') + 160)).join(' | ').slice(0, 500))
 } finally {

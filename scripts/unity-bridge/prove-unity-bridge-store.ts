@@ -17,10 +17,12 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 delete process.env.MERCURY_UNITY
 delete process.env.MERCURY_UNITY_BRIDGE_PORT
 process.env.MERCURY_UNITY_BRIDGE_TOKEN = 'tok'
+const scratchHome = mkdtempSync(path.join(tmpdir(), 'unity-bridge-home-'))
+process.env.MERCURY_CONFIG_DIR = scratchHome
 
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 const { parseUnityTestResults, unityRunToRecord } = await import('../../src/services/ide/unityTests.js')
-const { persistTestRun } = await import('../../src/services/ide/pythonTests.js')
+const { persistTestRun, testRunsDir } = await import('../../src/services/ide/pythonTests.js')
 const { unityTestResultsPath } = await import('../../src/services/ide/unityProject.js')
 const { UnityTool } = await import('../../src/tools/UnityTool/UnityTool.js')
 const { resetUnityBridgeClientForTest } = await import('../../src/services/unity/bridgeClient.js')
@@ -75,9 +77,10 @@ section('2. the store accepts the record through its own writer')
       selection: 'all',
     })
     await persistTestRun(proj, record)
-    const latest = JSON.parse(readFileSync(path.join(proj, '.mercury', 'test-runs', 'latest.json'), 'utf8')) as { framework: string; counts: { passed: number } }
+    const latest = JSON.parse(readFileSync(path.join(testRunsDir(proj), 'latest.json'), 'utf8')) as { framework: string; counts: { passed: number } }
     check('latest.json carries framework unity + the counts', latest.framework === 'unity' && latest.counts.passed === 3)
-    check('the per-run file landed beside it', existsSync(path.join(proj, '.mercury', 'test-runs', `${record.id}.json`)))
+    check('the per-run file landed beside it', existsSync(path.join(testRunsDir(proj), `${record.id}.json`)))
+    check('the store lives under the config home, never in the project folder', testRunsDir(proj).startsWith(scratchHome) && !existsSync(path.join(proj, '.mercury', 'test-runs')))
   }
 }
 
@@ -91,7 +94,7 @@ section('3. end-to-end through the REAL tool — event drain ⇒ store record')
   await sleep(120)
   const drain = await runWithCwdOverride(proj, () => callTool('play_state'))
   check('the drain call reports the persist receipt', /test-run record run-\d+-unity persisted/.test(drain), drain.split('\n').slice(-2).join(' '))
-  const latest = JSON.parse(readFileSync(path.join(proj, '.mercury', 'test-runs', 'latest.json'), 'utf8')) as {
+  const latest = JSON.parse(readFileSync(path.join(testRunsDir(proj), 'latest.json'), 'utf8')) as {
     framework: string
     selection: string
     counts: { passed: number; failed: number }
