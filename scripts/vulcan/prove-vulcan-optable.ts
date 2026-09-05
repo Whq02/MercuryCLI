@@ -89,5 +89,10 @@ try {
 }
 check('regen --check clean', checkOk)
 
+section('5. the game-driving verbs — a press is an event; step mode rides the frontier')
+{
+  check('input_action is documented as a real InputEventAction both roads see', /InputEventAction/.test(vulcanOp('input_action')?.summary ?? '') && /polled action state/.test(vulcanOp('input_action')?.summary ?? ''))
+}
+
 console.log('\n' + (failures === 0 ? '✅ vulcan optable proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)

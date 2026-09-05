@@ -459,15 +459,15 @@ func _rop_click(args: Dictionary) -> Dictionary:
 	var mv := InputEventMouseMotion.new()
 	mv.position = pos
 	mv.global_position = pos
-	Input.parse_input_event(mv)
+	var queued := _inject(mv)
 	for pressed in [true, false]:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = MOUSE_BUTTON_LEFT
 		ev.pressed = pressed
 		ev.position = pos
 		ev.global_position = pos
-		Input.parse_input_event(ev)
-	return _ok({ "clicked": { "x": pos.x, "y": pos.y } })
+		queued = _inject(ev)
+	return _ok(_sent({ "clicked": { "x": pos.x, "y": pos.y } }, queued))
 
 
 func _rop_navigate(args: Dictionary) -> Dictionary:
@@ -478,12 +478,13 @@ func _rop_navigate(args: Dictionary) -> Dictionary:
 	if not (n is Control):
 		return _err("NOT_A_CONTROL", "'%s' is not a Control" % np, "navigate targets buttons/fields; runtime_ui_list shows them")
 	(n as Control).grab_focus()
+	var queued := false
 	for pressed in [true, false]:
 		var ev := InputEventAction.new()
 		ev.action = "ui_accept"
 		ev.pressed = pressed
-		Input.parse_input_event(ev)
-	return _ok({ "activated": np })
+		queued = _inject(ev)
+	return _ok(_sent({ "activated": np }, queued))
 
 
 func _rop_scene_change(args: Dictionary) -> Dictionary:
@@ -561,7 +562,7 @@ func _rop_replay(args: Dictionary) -> Dictionary:
 			await get_tree().create_timer(wait_ms / 1000.0).timeout
 		var ev := _desc_to_event(row.get("event", {}))
 		if ev != null:
-			Input.parse_input_event(ev)
+			_inject(ev)
 			fed += 1
 	return _ok({ "replayed": rec_name, "events": fed, "speed": speed })
 
@@ -649,6 +650,7 @@ func _rop_input_key(args: Dictionary) -> Dictionary:
 	if code == KEY_NONE:
 		return _err("BAD_KEY", "unknown key '%s'" % keyname, "use Godot key names: Space, Enter, Escape, A, F1, Up, ...")
 	var modes := _press_modes(args)
+	var queued := false
 	for pressed in modes:
 		var ev := InputEventKey.new()
 		ev.physical_keycode = code
@@ -658,8 +660,8 @@ func _rop_input_key(args: Dictionary) -> Dictionary:
 		ev.ctrl_pressed = bool(args.get("ctrl", false))
 		ev.alt_pressed = bool(args.get("alt", false))
 		ev.meta_pressed = bool(args.get("meta", false))
-		Input.parse_input_event(ev)
-	return _ok({ "key": keyname, "sent": modes })
+		queued = _inject(ev)
+	return _ok(_sent({ "key": keyname, "sent": modes }, queued))
 
 
 func _rop_input_mouse_button(args: Dictionary) -> Dictionary:
@@ -671,15 +673,15 @@ func _rop_input_mouse_button(args: Dictionary) -> Dictionary:
 	var mv := InputEventMouseMotion.new()
 	mv.position = pos
 	mv.global_position = pos
-	Input.parse_input_event(mv)
+	var queued := _inject(mv)
 	for pressed in modes:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = btn
 		ev.pressed = pressed
 		ev.position = pos
 		ev.global_position = pos
-		Input.parse_input_event(ev)
-	return _ok({ "button": str(args.get("button", "left")), "at": { "x": pos.x, "y": pos.y }, "sent": modes })
+		queued = _inject(ev)
+	return _ok(_sent({ "button": str(args.get("button", "left")), "at": { "x": pos.x, "y": pos.y }, "sent": modes }, queued))
 
 
 func _rop_input_mouse_move(args: Dictionary) -> Dictionary:
@@ -689,8 +691,8 @@ func _rop_input_mouse_move(args: Dictionary) -> Dictionary:
 	ev.global_position = pos
 	if args.has("relative"):
 		ev.relative = _to_vec2(args.get("relative"))
-	Input.parse_input_event(ev)
-	return _ok({ "moved_to": { "x": pos.x, "y": pos.y } })
+	var queued := _inject(ev)
+	return _ok(_sent({ "moved_to": { "x": pos.x, "y": pos.y } }, queued))
 
 
 func _rop_input_action(args: Dictionary) -> Dictionary:
@@ -699,12 +701,14 @@ func _rop_input_action(args: Dictionary) -> Dictionary:
 		return _err("ACTION_NOT_FOUND", "no InputMap action '%s'" % action, "input_map_list shows the actions; add one with input_map_add")
 	var strength := clampf(float(args.get("strength", 1.0)), 0.0, 1.0)
 	var modes := _press_modes(args)
+	var queued := false
 	for pressed in modes:
-		if pressed:
-			Input.action_press(action, strength)
-		else:
-			Input.action_release(action)
-	return _ok({ "action": action, "sent": modes, "strength": strength })
+		var ev := InputEventAction.new()
+		ev.action = action
+		ev.pressed = pressed
+		ev.strength = strength if pressed else 0.0
+		queued = _inject(ev)
+	return _ok(_sent({ "action": action, "sent": modes, "strength": strength }, queued))
 
 
 func _rop_input_sequence(args: Dictionary) -> Dictionary:
@@ -733,6 +737,16 @@ func _rop_input_sequence(args: Dictionary) -> Dictionary:
 			return _err("BAD_ARG", "step %d needs key|button|action|wait_ms" % done, "e.g. {\"key\": \"Space\"}, then {\"wait_ms\": 250}")
 		done += 1
 	return _ok({ "steps": done })
+
+
+func _inject(ev: InputEvent) -> bool:
+	Input.parse_input_event(ev)
+	return false
+
+
+func _sent(result: Dictionary, queued: bool) -> Dictionary:
+	result["queued"] = queued
+	return result
 
 
 func _install_logger() -> void:
