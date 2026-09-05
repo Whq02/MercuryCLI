@@ -79,6 +79,9 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - When Flow's safety check blocks an action in a session you are not looking at, the ask now waits for you there instead of being denied on the spot; a sub-agent's ask waits the same way
 - A sub-agent waiting on your permission reads "waiting for your answer" in the crew view and the tasks list
 - Up arrow on an empty composer takes back a message you sent while the turn was busy, so it never reaches the model; once the session already has it, the up arrow says so instead
+- A hook's deny decision leaves its audit row in the transcript again; the working strip, the rail and the /tasks board read one session ledger, and a TeamCreate no longer hides earlier tasks
+- A request that declares no thinking carries none; the prune's dead marks persist, and a process-wide toggle reads as a lawful change for every conversation
+- On Claude Opus 5 the fold rides the session's effort word (measured: the per-message row cost the whole prefix cache); the classifier's error dump is the operator's alone
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
