@@ -593,25 +593,12 @@ export async function startFixtureApi(
         }
         const markAborted = (): void => {
           clientAborted = true
-          clearInterval(heartbeat)
           openResponses.delete(res)
         }
         res.on('close', markAborted)
         res.on('error', markAborted)
         req.socket.on('close', markAborted)
         req.socket.on('error', markAborted)
-        const heartbeat = setInterval(() => {
-          if (res.destroyed || res.socket?.destroyed) {
-            markAborted()
-            return
-          }
-          try {
-            res.write(': hb\n\n')
-          } catch {
-            markAborted()
-          }
-        }, 250)
-        heartbeat.unref?.()
         return
       }
       if (turn.kind === 'die') {
