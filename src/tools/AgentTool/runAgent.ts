@@ -151,6 +151,7 @@ export type RunAgentParams = {
   instructionProfileOverride?: string
   onQueryProgress?: (message: Message) => void
   onWait?: (words: string | null) => void
+  onPendingAsks?: (count: number) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   structuredOutputSpec?: {
     schema: Record<string, unknown>
@@ -480,6 +481,7 @@ export async function* runAgent(
     instructionProfileOverride,
     onQueryProgress,
     onWait,
+    onPendingAsks,
     onResolvedIdentity,
     structuredOutputSpec,
   } = params
@@ -549,6 +551,7 @@ export async function* runAgent(
   const canUseToolAskLively: typeof canUseTool = canUseTool
     ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
         pendingAsks++
+        onPendingAsks?.(pendingAsks)
         watchdog.touch()
         if (askHeartbeat === null) {
           askHeartbeat = setInterval(() => watchdog.touch(), askHeartbeatMs)
@@ -558,6 +561,7 @@ export async function* runAgent(
           return await canUseTool(...args)
         } finally {
           pendingAsks--
+          onPendingAsks?.(pendingAsks)
           if (pendingAsks === 0 && askHeartbeat !== null) {
             clearInterval(askHeartbeat)
             askHeartbeat = null
@@ -665,6 +669,7 @@ export async function* runAgent(
         parentGetAppState?.()?.toolPermissionContext
           .shouldAvoidPermissionPrompts === true,
       parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
+      parentChannel: toolUseContext.options.permissionChannel,
     })
     const avoidPrompts = posture.avoidPrompts
     const agentGetAppState: typeof parentGetAppState = () => {
@@ -793,6 +798,7 @@ export async function* runAgent(
       shareSetResponseLength: true,
       options: {
         isNonInteractiveSession,
+        ...(posture.permissionChannel !== undefined ? { permissionChannel: posture.permissionChannel } : {}),
         appendSystemPrompt: parentOptions.appendSystemPrompt,
         tools,
         commands: [],

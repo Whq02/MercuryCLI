@@ -1143,6 +1143,9 @@ export async function runHeadless(
           maxBudgetUsd: options.maxBudgetUsd,
           taskBudget: options.taskBudget,
           canUseTool,
+          ...(options.permissionPromptToolName === undefined
+            ? {}
+            : { permissionChannel: options.permissionPromptToolName === 'stdio' ? ('stdio' as const) : ('prompt-tool' as const) }),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,

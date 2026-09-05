@@ -486,5 +486,25 @@ console.log('— T7 the status vocabulary and the transcript card —')
   )
 }
 
+{
+  const askStore = {
+    ask1: agentTask('ask1', 'asking-scout', { toolUseId: 'tu-ask1', model: ANTHROPIC_ID, progress: fold(ANTHROPIC_ID, 100, 10), startTime: t0 + 7, pendingAsks: 1 }),
+    ask2: agentTask('ask2', 'asked-twice', { toolUseId: 'tu-ask2', model: ANTHROPIC_ID, startTime: t0 + 8, pendingAsks: 2, wait: 'waiting for a seat — 3 of 3 held' }),
+    ask3: agentTask('ask3', 'landed-with-a-stale-count', { status: 'completed', model: ANTHROPIC_ID, startTime: t0 + 9, endTime: t0 + 10, pendingAsks: 1 }),
+  } as never
+  const askRows = projectWorkRoster(askStore)
+  const byAsk = new Map(askRows.map(r => [r.id, r]))
+  check("T8 a running agent's parked ask rides its row", byAsk.get('ask1')?.pendingAsks === 1, JSON.stringify(byAsk.get('ask1')))
+  const askFacts = crew.crewAgentsOf(askRows, 'fx-session')
+  const f1 = askFacts.find(a => a.id === 'ask1')!
+  const f2 = askFacts.find(a => a.id === 'ask2')!
+  const f3 = askFacts.find(a => a.id === 'ask3')!
+  check("T8 the status cell reads 'waiting for your answer' while an ask is parked", f1.pendingAsks === 1 && crew.crewStatusWords(f1, t0 + 8_000) === crew.CREW_ASK_WAIT_WORDS && crew.CREW_ASK_WAIT_WORDS === 'waiting for your answer', crew.crewStatusWords(f1, t0 + 8_000))
+  check('T8 the parked ask outranks a seat wait in the status cell (the operator ends it)', crew.crewStatusWords(f2, t0 + 8_000) === crew.CREW_ASK_WAIT_WORDS, crew.crewStatusWords(f2, t0 + 8_000))
+  check('T8 a landed row never reads the wait word (the count is stale once settled)', f3.running === false && crew.crewStatusWords(f3, t0 + 8_000) !== crew.CREW_ASK_WAIT_WORDS, crew.crewStatusWords(f3, t0 + 8_000))
+  check('T8 the /tasks row paints the same words from the owner', src('src/components/tasks/BackgroundTasksDialog.tsx').includes('CREW_ASK_WAIT_WORDS'))
+  check('T8 the runner publishes the count onto the record the roster projects', src('src/tools/AgentTool/AgentTool.tsx').includes('setAgentPendingAsks(earlyAgentId, count, rootSetAppState)') && src('src/tools/AgentTool/runAgent.ts').includes('onPendingAsks?.(pendingAsks)'))
+}
+
 console.log(failures === 0 ? '\nprove-crew-truth: ALL LAWS HOLD' : `\nprove-crew-truth: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -27,6 +27,9 @@ const KEEP = process.env.FV_KEEP === '1'
 const j = (v: unknown): string => JSON.stringify(v)
 
 const ASK = 'flow-seat: run the shell probe'
+const AGENT_ASK = 'flow-seat: delegate the shell probe'
+const FOLLOW_UP = 'flow-seat: what did the agent report?'
+const SEAT_BRIEF = 'flow-seat-agent: run the shell probe in the working directory and report the sha'
 const PROBE_COMMIT = 'flow-seat-probe'
 const WRITING_COMMAND = `git commit --allow-empty -q -m ${PROBE_COMMIT} && git rev-parse --short HEAD`
 const BLOCK_REASON = 'flow-seat: the fixture classifier blocks the probe commit'
@@ -34,9 +37,10 @@ const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
 const POLICY_DENIAL_LEAD = 'Permission for this action has been denied. Reason: '
 const NO_CARD_WORDS = 'cannot show the operator a consent card'
-const UNREADABLE_WORDS = 'could not read its own verdict'
+const UNREADABLE_DENIAL_WORDS = 'could not read its own verdict'
+const UNREADABLE_ASK_WORDS = 'could not read its verdict from'
 
-type Route = 'classifier' | 'parent' | 'parent-ack' | 'side'
+type Route = 'classifier' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-done' | 'side'
 type Verdict = 'block' | 'malformed'
 interface Hit {
   n: number
@@ -72,6 +76,17 @@ function toolNamesOf(body: unknown): string[] {
   return tools.map(t => (typeof (t as { name?: unknown })?.name === 'string' ? (t as { name: string }).name : '')).filter(n => n !== '')
 }
 
+function userTextsOf(body: unknown): string[] {
+  const out: string[] = []
+  for (const m of (body as { messages?: unknown[] })?.messages ?? []) {
+    const msg = m as { role?: string; content?: unknown }
+    if (msg.role !== 'user') continue
+    const text = textOf(msg.content)
+    if (text.trim() !== '') out.push(text)
+  }
+  return out
+}
+
 function resultTextsOf(body: unknown): string[] {
   const out: string[] = []
   for (const m of (body as { messages?: unknown[] })?.messages ?? []) {
@@ -88,6 +103,9 @@ function routeOf(body: unknown): { route: Route; tools: string[]; results: strin
   const tools = toolNamesOf(body)
   const results = resultTextsOf(body)
   if (tools.includes('classify_result')) return { route: 'classifier', tools, results }
+  if (userTextsOf(body).some(text => text.includes('flow-seat-agent:'))) {
+    return { route: results.length === 0 ? 'seat-1' : 'seat-done', tools, results }
+  }
   if (tools.includes('Agent')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
   return { route: 'side', tools, results }
 }
@@ -151,7 +169,7 @@ function classifierBlocks(verdict: Verdict): Block[] {
   return [{ type: 'tool_use', name: 'classify_result', input: { thinking: 'The command writes a commit to the working directory.', shouldBlock: 'maybe', reason: 'flow-seat: an unreadable verdict' } }]
 }
 
-async function startFixture(opts: { verdict: Verdict }): Promise<Fixture> {
+async function startFixture(opts: { agent: boolean; verdict: Verdict }): Promise<Fixture> {
   const hits: Hit[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
@@ -180,11 +198,37 @@ async function startFixture(opts: { verdict: Verdict }): Promise<Fixture> {
           blocks = classifierBlocks(opts.verdict)
           break
         case 'parent':
-          blocks = [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
+          blocks = opts.agent
+            ? [
+                { type: 'text', text: 'flow-seat: delegating the shell probe' },
+                { type: 'tool_use', name: 'Agent', input: { description: 'flow-seat-agent', prompt: SEAT_BRIEF, subagent_type: 'general-purpose', run_in_background: true } },
+              ]
+            : [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
           break
         case 'parent-ack': {
           const last = results[results.length - 1]
-          blocks = [{ type: 'text', text: isSha(firstLine(last)) ? `flow-seat: reported sha=${firstLine(last)}` : `flow-seat: reported not-a-sha (${quoted(last)})` }]
+          const serialized = JSON.stringify(body)
+          const report = [...serialized.matchAll(/flow-seat-agent-done: (sha=[0-9a-f]+|not-a-sha)/g)].pop()
+          blocks = [
+            {
+              type: 'text',
+              text: opts.agent
+                ? report
+                  ? `flow-seat: reported ${report[1]}`
+                  : 'flow-seat: launched; the report arrives with the next turn'
+                : isSha(firstLine(last))
+                  ? `flow-seat: reported sha=${firstLine(last)}`
+                  : `flow-seat: reported not-a-sha (${quoted(last)})`,
+            },
+          ]
+          break
+        }
+        case 'seat-1':
+          blocks = [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
+          break
+        case 'seat-done': {
+          const last = results[results.length - 1]
+          blocks = [{ type: 'text', text: isSha(firstLine(last)) ? `flow-seat-agent-done: sha=${firstLine(last)}` : `flow-seat-agent-done: not-a-sha (${quoted(last)})` }]
           break
         }
         default:
@@ -323,10 +367,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
     }
     const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
     const sendNext = (): void => {
-      if (sent >= turns.length) {
-        child.stdin.end()
-        return
-      }
+      if (sent >= turns.length) return
       const turn = turns[sent]!
       if (turn.waitFor && !turn.waitFor()) return
       sent++
@@ -383,18 +424,23 @@ function evidence(fixture: Fixture, run: HeadlessRun): void {
 
 interface Leg {
   name: string
+  agent: boolean
   verdict: Verdict
+  channel: boolean
 }
 
 const LEGS: Record<string, Leg> = {
-  'plain-unreadable': { name: 'plain-unreadable', verdict: 'malformed' },
-  'plain-block': { name: 'plain-block', verdict: 'block' },
+  'seat-block': { name: 'seat-block', agent: false, verdict: 'block', channel: true },
+  'seat-agent-block': { name: 'seat-agent-block', agent: true, verdict: 'block', channel: true },
+  'seat-unreadable': { name: 'seat-unreadable', agent: false, verdict: 'malformed', channel: true },
+  'plain-unreadable': { name: 'plain-unreadable', agent: false, verdict: 'malformed', channel: false },
+  'plain-block': { name: 'plain-block', agent: false, verdict: 'block', channel: false },
 }
 
 async function runLeg(leg: Leg): Promise<void> {
   console.log(`\n— leg ${leg.name} —`)
   const before = failures
-  const fixture = await startFixture({ verdict: leg.verdict })
+  const fixture = await startFixture({ agent: leg.agent, verdict: leg.verdict })
   const world = seedWorld()
   const argv = [
     '-p',
@@ -403,38 +449,61 @@ async function runLeg(leg: Leg): Promise<void> {
     'flow',
     '--input-format=stream-json',
     '--output-format=stream-json',
+    ...(leg.channel ? ['--permission-prompt-tool', 'stdio'] : []),
     '--model',
     MODEL,
     '--debug-file',
     join(world.home, 'debug.txt'),
   ]
+  const turns = leg.agent
+    ? [{ prompt: AGENT_ASK }, { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') }]
+    : [{ prompt: ASK }]
   let run: HeadlessRun
   try {
-    run = await runStreamJson(world, fixture, argv, [{ prompt: ASK }])
+    run = await runStreamJson(world, fixture, argv, turns)
   } finally {
     await fixture.close()
   }
   evidence(fixture, run)
   const classifierHits = fixture.hits.filter(h => h.route === 'classifier')
   const asks = run.controlRequests.map(f => (f.request ?? {}) as Record<string, unknown>)
+  const askJson = j(asks)
   const wireJson = j(fixture.hits.map(h => h.results))
   const texts = resultTexts(run)
   const after = headSha(world.cwd)
   const commits = commitCount(world.cwd)
-  const doneHit = fixture.hits.find(h => h.route === 'parent-ack')
+  const doneHit = leg.agent ? fixture.hits.find(h => h.route === 'seat-done') : fixture.hits.find(h => h.route === 'parent-ack')
   const shellResult = doneHit?.results[doneHit.results.length - 1]
   const debugLog = existsSync(join(world.home, 'debug.txt')) ? readFileSync(join(world.home, 'debug.txt'), 'utf8') : ''
   const dumps = dumpsOf(world)
 
-  check(`${leg.name}: the run settled (1 turn) and exited 0`, texts.length === 1 && run.exit === 0, `${texts.length} result(s) · exit ${run.exit} · stderr ${j(run.stderr.slice(-300))}`)
+  check(`${leg.name}: the run settled (${turns.length} turn${turns.length === 1 ? '' : 's'}) and exited 0`, texts.length === turns.length && run.exit === 0, `${texts.length} result(s) · exit ${run.exit} · stderr ${j(run.stderr.slice(-300))}`)
   check(`${leg.name}: the shell's ask reached the classifier ${leg.verdict === 'malformed' ? 'twice — the one same-model retry' : 'once'}`, classifierHits.length === (leg.verdict === 'malformed' ? 2 : 1) && classifierHits.every(h => !h.streaming && h.model === MODEL), `${classifierHits.length} classifier call(s): ${classifierHits.map(h => `${h.model}${h.streaming ? '' : '/json'}`).join(' ')}`)
-  check(`${leg.name}: no control request left the run (no channel)`, asks.length === 0, `${asks.length} request(s)`)
-  check(`${leg.name}: the shell did not run (one commit, the sha unchanged)`, commits === '1' && after === world.sha, `head ${after} · commits ${commits}`)
-  if (leg.verdict === 'block') {
-    check(`${leg.name}: the block denies with the policy-denial words and the no-card note`, (shellResult ?? '').includes(POLICY_DENIAL_LEAD + BLOCK_REASON) && (shellResult ?? '').includes(NO_CARD_WORDS), j(quoted(shellResult)))
+
+  if (leg.channel) {
+    const expectedReason = leg.verdict === 'block' ? BLOCK_REASON : UNREADABLE_ASK_WORDS
+    check(`${leg.name}: ONE can_use_tool request left the seat for the shell — the ask parked with the host`, asks.length === 1 && asks[0]?.tool_name === 'Bash' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
+    check(`${leg.name}: the request carries the reason (${j(expectedReason)})`, askJson.includes(expectedReason), askJson.slice(0, 400))
+    if (leg.verdict === 'malformed') {
+      check(`${leg.name}: the reason names the classifier model`, askJson.includes(MODEL), askJson.slice(0, 400))
+    }
+    if (leg.agent) {
+      check(`${leg.name}: the request carries the background agent's id`, typeof asks[0]?.agent_id === 'string' && String(asks[0]?.agent_id).length > 0, askJson.slice(0, 300))
+    }
+    check(`${leg.name}: the host's allow ran the shell — the probe commit landed and its sha came back`, isSha(firstLine(shellResult)) && firstLine(shellResult) === after && commits === '2' && after !== world.sha, `${j(quoted(shellResult))} · head ${after} · commits ${commits}`)
+    check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes(NO_CARD_WORDS) && !wireJson.includes('auto-denied'), wireJson.slice(0, 400))
   } else {
-    check(`${leg.name}: the denial says the check could not read its verdict and names the model`, (shellResult ?? '').includes(UNREADABLE_WORDS) && (shellResult ?? '').includes(MODEL), j(quoted(shellResult)))
-    check(`${leg.name}: the denial never wears the policy-denial words`, !(shellResult ?? '').includes(POLICY_DENIAL_LEAD) && !(shellResult ?? '').includes('blocked this action'), j(quoted(shellResult)))
+    check(`${leg.name}: no control request left the run (no channel)`, asks.length === 0, `${asks.length} request(s)`)
+    check(`${leg.name}: the shell did not run (one commit, the sha unchanged)`, commits === '1' && after === world.sha, `head ${after} · commits ${commits}`)
+    if (leg.verdict === 'block') {
+      check(`${leg.name}: the block denies with the policy-denial words and the no-card note`, (shellResult ?? '').includes(POLICY_DENIAL_LEAD + BLOCK_REASON) && (shellResult ?? '').includes(NO_CARD_WORDS), j(quoted(shellResult)))
+    } else {
+      check(`${leg.name}: the denial says the check could not read its verdict and names the model`, (shellResult ?? '').includes(UNREADABLE_DENIAL_WORDS) && (shellResult ?? '').includes(MODEL), j(quoted(shellResult)))
+      check(`${leg.name}: the denial never wears the policy-denial words`, !(shellResult ?? '').includes(POLICY_DENIAL_LEAD) && !(shellResult ?? '').includes('blocked this action'), j(quoted(shellResult)))
+    }
+  }
+
+  if (leg.verdict === 'malformed') {
     check(`${leg.name}: the classifier error dump was written (${dumps.length})`, dumps.length >= 1, `${dumps.length} dump(s) under ${join(world.home, 'tmp')}`)
     const dump = dumps.join('\n')
     check(`${leg.name}: the dump names the failing field, the model, the stop reason and a request id`, dump.includes('shouldBlock') && dump.includes(MODEL) && dump.includes('stop_reason') && dump.includes('request id'), dump.slice(0, 600))
@@ -446,7 +515,7 @@ async function runLeg(leg: Leg): Promise<void> {
   keepOrDrop(world, leg.name)
 }
 
-const ORDER = ['plain-unreadable', 'plain-block']
+const ORDER = ['seat-block', 'seat-agent-block', 'seat-unreadable', 'plain-unreadable', 'plain-block']
 const wanted = (process.env.FV_LEG ?? 'all') === 'all' ? ORDER : (process.env.FV_LEG ?? '').split(',').map(s => s.trim())
 for (const name of wanted) {
   const leg = LEGS[name]

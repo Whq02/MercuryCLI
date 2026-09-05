@@ -157,6 +157,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
+        ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
       })
     } else if (isInProcessTeammateTask(task)) {
       rows.push({

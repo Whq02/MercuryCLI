@@ -261,6 +261,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   progress?: any
   summary?: string
   wait?: string
+  pendingAsks?: number
   retrieved?: boolean
   stopReason?: string
   messages?: Message[]
@@ -624,6 +625,19 @@ export function setAgentWaitLine(taskId: string, line: string | null, setAppStat
     }
     if (task.wait === line) return task
     return { ...task, wait: line }
+  })
+}
+
+export function setAgentPendingAsks(taskId: string, count: number, setAppState: SetAppState): void {
+  updateTaskState<LocalAgentTaskState>(taskId, setAppState, task => {
+    if (task.status !== 'running') return task
+    if (count <= 0) {
+      if (task.pendingAsks === undefined) return task
+      const { pendingAsks: _gone, ...rest } = task
+      return rest as LocalAgentTaskState
+    }
+    if (task.pendingAsks === count) return task
+    return { ...task, pendingAsks: count }
   })
 }
 

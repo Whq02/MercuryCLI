@@ -499,8 +499,10 @@ export async function decideToolPermissionWithModes(
     ) {
       const headless =
         appState.toolPermissionContext.shouldAvoidPermissionPrompts
-      const cardAvailable =
-        !headless && context.options.isNonInteractiveSession !== true
+      const operatorReachable =
+        !headless &&
+        (context.options.isNonInteractiveSession !== true ||
+          context.options.permissionChannel !== undefined)
 
       if (
         engineDecision.decisionReason?.type === 'safetyCheck' &&
@@ -767,7 +769,7 @@ export async function decideToolPermissionWithModes(
         if (classifierResult.unreadable) {
           const model = classifierResult.model
           const detail = classifierResult.verdictIssues?.join('; ')
-          if (cardAvailable) {
+          if (operatorReachable) {
             logForDebugging(
               `Flow classifier verdict unreadable (${model}) — handing the ask to the operator`,
               { level: 'warn' },
@@ -818,7 +820,7 @@ export async function decideToolPermissionWithModes(
           { level: 'warn' },
         )
 
-        if (!cardAvailable) {
+        if (!operatorReachable) {
           const capFallback = denialCapFallback(
             afterDenial,
             appState,
