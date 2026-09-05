@@ -12,6 +12,7 @@ import type {
 } from '../../types/message.js'
 import type { CompactMetadata, HookResultMessage } from '../../types/message.js'
 import type { UUID } from 'node:crypto'
+import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../utils/attachments/agentRoster.js'
 import { getDeferredToolsDeltaAttachment, getAgentListingDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
 import { generateFileAttachment } from '../../utils/attachments/fileAttachments.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
@@ -19,6 +20,7 @@ import { getUserContextAttachment } from '../../utils/attachments/userContext.js
 import { getMemoryPath } from '../../utils/config/derived.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
+import { getCommandQueue } from '../../utils/messageQueueManager.js'
 import { classifyModelRoute } from '../providers/routeLaw.js'
 import { executePostCompactHooks, executePreCompactHooks } from '../../utils/hooks/events.js'
 import { logError } from '../../utils/log.js'
@@ -38,7 +40,6 @@ import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../.
 import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import { reAppendSessionMetadata } from '../../utils/sessionStorage/logs.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
-import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
@@ -555,37 +556,13 @@ export async function createPlanModeAttachmentIfNeeded(context: ToolUseContext):
 }
 
 export async function createAsyncAgentAttachmentsIfNeeded(context: ToolUseContext): Promise<AttachmentMessage[]> {
-  const tasks = context.getAppState().tasks
-  const attachments: AttachmentMessage[] = []
-  for (const task of Object.values(tasks ?? {})) {
-    const record = task as {
-      id: string
-      type: string
-      status: string
-      description: string
-      agentId?: string
-      retrieved?: boolean
-      progress?: { summary?: string }
-      error?: string
-    }
-    if (record.type !== 'local_agent') continue
-    if (record.retrieved === true) continue
-    if (record.status === 'pending') continue
-    if (record.agentId !== undefined && record.agentId === context.agentId) continue
-    attachments.push(
-      createAttachmentMessage({
-        type: 'task_status',
-        taskId: record.agentId ?? record.id,
-        taskType: 'local_agent',
-        status: record.status as never,
-        description: record.description,
-        deltaSummary:
-          record.status === 'running' ? (record.progress?.summary ?? null) : (record.error ?? null),
-        outputFilePath: getTaskOutputPath(record.id),
-      }),
-    )
-  }
-  return attachments
+  const state = context.getAppState()
+  return getAgentRosterAttachment({
+    tasks: state.tasks,
+    agentNameRegistry: state.agentNameRegistry,
+    excludeAgentId: context.agentId,
+    queuedNoticeIds: queuedNoticeTaskIds(getCommandQueue()),
+  }).map(createAttachmentMessage)
 }
 
 

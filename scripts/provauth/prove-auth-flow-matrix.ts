@@ -1109,13 +1109,14 @@ const within = <T,>(p: Promise<T>, ms = 900): Promise<T | 'timed-out'> =>
   gemini.__resetGeminiAccountsForTest()
   writeFileSync(gemini.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
   const geminiEnv = { ...process.env, MERCURY_GEMINI_OAUTH_CLIENT_ID: 'client-fixture' }
+  const geminiTokenUrl = (geminiEnv['MERCURY_GEMINI_OAUTH_TOKEN_BASE']?.trim() || 'https://oauth2.googleapis.com/token')
   const gate = exchangeGate()
   let disclosed: unknown = null
   const handles = gemini.beginGeminiBrowserConnect({
     skipBrowserOpen: true,
     env: geminiEnv,
     fetchImpl: (async (url: RequestInfo | URL) => {
-      if (String(url).includes('token')) {
+      if (String(url) === geminiTokenUrl || String(url).startsWith(geminiTokenUrl)) {
         gate.signalStarted()
         await gate.released
         return new Response(
