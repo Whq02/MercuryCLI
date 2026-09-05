@@ -89,7 +89,7 @@ section('§D the gate (structural)')
 {
   const auto = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
   check('autoCompactIfNeeded consults the ladder ONLY under the gate', auto.includes('isMaintenanceLadderEnabled()') && auto.indexOf('runMaintenanceLadder(') > auto.indexOf('isMaintenanceLadderEnabled()'))
-  check('OFF keeps the standing two-step (notes then summary) intact', auto.includes('trySessionMemoryCompaction(messages, toolUseContext.agentId, threshold)'))
+  check('OFF keeps the standing two-step (notes then summary) intact', auto.includes('trySessionMemoryCompaction(messages, toolUseContext.agentId, threshold, toolUseContext)'))
   const registry = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
   check('MERCURY_COMPACT_LADDER carries its registry row', registry.includes('MERCURY_COMPACT_LADDER'))
   check('the flag reads through the registry seam (flagEnv)', readFileSync(join(ROOT, 'src/services/compact/maintenanceLadder.ts'), 'utf8').includes("flagEnv('MERCURY_COMPACT_LADDER')"))
