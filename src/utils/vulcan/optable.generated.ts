@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '3157ad07946e8533bac4a8311b346540c92c8362e2c392711e1876a7684ccee6'
+export const VULCAN_OPTABLE_DIGEST = '577898c9a77701ec9294bf01a30113c012c132292cf5953bb7f865d7d7f2045f'
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {
@@ -563,10 +563,10 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
-    "summary": "Press/release a mapped input action",
+    "summary": "Press/release a mapped input action — a real InputEventAction the game's _input/_unhandled_input callbacks and the polled action state both see (queued while the game is parked in step mode)",
     "args": {
       "action": "action name",
-      "pressed": "optional bool",
+      "pressed": "optional bool (tap when omitted)",
       "strength": "optional 0..1"
     }
   },
@@ -575,9 +575,9 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
-    "summary": "Run a timed input sequence",
+    "summary": "Run an input sequence as one call: inputs, waits, and advances (step_frames | step_ms) — in step mode each advance delivers the queued inputs and moves the parked game exactly that far",
     "args": {
-      "steps": "array of {key|button|action|wait_ms, …}"
+      "steps": "array of {key|button|action|wait_ms|step_frames|step_ms, …}; an input step may carry step_frames/step_ms (advance after it); in step mode wait_ms is game time"
     }
   },
   {
@@ -1985,6 +1985,34 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "signal": "signal name",
       "timeout_ms": "optional (default 5000)"
     }
+  },
+  {
+    "name": "runtime_pause",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Park the running game (step mode): the tree pauses — physics and pausable nodes stop — while the bridge keeps answering; input sent meanwhile queues for the next runtime_step",
+    "args": {}
+  },
+  {
+    "name": "runtime_step",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Advance a parked game one bounded window — exactly N process frames, or N ms of game time (default one physics tick) — delivering the input queued since the last step at the window's start; answers with the frames run, the physics ticks, and the errors/log since; from a live game the first step arms step mode",
+    "args": {
+      "frames": "optional: process frames to run (whole, 1..3600; exact)",
+      "ms": "optional: game-time ms to run instead (1..60000)",
+      "screenshot": "optional: capture the viewport at the window end (default false)"
+    }
+  },
+  {
+    "name": "runtime_resume",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Leave step mode: the game runs live again; anything still queued is delivered now",
+    "args": {}
   }
 ] as const
 
