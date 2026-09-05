@@ -1,9 +1,9 @@
 import type { Message } from '../../types/message.js'
-import type { PermissionMode } from '../../types/permissions.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { getCwd } from '../../utils/cwd.js'
-import { seatInitialPermissionMode } from '../../daemon/concourseSupervisor.js'
 import type {
+  AgentControlReceiptV1,
+  WithdrawReceiptV1,
   AskReceiptV1,
   CheckpointFactsV1,
   EngineConnectorV1,
@@ -12,6 +12,7 @@ import type {
   McpRosterV1,
   ModelFactsV1,
   ModelSwitchReceiptV1,
+  PermissionModeReceiptV1,
   RewindReceiptV1,
   RewindRequestV1,
   SeatIdentityV1,
@@ -97,6 +98,18 @@ export class NoSessionConnector implements EngineConnectorV1 {
   interrupt(): boolean {
     return false
   }
+  recallableSend(): null {
+    return null
+  }
+  async withdrawSend(): Promise<WithdrawReceiptV1> {
+    return { withdrawn: false, reason: 'refused', detail: NO_CHAT_OPEN }
+  }
+  async stopAgent(): Promise<AgentControlReceiptV1> {
+    return { outcome: 'refused', detail: NO_CHAT_OPEN }
+  }
+  async resumeAgent(): Promise<AgentControlReceiptV1> {
+    return { outcome: 'refused', detail: NO_CHAT_OPEN }
+  }
   modelFacts(): ModelFactsV1 {
     const main = getMainLoopModel()
     if (this.cachedModelFacts === null || this.cachedModelFacts.main !== main) {
@@ -108,6 +121,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
     return NOOP_UNSUBSCRIBE
   }
   async setModel(): Promise<ModelSwitchReceiptV1> {
+    return { state: 'refused', detail: NO_CHAT_OPEN }
+  }
+  async setEffort(): Promise<ModelSwitchReceiptV1> {
     return { state: 'refused', detail: NO_CHAT_OPEN }
   }
   usage(): UsageFactsV1 {
@@ -140,13 +156,15 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
     return { outcome: 'refused', mode: req.mode, refusal: 'no-chat', detail: NO_CHAT_OPEN }
   }
-  permissionMode(): PermissionMode {
-    return seatInitialPermissionMode() as PermissionMode
+  permissionMode(): null {
+    return null
   }
   subscribePermissionMode(): () => void {
     return NOOP_UNSUBSCRIBE
   }
-  setPermissionMode(): void {}
+  setPermissionMode(): Promise<PermissionModeReceiptV1> {
+    return Promise.resolve({ outcome: 'noop', detail: 'no session is focused' })
+  }
   workspace(): WorkspaceFactsV1 {
     const cwd = getCwd()
     if (this.cachedWorkspace === null || this.cachedWorkspace.cwd !== cwd) {

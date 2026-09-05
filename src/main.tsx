@@ -1046,7 +1046,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   program
     .command('update')
     .alias('upgrade')
-    .description('Update to the latest private-channel release')
+    .description('Update to the newest release (no GitHub sign-in needed)')
     .option('--check', 'Only check for updates')
     .option('--status', 'Show update status')
     .option('--rollback', 'Roll back to the previous version')
@@ -1113,11 +1113,9 @@ async function healthAction(options: {
         )
         process.exit(1)
       }
-      writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
-      return
+      return writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
     }
-    writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
-    return
+    return writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
   }
   const { healthHandler } = await import('./cli/handlers/util.js')
   const { createRoot } = await import('./ink.js')
@@ -1189,7 +1187,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     process.exit(0)
   }
   try {
-    recordLaunchMilestone('runtime-entry')
+    recordLaunchMilestone('runtime-entry', { boot: opts.print ? 'headless' : 'interactive' })
   } catch {
   }
   const cliName = binaryName()
@@ -1830,6 +1828,14 @@ async function interactiveLaunch(args: {
   registerBackgroundNode('startup-prefetch-batch', async () => {
     await runStartupPrefetchBatch()
   })
+  registerBackgroundNode('usage-poll', async () => {
+    const { armProviderUsagePoll } = await import('./services/providers/providerUsage.js')
+    const { declaredRouteOf } = await import('./services/providers/callModelRouter.js')
+    const { getFocusedSessionConnector } = await import('./services/engine-connector/focusedConnector.js')
+    armProviderUsagePoll({
+      family: () => declaredRouteOf(getFocusedSessionConnector().modelFacts().main) ?? 'unrecognised',
+    })
+  })
   registerBackgroundNode('example-commands', async () => {
     await refreshExampleCommands()
   })
@@ -1992,6 +1998,17 @@ async function interactiveLaunch(args: {
       await exitWithError(root, `Failed to resume session ${sessionId}: ${outcome.reason}`)
       return false
     }
+    {
+      const facts = await import('./services/switchboard/bootBirthFacts.js')
+      const { runnerArgvFromBoot } = await import('./services/switchboard/runnerArgv.js')
+      facts.setBootBirthFacts({
+        title: args.sessionTitle ?? null,
+        effort: typeof opts.effort === 'string' ? opts.effort : null,
+        permissionMode: args.permissionMode,
+        bypassConsent: effectiveContext.isBypassPermissionsModeAvailable === true,
+        runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),
+      })
+    }
     if (opts.continue) {
       const lastLog = await getLogByIndex(0)
       const sessionId = lastLog ? getSessionIdFromLog(lastLog as Parameters<typeof getSessionIdFromLog>[0]) : undefined
@@ -2037,14 +2054,6 @@ async function interactiveLaunch(args: {
         return
       }
     } else {
-      const facts = await import('./services/switchboard/bootBirthFacts.js')
-      const { runnerArgvFromBoot } = await import('./services/switchboard/runnerArgv.js')
-      facts.setBootBirthFacts({
-        title: args.sessionTitle ?? null,
-        effort: typeof opts.effort === 'string' ? opts.effort : null,
-        permissionMode: args.permissionMode,
-        runnerArgv: runnerArgvFromBoot(process.argv.slice(2)),
-      })
       const promptIsWords = typeof inputPrompt === 'string' && inputPrompt.trim() !== '' && !inputPrompt.trimStart().startsWith('/')
       const { isFullscreenEnvEnabled } = await import('./utils/fullscreen.js')
       if (promptIsWords || !isFullscreenEnvEnabled()) {

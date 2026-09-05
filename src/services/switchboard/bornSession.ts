@@ -1,7 +1,7 @@
 import { catalogFirstChat } from '../../utils/bootCardFacts.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { withLanding } from '../engine-connector/focusedConnector.js'
-import { birthModelOf, bootBirthFacts, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
+import { birthModelOf, bootBirthFacts, carriedConsentOf, carriedKitOf, screenBirthModel, takeBootTitle, takeWornPresetKit } from './bootBirthFacts.js'
 import { hopIntoBoardSession } from './hopIntoSession.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 
@@ -51,6 +51,7 @@ async function birth(req: BirthRequest): Promise<BirthOutcome> {
         ...(title !== null ? { title } : {}),
         ...(facts.effort !== null ? { effort: facts.effort } : {}),
         ...(facts.permissionMode !== null ? { permissionMode: facts.permissionMode } : {}),
+        ...carriedConsentOf(facts),
         ...(facts.runnerArgv.length > 0 ? { runnerArgv: [...facts.runnerArgv] } : {}),
         ...(worn !== null ? { kit: worn.kit } : carriedKitOf(facts)),
         ...(req.vacatingSessionId !== undefined ? { vacatingSessionId: req.vacatingSessionId } : {}),

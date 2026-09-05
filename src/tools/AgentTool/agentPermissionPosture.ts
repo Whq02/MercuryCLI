@@ -1,5 +1,5 @@
 import type { AppState } from '../../state/AppStateStore.js'
-import type { ToolPermissionContext } from '../../Tool.js'
+import type { PermissionChannel, ToolPermissionContext } from '../../Tool.js'
 import type { EffortValue } from '../../utils/effort.js'
 import {
   modeBypassesPermissions,
@@ -12,11 +12,13 @@ export interface AgentPromptPostureFacts {
   definitionMode: PermissionMode | undefined
   parentAvoidsPrompts: boolean
   parentNonInteractive: boolean | undefined
+  parentChannel?: PermissionChannel | undefined
 }
 
 export interface AgentPromptPosture {
   avoidPrompts: boolean
   isNonInteractiveSession: boolean
+  permissionChannel: PermissionChannel | undefined
 }
 
 export function resolveAgentPromptPosture(
@@ -29,7 +31,8 @@ export function resolveAgentPromptPosture(
         ? false
         : facts.parentAvoidsPrompts
   const isNonInteractiveSession = facts.parentNonInteractive ?? false
-  return { avoidPrompts, isNonInteractiveSession }
+  const permissionChannel = avoidPrompts ? undefined : facts.parentChannel
+  return { avoidPrompts, isNonInteractiveSession, permissionChannel }
 }
 
 export function withAllowedCommandRules<

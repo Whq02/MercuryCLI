@@ -96,6 +96,7 @@ export interface GitPlan {
 }
 
 export interface GitUnavailable {
+  failure?: string
   state: 'unavailable'
   note: string
 }

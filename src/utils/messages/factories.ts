@@ -26,6 +26,8 @@ import {
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
   NO_RESPONSE_REQUESTED,
   REJECT_MESSAGE,
+  turnCutLine,
+  turnCutOf,
 } from './rejectionText.js'
 
 
@@ -193,6 +195,7 @@ export function createUserMessage({
   sourceToolAssistantUUID,
   permissionMode,
   origin,
+  batchUuids,
 }: {
   content: string | ContentBlockParam[]
   isMeta?: true
@@ -215,6 +218,7 @@ export function createUserMessage({
     direction?: PartialCompactDirection
   }
   origin?: MessageOrigin
+  batchUuids?: string[]
 }): UserMessage {
   return {
     type: 'user',
@@ -232,6 +236,7 @@ export function createUserMessage({
     toolUseResult,
     mcpMeta,
     imagePasteIds,
+    ...(batchUuids !== undefined && batchUuids.length > 0 ? { batchUuids } : {}),
     sourceToolAssistantUUID,
     permissionMode,
     origin,
@@ -251,14 +256,16 @@ export function prepareUserContent({
 
 export function createUserInterruptionMessage({
   toolUse = false,
+  reason,
 }: {
   toolUse?: boolean
+  reason?: unknown
 }): UserMessage {
   return createUserMessage({
     content: [
       {
         type: 'text',
-        text: toolUse ? INTERRUPT_MESSAGE_FOR_TOOL_USE : INTERRUPT_MESSAGE,
+        text: turnCutLine(turnCutOf(reason), toolUse),
       },
     ],
   })

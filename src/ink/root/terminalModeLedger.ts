@@ -9,6 +9,8 @@ export type TerminalMode =
   | 'mouse-tracking'
   | 'kitty-kbd'
   | 'focus-events'
+  | 'progress-ring'
+  | 'terminal-title'
 
 export type ModeState = 'acquired' | 'imported' | 'released'
 

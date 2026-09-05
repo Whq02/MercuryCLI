@@ -27,6 +27,10 @@ const {
   __resetBehaviourContractRegistryForTest,
 } = await import('../../src/prompt/behaviourContract.js')
 const { stripUnsignedThinkingBlocks } = await import('../../src/utils/messages/pairing.js')
+const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.js')
+const { assistantMessageToMessageParam, userMessageToMessageParam } = await import(
+  '../../src/services/providers/anthropic/messageParams.js'
+)
 import type { PromptParts } from '../../src/prompt/composer.js'
 
 function legacyCompose(parts: PromptParts): string[] {
@@ -186,6 +190,63 @@ section('5 · unsigned-thinking strip (the Sol→Opus live-400 law)')
   check('a turn left empty gains the placeholder (row stays valid)', keptContent.length === 1 && keptContent[0]!.type === 'text')
   const untouched = [anthropicTurn]
   check('no unsigned thinking ⇒ the SAME array reference (zero-copy)', stripUnsignedThinkingBlocks(untouched as never) === (untouched as never))
+  const labelledTurn = mk([
+    { type: 'text', text: 'Working note.', citations: null, phase: 'commentary' },
+    { type: 'text', text: 'The answer.', citations: null, phase: 'final_answer' },
+  ])
+  const unlabelled = (stripUnsignedThinkingBlocks([labelledTurn] as never)[0] as { message: { content: Array<Record<string, unknown>> } }).message.content
+  check(
+    'a text block’s register label (phase) leaves before the request; words and citations byte-identical',
+    unlabelled.length === 2 &&
+      unlabelled.every(b => !('phase' in b)) &&
+      unlabelled[0]!.text === 'Working note.' &&
+      unlabelled[1]!.text === 'The answer.' &&
+      unlabelled[0]!.citations === null,
+    JSON.stringify(unlabelled),
+  )
+  check(
+    '…as a projection: the source message keeps its label (never a mutation)',
+    (labelledTurn as { message: { content: Array<Record<string, unknown>> } }).message.content[0]!.phase === 'commentary',
+  )
+
+  const user = (uuid: string, text: string): never =>
+    ({ type: 'user', uuid, timestamp: 't', message: { role: 'user', content: text } }) as never
+  const anthropicContent = [
+    { type: 'thinking', thinking: 'real claude thinking', signature: 'sig-abc123' },
+    { type: 'text', text: 'Claude answer.', citations: null },
+  ]
+  const mixed = [
+    user('u1', 'add the two numbers'),
+    mk([
+      { type: 'thinking', thinking: 'gpt reasoning summary', signature: '' },
+      { type: 'text', text: 'Working note.', citations: null, phase: 'commentary' },
+      { type: 'text', text: 'The answer.', citations: null, phase: 'final_answer' },
+    ]),
+    user('u2', 'thanks'),
+    mk(anthropicContent),
+  ]
+  const toParams = (rows: unknown[]): Array<{ role: string; content: unknown }> =>
+    stripUnsignedThinkingBlocks(normalizeMessagesForAPI(rows as never, [] as never)).map(m =>
+      m.type === 'assistant'
+        ? assistantMessageToMessageParam(m, false, false)
+        : userMessageToMessageParam(m, false, false),
+    )
+  const mixedParams = toParams(mixed)
+  const assistantParams = mixedParams.filter(p => p.role === 'assistant')
+  const gptBlocks = (assistantParams[0]?.content ?? []) as Array<Record<string, unknown>>
+  check('mixed session: NO content block of the Anthropic request carries a phase key', !JSON.stringify(mixedParams).includes('"phase"'), JSON.stringify(mixedParams))
+  check(
+    'mixed session: the GPT turn keeps both texts (unsigned reasoning gone), words intact',
+    gptBlocks.length === 2 && gptBlocks[0]!.type === 'text' && gptBlocks[0]!.text === 'Working note.' && gptBlocks[1]!.text === 'The answer.',
+    JSON.stringify(gptBlocks),
+  )
+  check(
+    'mixed session: the Anthropic turn is byte-identical (signed thinking and text untouched)',
+    JSON.stringify(assistantParams[1]?.content) === JSON.stringify(anthropicContent),
+    JSON.stringify(assistantParams[1]?.content),
+  )
+  const allAnthropic = normalizeMessagesForAPI([user('u1', 'hello'), mk(anthropicContent)] as never, [] as never)
+  check('an all-Anthropic history passes the strip by identity (the SAME array reference)', stripUnsignedThinkingBlocks(allAnthropic) === allAnthropic)
 }
 
 section('6 · section metadata — semantic names, owner, cacheClass')

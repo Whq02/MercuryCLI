@@ -5,6 +5,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { gitExe } from '../utils/git.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { PROJECT_CONFIG_DIR_NAMES } from '../utils/projectConfig.js'
+import { gitInitRefusal, projectScopePathspec } from '../utils/projectBoundary.js'
 import { daemonDir } from './controlSocket.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
@@ -34,7 +35,7 @@ function git(
     windowsHide: true,
     encoding: 'utf8',
     timeout: 30_000,
-    env: { ...subprocessEnv() },
+    env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
   })
   if (res.error) {
     return {
@@ -60,7 +61,7 @@ async function gitAsync(
     try {
       child = spawn(gitExe(), ['-C', cwd, ...args], {
         windowsHide: true,
-        env: { ...subprocessEnv() },
+        env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
         stdio: ['ignore', 'pipe', 'pipe'],
       })
     } catch (err) {
@@ -131,6 +132,14 @@ export async function ensureWorkerWorktree(
   opts?: { branchName?: string },
 ): Promise<WorktreeEnsureResult> {
   if (workspaceKindOf(workspaceId) === 'plain-folder') {
+    const refusal = gitInitRefusal(workspaceId)
+    if (refusal !== null) {
+      return {
+        ok: false,
+        code: 'worktree-create-failed',
+        error: `forking needs a git repository, and Mercury will not start one in ${workspaceId} — ${refusal.words}; launch it without a worktree`,
+      }
+    }
     return {
       ok: false,
       code: 'no-repository',
@@ -194,6 +203,14 @@ export async function ensureWorkerWorktree(
     }
   }
   if (!headProbe.ok) {
+    const refusal = gitInitRefusal(workspaceId)
+    if (refusal !== null) {
+      return {
+        ok: false,
+        code: 'worktree-create-failed',
+        error: `forking needs a commit, and Mercury will not make one in ${workspaceId} — ${refusal.words}; launch it without a worktree`,
+      }
+    }
     return {
       ok: false,
       code: 'unborn-head',
@@ -230,7 +247,13 @@ export async function ensureWorkerWorktree(
   return { ok: true, path, created: true }
 }
 
+export const FORK_BASE_COMMIT_SUBJECT = 'mercury: base commit — forking unlocked'
+
 export function initGitRepository(folder: string): { ok: boolean; error?: string } {
+  const refusal = gitInitRefusal(folder)
+  if (refusal !== null) {
+    return { ok: false, error: `Mercury will not start a repository in ${folder} — ${refusal.words}` }
+  }
   if (workspaceKindOf(folder) === 'plain-folder') {
     const init = git(folder, 'init')
     if (!init.ok) {
@@ -242,7 +265,7 @@ export function initGitRepository(folder: string): { ok: boolean; error?: string
   }
   const head = git(folder, 'rev-parse', '--verify', '--quiet', 'HEAD')
   if (head.ok) return { ok: true }
-  const commit = git(folder, 'commit', '--allow-empty', '-m', 'mercury: base commit — forking unlocked')
+  const commit = git(folder, 'commit', '--allow-empty', '-m', FORK_BASE_COMMIT_SUBJECT)
   if (!commit.ok) {
     return { ok: false, error: commit.stderr || 'the base commit failed (git user.name/email may be unset)' }
   }
@@ -254,8 +277,44 @@ export type WorktreeDirt =
   | { kind: 'runtime-only'; files: string[] }
   | { kind: 'authored'; files: string[] }
 
+function dirtProbe(path: string): string[] {
+  return ['status', '--porcelain', '--untracked-files=normal', ...projectScopePathspec(path)]
+}
+
 export function classifyWorktreeDirt(path: string): WorktreeDirt {
-  const status = git(path, 'status', '--porcelain')
+  return classifyStatusRows(git(path, ...dirtProbe(path)))
+}
+
+const DIRT_CACHE_FLOOR_MS = 60_000
+const worktreeDirtCache = new Map<string, { at: number; dirt: WorktreeDirt | null; inFlight: Promise<void> | null }>()
+
+export function cachedWorktreeDirt(path: string): WorktreeDirt | null {
+  let entry = worktreeDirtCache.get(path)
+  if (!entry) {
+    entry = { at: 0, dirt: null, inFlight: null }
+    worktreeDirtCache.set(path, entry)
+  }
+  if (entry.inFlight === null && Date.now() - entry.at >= DIRT_CACHE_FLOOR_MS) {
+    const e = entry
+    e.inFlight = gitAsync(path, ...dirtProbe(path))
+      .then(res => {
+        e.dirt = classifyStatusRows(res)
+      })
+      .catch(() => {
+      })
+      .finally(() => {
+        e.at = Date.now()
+        e.inFlight = null
+      })
+  }
+  return entry.dirt
+}
+
+export function _worktreeDirtRefreshForTesting(path: string): Promise<void> {
+  return worktreeDirtCache.get(path)?.inFlight ?? Promise.resolve()
+}
+
+function classifyStatusRows(status: { ok: boolean; stdout: string; stderr: string }): WorktreeDirt {
   if (!status.ok) {
     return { kind: 'authored', files: [`<unreadable: git status failed — ${status.stderr.slice(0, 120)}>`] }
   }

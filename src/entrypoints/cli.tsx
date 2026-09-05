@@ -118,6 +118,11 @@ async function main(): Promise<void> {
   profileCheckpoint('cli_entry')
 
   {
+    const { armImagePack } = await import('../tools/FileReadTool/imagePackArm.js')
+    armImagePack()
+  }
+
+  {
     const { setupGracefulShutdown } = await import('../utils/gracefulShutdown.js')
     setupGracefulShutdown()
   }

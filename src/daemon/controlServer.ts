@@ -14,6 +14,7 @@ import {
   readControlFrame,
   type DaemonHelloFacts,
   type DaemonReply,
+  type DaemonSignInViewV1,
   type LeaseClient,
   type SessionRewindMode,
   type SessionRewindOutcomeV1,
@@ -33,6 +34,15 @@ import { writeToMailbox } from '../utils/teammateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 
+export type ControlOutcome = {
+  outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
+  detail?: string
+  respawned?: true
+  withdrawn?: boolean
+  text?: string
+  reason?: 'taken' | 'unknown'
+}
+
 export interface ControlServerDeps {
   roster: TaskRoster
   breaker: DaemonBreaker
@@ -49,6 +59,7 @@ export interface ControlServerDeps {
   }
   hello?: () => DaemonHelloFacts
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
+  signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
   nudgeAgent?: (agentName: string) => void
   crewSpawn?: (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }>
   concourseAdmit?: (req: {
@@ -122,7 +133,7 @@ export interface ControlServerDeps {
   concourseList?: () => ReadonlyArray<Record<string, unknown>>
   concourseWithdraw?: (clientMessageId: string) => Promise<boolean>
   concourseRelease?: (runnerId: string) => { settled: boolean; killed: boolean }
-  concourseWarm?: (req: { workspaceDir: string; retiring?: string; bootCarriesRunnerOptions?: boolean; kit?: SessionKitV1 }) => Promise<{
+  concourseWarm?: (req: { workspaceDir: string; retiring?: string; bootCarriesRunnerOptions?: boolean; kit?: SessionKitV1; bypassConsent?: true }) => Promise<{
     state: 'warmed' | 'kept' | 'refused'
     detail?: string
   }>
@@ -151,10 +162,14 @@ export interface ControlServerDeps {
       | 'set-kit'
       | 'set-schedule'
       | 'set-spawn-switch'
+      | 'stop-agent'
+      | 'resume-agent'
+      | 'withdraw-send'
     sessionId: string
     by: string
     reason?: string
     hard?: boolean
+    clientMessageId?: string
     requestId?: string
     allow?: boolean
     answer?: { updatedInput?: Record<string, unknown>; permissionUpdates?: unknown[]; feedback?: string; interrupt?: boolean }
@@ -167,9 +182,11 @@ export interface ControlServerDeps {
     kitEdit?: SessionKitEditV1
     scheduleEdit?: ScheduleOpRequestV1
     spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
+    agentId?: string
+    note?: string
     mintedAtMs?: number
     clientOpId?: string
-  }) => { outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
+  }) => ControlOutcome | Promise<ControlOutcome>
   sessionRewind?: (req: {
     sessionId: string
     by: string
@@ -228,8 +245,8 @@ const dispatchWhole: Whole<
   (typeof DISPATCH_WIRE_KEYS)[number] | (typeof DISPATCH_REFUSAL_WIRE_KEYS)[number]
 > = true
 
-type ControlResult = ReturnType<NonNullable<ControlServerDeps['concourseControl']>>
-const CONTROL_WIRE_KEYS = ['outcome', 'detail'] as const satisfies readonly (keyof ControlResult)[]
+type ControlResult = ControlOutcome
+const CONTROL_WIRE_KEYS = ['outcome', 'detail', 'respawned', 'withdrawn', 'text', 'reason'] as const satisfies readonly (keyof ControlResult)[]
 const controlWhole: Whole<ControlResult, (typeof CONTROL_WIRE_KEYS)[number]> = true
 
 type WarmResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseWarm']>>>
@@ -714,6 +731,7 @@ async function routeControlRequest(
         ...(typeof raw.resumeSessionId === 'string' && raw.resumeSessionId ? { resumeSessionId: raw.resumeSessionId } : {}),
         ...(typeof raw.permissionMode === 'string' && raw.permissionMode ? { permissionMode: raw.permissionMode as never } : {}),
         ...(Array.isArray(raw.runnerArgv) && raw.runnerArgv.length > 0 ? { runnerArgv: raw.runnerArgv as string[] } : {}),
+        ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
         ...(raw.bornBlank === true ? { bornBlank: true } : {}),
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
@@ -763,6 +781,7 @@ async function routeControlRequest(
         ...(typeof raw.retiring === 'string' && raw.retiring !== '' ? { retiring: raw.retiring } : {}),
         ...(raw.runnerOptionsPresent === true ? { bootCarriesRunnerOptions: true } : {}),
         ...(warmKit !== undefined ? { kit: warmKit } : {}),
+        ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
       })
       return answer(sock, { ok: true, op: 'concourseWarm', ...pickDefined(warm, WARM_WIRE_KEYS) })
     }
@@ -865,13 +884,16 @@ async function routeControlRequest(
         raw.action === 'contract' ||
         raw.action === 'set-kit' ||
         raw.action === 'set-schedule' ||
-        raw.action === 'set-spawn-switch'
+        raw.action === 'set-spawn-switch' ||
+        raw.action === 'stop-agent' ||
+        raw.action === 'resume-agent' ||
+        raw.action === 'withdraw-send'
           ? raw.action
           : undefined
       const sessionId = String(raw.sessionId ?? '')
       const by = String(raw.by ?? '')
       if (action === undefined || !sessionId || !by) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch, sessionId, by }' })
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send, sessionId, by }' })
       }
       let spawnSwitch: { kind: 'subagents' | 'workflows'; on: boolean } | undefined
       if (raw.spawnSwitch !== undefined) {
@@ -936,10 +958,12 @@ async function routeControlRequest(
           scheduleEdit = { op, scheduleId }
         }
       }
-      const r = deps.concourseControl({
+      const r = await deps.concourseControl({
         action,
         sessionId,
         by,
+        ...(typeof raw.agentId === 'string' && raw.agentId ? { agentId: raw.agentId.slice(0, 128) } : {}),
+        ...(typeof raw.note === 'string' && raw.note ? { note: raw.note.slice(0, 4000) } : {}),
         ...(typeof raw.reason === 'string' && raw.reason ? { reason: raw.reason } : {}),
         ...(raw.hard === true ? { hard: true } : {}),
         ...(typeof raw.requestId === 'string' && raw.requestId ? { requestId: raw.requestId.slice(0, 128) } : {}),
@@ -956,6 +980,7 @@ async function routeControlRequest(
         ...(spawnSwitch !== undefined ? { spawnSwitch } : {}),
         ...(typeof raw.clientOpId === 'string' && raw.clientOpId ? { clientOpId: raw.clientOpId.slice(0, 128) } : {}),
         ...(typeof raw.mintedAtMs === 'number' && Number.isFinite(raw.mintedAtMs) ? { mintedAtMs: raw.mintedAtMs } : {}),
+        ...(typeof raw.clientMessageId === 'string' && raw.clientMessageId ? { clientMessageId: raw.clientMessageId.slice(0, 128) } : {}),
       })
       return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
     }
@@ -1021,6 +1046,14 @@ async function routeControlRequest(
         live: r.live,
         ...(r.detail !== undefined ? { detail: r.detail } : {}),
       })
+    }
+
+    case 'signIns': {
+      if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
+      if (!deps.signIns) {
+        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no sign-in view' })
+      }
+      return answer(sock, { ok: true, op: 'signIns', view: deps.signIns({ refresh: raw.refresh === true }) })
     }
 
     case 'attach': {

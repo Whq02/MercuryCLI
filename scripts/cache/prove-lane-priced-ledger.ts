@@ -96,7 +96,7 @@ section('§4 the first-party table and the GPT pins are untouched')
 section('§5 the shape')
 {
   const src = readFileSync(join(ROOT, 'src/utils/modelCost.ts'), 'utf8')
-  check('each pinned engine has its OWN owner row: the GPT, DeepSeek and Kimi pins', /openai: model => recorded\(engineTier\(gptDisplayPin\(model\)\)\)/.test(src) && /deepseek: model => recorded\(engineTier\(deepseekDisplayPin\(model\)\)\)/.test(src) && /moonshot: model => recorded\(engineTier\(kimiDisplayPin\(model\)\)\)/.test(src))
+  check('each pinned engine has its OWN owner row: the GPT, DeepSeek and Kimi pins', /openai: \(model, promptTokens\) => \{[\s\S]*?recorded\(engineTier\(gptPriceTierFor\(pin, promptTokens\)\)\)/.test(src) && /const pin = gptDisplayPin\(model\)/.test(src) && /deepseek: model => recorded\(engineTier\(deepseekDisplayPin\(model\)\)\)/.test(src) && /moonshot: model => recorded\(engineTier\(kimiDisplayPin\(model\)\)\)/.test(src))
   check('the local lane resolves at its recorded zero through its own owner row', /local: \(\) => \(\{ costs: COST_LOCAL_SERVER, basis: 'recorded' \}\)/.test(src))
   const pins = readFileSync(join(ROOT, 'src/services/providers/deepseek/deepseekPins.ts'), 'utf8')
   check('the DeepSeek pin comment no longer claims the ledger never uses these rates', !/the ledger never invents USD from these/.test(pins))

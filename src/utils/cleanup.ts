@@ -414,7 +414,7 @@ export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResul
   result = addCleanupResults(result, await cleanupOldDebugLogs())
 
   try {
-    await cleanupOldImageCaches()
+    await cleanupOldImageCaches(computeCutoffDate())
   } catch {
     result = addCleanupResults(result, { messages: 0, errors: 1 })
   }

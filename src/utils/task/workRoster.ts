@@ -14,6 +14,7 @@ import {
   groupAgentsByPhase,
   type WorkflowPhaseEventLite,
 } from '../../tools/WorkflowTool/runManifest.js'
+import { workflowPulseFacts } from '../../tools/WorkflowTool/livePulse.js'
 import type { WorkPhaseV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 
 
@@ -63,6 +64,10 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
     workflowRunId: task.workflowRunId,
     phases: workPhasesOf(task),
     agentCount: task.agentCount,
+    pulse: workflowPulseFacts(
+      (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[],
+      task.startTime,
+    ),
     ...(task.pendingPermissions !== undefined && task.pendingPermissions.size > 0
       ? { pendingAsks: task.pendingPermissions.size }
       : {}),
@@ -70,7 +75,7 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
 }
 
 function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkRowV1 {
-  const t = task as { model?: unknown; error?: unknown }
+  const t = task as { model?: unknown; error?: unknown; stopReason?: unknown }
   return {
     id: task.id,
     kind,
@@ -80,6 +85,7 @@ function plainRow(task: TaskState, kind: WorkRowV1['kind'], name: string): WorkR
     ...(endTimeOf(task) !== undefined ? { endTime: endTimeOf(task) } : {}),
     ...(typeof t.model === 'string' ? { model: t.model } : {}),
     ...(typeof t.error === 'string' ? { error: clip(t.error, MAX_ERROR) } : {}),
+    ...(typeof t.stopReason === 'string' && t.stopReason !== '' ? { stopReason: clip(t.stopReason, MAX_ERROR) } : {}),
     ...(typeof task.toolUseId === 'string' && task.toolUseId !== '' ? { toolUseId: task.toolUseId } : {}),
   }
 }
@@ -94,13 +100,16 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
     model?: unknown
     inputTokens?: unknown
     outputTokens?: unknown
+    contextTokens?: unknown
     costUSD?: unknown
     unpricedTurns?: unknown
     toolUseCount?: unknown
     lastActivity?: unknown
+    phase?: unknown
   }
   const input = finite(p.inputTokens)
   const output = finite(p.outputTokens)
+  const context = finite(p.contextTokens)
   const cost = finite(p.costUSD)
   const unpriced = finite(p.unpricedTurns)
   const toolUses = finite(p.toolUseCount)
@@ -114,12 +123,22 @@ function agentCounters(task: TaskState): Partial<WorkRowV1> {
       : typeof last.toolName === 'string' && last.toolName !== ''
         ? last.toolName
         : undefined
+  const phase =
+    typeof p.phase === 'object' && p.phase !== null && typeof (p.phase as { phase?: unknown }).phase === 'string' && typeof (p.phase as { sinceMs?: unknown }).sinceMs === 'number'
+      ? (p.phase as WorkRowV1['phase'])
+      : undefined
   return {
     ...(typeof p.model === 'string' && p.model !== '' ? { model: p.model } : {}),
     ...(toolUses !== undefined && toolUses >= 0 ? { toolUses } : {}),
     ...(activity !== undefined ? { activity: clip(activity, MAX_NAME) } : {}),
+    ...(phase !== undefined ? { phase } : {}),
     ...(input !== undefined && output !== undefined && input + output > 0
-      ? { inputTokens: input, outputTokens: output, totalTokens: input + output }
+      ? {
+          inputTokens: input,
+          outputTokens: output,
+          totalTokens: input + output,
+          ...(context !== undefined && context > 0 ? { contextTokens: context } : {}),
+        }
       : {}),
     ...(cost !== undefined && cost > 0 ? { costUSD: cost } : {}),
     ...(unpriced !== undefined && unpriced > 0 ? { unpricedTurns: unpriced } : {}),
@@ -137,6 +156,8 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...plainRow(task, 'agent', task.description || task.agentType),
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
         ...agentCounters(task),
+        ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
+        ...(typeof task.pendingAsks === 'number' && task.pendingAsks > 0 ? { pendingAsks: task.pendingAsks } : {}),
       })
     } else if (isInProcessTeammateTask(task)) {
       rows.push({

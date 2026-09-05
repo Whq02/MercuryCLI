@@ -1,5 +1,5 @@
 
-import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import { spawn, spawnSync } from 'node:child_process'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
@@ -233,7 +233,7 @@ sys.exit(0 if result.wasSuccessful() else 1)
 
 
 export function testRunsDir(root: string): string {
-  return adoptiveProjectPath(root, 'test-runs')
+  return projectHomeStore(root, 'test-runs')
 }
 
 function runsDir(root: string): string {

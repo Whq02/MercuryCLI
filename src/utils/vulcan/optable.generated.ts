@@ -8,7 +8,9 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = 'afb15784c00e4a08cbf174f0ef6a292ba61a34ff35248148ed8ab0378118034e'
+export const VULCAN_OPTABLE_DIGEST = '3840a5b785d44c0cfdf5e4c48198d49a00625f7c2a8dd5c197cd12f4c7a95f51'
+
+export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {
@@ -563,10 +565,10 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
-    "summary": "Press/release a mapped input action",
+    "summary": "Press/release a mapped input action — a real InputEventAction the game's _input/_unhandled_input callbacks and the polled action state both see (queued while the game is parked in step mode)",
     "args": {
       "action": "action name",
-      "pressed": "optional bool",
+      "pressed": "optional bool (tap when omitted)",
       "strength": "optional 0..1"
     }
   },
@@ -575,9 +577,9 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
-    "summary": "Run a timed input sequence",
+    "summary": "Run an input sequence as one call: inputs, waits, and advances (step_frames | step_ms) — in step mode each advance delivers the queued inputs and moves the parked game exactly that far",
     "args": {
-      "steps": "array of {key|button|action|wait_ms, …}"
+      "steps": "array of {key|button|action|wait_ms|step_frames|step_ms, …}; an input step may carry step_frames/step_ms (advance after it); in step mode wait_ms is game time"
     }
   },
   {
@@ -1856,10 +1858,18 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "frontier",
     "cls": "read",
     "lite": false,
-    "summary": "One-call project picture: engine/project, main scene, autoloads, input actions, global classes, scene/script census, plugins, export presets (answers from project files when the editor is closed)",
+    "summary": "One-call project picture: engine/project, main scene, autoloads, input actions, global classes (+ whether the class cache is stale), scene/script census, plugins, export presets (answers from project files when no bridge is up, naming the editor state)",
     "args": {
       "budget": "optional: max listed entries per slice (default 40)"
     }
+  },
+  {
+    "name": "project_refresh_classes",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Mercury-side: rebuild .godot/global_script_class_cache.cfg so headless runs see new class_name scripts — the editor's rescan when the bridge is up, else the bounded headless import pass (godot --headless --import --path <project>); output folded into the answer",
+    "args": {}
   },
   {
     "name": "scene_diff",
@@ -1977,6 +1987,34 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "signal": "signal name",
       "timeout_ms": "optional (default 5000)"
     }
+  },
+  {
+    "name": "runtime_pause",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Park the running game (step mode): the tree pauses — physics and pausable nodes stop — while the bridge keeps answering; input sent meanwhile queues for the next runtime_step",
+    "args": {}
+  },
+  {
+    "name": "runtime_step",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Advance a parked game one bounded window — exactly N process frames, or N ms of game time (default one physics tick) — delivering the input queued since the last step at the window's start; answers with the frames run, the physics ticks, and the errors/log since; from a live game the first step arms step mode",
+    "args": {
+      "frames": "optional: process frames to run (whole, 1..3600; exact)",
+      "ms": "optional: game-time ms to run instead (1..60000)",
+      "screenshot": "optional: capture the viewport at the window end (default false)"
+    }
+  },
+  {
+    "name": "runtime_resume",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Leave step mode: the game runs live again; anything still queued is delivered now",
+    "args": {}
   }
 ] as const
 

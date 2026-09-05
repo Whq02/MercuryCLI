@@ -100,8 +100,11 @@ update --status` and `mercury doctor` name the runtime in use: the vendored
 one, an explicit `MERCURY_NODE`, or a system node.
 
 `mercury install`, run from an extracted archive's own launcher,
-self-adopts that payload into the layout: idempotent, no administrator
-access. `--dry-run` previews (and names the runtime the payload carries),
+self-adopts that payload into the layout and puts the stable command's
+folder on the user's PATH once (a guarded line in the shell's startup file;
+the user PATH on Windows), so a new terminal finds `mercury`: idempotent,
+no administrator access. `--dry-run` previews (and names the runtime the
+payload carries and the PATH act it would perform),
 `--uninstall` removes managed binaries only
 (and says what it preserved), `--force` replaces a pre-existing non-managed
 command at the stable path with a `.bak` kept — without it, a foreign
@@ -109,9 +112,14 @@ command is refused, not clobbered. `--json` on every verb.
 
 ## `mercury update`
 
-`mercury update` speaks only to the private release repository through the
-collaborator's own signed-in `gh` — there is no anonymous endpoint and no
-other delivery path. Verbs:
+`mercury update` reads the configured repository's GitHub Releases over one
+of two roads: anonymously over HTTPS — no account, no sign-in, no token, the
+same lookup the install one-liner performs — or through the user's own
+signed-in GitHub CLI, consulted only when the anonymous road is refused (a
+private channel, a used-up anonymous limit) — the only road that sees a
+private channel. GitHub's anonymous request limit is said in one
+line with its reset time in minutes; every answer names the road that read
+the channel, and the receipt records it. Verbs:
 `--check`, `--status`, `--rollback`, `--json`; stdout carries the result,
 stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.

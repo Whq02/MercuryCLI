@@ -11,7 +11,6 @@ import React, {
 import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { useTasksV2 } from '../hooks/useTasksV2.js'
 import { useAppState } from '../state/AppState.js'
 import { getViewedTeammateTask } from '../state/selectors.js'
 import type { InProcessTeammateTaskState } from '../tasks/InProcessTeammateTask/types.js'
@@ -25,7 +24,6 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import { usePulsePhase } from '../utils/pulse/turnPhase.js'
 import { getActivePulseTrace } from '../utils/pulse/turnTrace.js'
-import type { Task } from '../utils/tasks.js'
 import type { Theme } from '../utils/theme.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { plural } from '../utils/stringUtils.js'
@@ -38,6 +36,7 @@ import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
 import { TeammateSpinnerTree } from './Spinner/TeammateSpinnerTree.js'
 import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from './Spinner/types.js'
+import { useFocusedMission } from './tasks/useFocusedWork.js'
 
 export type { SpinnerMode } from './Spinner/types.js'
 
@@ -59,6 +58,7 @@ export type SpinnerWithVerbProps = {
   overrideColor?: ThemeKey | null
   overrideShimmerColor?: ThemeKey | null
   overrideMessage?: string | null
+  still?: boolean
   spinnerSuffix?: string | null
   verbose: boolean
   hasActiveTools: boolean
@@ -89,11 +89,11 @@ function phaseToMode(phase: string): SpinnerMode {
   }
 }
 
-export function nextPendingTask(tasks: Task[]): Task | undefined {
+export function nextPendingTask<T extends { id: string; status: string; blockedBy?: readonly string[] }>(tasks: readonly T[]): T | undefined {
   const pending = tasks.filter(task => task.status === 'pending')
   const byId = new Map(tasks.map(task => [task.id, task]))
   const unblocked = pending.find(task =>
-    task.blockedBy.every(blocker => {
+    (task.blockedBy ?? []).every(blocker => {
       const other = byId.get(blocker)
       return other === undefined || other.status === 'completed'
     }),
@@ -111,6 +111,7 @@ export function SpinnerWithVerb({
   overrideColor,
   overrideShimmerColor,
   overrideMessage,
+  still = false,
   spinnerSuffix,
   verbose,
   hasActiveTools,
@@ -129,7 +130,7 @@ export function SpinnerWithVerb({
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
   const expandedView = useAppState(state => state.expandedView)
   const appEffort = useAppState(state => state.effortValue)
-  const tasks: Task[] = useTasksV2() ?? []
+  const mission = useFocusedMission()
 
   const turnOpen = snapshot.generation > 0 && snapshot.phase !== 'idle'
   const effectiveMode: SpinnerMode = turnOpen
@@ -169,9 +170,7 @@ export function SpinnerWithVerb({
     return () => clearInterval(timer)
   }, [])
 
-  const activeTask = tasks.find(
-    task => task.status === 'in_progress',
-  )
+  const activeTask = turnOpen ? mission.find(task => task.status === 'in_progress') : undefined
   const teammateVerbRaw = foregroundedTeammate
     ? (foregroundedTeammate as Record<string, unknown>)['verb']
     : undefined
@@ -193,7 +192,7 @@ export function SpinnerWithVerb({
     chosenVerb = whimsyVerb
   }
   const effectiveVerb = chosenVerb
-  const message = effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
+  const message = still || effectiveVerb.endsWith('…') ? effectiveVerb : `${effectiveVerb}…`
   const phaseBylineEligible = !overrideMessage && !(foregroundedTeammate && !foregroundedTeammate.isIdle)
 
   const requesting =
@@ -238,13 +237,14 @@ export function SpinnerWithVerb({
     0,
     now - (loadingStartTimeRef.current ?? now) - pausedSoFar,
   )
-  const pendingNext = nextPendingTask(tasks)
+  const pendingNext = nextPendingTask(mission)
   const spinnerTipsDisabled = useAppState(
     state => state.settings.spinnerTipsEnabled === false,
   )
-  const effectiveTip =
-    elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
-      ? 'This turn has been running a while — esc interrupts it; a fresh conversation keeps context sharp.'
+  const effectiveTip = still
+    ? null
+    : elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
+      ? 'This turn has been running a while — esc interrupts it, not its agents.'
       : (spinnerTip ?? null)
 
   const treeExpanded = expandedView === 'teammates'
@@ -252,8 +252,8 @@ export function SpinnerWithVerb({
   const tail =
     treeExpanded && hasRunningTeammates ? (
       <TeammateSpinnerTree />
-    ) : ledgerExpanded && !inCockpit && tasks.length > 0 ? (
-      <TaskListV2 tasks={tasks} />
+    ) : ledgerExpanded && !inCockpit && mission.length > 0 ? (
+      <TaskListV2 tasks={mission} />
     ) : pendingNext ? (
       <Text dimColor wrap="truncate-end">
         next: {pendingNext.subject}
@@ -324,6 +324,7 @@ export function SpinnerWithVerb({
       bylineVerb={effectiveVerb}
       ttftText={ttftText}
       inWorkCapsule={inWorkCapsule}
+      still={still}
     />
   )
 

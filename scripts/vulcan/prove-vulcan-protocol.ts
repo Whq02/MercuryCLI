@@ -2,6 +2,8 @@
 
 import * as net from 'node:net'
 import { VulcanClient } from '../../src/services/vulcan/vulcanClient.js'
+import { vulcanDeclaredBudgetMs } from '../../src/tools/GodotTool/GodotTool.js'
+import { VULCAN_STEP_WALL_MS_PER_FRAME } from '../../src/utils/vulcan/optable.generated.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -321,6 +323,35 @@ async function main(): Promise<void> {
       `elapsed=${Date.now() - t2}ms ${JSON.stringify(r3).slice(0, 110)}`)
     c3.close()
     silent.close()
+  }
+
+  section('7. the step verbs on the wire + the declared budget')
+  {
+    const srv = await startFakeServer('tok')
+    const client = new VulcanClient({ port: srv.port, token: 'tok', ...FAST })
+    const macro = { steps: [{ action: 'left', pressed: true, step_frames: 30 }, { action: 'left', pressed: false }, { action: 'jump', step_frames: 10 }] }
+    const [pause, step, ms, seq, resume] = await Promise.all([
+      client.request('runtime_pause'),
+      client.request('runtime_step', { frames: 30 }),
+      client.request('runtime_step', { ms: 500 }),
+      client.request('input_sequence', macro),
+      client.request('runtime_resume'),
+    ])
+    const echo = (r: unknown) => r as { ok: boolean; result: { echo: string; args: unknown } }
+    check('runtime_pause / runtime_resume ride the frame with no args', echo(pause).ok && echo(pause).result.echo === 'runtime_pause' && echo(resume).result.echo === 'runtime_resume')
+    check('runtime_step carries frames intact', echo(step).ok && JSON.stringify(echo(step).result.args) === JSON.stringify({ frames: 30 }))
+    check('runtime_step carries ms intact', echo(ms).ok && JSON.stringify(echo(ms).result.args) === JSON.stringify({ ms: 500 }))
+    check('a step_frames macro arrives as ONE input_sequence with every step intact', echo(seq).ok && JSON.stringify(echo(seq).result.args) === JSON.stringify(macro))
+    check('the op order on the wire is the send order', JSON.stringify(srv.seenOps.filter(o => o !== 'ping')) === JSON.stringify(['runtime_pause', 'runtime_step', 'runtime_step', 'input_sequence', 'runtime_resume']), srv.seenOps.join(','))
+    client.close()
+    await srv.close()
+
+    check('budget: a frame step is the optable\'s one figure per frame (3600 frames × 50 ms = 180 s)', VULCAN_STEP_WALL_MS_PER_FRAME === 50 && vulcanDeclaredBudgetMs('runtime_step', { frames: 3600 }) === 3600 * VULCAN_STEP_WALL_MS_PER_FRAME && vulcanDeclaredBudgetMs('runtime_step', { frames: 3600 }) === 180_000)
+    check('budget: an ms step is its ms', vulcanDeclaredBudgetMs('runtime_step', { ms: 500 }) === 500)
+    check('budget: a bare step (default window) declares nothing extra', vulcanDeclaredBudgetMs('runtime_step', undefined) === 0 && vulcanDeclaredBudgetMs('runtime_pause', {}) === 0)
+    check('budget: a macro sums its frames, waits and ms across the steps', vulcanDeclaredBudgetMs('input_sequence', { steps: [...macro.steps, { wait_ms: 250 }, { step_ms: 100 }] }) === (30 + 10) * VULCAN_STEP_WALL_MS_PER_FRAME + 250 + 100)
+    check('budget: the older windows still count (playtest_run duration + settle)', vulcanDeclaredBudgetMs('playtest_run', { duration_ms: 5000, settle_ms: 1500 }) === 6500)
+    check('budget: non-numbers and negatives count as nothing', vulcanDeclaredBudgetMs('runtime_step', { frames: '30' as unknown as number, ms: -5 }) === 0)
   }
 
   console.log('\n' + (failures === 0 ? '✅ vulcan protocol proof PASS' : `❌ ${failures} FAILURES`))

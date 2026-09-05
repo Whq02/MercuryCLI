@@ -1,5 +1,5 @@
 import { getCwd } from '../../utils/cwd.js'
-import { evalAvailability } from '../../services/eval/interpreters.js'
+import { primeEvalAvailability } from '../../services/eval/interpreters.js'
 import {
   EVAL_DEFAULT_TIMEOUT_SECONDS,
   EVAL_MAX_TIMEOUT_SECONDS,
@@ -11,8 +11,8 @@ export { EVAL_TOOL_NAME }
 export const EVAL_DESCRIPTION =
   'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn agents, and make model completions from inside the cell.'
 
-export function buildEvalPrompt(): string {
-  const availability = evalAvailability(getCwd())
+export async function buildEvalPrompt(): Promise<string> {
+  const availability = await primeEvalAvailability(getCwd())
   const available = availability.filter(a => a.available)
   const languageLines = availability
     .map(a =>

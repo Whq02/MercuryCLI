@@ -136,6 +136,7 @@ export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
               imagePasteIds: imageId !== undefined ? [imageId] : undefined,
               origin: message.origin,
             }),
+            ...(message.queued === true ? { queued: true as const } : {}),
             uuid: isNewChain ? deriveUUID(message.uuid, index) : message.uuid,
           } as NormalizedMessage
         })

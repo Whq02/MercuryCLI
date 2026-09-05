@@ -9,7 +9,7 @@ import {
   getTotalUnpricedTurns,
 } from '../cost-tracker.js'
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
-import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
+import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text } from '../ink.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
@@ -19,7 +19,7 @@ import { getGitState, type GitRepoState } from '../utils/git.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'
 import { renderModelChip, renderModelName } from '../utils/model/model.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
-import { getTaskListId, listTasks, type Task } from '../utils/tasks.js'
+import type { MissionRowV1 } from '../services/engine-connector/types.js'
 import {
   getDisplayedEffortLabel,
   modelSupportsEffort,
@@ -40,7 +40,8 @@ import {
   type SnapshotState,
 } from '../utils/cockpit/index.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
-import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
+import { usageAgeTail } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { CompanionSpeechLine, DeckCompanion, DeckCompanionChip } from './mercury-ui/DeckCompanion.js'
@@ -51,7 +52,7 @@ import { Crab } from './mercury-ui/assets.js'
 import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
 import { ProgressBar, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
-import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { STATE_STYLE } from './mercury-ui/theme.js'
 
@@ -64,7 +65,9 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const cols = useTerminalSize().columns
   const compact = cols < 100
   const companionOn = useCompanionEnabled()
-  const rawModel = useMainLoopModel()
+  const servedModel = useFocusedServedModel()
+  const processModel = useMainLoopModel()
+  const rawModel = servedModel ?? processModel
   const model = useDisplayedSessionModel().compact
   const cost = getTotalCost()
   const unpricedTurns = getTotalUnpricedTurns()
@@ -74,7 +77,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
 
   const vitals = useTelemetry()
   const git = vitals.git
-  const tasks: Task[] | null = vitals.version === 0 ? null : vitals.tasks
+  const tasks: readonly MissionRowV1[] | null = vitals.version === 0 ? null : vitals.tasks
   const fleet = {
     state: vitals.fleet.state as SnapshotState,
     team: vitals.fleet.team ?? null,
@@ -135,15 +138,11 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const shown = ordered.slice(0, MAX_TASKS)
   const openIds = new Set(open.map(t => t.id))
   const blockedCount = open.filter(
-    t => t.blockedBy.length > 0 && t.blockedBy.some(id => openIds.has(id)),
+    t => (t.blockedBy ?? []).some(id => openIds.has(id)),
   ).length
   const ledger = new Map<string, { done: number; total: number }>()
   for (const t of all) {
-    const meta = t.metadata as { ledger?: unknown; missionId?: unknown } | undefined
-    const lk =
-      (typeof meta?.ledger === 'string' && meta.ledger.trim()) ||
-      (typeof meta?.missionId === 'string' && meta.missionId.trim()) ||
-      'session'
+    const lk = t.ledger ?? 'session'
     const g = ledger.get(lk) ?? { done: 0, total: 0 }
     g.total++
     if (t.status === 'completed') g.done++
@@ -220,7 +219,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               ) : null}
               {git !== null ? (
                 <>
-                  <Text color={tok.textMuted}>{' · ' + GLYPH.branch}</Text>
+                  <Text color={tok.textMuted}>{' · ' + branchChip('')}</Text>
                   <Text color={tok.textPrimary}>{truncateToWidth(git.branchName, 14)}</Text>
                   {git.isClean ? null : <Text color={tok.warning}>*</Text>}
                 </>
@@ -284,7 +283,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
               ) : null}
               {s.branch ? (
                 <>
-                  <Text color={tok.textMuted}>{' · ' + GLYPH.branch}</Text>
+                  <Text color={tok.textMuted}>{' · ' + branchChip('')}</Text>
                   <Text color={tok.textPrimary}>{truncateToWidth(s.branch, 20)}</Text>
                 </>
               ) : null}
@@ -307,7 +306,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
           <Text color={tok.textMuted}>git: not a repository</Text>
         ) : (
           <>
-            <Text color={tok.textMuted}>{GLYPH.branch}</Text>
+            <Text color={tok.textMuted}>{branchChip('')}</Text>
             <Text color={tok.textPrimary}>{truncateToWidth(git.branchName, 24)}</Text>
             <Text color={tok.textMuted}> · </Text>
             {git.isClean ? (
@@ -335,6 +334,16 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
             <UsageMeter compact window={stripSecond.label} state={stripSecond.state} value={stripSecond.usedPct ?? undefined} resetIn={resetIn({ resetsAtMs: stripSecond.resetsAtMs ?? null })} />
           </>
         ) : null}
+        {((): React.ReactNode => {
+          const age = stripFirst !== undefined ? usageAgeTail(stripFirst, now) : undefined
+          if (age === undefined || stripFirst === undefined) return null
+          return (
+            <>
+              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
+              <Text color={usageViewIsStale(stripFirst, now) ? tok.warning : tok.textMuted}>{age}</Text>
+            </>
+          )
+        })()}
         {((): React.ReactNode => {
           if (sourceUsage.limited === undefined) return null
           return (

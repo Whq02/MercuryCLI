@@ -3,9 +3,9 @@ import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 
 
-export const INTERRUPT_MESSAGE = '[Request interrupted by user]'
-export const INTERRUPT_MESSAGE_FOR_TOOL_USE =
-  '[Request interrupted by user for tool use]'
+export * from './turnCut.js'
+import { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, interruptedToolsLine, turnCutOf, turnCutWhy, turnCutLine, turnCutResultText, turnCutOfText, isTurnCutText } from './turnCut.js'
+
 export const CANCEL_MESSAGE =
   "The user doesn't want to take this action right now. STOP what you are doing and wait for the user to tell you how to proceed."
 
@@ -44,6 +44,7 @@ export function isDenialResultText(raw: string): boolean {
   return (
     text.includes(INTERRUPT_MESSAGE) ||
     text.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE) ||
+    /^Cut off(?: by|:) /.test(text) ||
     text === CANCEL_MESSAGE ||
     text === REJECT_MESSAGE ||
     text.startsWith(REJECT_MESSAGE_WITH_REASON_PREFIX) ||
@@ -100,6 +101,19 @@ export function buildClassifierUnavailableMessage(
   return (
     `The flow safety check is temporarily unavailable${modelDetail}, so ${toolName} was not run: flow runs nothing its check has not cleared, and this session cannot show the operator a consent card. ` +
     `The check may recover shortly, and the same action can be tried again then; work that does not need the check can continue. ` +
+    `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
+  )
+}
+
+export function buildClassifierUnreadableMessage(
+  toolName: string,
+  classifierModel: string,
+  detail?: string,
+): string {
+  const what = detail ? ` (${detail})` : ''
+  return (
+    `The flow safety check could not read its own verdict, so ${toolName} was not run: ${classifierModel} answered in a shape Mercury could not parse${what}, and this session cannot show the operator a consent card. ` +
+    `This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. ` +
     `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
   )
 }

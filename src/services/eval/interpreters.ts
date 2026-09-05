@@ -1,5 +1,5 @@
 
-import { spawnSync } from 'node:child_process'
+import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import {
@@ -13,37 +13,59 @@ import { subprocessEnv } from '../../utils/subprocessEnv.js'
 
 const PROBE_TTL_MS = 30_000
 const PROBE_TIMEOUT_MS = 4_000
-const probeCache = new Map<string, { at: number; result: ProbeResult }>()
 
 type ProbeResult = { ok: true; version: string } | { ok: false; whyNot: string }
+interface ProbeEntry {
+  at: number
+  result: ProbeResult | null
+  inflight: Promise<ProbeResult> | null
+}
+const probeCache = new Map<string, ProbeEntry>()
 
 export function _resetInterpreterProbeCacheForTesting(): void {
   probeCache.clear()
 }
 
-function probeBinary(path: string, versionArgs: string[]): ProbeResult {
-  const key = `${path} ${versionArgs.join(' ')}`
-  const cached = probeCache.get(key)
-  if (cached && Date.now() - cached.at < PROBE_TTL_MS) return cached.result
-  let result: ProbeResult
-  try {
-    const run = spawnSync(path, versionArgs, {
-      windowsHide: true,
-      timeout: PROBE_TIMEOUT_MS,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...subprocessEnv() },
-    })
-    if (run.error || run.status !== 0) {
-      result = { ok: false, whyNot: run.error ? String(run.error.message) : `exit ${run.status}` }
-    } else {
-      result = { ok: true, version: `${run.stdout ?? ''}${run.stderr ?? ''}`.trim() }
+function runProbe(path: string, versionArgs: string[]): Promise<ProbeResult> {
+  return new Promise(resolve => {
+    try {
+      execFile(
+        path,
+        versionArgs,
+        { windowsHide: true, timeout: PROBE_TIMEOUT_MS, encoding: 'utf8', env: { ...subprocessEnv() } },
+        (error, stdout, stderr) => {
+          if (error) {
+            const code = (error as NodeJS.ErrnoException & { code?: number | string }).code
+            resolve({ ok: false, whyNot: typeof code === 'number' ? `exit ${code}` : String(error.message) })
+            return
+          }
+          resolve({ ok: true, version: `${stdout ?? ''}${stderr ?? ''}`.trim() })
+        },
+      )
+    } catch (error) {
+      resolve({ ok: false, whyNot: String(error) })
     }
-  } catch (error) {
-    result = { ok: false, whyNot: String(error) }
+  })
+}
+
+function readProbe(path: string, versionArgs: string[]): ProbeResult | null {
+  const key = `${path} ${versionArgs.join(' ')}`
+  let entry = probeCache.get(key)
+  if (!entry) {
+    entry = { at: 0, result: null, inflight: null }
+    probeCache.set(key, entry)
   }
-  probeCache.set(key, { at: Date.now(), result })
-  return result
+  const stale = entry.result === null || Date.now() - entry.at >= PROBE_TTL_MS
+  if (stale && entry.inflight === null) {
+    const owner = entry
+    owner.inflight = runProbe(path, versionArgs).then(result => {
+      owner.result = result
+      owner.at = Date.now()
+      owner.inflight = null
+      return result
+    })
+  }
+  return entry.result
 }
 
 function pythonVersionTuple(version: string): [number, number] | null {
@@ -80,7 +102,10 @@ export function discoverPython(cwd: string): EvalLanguageAvailability {
   }
   let lastWhy = 'no python3 found on PATH'
   for (const candidate of pythonCandidates(cwd)) {
-    const probe = probeBinary(candidate, ['--version'])
+    const probe = readProbe(candidate, ['--version'])
+    if (probe === null) {
+      return { language: 'py', available: false, probing: true, whyNot: `probing ${candidate} (the first answer is pending)` }
+    }
     if (!probe.ok) {
       lastWhy = `${candidate}: ${probe.whyNot}`
       continue
@@ -95,19 +120,18 @@ export function discoverPython(cwd: string): EvalLanguageAvailability {
   return { language: 'py', available: false, whyNot: lastWhy }
 }
 
-export function nodeBinaryForKernels(): { path: string; version: string } | { whyNot: string } {
+export function nodeBinaryForKernels(): { path: string; version: string } | { whyNot: string } | { probing: true } {
   const own = process.execPath
-  if (/node/i.test(basename(own))) {
-    const probe = probeBinary(own, ['--version'])
-    if (probe.ok) return { path: own, version: probe.version }
-  }
-  const probe = probeBinary('node', ['--version'])
+  if (/node/i.test(basename(own))) return { path: own, version: process.version }
+  const probe = readProbe('node', ['--version'])
+  if (probe === null) return { probing: true }
   if (probe.ok) return { path: 'node', version: probe.version }
-  return { whyNot: `no node binary reachable (host: ${own}; PATH probe failed)` }
+  return { whyNot: `no node binary reachable (host: ${own}; PATH probe failed: ${probe.whyNot})` }
 }
 
 export function discoverJs(): EvalLanguageAvailability {
   const node = nodeBinaryForKernels()
+  if ('probing' in node) return { language: 'js', available: false, probing: true, whyNot: 'probing node (the first answer is pending)' }
   if ('whyNot' in node) return { language: 'js', available: false, whyNot: node.whyNot }
   return { language: 'js', available: true, interpreterPath: node.path, version: node.version }
 }
@@ -130,4 +154,17 @@ export function evalAvailability(cwd: string): EvalLanguageAvailability[] {
     rows.push(language === 'py' ? discoverPython(cwd) : discoverJs())
   }
   return rows
+}
+
+export async function primeEvalAvailability(cwd: string): Promise<EvalLanguageAvailability[]> {
+  for (let pass = 0; pass < 8; pass++) {
+    const rows = evalAvailability(cwd)
+    if (!rows.some(row => row.probing)) return rows
+    const inflight = [...probeCache.values()]
+      .map(entry => entry.inflight)
+      .filter((probe): probe is Promise<ProbeResult> => probe !== null)
+    if (inflight.length === 0) return rows
+    await Promise.all(inflight)
+  }
+  return evalAvailability(cwd)
 }

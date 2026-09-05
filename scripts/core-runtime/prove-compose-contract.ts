@@ -22,6 +22,25 @@ import {
   StylePool,
 } from '../../src/ink/cell-grid.js'
 import type { Styles } from '../../src/ink/styles.js'
+import { FrameWriter } from '../../src/ink/frame-writer.js'
+import { OverlayRecord } from '../../src/ink/geometry/overlay.js'
+import {
+  clearSelection,
+  createSelectionState,
+  finishSelection,
+  getSelectedText,
+  hasSelection,
+  type SelectionState,
+  setSelectionClipBand,
+  startSelection,
+  updateSelection,
+} from '../../src/ink/geometry/selection.js'
+import { unionRect } from '../../src/ink/layout/geometry.js'
+import { optimizePatches } from '../../src/ink/patch-stream.js'
+import { applyOverlayPass } from '../../src/ink/root/overlay-pass.js'
+import { writeDiffToTerminal } from '../../src/ink/session/delivery.js'
+import { CURSOR_HOME } from '../../src/ink/termio/csi.js'
+import { AnsiEmulator, defaultSgr, sgrStateOfStyleString, type SgrState } from '../ink-runtime/ansiEmulator.js'
 import { applySceneStyle } from '../ink-runtime/frameHarness.js'
 
 let failures = 0
@@ -306,13 +325,13 @@ function freshScrollCompose(spec: ScrollSpec, scrollTop: number): { screen: Scre
   const grown = session.step()
   const afterTop = t.scrollBox.scroll?.scrollTop ?? 0
   check('sticky growth: follows to the new max', afterTop === beforeTop + 1, `${beforeTop}→${afterTop}`)
-  const follow = grown.signals.consumeFollowScroll()
+  const follow = grown.signals.consumeScrollTranslation()
   check(
-    'sticky growth: followScroll published once',
+    'sticky growth: scrollTranslation published once',
     follow !== null && follow.delta === afterTop - beforeTop,
     JSON.stringify(follow),
   )
-  check('followScroll consumed', grown.signals.consumeFollowScroll() === null)
+  check('scrollTranslation consumed', grown.signals.consumeScrollTranslation() === null)
 }
 
 {
@@ -348,6 +367,498 @@ function freshScrollCompose(spec: ScrollSpec, scrollTop: number): { screen: Scre
   const covered = session.step()
   check('clamp-hold: covering bounds end the chain', covered.frame.scrollDrainPending !== true)
   check('clamp-hold: the covered paint sits at the intent', sc.scrollTop === 2, `scrollTop=${sc.scrollTop}`)
+}
+
+const SELECTION_BG = '48;2;40;60;90'
+
+function serialize(diff: ReturnType<typeof optimizePatches>): string {
+  let captured = ''
+  const fake = {
+    stdout: {
+      write(s: string) {
+        captured += s
+        return true
+      },
+      isTTY: false,
+    },
+  }
+  writeDiffToTerminal(fake as never, diff, false)
+  return captured
+}
+
+class OverlaySession {
+  readonly stylePool = new StylePool()
+  readonly charPool = new CharPool()
+  readonly hyperlinkPool = new HyperlinkPool()
+  readonly selection: SelectionState = createSelectionState()
+  readonly emu = new AnsiEmulator(COLS, ROWS, true)
+  searchQuery = ''
+  private front: Frame
+  private back: Frame
+  private glass: OverlayRecord | null = null
+  private readonly render: ReturnType<typeof createRenderer>
+  private readonly writer: FrameWriter
+
+  constructor(readonly root: DOMElement) {
+    this.stylePool.setSelectionBg({ code: `\x1b[${SELECTION_BG}m`, endCode: '\x1b[49m' })
+    this.front = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+    this.back = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+    this.render = createRenderer(root, this.stylePool)
+    this.writer = new FrameWriter({ isTTY: true, stylePool: this.stylePool })
+  }
+
+  step(): { frame: Frame; counts: typeof lastComposeCounts; bytes: string } {
+    this.root.layoutNode!.calculateLayout(COLS, ROWS)
+    const glass = this.glass
+    if (glass) glass.revert(this.front.screen)
+    const { frame, signals } = this.render({
+      frontFrame: this.front,
+      backFrame: this.back,
+      isTTY: true,
+      terminalWidth: COLS,
+      terminalRows: ROWS,
+      altScreen: true,
+      prevFrameContaminated: false,
+      regionScrollUsable: true,
+    })
+    if (glass) glass.restore(this.front.screen)
+    const counts = { ...lastComposeCounts }
+    const record = new OverlayRecord(frame.screen.width)
+    applyOverlayPass({
+      altScreen: true,
+      scrollTranslation: signals.consumeScrollTranslation(),
+      selection: this.selection,
+      captureScreen: this.front.screen,
+      screen: frame.screen,
+      stylePool: this.stylePool,
+      searchQuery: this.searchQuery,
+      searchPositions: null,
+      onSelectionCleared: () => {},
+      record,
+    })
+    const vacated = glass ? glass.rect() : null
+    if (vacated) {
+      frame.screen.damage = frame.screen.damage ? unionRect(frame.screen.damage, vacated) : vacated
+    }
+    const anchored: Frame = { ...this.front, cursor: { x: 0, y: 0, visible: false } }
+    const bytes = serialize(optimizePatches(this.writer.render(anchored, frame, true, true)))
+    this.emu.feed(CURSOR_HOME + bytes)
+    this.back = this.front
+    this.front = frame
+    this.glass = record.size > 0 ? record : null
+    return { frame, counts, bytes }
+  }
+}
+
+function expectedStyle(pool: StylePool, styleId: number): SgrState {
+  return sgrStateOfStyleString(pool.transition(pool.none, styleId))
+}
+
+function sameVisibleStyle(char: string, actual: SgrState | null, expected: SgrState): boolean {
+  const a = actual ?? defaultSgr()
+  if (char === ' ') {
+    return (
+      a.bg === expected.bg &&
+      a.inverse === expected.inverse &&
+      a.underline === expected.underline &&
+      a.strike === expected.strike
+    )
+  }
+  return (
+    a.bold === expected.bold &&
+    a.dim === expected.dim &&
+    a.italic === expected.italic &&
+    a.underline === expected.underline &&
+    a.inverse === expected.inverse &&
+    a.strike === expected.strike &&
+    a.fg === expected.fg &&
+    a.bg === expected.bg
+  )
+}
+
+function glassMismatch(emu: AnsiEmulator, frame: Frame, pool: StylePool): string {
+  const { screen } = frame
+  for (let y = 0; y < screen.height; y++) {
+    for (let x = 0; x < screen.width; x++) {
+      const cell = cellAt(screen, x, y)
+      const got = emu.grid[y]![x]!
+      const style = emu.styleAt(x, y)
+      if (!cell) {
+        if (got !== ' ') return `(${x},${y}) text: glass ${JSON.stringify(got)} vs an empty cell`
+        if (style && (style.bg !== 'default' || style.inverse)) {
+          return `(${x},${y}) style: glass ${JSON.stringify(style)} vs an empty cell`
+        }
+        continue
+      }
+      if (cell.width === CellWidth.SpacerTail || cell.width === CellWidth.SpacerHead) continue
+      const want = cell.char === '' ? ' ' : cell.char
+      if (got !== want) return `(${x},${y}) text: glass ${JSON.stringify(got)} vs frame ${JSON.stringify(want)}`
+      const exp = expectedStyle(pool, cell.styleId)
+      if (!sameVisibleStyle(cell.char, style, exp)) {
+        return `(${x},${y}) style ${JSON.stringify(cell.char)}: glass ${JSON.stringify(style)} vs frame ${JSON.stringify(exp)}`
+      }
+    }
+  }
+  return ''
+}
+
+function glassSnapshot(emu: AnsiEmulator): string[] {
+  const out: string[] = []
+  for (let y = 0; y < emu.height; y++) {
+    for (let x = 0; x < emu.width; x++) {
+      out.push(`${emu.grid[y]![x]}|${JSON.stringify(emu.styleAt(x, y))}`)
+    }
+  }
+  return out
+}
+
+function highlightedCells(emu: AnsiEmulator): Set<number> {
+  const out = new Set<number>()
+  for (let y = 0; y < emu.height; y++) {
+    for (let x = 0; x < emu.width; x++) {
+      if (emu.styleAt(x, y)?.bg === SELECTION_BG) out.add(y * emu.width + x)
+    }
+  }
+  return out
+}
+
+function freshOverlay(spec: TreeSpec, like: OverlaySession): { screen: Screen; pool: StylePool } {
+  const { root } = buildTree(spec)
+  const s = new OverlaySession(root)
+  const sel = like.selection
+  s.selection.anchor = sel.anchor ? { ...sel.anchor } : null
+  s.selection.focus = sel.focus ? { ...sel.focus } : null
+  s.selection.isDragging = sel.isDragging
+  s.selection.clipLo = sel.clipLo
+  s.selection.clipHi = sel.clipHi
+  s.searchQuery = like.searchQuery
+  return { screen: s.step().frame.screen, pool: s.stylePool }
+}
+
+function checkOverlayStep(
+  label: string,
+  session: OverlaySession,
+  spec: TreeSpec,
+  r: { frame: Frame; counts: typeof lastComposeCounts; bytes: string },
+  steadyTree: boolean,
+): void {
+  const fresh = freshOverlay(spec, session)
+  check(
+    `${label}: incremental ≡ fresh (overlay included)`,
+    decode(r.frame.screen, session.stylePool) === decode(fresh.screen, fresh.pool),
+  )
+  const mismatch = glassMismatch(session.emu, r.frame, session.stylePool)
+  check(`${label}: the glass replays the frame cell-exact`, mismatch === '', mismatch)
+  if (steadyTree) {
+    check(
+      `${label}: composes no text (the blit engaged)`,
+      r.counts.write === 0 && r.counts.blit > 0,
+      `write=${r.counts.write} blit=${r.counts.blit}`,
+    )
+  }
+}
+
+{
+  const spec: TreeSpec = {
+    lines: [
+      { text: 'alpha row one', style: { color: 'red', bold: true } },
+      { text: 'beta row two' },
+      { text: 'gamma 漢字 three', style: { backgroundColor: '#112233' } },
+      { text: 'delta four' },
+    ],
+    boxStyle: { borderStyle: 'round' },
+  }
+  const { root, texts } = buildTree(spec)
+  const session = new OverlaySession(root)
+  const sel = session.selection
+
+  checkOverlayStep('overlay: first frame', session, spec, session.step(), false)
+  session.step()
+
+  startSelection(sel, 2, 1)
+  updateSelection(sel, 8, 1)
+  checkOverlayStep('overlay: grow on one row', session, spec, session.step(), true)
+  updateSelection(sel, 5, 3)
+  checkOverlayStep('overlay: grow across three rows (wide glyphs under it)', session, spec, session.step(), true)
+  updateSelection(sel, 4, 2)
+  checkOverlayStep('overlay: shrink', session, spec, session.step(), true)
+
+  const still = session.step()
+  checkOverlayStep('overlay: unchanged selection', session, spec, still, true)
+  check('overlay: an unchanged selection writes zero bytes', still.bytes.length === 0, `${still.bytes.length} bytes`)
+
+  sel.anchor = { col: 2, row: 2 }
+  sel.focus = { col: 4, row: 3 }
+  checkOverlayStep('overlay: move rows', session, spec, session.step(), true)
+
+  spec.lines[1]!.text = 'BETA ROW TWO'
+  setTextNodeValue(texts[1]!, 'BETA ROW TWO')
+  const changed = session.step()
+  checkOverlayStep('overlay: content change under the selection', session, spec, changed, false)
+  check('overlay: the content change composed text', changed.counts.write > 0, `write=${changed.counts.write}`)
+
+  session.searchQuery = 'row'
+  checkOverlayStep('overlay: the search highlight joins the record', session, spec, session.step(), true)
+  session.searchQuery = ''
+  checkOverlayStep('overlay: the search highlight leaves', session, spec, session.step(), true)
+
+  const highlighted = highlightedCells(session.emu)
+  check('overlay: the glass carries the highlight before the clear', highlighted.size > 0, `${highlighted.size} cells`)
+  const before = glassSnapshot(session.emu)
+  clearSelection(sel)
+  checkOverlayStep('overlay: clear', session, spec, session.step(), true)
+  const after = glassSnapshot(session.emu)
+  const changedCells = new Set<number>()
+  for (let i = 0; i < before.length; i++) if (before[i] !== after[i]) changedCells.add(i)
+  const exact = changedCells.size === highlighted.size && [...changedCells].every(i => highlighted.has(i))
+  check(
+    'overlay: the clear frame changes exactly the vacated cells',
+    exact,
+    `changed ${changedCells.size} vs highlighted ${highlighted.size}`,
+  )
+  const quiet = session.step()
+  check(
+    'overlay: steady after the clear writes zero bytes and composes no text',
+    quiet.bytes.length === 0 && quiet.counts.write === 0,
+    `${quiet.bytes.length} bytes, write=${quiet.counts.write}`,
+  )
+}
+
+{
+  const P_TOP = 2
+  const P_BOT = 9
+  const P_H = P_BOT - P_TOP + 1
+
+  function buildPaneTree(items: string[]): { root: DOMElement; scrollBox: DOMElement; content: DOMElement } {
+    const root = createNode('ink-root')
+    applySceneStyle(root, { width: COLS, height: ROWS, flexDirection: 'column' })
+    const header = createNode('ink-box')
+    applySceneStyle(header, { height: P_TOP, flexShrink: 0, flexDirection: 'column' })
+    const ht = createNode('ink-text')
+    appendChildNode(ht, createTextNode('HEADER above the pane') as never)
+    appendChildNode(header, ht)
+    const scrollBox = createNode('ink-box')
+    applySceneStyle(scrollBox, { flexDirection: 'column', flexGrow: 0, flexShrink: 0, height: P_H, overflowY: 'scroll' })
+    const content = createNode('ink-box')
+    applySceneStyle(content, { flexDirection: 'column', flexGrow: 0, flexShrink: 0 })
+    for (const item of items) {
+      const t = createNode('ink-text')
+      appendChildNode(t, createTextNode(item) as never)
+      appendChildNode(content, t)
+    }
+    appendChildNode(scrollBox, content)
+    const footer = createNode('ink-box')
+    applySceneStyle(footer, { height: ROWS - P_BOT - 1, flexShrink: 0, flexDirection: 'column' })
+    const ft = createNode('ink-text')
+    appendChildNode(ft, createTextNode('FOOTER below the pane') as never)
+    appendChildNode(footer, ft)
+    appendChildNode(root, header)
+    appendChildNode(root, scrollBox)
+    appendChildNode(root, footer)
+    return { root, scrollBox, content }
+  }
+
+  class ScrollOverlaySession {
+    readonly stylePool = new StylePool()
+    readonly charPool = new CharPool()
+    readonly hyperlinkPool = new HyperlinkPool()
+    readonly selection: SelectionState = createSelectionState()
+    readonly emu = new AnsiEmulator(COLS, ROWS, true)
+    readonly glassFaults: string[] = []
+    cleared = 0
+    steps = 0
+    private front: Frame
+    private back: Frame
+    private glass: OverlayRecord | null = null
+    private readonly render: ReturnType<typeof createRenderer>
+    private readonly writer: FrameWriter
+    constructor(readonly root: DOMElement, readonly sb: DOMElement) {
+      this.stylePool.setSelectionBg({ code: `\x1b[${SELECTION_BG}m`, endCode: '\x1b[49m' })
+      this.front = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+      this.back = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
+      this.render = createRenderer(root, this.stylePool)
+      this.writer = new FrameWriter({ isTTY: true, stylePool: this.stylePool })
+    }
+    step(): Frame {
+      this.root.layoutNode!.calculateLayout(COLS, ROWS)
+      const glass = this.glass
+      if (glass) glass.revert(this.front.screen)
+      const { frame, signals } = this.render({
+        frontFrame: this.front,
+        backFrame: this.back,
+        isTTY: true,
+        terminalWidth: COLS,
+        terminalRows: ROWS,
+        altScreen: true,
+        prevFrameContaminated: false,
+        regionScrollUsable: true,
+      })
+      if (glass) glass.restore(this.front.screen)
+      const record = new OverlayRecord(frame.screen.width)
+      applyOverlayPass({
+        altScreen: true,
+        scrollTranslation: signals.consumeScrollTranslation(),
+        selection: this.selection,
+        captureScreen: this.front.screen,
+        screen: frame.screen,
+        stylePool: this.stylePool,
+        searchQuery: '',
+        searchPositions: null,
+        onSelectionCleared: () => {
+          this.cleared++
+        },
+        record,
+      })
+      const vacated = glass ? glass.rect() : null
+      if (vacated) {
+        frame.screen.damage = frame.screen.damage ? unionRect(frame.screen.damage, vacated) : vacated
+      }
+      const anchored: Frame = { ...this.front, cursor: { x: 0, y: 0, visible: false } }
+      const bytes = serialize(optimizePatches(this.writer.render(anchored, frame, true, true)))
+      this.emu.feed(CURSOR_HOME + bytes)
+      this.steps++
+      const mismatch = glassMismatch(this.emu, frame, this.stylePool)
+      if (mismatch) this.glassFaults.push(`step ${this.steps}: ${mismatch}`)
+      this.back = this.front
+      this.front = frame
+      this.glass = record.size > 0 ? record : null
+      return frame
+    }
+    highlighted(): Map<number, string> {
+      const out = new Map<number, string>()
+      const screen = this.front.screen
+      for (let y = 0; y < screen.height; y++) {
+        let text = ''
+        for (let x = 0; x < screen.width; x++) {
+          const cell = cellAt(screen, x, y)
+          if (!cell || cell.width === CellWidth.SpacerTail) continue
+          if (expectedStyle(this.stylePool, cell.styleId).bg === SELECTION_BG) text += cell.char === '' ? ' ' : cell.char
+        }
+        if (text.trim().length > 0) out.set(y, text)
+      }
+      return out
+    }
+    copy(): string {
+      return getSelectedText(this.selection, this.front.screen)
+    }
+    scrollTo(top: number): void {
+      const sc = ((this.scrollBoxNode()).scroll ??= {})
+      sc.scrollTop = top
+      sc.pendingScrollDelta = undefined
+      markDirty(this.scrollBoxNode())
+    }
+    wheelBy(dy: number): void {
+      const sc = ((this.scrollBoxNode()).scroll ??= {})
+      sc.pendingScrollDelta = (sc.pendingScrollDelta ?? 0) + dy
+      markDirty(this.scrollBoxNode())
+    }
+    pending(): number {
+      return this.scrollBoxNode().scroll?.pendingScrollDelta ?? 0
+    }
+    private scrollBoxNode(): DOMElement {
+      return this.sb
+    }
+  }
+
+  const items = Array.from({ length: 40 }, (_, i) => `item ${String(i).padStart(2, '0')} the quick brown line`)
+  const { root, scrollBox: sb } = buildPaneTree(items)
+  const session = new ScrollOverlaySession(root, sb)
+  session.step()
+  session.step()
+
+  const rowsInPane = (h: Map<number, string>): boolean => [...h.keys()].every(y => y >= P_TOP && y <= P_BOT)
+  const escapedRows = (h: Map<number, string>): number[] => [...h.keys()].filter(y => y < P_TOP || y > P_BOT)
+
+  startSelection(session.selection, 0, P_TOP + 2)
+  updateSelection(session.selection, COLS - 1, P_TOP + 6)
+  finishSelection(session.selection)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const copy0 = session.copy()
+  const h0 = session.highlighted()
+  check('scroll-xlate: a selection highlights inside the pane', h0.size > 0 && rowsInPane(h0), `rows ${[...h0.keys()].join(',')}`)
+  check('scroll-xlate: the copy carries the five selected lines', copy0.split('\n').length === 5 && copy0.startsWith('item 02'), JSON.stringify(copy0))
+
+  session.scrollTo(3)
+  session.step()
+  check('scroll-xlate: jump down 3 — copy unchanged (the selection followed)', session.copy() === copy0, `${JSON.stringify(session.copy())} vs ${JSON.stringify(copy0)}`)
+  check('scroll-xlate: jump down 3 — no highlight escapes the pane', escapedRows(session.highlighted()).length === 0, `escaped ${escapedRows(session.highlighted()).join(',')}`)
+
+  session.scrollTo(6)
+  session.step()
+  check('scroll-xlate: jump down 6 — copy still unchanged', session.copy() === copy0, JSON.stringify(session.copy()))
+  check('scroll-xlate: jump down 6 — no escape', escapedRows(session.highlighted()).length === 0)
+
+  session.scrollTo(0)
+  session.step()
+  check('scroll-xlate: back at the top — copy restored (no accumulation)', session.copy() === copy0, JSON.stringify(session.copy()))
+  const hBack = session.highlighted()
+  check('scroll-xlate: back at the top — the highlight is on the original rows', [...hBack.keys()].join(',') === [...h0.keys()].join(','), `${[...hBack.keys()].join(',')} vs ${[...h0.keys()].join(',')}`)
+
+  session.wheelBy(5)
+  let guard = 0
+  while (session.pending() !== 0 && guard++ < 12) {
+    session.step()
+    check(`scroll-xlate: wheel drain frame ${guard} — no escape`, escapedRows(session.highlighted()).length === 0, `escaped ${escapedRows(session.highlighted()).join(',')}`)
+  }
+  check('scroll-xlate: after the wheel drain the copy is unchanged (the wheel moved, never cleared)', session.copy() === copy0 && hasSelection(session.selection), JSON.stringify(session.copy()))
+  session.scrollTo(0)
+  session.step()
+  check('scroll-xlate: wheel round-trip restores the copy', session.copy() === copy0, JSON.stringify(session.copy()))
+
+  session.scrollTo(2)
+  session.step()
+  session.wheelBy(-20)
+  guard = 0
+  while (session.pending() !== 0 && guard++ < 12) session.step()
+  check('scroll-xlate: a clamp at the top leaves no escape', escapedRows(session.highlighted()).length === 0, `escaped ${escapedRows(session.highlighted()).join(',')}`)
+  check('scroll-xlate: after the clamped return the copy holds', session.copy() === copy0, JSON.stringify(session.copy()))
+
+  clearSelection(session.selection)
+  session.scrollTo(0)
+  session.step()
+  startSelection(session.selection, 0, P_TOP + 2)
+  updateSelection(session.selection, COLS - 1, ROWS - 1)
+  finishSelection(session.selection)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const hStraddle = session.highlighted()
+  check('scroll-xlate: a straddle selection paints no row past the pane (the row band)', escapedRows(hStraddle).length === 0 && hStraddle.size > 0, `rows ${[...hStraddle.keys()].join(',')}`)
+
+  clearSelection(session.selection)
+  session.scrollTo(0)
+  session.step()
+  const dragAnchorRow = P_TOP + 4
+  startSelection(session.selection, 0, dragAnchorRow)
+  updateSelection(session.selection, COLS - 1, dragAnchorRow + 1)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const anchorLine = session.highlighted().get(dragAnchorRow) ?? ''
+  check('scroll-xlate: the drag anchor line is highlighted before the tick', anchorLine.startsWith('item 04'), JSON.stringify(anchorLine))
+  session.scrollTo(2)
+  session.step()
+  const hDrag = session.highlighted()
+  check('scroll-xlate: under a drag the anchor line moved up with the content and stays highlighted', hDrag.get(dragAnchorRow - 2)?.startsWith('item 04') === true, `rows ${[...hDrag.entries()].map(([y, t]) => `${y}:${t.slice(0, 7)}`).join(' ')}`)
+  check('scroll-xlate: under a drag the focus stays at the pointer row', session.selection.focus?.row === dragAnchorRow + 1 && session.selection.anchor?.row === dragAnchorRow - 2, JSON.stringify({ anchor: session.selection.anchor, focus: session.selection.focus }))
+  check('scroll-xlate: under a drag the copy runs from the anchor line to the pointer', session.copy().startsWith('item 04') && session.copy().split('\n').length === 4, JSON.stringify(session.copy()))
+  check('scroll-xlate: under a drag nothing escapes the pane', escapedRows(hDrag).length === 0)
+
+  clearSelection(session.selection)
+  session.scrollTo(0)
+  session.step()
+  startSelection(session.selection, 0, P_TOP + 2)
+  updateSelection(session.selection, COLS - 1, P_TOP + 6)
+  finishSelection(session.selection)
+  setSelectionClipBand(session.selection, 0, COLS - 1, COLS, P_TOP, P_BOT, ROWS)
+  session.step()
+  const clearedBefore = session.cleared
+  session.scrollTo(P_H)
+  session.step()
+  const hGone = session.highlighted()
+  check('scroll-xlate: both ends past the top edge clear the selection (no ghost cell, empty copy)', !hasSelection(session.selection) && hGone.size === 0 && session.copy() === '', `rows ${[...hGone.keys()].join(',')} copy=${JSON.stringify(session.copy())}`)
+  check('scroll-xlate: the clear fires the cleared listener exactly once', session.cleared === clearedBefore + 1, `${session.cleared - clearedBefore} fired`)
+
+  check(`scroll-xlate: the glass replays every frame cell-exact across ${session.steps} steps (no ghost highlight)`, session.glassFaults.length === 0, session.glassFaults.slice(0, 3).join(' · '))
 }
 
 if (failures > 0) {

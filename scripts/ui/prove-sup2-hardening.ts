@@ -173,8 +173,8 @@ console.log('§11 tree digest — argv, never a shell')
 {
   const vs = read('src/utils/verification/verificationState.ts')
   check('poison gone: no execSync command strings remain', !vs.includes('execSync('))
-  check('the four calls are argv execFileSync', ["['read-tree', 'HEAD']", "['add', '-A', '--', '.']", "['reset', '-q', '--', '.claude', '.mercury']", "['write-tree']"].every(a => vs.includes(`execFileSync(gitExe(), ${a}`)))
-  check('the async twin still spells argv too', vs.includes('execFile(gitExe(), args, { windowsHide: true, cwd, env }'))
+  check('the four calls are argv execFileSync', vs.includes('execFileSync(gitExe(), args, {') && ["['read-tree', 'HEAD']", "['add', '-A', '--', '.'", "['reset', '-q', '--', ...HARNESS_DIRS]", "['write-tree', '--missing-ok'"].every(a => vs.includes(a)))
+  check('the async twin still spells argv too', vs.includes('execFile(gitExe(), args, { windowsHide: true, cwd, env,'))
 }
 
 console.log('§12 boot scan — the growth dimension is capped')
@@ -313,10 +313,10 @@ console.log('§20 /bug — the draft is a real file the done screen names')
   const feedback = read('src/components/Feedback.tsx')
   check('poison gone: the gathered report is no longer voided (code lines only)', !/^\s*void report\b/m.test(feedback.replace(/^\s*\/\/.*$/gm, '')))
   check('the draft persists through the atomic-publish law', feedback.includes('durableAtomicPublishSync(path,') && feedback.includes("join(getMercuryHome(), 'feedback')"))
-  check('the done screen names the path (and the refused-write truth)', feedback.includes('saved to ${savedPath}') && feedback.includes('could not be written'))
-  check('the consent promise stands (nothing is uploaded anywhere)', feedback.includes('nothing is uploaded anywhere'))
+  check('the done screen names the path (and the refused-write truth)', feedback.includes('the local draft (with the transcript): {paths?.json}') && feedback.includes('could not be written'))
+  check('the one yes stands: the exact body is shown before it leaves, esc keeps the draft', feedback.includes('enter to file it · esc to keep the draft only') && feedback.includes('bytes) will be filed'))
   const cmd = read('src/commands/feedback/index.ts')
-  check('the palette line stops promising an issue a default box never files', !cmd.includes('becomes a GitHub issue') && cmd.includes('drafted to a local file'))
+  check('the palette line says the road: the reporter\'s own GitHub CLI, a local draft without it', !cmd.includes('becomes a GitHub issue') && cmd.includes('through your GitHub CLI') && cmd.includes('local draft without it'))
 }
 
 console.log('§21 /config revert — targeted undo, never the mount snapshot')

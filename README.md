@@ -14,10 +14,71 @@ code rather than in a browser tab: one chat for solo work, several sessions
 side by side on one board, sessions born on a schedule, and a headless mode
 for scripts and editors. You bring a provider sign-in or an API key.
 
+## Install
+
+Mercury ships as release archives, one per platform (Apple silicon and Intel
+Macs, Linux x64, Windows x64), each carrying its own Node runtime and ripgrep,
+so a release install needs `git` and nothing else. One command installs it;
+pick the channel you prefer:
+
+```sh
+curl -fsSL https://mercury-cli.ai/install | sh     # macOS and Linux x64
+irm https://mercury-cli.ai/install.ps1 | iex        # Windows x64, in PowerShell 7
+brew install Whq02/mercury/mercury                 # Homebrew: macOS and Linux x64
+npm install -g mercury-tech-cli                    # npm; `bun install -g mercury-tech-cli` is the same package
+mise use -g npm:mercury-tech-cli                   # mise, through the npm package
+```
+
+The first two look up the newest release at run time: they download this
+machine's archive from the repository's releases, check its SHA-256 against
+the release's `SHA256SUMS.txt`, unpack it, and run the archive's own
+`mercury install`. The Homebrew formula and the npm package
+(`mercury-tech-cli`, a launcher that downloads the release it names) are
+pinned to one release each and republished after a tag, so they can trail
+the newest release for a while; mise installs the npm package. Every
+channel is user-local and needs no administrator access; rerunning an
+install command is safe.
+
+A release install lives under the config home,
+`~/.mercury/versions/<version>` (`%USERPROFILE%\.mercury\versions` on
+Windows), with a `mercury` command in a user-local bin folder:
+`~/.local/bin` on macOS and Linux, `%LOCALAPPDATA%\Mercury\bin` on
+Windows. `mercury install` puts that folder on your PATH itself, once (one
+guarded line in your shell's startup file; the user PATH on Windows), so a
+new terminal finds `mercury`; the terminal you installed from needs the
+line the installer prints. `mercury --version` is the check.
+
+`mercury update` keeps a release install current in place (`--check`,
+`--status`, `--rollback`; the previous version stays on disk). It reads the
+public release list and the archive anonymously — no account, no sign-in,
+no token — and verifies the archive against the release's `SHA256SUMS.txt`
+before anything activates; a signed-in GitHub CLI (`gh`) is asked only when
+that anonymous road is refused, and is never required.
+
+From 1.0.0-beta.3 every release archive is signed with the Mercury release
+key at packaging, and the release is verified against that signature before
+it is published; a verified install prints nothing about it on boot, and
+`mercury doctor` shows `signed — key 627b54b734ca0e72`. The 1.0.0-beta.2
+archives are unsigned: such an install prints a `provenance — unsigned` line
+on a bare interactive boot (a plain `mercury` with no verb or flag), once per
+install, and `mercury doctor` carries the row every time. The line means the
+archive's manifest carries no signature; the download itself is checked
+against the release's `SHA256SUMS.txt`. What the verdicts mean and how to
+check an archive by hand is in [docs/TRUST.md](docs/TRUST.md); the boot-time
+verification is described in [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+
+No archive ships for a Linux arm64 machine or Windows on arm64: the installer
+says so on the first and points at building from source (below); on Windows
+arm64 the x64 build runs under emulation. The Intel Mac archive ships from
+1.0.0-beta.3, cross-packaged on the Apple silicon runner and booted under
+Rosetta before it publishes; on 1.0.0-beta.2 an Intel Mac builds from source.
+
+Once installed, `mercury` in any repository starts the first run (below).
+
 ## Requirements
 
-A release install needs git only: every archive carries its own Node 24 LTS
-runtime beside the bundle, and the launcher, `mercury install` and
+A release install needs `git` only: every archive carries its own Node 24
+LTS runtime beside the bundle, and the launcher, `mercury install` and
 `mercury update` run on it. Building from source needs:
 
 - Node 24 LTS: the supported range is `>=24.20.0 <25`, and `.node-version`
@@ -54,16 +115,18 @@ The build writes only under `dist/`. Configuration and sessions live in the
 config home, `~/.mercury` or whatever `MERCURY_CONFIG_DIR` names; the first
 run creates it. Windows runs `node dist\mercury.mjs` directly.
 
-To run Mercury as a command, `scripts/ops/deploy-runtime.sh` publishes a
-clean-tree build to `<config home>/runtime/dist` and
+To run a source build as a command, `scripts/ops/deploy-runtime.sh`
+publishes a clean-tree build to `<config home>/runtime/dist` and
 `scripts/ops/deploy-launcher.sh` installs the `mercury` launcher at
 `<config home>/bin/mercury`; put that directory on your `PATH` (for zsh,
 `echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc`). A missing
-runtime is a loud launcher failure, never a silent fallback. Release archives
-install with `mercury install` and stay current with `mercury update` on the
-private release channel (`--check`, `--status`, `--rollback`). Both paths run
-the artifact on the vendored Node 24 LTS runtime the build carries, else on
-`MERCURY_NODE` or a PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
+runtime is a loud launcher failure, never a silent fallback. A release
+install ([Install](#install)) uses `mercury install` and `mercury update`
+instead (no GitHub sign-in needed — the public releases are read anonymously;
+gh is asked only when that road is refused) and never touches a checkout.
+Both roads run the artifact on the
+vendored Node 24 LTS runtime the build carries, else on `MERCURY_NODE` or a
+PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
 build-and-run guide; [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 
 ## The first run
@@ -171,7 +234,7 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
 - `mercury health` (alias `doctor`): the health certificate; `--json` prints
   it whole, `--deep` runs the deep inventory, `--fix` runs the guided fixes.
 - `mercury auth login|status|logout`: sign in, show the status, sign out.
-- `mercury mcp`: manage MCP servers (list, get, add-json, remove, serve).
+- `mercury mcp`: manage MCP servers (add, add-json, list, get, remove, serve).
 - `mercury extensions`: install extensions and manage their sources (list,
   sources, add, remove, check, install, approve, enable, disable, update,
   uninstall, block, unblock, validate, init).
@@ -182,7 +245,8 @@ inside a managed worktree, and `--bare` is the minimal mode. The verbs:
 - `mercury themis`: THEMIS integrity tooling.
 - `mercury show <image>`: render an image to the terminal.
 - `mercury setup-token`: create a long-lived authentication token.
-- `mercury install` and `mercury update`: release archives only.
+- `mercury install` and `mercury update` (alias `upgrade`): release archives
+  only; see [Install](#install).
 
 ## What is inside
 
@@ -245,7 +309,7 @@ catalogue, grouped the way `/help` groups it:
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/themis` `/supervisor` |
-| crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
+| crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/plan` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
@@ -255,10 +319,17 @@ catalogue, grouped the way `/help` groups it:
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/companion` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/release-notes` `/feedback` `/help` `/exit` |
 
+`/mouse off` hands the pointer back to the terminal for native select and
+copy; the choice is saved for later boots, and `/config` shows it as Mouse
+capture.
+
 ## Reporting a problem
 
-Open an issue on the repository through one of its templates: a bug, a
-provider or model report, or a feature request. Every template asks for the
+Inside Mercury, `/bug <what happened>` shows you the exact report, then files
+it in the repository through your own signed-in GitHub CLI (`gh`); without
+`gh` it stays a local draft under the config home and the issues page is
+named. By hand, open an issue on the repository through one of its templates:
+a bug, a provider or model report, or a feature request. Every template asks for the
 `--version` line, the OS and terminal, and the exact steps; the bug and
 provider templates also ask for the output of `node dist/mercury.mjs doctor
 --json` (`mercury doctor --json` for a release install). A pasted transcript
@@ -269,5 +340,23 @@ checks.
 
 ## Licence
 
-The licence is [LICENSE.md](LICENSE.md); the production terms it names are [MERCURY-COMMUNITY-PRODUCTION-TERMS.md](MERCURY-COMMUNITY-PRODUCTION-TERMS.md) and the trademark policy is [TRADEMARKS.md](TRADEMARKS.md). Bundled third-party licences are
-inventoried in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Mercury is licensed under the Business Source License 1.1 with the Mercury
+Community Production Grant: [LICENSE.md](LICENSE.md) is the licence, the
+production terms it names are
+[MERCURY-COMMUNITY-PRODUCTION-TERMS.md](MERCURY-COMMUNITY-PRODUCTION-TERMS.md),
+and the trademark policy is [TRADEMARKS.md](TRADEMARKS.md). In plain words,
+with the licence text controlling: anyone may read, copy, modify and fork
+the source. An individual or an organisation below both community
+thresholds (under US$1,000,000 in consolidated annual revenue and under
+US$1,000,000 in total external funding) may use Mercury in production,
+free, to build and sell their own products, commercial ones included.
+Reaching either threshold starts a 90-day grace period; after it a
+commercial licence is needed for new products, while products already in
+production may be maintained on the versions obtained before the grace
+period ended. Selling, white-labelling or hosting Mercury itself for third
+parties, or offering a substitute for it, needs a commercial licence at any
+size. Each version's licence changes to the Apache License 2.0 on its own
+Change Date, three years after that version's release. Commercial licensing
+and trademark permission: https://mercury-cli.ai/licensing. Bundled
+third-party licences are inventoried in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -62,10 +62,28 @@ export interface CapturedRequest {
   raw: string
 }
 
+export interface UsageEndpointControl {
+  mode: 'ok' | 'error' | 'hang'
+  status: number
+  payload: (n: number, bearer?: string) => unknown
+  next?: (n: number) => void
+  rateLimit?: { limit: number; windowMs: number; retryAfterS?: number }
+}
+
+export interface UsageRequestRecord {
+  at: number
+  mode: UsageEndpointControl['mode']
+  n: number
+  status: number
+  headers: { 'user-agent'?: string; 'content-type'?: string; 'anthropic-beta'?: string; authScheme?: string }
+}
+
 export interface FixtureApi {
   port: number
   url: string
   requests: CapturedRequest[]
+  usage: UsageEndpointControl
+  usageRequests: UsageRequestRecord[]
   pacedEmits: { turn: number; index: number; text: string; at: number }[]
   toolEmits: { turn: number; name: string; id: string; at: number }[]
   streamEmits: {
@@ -258,9 +276,45 @@ function withoutThinking(message: unknown): unknown {
   return { ...row, content: row.content.filter(b => { const t = (b as { type?: string }).type; return t !== 'thinking' && t !== 'redacted_thinking' }) }
 }
 
+function referencedToolNames(messages: unknown[]): Set<string> {
+  const names = new Set<string>()
+  for (const message of messages) {
+    const content = (message as { content?: unknown } | null)?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      const b = block as { type?: string; name?: unknown; tool_name?: unknown; content?: unknown }
+      if (b.type === 'tool_use' && typeof b.name === 'string') names.add(b.name)
+      if (b.type === 'tool_reference' && typeof b.tool_name === 'string') names.add(b.tool_name)
+      if (b.type === 'tool_result' && Array.isArray(b.content)) {
+        for (const inner of b.content) {
+          const r = inner as { type?: string; tool_name?: unknown }
+          if (r.type === 'tool_reference' && typeof r.tool_name === 'string') names.add(r.tool_name)
+        }
+      }
+    }
+  }
+  return names
+}
+
+function boundTools(tools: unknown, messages: unknown[]): unknown[] {
+  if (!Array.isArray(tools)) return []
+  const referenced = referencedToolNames(messages)
+  return tools.filter(tool => {
+    const t = tool as { name?: unknown; defer_loading?: unknown }
+    return t.defer_loading !== true || (typeof t.name === 'string' && referenced.has(t.name))
+  })
+}
+
 export function prefixHashOf(body: { system?: unknown; tools?: unknown }, messages: unknown[]): string {
-  const material = JSON.stringify(stripCacheControl({ system: body.system, tools: body.tools, messages: messages.map(withoutThinking) }))
+  const material = JSON.stringify(stripCacheControl({ system: body.system, tools: boundTools(body.tools, messages), messages: messages.map(withoutThinking) }))
   return createHash('sha256').update(material).digest('hex').slice(0, 16)
+}
+
+export function bindingRefusalOf(body: unknown, drops: unknown[]): string | null {
+  const behavior = (body as { thinking?: { block_binding?: { prefix_mismatch_behavior?: unknown } } } | null)?.thinking?.block_binding?.prefix_mismatch_behavior
+  if (behavior !== 'error' || drops.length === 0) return null
+  const first = drops[0] as { path?: string; reason?: string }
+  return `${first.path ?? 'messages'}: the thinking block's ${first.reason === 'model_binding_mismatch' ? 'model' : 'prefix'} binding does not match this request (${first.reason ?? 'binding_mismatch'}); set thinking.block_binding.prefix_mismatch_behavior to "drop_block" to drop it instead`
 }
 
 export function boundSignature(body: { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }): string {
@@ -271,6 +325,7 @@ export function bindingDropsFor(current: unknown): unknown[] {
   const cur = current as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string } | null
   if (!cur || !Array.isArray(cur.messages)) return []
   const dropped: unknown[] = []
+  let broken = false
   cur.messages.forEach((message, i) => {
     const row = message as { role?: string; content?: unknown }
     if (row.role !== 'assistant' || !Array.isArray(row.content)) return
@@ -278,13 +333,19 @@ export function bindingDropsFor(current: unknown): unknown[] {
       const b = block as { type?: string; signature?: unknown }
       if (b.type !== 'thinking' && b.type !== 'redacted_thinking') return
       if (typeof b.signature !== 'string' || !b.signature.startsWith(BOUND_SIGNATURE_PREFIX)) return
+      if (broken) {
+        dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
+        return
+      }
       const [, mintedHash, mintedModel] = b.signature.split(':')
       if (mintedModel !== String(cur.model ?? '')) {
         dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'model_binding_mismatch' })
+        broken = true
         return
       }
       if (mintedHash !== prefixHashOf(cur, cur.messages!.slice(0, i))) {
         dropped.push({ type: 'thinking_dropped', path: `messages.${i}.content.${j}`, reason: 'prefix_binding_mismatch' })
+        broken = true
       }
     })
   })
@@ -346,10 +407,16 @@ export async function startFixtureApi(
     apiChecks?: boolean
     destroyOnKeepAliveReuse?: boolean
     bindingCheck?: boolean
+    messageHeaders?: Record<string, string>
+    jsonForNonStream?: boolean
   },
 ): Promise<FixtureApi> {
   const queue = [...turns]
   const requests: CapturedRequest[] = []
+  const usage: UsageEndpointControl = { mode: 'ok', status: 500, payload: () => ({}) }
+  const usageRequests: FixtureApi['usageRequests'] = []
+  const admittedUsageAt: number[] = []
+  let usageWaitUntil = 0
   const refusals: { request: number; message: string }[] = []
   const messagesServedBySocket = new WeakMap<object, number>()
   let destroyedReplays = 0
@@ -398,6 +465,56 @@ export async function startFixtureApi(
       }
       requests.push({ path: req.url ?? '', method: req.method ?? '', headers, body, raw })
 
+      if ((req.url ?? '').includes('/api/oauth/usage')) {
+        const n = usageRequests.length + 1
+        usage.next?.(n)
+        const now = Date.now()
+        const authorization = req.headers.authorization
+        const record: UsageRequestRecord = {
+          at: now,
+          mode: usage.mode,
+          n,
+          status: 200,
+          headers: {
+            ...(typeof headers['user-agent'] === 'string' ? { 'user-agent': headers['user-agent'] } : {}),
+            ...(typeof headers['content-type'] === 'string' ? { 'content-type': headers['content-type'] } : {}),
+            ...(typeof headers['anthropic-beta'] === 'string' ? { 'anthropic-beta': headers['anthropic-beta'] } : {}),
+            ...(typeof authorization === 'string' && authorization !== '' ? { authScheme: authorization.split(' ')[0] ?? '' } : {}),
+          },
+        }
+        usageRequests.push(record)
+        const limiter = usage.rateLimit
+        if (limiter !== undefined) {
+          const inWindow = admittedUsageAt.filter(at => now - at < limiter.windowMs)
+          const refused = now < usageWaitUntil || inWindow.length >= limiter.limit
+          if (refused) {
+            if (limiter.retryAfterS !== undefined) usageWaitUntil = now + limiter.retryAfterS * 1000
+            record.status = 429
+            res.writeHead(429, {
+              'content-type': 'application/json',
+              ...(limiter.retryAfterS !== undefined ? { 'retry-after': String(limiter.retryAfterS) } : {}),
+            })
+            res.end(JSON.stringify({ type: 'error', error: { type: 'rate_limit_error', message: 'fixture usage endpoint: too many requests' } }))
+            return
+          }
+          admittedUsageAt.push(now)
+        }
+        if (usage.mode === 'hang') {
+          openResponses.add(res)
+          req.socket.on('close', () => openResponses.delete(res))
+          return
+        }
+        if (usage.mode === 'error') {
+          record.status = usage.status
+          res.writeHead(usage.status, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: `fixture usage endpoint answered ${usage.status}` } }))
+          return
+        }
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify(usage.payload(n, typeof authorization === 'string' ? authorization : undefined)))
+        return
+      }
+
       if (!(req.url ?? '').includes('/v1/messages')) {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end('{}')
@@ -405,6 +522,7 @@ export async function startFixtureApi(
       }
 
       msgSeq++
+      for (const [name, value] of Object.entries(opts?.messageHeaders ?? {})) res.setHeader(name, value)
       const requestedModel =
         typeof (body as { model?: unknown })?.model === 'string'
           ? ((body as { model: string }).model)
@@ -427,10 +545,19 @@ export async function startFixtureApi(
         }
       }
       if (opts?.bindingCheck && turn !== undefined && (turn.kind === 'text' || turn.kind === 'tool_use')) {
+        const judged = turn.inputTransformations === undefined ? bindingDropsFor(body) : turn.inputTransformations
+        const refusal = bindingRefusalOf(body, judged)
+        if (refusal !== null) {
+          queue.unshift(turn)
+          refusals.push({ request: msgSeq, message: refusal })
+          res.writeHead(400, { 'content-type': 'application/json' })
+          res.end(JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: refusal } }))
+          return
+        }
         turn = {
           ...turn,
           signature: boundSignature(body as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }),
-          ...(turn.inputTransformations === undefined ? { inputTransformations: bindingDropsFor(body) } : {}),
+          ...(turn.inputTransformations === undefined ? { inputTransformations: judged } : {}),
         }
       }
       started.get(msgSeq)?.()
@@ -456,6 +583,22 @@ export async function startFixtureApi(
           JSON.stringify({
             type: 'error',
             error: { type: turn.errorType, message: turn.message },
+          }),
+        )
+        return
+      }
+      if (opts?.jsonForNonStream && turn.kind === 'text' && (body as { stream?: unknown })?.stream !== true) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(
+          JSON.stringify({
+            id: `msg_fixture_${msgSeq}`,
+            type: 'message',
+            role: 'assistant',
+            model: turn.model ?? requestedModel,
+            content: [{ type: 'text', text: turn.text }],
+            stop_reason: turn.stopReason ?? 'end_turn',
+            stop_sequence: null,
+            usage: { input_tokens: turn.usage?.input_tokens ?? 25, output_tokens: turn.usage?.output_tokens ?? 12 },
           }),
         )
         return
@@ -491,25 +634,12 @@ export async function startFixtureApi(
         }
         const markAborted = (): void => {
           clientAborted = true
-          clearInterval(heartbeat)
           openResponses.delete(res)
         }
         res.on('close', markAborted)
         res.on('error', markAborted)
         req.socket.on('close', markAborted)
         req.socket.on('error', markAborted)
-        const heartbeat = setInterval(() => {
-          if (res.destroyed || res.socket?.destroyed) {
-            markAborted()
-            return
-          }
-          try {
-            res.write(': hb\n\n')
-          } catch {
-            markAborted()
-          }
-        }, 250)
-        heartbeat.unref?.()
         return
       }
       if (turn.kind === 'die') {
@@ -763,6 +893,8 @@ export async function startFixtureApi(
     port,
     url: `http://127.0.0.1:${port}`,
     requests,
+    usage,
+    usageRequests,
     pacedEmits,
     toolEmits,
     streamEmits,

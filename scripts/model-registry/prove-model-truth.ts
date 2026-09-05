@@ -102,10 +102,8 @@ section('6. router class mirrors — every seat family classifies to a router cl
 
 section('7. code-side model default census — literals resolve live, tiers track owners')
 {
-  const censusFiles = [
-    'src/daemon/crewSpawn.ts',
-  ]
-  for (const rel of ['src/components/agents/studio/StudioEditor.tsx']) {
+  const censusFiles: string[] = []
+  for (const rel of ['src/components/agents/studio/StudioEditor.tsx', 'src/daemon/crewSpawn.ts']) {
     check(
       `${rel} — carries NO model literal (the catalogue resolves live)`,
       !/[=:]\s*'claude-[a-z0-9-]+(?:\[1m\])?'/.test(src(rel)),
@@ -131,7 +129,8 @@ section('7. code-side model default census — literals resolve live, tiers trac
       routing.includes('neutralSeatDefault()?.setting') &&
       !/WORKFLOW_EXECUTOR_MODEL = '/.test(routing),
   )
-  const crewOpus = /opus:\s*\{\s*model:\s*'([^']+)'/.exec(src('src/daemon/crewSpawn.ts'))?.[1]
+  const { CREW_MODEL_CHOICES } = await import('../../src/daemon/crewSpawn.ts')
+  const crewOpus = CREW_MODEL_CHOICES.opus.model
   check(
     `CREW_MODEL_CHOICES.opus (${crewOpus}) = getDefaultOpusModel()`,
     crewOpus === getDefaultOpusModel(),

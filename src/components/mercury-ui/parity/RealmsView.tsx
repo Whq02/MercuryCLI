@@ -20,7 +20,7 @@ import {
   StateBadge,
   WarningBanner,
 } from '../components.js'
-import { GLYPH, padTo, truncateToWidth } from '../glyphs.js'
+import { GLYPH, padTo, truncateToWidth, branchChip } from '../glyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { requestPromptPrefill } from '../../../utils/cockpit/helmFocus.js'
 import { useModalOrTerminalSize } from '../../../context/modalContext.js'
@@ -155,7 +155,7 @@ export function RealmsView({ onClose }: { onClose: () => void }): React.ReactNod
           {realms.map((r, i) => {
             if (i < realmWin.start || i >= realmWin.end) return null
             const branch = realmGitBranch(r.dir)
-            const lane = branch ? `${GLYPH.branch}${branch}` : 'no git'
+            const lane = branch ? branchChip(branch) : 'no git'
             const issued = r.issuedCount ? `${ago(r.lastIssuedAt)}` : 'never entered'
             return (
               <InteractiveRow key={r.id} {...rowProps(r, i)}>

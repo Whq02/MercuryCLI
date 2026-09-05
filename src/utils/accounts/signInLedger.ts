@@ -41,17 +41,23 @@ export function subscribeSignInEpoch(listener: () => void): () => void {
   }
 }
 
+let fanOutQueued = false
 function bumpEpoch(): void {
   epoch += 1
-  for (const listener of [...epochListeners]) {
-    try {
-      listener()
-    } catch {
+  if (fanOutQueued) return
+  fanOutQueued = true
+  queueMicrotask(() => {
+    fanOutQueued = false
+    for (const listener of [...epochListeners]) {
+      try {
+        listener()
+      } catch {
+      }
     }
-  }
+  })
 }
 
-export function noteCredentialRemoval(): void {
+export function noteCredentialChange(): void {
   bumpEpoch()
 }
 

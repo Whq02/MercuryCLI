@@ -523,16 +523,24 @@ export function stripUnsignedThinkingBlocks(
     if (msg.type !== 'assistant') return msg
     const content = msg.message.content
     const filtered = content.filter(b => !isUnsignedThinkingBlock(b))
-    if (filtered.length === content.length) return msg
+    const labelled = filtered.some(b => b.type === 'text' && 'phase' in b)
+    if (filtered.length === content.length && !labelled) return msg
     changed = true
-    if (filtered.length === 0) {
-      filtered.push({
+    const projected = labelled
+      ? filtered.map(b => {
+          if (b.type !== 'text' || !('phase' in b)) return b
+          const { phase: _phase, ...unlabelled } = b
+          return unlabelled
+        })
+      : filtered
+    if (projected.length === 0) {
+      projected.push({
         type: 'text' as const,
         text: '[reasoning from another model provider — not transferable]',
         citations: [],
       })
     }
-    return { ...msg, message: { ...msg.message, content: filtered } }
+    return { ...msg, message: { ...msg.message, content: projected } }
   })
   return changed ? result : messages
 }

@@ -33,13 +33,15 @@ import '../services/workbench/attentionBridge.js'
 import { isDeckPaneActive } from '../utils/fullscreen.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
-import { activeSourceUsage } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, pokeProviderUsage, usageViewIsStale } from '../services/providers/providerUsage.js'
+import { usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import inkInstances from '../ink/instances.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import {
   subscribeVerification,
+  treeScanStatus,
   verificationSummary,
   verifyEvidenceEnabled,
 } from '../utils/verification/verificationState.js'
@@ -54,14 +56,15 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'
 import { useFocusedTranscript } from '../hooks/useFocusedTranscript.js'
 import { useFocusedWorkspaceCwd } from '../hooks/useFocusedWorkspaceCwd.js'
-import { formatQuietAge, workflowPulse } from '../tools/WorkflowTool/livePulse.js'
-import type { WorkflowProgressEvent } from '../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
+import { formatQuietAge, workflowPulseAt } from '../tools/WorkflowTool/livePulse.js'
+import { focusedWorkRows, runningWorkflowRows, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import type { AppState } from '../state/AppState.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { Sep, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { EffortChip } from './mercury-ui/EffortChip.js'
 import { TrimChip } from './mercury-ui/TrimChip.js'
 import { HarnessChip } from './mercury-ui/HarnessChip.js'
-import { GLYPH, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { ValueGlow } from './mercury-ui/LiveGlyphs.js'
 import { SessionTabs } from './mercury-ui/SessionTabs.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
@@ -87,7 +90,7 @@ export const MercuryFrame = React.memo(MercuryFrameImpl)
 const subscribeFocusedModelFacts = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedSessionPin = (): string | null => getFocusedSessionConnector().modelFacts().sessionPin
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener))
-const getFocusedPermissionMode = (): string => getFocusedSessionConnector().permissionMode()
+const getFocusedPermissionMode = (): PermissionMode | null => getFocusedSessionConnector().permissionMode()
 
 function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNode {
   fluxMark('render:frame')
@@ -213,6 +216,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const usageFacts = getFocusedSessionConnector().usage()
   const cost = usageFacts.totalCostUSD
   const unpricedTurns = usageFacts.unpricedTurns ?? 0
+  useEffect(() => {
+    pokeProviderUsage()
+  }, [usageFacts.totalOutputTokens, usageFacts.totalAPIDurationMs])
+  const usageNow = useNowTick(tier.showFrameQuota ? Math.min(30_000, usagePollTtlMs()) : null)
   const costNode =
     (cost > 0 || unpricedTurns > 0) && getFocusedSessionConnector().identity().consoleBilling ? (
       <Text>
@@ -232,6 +239,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         ? usage.binding.window
         : usage.windows[1]
     const limited = usage.limited
+    const ageTail = first !== undefined ? usageAgeTail(first, usageNow) : undefined
     usageNode =
       first !== undefined || limited !== undefined ? (
         <Text>
@@ -254,6 +262,12 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
                 state={second.state}
                 value={second.usedPct ?? undefined}
               />
+            </Text>
+          ) : null}
+          {ageTail !== undefined && first !== undefined ? (
+            <Text>
+              <Text color={tok.textMuted}> {GLYPH.dot} </Text>
+              <Text color={usageViewIsStale(first, usageNow) ? tok.warning : tok.textMuted}>{ageTail}</Text>
             </Text>
           ) : null}
           {limited !== undefined ? (
@@ -301,8 +315,10 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     subscribeVerification,
     () => {
       if (!verifyEvidenceEnabled()) return null
-      const s = verificationSummary(getFocusedSessionConnector().workspace().cwd, { skipDigest: true })
-      return s.state === 'stale' || s.state === 'failed' ? s.state : null
+      const cwd = getFocusedSessionConnector().workspace().cwd
+      const s = verificationSummary(cwd, { skipDigest: true })
+      if (s.state === 'stale' || s.state === 'failed') return s.state
+      return treeScanStatus(cwd).state === 'unmeasured' ? 'unmeasured' : null
     },
     () => null,
   )
@@ -315,7 +331,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
             vfy {GLYPH.fail} failed
           </Text>
         ) : (
-          <Text color={tok.warning}>vfy {GLYPH.warn} stale</Text>
+          <Text color={tok.warning}>vfy {GLYPH.warn} {vfySnap}</Text>
         )}
       </Text>
     ) : null
@@ -341,44 +357,38 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
   const autopilotEffort = useAppStateMaybeOutsideOfProvider(
     (s: { effortValue?: string | number } | undefined) => s?.effortValue,
   ) as EffortValue | undefined
-  type WfTaskLite = {
-    type?: string
-    status?: string
-    startTime?: number
-    workflowProgress?: WorkflowProgressEvent[]
-  }
   const allTasks = useAppStateMaybeOutsideOfProvider(
-    (s: { tasks?: Record<string, WfTaskLite> } | undefined) => s?.tasks,
-  ) as Record<string, WfTaskLite> | undefined
-  const wfLive = Object.values(allTasks ?? {}).filter(
-    t =>
-      t.type === 'local_workflow' &&
-      (t.status === 'running' || t.status === 'pending'),
+    (s: { tasks?: AppState['tasks'] } | undefined) => s?.tasks,
+  ) as AppState['tasks'] | undefined
+  const workRoster = useFocusedWorkRoster()
+  const wfLive = React.useMemo(
+    () => runningWorkflowRows(focusedWorkRows(allTasks, workRoster)),
+    [allTasks, workRoster],
   )
   const wfNow = useNowTick(wfLive.length > 0 ? 10_000 : null)
   let wfNode: React.ReactNode = null
   if (wfLive.length > 0) {
-    const worst = wfLive
-      .map(w => workflowPulse(w.workflowProgress ?? [], w.startTime ?? wfNow, wfNow))
-      .reduce((a, b) => (a.quietMs >= b.quietMs ? a : b))
+    const pulses = wfLive.flatMap(w => (w.pulse ? [workflowPulseAt(w.pulse, wfNow)] : []))
+    const worst = pulses.length > 0 ? pulses.reduce((a, b) => (a.quietMs >= b.quietMs ? a : b)) : null
     const label = wfLive.length === 1 ? 'wf' : `wf×${wfLive.length}`
     const phase =
-      wfLive.length === 1 && worst.phaseTitle
+      wfLive.length === 1 && worst?.phaseTitle
         ? ` ${truncateToWidth(worst.phaseTitle, 14)}`
         : ''
     wfNode = (
       <Text>
         <Sep />
-        <Text color={worst.moving ? tok.success : tok.warning}>
+        <Text color={worst === null || worst.moving ? tok.success : tok.warning}>
           {GLYPH.inProgress} {label}
-          {phase} {formatQuietAge(worst.quietMs)}
+          {phase}
+          {worst !== null ? ` ${formatQuietAge(worst.quietMs)}` : ''}
         </Text>
       </Text>
     )
   }
   const autopilotTurnTier =
     permMode === 'autopilot' ? describeTurnOverride(undefined) : null
-  const modeBand = !isDefaultMode(permMode as PermissionMode | undefined) ? (
+  const modeBand = !isDefaultMode(permMode ?? undefined) ? (
     <Box width="100%" paddingX={1} flexShrink={0}>
       {permMode === 'sovereign' ? (
         <Text bold color={tok.failure} wrap="truncate-end">
@@ -422,7 +432,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         <Sep />
         <Text color={tok.textPrimary}>{dir}</Text>
         {!deckOwnsVitals && branch ? (
-          <Text color={tok.textMuted}> {GLYPH.branch}{truncateToWidth(branch, branchMax)}</Text>
+          <Text color={tok.textMuted}> {branchChip(truncateToWidth(branch, branchMax))}</Text>
         ) : null}
         {turnsNode}
         {needsNode}

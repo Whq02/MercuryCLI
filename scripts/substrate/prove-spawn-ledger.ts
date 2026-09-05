@@ -18,8 +18,10 @@ const led = await import('../../src/utils/spawnLedger.ts')
 
 console.log('— unit: ledger writes —')
 led.recordSpawn({ kind: 'headless', id: 'proof-1', cwd: home })
-const ledgerPath = join(home, 'spawn-ledger.jsonl')
-check('recordSpawn appends to spawn-ledger.jsonl', existsSync(ledgerPath))
+const ledgerPath = led.spawnLedgerPath()
+check('recordSpawn appends to spawn-ledger.jsonl under the daemon\'s own directory', existsSync(ledgerPath) && ledgerPath === join(home, 'daemon', 'spawn-ledger.jsonl'), ledgerPath)
+check('nothing is written at the config home\'s root (a root-level append re-listed every settings watcher)', !existsSync(join(home, 'spawn-ledger.jsonl')))
+check('a reader walks the live ledger only while no old root-level ledger exists', led.spawnLedgerPaths().length === 1 && led.spawnLedgerPaths()[0] === ledgerPath)
 const row = JSON.parse(readFileSync(ledgerPath, 'utf8').trim().split('\n')[0])
 check(
   'row carries ts/kind/id/cwd/spawnedBy',
@@ -60,7 +62,8 @@ console.log('— unit: provenance stamp —')
 check('spawnedByStamp is kind:id#pid', new RegExp(`^daemon-tank:x#${process.pid}$`).test(led.spawnedByStamp('daemon-tank', 'x')))
 
 console.log('— unit: autonomous-only bash audit —')
-const auditPath = join(home, 'bash-audit.jsonl')
+const auditPath = led.bashAuditPath()
+check('the bash audit lives beside the ledger under the daemon\'s own directory', auditPath === join(home, 'daemon', 'bash-audit.jsonl'), auditPath)
 led.recordBashAudit('echo operator', 0, false)
 check('operator sessions never write bash-audit.jsonl', !existsSync(auditPath))
 process.env.MERCURY_SPAWNED_BY = 'proof:me#1'

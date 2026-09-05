@@ -21,8 +21,8 @@ import {
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
 import { formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
-import { usageCreditsLine, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
-import { NO_USAGE_READ_WORDS, usageStaleTail } from '../services/providers/usageFreshness.js'
+import { usageCreditsLine, usageViewIsStale, windowSourceUsages, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { NO_USAGE_READ_WORDS, usageAgeTail, usagePollTtlMs } from '../services/providers/usageFreshness.js'
 import { getUsageRecordVersion, subscribeUsageRecord } from '../services/claudeAiLimits.js'
 import {
   getFocusedSessionConnector,
@@ -30,7 +30,16 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import { formatLaneSpend } from '../cost-tracker.js'
 import { crewAgentsOf, crewUsageLine } from '../services/engine-connector/crewFacts.js'
-import { focusedSessionIdOrNull, useFocusedWorkRoster } from './tasks/useFocusedWork.js'
+import { WORK_UNREPORTED_MARK, workUnreported } from '../services/engine-connector/workCounts.js'
+import {
+  focusedSessionIdOrNull,
+  focusedWorkflowRows,
+  otherSessionRunnerPids,
+  runningWorkflowRows,
+  useFocusedWorkRoster,
+  useFocusedWorkRows,
+} from './tasks/useFocusedWork.js'
+import { workflowRowDetail } from './tasks/workflowRollup.js'
 import { healthCertSnapshot } from '../utils/cockpit/healthCertSnapshot.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { pidAlive } from '../utils/pidAlive.js'
@@ -44,10 +53,8 @@ import { RailPanel, railPanelInnerWidth } from './mercury-ui/RailPanel.js'
 import { Sparkline, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { CURSOR_NUDGE_MS, AttentionPulse, ValueGlow, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { gaugeColor } from './mercury-ui/theme.js'
-import { useAppState, type AppState } from '../state/AppState.js'
 import { partitionDiskRuns } from '../tools/WorkflowTool/runManifest.js'
 import { useTelemetry } from '../state/telemetryBus.js'
-import type { TaskState } from '../tasks/types.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
   consoleEnabled,
@@ -76,11 +83,6 @@ const subscribeFocusedRailModel = subscribeThroughFocused((connector, listener) 
   connector.subscribeModel(listener),
 )
 const getFocusedRailModel = (): string => getFocusedSessionConnector().modelFacts().main
-
-function workflowLabel(t: TaskState): string {
-  const w = t as TaskState & { workflowName?: string; summary?: string; description?: string }
-  return w.workflowName ?? w.summary ?? w.description ?? 'workflow'
-}
 
 function hhmm(ts: unknown): string {
   if (typeof ts !== 'string') return '--:--'
@@ -190,12 +192,14 @@ function HelmTelemetryRailImpl({
   const consoleLast = consoleOn ? getConsoleEntries().at(-1) : undefined
   const consoleCount = consoleOn ? getConsoleAskCount() : 0
   const { rows: termRows } = useTerminalSize()
-  const now = useNowTick(consolePending ? 1000 : 30_000)
+  const now = useNowTick(consolePending ? 1000 : Math.min(30_000, usagePollTtlMs()))
+  const readNow = Date.now()
   const meterTail = (w: UsageWindowView, pool: boolean): string | undefined => {
-    const stale = usageStaleTail(w, now)
-    if (stale !== undefined) return stale
-    if (w.resetsAtMs == null) return undefined
-    return pool ? formatCountdownCoarse(w.resetsAtMs - now) : formatCountdown(w.resetsAtMs - now)
+    const age = usageAgeTail(w, readNow)
+    if (age !== undefined && usageViewIsStale(w, readNow)) return age
+    const reset = w.resetsAtMs == null ? undefined : pool ? formatCountdownCoarse(w.resetsAtMs - readNow) : formatCountdown(w.resetsAtMs - readNow)
+    const tail = [reset, age].filter((part): part is string => part !== undefined).join(' ')
+    return tail === '' ? undefined : tail
   }
   const usageEmpty = usage.shape !== 'api-spend' && liveWindows.length === 0
 
@@ -208,15 +212,18 @@ function HelmTelemetryRailImpl({
   const traceTotal = traceLive ? trace.data.total : 0
   const recent = traceLive ? trace.data.records.slice(-TRACE_ROWS).reverse() : []
 
-  const tasks = useAppState((s: AppState) => s.tasks) as Record<string, TaskState> | undefined
-  const runningWf = Object.values(tasks ?? {}).filter(
-    (t): t is TaskState => !!t && t.type === 'local_workflow' && t.status === 'running',
-  )
+  const workRows = useFocusedWorkRows()
+  const runningWf = runningWorkflowRows(workRows)
   const wfDisk = useTelemetry().workflowsDisk
-  const localRunIds = new Set(
-    runningWf.map(t => (t as { workflowRunId?: string }).workflowRunId ?? ''),
-  )
-  const externalWf = partitionDiskRuns(wfDisk, localRunIds, now, pidAlive).external
+  const externalWf = React.useMemo(() => {
+    const knownRunIds = new Set(
+      focusedWorkflowRows(workRows).map(r => r.workflowRunId ?? ''),
+    )
+    const otherPids = otherSessionRunnerPids(focusedSessionIdOrNull())
+    return partitionDiskRuns(wfDisk, knownRunIds, now, pidAlive).external.filter(
+      m => !otherPids.has(m.ownerPid),
+    )
+  }, [wfDisk, workRows, now])
 
   const usageNodes: React.ReactNode[] = []
   usageNodes.push(
@@ -287,6 +294,15 @@ function HelmTelemetryRailImpl({
         })(),
       )
     }
+  }
+  if (usage.readerNoteCompact !== undefined) {
+    usageNodes.push(
+      <Box key="usage:reader" width={rowW}>
+        <Text wrap="truncate-end">
+          <Text color={tok.warning}>{`  ${usage.readerNoteCompact}`}</Text>
+        </Text>
+      </Box>,
+    )
   }
   const crewLine = crewUsageLine(crewAgentsOf(workRoster.rows, focusedSessionIdOrNull()))
   if (crewLine !== null) {
@@ -402,31 +418,12 @@ function HelmTelemetryRailImpl({
 
   const wfNodes: React.ReactNode[] = []
   if (runningWf.length === 0 && externalWf.length === 0) {
-    wfNodes.push(<EmptyHint key="wf:idle" text="idle" width={rowW} />)
+    wfNodes.push(<EmptyHint key="wf:idle" text={workUnreported(workRoster) ? WORK_UNREPORTED_MARK : 'idle'} width={rowW} />)
   } else if (runningWf.length > 0) {
-    type WfProgEvent = {
-      type: string
-      title?: string
-      state?: string
-      phaseTitle?: string
-    }
-    const lead = runningWf[0] as TaskState & {
-      workflowProgress?: WfProgEvent[]
-      agentCount?: number
-    }
-    const leadProg: WfProgEvent[] = lead.workflowProgress ?? []
-    const leadAgents = leadProg.filter((e: WfProgEvent) => e.type === 'workflow_agent')
-    const leadDone = leadAgents.filter((e: WfProgEvent) => e.state === 'done').length
-    const leadPhase =
-      [...leadAgents].reverse().find(e => e.phaseTitle)?.phaseTitle ??
-      [...leadProg].reverse().find(e => e.type === 'workflow_phase')?.title
-    const leadDetail =
-      leadAgents.length > 0
-        ? `${leadDone}/${leadAgents.length} agent${leadAgents.length === 1 ? '' : 's'}${leadPhase ? ` · ${leadPhase}` : ''}`
-        : leadPhase ?? null
+    const leadDetail = workflowRowDetail(runningWf[0]!)
     for (const [i, t] of runningWf.slice(0, WF_ROWS).entries()) {
-      const asks = (t as { pendingPermissions?: Map<string, unknown> }).pendingPermissions?.size ?? 0
-      const wfKey = `wf:${(t as { id?: string }).id ?? `pos${i}`}`
+      const asks = t.pendingAsks ?? 0
+      const wfKey = `wf:${t.id}`
       wfNodes.push(
         ((): React.ReactNode => {
           const ri = sel({ kind: 'command', command: '/workflows', label: wfKey })
@@ -439,7 +436,7 @@ function HelmTelemetryRailImpl({
             <WorkingGlyph color={asks > 0 ? tok.warning : tok.success} active={asks === 0} />
             <Text> </Text>
             <Text color={tok.textPrimary}>
-              {truncateToWidth(workflowLabel(t), Math.max(3, rowW - 4 - (asks > 0 ? 8 : 0)))}
+              {truncateToWidth(t.name, Math.max(3, rowW - 4 - (asks > 0 ? 8 : 0)))}
             </Text>
             {asks > 0 ? (
               <AttentionPulse>{` ${asks} ask${asks > 1 ? 's' : ''}`}</AttentionPulse>

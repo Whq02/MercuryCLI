@@ -6,7 +6,8 @@ import type {
   HookEvent,
   SyncHookJSONOutput,
 } from 'src/entrypoints/agentSdkTypes.js'
-import type { MessageOrigin } from 'src/types/message.js'
+import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, MessageOrigin } from 'src/types/message.js'
+import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
 import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
@@ -126,6 +127,14 @@ export type HookPermissionDecisionAttachment = {
   decision: 'allow' | 'deny'
   toolUseID: string
   hookEvent: HookEvent
+}
+
+export type BypassedAskAttachment = {
+  type: 'bypassed_ask'
+  toolUseID: string
+  mode: PermissionMode
+  road: BypassedAskRoad
+  reason: string
 }
 
 export type HookSystemMessageAttachment = {
@@ -313,6 +322,7 @@ export type Attachment =
   | {
       type: 'mode_pack_exit'
       mode: 'apollo' | 'autopilot'
+      reason?: string
     }
   | {
       type: 'repo_surface_map'
@@ -372,6 +382,7 @@ export type Attachment =
       deltaSummary: string | null
       outputFilePath?: string
     }
+  | AgentRosterAttachment
   | AsyncHookResponseAttachment
   | {
       type: 'token_usage'
@@ -398,6 +409,7 @@ export type Attachment =
   | TeammateMailboxAttachment
   | TeamContextAttachment
   | HookAttachment
+  | BypassedAskAttachment
   | {
       type: 'invoked_skills'
       skills: Array<{
@@ -457,6 +469,18 @@ export type Attachment =
       removedNames: string[]
     }
   | {
+      type: 'bound_prefix'
+      boundKey: string
+      rosterEnabled: boolean
+      roster: BoundPrefixToolMark[]
+      sections: BoundPrefixSection[]
+      systemContext: Record<string, string>
+    }
+  | {
+      type: 'dead_thinking'
+      dead: DeadThinkingMark[]
+    }
+  | {
       type: 'agent_listing_delta'
       addedTypes: string[]
       addedLines: string[]
@@ -510,4 +534,25 @@ export type TeamContextAttachment = {
   teamName: string
   teamConfigPath: string
   taskListPath: string
+}
+
+
+export type AgentRosterRow = {
+  taskId: string
+  taskType: TaskType
+  name: string
+  address: string | null
+  status: string
+  wait: string | null
+  description: string
+  owed: string | null
+  error: string | null
+  outputFilePath?: string
+  phase?: string
+  agents?: Array<{ label: string; state: string }>
+}
+
+export type AgentRosterAttachment = {
+  type: 'agent_roster'
+  rows: AgentRosterRow[]
 }

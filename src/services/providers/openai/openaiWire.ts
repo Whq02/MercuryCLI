@@ -1,6 +1,6 @@
 
 import { logForDebugging } from '../../../utils/debug.js'
-import type { StreamCapabilityAdvertisement } from '../../../types/wire.js'
+import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
 
 
 export interface OpenaiFunctionTool {
@@ -24,6 +24,7 @@ export interface OpenaiMessageItem {
     | { type: 'output_text'; text: string }
     | { type: 'input_image'; image_url: string; detail?: 'low' | 'high' | 'auto' }
   >
+  phase?: TextPhase
 }
 
 export interface OpenaiFunctionCallItem {
@@ -86,6 +87,7 @@ export interface OpenaiUsage {
   inputTokens: number
   outputTokens: number
   cachedInputTokens?: number
+  cacheWriteInputTokens?: number
   reasoningOutputTokens?: number
 }
 
@@ -122,6 +124,8 @@ export type OpenaiStreamEvent =
   | { type: 'reasoning-delta'; text: string }
   | { type: 'text-delta'; text: string }
   | { type: 'refusal-delta'; text: string }
+  | { type: 'text-item-start'; phase?: TextPhase }
+  | { type: 'text-item-done'; phase?: TextPhase }
   | { type: 'tool-args-start'; itemId: string; callId: string; name: string }
   | { type: 'tool-args-delta'; itemId: string; delta: string }
   | { type: 'tool-args-done'; itemId: string; argsRaw: string }
@@ -141,7 +145,11 @@ export type OpenaiStreamEvent =
       incompleteDetail?: string
       responseId?: string
     }
-  | { type: 'stream-fault'; fault: OpenaiFault }
+  | {
+      type: 'stream-fault'
+      fault: OpenaiFault
+      settledItems?: OpenaiInputItem[]
+    }
 
 export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   textDelta: true,
@@ -234,6 +242,10 @@ function asRecord(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
 }
 
+function readMessagePhase(item: Record<string, unknown>): TextPhase | undefined {
+  return item.phase === 'commentary' || item.phase === 'final_answer' ? item.phase : undefined
+}
+
 export function stripNullArgs(parsed: unknown): unknown {
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return parsed
   const out: Record<string, unknown> = {}
@@ -295,6 +307,9 @@ function parseUsage(usage: Record<string, unknown>): OpenaiUsage {
     ...(typeof inputDetails?.cached_tokens === 'number'
       ? { cachedInputTokens: inputDetails.cached_tokens }
       : {}),
+    ...(typeof inputDetails?.cache_write_tokens === 'number'
+      ? { cacheWriteInputTokens: inputDetails.cache_write_tokens }
+      : {}),
     ...(typeof outputDetails?.reasoning_tokens === 'number'
       ? { reasoningOutputTokens: outputDetails.reasoning_tokens }
       : {}),
@@ -303,6 +318,9 @@ function parseUsage(usage: Record<string, unknown>): OpenaiUsage {
 
 export class ResponsesStreamFold {
   finished = false
+  settledItems(): OpenaiInputItem[] {
+    return [...this.orderedItems]
+  }
   private responseId: string | undefined
   private toolCalls: OpenaiCompletedToolCall[] = []
   private argDeltas = new Map<string, string>()
@@ -364,6 +382,9 @@ export class ResponsesStreamFold {
             this.toolIdentity.set(itemId, { callId, name })
             out.push({ type: 'tool-args-start', itemId, callId, name })
           }
+        } else if (item?.type === 'message') {
+          const phase = readMessagePhase(item)
+          out.push({ type: 'text-item-start', ...(phase ? { phase } : {}) })
         }
         break
       }
@@ -439,13 +460,16 @@ export class ResponsesStreamFold {
             }
             this.settledTextChars += joinedItemText.length
           }
+          const phase = readMessagePhase(item)
           if (itemTexts.length > 0) {
             this.orderedItems.push({
               type: 'message',
               role: 'assistant',
               content: itemTexts.map(text => ({ type: 'output_text' as const, text })),
+              ...(phase ? { phase } : {}),
             })
           }
+          out.push({ type: 'text-item-done', ...(phase ? { phase } : {}) })
         } else if (itemType === 'web_search_call') {
           const id = typeof item.id === 'string' && item.id !== '' ? item.id : `ws_${this.webSearchCalls.length + 1}`
           const action = asRecord(item.action)

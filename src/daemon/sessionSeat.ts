@@ -8,9 +8,16 @@ import {
   type SessionProgressEntryV1,
 } from '../services/engine-connector/seatProjections.js'
 import { decodeRequestWait, type RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
+import { decodeFoldStatus, type FoldStatusV1 } from '../services/compact/foldStatus.js'
 import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
-import { readSessionWorkers, updateConcourseWorkers, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import { readSessionWorkers, reviveConcourseWorker, updateConcourseWorkers, workerPidAlive, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
+import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { PermissionMode } from '../types/permissions.js'
+import type { TextPhase } from '../types/wire.js'
+import { describeSignInRead, refreshSignInReads } from './signInView.js'
+import { validateWorkerModelChoice } from '../services/concourse/workerModels.js'
+import { getMarketingNameForModel } from '../utils/model/model.js'
 import { resolveSessionKitOnRecord, validateSessionKit, type SessionKitEditV1 } from './sessionKit.js'
 import {
   SPAWN_SWITCH_KINDS,
@@ -27,9 +34,12 @@ import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
 export interface SeatRosterPort {
   control(short: string, frame: string): boolean
-  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean }>
+  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean; state?: string; turnStartedAt?: number }>
   patchSeatModel(short: string, model: string): boolean
   patchSeatEffort(short: string, effort: string): boolean
+  has?(short: string): { present: boolean }
+  kill?(short: string): boolean
+  registerLongLived?(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string }
 }
 
 export const SESSION_FACTS_REQUEST_PREFIX = 'mercury-session-facts-'
@@ -48,12 +58,14 @@ interface SeatState {
   sessionId: string | null
   tail: string | null
   tailMessageId: string | null
+  tailPhase: TextPhase | null
   tailTimer: ReturnType<typeof setTimeout> | null
   tailDirty: boolean
   streamedThisTurn: boolean
   turnChars: number
   stateWord: 'compacting' | 'waiting-on-agents' | null
   waitingOnAgents: number
+  fold: FoldStatusV1 | null
   wait: RequestWaitV1 | null
   progress: Map<string, SessionProgressEntryV1>
   progressTimer: ReturnType<typeof setTimeout> | null
@@ -71,7 +83,7 @@ const seats = new Map<string, SeatState>()
 function seatOf(short: string): SeatState {
   let s = seats.get(short)
   if (!s) {
-    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
+    s = { short, lastAnswer: null, requestSeq: 0, debounce: null, workPoll: null, lastBusy: false, sessionId: null, tail: null, tailMessageId: null, tailPhase: null, tailTimer: null, tailDirty: false, streamedThisTurn: false, turnChars: 0, stateWord: null, waitingOnAgents: 0, fold: null, wait: null, progress: new Map(), progressTimer: null, progressDirty: false, lastModelSettle: null, lastEventAtMs: null, streamBlock: null, blockSinceMs: null, livenessTimer: null, livenessDirty: false }
     seats.set(short, s)
   }
   return s
@@ -92,8 +104,10 @@ function publishTailNow(seat: SeatState, dir?: string): void {
         text: seat.tail,
         ...(seat.turnChars > 0 ? { turnChars: seat.turnChars } : {}),
         ...(seat.tailMessageId !== null ? { messageId: seat.tailMessageId } : {}),
+        ...(seat.tailPhase !== null ? { phase: seat.tailPhase } : {}),
         ...(seat.stateWord !== null ? { stateWord: seat.stateWord } : {}),
         ...(seat.stateWord === 'waiting-on-agents' ? { waitingOnAgents: seat.waitingOnAgents } : {}),
+        ...(seat.stateWord === 'compacting' && seat.fold !== null ? { fold: seat.fold } : {}),
         ...(seat.wait !== null ? { wait: seat.wait } : {}),
         ...(seat.lastEventAtMs !== null ? { lastEventAtMs: seat.lastEventAtMs } : {}),
         ...(seat.streamBlock !== null ? { streamBlock: seat.streamBlock } : {}),
@@ -116,6 +130,10 @@ function setSeatTail(seat: SeatState, text: string | null, dir?: string): void {
     publishTailNow(seat, dir)
     return
   }
+  scheduleTailPublish(seat, dir)
+}
+
+function scheduleTailPublish(seat: SeatState, dir?: string): void {
   seat.tailDirty = true
   if (seat.tailTimer !== null) return
   publishTailNow(seat, dir)
@@ -156,8 +174,12 @@ function streamBlockOf(type: string | undefined): SeatState['streamBlock'] {
   return null
 }
 
+function textPhaseOf(raw: unknown): TextPhase | null {
+  return raw === 'commentary' || raw === 'final_answer' ? raw : null
+}
+
 function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean {
-  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string }; message?: { id?: string } } }
+  let frame: { type?: string; event?: { type?: string; content_block?: { type?: string; phase?: unknown }; delta?: { type?: string; text?: string; thinking?: string }; message?: { id?: string } } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
@@ -169,6 +191,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
   if (ev.type === 'content_block_start') {
     seat.streamBlock = streamBlockOf(ev.content_block?.type)
     seat.blockSinceMs = seat.streamBlock === null ? null : Date.now()
+    if (ev.content_block?.type === 'text') seat.tailPhase = textPhaseOf(ev.content_block.phase)
     publishTailNow(seat, dir)
     return true
   }
@@ -176,6 +199,7 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     if (seat.tail !== null) setSeatTail(seat, null, dir)
     const id = ev.message?.id
     seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+    seat.tailPhase = null
     seat.streamBlock = null
     seat.blockSinceMs = null
     publishTailNow(seat, dir)
@@ -183,6 +207,9 @@ function onSeatStreamEvent(seat: SeatState, line: string, dir?: string): boolean
     seat.streamedThisTurn = true
     seat.turnChars += ev.delta.text.length
     setSeatTail(seat, (seat.tail ?? '') + ev.delta.text, dir)
+  } else if (ev.type === 'content_block_delta' && ev.delta?.type === 'thinking_delta' && typeof ev.delta.thinking === 'string') {
+    seat.turnChars += ev.delta.thinking.length
+    scheduleTailPublish(seat, dir)
   } else if (ev.type === 'content_block_stop' || ev.type === 'message_stop') {
     if (ev.type === 'message_stop') {
       seat.streamBlock = null
@@ -286,20 +313,19 @@ function onSeatEphemeralProgress(seat: SeatState, line: string, dir?: string): b
 
 function onSeatAssistantFrame(seat: SeatState, line: string, dir?: string): void {
   if (seat.streamedThisTurn) return
-  let frame: { type?: string; message?: { id?: string; content?: Array<{ type?: string; text?: string }> } }
+  let frame: { type?: string; message?: { id?: string; content?: Array<{ type?: string; text?: string; phase?: unknown }> } }
   try {
     frame = JSON.parse(line) as typeof frame
   } catch {
     return
   }
   if (frame.type !== 'assistant' || !Array.isArray(frame.message?.content)) return
-  const text = frame.message.content
-    .filter(block => block.type === 'text' && typeof block.text === 'string')
-    .map(block => block.text)
-    .join('')
+  const textBlocks = frame.message.content.filter(block => block.type === 'text' && typeof block.text === 'string')
+  const text = textBlocks.map(block => block.text).join('')
   if (text !== '') {
     const id = frame.message.id
     seat.tailMessageId = typeof id === 'string' && id !== '' ? id : null
+    seat.tailPhase = textPhaseOf(textBlocks[0]?.phase)
     seat.turnChars += text.length
     setSeatTail(seat, text, dir)
   }
@@ -322,6 +348,10 @@ export function seatTurnOpen(row: { outcome?: string; busy?: boolean; turnActive
 
 function seatBusy(short: string, roster: SeatRosterPort): boolean {
   return seatTurnOpen(roster.list().find(j => j.short === short))
+}
+
+function seatTurnStartedAt(short: string, roster: SeatRosterPort): number | undefined {
+  return roster.list().find(j => j.short === short)?.turnStartedAt
 }
 
 export function switchAppliesWhileAgentsHold(turnOpen: boolean, stateWord: SeatState['stateWord']): boolean {
@@ -347,7 +377,11 @@ const ZERO_USAGE: SessionFactsAnswerV1['usage'] = {
   hasUnknownModelCost: false,
 }
 
-function skeletonAnswer(rec: ConcourseWorkerRecordV1): SessionFactsAnswerV1 {
+export function spawnPostureWordOf(rec: Pick<ConcourseWorkerRecordV1, 'permissionMode'>): { permissionMode: PermissionMode } | Record<string, never> {
+  return rec.permissionMode !== undefined ? { permissionMode: rec.permissionMode } : {}
+}
+
+function skeletonAnswer(rec: ConcourseWorkerRecordV1): Omit<SessionFactsAnswerV1, 'permissionMode'> & { permissionMode?: PermissionMode } {
   const cwd = rec.worktreePath ?? rec.workspaceId
   return {
     model: { effective: rec.modelKey, setting: rec.modelKey },
@@ -355,7 +389,7 @@ function skeletonAnswer(rec: ConcourseWorkerRecordV1): SessionFactsAnswerV1 {
     identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null },
     skills: [],
     mcp: [],
-    permissionMode: 'flow',
+    ...spawnPostureWordOf(rec),
     workspace: { cwd, originalCwd: cwd, projectRoot: rec.workspaceId, instructionRoots: [] },
     queue: [],
   }
@@ -376,12 +410,14 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
       setting: seat.lastAnswer?.model.setting ?? rec.modelKey,
     },
     pendingModel: rec.pendingModelKey ?? null,
+    ...(rec.effort !== undefined ? { effort: rec.effort } : {}),
     spawnSwitches: spawnSwitchFactsOfRecord(rec),
     ...(rec.pendingSpawnSwitches !== undefined && rec.pendingSpawnSwitches.length > 0
       ? { pendingSpawnSwitches: rec.pendingSpawnSwitches.map(p => ({ kind: p.kind, on: p.on })) }
       : {}),
     ...(seat.lastModelSettle !== null ? { modelSettled: seat.lastModelSettle } : {}),
     busy: roster !== undefined ? seatBusy(short, roster) : seat.lastBusy,
+    ...(roster !== undefined && seatTurnStartedAt(short, roster) !== undefined ? { turnStartedAt: seatTurnStartedAt(short, roster) } : {}),
     ...saturnFactsOf(rec, Date.now()),
   }
   seat.lastBusy = facts.busy
@@ -574,7 +610,8 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
   if (
     line.includes('"task_started"') ||
     line.includes('"task_progress"') ||
-    line.includes('"task_notification"')
+    line.includes('"task_notification"') ||
+    line.includes('"mission_updated"')
   ) {
     requestSessionFacts(short, roster)
     return
@@ -583,6 +620,24 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
     if (line.includes(SEAT_REWIND_REQUEST_PREFIX)) {
       try {
         settleRewindAnswer(JSON.parse(line) as Parameters<typeof settleRewindAnswer>[0])
+      } catch {
+      }
+    }
+    if (line.includes(SEAT_AGENT_REQUEST_PREFIX)) {
+      try {
+        settleAgentVerbAnswer(JSON.parse(line) as Parameters<typeof settleAgentVerbAnswer>[0])
+      } catch {
+      }
+    }
+    if (line.includes(SEAT_WITHDRAW_REQUEST_PREFIX)) {
+      try {
+        settleWithdrawAnswer(JSON.parse(line) as Parameters<typeof settleWithdrawAnswer>[0])
+      } catch {
+      }
+    }
+    if (line.includes(SEAT_MODE_REQUEST_PREFIX)) {
+      try {
+        settleModeAnswer(JSON.parse(line) as Parameters<typeof settleModeAnswer>[0])
       } catch {
       }
     }
@@ -627,21 +682,23 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
           }
           return
         }
-        const waiting =
-          frame.status !== null && typeof frame.status === 'object'
-            ? (frame.status as { waitingOnAgents?: unknown }).waitingOnAgents
-            : undefined
+        const statusObject = frame.status !== null && typeof frame.status === 'object' ? (frame.status as { waitingOnAgents?: unknown; compacting?: unknown }) : null
+        const waiting = statusObject?.waitingOnAgents
+        const foldStamped = statusObject !== null && 'compacting' in statusObject
         const next =
-          frame.status === 'compacting'
+          frame.status === 'compacting' || foldStamped
             ? ('compacting' as const)
             : typeof waiting === 'number' && Number.isFinite(waiting) && waiting > 0
               ? ('waiting-on-agents' as const)
               : null
         const count = next === 'waiting-on-agents' ? Math.floor(waiting as number) : 0
+        const fold = foldStamped ? decodeFoldStatus(statusObject.compacting) : null
         noteSeatEvent(seat, dir)
-        if (seat.stateWord !== next || seat.waitingOnAgents !== count) {
+        const foldMoved = JSON.stringify(seat.fold) !== JSON.stringify(fold)
+        if (seat.stateWord !== next || seat.waitingOnAgents !== count || foldMoved) {
           seat.stateWord = next
           seat.waitingOnAgents = count
+          seat.fold = fold
           publishTailNow(seat, dir)
         }
         return
@@ -680,8 +737,10 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
       seat.streamedThisTurn = false
       seat.turnChars = 0
       seat.tailMessageId = null
+      seat.tailPhase = null
       seat.stateWord = null
       seat.waitingOnAgents = 0
+      seat.fold = null
       seat.wait = null
       noteSeatEvent(seat, dir)
       seat.streamBlock = null
@@ -697,7 +756,7 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
   if (!rec) return
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat idle edge: ${short}${rec.pendingModelKey !== undefined ? ` — applying the parked model ${rec.pendingModelKey}` : ''}${rec.pendingEffort !== undefined ? ` — applying the parked effort ${rec.pendingEffort}` : ''}`)
-  if (rec.pendingModelKey !== undefined) applyModelNow(rec, rec.pendingModelKey, roster, dir, { parkedSettle: true })
+  if (rec.pendingModelKey !== undefined) void applyModelNow(rec, rec.pendingModelKey, roster, dir, { parkedSettle: true })
   if (rec.pendingEffort !== undefined) applyEffortNow(rec, rec.pendingEffort, roster, dir)
   drainPendingKitDials(short, roster, dir)
   drainPendingSpawnSwitches(short, roster, dir)
@@ -707,14 +766,19 @@ export function onSeatIdle(short: string, roster: SeatRosterPort, dir?: string):
 
 export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: string): void {
   rejectRewindWaiters(short, "the session's runner restarted before it answered the rewind — nothing is assumed restored")
+  rejectAgentVerbWaiters(short, "the session's runner restarted before it answered — nothing is assumed stopped or resumed")
+  rejectWithdrawWaiters(short, "the session's runner restarted before it answered the withdraw — nothing is assumed taken back")
+  rejectModeWaiters(short, "the session's runner restarted before it answered the mode change — the band follows its facts")
   const seat = seatOf(short)
   seat.lastAnswer = null
   seat.sessionId = liveRecordByShort(short, dir)?.sessionId ?? null
   seat.turnChars = 0
   seat.tailMessageId = null
+  seat.tailPhase = null
   const hadWord = seat.stateWord !== null || seat.wait !== null
   seat.stateWord = null
   seat.waitingOnAgents = 0
+  seat.fold = null
   seat.wait = null
   const hadLiveness = seat.lastEventAtMs !== null || seat.streamBlock !== null
   seat.lastEventAtMs = null
@@ -737,6 +801,9 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
 
 export function onSeatSettled(short: string): void {
   rejectRewindWaiters(short, "the session's runner ended before it answered the rewind — nothing is assumed restored")
+  rejectAgentVerbWaiters(short, "the session's runner ended before it answered — nothing is assumed stopped or resumed")
+  rejectWithdrawWaiters(short, "the session's runner ended before it answered the withdraw — nothing is assumed taken back")
+  rejectModeWaiters(short, "the session's runner ended before it answered the mode change")
   const seat = seats.get(short)
   if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
   if (seat?.workPoll !== null && seat?.workPoll !== undefined) clearTimeout(seat.workPoll)
@@ -747,7 +814,7 @@ export function onSeatSettled(short: string): void {
 }
 
 
-export type SeatVerbOutcome = { outcome: 'applied' | 'queued' | 'noop' | 'refused'; detail?: string }
+export type SeatVerbOutcome = { outcome: 'applied' | 'queued' | 'noop' | 'refused'; detail?: string; respawned?: true }
 
 function verbRequestId(short: string, verb: string): string {
   return `${SEAT_VERB_REQUEST_PREFIX}${verb}-${short}-${Date.now().toString(36)}`
@@ -857,7 +924,184 @@ export function _pendingRewindWaitersForTesting(): number {
   return rewindWaiters.size
 }
 
-function applyModelNow(
+
+const SEAT_AGENT_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}agent-`
+export const AGENT_VERB_ANSWER_DEADLINE_MS = 10_000
+
+export type SessionAgentVerb = 'stop-agent' | 'resume-agent'
+
+interface AgentVerbWaiter {
+  short: string
+  settle: (outcome: SeatVerbOutcome) => void
+}
+
+const agentVerbWaiters = new Map<string, AgentVerbWaiter>()
+let agentVerbSeq = 0
+
+export function controlSessionAgent(
+  sessionId: string,
+  agentId: string,
+  verb: SessionAgentVerb,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { note?: string; deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  if (agentId === '') return Promise.resolve({ outcome: 'refused', detail: `${verb} requires agentId` })
+  const requestId = `${SEAT_AGENT_REQUEST_PREFIX}${verb}-${rec.runnerId}-${Date.now().toString(36)}-${(++agentVerbSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS
+  return new Promise<SeatVerbOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!agentVerbWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the ${verb} within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    agentVerbWaiters.set(requestId, {
+      short: rec.runnerId,
+      settle: outcome => {
+        clearTimeout(timer)
+        agentVerbWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const request =
+      verb === 'stop-agent'
+        ? { subtype: 'stop_task', task_id: agentId }
+        : { subtype: 'resume_task', task_id: agentId, ...(opts?.note !== undefined ? { note: opts.note } : {}) }
+    const delivered = roster.control(rec.runnerId, JSON.stringify({ type: 'control_request', request_id: requestId, request }))
+    if (!delivered) {
+      clearTimeout(timer)
+      agentVerbWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+      return
+    }
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat ${verb} sent: ${rec.runnerId} → ${agentId}`)
+  })
+}
+
+function settleAgentVerbAnswer(frame: { type?: string; response?: { subtype?: string; request_id?: string; response?: unknown; error?: unknown } }): boolean {
+  const response = frame.response
+  if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
+  const waiter = agentVerbWaiters.get(response.request_id)
+  if (waiter === undefined) return false
+  if (response.subtype === 'success') {
+    const payload = response.response && typeof response.response === 'object' ? (response.response as Record<string, unknown>) : {}
+    const detail = Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined
+    waiter.settle({ outcome: 'applied', ...(detail !== undefined ? { detail } : {}) })
+    return true
+  }
+  const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the verb'
+  const older = /unsupported control request subtype/i.test(error)
+  waiter.settle({
+    outcome: 'refused',
+    detail: older ? "the session's runner predates the crew stop and resume verbs — /daemon restart when ready, then reopen the session" : error,
+  })
+  return true
+}
+
+function rejectAgentVerbWaiters(short: string, detail: string): void {
+  for (const [requestId, waiter] of agentVerbWaiters) {
+    if (waiter.short !== short) continue
+    agentVerbWaiters.delete(requestId)
+    waiter.settle({ outcome: 'refused', detail })
+  }
+}
+
+export function _pendingAgentVerbWaitersForTesting(): number {
+  return agentVerbWaiters.size
+}
+
+
+const SEAT_WITHDRAW_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}withdraw-`
+export const WITHDRAW_ANSWER_DEADLINE_MS = 5_000
+
+export type SeatWithdrawOutcome = SeatVerbOutcome & { withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown' }
+
+interface WithdrawWaiter {
+  short: string
+  settle: (outcome: SeatWithdrawOutcome) => void
+}
+
+const withdrawWaiters = new Map<string, WithdrawWaiter>()
+let withdrawSeq = 0
+
+export function withdrawSessionSend(
+  sessionId: string,
+  clientMessageId: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatWithdrawOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  if (clientMessageId === '') return Promise.resolve({ outcome: 'refused', detail: 'withdraw-send requires clientMessageId' })
+  const requestId = `${SEAT_WITHDRAW_REQUEST_PREFIX}${rec.runnerId}-${Date.now().toString(36)}-${(++withdrawSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? WITHDRAW_ANSWER_DEADLINE_MS
+  return new Promise<SeatWithdrawOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!withdrawWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the withdraw within ${Math.round(deadlineMs / 1000)}s` })
+    }, deadlineMs)
+    timer.unref?.()
+    withdrawWaiters.set(requestId, {
+      short: rec.runnerId,
+      settle: outcome => {
+        clearTimeout(timer)
+        withdrawWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const delivered = roster.control(
+      rec.runnerId,
+      JSON.stringify({ type: 'control_request', request_id: requestId, request: { subtype: 'withdraw_send', client_message_id: clientMessageId } }),
+    )
+    if (!delivered) {
+      clearTimeout(timer)
+      withdrawWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+    }
+  })
+}
+
+function settleWithdrawAnswer(frame: { type?: string; response?: { subtype?: string; request_id?: string; response?: unknown; error?: unknown } }): boolean {
+  const response = frame.response
+  if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
+  const waiter = withdrawWaiters.get(response.request_id)
+  if (waiter === undefined) return false
+  if (response.subtype === 'success') {
+    const payload = response.response && typeof response.response === 'object' ? (response.response as Record<string, unknown>) : {}
+    if (payload.withdrawn === true) {
+      waiter.settle({ outcome: 'applied', withdrawn: true, text: typeof payload.text === 'string' ? payload.text : '' })
+      return true
+    }
+    const reason: 'taken' | 'unknown' = payload.reason === 'taken' ? 'taken' : 'unknown'
+    waiter.settle({ outcome: 'refused', withdrawn: false, reason, detail: reason === 'taken' ? 'the runner already took the line' : "the runner's queue never held the line" })
+    return true
+  }
+  const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the withdraw'
+  const older = /unsupported control request subtype/i.test(error)
+  waiter.settle({
+    outcome: 'refused',
+    detail: older ? "the session's runner predates the recall — /daemon restart when ready, then reopen the session" : error,
+  })
+  return true
+}
+
+function rejectWithdrawWaiters(short: string, detail: string): void {
+  for (const [requestId, waiter] of withdrawWaiters) {
+    if (waiter.short !== short) continue
+    withdrawWaiters.delete(requestId)
+    waiter.settle({ outcome: 'refused', detail })
+  }
+}
+
+export function _pendingWithdrawWaitersForTesting(): number {
+  return withdrawWaiters.size
+}
+
+async function applyModelNow(
   rec: ConcourseWorkerRecordV1,
   model: string,
   roster: SeatRosterPort,
@@ -865,7 +1109,7 @@ function applyModelNow(
   opts?: {
     parkedSettle?: boolean
   },
-): SeatVerbOutcome {
+): Promise<SeatVerbOutcome> {
   const delivered = roster.control(
     rec.runnerId,
     JSON.stringify({
@@ -874,7 +1118,7 @@ function applyModelNow(
       request: { subtype: 'set_model', model },
     }),
   )
-  if (!delivered) return { outcome: 'refused', detail: 'the session has no live control channel' }
+  if (!delivered) return respawnOnModel(rec, model, roster, dir)
   // eslint-disable-next-line no-console
   console.error(`[daemon] seat set-model applied: ${rec.runnerId} → ${model}`)
   if (opts?.parkedSettle === true) {
@@ -894,11 +1138,12 @@ function applyModelNow(
   return { outcome: 'applied', detail: `${rec.runnerId} → ${model}` }
 }
 
-export function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string): SeatVerbOutcome {
+export async function setSessionModel(sessionId: string, model: string, roster: SeatRosterPort, dir?: string): Promise<SeatVerbOutcome> {
   const rec = liveRecordBySession(sessionId, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   if (rec.modelKey === model && rec.pendingModelKey === undefined) return { outcome: 'noop', detail: `already on ${model}` }
-  if (seatBusyForSwitch(rec.runnerId, roster)) {
+  const gone = rec.pid !== undefined && !workerPidAlive(rec)
+  if (!gone && seatBusyForSwitch(rec.runnerId, roster)) {
     updateConcourseWorkers(workers => {
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) {
@@ -912,6 +1157,74 @@ export function setSessionModel(sessionId: string, model: string, roster: SeatRo
     return { outcome: 'queued', detail: `${model} applies when this turn ends` }
   }
   return applyModelNow(rec, model, roster, dir)
+}
+
+function clockOf(atMs: number): string {
+  return new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function goneRunnerWords(rec: ConcourseWorkerRecordV1, row: { outcome?: string } | undefined): string {
+  if (rec.crash !== undefined) {
+    const head = rec.crash.reason.replace(/ · resumed.*$/, '').replace(/ — .*$/, '')
+    return `the runner had exited at ${clockOf(rec.crash.at)} (${head})`
+  }
+  if (row?.outcome === 'killed') return 'the runner had been cut (the stop)'
+  return 'the runner had exited'
+}
+
+async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir?: string): Promise<SeatVerbOutcome> {
+  const row = roster.list().find(j => j.short === rec.runnerId)
+  if (roster.registerLongLived === undefined || roster.has === undefined || roster.kill === undefined) {
+    return { outcome: 'refused', detail: 'the session has no live control channel, and this roster cannot respawn its runner' }
+  }
+  refreshSignInReads(true)
+  const validated = await validateWorkerModelChoice(model, 'session')
+  if (!validated.ok) {
+    const read = validated.reason.startsWith('no-credential:') ? ` — ${describeSignInRead(validated.reason.slice('no-credential:'.length))}` : ''
+    return {
+      outcome: 'refused',
+      detail: `${goneRunnerWords(rec, row)} and cannot restart on ${model}: model refused (${validated.reason})${validated.action !== undefined ? ` · ${validated.action}` : ''}${validated.detail !== undefined ? ` — ${validated.detail}` : ''}${read}`,
+    }
+  }
+  const name = ((): string => {
+    try {
+      return getMarketingNameForModel(model) ?? model
+    } catch {
+      return model
+    }
+  })()
+  if (row !== undefined && row.outcome === undefined && row.state === 'spawning') {
+    roster.patchSeatModel(rec.runnerId, model)
+    updateConcourseWorkers(workers => {
+      const w = workers[rec.runnerId]
+      if (w && w.endedAt === undefined) {
+        w.modelKey = model
+        delete w.pendingModelKey
+      }
+    }, dir)
+    const receipt = `${goneRunnerWords(rec, row)} — restarting on ${name}`
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat set-model rides the respawn: ${rec.runnerId} → ${model} (${receipt})`)
+    publishSeatFacts(rec.runnerId, dir, roster)
+    return { outcome: 'applied', detail: receipt, respawned: true }
+  }
+  const reviveRoster = {
+    kill: (short: string): boolean => roster.kill!(short),
+    has: (short: string): { present: boolean } => roster.has!(short),
+    registerLongLived: (short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived!(short, spec),
+  }
+  const revived = reviveConcourseWorker(rec.sessionId, 'operator:set-model', reviveRoster, { clearCrash: true, modelOverride: model }, dir)
+  if (revived.outcome === 'noop') {
+    return { outcome: 'refused', detail: `the runner's control channel is closed while its process (pid ${rec.pid ?? '?'}) still stands — retry in a moment` }
+  }
+  if (revived.outcome === 'refused') {
+    return { outcome: 'refused', detail: `${goneRunnerWords(rec, row)} and could not restart on ${model}: ${revived.detail ?? revived.reason}` }
+  }
+  const receipt = `${goneRunnerWords(rec, row)} — restarted on ${name}`
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] seat set-model respawned: ${rec.runnerId} → ${model} (${receipt})`)
+  publishSeatFacts(rec.runnerId, dir, roster)
+  return { outcome: 'applied', detail: receipt, respawned: true }
 }
 
 function applyEffortNow(
@@ -940,6 +1253,7 @@ function applyEffortNow(
     }
   }, dir)
   publishSeatFacts(rec.runnerId, dir, roster)
+  requestSessionFacts(rec.runnerId, roster, { immediate: true })
   return { outcome: 'applied', detail: `${rec.runnerId} → ${effort}` }
 }
 
@@ -1117,25 +1431,85 @@ function drainPendingKitDials(short: string, roster: SeatRosterPort, dir?: strin
   forwardSessionKit(short, roster, dir)
 }
 
+
+const SEAT_MODE_REQUEST_PREFIX = `${SEAT_VERB_REQUEST_PREFIX}set-permission-mode-`
+export const PERMISSION_MODE_ANSWER_DEADLINE_MS = 5_000
+
+interface ModeWaiter {
+  short: string
+  mode: string
+  settle: (outcome: SeatVerbOutcome) => void
+}
+
+const modeWaiters = new Map<string, ModeWaiter>()
+let modeSeq = 0
+
 export function setSessionPermissionMode(
   sessionId: string,
   mode: string,
   roster: SeatRosterPort,
   dir?: string,
-): SeatVerbOutcome {
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
   const rec = liveRecordBySession(sessionId, dir)
-  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
-  const delivered = roster.control(
-    rec.runnerId,
-    JSON.stringify({
-      type: 'control_request',
-      request_id: verbRequestId(rec.runnerId, 'set-permission-mode'),
-      request: { subtype: 'set_permission_mode', mode },
-    }),
-  )
-  return delivered
-    ? { outcome: 'applied', detail: `${rec.runnerId} mode → ${mode}` }
-    : { outcome: 'refused', detail: 'the session has no live control channel' }
+  if (!rec) return Promise.resolve({ outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' })
+  const requestId = `${SEAT_MODE_REQUEST_PREFIX}${rec.runnerId}-${Date.now().toString(36)}-${(++modeSeq).toString(36)}`
+  const deadlineMs = opts?.deadlineMs ?? PERMISSION_MODE_ANSWER_DEADLINE_MS
+  return new Promise<SeatVerbOutcome>(resolve => {
+    const timer = setTimeout(() => {
+      if (!modeWaiters.delete(requestId)) return
+      resolve({ outcome: 'refused', detail: `the session's runner did not answer the mode change within ${Math.round(deadlineMs / 1000)}s — the band follows its facts` })
+    }, deadlineMs)
+    timer.unref?.()
+    modeWaiters.set(requestId, {
+      short: rec.runnerId,
+      mode,
+      settle: outcome => {
+        clearTimeout(timer)
+        modeWaiters.delete(requestId)
+        resolve(outcome)
+      },
+    })
+    const delivered = roster.control(
+      rec.runnerId,
+      JSON.stringify({
+        type: 'control_request',
+        request_id: requestId,
+        request: { subtype: 'set_permission_mode', mode },
+      }),
+    )
+    if (!delivered) {
+      clearTimeout(timer)
+      modeWaiters.delete(requestId)
+      resolve({ outcome: 'refused', detail: 'the session has no live control channel' })
+    }
+  })
+}
+
+function settleModeAnswer(frame: { type?: string; response?: { subtype?: string; request_id?: string; error?: unknown } }): boolean {
+  const response = frame.response
+  if (frame.type !== 'control_response' || !response || typeof response.request_id !== 'string') return false
+  const waiter = modeWaiters.get(response.request_id)
+  if (waiter === undefined) return false
+  if (response.subtype === 'success') {
+    waiter.settle({ outcome: 'applied', detail: `${waiter.short} mode → ${waiter.mode}` })
+    return true
+  }
+  const error = typeof response.error === 'string' && response.error !== '' ? response.error : 'the runner refused the mode change'
+  waiter.settle({ outcome: 'refused', detail: error })
+  return true
+}
+
+function rejectModeWaiters(short: string, detail: string): void {
+  for (const [requestId, waiter] of modeWaiters) {
+    if (waiter.short !== short) continue
+    modeWaiters.delete(requestId)
+    waiter.settle({ outcome: 'refused', detail })
+  }
+}
+
+export function _pendingModeWaitersForTesting(): number {
+  return modeWaiters.size
 }
 
 export function refreshSessionFacts(sessionId: string, roster: SeatRosterPort, dir?: string): SeatVerbOutcome {

@@ -2,11 +2,37 @@
 import type { SDKControlSetEffortRequest } from '../entrypoints/sdk/controlTypes.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
 
-export const MERCURY_DAEMON_PROTO = 6
+export const MERCURY_DAEMON_PROTO = 9
 
 export const MIN_PROTO = 1
 
-export const DAEMON_PROTO_SHAPE = 'sha256:24e4456f6195d853497e746fc89136503c3a0d49f113d9768538a8ae084b9d5e'
+export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
+  hello: 2,
+  'restart-when-idle': 2,
+  sessionAdmit: 3,
+  sessionDispatch: 3,
+  sessionList: 3,
+  sessionRelease: 3,
+  sessionControl: 3,
+  'sessionControl/set-effort': 3,
+  'sessionControl/contract': 3,
+  sessionRewind: 5,
+  'sessionControl/set-spawn-switch': 6,
+  signIns: 7,
+  'sessionControl/stop-agent': 8,
+  'sessionControl/resume-agent': 8,
+  'sessionControl/withdraw-send': 9,
+}
+
+export function verbBornAt(op: string, action?: string): number {
+  if (action !== undefined) {
+    const own = DAEMON_VERB_BORN_AT[`${op}/${action}`]
+    if (own !== undefined) return own
+  }
+  return DAEMON_VERB_BORN_AT[op] ?? MIN_PROTO
+}
+
+export const DAEMON_PROTO_SHAPE = 'sha256:b4ab411a28f6732bab245bb3468c3eb39913624d60755445bb85e8561bc99b6e'
 
 export const CONTROL_FRAME_CAP = 1 << 20
 
@@ -54,6 +80,7 @@ export type DaemonOp =
   | 'sessionRelease'
   | 'sessionControl'
   | 'sessionRewind'
+  | 'signIns'
 
 export type DispatchSource = 'user' | 'cron' | 'dispatch'
 
@@ -156,6 +183,7 @@ export type DaemonRequest =
       bornBlank?: true
       kit?: SessionKitV1
       kitPreset?: string
+      bypassConsent?: true
     }
   | { op: 'sessionList'; proto: number; auth?: string }
   | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }
@@ -168,6 +196,7 @@ export type DaemonRequest =
       retiring?: string
       runnerOptionsPresent?: boolean
       kit?: SessionKitV1
+      bypassConsent?: true
     }
   | {
       op: 'sessionControl'
@@ -196,6 +225,9 @@ export type DaemonRequest =
         | 'set-kit'
         | 'set-schedule'
         | 'set-spawn-switch'
+        | 'stop-agent'
+        | 'resume-agent'
+        | 'withdraw-send'
       sessionId: string
       by: string
       reason?: string
@@ -217,7 +249,10 @@ export type DaemonRequest =
       kitEdit?: SessionKitEditV1
       scheduleEdit?: import('./saturn.js').ScheduleOpRequestV1
       spawnSwitch?: { kind: 'subagents' | 'workflows'; on: boolean }
+      agentId?: string
+      note?: string
       clientOpId?: string
+      clientMessageId?: string
     }
   | {
       op: 'sessionDispatch'
@@ -261,6 +296,31 @@ export type DaemonRequest =
       userMessageId: string
       dryRun?: boolean
     }
+  | {
+      op: 'signIns'
+      proto: number
+      auth?: string
+      refresh?: true
+    }
+
+export interface SignInFamilyViewV1 {
+  family: string
+  credentialed: boolean
+  label?: string
+  usable: boolean
+  row?: string
+  why?: string
+  signedInAt?: number | null
+}
+
+export interface DaemonSignInViewV1 {
+  home: string
+  store: string
+  defaultFamily: string | null
+  readAt: number
+  refreshed: boolean
+  families: SignInFamilyViewV1[]
+}
 
 export interface DaemonHelloFacts {
   version: string
@@ -286,6 +346,7 @@ export interface WireRosterEntry {
   cliVersion: string
   outcome?: string
   via?: string
+  turnStartedAt?: number
   model?: string
   effort?: string
   pendingModel?: string
@@ -356,12 +417,13 @@ export type DaemonReply =
       presetNote?: string
     }
   | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
-  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string }
+  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown' }
   | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
   | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
   | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }
   | ({ ok: true; op: 'hello'; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)
   | { ok: true; op: 'restart-when-idle'; state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
+  | { ok: true; op: 'signIns'; view: DaemonSignInViewV1 }
   | {
       ok: false
       code: DaemonErrorCode

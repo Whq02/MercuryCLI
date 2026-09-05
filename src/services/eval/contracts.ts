@@ -79,6 +79,7 @@ export interface EvalLanguageAvailability {
   interpreterPath?: string
   version?: string
   whyNot?: string
+  probing?: true
 }
 
 export function unavailableLanguageMessage(

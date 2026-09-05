@@ -13,7 +13,8 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { addToToolDuration, getStatsStore } from '../../bootstrap/state.js'
 import { themisToolGate } from '../../substrate/themis/gate.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
-import type { PermissionDecision } from '../../types/permissions.js'
+import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
+import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -570,22 +571,29 @@ async function runTransactionBody(args: {
     )
   }
 
-  const decisionReason = (decision as { decisionReason?: { type?: string; hookName?: string } })
-    .decisionReason
-  if (
+  const decisionReason = (decision as { decisionReason?: PermissionDecisionReason }).decisionReason
+  const hookDecisionRow =
     decisionReason?.type === 'hook' &&
     decisionReason.hookName?.includes(PERMISSION_REQUEST_HOOK_NAME) &&
     decision.behavior !== 'ask'
-  ) {
-    push({
-      message: createAttachmentMessage({
-        type: 'hook_permission_decision',
-        decision: decision.behavior === 'allow' ? 'allow' : 'deny',
-        toolUseID,
-        hookEvent: PERMISSION_REQUEST_HOOK_NAME,
-      } as never),
-    })
-  }
+      ? createAttachmentMessage({
+          type: 'hook_permission_decision',
+          decision: decision.behavior === 'allow' ? 'allow' : 'deny',
+          toolUseID,
+          hookEvent: PERMISSION_REQUEST_HOOK_NAME,
+        } as never)
+      : null
+
+  const allowanceRow =
+    decision.behavior === 'allow' && decisionReason?.type === 'bypassedAsk'
+      ? createAttachmentMessage({
+          type: 'bypassed_ask',
+          toolUseID,
+          mode: decisionReason.mode,
+          road: decisionReason.road,
+          reason: createPermissionRequestMessage(tool.name, decisionReason.reason),
+        })
+      : null
 
   if (decision.behavior !== 'allow') {
     traceOnce({ ok: false })
@@ -617,6 +625,7 @@ async function runTransactionBody(args: {
         imagePasteIds,
       }),
     )
+    if (hookDecisionRow !== null) push({ message: hookDecisionRow })
     logForDebugging(`tool use refused: ${tool.name}`)
     return
   }
@@ -899,6 +908,8 @@ async function runTransactionBody(args: {
       push({ message: failureMessage })
     }
   } finally {
+    if (executed && hookDecisionRow !== null) push({ message: hookDecisionRow })
+    if (executed && allowanceRow !== null) push({ message: allowanceRow })
     if (executed) {
       traceOnce({ durationMs, ok: success })
       try {

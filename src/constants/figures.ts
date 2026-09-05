@@ -13,6 +13,7 @@ export const EFFORT_MEDIUM = '•'
 export const EFFORT_HIGH = '●'
 export const EFFORT_XHIGH = '◉'
 export const EFFORT_MAX = '✦'
+export const EFFORT_ULTRA = '✸'
 
 
 export const REFRESH_ARROW = '↻'

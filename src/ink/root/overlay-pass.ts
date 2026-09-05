@@ -1,5 +1,7 @@
+import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import type { Screen, StylePool } from '../cell-grid.js'
-import type { FollowScroll } from '../compose-walk.js'
+import type { ScrollTranslation } from '../compose-walk.js'
+import type { OverlayRecord } from '../geometry/overlay.js'
 import { applyPositionedHighlight, type MatchPosition } from '../render-to-screen.js'
 import { applySearchHighlight } from '../searchHighlight.js'
 import {
@@ -8,7 +10,7 @@ import {
   hasSelection,
   type SelectionState,
   shiftAnchor,
-  shiftSelectionForFollow,
+  shiftSelection,
 } from '../geometry/selection.js'
 
 export type SearchPositions = {
@@ -20,7 +22,7 @@ export type SearchPositions = {
 
 export type OverlayPassInput = {
   altScreen: boolean
-  follow: FollowScroll | null
+  scrollTranslation: ScrollTranslation | null
   selection: SelectionState
   captureScreen: Screen
   screen: Screen
@@ -28,35 +30,46 @@ export type OverlayPassInput = {
   searchQuery: string
   searchPositions: SearchPositions | null
   onSelectionCleared: () => void
+  record?: OverlayRecord
 }
 
 export type OverlayPassResult = { selActive: boolean; hlActive: boolean }
 
 export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
-  const { follow, selection } = input
+  const { scrollTranslation, selection } = input
 
   if (
-    follow &&
+    scrollTranslation &&
     selection.anchor &&
-    selection.anchor.row >= follow.viewportTop &&
-    selection.anchor.row <= follow.viewportBottom
+    selection.anchor.row >= scrollTranslation.viewportTop &&
+    selection.anchor.row <= scrollTranslation.viewportBottom
   ) {
-    const { delta, viewportTop, viewportBottom } = follow
+    const { delta, viewportTop, viewportBottom } = scrollTranslation
+    const capFirst = delta > 0 ? viewportTop : viewportBottom + delta + 1
+    const capLast = delta > 0 ? viewportTop + delta - 1 : viewportBottom
+    const side: 'above' | 'below' = delta > 0 ? 'above' : 'below'
     if (selection.isDragging) {
       if (hasSelection(selection)) {
-        captureScrolledRows(selection, input.captureScreen, viewportTop, viewportTop + delta - 1, 'above')
+        captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
       shiftAnchor(selection, -delta, viewportTop, viewportBottom)
+      fluxMark('selection:xlate', 1000 + delta + 500)
     } else if (
       !selection.focus ||
       (selection.focus.row >= viewportTop && selection.focus.row <= viewportBottom)
     ) {
       if (hasSelection(selection)) {
-        captureScrolledRows(selection, input.captureScreen, viewportTop, viewportTop + delta - 1, 'above')
+        captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
-      const cleared = shiftSelectionForFollow(selection, -delta, viewportTop, viewportBottom)
-      if (cleared) input.onSelectionCleared()
+      const had = hasSelection(selection)
+      shiftSelection(selection, -delta, viewportTop, viewportBottom, input.captureScreen.width)
+      if (had && !hasSelection(selection)) input.onSelectionCleared()
+      fluxMark('selection:xlate', 2000 + delta + 500)
+    } else {
+      fluxMark('selection:xlate', 3000 + delta + 500)
     }
+  } else if (scrollTranslation && selection.anchor) {
+    fluxMark('selection:xlate', 4000 + scrollTranslation.delta + 500)
   }
 
   let selActive = false
@@ -64,12 +77,12 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
   if (input.altScreen) {
     selActive = hasSelection(selection)
     if (selActive) {
-      applySelectionOverlay(input.screen, selection, input.stylePool)
+      applySelectionOverlay(input.screen, selection, input.stylePool, input.record)
     }
-    hlActive = applySearchHighlight(input.screen, input.searchQuery, input.stylePool)
+    hlActive = applySearchHighlight(input.screen, input.searchQuery, input.stylePool, input.record)
     if (input.searchPositions) {
       const sp = input.searchPositions
-      const posApplied = applyPositionedHighlight(input.screen, input.stylePool, sp.positions, sp.rowOffset, sp.colOffset, sp.currentIdx)
+      const posApplied = applyPositionedHighlight(input.screen, input.stylePool, sp.positions, sp.rowOffset, sp.colOffset, sp.currentIdx, input.record)
       hlActive = hlActive || posApplied
     }
   }

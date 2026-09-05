@@ -153,8 +153,29 @@ section('P1 the projector: the runner\'s task store → wire rows')
     wf?.phases?.length === 1 && wf.phases[0]!.title === 'Probe' && wf.phases[0]!.agents.length === 2 && wf.phases[0]!.agents.map(a => a.state).join(',') === 'progress,done',
     JSON.stringify(wf?.phases),
   )
+  check(
+    'P1 the workflow row speaks its pulse (the runner\'s own fold: one in flight, one settled, the newest signal floored at the start)',
+    wf?.pulse !== undefined && wf.pulse.running === 1 && wf.pulse.settled === 1 && wf.pulse.maxAttempt === 0 && wf.pulse.lastEventAt === t0 && wf.pulse.phaseTitle === 'Probe',
+    JSON.stringify(wf?.pulse),
+  )
   const tm = rows.find(r => r.id === 'tm1')
   check('P1 the teammate row names its team', tm?.kind === 'teammate' && tm.name === 'scout' && tm.team === 'crew')
+
+  const { focusedWorkRows, runningWorkflowRows } = await import('../../src/components/tasks/useFocusedWork.ts')
+  const hosted = {
+    rows: [
+      { id: 'wf1', kind: 'workflow', name: 'a stale copy of the local row', status: 'completed', startTime: t0 },
+      { id: 'wf9', kind: 'workflow', name: 'hosted-run', status: 'running', startTime: t0 + 9, workflowRunId: 'run-9' },
+      { id: 'wf8', kind: 'workflow', name: 'hosted-paused', status: 'paused', startTime: t0 + 8, workflowRunId: 'run-8' },
+      { id: 'sh9', kind: 'shell', name: 'sleep 9', status: 'running', startTime: t0 + 7 },
+    ],
+    mission: [],
+  } as const
+  const union = focusedWorkRows(store, hosted as never)
+  check('P6 the union carries every local row and every hosted row once', union.length === 4 + 3, JSON.stringify(union.map(r => r.id)))
+  check('P6 a row held locally keeps its local projection (the hosted copy never wins)', union.find(r => r.id === 'wf1')?.name === 'scope-probe' && union.find(r => r.id === 'wf1')?.status === 'running')
+  check('P6 the running workflows are the local run and the hosted run — never the paused one, never the shell', runningWorkflowRows(union).map(r => r.id).sort().join(',') === 'wf1,wf9')
+  check('P6 a blank store still lists the hosted rows', focusedWorkRows(undefined, hosted as never).length === 4)
   const sh = rows.find(r => r.id === 'sh1')
   check('P1 the shell row keeps its settle time', sh?.kind === 'shell' && sh.endTime === t0 + 5 && sh.status === 'completed')
   check('P1 newest first, stable', rows[0]!.id === 'sh1' && rows[rows.length - 1]!.id === 'wf1')
@@ -164,6 +185,8 @@ section('P2 the wire: `work` rides the facts; an old answer still validates')
 const proj = await import('../../src/services/engine-connector/seatProjections.ts')
 const SID_A = '00000000-0000-4000-8000-00000000000a'
 const SID_B = '00000000-0000-4000-8000-00000000000b'
+const SID_C = '00000000-0000-4000-8000-00000000000c'
+const SID_D = '00000000-0000-4000-8000-00000000000d'
 const baseAnswer = {
   model: { effective: 'claude-opus-5', setting: null },
   usage: {
@@ -210,6 +233,16 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   const b = seat.daemonSessionConnectorFor(recordOf(SID_B, 'B'))
   check('P3 the constructor reads the facts synchronously — A has its row', a.workRoster().rows.length === 1 && a.workRoster().rows[0]!.name === 'scope-probe')
   check('P3 B answers the honest empty', b.workRoster().rows.length === 0)
+  check('P3 A\'s reported roster carries no unreported flag (the rows are the runner\'s word)', a.workRoster().reported !== false)
+  check('P3 B (no facts file yet) reads as UNREPORTED — nothing the runner said', b.workRoster().reported === false && b.workRoster().rows.length === 0, JSON.stringify(b.workRoster()))
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_C, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer })
+  check('P3 the skeleton-shaped answer landed on disk before the read', await untilAsync(() => proj.readSessionFacts(SID_C) !== null, 5_000))
+  const c = seat.daemonSessionConnectorFor(recordOf(SID_C, 'C'))
+  check('P3 a facts answer with NO work reads as UNREPORTED (reported: false), rows empty', c.workRoster().reported === false && c.workRoster().rows.length === 0, JSON.stringify(c.workRoster()))
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_D, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [] })
+  check('P3 the empty-work answer landed on disk before the read', await untilAsync(() => proj.readSessionFacts(SID_D)?.work !== undefined, 5_000))
+  const d = seat.daemonSessionConnectorFor(recordOf(SID_D, 'D'))
+  check('P3 a facts answer with an EMPTY work list reads as reported (the runner said nothing runs)', d.workRoster().reported !== false && d.workRoster().rows.length === 0, JSON.stringify(d.workRoster()))
   check('P3 the snapshot is stable between changes (the uSES law)', a.workRoster() === a.workRoster())
 
   await seat.focusDaemonSession(recordOf(SID_A, 'A'))
@@ -248,6 +281,7 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
   const blank = new NoSessionConnector()
   check('P3 the resting slot (no chat open) answers the stable honest empty', blank.workRoster().rows.length === 0 && blank.workRoster() === blank.workRoster())
+  check('P3 the resting slot\'s empty is reported (no session runs nothing — not an unreported runner)', blank.workRoster().reported !== false)
   slot._resetFocusedSessionConnectorForTesting()
 }
 
@@ -434,7 +468,8 @@ try {
   check('P5 A\'s run is still live as B opens', stillRunning)
   check('P5 B\'s roster carries ZERO of A\'s rows while A runs', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
 
-  const runsRoot = join(work, '.mercury', 'workflows', 'runs')
+  const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
+  const runsRoot = workflowRunsRoot(work)
   check('P5 the run manifest exists in the SHARED workspace', await untilAsync(() => existsSync(runsRoot) && readdirSync(runsRoot).length > 0, 30_000))
   const fw = await import('../../src/components/tasks/useFocusedWork.ts')
   const manifestOwner = ((): number | undefined => {

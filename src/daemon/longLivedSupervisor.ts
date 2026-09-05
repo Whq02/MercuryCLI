@@ -166,6 +166,16 @@ export function isTurnResultParsedFrame(frame: Record<string, unknown> | null): 
   return frame !== null && frame.type === 'result'
 }
 
+export {
+  TURN_STARTED_SUBTYPE,
+  turnStartedFrame,
+  isTurnStartedParsedFrame,
+  MISSION_UPDATED_SUBTYPE,
+  missionUpdatedFrame,
+  isMissionUpdatedParsedFrame,
+} from './runnerFrames.js'
+export type { TurnStartedFrame, MissionUpdatedFrame } from './runnerFrames.js'
+
 export function errorTextOfResultFrame(line: string): string | undefined {
   return errorTextOfParsedResultFrame(parseStreamJsonFrame(line))
 }

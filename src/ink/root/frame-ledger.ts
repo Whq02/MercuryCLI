@@ -32,7 +32,11 @@ export class FrameLedger {
     }
   }
 
-  commitFrame(): void {
+  commitFrame(changed = true): void {
+    if (!changed) {
+      fluxCount('frame-recommit')
+      return
+    }
     this.frontFrameSeq = ++this.frameSeq
   }
 

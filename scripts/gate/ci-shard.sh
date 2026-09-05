@@ -138,6 +138,28 @@ ambient_home="${MERCURY_CONFIG_DIR:-$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}
 export MERCURY_CONFIG_DIR="$ambient_home"
 "${BUN:-$HOME/.bun/bin/bun}" run scripts/lib/firstRunSeed.ts "$ambient_home" "$(pwd)"
 
+dead_letter_dir=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/mercury-dead-letter.XXXXXX")
+/usr/bin/python3 scripts/gate/dead-letter.py "$dead_letter_dir/port" &
+dead_letter_pid=$!
+trap 'kill "$dead_letter_pid" 2>/dev/null; rm -rf "$dead_letter_dir"' EXIT
+for _tick in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+  [ -s "$dead_letter_dir/port" ] && break
+  sleep 0.5
+done
+[ -s "$dead_letter_dir/port" ] || { echo "❌ the dead-letter box did not start (scripts/gate/dead-letter.py) — refusing to run a shard that could phone a real host"; exit 1; }
+HERMETIC_DEAD_BASE="http://127.0.0.1:$(cat "$dead_letter_dir/port")"
+export ANTHROPIC_BASE_URL="$HERMETIC_DEAD_BASE"
+export MERCURY_CUSTOM_OAUTH_URL="$HERMETIC_DEAD_BASE"
+for _base in MERCURY_OPENAI_API_BASE MERCURY_OPENAI_AUTH_BASE MERCURY_OPENAI_CHATGPT_BASE \
+  MERCURY_OPENROUTER_API_BASE MERCURY_OPENROUTER_AUTH_BASE \
+  MERCURY_GEMINI_API_BASE MERCURY_GEMINI_OAUTH_AUTH_BASE MERCURY_GEMINI_OAUTH_TOKEN_BASE \
+  MERCURY_MOONSHOT_API_BASE MERCURY_MOONSHOT_OAUTH_BASE MERCURY_MOONSHOT_CODING_BASE \
+  MERCURY_ZAI_API_BASE MERCURY_DEEPSEEK_API_BASE \
+  MERCURY_HUGGINGFACE_API_BASE MERCURY_HUGGINGFACE_HUB_BASE; do
+  export "$_base=$HERMETIC_DEAD_BASE"
+done
+export MERCURY_UPDATE_API_BASE_URL="$HERMETIC_DEAD_BASE"
+
 suite_class() {
   local c
   c=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$SUITES_DIR/$1/run-all.sh" 2>/dev/null | head -1 | tr -d '[:space:]')

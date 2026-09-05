@@ -81,39 +81,83 @@ export interface GptDisplayPin {
   costInPerMtok?: number
   costOutPerMtok?: number
   cachedInPerMtok?: number
+  cacheWritePerMtok?: number
   knowledgeCutoff?: string
   availabilityNote?: string
+  longContext?: { aboveInputTokens: number; inputMultiplier: number; outputMultiplier: number }
+}
+
+export function gptPriceTierFor(
+  pin: GptDisplayPin,
+  promptTokens: number | undefined,
+): Pick<GptDisplayPin, 'costInPerMtok' | 'costOutPerMtok' | 'cachedInPerMtok' | 'cacheWritePerMtok'> {
+  const base = {
+    ...(pin.costInPerMtok !== undefined ? { costInPerMtok: pin.costInPerMtok } : {}),
+    ...(pin.costOutPerMtok !== undefined ? { costOutPerMtok: pin.costOutPerMtok } : {}),
+    ...(pin.cachedInPerMtok !== undefined ? { cachedInPerMtok: pin.cachedInPerMtok } : {}),
+    ...(pin.cacheWritePerMtok !== undefined ? { cacheWritePerMtok: pin.cacheWritePerMtok } : {}),
+  }
+  const rule = pin.longContext
+  if (rule === undefined || promptTokens === undefined || !(promptTokens > rule.aboveInputTokens)) return base
+  return {
+    ...(base.costInPerMtok !== undefined ? { costInPerMtok: base.costInPerMtok * rule.inputMultiplier } : {}),
+    ...(base.costOutPerMtok !== undefined ? { costOutPerMtok: base.costOutPerMtok * rule.outputMultiplier } : {}),
+    ...(base.cachedInPerMtok !== undefined ? { cachedInPerMtok: base.cachedInPerMtok * rule.inputMultiplier } : {}),
+    ...(base.cacheWritePerMtok !== undefined ? { cacheWritePerMtok: base.cacheWritePerMtok * rule.inputMultiplier } : {}),
+  }
 }
 
 export const GPT_DISPLAY_PINS: readonly GptDisplayPin[] = [
   {
-    id: 'gpt-5.6-sol',
-    displayName: 'GPT-5.6 Sol',
-    observedAt: '2026-07-21',
+    id: 'gpt-6-astra',
+    displayName: 'GPT-6 Astra',
+    observedAt: '2026-09-04',
     contextWindow: 1_050_000,
     outputMax: 128_000,
-    costInPerMtok: 5,
-    costOutPerMtok: 30,
-    cachedInPerMtok: 0.5,
+    costInPerMtok: 10,
+    costOutPerMtok: 50,
+    cachedInPerMtok: 1,
+    cacheWritePerMtok: 12.5,
+    knowledgeCutoff: '2026-04-30',
+    longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
+  },
+  {
+    id: 'gpt-5.6-sol',
+    displayName: 'GPT-5.6 Sol',
+    observedAt: '2026-09-05',
+    contextWindow: 1_050_000,
+    outputMax: 128_000,
+    costInPerMtok: 4,
+    costOutPerMtok: 20,
+    cachedInPerMtok: 0.4,
+    cacheWritePerMtok: 5,
     knowledgeCutoff: '2026-02-16',
+    longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
   {
     id: 'gpt-5.6-terra',
     displayName: 'GPT-5.6 Terra',
-    observedAt: '2026-07-21',
+    observedAt: '2026-09-05',
     contextWindow: 1_050_000,
     outputMax: 128_000,
-    costInPerMtok: 2.5,
-    costOutPerMtok: 15,
+    costInPerMtok: 2,
+    costOutPerMtok: 12,
+    cachedInPerMtok: 0.2,
+    cacheWritePerMtok: 2.5,
+    longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
   {
     id: 'gpt-5.6-luna',
     displayName: 'GPT-5.6 Luna',
-    observedAt: '2026-07-21',
+    observedAt: '2026-09-05',
     contextWindow: 1_050_000,
     outputMax: 128_000,
-    costInPerMtok: 1,
-    costOutPerMtok: 6,
+    costInPerMtok: 0.2,
+    costOutPerMtok: 1.2,
+    cachedInPerMtok: 0.02,
+    cacheWritePerMtok: 0.25,
+    knowledgeCutoff: '2026-02-16',
+    longContext: { aboveInputTokens: 272_000, inputMultiplier: 2, outputMultiplier: 1.5 },
   },
   {
     id: 'gpt-5.5',

@@ -106,6 +106,10 @@ function projectText(parsed: ParsedKey, key: Key): { text: string; key: Key } {
     return { text: '', key }
   }
 
+  if (!parsed.name && /^\x1b\[[\d;:]*$/.test(parsed.sequence ?? '')) {
+    return { text: '', key }
+  }
+
   while (text.startsWith('\x1b')) text = text.slice(1)
 
   if (

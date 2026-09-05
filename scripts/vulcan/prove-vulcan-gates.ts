@@ -64,7 +64,9 @@ section('§2 · ARMED — tool + seams + token hygiene')
   process.env.MERCURY_GODOT_TOOLS = '1'
   check('gate ON', gates.vulcanEnabled())
   check('Godot tool present inside a project', runWithCwdOverride(proj, () => hasGodot()))
-  check('Godot tool absent outside a project', runWithCwdOverride(scratch, () => !hasGodot()))
+  check('Godot tool present outside a project too (the flag seats it; the project is answered at call time)', runWithCwdOverride(scratch, () => hasGodot()))
+  const outside = (await runWithCwdOverride(scratch, () => GodotTool.call({ op: 'vulcan_status' } as never, {} as never, {} as never, {} as never))) as { data: { result: string } }
+  check('outside a project every op answers the teaching note, never a ghost surface', outside.data.result.includes('no project.godot found from the working directory'), outside.data.result.slice(0, 120))
   check('prompt section renders inside a project', runWithCwdOverride(proj, () => (gates.getVulcanSection() ?? '').includes('VULCAN')))
   check('prompt section null outside a project', runWithCwdOverride(scratch, () => gates.getVulcanSection() === null))
   check('doctrine line renders', runWithCwdOverride(proj, () => (gates.getVulcanDoctrineLine() ?? '').includes('Godot tool')))
@@ -137,7 +139,7 @@ section('§5 · installer honesty on a fixture project')
     const s = installer.vulcanInstallStatus(p2)
     return !s.installed && !s.enabled && installer.readEnabledPlugins(p2).length === 1
   })())
-  const report = installer.applyVulcanInstall(p2)
+  const report = await installer.applyVulcanInstall(p2)
   const st = installer.vulcanInstallStatus(p2)
   check('install materializes the full bundle', report.includes(`installed ${st.bundledFiles} addon files`) && st.bundledFiles > 0 && existsSync(path.join(p2, 'addons', 'mercury_vulcan', 'plugin.cfg')) && existsSync(path.join(p2, 'addons', 'mercury_vulcan', 'core', 'server.gd')))
   check('install enables the plugin, preserves the OTHER entry, writes the token', st.installed && st.digestMatch && st.enabled && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && existsSync(vulcanTokenPath(p2)))
@@ -146,21 +148,21 @@ section('§5 · installer honesty on a fixture project')
     const t = installer.vulcanInstallStatus(p2)
     return t.installed && !t.digestMatch
   })())
-  check('reinstall refreshes a drifted tree', installer.applyVulcanInstall(p2).includes('addon files') && installer.vulcanInstallStatus(p2).digestMatch)
+  check('reinstall refreshes a drifted tree', (await installer.applyVulcanInstall(p2)).includes('addon files') && installer.vulcanInstallStatus(p2).digestMatch)
   writeFileSync(
     path.join(p2, 'project.godot'),
     readFileSync(path.join(p2, 'project.godot'), 'utf8') +
       '\n[autoload]\n\nGameState="*res://autoload/game_state.gd"\nMercuryVulcanRuntimeBridge="*res://addons/mercury_vulcan/core/runtime_bridge.gd"\n',
   )
   check('autoload entry readable while present', installer.readRuntimeAutoloadEntry(p2) !== undefined)
-  const cleaned = installer.applyVulcanUninstall(p2)
+  const cleaned = await installer.applyVulcanUninstall(p2)
   check('uninstall removes files + entry + token, preserves the OTHER plugin entry', cleaned.includes('removed') && !existsSync(path.join(p2, 'addons', 'mercury_vulcan')) && !existsSync(vulcanTokenPath(p2)) && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && !installer.vulcanInstallStatus(p2).enabled)
-  check('uninstall strips the bridge autoload, preserves the OTHER autoload', cleaned.includes('autoload entry stripped') && installer.readRuntimeAutoloadEntry(p2) === undefined && readFileSync(path.join(p2, 'project.godot'), 'utf8').includes('GameState="*res://autoload/game_state.gd"'))
-  check('uninstall on a clean project stays honest', installer.applyVulcanUninstall(p2).includes('was not installed'))
+  check('uninstall strips the bridge autoload (receipted), preserves the OTHER autoload', cleaned.includes('[autoload] MercuryVulcanRuntimeBridge') && cleaned.includes('→ (removed)') && installer.readRuntimeAutoloadEntry(p2) === undefined && readFileSync(path.join(p2, 'project.godot'), 'utf8').includes('GameState="*res://autoload/game_state.gd"'))
+  check('uninstall on a clean project stays honest', (await installer.applyVulcanUninstall(p2)).includes('was not installed'))
   process.env.MERCURY_GODOT_TOOLS_PORT = '6011'
-  installer.applyVulcanInstall(p2)
+  await installer.applyVulcanInstall(p2)
   check('install aligns mercury_vulcan/port with the env port', installer.readProjectVulcanPort(p2) === 6011)
-  installer.applyVulcanUninstall(p2)
+  await installer.applyVulcanUninstall(p2)
   delete process.env.MERCURY_GODOT_TOOLS_PORT
 }
 

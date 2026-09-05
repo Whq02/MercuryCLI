@@ -38,19 +38,19 @@ check(
 section('B. the discriminator: the interruption line forces an honest settlement')
 check(
   'the streaming abort branch appends the user interruption line (steer excepted)',
-  /signal\.aborted\) \{[\s\S]{0,700}?steer \? null : createUserInterruptionMessage\(\{ toolUse: false \}\)[\s\S]{0,300}?aborted_streaming/.test(machine),
+  /signal\.aborted\) \{[\s\S]{0,1400}?steer \? null : createUserInterruptionMessage\(\{ toolUse: false, reason: cutReason \}\)[\s\S]{0,300}?aborted_streaming/.test(machine),
 )
 check(
   'the tools abort branch appends the tool-use interruption line (steer excepted)',
-  /steer \? null : createUserInterruptionMessage\(\{ toolUse: true \}\)[\s\S]{0,600}?aborted_tools/.test(machine),
+  /\/\/ ── abort during tools[\s\S]{0,1600}?steer \? null : createUserInterruptionMessage\(\{ toolUse: true, reason: cutReason \}\)[\s\S]{0,1500}?const terminal: Terminal = \{ reason: 'aborted_tools' \}/.test(machine),
 )
 check(
-  'the streaming abort branch settles every announced tool_use synthetically first',
-  /signal\.aborted\) \{\s*yield\* emitSyntheticSettlements\([\s\S]{0,120}?'aborted',/.test(machine),
+  'the streaming abort branch settles every announced tool_use synthetically first, in the typed cut\'s words',
+  /signal\.aborted\) \{[\s\S]{0,600}?const cutReason = toolUseContext\.abortController\.signal\.reason\s*\n\s*yield\* emitSyntheticSettlements\([\s\S]{0,200}?turnCutResultText\(turnCutOf\(cutReason\)\)/.test(machine),
 )
 check(
   'the interruption line is TEXT content (never a tool_result the success arm could accept)',
-  /createUserInterruptionMessage\(\{[\s\S]{0,200}?content: \[\s*\{\s*type: 'text',\s*text: toolUse \? INTERRUPT_MESSAGE_FOR_TOOL_USE : INTERRUPT_MESSAGE,/.test(factories),
+  /createUserInterruptionMessage\(\{[\s\S]{0,240}?content: \[\s*\{\s*type: 'text',\s*text: turnCutLine\(turnCutOf\(reason\), toolUse\),/.test(factories),
 )
 check(
   "isResultSuccessful's user arm demands ALL-tool_result content and its fallback demands the end_turn stop — a text interruption line satisfies neither",
@@ -73,7 +73,7 @@ check(
 section('C. the settle tail: exactly once per turn, after the turn, one call site')
 check(
   "runOneTurn settles in order: executeTurn → lifecycle 'completed' → onTurnSettled",
-  /await ports\.executeTurn\(command, message => \{[\s\S]{0,900}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
+  /await ports\.executeTurn\(command, batch\.length > 1 \? batchUuids : \[\], message => \{[\s\S]{0,1500}?\}\)\s*for \(const uuid of batchUuids\) \{\s*ports\.notifyLifecycle\(uuid, 'completed'\)\s*\}[\s\S]{0,300}?ports\.onTurnSettled\(command\)/.test(driver),
 )
 check(
   'onTurnSettled has exactly one call site in the driver',

@@ -1,4 +1,4 @@
-import type { JsonOutputFormat, MessageParam } from '../../../types/wire.js'
+import type { JsonOutputFormat, MessageParam, TextPhase } from '../../../types/wire.js'
 import { toOpenaiStrictSchema } from '../../../utils/messages/structuredOutputDialect.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
 import type {
@@ -64,7 +64,8 @@ function decodeReplayItem(raw: unknown): OpenaiInputItem | undefined {
       }
     }
     if (content.length === 0) return undefined
-    return { type: 'message', role: 'assistant', content }
+    const phase = o.phase === 'commentary' || o.phase === 'final_answer' ? o.phase : undefined
+    return { type: 'message', role: 'assistant', content, ...(phase ? { phase } : {}) }
   }
   return undefined
 }
@@ -204,18 +205,24 @@ function mapDerivedAssistantMessage(out: OpenaiInputItem[], message: BridgeMessa
     return
   }
   const texts: string[] = []
+  let textsPhase: TextPhase | undefined
   const flushTexts = (): void => {
     if (texts.length === 0) return
     out.push({
       type: 'message',
       role: 'assistant',
       content: texts.map(text => ({ type: 'output_text' as const, text })),
+      ...(textsPhase ? { phase: textsPhase } : {}),
     })
     texts.length = 0
+    textsPhase = undefined
   }
   for (const block of message.content) {
     if (block.type === 'text') {
-      texts.push((block as { text: string }).text)
+      const b = block as { text: string; phase?: TextPhase }
+      if (texts.length > 0 && b.phase !== textsPhase) flushTexts()
+      textsPhase = b.phase
+      texts.push(b.text)
     } else if (block.type === 'tool_use') {
       flushTexts()
       const b = block as { id: string; name: string; input: unknown }

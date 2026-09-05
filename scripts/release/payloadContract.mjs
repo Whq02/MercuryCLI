@@ -3,7 +3,15 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md']
+export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md', 'LICENSE.md', 'TRADEMARKS.md', 'MERCURY-COMMUNITY-PRODUCTION-TERMS.md']
+
+export const UNSIGNED_ARCHIVE_SUFFIX = '-unsigned'
+
+export function unsignedArchiveName(archiveName) {
+  const m = /^(.*?)(\.tar\.gz|\.zip)$/.exec(archiveName)
+  if (!m) throw new Error(`unsignedArchiveName: ${archiveName} is not an archive name (.tar.gz or .zip)`)
+  return `${m[1]}${UNSIGNED_ARCHIVE_SUFFIX}${m[2]}`
+}
 
 export function readCompatFloor() {
   const here = dirname(fileURLToPath(import.meta.url))

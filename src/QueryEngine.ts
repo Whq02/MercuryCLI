@@ -16,7 +16,7 @@ import { categorizeRetryableAPIError } from './services/api/errors.js'
 import { accumulateUsage, updateUsage } from './services/providers/anthropic/cacheAndUsage.js'
 import { EMPTY_USAGE } from './services/api/logging.js'
 import type { NonNullableUsage } from './services/api/logging.js'
-import type { Tools, ToolUseContext } from './Tool.js'
+import type { PermissionChannel, Tools, ToolUseContext } from './Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from './tools/SyntheticOutputTool/constants.js'
 import type {
   AssistantMessage,
@@ -80,6 +80,7 @@ export type QueryEngineConfig = {
   mcpClients: McpClients
   agents: AgentDefinitions
   canUseTool: CanUseTool
+  permissionChannel?: PermissionChannel
   getAppState: GetAppState
   setAppState: SetAppState
   readFileState: FileStateCache
@@ -192,7 +193,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash' },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[] },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -297,6 +298,7 @@ export class QueryEngine {
         mcpResources: {},
         ideInstallationStatus: null,
         isNonInteractiveSession: true,
+        ...(config.permissionChannel !== undefined ? { permissionChannel: config.permissionChannel } : {}),
         customSystemPrompt: config.customSystemPrompt,
         appendSystemPrompt: config.appendSystemPrompt,
         agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },
@@ -351,6 +353,7 @@ export class QueryEngine {
       context: toolUseContext as Parameters<typeof processUserInput>[0]['context'],
       messages: this.mutableMessages,
       uuid: options?.uuid,
+      ...(options?.batchUuids !== undefined ? { batchUuids: options.batchUuids } : {}),
       isMeta: options?.isMeta,
       querySource: 'sdk',
       canUseTool: wrappedCanUseTool,
@@ -633,9 +636,14 @@ export class QueryEngine {
           case 'attachment': {
             this.mutableMessages.push(message)
             turnMessages.push(message)
-            void recordDelta()
             const attachment = (projected as { attachment?: { type?: string } }).attachment
             const attachmentType = attachment?.type
+            if (attachmentType === 'dead_thinking' || attachmentType === 'bound_prefix') {
+              await recordDelta()
+              if (!persistenceDisabled) await flushSessionStorage()
+            } else {
+              void recordDelta()
+            }
             if (attachmentType === 'structured_output') {
               this.#structuredOutput = (attachment as { data?: unknown }).data
             } else if (attachmentType === 'max_turns_reached') {
@@ -750,7 +758,8 @@ export class QueryEngine {
               this.mutableMessages.push(systemMessage)
               if (
                 (systemMessage as { level?: string }).level === 'warning' ||
-                (systemMessage as { level?: string }).level === 'error'
+                (systemMessage as { level?: string }).level === 'error' ||
+                systemMessage.subtype === 'thinking_note'
               ) {
                 turnMessages.push(systemMessage)
                 await recordDelta()
@@ -993,6 +1002,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   prompt: string | ContentBlockParam[]
   promptUuid?: string
   isMeta?: boolean
+  batchUuids?: string[]
   promptMode?: 'prompt' | 'bash'
   mutableMessages?: Message[]
   getReadFileCache: () => FileStateCache
@@ -1006,6 +1016,7 @@ export async function* ask(
     prompt,
     promptUuid,
     isMeta,
+    batchUuids,
     promptMode,
     mutableMessages = [],
     getReadFileCache,
@@ -1023,6 +1034,7 @@ export async function* ask(
       uuid: promptUuid,
       isMeta,
       ...(promptMode !== undefined ? { mode: promptMode } : {}),
+      ...(batchUuids !== undefined ? { batchUuids } : {}),
     })
   } finally {
     setReadFileCache(engine.getReadFileState())

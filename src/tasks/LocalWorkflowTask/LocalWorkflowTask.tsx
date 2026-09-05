@@ -15,7 +15,7 @@ import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { logError } from '../../utils/log.js'
 import { escapeXml } from '../../utils/xml.js'
-import { evictTaskOutput, getTaskOutputPath } from '../../utils/task/diskOutput.js'
+import { ensureTaskOutputDir, evictTaskOutput, getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   PANEL_GRACE_MS,
   registerTask,
@@ -218,6 +218,19 @@ export function updateWorkflowProgressBatch(
   })
 }
 
+export function settleInFlightAgentRows(
+  rows: WorkflowProgressEvent[],
+  now: number,
+): WorkflowProgressEvent[] {
+  const inFlight = (row: WorkflowProgressEvent): boolean =>
+    row.type === 'workflow_agent' &&
+    (row.state === 'start' || row.state === 'progress')
+  if (!rows.some(inFlight)) return rows
+  return rows.map(row =>
+    inFlight(row) ? { ...row, state: 'stopped' as const, lastProgressAt: now } : row,
+  )
+}
+
 function transitionWorkflowTask(
   taskId: string,
   setAppState: SetAppState,
@@ -231,17 +244,8 @@ function transitionWorkflowTask(
     task.abortController?.abort()
     const now = Date.now()
 
-    const inFlight = (row: WorkflowProgressEvent): boolean =>
-      row.type === 'workflow_agent' &&
-      (row.state === 'start' || row.state === 'progress')
-    const anyInFlight = task.workflowProgress.some(inFlight)
-    const workflowProgress = anyInFlight
-      ? task.workflowProgress.map(row =>
-          inFlight(row)
-            ? { ...row, state: 'stopped' as const, lastProgressAt: now }
-            : row,
-        )
-      : task.workflowProgress
+    const workflowProgress = settleInFlightAgentRows(task.workflowProgress, now)
+    const anyInFlight = workflowProgress !== task.workflowProgress
 
     const next: LocalWorkflowTaskState = {
       ...task,
@@ -279,7 +283,9 @@ export function completeWorkflowTask(
     null,
     2,
   )
-  return writeFile(snapshot.outputFile, payload).then(
+  return ensureTaskOutputDir()
+    .then(() => writeFile(snapshot.outputFile, payload))
+    .then(
     () => null,
     (e: unknown) => {
       const msg = `Failed to write workflow output for ${taskId}: ${

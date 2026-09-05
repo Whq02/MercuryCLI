@@ -28,7 +28,7 @@ import { AnimatedCritterArt, BreathingDot } from './mercury-ui/AnimatedCritterAr
 import { HeroCompanionBubble, MiniCritter } from './mercury-ui/MiniCritter.js'
 import { useCompanionEnabled } from './mercury-ui/useCompanion.js'
 import { cycleSessionCritter, getSessionAccent, useSessionAccent } from './mercury-ui/sessionAccent.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 
 
@@ -292,7 +292,7 @@ export function MercuryHome(): React.ReactNode {
           <Text color={tok.textPrimary}>{dir}</Text>
           {!deckPresent && branch ? (
             <Text>
-              <Text color={tok.textMuted}>{'   ' + GLYPH.branch}</Text>
+              <Text color={tok.textMuted}>{'   ' + branchChip('')}</Text>
               <Text color={tok.textPrimary}>{branch}</Text>
             </Text>
           ) : null}

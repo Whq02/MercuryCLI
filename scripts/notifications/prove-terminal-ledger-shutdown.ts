@@ -127,6 +127,8 @@ t.section('§5 — the partition: the full standing set notes and settles')
     ['paste', 'DBP'],
     ['focus', 'DFE'],
     ['kitty', 'DISABLE_KITTY_KEYBOARD'],
+    ['ring', 'CLEAR_ITERM2_PROGRESS'],
+    ['title', 'CLEAR_TERMINAL_TITLE'],
   ] as const) {
     const writes = [...cleanup.matchAll(new RegExp(`writeSync\\(1, ${needle}\\)`, 'g'))]
     const gated = writes.length > 0
@@ -136,6 +138,28 @@ t.section('§5 — the partition: the full standing set notes and settles')
     })
     t.check(`${name} close writes are ledger-gated (no unconditional reset)`, gated && allGated, `${writes.length} write(s)`)
   }
+}
+
+t.section('§6 — a boot with mouse capture off owes no mouse-tracking release')
+{
+  ledger._resetTerminalModeLedgerForTesting()
+  ledger.noteModeAcquired('alt-screen-session', 'alt-screen')
+  ledger.noteModeAcquired('alt-screen-session', 'alternate-scroll')
+  const open = new Set(ledger.shutdownReleaseObligations())
+  t.check(
+    'the capture-off session owes alt-screen + alternate-scroll and never mouse-tracking',
+    open.size === 2 && open.has('alt-screen') && open.has('alternate-scroll') && !open.has('mouse-tracking'),
+    JSON.stringify([...open]),
+  )
+  ledger.noteModeReleased('alt-screen-session', 'mouse-tracking')
+  ledger.noteModeReleased('alt-screen-session', 'alt-screen')
+  ledger.noteModeReleased('alt-screen-session', 'alternate-scroll')
+  t.check(
+    'releasing the never-acquired mode adds no obligation; the settled pair leaves nothing',
+    ledger.shutdownReleaseObligations().length === 0 && ledger.openModeObligations('alt-screen-session').length === 0,
+    JSON.stringify(ledger.terminalModeLedgerSnapshot()),
+  )
+  ledger._resetTerminalModeLedgerForTesting()
 }
 
 t.finish('prove-terminal-ledger-shutdown')

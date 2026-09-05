@@ -11,10 +11,14 @@ import type { SetAppState } from '../../Task.js'
 import {
   completeAgentTask,
   createActivityDescriptionResolver,
+  createAgentLedger,
   createProgressTracker,
   drainPendingMessages,
+  agentStopReasonOf,
   enqueueAgentNotification,
+  publishAgentWaitFromEvent,
   failAgentTask,
+  foldResponseIntoLedger,
   getProgressUpdate,
   getTokenCountFromTracker,
   isLocalAgentTask,
@@ -33,6 +37,9 @@ import {
 } from '../../Tool.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
+import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
+import { NOTEBOOK_EDIT_TOOL_NAME } from '../NotebookEditTool/constants.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -92,6 +99,15 @@ export type ResolvedAgentTools = {
   invalidTools: string[]
   resolvedTools: Tools
   allowedAgentTypes?: string[]
+}
+
+export function resolveWorkerTools(
+  definition: AgentDefinition,
+  workerPermissionMode: NonNullable<AgentDefinition['permissionMode']>,
+  pool: Tools,
+  isAsync: boolean,
+): Tools {
+  return resolveAgentTools({ ...definition, permissionMode: workerPermissionMode }, pool, isAsync, false).resolvedTools
 }
 
 export function resolveAgentTools(
@@ -178,7 +194,20 @@ export function resolveAgentTools(
 
 export type AgentTerminalOutcome =
   | { status: 'completed'; promotedNarration: boolean }
-  | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch'; error: string }
+  | { status: 'failed'; reason: 'provider-declined' | 'schema-mismatch' | 'repetition-stop'; error: string }
+
+export const REPETITION_STOP_WORDS = 'stopped by the repetition breaker'
+
+function repetitionStopOf(messages: readonly Message[]): { cause: string } | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!
+    if (message.type === 'assistant') return null
+    if (message.type === 'attachment' && message.attachment.type === 'repetition_breaker') {
+      return { cause: message.attachment.cause }
+    }
+  }
+  return null
+}
 
 const GENERIC_API_ERROR_PHRASE = 'API error'
 
@@ -206,6 +235,8 @@ export function deriveAgentTerminalOutcome(
       error: text && text.trim() !== '' ? text : GENERIC_API_ERROR_PHRASE,
     }
   }
+  const stop = repetitionStopOf(messages)
+  if (stop !== null) return { status: 'failed', reason: 'repetition-stop', error: stop.cause }
   return { status: 'completed', promotedNarration: false }
 }
 
@@ -224,7 +255,7 @@ export const agentToolResultSchema = lazySchema(() =>
         }),
         z.object({
           status: z.literal('failed'),
-          reason: z.enum(['provider-declined', 'schema-mismatch']),
+          reason: z.enum(['provider-declined', 'schema-mismatch', 'repetition-stop']),
           error: z.string(),
         }),
       ])
@@ -368,11 +399,11 @@ export function finalizeAgentTool(
         } as AgentToolResult['usage'])
       : EMPTY_USAGE
 
-  const totalTokens =
-    (usage.input_tokens ?? 0) +
-    (usage.cache_creation_input_tokens ?? 0) +
-    (usage.cache_read_input_tokens ?? 0) +
-    (usage.output_tokens ?? 0)
+  const ledger = createAgentLedger()
+  for (const message of messages) {
+    if (message.type === 'assistant') foldResponseIntoLedger(ledger, message)
+  }
+  const totalTokens = ledger.inputTokens + ledger.outputTokens
 
   let structured: AgentToolResult['structured']
   let structuredOutcome: AgentTerminalOutcome | undefined
@@ -470,6 +501,37 @@ export function emitTaskProgress(
   })
 }
 
+const WRITE_TOOL_NAMES = new Set([FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME])
+
+export function landedWritesOf(messages: readonly Message[]): string[] {
+  const pending = new Map<string, string>()
+  const landed: string[] = []
+  for (const message of messages) {
+    if (message.type === 'assistant') {
+      const content = message.message.content
+      if (!Array.isArray(content)) continue
+      for (const block of content) {
+        if (block.type !== 'tool_use' || !WRITE_TOOL_NAMES.has(block.name)) continue
+        const input = (block.input ?? {}) as { file_path?: unknown; notebook_path?: unknown }
+        const path = typeof input.file_path === 'string' ? input.file_path : typeof input.notebook_path === 'string' ? input.notebook_path : undefined
+        if (path !== undefined) pending.set(block.id, path)
+      }
+      continue
+    }
+    if (message.type !== 'user') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_result') continue
+      const path = pending.get(block.tool_use_id)
+      if (path === undefined) continue
+      pending.delete(block.tool_use_id)
+      if (block.is_error !== true && !landed.includes(path)) landed.push(path)
+    }
+  }
+  return landed
+}
+
 export function extractPartialResult(
   messages: readonly Message[],
 ): string | undefined {
@@ -488,6 +550,7 @@ export async function runAsyncAgentLifecycle(args: {
   abortController: AbortController
   makeStream: (
     onCacheSafeParams?: (params: CacheSafeParams) => void,
+    onQueryProgress?: (event: unknown) => void,
   ) => AsyncGenerator<Message, void>
   metadata: {
     prompt: string
@@ -552,6 +615,7 @@ export async function runAsyncAgentLifecycle(args: {
             })()
           }
         : undefined,
+      event => publishAgentWaitFromEvent(taskId, tracker, event, rootSetAppState),
     )
 
     for await (const message of stream) {
@@ -668,7 +732,7 @@ export async function runAsyncAgentLifecycle(args: {
       taskId,
       description,
       status: declined ? 'failed' : 'completed',
-      ...(declined ? { error: declined.error } : {}),
+      ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated) } : {}),
       setAppState: rootSetAppState,
       finalMessage,
       usage: {
@@ -683,7 +747,8 @@ export async function runAsyncAgentLifecycle(args: {
   } catch (error) {
     if (error instanceof AbortError) {
       stopSummarization?.()
-      killAsyncAgent(taskId, rootSetAppState)
+      const stopReason = agentStopReasonOf(args.abortController.signal.reason)
+      killAsyncAgent(taskId, rootSetAppState, stopReason)
       const worktreeResult = await getWorktreeResult()
       const partialResult = extractPartialResult(accumulated)
       enqueueAgentNotification({
@@ -693,6 +758,8 @@ export async function runAsyncAgentLifecycle(args: {
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
+        landedWrites: landedWritesOf(accumulated),
+        ...(stopReason !== undefined ? { stopReason } : {}),
         ...worktreeResult,
       })
       return
@@ -706,6 +773,7 @@ export async function runAsyncAgentLifecycle(args: {
       description,
       status: 'failed',
       error: errMsg,
+      landedWrites: landedWritesOf(accumulated),
       setAppState: rootSetAppState,
       toolUseId: toolUseContext.toolUseId,
       ...worktreeResult,

@@ -1,4 +1,5 @@
 import { settleTranscriptMessage } from '../../../utils/sessionStorage/writer.js'
+import { processOwnerForLane } from '../../run/resolveOwner.js'
 import { createHash } from 'node:crypto'
 import { getCwd } from '../../../utils/cwd.js'
 import { mintCacheDomainKey } from '../../../utils/cache/cacheDomain.js'
@@ -10,6 +11,7 @@ import type {
   ApiStreamEvent,
   ContentBlock,
   MessageParam,
+  TextPhase,
 } from '../../../types/wire.js'
 import type { Tools } from '../../../Tool.js'
 import type {
@@ -34,6 +36,7 @@ import {
 import { toolToAPISchema } from '../../../utils/api.js'
 import {
   createAssistantAPIErrorMessage,
+  createSystemAPIErrorMessage,
   healWalkableForWire,
   normalizeContentFromAPI,
 } from '../../../utils/messages.js'
@@ -73,11 +76,13 @@ import {
   type GptCandidate,
   type GptReasoningProfile,
 } from './openaiCatalogue.js'
-import { recordLiveQualification } from './qualificationStore.js'
+import { noteWireEffortAccepted, recordLiveQualification, recordWireEffortRefusal } from './qualificationStore.js'
 import { recordOpenaiUsageLimit } from './openaiLimitState.js'
-import { resolveWireRequestedEffort } from '../../../utils/effort.js'
+import { resolveWireRequestedEffort, type EffortAdjustedV1 } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { streamOpenaiResponses } from './openaiClient.js'
+import { coldPrefixOf, estimateRequestTokens, streamIdleTimeoutMs, typedStreamEndOf } from '../streamIdleBudget.js'
+import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
   decodeOpenaiTurnRecord,
@@ -107,6 +112,17 @@ const OPENAI_RETRY_BACKOFF_MS = 400
 
 export function openaiRetryDelayMs(attempt: number): number {
   return OPENAI_RETRY_BACKOFF_MS * attempt
+}
+
+export function effortVocabularyRefusalOf(
+  fault: Pick<OpenaiFault, 'code' | 'message'>,
+  sentEffort: string | undefined,
+): { refused: string; levels: string[] } | undefined {
+  if (sentEffort === undefined || fault.code !== 'openai-invalid_value') return undefined
+  const match = /Invalid value: '([^']+)'\. Supported values are: (.+?)\.?\s*$/.exec(fault.message)
+  if (match === null || match[1] !== sentEffort) return undefined
+  const levels = [...match[2]!.matchAll(/'([^']+)'/g)].map(m => m[1]!)
+  return levels.length > 0 ? { refused: match[1]!, levels } : undefined
 }
 
 export function openaiFaultToTypedError(
@@ -255,11 +271,13 @@ async function buildApiShapedTools(
 export function mapOpenaiUsageToAnthropic(usage: OpenaiUsage | undefined, webSearchRequests = 0): typeof EMPTY_USAGE {
   const total = usage?.inputTokens ?? 0
   const cached = usage?.cachedInputTokens ?? 0
+  const written = usage?.cacheWriteInputTokens ?? 0
   return {
     ...EMPTY_USAGE,
-    input_tokens: Math.max(0, total - cached),
+    input_tokens: Math.max(0, total - cached - written),
     output_tokens: usage?.outputTokens ?? 0,
     cache_read_input_tokens: cached,
+    cache_creation_input_tokens: written,
     server_tool_use: { ...EMPTY_USAGE.server_tool_use, web_search_requests: webSearchRequests },
   }
 }
@@ -273,6 +291,9 @@ export function buildProviderUsageReceipt(usage: OpenaiUsage): NonNullable<
     inputTokensTotal: total,
     cachedInputTokens: cached,
     outputTokens: usage.outputTokens ?? 0,
+    ...(typeof usage.cacheWriteInputTokens === 'number'
+      ? { cacheWriteInputTokens: usage.cacheWriteInputTokens }
+      : {}),
     ...(typeof usage.reasoningOutputTokens === 'number'
       ? { reasoningOutputTokens: usage.reasoningOutputTokens }
       : {}),
@@ -402,21 +423,27 @@ export async function* openaiCallModel(
     messages,
     getToolPermissionContext: options.getToolPermissionContext,
     agents: options.agents,
+    latchKey: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)),
     hasPendingMcpServers: options.hasPendingMcpServers,
     source: 'query',
   })
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId)
   const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages), plan)
-  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue)
-  const profile: GptReasoningProfile = candidate
+  const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
+  let profile: GptReasoningProfile = candidate
     ? resolveGptReasoningProfile(requestedEffort, candidate.live)
     : { source: 'model-default' }
   const settlementNotes: string[] = []
-  if (profile.source === 'unsupported-fallback' && profile.adjustedFrom) {
-    settlementNotes.push(
-      `[openai] requested reasoning effort '${profile.adjustedFrom}' is not in ${modelId}'s live effort catalogue — using '${profile.wireEffort ?? 'the model default'}'.`,
-    )
-  }
+  const receiptOf = (profile: GptReasoningProfile): EffortAdjustedV1 | undefined =>
+    profile.source === 'unsupported-fallback' && profile.adjustedFrom !== undefined
+      ? {
+          model: modelId,
+          name: getPublicModelDisplayName(modelId) ?? modelId,
+          asked: profile.adjustedFrom,
+          ...(profile.wireEffort !== undefined ? { sent: profile.wireEffort } : {}),
+        }
+      : undefined
+  let effortAdjusted: EffortAdjustedV1 | undefined = receiptOf(profile)
   if (qualification.kind === 'degraded') {
     settlementNotes.push(qualification.note)
   }
@@ -436,16 +463,16 @@ export async function* openaiCallModel(
     providerScope: `openai:${auth.account.kind}`,
     servedModel: modelId,
     projectPath: getCwd(),
-    behaviorContractDigest: createHash('sha256').update(renderedInstructions).digest('hex').slice(0, 16),
+    behaviorContractDigest: contract.digest,
     toolSchemaDigest: createHash('sha256').update(JSON.stringify(apiTools)).digest('hex').slice(0, 16),
     ...(options.agentId ? { profileId: `agent:${options.agentId}` } : {}),
   })
-  const request = buildOpenaiResponsesRequest({
+  const buildRequest = (wireEffort: string | undefined) => buildOpenaiResponsesRequest({
     model: modelId,
     instructions: renderedInstructions,
     messages: bridge.rows,
     tools: apiTools,
-    ...(profile.wireEffort ? { reasoningEffort: profile.wireEffort } : {}),
+    ...(wireEffort ? { reasoningEffort: wireEffort } : {}),
     promptCacheKey,
     imagesSupported: candidate?.live.inputModalities
       ? candidate.live.inputModalities.includes('image')
@@ -453,6 +480,7 @@ export async function* openaiCallModel(
     ...(options.outputFormat ? { outputFormat: options.outputFormat } : {}),
     ...(options.nativeWebSearch ? { nativeWebSearch: options.nativeWebSearch } : {}),
   })
+  let request = buildRequest(profile.wireEffort)
 
   recordPromptState({
     system: [{ text: request.instructions ?? '' }],
@@ -483,7 +511,9 @@ export async function* openaiCallModel(
       options,
       modelId,
       messages,
+      attempt,
       settlementNotes,
+      ...(effortAdjusted !== undefined ? { effortAdjusted } : {}),
       pulseMain,
       pulseGeneration,
       contractDigest: contract.digest,
@@ -504,6 +534,9 @@ export async function* openaiCallModel(
         behaviourContractDigest: contract.digest,
         ...(profile.wireEffort ? { liveEffort: profile.wireEffort } : {}),
       })
+      if (profile.wireEffort !== undefined) {
+        noteWireEffortAccepted({ modelId, sourceKind: auth.account.kind, word: profile.wireEffort })
+      }
       return
     }
     if (outcome.kind === 'cancelled') return
@@ -527,11 +560,23 @@ export async function* openaiCallModel(
       }
       recovery = 'no-new-credential'
     }
+    const refusal = candidate !== undefined ? effortVocabularyRefusalOf(outcome.fault, profile.wireEffort) : undefined
+    const reissueAtServedWord =
+      refusal !== undefined && candidate !== undefined && outcome.retryEligible && attempt < OPENAI_MAX_ATTEMPTS
+    if (reissueAtServedWord) {
+      recordWireEffortRefusal({ modelId, sourceKind: auth.account.kind, refused: refusal.refused, levels: refusal.levels })
+      const served = candidate.live.supportedReasoningEfforts.filter(level => refusal.levels.includes(level))
+      profile = resolveGptReasoningProfile(requestedEffort, { ...candidate.live, supportedReasoningEfforts: served })
+      effortAdjusted = receiptOf(profile)
+      request = buildRequest(profile.wireEffort)
+    }
     const retryable =
-      outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS
+      reissueAtServedWord || (outcome.retryEligible && outcome.fault.retryable && attempt < OPENAI_MAX_ATTEMPTS)
     if (retryable) {
+      const delayMs = openaiRetryDelayMs(attempt)
+      yield createSystemAPIErrorMessage(new Error(outcome.fault.message), delayMs, attempt, OPENAI_MAX_ATTEMPTS - 1)
       await new Promise(resolve => {
-        const t = setTimeout(resolve, openaiRetryDelayMs(attempt))
+        const t = setTimeout(resolve, delayMs)
         ;(t as any).unref?.()
       })
       if (signal.aborted) return
@@ -605,10 +650,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
   modelId: string
   messages: Message[]
   settlementNotes: readonly string[]
+  effortAdjusted?: EffortAdjustedV1
   pulseMain: boolean
   pulseGeneration: number
   contractDigest: string
   deferredUnadmitted?: (name: string) => boolean
+  attempt?: number
 }): AsyncGenerator<StreamEvent | AssistantMessage, AttemptOutcome> {
   const { request, auth, signal, tools, options, modelId } = ctx
 
@@ -644,7 +691,11 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const blocks = {
     index: -1,
     open: null as
-      | { kind: 'thinking' | 'text'; value: string }
+      | {
+          kind: 'thinking' | 'text'
+          value: string
+          phase?: TextPhase
+        }
       | {
           kind: 'tool'
           itemId: string
@@ -655,6 +706,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       | null,
   }
   const livePaintComplete = new Set<string>()
+  let pendingTextPhase: TextPhase | undefined
   const minted: AssistantMessage[] = []
   let usageSeen: OpenaiUsage | undefined
   let responseId: string | undefined
@@ -671,6 +723,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
       }
     | undefined
   let fault: OpenaiFault | undefined
+  let settledOnFault: OpenaiInputItem[] = []
 
   function* ensureMessageStart(): Generator<StreamEvent> {
     if (messageStarted) return
@@ -687,7 +740,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
     const settled: ContentBlock =
       blocks.open.kind === 'thinking'
         ? { type: 'thinking', thinking: blocks.open.value, signature: '' }
-        : { type: 'text', text: blocks.open.value, citations: null }
+        : {
+            type: 'text',
+            text: blocks.open.value,
+            citations: null,
+            ...(blocks.open.phase ? { phase: blocks.open.phase } : {}),
+          }
     blocks.open = null
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
     const m = mintBlock(settled)
@@ -697,14 +755,15 @@ export async function* streamOneOpenaiAttempt(ctx: {
   function* openNewBlock(kind: 'thinking' | 'text'): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
     blocks.index += 1
-    blocks.open = { kind, value: '' }
+    const phase = kind === 'text' ? pendingTextPhase : undefined
+    blocks.open = { kind, value: '', ...(phase ? { phase } : {}) }
     yield streamEvent({
       type: 'content_block_start',
       index: blocks.index,
       content_block:
         kind === 'thinking'
           ? { type: 'thinking', thinking: '', signature: '' }
-          : { type: 'text', text: '', citations: null },
+          : { type: 'text', text: '', citations: null, ...(phase ? { phase } : {}) },
     })
   }
   function* streamDelta(kind: 'thinking' | 'text', text: string): Generator<StreamEvent | AssistantMessage> {
@@ -765,6 +824,13 @@ export async function* streamOneOpenaiAttempt(ctx: {
       headers: auth.headers,
       request,
       signal,
+      firstByte: {
+        cold: coldPrefixOf(ctx.messages, modelId),
+        promptTokens: estimateRequestTokens(request),
+        model: getPublicModelDisplayName(modelId) ?? modelId,
+        ...(ctx.attempt !== undefined ? { attempt: ctx.attempt } : {}),
+        ...(options.onWait ? { onWait: options.onWait } : {}),
+      },
     })
   for await (const event of events) {
     if (!firstEventSeen) {
@@ -788,6 +854,17 @@ export async function* streamOneOpenaiAttempt(ctx: {
         break
       case 'refusal-delta':
         yield* streamDelta('text', event.text)
+        break
+      case 'text-item-start':
+        if (blocks.open?.kind === 'text') yield* closeOpenBlock()
+        pendingTextPhase = event.phase
+        break
+      case 'text-item-done':
+        if (blocks.open?.kind === 'text') {
+          if (event.phase && !blocks.open.phase) blocks.open.phase = event.phase
+          yield* closeOpenBlock()
+        }
+        pendingTextPhase = undefined
         break
       case 'tool-args-start': {
         yield* ensureMessageStart()
@@ -853,6 +930,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
         break
       case 'stream-fault':
         fault = fault ?? event.fault
+        if (event.settledItems !== undefined) settledOnFault = event.settledItems
         break
     }
   }
@@ -864,6 +942,15 @@ export async function* streamOneOpenaiAttempt(ctx: {
   if (fault && nothingYielded && !finish) {
     return { kind: 'fault', fault, retryEligible: true }
   }
+  const typedEnd =
+    fault !== undefined && !finish
+      ? typedStreamEndOf({
+          fault,
+          provider: 'OpenAI',
+          tailStands: blocks.open === null && minted.at(-1)?.message.content[0]?.type === 'text',
+          silentMs: streamIdleTimeoutMs(),
+        })
+      : null
 
   yield* ensureMessageStart()
   yield* closeOpenBlock()
@@ -975,7 +1062,9 @@ export async function* streamOneOpenaiAttempt(ctx: {
   if (lastMessage) {
     lastMessage.message.usage = finalUsage as AssistantMessage['message']['usage']
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
-    const replayItems = replayableItems(finish?.orderedItems ?? [], refused)
+    if (typedEnd !== null) lastMessage.streamEnd = typedEnd
+    if (ctx.effortAdjusted !== undefined) lastMessage.effortAdjusted = ctx.effortAdjusted
+    const replayItems = replayableItems(finish?.orderedItems ?? (typedEnd !== null ? settledOnFault : []), refused)
     if (replayItems.length > 0) {
       lastMessage.apexProviderTurn = {
         provider: 'openai',
@@ -994,7 +1083,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
-  if (fault) {
+  if (fault && typedEnd === null) {
     yield apiErrorMessage(
       streamFaultAfterPartialText('OpenAI', fault.code, fault.message),
       undefined,

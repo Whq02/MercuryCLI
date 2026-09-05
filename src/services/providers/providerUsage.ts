@@ -24,15 +24,16 @@ import {
   type WeeklyPoolClaim,
 } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
+import { subscribeSignInEpoch } from '../../utils/accounts/signInLedger.js'
 import { activeWalletEntry, walletEntries, type WalletEntry } from '../wallet/wallet.js'
 import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
 import {
   NO_USAGE_READ_WORDS,
-  USAGE_POLL_TTL_MS,
-  USAGE_RESPONSE_FRESH_MS,
   usageFreshness,
+  usagePollTtlMs,
   usageSourceWords,
+  usageStaleAfterMs,
   usageStaleTail,
   type UsageFeed,
 } from './usageFreshness.js'
@@ -303,6 +304,9 @@ export interface ActiveSourceUsage {
   }
   figures?: UsageFigureView[]
   readerNote?: string
+  readerNoteCompact?: string
+  readerWait?: boolean
+  readerRecord?: string
   absence?: string
   whyNot?: string
   tier?: string
@@ -345,6 +349,7 @@ export interface UsageRefreshIo {
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
+  reason?: 'poll' | 'turn' | 'operator' | 'sign-in'
 }
 
 export async function refreshProviderUsage(provider: RouterProviderId, io?: UsageRefreshIo): Promise<void> {
@@ -370,8 +375,12 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
         return
       }
       case 'anthropic': {
-        const { fetchUtilization } = require('../api/usage.js') as typeof import('../api/usage.js')
-        if (isClaudeAISubscriber()) await fetchUtilization()
+        const { refreshAnthropicUsage } =
+          require('./anthropic/anthropicUsageState.js') as typeof import('./anthropic/anthropicUsageState.js')
+        await refreshAnthropicUsage({
+          ...(io?.reason !== undefined ? { reason: io.reason } : {}),
+          ...(io?.now !== undefined ? { now: io.now } : {}),
+        })
         return
       }
       case 'local':
@@ -387,6 +396,48 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
     }
   } catch {
   }
+}
+
+let usagePoll: {
+  timer: ReturnType<typeof setInterval>
+  family: () => RouterProviderId | 'unrecognised'
+  unsubscribeSignIns: () => void
+} | null = null
+
+export function armProviderUsagePoll(opts: { family: () => RouterProviderId | 'unrecognised' }): () => void {
+  if (usagePoll !== null) {
+    usagePoll.family = opts.family
+  } else {
+    const timer = setInterval(() => {
+      const family = usagePoll?.family() ?? 'unrecognised'
+      if (family === 'unrecognised') return
+      void refreshProviderUsage(family, { reason: 'poll' })
+    }, usagePollTtlMs())
+    timer.unref?.()
+    const unsubscribeSignIns = subscribeSignInEpoch(() => {
+      const family = usagePoll?.family() ?? 'unrecognised'
+      if (family === 'unrecognised') return
+      void refreshProviderUsage(family, { reason: 'sign-in' })
+    })
+    usagePoll = { timer, family: opts.family, unsubscribeSignIns }
+  }
+  return () => {
+    if (usagePoll === null) return
+    clearInterval(usagePoll.timer)
+    usagePoll.unsubscribeSignIns()
+    usagePoll = null
+  }
+}
+
+export function pokeProviderUsage(): void {
+  if (usagePoll === null) return
+  const family = usagePoll.family()
+  if (family === 'unrecognised') return
+  void refreshProviderUsage(family, { reason: 'turn' })
+}
+
+export function providerUsagePollArmed(): boolean {
+  return usagePoll !== null
 }
 
 export interface MoonshotObservedBalanceView {
@@ -486,7 +537,7 @@ export function anthropicWindowViews(reads?: ActiveUsageReads): UsageWindowView[
     state: w.state === 'live' ? 'live' : 'unavailable',
     ...(w.usedPct !== null ? { usedPct: w.usedPct } : {}),
     ...(w.resetsAtMs !== null ? { resetsAtMs: w.resetsAtMs } : {}),
-    ...(w.source !== undefined ? { source: w.source, freshForMs: USAGE_RESPONSE_FRESH_MS } : {}),
+    ...(w.source !== undefined ? { source: w.source, freshForMs: usageStaleAfterMs() } : {}),
     ...(w.observedAtMs !== undefined ? { observedAtMs: w.observedAtMs } : {}),
   })
   return [view(fiveHour), view(sevenDay)]
@@ -511,7 +562,7 @@ export function anthropicPoolWindowViews(reads?: ActiveUsageReads): UsageWindowV
       state: 'live',
       usedPct: pool.utilization * 100,
       resetsAtMs: pool.resets_at * 1000,
-      ...(pool.source !== undefined ? { source: pool.source, freshForMs: USAGE_RESPONSE_FRESH_MS } : {}),
+      ...(pool.source !== undefined ? { source: pool.source, freshForMs: usageStaleAfterMs() } : {}),
       ...(pool.observedAtMs !== undefined ? { observedAtMs: pool.observedAtMs } : {}),
     })
   }
@@ -623,6 +674,7 @@ export function usageSummaryWords(view: ActiveSourceUsage, now: number = Date.no
   const credits = usageCreditsLine(view.credits, now)
   if (credits !== undefined) parts.push(credits)
   if (view.readerNote !== undefined) parts.push(view.readerNote)
+  if (view.readerRecord !== undefined) parts.push(view.readerRecord)
   if (view.limited !== undefined) {
     const reset = usageResetWords(view.limited.resetsAtMs, now)
     parts.push(`limit reached${reset !== undefined ? ` · ${reset}` : ''}`)
@@ -672,7 +724,7 @@ function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastErr
       compact: `cap ${usage.limitRemaining.toFixed(2)}`,
       source: 'endpoint',
       observedAtMs: usage.observedAtMs,
-      freshForMs: USAGE_POLL_TTL_MS,
+      freshForMs: usageStaleAfterMs(),
     }
   }
   if (usage.limit === null) {
@@ -687,7 +739,7 @@ function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastErr
 
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
   return balance !== undefined
-    ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: USAGE_POLL_TTL_MS }
+    ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: usageStaleAfterMs() }
     : { state: 'unreported', reason: 'not read yet — /usage samples the balance endpoint', compact: 'not read yet' }
 }
 
@@ -813,7 +865,7 @@ const API_KEY_USAGE_ABSENCE_NOTE =
 function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] {
   if (!usage) return []
   const observedAtMs = usage.observedAtMs
-  const stamp = { observedAtMs, source: 'endpoint' as const, freshForMs: USAGE_POLL_TTL_MS }
+  const stamp = { observedAtMs, source: 'endpoint' as const, freshForMs: usageStaleAfterMs() }
   const figures: UsageFigureView[] = []
   if (usage.usage !== undefined) {
     figures.push({ key: 'credits-all-time', label: 'credits used (all-time)', value: usage.usage.toFixed(2), ...stamp })
@@ -1067,6 +1119,7 @@ export function usageForProvider(
   }
   if (provider === 'anthropic') {
     const plan = (reads?.anthropicPlan ?? getSubscriptionType)()
+    const reader = reads === undefined ? liveAnthropicReaderWords() : {}
     return {
       provider,
       sourceKind: 'subscription-oauth',
@@ -1076,6 +1129,10 @@ export function usageForProvider(
       pools: anthropicPoolWindowViews(reads),
       spend,
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
+      ...(reader.note !== undefined ? { readerNote: reader.note } : {}),
+      ...(reader.compact !== undefined ? { readerNoteCompact: reader.compact } : {}),
+      ...(reader.record !== undefined ? { readerRecord: reader.record } : {}),
+      ...(reader.wait === true ? { readerWait: true } : {}),
     }
   }
   const limitedWindow = (reads?.openaiLimited ?? (() => openaiLimitWindow('chatgpt-subscription')))()
@@ -1090,6 +1147,26 @@ export function usageForProvider(
     spend,
     tier: openaiPlan ? `ChatGPT ${planWord(openaiPlan)}` : 'ChatGPT subscription',
     ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),
+  }
+}
+
+function liveAnthropicReaderWords(): { note?: string; compact?: string; record?: string; wait?: boolean } {
+  try {
+    const { anthropicUsageReaderNote, anthropicUsageReadStatus, isServerWait, usageReaderRecordWords } =
+      require('./anthropic/anthropicUsageState.js') as typeof import('./anthropic/anthropicUsageState.js')
+    const now = Date.now()
+    const note = anthropicUsageReaderNote(now, 'prose')
+    const compact = anthropicUsageReaderNote(now, 'compact')
+    const record = usageReaderRecordWords()
+    const wait = isServerWait(anthropicUsageReadStatus().failure)
+    return {
+      ...(note !== undefined ? { note } : {}),
+      ...(compact !== undefined ? { compact } : {}),
+      ...(record !== undefined ? { record } : {}),
+      ...(wait ? { wait: true } : {}),
+    }
+  } catch {
+    return {}
   }
 }
 

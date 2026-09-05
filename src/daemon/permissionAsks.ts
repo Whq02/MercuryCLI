@@ -22,6 +22,7 @@ import {
 import { daemonDir } from './controlSocket.js'
 import { readSessionWorkers } from './concourseSupervisor.js'
 import { initGitRepository } from './concourseWorktrees.js'
+import { countEntriesBounded, entryCountWords, gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
 
 function gitInitAsksPath(): string {
   return join(daemonDir(), 'git-init-asks.json')
@@ -82,6 +83,7 @@ interface PendingAsk {
   toolName: string
   input: Record<string, unknown>
   toolUseId?: string
+  agentId?: string
   suggestions?: PermissionUpdate[]
   blockedPath?: string
   decisionReason?: string
@@ -205,6 +207,7 @@ export function onWorkerControlRequest(
     toolName,
     input,
     ...(typeof request.tool_use_id === 'string' ? { toolUseId: request.tool_use_id } : {}),
+    ...(typeof request.agent_id === 'string' && request.agent_id !== '' ? { agentId: request.agent_id } : {}),
     ...(suggestions !== undefined && suggestions.length > 0 ? { suggestions } : {}),
     ...(typeof request.blocked_path === 'string' ? { blockedPath: request.blocked_path } : {}),
     ...(typeof request.decision_reason === 'string' ? { decisionReason: request.decision_reason } : {}),
@@ -242,7 +245,12 @@ export function onWorkerControlRequest(
     })
 }
 
-export function mintGitInitAsk(folder: string): { requestId: string } {
+export function mintGitInitAsk(folder: string): { requestId: string } | { refused: GitInitRefusal } {
+  const refusal = gitInitRefusal(folder)
+  if (refusal !== null) {
+    logForDebugging(`[daemon] git-init ask not minted for ${folder}: ${refusal.words}`)
+    return { refused: refusal }
+  }
   for (const [id, a] of pending) {
     if (a.local === 'git-init' && a.workspaceId === folder) return { requestId: id }
   }
@@ -264,10 +272,11 @@ export function mintGitInitAsk(folder: string): { requestId: string } {
     local: 'git-init',
   }
   pending.set(requestId, ask)
+  const entries = entryCountWords(countEntriesBounded(folder))
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: ask.sessionId,
-    question: `this folder has no git — start one in ${folder} so sessions can fork it?`,
+    question: `this folder has no git — start one in ${folder} (${entries}) so sessions can fork it?`,
     owner: 'operator',
     scope: 'switchboard',
   })
@@ -280,6 +289,16 @@ export function mintGitInitAsk(folder: string): { requestId: string } {
       return undefined
     })
   return { requestId }
+}
+
+export function mintGitRefusedReceipt(clientMessageId: string, folder: string, refusal: GitInitRefusal): void {
+  void upsertObligation({
+    ref: `git-refused:${clientMessageId}`,
+    sessionId: `dispatch:${clientMessageId}`,
+    question: `no git offer for ${folder} — ${refusal.words} · kept without git: the launch waits until the folder frees`,
+    owner: 'operator',
+    scope: 'switchboard',
+  }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
 export function onWorkerControlCancel(requestId: string, dir?: string): void {
@@ -394,6 +413,7 @@ export function listPendingPermissionAsks(): ReadonlyArray<{
   workerId: string
   sessionId: string
   toolName: string
+  agentId?: string
   askedAt?: number
 }> {
   return [...pending.entries()].map(([requestId, a]) => ({
@@ -401,6 +421,7 @@ export function listPendingPermissionAsks(): ReadonlyArray<{
     workerId: a.workerId,
     sessionId: a.sessionId,
     toolName: a.toolName,
+    ...(a.agentId !== undefined ? { agentId: a.agentId } : {}),
     ...(a.askedAt !== undefined ? { askedAt: a.askedAt } : {}),
   }))
 }

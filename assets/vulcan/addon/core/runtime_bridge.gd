@@ -1,11 +1,17 @@
 extends Node
 
+const OpClassesScript := preload("op_classes.gd")
+
 const TOKEN_FILE := "res://.godot/mercury-vulcan-token"
 const PORT_FILE := "res://.godot/mercury-vulcan-port"
 const REC_DIR := "res://.godot/mercury-vulcan-recordings"
 const SHOT_DIR := "res://.godot/mercury-vulcan-shots"
 const RING_MAX := 400
 const MAX_BUF := 8 * 1024 * 1024
+const STEP_FRAMES_MAX := 3600
+const STEP_MS_MAX := 60000
+const STEP_WALL_MAX_MS := 60000
+const QUEUE_MAX := 256
 
 const MONITORS := {
 	"fps": Performance.TIME_FPS,
@@ -37,6 +43,11 @@ var _recording: Array = []
 var _recording_name := ""
 var _recording_t0 := 0
 var _is_recording := false
+var _log_total := 0
+var _error_total := 0
+var _step_mode := false
+var _stepping := false
+var _queued_input: Array = []
 
 
 func _ready() -> void:
@@ -123,6 +134,12 @@ func _dispatch(rop: String, args: Dictionary) -> Dictionary:
 	match rop:
 		"runtime_status":
 			return _rop_status(args)
+		"runtime_step":
+			return await _rop_step(args)
+		"runtime_pause":
+			return _rop_pause(args)
+		"runtime_resume":
+			return _rop_resume(args)
 		"runtime_tree":
 			return _rop_tree(args)
 		"runtime_node_get":
@@ -184,16 +201,133 @@ func _dispatch(rop: String, args: Dictionary) -> Dictionary:
 
 func _rop_status(_args: Dictionary) -> Dictionary:
 	var cur := get_tree().current_scene
-	return _ok({
+	var st := {
 		"playing": true,
 		"scene": cur.scene_file_path if cur != null else "",
 		"scene_root": str(cur.name) if cur != null else "",
 		"uptime_ms": Time.get_ticks_msec() - _started_ms,
 		"fps": Performance.get_monitor(Performance.TIME_FPS),
-		"paused": get_tree().paused,
 		"log_capture": _capture_mode,
 		"recording": _is_recording,
-	})
+	}
+	st.merge(_mode_state())
+	return _ok(st)
+
+
+func _mode_state() -> Dictionary:
+	return {
+		"mode": "step" if _step_mode else "live",
+		"paused": get_tree().paused,
+		"stepping": _stepping,
+		"queued": _queued_input.size(),
+		"frame": Engine.get_process_frames(),
+		"physics_frame": Engine.get_physics_frames(),
+	}
+
+
+func _step_in_flight() -> Dictionary:
+	return _err("STEP_IN_FLIGHT", "a runtime_step is still advancing the game", "wait for its answer, then send the next step")
+
+
+func _rop_pause(_args: Dictionary) -> Dictionary:
+	if _stepping:
+		return _step_in_flight()
+	_step_mode = true
+	get_tree().paused = true
+	return _ok(_mode_state())
+
+
+func _rop_resume(_args: Dictionary) -> Dictionary:
+	if _stepping:
+		return _step_in_flight()
+	_step_mode = false
+	get_tree().paused = false
+	var delivered := _deliver_queued()
+	var st := _mode_state()
+	st["delivered"] = delivered
+	return _ok(st)
+
+
+func _rop_step(args: Dictionary) -> Dictionary:
+	if _stepping:
+		return _step_in_flight()
+	var window := _step_window(args, "frames", "ms", true)
+	if window.has("err"):
+		return window["err"]
+	_step_mode = true
+	var out: Dictionary = await _advance(int(window["frames"]), int(window["ms"]))
+	if bool(args.get("screenshot", false)):
+		out["screenshot"] = await _rop_screenshot({})
+	return _ok(out)
+
+
+func _step_window(args: Dictionary, frames_key: String, ms_key: String, allow_default: bool) -> Dictionary:
+	var has_frames: bool = args.get(frames_key) != null
+	var has_ms: bool = args.get(ms_key) != null
+	if has_frames and has_ms:
+		return { "err": _err("BAD_ARG", "pass %s or %s, not both" % [frames_key, ms_key], "e.g. {\"%s\": 30} or {\"%s\": 500}" % [frames_key, ms_key]) }
+	if has_frames:
+		var v = args[frames_key]
+		var whole: bool = (typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT) and float(v) == floor(float(v))
+		if not whole or int(v) < 1 or int(v) > STEP_FRAMES_MAX:
+			return { "err": _err("BAD_ARG", "%s must be a whole number 1..%d" % [frames_key, STEP_FRAMES_MAX], "one process frame is 1/60 s at 60 fps; %s names game time instead" % ms_key) }
+		return { "frames": int(v), "ms": 0 }
+	if has_ms:
+		var v = args[ms_key]
+		if not (typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT) or int(v) < 1 or int(v) > STEP_MS_MAX:
+			return { "err": _err("BAD_ARG", "%s must be 1..%d" % [ms_key, STEP_MS_MAX], "game-time milliseconds; the window ends at the first frame boundary past it") }
+		return { "frames": 0, "ms": int(v) }
+	if not allow_default:
+		return { "frames": 0, "ms": 0 }
+	return { "frames": 0, "ms": int(ceil(1000.0 / maxf(1.0, float(Engine.physics_ticks_per_second)))) }
+
+
+func _advance(frames: int, ms: int) -> Dictionary:
+	var tree := get_tree()
+	var errors_before := _error_total
+	var log_before := _log_total
+	var stepped := _step_mode
+	_stepping = true
+	if stepped:
+		tree.paused = true
+	await tree.process_frame
+	var delivered := 0
+	if stepped:
+		tree.paused = false
+		delivered = _deliver_queued()
+	var p0 := Engine.get_physics_frames()
+	var t0 := Time.get_ticks_msec()
+	var ran := 0
+	var per_frame: int = OpClassesScript.STEP_WALL_MS_PER_FRAME
+	var budget := mini(STEP_WALL_MAX_MS, frames * per_frame + 1000)
+	if frames > 0:
+		while ran < frames and Time.get_ticks_msec() - t0 < budget:
+			await tree.process_frame
+			ran += 1
+	else:
+		while Time.get_ticks_msec() - t0 < ms:
+			await tree.process_frame
+			ran += 1
+	if stepped:
+		tree.paused = true
+	_stepping = false
+	var out := _mode_state()
+	out["frames"] = ran
+	out["requested"] = { "frames": frames } if frames > 0 else { "ms": ms }
+	out["complete"] = ran == frames if frames > 0 else true
+	out["elapsed_ms"] = Time.get_ticks_msec() - t0
+	out["physics_frames"] = Engine.get_physics_frames() - p0
+	out["delivered"] = delivered
+	out["errors"] = _ring_since(_error_ring, _error_total - errors_before)
+	out["log"] = _ring_since(_log_ring, _log_total - log_before)
+	if frames > 0 and ran < frames:
+		out["note"] = "the wall budget (%d ms for %d frames) ended the window early: the game runs under %d fps" % [budget, frames, 1000 / per_frame]
+	return out
+
+
+func _ring_since(ring: Array, added: int) -> Array:
+	var take := mini(mini(maxi(0, added), ring.size()), 40)
+	return ring.slice(ring.size() - take)
 
 
 func _rop_tree(args: Dictionary) -> Dictionary:
@@ -459,15 +593,15 @@ func _rop_click(args: Dictionary) -> Dictionary:
 	var mv := InputEventMouseMotion.new()
 	mv.position = pos
 	mv.global_position = pos
-	Input.parse_input_event(mv)
+	var queued := _inject(mv)
 	for pressed in [true, false]:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = MOUSE_BUTTON_LEFT
 		ev.pressed = pressed
 		ev.position = pos
 		ev.global_position = pos
-		Input.parse_input_event(ev)
-	return _ok({ "clicked": { "x": pos.x, "y": pos.y } })
+		queued = _inject(ev)
+	return _ok(_sent({ "clicked": { "x": pos.x, "y": pos.y } }, queued))
 
 
 func _rop_navigate(args: Dictionary) -> Dictionary:
@@ -478,12 +612,13 @@ func _rop_navigate(args: Dictionary) -> Dictionary:
 	if not (n is Control):
 		return _err("NOT_A_CONTROL", "'%s' is not a Control" % np, "navigate targets buttons/fields; runtime_ui_list shows them")
 	(n as Control).grab_focus()
+	var queued := false
 	for pressed in [true, false]:
 		var ev := InputEventAction.new()
 		ev.action = "ui_accept"
 		ev.pressed = pressed
-		Input.parse_input_event(ev)
-	return _ok({ "activated": np })
+		queued = _inject(ev)
+	return _ok(_sent({ "activated": np }, queued))
 
 
 func _rop_scene_change(args: Dictionary) -> Dictionary:
@@ -548,6 +683,8 @@ func _rop_replay(args: Dictionary) -> Dictionary:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if typeof(data) != TYPE_DICTIONARY or typeof(data.get("events")) != TYPE_ARRAY:
 		return _err("BAD_RECORDING", "the recording file is not parseable", "re-record it (runtime_record_start / runtime_record_stop)")
+	if _step_mode and get_tree().paused:
+		return _err("STEPPED", "the game is parked in step mode; a recording replays against a live game", "runtime_resume first, then runtime_replay")
 	var speed := maxf(0.05, float(args.get("speed", 1.0)))
 	var t := 0.0
 	var fed := 0
@@ -561,7 +698,7 @@ func _rop_replay(args: Dictionary) -> Dictionary:
 			await get_tree().create_timer(wait_ms / 1000.0).timeout
 		var ev := _desc_to_event(row.get("event", {}))
 		if ev != null:
-			Input.parse_input_event(ev)
+			_inject(ev)
 			fed += 1
 	return _ok({ "replayed": rec_name, "events": fed, "speed": speed })
 
@@ -649,6 +786,7 @@ func _rop_input_key(args: Dictionary) -> Dictionary:
 	if code == KEY_NONE:
 		return _err("BAD_KEY", "unknown key '%s'" % keyname, "use Godot key names: Space, Enter, Escape, A, F1, Up, ...")
 	var modes := _press_modes(args)
+	var queued := false
 	for pressed in modes:
 		var ev := InputEventKey.new()
 		ev.physical_keycode = code
@@ -658,8 +796,8 @@ func _rop_input_key(args: Dictionary) -> Dictionary:
 		ev.ctrl_pressed = bool(args.get("ctrl", false))
 		ev.alt_pressed = bool(args.get("alt", false))
 		ev.meta_pressed = bool(args.get("meta", false))
-		Input.parse_input_event(ev)
-	return _ok({ "key": keyname, "sent": modes })
+		queued = _inject(ev)
+	return _ok(_sent({ "key": keyname, "sent": modes }, queued))
 
 
 func _rop_input_mouse_button(args: Dictionary) -> Dictionary:
@@ -671,15 +809,15 @@ func _rop_input_mouse_button(args: Dictionary) -> Dictionary:
 	var mv := InputEventMouseMotion.new()
 	mv.position = pos
 	mv.global_position = pos
-	Input.parse_input_event(mv)
+	var queued := _inject(mv)
 	for pressed in modes:
 		var ev := InputEventMouseButton.new()
 		ev.button_index = btn
 		ev.pressed = pressed
 		ev.position = pos
 		ev.global_position = pos
-		Input.parse_input_event(ev)
-	return _ok({ "button": str(args.get("button", "left")), "at": { "x": pos.x, "y": pos.y }, "sent": modes })
+		queued = _inject(ev)
+	return _ok(_sent({ "button": str(args.get("button", "left")), "at": { "x": pos.x, "y": pos.y }, "sent": modes }, queued))
 
 
 func _rop_input_mouse_move(args: Dictionary) -> Dictionary:
@@ -689,8 +827,8 @@ func _rop_input_mouse_move(args: Dictionary) -> Dictionary:
 	ev.global_position = pos
 	if args.has("relative"):
 		ev.relative = _to_vec2(args.get("relative"))
-	Input.parse_input_event(ev)
-	return _ok({ "moved_to": { "x": pos.x, "y": pos.y } })
+	var queued := _inject(ev)
+	return _ok(_sent({ "moved_to": { "x": pos.x, "y": pos.y } }, queued))
 
 
 func _rop_input_action(args: Dictionary) -> Dictionary:
@@ -699,40 +837,101 @@ func _rop_input_action(args: Dictionary) -> Dictionary:
 		return _err("ACTION_NOT_FOUND", "no InputMap action '%s'" % action, "input_map_list shows the actions; add one with input_map_add")
 	var strength := clampf(float(args.get("strength", 1.0)), 0.0, 1.0)
 	var modes := _press_modes(args)
+	var queued := false
 	for pressed in modes:
-		if pressed:
-			Input.action_press(action, strength)
-		else:
-			Input.action_release(action)
-	return _ok({ "action": action, "sent": modes, "strength": strength })
+		var ev := InputEventAction.new()
+		ev.action = action
+		ev.pressed = pressed
+		ev.strength = strength if pressed else 0.0
+		queued = _inject(ev)
+	return _ok(_sent({ "action": action, "sent": modes, "strength": strength }, queued))
 
 
 func _rop_input_sequence(args: Dictionary) -> Dictionary:
 	var steps = args.get("steps", [])
 	if typeof(steps) != TYPE_ARRAY or steps.is_empty():
-		return _err("BAD_ARG", "steps must be a non-empty array", "entries: {\"key\": ...} | {\"button\": ..., \"position\": ...} | {\"action\": ...} | {\"wait_ms\": 250}")
+		return _err("BAD_ARG", "steps must be a non-empty array", "entries: {\"key\": ...} | {\"button\": ..., \"position\": ...} | {\"action\": ...} | {\"wait_ms\": 250} | {\"step_frames\": 30} | {\"step_ms\": 500}")
+	if _stepping:
+		return _step_in_flight()
 	var done := 0
+	var frames_total := 0
+	var physics_total := 0
+	var delivered_total := 0
 	for step in steps:
 		if typeof(step) != TYPE_DICTIONARY:
-			return _err("BAD_ARG", "step %d is not a dict" % done, "each step is one of key|button|action|wait_ms")
-		if step.has("wait_ms"):
-			await get_tree().create_timer(maxf(0.001, float(step["wait_ms"]) / 1000.0)).timeout
-		elif step.has("key"):
+			return _err("BAD_ARG", "step %d is not a dict" % done, "each step is one of key|button|action|wait_ms|step_frames|step_ms")
+		var acted := false
+		if step.has("key"):
 			var r := _rop_input_key(step)
 			if not r["ok"]:
 				return r
+			acted = true
 		elif step.has("button"):
 			var r := _rop_input_mouse_button(step)
 			if not r["ok"]:
 				return r
+			acted = true
 		elif step.has("action"):
 			var r := _rop_input_action(step)
 			if not r["ok"]:
 				return r
-		else:
-			return _err("BAD_ARG", "step %d needs key|button|action|wait_ms" % done, "e.g. {\"key\": \"Space\"}, then {\"wait_ms\": 250}")
+			acted = true
+		if step.has("wait_ms"):
+			var wait_ms := maxi(1, int(step["wait_ms"]))
+			if _step_mode:
+				var w: Dictionary = await _advance(0, mini(wait_ms, STEP_MS_MAX))
+				frames_total += int(w["frames"])
+				physics_total += int(w["physics_frames"])
+				delivered_total += int(w["delivered"])
+			else:
+				await get_tree().create_timer(wait_ms / 1000.0).timeout
+			acted = true
+		var window := _step_window(step, "step_frames", "step_ms", false)
+		if window.has("err"):
+			return window["err"]
+		if int(window["frames"]) > 0 or int(window["ms"]) > 0:
+			var a: Dictionary = await _advance(int(window["frames"]), int(window["ms"]))
+			frames_total += int(a["frames"])
+			physics_total += int(a["physics_frames"])
+			delivered_total += int(a["delivered"])
+			acted = true
+		if not acted:
+			return _err("BAD_ARG", "step %d needs key|button|action|wait_ms|step_frames|step_ms" % done, "e.g. {\"action\": \"left\", \"pressed\": true, \"step_frames\": 30}, then {\"action\": \"left\", \"pressed\": false}")
 		done += 1
-	return _ok({ "steps": done })
+	var out := _mode_state()
+	out["steps"] = done
+	out["frames"] = frames_total
+	out["physics_frames"] = physics_total
+	out["delivered"] = delivered_total
+	return _ok(out)
+
+
+func _inject(ev: InputEvent) -> bool:
+	if _step_mode and get_tree().paused:
+		if _queued_input.size() >= QUEUE_MAX:
+			_queued_input.pop_front()
+		_queued_input.append(ev)
+		return true
+	Input.parse_input_event(ev)
+	return false
+
+
+func _deliver_queued() -> int:
+	var count := _queued_input.size()
+	if count == 0:
+		return 0
+	for ev in _queued_input:
+		Input.parse_input_event(ev)
+	_queued_input.clear()
+	Input.flush_buffered_events()
+	return count
+
+
+func _sent(result: Dictionary, queued: bool) -> Dictionary:
+	result["queued"] = queued
+	if queued:
+		result["note"] = "the game is parked in step mode: delivered at the next runtime_step (or runtime_resume)"
+	return result
 
 
 func _install_logger() -> void:
@@ -758,6 +957,10 @@ func _install_logger() -> void:
 func capture_log(message: String, is_error: bool) -> void:
 	var ring := _error_ring if is_error else _log_ring
 	ring.append({ "t": Time.get_ticks_msec() - _started_ms, "message": message })
+	if is_error:
+		_error_total += 1
+	else:
+		_log_total += 1
 	while ring.size() > RING_MAX:
 		ring.pop_front()
 
@@ -765,6 +968,7 @@ func capture_log(message: String, is_error: bool) -> void:
 func capture_error(row: Dictionary) -> void:
 	row["t"] = Time.get_ticks_msec() - _started_ms
 	_error_ring.append(row)
+	_error_total += 1
 	while _error_ring.size() > RING_MAX:
 		_error_ring.pop_front()
 	_send({ "event": "runtime_error", "data": row })

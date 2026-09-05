@@ -32,7 +32,7 @@ import {
 } from '../constants/xml.js'
 import { escapeXml } from '../utils/xml.js'
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
-import { isLocalAgentTask } from './LocalAgentTask/LocalAgentTask.js'
+import { createAgentLedger, foldResponseIntoLedger, isLocalAgentTask } from './LocalAgentTask/LocalAgentTask.js'
 
 
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
@@ -221,8 +221,7 @@ export function startBackgroundSession(args: {
     async () => {
       let accumulated: Message[] = args.messages
       let estimatedTokens = 0
-      let latestInputTokens = 0
-      let totalOutputTokens = 0
+      const ledger = createAgentLedger()
       let sawUsage = false
       let toolCount = 0
       let recentActivities: ReducedActivity[] = []
@@ -266,11 +265,8 @@ export function startBackgroundSession(args: {
 
           let countersChanged = false
           if (message.type === 'assistant') {
-            const usage = message.message.usage
-            if (usage) {
-              const latest = (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0)
-              if (latest > 0) latestInputTokens = latest
-              totalOutputTokens += usage.output_tokens ?? 0
+            if (message.message.usage) {
+              foldResponseIntoLedger(ledger, message)
               sawUsage = true
               countersChanged = true
             }
@@ -296,7 +292,7 @@ export function startBackgroundSession(args: {
           }
 
           if (!countersChanged) continue
-          const tokensSnapshot = sawUsage ? latestInputTokens + totalOutputTokens : estimatedTokens
+          const tokensSnapshot = sawUsage ? ledger.inputTokens + ledger.outputTokens : estimatedTokens
           const toolsSnapshot = toolCount
           const activitiesSnapshot = recentActivities
           const messagesSnapshot = accumulated

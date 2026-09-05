@@ -39,6 +39,7 @@ import {
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/featureGates.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
+import inkInstances from '../../ink/instances.js'
 import { stripFacts } from '../../context/surfaceRoute.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -48,6 +49,7 @@ import {
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
+import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import {
   providerFamilyPresences,
@@ -67,6 +69,7 @@ import type { ExternalInstructionInclude } from '../../services/instructions/eng
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
+import { SEAT_DOORS, seatCeilingFacts, seatCeilingValueWords, seatCostWarning, setOperatorSeats } from '../../services/switchboard/capacityCheck.js'
 
 const LABEL_CELLS = 44
 
@@ -343,8 +346,9 @@ export function Config({
     </Text>
   )
 
+  const servedModel = useFocusedServedModel()
   const mainRoute = declaredRouteOf(
-    appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel(),
+    servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel(),
   )
   const providerScoped = (item: SettingsItem, appliesTo: 'anthropic'): SettingsItem => {
     const applicability = configRowApplicability(appliesTo, mainRoute ?? 'unrecognised')
@@ -390,6 +394,22 @@ export function Config({
       const next = config.concourseEnabled === false
       writeGlobal(c => ({ ...c, concourseEnabled: next }))
       recordToggle('concourse', `set the session concourse to ${next ? 'on' : 'off (live view only)'}`)
+    },
+  })
+  const seatFacts = seatCeilingFacts()
+  const seatWarning = seatCostWarning(seatFacts)
+  items.push({
+    id: 'seats',
+    label: 'Seats',
+    searchText: 'seats seat ceiling capacity concurrency sessions sub-agents workflow agents in flight',
+    kind: 'enum',
+    value: <Text>{seatCeilingValueWords(seatFacts)}</Text>,
+    warning: seatWarning !== null ? seatWarning : `a seat is one model call in flight; ${seatFacts.readingSentence} · ←/→ move the ceiling by one · doors: ${SEAT_DOORS}`,
+    change: direction => {
+      const next = direction > 0 ? seatFacts.seats + 1 : Math.max(1, seatFacts.seats - 1)
+      const after = setOperatorSeats(next)
+      recordSet('seats', `set the seat ceiling to ${after.seats}`)
+      bump()
     },
   })
   items.push({
@@ -638,7 +658,7 @@ export function Config({
     kind: 'info',
     value: (
       <Text>
-        {mainLoopPointerText(appState.mainLoopModelForSession ?? appState.mainLoopModel)}
+        {mainLoopPointerText(servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel)}
       </Text>
     ),
   })
@@ -722,6 +742,18 @@ export function Config({
       change: () => {
         writeGlobal(c => ({ ...c, copyOnSelect: c.copyOnSelect === false }))
         recordToggle('copyOnSelect', `set copy-on-select to ${config.copyOnSelect === false ? 'on' : 'off'}`)
+      },
+    })
+    items.push({
+      id: 'mouseCapture',
+      label: 'Mouse capture',
+      kind: 'boolean',
+      value: boolValue(config.mouseCapture !== false),
+      change: () => {
+        const next = config.mouseCapture === false
+        writeGlobal(c => ({ ...c, mouseCapture: next }))
+        inkInstances.get(process.stdout)?.setMouseTrackingEnabled(next)
+        recordToggle('mouseCapture', `set mouse capture to ${next ? 'on' : 'off'}`)
       },
     })
   }

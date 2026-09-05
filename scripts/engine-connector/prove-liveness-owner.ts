@@ -76,7 +76,7 @@ section('§1 an old daemon (no stamp, no budget): the row states a duration and 
   check('the turn is in flight (the facts busy edge) and the phase is the dispatch wait', c.live().inFlight && c.live().phase === 'thinking', show())
   check('no stamp ⇒ quietMs null; no budget ⇒ watchdogMs null', s.quietMs === null && s.watchdogMs === null, show())
   check('…so stuck is false by construction', s.stuck === false, show())
-  check("the clock is the turn's own age (the prompt row's timestamp) — 'thinking for 20s'", s.phaseMs !== null && s.phaseMs >= 19_000 && s.phaseMs < 40_000 && words() === `thinking for ${statusDuration(s.phaseMs)}`, `${words()} · ${show()}`)
+  check("the clock is the turn's own age (the prompt row's timestamp, ~20s) — a fact of the seat; the row repeats no main-agent clock", s.phaseMs !== null && s.phaseMs >= 19_000 && s.phaseMs < 40_000 && words() === '', `${words()} · ${show()}`)
 }
 
 section('§2 a long think with the runner speaking = alive: "thinking for 2m"')
@@ -88,7 +88,7 @@ section('§2 a long think with the runner speaking = alive: "thinking for 2m"')
   check("the block in flight is the phase — 'thinking' with the block's own clock (~2m)", c.live().phase === 'thinking' && s.phaseMs !== null && s.phaseMs >= 125_000 && s.phaseMs < 140_000, show())
   check('the stamp is fresh ⇒ quietMs small, the budget is the runner’s 90s', s.quietMs !== null && s.quietMs < 5_000 && s.watchdogMs === 90_000, show())
   check('alive: not stuck', s.stuck === false, show())
-  check('the words: "thinking for 2m"', words() === 'thinking for 2m', words())
+  check('the words: none — the transcript and the card narrate the think, the row does not', words() === '', words())
 }
 
 section('§3 words flowing = "replying"')
@@ -96,7 +96,7 @@ section('§3 words flowing = "replying"')
   tail({ lastEventAtMs: Date.now(), streamBlock: 'text', blockSinceMs: Date.now() - 3_000, text: 'Hello, ' })
   await settle()
   check("a text block in flight is 'responding' on the live view", c.live().phase === 'responding', show())
-  check('the words: "replying" (the tail paints the words; the row adds no clock)', words() === 'replying', words())
+  check('the words: none (the tail paints the words; the row repeats no phase)', words() === '', words())
 }
 
 section('§4 no stream events past the watchdog’s warning half = stuck, naming what it saw')
@@ -112,7 +112,7 @@ section('§4 no stream events past the watchdog’s warning half = stuck, naming
   await settle()
   const m = c.status()
   check('the same 3s under a 90s budget is not stuck (the number is the runner’s, never a local constant)', m.stuck === false && m.watchdogMs === 90_000, show())
-  check('…and the row states the dispatch-wait clock instead', words().startsWith('thinking for '), words())
+  check('…and the row states no main-agent clock either', words() === '', words())
 }
 
 section('§5 a tool running under its deadline = alive, whatever the stream’s silence')
@@ -138,23 +138,32 @@ section('§5 a tool running under its deadline = alive, whatever the stream’s 
   check("the unresolved tool_use makes the phase 'tool'", c.live().phase === 'tool' && c.live().inProgressToolUseIDs.has('toolu_live_1'), show())
   check('a tool’s silence is the tool’s: not stuck despite 60s of stream silence under a 4s budget', s.stuck === false && s.quietMs !== null && s.quietMs >= 60_000, show())
   check("the tool's elapsed (~4m) and its own budget (10m) are the row's facts", s.phaseMs !== null && s.phaseMs >= 240_000 && s.phaseMs < 300_000 && s.toolBudgetMs === 600_000, show())
-  check('the words: "running a tool for 4m (its own timeout at 10m)"', words() === 'running a tool for 4m (its own timeout at 10m)', words())
+  check('the words: none — the tool\'s own card narrates it, the row repeats no tool clock', words() === '', words())
 }
 
 section('§6 interrupting wins over every other sentence')
 {
   const live: SessionLiveV1 = { inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set(), turnStartedAtMs: Date.now() - 1000 }
   const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 50_000, watchdogMs: 90_000, phaseMs: 50_000, toolBudgetMs: null, stuck: true, wait: null }
-  check('interrupting + stuck ⇒ the interrupting sentence', statusLine(live, stuck) === 'interrupting — the request is torn down · esc again forces a stop', statusLine(live, stuck))
+  check('interrupting + stuck ⇒ the interrupting sentence', statusLine(live, stuck) === 'interrupting — the request is torn down', statusLine(live, stuck))
   check('the hard stop outranks the interrupting sentence', statusLine(live, { ...stuck, hardStopping: true }) === 'stopping — the runner is cut if the turn is still open in a second', statusLine(live, { ...stuck, hardStopping: true }))
   const idle: SessionLiveV1 = { ...live, inFlight: false, phase: 'idle' }
   check('idle ⇒ "ready" whatever the stale numbers say', statusLine(idle, { ...stuck, interrupting: false }) === 'ready')
   const young: SeatStatusV1 = { ...stuck, interrupting: false, stuck: false, quietMs: 500, phaseMs: 4_000 }
-  check('a young phase paints no clock (durations from ten seconds on)', statusLine(live, young) === 'thinking', statusLine(live, young))
+  check('a running turn with no crew paints no state words (the main agent is narrated once, elsewhere)', statusLine(live, young) === '', statusLine(live, young))
   const compacting: SessionLiveV1 = { ...live, phase: 'compacting' }
-  check('the fold speaks its own word', statusLine(compacting, { ...young, phaseMs: 30_000 }) === 'compacting for 30s', statusLine(compacting, { ...young, phaseMs: 30_000 }))
+  check('the fold paints nothing on the row either (its dress is the face\'s)', statusLine(compacting, { ...young, phaseMs: 30_000 }) === '', statusLine(compacting, { ...young, phaseMs: 30_000 }))
   const tool: SessionLiveV1 = { ...live, phase: 'tool' }
-  check('a tool without a known budget names no deadline', statusLine(tool, { ...young, phaseMs: 61_000, toolBudgetMs: null }) === 'running a tool for 1m', statusLine(tool, { ...young, phaseMs: 61_000, toolBudgetMs: null }))
+  check('a tool paints nothing on the row (its card names its own clock and deadline)', statusLine(tool, { ...young, phaseMs: 61_000, toolBudgetMs: null }) === '', statusLine(tool, { ...young, phaseMs: 61_000, toolBudgetMs: null }))
+  const crew = { active: true, line: 'agents thought for 28m' }
+  check('the crew\'s clock paints under a thinking main agent', statusLine(live, young, crew) === 'agents thought for 28m', statusLine(live, young, crew))
+  check('the crew\'s clock paints under a running tool', statusLine(tool, young, crew) === 'agents thought for 28m')
+  check('the crew\'s clock stands after the turn ends (esc left the crew running: never "ready")', statusLine(idle, { ...young }, crew) === 'agents thought for 28m')
+  check('a settled crew\'s receipt stands while idle', statusLine(idle, young, { active: false, line: 'agents thought for 28m' }) === 'agents thought for 28m')
+  check('the interrupt outranks the crew\'s clock', statusLine(live, { ...young, interrupting: true }, crew) === 'interrupting — the request is torn down')
+  check('the stuck verdict outranks the crew\'s clock', statusLine(live, { ...stuck, interrupting: false }, crew).startsWith('no stream events for '))
+  check('a wait on agents outranks the crew\'s clock', statusLine({ ...live, phase: 'waiting', agentsWaiting: 2 }, young, crew) === 'waiting on 2 agents')
+  check('no crew line ⇒ the plain words', statusLine(idle, young, { active: false, line: null }) === 'ready' && statusLine(live, young, { active: false, line: null }) === '')
 }
 
 section('§7 the turn settles: "ready", no clocks')

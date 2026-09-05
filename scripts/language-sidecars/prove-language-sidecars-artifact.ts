@@ -101,8 +101,11 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
     degraded !== null && degraded.every(d => allowedAbsences.has(d)) && new Set(degraded).size === degraded.length,
     JSON.stringify(manifest.degraded),
   )
-  const ip = manifest.imageProcessing as { selfContained?: boolean } | undefined
-  check('manifest: imageProcessing honesty recorded', !!ip && ip.selfContained === false)
+  const ip = manifest.imageProcessing as { vendored?: boolean; degradesTo?: string; remedy?: string } | undefined
+  check(
+    'manifest: imageProcessing honesty recorded',
+    !!ip && typeof ip.vendored === 'boolean' && (ip.vendored ? /pure-JavaScript image road/.test(ip.degradesTo ?? '') : /pure-JavaScript image road/.test(ip.remedy ?? '')),
+  )
   const tsit = manifest.treeSitter as { grammarPack?: { vendored?: boolean } } | undefined
   check('manifest: grammarPack vendored', tsit?.grammarPack?.vendored === true)
 }

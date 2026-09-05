@@ -40,7 +40,7 @@ import {
   StateBadge,
   UsageMeter,
 } from './mercury-ui/components.js'
-import { GLYPH, HEALTH_GLYPH, padTo, truncateToWidth } from './mercury-ui/glyphs.js'
+import { GLYPH, HEALTH_GLYPH, padTo, truncateToWidth, branchChip } from './mercury-ui/glyphs.js'
 import { formatClock, formatCountdown } from '../utils/cockpit/quota.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 
@@ -190,6 +190,14 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
             )
           }
         }
+        if (usage.readerNote !== undefined) {
+          nodes.push(
+            <Text key="reader">
+              <Text color={t.textMuted}>{padTo('', 11)}</Text>
+              <Text color={t.warning}>{usage.readerNote}</Text>
+            </Text>,
+          )
+        }
         if (usage.limited !== undefined) {
           nodes.push(
             <Text key="limited" color={t.warning}>
@@ -217,7 +225,7 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
           <Text color={t.textMuted}>{git.reason}</Text>
         ) : (
           <>
-            <Text color={t.textMuted}>{GLYPH.branch}</Text>
+            <Text color={t.textMuted}>{branchChip('')}</Text>
             <Text color={t.textPrimary}>{git.data.git.branchName}</Text>
             <Text color={t.textMuted}> · </Text>
             {git.data.git.isClean ? (

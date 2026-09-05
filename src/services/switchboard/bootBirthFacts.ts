@@ -9,9 +9,10 @@ export interface BootBirthFacts {
   runnerArgv: readonly string[]
   kit: SessionKitV1 | null
   presetKit: { name: string; kit: SessionKitV1 } | null
+  bypassConsent: boolean
 }
 
-let facts: BootBirthFacts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null }
+let facts: BootBirthFacts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false }
 
 export function setBootBirthFacts(next: Partial<BootBirthFacts>): void {
   facts = { ...facts, ...next, runnerArgv: [...(next.runnerArgv ?? facts.runnerArgv)] }
@@ -54,6 +55,10 @@ export function carriedKitOf(record: Pick<BootBirthFacts, 'kit'>): { kit: Sessio
   return record.kit !== null ? { kit: record.kit } : {}
 }
 
+export function carriedConsentOf(record: Pick<BootBirthFacts, 'bypassConsent'>): { bypassConsent: true } | Record<string, never> {
+  return record.bypassConsent ? { bypassConsent: true } : {}
+}
+
 export function _resetBootBirthFactsForTesting(): void {
-  facts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null }
+  facts = { title: null, model: null, effort: null, permissionMode: null, runnerArgv: [], kit: null, presetKit: null, bypassConsent: false }
 }

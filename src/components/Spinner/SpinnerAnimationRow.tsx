@@ -74,6 +74,7 @@ export type SpinnerAnimationRowProps = {
   bylineVerb?: string
   ttftText?: string | null
   inWorkCapsule?: boolean
+  still?: boolean
 }
 
 function easeStep(gap: number): number {
@@ -110,6 +111,7 @@ export function SpinnerAnimationRow(
     bylineVerb,
     ttftText,
     inWorkCapsule = false,
+    still = false,
   } = props
   const [themeName] = useTheme()
   const theme = getTheme(themeName)
@@ -481,7 +483,7 @@ export function SpinnerAnimationRow(
     ) : foregroundedIdleQuiet ? null : (
       metaGroup
     )
-  const segBVisible = suffixText !== '' || segBTail !== null
+  const segBVisible = !still && (suffixText !== '' || segBTail !== null)
 
   return (
     <Box
@@ -490,26 +492,36 @@ export function SpinnerAnimationRow(
       marginTop={inWorkCapsule ? 0 : 1}
     >
       <Box flexDirection="row" width="100%">
-        <Box ref={workRef}>
-          <SpinnerGlyph
-            frame={frame}
-            messageColor={overrideColor ?? messageColor}
-            attentionIntensity={effectiveIntensity}
-            reducedMotion={reducedMotion}
-            time={time}
-            cadence={cadence}
-          />
-        </Box>
+        {still ? (
+          <Box ref={workRef} flexWrap="wrap" height={1} width={2}>
+            <Text color={overrideColor ?? messageColor}>{GLYPH.spark}</Text>
+          </Box>
+        ) : (
+          <Box ref={workRef}>
+            <SpinnerGlyph
+              frame={frame}
+              messageColor={overrideColor ?? messageColor}
+              attentionIntensity={effectiveIntensity}
+              reducedMotion={reducedMotion}
+              time={time}
+              cadence={cadence}
+            />
+          </Box>
+        )}
         <Box ref={shimmerRef}>
-          <GlimmerMessage
-            message={message}
-            mode={mode}
-            messageColor={overrideColor ?? messageColor}
-            glimmerIndex={glimmerIndex}
-            flashOpacity={flashOpacity}
-            shimmerColor={overrideColor ?? shimmerColor}
-            attentionIntensity={effectiveIntensity}
-          />
+          {still ? (
+            <Text color={overrideColor ?? messageColor}>{message}</Text>
+          ) : (
+            <GlimmerMessage
+              message={message}
+              mode={mode}
+              messageColor={overrideColor ?? messageColor}
+              glimmerIndex={glimmerIndex}
+              flashOpacity={flashOpacity}
+              shimmerColor={overrideColor ?? shimmerColor}
+              attentionIntensity={effectiveIntensity}
+            />
+          )}
         </Box>
         {!stacked && segBVisible ? (
           <Text>

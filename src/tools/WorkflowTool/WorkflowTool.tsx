@@ -20,8 +20,10 @@ import {
   enqueueWorkflowNotification,
   failWorkflowTask,
   registerWorkflowTask,
+  settleInFlightAgentRows,
   updateWorkflowProgressBatch,
   type LocalWorkflowTaskState,
+  type WorkflowNotificationArgs,
   type WorkflowPhase,
   type WorkflowProgressEvent,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
@@ -101,6 +103,14 @@ export class WorkflowInputError extends Error {
     super(message)
     this.name = 'WorkflowInputError'
   }
+}
+
+export function workflowRunLabel(meta: { name?: string; title?: string; description?: string }): string {
+  const name = meta.name?.trim() ?? ''
+  if (name !== '') return name
+  const title = meta.title?.trim() ?? ''
+  if (title !== '') return title
+  return meta.description?.trim() ?? ''
 }
 
 type WorkflowInput = {
@@ -547,7 +557,7 @@ const WorkflowToolDef = {
         taskType: 'local_workflow' as const,
         workflowName: meta.name,
         runId,
-        summary: meta.description,
+        summary: workflowRunLabel(meta),
         error,
       },
     })
@@ -637,7 +647,7 @@ const WorkflowToolDef = {
       taskId,
       script,
       scriptPath,
-      summary: meta.description,
+      summary: workflowRunLabel(meta),
       workflowName: meta.name,
       title: meta.title,
       phases: meta.phases as WorkflowPhase[] | undefined,
@@ -691,6 +701,10 @@ const WorkflowToolDef = {
         | undefined
       const liveTranscriptDir = getWorkflowTranscriptDir(runId)
       transcriptDirsSeen.add(liveTranscriptDir)
+      const now = Date.now()
+      const progressRows = final
+        ? settleInFlightAgentRows(live?.workflowProgress ?? [], now)
+        : (live?.workflowProgress ?? [])
       const snapshot: WorkflowRunManifest = {
         version: RUN_MANIFEST_VERSION,
         runId,
@@ -705,7 +719,7 @@ const WorkflowToolDef = {
         transcriptDir: liveTranscriptDir,
         runDir,
         startTime: task.startTime,
-        endTime: final ? Date.now() : undefined,
+        endTime: final ? now : undefined,
         status: final?.status ?? projectManifestStatus(live?.status),
         origin,
         owner: { instanceId: claim.instanceId, epoch: claim.epoch },
@@ -716,9 +730,27 @@ const WorkflowToolDef = {
         totalToolCalls: live?.totalToolCalls ?? 0,
         error: final?.error ?? live?.error,
         logsTail: logsTail(live?.logs ?? []),
-        agents: buildAgentSummaries(live?.workflowProgress ?? []),
+        agents: buildAgentSummaries(progressRows),
       }
       return manifestChain.write(snapshot, final !== undefined)
+    }
+
+    const settleRun = async (
+      verdict: { status: 'completed' | 'completed_with_failures' | 'failed'; error?: string },
+      transition: () => Promise<string | null> | void,
+      notification: Omit<WorkflowNotificationArgs, 'status' | 'error' | 'outputWriteError'>,
+    ): Promise<void> => {
+      await writeManifest({
+        status: verdict.status,
+        ...(verdict.error !== undefined ? { error: verdict.error } : {}),
+      })
+      const outputWriteError = (await transition()) ?? undefined
+      enqueueWorkflowNotification({
+        ...notification,
+        status: verdict.status,
+        error: verdict.error,
+        outputWriteError,
+      })
     }
 
     try {
@@ -744,11 +776,21 @@ const WorkflowToolDef = {
     }
 
     const driveRun = async (): Promise<void> => {
+      let trailingManifestWrite: NodeJS.Timeout | null = null
       const batcher = createProgressBatcher({
         apply: events => updateWorkflowProgressBatch(taskId, events, setAppState),
         afterFlush: () => {
-          if (Date.now() - lastManifestWrite >= RUN_MANIFEST_WRITE_THROTTLE_MS) {
+          const sinceLast = Date.now() - lastManifestWrite
+          if (sinceLast >= RUN_MANIFEST_WRITE_THROTTLE_MS) {
             writeManifest()
+            return
+          }
+          if (trailingManifestWrite === null) {
+            trailingManifestWrite = setTimeout(() => {
+              trailingManifestWrite = null
+              writeManifest()
+            }, RUN_MANIFEST_WRITE_THROTTLE_MS - sinceLast)
+            trailingManifestWrite.unref?.()
           }
         },
       })
@@ -822,7 +864,7 @@ const WorkflowToolDef = {
           if (!pausedLive) {
             enqueueWorkflowNotification({
               taskId,
-              summary: meta.description,
+              summary: workflowRunLabel(meta),
               status: 'killed',
               agentCount: live?.agentCount ?? 0,
               totalTokens,
@@ -849,53 +891,45 @@ const WorkflowToolDef = {
         })
         const terminalError = result.error ?? terminal.derivedError
 
-        let outputWriteError: string | undefined
-        if (terminal.status === 'failed') {
-          failWorkflowTask(
+        await settleRun(
+          { status: terminal.status, ...(terminalError !== undefined ? { error: terminalError } : {}) },
+          terminal.status === 'failed'
+            ? () =>
+                failWorkflowTask(
+                  taskId,
+                  terminalError ?? 'workflow failed',
+                  result.agentCount,
+                  result.logs,
+                  setAppState,
+                )
+            : () =>
+                completeWorkflowTask(
+                  taskId,
+                  result.result,
+                  result.agentCount,
+                  result.logs,
+                  setAppState,
+                ),
+          {
             taskId,
-            terminalError ?? 'workflow failed',
-            result.agentCount,
-            result.logs,
+            summary: workflowRunLabel(meta),
+            result: result.result,
+            failures: result.failures,
+            agentCount: result.agentCount,
+            totalTokens,
+            totalToolCalls,
+            durationMs: result.durationMs,
             setAppState,
-          )
-          await writeManifest({
-            status: 'failed',
-            ...(terminalError !== undefined ? { error: terminalError } : {}),
-          })
-        } else {
-          outputWriteError =
-            (await completeWorkflowTask(
-              taskId,
-              result.result,
-              result.agentCount,
-              result.logs,
-              setAppState,
-            )) ?? undefined
-          await writeManifest({ status: terminal.status })
-        }
-
-        enqueueWorkflowNotification({
-          taskId,
-          summary: meta.description,
-          status: terminal.status,
-          error: terminalError,
-          result: result.result,
-          failures: result.failures,
-          agentCount: result.agentCount,
-          totalTokens,
-          totalToolCalls,
-          durationMs: result.durationMs,
-          setAppState,
-          toolUseId: context.toolUseId,
-          transcriptDir: runDir,
-          scriptPath,
-          workflowRunId: runId,
-          args: input.args,
-          outputWriteError,
-          agents: evolutionLedgerEnabled()
-            ? buildAgentSummaries(live?.workflowProgress ?? [])
-            : undefined,
-        })
+            toolUseId: context.toolUseId,
+            transcriptDir: runDir,
+            scriptPath,
+            workflowRunId: runId,
+            args: input.args,
+            agents: evolutionLedgerEnabled()
+              ? buildAgentSummaries(live?.workflowProgress ?? [])
+              : undefined,
+          },
+        )
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         logError(msg)
@@ -906,32 +940,34 @@ const WorkflowToolDef = {
           await writeManifest({ status: 'paused' })
           return
         }
-        failWorkflowTask(
-          taskId,
-          msg,
-          live?.agentCount ?? 0,
-          live?.logs ?? [],
-          setAppState,
+        await settleRun(
+          { status: 'failed', error: msg },
+          () =>
+            failWorkflowTask(
+              taskId,
+              msg,
+              live?.agentCount ?? 0,
+              live?.logs ?? [],
+              setAppState,
+            ),
+          {
+            taskId,
+            summary: workflowRunLabel(meta),
+            agentCount: live?.agentCount ?? 0,
+            totalTokens: live?.totalTokens ?? 0,
+            totalToolCalls: live?.totalToolCalls ?? 0,
+            durationMs: Date.now() - task.startTime,
+            setAppState,
+            toolUseId: context.toolUseId,
+            transcriptDir: runDir,
+            scriptPath,
+            workflowRunId: runId,
+            args: input.args,
+          },
         )
-        await writeManifest({ status: 'failed', error: msg })
-        enqueueWorkflowNotification({
-          taskId,
-          summary: meta.description,
-          status: 'failed',
-          error: msg,
-          agentCount: live?.agentCount ?? 0,
-          totalTokens: live?.totalTokens ?? 0,
-          totalToolCalls: live?.totalToolCalls ?? 0,
-          durationMs: Date.now() - task.startTime,
-          setAppState,
-          toolUseId: context.toolUseId,
-          transcriptDir: runDir,
-          scriptPath,
-          workflowRunId: runId,
-          args: input.args,
-        })
       } finally {
         clearInterval(manifestHeartbeat)
+        if (trailingManifestWrite !== null) clearTimeout(trailingManifestWrite)
       }
     }
     void runWithCwdOverride(executionCwd, driveRun)
@@ -943,7 +979,7 @@ const WorkflowToolDef = {
         taskType: 'local_workflow' as const,
         workflowName: meta.name,
         runId,
-        summary: meta.description,
+        summary: workflowRunLabel(meta),
         transcriptDir: runDir,
         scriptPath,
       },

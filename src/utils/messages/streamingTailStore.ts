@@ -1,4 +1,5 @@
 
+import type { TextPhase } from '../../types/wire.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 import { registerFlushProbe } from '../../ink/root/flush-registry.js'
 
@@ -9,9 +10,12 @@ export type StreamingTailStore = {
   read(): string | null
   reset(value: string | null): void
   readSettled(): string | null
+  readSettledSinceMs(): number | null
   dropSettled(): void
   setMessageId(id: string | null): void
   readIds(): { current: string | null; settled: string | null }
+  setPhase(phase: TextPhase | null): void
+  readPhases(): { current: TextPhase | null; settled: TextPhase | null }
   subscribe(cb: () => void): () => void
   getSnapshot(): string | null
   dispose(): void
@@ -36,9 +40,13 @@ export function createStreamingTailStore(
   let fresh: string | null = null
   let published: string | null = null
   let settled: string | null = null
+  let settledAt: number | null = null
   let pendingId: string | null = null
   let currentId: string | null = null
   let settledId: string | null = null
+  let pendingPhase: TextPhase | null = null
+  let currentPhase: TextPhase | null = null
+  let settledPhase: TextPhase | null = null
   let timer: unknown = null
   let lastPublishAt = -Infinity
   let disposed = false
@@ -62,21 +70,31 @@ export function createStreamingTailStore(
     for (const cb of listeners) cb()
   }
 
+  function transition(next: string | null): void {
+    if (next === null && fresh !== null && fresh !== '') {
+      settled = fresh
+      settledAt = now()
+      settledId = currentId
+      settledPhase = currentPhase
+      currentId = null
+      currentPhase = null
+    } else if (next !== null) {
+      settled = null
+      settledAt = null
+      settledId = null
+      settledPhase = null
+      currentId = pendingId
+      currentPhase = pendingPhase
+    }
+    fresh = next
+  }
+
   return {
     update(f) {
       const next = f(fresh)
       if (next === fresh) return
       const wasNull = fresh === null
-      if (next === null && fresh !== null && fresh !== '') {
-        settled = fresh
-        settledId = currentId
-        currentId = null
-      } else if (next !== null) {
-        settled = null
-        settledId = null
-        currentId = pendingId
-      }
-      fresh = next
+      transition(next)
       if (disposed) return
       if (next === null || wasNull) {
         publishNow()
@@ -94,27 +112,25 @@ export function createStreamingTailStore(
     },
     read: () => fresh,
     reset(value) {
-      if (value === null && fresh !== null && fresh !== '') {
-        settled = fresh
-        settledId = currentId
-        currentId = null
-      } else if (value !== null) {
-        settled = null
-        settledId = null
-        currentId = pendingId
-      }
-      fresh = value
+      transition(value)
       publishNow()
     },
     readSettled: () => settled,
+    readSettledSinceMs: () => settledAt,
     dropSettled() {
       settled = null
+      settledAt = null
       settledId = null
+      settledPhase = null
     },
     setMessageId(id) {
       pendingId = id
     },
     readIds: () => ({ current: currentId, settled: settledId }),
+    setPhase(phase) {
+      pendingPhase = phase
+    },
+    readPhases: () => ({ current: currentPhase, settled: settledPhase }),
     subscribe(cb) {
       listeners.add(cb)
       return () => listeners.delete(cb)

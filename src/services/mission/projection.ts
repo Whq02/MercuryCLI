@@ -307,8 +307,8 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let snapshot: SnapshotRead | null = null
   try {
-    const { getProjectSnapshot } = await import('../projectIntel/snapshot.js')
-    snapshot = getProjectSnapshot(workspace, { maxStaleMs: 30_000 })
+    const { getProjectSnapshotAsync } = await import('../projectIntel/snapshot.js')
+    snapshot = await getProjectSnapshotAsync(workspace, { maxStaleMs: 30_000 })
   } catch {
     snapshot = null
   }
@@ -335,10 +335,10 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let evidenceDigest: string | null = null
   try {
-    const { computeWorkingTreeDigest, verifyEvidenceEnabled } = await import(
+    const { computeWorkingTreeDigestAsync, verifyEvidenceEnabled } = await import(
       '../../utils/verification/verificationState.js'
     )
-    evidenceDigest = verifyEvidenceEnabled() ? computeWorkingTreeDigest(workspace) : null
+    evidenceDigest = verifyEvidenceEnabled() ? await computeWorkingTreeDigestAsync(workspace) : null
   } catch {
     evidenceDigest = null
   }

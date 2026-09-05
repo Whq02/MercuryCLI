@@ -19,7 +19,7 @@ const addon = path.join(repo, 'assets', 'vulcan', 'addon')
 const catDir = path.join(addon, 'categories')
 
 section('1. handler coverage vs the optable')
-const MERCURY_SIDE = new Set(['vulcan_status', 'vulcan_install', 'vulcan_uninstall'])
+const MERCURY_SIDE = new Set(['vulcan_status', 'vulcan_install', 'vulcan_uninstall', 'project_refresh_classes'])
 const owned = new Map<string, string>()
 const claimed: string[] = []
 for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
@@ -80,32 +80,87 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
   const BASE = '[application]\n\nconfig/name="Deadnight"\nrun/main_scene="res://main.tscn"\n\n[rendering]\n\nquality=2\n'
   try {
     wf(proj, BASE)
-    const r1 = mutateProjectGodot(scratch, (text: string) => ({ text: text + '\n[mercury_vulcan]\n\nport=6010\n', notes: [] }))
+    const r1 = await mutateProjectGodot(scratch, (text: string) => ({
+      text: text + '\n[mercury_vulcan]\n\nport=6010\n',
+      edits: [{ section: 'mercury_vulcan', key: 'port', next: '6010', why: 'the addon listens here' }],
+    }))
     check('mutation publishes atomically and preserves unrelated bytes', r1.ok === true && rf(proj, 'utf8').startsWith(BASE), rf(proj, 'utf8').slice(0, 40))
+    check('the seam returns one receipt line per edited row', r1.ok === true && r1.receipts.length === 1 && r1.receipts[0] === 'project.godot [mercury_vulcan] port: (absent) → 6010 — the addon listens here', JSON.stringify(r1).slice(0, 120))
 
     wf(proj, BASE)
     let calls = 0
-    const r2 = mutateProjectGodot(scratch, (text: string) => {
+    const r2 = await mutateProjectGodot(scratch, (text: string) => {
       calls++
       if (calls === 1) {
         wf(proj, BASE + '\n[editor_saved]\n\nvalue=1\n')
       }
-      return { text: text + '\n[mercury_added]\n\nx=1\n', notes: [] }
+      return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
     const after = rf(proj, 'utf8')
     check('concurrent editor save survives (re-merge on fresh content)', r2.ok === true && calls === 2 && after.includes('[editor_saved]') && after.includes('[mercury_added]'), `calls=${calls}`)
 
     wf(proj, BASE)
     let always = 0
-    const r3 = mutateProjectGodot(scratch, (text: string) => {
+    const r3 = await mutateProjectGodot(scratch, (text: string) => {
       always++
       wf(proj, BASE + `\n[churn]\n\nv=${always}\n`)
-      return { text: text + '\n[mercury_added]\n\nx=1\n', notes: [] }
+      return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
     check('exhaustion ⇒ conflict receipt, zero partial writes', r3.ok === false && !rf(proj, 'utf8').includes('[mercury_added]'), JSON.stringify(r3).slice(0, 90))
+
+    wf(proj, BASE)
+    const trace: string[] = []
+    const road = {
+      before: async (file: string) => {
+        trace.push(`before:${rf(file, 'utf8') === BASE}`)
+      },
+      after: (file: string, previous: string, next: string) => {
+        trace.push(`after:${previous === BASE}:${next.includes('[mercury_added]')}`)
+      },
+    }
+    const r4 = await mutateProjectGodot(scratch, (text: string) => ({ text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }), road)
+    const r5 = await mutateProjectGodot(scratch, (text: string) => ({ text, edits: [] }), road)
+    check('the road fires before (file still original) then after (previous/next), never for a no-op', r4.ok === true && r5.ok === true && JSON.stringify(trace) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(trace))
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
+}
+
+section('5. the one injection road — a press is an event; step mode is served')
+{
+  const bridge = readFileSync(path.join(addon, 'core', 'runtime_bridge.gd'), 'utf8')
+  const bodies = new Map<string, string>()
+  for (const m of bridge.matchAll(/^(?:static )?func (\w+)\([^\n]*\n([\s\S]*?)(?=^(?:static )?func |(?![\s\S]))/gm)) bodies.set(m[1]!, m[2]!)
+  const parsers = [...bodies].filter(([, body]) => /Input\.parse_input_event\(/.test(body)).map(([name]) => name).sort()
+  check('Input.parse_input_event is called only by _inject and _deliver_queued', JSON.stringify(parsers) === JSON.stringify(['_deliver_queued', '_inject']), parsers.join(','))
+  check('the action-state-only road is gone (no Input.action_press / action_release)', !/Input\.action_(press|release)\(/.test(bridge))
+  const action = bodies.get('_rop_input_action') ?? ''
+  check('input_action builds an InputEventAction with action, pressed, strength and injects it', /InputEventAction\.new\(\)/.test(action) && /ev\.action = action/.test(action) && /ev\.pressed = pressed/.test(action) && /ev\.strength = /.test(action) && /_inject\(ev\)/.test(action))
+  for (const road of ['_rop_input_key', '_rop_input_mouse_button', '_rop_input_mouse_move', '_rop_click', '_rop_navigate', '_rop_replay', '_rop_input_sequence']) {
+    const body = bodies.get(road) ?? ''
+    check(`${road} rides the injection road (or the rops that do)`, /_inject\(|_rop_input_(key|mouse_button|action)\(/.test(body), road)
+  }
+  const inject = bodies.get('_inject') ?? ''
+  check('_inject queues only while step mode holds the tree paused', /_step_mode and get_tree\(\)\.paused/.test(inject) && /_queued_input\.append\(ev\)/.test(inject))
+  const deliver = bodies.get('_deliver_queued') ?? ''
+  check('the queue is delivered by parsing AND flushing (the callbacks see it before the first stepped frame)', /Input\.parse_input_event\(ev\)/.test(deliver) && /Input\.flush_buffered_events\(\)/.test(deliver))
+  const advance = bodies.get('_advance') ?? ''
+  check('a step window is frame-aligned: unpause and re-pause at process_frame boundaries, exact frames', /await tree\.process_frame\n\tvar delivered/.test(advance) && /tree\.paused = false\n\t\tdelivered = _deliver_queued\(\)/.test(advance) && /while ran < frames and/.test(advance) && /if stepped:\n\t\ttree\.paused = true\n\t_stepping = false/.test(advance))
+  check('the bridge serves the three step rops', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(r => new RegExp(`"${r}":\\n\\t\\t\\treturn (await )?_rop_`).test(bridge)))
+  check('runtime_status names the mode (live | step)', /"mode": "step" if _step_mode else "live"/.test(bridge) && /st\.merge\(_mode_state\(\)\)/.test(bodies.get('_rop_status') ?? ''))
+  const runtime = readFileSync(path.join(catDir, 'runtime.gd'), 'utf8')
+  check('the editor side forwards the three verbs from the runtime category', /"runtime_step", "runtime_pause", "runtime_resume",/.test(runtime))
+  check('the editor pre-flights the step window (frames or ms, never both) before the wire', /if op == "runtime_step":\n\t\tvar bad := step_window_error\(args, "frames", "ms", ctx\)/.test(runtime) && /pass %s or %s, not both/.test(runtime))
+  check('the proxy deadline budgets stepped frames from the ONE generated figure (no constant of its own)', /int\(args\["frames"\]\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server) && !/STEP_WALL_MS_PER_FRAME :=/.test(server))
+  check('the bridge caps a frame window from the same generated figure (no constant of its own)', /const OpClassesScript := preload\("op_classes\.gd"\)/.test(bridge) && /OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(advance) && !/STEP_WALL_MS_PER_FRAME :=/.test(bridge))
+  const opClasses = readFileSync(path.join(addon, 'core', 'op_classes.gd'), 'utf8')
+  check('op_classes.gd carries the generated figure', /^const STEP_WALL_MS_PER_FRAME := \d+$/m.test(opClasses))
+  const sequence = bodies.get('_rop_input_sequence') ?? ''
+  check('input_sequence steps carry step_frames | step_ms and advance after the input', /_step_window\(step, "step_frames", "step_ms", false\)/.test(sequence) && /await _advance\(int\(window\["frames"\]\), int\(window\["ms"\]\)\)/.test(sequence))
+  check('a wait_ms is game time while stepped, a timer while live', /if _step_mode:\n\t\t\t\tvar w: Dictionary = await _advance\(0, /.test(sequence) && /create_timer\(wait_ms \/ 1000\.0\)\.timeout/.test(sequence))
+  const input = readFileSync(path.join(catDir, 'input.gd'), 'utf8')
+  check('input_sequence validation admits step_frames | step_ms and checks their shape', /step\.has\("step_frames"\) or step\.has\("step_ms"\)/.test(input) && /MercuryVulcanRuntime\.step_window_error\(step, "step_frames", "step_ms", ctx\)/.test(input))
+  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server))
 }
 
 console.log('\n' + (failures === 0 ? '✅ vulcan addon proof PASS' : `❌ ${failures} FAILURES`))

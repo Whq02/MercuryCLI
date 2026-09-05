@@ -9,6 +9,7 @@ import {
   type GptDisqualification,
   type GptSeatAvailability,
 } from '../../services/providers/openai/openaiCatalogue.js'
+import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import {
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
@@ -42,6 +43,7 @@ import {
   renderModelName,
 } from './model.js'
 import { getModelStrings } from './modelStrings.js'
+import { previousGenerationKeys } from './configs.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
 import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '../auth.js'
@@ -124,8 +126,9 @@ function getFableOption(): ModelOption {
   }
 }
 
-function getFable51Option(): ModelOption {
-  return literalRow(getModelStrings().fable51, '')
+function previousGenerationFableRows(): ModelOption[] {
+  const strings = getModelStrings()
+  return previousGenerationKeys('fable').map(key => literalRow(strings[key], ''))
 }
 
 function getOpusFrontierFallbackOption(): ModelOption {
@@ -142,13 +145,11 @@ function suffixedMidRow(): ModelOption | null {
   return aliasRow('sonnet[1m]', '')
 }
 
-const PREVIOUS_LARGE_KEYS = ['opus48', 'opus47', 'opus46'] as const
-
 function previousGenerationLargeRows(): ModelOption[] {
   const rows: ModelOption[] = []
   const strings = getModelStrings()
   const currentLarge = normalizeModelStringForAPI(parseUserSpecifiedModel('opus'))
-  for (const key of PREVIOUS_LARGE_KEYS) {
+  for (const key of previousGenerationKeys('opus')) {
     const id = strings[key]
     if (normalizeModelStringForAPI(id) === currentLarge) continue
     rows.push(literalRow(id, ''))
@@ -176,7 +177,7 @@ function largeModelShapeRows(): ModelOption[] {
 function premiumSubscriberTierRows(): ModelOption[] {
   const rows: ModelOption[] = [defaultRow()]
   rows.push(getFableOption())
-  rows.push(getFable51Option())
+  rows.push(...previousGenerationFableRows())
   if (isFableAvailable()) {
     rows.push(getOpusFrontierFallbackOption())
   }
@@ -194,7 +195,7 @@ function premiumSubscriberTierRows(): ModelOption[] {
 function standardShapeTierRows(): ModelOption[] {
   const rows: ModelOption[] = [defaultRow()]
   rows.push(getFableOption())
-  rows.push(getFable51Option())
+  rows.push(...previousGenerationFableRows())
   const suffixedMid = suffixedMidRow()
   if (suffixedMid !== null) rows.push(suffixedMid)
   rows.push(...largeModelShapeRows())
@@ -377,11 +378,12 @@ function getQualifiedGptOptions(): ModelOption[] {
   for (const candidate of qualifiedGptCandidates('primary', availability.sourceKind)) {
     const id = candidate.identity.canonicalId
     listed.add(id)
+    const label = gptDisplayName(id) ?? candidate.displayName
     out.push({
       value: id,
-      label: candidate.displayName,
+      label,
       description: '',
-      descriptionForModel: `${candidate.displayName} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
+      descriptionForModel: `${label} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
       group: OPENAI_MODEL_GROUP,
     })
   }
@@ -673,30 +675,6 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
 
 export function getDefaultOptionForUser(): ModelOption {
   return defaultRow()
-}
-
-
-function suffixedOption(alias: string, label: string, description: string): ModelOption {
-  return { value: withContext1m(alias), label, description }
-}
-
-export function getOpus48_1MOption(): ModelOption {
-  return suffixedOption('opus[1m]', 'Opus 4.8 (1M context)', '')
-}
-export function getOpus47_1MOption(): ModelOption {
-  return suffixedOption('opus[1m]', 'Opus 4.7 (1M context)', '')
-}
-export function getSonnet46_1MOption(): ModelOption {
-  return suffixedOption('sonnet[1m]', 'Sonnet 4.6 (1M context)', '')
-}
-export function getOpus46_1MOption(): ModelOption {
-  return suffixedOption('opus[1m]', 'Opus 4.6 (1M context)', '')
-}
-export function getMaxSonnet46_1MOption(): ModelOption {
-  return suffixedOption('sonnet[1m]', 'Sonnet 4.6 (1M context)', '')
-}
-export function getMaxOpus46_1MOption(): ModelOption {
-  return suffixedOption('opus[1m]', 'Opus 4.6 (1M context)', '')
 }
 
 

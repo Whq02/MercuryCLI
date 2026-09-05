@@ -74,6 +74,12 @@ const liveModel = (efforts: string[], def?: string) =>
 
   const p7 = resolveGptReasoningProfile(undefined, full)
   check("no request ⇒ the model default ('low'), source 'model-default'", p7.wireEffort === 'low' && p7.source === 'model-default')
+
+  const six = liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')
+  const p8 = resolveGptReasoningProfile('ultra', six)
+  check("a served 'ultra' passes through as the user's choice", p8.wireEffort === 'ultra' && p8.source === 'user', JSON.stringify(p8))
+  const p9 = resolveGptReasoningProfile('ultra', full)
+  check("'ultra' on a low…max vocabulary steps DOWN to 'max' with the adjustment named", p9.wireEffort === 'max' && p9.source === 'unsupported-fallback' && p9.adjustedFrom === 'ultra', JSON.stringify(p9))
 }
 
 {
@@ -100,6 +106,7 @@ const liveModel = (efforts: string[], def?: string) =>
           { id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'], default_reasoning_level: 'low' },
           { id: 'gpt-5.6-terra', display_name: 'GPT-5.6 Terra', visibility: 'list', priority: 2, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh'], default_reasoning_level: 'medium' },
           { id: 'gpt-5.6-luna', display_name: 'GPT-5.6 Luna', visibility: 'list', priority: 3, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium' },
+          { id: 'gpt-6-astra', display_name: 'GPT-6 Astra', visibility: 'list', priority: 4, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'medium' },
         ],
       }),
       { status: 200, headers: { 'content-type': 'application/json' } },
@@ -115,6 +122,10 @@ const liveModel = (efforts: string[], def?: string) =>
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-terra') === 'xhigh' &&
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-luna') === 'high')
   check("Sol's Mercury-ladder default follows the LIVE default ('low')", capabilities.gptModelDefaultEffort('gpt-5.6-sol') === 'low')
+  check('Astra (live …ultra) serves ultra, Sol (live …max) does not, and the ceilings say so', capabilities.modelOffersEffortLevel('gpt-6-astra', 'ultra') && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'ultra')
+  check("applied 'ultra' on Astra stays 'ultra'; on Sol it steps to 'max'; on Luna to 'high'", effort.resolveAppliedEffort('gpt-6-astra', 'ultra') === 'ultra' && effort.resolveAppliedEffort('gpt-5.6-sol', 'ultra') === 'max' && effort.resolveAppliedEffort('gpt-5.6-luna', 'ultra') === 'high')
+  check('DISPLAY ≡ DISPATCH on Astra at ultra', effort.getDisplayedEffortLevel('gpt-6-astra', 'ultra') === 'ultra' && resolveGptReasoningProfile('ultra', liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')).wireEffort === 'ultra')
+  check("the 'ultra' description names the GPT family when a live vocabulary serves it", effort.getEffortLevelDescription('ultra').includes('GPT'), effort.getEffortLevelDescription('ultra'))
 
   check("applied 'max' on Sol stays 'max' (the reported bug: it clamped to high)", effort.resolveAppliedEffort('gpt-5.6-sol', 'max') === 'max')
   check("applied 'max' on Terra steps to 'xhigh' (never straight past it)", effort.resolveAppliedEffort('gpt-5.6-terra', 'max') === 'xhigh')
@@ -139,14 +150,14 @@ const liveModel = (efforts: string[], def?: string) =>
   const src = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
   check(
     'the pulse stamp rides the resolution owner LABEL (truthful for out-of-ladder tiers + omitted keys), never the raw appState value',
-    src.includes('const truth = resolveEffortTruth(iter.currentModel, effortValue)') &&
+    src.includes('const truth = resolveEffortTruth(iter.currentModel, effortValue, { agentId: toolUseContext.agentId })') &&
       src.includes("const effortLabel = truth.wire === undefined ? undefined : truth.label") &&
       /notePulseModel\(iter\.currentModel, effortLabel\)/.test(src),
   )
 }
 
 {
-  console.log('\n— 6 · EF prep: the FULL provider vocabulary rides the resolution —')
+  console.log('\n— 6 · the FULL provider vocabulary rides the resolution; the served top rung is selectable —')
   const ultraFetch: typeof fetch = (async () =>
     new Response(
       JSON.stringify({
@@ -167,14 +178,15 @@ const liveModel = (efforts: string[], def?: string) =>
     `got ${JSON.stringify(solTruth.providerVocabulary)}`,
   )
   check(
-    "EF-09 prep: `selectable` (what controls OFFER today) still ends at the shared ladder — 'ultra' becomes offerable only when the EF-08 capture verifies it",
-    !solTruth.selectable.includes('ultra' as never) && solTruth.selectable.includes('max'),
+    "`selectable` (what controls OFFER) reaches the served top: 'ultra' is a stop on the row that serves it, directly above max",
+    solTruth.selectable.includes('ultra') && solTruth.selectable.indexOf('ultra') === solTruth.selectable.indexOf('max') + 1,
+    JSON.stringify(solTruth.selectable),
   )
   check(
-    "EF-03 shape: a provider default of 'ultra' is REPRESENTED coherently — wire sends it, label shows it, applied is honestly out-of-ladder, providerDefault records it",
+    "EF-03 shape: a provider default of 'ultra' is REPRESENTED coherently — wire sends it, label shows it, applied is the ladder word, providerDefault records it",
     solTruth.wire === 'ultra' &&
       solTruth.label === 'ultra' &&
-      solTruth.applied === undefined &&
+      solTruth.applied === 'ultra' &&
       solTruth.providerDefault === 'ultra',
     `wire=${String(solTruth.wire)} label=${solTruth.label} providerDefault=${String(solTruth.providerDefault)}`,
   )
@@ -183,6 +195,7 @@ const liveModel = (efforts: string[], def?: string) =>
     'EF-01: a ladder-terminal vocabulary carries no ultra anywhere (vocabulary, selectable, default)',
     JSON.stringify(lunaTruth.providerVocabulary) === JSON.stringify(['low', 'medium', 'high']) &&
       !lunaTruth.selectable.includes('max') &&
+      !lunaTruth.selectable.includes('ultra') &&
       lunaTruth.providerDefault === 'medium',
   )
   const stepDown = effort.resolveEffortTruth('gpt-5.6-luna', 'max')
@@ -205,8 +218,10 @@ const liveModel = (efforts: string[], def?: string) =>
 
   const slider = readFileSync(join(ROOT, 'src/commands/effort/EffortSlider.tsx'), 'utf8')
   check(
-    "EF-06: the slider never offers literal 'ultra' and supercode rides max-support (separate mode, never masquerading)",
-    !slider.includes("'ultra'") &&
+    'EF-06: the slider derives its base stops from the ladder owner (ultra among them, stamped from the vocabulary) and supercode rides max-support (separate mode, never masquerading)',
+    slider.includes('EFFORT_LEVELS.map(level => ({') &&
+      slider.includes("ultra: 'blaze'") &&
+      slider.includes('supported: vocabulary.has(String(tier.value))') &&
       /modelSupportsMaxEffort\(model\)[\s\S]{0,400}value: 'supercode'/.test(slider),
   )
 
@@ -220,6 +235,38 @@ const liveModel = (efforts: string[], def?: string) =>
     'EF-11: the nudge mechanism exists at the attachment renderer (deepthink rendered into the turn, wire untouched)',
     attachmentSrc.includes("'deepthink_effort'") && attachmentSrc.includes('keyword "deepthink"'),
   )
+}
+
+{
+  console.log('\n— 7 · a remembered wire refusal narrows the listed ladder until the wire proves the word —')
+  const store = await import('../../src/services/providers/openai/qualificationStore.js')
+  const listFetch: typeof fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          { id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'low' },
+          { id: 'gpt-5.6-luna', display_name: 'GPT-5.6 Luna', visibility: 'list', priority: 3, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium' },
+        ],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as unknown as typeof fetch
+  __resetOpenaiCatalogueForTest()
+  await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: listFetch })
+  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+  check('no memory ⇒ the list is the vocabulary (ultra offered on Sol)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && store.readWireEffortVocabularies().length === 0)
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST })
+  const view = capabilities.gptEffortVocabularyView('gpt-5.6-sol')
+  const truth = effort.resolveEffortTruth('gpt-5.6-sol', 'ultra')
+  check(
+    "a remembered refusal narrows the row's vocabulary to what the wire serves: five words, ultra not offered, the ceiling max, ultra asked runs max with the asked word on the record",
+    view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max']) && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'max' && truth.wire === 'max' && truth.adjustedFrom === 'ultra' && !truth.selectable.includes('ultra'),
+    JSON.stringify({ view, wire: truth.wire, adjustedFrom: truth.adjustedFrom }),
+  )
+  check("the wire profile reads the same narrowed row (display ≡ dispatch): the candidate's live row lacks ultra", (() => { const c = catalogue.evaluateGptCandidate('gpt-5.6-sol', 'api-key'); return c.ok && !c.candidate.live.supportedReasoningEfforts.includes('ultra') && c.candidate.live.supportedReasoningEfforts.includes('max') })())
+  check('another row keeps its own list (Luna untouched)', JSON.stringify(capabilities.gptEffortVocabularyView('gpt-5.6-luna')) === JSON.stringify({ state: 'live', vocabulary: ['low', 'medium', 'high'], defaultEffort: 'medium' }))
+  check('the memory is dated and names the refused word and the source', store.readWireEffortVocabularies().every(m => m.refused === 'ultra' && m.sourceKind === 'api-key' && m.observedAtMs > 0))
+  store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'ultra' })
+  check('a served-and-accepted ultra clears the memory and the list is the vocabulary again', store.readWireEffortVocabularies().length === 0 && capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'ultra')
 }
 
 for (const [key, value] of Object.entries(savedEnv)) {

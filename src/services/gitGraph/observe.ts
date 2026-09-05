@@ -1,8 +1,10 @@
 
-import { execFileSync } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { projectScopePathspec } from '../../utils/projectBoundary.js'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { join as joinPath } from 'node:path'
 import type {
   GitCommitMeta,
@@ -18,6 +20,7 @@ const MAX_BUFFER = 16 * 1024 * 1024
 const MAX_HUNKS = 200
 const MAX_HUNK_LINES = 120
 const MAX_CONFLICT_LINES = 80
+const GIT_TIMEOUT_MS = 30_000
 
 export function git(root: string, args: string[]): string {
   return execFileSync('git', args, {
@@ -25,10 +28,49 @@ export function git(root: string, args: string[]): string {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: MAX_BUFFER,
-    timeout: 30_000,
+    timeout: GIT_TIMEOUT_MS,
     env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
+}
+
+export function gitAsync(root: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'git',
+      args,
+      {
+        windowsHide: true,
+        cwd: root,
+        encoding: 'utf8',
+        maxBuffer: MAX_BUFFER,
+        timeout: GIT_TIMEOUT_MS,
+        env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
+      },
+      (err, stdout, stderr) => {
+        if (err === null) {
+          resolve(stdout)
+          return
+        }
+        const status = typeof err.code === 'number' ? err.code : null
+        reject(Object.assign(err, { status, stdout, stderr }))
+      },
+    )
+  })
+}
+
+type AsyncProbe = { out: string; failure: null } | { out: null; failure: string | null }
+
+async function tryGitAsync(root: string, args: string[]): Promise<AsyncProbe> {
+  try {
+    return { out: await gitAsync(root, args), failure: null }
+  } catch (e) {
+    const err = e as NodeJS.ErrnoException & { status?: number | null; signal?: string | null }
+    return {
+      out: null,
+      failure: typeof err.status === 'number' ? null : (err.code ?? err.signal ?? 'exec-failure'),
+    }
+  }
 }
 
 let lastProbeFailure: string | null = null
@@ -58,19 +100,35 @@ export function isGitRepo(root: string): boolean {
   return false
 }
 
-const notARepo = (): GitUnavailable => ({
+const notARepoNote = (failure: string | null): GitUnavailable => ({
   state: 'unavailable',
   note: `not a git repository (or git is not installed) — the work graph needs one${
-    lastProbeFailure ? ` (git probe failed: ${lastProbeFailure})` : ''
+    failure ? ` (git probe failed: ${failure})` : ''
   }`,
 })
 
+const notARepo = (): GitUnavailable => notARepoNote(lastProbeFailure)
 
-export function gitStatus(root: string): GitStatus | GitUnavailable {
-  if (!isGitRepo(root)) return notARepo()
-  const raw = tryGit(root, ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch'])
-  if (raw === null) return notARepo()
-  const head = tryGit(root, ['rev-parse', 'HEAD'])?.trim() ?? '(unborn)'
+export async function isGitRepoAsync(root: string): Promise<{ repo: boolean; failure: string | null }> {
+  const probe = await tryGitAsync(root, ['rev-parse', '--is-inside-work-tree'])
+  if (probe.out === null) return { repo: false, failure: probe.failure }
+  return { repo: probe.out.trim() === 'true', failure: null }
+}
+
+async function classifyAsyncFailure(root: string, failure: string | null, note: string): Promise<GitUnavailable> {
+  const probe = await isGitRepoAsync(root)
+  const mechanism = probe.failure ?? failure
+  if (!probe.repo) return { ...notARepoNote(mechanism), ...(mechanism !== null && { failure: mechanism }) }
+  return { state: 'unavailable', note: failure ? `${note} (${failure})` : note, ...(failure !== null && { failure }) }
+}
+
+
+const STATUS_ARGS = (root: string): string[] =>
+  ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', ...projectScopePathspec(root)]
+
+type ParsedStatus = Pick<GitStatus, 'branch' | 'upstream' | 'ahead' | 'behind' | 'files'>
+
+function parseStatusV2(raw: string): ParsedStatus {
   let branch = '(detached)'
   let upstream: string | null = null
   let ahead = 0
@@ -105,8 +163,31 @@ export function gitStatus(root: string): GitStatus | GitUnavailable {
       files.push({ path: line.slice(2), staged: '', unstaged: '?', kind: 'untracked' })
     }
   }
+  return { branch, upstream, ahead, behind, files }
+}
+
+function digestFiles(files: GitStatus['files']): GitStatus['files'] {
+  return [...files].sort((a, b) => a.path.localeCompare(b.path)).slice(0, 500)
+}
+
+function composeStatus(root: string, head: string, parsed: ParsedStatus, hasher: ReturnType<typeof createHash>): GitStatus {
+  return {
+    root,
+    ...parsed,
+    head,
+    digest: hasher.digest('hex').slice(0, 16),
+    clean: parsed.files.length === 0,
+  }
+}
+
+export function gitStatus(root: string): GitStatus | GitUnavailable {
+  if (!isGitRepo(root)) return notARepo()
+  const raw = tryGit(root, STATUS_ARGS(root))
+  if (raw === null) return notARepo()
+  const head = tryGit(root, ['rev-parse', 'HEAD'])?.trim() ?? '(unborn)'
+  const parsed = parseStatusV2(raw)
   const hasher = createHash('sha1').update(`${head}\n${raw}`)
-  for (const f of [...files].sort((a, b) => a.path.localeCompare(b.path)).slice(0, 500)) {
+  for (const f of digestFiles(parsed.files)) {
     try {
       hasher.update(`\n${f.path}\0`)
       hasher.update(readFileSync(joinPath(root, f.path)))
@@ -114,18 +195,25 @@ export function gitStatus(root: string): GitStatus | GitUnavailable {
       hasher.update(`\n${f.path}\0DELETED`)
     }
   }
-  const digest = hasher.digest('hex').slice(0, 16)
-  return {
-    root,
-    branch,
-    upstream,
-    ahead,
-    behind,
-    head,
-    files,
-    digest,
-    clean: files.length === 0,
+  return composeStatus(root, head, parsed, hasher)
+}
+
+export async function gitStatusAsync(root: string): Promise<GitStatus | GitUnavailable> {
+  const status = await tryGitAsync(root, STATUS_ARGS(root))
+  if (status.out === null) return classifyAsyncFailure(root, status.failure, 'git status failed')
+  const head = (await tryGitAsync(root, ['rev-parse', 'HEAD'])).out?.trim() ?? '(unborn)'
+  const raw = status.out
+  const parsed = parseStatusV2(raw)
+  const hasher = createHash('sha1').update(`${head}\n${raw}`)
+  for (const f of digestFiles(parsed.files)) {
+    try {
+      hasher.update(`\n${f.path}\0`)
+      hasher.update(await readFile(joinPath(root, f.path)))
+    } catch {
+      hasher.update(`\n${f.path}\0DELETED`)
+    }
   }
+  return composeStatus(root, head, parsed, hasher)
 }
 
 
@@ -249,6 +337,16 @@ export function gitWorktrees(root: string): GitWorktreeInfo[] | GitUnavailable {
   if (!isGitRepo(root)) return notARepo()
   const raw = tryGit(root, ['worktree', 'list', '--porcelain'])
   if (raw === null) return { state: 'unavailable', note: 'git worktree list failed' }
+  return parseWorktreeList(raw)
+}
+
+export async function gitWorktreesAsync(root: string): Promise<GitWorktreeInfo[] | GitUnavailable> {
+  const list = await tryGitAsync(root, ['worktree', 'list', '--porcelain'])
+  if (list.out === null) return classifyAsyncFailure(root, list.failure, 'git worktree list failed')
+  return parseWorktreeList(list.out)
+}
+
+function parseWorktreeList(raw: string): GitWorktreeInfo[] {
   const out: GitWorktreeInfo[] = []
   let cur: Partial<GitWorktreeInfo> = {}
   for (const line of raw.split('\n')) {

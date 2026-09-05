@@ -67,19 +67,12 @@ import {
 } from '../tools/BriefTool/prompt.js'
 import { SEND_USER_FILE_TOOL_NAME } from '../tools/SendUserFileTool/prompt.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
-import { termWrite } from '../render-engine/cockpit/terminalOut.js'
 import { isFullscreenActive, isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { getIsRemoteMode } from '../bootstrap/state.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
-import {
-  OSC,
-  OSC_PREFIX,
-  PROGRESS,
-  ST,
-  wrapForMultiplexer,
-} from '../ink/termio/osc.js'
+import { useTabRing } from '../ink/useTerminalNotification.js'
 import type {
   MessageActionsNav,
   MessageActionsState,
@@ -89,6 +82,7 @@ import { setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import { NameplateContinuationContext } from './messages/TranscriptNameplate.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
 import { LiveStreamingTail } from './LiveStreamingTail.js'
+import { FoldStatusRow, type FoldLandingRowFacts } from './FoldStatusRow.js'
 import { MercuryBrandRow, MercuryHero, MercuryHome } from './MercuryHome.js'
 import { VirtualMessageList } from './VirtualMessageList.js'
 import type { JumpHandle } from './VirtualMessageList.js'
@@ -689,38 +683,8 @@ function MessagesInner({
     [facetsCache],
   )
 
-  const lastProgressRef = useRef<string | null>(null)
-  const progressEnabled =
-    getGlobalConfig().terminalProgressBarEnabled !== false &&
-    !getIsRemoteMode()
-  useEffect(() => {
-    if (!progressEnabled) return
-    const state =
-      inProgressToolUseIDs.size > 0 ? 'indeterminate' : 'completed'
-    if (state === lastProgressRef.current) return
-    lastProgressRef.current = state
-    const code =
-      state === 'indeterminate' ? PROGRESS.INDETERMINATE : PROGRESS.CLEAR
-    termWrite(
-      process.stdout,
-      wrapForMultiplexer(`${OSC_PREFIX}${OSC.ITERM2};4;${code};0${ST}`),
-      'mode',
-    )
-  }, [inProgressToolUseIDs, progressEnabled])
-  useEffect(
-    () => () => {
-      if (lastProgressRef.current !== null && progressEnabled) {
-        termWrite(
-          process.stdout,
-          wrapForMultiplexer(
-            `${OSC_PREFIX}${OSC.ITERM2};4;${PROGRESS.CLEAR};0${ST}`,
-          ),
-          'mode',
-        )
-      }
-    },
-    [progressEnabled],
-  )
+  const ringEnabled = getGlobalConfig().terminalProgressBarEnabled !== false && !getIsRemoteMode()
+  useTabRing(isLoading && ringEnabled)
 
   const header = useMemo(() => {
     if (suppressLogo || renderRange) return null
@@ -869,7 +833,6 @@ function MessagesInner({
     return computeTailRelease(
       visible as unknown as Parameters<typeof computeTailRelease>[0],
       streamingTail?.readIds() ?? { current: null, settled: null },
-      streamingTail?.readSettled() ?? null,
     )
   }, [visible, streamingTail, tailBoundaryKey])
 
@@ -892,6 +855,9 @@ function MessagesInner({
           verbose={verbose}
         />
       ) : null}
+      {
+}
+      <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />
     </>
   )
 

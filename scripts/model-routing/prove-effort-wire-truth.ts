@@ -71,8 +71,8 @@ const harness = await import('../../src/services/mission/harnessApplication.ts')
 const harnessProfiles = await import('../../src/services/mission/harnessProfiles.ts')
 const coordinatorModels = await import('../../src/services/concourse/coordinatorModels.ts')
 
-type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
+type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
+const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
 const REQUESTS: Array<Level | undefined> = [...LEVELS, undefined]
 const DEFAULT_LABEL = 'default'
 const ABSENT = effort.NO_EFFORT_CONTROL_LABEL
@@ -83,6 +83,7 @@ const GPT_ROWS = [
   { id: 'gpt-5.6-deep', display_name: 'GPT-5.6 Deep', visibility: 'list', priority: 3, supported_reasoning_levels: ['high', 'xhigh'], default_reasoning_level: 'high' },
   { id: 'gpt-5.6-void', display_name: 'GPT-5.6 Void', visibility: 'list', priority: 4, supported_reasoning_levels: [], default_reasoning_level: 'medium' },
   { id: 'gpt-5.6-bare', display_name: 'GPT-5.6 Bare', visibility: 'list', priority: 5 },
+  { id: 'gpt-6-astra', display_name: 'GPT-6 Astra', visibility: 'list', priority: 6, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'medium' },
 ]
 const jsonResponse = (body: unknown): Response =>
   new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -192,7 +193,7 @@ section('§2 the GPT wire: reasoning.effort of the built request ≡ the owner a
     const body = responsesBridge.buildOpenaiResponsesRequest({ model, messages: [], ...(profile.wireEffort ? { reasoningEffort: profile.wireEffort } : {}) })
     return body.reasoning?.effort
   }
-  for (const model of ['gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-5.6-deep']) {
+  for (const model of ['gpt-5.6-sol', 'gpt-5.6-luna', 'gpt-5.6-deep', 'gpt-6-astra']) {
     for (const request of REQUESTS) {
       const truth = effort.resolveEffortTruth(model, request)
       const sent = gptWire(model, request)
@@ -201,10 +202,11 @@ section('§2 the GPT wire: reasoning.effort of the built request ≡ the owner a
     }
   }
   check('luna · max steps to high; the request names the adjustment', effort.resolveEffortTruth('gpt-5.6-luna', 'max').adjustedFrom === 'max' && gptWire('gpt-5.6-luna', 'max') === 'high')
+  check('astra · ultra is served as asked; sol · ultra steps to max and the request names the adjustment', gptWire('gpt-6-astra', 'ultra') === 'ultra' && effort.resolveEffortTruth('gpt-6-astra', 'ultra').adjustedFrom === undefined && gptWire('gpt-5.6-sol', 'ultra') === 'max' && effort.resolveEffortTruth('gpt-5.6-sol', 'ultra').adjustedFrom === 'ultra')
   const voidTruth = effort.resolveEffortTruth('gpt-5.6-void', 'max')
   check('known-empty: no key, no stop, the one absence word', gptWire('gpt-5.6-void', 'max') === undefined && voidTruth.wire === undefined && voidTruth.selectable.length === 0 && voidTruth.label === ABSENT && !caps.modelSupportsEffort('gpt-5.6-void'))
   const bareTruth = effort.resolveEffortTruth('gpt-5.6-bare', 'max')
-  check("unstated: the ladder is offered, the key is omitted, the label says 'default'", gptWire('gpt-5.6-bare', 'max') === undefined && bareTruth.wire === undefined && bareTruth.label === DEFAULT_LABEL && bareTruth.selectable.length === 5)
+  check("unstated: the ladder is offered, the key is omitted, the label says 'default'", gptWire('gpt-5.6-bare', 'max') === undefined && bareTruth.wire === undefined && bareTruth.label === DEFAULT_LABEL && bareTruth.selectable.length === effort.EFFORT_LEVELS.length)
   openaiCatalogue.__resetOpenaiCatalogueForTest()
   const unavailable = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check("unavailable: the key is omitted and the label says 'default'", unavailable.wire === undefined && unavailable.label === DEFAULT_LABEL && unavailable.catalogue === 'gpt-unavailable')
@@ -280,21 +282,28 @@ section('§4 the compat wires, thinking on: every builder\'s dial ≡ the owner\
   check('a local model with no thinking capability: no dial sent, none offered', llamaExtras.reasoning_effort === undefined && !caps.modelSupportsEffort('local/llama3.2:latest'))
 }
 
-section('§5 thinking off: the dial-is-the-reasoning-dial lanes send nothing and the owner says so; the independent knobs are sent')
+section('§5 thinking off: DeepSeek sends nothing (its thinking object spells off), Gemini and OpenRouter send their thinking-off word, and the owner says so; the independent knobs are sent')
 {
   thinking.noteSessionThinkingConfig({ type: 'disabled' })
   const off = (wireModel: string, request: Level, model = wireModel) => ({ wireModel, effortValue: effort.resolveWireRequestedEffort(model, request), thinkingEnabled: false, maxOutputTokensOverride: undefined })
-  const gated: Array<[string, string | undefined]> = [
-    ['deepseek-v4-flash', ((wire.buildDeepseekExtras(off('deepseek-v4-flash', 'high')) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort],
-    ['gemini-fixture-pro', (wire.buildGeminiExtras({ ...off('gemini-fixture-pro', 'high'), acceptsEffort: true }) as { reasoning_effort?: string }).reasoning_effort],
-    ['openrouter/google/gemini-fixture-pro', ((wire.buildOpenrouterExtras({ ...off('google/gemini-fixture-pro', 'high', 'openrouter/google/gemini-fixture-pro'), vocabulary: openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro') }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort],
+  const orVocabulary = openrouter.openrouterEffortVocabularyFor('openrouter/google/gemini-fixture-pro')
+  const gated: Array<{ model: string; sent: string | undefined; floor: string | undefined }> = [
+    { model: 'deepseek-v4-flash', sent: ((wire.buildDeepseekExtras(off('deepseek-v4-flash', 'high')) as { thinking?: { reasoning_effort?: string } }).thinking ?? {}).reasoning_effort, floor: undefined },
+    { model: 'gemini-fixture-pro', sent: (wire.buildGeminiExtras({ ...off('gemini-fixture-pro', 'high'), acceptsEffort: true }) as { reasoning_effort?: string }).reasoning_effort, floor: 'low' },
+    { model: 'openrouter/google/gemini-fixture-pro', sent: ((wire.buildOpenrouterExtras({ ...off('google/gemini-fixture-pro', 'high', 'openrouter/google/gemini-fixture-pro'), vocabulary: orVocabulary }) as { reasoning?: { effort?: string } }).reasoning ?? {}).effort, floor: wire.thinkingOffWireEffort(orVocabulary) },
   ]
-  for (const [model, sent] of gated) {
+  for (const { model, sent, floor } of gated) {
     const truth = effort.resolveEffortTruth(model, 'high')
-    check(`${model}: the builder sends no dial while thinking is off`, sent === undefined, `sent ${String(sent)}`)
-    check(`${model}: the owner says so — wire undefined, suppressedBy thinking-off, label 'default', the request kept as intent`, truth.wire === undefined && truth.suppressedBy === 'thinking-off' && truth.label === DEFAULT_LABEL && truth.requested === 'high' && truth.adjustedFrom === undefined, JSON.stringify(truth))
+    if (floor === undefined) {
+      check(`${model}: the builder sends no dial while thinking is off (its thinking object spells off)`, sent === undefined, `sent ${String(sent)}`)
+      check(`${model}: the owner says so — wire undefined, suppressedBy thinking-off, label 'default', the request kept as intent`, truth.wire === undefined && truth.suppressedBy === 'thinking-off' && truth.flooredBy === undefined && truth.label === DEFAULT_LABEL && truth.requested === 'high' && truth.adjustedFrom === undefined, JSON.stringify(truth))
+    } else {
+      check(`${model}: the builder sends the family's thinking-off word (${floor}) while thinking is off — never silence`, sent === floor && sent !== undefined, `sent ${String(sent)}`)
+      check(`${model}: the owner says so — wire ${floor}, flooredBy thinking-off, the label names it, the request kept as intent`, truth.wire === floor && truth.flooredBy === 'thinking-off' && truth.suppressedBy === undefined && truth.label === floor && truth.requested === 'high' && truth.adjustedFrom === undefined, JSON.stringify(truth))
+    }
     check(`${model}: the stops stay offered (the dial exists; thinking is what is off)`, truth.supportsEffort && truth.selectable.length > 0)
   }
+  check("the floor is the row's own: 'none' where a row lists it, the lowest rung otherwise", wire.thinkingOffWireEffort(wire.OPENROUTER_REASONING_EFFORTS) === 'none' && wire.thinkingOffWireEffort(['low', 'medium', 'high', 'xhigh']) === 'low' && wire.thinkingOffWireEffort(['high', 'max']) === 'high' && wire.thinkingOffWireEffort([]) === undefined)
   const qwen = localCatalogue.localRecordFor('local/qwen3:8b')!
   const independent: Array<[string, string | undefined]> = [
     ['kimi-k3', (wire.buildMoonshotExtras(off('kimi-k3', 'high')) as { reasoning_effort?: string }).reasoning_effort],
@@ -359,11 +368,11 @@ section('§7 the surfaces read the owner')
 section('§8 the two effort doors say what they do')
 {
   const refused = effort.parseCliEffort('banana')
-  check('the flag refuses an off-ladder word with a sentence that names the ladder', refused.level === undefined && refused.refusal !== undefined && refused.refusal.includes('low, medium, high, xhigh, max'), String(refused.refusal))
+  check('the flag refuses an off-ladder word with a sentence that names the ladder', refused.level === undefined && refused.refusal !== undefined && refused.refusal.includes('low, medium, high, xhigh, max, ultra'), String(refused.refusal))
   check("…and never claims the run went ahead ('ignoring')", !/ignoring/i.test(String(refused.refusal)))
   check('the flag keeps the one normalizer: med → medium, max effort → max', effort.parseCliEffort('med').level === 'medium' && effort.parseCliEffort('max effort').level === 'max')
   const mainSrc = src('src/main.tsx')
-  check('--help names the ladder and the flag door prints the owner\'s refusal sentence', mainSrc.includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})") && mainSrc.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`') && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max.')
+  check('--help names the ladder and the flag door prints the owner\'s refusal sentence', mainSrc.includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})") && mainSrc.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`') && String(effort.parseCliEffort('banana').refusal) === 'Unrecognised effort level "banana". Valid values: low, medium, high, xhigh, max, ultra.')
   check('the owner carries no sentence that claims the value was ignored', !/ignoring it in favour/.test(src('src/utils/effort.ts')))
   check('the boot notes an ignored env word (interactive: a boot note; headless: stderr)', mainSrc.includes("if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)") && mainSrc.includes("if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\\n`)"))
   const view = (raw: string | undefined) => effort.describeEffortEnvOverride(raw === undefined ? {} : { MERCURY_EFFORT_LEVEL: raw })
@@ -371,7 +380,7 @@ section('§8 the two effort doors say what they do')
   check('env auto/unset defers (null)', view('auto').state === 'deferred' && view('auto').override === null && view('unset').override === null)
   check("env 'x high' pins xhigh through the normalizer", view('x high').state === 'level' && view('x high').override === 'xhigh')
   const junk = view('banana')
-  check('env junk is ignored and the sentence says so, naming the ladder', junk.state === 'ignored' && junk.override === undefined && 'sentence' in junk && junk.sentence.includes('ignored') && junk.sentence.includes('low, medium, high, xhigh, max'))
+  check('env junk is ignored and the sentence says so, naming the ladder', junk.state === 'ignored' && junk.override === undefined && 'sentence' in junk && junk.sentence.includes('ignored') && junk.sentence.includes('low, medium, high, xhigh, max, ultra'))
   check('an integer is off the ladder on the env door too (no wire encodes one)', view('3').state === 'ignored' && view('7').override === undefined)
   process.env.MERCURY_EFFORT_LEVEL = '3'
   check('getEffortEnvOverride ignores the integer (resolves as unset)', effort.getEffortEnvOverride() === undefined && effort.resolveEffortTruth('claude-opus-5', 'low').wire === 'low')
@@ -404,7 +413,7 @@ section('§10 the shape: one vocabulary owner, the predicates its projections')
 {
   const edge = src('src/utils/model/capabilities.ts')
   check('modelSupportsEffort is a projection of the vocabulary view', edge.includes("return effortVocabularyFor(model).kind !== 'none'"))
-  check('the ceilings are projections too', edge.includes("return vocabularyOffers(effortVocabularyFor(model), 'max')") && edge.includes("return vocabularyOffers(effortVocabularyFor(model), 'xhigh')"))
+  check('the ceilings are projections too', edge.includes("return vocabularyOffers(effortVocabularyFor(model), level)") && edge.includes("return modelOffersEffortLevel(model, 'max')") && edge.includes("return modelOffersEffortLevel(model, 'xhigh')"))
   const effortSrc = src('src/utils/effort.ts')
   check('the resolution reads the one view and keeps no provider pin of its own', effortSrc.includes('const view = effortVocabularyFor(model)') && !/KIMI_EFFORTS|DEEPSEEK_EFFORTS|GLM_EFFORTS\b/.test(effortSrc))
   const kinds = ['claude-opus-5', 'gpt-5.6-sol', 'glm-5.3', 'kimi-k3', 'deepseek-v4-flash', 'gemini-fixture-pro', 'openrouter/qwen/qwen-fixture-small', 'local/qwen3:8b', 'gpt-5.6-bare', 'claude-haiku-4-5-20251001'].map(m => caps.effortVocabularyFor(m).kind)

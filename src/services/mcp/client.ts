@@ -1080,7 +1080,7 @@ async function persistBlob(bytes: Buffer, mimeType: string | undefined, serverNa
 async function resizedImageBlock(base64: string, mimeType: string | undefined): Promise<ContentBlockParam> {
   const subtype = mimeType?.split('/')[1] ?? 'png'
   const bytes = Buffer.from(base64, 'base64')
-  const resized = await maybeResizeAndDownsampleImageBuffer(bytes, bytes.length, subtype)
+  const resized = await maybeResizeAndDownsampleImageBuffer(bytes, bytes.length, subtype, { role: 'tool-result' })
   return {
     type: 'image',
     source: { type: 'base64', media_type: `image/${resized.mediaType}`, data: resized.buffer.toString('base64') },

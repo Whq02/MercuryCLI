@@ -117,6 +117,11 @@ section('(d) source — lock infra present + spawn appends routed through append
   const sm = read('../../src/tools/shared/spawnMultiAgent.ts')
   const appendCalls = (sm.match(/await appendTeamMember\(teamName, \{/g) || []).length
   check('all 3 spawn member-appends routed through appendTeamMember', appendCalls === 3, `found ${appendCalls}`)
+  const inProcess = sm.slice(sm.indexOf('spawnInProcessStrategy'))
+  const appendAt = inProcess.indexOf('await appendTeamMember(teamName, {')
+  const startAt = inProcess.indexOf('startInProcessTeammate({')
+  check('in-process: appendTeamMember runs before startInProcessTeammate', appendAt !== -1 && startAt !== -1 && appendAt < startAt, `append@${appendAt} start@${startAt}`)
+  check('in-process: a start that throws removes the row it landed', /catch \(error\) \{\s*removeTeammateFromTeamFile\(teamName, \{ agentId: teammateId \}\)\s*throw error/.test(inProcess))
   check('no raw teamFile.members.push + writeTeamFileAsync append remains in spawn', !/members\.push\(\{[\s\S]{0,400}writeTeamFileAsync/.test(sm))
 }
 

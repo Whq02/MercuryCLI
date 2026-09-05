@@ -31,6 +31,8 @@ fi
 
 "${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-vendor-tar-dialect.ts" || fail=1
 
+"${BUN:-$HOME/.bun/bin/bun}" run "$root/scripts/build/prove-image-processor-pack.ts" || fail=1
+
 hits=$(grep -oE "(^|[^A-Za-z0-9_])feature\((['\"])" "$dist" | wc -l | tr -d ' ')
 if [[ "$hits" == "0" ]]; then ok "no surviving feature('…') macro call in dist"; else
   bad "$hits surviving feature('…') macro call(s) in dist — the DCE transform missed a site"

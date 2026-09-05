@@ -2,6 +2,7 @@
 export {
   AUTO_REJECT_MESSAGE,
   buildClassifierUnavailableMessage,
+  buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
   buildYoloRejectionMessage,
   CANCEL_MESSAGE,
@@ -17,6 +18,14 @@ export {
   SUBAGENT_REJECT_MESSAGE,
   SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX,
   SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
+  isTurnCutText,
+  turnCutLine,
+  turnCutOf,
+  turnCutOfText,
+  turnCutResultText,
+  turnCutWhy,
+  type TurnCut,
+  type TurnCutKind,
   withMemoryCorrectionHint,
 } from './messages/rejectionText.js'
 
@@ -122,6 +131,8 @@ export {
   createStopHookSummaryMessage,
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,
+  createThinkingDeadMessage,
+  createThinkingNoteMessage,
   createSystemMessage,
   createTurnDurationMessage,
   findLastCompactBoundaryIndex,

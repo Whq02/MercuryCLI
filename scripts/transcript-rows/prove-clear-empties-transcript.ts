@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
-import { spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
+import { spawn, spawnSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'clear-law-'))
@@ -82,6 +82,101 @@ try {
       t('keyless: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
+  }
+
+  {
+    const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+    const { getTaskPath } = await import('../../src/utils/tasks.ts')
+    const OLD_VERB = 'Reviewing the planning doc'
+    const homeTurn = mkdtempSync(join(tmpdir(), 'clear-then-turn-'))
+    writeSyntheticSession('thinking', SID)
+    const { cpSync } = await import('node:fs')
+    cpSync(home, homeTurn, { recursive: true, filter: source => !/[\\/]daemon[^\\/]*$/.test(source) && !/[\\/]daemon[\\/]/.test(source) && !/-cfg\.json$|clear-(keyed|keyless)\.json$/.test(source) })
+    process.env.MERCURY_CONFIG_DIR = homeTurn
+    const seed = getTaskPath(SID, 'seed-1')
+    mkdirSync(dirname(seed), { recursive: true })
+    writeFileSync(seed, JSON.stringify({ id: 'seed-1', subject: 'review next session planning doc', description: '', activeForm: OLD_VERB, status: 'in_progress', blocks: [], blockedBy: [] }))
+    const fixture = await startFixtureApi([
+      { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 6' } },
+      { kind: 'text', text: 'CLEARED-TURN-DONE' },
+    ])
+    try {
+      const cfg = scenario('resume-2turn', 120, 40)
+      const out = join(homeTurn, 'clear-then-turn.json')
+      const cfgPath = join(homeTurn, 'clear-then-turn-cfg.json')
+      writeFileSync(
+        cfgPath,
+        JSON.stringify({
+          argv: cfg.argv,
+          cwd: cfg.cwd,
+          sends: [
+            { atTick: 999, awaitText: '· ready', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
+            { afterPrevTicks: 4, data: '\r' },
+            { data: 'after the clear: run it\r', awaitText: 'new session', requireAwait: true, minTick: 4, awaitSettleTicks: 4 },
+            { data: '', atTick: 999, awaitText: '▰ Bash', requireAwait: true, minTick: 4, awaitSettleTicks: 2, mark: 'mid-turn' },
+            { data: '', atTick: 999, awaitText: 'CLEARED-TURN-DONE', requireAwait: true, minTick: 4, awaitSettleTicks: 3, mark: 'later' },
+          ],
+          total: 220,
+          cols: 120,
+          rows: 40,
+          out,
+        }),
+      )
+      const env: Record<string, string | undefined> = {
+        ...process.env,
+        MERCURY_AWAY_SUMMARY: '0',
+        MERCURY_CONFIG_DIR: homeTurn,
+        MERCURY_DAEMON_DIR: join(homeTurn, 'daemon'),
+        ANTHROPIC_API_KEY: 'fixture-key-000',
+        ANTHROPIC_BASE_URL: fixture.url,
+        MERCURY_CRITTER_IDLE: '0',
+        MERCURY_CRITTER_GAZE: '0',
+        MERCURY_CRITTER_SLEEP: '0',
+        MERCURY_LIVE_CLOCK: '0',
+        MERCURY_LIVE_GLYPHS: '0',
+      }
+      const res = await new Promise<{ status: number | null; stderr: string }>(resolve => {
+        const child = spawn('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], { env, stdio: ['ignore', 'ignore', 'pipe'] })
+        let stderr = ''
+        child.stderr.on('data', c => {
+          stderr += String(c)
+        })
+        const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(240_000))
+        child.on('exit', code => {
+          clearTimeout(deadline)
+          resolve({ status: code, stderr })
+        })
+      })
+      t('clear-then-turn: the capture ran', res.status === 0, res.stderr.slice(-300))
+      const reached = fixture.messageRequests().length
+      console.log(`  [fixture] ${reached} message request(s) reached the loopback fixture`)
+      t("clear-then-turn: the born session's request reached the loopback fixture (the born seat's daemon inherited this leg's base)", reached >= 1, `${reached} request(s)`)
+      if (existsSync(out)) {
+        type Cells = Array<Array<{ c?: string } | string>>
+        const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid?: Cells; marks?: Array<{ label: string; grid: Cells }> }
+        const rowsOf = (grid: Cells | undefined): string[] => (grid ?? []).map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd())
+        const mid = rowsOf(payload.marks?.find(m => m.label === 'mid-turn')?.grid)
+        const after = rowsOf(payload.marks?.find(m => m.label === 'later')?.grid)
+        console.log(`  [frame] mid-turn: ${mid.filter(r => r.trim() !== '').slice(-8).map(r => r.trim().slice(0, 100)).join(' | ')}`)
+        const last = rowsOf(payload.grid)
+        console.log(`  [frame] final: ${last.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 110)).join(' | ')}`)
+        t("clear-then-turn: mid-turn, the strip never narrates the OLD session's task", mid.length > 0 && !mid.some(r => r.includes(OLD_VERB)), mid.filter(r => r.includes(OLD_VERB)).join(' | '))
+        t("clear-then-turn: later in the turn, the old task's words are still nowhere", after.length > 0 && !after.some(r => r.includes(OLD_VERB)))
+        const stripRow = (rows: string[]): string => rows.find(r => r.trimStart().startsWith(`${basename(cfg.cwd)} `))?.trim() ?? ''
+        t("clear-then-turn: mid-turn, the strip row alone wears the in-flight clause and NO task verb — never the old session's", stripRow(mid) !== '' && /esc interrupts/.test(stripRow(mid)) && !stripRow(mid).includes(OLD_VERB) && !/Reviewing|review/i.test(stripRow(mid)), stripRow(mid) || `no strip row among: ${mid.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
+        t("clear-then-turn: mid-turn, the born session's own tool is on the glass in the product's words (the transcript's Bash row, running)", mid.some(r => r.includes('▰ Bash')) && mid.some(r => r.includes('running…')))
+        t("clear-then-turn: the turn ended with the fixture's reply on the glass", after.some(r => r.includes('CLEARED-TURN-DONE')))
+        if (failures !== 0) {
+          console.log('  [frame] mid-turn, whole:')
+          for (const r of mid) if (r.trim() !== '') console.log(`    │ ${r.slice(0, 118)}`)
+        }
+      }
+    } finally {
+      await fixture.close()
+      process.env.MERCURY_CONFIG_DIR = home
+      if (failures === 0) rmSync(homeTurn, { recursive: true, force: true })
+      else console.log(`  [forensics] world kept: ${homeTurn}`)
+    }
   }
 } finally {
   rmSync(home, { recursive: true, force: true })

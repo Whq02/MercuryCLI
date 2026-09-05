@@ -892,9 +892,13 @@ export function BootLoginsScreen({ onClose, fullScene, facts: given }: BootLogin
   const flowRef = useRef(flow);
   flowRef.current = flow;
   const [notice, setNotice] = useState<string | null>(null);
-  const [draft, setDraft] = useState('');
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
+  const [draft, setDraftState] = useState('');
+  const draftRef = useRef('');
+  const setDraft = (next: string | ((current: string) => string)): void => {
+    const value = typeof next === 'function' ? next(draftRef.current) : next;
+    draftRef.current = value;
+    setDraftState(value);
+  };
   const deviceRunRef = useRef(0);
   const handlesRef = useRef<{ cancel: (reason?: string) => void; completeWithRedirect: (pasted: string) => void } | null>(null);
 

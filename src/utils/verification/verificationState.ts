@@ -2,10 +2,11 @@
 import { adoptiveProjectPath } from '../projectStoreAdoption.js'
 import { getMercuryHome } from '../envUtils.js'
 import { sanitizePath } from '../sessionStoragePortable.js'
-import { execFile, execFileSync } from 'node:child_process'
-import { gitExe } from '../git.js'
+import { execFile, execFileSync, spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { gitExe, markGitTreeSuspect } from '../git.js'
 import { subprocessEnv } from '../subprocessEnv.js'
-import { existsSync, readdirSync, readFileSync, realpathSync, rmSync, mkdtempSync } from 'node:fs'
+import { logForDebugging } from '../debug.js'
+import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, mkdtempSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import * as path from 'node:path'
@@ -103,6 +104,7 @@ export function subscribeVerification(cb: () => void): () => void {
 export function _resetVerificationStateForTesting(): void {
   ownerStates.clearAllForShutdown()
   digestCache.clear()
+  treeScanRecords.clear()
 }
 
 export function disposeVerificationOwner(owner: OwnerKey): void {
@@ -114,68 +116,573 @@ export function _verificationOwnerCountForTesting(): number {
 }
 
 const digestCache = new Map<string, { digest: string | null; at: number }>()
-const DIGEST_TTL_MS = 10_000
 
-export function computeWorkingTreeDigest(cwd: string): string | null {
-  const now = Date.now()
-  const cached = digestCache.get(cwd)
-  if (cached && now - cached.at < DIGEST_TTL_MS) return cached.digest
-  let digest: string | null = null
-  let idxDir: string | null = null
-  try {
-    idxDir = mkdtempSync(path.join(tmpdir(), 'verify-tree-'))
-    const env = { ...subprocessEnv(), GIT_INDEX_FILE: path.join(idxDir, 'index') }
-    execFileSync(gitExe(), ['read-tree', 'HEAD'], { windowsHide: true, cwd, env, stdio: 'pipe', timeout: 30_000 })
-    execFileSync(gitExe(), ['add', '-A', '--', '.'], { windowsHide: true, cwd, env, stdio: 'pipe', timeout: 30_000 })
-    execFileSync(gitExe(), ['reset', '-q', '--', '.claude', '.mercury'], { windowsHide: true, cwd, env, stdio: 'pipe', timeout: 30_000 })
-    digest = execFileSync(gitExe(), ['write-tree'], { windowsHide: true, cwd, env, stdio: 'pipe', timeout: 30_000 }).toString().trim() || null
-  } catch {
-    digest = null
-  } finally {
-    if (idxDir) rmSync(idxDir, { recursive: true, force: true })
+const HARNESS_DIRS = ['.claude', '.mercury'] as const
+const EXCLUDE_HARNESS = HARNESS_DIRS.map(d => `:(exclude,glob)**/${d}/**`)
+const SLOW_SCAN_MS = 2_000
+const SCAN_INTERVAL_FLOOR_MS = 30_000
+const SCAN_INTERVAL_CAP_MS = 600_000
+const DEFAULT_SCAN_CEILING = 100_000
+const DEFAULT_SCAN_TIMEOUT_MS = 30_000
+const STALE_INDEX_LOCK_MS = 60_000
+const MAX_GIT_OUTPUT = 16 * 1024 * 1024
+const SHAPE_PROBE = ['rev-parse', '--show-prefix', '--git-path', 'objects', '--absolute-git-dir']
+const REPOSITORY_WATCH_MS = 250
+const COUNT_PROBE = ['ls-files', '-z', '-c', '-o', '--exclude-standard', '--', '.']
+
+export type TreeScanFault = { kind: 'timeout' | 'error'; detail: string; at: number }
+
+export interface TreeScanRecord {
+  prefix: string
+  indexFile: string
+  objectsDir: string
+  repoObjects: string
+  gitDir: string
+  repoToken: string
+  fileCount: number
+  aboveCeiling: boolean
+  scans: number
+  lastScanAt: number
+  lastScanMs: number
+  minIntervalMs: number
+  lastDigest: string | null | undefined
+  fault: TreeScanFault | null
+  notice: string | null
+  road: 'exclude' | 'reset'
+}
+
+const treeScanRecords = new Map<string, TreeScanRecord | null>()
+const digestInFlight = new Map<string, Promise<string | null>>()
+
+function scanCeiling(): number {
+  const raw = Number(flagEnv('MERCURY_TREE_SCAN_CEILING'))
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_SCAN_CEILING
+}
+
+function scanTimeoutMs(): number {
+  const raw = Number(flagEnv('MERCURY_TREE_SCAN_TIMEOUT_MS'))
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_SCAN_TIMEOUT_MS
+}
+
+function verifyStoreDir(cwd: string): string {
+  return path.join(getMercuryHome(), 'verify', sanitizePath(cwd))
+}
+
+function fmtCount(n: number): string {
+  return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+function fmtInterval(ms: number): string {
+  return ms >= 60_000 ? `${Math.round(ms / 60_000)} min` : `${Math.round(ms / 1000)} s`
+}
+
+class GitStepError extends Error {
+  constructor(
+    readonly step: string,
+    readonly stderr: string,
+    readonly timedOut: boolean,
+  ) {
+    super(`git ${step}: ${timedOut ? 'timed out' : stderr.trim() || 'failed'}`)
   }
-  digestCache.set(cwd, { digest, at: now })
+}
+
+function stepError(step: string, err: unknown): GitStepError {
+  const e = err as { stderr?: unknown; killed?: boolean; signal?: string | null; code?: unknown; message?: string }
+  const stderr = typeof e?.stderr === 'string' ? e.stderr : Buffer.isBuffer(e?.stderr) ? e.stderr.toString('utf8') : ''
+  const timedOut = Boolean(e?.killed) || e?.code === 'ETIMEDOUT' || e?.signal === 'SIGTERM'
+  return new GitStepError(step, stderr || String(e?.message ?? ''), timedOut)
+}
+
+function isIndexBusy(err: unknown): boolean {
+  return err instanceof GitStepError && !err.timedOut && /index\.lock/.test(err.stderr)
+}
+
+class RepositoryGoneError extends Error {
+  constructor(readonly step: string) {
+    super(`git ${step}: the repository is gone`)
+  }
+}
+
+const activeChildren = new Map<string, Set<ChildProcess>>()
+const goneChildren = new WeakSet<ChildProcess>()
+
+type RepositoryWatch = { cwd: string; gitDir: string }
+
+function repoTokenOf(gitDir: string): string {
+  const st = statSync(gitDir)
+  return `${st.dev}:${st.ino}${st.birthtimeMs > 0 ? `:${Math.round(st.birthtimeMs)}` : ''}`
+}
+
+function repositoryStillThere(rec: TreeScanRecord): boolean {
+  try {
+    return repoTokenOf(rec.gitDir) === rec.repoToken
+  } catch {
+    return false
+  }
+}
+
+function forgetRepository(cwd: string): void {
+  treeScanRecords.delete(cwd)
+  digestCache.delete(cwd)
+}
+
+export function _treeScanChildrenForTesting(cwd: string): number {
+  return activeChildren.get(cwd)?.size ?? 0
+}
+
+export async function invalidateTreeScans(cwd: string): Promise<void> {
+  const children = [...(activeChildren.get(cwd) ?? [])]
+  const inFlight = digestInFlight.get(cwd)
+  for (const child of children) goneChildren.add(child)
+  await Promise.all(
+    children.map(
+      child =>
+        new Promise<void>(done => {
+          if (child.exitCode !== null || child.signalCode !== null) {
+            done()
+            return
+          }
+          child.once('close', () => done())
+          try {
+            child.kill()
+          } catch {
+            done()
+          }
+        }),
+    ),
+  )
+  if (inFlight) await inFlight.catch(() => null)
+  activeChildren.delete(cwd)
+  forgetRepository(cwd)
+}
+
+function gitTextSync(cwd: string, env: NodeJS.ProcessEnv, args: string[]): string {
+  try {
+    return execFileSync(gitExe(), args, {
+      windowsHide: true,
+      cwd,
+      env,
+      stdio: 'pipe',
+      timeout: scanTimeoutMs(),
+      maxBuffer: MAX_GIT_OUTPUT,
+      encoding: 'utf8',
+    })
+  } catch (err) {
+    throw stepError(args[0] ?? 'git', err)
+  }
+}
+
+function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[], watch?: RepositoryWatch): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let unregister = (): void => {}
+    const child = execFile(gitExe(), args, { windowsHide: true, cwd, env, timeout: scanTimeoutMs(), maxBuffer: MAX_GIT_OUTPUT }, (err, stdout) => {
+      unregister()
+      if (goneChildren.has(child)) reject(new RepositoryGoneError(args[0] ?? 'git'))
+      else if (err) reject(stepError(args[0] ?? 'git', err))
+      else resolve(stdout)
+    })
+    if (!watch) return
+    const children = activeChildren.get(watch.cwd) ?? new Set<ChildProcess>()
+    children.add(child)
+    activeChildren.set(watch.cwd, children)
+    const timer = setInterval(() => {
+      if (existsSync(watch.gitDir)) return
+      goneChildren.add(child)
+      try {
+        child.kill()
+      } catch {
+      }
+    }, REPOSITORY_WATCH_MS)
+    timer.unref?.()
+    unregister = () => {
+      clearInterval(timer)
+      children.delete(child)
+      if (children.size === 0 && activeChildren.get(watch.cwd) === children) activeChildren.delete(watch.cwd)
+    }
+  })
+}
+
+interface RepositoryShape {
+  prefix: string
+  repoObjects: string
+  gitDir: string
+}
+
+function parseShapeProbe(cwd: string, out: string): RepositoryShape | null {
+  const [prefixLine = '', objectsLine = '', gitDirLine = ''] = out.split(/\r?\n/)
+  const objects = objectsLine.trim()
+  const gitDir = gitDirLine.trim()
+  if (objects === '' || gitDir === '') return null
+  return { prefix: prefixLine.trim(), repoObjects: path.resolve(cwd, objects), gitDir: path.resolve(cwd, gitDir) }
+}
+
+function countNul(buf: Buffer | string | undefined): number {
+  if (!buf) return 0
+  let n = 0
+  if (typeof buf === 'string') {
+    for (let i = 0; i < buf.length; i++) if (buf.charCodeAt(i) === 0) n++
+    return n
+  }
+  for (let i = 0; i < buf.length; i++) if (buf[i] === 0) n++
+  return n
+}
+
+function mintRecord(cwd: string, shape: RepositoryShape, count: { files: number; above: boolean }): TreeScanRecord {
+  const store = verifyStoreDir(cwd)
+  return {
+    prefix: shape.prefix,
+    indexFile: path.join(store, 'index'),
+    objectsDir: path.join(store, 'objects'),
+    repoObjects: shape.repoObjects,
+    gitDir: shape.gitDir,
+    repoToken: repoTokenOf(shape.gitDir),
+    fileCount: count.files,
+    aboveCeiling: count.above,
+    scans: 0,
+    lastScanAt: 0,
+    lastScanMs: 0,
+    minIntervalMs: 0,
+    lastDigest: undefined,
+    fault: null,
+    notice: null,
+    road: 'exclude',
+  }
+}
+
+function scanRecordSync(cwd: string): TreeScanRecord | null {
+  const known = treeScanRecords.get(cwd)
+  if (known !== undefined) return known
+  let rec: TreeScanRecord | null = null
+  try {
+    const env = subprocessEnv()
+    const shape = parseShapeProbe(cwd, gitTextSync(cwd, env, SHAPE_PROBE))
+    if (shape) {
+      const ceiling = scanCeiling()
+      const res = spawnSync(gitExe(), COUNT_PROBE, {
+        windowsHide: true,
+        cwd,
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: scanTimeoutMs(),
+        maxBuffer: ceiling * 128,
+      })
+      const overflowed = (res.error as NodeJS.ErrnoException | undefined)?.code === 'ENOBUFS' || res.signal !== null
+      const files = countNul(res.stdout)
+      rec = mintRecord(cwd, shape, { files: overflowed ? Math.max(files, ceiling + 1) : files, above: overflowed || files > ceiling })
+    }
+  } catch {
+    rec = null
+  }
+  treeScanRecords.set(cwd, rec)
+  return rec
+}
+
+function countFilesAsync(cwd: string, env: NodeJS.ProcessEnv, ceiling: number): Promise<{ files: number; above: boolean }> {
+  return new Promise(resolve => {
+    let files = 0
+    let done = false
+    const finish = (r: { files: number; above: boolean }): void => {
+      if (done) return
+      done = true
+      resolve(r)
+    }
+    let child: ReturnType<typeof spawn>
+    try {
+      child = spawn(gitExe(), COUNT_PROBE, { windowsHide: true, cwd, env, stdio: ['ignore', 'pipe', 'ignore'] })
+    } catch {
+      finish({ files: 0, above: false })
+      return
+    }
+    const stop = (): void => {
+      try {
+        child.kill()
+      } catch {
+      }
+    }
+    const timer = setTimeout(() => {
+      stop()
+      finish({ files: Math.max(files, ceiling + 1), above: true })
+    }, scanTimeoutMs())
+    child.stdout?.on('data', (chunk: Buffer) => {
+      files += countNul(chunk)
+      if (files > ceiling) {
+        clearTimeout(timer)
+        stop()
+        finish({ files, above: true })
+      }
+    })
+    child.on('error', () => {
+      clearTimeout(timer)
+      finish({ files: 0, above: false })
+    })
+    child.on('close', () => {
+      clearTimeout(timer)
+      finish({ files, above: files > ceiling })
+    })
+  })
+}
+
+async function scanRecordAsync(cwd: string): Promise<TreeScanRecord | null> {
+  const known = treeScanRecords.get(cwd)
+  if (known !== undefined) return known
+  let rec: TreeScanRecord | null = null
+  try {
+    const env = subprocessEnv()
+    const shape = parseShapeProbe(cwd, await gitTextAsync(cwd, env, SHAPE_PROBE))
+    if (shape) rec = mintRecord(cwd, shape, await countFilesAsync(cwd, env, scanCeiling()))
+  } catch {
+    rec = null
+  }
+  treeScanRecords.set(cwd, rec)
+  return rec
+}
+
+function scanEnv(rec: TreeScanRecord): NodeJS.ProcessEnv {
+  return {
+    ...subprocessEnv(),
+    GIT_INDEX_FILE: rec.indexFile,
+    GIT_OBJECT_DIRECTORY: rec.objectsDir,
+    GIT_ALTERNATE_OBJECT_DIRECTORIES: rec.repoObjects,
+  }
+}
+
+function prefixArg(rec: TreeScanRecord): string[] {
+  return rec.prefix ? [`--prefix=${rec.prefix}`] : []
+}
+
+function prepareStore(rec: TreeScanRecord): void {
+  mkdirSync(path.dirname(rec.indexFile), { recursive: true })
+  mkdirSync(rec.objectsDir, { recursive: true })
+  const lock = `${rec.indexFile}.lock`
+  try {
+    if (Date.now() - statSync(lock).mtimeMs > STALE_INDEX_LOCK_MS) rmSync(lock, { force: true })
+  } catch {
+  }
+}
+
+function sweepObjects(rec: TreeScanRecord): void {
+  rmSync(rec.objectsDir, { recursive: true, force: true })
+}
+
+function scanTreeSync(cwd: string, rec: TreeScanRecord): string | null {
+  const env = scanEnv(rec)
+  prepareStore(rec)
+  if (!existsSync(rec.indexFile)) gitTextSync(cwd, env, ['read-tree', 'HEAD'])
+  stageSync(cwd, env, rec)
+  const tree = gitTextSync(cwd, env, ['write-tree', '--missing-ok', ...prefixArg(rec)]).trim()
+  sweepObjects(rec)
+  return tree || null
+}
+
+function stageSync(cwd: string, env: NodeJS.ProcessEnv, rec: TreeScanRecord): void {
+  if (rec.road === 'exclude') {
+    try {
+      gitTextSync(cwd, env, ['add', '-A', '--', '.', ...EXCLUDE_HARNESS])
+      return
+    } catch (err) {
+      if (isIndexBusy(err) || (err instanceof GitStepError && err.timedOut)) throw err
+      rec.road = 'reset'
+    }
+  }
+  gitTextSync(cwd, env, ['add', '-A', '--', '.'])
+  gitTextSync(cwd, env, ['reset', '-q', '--', ...HARNESS_DIRS])
+}
+
+async function stageAsync(cwd: string, env: NodeJS.ProcessEnv, rec: TreeScanRecord, watch: RepositoryWatch): Promise<void> {
+  if (rec.road === 'exclude') {
+    try {
+      await gitTextAsync(cwd, env, ['add', '-A', '--', '.', ...EXCLUDE_HARNESS], watch)
+      return
+    } catch (err) {
+      if (isIndexBusy(err) || err instanceof RepositoryGoneError || (err instanceof GitStepError && err.timedOut)) throw err
+      rec.road = 'reset'
+    }
+  }
+  await gitTextAsync(cwd, env, ['add', '-A', '--', '.'], watch)
+  await gitTextAsync(cwd, env, ['reset', '-q', '--', ...HARNESS_DIRS], watch)
+}
+
+async function scanTreeAsync(cwd: string, rec: TreeScanRecord): Promise<string | null> {
+  const env = scanEnv(rec)
+  const watch: RepositoryWatch = { cwd, gitDir: rec.gitDir }
+  prepareStore(rec)
+  if (!existsSync(rec.indexFile)) await gitTextAsync(cwd, env, ['read-tree', 'HEAD'], watch)
+  await stageAsync(cwd, env, rec, watch)
+  const tree = (await gitTextAsync(cwd, env, ['write-tree', '--missing-ok', ...prefixArg(rec)], watch)).trim()
+  sweepObjects(rec)
+  return tree || null
+}
+
+function scanTreePrivateSync(cwd: string, rec: TreeScanRecord): string | null {
+  const idxDir = mkdtempSync(path.join(tmpdir(), 'verify-tree-'))
+  try {
+    const env = {
+      ...subprocessEnv(),
+      GIT_INDEX_FILE: path.join(idxDir, 'index'),
+      GIT_OBJECT_DIRECTORY: path.join(idxDir, 'objects'),
+      GIT_ALTERNATE_OBJECT_DIRECTORIES: rec.repoObjects,
+    }
+    gitTextSync(cwd, env, ['read-tree', 'HEAD'])
+    stageSync(cwd, env, rec)
+    return gitTextSync(cwd, env, ['write-tree', '--missing-ok', ...prefixArg(rec)]).trim() || null
+  } catch {
+    return null
+  } finally {
+    rmSync(idxDir, { recursive: true, force: true })
+  }
+}
+
+function noticeOnce(rec: TreeScanRecord, text: string): void {
+  if (rec.notice !== null) return
+  rec.notice = text
+  logForDebugging(`[verify] ${text}`, { level: 'warn' })
+  notify()
+}
+
+function accountScan(rec: TreeScanRecord, ms: number, digest: string | null): void {
+  rec.scans++
+  rec.lastScanAt = Date.now()
+  rec.lastScanMs = ms
+  rec.lastDigest = digest
+  rec.fault = null
+  if (ms > SLOW_SCAN_MS && rec.scans > 1) {
+    rec.minIntervalMs = Math.min(SCAN_INTERVAL_CAP_MS, Math.max(SCAN_INTERVAL_FLOOR_MS, rec.minIntervalMs * 2))
+    noticeOnce(rec, `tree scan took ${fmtCount(ms)} ms over ${fmtCount(rec.fileCount)} files — the fingerprint now refreshes at most every ${fmtInterval(rec.minIntervalMs)}`)
+  }
+}
+
+function recordFault(rec: TreeScanRecord, err: unknown): void {
+  const e = err instanceof GitStepError ? err : new GitStepError('scan', String(err), false)
+  const seconds = scanTimeoutMs() / 1000
+  const detail = e.timedOut
+    ? `the scan timed out after ${seconds < 1 ? seconds.toFixed(1) : Math.round(seconds)} s over ${fmtCount(rec.fileCount)} files (git ${e.step})`
+    : e.message.slice(0, 160)
+  rec.fault = { kind: e.timedOut ? 'timeout' : 'error', detail, at: Date.now() }
+  rec.lastScanAt = Date.now()
+  rec.lastDigest = null
+  rec.minIntervalMs = Math.min(SCAN_INTERVAL_CAP_MS, Math.max(SCAN_INTERVAL_FLOOR_MS, rec.minIntervalMs * 2))
+  if (!e.timedOut) rmSync(rec.indexFile, { force: true })
+  noticeOnce(rec, `tree unmeasured — ${detail}`)
+}
+
+function noticeCeiling(rec: TreeScanRecord): void {
+  noticeOnce(rec, `tree unmeasured — ${fmtCount(rec.fileCount)}+ files, above the ${fmtCount(scanCeiling())}-file scan ceiling`)
+}
+
+function withinBudget(rec: TreeScanRecord): boolean {
+  return rec.minIntervalMs > 0 && rec.lastDigest !== undefined && Date.now() - rec.lastScanAt < rec.minIntervalMs
+}
+
+export type TreeScanStatus =
+  | { state: 'unknown' }
+  | { state: 'measured'; fileCount: number; scans: number; lastScanMs: number; minIntervalMs: number; notice: string | null }
+  | { state: 'unmeasured'; reason: 'ceiling' | 'timeout' | 'error'; detail: string; fileCount: number; notice: string | null }
+
+export function treeScanStatus(cwd: string): TreeScanStatus {
+  const rec = treeScanRecords.get(cwd)
+  if (!rec) return { state: 'unknown' }
+  if (rec.aboveCeiling) {
+    return { state: 'unmeasured', reason: 'ceiling', detail: `${fmtCount(rec.fileCount)}+ files, above the ${fmtCount(scanCeiling())}-file scan ceiling`, fileCount: rec.fileCount, notice: rec.notice }
+  }
+  if (rec.fault) return { state: 'unmeasured', reason: rec.fault.kind, detail: rec.fault.detail, fileCount: rec.fileCount, notice: rec.notice }
+  if (rec.scans === 0) return { state: 'unknown' }
+  return { state: 'measured', fileCount: rec.fileCount, scans: rec.scans, lastScanMs: rec.lastScanMs, minIntervalMs: rec.minIntervalMs, notice: rec.notice }
+}
+
+export function treeScanNote(cwd: string): string | null {
+  const s = treeScanStatus(cwd)
+  if (s.state === 'unmeasured') return `tree unmeasured — ${s.detail}`
+  if (s.state === 'measured' && s.notice !== null) return s.notice
+  return null
+}
+
+export function markTreeSuspectAfterTurn(): void {
+  digestCache.clear()
+  for (const [cwd, rec] of treeScanRecords) if (rec === null) treeScanRecords.delete(cwd)
+  markGitTreeSuspect('tree')
+}
+
+export function computeWorkingTreeDigest(cwd: string, opts?: { fresh?: boolean }): string | null {
+  const cached = digestCache.get(cwd)
+  if (cached && !opts?.fresh) return cached.digest
+  const rec = scanRecordSync(cwd)
+  if (rec === null) {
+    digestCache.set(cwd, { digest: null, at: Date.now() })
+    return null
+  }
+  if (!repositoryStillThere(rec)) {
+    forgetRepository(cwd)
+    return null
+  }
+  if (rec.aboveCeiling) {
+    noticeCeiling(rec)
+    digestCache.set(cwd, { digest: null, at: Date.now() })
+    return null
+  }
+  if (!opts?.fresh && withinBudget(rec)) return rec.lastDigest ?? null
+  if (digestInFlight.has(cwd)) return opts?.fresh ? scanTreePrivateSync(cwd, rec) : (rec.lastDigest ?? null)
+  const t0 = Date.now()
+  let digest: string | null
+  try {
+    digest = scanTreeSync(cwd, rec)
+    accountScan(rec, Date.now() - t0, digest)
+  } catch (err) {
+    if (isIndexBusy(err)) return opts?.fresh ? scanTreePrivateSync(cwd, rec) : (rec.lastDigest ?? null)
+    digest = null
+    recordFault(rec, err)
+  }
+  digestCache.set(cwd, { digest, at: Date.now() })
   return digest
 }
 
-const digestInFlight = new Map<string, Promise<string | null>>()
-
-export function computeWorkingTreeDigestAsync(cwd: string): Promise<string | null> {
+export function computeWorkingTreeDigestAsync(cwd: string, opts?: { fresh?: boolean }): Promise<string | null> {
   const cached = digestCache.get(cwd)
-  if (cached && Date.now() - cached.at < DIGEST_TTL_MS) return Promise.resolve(cached.digest)
+  if (cached && !opts?.fresh) return Promise.resolve(cached.digest)
   const inFlight = digestInFlight.get(cwd)
   if (inFlight) return inFlight
   const build = (async (): Promise<string | null> => {
-    let digest: string | null = null
-    let idxDir: string | null = null
     try {
-      idxDir = mkdtempSync(path.join(tmpdir(), 'verify-tree-'))
-      const env = { ...subprocessEnv(), GIT_INDEX_FILE: path.join(idxDir, 'index') }
-      const git = (args: string[]): Promise<string> =>
-        new Promise((resolve, reject) => {
-          execFile(gitExe(), args, { windowsHide: true, cwd, env }, (err, stdout) =>
-            err ? reject(err) : resolve(stdout),
-          )
-        })
-      await git(['read-tree', 'HEAD'])
-      await git(['add', '-A', '--', '.'])
-      await git(['reset', '-q', '--', '.claude', '.mercury'])
-      digest = (await git(['write-tree'])).trim() || null
-    } catch {
-      digest = null
+      const rec = await scanRecordAsync(cwd)
+      if (rec === null) {
+        digestCache.set(cwd, { digest: null, at: Date.now() })
+        return null
+      }
+      if (!repositoryStillThere(rec)) {
+        forgetRepository(cwd)
+        return null
+      }
+      if (rec.aboveCeiling) {
+        noticeCeiling(rec)
+        digestCache.set(cwd, { digest: null, at: Date.now() })
+        return null
+      }
+      if (!opts?.fresh && withinBudget(rec)) return rec.lastDigest ?? null
+      const t0 = Date.now()
+      let digest: string | null
+      try {
+        digest = await scanTreeAsync(cwd, rec)
+        accountScan(rec, Date.now() - t0, digest)
+      } catch (err) {
+        if (err instanceof RepositoryGoneError) {
+          forgetRepository(cwd)
+          return null
+        }
+        if (isIndexBusy(err)) return rec.lastDigest ?? null
+        digest = null
+        recordFault(rec, err)
+      }
+      digestCache.set(cwd, { digest, at: Date.now() })
+      return digest
     } finally {
-      if (idxDir) rmSync(idxDir, { recursive: true, force: true })
       digestInFlight.delete(cwd)
     }
-    digestCache.set(cwd, { digest, at: Date.now() })
-    return digest
   })()
   digestInFlight.set(cwd, build)
   return build
 }
 
 function evidencePath(cwd: string): string {
-  return path.join(getMercuryHome(), 'verify', sanitizePath(cwd), 'evidence.json')
+  return path.join(verifyStoreDir(cwd), 'evidence.json')
 }
 function workspaceEvidencePath(cwd: string): string {
   return path.join(adoptiveProjectPath(cwd, 'verify'), 'evidence.json')
@@ -250,8 +757,10 @@ export function markMutation(
   state.evidenceDemands = 0
   if (cwd !== undefined) digestCache.delete(cwd)
   else digestCache.clear()
+  if (cwd !== undefined && treeScanRecords.get(cwd) === null) treeScanRecords.delete(cwd)
   if (cwd !== undefined) verifiableCache.delete(cwd)
   else verifiableCache.clear()
+  markGitTreeSuspect('tree')
   notify()
 }
 
@@ -285,6 +794,7 @@ export function observeCompletedToolCall(
     if (toolName === 'Bash' || toolName === 'PowerShell') {
       if (lifecycle === 'launch') return
       const command = String((input as { command?: unknown } | undefined)?.command ?? '')
+      if (ok && /(^|[\s;&|(])git\s/.test(command)) markGitTreeSuspect('git')
       const cls = classifyVerificationCommand(command, cwd)
       if (cls) recordEvidence(cwd, { command, ok, ...cls }, owner)
     }
@@ -625,7 +1135,7 @@ export function recordEvidence(
   const record: EvidenceRecord = {
     ...e,
     ranAt: Date.now(),
-    treeDigest: computeWorkingTreeDigest(cwd),
+    treeDigest: computeWorkingTreeDigest(cwd, { fresh: true }),
     seq: state.mutationSeq,
   }
   if (e.ok) state.evidenceDemands = 0
@@ -665,6 +1175,15 @@ export function evidenceRecordsFor(owner?: OwnerKey): readonly EvidenceRecord[] 
 }
 
 export function verificationSummary(
+  cwd: string,
+  opts?: { skipDigest?: boolean; owner?: OwnerKey },
+): VerificationSnapshot {
+  const snapshot = summarize(cwd, opts)
+  const note = treeScanNote(cwd)
+  return note === null ? snapshot : { ...snapshot, detail: `${snapshot.detail} · ${note}` }
+}
+
+function summarize(
   cwd: string,
   opts?: { skipDigest?: boolean; owner?: OwnerKey },
 ): VerificationSnapshot {
@@ -722,7 +1241,7 @@ export function verificationSummary(
     }
   }
   if (!opts?.skipDigest && last.treeDigest !== null) {
-    const current = computeWorkingTreeDigest(cwd)
+    const current = computeWorkingTreeDigest(cwd, { fresh: true })
     if (current !== null && current !== last.treeDigest) {
       return {
         state: 'stale',

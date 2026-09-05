@@ -4,7 +4,6 @@ import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import {
-  fetchUtilization,
   type RateLimit,
   type Utilization,
 } from '../../services/api/usage.js'
@@ -667,13 +666,11 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
   const load = useCallback((): void => {
     if (!subscriber) return
     setState(previous => ({ ...previous, loading: true, error: null }))
-    fetchUtilization()
-      .then(data => {
-        if (!disposedRef.current) setState({ loading: false, error: null, data })
-      })
-      .catch((error: unknown) => {
-        if (!disposedRef.current) setState({ loading: false, error, data: null })
-      })
+    void refreshProviderUsage('anthropic', { reason: 'operator' }).then(() => {
+      if (disposedRef.current) return
+      const note = usageForProvider('anthropic').readerNote
+      setState(note !== undefined ? { loading: false, error: note, data: null } : { loading: false, error: null, data: {} })
+    })
   }, [subscriber])
   useEffect(() => {
     load()
@@ -696,17 +693,13 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
       return <Text dimColor>loading usage…</Text>
     }
     if (showingError) {
-      const humanised = humanizeUsageError(state.error)
-      const raw =
-        state.error instanceof Error
-          ? state.error.message
-          : state.error !== null && state.error !== undefined
-            ? String(state.error)
-            : ''
+      const readerWords = typeof state.error === 'string' ? state.error : (humanizeUsageError(state.error) ?? '')
+      const raw = state.error instanceof Error ? state.error.message : ''
+      const isWait = usageForProvider('anthropic').readerWait === true
       return (
         <Box flexDirection="column">
-          <Text color={tokens.failure}>
-            {humanised ?? `Failed to load usage${raw !== '' ? `: ${raw}` : ''}`}
+          <Text color={isWait ? tokens.warning : tokens.failure}>
+            {readerWords !== '' ? readerWords : `Failed to load usage${raw !== '' ? `: ${raw}` : ''}`}
           </Text>
           <Text dimColor>
             <ConfigurableShortcutHint

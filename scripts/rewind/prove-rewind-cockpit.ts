@@ -132,7 +132,7 @@ section('§2 — the road: a proto-5 daemon relays the receipt; a proto-4 daemon
     const daemon = await startDaemon({ proto: 4 })
     const seat = new DaemonSessionConnector(record)
     const receipt = await seat.rewind({ userMessageId: 'u-2', mode: 'conversation' })
-    check("an older daemon's unknown-op refusal answers 'daemon-older' naming /daemon restart (the mixed-version law, screen side)", receipt.outcome === 'refused' && receipt.refusal === 'daemon-older' && (receipt.detail ?? '').includes('/daemon restart'), j({ receipt, received: daemon.received }))
+    check("an older daemon's unknown-op refusal answers 'daemon-older' naming the daemon restart (the one owner's sentence; the mixed-version law, screen side)", receipt.outcome === 'refused' && receipt.refusal === 'daemon-older' && (receipt.detail ?? '').includes(socketMod.restartDaemonWords()), j({ receipt, received: daemon.received }))
     await daemon.close()
   }
   {

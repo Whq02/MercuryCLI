@@ -1,6 +1,7 @@
 
 import { useContext, useEffect } from 'react'
 import stripAnsi from 'strip-ansi'
+import { noteModeAcquired } from '../root/terminalModeLedger.js'
 import { OSC, osc } from '../termio/osc.js'
 import { TerminalWriteContext } from '../useTerminalNotification.js'
 
@@ -17,8 +18,10 @@ export function useTerminalTitle(title: string | null): void {
     const clean = sanitizeTitle(title)
     if (process.platform === 'win32') {
       process.title = clean
+      noteModeAcquired('terminal-title', 'terminal-title')
       return
     }
     write(osc(OSC.SET_TITLE_AND_ICON, clean))
+    noteModeAcquired('terminal-title', 'terminal-title')
   }, [title, write])
 }

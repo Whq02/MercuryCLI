@@ -152,6 +152,7 @@ import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import { findThinkingTriggerPositions, isDeepthinkEnabled } from '../../utils/thinking.js'
+import { keywordGlowSpans } from '../../utils/keywordGlow.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
@@ -159,6 +160,7 @@ import type { TextHighlight } from '../../utils/textHighlighting.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { danglingReferences, getPastedTextRefNumLines, formatPastedTextRef, formatImageRef, parseReferences } from '../../history.js'
 import { PASTE_THRESHOLD, getImageFromClipboard } from '../../utils/imagePaste.js'
+import { describeAttachedImage } from '../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
 import { editPromptInEditor } from '../../utils/promptEditor.js'
 import { expandPastedTextRefs } from '../../history.js'
@@ -612,7 +614,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
               }
             : {
                 key: 'model-switched',
-                text: `Set model to ${label} — this session's next message runs it${doorCross}${doorLossNote}`,
+                text: `Set model to ${label} — this session's next message runs it${receipt.note !== undefined ? ` (${receipt.note})` : ''}${doorCross}${doorLossNote}`,
                 priority: 'high',
                 timeoutMs: 3000,
               },
@@ -1064,6 +1066,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       filename?: string,
       dimensions?: ImageDimensions,
       sourcePath?: string,
+      byteLength?: number,
     ): void => {
       setMode('prompt')
       const pendingSpace = deferredSpaceArmedRef.current
@@ -1082,8 +1085,28 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       setPastedContents(prev => ({ ...prev, [id]: entry }))
       insertAtCursor(`${pendingSpace ? ' ' : ''}${formatImageRef(id)}`, { atomic: true })
       deferredSpaceArmedRef.current = true
+      const bytes = byteLength ?? Math.floor((base64Image.length * 3) / 4)
+      addNotification({
+        key: `image-attached-${id}`,
+        text: `${formatImageRef(id)} attached — ${describeAttachedImage(dimensions, bytes)}`,
+        priority: 'low',
+        timeoutMs: 4000,
+      })
     },
-    [insertAtCursor, setMode, setPastedContents],
+    [insertAtCursor, setMode, setPastedContents, addNotification],
+  )
+
+  const handleImageError = useCallback(
+    (message: string): void => {
+      addNotification({
+        key: 'image-attach-failed',
+        text: message,
+        color: 'warning',
+        priority: 'high',
+        timeoutMs: 10000,
+      })
+    },
+    [addNotification],
   )
 
   const handleTextPaste = useCallback(
@@ -1239,6 +1262,22 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     recallFitsOneRow,
   )
   historyRecallActiveRef.current = history.historyIndex !== 0
+  const recallQueuedSend = useCallback((): boolean => {
+    const focused = getFocusedSessionConnector()
+    const queued = focused.recallableSend()
+    if (queued === null) return false
+    void focused.withdrawSend(queued.clientMessageId).then(receipt => {
+      if (receipt.withdrawn) {
+        const meanwhile = pendingInput.text()
+        const value = meanwhile === '' ? receipt.text : `${receipt.text}${meanwhile}`
+        applyRecalledEntry(value, receipt.mode, receipt.pastedContents)
+        setCursorOffset(value.length)
+        return
+      }
+      addNotification({ key: 'recall-send', text: receipt.detail, priority: 'immediate', timeoutMs: 4000 })
+    })
+    return true
+  }, [applyRecalledEntry, setCursorOffset, addNotification])
 
   const helpers: PromptInputHelpers = useMemo(
     () => ({
@@ -1668,7 +1707,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       },
       'chat:imagePaste': () => {
         void (async () => {
-          const image = await getImageFromClipboard()
+          let image: Awaited<ReturnType<typeof getImageFromClipboard>>
+          try {
+            image = await getImageFromClipboard()
+          } catch (error) {
+            handleImageError(error instanceof Error ? error.message : String(error))
+            return
+          }
           if (image === null) {
             addNotification({
               key: 'no-image-in-clipboard',
@@ -1686,6 +1731,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             image.mediaType,
             undefined,
             image.dimensions,
+            undefined,
+            image.byteLength,
           )
         })()
       },
@@ -2109,18 +2156,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         priority: 20,
       })
     }
-    if (isDeepthinkEnabled()) {
-      for (const position of findThinkingTriggerPositions(displayedValue)) {
-        for (let at = position.start; at < position.end; at++) {
-          spans.push({
-            start: at,
-            end: at + 1,
-            color: (['suggestion', 'permission', 'success'] as const)[(at - position.start) % 3] as keyof Theme,
-            priority: 10,
-          })
-        }
-      }
-    }
+    spans.push(
+      ...keywordGlowSpans(
+        displayedValue,
+        { accent: tokens.accent, accentSoft: tokens.accentSoft },
+        { deepthink: isDeepthinkEnabled(), supercode: true },
+        { priority: 10, shimmer: true },
+      ),
+    )
     for (const ref of parseReferences(displayedValue)) {
       if (ref.index === cursorOffset) {
         spans.push({
@@ -2160,7 +2203,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       }
     }
     return spans
-  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, teamContext])
+  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, teamContext, tokens.accent, tokens.accentSoft])
 
   const deepthinkPresent =
     isDeepthinkEnabled() && findThinkingTriggerPositions(input).length > 0
@@ -2589,6 +2632,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onExitMessage: exitStateChange,
     onHistoryUp: () => {
       if (!historyNavAllowed('first')) return
+      if (input === '' && recallQueuedSend()) return
       history.onHistoryUp()
     },
     onHistoryDown: () => {
@@ -2610,6 +2654,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     onHistoryReset: history.resetHistory,
     onPaste: handleTextPaste,
     onImagePaste: handleImagePaste,
+    onImageError: handleImageError,
     onIsPastingChange: setIsPasting,
     focus: inputFocused,
     showCursor,

@@ -116,6 +116,9 @@ export type CompactProgressEvent =
   | { type: 'hooks_start'; hookType: 'pre_compact' | 'post_compact' | 'session_start' }
   | { type: 'compact_start' }
   | { type: 'compact_end' }
+  | { type: 'stage'; stage: 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring' }
+  | { type: 'summary_progress'; chars: number }
+  | { type: 'retry'; attempt: number }
 
 export type Progress = ToolProgressData | HookProgress
 
@@ -205,6 +208,8 @@ export type AgentDefinitionsState = {
   [key: string]: any
 }
 
+export type PermissionChannel = 'stdio' | 'prompt-tool'
+
 export type ToolUseContext = {
   options: {
     commands: Command[]
@@ -218,6 +223,7 @@ export type ToolUseContext = {
     mcpClients: MCPServerConnection[]
     mcpResources?: Record<string, any[]>
     isNonInteractiveSession: boolean
+    permissionChannel?: PermissionChannel
     agentDefinitions: AgentDefinitionsState
     budget?: any
     customSystemPrompt?: string
@@ -256,6 +262,8 @@ export type ToolUseContext = {
   ) => Promise<any>
   agentId?: AgentId
   agentType?: string
+  seatHolder?: string
+  onSeatWait?: (words: string | null) => void
   owner?: OwnerKey
   rosterOwner?: OwnerKey
   toolDecisions?: Map<string, PermissionDecision>

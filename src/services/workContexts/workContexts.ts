@@ -15,6 +15,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { gitExe } from '../../utils/git.js'
+import { launchFolderBoundsProject } from '../../utils/projectBoundary.js'
 import { fetchGitDiffFor } from '../../utils/gitDiff.js'
 import { resolveProjectConfigPath } from '../../utils/projectConfig.js'
 import { createAgentWorktree } from '../../utils/worktree.js'
@@ -430,6 +431,12 @@ export async function executeHandoff(input: {
       'rev-parse',
       '--show-toplevel',
     ])
+    if (rootCode === 0 && launchFolderBoundsProject(getCwd())) {
+      return {
+        ok: false,
+        reason: `cannot provision a worktree here: the repository above this folder (${sessionRoot.trim()}) is not a project — run the handoff from a project repository`,
+      }
+    }
     if (
       rootCode !== 0 ||
       ctxCode !== 0 ||

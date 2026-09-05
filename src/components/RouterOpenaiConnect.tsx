@@ -31,7 +31,12 @@ export function RouterOpenaiConnect({
   onSwitchToDevice?: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const [paste, setPaste] = useState('')
+  const [paste, setPasteState] = useState('')
+  const pasteRef = useRef('')
+  const setPaste = (next: string): void => {
+    pasteRef.current = next
+    setPasteState(next)
+  }
   const [cursorOffset, setCursorOffset] = useState(0)
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'exchanging'>('starting')
   const [listenerNote, setListenerNote] = useState<string | undefined>(undefined)
@@ -91,7 +96,7 @@ export function RouterOpenaiConnect({
   }, [mode])
 
   const [copied, setCopied] = useState(false)
-  useInput((input, key) => {
+  useInput((input, key, event) => {
     if (key.escape) {
       if (mode === 'browser') {
         handlesRef.current?.cancel('cancelled from the connect surface')
@@ -101,9 +106,10 @@ export function RouterOpenaiConnect({
       }
       return
     }
-    if (input === 'c' && !key.ctrl && !key.meta && paste === '' && phase !== 'exchanging') {
+    if (input === 'c' && !key.ctrl && !key.meta && pasteRef.current === '' && phase !== 'exchanging') {
       const value = mode === 'browser' ? authorizeUrl : device?.userCode
       if (!value) return
+      event.stopImmediatePropagation()
       void setClipboard(value).then(sequence => {
         if (sequence) process.stdout.write(sequence)
         setCopied(true)
@@ -116,9 +122,10 @@ export function RouterOpenaiConnect({
       !key.ctrl && !key.meta &&
       mode === 'browser' &&
       onSwitchToDevice !== undefined &&
-      paste === '' &&
+      pasteRef.current === '' &&
       phase !== 'exchanging'
     ) {
+      event.stopImmediatePropagation()
       switchingRef.current = true
       handlesRef.current?.cancel('switching to the device-code flow')
       handlesRef.current = undefined

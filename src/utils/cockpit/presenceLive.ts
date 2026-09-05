@@ -8,13 +8,19 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  statSync,
+  utimesSync,
+  watch,
   writeFileSync,
+  type FSWatcher,
 } from 'fs'
 import os from 'node:os'
 import { basename, join, resolve } from 'path'
 import { createHash } from 'crypto'
 import { durableTempName } from '../../substrate/durablePublish.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
+import { resolveWatchRoot } from '../watchRoot.js'
+import { subscribeUiClock } from './uiClock.js'
 import { isChannelsEnabled } from '../../services/mcp/channelAllowlist.js'
 import { channelsRoot } from '../../services/mcp/channelsRoot.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../../utils/envUtils.js'
@@ -29,6 +35,10 @@ export type PresenceSeat = {
 }
 
 export const STALE_MS = 10_000
+export const PRESENCE_TAIL_FLOOR_MS = 10_000
+
+let lastPublished: { path: string; seat: string; verb: string; branch: string; lastLine: string } | null = null
+const peerReads = new Map<string, { key: string; rec: Omit<PresenceSeat, 'ts'> | null }>()
 
 let _presence = new Map<string, PresenceSeat>()
 let _version = 0
@@ -84,6 +94,31 @@ export function recordSelfPresence(p: Omit<PresenceSeat, 'ts'>): void {
   let dir: string
   try {
     dir = presenceDirPath()
+  } catch (err) {
+    logForDebugging(
+      `[presence] dir init failed: ${err instanceof Error ? err.message : String(err)}`,
+    )
+    return
+  }
+  const stem = sanitizeSegment(p.seat)
+  const finalPath = join(dir, `${stem}.json`)
+  const last = lastPublished
+  if (
+    last !== null &&
+    last.path === finalPath &&
+    last.seat === p.seat &&
+    last.verb === p.verb &&
+    last.branch === p.branch &&
+    last.lastLine === p.lastLine
+  ) {
+    try {
+      const now = new Date()
+      utimesSync(finalPath, now, now)
+      return
+    } catch {
+    }
+  }
+  try {
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true, mode: 0o700 })
   } catch (err) {
     logForDebugging(
@@ -98,12 +133,11 @@ export function recordSelfPresence(p: Omit<PresenceSeat, 'ts'>): void {
     lastLine: p.lastLine,
     ts: Date.now(),
   }
-  const stem = sanitizeSegment(p.seat)
-  const finalPath = join(dir, `${stem}.json`)
   const tmpPath = durableTempName(finalPath)
   try {
     writeFileSync(tmpPath, JSON.stringify(rec), { encoding: 'utf8', mode: 0o600 })
     renameSync(tmpPath, finalPath)
+    lastPublished = { path: finalPath, seat: p.seat, verb: p.verb, branch: p.branch, lastLine: p.lastLine }
   } catch (err) {
     logForDebugging(
       `[presence] write failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -117,6 +151,7 @@ export function recordSelfPresence(p: Omit<PresenceSeat, 'ts'>): void {
 
 export function tailPresence(): void {
   const self = getOperatorName()
+  const selfFile = `${sanitizeSegment(self)}.json`
   const now = Date.now()
   const next = new Map<string, PresenceSeat>()
   const dir = getPresenceDir()
@@ -127,24 +162,45 @@ export function tailPresence(): void {
     } catch {
       files = []
     }
+    const seen = new Set<string>()
     for (const f of files) {
-      let rec: Partial<PresenceSeat>
+      if (f === selfFile) continue
+      const path = join(dir, f)
+      let st: { mtimeMs: number; size: number; ino: number }
       try {
-        rec = JSON.parse(readFileSync(join(dir, f), 'utf8')) as Partial<PresenceSeat>
+        st = statSync(path)
       } catch {
         continue
       }
-      if (!rec || typeof rec.seat !== 'string' || typeof rec.ts !== 'number') continue
-      if (rec.seat === self) continue
-      if (now - rec.ts > STALE_MS) continue
-      next.set(rec.seat, {
-        seat: rec.seat,
-        verb: typeof rec.verb === 'string' ? rec.verb : '',
-        branch: typeof rec.branch === 'string' ? rec.branch : '',
-        lastLine: typeof rec.lastLine === 'string' ? rec.lastLine : '',
-        ts: rec.ts,
-      })
+      if (now - st.mtimeMs > STALE_MS) continue
+      seen.add(path)
+      const key = `${st.size}:${st.ino}`
+      let cached = peerReads.get(path)
+      if (cached === undefined || cached.key !== key) {
+        let rec: Partial<PresenceSeat> | null = null
+        try {
+          rec = JSON.parse(readFileSync(path, 'utf8')) as Partial<PresenceSeat>
+        } catch {
+          continue
+        }
+        cached = {
+          key,
+          rec:
+            rec !== null && typeof rec.seat === 'string'
+              ? {
+                  seat: rec.seat,
+                  verb: typeof rec.verb === 'string' ? rec.verb : '',
+                  branch: typeof rec.branch === 'string' ? rec.branch : '',
+                  lastLine: typeof rec.lastLine === 'string' ? rec.lastLine : '',
+                }
+              : null,
+        }
+        peerReads.set(path, cached)
+      }
+      if (cached.rec === null || cached.rec.seat === self) continue
+      next.set(cached.rec.seat, { ...cached.rec, ts: Math.round(st.mtimeMs) })
     }
+    for (const path of [...peerReads.keys()]) if (!seen.has(path)) peerReads.delete(path)
   }
   const changed =
     next.size !== _presence.size ||
@@ -167,6 +223,45 @@ export function tailPresence(): void {
       cb()
     } catch {
     }
+  }
+}
+
+export function startPresenceTail(): () => void {
+  let watcher: FSWatcher | null = null
+  const arm = (): void => {
+    if (watcher !== null) return
+    const dir = getPresenceDir()
+    if (dir === null || !existsSync(dir)) return
+    const selfFile = `${sanitizeSegment(getOperatorName())}.json`
+    try {
+      const w = watch(resolveWatchRoot(dir), (_event, filename) => {
+        if (filename !== undefined && filename !== null && String(filename) === selfFile) return
+        tailPresence()
+      })
+      w.on('error', () => {
+        try {
+          w.close()
+        } catch {
+        }
+        if (watcher === w) watcher = null
+      })
+      watcher = w
+    } catch {
+    }
+  }
+  arm()
+  tailPresence()
+  const stopFloor = subscribeUiClock(PRESENCE_TAIL_FLOOR_MS, () => {
+    arm()
+    tailPresence()
+  })
+  return () => {
+    stopFloor()
+    try {
+      watcher?.close()
+    } catch {
+    }
+    watcher = null
   }
 }
 

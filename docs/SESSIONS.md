@@ -114,17 +114,40 @@ answers at once. `/tasks`,
 `/workflows` and the board's work chip show the focused session's own work
 and never another's.
 
-The status row under the composer says what the focused session is doing,
-and for how long, from the session's runner itself: "thinking for 2m",
-"running a tool for 4m (its own timeout at 10m)", "replying",
-"compacting", "ready". Those durations are facts, never accusations — the
-transcript standing still is not a sign of trouble, since a long think, a
-long tool run and a real hang all leave it still. The row says the session
-may be stuck only when the runner's stream has carried no event of any kind
-for longer than its own watchdog's warning point, and then it names what it
-saw: "no stream events for 3m — the session may be stuck (the watchdog
-aborts at 5m)". A running tool is never called stuck; its own timeout is
-the deadline the row names.
+An image goes into the composer three ways: paste it from the clipboard
+with ctrl+v on macOS and Linux, or alt+v on Windows (the terminal owns
+ctrl+v there, and an image-only clipboard gives it nothing to paste); drag
+an image file onto the terminal; or paste its path. Each attaches as an
+`[Image #N]` chip, saved under its own name in the session's image store
+for the session's life, and the composer says what was attached — its size,
+and what it was shrunk to when the provider's limits asked for it. Copy an
+image and come back to Mercury and it tells you the key. An image is never
+refused for its size: it is shrunk to the provider's published limits
+(`/health` names the image processor on this machine); the one refusal
+left is an image whose smallest encoding still exceeds them, and its words
+say which limit and what size.
+
+The status row under the composer carries the project and the CREW's
+clock — the sub-agents and workflow agents the session's runner hosts —
+past tense, by kind: "agents thought for 28m", "workflow thought for 12m",
+both when both stand (the larger first). The row wears no glyph, and the
+session's name paints on the title row alone. The main agent is narrated
+once, by the transcript's thinking row and the card under the critter, and
+never repeated here; a session with no crew reads "ready" when idle and
+paints no clock while its main agent works. That is what makes esc read
+true: esc interrupts the main agent alone, so the card's glyph stops while
+the row's clock keeps counting for the crew that runs on. The row's
+warnings stay its own: a request wait names what the runner waits on and the budget that
+fires ("waiting for the first byte from Opus 5 — within 90 s"); a held turn
+names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
+says the request is torn down. The row says the session may be stuck only
+when the runner's stream has carried no event of any kind for longer than
+its own watchdog's warning point, and then it names what it saw: "no stream
+events for 3m — the session may be stuck (the watchdog aborts at 5m)". A
+running tool is never called stuck. The chat pane's title row reads
+"SESSION" on the left and the session's name on the right — no clock: every
+row of the chat carries its own timestamp, and a clock that ticks is a
+repaint a second on an idle screen.
 
 ## The concourse shows the project you are in
 
@@ -166,12 +189,14 @@ motion. ↵ on a parked row brings it back in place: its transcript paints at
 once, the daemon admits the same durable session behind the paint, it
 becomes the focused chat, and shift+←/→ work from there as usual. The
 board's close key is a chord, never a letter: ctrl+x pressed twice (the
-first press shows the hint on the row, the second completes). On a parked
-row the first completed chord says there is nothing to stop; the same
-gesture again clears the row from the board — the chat survives on disk,
-and the Boot face and `/resume` still offer it — and a live row you
-release is cleared the same way, so a removed row never returns beneath as
-parked. Everything else the project
+first press shows the hint on the row, the second completes), and the
+chord is a ladder of three rungs. On a live row it stops the session (the
+row stays, wearing stopped and the next step); on a stopped row it
+archives — the row parks; on a parked row a first chord says the next one
+deletes, and that next chord (or a chord straight after the archive)
+deletes the record — the transcript survives on disk, and the Boot face and
+`/resume` still offer the chat. A door row
+(another project, the repo picker) has nothing to close. Everything else the project
 holds — chats older than a week, past the ten, cleared from the board, or
 never given words — is counted into one last line, "N older chats · ↵ to
 browse": ↵ unfolds that very list in place on the board — this project's
@@ -194,9 +219,9 @@ opens a peek of the selected row in place. A session's end is a visible
 state: a runner that crashed paints NEEDS YOU with its reason line, the row
 outlives every reconcile, your own next act on the session clears the fact,
 and only your release removes the row. ctrl+x ctrl+x stops the selected
-session — the row stays, wearing stopped and the next step — and the same
-chord again removes it from the board; typing is never a control, so a
-plain `x` lands in the composer like any other letter. The board's REPO picker
+session — the row stays, wearing stopped and the next step — the chord
+again archives it, and a third chord deletes it; typing is never a control,
+so a plain `x` lands in the composer like any other letter. The board's REPO picker
 changes the folder new sessions launch in, the whole harness follows, and
 the board follows with it — it renders the same list of projects the Boot
 face's Projects rows do.
@@ -227,7 +252,15 @@ own home beside that folder's transcripts. From then on the folder is one of
 your projects everywhere — the Boot face's Projects rows, the board's REPO
 picker and the board's own scope all render the one list. The estate stays
 yours: Mercury writes no ignore rules, never touches `.gitignore`, and never
-deletes `.mercury/`.
+deletes `.mercury/`. The project folder holds shared configuration — the
+settings, the gates and wards, the Apollo specs, the agents, the saved
+workflow scripts — the way a team commits its shared config; everything a
+machine or a session writes for itself (run manifests, ledgers, evidence,
+test-run records, audit chains, local memory, the doctor's certificate)
+lives in the config home beside that folder's transcripts. A local store
+found in the project folder from before is read once and migrated on its
+first touch; the folder keeps its copy, and the doctor's Project estate row
+names it with the one `git rm --cached` line that untracks it.
 
 ## Closing chats
 

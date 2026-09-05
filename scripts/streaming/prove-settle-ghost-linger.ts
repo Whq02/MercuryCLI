@@ -55,10 +55,11 @@ function Host({ store }: { store: TailStore }): React.ReactElement {
 }
 
 const REPLY = 'The finished single-block reply'
-async function mountWithHold(turnActive: boolean): Promise<{ store: TailStore; unmount: () => void }> {
-  const store = createStreamingTailStore()
-  store.update(() => REPLY)
-  store.reset(null)
+async function mountWithHold(turnActive: boolean, store = createStreamingTailStore()): Promise<{ store: TailStore; unmount: () => void }> {
+  if (store.readSettled() === null) {
+    store.update(() => REPLY)
+    store.reset(null)
+  }
   written = ''
   const instance = await render(
     h(AppStateProvider as never, { initialState: { ...getDefaultAppState(), foregroundTurnActive: turnActive } }, h(Host as never, { store })),
@@ -68,7 +69,7 @@ async function mountWithHold(turnActive: boolean): Promise<{ store: TailStore; u
   return { store, unmount: () => instance.unmount?.() }
 }
 
-section('§1 THE DEFECT PIN: the turn is over, the row has not landed — the ghost bridges')
+section('§1 THE FIRST DEFECT PIN: the turn is over, the row has not landed — the ghost bridges')
 {
   const { store, unmount } = await mountWithHold(false)
   check('THE DEFECT PIN: with the turn already idle and no row landed, the ghost paints', painted().includes(REPLY), JSON.stringify(painted().slice(-160)))
@@ -94,26 +95,51 @@ section('§2 the backstop: no row ever lands — the hold drops past the budget'
   await settle()
 }
 
-section('§3 the controls: the in-turn law is unchanged')
+section('§3 THE SECOND DEFECT PIN: the turn runs on (a queued next turn) — the ghost still drops at its budget')
 {
   const { store, unmount } = await mountWithHold(true)
-  check('while the turn runs the ghost paints as before', painted().includes(REPLY), JSON.stringify(painted().slice(-160)))
+  check('while the turn runs the ghost paints', painted().includes(REPLY), JSON.stringify(painted().slice(-160)))
+  written = ''
   await settle(SETTLE_LINGER_MS + 500)
-  check('the budget is not armed during the turn: the hold outlives it', store.readSettled() === REPLY)
+  check('THE DEFECT PIN: the budget is the ghost\'s own — it drops with the turn still active (no linger keyed to the turn\'s end)', store.readSettled() === null && framed() && !painted().includes(REPLY), JSON.stringify({ hold: store.readSettled(), frame: painted().slice(-160) }))
+  unmount()
+  await settle()
+  const again = await mountWithHold(true)
   written = ''
   setShown!(true)
   await settle(300)
-  check('the row landing mid-turn releases the ghost and drops the hold', framed() && !painted().includes(REPLY) && store.readSettled() === null, JSON.stringify(painted().slice(-160)))
-  unmount()
+  check('the row landing mid-turn releases the ghost at once and drops the hold', framed() && !painted().includes(REPLY) && again.store.readSettled() === null, JSON.stringify(painted().slice(-160)))
+  again.unmount()
   await settle()
 }
 
-section('§4 structural: the budget is the exported constant, bounded')
+section('§4 the age is the ghost\'s own: a hold made before the mount expires by its clear\'s clock')
+{
+  const store = createStreamingTailStore()
+  store.update(() => REPLY)
+  store.reset(null)
+  const since = store.readSettledSinceMs()
+  check('the store stamps the clear (the ghost\'s birth) on its own clock', typeof since === 'number' && since > 0, String(since))
+  const head = Math.round(SETTLE_LINGER_MS * 0.75)
+  await settle(head)
+  const { unmount } = await mountWithHold(true, store)
+  check('mounted three quarters of the budget after the clear, the ghost still paints', painted().includes(REPLY), JSON.stringify(painted().slice(-160)))
+  written = ''
+  await settle(SETTLE_LINGER_MS - head + 400)
+  check('…and drops when ITS OWN budget runs out — well before a full budget from the mount', store.readSettled() === null && framed() && !painted().includes(REPLY), JSON.stringify({ hold: store.readSettled(), frame: painted().slice(-160) }))
+  unmount()
+  await settle()
+  store.update(() => 'next text')
+  check('the next text drops the stamp with the hold', store.readSettledSinceMs() === null && store.readSettled() === null)
+}
+
+section('§5 structural: the budget is the exported constant, bounded; the leaf keys nothing on the turn')
 {
   check('SETTLE_LINGER_MS is exported and bounded (≤ 3 s)', typeof SETTLE_LINGER_MS === 'number' && SETTLE_LINGER_MS > 0 && SETTLE_LINGER_MS <= 3000, String(SETTLE_LINGER_MS))
   const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
-  check('the ghost lingers past the turn\'s end until the budget runs out', leaf.includes('const ghost = settled !== null && !settledShown && (turnActive || !lingerExpired)'))
-  check('the hold drops on the row landing, or on the expired linger past the turn', leaf.includes('if (settled !== null && (settledShown || (!turnActive && lingerExpired))) store.dropSettled()'))
+  check('the ghost stands until its row lands or its own linger expires — never on the turn', leaf.includes('const ghost = settled !== null && !settledShown && !lingerExpired'))
+  check('the linger is armed from the clear\'s stamp (readSettledSinceMs), the remaining budget only', /readSettledSinceMs\(\)/.test(leaf) && /SETTLE_LINGER_MS - age/.test(leaf))
+  check('the hold drops on the row landing, or on the expired linger', leaf.includes('if (settled !== null && (settledShown || lingerExpired)) store.dropSettled()'))
 }
 
 console.log(failures === 0 ? '\nprove-settle-ghost-linger: ALL LAWS HOLD' : `\nprove-settle-ghost-linger: ${failures} FAILURE(S)`)

@@ -19,6 +19,7 @@ export type Instance = {
   unmount: (error?: Error | number | null) => void
   waitUntilExit: () => Promise<void>
   cleanup: () => void
+  lastFrame: () => string
 }
 
 export type Root = {
@@ -73,6 +74,7 @@ export function renderSync(
     unmount: instance.unmount,
     waitUntilExit: instance.waitUntilExit.bind(instance),
     cleanup: () => instances.delete(inkOptions.stdout),
+    lastFrame: instance.lastFrameText.bind(instance),
   }
 }
 

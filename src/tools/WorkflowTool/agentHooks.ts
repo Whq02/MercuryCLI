@@ -1,5 +1,5 @@
 
-import { availableCores } from '../../utils/availableCores.js'
+import { abortWithCut } from '../../utils/messages/turnCut.js'
 import crypto from 'node:crypto'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -16,6 +16,14 @@ import type {
 } from './executor.js'
 
 import { governorCeilings } from '../../services/capacity/governor.js'
+import {
+  chargeRecoveryWait,
+  makeRecoveryBudget,
+  recoveryBudgetSpentLine,
+  recoveryNoticeFacts,
+  retryWaitWords,
+  type RecoveryBudget,
+} from '../../services/api/recoveryBudget.js'
 import { runAgent } from '../AgentTool/runAgent.js'
 import { readAgentMetadata } from '../../utils/sessionStorage.js'
 import { isBuiltInAgent } from '../AgentTool/loadAgentsDir.js'
@@ -35,6 +43,11 @@ import {
 } from '../../utils/worktree.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthority.js'
+import { observedFamilyWindow } from '../../services/capFailover.js'
+import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
+import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
+import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
 
 import {
   getSchemaBoundStructuredOutputTool,
@@ -45,23 +58,19 @@ export { STRUCTURED_OUTPUT_TOOL_NAME }
 const AGENT_LIFETIME_CAP = 1000
 const DEFAULT_STALL_MS = 180_000
 const MAX_STALL_RETRIES = 5
+const MAX_CAP_PAUSES = 3
+const CAP_KEEPALIVE_MS = 15_000
 const PREVIEW_MAX_CHARS = 400
 const JOURNAL_VERSION = 'v2'
 const THROTTLE_BACKOFF_MS = 45_000
-const RECOVERY_WAIT_CAP_MS = 600_000
-const RECOVERY_TOTAL_CAP_MS = 1_200_000
 const RECOVERY_HEARTBEAT_MS = 30_000
 const MAX_STRUCTURED_OUTPUT_NUDGES = 2
 export const STRUCTURED_OUTPUT_NUDGE_PROMPT = `You stopped without calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool. Your work above is preserved — do NOT redo it. Call the ${STRUCTURED_OUTPUT_TOOL_NAME} tool now, exactly once, with your final answer in the shape its input schema requires. Do not reply with text; the calling script reads ONLY the ${STRUCTURED_OUTPUT_TOOL_NAME} tool call.`
 const DETERMINISTIC_400_RE =
   /prompt is too long|prompt too long|maximum context length|context window exceeded|invalid_request_error/i
 
-export function computeConcurrencyCap(cpuCount: number): number {
-  return Math.min(
-    16,
-    Math.max(2, cpuCount - 2),
-    governorCeilings().delegationLanes,
-  )
+export function computeConcurrencyCap(): number {
+  return governorCeilings().delegationLanes
 }
 
 export class WorkflowAgentCapError extends Error {
@@ -314,7 +323,9 @@ export interface SpawnSubagentArgs {
   maxTurns?: number
   worktreePath?: string
   description?: string
+  seatHolder?: string
   onQueryProgress?: (message?: unknown) => void
+  onWait?: (words: string | null) => void
   onResolvedIdentity?: (identity: { model: string; effort?: string }) => void
   continuationMessages?: unknown[]
 }
@@ -327,6 +338,7 @@ export type SubagentStreamEvent =
   | {
       type: 'assistant'
       isApiErrorMessage?: boolean
+      error?: string
       message: {
         content: Array<{ type: string; name?: string; input?: unknown; [k: string]: unknown }>
         usage?: { output_tokens?: number; [k: string]: unknown }
@@ -376,11 +388,13 @@ async function* adapterSpawnStream(
     transcriptSubdir: args.transcriptSubdir,
     worktreePath: args.worktreePath,
     description: args.description,
+    seatHolder: args.seatHolder,
     override: {
       agentId: args.agentId,
       abortController: (args.toolUseContext as { abortController?: AbortController }).abortController,
     } as RunAgentOpts['override'],
     onQueryProgress: args.onQueryProgress,
+    onWait: args.onWait,
     onResolvedIdentity: args.onResolvedIdentity,
   })
 
@@ -429,7 +443,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   const resolveCustomAgentType =
     deps.resolveCustomAgentType ?? resolveFromSessionRegistry
 
-  const lane = makeGate(computeConcurrencyCap(availableCores()))
   let admitted = 0
   const failures: string[] = []
 
@@ -540,6 +553,8 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
   const STALL_RESUME_PROMPT =
     'Your previous turn was cut off by a no-progress timeout (the provider went quiet). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
+  const CAP_RESUME_PROMPT =
+    'Your previous turn ended on a spent usage window (the provider refused the request until its window resets). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
 
   const stableSchemaByRaw = new WeakMap<object, unknown>()
 
@@ -694,25 +709,23 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           agentType: opts?.agentType != null ? String(opts.agentType) : undefined,
           isolation: opts?.isolation === 'worktree' ? 'worktree' : undefined,
           state: 'start',
-          lastProgressAt: queuedAt,
+          lastProgressAt: Date.now(),
         }),
       )
 
       try {
         return await recordResult(
-          await lane.run(() =>
-            runAgentCall({
-              index,
-              prompt,
-              label,
-              phaseTitle,
-              phaseIndex,
-              stallMs,
-              opts,
-              onAttemptStarted,
-              queuedAt,
-            }),
-          ),
+          await runAgentCall({
+            index,
+            prompt,
+            label,
+            phaseTitle,
+            phaseIndex,
+            stallMs,
+            opts,
+            onAttemptStarted,
+            queuedAt,
+          }),
         )
       } catch (e) {
         if (!anyAttemptStarted && !ctx.abortController?.signal.aborted) {
@@ -773,6 +786,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       : prompt
 
     const carryover = { tokens: 0, toolCalls: 0, durationMs: 0 }
+    const recovery: RecoveryBudget = makeRecoveryBudget()
     const statics: CallFrameStatics = {
       index,
       phaseIndex,
@@ -799,15 +813,17 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       attemptNo: number,
       reason?: string,
       continuation?: unknown[],
+      modelOverride?: string,
     ): Promise<AttemptReport> => {
       const agentId = createAgentId()
       onAttemptStarted(agentId)
+      if (modelOverride !== undefined) statics.model = modelOverride
 
       const childAbort = new AbortController()
       const parentSignal = ctx.abortController?.signal
-      const onParentAbort = (): void => childAbort.abort('workflow-abort')
+      const onParentAbort = (): void => abortWithCut(childAbort, 'workflow-abort')
       parentSignal?.addEventListener('abort', onParentAbort)
-      if (parentSignal?.aborted) childAbort.abort('workflow-abort')
+      if (parentSignal?.aborted) abortWithCut(childAbort, 'workflow-abort')
       onAgentController?.(agentId, childAbort)
 
       const startedAt = Date.now()
@@ -851,8 +867,13 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       let awaitingFirstToken = false
       let prefillGraceUsed = false
       let sawAssistant = false
-      let recoveryWaitedMs = 0
       let recoveryHeartbeat: ReturnType<typeof setInterval> | undefined
+      let budgetCut: ReturnType<typeof setTimeout> | undefined
+      let lastDeclaredEndsAt: number | undefined
+      const clearBudgetCut = (): void => {
+        if (budgetCut !== undefined) clearTimeout(budgetCut)
+        budgetCut = undefined
+      }
       const clearHeartbeat = (): void => {
         if (recoveryHeartbeat !== undefined) {
           clearInterval(recoveryHeartbeat)
@@ -872,24 +893,22 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           armStallTimer()
           return
         }
-        childAbort.abort('stalled')
+        abortWithCut(childAbort, 'stalled')
       }
       const armStallTimer = (): void => {
         clearStallTimer()
         if (stallMs > 0) stallTimer = setTimeout(onStallExpiry, stallMs)
       }
-      const armStallTimerForRecovery = (declaredMs: number): void => {
+      const armStallTimerForRecovery = (honoredMs: number): void => {
         clearStallTimer()
         if (stallMs > 0) {
-          stallTimer = setTimeout(
-            onStallExpiry,
-            Math.min(declaredMs, RECOVERY_WAIT_CAP_MS) + stallMs,
-          )
+          stallTimer = setTimeout(onStallExpiry, honoredMs + stallMs)
         }
       }
 
       let lastBumpAt = 0
       const bumpThrottleMs = Math.min(stallMs * 0.1, 1000)
+      let parked = false
       const onQueryProgress = (evt?: unknown): void => {
         const m = evt as
           | {
@@ -900,39 +919,72 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               retryAttempt?: number
             }
           | undefined
-        if (m?.type === 'system' && m.subtype === 'api_error') {
-          const isRealDelay = typeof m.retryInMs === 'number' && m.retryInMs > 0
-          const declared = isRealDelay
-            ? (m.retryInMs as number)
-            : typeof m.recoveryTimeoutMs === 'number' && m.recoveryTimeoutMs > 0
-              ? m.recoveryTimeoutMs
-              : 0
-          if (declared > 0) {
-            recoveryWaitedMs += Math.min(declared, RECOVERY_WAIT_CAP_MS)
-            if (recoveryWaitedMs > RECOVERY_TOTAL_CAP_MS) {
-              clearHeartbeat()
-              childAbort.abort('throttled')
-              return
-            }
-            armStallTimerForRecovery(declared)
-            const window = isRealDelay
-              ? { retryInMs: declared }
-              : { recoveryTimeoutMs: declared }
-            emitFrame('progress', {
-              waiting: 'provider-backoff',
-              ...window,
-              retryAttempt: typeof m.retryAttempt === 'number' ? m.retryAttempt : undefined,
-            })
+        const notice = recoveryNoticeFacts(m)
+        if (notice !== null) {
+          const isRealDelay = typeof m?.retryInMs === 'number' && m.retryInMs > 0
+          const { honoredMs, spent } = chargeRecoveryWait(recovery, notice.declaredMs, notice.status)
+          lastDeclaredEndsAt = Date.now() + notice.declaredMs
+          clearBudgetCut()
+          if (spent && honoredMs <= 0) {
             clearHeartbeat()
-            recoveryHeartbeat = setInterval(() => {
-              emitFrame('progress', { waiting: 'provider-backoff', ...window })
-            }, RECOVERY_HEARTBEAT_MS)
+            abortWithCut(childAbort, 'throttled')
             return
           }
+          if (spent) {
+            budgetCut = setTimeout(() => {
+              clearHeartbeat()
+              abortWithCut(childAbort, 'throttled')
+            }, honoredMs)
+            budgetCut.unref?.()
+          }
+          armStallTimerForRecovery(honoredMs)
+          const window = isRealDelay
+            ? { retryInMs: honoredMs }
+            : { recoveryTimeoutMs: honoredMs }
+          const waitWords = retryWaitWords({
+            attempt: notice.attempt ?? recovery.waits,
+            of: notice.of,
+            declaredMs: notice.declaredMs,
+            honoredMs,
+            status: notice.status,
+            budget: recovery,
+          })
+          emitFrame('progress', {
+            waiting: 'provider-backoff',
+            ...window,
+            retryAttempt: notice.attempt,
+            waitWords,
+          })
+          clearHeartbeat()
+          recoveryHeartbeat = setInterval(() => {
+            emitFrame('progress', { waiting: 'provider-backoff', ...window, retryAttempt: notice.attempt, waitWords })
+          }, RECOVERY_HEARTBEAT_MS)
+          return
+        }
+        if (m !== undefined && m.type !== 'progress') clearBudgetCut()
+        if (m?.type === 'request_wait') {
+          const wait = (m as { wait?: unknown }).wait
+          if (wait !== null && typeof wait === 'object' && (wait as { kind?: unknown }).kind === 'first-byte') {
+            const w = wait as { budgetMs?: unknown; sinceMs?: unknown }
+            const waitWords =
+              typeof w.budgetMs === 'number' && w.budgetMs > 0
+                ? agentWaitWords({ phase: 'first-byte', sinceMs: typeof w.sinceMs === 'number' ? w.sinceMs : Date.now(), budgetMs: w.budgetMs }, null)
+                : null
+            emitFrame('progress', { waiting: 'prefill', ...(waitWords !== null ? { waitWords } : {}) })
+          }
+          return
         }
         if (m?.type === 'stream_request_start') awaitingFirstToken = true
         else if (m !== undefined) awaitingFirstToken = false
         const now = Date.now()
+        if (parked) {
+          if (m?.type === 'progress') return
+          parked = false
+          lastBumpAt = now
+          clearHeartbeat()
+          armStallTimer()
+          return
+        }
         if (now - lastBumpAt < bumpThrottleMs) return
         lastBumpAt = now
         clearHeartbeat()
@@ -995,6 +1047,40 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         }
       }
 
+      const capPauseSettle = (
+        elapsed: number,
+        text: string,
+        words: string,
+        resetsAtMs: number | undefined,
+        outputTokens?: number,
+      ): AttemptReport => {
+        const model = modelOverride ?? statics.model
+        const family = providerFamilyOfSetting(model ?? null)
+        const pausedFrame = (): void => emitFrame('progress', { waiting: 'usage-window', waitWords: words, ...settledTotals(elapsed) })
+        pausedFrame()
+        return {
+          structured,
+          text,
+          tokens,
+          toolCalls,
+          stallCut: false,
+          skipped: false,
+          durationMs: elapsed,
+          stopReason: null,
+          outputTokens,
+          schemaCallCount,
+          lastSchemaCallInput,
+          capPause: {
+            words,
+            family,
+            model,
+            resetsAtMs,
+            transcript: balancedTranscriptPrefix(conversation.filter(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage !== true)),
+            keepAlive: pausedFrame,
+          },
+        }
+      }
+
       emitFrame(
         'start',
         carry.tokens || carry.toolCalls
@@ -1012,12 +1098,14 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           transcriptSubdir: runId ? `workflows/${runId}` : undefined,
           workflowRunId: runId,
           agentId,
-          model: opts?.model != null ? String(opts.model) : undefined,
+          model: modelOverride ?? (opts?.model != null ? String(opts.model) : undefined),
           effort: opts?.effort != null ? String(opts.effort) : undefined,
           worktreePath,
           description: attemptPromptPreview,
+          seatHolder: attemptLabel,
           continuationMessages: continuation,
           onQueryProgress,
+          onWait: words => emitFrame('progress', words === null ? {} : { waiting: 'seat', waitWords: words }),
           onResolvedIdentity: identity => {
             const changed = identity.model !== statics.model || identity.effort !== statics.effort
             statics.model = identity.model
@@ -1045,7 +1133,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             const errText = extractTextContent(a.message.content, '\n')
             if (DETERMINISTIC_400_RE.test(errText)) {
               terminal400 = errText || 'invalid request (deterministic 400)'
-              childAbort.abort('terminal-400')
+              abortWithCut(childAbort, 'terminal-400')
             }
           } else if (a.message.usage) {
             tokens = getTokenCountFromUsage(
@@ -1066,6 +1154,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           toolCalls += toolUsesHere
           if (toolUsesHere > 0) {
             clearStallTimer()
+            parked = true
           } else {
             armStallTimer()
           }
@@ -1085,10 +1174,10 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             : apiErrorSettle(elapsed, terminal400)
         }
         if (cutReason === 'throttled') {
-          const message = `provider throttled — declared recovery waits exceeded ${Math.round(RECOVERY_TOTAL_CAP_MS / 60000)}m for this attempt`
-          return structured !== undefined
-            ? deliveredSettle(elapsed)
-            : apiErrorSettle(elapsed, message)
+          if (structured !== undefined) return deliveredSettle(elapsed)
+          const message = recoveryBudgetSpentLine(recovery)
+          if (recovery.lastStatus === 429) return capPauseSettle(elapsed, '', `${message}; waiting for a model switch${lastDeclaredEndsAt !== undefined ? ` or the declared wait's end at ${clockOf(lastDeclaredEndsAt)}` : ''} — /model switches this agent`, lastDeclaredEndsAt)
+          return apiErrorSettle(elapsed, message)
         }
         if (cutReason === 'stalled' || cutReason === 'user-retry') {
           if (cutReason === 'stalled' && structured !== undefined) {
@@ -1143,6 +1232,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       } finally {
         clearStallTimer()
         clearHeartbeat()
+        clearBudgetCut()
         parentSignal?.removeEventListener('abort', onParentAbort)
         onAgentController?.(agentId, null)
       }
@@ -1152,6 +1242,27 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         ? extractTextContent(lastAssistant.message.content, '\n')
         : ''
       const finalOutputTokens = lastAssistant?.message.usage?.output_tokens
+      if (lastAssistant?.isApiErrorMessage && lastAssistant.error === 'rate_limit' && structured === undefined) {
+        const model = modelOverride ?? statics.model
+        const family = providerFamilyOfSetting(model ?? null)
+        const window = ((): { resetsAtMs?: number; windowName?: string } => {
+          try {
+            return observedFamilyWindow(family, undefined, { model: model ?? null })
+          } catch {
+            return {}
+          }
+        })()
+        const who = ((): string => {
+          if (model === undefined) return family
+          try {
+            return getMarketingNameForModel(model) ?? model
+          } catch {
+            return model
+          }
+        })()
+        const words = `waiting for ${who}'s ${window.windowName ?? 'usage window'} — ${window.resetsAtMs !== undefined ? `resets at ${clockOf(window.resetsAtMs)}` : 'no reset stated'}; /model switches this agent`
+        return capPauseSettle(elapsed, finalText, words, window.resetsAtMs, finalOutputTokens)
+      }
       if (lastAssistant?.isApiErrorMessage) {
         if (structured !== undefined) return deliveredSettle(elapsed)
         const apiError = finalText || 'API error'
@@ -1196,19 +1307,21 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       attemptNo: number,
       reason?: string,
       continuation?: unknown[],
+      modelOverride?: string,
     ): Promise<AttemptReport> =>
       worktreePath
         ? Promise.resolve(
             runWithCwdOverride(worktreePath, () =>
-              runAttempt(attemptLabel, attemptNo, reason, continuation),
+              runAttempt(attemptLabel, attemptNo, reason, continuation, modelOverride),
             ),
           )
-        : runAttempt(attemptLabel, attemptNo, reason, continuation)
+        : runAttempt(attemptLabel, attemptNo, reason, continuation, modelOverride)
 
     try {
       let report = await attempt(label, 1)
 
       const looksThrottled = (r: AttemptReport): boolean =>
+        r.capPause === undefined &&
         (r.apiError === undefined ||
           (!DETERMINISTIC_400_RE.test(r.apiError) &&
             !r.apiError.startsWith('provider throttled'))) &&
@@ -1229,6 +1342,36 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         if (looksThrottled(report)) {
           log(`[${label}] throttle-retry also degraded — giving up on throttle backoff`)
         }
+      }
+
+      let attemptsSoFar = tookThrottleRescue ? 2 : 1
+      let resumedModel: string | undefined
+      for (let p = 0; report.capPause !== undefined; p++) {
+        const pause = report.capPause
+        if (p >= MAX_CAP_PAUSES) {
+          report = { ...report, capPause: undefined, apiError: pause.words }
+          break
+        }
+        log(`[${label}] paused — ${pause.words}`)
+        const lift = await waitForCapLift(pause, ctx.abortController?.signal)
+        if (lift.kind === 'aborted') throw new Error('Workflow aborted')
+        if (lift.kind === 'switched') resumedModel = lift.model
+        const why =
+          lift.kind === 'switched'
+            ? `the model switched${lift.model !== undefined ? ` to ${lift.model}` : ''} — resumed`
+            : 'the usage window reset — resumed'
+        log(`[${label}] ${why}`)
+        foldIn(report)
+        attemptsSoFar++
+        report = pause.transcript
+          ? await attempt(
+              `${label} (resumed)`,
+              attemptsSoFar,
+              why,
+              [...pause.transcript, createUserMessage({ content: CAP_RESUME_PROMPT })],
+              resumedModel,
+            )
+          : await attempt(`${label} (resumed)`, attemptsSoFar, why, undefined, resumedModel)
       }
 
       const cutTrail: string[] = []
@@ -1434,7 +1577,57 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   return hooks
 }
 
+interface CapPause {
+  words: string
+  family: string
+  model: string | undefined
+  resetsAtMs: number | undefined
+  transcript: unknown[] | null
+  keepAlive: () => void
+}
+
+type CapLift = { kind: 'switched'; model: string | undefined } | { kind: 'reset' } | { kind: 'aborted' }
+
+function clockOf(atMs: number): string {
+  return new Date(atMs).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+}
+
+function waitForCapLift(pause: CapPause, signal: AbortSignal | undefined): Promise<CapLift> {
+  return new Promise<CapLift>(resolve => {
+    let done = false
+    let resetTimer: ReturnType<typeof setTimeout> | undefined
+    let keep: ReturnType<typeof setInterval> | undefined
+    let unsubscribe: (() => void) | undefined
+    const onAbort = (): void => settle({ kind: 'aborted' })
+    const settle = (lift: CapLift): void => {
+      if (done) return
+      done = true
+      if (resetTimer !== undefined) clearTimeout(resetTimer)
+      if (keep !== undefined) clearInterval(keep)
+      unsubscribe?.()
+      signal?.removeEventListener('abort', onAbort)
+      resolve(lift)
+    }
+    if (signal?.aborted) {
+      settle({ kind: 'aborted' })
+      return
+    }
+    signal?.addEventListener('abort', onAbort)
+    unsubscribe = subscribeMainLoopModelOverride(model => {
+      const next = model === undefined || model === null ? undefined : String(model)
+      if (next !== pause.model) settle({ kind: 'switched', model: next })
+    })
+    if (pause.resetsAtMs !== undefined) {
+      resetTimer = setTimeout(() => settle({ kind: 'reset' }), Math.max(1_000, pause.resetsAtMs - Date.now() + 1_000))
+      resetTimer.unref?.()
+    }
+    keep = setInterval(() => pause.keepAlive(), CAP_KEEPALIVE_MS)
+    keep.unref?.()
+  })
+}
+
 interface AttemptReport {
+  capPause?: CapPause
   structured: unknown
   text: string
   apiError?: string
@@ -1480,39 +1673,6 @@ function toolInputGlance(input: unknown): string | undefined {
     return clip(String(input), 80) || undefined
   } catch {
     return undefined
-  }
-}
-
-interface Gate {
-  run<T>(fn: () => Promise<T>): Promise<T>
-}
-function makeGate(max: number): Gate {
-  let active = 0
-  const waiting: Array<() => void> = []
-  const acquire = (): Promise<void> => {
-    if (active < max) {
-      active++
-      return Promise.resolve()
-    }
-    return new Promise<void>(resolve => waiting.push(resolve))
-  }
-  const release = (): void => {
-    active--
-    const next = waiting.shift()
-    if (next) {
-      active++
-      next()
-    }
-  }
-  return {
-    async run<T>(fn: () => Promise<T>): Promise<T> {
-      await acquire()
-      try {
-        return await fn()
-      } finally {
-        release()
-      }
-    },
   }
 }
 

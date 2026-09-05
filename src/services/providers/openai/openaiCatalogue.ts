@@ -136,6 +136,24 @@ export function refreshOpenaiCatalogue(
   return work
 }
 
+export function primeOpenaiCatalogue(
+  snapshot: { sourceKind: OpenaiAccountSourceKind; models: OpenaiLiveModel[]; fetchedAtMs: number },
+  env: NodeJS.ProcessEnv = process.env,
+): boolean {
+  if (!Array.isArray(snapshot.models) || snapshot.models.length === 0 || !(snapshot.fetchedAtMs > 0)) return false
+  const identity = catalogueIdentity(snapshot.sourceKind, env)
+  const cached = catalogueCache.get(identity)
+  if (cached && cached.fetchedAtMs >= snapshot.fetchedAtMs) return false
+  storeSnapshot(identity, {
+    sourceKind: snapshot.sourceKind,
+    models: snapshot.models,
+    fetchedAtMs: snapshot.fetchedAtMs,
+    lastAttemptAtMs: snapshot.fetchedAtMs,
+  })
+  bumpCatalogueEpoch()
+  return true
+}
+
 
 export const APEX_GPT_ROLES = [
   'primary',
@@ -205,7 +223,7 @@ export function evaluateGptCandidate(
     ok: true,
     candidate: {
       identity,
-      live,
+      live: rowAsWireServes(live, sourceKind),
       displayName: live.displayName ?? pin?.displayName ?? identity.canonicalId,
       ...(pin ? { pin } : {}),
     },
@@ -362,7 +380,18 @@ function liveGptModel(modelId: string): OpenaiLiveModel | undefined {
   const account = discovery?.provider === 'openai' ? discovery.account : undefined
   if (!account) return undefined
   const snapshot = getCachedOpenaiCatalogue(account.kind)
-  return snapshot?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  const row = snapshot?.models.find(m => m.id.toLowerCase() === identity.canonicalId)
+  return row === undefined ? undefined : rowAsWireServes(row, account.kind)
+}
+
+export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccountSourceKind): OpenaiLiveModel {
+  const { wireEffortVocabularyOf } =
+    require('./qualificationStore.js') as typeof import('./qualificationStore.js')
+  const memory = wireEffortVocabularyOf(live.id, sourceKind)
+  if (memory === undefined) return live
+  const wire = new Set(memory.levels)
+  const served = live.supportedReasoningEfforts.filter(level => wire.has(level))
+  return served.length === live.supportedReasoningEfforts.length ? live : { ...live, supportedReasoningEfforts: served }
 }
 
 export function liveGptEffortCatalogue(modelId: string):

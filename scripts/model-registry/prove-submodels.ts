@@ -26,6 +26,7 @@ const {
 } = await import('../../src/utils/model/subModelSlots.ts')
 const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { getGlobalConfig } = await import('../../src/utils/config.ts')
+const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -342,21 +343,24 @@ section('6 · the frontier row — an ordinary tier row of the SHARED catalog (r
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const real = getModelOptions()
   const fables = real.filter(o => typeof o.value === 'string' && /fable/i.test(o.value))
+  const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
+  const { getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
+  const newestFable = ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty
+  const previousFables = previousGenerationKeys('fable').map(k => ALL_MODEL_CONFIGS[k].firstParty)
   const aliasRows = fables.filter(o => o.value === 'fable')
-  const fable51Rows = fables.filter(o => o.value === 'claude-fable-5-1')
+  const literalRows = fables.filter(o => typeof o.value === 'string' && previousFables.includes(o.value as never))
   check(
-    'the shared catalog carries exactly ONE frontier alias row and ONE Fable 5.1 literal row',
+    'the shared catalog carries exactly ONE frontier alias row and one literal row per previous generation',
     aliasRows.length === 1 &&
-      fable51Rows.length === 1 &&
-      fables.length === 2 &&
-      fable51Rows[0]?.label === 'Fable 5.1' &&
-      fable51Rows[0]?.description === '',
+      literalRows.length === previousFables.length &&
+      fables.length === 1 + previousFables.length &&
+      literalRows.every(r => r.label === getMarketingNameForModel(String(r.value)) && r.description === ''),
     fables.map(f => `${String(f.value)}·${f.label}·${f.description}`).join(','),
   )
   const fableRow = aliasRows[0]
   check(
     'the row is the frontier alias resolving to the real id, with the marketing name',
-    typeof fableRow?.value === 'string' && parseUserSpecifiedModel(fableRow.value) === 'claude-fable-5' && fableRow?.label === 'Fable 5',
+    typeof fableRow?.value === 'string' && parseUserSpecifiedModel(fableRow.value) === newestFable && fableRow?.label === getMarketingNameForModel(newestFable),
     `${String(fableRow?.value)} · ${String(fableRow?.label)}`,
   )
   check('the row sits in the Anthropic section (group-less rank)', fableRow?.group === undefined)
@@ -502,6 +506,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
       },
     }),
   )
+  noteCredentialChange()
   check('signed in: the owner resolves the subscription', resolveOpenaiAccount()?.kind === 'chatgpt-subscription')
   {
     const presence = presenceOf('openai')
@@ -540,6 +545,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
   }
 
   rmSync(authFile)
+  noteCredentialChange()
   check('signed out again: the owner resolves no account', resolveOpenaiAccount() === undefined)
   check(
     'signed out again: the presence follows WITHOUT any re-prime',

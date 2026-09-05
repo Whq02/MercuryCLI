@@ -2,6 +2,8 @@
 import type { ContentBlock, ApiMessage, ApiStreamEvent, ToolUseBlock, ApiUsage, ContentBlockParam, ToolResultBlockParam } from './wire.js'
 import type { APIError } from '../services/api/sdkErrors.js'
 import type { OverflowSignal } from '../services/api/overflowSignal.js'
+import type { StreamEndV1 } from '../services/providers/streamIdleBudget.js'
+import type { EffortAdjustedV1 } from '../utils/effort.js'
 import type { UUID } from 'crypto'
 import type {
   BranchAction,
@@ -96,10 +98,13 @@ export type AssistantMessage = {
       inputTokensTotal: number
       cachedInputTokens: number
       outputTokens: number
+      cacheWriteInputTokens?: number
       reasoningOutputTokens?: number
       anomaly?: 'cached-exceeds-total'
     }
   }
+  streamEnd?: StreamEndV1
+  effortAdjusted?: EffortAdjustedV1
 }
 
 
@@ -114,6 +119,8 @@ export type UserMessage = {
   isMeta?: true
   isVisibleInTranscriptOnly?: true
   isVirtual?: true
+  queued?: true
+  batchUuids?: string[]
   isCompactSummary?: true
   summarizeMetadata?: {
     messagesSummarized: number
@@ -190,6 +197,43 @@ export type SystemRosterTransitionMessage = {
   isMeta?: boolean
   uuid: UUID
   timestamp: string
+}
+
+export type SystemThinkingNoteMessage = {
+  type: 'system'
+  subtype: 'thinking_note'
+  content: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
+export type DeadThinkingMark = {
+  messageId: string
+  blockIndex: number
+}
+
+export type SystemThinkingDeadMessage = {
+  type: 'system'
+  subtype: 'thinking_dead'
+  dead: DeadThinkingMark[]
+  content: string
+  level: SystemMessageLevel
+  isMeta?: boolean
+  uuid: UUID
+  timestamp: string
+}
+
+export type BoundPrefixToolMark = {
+  name: string
+  deferred: boolean
+}
+
+export type BoundPrefixSection = {
+  name: string
+  key: string | null
+  value: string | null
 }
 
 export type SystemPermissionRetryMessage = {
@@ -425,6 +469,8 @@ export type SystemMessage =
   | SystemInformationalMessage
   | SystemSeatReceiptMessage
   | SystemRosterTransitionMessage
+  | SystemThinkingNoteMessage
+  | SystemThinkingDeadMessage
   | SystemPermissionRetryMessage
   | SystemBridgeStatusMessage
   | SystemScheduledTaskFireMessage
