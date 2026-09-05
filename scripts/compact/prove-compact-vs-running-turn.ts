@@ -43,8 +43,8 @@ console.log('\nV2 the delivery law survives — the words still deliver, no refu
 
 console.log('\nV3 the stall belt names the interactive brake')
 check(
-  'the long-turn tip names esc beside the fresh-conversation advice',
-  spinner.includes('esc interrupts it; a fresh conversation keeps context sharp'),
+  'the long-turn tip names esc as the brake and says the agents run on',
+  spinner.includes('esc interrupts it, not its agents'),
 )
 
 console.log(failures === 0 ? '\n ✅ COMPACT VS RUNNING TURN GREEN' : `\n ❌ ${failures} FAILED`)
