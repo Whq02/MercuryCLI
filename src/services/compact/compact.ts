@@ -623,6 +623,7 @@ async function summarizeViaCacheSharingFork(
         },
       },
     })
+    if (context.abortController.signal.aborted) return null
     const last = [...result.messages].reverse().find(message => message.type === 'assistant') as
       | AssistantMessage
       | undefined
@@ -747,6 +748,7 @@ async function streamingFallbackAttempts(
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
       throw err
     }
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
     if (captured !== undefined) return captured
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
     if (attempt < attempts) {
