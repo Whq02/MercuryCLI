@@ -34,7 +34,7 @@ import { ImageResizeError } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
 
-import { API_ERROR_MESSAGE_PREFIX } from './errorPrefix.js'
+import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
