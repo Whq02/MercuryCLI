@@ -69,6 +69,20 @@ export function createRosterTransitionMessage(
   }
 }
 
+export function createThinkingNoteMessage(
+  content: string,
+): import('../../types/message.js').SystemThinkingNoteMessage {
+  return {
+    type: 'system',
+    subtype: 'thinking_note',
+    content,
+    level: 'info',
+    isMeta: false,
+    timestamp: new Date().toISOString(),
+    uuid: randomUUID(),
+  }
+}
+
 export function createThinkingDeadMessage(
   dead: import('../../types/message.js').DeadThinkingMark[],
   content: string,

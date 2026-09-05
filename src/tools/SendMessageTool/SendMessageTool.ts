@@ -5,7 +5,7 @@ import { buildTool, type ToolDef, type ToolUseContext, type ValidationResult } f
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { asAgentId, toAgentId } from '../../types/ids.js'
-import { agentStatusWord } from '../../services/resources/adapters/agent.js'
+import { agentStatusWord } from '../../services/resources/adapters/agentStatusWord.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { readAgentTranscript, transcriptEndWords } from '../WorkflowTool/agentTranscriptReader.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'

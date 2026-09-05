@@ -130,7 +130,7 @@ import {
   getModelMaxOutputTokens,
   getSonnet1mExpTreatmentEnabled,
 } from '../../../utils/context.js'
-import { resolveAppliedEffort } from '../../../utils/effort.js'
+import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../utils/effort.js'
 import { apiTimeoutMsOverride, validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
@@ -888,7 +888,9 @@ async function* queryModel(
     const inducedEdit = resolveInducedPrefixEdit()
     if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
     const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
-    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, { querySource: options.querySource })
+    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, {
+      replaceRecord: isTurnOwningQuerySource(options.querySource),
+    })
 
     const effortRow = perMessageEffortRow(options.model, options.effortMessage)
     const wireMessages = effortRow === null ? wireParts.messages : insertBeforeLastUserRow(wireParts.messages as ReadonlyArray<{ role?: string }>, effortRow)

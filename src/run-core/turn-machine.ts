@@ -24,6 +24,7 @@ import {
   prefixMarkOf,
   recordPrefixRewriteLedger,
   recordThinkingDropLedger,
+  takeRewriteNoticeOnce,
 } from '../services/providers/anthropic/thinkingBinding.js'
 import { takePrefixVerdict } from '../services/providers/anthropic/prefixLedger.js'
 import { boundPrefixRecordToEmit } from '../services/providers/anthropic/boundPrefixRecord.js'
@@ -97,6 +98,7 @@ import {
   createUserInterruptionMessage,
   normalizeMessagesForAPI,
   createSystemMessage,
+  createThinkingNoteMessage,
   createAssistantAPIErrorMessage,
   createToolUseSummaryMessage,
 } from '../utils/messages.js'
@@ -633,10 +635,14 @@ async function* streamModel(
               }
               const dropNotice = describeThinkingDrops(drops, outcome)
               if (dropNotice !== null) {
-                yield emit({ kind: 'notice', message: createSystemMessage(dropNotice, 'warning') })
+                const lawful = outcome.kind === 'lawful'
+                logForDebugging(`preserved thinking: ${lawful ? 'note' : 'warning'}: ${dropNotice}`)
+                yield emit({ kind: 'notice', message: lawful ? createThinkingNoteMessage(dropNotice) : createSystemMessage(dropNotice, 'warning') })
               } else if (rewrite !== null && outcome.kind === 'none') {
                 recordPrefixRewriteLedger(rewrite.part, rewrite.path, iter.currentModel)
-                yield emit({ kind: 'notice', message: createSystemMessage(describePrefixRewrite(rewrite.part, rewrite.path), 'warning') })
+                if (takeRewriteNoticeOnce(String(ownerFromToolUseContext(toolUseContext)))) {
+                  yield emit({ kind: 'notice', message: createSystemMessage(describePrefixRewrite(rewrite.part, rewrite.path), 'warning') })
+                }
               }
               const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
               if (dead.length > 0) {
