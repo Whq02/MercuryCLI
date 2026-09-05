@@ -140,6 +140,7 @@ src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounde
 src/services/providers/huggingface/huggingfaceCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/local/localDiscovery.ts :: cached :: ttl-bounded
 src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounded
+src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bounded
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
