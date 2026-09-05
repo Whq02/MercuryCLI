@@ -577,7 +577,8 @@ console.log('§16 engine-chain truth')
   const underToolAllow = await decideToolPermission(BrowserTool as never, clickB, engineCtx({ allow: ['Browser'] }) as never)
   check('a WHOLE-TOOL allow rule cannot cover the crossing act (safetyCheck floor)', underToolAllow.decision.behavior === 'ask', JSON.stringify(underToolAllow.decision.behavior))
   const underSovereign = await decideToolPermission(BrowserTool as never, clickB, engineCtx({ mode: 'sovereign' }) as never)
-  check('a bypass mode cannot cover the crossing act', underSovereign.decision.behavior === 'ask', JSON.stringify(underSovereign.decision.behavior))
+  const sovReason = (underSovereign.decision as { decisionReason?: { type?: string } }).decisionReason
+  check('a bypass mode covers the crossing act and names the road that would have asked', underSovereign.decision.behavior === 'allow' && sovReason?.type === 'bypassedAsk', JSON.stringify({ behavior: underSovereign.decision.behavior, reason: sovReason }))
   const originRule = `Browser(origin:${B})`
   const underOriginAllow = await decideToolPermission(BrowserTool as never, clickB, engineCtx({ allow: [originRule] }) as never)
   check('an origin-scoped allow rule covers acts on THAT origin', underOriginAllow.decision.behavior === 'allow', JSON.stringify(underOriginAllow.decision.behavior))
