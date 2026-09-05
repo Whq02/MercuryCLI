@@ -36,6 +36,12 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A repeat mercury install of the version already in place says so instead of narrating staging and activating again
 - A piped doctor --json prints exactly one record and exits with the verdict's code even when the reader drains slowly
 - Selected text follows the view when you scroll with the wheel, the page keys or a drag past the edge, and the highlight never paints outside the chat pane
+- Apollo mode ends only through the review's approval or shift+tab: a consent answer can no longer switch it off, writes outside the spec directory are refused, and the review says what ended it
+- Effort has a sixth level, ultra, above max, wherever the connected account serves it; a level the wire refuses is remembered, the nearest served level runs, and the transcript says so
+- Idle agents no longer hold a seat, the machine's seat reading counts available memory (near ten on an 8 GB Mac), and /seats, the Boot Menu or /config set the ceiling
+- A resumed or restarted session keeps its reasoning: the preserved-thinking notice no longer appears after a resume, even when a tool, a project file or the working tree changed meanwhile
+- mercury update reads the public release channel anonymously, so no GitHub CLI or sign-in is needed; a signed-in gh only speeds it up, and every answer says which road it took
+- A dialog command typed while another still settles queues and runs after it; a finished turn with one refused tool paints no failure card; an older daemon's refusal reads as one doctor sentence
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published

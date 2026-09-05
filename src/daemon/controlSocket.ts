@@ -20,6 +20,7 @@ import {
   MERCURY_DAEMON_PROTO,
   MIN_PROTO,
   encodeFrame,
+  verbBornAt,
   type DaemonReply,
   type DaemonRequest,
 } from './protocol.js'
@@ -339,9 +340,37 @@ export async function daemonControlRpc(
     logForDebugging(
       `[daemon] ${req.op}: daemon speaks proto ${reply.serverProto} (this build ${MERCURY_DAEMON_PROTO}) — re-sent in its dialect`,
     )
-    return normalizeSessionOpReply(await rpcOnce(sessionOpWireFrame({ ...outbound, proto: reply.serverProto }), timeoutMs))
+    return speakProtoGap(req, normalizeSessionOpReply(await rpcOnce(sessionOpWireFrame({ ...outbound, proto: reply.serverProto }), timeoutMs)))
   }
-  return normalizeSessionOpReply(reply)
+  return speakProtoGap(req, normalizeSessionOpReply(reply))
+}
+
+
+export function restartDaemonWords(binary = 'mercury'): string {
+  return `restart the daemon: \`${binary} daemon restart\``
+}
+
+function isUnknownVerbShape(error: string, action?: string): boolean {
+  if (/^unknown op\b/i.test(error)) return true
+  return action !== undefined && /requires \{ action:/.test(error) && !error.includes(`|${action}|`) && !error.includes(`|${action},`) && !error.includes(`action: ${action}`)
+}
+
+export function olderDaemonRefusalLine(verb: string, needs: number, daemon: { proto: number; version: string | null } | null): string {
+  const who =
+    daemon === null
+      ? 'the daemon is an older build'
+      : `the daemon is an older build (protocol ${daemon.proto}${daemon.version !== null ? `, v${daemon.version}` : ''}; this Mercury speaks ${MERCURY_DAEMON_PROTO})`
+  return `${who} — \`${verb}\` needs protocol ${needs} — ${restartDaemonWords()}`
+}
+
+function speakProtoGap(req: DaemonRequest, reply: DaemonReply): DaemonReply {
+  if (reply.ok || reply.code !== 'EUNKNOWN') return reply
+  const action = typeof (req as { action?: unknown }).action === 'string' ? (req as { action: string }).action : undefined
+  if (!isUnknownVerbShape(reply.error, action)) return reply
+  const needs = verbBornAt(req.op, action)
+  if (negotiated !== null && negotiated.proto >= needs) return reply
+  const verb = action !== undefined ? `${req.op} ${action}` : req.op
+  return { ...reply, error: olderDaemonRefusalLine(verb, needs, negotiated), refusal: 'daemon-older' }
 }
 
 function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number): Promise<DaemonReply> {

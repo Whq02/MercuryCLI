@@ -76,7 +76,7 @@ function clearEffortEnv(): void {
   await armWithCatalogue()
   clearEffortEnv()
   const MODELS = ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.6-nox', 'gpt-5.6-void', 'gpt-5.6-bare', 'gpt-5.6-deep']
-  const REQUESTS: Array<string | undefined> = [undefined, 'low', 'medium', 'high', 'xhigh', 'max']
+  const REQUESTS: Array<string | undefined> = [undefined, 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
   let mismatches = 0
   for (const model of MODELS) {
     for (const requested of REQUESTS) {
@@ -151,6 +151,7 @@ function clearEffortEnv(): void {
   await armWithCatalogue()
   clearEffortEnv()
   check('live (Sol): effort supported, selectable = the full stated ladder', capabilities.modelSupportsEffort('gpt-5.6-sol') && effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max')
+  check('live (Nox): the served ultra is selectable above max and the ceiling is ultra', effort.selectableEffortLevels('gpt-5.6-nox').join(',') === 'low,medium,high,xhigh,max,ultra' && capabilities.getMaxSupportedEffortLevel('gpt-5.6-nox') === 'ultra' && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra'))
   check('known-empty (Void): effort NOT selectable — no control, no capability claim', !capabilities.modelSupportsEffort('gpt-5.6-void') && effort.selectableEffortLevels('gpt-5.6-void').length === 0)
   const voidTruth = effort.resolveEffortTruth('gpt-5.6-void', 'max')
   const voidProfile = resolveGptReasoningProfile('max', liveRow('gpt-5.6-void'))
@@ -162,8 +163,8 @@ function clearEffortEnv(): void {
   __resetOpenaiCatalogueForTest()
   const unavail = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
   check("unavailable (unfetched): applied claim is honestly 'default' (was: banked 'max' while the degraded wire omitted)", unavail.wire === undefined && unavail.label === 'default' && unavail.catalogue === 'gpt-unavailable')
-  check('unavailable: the full-ladder offering survives for controls', effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max')
-  check('unavailable: any gpt id offers the same full ladder (dispatch re-validates live)', effort.selectableEffortLevels('gpt-5.5').join(',') === 'low,medium,high,xhigh,max')
+  check('unavailable: the full-ladder offering survives for controls', effort.selectableEffortLevels('gpt-5.6-sol').join(',') === 'low,medium,high,xhigh,max,ultra')
+  check('unavailable: any gpt id offers the same full ladder (dispatch re-validates live)', effort.selectableEffortLevels('gpt-5.5').join(',') === 'low,medium,high,xhigh,max,ultra')
 }
 
 {
@@ -236,13 +237,13 @@ function clearEffortEnv(): void {
 {
   console.log('\n— 8 · wire consumption pins —')
   const openaiSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiCallModel.ts'), 'utf8')
-  check('openaiCallModel requests through resolveWireRequestedEffort (env supremacy + auto/unset)', openaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue)'))
+  check('openaiCallModel requests through resolveWireRequestedEffort (env supremacy + auto/unset)', openaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })'))
   check('the adjustment note stays a VISIBLE settlement note', openaiSrc.includes("profile.source === 'unsupported-fallback' && profile.adjustedFrom"))
   const zaiSrc = readFileSync(join(ROOT, 'src/services/providers/zai/zaiCallModel.ts'), 'utf8')
-  check('zaiCallModel requests through resolveWireRequestedEffort', zaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue)'))
+  check('zaiCallModel requests through resolveWireRequestedEffort', zaiSrc.includes('resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })'))
   check('zai vocabulary rides the shared glmPins module', zaiSrc.includes("from './glmPins.js'"))
   const streamSrc = readFileSync(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'), 'utf8')
-  check('the Anthropic wire resolves through resolveAppliedEffort (unchanged)', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue)'))
+  check('the Anthropic wire resolves through resolveAppliedEffort (unchanged)', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })'))
   for (const [file, needle] of [
     ['src/components/mercury-ui/EffortChip.tsx', 'getDisplayedEffortLabel'],
     ['src/components/MercuryFrame.tsx', 'getDisplayedEffortLabel'],

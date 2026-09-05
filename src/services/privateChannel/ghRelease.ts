@@ -1,25 +1,20 @@
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
-import { repoSlugFromUrl, type ChannelRelease } from './channelCore.js'
+import { projectReleases, type ChannelRelease } from './channelCore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 const GH_TIMEOUT_MS = 120_000
 const DOWNLOAD_TIMEOUT_MS = 15 * 60_000
 const MAX_GH_BYTES = 20 * 1024 * 1024
 
-export type GhAccess =
+export type GhSignIn =
   | { state: 'ok' }
   | { state: 'gh-missing'; note: string; remedy: string }
   | { state: 'not-signed-in'; note: string; remedy: string }
-  | { state: 'no-repo-access'; note: string; remedy: string }
+
+export type GhRepoAccess = { state: 'ok' } | { state: 'no-repo-access'; note: string; remedy: string }
 
 export type GhResult = { state: 'ok'; stdout: string } | { state: 'error'; enoent: boolean; stderr: string }
-
-export function channelRepoSlug(): string {
-  const pinned = flagEnv('MERCURY_UPDATE_CHANNEL_REPO')
-  if (pinned) return pinned
-  return repoSlugFromUrl(MACRO.PACKAGE_URL) ?? 'Whq02/PreRelease'
-}
 
 export function ghArgv(): string[] {
   const pinned = flagEnv('MERCURY_GH_CMD')
@@ -60,38 +55,33 @@ export function gh(args: string[], opts: GhSpawnOptions = {}): Promise<GhResult>
   })
 }
 
-export async function checkAccess(slug: string): Promise<GhAccess> {
+export async function ghSignIn(): Promise<GhSignIn> {
   const auth = await gh(['auth', 'status'])
-  if (auth.state === 'error') {
-    if (auth.enoent) {
-      return {
-        state: 'gh-missing',
-        note: 'the GitHub CLI (gh) is not installed or not on PATH',
-        remedy: 'install it from https://cli.github.com and run `gh auth login`',
-      }
-    }
+  if (auth.state === 'ok') return { state: 'ok' }
+  if (auth.enoent) {
     return {
-      state: 'not-signed-in',
-      note: 'gh is installed but not signed in',
-      remedy: 'run `gh auth login` with the GitHub account that has access to the private Mercury repository',
+      state: 'gh-missing',
+      note: 'the GitHub CLI (gh) is not installed or not on PATH',
+      remedy: 'install it from https://cli.github.com and run `gh auth login`',
     }
   }
+  return {
+    state: 'not-signed-in',
+    note: 'gh is installed but not signed in',
+    remedy: 'run `gh auth login`',
+  }
+}
+
+export async function ghRepoAccess(slug: string): Promise<GhRepoAccess> {
   const repo = await gh(['api', `repos/${slug}`, '--jq', '.private'])
   if (repo.state === 'error') {
     return {
       state: 'no-repo-access',
-      note: `your GitHub account cannot see ${slug} (private repository)`,
-      remedy: 'ask the repository owner for a collaborator invitation, accept it, then retry',
+      note: `your GitHub account cannot see ${slug}`,
+      remedy: 'a private channel needs a collaborator invitation — ask the repository owner, accept it, then retry; a public one should answer, so check `gh auth status` and your network',
     }
   }
   return { state: 'ok' }
-}
-
-interface RawRelease {
-  tag_name?: string
-  draft?: boolean
-  prerelease?: boolean
-  assets?: Array<{ name?: string }>
 }
 
 export type ReleaseListResult =
@@ -104,26 +94,24 @@ export async function listReleases(slug: string): Promise<ReleaseListResult> {
     return {
       state: 'unavailable',
       note: `could not list releases for ${slug}: ${res.stderr.slice(0, 200)}`,
-      remedy: 'check `gh auth status` and your access to the private repository',
+      remedy: 'check `gh auth status` and your access to the repository',
     }
   }
+  let raw: unknown
   try {
-    const raw = JSON.parse(res.stdout) as RawRelease[]
-    if (!Array.isArray(raw)) throw new Error('not an array')
-    const releases: ChannelRelease[] = raw.map(r => ({
-      tagName: r.tag_name ?? '',
-      isDraft: r.draft === true,
-      isPrerelease: r.prerelease === true,
-      assetNames: (r.assets ?? []).map(a => a.name ?? '').filter(Boolean),
-    }))
-    return { state: 'ok', releases }
+    raw = JSON.parse(res.stdout)
   } catch {
+    raw = undefined
+  }
+  const releases = projectReleases(raw)
+  if (releases === null) {
     return {
       state: 'unavailable',
       note: 'gh returned unparseable release data',
       remedy: 'upgrade gh or retry',
     }
   }
+  return { state: 'ok', releases }
 }
 
 export type DownloadResult = { state: 'ok' } | { state: 'failed'; note: string; remedy: string }
