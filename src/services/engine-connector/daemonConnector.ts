@@ -391,7 +391,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly permissionListeners: Listeners = new Set()
   private readonly workListeners: Listeners = new Set()
   private workSnapshot: WorkRosterV1 = { rows: [], mission: [] }
-  private workStamp = '[[],[]]'
+  private workStamp = '[true,[],[]]'
   private readonly checkpointListeners: Listeners = new Set()
   private checkpointSnapshot: CheckpointFactsV1 = UNKNOWN_CHECKPOINTS
   private checkpointStamp = ''
@@ -427,6 +427,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
+    this.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
     this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
