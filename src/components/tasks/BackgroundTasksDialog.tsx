@@ -268,9 +268,7 @@ export function BackgroundTasksDialog({
     (state: AppState) => state.viewingAgentTaskId,
   )
   const setAppState = useSetAppState()
-  const screenMission = useTelemetry(s => s.tasks)
-  const missionTasks: ReadonlyArray<{ id: string; subject: string; activeForm?: string; status: string }> =
-    screenMission.length > 0 ? screenMission : roster.mission
+  const missionTasks: ReadonlyArray<{ id: string; subject: string; activeForm?: string; status: string }> = roster.mission
   const bootRecovery = useSyncExternalStore(
     subscribeBootRecovery,
     getBootRecovery,

@@ -16,18 +16,19 @@ import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { getGitState, subscribeGitFacts, type GitRepoState } from '../utils/git.js'
-import { getTaskListId, listTasks, onTasksUpdated, type Task } from '../utils/tasks.js'
+import type { MissionRowV1 } from '../services/engine-connector/types.js'
 import {
   fleetGauge,
   traceSnapshot,
 } from '../utils/cockpit/index.js'
-import { subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
+import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
 const TRANSCRIPT_DEBOUNCE_MS = 500
 const HEARTBEAT_MS = 15_000
+const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
 const WORKFLOWS_DISK_MAX = 10
 
 export interface CrewGlanceMember {
@@ -39,7 +40,7 @@ export interface CrewGlanceMember {
 
 export interface TelemetrySnapshots {
   git: GitRepoState | null
-  tasks: Task[]
+  tasks: readonly MissionRowV1[]
   fleet: { state: string; team?: string | null; conflicts: number; drifting: number }
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
@@ -94,9 +95,9 @@ async function refreshOnce(): Promise<void> {
         next.git = g
       })
       .catch(() => {}),
-    listTasks(getTaskListId())
-      .then(t => {
-        next.tasks = t
+    Promise.resolve()
+      .then(() => {
+        next.tasks = hasFocusedSession() ? getFocusedSessionConnector().workRoster().mission : []
       })
       .catch(() => {
         next.tasks = []
@@ -185,7 +186,7 @@ function startEngine(): void {
   heartbeat = setInterval(() => pokeTelemetry(), HEARTBEAT_MS)
   heartbeat.unref?.()
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
-  unsubTasks = onTasksUpdated(() => scheduleDebounced())
+  unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
   unsubGitFacts = subscribeGitFacts(() => pokeTelemetry())
   pokeTelemetry()

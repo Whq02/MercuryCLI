@@ -605,7 +605,8 @@ export function onSeatLine(short: string, line: string, roster: SeatRosterPort, 
   if (
     line.includes('"task_started"') ||
     line.includes('"task_progress"') ||
-    line.includes('"task_notification"')
+    line.includes('"task_notification"') ||
+    line.includes('"mission_updated"')
   ) {
     requestSessionFacts(short, roster)
     return

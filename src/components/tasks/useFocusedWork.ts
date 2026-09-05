@@ -6,7 +6,7 @@ import {
 } from '../../services/engine-connector/focusedConnector.js'
 import { runnerRecordAlive, workRowRuns } from '../../services/engine-connector/workCounts.js'
 import { readSessionWorkers } from '../../daemon/concourseSupervisor.js'
-import type { WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
+import type { MissionRowV1, WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 import { useAppState, type AppState } from '../../state/AppState.js'
 import { projectWorkRoster } from '../../utils/task/workRoster.js'
 import { pidAlive } from '../../utils/pidAlive.js'
@@ -21,6 +21,10 @@ export function useFocusedWorkRoster(): WorkRosterV1 {
     () => getFocusedSessionConnector().workRoster(),
     () => getFocusedSessionConnector().workRoster(),
   )
+}
+
+export function useFocusedMission(): readonly MissionRowV1[] {
+  return useFocusedWorkRoster().mission
 }
 
 export function focusedWorkRows(

@@ -184,6 +184,23 @@ export function isTurnStartedParsedFrame(frame: Record<string, unknown> | null):
   return frame !== null && frame.type === 'system' && frame.subtype === TURN_STARTED_SUBTYPE
 }
 
+export const MISSION_UPDATED_SUBTYPE = 'mission_updated'
+
+export type MissionUpdatedFrame = {
+  type: 'system'
+  subtype: typeof MISSION_UPDATED_SUBTYPE
+  uuid: string
+  session_id: string
+}
+
+export function missionUpdatedFrame(sessionId: string, uuid: string): MissionUpdatedFrame {
+  return { type: 'system', subtype: MISSION_UPDATED_SUBTYPE, uuid, session_id: sessionId }
+}
+
+export function isMissionUpdatedParsedFrame(frame: Record<string, unknown> | null): boolean {
+  return frame !== null && frame.type === 'system' && frame.subtype === MISSION_UPDATED_SUBTYPE
+}
+
 export function errorTextOfResultFrame(line: string): string | undefined {
   return errorTextOfParsedResultFrame(parseStreamJsonFrame(line))
 }
