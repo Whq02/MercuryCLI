@@ -19,6 +19,7 @@ import {
   setAgentWaitLine,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { foregroundNotKeptLine, type BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { getRunningTasks } from '../../utils/task/framework.js'
 import {
   buildTool,
@@ -243,6 +244,11 @@ export const outputSchema = lazySchema(() => {
         .optional()
         .describe('Whether the caller can read the output file'),
       modelNote: z.string().optional().describe('The model-floor note'),
+      agentName: z.string().optional().describe('The name the launch gave the agent — an address beside the id'),
+      backgroundReason: z
+        .enum(['turn-interrupted', 'backgrounded', 'agent-type'])
+        .optional()
+        .describe('Why a foreground ask ran in the background: the turn was interrupted, the agent was moved, or the type always does'),
     }),
   ])
 })
@@ -317,8 +323,8 @@ function usageBlock(data: {
   return rows.length > 0 ? `<usage>${rows.join('\n')}</usage>` : '<usage>unreported</usage>'
 }
 
-function continuationHint(agentId: string): string {
-  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${SEND_MESSAGE_TOOL_NAME} addressed to that id.`
+function continuationHint(agentId: string, name?: string): string {
+  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${SEND_MESSAGE_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
 }
 
 
@@ -828,6 +834,10 @@ export const AgentTool = buildTool({
           outputFile: getTaskOutputPath(earlyAgentId),
           canReadOutputFile,
           ...(plan.modelNote ? { modelNote: plan.modelNote } : {}),
+          ...(input.name ? { agentName: input.name } : {}),
+          ...(input.run_in_background === false && agentDef.background === true
+            ? { backgroundReason: 'agent-type' as const }
+            : {}),
           runtimeRef: describeAgentRuntimeRef(plan.model),
         } as never,
       }
@@ -901,11 +911,14 @@ export const AgentTool = buildTool({
         outputFile: string
         canReadOutputFile: boolean
         modelNote?: string
+        agentName?: string
+        backgroundReason?: BackgroundHandoverReason
       }
       const lines = [
         'Agent launched in the background.',
+        ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason)] : []),
         ...(async.modelNote ? [async.modelNote] : []),
-        continuationHint(async.agentId),
+        continuationHint(async.agentId, async.agentName),
         'The agent is working in the background — you will be notified automatically when it completes.',
       ]
       if (async.canReadOutputFile) {
