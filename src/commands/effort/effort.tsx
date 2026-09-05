@@ -58,6 +58,11 @@ function appliedTruth(
       headline: `${model} sends no effort dial while thinking is off (its effort dial is its reasoning dial), so it runs its provider default this session; ${level} was ${savedClause} and applies once thinking is on.`,
     }
   }
+  if (truth.flooredBy === 'thinking-off') {
+    return {
+      headline: `${model} sends ${truth.wire} while thinking is off (its effort dial is its reasoning dial, and ${truth.wire} is the lowest it serves); ${level} was ${savedClause} and applies once thinking is on.`,
+    }
+  }
   if (truth.wire === undefined) {
     return {
       headline: `${model} applies its provider default this session (no live effort vocabulary to resolve against); ${level} was ${savedClause} for effort-capable models.`,
@@ -203,6 +208,8 @@ export function showCurrentEffort(
   let clause = ''
   if (truth.suppressedBy === 'thinking-off') {
     clause = ` ${model} sends no effort dial while thinking is off — it runs its provider default this session.`
+  } else if (truth.flooredBy === 'thinking-off') {
+    clause = ` ${model} sends ${truth.wire} while thinking is off — the lowest effort it serves.`
   } else if (truth.wire === undefined) {
     clause = ` ${model} runs its provider default this session.`
   } else if (truth.label !== String(effective)) {

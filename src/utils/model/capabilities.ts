@@ -50,6 +50,7 @@ import {
   KIMI_EFFORTS,
   KIMI_EFFORT_MODELS,
 } from '../../services/providers/moonshot/kimiPins.js'
+import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -208,6 +209,7 @@ export type EffortVocabularyView =
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
+      thinkingOffWire?: string
     }
   | { kind: 'offered'; source: 'gpt-unstated' | 'gpt-unavailable'; defaultEffort?: string }
   | {
@@ -279,7 +281,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
     const vocabulary = openrouterEffortVocabularyFor(model)
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'openrouter', vocabulary, thinkingGated: true }
+      ? { kind: 'provider', source: 'openrouter', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'openrouter' }
   }
   if (route === 'gemini') {
@@ -287,7 +289,7 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
     const vocabulary = geminiEffortVocabularyFor(model)
     return vocabulary.length > 0
-      ? { kind: 'provider', source: 'gemini', vocabulary, thinkingGated: true }
+      ? { kind: 'provider', source: 'gemini', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'gemini' }
   }
   if (route === 'openai-compat') return { kind: 'none', source: 'compat' }
