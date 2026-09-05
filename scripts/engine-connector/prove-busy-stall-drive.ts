@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { execSync } from 'node:child_process'
 import { existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, sep } from 'node:path'
 
 if (process.env.BUSY_STALL_DRIVE !== '1') {
   console.log('prove-busy-stall-drive: SKIPPED (driven — set BUSY_STALL_DRIVE=1 inside a granted PTY window)')
@@ -38,6 +38,8 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const TAG = keyHintLabel('⇧← back')
 
 const api = await startFixtureApi([
   { kind: 'hang', deltas: ['holding this turn open…'] },
@@ -53,6 +55,7 @@ function mkdirSyncTemp(tag: string): string {
 }
 process.env.MERCURY_DAEMON_DIR = daemonDir
 const logFd = openSync(join(daemonDir, 'drive-daemon.log'), 'a')
+const TRACE = join(daemonDir, '..', 'connector-trace.jsonl')
 
 let daemon: ReturnType<typeof spawn> | null = null
 let work = ''
@@ -118,6 +121,7 @@ const killLeg = (async () => {
 const runPromise = runArtifactArena({
   turns: [],
   sends: ['8500:\t', '10000:\r', '11500:\r'],
+  anchor: null,
   seconds: 92,
   cols: 120,
   rows: 40,
@@ -165,6 +169,7 @@ const runPromise = runArtifactArena({
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_CACHE_CLOCK: '0',
     DEBUG: '1',
+    MERCURY_CONNECTOR_TRACE: TRACE,
   },
 })
 const proverStartedAt = Date.now()
@@ -202,12 +207,12 @@ mkdirSync(KEEP_DIR, { recursive: true })
   const attached = grabs.find(g => g.atMs === 13_000)
   const frozen = grabs.find(g => g.atMs === 24_000)
   const settled = grabs.find(g => g.atMs === 88_000)
-  check('pre-kill: the chat ATTACHED (the held prompt inside the FOCUSED CHAT pane)', text(attached).includes('hold this turn open') && text(attached).includes('FOCUSED CHAT'), 'see the kept capture')
+  check('pre-kill: the chat was ENTERED (the tag bar with the way back, over the held prompt)', text(attached).includes('hold this turn open') && text(attached).includes(TAG), 'see the kept capture')
   check('post-kill: the frame still stands (the freeze is painted, not a crash)', text(frozen).length > 0)
   check('post-deadline: the frame stands and differs from the frozen-busy paint', text(settled).length > 0 && text(settled) !== text(frozen))
 
   let settleSeen = false
-  let looked = 0
+  const looked: string[] = []
   const walkForSettle = (dir: string, depth: number): void => {
     if (depth > 6 || settleSeen) return
     let names: string[] = []
@@ -222,9 +227,10 @@ mkdirSync(KEEP_DIR, { recursive: true })
         const st = statSync(p)
         if (st.isDirectory()) walkForSettle(p, depth + 1)
         else if (st.size > 0 && st.size < 32 * 1024 * 1024 && (name.endsWith('.txt') || name.endsWith('.log'))) {
-          looked++
+          looked.push(p)
           const body = readFileSync(p, 'utf8')
           if (body.includes('busy turn stalled') && body.includes('settling idle')) settleSeen = true
+          if (p.includes(`${sep}debug${sep}`)) writeFileSync(join(KEEP_DIR, `debug-${name}`), body)
         }
       } catch {
       }
@@ -232,7 +238,23 @@ mkdirSync(KEEP_DIR, { recursive: true })
     }
   }
   walkForSettle(run.paths.home, 0)
-  check('GROUND TRUTH: the 45s deadline road fired — the settle line in the debug log', settleSeen, `walked ${looked} log file(s) under ${run.paths.home}`)
+  let traceNote = 'no connector trace was written'
+  try {
+    const trace = readFileSync(TRACE, 'utf8')
+    writeFileSync(join(KEEP_DIR, 'connector-trace.jsonl'), trace)
+    const events = trace
+      .split('\n')
+      .filter(Boolean)
+      .map(l => JSON.parse(l) as { t: number; ev: string })
+    const byKind = new Map<string, number>()
+    for (const e of events) byKind.set(e.ev, (byKind.get(e.ev) ?? 0) + 1)
+    const t0 = events[0]?.t ?? 0
+    const stamps = events.filter(e => e.ev === 'attach' || e.ev === 'detach').map(e => `${e.ev}@+${e.t - t0}ms`)
+    traceNote = `trace: ${[...byKind].map(([k, n]) => `${k}×${n}`).join(' ')} · ${stamps.length > 0 ? stamps.join(' ') : 'no attach — the connector never ran, so its deadline never armed'}`
+  } catch {
+  }
+  console.log(`  ${traceNote}`)
+  check('GROUND TRUTH: the 45s deadline road fired — the settle line in the debug log', settleSeen, `walked ${looked.length} log file(s) under ${run.paths.home}: ${looked.map(p => p.slice(run.paths.home.length)).join(' · ') || '(none)'}; ${traceNote}`)
   console.log(`  captures kept: ${KEEP_DIR}`)
 }
 

@@ -526,6 +526,14 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
     'assembly: NUMERIC effort silently drops param AND beta (quirk, requestParams.ts:309)',
     eq(numeric, {}) && numericBetas.length === 0,
   )
+  const stray: Record<string, unknown> = {}
+  const strayBetas: string[] = []
+  rp.configureEffortParams('ultra', stray as never, {}, strayBetas, 'claude-opus-4-8')
+  check(
+    'assembly: a raw word above the first-party wire enum (ultra) drops param AND beta — the owner steps it to max before this seam',
+    eq(stray, {}) && strayBetas.length === 0 && effort.resolveAppliedEffort('claude-opus-4-8', 'ultra') === 'max',
+    JSON.stringify({ stray, strayBetas }),
+  )
   const preset: Record<string, unknown> = { effort: 'low' }
   const presetBetas: string[] = []
   rp.configureEffortParams('max', preset as never, {}, presetBetas, 'claude-opus-4-8')
