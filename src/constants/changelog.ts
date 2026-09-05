@@ -65,6 +65,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A refused key or token names the setting to fix, so an env bearer no longer reads "Not logged in"; an update whose signature does not verify is refused before it is staged and said at every boot
 - Under sovereign mode a whole-tool ask rule stands down like the other ask roads and the transcript names the rule; a turn typed into a running one reads busy on the strip, so esc can interrupt it
 - Unity test results land inside the project again, where the editor can write them; a bridged test run is no longer refused
+- The Anthropic usage panel no longer gets stuck on "Failed to load … HTTP 429": Mercury honours the server's retry wait, stops retrying into it, and says how long to wait
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
