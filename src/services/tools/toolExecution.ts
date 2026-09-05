@@ -625,6 +625,7 @@ async function runTransactionBody(args: {
         imagePasteIds,
       }),
     )
+    if (hookDecisionRow !== null) push({ message: hookDecisionRow })
     logForDebugging(`tool use refused: ${tool.name}`)
     return
   }
