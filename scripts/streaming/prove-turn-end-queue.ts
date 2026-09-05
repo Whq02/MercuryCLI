@@ -266,7 +266,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     section(`${label} — N3/N4: the drain moves nothing`)
     check(`${label}: after the drain both rows wear clocks, the notice still above the words`, sentNotice.test(drained) && sentWords.test(drained) && lineOf(drained, sentNotice) < lineOf(drained, sentWords), tail(drained))
     check(`${label}: no queued row survives the drain`, !/queued\s+(●|\[sam\])/.test(drained), tail(drained))
-    check(`${label}: the reply landed and the strip is back at ready`, drained.includes(REPLY) && /· ready/.test(drained), tail(drained))
+    check(`${label}: the reply landed and the turn is over (no esc clause on the strip)`, drained.includes(REPLY) && !/esc interrupts/.test(drained), tail(drained))
     const folded = calls.find(c => c.arm === 'launch-and-sleep' && (c as { step?: number }).step === 2)
     check(`${label}: the request after the sleep carries the notification BEFORE the words`, folded !== undefined && JSON.stringify(folded.order) === JSON.stringify(['A background agent completed a task:', 'first queued words']), JSON.stringify(calls.map(c => [c.n, c.arm, (c as { step?: number }).step, c.order])))
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
