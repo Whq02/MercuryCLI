@@ -13,6 +13,7 @@ import { isClearedOrDigested } from '../services/compact/microCompactDigest.js'
 import { getThinkingClearLatched } from '../bootstrap/state.js'
 import {
   classifyThinkingDrops,
+  createDeadThinkingAttachment,
   deadMarksFromDrops,
   deadThinkingMarks,
   describePrefixRewrite,
@@ -95,7 +96,6 @@ import {
   createUserInterruptionMessage,
   normalizeMessagesForAPI,
   createSystemMessage,
-  createThinkingDeadMessage,
   createAssistantAPIErrorMessage,
   createToolUseSummaryMessage,
 } from '../utils/messages.js'
@@ -637,7 +637,7 @@ async function* streamModel(
               const dead = deadMarksFromDrops(drops, prefixVerdict?.wireMessageIds ?? [], deadThinkingMarks(iter.messagesForQuery))
               if (dead.length > 0) {
                 logForDebugging(`preserved thinking: ${dead.length} dropped block(s) marked dead on the record (${dead.map(mark => `${mark.messageId}#${mark.blockIndex}`).join(', ')})`)
-                yield emit({ kind: 'notice', message: createThinkingDeadMessage(dead, `${dead.length} dropped thinking ${dead.length === 1 ? 'block' : 'blocks'} left off every later request`) })
+                yield emit({ kind: 'attachment', message: createDeadThinkingAttachment(dead) })
               }
             }
             if (toolUseContext.agentId == null) {
