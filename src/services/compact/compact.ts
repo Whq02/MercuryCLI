@@ -51,6 +51,7 @@ import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api
 import { routedCallModel } from '../providers/callModelRouter.js'
 import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
+import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
 import { getRetryDelay } from '../api/withRetry.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import { isInstructionFilePath } from '../../services/instructions/engine.js'
@@ -155,6 +156,28 @@ export function shouldRideCacheSharingFork(model: string, thinkingConfig?: { typ
   if (verdict.kind === 'absence') return false
   if (verdict.kind === 'unrecognised') return true
   return verdict.route === 'anthropic'
+}
+
+export function foldFamilyOf(model: string): string {
+  const verdict = classifyModelRoute(model)
+  return verdict.kind === 'route' ? verdict.route : verdict.kind
+}
+
+function recordFoldRoad(
+  model: string,
+  road: WireFoldRow['road'],
+  startedAt: number,
+  outcome: WireFoldRow['outcome'],
+  detail?: string,
+): void {
+  recordWireFoldRow({
+    family: foldFamilyOf(model),
+    road,
+    model,
+    outcome,
+    ms: Date.now() - startedAt,
+    ...(detail !== undefined ? { detail } : {}),
+  })
 }
 
 
@@ -579,6 +602,8 @@ async function summarizeViaCacheSharingFork(
   context: ToolUseContext,
 ): Promise<AssistantMessage | null> {
   const bound = armFoldBound(context.abortController.signal)
+  const startedAt = Date.now()
+  const model = context.options.mainLoopModel
   try {
     const result = await runForkedAgent({
       promptMessages: [promptMessage],
@@ -609,24 +634,37 @@ async function summarizeViaCacheSharingFork(
       | undefined
     if (last !== undefined && last.isApiErrorMessage !== true) {
       const text = getAssistantMessageText(last)
-      if (text !== null && text !== '') return last
+      if (text !== null && text !== '') {
+        recordFoldRoad(model, 'fork', startedAt, 'summary')
+        return last
+      }
     }
     if (
       last !== undefined &&
       (overflowSignalOf(last) !== null || (getAssistantMessageText(last) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE))
     ) {
+      recordFoldRoad(model, 'fork', startedAt, 'overflow')
       return last
     }
     logForDebugging(`compact: fork path produced no usable summary: ${JSON.stringify(result.messages).slice(0, 500)}`, {
       level: 'warn',
     })
+    recordFoldRoad(model, 'fork', startedAt, 'handover', 'no usable summary')
     return null
   } catch (err) {
+    const elapsedMs = Date.now() - startedAt
     if (bound.hitDeadline()) {
-      logForDebugging(`compact: fork lane hit its fold bound — handing over to the direct call`, { level: 'warn' })
+      logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms — handing over to the direct call`, { level: 'warn' })
+      recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsedMs} ms`)
+      return null
+    }
+    if (context.abortController.signal.aborted) {
+      recordFoldRoad(model, 'fork', startedAt, 'aborted')
       return null
     }
     logError(err)
+    logForDebugging(`compact: fork lane failed after ${elapsedMs} ms — handing over to the direct call: ${err instanceof Error ? err.message : String(err)}`, { level: 'warn' })
+    recordFoldRoad(model, 'fork', startedAt, 'handover', (err instanceof Error ? err.message : String(err)).slice(0, 160))
     return null
   } finally {
     bound.dispose()
@@ -640,8 +678,28 @@ async function summarizeViaStreamingFallback(
   context: ToolUseContext,
 ): Promise<AssistantMessage> {
   const bound = armFoldBound(context.abortController.signal)
+  const startedAt = Date.now()
+  const model = context.options.mainLoopModel
   try {
-    return await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
+    const settled = await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
+    recordFoldRoad(model, 'direct', startedAt, settled.isApiErrorMessage === true ? 'refused' : 'summary')
+    return settled
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    recordFoldRoad(
+      model,
+      'direct',
+      startedAt,
+      message === ERROR_MESSAGE_FOLD_TIMEOUT
+        ? 'timeout'
+        : message === ERROR_MESSAGE_INCOMPLETE_RESPONSE
+          ? 'incomplete'
+          : context.abortController.signal.aborted || err instanceof APIUserAbortError
+            ? 'aborted'
+            : 'refused',
+      message.slice(0, 160),
+    )
+    throw err
   } finally {
     bound.dispose()
   }
