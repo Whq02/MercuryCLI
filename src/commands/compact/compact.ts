@@ -1,4 +1,5 @@
 import chalk from 'chalk'
+import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
 import { markPostCompaction } from '../../bootstrap/state.js'
 import { getUserContext } from '../../context.js'
 import {
@@ -36,6 +37,10 @@ async function buildCompactCacheSafeParams(
   context: LocalJSXCommandContext,
 ): Promise<CacheSafeParams> {
   const { options } = context
+  const lastSent = getLastCacheSafeParams()
+  if (lastSent !== null) {
+    return { ...lastSent, toolUseContext: context, forkContextMessages: messages }
+  }
   const additionalWorkingDirectories = Array.from(
     context.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
   )

@@ -146,6 +146,13 @@ export type CachedMCPinnedEdits = {
   block: CachedMCEditsBlock
 }
 
+function lastUserIndexBefore(messages: ReadonlyArray<{ type: string }>, end: number): number {
+  for (let i = Math.min(end, messages.length) - 1; i >= 0; i--) {
+    if (messages[i]!.type === 'user') return i
+  }
+  return -1
+}
+
 export function addCacheBreakpoints(
   messages: (UserMessage | AssistantMessage)[],
   enablePromptCaching: boolean,
@@ -155,7 +162,7 @@ export function addCacheBreakpoints(
   pinnedEdits?: CachedMCPinnedEdits[],
   skipCacheWrite = false,
 ): MessageParam[] {
-  const markerIndex = skipCacheWrite ? messages.length - 2 : messages.length - 1
+  const markerIndex = skipCacheWrite ? lastUserIndexBefore(messages, messages.length - 1) : messages.length - 1
   const result = messages.map((msg, index) => {
     const addCache = index === markerIndex
     if (msg.type === 'user') {

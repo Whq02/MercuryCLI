@@ -220,15 +220,13 @@ async function drive(scene: Scene): Promise<void> {
   if (scene === 'drain') check(`${scene}: the words typed into the running turn painted QUEUED before the press`, /queued\s+\[sam\] ❯ run the long sleep please/.test(at('queued')), tail(at('queued')))
 
   section(`${scene} — E2: the next turn wears its own phase, never the stale latch`)
-  const sleepSteps = wire.filter(c => c.kind === 'anthropic' && c.arm === arm && c.step === 0)
+  const sleepSteps = wire.filter(c => c.kind === 'anthropic' && c.arm === arm && c.step === 0 && ((c as { tools?: number }).tools ?? 0) > 0)
   check(`${scene}: the second ask earned a fresh sleep turn (the fixture served the sleep twice)`, sleepSteps.length === 2, JSON.stringify(wire.map(c => [c.n, c.arm, c.step])))
   const nextRunning = (frame: string): boolean => frame.includes(TOOL_ROW) && frame.includes('running…')
-  if (scene === 'fresh') check(`${scene}: the next turn is on screen — its Bash row running`, nextRunning(at('next-turn')), tail(at('next-turn')))
-  else console.log(`  [record] ${scene}: the next turn's Bash row ${nextRunning(at('next-turn')) ? 'reads running' : 'does not read running (the seat reads idle over a drained turn — the daemon edge)'}`)
+  check(`${scene}: the next turn is on screen — its Bash row running${scene === 'drain' ? ' (the drained turn opened the seat\'s edge on the wire)' : ''}`, nextRunning(at('next-turn')), tail(at('next-turn')))
   for (const label of ['next-turn', 'next-turn-late']) {
     const frame = at(label)
-    if (scene === 'fresh') check(`${scene} ${label}: the row wears the running turn's own rung — "esc interrupts"`, /esc interrupts/.test(frame), tail(frame))
-    else console.log(`  [record] ${scene} ${label}: the row reads ${/esc interrupts/.test(frame) ? '"esc interrupts"' : /· ready/.test(frame) ? 'ready (the seat idle over the drained turn — the daemon edge)' : 'neither'}`)
+    check(`${scene} ${label}: the row wears the running turn's own rung — "esc interrupts"${scene === 'drain' ? ' (the seat reads busy over the drained turn)' : ''}`, /esc interrupts/.test(frame), tail(frame))
     check(`${scene} ${label}: no stale "interrupting" over a turn nobody interrupted`, !frame.includes(INTERRUPTING) && !frame.includes(AGAIN), tail(frame))
   }
 
@@ -237,8 +235,7 @@ async function drive(scene: Scene): Promise<void> {
   check(`${scene}: never the hard stop ("stopping — the runner is cut")`, !at('after-esc-2').includes(HARD_STOPPING) && !at('settled').includes(HARD_STOPPING), tail(at('after-esc-2')))
 
   section(`${scene} — E4: the wire: plain interrupts only, no runner cut`)
-  if (scene === 'fresh') check(`${scene}: the applied-ops ledger holds exactly two interrupt rows`, interrupts.length === 2, JSON.stringify(ledger))
-  else console.log(`  [record] ${scene}: the applied-ops ledger holds ${interrupts.length} interrupt row(s)`)
+  check(`${scene}: the applied-ops ledger holds exactly two interrupt rows${scene === 'drain' ? ' (the second press found the drained turn)' : ''}`, interrupts.length === 2, JSON.stringify(ledger))
   check(`${scene}: every interrupt on the ledger is a plain interrupt — never a hard stop`, interrupts.length >= 1 && interrupts.every(r => r.outcome === 'applied' && (r.detail ?? '').startsWith('interrupt ')), JSON.stringify(interrupts))
   check(`${scene}: the daemon never cut the runner (no hard-stop line in its log)`, !/hard stop:/.test(daemonLog), daemonLog.split('\n').filter(l => /hard stop/.test(l)).slice(-3).join(' | '))
 

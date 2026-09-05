@@ -1095,6 +1095,15 @@ export const SDKModelTransitionMessageSchema = lazySchema(() =>
     uuid: z.string(),
   }),
 )
+export const SDKTurnStartedMessageSchema = lazySchema(() =>
+  z.object({
+    type: z.literal('system'),
+    subtype: z.literal('turn_started'),
+    uuids: z.array(z.string()).describe('The queued commands the turn joined'),
+    uuid: z.string(),
+    session_id: z.string(),
+  }),
+)
 export const SDKStatusMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
@@ -1316,6 +1325,7 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKCompactBoundaryMessageSchema(),
     SDKModelTransitionMessageSchema(),
     SDKStatusMessageSchema(),
+    SDKTurnStartedMessageSchema(),
     SDKPostTurnSummaryMessageSchema(),
     SDKAPIRetryMessageSchema(),
     SDKLocalCommandOutputMessageSchema(),

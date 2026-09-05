@@ -25,6 +25,7 @@ import {
   usageOfStreamJsonFrame,
   normalizeStreamJsonFrame,
   isTurnResultParsedFrame,
+  isTurnStartedParsedFrame,
   errorTextOfParsedResultFrame,
   decideWorkerBusy,
   deriveWireSpec,
@@ -597,6 +598,12 @@ export class TaskRoster {
             this.opts.onChildLine(short, line)
           } catch (e) {
             logForDebugging(`[daemon] onChildLine(${short}) hook threw (ignored): ${e}`)
+          }
+        }
+        if (isTurnStartedParsedFrame(frame)) {
+          if (!ll.turnActive) {
+            ll.turnActive = true
+            ll.turnStartedAt = Date.now()
           }
         }
         if (isTurnResultParsedFrame(frame)) {

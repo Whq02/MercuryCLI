@@ -246,6 +246,34 @@ if (!ONLY || ONLY.has('sovereign')) {
   check('sovereign: the edit landed on disk', edited.includes('gamma line two'))
   check('sovereign: the transcript row names the allowance with the posture\'s word', rowsHaving(rows, 'Allowed by sovereign mode'))
   check('sovereign: …and the road\'s own sentence (the sensitive-file check)', rowsHaving(rows, 'Allowed by sovereign mode') && rowsHaving(rows, 'sensitive file'))
+
+  section('sovereign — a whole-tool ask rule on Edit stands down under the bypass posture: NO card, the row names the rule')
+  const ruled = await runArtifactArena({
+    cols: 110,
+    rows: 40,
+    turns: cwd => [
+      { kind: 'tool_use', preText: 'Reading the notes.\n', name: 'Read', input: { file_path: join(cwd, 'notes.md') } },
+      { kind: 'tool_use', preText: 'Editing the notes.\n', name: 'Edit', input: { file_path: join(cwd, 'notes.md'), old_string: SHORT_BEFORE, new_string: SHORT_AFTER } },
+      { kind: 'text', text: 'Done.' },
+    ],
+    seedHome: (configDir, cwd) => {
+      writeFileSync(join(cwd, 'notes.md'), SHORT_BEFORE)
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ skipDangerousModePermissionPrompt: true, permissions: { ask: ['Edit'] } }))
+    },
+    extraEnv: { MERCURY_SKIP_PERMISSIONS: '1' },
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r'],
+    seconds: 22,
+    keep: true,
+  })
+  const [ruledFinal] = grabScreens(ruled, 110, 40, [-1])
+  const ruledRows = ruledFinal!.rows
+  dump('sovereign-tool-rule', 'final', ruledRows)
+  printFrame('sovereign tool-rule final', ruledRows)
+  const ruledEdited = existsSync(join(ruled.paths.cwd, 'notes.md')) ? readFileSync(join(ruled.paths.cwd, 'notes.md'), 'utf8') : ''
+  check('sovereign + tool ask rule: the turn settled', rowsHaving(ruledRows, 'Done.'), ruled.driverOut.slice(-300))
+  check('sovereign + tool ask rule: NO consent card painted', !rowsHaving(ruledRows, 'Do you want to') && !rowsHaving(ruledRows, '⦿ Edit file'))
+  check('sovereign + tool ask rule: the edit landed on disk', ruledEdited.includes('gamma line two'))
+  check('sovereign + tool ask rule: the allowance row names the posture and the rule that would have asked', rowsHaving(ruledRows, 'Allowed by sovereign mode') && rowsHaving(ruledRows, "Permission rule 'Edit'"))
   const persisted = sessionFiles(join(run.paths.home, '.claude', 'projects'))
     .map(f => readFileSync(f, 'utf8'))
     .some(text => text.includes('"bypassed_ask"') && text.includes('"safetyCheckAsk"') && text.includes('sensitive file'))

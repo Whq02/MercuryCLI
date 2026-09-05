@@ -184,6 +184,13 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   check('a named byte move takes precedence over the context-edit reading', byteMoved.kind === 'first' && byteMoved.lawful === null, j(byteMoved))
 
   resetThinkingDropStates()
+  classifyThinkingDrops('noswitch', [], mark())
+  const noSwitch = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
+  check('a no-switch byte move is a first rewrite (one warning), never a lawful model switch', noSwitch.kind === 'first' && noSwitch.lawful === null && noSwitch.paint === true, j(noSwitch))
+  const noSwitch2 = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
+  check('…and its recurrence paints nothing (the strip ends it; the doctor keeps the run)', noSwitch2.kind === 'recurrent' && noSwitch2.paint === false && describeThinkingDrops([DROP('messages.1.content.0')], noSwitch2) === null, j(noSwitch2))
+
+  resetThinkingDropStates()
   classifyThinkingDrops('idle', [], mark({ thinkingClearActive: true }))
   const cleared = classifyThinkingDrops('idle', [DROP('messages.50.content.0')], mark({ thinkingClearActive: true }))
   check('a drop while the idle thinking-clear latch is armed is lawful thinking-cleared', cleared.kind === 'lawful' && cleared.lawful === 'thinking-cleared', j(cleared))
