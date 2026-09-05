@@ -438,3 +438,15 @@ const shutdown = (): void => {
 }
 process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)
+const parentPid = process.ppid
+const parentGone = (): boolean => {
+  try {
+    process.kill(parentPid, 0)
+    return false
+  } catch (err) {
+    return (err as { code?: string }).code === 'ESRCH'
+  }
+}
+setInterval(() => {
+  if (process.ppid !== parentPid || parentGone()) shutdown()
+}, 1000).unref()
