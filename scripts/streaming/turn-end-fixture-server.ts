@@ -29,8 +29,11 @@ export const READ_HOLD_MS = 6_000
 export const SLEEP_SECONDS = 40
 export const LAUNCH_AGENT_ASK = 'launch one agent'
 export const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
+export const LAUNCH_SLEEP_ASK = 'launch an errand and sleep'
+export const ERRAND_PROMPT = 'a quick errand'
+export const ERRAND_SLEEP_SECONDS = 12
 
-type ToolArm = 'read-three' | 'sleep-tool' | 'stubborn-sleep' | 'launch-agent' | 'seat-hold'
+type ToolArm = 'read-three' | 'sleep-tool' | 'stubborn-sleep' | 'launch-agent' | 'launch-and-sleep' | 'seat-hold'
 type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | ToolArm | 'slow' | 'slow-note' | 'complete'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -100,6 +103,7 @@ function toolArmOfWords(words: string): ToolArm | null {
   if (words === SLEEP_TOOL_ASK) return 'sleep-tool'
   if (words === STUBBORN_SLEEP_ASK) return 'stubborn-sleep'
   if (words === LAUNCH_AGENT_ASK) return 'launch-agent'
+  if (words === LAUNCH_SLEEP_ASK) return 'launch-and-sleep'
   if (words.startsWith(SEAT_HOLD_PROMPT)) return 'seat-hold'
   return null
 }
@@ -145,6 +149,19 @@ function parkHeaders(res: ServerResponse, wire: 'openai' | 'anthropic', n: numbe
   })
 }
 
+function lastUserTextsOf(body: Record<string, unknown>): string[] {
+  const input = body.input
+  const items = Array.isArray(input) ? input : Array.isArray(body.messages) ? body.messages : []
+  const last = [...(items as Array<{ role?: string; content?: unknown }>)].reverse().find(m => m.role === 'user')
+  if (last === undefined) return []
+  const content = last.content
+  if (typeof content === 'string') return [content.slice(0, 48)]
+  if (!Array.isArray(content)) return []
+  return (content as Array<{ type?: string; text?: string }>)
+    .filter(p => p.type === 'text' && typeof p.text === 'string')
+    .map(p => (p.text ?? '').replace(/^<system-reminder>\s*/, '').slice(0, 48))
+}
+
 function shapeOf(body: Record<string, unknown>): string {
   const input = body.input
   const items = Array.isArray(input) ? input : Array.isArray(body.messages) ? body.messages : []
@@ -167,12 +184,27 @@ function carriesWords(body: Record<string, unknown>, words: string[]): string[] 
   return words.filter(w => raw.includes(w))
 }
 export const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
+export const NOTICE_WATCH = 'A background agent completed a task:'
+
+function orderOfWords(body: Record<string, unknown>, words: string[]): string[] {
+  const raw = JSON.stringify(body)
+  return words
+    .map(w => ({ w, at: raw.indexOf(w) }))
+    .filter(x => x.at >= 0)
+    .sort((a, b) => a.at - b.at)
+    .map(x => x.w)
+}
 
 function toolStep(arm: ToolArm, step: number, cwd: string, call: number): { name: string; input: Record<string, unknown>; id: string } | null {
   if (arm === 'launch-agent') {
     return step === 0
       ? { name: 'Agent', input: { description: 'first-byte-seat', prompt: SEAT_HOLD_PROMPT, subagent_type: 'general-purpose' }, id: `toolu_agent_c${call}` }
       : null
+  }
+  if (arm === 'launch-and-sleep') {
+    if (step === 0) return { name: 'Agent', input: { description: ERRAND_PROMPT, prompt: ERRAND_PROMPT, subagent_type: 'general-purpose', run_in_background: true }, id: `toolu_agent_c${call}` }
+    if (step === 1) return { name: 'Bash', input: { command: `sleep ${ERRAND_SLEEP_SECONDS}`, description: 'the errand sleep' }, id: `toolu_sleep_c${call}` }
+    return null
   }
   if (arm === 'seat-hold') return null
   if (arm === 'sleep-tool') {
@@ -251,7 +283,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const tool = toolArmOf(body)
       const arm = tool?.arm ?? armOf(ask)
       const carries = carriesWords(body, QUEUED_WORDS_WATCH)
-      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, shape: shapeOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
+      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, order: orderOfWords(body, [...QUEUED_WORDS_WATCH, NOTICE_WATCH]), shape: shapeOf(body), texts: lastUserTextsOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const rid = `resp_turnend_${n}`
       const itemId = `msg_turnend_${n}`
@@ -316,7 +348,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const tool = toolArmOf(body)
       const arm = tool?.arm ?? armOf(ask)
       const carries = carriesWords(body, QUEUED_WORDS_WATCH)
-      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, shape: shapeOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
+      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, order: orderOfWords(body, [...QUEUED_WORDS_WATCH, NOTICE_WATCH]), shape: shapeOf(body), texts: lastUserTextsOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       if (tool?.arm === 'seat-hold') return parkHeaders(res, 'anthropic', n)
       if (tool !== null) {
