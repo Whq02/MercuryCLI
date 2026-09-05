@@ -82,13 +82,13 @@ const sup = await import('../../src/daemon/concourseSupervisor.ts')
     refused.admit === false && refused.code === 'runtime-ceiling' && (refused.reason ?? '').includes("this machine's reading: 4 seats"),
     JSON.stringify(refused),
   )
-  check('C5 describeSeatReading spells the reason beside the number', cap.describeSeatReading(3).includes('3 seats') && cap.describeSeatReading(3).includes('cores/memory'))
+  check("C5 describeSeatReading spells the reading's inputs beside the number", cap.describeSeatReading(3).includes('3 seats') && /\d+ cores?, [\d.]+ GB available, \d+ MB a seat/.test(cap.describeSeatReading(3)), cap.describeSeatReading(3))
 }
 
 {
   const gb = (n: number): number => n * 2 ** 30
-  const base = cap.recommendSeats({ cores: 16, totalMemBytes: gb(32), freeMemBytes: gb(16), otherAgentClis: 0 })
-  const shaved = cap.recommendSeats({ cores: 16, totalMemBytes: gb(32), freeMemBytes: gb(16), otherAgentClis: 3 })
+  const base = cap.recommendSeats({ cores: 16, totalMemBytes: gb(32), availableMemBytes: gb(16), otherAgentClis: 0 })
+  const shaved = cap.recommendSeats({ cores: 16, totalMemBytes: gb(32), availableMemBytes: gb(16), otherAgentClis: 3 })
   check('C6 the CLI shave takes one seat, floored at two', base - shaved === 1 && shaved >= 2, `${base} → ${shaved}`)
   check('C6 the consented ladder equals the machine reading before the shave', base === cap.machineSeatReading(16, gb(16)))
 }
