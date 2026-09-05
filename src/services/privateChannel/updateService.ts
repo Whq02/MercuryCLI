@@ -14,7 +14,17 @@ import {
   selectRelease,
   type ReleaseSelection,
 } from './channelCore.js'
-import { channelRepoSlug, checkAccess, downloadReleaseAssets, listReleases, type GhAccess } from './ghRelease.js'
+import { describeSignatureVerdict, type SignatureVerdict } from './artifactSigning.js'
+import { verifyPayloadDir } from './artifactVerify.js'
+import {
+  channelRepoSlug,
+  checkChannelAccess,
+  downloadChannelAssets,
+  listChannelReleases,
+  type ChannelAccess,
+  type ChannelAccessRefusal,
+  type ChannelRoadName,
+} from './channelTransport.js'
 import {
   acquireUpdateLock,
   installPayload,
@@ -81,7 +91,7 @@ export interface ChannelStatus {
   shimPath: string
   runtime: RunningRuntime
   channelRepo: string
-  access: GhAccess
+  access: ChannelAccess
 }
 
 export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> {
@@ -97,7 +107,7 @@ export async function channelStatus(roots: LayoutRoots): Promise<ChannelStatus> 
     shimPath: roots.shimPath,
     runtime: runningRuntime(),
     channelRepo: slug,
-    access: await checkAccess(slug),
+    access: await checkChannelAccess(slug),
   }
 }
 
@@ -105,10 +115,20 @@ export const statusRuntimeLine = (status: Pick<ChannelStatus, 'runtime'>): strin
 
 
 export type CheckOutcome =
-  | { state: 'update-available'; installed: string; tag: string; version: string; assetName: string; channelRepo: string }
-  | { state: 'current'; installed: string; channelRepo: string }
-  | { state: 'no-releases'; installed: string; channelRepo: string }
-  | { state: 'access-unavailable'; access: Exclude<GhAccess, { state: 'ok' }> }
+  | {
+      state: 'update-available'
+      installed: string
+      tag: string
+      version: string
+      assetName: string
+      channelRepo: string
+      road: ChannelRoadName
+      assetUrl: string | null
+      checksumUrl: string | null
+    }
+  | { state: 'current'; installed: string; channelRepo: string; road: ChannelRoadName }
+  | { state: 'no-releases'; installed: string; channelRepo: string; road: ChannelRoadName }
+  | { state: 'access-unavailable'; access: ChannelAccessRefusal }
   | { state: 'unsupported-platform'; note: string }
   | { state: 'malformed-release'; tag: string; note: string }
   | { state: 'invalid-installed-version'; installed: string }
@@ -123,16 +143,8 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
   const installedParsed = parsePrivateVersion(installed.version)
   if (!installedParsed) return { state: 'invalid-installed-version', installed: installed.version }
 
-  const access = await checkAccess(slug)
-  if (access.state !== 'ok') return { state: 'access-unavailable', access }
-
-  const listed = await listReleases(slug)
-  if (listed.state !== 'ok') {
-    return {
-      state: 'access-unavailable',
-      access: { state: 'no-repo-access', note: listed.note, remedy: listed.remedy },
-    }
-  }
+  const listed = await listChannelReleases(slug)
+  if (listed.state !== 'ok') return { state: 'access-unavailable', access: listed.access }
   const selection: ReleaseSelection = selectRelease(listed.releases, installedParsed, process.platform, process.arch)
   switch (selection.state) {
     case 'update-available':
@@ -144,13 +156,16 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
         version: formatPrivateVersion(selection.version),
         assetName: selection.assetName,
         channelRepo: slug,
+        road: listed.road,
+        assetUrl: selection.assetUrl,
+        checksumUrl: selection.checksumUrl,
       }
     case 'current':
       progress('no update')
-      return { state: 'current', installed: installed.version, channelRepo: slug }
+      return { state: 'current', installed: installed.version, channelRepo: slug, road: listed.road }
     case 'no-releases':
       progress('no update')
-      return { state: 'no-releases', installed: installed.version, channelRepo: slug }
+      return { state: 'no-releases', installed: installed.version, channelRepo: slug, road: listed.road }
     case 'unsupported-platform':
       return { state: 'unsupported-platform', note: selection.note }
     case 'malformed-release':
@@ -173,10 +188,19 @@ export type UpdateStage =
   | 'post-switch-smoke'
 
 export type UpdateOutcome =
-  | { state: 'updated'; from: string; to: string; previousKept: boolean; shim: ShimOutcome; receiptPath?: string }
+  | {
+      state: 'updated'
+      from: string
+      to: string
+      previousKept: boolean
+      shim: ShimOutcome
+      road: ChannelRoadName
+      signature: SignatureVerdict['state']
+      receiptPath?: string
+    }
   | { state: 'no-update'; check: CheckOutcome }
-  | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; receiptPath?: string }
-  | { state: 'restored'; stage: UpdateStage; reason: string; activeVersion: string; receiptPath?: string }
+  | { state: 'refused'; stage: UpdateStage; reason: string; remedy: string; retryable?: boolean; road?: ChannelRoadName; receiptPath?: string }
+  | { state: 'restored'; stage: UpdateStage; reason: string; activeVersion: string; road?: ChannelRoadName; receiptPath?: string }
 
 const sha256File = (path: string): string => createHash('sha256').update(readFileSync(path)).digest('hex')
 
@@ -233,7 +257,8 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
           finishedAt: new Date().toISOString(),
           outcome: outcome.state,
           stage: 'stage' in outcome ? outcome.stage : outcome.state === 'updated' ? 'complete' : undefined,
-          ...(outcome.state === 'updated' ? { from: outcome.from, to: outcome.to } : {}),
+          ...('road' in outcome && outcome.road !== undefined ? { road: outcome.road } : {}),
+          ...(outcome.state === 'updated' ? { from: outcome.from, to: outcome.to, signature: outcome.signature } : {}),
           ...(outcome.state === 'refused' ? { reason: outcome.reason, retryable: outcome.retryable ?? false } : {}),
           ...(outcome.state === 'restored' ? { reason: outcome.reason, activeVersion: outcome.activeVersion } : {}),
         },
@@ -258,7 +283,15 @@ export async function performUpdate(roots: LayoutRoots, progress: Progress): Pro
 async function performUpdateTransaction(roots: LayoutRoots, progress: Progress): Promise<UpdateOutcome> {
   const check = await checkForUpdate(roots, progress)
   if (check.state !== 'update-available') return { state: 'no-update', check }
+  const outcome = await acquireAndActivate(roots, progress, check)
+  return outcome.state === 'refused' || outcome.state === 'restored' ? { ...outcome, road: check.road } : outcome
+}
 
+async function acquireAndActivate(
+  roots: LayoutRoots,
+  progress: Progress,
+  check: Extract<CheckOutcome, { state: 'update-available' }>,
+): Promise<UpdateOutcome> {
   const lock = acquireUpdateLock(roots)
   if (lock.state === 'held') {
     return {
@@ -274,8 +307,17 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
     rmSync(staging, { recursive: true, force: true })
     mkdirSync(staging, { recursive: true })
 
-    progress('downloading', `${check.assetName} + ${CHECKSUM_MANIFEST_NAME} from ${check.tag}`)
-    const dl = await downloadReleaseAssets(check.channelRepo, check.tag, [check.assetName, CHECKSUM_MANIFEST_NAME], staging)
+    progress('downloading', `${check.assetName} + ${CHECKSUM_MANIFEST_NAME} from ${check.tag} (${check.road === 'gh' ? 'through gh' : 'anonymously'})`)
+    const dl = await downloadChannelAssets(
+      check.road,
+      check.channelRepo,
+      check.tag,
+      [
+        { name: check.assetName, url: check.assetUrl },
+        { name: CHECKSUM_MANIFEST_NAME, url: check.checksumUrl },
+      ],
+      staging,
+    )
     if (dl.state !== 'ok') return { state: 'refused', stage: 'download', reason: dl.note, remedy: dl.remedy, retryable: true }
 
     progress('verifying')
@@ -344,6 +386,8 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
         remedy: 'report the release as malformed; nothing was activated',
       }
     }
+    const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
+    progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
 
     progress('staging')
     const staged = smokeVersion(payloadDir, check.version, payload.bundle)
@@ -388,7 +432,15 @@ async function performUpdateTransaction(roots: LayoutRoots, progress: Progress):
     }
     const shim = writeShim(roots)
     progress('complete', check.version)
-    return { state: 'updated', from, to: check.version, previousKept: previous !== null && versionDirIntact(roots, previous), shim }
+    return {
+      state: 'updated',
+      from,
+      to: check.version,
+      previousKept: previous !== null && versionDirIntact(roots, previous),
+      shim,
+      road: check.road,
+      signature: provenance.verdict.state,
+    }
   } finally {
     try {
       rmSync(staging, { recursive: true, force: true })

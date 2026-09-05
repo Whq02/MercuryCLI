@@ -6,7 +6,7 @@ import type {
   HookEvent,
   SyncHookJSONOutput,
 } from 'src/entrypoints/agentSdkTypes.js'
-import type { MessageOrigin } from 'src/types/message.js'
+import type { BoundPrefixSection, BoundPrefixToolMark, MessageOrigin } from 'src/types/message.js'
 import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
 import type { TaskStatus, TaskType } from '../../Task.js'
@@ -456,6 +456,14 @@ export type Attachment =
       addedNames: string[]
       addedLines: string[]
       removedNames: string[]
+    }
+  | {
+      type: 'bound_prefix'
+      boundKey: string
+      rosterEnabled: boolean
+      roster: BoundPrefixToolMark[]
+      sections: BoundPrefixSection[]
+      systemContext: Record<string, string>
     }
   | {
       type: 'agent_listing_delta'

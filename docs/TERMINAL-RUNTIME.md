@@ -112,10 +112,13 @@ command is refused, not clobbered. `--json` on every verb.
 
 ## `mercury update`
 
-`mercury update` reads the repository's releases through your own signed-in
-`gh` (the GitHub CLI) — it is the one delivery path this version speaks; a
-machine without `gh` reinstalls by rerunning the install command in the
-README's Install section. Verbs:
+`mercury update` reads the configured repository's GitHub Releases over one
+of two roads: anonymously over HTTPS — no account, no sign-in, no token, the
+same lookup the install one-liner performs — or through the user's own
+signed-in GitHub CLI when one is present (the accelerator, and the only road
+that sees a private channel). GitHub's anonymous request limit is said in one
+line with its reset time in minutes; every answer names the road that read
+the channel, and the receipt records it. Verbs:
 `--check`, `--status`, `--rollback`, `--json`; stdout carries the result,
 stderr the progress; exit 0 includes "already current", 1 is operational
 failure, 2 is usage.
