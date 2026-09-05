@@ -19,7 +19,7 @@ console.log('§1 SL-1 — every resume failure lands as a refusal on the picker'
 {
   const screen = read('src/screens/ResumeConversation.tsx')
   check('POISON: the not-loaded throw is gone', !screen.includes("if (!loaded) throw new Error('Failed to load the selected conversation')"))
-  check('a not-loaded conversation clears the spinner and paints the refusal', /if \(!loaded\) \{\s*\n(?:.*\n){0,6}?\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(/.test(screen))
+  check('a refused resume hop clears the spinner and paints the refusal', /if \(!outcome\.ok\) \{\s*\n\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(`could not resume — \$\{outcome\.reason\}`\)/.test(screen))
   check('POISON: the call-site rethrow is gone', !/void onSelect\(log\)\.catch\(error => \{\s*\n\s*logError\(error\)\s*\n\s*throw error/.test(screen))
   check('the call-site catch logs, clears the spinner and paints the refusal (the picker stays open)', /void onSelect\(log\)\.catch\(error => \{\s*\n(?:.*\n){0,6}?\s*logError\(error\)\s*\n\s*setIsResuming\(false\)\s*\n\s*setResumeRefusal\(/.test(screen) && screen.includes('the picker stays open; the file was left untouched'))
   check('the spinner branch still binds no key of its own (why the refusal path must exist)', screen.includes('text="Resuming conversation…"') && screen.includes('onCancel={cancelResumeWait}'))
