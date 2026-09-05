@@ -1218,6 +1218,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'hook_system_message':
     case 'structured_output':
     case 'hook_permission_decision':
+    case 'bypassed_ask':
       return []
   }
 

@@ -13,7 +13,8 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { addToToolDuration, getStatsStore } from '../../bootstrap/state.js'
 import { themisToolGate } from '../../substrate/themis/gate.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
-import type { PermissionDecision } from '../../types/permissions.js'
+import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
+import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -570,8 +571,7 @@ async function runTransactionBody(args: {
     )
   }
 
-  const decisionReason = (decision as { decisionReason?: { type?: string; hookName?: string } })
-    .decisionReason
+  const decisionReason = (decision as { decisionReason?: PermissionDecisionReason }).decisionReason
   if (
     decisionReason?.type === 'hook' &&
     decisionReason.hookName?.includes(PERMISSION_REQUEST_HOOK_NAME) &&
@@ -584,6 +584,18 @@ async function runTransactionBody(args: {
         toolUseID,
         hookEvent: PERMISSION_REQUEST_HOOK_NAME,
       } as never),
+    })
+  }
+
+  if (decision.behavior === 'allow' && decisionReason?.type === 'bypassedAsk') {
+    push({
+      message: createAttachmentMessage({
+        type: 'bypassed_ask',
+        toolUseID,
+        mode: decisionReason.mode,
+        road: decisionReason.road,
+        reason: createPermissionRequestMessage(tool.name, decisionReason.reason),
+      }),
     })
   }
 
