@@ -1,8 +1,7 @@
 import * as React from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Box, Text } from '../../../ink.js'
-import { consentCommandPreview } from '../consentPreview.js'
-import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
+import { ConsentBodyText } from '../ConsentBodyText.js'
 import { Select } from '../../CustomSelect/select.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../../services/analytics/featureGates.js'
@@ -68,7 +67,6 @@ export function BashPermissionRequest(props: PermissionRequestProps): React.Reac
 function BashCommandPermissionRequest(
   props: PermissionRequestProps & { command: string },
 ): React.ReactNode {
-  const { columns, rows: termRows } = useTerminalSize()
   const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command } = props
   const [debugVisible, setDebugVisible] = useState(false)
 
@@ -229,21 +227,11 @@ function BashCommandPermissionRequest(
             {
 }
             {typeof (toolUseConfirm.input as { command?: unknown }).command === 'string' ? (
-              (() => {
-                const preview = consentCommandPreview(
-                  (toolUseConfirm.input as { command: string }).command,
-                  columns,
-                  termRows,
-                )
-                return (
-                  <>
-                    <Text dimColor={explainer.visible}>{preview.text}</Text>
-                    {preview.hiddenLines > 0 ? (
-                      <Text dimColor>… +{preview.hiddenLines} more lines (the whole command runs)</Text>
-                    ) : null}
-                  </>
-                )
-              })()
+              <ConsentBodyText
+                text={(toolUseConfirm.input as { command: string }).command}
+                tail=" (the whole command runs)"
+                dimColor={explainer.visible}
+              />
             ) : (
               <Text dimColor={explainer.visible}>
                 {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {

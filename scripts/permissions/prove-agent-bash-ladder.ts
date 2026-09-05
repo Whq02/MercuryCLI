@@ -74,8 +74,10 @@ section('§2 the ladder — the agent\'s Bash answers from the stage the main th
 
 const READ_ONLY = 'git rev-parse --short HEAD'
 const WRITING = 'git commit --allow-empty -q -m agent-bash-probe && git rev-parse --short HEAD'
+const ASKING = 'git commit --allow-empty -q -m agent-bash-probe'
 const ALLOW_RULES = ['Bash(git commit:*)']
 const DENY_RULES = ['Bash(git commit:*)']
+const ASK_RULES = ['Bash(git commit:*)']
 
 const bashTool = {
   name: 'Bash',
@@ -84,7 +86,7 @@ const bashTool = {
     bashToolHasPermission(input as never, context.getAppState().toolPermissionContext as never),
 }
 
-type Rules = 'none' | 'allow' | 'deny'
+type Rules = 'none' | 'allow' | 'deny' | 'ask'
 type Mode = 'default' | 'flow' | 'autopilot' | 'sovereign' | 'dontAsk'
 type Subject = 'main' | 'fg-agent' | 'bg-agent' | 'main-headless' | 'bg-agent-of-headless' | 'main-print' | 'fg-agent-of-print' | 'bg-agent-of-print'
 const PEER: Record<Subject, Subject> = {
@@ -106,7 +108,7 @@ function parentState(mode: Mode, rules: Rules, headless: boolean): Record<string
       mode,
       alwaysAllowRules: rules === 'allow' ? { userSettings: ALLOW_RULES } : {},
       alwaysDenyRules: rules === 'deny' ? { userSettings: DENY_RULES } : {},
-      alwaysAskRules: {},
+      alwaysAskRules: rules === 'ask' ? { userSettings: ASK_RULES } : {},
       isBypassPermissionsModeAvailable: mode === 'autopilot' || mode === 'sovereign',
       ...(headless ? { shouldAvoidPermissionPrompts: true } : {}),
     },
@@ -234,6 +236,17 @@ const ROWS: Row[] = [
   { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture', classifier: 0 } },
   { label: 'dontAsk · no rule · writing command → the ask converts to a deny, no classifier', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion', classifier: 0 } },
   { label: 'dontAsk · allow rule · writing command → the rule still allows', mode: 'dontAsk', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', classifier: 0 } },
+  {
+    label: 'default · ask rule · simple command → the content ask road asks the operator; a prompt-less parent denies',
+    mode: 'default',
+    rules: 'ask',
+    command: ASKING,
+    main: { behavior: 'ask', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 },
+    headless: { behavior: 'deny', wrapper: 'headlessAutoDeny', classifier: 0 },
+  },
+  { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
+  { label: 'autopilot · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
+  { label: 'flow · ask rule · simple command → the floor keeps the human ask; no classifier', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule', classifier: 0 } },
 ]
 
 const matches = (cell: Cell, want: Partial<Cell>): boolean =>

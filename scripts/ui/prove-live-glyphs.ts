@@ -193,7 +193,7 @@ section('adoption + hygiene pins (source greps)')
   )
   check(
     'rail countdowns ride a tick, not a render-frozen Date.now()',
-    rail.includes('useNowTick(consolePending ? 1000 : 30_000)'),
+    rail.includes('useNowTick(consolePending ? 1000 : Math.min(30_000, usagePollTtlMs()))'),
   )
   const deck = readFileSync('src/components/DeckPane.tsx', 'utf8')
   check(
