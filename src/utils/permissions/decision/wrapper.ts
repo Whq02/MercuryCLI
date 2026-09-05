@@ -695,7 +695,7 @@ export async function decideToolPermissionWithModes(
 
       if (classifierResult.shouldBlock) {
         if (classifierResult.transcriptTooLong) {
-          if (appState.toolPermissionContext.shouldAvoidPermissionPrompts) {
+          if (!operatorReachable) {
             throw new AbortError(
               "Run aborted: the flow classifier's transcript outgrew its context window with no prompt available",
             )
@@ -719,9 +719,9 @@ export async function decideToolPermissionWithModes(
         }
 
         if (classifierResult.unavailable) {
-          if (!headless) {
+          if (operatorReachable) {
             logForDebugging(
-              'Flow classifier unavailable, falling back to the human ask (interactive)',
+              'Flow classifier unavailable, falling back to the human ask (an operator is reachable)',
               { level: 'warn' },
             )
             return decide(

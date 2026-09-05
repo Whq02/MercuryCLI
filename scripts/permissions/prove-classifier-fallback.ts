@@ -217,5 +217,16 @@ try {
   server.close()
 }
 
+
+{
+  const { readFileSync: readSrc } = await import('node:fs')
+  const { join: joinPath } = await import('node:path')
+  const wrapper = readSrc(joinPath(process.cwd(), 'src', 'utils', 'permissions', 'decision', 'wrapper.ts'), 'utf8')
+  const tooLong = wrapper.slice(wrapper.indexOf('if (classifierResult.transcriptTooLong) {'), wrapper.indexOf('if (classifierResult.transcriptTooLong) {') + 400)
+  const unavailable = wrapper.slice(wrapper.indexOf('if (classifierResult.unavailable) {'), wrapper.indexOf('if (classifierResult.unavailable) {') + 400)
+  t('the transcript-too-long leg aborts only when no operator is reachable (the channel fact, never the headless bit alone)', tooLong.includes('if (!operatorReachable) {') && !tooLong.includes('shouldAvoidPermissionPrompts'))
+  t('the unavailable leg hands the ask to a reachable operator (the channel fact)', unavailable.includes('if (operatorReachable) {') && !unavailable.includes('if (!headless) {'))
+}
+
 console.log(failures ? '\n❌ CLASSIFIER-FALLBACK RED' : '\n✅ CLASSIFIER-FALLBACK GREEN')
 process.exit(failures)
