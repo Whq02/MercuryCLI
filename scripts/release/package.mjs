@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cmdLauncher, installingDoc, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, updatingDoc } from './launcherTemplates.mjs'
-import { readCompatFloor, releaseLayoutSection, topAllowlist } from './payloadContract.mjs'
+import { archiveFileName, readCompatFloor, releaseLayoutSection, topAllowlist } from './payloadContract.mjs'
+import { checkReleaseDocuments, LICENCE_DOCUMENTS } from './releaseDocuments.mjs'
 import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } from './verifyReceiptBind.mjs'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -152,6 +153,15 @@ writeFileSync(join(pkgDir, 'UPDATING.md'), UPDATING_MD)
 writeFileSync(join(pkgDir, 'RELEASE-NOTES.md'), RELEASE_NOTES)
 writeFileSync(join(pkgDir, 'NOTICES.md'), NOTICES)
 
+{
+  const docs = checkReleaseDocuments({ root: ROOT, version: VERSION })
+  if (!docs.ok) {
+    fail(`the licence documents are not true for ${VERSION}:\n    ${docs.findings.join('\n    ')}\n  (node scripts/release/releaseDocuments.mjs stamp fills the version, the dates and the terms hash)`)
+  }
+  for (const name of LICENCE_DOCUMENTS) cpSync(join(ROOT, name), join(pkgDir, name))
+  ok(`licence documents: ${LICENCE_DOCUMENTS.join(', ')} (${docs.parameters.version}, released ${docs.parameters.releaseDate}, change date ${docs.parameters.changeDate}, terms hash matches)`)
+}
+
 try {
   execSync('bash scripts/vscode/build-vsix.sh', { cwd: ROOT, stdio: 'pipe' })
 } catch (e) {
@@ -174,6 +184,7 @@ for (const f of FORBIDDEN) if (existsSync(join(pkgDir, f))) fail(`dev residue in
 
 const argLicense = process.argv.indexOf('--license-id')
 const LICENSE_ID = argLicense !== -1 && process.argv[argLicense + 1] ? process.argv[argLicense + 1] : null
+const UNSIGNED_BY_DECISION = process.argv.includes('--unsigned')
 let shippedSignatureState = 'unsigned'
 {
   const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs')).href)
@@ -194,6 +205,7 @@ let shippedSignatureState = 'unsigned'
   }
   const keyFile = process.env.MERCURY_SIGNING_KEY_FILE
   if (keyFile) {
+    if (UNSIGNED_BY_DECISION) fail('--unsigned given with MERCURY_SIGNING_KEY_FILE set — choose one: sign with the key, or ship unsigned by decision')
     if (!existsSync(keyFile)) fail(`MERCURY_SIGNING_KEY_FILE names ${keyFile} — no such file`)
     let block
     try {
@@ -219,9 +231,13 @@ let shippedSignatureState = 'unsigned'
     }
   } else {
     if (LICENSE_ID) fail('--license-id given without MERCURY_SIGNING_KEY_FILE — the license attribution seam is signature-covered by design; sign or drop the id')
-    ok('UNSIGNED — MERCURY_SIGNING_KEY_FILE not set; the archive ships without a provenance signature (operator key ceremony pending; launcher and /health report the fact plainly)')
+    if (!UNSIGNED_BY_DECISION) {
+      fail('no MERCURY_SIGNING_KEY_FILE and no --unsigned — an unsigned archive is a decision, never an accident: set MERCURY_SIGNING_KEY_FILE=<the release key PEM> to sign, or pass --unsigned deliberately (the archive name then says -unsigned)')
+    }
+    ok('UNSIGNED — by decision (--unsigned): the archive ships without a provenance signature and its name says so; the launcher states it once per install, `mercury doctor` every time')
   }
 }
+const ARCHIVE_NAME = archiveFileName(VERSION, TARGET, { unsigned: UNSIGNED_BY_DECISION })
 
 const TOP_ALLOWLIST = new Set(topAllowlist(TARGET, FLOOR))
 for (const entry of readdirSync(pkgDir)) {
@@ -255,7 +271,8 @@ const dryRunRecord = {
   buildTree: manifest.buildTree,
   bundleSha256: createHash('sha256').update(readFileSync(join(pkgDir, 'mercury.mjs'))).digest('hex'),
   verifyReceipts,
-  signing: { state: shippedSignatureState, licenseId: LICENSE_ID },
+  signing: { state: shippedSignatureState, licenseId: LICENSE_ID, unsignedByDecision: UNSIGNED_BY_DECISION },
+  archive: ARCHIVE_NAME,
   fileCount: files.length,
   totalBytes: files.reduce((n, f) => n + f.bytes, 0),
   bytesByFamily,
@@ -268,7 +285,7 @@ ok(`dry-run record: release-out/${NAME}.dryrun.json (${files.length} files, noti
 
 const outDir = join(ROOT, 'release-out')
 mkdirSync(outDir, { recursive: true })
-const archive = join(outDir, IS_WIN ? `${NAME}.zip` : `${NAME}.tar.gz`)
+const archive = join(outDir, ARCHIVE_NAME)
 rmSync(archive, { force: true })
 const resolvePwshExe = () => {
   for (const exe of ['pwsh', 'powershell']) {
@@ -405,6 +422,12 @@ if (runtime) ok(`manifest names the vendored runtime (node ${mf.runtime.version}
   const expectedExit = { signed: 0, unsigned: 3, 'unrecognized-key': 4 }[shippedSignatureState]
   if (status !== expectedExit) fail(`smoke: verifier exit ${status} (expected ${expectedExit} for '${shippedSignatureState}')`)
   ok(`shipped verifier answers '${verdictState}' at full depth (exit ${status})`)
+}
+
+{
+  const docs = checkReleaseDocuments({ root: ROOT, version: VERSION, archiveDir: join(smoke, 'mercury') })
+  if (!docs.ok) fail(`smoke: the archive's licence documents: ${docs.findings.join('; ')}`)
+  ok('the archive carries LICENSE.md, TRADEMARKS.md and the production terms verbatim (the terms hash the licence states)')
 }
 
 const stateMarker = join(smokeHome, 'user-state-marker.json')
