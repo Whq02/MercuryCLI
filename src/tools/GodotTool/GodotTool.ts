@@ -10,7 +10,7 @@ import type { ChangeRecordRoad } from '../../services/vulcan/addonInstaller.js'
 import { getVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
 import { vulcanLiteMode, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
-import { vulcanOp, vulcanCategories } from '../../utils/vulcan/optable.generated.js'
+import { VULCAN_STEP_WALL_MS_PER_FRAME, vulcanOp, vulcanCategories } from '../../utils/vulcan/optable.generated.js'
 import { GODOT_TOOL_NAME, getGodotToolDescription } from './prompt.js'
 import {
   renderToolResultMessage,
@@ -121,7 +121,7 @@ export function vulcanDeclaredBudgetMs(op: string, args: Record<string, unknown>
     num(a?.ms) +
     num(a?.wait_ms) +
     num(a?.step_ms) +
-    (num(a?.frames) + num(a?.step_frames)) * 50
+    (num(a?.frames) + num(a?.step_frames)) * VULCAN_STEP_WALL_MS_PER_FRAME
   let total = declared(args)
   if (op === 'input_sequence' && Array.isArray(args?.steps)) {
     for (const step of args.steps as unknown[]) {

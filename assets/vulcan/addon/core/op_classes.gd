@@ -1,6 +1,8 @@
 @tool
 extends RefCounted
 
+const STEP_WALL_MS_PER_FRAME := 50
+
 const CLASSES := {
 	"project_info": "read",
 	"project_file_search": "read",
