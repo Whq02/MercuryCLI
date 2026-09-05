@@ -1,5 +1,6 @@
 
 import type { UUID } from 'node:crypto';
+import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
 import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../utils/sessionStorage/writer.js';
@@ -2215,7 +2216,7 @@ export function REPL({
         responseLengthRef={responseLengthRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={viewCompacting ? 'compacting context' : viewAgentWait}
+        overrideMessage={viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
         still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
         verbose={verbose}

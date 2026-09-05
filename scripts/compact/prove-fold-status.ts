@@ -227,5 +227,22 @@ console.log('\nS7 withFoldStatus owns the stamps')
   check('a context with no status door folds unstamped and unharmed', bare === 'no status door')
 }
 
+
+{
+  const { readdirSync, readFileSync, statSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const ROOT = join(import.meta.dir, '..', '..')
+  const walk = (dir: string): string[] => readdirSync(dir).flatMap(name => {
+    const full = join(dir, name)
+    return statSync(full).isDirectory() ? walk(full) : /\.(ts|tsx)$/.test(name) ? [full] : []
+  })
+  const files = [...walk(join(ROOT, 'src/services/compact')), ...walk(join(ROOT, 'src/commands/compact'))]
+  const american = files.filter(f => /\bcanceled\b/i.test(readFileSync(f, 'utf8')))
+  check("the fold's exit word has one spelling under src/services/compact and src/commands/compact ('cancelled'; no 'canceled')", american.length === 0, american.map(f => f.slice(ROOT.length + 1)).join(', '))
+  const { ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
+  const { FOLD_EXIT_WORDS } = await import('../../src/services/compact/foldStatus.ts')
+  check("the user's esc line carries the fold row's own exit word", ERROR_MESSAGE_USER_ABORT.includes(FOLD_EXIT_WORDS.cancelled))
+}
+
 console.log(failures === 0 ? '\n ✅ FOLD STATUS — one owner, an honest bar, one row' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
