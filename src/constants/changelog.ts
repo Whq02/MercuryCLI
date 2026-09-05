@@ -40,6 +40,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Effort has a sixth level, ultra, above max, wherever the connected account serves it; a level the wire refuses is remembered, the nearest served level runs, and the transcript says so
 - Idle agents no longer hold a seat, the machine's seat reading counts available memory (near ten on an 8 GB Mac), and /seats, the Boot Menu or /config set the ceiling
 - A resumed or respawned session re-sends its first exchange byte for byte, so preserved thinking is never dropped on a resume; a tool the build no longer offers is a named change
+- mercury update reads the public release channel anonymously, so no GitHub CLI or sign-in is needed; a signed-in gh only speeds it up, and every answer says which road it took
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
