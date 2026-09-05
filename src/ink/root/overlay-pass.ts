@@ -1,3 +1,4 @@
+import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import type { Screen, StylePool } from '../cell-grid.js'
 import type { ScrollTranslation } from '../compose-walk.js'
 import type { OverlayRecord } from '../geometry/overlay.js'
@@ -52,6 +53,7 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
         captureScrolledRows(selection, input.captureScreen, capFirst, capLast, side)
       }
       shiftAnchor(selection, -delta, viewportTop, viewportBottom)
+      fluxMark('selection:xlate', 1000 + delta + 500)
     } else if (
       !selection.focus ||
       (selection.focus.row >= viewportTop && selection.focus.row <= viewportBottom)
@@ -62,7 +64,12 @@ export function applyOverlayPass(input: OverlayPassInput): OverlayPassResult {
       const had = hasSelection(selection)
       shiftSelection(selection, -delta, viewportTop, viewportBottom, input.captureScreen.width)
       if (had && !hasSelection(selection)) input.onSelectionCleared()
+      fluxMark('selection:xlate', 2000 + delta + 500)
+    } else {
+      fluxMark('selection:xlate', 3000 + delta + 500)
     }
+  } else if (scrollTranslation && selection.anchor) {
+    fluxMark('selection:xlate', 4000 + scrollTranslation.delta + 500)
   }
 
   let selActive = false

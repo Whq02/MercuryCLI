@@ -663,16 +663,21 @@ function checkOverlayStep(
     readonly charPool = new CharPool()
     readonly hyperlinkPool = new HyperlinkPool()
     readonly selection: SelectionState = createSelectionState()
+    readonly emu = new AnsiEmulator(COLS, ROWS, true)
+    readonly glassFaults: string[] = []
     cleared = 0
+    steps = 0
     private front: Frame
     private back: Frame
     private glass: OverlayRecord | null = null
     private readonly render: ReturnType<typeof createRenderer>
+    private readonly writer: FrameWriter
     constructor(readonly root: DOMElement, readonly sb: DOMElement) {
       this.stylePool.setSelectionBg({ code: `\x1b[${SELECTION_BG}m`, endCode: '\x1b[49m' })
       this.front = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
       this.back = emptyFrame(ROWS, COLS, this.stylePool, this.charPool, this.hyperlinkPool)
       this.render = createRenderer(root, this.stylePool)
+      this.writer = new FrameWriter({ isTTY: true, stylePool: this.stylePool })
     }
     step(): Frame {
       this.root.layoutNode!.calculateLayout(COLS, ROWS)
@@ -704,6 +709,16 @@ function checkOverlayStep(
         },
         record,
       })
+      const vacated = glass ? glass.rect() : null
+      if (vacated) {
+        frame.screen.damage = frame.screen.damage ? unionRect(frame.screen.damage, vacated) : vacated
+      }
+      const anchored: Frame = { ...this.front, cursor: { x: 0, y: 0, visible: false } }
+      const bytes = serialize(optimizePatches(this.writer.render(anchored, frame, true, true)))
+      this.emu.feed(CURSOR_HOME + bytes)
+      this.steps++
+      const mismatch = glassMismatch(this.emu, frame, this.stylePool)
+      if (mismatch) this.glassFaults.push(`step ${this.steps}: ${mismatch}`)
       this.back = this.front
       this.front = frame
       this.glass = record.size > 0 ? record : null
@@ -842,6 +857,8 @@ function checkOverlayStep(
   const hGone = session.highlighted()
   check('scroll-xlate: both ends past the top edge clear the selection (no ghost cell, empty copy)', !hasSelection(session.selection) && hGone.size === 0 && session.copy() === '', `rows ${[...hGone.keys()].join(',')} copy=${JSON.stringify(session.copy())}`)
   check('scroll-xlate: the clear fires the cleared listener exactly once', session.cleared === clearedBefore + 1, `${session.cleared - clearedBefore} fired`)
+
+  check(`scroll-xlate: the glass replays every frame cell-exact across ${session.steps} steps (no ghost highlight)`, session.glassFaults.length === 0, session.glassFaults.slice(0, 3).join(' · '))
 }
 
 if (failures > 0) {
