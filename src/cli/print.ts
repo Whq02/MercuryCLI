@@ -1394,12 +1394,10 @@ export async function runHeadless(
       await updateSdkMcp()
     },
     onTurnStart: (command, batch) => {
-      io.outbound.enqueue(
-        turnStartedFrame(
-          getSessionId(),
-          batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined),
-          randomUUID(),
-        ),
+      const openEdge = turnStartedFrame(
+        getSessionId(),
+        batch.map(member => member.uuid).filter((uuid): uuid is UUID => uuid !== undefined),
+        randomUUID(),
       )
       if (options.replayUserMessages && batch.length > 1) {
         const surviving = command.uuid
@@ -1416,6 +1414,7 @@ export async function runHeadless(
           })
         }
       }
+      return openEdge
     },
     executeTurn: (command, batchUuids, onMessage) =>
       executeTurn(command, batchUuids, message => {
