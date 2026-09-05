@@ -313,6 +313,15 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
   const pFork = await doPlan([search, read, browser], forkOwner)
   check('§1c a fork (a fresh owner, the same first exchange) restores the frozen roster too', rosterNames(pFork) === names1 && marks(pFork) === marks1, `${rosterNames(pFork)} vs ${names1}`)
 
+  const savedKeepTail = process.env.MERCURY_COMPACT_KEEP_TAIL
+  process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
+  freshProcess()
+  const restoredKT = restoreBoundPrefixFromMessages([recordMessage as never])
+  const pKT = await doPlan([search, read, browser])
+  check('§1c a resume with keep-tail on restores the frozen prefix byte for byte (0 drops — the tail arm never touches the first exchange)', restoredKT === boundKey && rosterNames(pKT) === names1 && marks(pKT) === marks1 && pKT.restoredMissingTools.length === 0 && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen', `${rosterNames(pKT)} vs ${names1}`)
+  if (savedKeepTail === undefined) delete process.env.MERCURY_COMPACT_KEEP_TAIL
+  else process.env.MERCURY_COMPACT_KEEP_TAIL = savedKeepTail
+
   freshProcess()
   if (savedSearch === undefined) delete process.env.MERCURY_TOOL_SEARCH
   else process.env.MERCURY_TOOL_SEARCH = savedSearch
