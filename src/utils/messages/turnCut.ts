@@ -14,6 +14,27 @@ export function interruptedToolsLine(toolNames: readonly string[]): string {
 export type TurnCutKind = 'operator' | 'idle-timeout' | 'parent-stop' | 'cut'
 export type TurnCut = { kind: TurnCutKind; detail?: string }
 
+export type TurnCutReason =
+  | 'interrupt'
+  | 'crew-stop'
+  | 'user-skip'
+  | 'user-retry'
+  | 'stalled'
+  | 'workflow-abort'
+  | 'throttled'
+  | 'terminal-400'
+  | 'workflow-permission-timeout'
+
+export const TURN_CUT_WORDS: Record<Exclude<TurnCutReason, 'interrupt' | 'crew-stop' | 'user-skip' | 'user-retry' | 'stalled' | 'workflow-abort'>, string> = {
+  throttled: 'the retry budget was spent',
+  'terminal-400': 'the provider refused the request outright',
+  'workflow-permission-timeout': 'the permission ask timed out',
+}
+
+export function abortWithCut(controller: Pick<AbortController, 'abort'>, reason: TurnCutReason): void {
+  controller.abort(reason)
+}
+
 const OPERATOR_CUT_REASONS = new Set(['interrupt', 'crew-stop', 'user-skip', 'user-retry'])
 const IDLE_TIMEOUT_WORDS = 'a no-progress timeout (the provider went quiet)'
 const PARENT_STOP_WORDS = 'the workflow that ran this agent stopped'
@@ -24,7 +45,8 @@ export function turnCutOf(reason: unknown): TurnCut {
     if (OPERATOR_CUT_REASONS.has(reason)) return { kind: 'operator' }
     if (reason === 'stalled') return { kind: 'idle-timeout' }
     if (reason === 'workflow-abort') return { kind: 'parent-stop' }
-    return { kind: 'cut', detail: reason }
+    const words = (TURN_CUT_WORDS as Record<string, string | undefined>)[reason]
+    return { kind: 'cut', detail: words ?? reason }
   }
   if (typeof reason === 'object') {
     const named = reason as { name?: unknown; message?: unknown; code?: unknown }

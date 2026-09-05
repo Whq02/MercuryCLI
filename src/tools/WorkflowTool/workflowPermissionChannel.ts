@@ -1,4 +1,5 @@
 
+import { abortWithCut } from '../../utils/messages/turnCut.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { PermissionDecision } from '../../types/permissions.js'
 import type { SetAppState } from '../../utils/messageQueueManager.js'
@@ -112,7 +113,7 @@ export function makeWorkflowCanUseTool(deps: WorkflowCanUseToolDeps): CanUseTool
         timer = setTimeout(() => {
           try {
             if (agentId) {
-              deps.getAgentControllers()?.get(agentId)?.abort('workflow-permission-timeout')
+              { const controller = deps.getAgentControllers()?.get(agentId); if (controller !== undefined) abortWithCut(controller, 'workflow-permission-timeout') }
             }
           } catch {
           }
