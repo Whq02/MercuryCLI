@@ -14,6 +14,7 @@ const BOX_HOST = '127.0.0.1'
 const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost', '0.0.0.0', '::'])
 const FAMILY_BASE = /^MERCURY_[A-Z0-9]+_(?:[A-Z]+_)*BASE$/
 const NOT_A_FAMILY = new Set(['MERCURY_DESCRIPTOR_STOCK_BASE'])
+const UPDATE_SEAM = 'MERCURY_UPDATE_API_BASE_URL'
 const SLOTS = ['MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_CUSTOM_OAUTH_URL']
 const INHERITED_GATEWAY = 'https://gateway.example.invalid'
 const DEADLINE_BOUND_MS = 15_000
@@ -157,7 +158,7 @@ const baseEnv: NodeJS.ProcessEnv = {
   ANTHROPIC_API_KEY: ambientKey,
 }
 for (const k of ['NODE_OPTIONS', 'MERCURY_SUITE_TIMEOUT', 'MERCURY_SUITE_TIMEOUT_FLOOR', 'MERCURY_SUITE_CEILING']) delete baseEnv[k]
-for (const k of Object.keys(baseEnv)) if (FAMILY_BASE.test(k) || k === 'ANTHROPIC_BASE_URL') delete baseEnv[k]
+for (const k of Object.keys(baseEnv)) if (FAMILY_BASE.test(k) || k === 'ANTHROPIC_BASE_URL' || k === UPDATE_SEAM) delete baseEnv[k]
 
 section('§1/§2/§3 — the runner\'s pin, read and probed by a suite; one headless turn under it')
 const suites = join(work, 'suites')
@@ -211,6 +212,7 @@ check(
   families.length >= 10 && unpinned.length === 0,
   unpinned.length > 0 ? `unpinned: ${unpinned.join(' ')}` : `only ${families.length} family rows found`,
 )
+check(`the update channel's anonymous road rides the box (${UPDATE_SEAM})`, dump[UPDATE_SEAM] === box, `dump=${dump[UPDATE_SEAM] ?? '(unset)'}`)
 for (const k of SLOTS) check(`${k} is left as the runner found it (a base there configures a slot, or throws)`, dump[k] === baseEnv[k], `dump=${dump[k] ?? '(unset)'} env=${baseEnv[k] ?? '(unset)'}`)
 
 section('§2 — the box answers like the real host, in milliseconds')

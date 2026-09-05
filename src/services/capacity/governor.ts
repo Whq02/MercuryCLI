@@ -39,7 +39,7 @@ const DEFAULT_CEILINGS: GovernorCeilings = { modelLanes: 16, delegationLanes: 16
 
 export interface CeilingProvenance {
   seats: number
-  seatSource: 'consented' | 'machine' | 'inherited' | 'default'
+  seatSource: 'operator' | 'consented' | 'machine' | 'inherited' | 'default'
   narrowing: SeatNarrowing
 }
 
