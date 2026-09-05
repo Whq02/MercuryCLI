@@ -10,7 +10,7 @@ if (!captureFile || !fixtureCwd || !branch) {
   console.error('usage: apollo-consent-fixture-server.ts <captureFile> <fixtureCwd> <branch>')
   process.exit(2)
 }
-if (!['build', 'build-ask-first', 'more-questions'].includes(branch)) {
+if (!['build', 'build-ask-first', 'more-questions', 'spec-review', 'stray-write'].includes(branch)) {
   console.error(`unknown branch ${branch}`)
   process.exit(2)
 }
@@ -99,6 +99,11 @@ const poll = (id: string, question: string): Block => ({
   },
 })
 
+const specBranch = branch === 'spec-review' || branch === 'stray-write'
+const SPEC_FILE = join(fixtureCwd, '.mercury', 'apollo', 'spec.md')
+const DESIGN_FILE = join(fixtureCwd, '.mercury', 'apollo', 'design.md')
+const STRAY_FILE = join(fixtureCwd, 'docs', 'notes.md')
+
 const review: Block = {
   type: 'tool_use',
   id: 'toolu_apollo_review',
@@ -107,10 +112,20 @@ const review: Block = {
     summary:
       'A one-file hello demo: run it and a greeting prints. Everything the prototype needs is settled.',
     blockers: [],
-    specFiles: [join(fixtureCwd, '.mercury', 'apollo', 'spec.md')],
+    specFiles: specBranch ? [SPEC_FILE, DESIGN_FILE] : [SPEC_FILE],
     runNote: 'node hello.js in the project folder',
   },
 }
+
+const specWrite = (id: string, filePath: string, title: string): Block => ({
+  type: 'tool_use',
+  id,
+  name: 'Write',
+  input: {
+    file_path: filePath,
+    content: `# ${title}\n\nThe demo greets once from the terminal.\n`,
+  },
+})
 
 const writeFileBlock: Block = {
   type: 'tool_use',
@@ -149,6 +164,25 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       if (calls === 1) {
         res.end(anthropicTurn([poll('toolu_apollo_poll1', POLL_ONE)], 'tool_use'))
+      } else if (specBranch) {
+        if (calls === 2) {
+          res.end(anthropicTurn([specWrite('toolu_apollo_spec1', SPEC_FILE, 'Spec')], 'tool_use'))
+        } else if (calls === 3) {
+          res.end(
+            anthropicTurn(
+              [
+                branch === 'spec-review'
+                  ? specWrite('toolu_apollo_spec2', DESIGN_FILE, 'Design')
+                  : specWrite('toolu_apollo_stray', STRAY_FILE, 'Notes'),
+              ],
+              'tool_use',
+            ),
+          )
+        } else if (calls === 4) {
+          res.end(anthropicTurn([review], 'tool_use'))
+        } else {
+          res.end(anthropicTurn([{ type: 'text', text: FINAL_TEXT }], 'end_turn'))
+        }
       } else if (calls === 2) {
         res.end(anthropicTurn([review], 'tool_use'))
       } else if (calls === 3) {

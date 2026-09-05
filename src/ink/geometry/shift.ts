@@ -97,6 +97,10 @@ export function shiftSelectionForFollow(
     clearSelection(s)
     return true
   }
+  if (rawAnchor > maxRow && rawFocus !== undefined && rawFocus > maxRow) {
+    clearSelection(s)
+    return true
+  }
   s.anchor = { col: s.anchor.col, row: clamp(rawAnchor, minRow, maxRow) }
   if (s.focus && rawFocus !== undefined) {
     s.focus = { col: s.focus.col, row: clamp(rawFocus, minRow, maxRow) }

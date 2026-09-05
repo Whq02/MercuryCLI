@@ -18,9 +18,11 @@ const POLL_ONE_FRAGMENT = 'the output — console or page'
 const POLL_TWO_FRAGMENT = 'the look — palette'
 const CARD_QUESTION = 'Begin the prototype build?'
 const SESSION_TIER_LABEL = 'Yes, allow all edits'
+const APOLLO_BAND = 'apollo mode on'
+const REFUSAL_FRAGMENT = 'Apollo Mode refused writing'
 
-type Branch = 'build' | 'build-ask-first' | 'more-questions'
-const ALL_BRANCHES: Branch[] = ['build', 'build-ask-first', 'more-questions']
+type Branch = 'build' | 'build-ask-first' | 'more-questions' | 'spec-review' | 'stray-write'
+const ALL_BRANCHES: Branch[] = ['build', 'build-ask-first', 'more-questions', 'spec-review', 'stray-write']
 
 let failures = 0
 let checks = 0
@@ -102,6 +104,8 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       build: '\r',
       'build-ask-first': '\x1b[B\r',
       'more-questions': '\x1b[B\x1b[B\r',
+      'spec-review': '\r',
+      'stray-write': '\r',
     }
     const sends: Array<Record<string, unknown>> = [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -161,6 +165,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       env: childEnv,
     })
     let gridText = ''
+    const markFrames = new Map<string, string>()
     if (existsSync(out)) {
       const payload = JSON.parse(readFileSync(out, 'utf8')) as {
         grid: Array<Array<{ c: string }>>
@@ -169,6 +174,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       const toText = (grid: Array<Array<{ c: string }>>): string =>
         grid.map(r => r.map(c => c.c || ' ').join('')).join('\n')
       gridText = toText(payload.grid)
+      for (const mark of payload.marks ?? []) markFrames.set(mark.label, toText(mark.grid))
       writeFileSync(path.join(RUN_HOME, `grid-${branch}-${cols}.txt`), gridText)
       const keepDir = process.env.MERCURY_K2_CAPTURE_DIR
       if (keepDir) {
@@ -188,6 +194,9 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
     const bodyOf = (c: Capture | undefined): string => JSON.stringify(c?.body ?? {})
     const wire3 = bodyOf(anthropic[2])
     const helloExists = existsSync(path.join(FIXTURE_CWD, 'hello.js'))
+    const specExists = existsSync(path.join(FIXTURE_CWD, '.mercury', 'apollo', 'spec.md'))
+    const designExists = existsSync(path.join(FIXTURE_CWD, '.mercury', 'apollo', 'design.md'))
+    const strayExists = existsSync(path.join(FIXTURE_CWD, 'docs', 'notes.md'))
 
     check('the drive completed (vshot exit 0 — every awaited surface appeared)', res.status === 0, `status=${res.status} tail=${(res.stdout ?? '').split('\n').slice(-4).join(' | ')}`)
     check('four model calls — interview, review, action, finish', anthropic.length >= 4, `calls=${anthropic.length}`)
@@ -209,6 +218,24 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
       check('ask-first: the apollo band is GONE (the mode moved to default)', !gridText.includes('apollo mode on'))
       check('ask-first: no implement band (default paints no band — breadth stayed narrow)', !gridText.includes('implement mode on'))
       check('ask-first: the run finished', gridText.includes(FINAL_TEXT))
+    } else if (branch === 'spec-review' || branch === 'stray-write') {
+      const wire4 = bodyOf(anthropic[3])
+      const wire5 = bodyOf(anthropic[4])
+      const cardFrame = markFrames.get('card-answer') ?? ''
+      check('five model calls — interview, two writes, review, finish', anthropic.length >= 5, `calls=${anthropic.length}`)
+      check("the first spec file was written on the mode's own consent (no ask)", specExists && !cardFrame.includes(SESSION_TIER_LABEL))
+      if (branch === 'spec-review') {
+        check('spec-review: the second spec file was written too', designExists)
+      } else {
+        check("stray-write: the write outside the spec directory was REFUSED with the mode's words", wire4.includes(REFUSAL_FRAGMENT) && wire4.includes('spec files under') && wire4.includes('ApolloReview'), wire4.slice(0, 400))
+        check('stray-write: no file was written outside the spec directory', !strayExists)
+        check('stray-write: no file consent appeared (the refusal never asks)', !cardFrame.includes(SESSION_TIER_LABEL) && !gridText.includes(SESSION_TIER_LABEL))
+      }
+      check('the apollo band held through the writes (the card frame reads apollo)', cardFrame.includes(APOLLO_BAND), cardFrame.split('\n').slice(0, 3).join(' | '))
+      check('the card rendered — the review was accepted in Apollo Mode', cardFrame.includes(CARD_QUESTION) && cardFrame.includes('Yes — begin the build'))
+      check('the review result says the build begins — never "not in Apollo Mode"', wire5.includes('build begins NOW') && !wire5.includes('not in Apollo Mode') && !wire5.includes('Apollo Mode ended'), wire5.slice(0, 400))
+      check('plain yes moved the session to Implement Mode (the band followed)', wire5.includes('The session moved to Implement Mode') && gridText.includes('implement mode on'))
+      check('the run finished', gridText.includes(FINAL_TEXT))
     } else {
       check('more-questions: the review result speaks the discuss grammar', wire3.includes('asked for more questions') && wire3.includes('Resume the interview'), wire3.slice(0, 400))
       check('more-questions: NOTHING was written (the build never started)', !helloExists)
@@ -230,7 +257,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
 }
 
 console.log('============================================================')
-console.log(' Apollo closing consent LIVE — three answers, three postures')
+console.log(' Apollo closing consent LIVE — three answers, three postures; the spec road, the one door')
 console.log('============================================================')
 
 for (const branch of branches) {
