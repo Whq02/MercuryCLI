@@ -48,6 +48,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'compaction_reminder',
   'date_change',
   'user_context',
+  'bound_prefix',
 ] as const
 
 export type NullRenderingAttachmentType =
