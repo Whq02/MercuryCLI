@@ -1,4 +1,4 @@
-import type { EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../services/analytics/featureGates.js'
 import { nearestSupportedWireEffort } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
@@ -9,6 +9,7 @@ import {
   getMaxSupportedEffortLevel,
   gptEffortVocabularyView,
   gptModelDefaultEffort,
+  modelOffersEffortLevel,
   modelSupportsEffort,
   modelSupportsMaxEffort,
   modelSupportsXHighEffort,
@@ -21,10 +22,9 @@ import { isDeepthinkEnabled, sessionThinkingEnabled } from './thinking.js'
 export type { EffortLevel }
 export type EffortValue = EffortLevel | number
 
-// prettier-ignore
-export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'] as readonly EffortLevel[]
+export { EFFORT_LEVELS }
 
-export { modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort, getMaxSupportedEffortLevel }
+export { modelOffersEffortLevel, modelSupportsEffort, modelSupportsMaxEffort, modelSupportsXHighEffort, getMaxSupportedEffortLevel }
 
 const FIRST_PARTY_DEFAULT_LEVEL: EffortLevel = 'high'
 const EXTERNAL_DEFAULT_LABEL = 'default'
@@ -170,12 +170,10 @@ export function selectableEffortLevelsForLadder(model: string): readonly EffortL
 }
 
 function stepDown(model: string, value: EffortValue): EffortValue {
-  if (typeof value !== 'string') return value
-  if (value === 'max' && !modelSupportsMaxEffort(model)) {
-    return modelSupportsXHighEffort(model) ? 'xhigh' : 'high'
-  }
-  if (value === 'xhigh' && !modelSupportsXHighEffort(model)) {
-    return 'high'
+  if (typeof value !== 'string' || !isEffortLevel(value)) return value
+  for (let rank = EFFORT_LEVELS.indexOf(value); rank >= 0; rank--) {
+    const level = EFFORT_LEVELS[rank] as EffortLevel
+    if (modelOffersEffortLevel(model, level)) return level
   }
   return value
 }
@@ -479,7 +477,7 @@ const FAMILY_PROBES: Array<{ display: string; probes: string[] }> = [
   { display: 'Sonnet 4.6+', probes: ['claude-sonnet-4-6'] },
   { display: 'Sonnet 5', probes: ['claude-sonnet-5'] },
   { display: 'Fable', probes: ['claude-fable-5', 'claude-fable-5-1'] },
-  { display: 'GPT', probes: ['gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
+  { display: 'GPT', probes: ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'] },
 ]
 
 export function effortFamiliesLabel(supports: (modelId: string) => boolean): string {
@@ -504,6 +502,8 @@ export function getEffortLevelDescription(level: EffortLevel): string {
       return `Extra depth of reasoning — the right pick for difficult coding and long agentic runs · ${effortFamiliesLabel(modelSupportsXHighEffort)}`
     case 'max':
       return `The model's fullest capability and deepest reasoning · ${effortFamiliesLabel(modelSupportsMaxEffort)}`
+    case 'ultra':
+      return `Beyond max — the deepest rung a served ladder carries, where the account serves it · ${effortFamiliesLabel(model => modelOffersEffortLevel(model, 'ultra'))}`
   }
 }
 

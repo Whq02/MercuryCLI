@@ -4,6 +4,7 @@ import {
   EFFORT_LOW,
   EFFORT_MAX,
   EFFORT_MEDIUM,
+  EFFORT_ULTRA,
   EFFORT_XHIGH,
 } from '../constants/figures.js'
 import {
@@ -20,6 +21,7 @@ const SYMBOLS: Record<EffortLevel, string> = {
   high: EFFORT_HIGH,
   xhigh: EFFORT_XHIGH,
   max: EFFORT_MAX,
+  ultra: EFFORT_ULTRA,
 }
 
 export function effortLevelToSymbol(level: EffortLevel): string {

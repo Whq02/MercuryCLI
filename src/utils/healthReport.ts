@@ -1350,12 +1350,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (d.state !== 'live') {
               return { status: 'off', evidence: `no live daemon to compare with — ${d.reason}`, link: '/daemon' }
             }
-            const { daemonControlRpc } = await import('../daemon/controlSocket.js')
+            const { daemonControlRpc, restartDaemonWords } = await import('../daemon/controlSocket.js')
             const { compareSignInViews, composeSignInView, summarizeSignInView } = await import('../daemon/signInView.js')
             const reply = (await daemonControlRpc({ op: 'signIns' } as never, { timeoutMs: 3000 })) as
               | { ok: true; view: DaemonSignInViewV1 }
               | { ok: false; code?: string; error?: string }
-            const restart = `restart the daemon: \`${binaryName()} daemon restart\``
+            const restart = restartDaemonWords(binaryName())
             if (!reply.ok) {
               return {
                 status: 'warn',
@@ -1841,20 +1841,20 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'seats',
           label: 'Seats',
           run: async () => {
-            const { seatCeilingFacts } = await import('../services/switchboard/capacityCheck.js')
+            const { seatCeilingFacts, seatCeilingValueWords, seatCostWarning } = await import('../services/switchboard/capacityCheck.js')
             const { liveCeilingFacts, composeGovernorCeilings, composeProvenance } = await import('../services/capacity/composeCeilings.js')
             const { seatNarrowingWords } = await import('../services/capacity/seatWords.js')
             const facts = seatCeilingFacts()
             const live = liveCeilingFacts(null)
             const composed = composeGovernorCeilings(live)
             const provenance = composeProvenance(live, composed)
-            const source = facts.source === 'consented' ? 'the consented first-boot recommendation' : "the machine's own reading, held for this process"
             const narrowed = seatNarrowingWords(provenance.narrowing)
+            const warning = seatCostWarning(facts)
             const lanes = `${composed.delegationLanes} delegated lane${composed.delegationLanes === 1 ? '' : 's'} for the crew`
             return {
-              status: narrowed !== null ? 'info' : 'ok',
-              evidence: `${facts.sentence} · source: ${source} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
-              detail: `Sessions, sub-agents and workflow agents all run under this one number; a crew member past it waits and its row says so. Manual lever: ${facts.lever}.`,
+              status: narrowed !== null || warning !== null ? 'info' : 'ok',
+              evidence: `${seatCeilingValueWords(facts)} · ${facts.readingSentence} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
+              detail: `Sessions, sub-agents and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
             }
           },
         },

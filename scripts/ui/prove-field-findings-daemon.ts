@@ -48,13 +48,17 @@ console.log('§1 daemon roster — outcome first')
   check('the roster still withholds the busy bit from a settled entry (the wire truth the row now reads)', read('src/daemon/roster.ts').includes('if (!h.entry.outcome) {\n          e.busy = !this.seatIsIdle(h.longLived)'))
 }
 
-console.log('§2 deck-estarting — starting says starting; no bare wire codes')
+console.log('§2 deck-daemon-words — one snapshot owner; human words; no bare wire codes')
 {
   const deck = read('src/components/DeckPane.tsx')
-  check("ESTARTING reads 'daemon starting…'", deck.includes("implRoster.reason === 'ESTARTING' ? 'daemon starting…'"))
-  check('ENOCONN/ETIMEOUT keep the offline words', deck.includes("implRoster.reason === 'ENOCONN' || implRoster.reason === 'ETIMEOUT' ? 'offline (no daemon)'"))
-  check("the residual arm wraps the code — 'unreachable (…)', never bare", deck.includes('`unreachable (${implRoster.reason})`'))
-  check('POISON: ESTARTING no longer collapses into the offline arm', !/'ENOCONN' \|\| implRoster\.reason === 'ETIMEOUT' \|\| implRoster\.reason === 'ESTARTING'/.test(deck))
+  const snap = read('src/utils/cockpit/daemonSnapshot.ts')
+  check('POISON: the deck no longer reads the retired roster words', !deck.includes('implRoster'))
+  check('the deck paints the daemon from the one snapshot owner', deck.includes('const daemon = daemonSnapshot()') && deck.includes('STATE_STYLE[daemon.state].glyph'))
+  check('the reason reaches the deck only as the uptime it carries — never painted raw', deck.includes("daemon.reason?.match(/up (\\d+)s/)") && !/\{daemon\.reason\}/.test(deck))
+  check('the owner speaks a human sentence for a wedged daemon (pid alive, socket unresponsive)', snap.includes('alive but control socket unresponsive'))
+  check('the owner speaks a human sentence for a stale record', snap.includes('stale record · pid'))
+  check("the owner speaks the opt-in sentence when no daemon runs", snap.includes('opt-in: run `mercury daemon`'))
+  check('POISON: no reason is a bare wire code', !/reason: '(?:ENOCONN|ETIMEOUT|ESTARTING|EPROTO)'/.test(snap))
 }
 
 process.exit(failures === 0 ? 0 : 1)
