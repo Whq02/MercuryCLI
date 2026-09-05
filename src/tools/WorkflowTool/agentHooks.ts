@@ -1,4 +1,5 @@
 
+import { abortWithCut } from '../../utils/messages/turnCut.js'
 import crypto from 'node:crypto'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
@@ -820,9 +821,9 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
 
       const childAbort = new AbortController()
       const parentSignal = ctx.abortController?.signal
-      const onParentAbort = (): void => childAbort.abort('workflow-abort')
+      const onParentAbort = (): void => abortWithCut(childAbort, 'workflow-abort')
       parentSignal?.addEventListener('abort', onParentAbort)
-      if (parentSignal?.aborted) childAbort.abort('workflow-abort')
+      if (parentSignal?.aborted) abortWithCut(childAbort, 'workflow-abort')
       onAgentController?.(agentId, childAbort)
 
       const startedAt = Date.now()
@@ -892,7 +893,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           armStallTimer()
           return
         }
-        childAbort.abort('stalled')
+        abortWithCut(childAbort, 'stalled')
       }
       const armStallTimer = (): void => {
         clearStallTimer()
@@ -926,13 +927,13 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           clearBudgetCut()
           if (spent && honoredMs <= 0) {
             clearHeartbeat()
-            childAbort.abort('throttled')
+            abortWithCut(childAbort, 'throttled')
             return
           }
           if (spent) {
             budgetCut = setTimeout(() => {
               clearHeartbeat()
-              childAbort.abort('throttled')
+              abortWithCut(childAbort, 'throttled')
             }, honoredMs)
             budgetCut.unref?.()
           }
@@ -1131,7 +1132,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             const errText = extractTextContent(a.message.content, '\n')
             if (DETERMINISTIC_400_RE.test(errText)) {
               terminal400 = errText || 'invalid request (deterministic 400)'
-              childAbort.abort('terminal-400')
+              abortWithCut(childAbort, 'terminal-400')
             }
           } else if (a.message.usage) {
             tokens = getTokenCountFromUsage(
