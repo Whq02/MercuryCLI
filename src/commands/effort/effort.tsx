@@ -7,6 +7,7 @@ import type {
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
 import {
+  EFFORT_LEVELS,
   effortFamiliesLabel,
   getDisplayedEffortLabel,
   getEffortEnvOverride,
@@ -26,7 +27,7 @@ import {
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { EffortApplyContext, EffortSlider } from './EffortSlider.js'
 
-const OPTION_LIST = 'low|medium|high|xhigh|max|supercode|auto'
+const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|supercode|auto`
 
 const EFFORT_ENV_VAR = 'MERCURY_EFFORT_LEVEL'
 
@@ -211,8 +212,7 @@ export function showCurrentEffort(
 
 function helpText(): string {
   const lines = [`Usage: /effort [${OPTION_LIST}]`]
-  const order: EffortLevel[] = ['low', 'medium', 'high', 'max', 'xhigh']
-  for (const level of order) {
+  for (const level of EFFORT_LEVELS) {
     lines.push(`  ${level.padEnd(9)} ${getEffortLevelDescription(level)}`)
   }
   lines.push(
