@@ -43,7 +43,7 @@ function stateWord(state: WorkflowRunAgentSummary['state']): string {
     case 'progress':
       return 'running'
     default:
-      return 'queued'
+      return 'starting'
   }
 }
 

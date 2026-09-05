@@ -38,6 +38,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Selected text follows the view when you scroll with the wheel, the page keys or a drag past the edge, and the highlight never paints outside the chat pane
 - Apollo mode ends only through the review's approval or shift+tab: a consent answer can no longer switch it off, writes outside the spec directory are refused, and the review says what ended it
 - Effort has a sixth level, ultra, above max, wherever the connected account serves it; a level the wire refuses is remembered, the nearest served level runs, and the transcript says so
+- Idle agents no longer hold a seat, the machine's seat reading counts available memory (near ten on an 8 GB Mac), and /seats, the Boot Menu or /config set the ceiling
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
