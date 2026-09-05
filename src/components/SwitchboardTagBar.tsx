@@ -18,7 +18,6 @@ import { stringWidth } from '../ink/stringWidth.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
-import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { focusedWorkflowRows, useFocusedWorkRows } from './tasks/useFocusedWork.js'
 import { AttachedAttributionContext } from './messages/TranscriptNameplate.js'
@@ -168,11 +167,9 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const line = statusLine(live, status, crew)
   const worktree = status.isolation === 'worktree-isolated' && status.branchLabel !== undefined ? status.branchLabel : null
   const backHint = escBackHint(live, status)
-  const title = seatDisplayTitle(status)
   const fixedWidth =
-    2 +
-    stringWidth(title) +
-    stringWidth(` · ${status.projectLabel}`) +
+    1 +
+    stringWidth(status.projectLabel) +
     (line !== '' ? 3 : 0) +
     (worktree !== null ? stringWidth(` · ${GLYPH.branch} ${worktree}`) : 0) +
     2 +
@@ -182,15 +179,8 @@ export function FocusedSessionStatusRow(): React.ReactNode {
     <Box height={1} flexShrink={0} overflow="hidden" flexDirection="row">
       {
 }
-      <Box flexShrink={0}>
-        <WorkingGlyph color={crew.active ? t.info : t.success} active={crew.active} />
-      </Box>
       <Text wrap="truncate-end">
-        <Text color={t.accent} bold>
-          {' '}
-          {title}
-        </Text>
-        <Text color={t.textMuted}> · {status.projectLabel}</Text>
+        <Text color={t.textMuted}> {status.projectLabel}</Text>
         {fitted !== '' ? (
           <Text>
             <Text color={t.textMuted}> · </Text>
