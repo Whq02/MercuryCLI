@@ -54,7 +54,7 @@ import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ep
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
-import { FOLD_COMMAND_SEND, FOLD_EXIT_LINGER_MS, decodeFoldStatus, foldRowVisible, type FoldStatusV1 } from '../compact/foldStatus.js'
+import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, foldRowVisible, isFoldLandingRow, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
@@ -411,7 +411,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveFoldStatus: FoldStatusV1 | null = null
   private foldExitLatch: FoldStatusV1 | null = null
   private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
-  private foldSentHere = false
   private readonly foldListeners = new Set<() => void>()
   private liveWait: RequestWaitV1 | null = null
   private hardStopping = false
@@ -565,26 +564,48 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private setLiveFold(next: FoldStatusV1 | null): void {
     if (JSON.stringify(this.liveFoldStatus) === JSON.stringify(next)) return
-    if (next === null && this.liveFoldStatus !== null && this.liveFoldStatus.exit !== undefined) {
-      this.foldExitLatch = this.liveFoldStatus
-      if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
-      this.foldLatchTimer = setTimeout(() => {
-        this.foldLatchTimer = null
-        this.foldExitLatch = null
-        emitAll(this.foldListeners, 'fold')
-      }, FOLD_EXIT_LINGER_MS)
-      this.foldLatchTimer.unref?.()
+    if (next === null && this.liveFoldStatus !== null && this.liveFoldStatus.trigger === 'manual') {
+      this.latchFold(this.liveFoldStatus)
     } else if (next !== null) {
-      this.foldExitLatch = null
+      this.clearFoldLatch()
     }
     this.liveFoldStatus = next
     emitAll(this.foldListeners, 'fold')
   }
 
+  private latchFold(status: FoldStatusV1): void {
+    this.foldExitLatch = status
+    if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
+    this.foldLatchTimer = setTimeout(() => {
+      this.foldLatchTimer = null
+      this.foldExitLatch = null
+      emitAll(this.foldListeners, 'fold')
+    }, FOLD_EXIT_LINGER_MS)
+    this.foldLatchTimer.unref?.()
+  }
+
+  private clearFoldLatch(): void {
+    if (this.foldLatchTimer !== null) {
+      clearTimeout(this.foldLatchTimer)
+      this.foldLatchTimer = null
+    }
+    this.foldExitLatch = null
+  }
+
   fold(): FoldStatusV1 | null {
     const status = this.liveFoldStatus ?? this.foldExitLatch
-    const sendUnlanded = this.sends.some(s => FOLD_COMMAND_SEND.test(s.text))
-    return foldRowVisible(status, { sentHere: this.foldSentHere, sendUnlanded, nowMs: Date.now() }) ? status : null
+    if (status === null) return null
+    return foldRowVisible(status, { landingPainted: this.foldLandingPainted(status.startedAtMs), nowMs: Date.now() }) ? status : null
+  }
+
+  private foldLandingPainted(startedAtMs: number): boolean {
+    for (let i = this.rawRecords.length - 1; i >= 0 && i >= this.rawRecords.length - 40; i--) {
+      const row = this.rawRecords[i] as { type?: string; subtype?: string; timestamp?: string; content?: unknown }
+      if (row.type !== 'system') continue
+      const text = typeof row.content === 'string' ? row.content : ''
+      if (isFoldLandingRow({ type: row.type, subtype: row.subtype, timestamp: row.timestamp, text }, startedAtMs)) return true
+    }
+    return false
   }
 
   subscribeFold(listener: () => void): () => void {
@@ -829,10 +850,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveStateWord = null
     if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
+      const gone = this.liveFoldStatus
       this.liveFoldStatus = null
+      if (gone.trigger === 'manual') this.latchFold(gone)
       emitAll(this.foldListeners, 'fold')
     }
-    if (!inFlight && !this.sends.some(s => FOLD_COMMAND_SEND.test(s.text))) this.foldSentHere = false
     if (!inFlight && this.publishedProgressSeqs.size > 0) {
       clearEphemeralProgress()
       this.publishedProgressSeqs.clear()
@@ -953,7 +975,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
-    if (this.foldSentHere || this.liveFoldStatus !== null || this.foldExitLatch !== null) emitAll(this.foldListeners, 'fold')
+    if (this.foldExitLatch !== null && this.foldLandingPainted(this.foldExitLatch.startedAtMs)) this.clearFoldLatch()
+    if (this.liveFoldStatus !== null || this.foldExitLatch !== null) emitAll(this.foldListeners, 'fold')
   }
 
 
@@ -1262,7 +1285,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
     const echo = createUserMessage({ content: expanded }) as unknown as Message
     this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
-    if (mode === 'prompt' && FOLD_COMMAND_SEND.test(expanded)) this.foldSentHere = true
     this.paint()
     const answering = await this.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
