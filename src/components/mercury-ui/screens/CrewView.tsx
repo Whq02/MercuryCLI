@@ -17,6 +17,7 @@ import {
   crewWaitLine,
   crewTokensLabel,
   type CrewAgentFacts,
+  crewWaitHolders,
 } from '../../../services/engine-connector/crewFacts.js'
 import { WORK_UNREPORTED_LINE, workUnreported } from '../../../services/engine-connector/workCounts.js'
 import {
@@ -293,6 +294,7 @@ function AgentRow({
   const glyph = failed || stopped ? GLYPH.fail : pending ? GLYPH.pending : facts.running ? GLYPH.busy : GLYPH.done
   const spend = billed ? crewCostLabel(facts) : null
   const wait = crewWaitLine(facts)
+  const holders = crewWaitHolders(facts)
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
@@ -313,7 +315,7 @@ function AgentRow({
 }
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
         </Text>
-        {wait !== null ? <Text color={tokens.warning}> · {wait}</Text> : null}
+        {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
       </Text>
     </Box>
   )

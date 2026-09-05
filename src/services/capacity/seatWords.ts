@@ -21,15 +21,21 @@ export function seatNarrowingWords(narrowing: SeatNarrowing): string | null {
   return `delegation narrowed to ${narrowing.lanes} lane${narrowing.lanes === 1 ? '' : 's'} by MERCURY_MODEL_LANES=${narrowing.lanes}`
 }
 
-function holderList(holders: readonly string[]): string {
-  return holders.length === 0 ? '' : ` (${holders.join(', ')})`
+export function seatWaitParts(facts: SeatWaitFacts): { gate: string; holders: string } {
+  const held = `${Math.min(facts.holders.length, facts.width)} of ${facts.width} held`
+  const narrowed = seatNarrowingWords(facts.narrowing)
+  const gate = narrowed !== null ? `waiting for a lane — ${narrowed} — ${held}` : `waiting for a seat — ${held}`
+  return { gate, holders: facts.holders.join(', ') }
 }
 
 export function seatWaitWords(facts: SeatWaitFacts): string {
-  const held = `${Math.min(facts.holders.length, facts.width)} of ${facts.width} held${holderList(facts.holders)}`
-  const narrowed = seatNarrowingWords(facts.narrowing)
-  if (narrowed !== null) return `waiting for a lane — ${narrowed} — ${held}`
-  return `waiting for a seat — ${held}`
+  const { gate, holders } = seatWaitParts(facts)
+  return holders === '' ? gate : `${gate} (${holders})`
+}
+
+export function splitWaitSentence(sentence: string): { gate: string; holders: string } {
+  const m = /^(.*\bheld) \((.*)\)$/.exec(sentence)
+  return m === null ? { gate: sentence, holders: '' } : { gate: m[1]!, holders: m[2]! }
 }
 
 export const SEAT_WAIT_STATUS_WORD = 'waiting'

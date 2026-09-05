@@ -5,7 +5,7 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useCwdState } from '../hooks/useCwdState.js'
 import { pathTailLabel } from '../utils/pathLabel.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH, branchChip } from './mercury-ui/glyphs.js'
 
 
 type Agent = { glyph: string; color: string; name: string }
@@ -60,7 +60,7 @@ export function MercuryFullscreen({
       <Box flexDirection="column" borderStyle="round" borderColor={FAINT} paddingX={1} width={26}>
         <Text bold color={TERRA}>project</Text>
         <Text color={FAINT}>repo   <Text color={IVORY}>{shownRepo}</Text></Text>
-        <Text color={FAINT}>branch <Text color={IVORY}>{GLYPH.branch + branch}</Text></Text>
+        <Text color={FAINT}>branch <Text color={IVORY}>{branchChip(branch)}</Text></Text>
         {agents.length ? (
           <>
             <Box height={1} />
