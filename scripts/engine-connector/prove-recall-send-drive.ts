@@ -126,11 +126,13 @@ async function drive(scene: Scene): Promise<void> {
           { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 5, data: '', mark: 'answered' },
         ]
   const sends = [...boot, ...rest]
+  const readyText = scene === 'race' ? '· ready' : REPLY
   const cfg = {
     argv: ['node', DIST, '--model', 'claude-opus-4-8', ...(scene === 'chat' ? ['--chat'] : [])],
     cwd: FIXTURE_CWD,
     sends,
     total: 450,
+    readyText,
     cols: 120,
     rows: 40,
     out,
@@ -180,10 +182,14 @@ async function drive(scene: Scene): Promise<void> {
   reap()
   const marks = new Map<string, string>()
   let fin = ''
+  let endReason = ''
+  let endedAtTick = -1
   if (existsSync(out)) {
-    const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Mark[] }
+    const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Mark[]; endReason?: string; endedAtTick?: number }
     for (const m of payload.marks ?? []) marks.set(m.label, gridText(m.grid))
     fin = gridText(payload.grid)
+    endReason = payload.endReason ?? ''
+    endedAtTick = payload.endedAtTick ?? -1
   }
   const wire: Wire[] = readFileSync(captureFile, 'utf8')
     .split('\n')
@@ -233,6 +239,8 @@ async function drive(scene: Scene): Promise<void> {
 
   section(`${scene} — R1: the words queued into the running turn`)
   check(`${scene}: vshot ran the journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
+  console.log(`  [record] ${scene}: the capture ended on '${endReason}' at tick ${endedAtTick} (ready text ${JSON.stringify(readyText)})`)
+  check(`${scene}: the capture ended on the scene's ready text, never the budget`, endReason === 'ready', `endReason=${endReason} at tick ${endedAtTick}`)
   check(`${scene}: the Bash tool was running its sleep when the words were typed`, at('tool-running').includes(TOOL_ROW) && at('tool-running').includes('running…'), tail(at('tool-running')))
   check(`${scene}: the words painted as the QUEUED row before the press, the composer empty`, queuedRow(at('queued'), words) && !composerHolds(at('queued'), words) && composerEmpty(at('queued')), tail(at('queued'), 24))
 
