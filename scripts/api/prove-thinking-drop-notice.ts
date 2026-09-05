@@ -418,6 +418,32 @@ if (!existsSync(DIST)) {
   }
 }
 
+section("§8 the turn word: the conversation's own units, never an API round")
+{
+  resetThinkingDropStates()
+  const { turnOrdinalOfWirePath } = binding
+  const a = assistant([THINK('first-round'), TEXT('calling a tool'), { type: 'tool_use', id: 'tu_1', name: 'Bash', input: {} }])
+  const b = assistant([THINK('second-round'), TEXT('done with the tool')])
+  const c = assistant([THINK('second-turn'), TEXT('the answer')])
+  const idOf = (m: Record<string, unknown>): string => String((m.message as { id: string }).id)
+  const history = [user('first ask'), a, user([{ type: 'tool_result', tool_use_id: 'tu_1', content: 'ok' }]), b, user('second ask'), c] as never[]
+  const wireIds: Array<string | null> = [null, idOf(a), null, idOf(b), null, null, idOf(c)]
+  check('the drop at the second turn\'s response reads turn 2 through the wireMessageIds map (an API round is not a turn)', turnOrdinalOfWirePath('messages.6.content.0', wireIds, history) === 2, String(turnOrdinalOfWirePath('messages.6.content.0', wireIds, history)))
+  check("the tool loop's second round still reads the FIRST turn (the tool result is no operator row)", turnOrdinalOfWirePath('messages.3.content.0', wireIds, history) === 1 && turnOrdinalOfWirePath('messages.1.content.0', wireIds, history) === 1)
+  check('a path the request did not send (no id at that index), a user row, or no path resolves to no ordinal', turnOrdinalOfWirePath('messages.2.content.0', wireIds, history) === null && turnOrdinalOfWirePath('messages.9.content.0', wireIds, history) === null && turnOrdinalOfWirePath(null, wireIds, history) === null)
+  const meta = { ...user('a meta row the operator never typed'), isMeta: true } as Record<string, unknown>
+  check('a meta user row is not a turn', turnOrdinalOfWirePath('messages.1.content.0', [null, idOf(a)], [meta, user('the real first ask'), a] as never[]) === 1)
+  const afterCompaction = (owner: string, drops: Entry[]): ReturnType<typeof classifyThinkingDrops> => {
+    classifyThinkingDrops(owner, [], mark())
+    return classifyThinkingDrops(owner, drops, mark({ firstRow: 'summary-row' }))
+  }
+  const words = describeThinkingDrops([DROP('messages.6.content.0')], afterCompaction('turn-word', [DROP('messages.6.content.0')]), 2) ?? ''
+  check('the quiet line names "turn 2" from the ordinal, never "turn 4" from the wire index', words.includes('the history before turn 2 was folded') && !words.includes('turn 4'), words)
+  const unmapped = describeThinkingDrops([DROP('messages.6.content.0')], afterCompaction('turn-word-2', [DROP('messages.6.content.0')]), null) ?? ''
+  check('without an ordinal a deep path names an earlier turn — never a number counted off the wire', unmapped.includes('the history before an earlier turn was folded') && !/turn \d/.test(unmapped), unmapped)
+  check('the first exchange keeps its name with or without an ordinal (wire index 0 or 1 is the first turn on any wire)', (describeThinkingDrops([DROP('messages.1.content.0')], afterCompaction('turn-word-3', [DROP('messages.1.content.0')]), 1) ?? '').includes('the first turn') && (describeThinkingDrops([DROP('messages.1.content.0')], afterCompaction('turn-word-4', [DROP('messages.1.content.0')]), null) ?? '').includes('the first turn'))
+}
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(` ✅ THINKING DROP NOTICE GREEN (${checks} checks)`)

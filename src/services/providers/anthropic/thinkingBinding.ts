@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import type { AttachmentMessage, DeadThinkingMark, Message } from '../../../types/message.js'
+import { isToolResultMessage } from '../../../utils/messages/merge.js'
 import { createAttachmentMessage } from '../../../utils/attachments/orchestrator.js'
 import type { InputTransformation } from '../../../types/wire.js'
 import { logForDebugging } from '../../../utils/debug.js'
@@ -325,12 +326,28 @@ export function describePrefixRewrite(part: string, path: string): string {
   return `Preserved thinking: Mercury rewrote already-sent history before this request — ${part} (${path}); the API reported no dropped block this turn. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
 }
 
-function describePathTurn(path: string | null): string {
+function describePathTurn(path: string | null, turn: number | null): string {
   const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
   if (match === null) return 'an earlier turn'
-  const index = Number(match[1])
-  if (index <= 1) return 'the first turn'
-  return `turn ${Math.floor(index / 2) + 1}`
+  if (turn !== null) return turn <= 1 ? 'the first turn' : `turn ${turn}`
+  return Number(match[1]) <= 1 ? 'the first turn' : 'an earlier turn'
+}
+
+export function turnOrdinalOfWirePath(
+  path: string | null,
+  wireMessageIds: readonly (string | null)[],
+  history: readonly Message[],
+): number | null {
+  const match = path === null ? null : /^messages\.(\d+)\./.exec(path)
+  if (match === null) return null
+  const messageId = wireMessageIds[Number(match[1])]
+  if (typeof messageId !== 'string' || messageId.length === 0) return null
+  let turns = 0
+  for (const row of history) {
+    if (row.type === 'user' && !isToolResultMessage(row) && (row as { isMeta?: boolean }).isMeta !== true) turns++
+    if (row.type === 'assistant' && row.message.id === messageId) return turns
+  }
+  return null
 }
 
 function describePathClass(path: string | null): string {
@@ -350,11 +367,12 @@ function issuesUrl(): string {
 export function describeThinkingDrops(
   list: readonly InputTransformation[],
   outcome: DropOutcome,
+  turn: number | null = null,
 ): string | null {
   if (outcome.kind === 'none' || !outcome.paint) return null
   const count = outcome.count
   const noun = count === 1 ? 'thinking block' : 'thinking blocks'
-  const path = describePathTurn(outcome.path ?? null)
+  const path = describePathTurn(outcome.path ?? null, turn)
   switch (outcome.kind) {
     case 'lawful':
       if (outcome.lawful === 'compaction') {
