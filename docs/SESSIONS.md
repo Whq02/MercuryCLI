@@ -127,17 +127,27 @@ refused for its size: it is shrunk to the provider's published limits
 left is an image whose smallest encoding still exceeds them, and its words
 say which limit and what size.
 
-The status row under the composer says what the focused session is doing,
-and for how long, from the session's runner itself: "thinking for 2m",
-"running a tool for 4m (its own timeout at 10m)", "replying",
-"compacting", "ready". Those durations are facts, never accusations — the
-transcript standing still is not a sign of trouble, since a long think, a
-long tool run and a real hang all leave it still. The row says the session
-may be stuck only when the runner's stream has carried no event of any kind
-for longer than its own watchdog's warning point, and then it names what it
-saw: "no stream events for 3m — the session may be stuck (the watchdog
-aborts at 5m)". A running tool is never called stuck; its own timeout is
-the deadline the row names.
+The status row under the composer carries the session's name, its project
+and the CREW's clock — the sub-agents and workflow agents the session's
+runner hosts — past tense, by kind: "agents thought for 28m", "workflow
+thought for 12m", both when both stand (the larger first). Its glyph spins
+while any of them runs and sits still otherwise. The main agent is narrated
+once, by the transcript's thinking row and the card under the critter, and
+never repeated here; a session with no crew reads "ready" when idle and
+paints no clock while its main agent works. That is what makes esc read
+true: esc interrupts the main agent alone, so the card's glyph stops while
+the row's keeps spinning for the crew that runs on. The row's warnings stay
+its own: a request wait names what the runner waits on and the budget that
+fires ("waiting for the first byte from Opus 5 — within 90 s"); a held turn
+names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
+says the request is torn down. The row says the session may be stuck only
+when the runner's stream has carried no event of any kind for longer than
+its own watchdog's warning point, and then it names what it saw: "no stream
+events for 3m — the session may be stuck (the watchdog aborts at 5m)". A
+running tool is never called stuck. The chat pane's title row reads
+"SESSION" on the left and the session's name on the right — no clock: every
+row of the chat carries its own timestamp, and a clock that ticks is a
+repaint a second on an idle screen.
 
 ## The concourse shows the project you are in
 
