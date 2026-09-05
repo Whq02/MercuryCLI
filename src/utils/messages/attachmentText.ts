@@ -1220,6 +1220,8 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'structured_output':
     case 'hook_permission_decision':
       return []
+    case 'bound_prefix':
+      return []
   }
 
   const LEGACY_ATTACHMENT_TYPES = [
