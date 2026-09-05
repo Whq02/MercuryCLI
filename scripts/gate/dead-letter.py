@@ -23,6 +23,11 @@ class DeadLetter(BaseHTTPRequestHandler):
 
     def _answer(self, head=False):
         self._drain()
+        try:
+            with open(PORT_FILE + ".ledger", "a") as ledger:
+                ledger.write("%s %s\n" % (self.command, self.path))
+        except Exception:
+            pass
         if self.path == "/":
             self.send_response(200)
             self.send_header("content-length", "0")

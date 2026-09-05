@@ -299,6 +299,8 @@ section('§4 — the sign-in refresh road under the pin: a home seeded expired-w
   check('the census was taken on the refresh road (a signed-in home; lines recorded)', refreshLines.length > 0, refreshText.slice(0, 200))
   check('the refresh road makes no connection, lookup or fetch outside the loopback under the two pins', refreshOutside.length === 0, refreshOutside.slice(0, 5).join(' · '))
   check('the refresh went to the box (the census names its port)', refreshLines.some(l => l.endsWith(`tcp ${BOX_HOST}:${readTrim(portFile)}`)), refreshLines.slice(0, 6).join(' · '))
+  const ledger = censusOf(`${portFile}.ledger`)
+  check('the box answered the token refresh itself (POST /v1/oauth/token in its ledger)', ledger.some(l => l === 'POST /v1/oauth/token'), ledger.join(' · ') || '(empty ledger)')
   const shard = readFileSync(join(ROOT, 'scripts', 'gate', 'ci-shard.sh'), 'utf8')
   check('the shard pins the sign-in endpoint to its box beside the messages base', shard.includes('export MERCURY_CUSTOM_OAUTH_URL="$HERMETIC_DEAD_BASE"'))
 }
