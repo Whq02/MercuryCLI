@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { cmdLauncher, installingDoc, parseEnginesNode, posixLauncher, ps1Launcher, readmeFirst, updatingDoc } from './launcherTemplates.mjs'
-import { archiveFileName, readCompatFloor, releaseLayoutSection, topAllowlist } from './payloadContract.mjs'
+import { readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments, LICENCE_DOCUMENTS } from './releaseDocuments.mjs'
 import { collectVerifyReceiptFacts, decideVerifyReceiptBind, readLedgerRows } from './verifyReceiptBind.mjs'
 
@@ -186,8 +186,8 @@ const argLicense = process.argv.indexOf('--license-id')
 const LICENSE_ID = argLicense !== -1 && process.argv[argLicense + 1] ? process.argv[argLicense + 1] : null
 const UNSIGNED_BY_DECISION = process.argv.includes('--unsigned')
 let shippedSignatureState = 'unsigned'
+const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs')).href)
 {
-  const signingLib = await import(pathToFileURL(join(pkgDir, 'verify-artifact.mjs')).href)
   const stagedManifestPath = join(pkgDir, 'manifest.json')
   const stagedManifest = JSON.parse(readFileSync(stagedManifestPath, 'utf8'))
   const rl = stagedManifest.releaseLayout
@@ -237,7 +237,8 @@ let shippedSignatureState = 'unsigned'
     ok('UNSIGNED — by decision (--unsigned): the archive ships without a provenance signature and its name says so; the launcher states it once per install, `mercury doctor` every time')
   }
 }
-const ARCHIVE_NAME = archiveFileName(VERSION, TARGET, { unsigned: UNSIGNED_BY_DECISION })
+const SIGNED_ARCHIVE_NAME = signingLib.archiveNameFor(VERSION, TARGET)
+const ARCHIVE_NAME = UNSIGNED_BY_DECISION ? unsignedArchiveName(SIGNED_ARCHIVE_NAME) : SIGNED_ARCHIVE_NAME
 
 const TOP_ALLOWLIST = new Set(topAllowlist(TARGET, FLOOR))
 for (const entry of readdirSync(pkgDir)) {

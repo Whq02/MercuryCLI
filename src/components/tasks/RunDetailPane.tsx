@@ -106,7 +106,7 @@ function laneStateWord(state: WorkflowRunAgentSummary['state']): string {
     case 'progress':
       return 'running'
     default:
-      return 'queued'
+      return 'starting'
   }
 }
 
@@ -170,7 +170,7 @@ export function agentRuntime(agent: WorkflowRunAgentSummary, now: number): strin
   if (agent.state === 'progress' && typeof agent.startedAt === 'number')
     return formatDuration(Math.max(0, now - agent.startedAt))
   if (agent.state === 'start' && typeof agent.queuedAt === 'number')
-    return `queued ${formatDuration(Math.max(0, now - agent.queuedAt))}`
+    return `starting ${formatDuration(Math.max(0, now - agent.queuedAt))}`
   return undefined
 }
 

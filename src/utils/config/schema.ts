@@ -193,9 +193,10 @@ export type GlobalConfig = {
     }
   }
   switchboardCapacity?: {
-    askedAt: number
-    allowed: boolean
+    askedAt?: number
+    allowed?: boolean
     recommendedSeats?: number
+    operatorSeats?: number
   }
   hasSeenCoordinatorOffHint?: boolean
   responseProfile?: 'balanced' | 'concise'
