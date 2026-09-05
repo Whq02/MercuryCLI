@@ -56,7 +56,7 @@ import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
-import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, foldRowVisible, isFoldLandingRow, type FoldStatusV1 } from '../compact/foldStatus.js'
+import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
@@ -597,19 +597,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   fold(): FoldStatusV1 | null {
-    const status = this.liveFoldStatus ?? this.foldExitLatch
-    if (status === null) return null
-    return foldRowVisible(status, { landingPainted: this.foldLandingPainted(status.startedAtMs), nowMs: Date.now() }) ? status : null
-  }
-
-  private foldLandingPainted(startedAtMs: number): boolean {
-    for (let i = this.rawRecords.length - 1; i >= 0 && i >= this.rawRecords.length - 40; i--) {
-      const row = this.rawRecords[i] as { type?: string; subtype?: string; timestamp?: string; content?: unknown }
-      if (row.type !== 'system') continue
-      const text = typeof row.content === 'string' ? row.content : ''
-      if (isFoldLandingRow({ type: row.type, subtype: row.subtype, timestamp: row.timestamp, text }, startedAtMs)) return true
-    }
-    return false
+    return this.liveFoldStatus ?? this.foldExitLatch
   }
 
   subscribeFold(listener: () => void): () => void {
@@ -1023,8 +1011,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
-    if (this.foldExitLatch !== null && this.foldLandingPainted(this.foldExitLatch.startedAtMs)) this.clearFoldLatch()
-    if (this.liveFoldStatus !== null || this.foldExitLatch !== null) emitAll(this.foldListeners, 'fold')
   }
 
 

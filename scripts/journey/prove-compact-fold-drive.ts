@@ -468,6 +468,8 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const withCard = foldMarks('fold').filter(k => rowsWith(m[k], CARD).length > 0)
     if (live.length > 0) dump(`fold · ${live[Math.min(live.length - 1, 4)]!.key} (summarising)`, m[live[Math.min(live.length - 1, 4)]!.key])
     if (live.length > 0) dump(`fold · ${live[live.length - 1]!.key} (the last live frame)`, m[live[live.length - 1]!.key])
+    const blank = foldMarks('fold').find(k => m[k] !== undefined && foldRowOf(m[k]) === null && rowsWith(m[k], CARD).length === 0 && firstLive !== undefined && cap.markMs[k]! > cap.markMs[firstLive.key]!)
+    if (blank !== undefined) dump(`fold · ${blank} (a frame with neither the row nor the card)`, m[blank])
     dump('fold · the card', m['card'])
     check('[fold] the summary call ran on the wire once', foldHits.length === 1, `${foldHits.length}`)
     check('F1 [fold] the row stands in the chat within a second of the send, under the echo', firstLive !== undefined && (cap.startedMs + cap.markMs[firstLive.key]! - (sent?.ts ?? 0)) < 1500 && rowsWith(m[firstLive.key], '❯ /compact').length > 0, firstLive ? `${firstLive.key} · ${firstLive.row}` : 'no live row in any frame')
