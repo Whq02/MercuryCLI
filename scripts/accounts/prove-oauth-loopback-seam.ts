@@ -52,5 +52,11 @@ check('a host that only LOOKS loopback is refused', /not an approved OAuth endpo
 check('an allow-listed endpoint still passes', throwsWith('https://claude.fedstart.com') === '' && withCustom('https://claude.fedstart.com', () => oauth.getOauthConfig()).TOKEN_URL === 'https://claude.fedstart.com/v1/oauth/token')
 check('no pin: the production record', withCustom(undefined, () => oauth.getOauthConfig()).TOKEN_URL.startsWith('https://'))
 
+section('§4 the file suffix: a deployment keeps its own files; the box does not')
+check('no pin: no suffix', withCustom(undefined, () => oauth.fileSuffixForOauthConfig()) === '' && withCustom(undefined, () => oauth.getOauthConfig()).OAUTH_FILE_SUFFIX === '')
+check('an allow-listed deployment suffixes the config and credential files', withCustom('https://claude.fedstart.com', () => oauth.fileSuffixForOauthConfig()) === '-custom-oauth' && withCustom('https://claude.fedstart.com', () => oauth.getOauthConfig()).OAUTH_FILE_SUFFIX === '-custom-oauth')
+check('a loopback pin keeps the default files — the proof seeds <home>/.mercury.json and the product reads it', withCustom('http://127.0.0.1:65000', () => oauth.fileSuffixForOauthConfig()) === '' && withCustom('http://[::1]:7/', () => oauth.fileSuffixForOauthConfig()) === '' && withCustom('http://127.0.0.1:65000', () => oauth.getOauthConfig()).OAUTH_FILE_SUFFIX === '')
+check('the suffix accessor never throws on a foreign host (it only reports)', withCustom('https://evil.example', () => oauth.fileSuffixForOauthConfig()) === '-custom-oauth')
+
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
