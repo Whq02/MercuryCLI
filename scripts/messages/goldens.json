@@ -24680,7 +24680,7 @@
    "kind": "parent-stop"
   },
   {
-   "detail": "terminal-400",
+   "detail": "the provider refused the request outright",
    "kind": "cut"
   },
   {
