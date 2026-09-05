@@ -619,7 +619,7 @@ async function* streamModel(
               }
             }
             if (toolUseContext.agentId == null) {
-              const boundRecord = boundPrefixRecordToEmit(
+              const boundRecord = await boundPrefixRecordToEmit(
                 String(rosterOwnerFromToolUseContext(toolUseContext)),
                 iter.messagesForQuery,
                 iter.currentModel,
