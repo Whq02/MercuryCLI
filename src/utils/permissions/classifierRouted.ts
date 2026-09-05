@@ -41,10 +41,36 @@ export function stripThinking(text: string): string {
   return text.replace(/<thinking>[\s\S]*?<\/thinking>/gi, '').replace(/<thinking>[\s\S]*$/i, '')
 }
 
+const BLOCK_WORDS: Readonly<Record<string, boolean>> = { yes: true, no: false, true: true, false: false }
+
+function parseJsonBlockVerdict(text: string): boolean | null {
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start === -1 || end <= start) return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text.slice(start, end + 1))
+  } catch {
+    return null
+  }
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null
+  const record = parsed as Record<string, unknown>
+  for (const key of ['shouldBlock', 'should_block', 'block']) {
+    const value = record[key]
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'string') {
+      const word = BLOCK_WORDS[value.trim().toLowerCase()]
+      if (word !== undefined) return word
+    }
+  }
+  return null
+}
+
 export function parseBlockVerdict(text: string): boolean | null {
-  const match = /<block>\s*(yes|no)\b/i.exec(stripThinking(text))
-  if (!match) return null
-  return match[1].toLowerCase() === 'yes'
+  const stripped = stripThinking(text)
+  const match = /<block>\s*(yes|no|true|false)\b/i.exec(stripped)
+  if (match) return BLOCK_WORDS[match[1].toLowerCase()] ?? null
+  return parseJsonBlockVerdict(stripped)
 }
 
 export function parseReasonTag(text: string): string | null {
@@ -122,11 +148,17 @@ export async function classifyOverRoutedTransport(args: RoutedClassifyArgs): Pro
     }
     const verdict = parseBlockVerdict(text)
     if (verdict === null) {
+      const stopReason = (result.message as { stop_reason?: unknown } | undefined)?.stop_reason
+      const issue = `no <block> verdict in the answer (${text.length} chars; stop_reason ${typeof stopReason === 'string' ? stopReason : 'unknown'})`
+      const dumpPath = args.onError?.(['classifier verdict unreadable', `model: ${model}`, `issues:\n  - ${issue}`, 'raw answer:', text].join('\n'))
       return {
         shouldBlock: true,
         retryable: true,
+        unreadable: true,
         reason: 'Invalid classifier response - blocking for safety',
+        verdictIssues: [issue],
         model,
+        ...(dumpPath ? { errorDumpPath: dumpPath } : {}),
       }
     }
     return {

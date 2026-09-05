@@ -262,6 +262,12 @@ add('buildYoloRejectionMessage', 'basic', () =>
 add('buildFlowBlockDeclinedMessage', 'basic', () =>
   M.buildFlowBlockDeclinedMessage('rm -rf /'),
 );
+add('buildClassifierUnreadableMessage', 'basic', () =>
+  M.buildClassifierUnreadableMessage('Bash', 'stub-model', 'shouldBlock: expected boolean, received string'),
+);
+add('buildClassifierUnreadableMessage', 'no-detail', () =>
+  M.buildClassifierUnreadableMessage('Bash', 'stub-model'),
+);
 add('buildClassifierUnavailableMessage', 'basic', () =>
   M.buildClassifierUnavailableMessage('Bash' as never),
 );
