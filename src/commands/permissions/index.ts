@@ -7,8 +7,11 @@ const permissions = {
   name: 'permissions',
   aliases: ['allowed-tools'],
   description: 'Shape the permission rules — what runs free, what asks first',
-  currentValue: () =>
-    hasFocusedSession() ? permissionModeTitle(getFocusedSessionConnector().permissionMode()) : undefined,
+  currentValue: () => {
+    if (!hasFocusedSession()) return undefined
+    const mode = getFocusedSessionConnector().permissionMode()
+    return mode === null ? undefined : permissionModeTitle(mode)
+  },
   load: () => import('./permissions.js'),
 } satisfies Command
 

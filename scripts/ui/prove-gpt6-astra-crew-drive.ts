@@ -421,11 +421,17 @@ const namesRow = (row: string | undefined): boolean => row !== undefined && (row
 const COLS = 160
 const ROWS = 44
 
-function transcriptRows(home: string): string[] {
+function transcriptFiles(home: string): Array<{ file: string; rows: string[] }> {
   const projects = join(home, 'projects')
   if (!existsSync(projects)) return []
   const files = (readdirSync(projects, { recursive: true }) as string[]).filter(f => f.endsWith('.jsonl'))
-  return files.flatMap(f => readFileSync(join(projects, f), 'utf8').split('\n').filter(l => l.trim() !== ''))
+  return files.map(f => ({ file: f, rows: readFileSync(join(projects, f), 'utf8').split('\n').filter(l => l.trim() !== '') }))
+}
+function transcriptRows(home: string): string[] {
+  return transcriptFiles(home).flatMap(f => f.rows)
+}
+function agentTranscriptOf(home: string, seatName: string): { file: string; rows: string[] } | undefined {
+  return transcriptFiles(home).find(f => /(^|\/)agent-[^/]*\.jsonl$/.test(f.file) && f.rows.some(l => l.includes(`astra-seat: survey the ${seatName}`)))
 }
 
 function dump(label: string, frame: string | undefined): void {
@@ -506,10 +512,15 @@ check('A1 the deep seat asked once, the quick seat once, the parked seat twice',
 const LIVE_LADDER = ['low', 'medium', 'high', 'xhigh', 'max']
 console.log(`  efforts: ${(Object.keys(SEATS) as SeatArm[]).map(arm => `${SEATS[arm].name} asked ${SEATS[arm].effort} → sent ${byArm(arm).map(h => String(h.effort)).join('/')}`).join(' · ')}`)
 check('A2 every seat request carried a reasoning effort from the served five-level ladder', seatHits.every(h => h.effort !== null && LIVE_LADDER.includes(h.effort)), seatHits.map(h => String(h.effort)).join(','))
+for (const arm of Object.keys(SEATS) as SeatArm[]) {
+  const sent = byArm(arm).map(h => String(h.effort))
+  check(`A2 the ${SEATS[arm].name} seat sent the word its definition asked (${SEATS[arm].effort}) on every request, above the session's stamp`, sent.length > 0 && sent.every(word => word === SEATS[arm].effort), `sent ${sent.join('/')}`)
+}
 const wfHits = hits.filter(h => h.route === 'wf').sort((a, b) => a.at - b.at)
 check(`A1 the workflow's two agents rode the Responses wire on ${ID}`, wfHits.length === 2 && wfHits.every(h => h.lane === 'responses' && h.model === ID), wfHits.map(h => `${h.who}:${h.lane}:${h.model}`).join(','))
 console.log(`  workflow efforts: ${STATIONS.map(s => `station ${s.station} asked ${s.effort} → sent ${wfHits.find(h => h.who === s.station)?.effort ?? 'none'}`).join(' · ')}`)
 check('A2 every workflow call carried a reasoning effort from the served ladder', wfHits.length === 2 && wfHits.every(h => h.effort !== null && LIVE_LADDER.includes(h.effort)), wfHits.map(h => `${h.who}:${h.effort}`).join(','))
+check("A2 each workflow call sent the call's own word (station one max · station two high), above the session's stamp", STATIONS.every(s => wfHits.find(h => h.who === s.station)?.effort === s.effort), wfHits.map(h => `${h.who}:${h.effort}`).join(','))
 
 {
   const cold = byArm('cold')
@@ -552,6 +563,16 @@ check('A3 the deep seat\'s record holds the answer labelled final_answer', rows.
   check(`A4 the parked seat ended one first-byte budget (${coldBudget} ms) and one retry later, the reply landed`, cold !== undefined && cold >= coldBudget - 500 && cold <= coldBudget + 8_000 && rows.some(l => l.includes(doneOf(SEATS.cold.name)) && l.includes('"kind":"text"')), `duration=${cold} ms`)
 }
 check("A3 the workflow agents' records hold their summaries as reasoning spans", STATIONS.every(s => rows.some(l => l.includes('"kind":"reasoning"') && l.includes(summaryOf(`station ${s.station}`)))), `rows=${rows.length}`)
+
+{
+  const quick = agentTranscriptOf(home, SEATS.quick.name)
+  const cold = agentTranscriptOf(home, SEATS.cold.name)
+  check('A6 the held seat has its own agent transcript', quick !== undefined, transcriptFiles(home).map(f => f.file).join(','))
+  const notices = (t: { rows: string[] } | undefined): string => t?.rows.filter(l => l.includes('"kind":"notice"')).map(l => l.slice(0, 220)).join(' | ') ?? ''
+  check("A6 the held seat's transcript holds the typed-end receipt row (the stream went silent after its last item; the reply stands)", quick !== undefined && quick.rows.some(l => l.includes('"kind":"notice"') && l.includes('stream went silent') && l.includes('the reply stands')), notices(quick))
+  check('A6 the parked seat has its own agent transcript', cold !== undefined)
+  check("A6 the parked seat's transcript holds the first-byte line (no first byte from the row after its budget — the reissue's own row)", cold !== undefined && cold.rows.some(l => l.includes('"kind":"notice"') && l.includes('no first byte from')), notices(cold))
+}
 
 const wfRecent = marks['wf-recent'] ?? ''
 const wfRun = marks['wf-run'] ?? ''

@@ -18,7 +18,7 @@ const MAX_CONNECTIONS := 8
 const UNAUTHED_GRACE_MS := 10000
 const RUNTIME_TIMEOUT_MS := 10000
 const PLAY_POLL_INTERVAL := 0.25
-const MERCURY_SIDE_OPS := ["vulcan_install", "vulcan_uninstall", "vulcan_status"]
+const MERCURY_SIDE_OPS := ["vulcan_install", "vulcan_uninstall", "vulcan_status", "project_refresh_classes"]
 const LOOPBACK_HOSTS := ["127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "::ffff:127.0.0.1"]
 
 class Conn:
@@ -54,6 +54,7 @@ var _play_accum := 0.0
 var _was_playing := false
 var _runtime_next_id := 1
 var _runtime_pending := {}
+var started_ms := 0
 
 func setup(undo_manager: Object) -> void:
 	_undo = UndoScript.new()
@@ -77,6 +78,7 @@ func start() -> void:
 	var pf := FileAccess.open(PORT_FILE, FileAccess.WRITE)
 	if pf != null:
 		pf.store_string(str(port))
+	started_ms = Time.get_ticks_msec()
 	set_process(true)
 	print("mercury_vulcan: listening on 127.0.0.1:%d" % port)
 

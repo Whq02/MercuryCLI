@@ -33,7 +33,7 @@ import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
-import { parseEffortValue, type EffortValue } from '../../utils/effort.js'
+import { forgetAgentEffortWord, noteAgentEffortWord, parseEffortValue, type EffortValue } from '../../utils/effort.js'
 import { createSubagentContext } from '../../utils/forkedAgent.js'
 import {
   cloneFileStateCache,
@@ -436,11 +436,19 @@ export function resolveAgentEffort(facts: {
   definitionEffort: EffortValue | undefined
   sessionEffort: EffortValue | undefined
 }): EffortValue | undefined {
+  return agentOwnEffortWord(facts) ?? facts.sessionEffort
+}
+
+export function agentOwnEffortWord(facts: {
+  effortOverride: string | undefined
+  useExactTools: boolean | undefined
+  definitionEffort: EffortValue | undefined
+}): EffortValue | undefined {
   const pin =
     facts.effortOverride !== undefined && !facts.useExactTools
       ? parseEffortValue(facts.effortOverride)
       : undefined
-  return pin ?? facts.definitionEffort ?? facts.sessionEffort
+  return pin ?? facts.definitionEffort
 }
 
 export async function* runAgent(
@@ -564,6 +572,7 @@ export async function* runAgent(
 
   const claim = Symbol('agent-executor')
   executorClaims.set(agentId, claim)
+  noteAgentEffortWord(agentId, agentOwnEffortWord({ effortOverride, useExactTools, definitionEffort: agentDefinition.effort }))
 
   if (transcriptSubdir) setAgentTranscriptSubdir(agentId, transcriptSubdir)
 
@@ -939,12 +948,13 @@ export async function* runAgent(
         yield message as Message
         continue
       }
+      const subtype = (anyMessage as { subtype?: string }).subtype
       const recordable =
         anyMessage.type === 'assistant' ||
         anyMessage.type === 'user' ||
         anyMessage.type === 'progress' ||
         (anyMessage.type === 'system' &&
-          (anyMessage as { subtype?: string }).subtype === 'compact_boundary')
+          (subtype === 'compact_boundary' || subtype === 'informational' || subtype === 'api_error'))
       if (!recordable) continue
 
       void recordSidechainTranscript(
@@ -989,6 +999,7 @@ export async function* runAgent(
 
     if (executorClaims.get(agentId) === claim) {
       executorClaims.delete(agentId)
+      forgetAgentEffortWord(agentId)
       if (agentDefinition.hooks) {
         clearSessionHooks(rootSetAppState, agentId)
       }

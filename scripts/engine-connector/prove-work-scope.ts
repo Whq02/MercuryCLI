@@ -153,8 +153,29 @@ section('P1 the projector: the runner\'s task store → wire rows')
     wf?.phases?.length === 1 && wf.phases[0]!.title === 'Probe' && wf.phases[0]!.agents.length === 2 && wf.phases[0]!.agents.map(a => a.state).join(',') === 'progress,done',
     JSON.stringify(wf?.phases),
   )
+  check(
+    'P1 the workflow row speaks its pulse (the runner\'s own fold: one in flight, one settled, the newest signal floored at the start)',
+    wf?.pulse !== undefined && wf.pulse.running === 1 && wf.pulse.settled === 1 && wf.pulse.maxAttempt === 0 && wf.pulse.lastEventAt === t0 && wf.pulse.phaseTitle === 'Probe',
+    JSON.stringify(wf?.pulse),
+  )
   const tm = rows.find(r => r.id === 'tm1')
   check('P1 the teammate row names its team', tm?.kind === 'teammate' && tm.name === 'scout' && tm.team === 'crew')
+
+  const { focusedWorkRows, runningWorkflowRows } = await import('../../src/components/tasks/useFocusedWork.ts')
+  const hosted = {
+    rows: [
+      { id: 'wf1', kind: 'workflow', name: 'a stale copy of the local row', status: 'completed', startTime: t0 },
+      { id: 'wf9', kind: 'workflow', name: 'hosted-run', status: 'running', startTime: t0 + 9, workflowRunId: 'run-9' },
+      { id: 'wf8', kind: 'workflow', name: 'hosted-paused', status: 'paused', startTime: t0 + 8, workflowRunId: 'run-8' },
+      { id: 'sh9', kind: 'shell', name: 'sleep 9', status: 'running', startTime: t0 + 7 },
+    ],
+    mission: [],
+  } as const
+  const union = focusedWorkRows(store, hosted as never)
+  check('P6 the union carries every local row and every hosted row once', union.length === 4 + 3, JSON.stringify(union.map(r => r.id)))
+  check('P6 a row held locally keeps its local projection (the hosted copy never wins)', union.find(r => r.id === 'wf1')?.name === 'scope-probe' && union.find(r => r.id === 'wf1')?.status === 'running')
+  check('P6 the running workflows are the local run and the hosted run — never the paused one, never the shell', runningWorkflowRows(union).map(r => r.id).sort().join(',') === 'wf1,wf9')
+  check('P6 a blank store still lists the hosted rows', focusedWorkRows(undefined, hosted as never).length === 4)
   const sh = rows.find(r => r.id === 'sh1')
   check('P1 the shell row keeps its settle time', sh?.kind === 'shell' && sh.endTime === t0 + 5 && sh.status === 'completed')
   check('P1 newest first, stable', rows[0]!.id === 'sh1' && rows[rows.length - 1]!.id === 'wf1')

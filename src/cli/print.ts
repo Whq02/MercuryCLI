@@ -486,6 +486,7 @@ export async function runHeadless(
 
   const isConcourseWorker = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
   let awaitingSessionClaim = isConcourseWorker && !options.continue && !options.resume && options.bootSessionIdPinned !== true
+  let sessionFactsHoldSpent = false
   const sessionWiringModules = (): Promise<
     [
       typeof import('../utils/hooks/wardsHook.js'),
@@ -1732,6 +1733,7 @@ export async function runHeadless(
             const transition = resolvePermissionModeTransition(
               claimedMode as WirePermissionMode,
               getAppState().toolPermissionContext,
+              'claim',
             )
             if (!transition.ok) {
               respondError(requestId, `claim refused — ${transition.error}`)
@@ -1802,6 +1804,11 @@ export async function runHeadless(
           return
         }
         case 'session_facts': {
+          if (!sessionFactsHoldSpent) {
+            sessionFactsHoldSpent = true
+            const holdMs = Number.parseInt(flagEnv('MERCURY_SESSION_FACTS_HOLD_MS') ?? '', 10)
+            if (Number.isFinite(holdMs) && holdMs > 0) await new Promise(resolve => setTimeout(resolve, holdMs))
+          }
           const state = getAppState()
           const answer: SessionFactsAnswerV1 = {
             model: {
@@ -1835,6 +1842,10 @@ export async function runHeadless(
             skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
             mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
             permissionMode: state.toolPermissionContext.mode,
+            effortSent: ((): string | null => {
+              const truth = resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue)
+              return truth.supportsEffort ? (truth.wire ?? null) : null
+            })(),
             spawnSwitches: spawnSwitchFacts(),
             workspace: {
               cwd: getCwd(),

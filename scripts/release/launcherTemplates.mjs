@@ -580,7 +580,7 @@ background — updates happen only when you run the command.
 ## The facts
 
 - **Supported platforms:** Linux x64 · macOS arm64 (Apple silicon) ·
-  Windows x64. macOS Intel is not packaged (the source build covers it).
+  macOS x64 (Intel) · Windows x64 — one archive each.
 - **Launch confirmations:** none expected from a terminal. On Windows,
   PowerShell's execution policy may block \`mercury.ps1\` — use
   \`mercury.cmd\`, which needs no policy change.
