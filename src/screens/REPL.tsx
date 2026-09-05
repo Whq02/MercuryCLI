@@ -2161,7 +2161,8 @@ export function REPL({
         responseLengthRef={responseLengthRef}
         overrideColor={null}
         overrideShimmerColor={null}
-        overrideMessage={viewCompacting ? 'compacting context…' : viewAgentWait}
+        overrideMessage={viewCompacting ? 'compacting context' : viewAgentWait}
+        still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
         verbose={verbose}
         hasActiveTools={viewInProgressToolUseIDs.size > 0}
