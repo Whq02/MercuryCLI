@@ -945,8 +945,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       })
       if (reply.ok !== true) {
         const error = typeof reply.error === 'string' ? reply.error : ''
-        if (reply.code === 'EUNKNOWN' && /unknown op/i.test(error)) {
-          return { outcome: 'refused', mode: req.mode, refusal: 'daemon-older', detail: 'the daemon predates the rewind verb — /daemon restart when ready, then /rewind again' }
+        if (reply.refusal === 'daemon-older') {
+          return { outcome: 'refused', mode: req.mode, refusal: 'daemon-older', detail: error }
         }
         return { outcome: 'refused', mode: req.mode, refusal: 'restore-failed', detail: `${error !== '' ? error : 'the daemon refused the rewind'} — nothing is assumed restored` }
       }
@@ -1426,12 +1426,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         ...(note !== undefined ? { note } : {}),
       })
       if (reply.ok !== true) {
-        const error = String(reply.error ?? 'the daemon refused the verb')
-        const older = /sessionControl requires/.test(error)
-        return {
-          outcome: 'refused',
-          detail: older ? 'the daemon predates the crew stop and resume verbs — /daemon restart when ready, then try again' : error,
-        }
+        return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
       }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
       if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }

@@ -103,6 +103,7 @@ import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer }
 import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
 import { announcementMessage, conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
 import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
 import type {
@@ -564,6 +565,12 @@ async function* queryModel(
   const filteredTools: Tools = plan.roster
   if (!useToolSearch) {
     logForDebugging('Tool search disabled for this request (the payload plan)')
+  }
+  if (plan.restoredMissingTools.length > 0) {
+    declareLawfulPrefixChange(
+      rosterOwnerKey,
+      `a tool the earlier session offered is no longer available (${plan.restoredMissingTools.join(', ')})`,
+    )
   }
 
   if (useToolSearch && plan.wireWhy === 'gateway-unprobed' && gatewayProbePolicyAllows()) {

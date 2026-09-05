@@ -24,11 +24,12 @@ console.log('§P2 — -V prints the same banner as its siblings')
 
 console.log('§P3 — --effort refuses honestly and names its values')
 {
-  check('the --help description names the five levels', main.includes('Reasoning effort level (${EFFORT_LEVELS.join(\', \')})'))
+  check('the --help description names the ladder from its owner', main.includes('Reasoning effort level (${EFFORT_LEVELS.join(\', \')})'))
   check('the refusal names the values without claiming it ignored them', main.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`'))
   check('POISON: the flag no longer throws the env door\'s ignore-warning', !main.includes("warning ?? 'Valid effort levels: low, medium, high, max'"))
   const effort = readFileSync(join(ROOT, 'src/utils/effort.ts'), 'utf8')
-  check('the ladder EFFORT_LEVELS is the five values the description names', effort.includes("export const EFFORT_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max']"))
+  const ladder = readFileSync(join(ROOT, 'src/entrypoints/sdk/runtimeTypes.ts'), 'utf8')
+  check('the ladder is ONE tuple beside its type (six words, low to ultra) and the effort owner re-exports it', ladder.includes("const EFFORT_LADDER = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const") && ladder.includes('export type EffortLevel = (typeof EFFORT_LADDER)[number]') && effort.includes('export { EFFORT_LEVELS }'))
 }
 
 console.log('§P7 — the eager settings scan stops at `--` and takes the last occurrence')

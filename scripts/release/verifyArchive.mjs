@@ -3,7 +3,8 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
+import { unsignedArchiveName } from './payloadContract.mjs'
 import { checkReleaseDocuments } from './releaseDocuments.mjs'
 
 const args = process.argv.slice(2)
@@ -11,19 +12,37 @@ const opt = name => {
   const i = args.indexOf(name)
   return i !== -1 && args[i + 1] ? args[i + 1] : null
 }
-const archive = opt('--archive')
 const expect = opt('--expect')
 const root = resolve(opt('--root') ?? resolve(dirname(fileURLToPath(import.meta.url)), '..', '..'))
 const version = opt('--version') ?? JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
-if (!archive || !existsSync(archive) || !['signed', 'unsigned'].includes(expect)) {
-  console.error('usage: node scripts/release/verifyArchive.mjs --archive <file> --expect signed|unsigned [--root <tree>] [--version <v>]')
+const usage = () => {
+  console.error('usage: node scripts/release/verifyArchive.mjs (--target <release target> | --archive <file>) --expect signed|unsigned [--root <tree>] [--version <v>]')
   process.exit(2)
 }
+if (!['signed', 'unsigned'].includes(expect)) usage()
+let archive = opt('--archive')
+const target = opt('--target')
+if (archive === null && target !== null) {
+  const built = join(root, 'dist', 'verify-artifact.mjs')
+  if (!existsSync(built)) {
+    console.error(`✗ ${built} is missing — the archive name is read from the built library (run bun run build.ts first)`)
+    process.exit(2)
+  }
+  const owner = await import(pathToFileURL(built).href)
+  if (!owner.isReleaseTarget(target)) {
+    console.error(`✗ --target wants one of ${owner.RELEASE_TARGETS.join(', ')} (got ${target})`)
+    process.exit(2)
+  }
+  const signedName = owner.archiveNameFor(version, target)
+  archive = join(root, 'release-out', expect === 'unsigned' ? unsignedArchiveName(signedName) : signedName)
+}
+if (archive === null) usage()
 
 const fail = msg => {
   console.error(`✗ ${msg}`)
   process.exit(1)
 }
+if (!existsSync(archive)) fail(`no archive at ${archive} — package first (node scripts/release/package.mjs --target <target>${expect === 'unsigned' ? ' --unsigned' : ''})`)
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-verify-archive-'))
 try {

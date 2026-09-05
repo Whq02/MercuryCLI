@@ -48,16 +48,22 @@ line the installer prints. `mercury --version` is the check.
 
 `mercury update` keeps a release install current in place (`--check`,
 `--status`, `--rollback`; the previous version stays on disk). It reads the
-release list through your own signed-in GitHub CLI (`gh`); without one,
-rerun the install command above, which installs the newest release over
-the old one.
+public release list and the archive anonymously — no account, no sign-in,
+no token — and verifies the archive against the release's `SHA256SUMS.txt`
+before anything activates; a signed-in GitHub CLI (`gh`), when present, is
+used instead and raises GitHub's request limit, but is never required.
 
-The 1.0.0-beta.2 archives are unsigned: a release install prints a
-`provenance — unsigned` line on a bare interactive boot (a plain `mercury`
-with no verb or flag), and `mercury doctor` carries the same row. The line means the archive's
-manifest carries no signature; the download itself is checked against the
-release's `SHA256SUMS.txt`. The boot-time verification is described in
-[docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
+From 1.0.0-beta.3 every release archive is signed with the Mercury release
+key at packaging, and the release is verified against that signature before
+it is published; a verified install prints nothing about it on boot, and
+`mercury doctor` shows `signed — key 627b54b734ca0e72`. The 1.0.0-beta.2
+archives are unsigned: such an install prints a `provenance — unsigned` line
+on a bare interactive boot (a plain `mercury` with no verb or flag), once per
+install, and `mercury doctor` carries the row every time. The line means the
+archive's manifest carries no signature; the download itself is checked
+against the release's `SHA256SUMS.txt`. What the verdicts mean and how to
+check an archive by hand is in [docs/TRUST.md](docs/TRUST.md); the boot-time
+verification is described in [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).
 
 No archive ships for a Linux arm64 machine or Windows on arm64: the installer
 says so on the first and points at building from source (below); on Windows
@@ -114,7 +120,9 @@ publishes a clean-tree build to `<config home>/runtime/dist` and
 `echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc`). A missing
 runtime is a loud launcher failure, never a silent fallback. A release
 install ([Install](#install)) uses `mercury install` and `mercury update`
-instead and never touches a checkout. Both roads run the artifact on the
+instead (no GitHub sign-in needed — the public releases are read anonymously;
+a signed-in GitHub CLI is used when present) and never touches a checkout.
+Both roads run the artifact on the
 vendored Node 24 LTS runtime the build carries, else on `MERCURY_NODE` or a
 PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
 build-and-run guide; [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
@@ -299,7 +307,7 @@ catalogue, grouped the way `/help` groups it:
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/tasks` `/workbench` `/diff` `/mission` `/themis` `/supervisor` |
-| crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
+| crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/tabula` `/note` `/minerva` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/plan` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |

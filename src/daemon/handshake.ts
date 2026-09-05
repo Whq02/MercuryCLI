@@ -292,7 +292,7 @@ async function classifyHello(reply: DaemonReply): Promise<HelloOutcome> {
       return { kind: 'pre-handshake', proto, version, ...(await preHandshakeFacts()) }
     }
     case 'EUNKNOWN': {
-      if (/unknown op/i.test(reply.error)) {
+      if (reply.refusal === 'daemon-older' || /unknown op/i.test(reply.error)) {
         const known = negotiatedDaemonProto()
         return {
           kind: 'pre-handshake',

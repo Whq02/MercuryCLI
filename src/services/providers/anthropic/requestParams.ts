@@ -158,6 +158,12 @@ export function should1hCacheTTL(querySource?: QuerySource): boolean {
   )
 }
 
+const FIRST_PARTY_WIRE_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'] as const satisfies readonly NonNullable<BetaOutputConfig['effort']>[]
+type FirstPartyWireEffort = (typeof FIRST_PARTY_WIRE_EFFORTS)[number]
+function isFirstPartyWireEffort(level: string): level is FirstPartyWireEffort {
+  return (FIRST_PARTY_WIRE_EFFORTS as readonly string[]).includes(level)
+}
+
 export function configureEffortParams(
   effortValue: EffortValue | undefined,
   outputConfig: BetaOutputConfig,
@@ -171,12 +177,12 @@ export function configureEffortParams(
 
   if (effortValue === undefined) {
     betas.push(EFFORT_BETA_HEADER)
-  } else if (typeof effortValue === 'string') {
+  } else if (typeof effortValue === 'string' && isFirstPartyWireEffort(effortValue)) {
     outputConfig.effort = effortValue
     betas.push(EFFORT_BETA_HEADER)
   } else {
     logForDebugging(
-      `configureEffortParams: numeric effort ${effortValue} has no wire encoding — sending without effort`,
+      `configureEffortParams: effort ${effortValue} has no first-party wire encoding — sending without effort`,
       { level: 'warn' },
     )
   }
