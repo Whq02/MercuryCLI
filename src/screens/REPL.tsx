@@ -52,7 +52,7 @@ import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
-import { publishCompanionTurn } from '../utils/cockpit/companionSignals.js';
+import { publishCompanionTurn, turnEndedInError } from '../utils/cockpit/companionSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { dynamicMcpConfigSnapshot, ideAutoConnectSeed, setDynamicMcpConfig } from '../services/mcp/dynamicMcpSeed.js';
 import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
@@ -111,7 +111,7 @@ import { useLspInitializationNotification } from '../hooks/notifs/useLspInitiali
 import { useModelMigrationNotifications } from '../hooks/notifs/useModelMigrationNotifications.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
 import { useSettingsErrors } from '../hooks/notifs/useSettingsErrors.js';
-import { Box, Text, useStdin, useTheme } from '../ink.js';
+import { Box, type DOMElement, measureElement, Text, useStdin, useTheme } from '../ink.js';
 import { AlternateScreen } from '../ink/components/AlternateScreen.js';
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js';
 import useInput from '../ink/hooks/use-input.js';
@@ -1156,6 +1156,21 @@ export function REPL({
     }
     addNotification({ key: `command-${commandName}`, text, priority: 'immediate', timeoutMs: RECEIPT_TIMEOUT_MS });
   }, [addNotification]);
+  const dialogInFlightRef = useRef<{ name: string; mounted: boolean } | null>(null);
+  const queuedDialogCommandsRef = useRef<Array<{ input: string; name: string }>>([]);
+  const dialogSlotRef = useRef<DOMElement | null>(null);
+  const [dialogPaints, setDialogPaints] = useState(false);
+  useEffect(() => {
+    const node = dialogSlotRef.current;
+    const paints = toolJSX?.isLocalJSXCommand === true && node !== null && measureElement(node).height > 0;
+    setDialogPaints(prev => (prev === paints ? prev : paints));
+  });
+  const dialogOwnsKeys = toolJSX?.isLocalJSXCommand === true && dialogPaints;
+  const drainQueuedDialogCommand = useCallback((): void => {
+    const next = queuedDialogCommandsRef.current.shift();
+    if (next === undefined) return;
+    void onSubmitRef.current(next.input, INERT_PROMPT_HELPERS, undefined, { rearmed: true });
+  }, []);
   const onSubmit = useCallback(async (input: string, helpers: PromptInputHelpers, _speculationAccept?: unknown, options?: { fromKeybinding?: boolean; rearmed?: boolean }): Promise<void> => {
     const text = input.trim();
     if (text === '') return;
@@ -1281,6 +1296,28 @@ export function REPL({
       return;
     }
     if (seatCommand !== undefined && seatCommand.type === 'local-jsx') {
+      const dialogName = getCommandName(seatCommand);
+      const inFlight = dialogInFlightRef.current;
+      if (inFlight !== null) {
+        takeComposer();
+        queuedDialogCommandsRef.current.push({ input, name: dialogName });
+        submitTrace('repl-dialog-queued', input, { name: dialogName, behind: inFlight.name });
+        addNotification({
+          key: 'dialog-command-queued',
+          text: `/${dialogName} queued — runs when /${inFlight.name} settles`,
+          priority: 'immediate',
+          timeoutMs: RECEIPT_TIMEOUT_MS,
+        });
+        return;
+      }
+      const slot = { name: dialogName, mounted: false };
+      dialogInFlightRef.current = slot;
+      submitTrace('repl-dialog-dispatch', input, { name: dialogName, rearmed: options?.rearmed === true });
+      const releaseDialogSlot = (): void => {
+        if (dialogInFlightRef.current !== slot) return;
+        dialogInFlightRef.current = null;
+        if (!slot.mounted) drainQueuedDialogCommand();
+      };
       if (pendingInput.text().replace(/\s+$/, '') === input) setInputValue('');
       const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
       let completed = false;
@@ -1289,6 +1326,8 @@ export function REPL({
         doneOptions?: { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean },
       ): void => {
         completed = true;
+        submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user' });
+        releaseDialogSlot();
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
           addNotification({ key: `command-${seatCommand.name}`, text: result, priority: 'immediate' });
@@ -1307,6 +1346,7 @@ export function REPL({
         const module = await seatCommand.load();
         const element = await module.call(onDone, context, args, text.slice(1, spaceAt === -1 ? undefined : spaceAt));
         if (element && !completed) {
+          slot.mounted = true;
           setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
         } else if (!element && !completed) {
           addNotification({
@@ -1315,6 +1355,7 @@ export function REPL({
             priority: 'immediate',
             timeoutMs: RECEIPT_TIMEOUT_MS,
           });
+          releaseDialogSlot();
         }
       } catch (error) {
         logForDebugging(`dialog command /${seatCommand.name} failed: ${String(error)}`);
@@ -1325,11 +1366,18 @@ export function REPL({
           color: 'error' as const,
           timeoutMs: RECEIPT_TIMEOUT_MS,
         });
+        releaseDialogSlot();
       }
     }
-  }, [addNotification, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
+  }, [addNotification, drainQueuedDialogCommand, getToolUseContext, lastCompletedAt, paintScreenCommandReceipt, repinToBottom, setInputMode, setInputValue, setPastedContents, setToolJSX]);
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
+  useEffect(() => {
+    if (toolJSX !== null) return;
+    const slot = dialogInFlightRef.current;
+    if (slot !== null && slot.mounted) dialogInFlightRef.current = null;
+    if (dialogInFlightRef.current === null) drainQueuedDialogCommand();
+  }, [toolJSX, drainQueuedDialogCommand]);
 
   const onCancel = useCallback(() => {
     idleCheckLatchedOffRef.current = false;
@@ -1450,8 +1498,9 @@ export function REPL({
       turnLive: isLoading,
       streaming: textActive,
       awaitingPermission: toolUseConfirmQueue.length > 0,
+      endedInError: !isLoading && turnEndedInError(messages),
     });
-  }, [isLoading, textActive, toolUseConfirmQueue.length]);
+  }, [isLoading, textActive, toolUseConfirmQueue.length, messages]);
 
   useEffect(() => {
     const paint = (): void => {
@@ -2278,19 +2327,14 @@ export function REPL({
       />
     ) : null;
 
-  const centredModal: React.ReactNode = centredModalUp ? toolJSX!.jsx : null;
-  const bottomImmediateJsx: React.ReactNode =
-    localJsx && !fullscreen && toolJSX!.isImmediate ? (
-      <Box width="100%" flexDirection="column">
-        {toolJSX!.jsx}
-      </Box>
-    ) : null;
-  const inlineToolJsx =
-    toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? (
-      <Box width="100%" flexDirection="column">
-        {toolJSX.jsx}
-      </Box>
-    ) : null;
+  const dialogSlot: React.ReactNode = toolJSX?.jsx ? (
+    <Box ref={dialogSlotRef} width="100%" flexDirection="column">
+      {toolJSX.jsx}
+    </Box>
+  ) : null;
+  const centredModal: React.ReactNode = centredModalUp ? dialogSlot : null;
+  const bottomImmediateJsx: React.ReactNode = localJsx && !fullscreen && toolJSX!.isImmediate ? dialogSlot : null;
+  const inlineToolJsx = toolJSX?.jsx && !centredModal && !bottomImmediateJsx ? dialogSlot : null;
 
   const focusedBottomDialog: React.ReactNode = replSurfaceCovered ? null :
     focusedInputDialog === 'elicitation' && elicitationQueue[0] ? (
@@ -2423,7 +2467,7 @@ export function REPL({
       helpOpen={helpOpen}
       setHelpOpen={setHelpOpen}
       hasSuppressedDialogs={dialogsHiddenWhileTyping}
-      isLocalJSXCommandActive={toolJSX?.isLocalJSXCommand === true}
+      isLocalJSXCommandActive={dialogOwnsKeys}
       insertTextRef={insertTextRef}
     />
   ) : null;
@@ -2574,7 +2618,7 @@ export function REPL({
     isMessageSelectorVisible: showMessageSelector || showBashesDialog !== false,
     screen,
     vimMode: isVimModeEnabled() ? vimMode : undefined,
-    isLocalJSXCommand: toolJSX?.isLocalJSXCommand === true,
+    isLocalJSXCommand: dialogOwnsKeys,
     isSearchingHistory,
     isHelpOpen: helpOpen,
     isInputDialogFocused: focusedInputDialog !== undefined,
@@ -2588,7 +2632,7 @@ export function REPL({
       <KeybindingSetup>
         <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
         <GlobalKeybindingHandlers {...globalKeybindingProps} />
-        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
+        <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!dialogOwnsKeys} />
         {cancelHandler}
         <Box flexDirection="column">
           {messagesList}
@@ -2613,7 +2657,7 @@ export function REPL({
     <KeybindingSetup>
       <AnimatedTitle enabled={terminalTitleEnabled} title={title} wantsPrefix={!tabStatusEnabled} animating={titleAnimating} />
       <GlobalKeybindingHandlers {...globalKeybindingProps} />
-      <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!toolJSX?.isLocalJSXCommand} />
+      <CommandKeybindingHandlers onSubmit={onSubmit} isActive={!dialogOwnsKeys} />
       <ScrollKeybindingHandler
         scrollRef={scrollRef}
         isActive={inVirtualTranscript || (fullscreen && (centredModalUp || focusedInputDialog === undefined || focusedInputDialog === 'tool-permission'))}
