@@ -197,20 +197,52 @@ section('stages 1c–1g — tool-verdict handling and bypass immunity')
   )
   check('requiresUserInteraction ask is bypass-immune (1e)', r.behavior === 'ask', j(r))
 
-  r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'sovereign' }))
-  check('content ask-RULE is bypass-immune (1f)', r.behavior === 'ask', j(r))
-
-  r = await decide(makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }))
-  check("MCP org ask-ceiling is bypass-immune (1f')", r.behavior === 'ask', j(r))
-
-  r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }))
-  check('safetyCheck ask is bypass-immune (1g)', r.behavior === 'ask', j(r))
-
   r = await decide(makeTool({ verdict: { behavior: 'throw' } }), makeContext({}))
   check('checkPermissions failure degrades to passthrough → ask (never allow)', r.behavior === 'ask', j(r))
 
   r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({ mode: 'sovereign' }))
   check('PLAIN tool ask (no rule/safety reason) IS bypassed → allow (as-is)', r.behavior === 'allow', j(r))
+}
+
+section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand down under bypass")
+{
+  type Road = { label: string; tool: unknown; road: string; innerReason: string }
+  const roads: Road[] = [
+    { label: 'content ask-RULE (1f)', tool: makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), road: 'contentAskRule', innerReason: 'rule' },
+    { label: "MCP org ask-ceiling (1f')", tool: makeTool({ orgAskCeiling: true }), road: 'orgAskCeiling', innerReason: 'other' },
+    { label: 'safetyCheck ask (1g)', tool: makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), road: 'safetyCheckAsk', innerReason: 'safetyCheck' },
+  ]
+  const asking: Array<[string, Record<string, unknown>]> = [
+    ['default', { mode: 'default' }],
+    ['flow', { mode: 'flow' }],
+    ['strategy without bypass', { mode: 'strategy' }],
+  ]
+  const bypassing: Array<[string, Record<string, unknown>, string]> = [
+    ['sovereign', { mode: 'sovereign' }, 'sovereign'],
+    ['autopilot', { mode: 'autopilot' }, 'autopilot'],
+    ['strategy + bypassAvailable', { mode: 'strategy', bypassAvailable: true }, 'strategy'],
+  ]
+  for (const road of roads) {
+    for (const [posture, ctx] of asking) {
+      const r = await decide(road.tool, makeContext(ctx))
+      check(`${posture} × ${road.label} → ask, the road's own reason (${road.innerReason})`, r.behavior === 'ask' && r.decisionReason?.type === road.innerReason, j(r))
+    }
+    for (const [posture, ctx, modeWord] of bypassing) {
+      const r = await decide(road.tool, makeContext(ctx))
+      const reason = r.decisionReason as { type?: string; mode?: string; road?: string; reason?: { type?: string } } | undefined
+      check(
+        `${posture} × ${road.label} → ALLOW at the road, the reason naming the posture, the road and what would have asked`,
+        r.behavior === 'allow' && reason?.type === 'bypassedAsk' && reason.mode === modeWord && reason.road === road.road && reason.reason?.type === road.innerReason,
+        j(r),
+      )
+    }
+  }
+  const dontAsk = await decide(roads[2]!.tool, makeContext({ mode: 'dontAsk' }))
+  check("dontAsk × safetyCheck ask → the road asks; dontAsk converts it to a deny", dontAsk.behavior === 'deny', j(dontAsk))
+  let r = await decide(makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign' }))
+  check('sovereign × tool deny → deny, unchanged (a deny is not a card)', r.behavior === 'deny', j(r))
+  r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'plain' }, requiresUserInteraction: true }), makeContext({ mode: 'sovereign' }))
+  check('sovereign × requiresUserInteraction → ask, unchanged (a question is the tool\'s purpose)', r.behavior === 'ask', j(r))
 }
 
 section('auto mode — pre-classifier floors and fast paths')
@@ -254,6 +286,10 @@ section('checkRuleBasedPermissions — the hook-allow guard path')
   check("org ask-ceiling → ask", (await rb(makeTool({ orgAskCeiling: true }), makeContext({})))?.behavior === 'ask')
   check('safetyCheck → ask', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({})))?.behavior === 'ask')
   check('plain tool ask → null (mode layer decides later)', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({}))) === null)
+  check('sovereign: content ask-rule → null (no objection)', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'sovereign' }))) === null)
+  check('sovereign: org ask-ceiling → null', (await rb(makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }))) === null)
+  check('sovereign: safetyCheck → null', (await rb(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }))) === null)
+  check('sovereign: tool deny → deny, unchanged', (await rb(makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign' })))?.behavior === 'deny')
 }
 
 section('abort totality')

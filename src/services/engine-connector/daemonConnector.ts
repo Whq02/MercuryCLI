@@ -54,6 +54,7 @@ import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ep
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
+import { FOLD_COMMAND_SEND, FOLD_EXIT_LINGER_MS, decodeFoldStatus, foldRowVisible, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
@@ -407,6 +408,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private liveTurnChars = 0
   private liveStateWord: 'compacting' | 'waiting-on-agents' | null = null
   private liveAgentsWaiting = 0
+  private liveFoldStatus: FoldStatusV1 | null = null
+  private foldExitLatch: FoldStatusV1 | null = null
+  private foldLatchTimer: ReturnType<typeof setTimeout> | null = null
+  private foldSentHere = false
+  private readonly foldListeners = new Set<() => void>()
   private liveWait: RequestWaitV1 | null = null
   private hardStopping = false
 
@@ -517,6 +523,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (tail === null) {
       this.liveTurnChars = 0
       this.setLiveStateWord(null)
+      this.setLiveFold(null)
       this.setStreamBlock(null, null)
       this.lastEventAtMs = null
       if (this.tailStore.read() !== null) this.tailStore.update(() => null)
@@ -527,6 +534,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       tail.stateWord === 'compacting' ? 'compacting' : tail.stateWord === 'waiting-on-agents' ? 'waiting-on-agents' : null,
       tail.stateWord === 'waiting-on-agents' && typeof tail.waitingOnAgents === 'number' ? Math.max(1, Math.floor(tail.waitingOnAgents)) : 0,
     )
+    this.setLiveFold(tail.stateWord === 'compacting' && tail.fold !== undefined ? decodeFoldStatus(tail.fold) : null)
     const wait = decodeRequestWait(tail.wait)
     if (JSON.stringify(wait) !== JSON.stringify(this.liveWait)) {
       this.liveWait = wait
@@ -553,6 +561,37 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.liveStateWord = word
     this.liveAgentsWaiting = count
     this.recomputeLive()
+  }
+
+  private setLiveFold(next: FoldStatusV1 | null): void {
+    if (JSON.stringify(this.liveFoldStatus) === JSON.stringify(next)) return
+    if (next === null && this.liveFoldStatus !== null && this.liveFoldStatus.exit !== undefined) {
+      this.foldExitLatch = this.liveFoldStatus
+      if (this.foldLatchTimer !== null) clearTimeout(this.foldLatchTimer)
+      this.foldLatchTimer = setTimeout(() => {
+        this.foldLatchTimer = null
+        this.foldExitLatch = null
+        emitAll(this.foldListeners, 'fold')
+      }, FOLD_EXIT_LINGER_MS)
+      this.foldLatchTimer.unref?.()
+    } else if (next !== null) {
+      this.foldExitLatch = null
+    }
+    this.liveFoldStatus = next
+    emitAll(this.foldListeners, 'fold')
+  }
+
+  fold(): FoldStatusV1 | null {
+    const status = this.liveFoldStatus ?? this.foldExitLatch
+    const sendUnlanded = this.sends.some(s => FOLD_COMMAND_SEND.test(s.text))
+    return foldRowVisible(status, { sentHere: this.foldSentHere, sendUnlanded, nowMs: Date.now() }) ? status : null
+  }
+
+  subscribeFold(listener: () => void): () => void {
+    this.foldListeners.add(listener)
+    return () => {
+      this.foldListeners.delete(listener)
+    }
   }
 
   private setStreamBlock(block: 'thinking' | 'text' | 'tool_use' | null, sinceMs: number | null): void {
@@ -789,6 +828,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveStateWord = null
+    if (!inFlight && this.liveFoldStatus !== null && this.liveFoldStatus.exit === undefined) {
+      this.liveFoldStatus = null
+      emitAll(this.foldListeners, 'fold')
+    }
+    if (!inFlight && !this.sends.some(s => FOLD_COMMAND_SEND.test(s.text))) this.foldSentHere = false
     if (!inFlight && this.publishedProgressSeqs.size > 0) {
       clearEphemeralProgress()
       this.publishedProgressSeqs.clear()
@@ -909,6 +953,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
+    if (this.foldSentHere || this.liveFoldStatus !== null || this.foldExitLatch !== null) emitAll(this.foldListeners, 'fold')
   }
 
 
@@ -945,8 +990,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       })
       if (reply.ok !== true) {
         const error = typeof reply.error === 'string' ? reply.error : ''
-        if (reply.code === 'EUNKNOWN' && /unknown op/i.test(error)) {
-          return { outcome: 'refused', mode: req.mode, refusal: 'daemon-older', detail: 'the daemon predates the rewind verb — /daemon restart when ready, then /rewind again' }
+        if (reply.refusal === 'daemon-older') {
+          return { outcome: 'refused', mode: req.mode, refusal: 'daemon-older', detail: error }
         }
         return { outcome: 'refused', mode: req.mode, refusal: 'restore-failed', detail: `${error !== '' ? error : 'the daemon refused the rewind'} — nothing is assumed restored` }
       }
@@ -1217,6 +1262,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.retainedSend !== null && this.retainedSend.text === expanded ? this.retainedSend.id : randomUUID()
     const echo = createUserMessage({ content: expanded }) as unknown as Message
     this.echoRows.set(provisionalId, this.factsBusy ? ({ ...echo, queued: true } as Message) : echo)
+    if (mode === 'prompt' && FOLD_COMMAND_SEND.test(expanded)) this.foldSentHere = true
     this.paint()
     const answering = await this.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
@@ -1426,12 +1472,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         ...(note !== undefined ? { note } : {}),
       })
       if (reply.ok !== true) {
-        const error = String(reply.error ?? 'the daemon refused the verb')
-        const older = /sessionControl requires/.test(error)
-        return {
-          outcome: 'refused',
-          detail: older ? 'the daemon predates the crew stop and resume verbs — /daemon restart when ready, then try again' : error,
-        }
+        return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
       }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
       if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }

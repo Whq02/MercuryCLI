@@ -69,6 +69,16 @@ import { projectRewoundWindows } from './checkpointRewind.js'
 import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
+import type { CompactProgressEvent } from '../../Tool.js'
+import {
+  FOLD_STAMP_THROTTLE_MS,
+  type FoldExit,
+  type FoldStatusV1,
+  type FoldTrigger,
+  beginFoldStatus,
+  foldStatusExit,
+  foldStatusOnEvent,
+} from './foldStatus.js'
 
 
 void notifyCompaction
@@ -580,6 +590,7 @@ async function summarizeViaCacheSharingFork(
 ): Promise<AssistantMessage | null> {
   const bound = armFoldBound(context.abortController.signal)
   try {
+    context.setResponseLength?.(() => 0)
     const result = await runForkedAgent({
       promptMessages: [promptMessage],
       cacheSafeParams: { ...cacheSafeParams, forkContextMessages: messages },
@@ -588,6 +599,14 @@ async function summarizeViaCacheSharingFork(
       forkLabel: 'compact',
       maxTurns: 1,
       skipCacheWrite: true,
+      onStreamEvent: event => {
+        bound.touch()
+        const inner = event as { type?: string; delta?: { type?: string; text?: string } }
+        if (inner.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
+          const length = inner.delta.text?.length ?? 0
+          context.setResponseLength?.(prev => prev + length)
+        }
+      },
       overrides: {
         abortController: bound.controller,
         getAppState: () => {
@@ -604,6 +623,7 @@ async function summarizeViaCacheSharingFork(
         },
       },
     })
+    if (context.abortController.signal.aborted) return null
     const last = [...result.messages].reverse().find(message => message.type === 'assistant') as
       | AssistantMessage
       | undefined
@@ -728,6 +748,7 @@ async function streamingFallbackAttempts(
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
       throw err
     }
+    if (context.abortController.signal.aborted) throw new APIUserAbortError()
     if (captured !== undefined) return captured
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
     if (attempt < attempts) {
@@ -773,6 +794,7 @@ async function summarizeWithPtlRetry(
   let messages = initialMessages
   let response: AssistantMessage | null = null
   for (let attempt = 0; attempt <= PTL_RETRY_LIMIT; attempt++) {
+    if (attempt > 0) context.onCompactProgress?.({ type: 'retry', attempt: attempt + 1 })
     const promptMessage = createUserMessage({ content: promptText })
     response = await runSummarization(messages, cacheSafeParams, promptMessage, context)
     const text = getAssistantMessageText(response) ?? ''
@@ -876,19 +898,70 @@ function notifyCompactionError(context: ToolUseContext, err: unknown): void {
   })
 }
 
-function restoreAfterCompaction(context: ToolUseContext): void {
+function restoreAfterCompaction(context: ToolUseContext, word: unknown = null): void {
   context.setStreamMode?.('requesting')
   context.setResponseLength?.(() => 0)
   context.onCompactProgress?.({ type: 'compact_end' })
-  context.setSDKStatus?.(null)
+  context.setSDKStatus?.(word)
 }
 
-export async function withFoldStatus<T>(context: ToolUseContext, work: () => Promise<T>): Promise<T> {
-  context.setSDKStatus?.('compacting')
+export async function withFoldStatus<T, C extends ToolUseContext>(
+  context: C,
+  work: (scoped: C) => Promise<T>,
+  facts: { trigger: FoldTrigger; sessionMemory: boolean; microcompaction: boolean },
+): Promise<T> {
+  let status: FoldStatusV1 = beginFoldStatus({ ...facts, startedAtMs: Date.now() })
+  let chars = 0
+  let pending: NodeJS.Timeout | null = null
+  const send = (): void => {
+    if (pending !== null) {
+      clearTimeout(pending)
+      pending = null
+    }
+    context.setSDKStatus?.({ compacting: status })
+  }
+  const stamp = (now: boolean): void => {
+    if (context.setSDKStatus === undefined) return
+    if (now) {
+      send()
+      return
+    }
+    if (pending !== null) return
+    pending = setTimeout(send, FOLD_STAMP_THROTTLE_MS)
+    pending.unref?.()
+  }
+  const onEvent = (event: CompactProgressEvent): void => {
+    status = foldStatusOnEvent(status, event)
+    stamp(event.type !== 'summary_progress')
+  }
+  const scoped: C = {
+    ...context,
+    setSDKStatus: (word: unknown) => {
+      if (word === 'compacting') stamp(true)
+      else if (word !== null) context.setSDKStatus?.(word)
+    },
+    onCompactProgress: (event: CompactProgressEvent) => {
+      onEvent(event)
+      context.onCompactProgress?.(event)
+    },
+    setResponseLength: (updater: (prev: number) => number) => {
+      chars = Math.max(0, updater(chars))
+      onEvent({ type: 'summary_progress', chars })
+      context.setResponseLength?.(updater)
+    },
+  }
+  stamp(true)
+  let exit: FoldExit = 'landed'
   try {
-    return await work()
+    return await work(scoped)
+  } catch (err) {
+    const aborted = context.abortController?.signal.aborted === true
+    exit = aborted || err instanceof APIUserAbortError || (err instanceof Error && err.message === ERROR_MESSAGE_USER_ABORT) ? 'cancelled' : 'failed'
+    throw err
   } finally {
-    restoreAfterCompaction(context)
+    if (pending !== null) clearTimeout(pending)
+    status = foldStatusExit(status, exit, Date.now())
+    restoreAfterCompaction(context, facts.trigger === 'manual' ? { compacting: status } : null)
   }
 }
 
@@ -927,6 +1000,7 @@ export async function compactConversation(
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
     const response = await summarizeWithPtlRetry(messages, cacheSafeParams, promptText, context)
     const rawSummary = validateSummary(response, true)
+    context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
 
     let messagesToKeep: Message[] | undefined
     let tailPrecedingUuid: UUID | undefined

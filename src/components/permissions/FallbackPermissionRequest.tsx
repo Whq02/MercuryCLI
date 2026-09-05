@@ -7,6 +7,7 @@ import { env } from '../../utils/env.js'
 import { logUnaryEvent } from '../../utils/unaryLogging.js'
 import { truncateToLines } from '../../utils/stringUtils.js'
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js'
+import { ConsentBodyText } from './ConsentBodyText.js'
 import { PermissionDialog } from './PermissionDialog.js'
 import {
   PermissionPrompt,
@@ -104,17 +105,22 @@ export function FallbackPermissionRequest({
     }
   }
 
+  const useMessage = tool.renderToolUseMessage(toolUseConfirm.input as never, {
+    theme: resolveThemeName(),
+    verbose: true,
+  })
+  const suffix = isMcpNamed ? <Text dimColor>{MCP_SUFFIX}</Text> : null
+
   return (
     <PermissionDialog title="Tool use" workerBadge={workerBadge}>
       <Box flexDirection="column">
-        <Text>
-          {displayName}(
-          {tool.renderToolUseMessage(toolUseConfirm.input as never, {
-            theme: resolveThemeName(),
-            verbose: true,
-          })})
-          {isMcpNamed ? <Text dimColor>{MCP_SUFFIX}</Text> : null}
-        </Text>
+        {typeof useMessage === 'string' ? (
+          <ConsentBodyText text={`${displayName}(${useMessage})`} after={suffix} />
+        ) : (
+          <Text>
+            {displayName}({useMessage}){suffix}
+          </Text>
+        )}
         <Text dimColor>{truncateToLines(toolUseConfirm.description, 3)}</Text>
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}

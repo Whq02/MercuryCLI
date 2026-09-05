@@ -16,6 +16,7 @@ import type {
   PermissionDenyDecision,
   PermissionResult,
 } from '../PermissionResult.js'
+import type { BypassedAskRoad } from '../../../types/permissions.js'
 import { createPermissionRequestMessage, ORG_ASK_REASON } from './requestMessage.js'
 import {
   getAskRuleForTool,
@@ -196,35 +197,72 @@ async function runDecisionChain(
     pass('userInteractionAsk')
   }
 
+  const latestContext = context.getAppState().toolPermissionContext
+  const shouldBypassPermissions =
+    modeBypassesPermissions(latestContext.mode) ||
+    (latestContext.mode === 'strategy' &&
+      latestContext.isBypassPermissionsModeAvailable)
+
+  const roadUnderPosture = (
+    stage: BypassedAskRoad,
+    reason: PermissionDecisionReason,
+  ): { decision: PermissionDecision; trace: DecisionTrace } | null => {
+    const note = `mode: ${latestContext.mode} — the ask stands down`
+    if (entry === 'ruleSubset') {
+      pass(stage, note)
+      return null
+    }
+    return decided(
+      stage,
+      {
+        behavior: 'allow',
+        updatedInput: getUpdatedInputOrFallback(toolVerdict, input),
+        decisionReason: { type: 'bypassedAsk', mode: latestContext.mode, road: stage, reason },
+      },
+      note,
+    )
+  }
+
   if (
     toolVerdict?.behavior === 'ask' &&
     toolVerdict.decisionReason?.type === 'rule' &&
     toolVerdict.decisionReason.rule.ruleBehavior === 'ask'
   ) {
-    return decided('contentAskRule', toolVerdict)
+    if (!shouldBypassPermissions) return decided('contentAskRule', toolVerdict)
+    const stoodDown = roadUnderPosture('contentAskRule', toolVerdict.decisionReason)
+    if (stoodDown !== null) return stoodDown
+  } else {
+    pass('contentAskRule')
   }
-  pass('contentAskRule')
 
   if (tool.mcpInfo?.effectiveMaxPermission === 'ask') {
     const reason: PermissionDecisionReason = {
       type: 'other',
       reason: ORG_ASK_REASON,
     }
-    return decided('orgAskCeiling', {
-      behavior: 'ask',
-      message: createPermissionRequestMessage(tool.name, reason),
-      decisionReason: reason,
-    })
+    if (!shouldBypassPermissions) {
+      return decided('orgAskCeiling', {
+        behavior: 'ask',
+        message: createPermissionRequestMessage(tool.name, reason),
+        decisionReason: reason,
+      })
+    }
+    const stoodDown = roadUnderPosture('orgAskCeiling', reason)
+    if (stoodDown !== null) return stoodDown
+  } else {
+    pass('orgAskCeiling')
   }
-  pass('orgAskCeiling')
 
   if (
     toolVerdict?.behavior === 'ask' &&
     toolVerdict.decisionReason?.type === 'safetyCheck'
   ) {
-    return decided('safetyCheckAsk', toolVerdict)
+    if (!shouldBypassPermissions) return decided('safetyCheckAsk', toolVerdict)
+    const stoodDown = roadUnderPosture('safetyCheckAsk', toolVerdict.decisionReason)
+    if (stoodDown !== null) return stoodDown
+  } else {
+    pass('safetyCheckAsk')
   }
-  pass('safetyCheckAsk')
 
   if (entry === 'ruleSubset') {
     return {
@@ -233,11 +271,6 @@ async function runDecisionChain(
     }
   }
 
-  const latestContext = context.getAppState().toolPermissionContext
-  const shouldBypassPermissions =
-    modeBypassesPermissions(latestContext.mode) ||
-    (latestContext.mode === 'strategy' &&
-      latestContext.isBypassPermissionsModeAvailable)
   if (shouldBypassPermissions) {
     return decided(
       'bypassPosture',
