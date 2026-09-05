@@ -1113,11 +1113,9 @@ async function healthAction(options: {
         )
         process.exit(1)
       }
-      writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
-      return
+      return writeOutAndExit(renderPlainCertificate(filtered), filtered.verdict === 'fault' ? 3 : 0)
     }
-    writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
-    return
+    return writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)
   }
   const { healthHandler } = await import('./cli/handlers/util.js')
   const { createRoot } = await import('./ink.js')

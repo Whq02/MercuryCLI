@@ -17,7 +17,7 @@ export function resolveHealthPresentation(
   return { output: stdoutTTY && stdinTTY ? 'rich' : 'text', depth }
 }
 
-export function writeOutAndExit(text: string, code: number): void {
+export function writeOutAndExit(text: string, code: number): Promise<never> {
   try {
     process.stdout.on('error', (e: NodeJS.ErrnoException) => {
       process.exit(e.code === 'EPIPE' ? code : 1)
@@ -33,6 +33,7 @@ export function writeOutAndExit(text: string, code: number): void {
   } catch {
     process.exit(code)
   }
+  return new Promise<never>(() => {})
 }
 
 export function renderPlainCertificate(cert: {

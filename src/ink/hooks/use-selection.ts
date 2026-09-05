@@ -1,7 +1,7 @@
 
 import { useContext, useMemo, useSyncExternalStore } from 'react'
 import { InkInstanceContext } from '../components/InkInstanceContext.js'
-import { shiftAnchor, type FocusMove, type SelectionState } from '../geometry/selection.js'
+import { type FocusMove, type SelectionState } from '../geometry/selection.js'
 import type Ink from '../ink.js'
 
 export type SelectionApi = {
@@ -11,10 +11,7 @@ export type SelectionApi = {
   hasSelection: () => boolean
   getState: () => SelectionState | null
   subscribe: (callback: () => void) => () => void
-  shiftAnchor: (dRow: number, minRow: number, maxRow: number) => void
-  shiftSelection: (dRow: number, minRow: number, maxRow: number) => void
   moveFocus: (move: FocusMove) => void
-  captureScrolledRows: (firstRow: number, lastRow: number, side: 'above' | 'below') => void
   setSelectionBgColor: (color: string) => void
 }
 
@@ -31,10 +28,7 @@ function inertApi(): SelectionApi {
     hasSelection: returnFalse,
     getState: () => null,
     subscribe: noopUnsubscribe,
-    shiftAnchor: noop,
-    shiftSelection: noop,
     moveFocus: noop,
-    captureScrolledRows: noop,
     setSelectionBgColor: noop,
   }
 }
@@ -47,11 +41,7 @@ function instanceApi(ink: Ink): SelectionApi {
     hasSelection: () => ink.hasTextSelection(),
     getState: () => ink.selection,
     subscribe: callback => ink.subscribeToSelectionChange(callback),
-    shiftAnchor: (dRow, minRow, maxRow) => shiftAnchor(ink.selection, dRow, minRow, maxRow),
-    shiftSelection: (dRow, minRow, maxRow) => ink.shiftSelectionForScroll(dRow, minRow, maxRow),
     moveFocus: move => ink.moveSelectionFocus(move),
-    captureScrolledRows: (firstRow, lastRow, side) =>
-      ink.captureScrolledRows(firstRow, lastRow, side),
     setSelectionBgColor: color => ink.setSelectionBgColor(color),
   }
 }

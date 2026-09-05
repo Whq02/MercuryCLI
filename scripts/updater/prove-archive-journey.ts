@@ -15,18 +15,20 @@ if (process.platform === 'win32') {
   console.log('  [SKIP] archive journey — POSIX hosts only (windows-launcher.yml drives the shipped mercury.cmd on a real ConPTY)')
   process.exit(0)
 }
-const ASSET = assetNameFor(VERSION, process.platform, process.arch)
-const ARCHIVE = ASSET ? join(ROOT, 'release-out', ASSET) : null
-if (!ASSET || !ARCHIVE || !existsSync(ARCHIVE)) {
-  const target = process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
-  console.log(`  [SKIP] archive journey — no packaged host archive at release-out/${ASSET ?? '(unsupported host)'}; package one first: node scripts/release/package.mjs --target ${target}`)
-  process.exit(0)
-}
-const TARGET = ASSET.slice(`mercury-v${VERSION}-`.length).replace(/\.tar\.gz$/, '')
-
-const { readCompatFloor, releaseLayoutSection } = (await import('../release/payloadContract.mjs')) as {
+const { archiveFileName, readCompatFloor, releaseLayoutSection } = (await import('../release/payloadContract.mjs')) as {
+  archiveFileName: (version: string, target: string, opts?: { unsigned?: boolean }) => string
   readCompatFloor: () => { floorVersion: string; forwarder: string }
   releaseLayoutSection: (dir: string, target: string, floor: unknown) => Record<string, unknown>
+}
+const TARGET = process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
+const SIGNED_ASSET = assetNameFor(VERSION, process.platform, process.arch)
+const ASSET = SIGNED_ASSET
+  ? [SIGNED_ASSET, archiveFileName(VERSION, TARGET, { unsigned: true })].find(a => existsSync(join(ROOT, 'release-out', a))) ?? null
+  : null
+const ARCHIVE = ASSET ? join(ROOT, 'release-out', ASSET) : null
+if (!SIGNED_ASSET || !ASSET || !ARCHIVE) {
+  console.log(`  [SKIP] archive journey — no packaged host archive at release-out/${SIGNED_ASSET ?? '(unsupported host)'} (or its -unsigned twin); package one first: node scripts/release/package.mjs --target ${TARGET} --unsigned`)
+  process.exit(0)
 }
 const { parseEnginesNode, posixLauncher } = (await import('../release/launcherTemplates.mjs')) as {
   parseEnginesNode: (range: string | undefined) => unknown
@@ -150,8 +152,14 @@ console.log('── 2 · install lands the payload, the pointer and the stable c
   check('current.txt names the archive version, no previous yet', pointer('current') === VERSION && pointer('previous') === null)
   check('the payload is complete under versions/<v> (bundle · manifest · vendor/ripgrep · launcher · splash pair · verifier)',
     ['mercury.mjs', 'manifest.json', 'vendor/ripgrep', 'mercury', 'splash.mjs', 'splash-core.mjs', 'verify-artifact.mjs'].every(m => existsSync(join(versionsDir, VERSION, m))))
+  check('the first install narrates its acts on stderr: staging, activating, complete', /^staging: /m.test(r.stderr) && /^activating: /m.test(r.stderr) && /^complete: /m.test(r.stderr), r.stderr.slice(0, 300))
   const again = run(launcher, ['install'])
   check('a second install is a truthful no-op', again.code === 0 && again.stdout.includes('already present — no bytes changed'), again.all.slice(0, 300))
+  check(
+    '…and narrates nothing it did not do: no staging or activating line; complete says already present',
+    !/^(staging|activating)\b/m.test(again.stderr) && /^complete: .*already present/m.test(again.stderr),
+    again.stderr.slice(0, 300),
+  )
 }
 
 console.log('── 3 · the stable command answers ──')

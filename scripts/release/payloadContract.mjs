@@ -3,7 +3,14 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md']
+export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELEASE-NOTES.md', 'NOTICES.md', 'LICENSE.md', 'TRADEMARKS.md', 'MERCURY-COMMUNITY-PRODUCTION-TERMS.md']
+
+export const UNSIGNED_ARCHIVE_SUFFIX = '-unsigned'
+
+export function archiveFileName(version, target, { unsigned = false } = {}) {
+  const ext = target === 'windows-x64' ? '.zip' : '.tar.gz'
+  return `mercury-v${version}-${target}${unsigned ? UNSIGNED_ARCHIVE_SUFFIX : ''}${ext}`
+}
 
 export function readCompatFloor() {
   const here = dirname(fileURLToPath(import.meta.url))

@@ -24,7 +24,7 @@ const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8')) a
 }
 
 const target = process.platform === 'darwin' ? (process.arch === 'arm64' ? 'macos-arm64' : 'macos-x64') : process.platform === 'win32' ? 'windows-x64' : 'linux-x64'
-const out = execFileSync('node', ['scripts/release/package.mjs', '--target', target, '--keep-stage'], {
+const out = execFileSync('node', ['scripts/release/package.mjs', '--target', target, '--keep-stage', '--unsigned'], {
   cwd: ROOT,
   encoding: 'utf8',
   timeout: 600_000,

@@ -43,13 +43,13 @@ _tmp_root = os.environ.get("RUNNER_TEMP") or tempfile.gettempdir()
 
 pkg = subprocess.run(
     [NODE, os.path.join(REPO, "scripts", "release", "package.mjs"), "--target", "windows-x64",
-     "--allow-stale-verify-receipts"],
+     "--allow-stale-verify-receipts", "--unsigned"],
     capture_output=True, encoding="utf-8", errors="replace", cwd=REPO,
 )
 if pkg.returncode != 0:
     sys.exit("package.mjs failed:\n%s\n%s" % (pkg.stdout[-4000:], pkg.stderr[-4000:]))
 release_out = os.path.join(REPO, "release-out")
-zips = [f for f in os.listdir(release_out) if f.endswith("windows-x64.zip")]
+zips = [f for f in os.listdir(release_out) if f.endswith("windows-x64.zip") or f.endswith("windows-x64-unsigned.zip")]
 if not zips:
     sys.exit("no windows-x64 archive in release-out/")
 archive = os.path.join(release_out, zips[0])

@@ -3,6 +3,8 @@ import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getApolloModeSections } from '../../prompt/apolloMode.js'
 import { getAutopilotModeSections } from '../autopilot/autopilotPrompt.js'
+import { describeModeRoad, lastModeTransitionFrom } from '../permissions/modeTransitions.js'
+import { permissionModeTitle } from '../permissions/PermissionMode.js'
 import {
   getIsNonInteractiveSession,
   getLastEmittedDate,
@@ -451,7 +453,16 @@ export function getModePackAttachments(
   const current = latestModePack(messages ?? [])
   if (wanted === current) return []
   const out: Attachment[] = []
-  if (current !== null) out.push({ type: 'mode_pack_exit', mode: current })
+  if (current !== null) {
+    const exit = lastModeTransitionFrom(current)
+    out.push({
+      type: 'mode_pack_exit',
+      mode: current,
+      ...(exit !== undefined
+        ? { reason: `${describeModeRoad(exit.road)} moved the session to ${permissionModeTitle(exit.to)}` }
+        : {}),
+    })
+  }
   if (wanted !== null) {
     const sections =
       wanted === 'apollo' ? getApolloModeSections('apollo') : getAutopilotModeSections('autopilot')

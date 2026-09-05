@@ -44,7 +44,6 @@ import {
 } from './geometry/hit.js'
 import { OverlayRecord } from './geometry/overlay.js'
 import {
-  captureScrolledRows,
   clearSelection,
   createSelectionState,
   extendSelection,
@@ -55,7 +54,6 @@ import {
   selectLineAt,
   selectWordAt,
   setSelectionClipBand,
-  shiftSelection,
   startSelection,
   updateSelection,
   type FocusMove,
@@ -693,7 +691,7 @@ export default class Ink {
     const overlayRecord = new OverlayRecord(frame.screen.width)
     const overlay = applyOverlayPass({
       altScreen: this.altScreenActive,
-      follow: signals.consumeFollowScroll(),
+      scrollTranslation: signals.consumeScrollTranslation(),
       selection: this.selection,
       captureScreen: this.frontFrame.screen,
       screen: frame.screen,
@@ -1310,6 +1308,9 @@ export default class Ink {
         rect.x,
         rect.x + rect.width - 1,
         this.frontFrame.screen.width,
+        rect.y,
+        rect.y + rect.height - 1,
+        this.frontFrame.screen.height,
       )
     } catch {
       clearSelection(this.selection)
@@ -1351,14 +1352,6 @@ export default class Ink {
     this.notifySelectionChange()
   }
 
-  shiftSelectionForScroll(dRow: number, minRow: number, maxRow: number): void {
-    const hadSelection = hasSelection(this.selection)
-    shiftSelection(this.selection, dRow, minRow, maxRow, this.frontFrame.screen.width)
-    if (hadSelection && !hasSelection(this.selection)) {
-      for (const listener of this.selectionListeners) listener()
-    }
-  }
-
   moveSelectionFocus(move: FocusMove): void {
     if (!this.altScreenActive) return
     const focus = this.selection.focus
@@ -1397,10 +1390,6 @@ export default class Ink {
     if (col === focus.col && row === focus.row) return
     moveFocus(this.selection, col, row)
     this.notifySelectionChange()
-  }
-
-  captureScrolledRows(firstRow: number, lastRow: number, side: 'above' | 'below'): void {
-    captureScrolledRows(this.selection, this.frontFrame.screen, firstRow, lastRow, side)
   }
 
   copySelectionNoClear(): string {
