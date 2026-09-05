@@ -126,5 +126,21 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
   }
 }
 
+section('5. the one injection road — a press is an event; step mode is served')
+{
+  const bridge = readFileSync(path.join(addon, 'core', 'runtime_bridge.gd'), 'utf8')
+  const bodies = new Map<string, string>()
+  for (const m of bridge.matchAll(/^(?:static )?func (\w+)\([^\n]*\n([\s\S]*?)(?=^(?:static )?func |(?![\s\S]))/gm)) bodies.set(m[1]!, m[2]!)
+  const parsers = [...bodies].filter(([, body]) => /Input\.parse_input_event\(/.test(body)).map(([name]) => name).sort()
+  check('Input.parse_input_event is called only by _inject', JSON.stringify(parsers) === JSON.stringify(['_inject']), parsers.join(','))
+  check('the action-state-only road is gone (no Input.action_press / action_release)', !/Input\.action_(press|release)\(/.test(bridge))
+  const action = bodies.get('_rop_input_action') ?? ''
+  check('input_action builds an InputEventAction with action, pressed, strength and injects it', /InputEventAction\.new\(\)/.test(action) && /ev\.action = action/.test(action) && /ev\.pressed = pressed/.test(action) && /ev\.strength = /.test(action) && /_inject\(ev\)/.test(action))
+  for (const road of ['_rop_input_key', '_rop_input_mouse_button', '_rop_input_mouse_move', '_rop_click', '_rop_navigate', '_rop_replay', '_rop_input_sequence']) {
+    const body = bodies.get(road) ?? ''
+    check(`${road} rides the injection road (or the rops that do)`, /_inject\(|_rop_input_(key|mouse_button|action)\(/.test(body), road)
+  }
+}
+
 console.log('\n' + (failures === 0 ? '✅ vulcan addon proof PASS' : `❌ ${failures} FAILURES`))
 process.exit(failures === 0 ? 0 : 1)

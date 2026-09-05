@@ -65,7 +65,7 @@
       { "name": "input_key", "class": "exec", "lite": false, "summary": "Simulate a key tap/press/release in the running game", "args": { "key": "key name, e.g. Space", "pressed": "optional bool (tap when omitted)" } },
       { "name": "input_mouse_button", "class": "exec", "lite": false, "summary": "Simulate a mouse button at a position", "args": { "button": "left|right|middle|wheel_up|wheel_down", "position": "Vector2", "pressed": "optional bool (click when omitted)" } },
       { "name": "input_mouse_move", "class": "exec", "lite": false, "summary": "Simulate mouse motion", "args": { "position": "Vector2", "relative": "optional Vector2" } },
-      { "name": "input_action", "class": "exec", "lite": false, "summary": "Press/release a mapped input action", "args": { "action": "action name", "pressed": "optional bool", "strength": "optional 0..1" } },
+      { "name": "input_action", "class": "exec", "lite": false, "summary": "Press/release a mapped input action — a real InputEventAction the game's _input/_unhandled_input callbacks and the polled action state both see (queued while the game is parked in step mode)", "args": { "action": "action name", "pressed": "optional bool (tap when omitted)", "strength": "optional 0..1" } },
       { "name": "input_sequence", "class": "exec", "lite": false, "summary": "Run a timed input sequence", "args": { "steps": "array of {key|button|action|wait_ms, …}" } }
     ] },
     { "key": "runtime", "label": "Runtime", "ops": [

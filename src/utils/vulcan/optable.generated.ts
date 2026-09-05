@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '3157ad07946e8533bac4a8311b346540c92c8362e2c392711e1876a7684ccee6'
+export const VULCAN_OPTABLE_DIGEST = '76ad7f6ab441b09a2c739b02c63fea2c2b7fab962de6f3c3afef13f237c08cda'
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {
@@ -563,10 +563,10 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
-    "summary": "Press/release a mapped input action",
+    "summary": "Press/release a mapped input action — a real InputEventAction the game's _input/_unhandled_input callbacks and the polled action state both see (queued while the game is parked in step mode)",
     "args": {
       "action": "action name",
-      "pressed": "optional bool",
+      "pressed": "optional bool (tap when omitted)",
       "strength": "optional 0..1"
     }
   },
