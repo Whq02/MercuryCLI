@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import json
+import os
+import shutil
 import sys
+import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ANSWER = json.dumps({"type": "error", "error": {"type": "authentication_error", "message": "invalid x-api-key"}}).encode()
@@ -53,10 +57,24 @@ class DeadLetter(BaseHTTPRequestHandler):
         pass
 
 
+def watch_parent(parent_pid):
+    while True:
+        time.sleep(1)
+        if os.getppid() != parent_pid:
+            shutil.rmtree(os.path.dirname(os.path.abspath(PORT_FILE)), ignore_errors=True)
+            os._exit(0)
+
+
+PORT_FILE = ""
+
+
 def main():
+    global PORT_FILE
     port_file = sys.argv[1]
+    PORT_FILE = port_file
     server = ThreadingHTTPServer(("127.0.0.1", 0), DeadLetter)
     server.daemon_threads = True
+    threading.Thread(target=watch_parent, args=(os.getppid(),), daemon=True).start()
     with open(port_file, "w") as f:
         f.write(str(server.server_address[1]))
     server.serve_forever()

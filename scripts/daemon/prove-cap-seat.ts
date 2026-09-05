@@ -62,8 +62,18 @@ const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const fixtureWords = await import('./cap-fixture-words.ts')
 const { SPEND_ASK, HOLD_ASK, ANTHROPIC_REPLY, OPENAI_REPLY, GPT_ID } = fixtureWords
 
+const reapTargets: Array<{ kill: (signal: NodeJS.Signals) => boolean }> = []
+const reapNow = (): void => {
+  for (const p of reapTargets) {
+    try {
+      p.kill('SIGKILL')
+    } catch {
+    }
+  }
+}
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — prove-cap-seat exceeded 270s')
+  reapNow()
   process.exit(1)
 }, 270_000)
 guard.unref?.()
@@ -182,6 +192,7 @@ const lastAssistantText = (sid: string): string => {
 }
 
 const fixture = spawn('node', [join(REPO, 'scripts', 'daemon', 'cap-fixture-server.ts'), captureFile], { stdio: ['ignore', 'pipe', 'pipe'] })
+reapTargets.push(fixture)
 const port = await new Promise<number>((resolve, reject) => {
   const killer = setTimeout(() => reject(new Error('fixture server never printed PORT')), 15_000)
   let buffer = ''
@@ -197,6 +208,7 @@ const port = await new Promise<number>((resolve, reject) => {
   fixture.on('exit', code => reject(new Error(`fixture server exited early (${code})`)))
 }).catch(err => {
   console.log(`FAIL ${String(err)}`)
+  reapNow()
   process.exit(1)
 })
 const base = `http://127.0.0.1:${port}`
@@ -218,9 +230,12 @@ const daemon: ChildProcess = spawn('node', [DIST, 'daemon', 'run', work], {
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
+    MERCURY_DAEMON_OWNER_FD: '3',
+    MERCURY_DAEMON_OWNER_PID: String(process.pid),
   },
-  stdio: ['ignore', logFd, logFd],
+  stdio: ['ignore', logFd, logFd, 'pipe'],
 })
+reapTargets.push(daemon)
 const cleanup = async (): Promise<void> => {
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 5_000 })
