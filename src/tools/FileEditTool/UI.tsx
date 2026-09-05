@@ -4,6 +4,7 @@ import { truncatePathMiddle } from '../../utils/truncate.js'
 import { FallbackToolUseErrorMessage } from '../../components/FallbackToolUseErrorMessage.js'
 import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUseRejectedMessage.js'
 import { FileEditToolDiff } from '../../components/FileEditToolDiff.js'
+import { consentContentWidth } from '../../components/permissions/consentBodyBudget.js'
 import { FileEditToolUpdatedMessage } from '../../components/FileEditToolUpdatedMessage.js'
 import { FileEditToolUseRejectedMessage } from '../../components/FileEditToolUseRejectedMessage.js'
 import { FilePathLink } from '../../components/FilePathLink.js'
@@ -128,6 +129,7 @@ export function renderToolUseRejectedMessage(
           replace_all: input.replace_all ?? false,
         },
       ]}
+      {...(typeof options?.width === 'number' ? { availableWidth: consentContentWidth(options.width) } : {})}
     />
   )
 }
