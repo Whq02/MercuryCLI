@@ -19,6 +19,7 @@ __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-record-branch-prunin
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-torn-tail-heal.ts" || fail=1; prover_mark "$here/prove-torn-tail-heal.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-not-cross-adopted.ts" || fail=1; prover_mark "$here/prove-store-not-cross-adopted.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-concurrent-chain-fork.ts" || fail=1; prover_mark "$here/prove-concurrent-chain-fork.ts" "$__t"
+__t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-decision-rows-thread.ts" || fail=1; prover_mark "$here/prove-decision-rows-thread.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-insert-adversarial.ts" || fail=1; prover_mark "$here/prove-insert-adversarial.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-discovery-scan-pool.ts" || fail=1; prover_mark "$here/prove-discovery-scan-pool.ts" "$__t"
 __t=$SECONDS; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-listing-memo.ts" || fail=1; prover_mark "$here/prove-listing-memo.ts" "$__t"
