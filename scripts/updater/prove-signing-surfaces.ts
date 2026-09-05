@@ -1,17 +1,18 @@
 #!/usr/bin/env bun
 import { execFileSync, spawnSync } from 'node:child_process'
 import { generateKeyPairSync } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { keyIdOf, signStatement, type SigningStatementV1 } from '../../src/services/privateChannel/artifactSigning.js'
 import { artifactSignatureCheck } from '../../src/services/privateChannel/artifactVerify.js'
+import { listInstalledVersions } from '../../src/services/privateChannel/installLayout.js'
 import type { TrustedSigningKey } from '../../src/services/privateChannel/signingTrust.js'
 // @ts-expect-error — packager-side authorities are plain .mjs (no types)
 import { posixLauncher, cmdLauncher, ps1Launcher, parseEnginesNode } from '../release/launcherTemplates.mjs'
 import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
 // @ts-expect-error — same
-import { readCompatFloor, releaseLayoutSection, topAllowlist } from '../release/payloadContract.mjs'
+import { archiveFileName, readCompatFloor, releaseLayoutSection, topAllowlist } from '../release/payloadContract.mjs'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -113,7 +114,7 @@ try {
   check('/health deep row: ok + whole-tree bind stated', signedDeepRow.status === 'ok' && signedDeepRow.evidence.includes('whole payload tree bound'))
 
   const unsignedRow = artifactSignatureCheck(asManaged(unsignedDir), 'fast', roster)
-  check('/health unsigned row: warn + the word unsigned, with the ceremony-pending fix', unsignedRow.status === 'warn' && unsignedRow.evidence.includes('unsigned') && (unsignedRow.fix ?? '').includes('ceremony'))
+  check('/health unsigned row: warn + the word unsigned, the fix naming the signed releases and the way to one', unsignedRow.status === 'warn' && unsignedRow.evidence.includes('unsigned') && (unsignedRow.fix ?? '').includes('signed at packaging') && (unsignedRow.fix ?? '').includes('mercury update'))
 
   const tamperedRow = artifactSignatureCheck(asManaged(tamperedDir), 'fast', roster)
   check('/health tampered row: FAIL + TAMPERED in the evidence', tamperedRow.status === 'fail' && tamperedRow.evidence.includes('TAMPERED'))
@@ -148,10 +149,35 @@ try {
     check('launcher mode points at the full record (mercury doctor)', lTampered.stderr.includes('mercury doctor'))
 
     check('launcher mode writes NOTHING to stdout', lSigned.stdout === '' && lUnsigned.stdout === '' && lTampered.stdout === '')
+
+    const versions = join(SCRATCH, 'managed', 'versions')
+    const vdir = join(versions, '9.9.9-beta.1')
+    mkdirSync(versions, { recursive: true })
+    cpSync(unsignedDir, vdir, { recursive: true })
+    writeFileSync(join(versions, 'current.txt'), '9.9.9-beta.1\n')
+    const marker = join(versions, 'provenance-noted-9.9.9-beta.1.txt')
+    const first = run(['--dir', vdir, '--launcher'])
+    const second = run(['--dir', vdir, '--launcher'])
+    check('managed layout: the first launch says the unsigned line once, naming the once-per-install fact', first.status === 0 && first.stderr.trim().split('\n').length === 1 && first.stderr.includes('unsigned') && first.stderr.includes('said once for this install'))
+    check('the marker sits beside the version pointer and records the verdict said', existsSync(marker) && readFileSync(marker, 'utf8').startsWith('unsigned\n'))
+    check('the second launch says nothing (exit 0, no stderr, no stdout)', second.status === 0 && second.stderr === '' && second.stdout === '')
+    cpSync(signedDir, vdir, { recursive: true })
+    const changed = run(['--dir', vdir, '--launcher'])
+    const again = run(['--dir', vdir, '--launcher'])
+    check('a changed verdict says the line again (unrecognized-key after unsigned) and re-records it', changed.status === 0 && changed.stderr.includes('trusted roster') && readFileSync(marker, 'utf8').startsWith('unrecognized-key\n'))
+    check('and once only', again.stderr === '' && again.stdout === '')
+    const third = run(['--dir', unsignedDir, '--launcher'])
+    const fourth = run(['--dir', unsignedDir, '--launcher'])
+    check('a payload with no version pointer beside it says the line at every launch, without the once-per-install words', third.stderr.includes('unsigned') && fourth.stderr.includes('unsigned') && !third.stderr.includes('said once'))
+    check('no marker is written outside a managed layout', !readdirSync(SCRATCH).some(n => n.startsWith('provenance-noted-')))
+    check('the layout owner lists the version directories only — the marker is invisible to install/update/rollback', JSON.stringify(listInstalledVersions({ versionsDir: versions, binDir: '', shimPath: '', isWindows: false })) === JSON.stringify(['9.9.9-beta.1']))
   }
 
   const packager = readFileSync(join(ROOT, 'scripts/release/package.mjs'), 'utf8')
   check('packager signs via MERCURY_SIGNING_KEY_FILE and says UNSIGNED loudly otherwise', packager.includes('MERCURY_SIGNING_KEY_FILE') && packager.includes('UNSIGNED —'))
+  check('unsigned is a decision: without a key the packager refuses unless --unsigned was passed', packager.includes("const UNSIGNED_BY_DECISION = process.argv.includes('--unsigned')") && packager.includes('no MERCURY_SIGNING_KEY_FILE and no --unsigned'))
+  check('a key AND --unsigned together are refused (choose one)', packager.includes('--unsigned given with MERCURY_SIGNING_KEY_FILE set'))
+  check('the archive name carries the decision (payloadContract.archiveFileName, -unsigned)', packager.includes('archiveFileName(VERSION, TARGET, { unsigned: UNSIGNED_BY_DECISION })') && archiveFileName('1.2.3', 'linux-x64', { unsigned: true }) === 'mercury-v1.2.3-linux-x64-unsigned.tar.gz' && archiveFileName('1.2.3', 'windows-x64') === 'mercury-v1.2.3-windows-x64.zip')
   check('packager self-verifies at deep depth after signing', packager.includes("verifyPayloadDir(pkgDir, { depth: 'deep' })"))
   check('packager refuses an unsigned --license-id (the seam is signature-covered)', packager.includes('--license-id given without MERCURY_SIGNING_KEY_FILE'))
   check('packager ships the verifier payload member', packager.includes("cpSync(verifierSrc, join(pkgDir, 'verify-artifact.mjs'))"))
