@@ -1,13 +1,14 @@
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import type { Theme } from '../../utils/theme.js'
+import type { HexColor } from '../../ink/styles.js'
 
 type Props = {
   char: string
   index: number
   glimmerIndex: number
-  messageColor: keyof Theme
-  shimmerColor: keyof Theme
+  messageColor: keyof Theme | HexColor
+  shimmerColor: keyof Theme | HexColor
 }
 
 export function ShimmerChar({
