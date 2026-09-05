@@ -18,7 +18,7 @@ if (!existsSync(DIST)) {
 }
 const SHOT_DIR = process.env.USAGE_FRESH_SHOT_DIR
 if (SHOT_DIR) mkdirSync(SHOT_DIR, { recursive: true })
-const LEGS = new Set((process.env.USAGE_FRESH_LEGS ?? 'a,b,c,e').split(',').map(s => s.trim()).filter(Boolean))
+const LEGS = new Set((process.env.USAGE_FRESH_LEGS ?? 'a,b,c,e,f').split(',').map(s => s.trim()).filter(Boolean))
 
 const { resolveCaptureDriver, captureEngineEntry } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -399,6 +399,68 @@ if (LEGS.has('e')) {
   const p2 = (c.marks.poll2 ?? '').replace(/\s+/g, ' ')
   const moved = new RegExp(`5h ${BAR} (\\d+)%`).exec(p2)
   check(`E: the band's chip moves on the cadence (5h ${moved?.[1] ?? '?'}% > ${afterChip?.[1] ?? '?'}) and stays young`, moved !== null && afterChip !== null && Number(moved[1]) > Number(afterChip[1]) && new RegExp(AGE).test(p2) && !/stale/.test(p2), p2.slice(-300))
+}
+
+if (LEGS.has('f')) {
+  const { home, workspace } = seedHome()
+  const api = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: 'Spare.' })), { jsonForNonStream: true })
+  api.usage.payload = risingPayload
+  const RETRY_AFTER_S = 240
+  api.usage.rateLimit = { limit: 1, windowMs: 180_000, retryAfterS: RETRY_AFTER_S }
+  const debugFile = join(home, 'usage-read.debug.log')
+  const t0 = Date.now()
+  const c = await capture(
+    'rail-wait',
+    {
+      ...RAIL,
+      total: 460,
+      argv: ['node', DIST, '--debug-file', debugFile],
+      cwd: workspace,
+      sends: [
+        ...FACE_THEN_CHAT,
+        { data: '', atTick: 999, awaitText: 'USAGE', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'boot' },
+        { data: '', atTick: 999, awaitText: 'HTTP 429', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'rail' },
+        { data: '/usage\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'tab' },
+        { data: '\x1b', atTick: 999, awaitText: 'asked us to wait', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+        { data: '', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'after-usage' },
+      ],
+      readyText: ['? for shortcuts'],
+      stableTicks: 4,
+    },
+    baseEnv(home, api.url),
+  )
+  const asks = api.usageRequests.map(r => ({ ...r, s: (r.at - t0) / 1000 }))
+  await api.close()
+  reapHome(home)
+  const readLines = existsSync(debugFile) ? readFileSync(debugFile, 'utf8').split('\n').filter(l => l.includes('[usage] read #')) : []
+  console.log('\nF · the rail at 160 cols — a 429 with Retry-After is a WAIT on screen')
+  console.log(`  [FIXTURE] usage requests: ${asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.status}`).join(' ') || 'none'}`)
+  console.log(`  [DEBUG] ${readLines.length} read line(s):`)
+  for (const line of readLines) console.log(`    ${line.replace(/^\S+ \[DEBUG\] /, '')}`)
+  check('every send became due', c.sends > 0 && c.receipts === c.sends, c.tail.slice(-200))
+  const first = asks[0]
+  check("the request's identity headers are the release's shape (User-Agent mercury/<version> · Authorization Bearer · anthropic-beta oauth-2025-04-20 · Content-Type application/json)", first !== undefined && /^mercury\/\d+\.\d+\.\d+/.test(first.headers['user-agent'] ?? '') && first.headers.authScheme === 'Bearer' && first.headers['anthropic-beta'] === 'oauth-2025-04-20' && first.headers['content-type'] === 'application/json', JSON.stringify(first?.headers))
+  check('every read leaves one debug line naming its reason and the host', readLines.length === asks.length && readLines.every(l => /\((poll|turn|operator|sign-in)\) GET 127\.0\.0\.1:\d+\/api\/oauth\/usage → /.test(l)), `${readLines.length} line(s) for ${asks.length} request(s)`)
+  check('the mount read is admitted (200) and the figure paints (5h ≥ 36%)', asks[0]?.status === 200 && (fiveHourPct(c.marks.boot ?? '') ?? 0) >= 36, `#1:${asks[0]?.status} · ${usageBlock(c.marks.boot ?? '')}`)
+  const refused = asks.find(r => r.status === 429)
+  check(`the next read trips the limiter: 429 with Retry-After ${RETRY_AFTER_S} s`, refused !== undefined && readLines.some(l => /HTTP 429 · retry-after 240 s/.test(l)), asks.map(r => `#${r.n}:${r.status}`).join(' '))
+  const tab = c.marks.tab ?? ''
+  check("the tab says 'the usage endpoint asked us to wait … (HTTP 429, host)' — the wording, the 429 and the host — never 'Failed to load'", /the usage endpoint asked us to wait/.test(tab) && /HTTP 429/.test(tab) && /127\.0\.0\.1:\d+/.test(tab) && !/Failed to load/.test(tab), tab.split('\n').filter(l => /wait|HTTP 429|Anthropic usage/.test(l)).join(' | ').slice(0, 400))
+  const rail = (c.marks.rail ?? '').replace(/\s+/g, ' ')
+  check("the rail's compact note says 'wait 4m · HTTP 429' — never 'read failed'", /wait 4m · HTTP 429/.test(rail) && !/read failed/.test(rail), usageBlock(c.marks.rail ?? ''))
+  const afterRefused = refused !== undefined ? asks.filter(r => r.s > refused.s) : []
+  check(`inside the server's wait no read re-trips the endpoint (${afterRefused.length} read(s) after the 429, in a ${((Date.now() - t0) / 1000).toFixed(0)} s drive « ${RETRY_AFTER_S} s)`, afterRefused.length === 0, asks.map(r => `#${r.n}@${r.s.toFixed(1)}s:${r.status}`).join(' '))
+  const held = c.marks['after-usage'] ?? ''
+  check('…and the figure still stands beside the wait note (5h ≥ 36%, never blanked)', (fiveHourPct(held) ?? 0) >= 36 && /wait 4m · HTTP 429/.test(held.replace(/\s+/g, ' ')), usageBlock(held))
+  const record = join(home, 'usage-reader.json')
+  let recorded: { families?: Record<string, { status?: number; retryAfterMs?: number; recoveredAtMs?: number }> } = {}
+  try {
+    recorded = JSON.parse(readFileSync(record, 'utf8')) as typeof recorded
+  } catch {
+  }
+  const fam = recorded.families?.anthropic
+  check("the doctor's record names the 429 and the stated wait (Retry-After 240 s)", fam?.status === 429 && fam.retryAfterMs === RETRY_AFTER_S * 1000, existsSync(record) ? readFileSync(record, 'utf8').slice(0, 400) : 'usage-reader.json absent')
 }
 
 console.log(failures === 0 ? '\n✅ prove-usage-freshness-captures — all checks pass' : `\n❌ prove-usage-freshness-captures — ${failures} check(s) failed`)
