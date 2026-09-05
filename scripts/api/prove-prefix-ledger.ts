@@ -13,7 +13,7 @@ delete process.env.MERCURY_THINKING_BINDING
 delete process.env.MERCURY_PREFIX_INDUCE_EDIT
 delete process.env.ANTHROPIC_BASE_URL
 
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { bindingDropsFor, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -171,6 +171,13 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const deadRow = { type: 'system', subtype: 'thinking_dead', dead: [{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }], content: '', level: 'info', uuid: 'dead-1', timestamp: 't' }
   const collected = deadThinkingMarks([user(TEXT('x')), deadRow, { type: 'system', subtype: 'informational', content: 'noise' }] as never)
   check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
+  const { createDeadThinkingAttachment } = binding
+  const { isLoggableMessage } = await import('../../src/utils/sessionStorage/chain.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const deadAtt = createDeadThinkingAttachment([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }])
+  check('the dead marks ride a dead_thinking attachment', deadAtt.type === 'attachment' && (deadAtt.attachment as { type: string }).type === 'dead_thinking')
+  check('deadThinkingMarks reads the attachment form (and the legacy system row) into the map', deadThinkingMarks([user(TEXT('x')), deadAtt, deadRow] as never).get('msg_1')?.has(0) === true && deadThinkingMarks([deadAtt] as never).get('msg_2')?.has(0) === true)
+  check('the dead-thinking attachment persists to disk AND projects nothing to the wire (unlike the info notice that was lost)', isLoggableMessage(deadAtt as never) === true && normalizeAttachmentForAPI(deadAtt.attachment).length === 0)
   const wire = [
     { type: 'user', uuid: 'u1', message: { role: 'user', content: [TEXT('q')] } },
     { type: 'assistant', uuid: 'a1', message: { id: 'msg_1', role: 'assistant', content: [THINK('one'), TEXT('a')] } },
@@ -401,7 +408,7 @@ if (!existsSync(DIST)) {
       const dead = debugText(debugFile).split('\n').filter(l => l.includes('marked dead on the record'))
       check('[killer] the record carries the dead mark once (one row, one block)', dead.length === 1 && dead[0]!.includes('1 dropped block(s)'), j(dead))
       const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
-      check('[killer] the thinking_dead row is persisted in the transcript with its marks', rowsText.includes('"noticeKind":"thinking_dead"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('thinking_dead')).join(' | ').slice(0, 300))
+      check('[killer] the dead marks persist in the transcript as a dead_thinking attachment (an info notice was lost before disk)', rowsText.includes('"attachmentType":"dead_thinking"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 300))
       const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
       const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--debug-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
       check('[killer] the resumed turn exits 0 under `error` (nothing refused)', r2.exit === 0 && fixture.refusals.length === 0, `exit=${r2.exit} refusals=${j(fixture.refusals)} stderr=${r2.stderr.slice(0, 200)}`)
@@ -409,6 +416,40 @@ if (!existsSync(DIST)) {
       const resumedThinking = ((resumed[5]?.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
       check('[killer] the resumed request replays the four live blocks and never the dead one; the fixture dropped nothing', resumed.length === 6 && resumedThinking === 4 && !j(resumed[5]!.messages).includes('kill thinking 1') && !r2.stdout.includes('"type":"thinking_dropped"'), `${resumed.length} requests, ${resumedThinking} blocks`)
       check('[killer] no new notice after the resume', transcriptNotices(arena, SID).length === 1, j(transcriptNotices(arena, SID)))
+      await fixture.close()
+    }
+
+    {
+      const switchTurns: ScriptedTurn[] = [
+        { kind: 'text', text: 'SW-F1', thinking: 'fable one', model: 'claude-fable-5-1', whenModel: 'fable' },
+        { kind: 'text', text: 'SW-F2', thinking: 'fable two', model: 'claude-fable-5-1', whenModel: 'fable' },
+        { kind: 'text', text: 'SW-O1', thinking: 'opus one', model: 'claude-opus-4-8', whenModel: 'opus' },
+        { kind: 'text', text: 'SW-F3', thinking: 'fable three', model: 'claude-fable-5-1', whenModel: 'fable' },
+        { kind: 'text', text: 'SW-F4', thinking: 'fable four', model: 'claude-fable-5-1', whenModel: 'fable' },
+        { kind: 'text', text: 'SW-F5', thinking: 'fable five', model: 'claude-fable-5-1', whenModel: 'fable' },
+      ]
+      const fixture = await startFixtureApi(switchTurns, { bindingCheck: true })
+      const arena = makeArena(fixture)
+      const SID = 'c0ffee00-0000-4000-8000-00000000d009'
+      const one = (model: string, first: boolean, extra: Record<string, string> = {}): Promise<{ exit: number | null; stdout: string; stderr: string }> =>
+        runStreaming({ ...arena, env: { ...arena.env, ...extra } }, ['-p', '--input-format', 'stream-json', '--model', model, '--allowedTools', 'Read', '--output-format', 'stream-json', '--verbose', first ? '--session-id' : '--resume', SID], [{ prompt: 'turn' }])
+      await one('claude-fable-5-1', true)
+      await one('claude-fable-5-1', false)
+      await one('claude-opus-4-8', false)
+      const IND = { MERCURY_PREFIX_INDUCE_EDIT: 'system' }
+      await one('claude-fable-5-1', false, IND)
+      await one('claude-fable-5-1', false, IND)
+      await one('claude-fable-5-1', false, IND)
+      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const dropsOf = (b: Body): number => (bindingDropsFor(b) as unknown[]).length
+      const dropSeq = reqs.map(dropsOf)
+      check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
+      const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
+      check('[switch] the dead blocks are off the wire from the request after the switch-back (the strip persisted across the --model processes)', thinkingPer[4]! < thinkingPer[3]! + 2 && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
+      const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
+      check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
+      const notices = transcriptNotices(arena, SID)
+      check('[switch] exactly one drop notice paints — never a repeating "again" run', notices.filter(n => n.includes('the API dropped')).length === 1 && !notices.some(n => n.includes('dropped') && n.includes('again')), j(notices))
       await fixture.close()
     }
 
