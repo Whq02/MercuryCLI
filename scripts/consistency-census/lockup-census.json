@@ -28,7 +28,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 328,
+      "line": 327,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",
@@ -36,7 +36,7 @@
     },
     {
       "file": "src/components/DeckPane.tsx",
-      "line": 379,
+      "line": 378,
       "kind": "crab",
       "excerpt": "<Crab />",
       "role": "compact-status-inline",

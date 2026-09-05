@@ -56,7 +56,7 @@ section("§1 a child's briefing is context — never this session's rules")
 {
   const agentLine = transcript.split('\n').find(l => l.startsWith('Agent ')) ?? ''
   check('the Agent call projects into the transcript', agentLine !== '', transcript)
-  check("the line leads with the sub-agent briefing words BEFORE the child's prompt", /separate sub-agent/.test(agentLine) && agentLine.indexOf('sub-agent') < agentLine.indexOf('No code changes'), agentLine)
+  check("the line leads with the sub-agent briefing words BEFORE the child's prompt", /separate sub-agent/.test(agentLine) && agentLine.includes('sub-agent') && agentLine.indexOf('sub-agent') < agentLine.indexOf('No code changes'), agentLine)
   check('the words say the briefing binds that sub-agent alone, never this session', /bind(s)? that sub-agent (alone|only)/.test(agentLine) && /never this session/.test(agentLine), agentLine)
   check("the child's prompt still rides as context (the judge can see what was delegated)", agentLine.includes('No code changes or runtime invocations'), agentLine)
   check('the agent type still rides the line', agentLine.includes('Explore'), agentLine)

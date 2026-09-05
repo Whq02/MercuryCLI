@@ -49,7 +49,7 @@ check(
   'the assistant branch tests API-error text against the regex',
   /isApiErrorMessage\)\s*\{\s*\n\s*const errText = extractTextContent\(a\.message\.content[\s\S]{0,200}DETERMINISTIC_400_RE\.test\(errText\)/.test(src),
 )
-check("sighting aborts the attempt with reason 'terminal-400'", src.includes("childAbort.abort('terminal-400')"))
+check("sighting aborts the attempt with reason 'terminal-400'", src.includes("abortWithCut(childAbort, 'terminal-400')"))
 const catchBlock = src.slice(src.indexOf("cutReason === 'terminal-400'"))
 check("the catch settles terminal-400 BEFORE the stall/user-retry branch", src.indexOf("cutReason === 'terminal-400'") !== -1 && src.indexOf("cutReason === 'terminal-400'") < src.indexOf("cutReason === 'stalled' || cutReason === 'user-retry'"))
 check(
