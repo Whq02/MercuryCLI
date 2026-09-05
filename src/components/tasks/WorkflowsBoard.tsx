@@ -55,6 +55,7 @@ import { groupByPhase, pidAlive, settledCount } from './RunDetailPane.js'
 import { agentSnapshotState, buildTree, statusTone } from './WorkflowDetailDialog.js'
 import type { AgentNode } from './WorkflowDetailDialog.js'
 import { agentsDoneOf, phaseTone, workflowRollupLine } from './workflowRollup.js'
+import { WORK_UNREPORTED_LINE, workUnreported } from '../../services/engine-connector/workCounts.js'
 
 const PAST_POLL_MS = 5_000
 
@@ -719,7 +720,9 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
       emptyHint:
         presence === 'dormant'
           ? 'the session has no live runner — ↵ in the chat revives it'
-          : 'no workflows running',
+          : workUnreported(roster)
+            ? WORK_UNREPORTED_LINE
+            : 'no workflows running',
     },
     {
       id: 'recent',
