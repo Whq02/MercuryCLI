@@ -50,6 +50,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'date_change',
   'user_context',
   'bound_prefix',
+  'dead_thinking',
 ] as const
 
 export type NullRenderingAttachmentType =
