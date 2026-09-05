@@ -226,6 +226,40 @@ try {
     check('…with the verdict line', /verdict: [A-Z]+/.test(pipedOut))
 
   }
+
+  console.log('\n§slow-reader: a consumer slower than the writer still reads exactly one record')
+  {
+    const errFile = join(scratch, 'slow-reader.stderr')
+    let piped = ''
+    let status = 0
+    try {
+      piped = execFileSync(
+        'bash',
+        ['-c', 'node "$0" health --json 2>"$1" | (sleep 3; cat); exit "${PIPESTATUS[0]}"', BIN, errFile],
+        {
+          cwd: scratch,
+          env: { ...process.env, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') },
+          encoding: 'utf8',
+          timeout: 90_000,
+          stdio: ['ignore', 'pipe', 'pipe'],
+        },
+      )
+    } catch (e: unknown) {
+      const err = e as { status?: number; stdout?: string }
+      status = err.status ?? -1
+      piped = err.stdout ?? ''
+    }
+    const stderrText = existsSync(errFile) ? readFileSync(errFile, 'utf8') : ''
+    let record: { verdict?: string } | null = null
+    try {
+      record = JSON.parse(piped) as { verdict?: string }
+    } catch {
+      record = null
+    }
+    check('stdout is exactly one JSON record (a second document would fail the parse)', record !== null, `${piped.length} bytes; tail: ${JSON.stringify(piped.slice(-160))}`)
+    check('the exit code is the verdict\'s own (3 = fault, else 0), not a crash', record !== null && status === (record.verdict === 'fault' ? 3 : 0), `status ${status}, verdict ${record?.verdict}`)
+    check('stderr carries no crash banner', stderrText.trim() === '', stderrText.slice(0, 200))
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
   rmSync(scratchHome, { recursive: true, force: true })
