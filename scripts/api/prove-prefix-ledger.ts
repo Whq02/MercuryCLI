@@ -38,7 +38,7 @@ guard.unref?.()
 
 const ledger = await import('../../src/services/providers/anthropic/prefixLedger.ts')
 const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, prefixSourceOwnsTurn, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
+const { judgeAndRecordPrefix, takePrefixVerdict, pendingPrefixVerdict, resetPrefixLedger, prefixRecordFor, applyInducedPrefixEdit, resolveInducedPrefixEdit, inducedEditApplies, boundTools, lastThinkingMessageIndex, describePrefixMismatch } = ledger
 
 type Block = Record<string, unknown>
 const THINK = (text: string): Block => ({ type: 'thinking', thinking: text, signature: `sig-${text}` })
@@ -150,17 +150,6 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const other = judgeAndRecordPrefix('agent:1', KEY, r2)
   check('another owner keeps its own record', !other.compared && prefixRecordFor('agent:1') !== null && prefixRecordFor('main')!.key === 'owner|summary-row|claude-fable-5-1')
 
-  resetPrefixLedger()
-  judgeAndRecordPrefix('main', KEY, r2, [], { querySource: 'repl_main_thread' })
-  takePrefixVerdict('main')
-  const mainWhole = prefixRecordFor('main')!.whole
-  const foldRequest = { system: [SYSTEM[0]], tools: [TOOLS[0]], messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt')), user(TEXT('summarise the conversation'))] }
-  const foldVerdict = judgeAndRecordPrefix('main', KEY, foldRequest, [], { querySource: 'compact' })
-  check("a 'compact'-source request under the owner is judged (its own debug verdict names the moved part)", foldVerdict.compared && foldVerdict.mismatch !== null, j(foldVerdict.mismatch))
-  check('…but never replaces the owner record, and leaves no verdict pending for the turn machine', prefixRecordFor('main')!.whole === mainWhole && pendingPrefixVerdict('main') === null)
-  const afterFold = judgeAndRecordPrefix('main', KEY, { ...r2, messages: [...r2.messages, assistant(THINK('two'), TEXT('b')), user(TEXT('third'))] }, [], { querySource: 'repl_main_thread' })
-  check('the next main request compares against the main record: no mismatch, no false rewrite', afterFold.compared && afterFold.mismatch === null, j(afterFold.mismatch))
-  check('the turn-owning sources write; the service sources do not', prefixSourceOwnsTurn('repl_main_thread') && prefixSourceOwnsTurn('agent:custom') && prefixSourceOwnsTurn('sdk') && prefixSourceOwnsTurn(undefined) && !prefixSourceOwnsTurn('compact') && !prefixSourceOwnsTurn('title_summary'))
 
   check('resolveInducedPrefixEdit parses the three spellings and refuses the rest', j(resolveInducedPrefixEdit('system')) === j({ kind: 'system' }) && j(resolveInducedPrefixEdit('TOOLS')) === j({ kind: 'tools' }) && j(resolveInducedPrefixEdit('turn:2')) === j({ kind: 'turn', index: 2 }) && resolveInducedPrefixEdit('') === null && resolveInducedPrefixEdit(undefined) === null && resolveInducedPrefixEdit('nonsense') === null)
   const inducedSystem = applyInducedPrefixEdit(r2, { kind: 'system' })
@@ -217,6 +206,18 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   judgeAndRecordPrefix('prune', KEY, prunedView as never)
   const prunedVerdict = judgeAndRecordPrefix('prune', KEY, prunedView as never)
   check('two consecutive post-prune requests compare identical — the ledger names no byte move (the classifier names the prune instead)', prunedVerdict.mismatch === null, j(prunedVerdict.mismatch))
+
+  resetPrefixLedger()
+  const OWN = 'conv-r2'
+  const MK = 'conv-r2|row-1|claude-fable-5-1'
+  const mainReq = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt'))] }
+  judgeAndRecordPrefix(OWN, MK, mainReq as never)
+  takePrefixVerdict(OWN)
+  const foldReq = { system: [{ type: 'text', text: 'SUMMARISE the conversation so far into a single message.' }], tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('summary instruction'))] }
+  const foldVerdict = judgeAndRecordPrefix(OWN, MK, foldReq as never, [], { replaceRecord: false })
+  check('R2 the fold request is judged (a debug line) but never becomes the record', foldVerdict.mismatch !== null && pendingPrefixVerdict(OWN) === null && prefixRecordFor(OWN)?.whole !== undefined, `mismatch=${j(foldVerdict.mismatch?.part)} pending=${pendingPrefixVerdict(OWN) === null}`)
+  const nextMain = judgeAndRecordPrefix(OWN, MK, { ...mainReq, messages: [...mainReq.messages, assistant(THINK('two'), TEXT('b')), user(TEXT('third prompt'))] } as never)
+  check('R2 the next main request compares clean against the ORIGINAL record — no false "system prompt (block N added)" rewrite', nextMain.mismatch === null, j(nextMain.mismatch))
 }
 
 section('§2 the words and the doctor — the receipts carry the named part')
@@ -233,8 +234,7 @@ section('§2 the words and the doctor — the receipts carry the named part')
   check("a first drop's receipt ends with the ledger clause naming the part", words.includes('the history before messages.1.content.0 changed') && words.endsWith("Mercury's prefix ledger names the part that moved: the system prompt's Environment section."), words)
   const recurrent = classifyThinkingDrops('w', [DROP, { ...DROP, path: 'messages.3.content.0' }], mark)
   recurrent.part = "turn 0's user row: text block 0"
-  const again = describeThinkingDrops([DROP], recurrent) ?? ''
-  check('the recurrent receipt carries the clause before the doctor road', again.includes("This row paints once. Mercury's prefix ledger names the part that moved: turn 0's user row: text block 0. This is a Mercury defect"), again)
+  check('the recurrent drop paints nothing new — the clause rode the first warning', recurrent.paint === false && describeThinkingDrops([DROP], recurrent) === null, j(recurrent))
   recordThinkingDropLedger(recurrent, 'claude-fable-5-1')
   const row = readThinkingDropLedger()
   check('the doctor ledger records the named part', row?.last.part === "turn 0's user row: text block 0" && row.last.kind === 'recurrent', j(row))
@@ -457,7 +457,7 @@ if (!existsSync(DIST)) {
       const dropSeq = reqs.map(dropsOf)
       check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
-      check('[switch] the dead blocks are off the wire from the request after the switch-back (the strip persisted across the --model processes)', thinkingPer[4]! < thinkingPer[3]! + 2 && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
+      check('[switch] the request after the switch-back carries strictly fewer thinking blocks (the dead ones stripped, the record on disk before the process ended)', thinkingPer[4]! < thinkingPer[3]! && !j(reqs[4]!.messages).includes('fable one') && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
       const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
       const notices = transcriptNotices(arena, SID)

@@ -1,6 +1,8 @@
 import { roughTokenCountEstimationForMessages } from '../services/tokenEstimation.js'
 import type { AssistantMessage, Message } from '../types/message.js'
 import type { ApiUsage } from '../types/wire.js'
+import { getTokenCountFromUsage } from './tokenUsage.js'
+export { getTokenCountFromUsage } from './tokenUsage.js'
 import { SYNTHETIC_MESSAGES, SYNTHETIC_MODEL } from './messages.js'
 
 function usageFamilyOf(model: string): string | null {
@@ -57,14 +59,6 @@ export function getTokenUsage(message: Message | undefined): ApiUsage | undefine
   return usage as ApiUsage
 }
 
-export function getTokenCountFromUsage(usage: ApiUsage): number {
-  return (
-    (usage.input_tokens ?? 0) +
-    (usage.cache_creation_input_tokens ?? 0) +
-    (usage.cache_read_input_tokens ?? 0) +
-    (usage.output_tokens ?? 0)
-  )
-}
 
 export function tokenCountFromLastAPIResponse(messages: Message[]): number {
   for (let index = messages.length - 1; index >= 0; index--) {

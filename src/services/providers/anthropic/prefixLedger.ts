@@ -256,14 +256,14 @@ export function judgeAndRecordPrefix(
   key: string,
   parts: WirePrefixParts,
   wireMessageIds: ReadonlyArray<string | null> = [],
-  options: { querySource?: string } = {},
+  opts?: { replaceRecord?: boolean },
 ): PrefixVerdict {
+  const replace = opts?.replaceRecord !== false
   const current = recordOf(key, parts)
   current.wireMessageIds = [...wireMessageIds]
   const previous = records.get(owner)
-  const writes = prefixSourceOwnsTurn(options.querySource)
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
-    if (writes) records.set(owner, current)
+    if (replace) records.set(owner, current)
     return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, key, wireMessageIds: current.wireMessageIds }
   }
   const lastThinkingIndex = lastThinkingMessageIndex(parts.messages)
@@ -272,26 +272,15 @@ export function judgeAndRecordPrefix(
   if (compared && lastThinkingIndex >= 0) {
     mismatch = compareRecords(previous, current, lastThinkingIndex)
     if (mismatch !== null) {
-      logForDebugging(`preserved thinking: the prefix ledger names a rewrite of sent history before the request went out — ${mismatch.part} (${mismatch.path})${mismatch.before !== undefined ? `; before: ${j(mismatch.before)}; after: ${j(mismatch.after ?? '')}` : ''}${writes ? '' : ` (a ${options.querySource ?? 'service'} request under the owner — judged, never recorded)`}`, { level: writes ? 'warn' : 'info' })
+      logForDebugging(`preserved thinking: the prefix ledger names a rewrite of sent history before the request went out — ${mismatch.part} (${mismatch.path})${mismatch.before !== undefined ? `; before: ${j(mismatch.before)}; after: ${j(mismatch.after ?? '')}` : ''}`, { level: 'warn' })
     }
   }
   const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, key, wireMessageIds: current.wireMessageIds }
-  if (writes) {
+  if (replace) {
     records.set(owner, current)
     verdicts.set(owner, verdict)
   }
   return verdict
-}
-
-export function prefixSourceOwnsTurn(querySource: string | undefined): boolean {
-  if (querySource === undefined) return true
-  return (
-    querySource.startsWith('repl_main_thread') ||
-    querySource.startsWith('agent:') ||
-    querySource === 'sdk' ||
-    querySource === 'hook_agent' ||
-    querySource === 'verification_agent'
-  )
 }
 
 export function takePrefixVerdict(owner: string): PrefixVerdict | null {
