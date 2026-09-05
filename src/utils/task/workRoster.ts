@@ -14,6 +14,7 @@ import {
   groupAgentsByPhase,
   type WorkflowPhaseEventLite,
 } from '../../tools/WorkflowTool/runManifest.js'
+import { workflowPulseFacts } from '../../tools/WorkflowTool/livePulse.js'
 import type { WorkPhaseV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 
 
@@ -63,6 +64,10 @@ function workflowRow(task: LocalWorkflowTaskState): WorkRowV1 {
     workflowRunId: task.workflowRunId,
     phases: workPhasesOf(task),
     agentCount: task.agentCount,
+    pulse: workflowPulseFacts(
+      (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[],
+      task.startTime,
+    ),
     ...(task.pendingPermissions !== undefined && task.pendingPermissions.size > 0
       ? { pendingAsks: task.pendingPermissions.size }
       : {}),

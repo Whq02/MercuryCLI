@@ -43,7 +43,7 @@ function credentialServiceNames(): string[] {
   ]
 }
 
-function readServiceSync(serviceName: string): string | null {
+export function readKeychainServiceSync(serviceName: string): string | null {
   const result = runSecurity(['find-generic-password', '-a', getUsername(), '-w', '-s', serviceName])
   if (result.exitCode !== 0) return null
   const trimmed = result.stdout.trim()
@@ -102,7 +102,7 @@ export const macOsKeychainStorage: SecureStorage = {
     const previous = state.cached.data
     for (const serviceName of credentialServiceNames()) {
       try {
-        const raw = readServiceSync(serviceName)
+        const raw = readKeychainServiceSync(serviceName)
         if (raw === null) continue
         const parsed = parseData(raw)
         if (parsed === null) continue
@@ -114,7 +114,7 @@ export const macOsKeychainStorage: SecureStorage = {
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
     if (rawService !== null) {
       try {
-        const raw = readServiceSync(rawService)
+        const raw = readKeychainServiceSync(rawService)
         const parsed = raw === null ? null : parseData(raw)
         if (parsed !== null) {
           migrateRawKeyedEntry(parsed, rawService)

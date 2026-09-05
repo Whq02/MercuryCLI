@@ -202,7 +202,7 @@ mkdirSync(KEEP_DIR, { recursive: true })
   const attached = grabs.find(g => g.atMs === 13_000)
   const frozen = grabs.find(g => g.atMs === 24_000)
   const settled = grabs.find(g => g.atMs === 88_000)
-  check('pre-kill: the chat ATTACHED (the held prompt on screen, the board header gone)', text(attached).includes('hold this turn open') && !text(attached).includes('STATUS & TITLE'), 'see the kept capture')
+  check('pre-kill: the chat ATTACHED (the held prompt inside the FOCUSED CHAT pane)', text(attached).includes('hold this turn open') && text(attached).includes('FOCUSED CHAT'), 'see the kept capture')
   check('post-kill: the frame still stands (the freeze is painted, not a crash)', text(frozen).length > 0)
   check('post-deadline: the frame stands and differs from the frozen-busy paint', text(settled).length > 0 && text(settled) !== text(frozen))
 
