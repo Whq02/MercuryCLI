@@ -185,6 +185,8 @@ section('P2 the wire: `work` rides the facts; an old answer still validates')
 const proj = await import('../../src/services/engine-connector/seatProjections.ts')
 const SID_A = '00000000-0000-4000-8000-00000000000a'
 const SID_B = '00000000-0000-4000-8000-00000000000b'
+const SID_C = '00000000-0000-4000-8000-00000000000c'
+const SID_D = '00000000-0000-4000-8000-00000000000d'
 const baseAnswer = {
   model: { effective: 'claude-opus-5', setting: null },
   usage: {
@@ -232,10 +234,13 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
   check('P3 the constructor reads the facts synchronously — A has its row', a.workRoster().rows.length === 1 && a.workRoster().rows[0]!.name === 'scope-probe')
   check('P3 B answers the honest empty', b.workRoster().rows.length === 0)
   check('P3 A\'s reported roster carries no unreported flag (the rows are the runner\'s word)', a.workRoster().reported !== false)
-  proj.publishSessionFacts({ schema: 1, sessionId: SID_B, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer })
-  check('P3 a facts answer with NO work reads as UNREPORTED (reported: false), rows empty', await untilAsync(() => b.workRoster().reported === false && b.workRoster().rows.length === 0, 5_000), JSON.stringify(b.workRoster()))
-  proj.publishSessionFacts({ schema: 1, sessionId: SID_B, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [] })
-  check('P3 a facts answer with an EMPTY work list reads as reported (the runner said nothing runs)', await untilAsync(() => b.workRoster().reported !== false && b.workRoster().rows.length === 0, 5_000), JSON.stringify(b.workRoster()))
+  check('P3 B (no facts file yet) reads as UNREPORTED — nothing the runner said', b.workRoster().reported === false && b.workRoster().rows.length === 0, JSON.stringify(b.workRoster()))
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_C, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer })
+  const c = seat.daemonSessionConnectorFor(recordOf(SID_C, 'C'))
+  check('P3 a facts answer with NO work reads as UNREPORTED (reported: false), rows empty', c.workRoster().reported === false && c.workRoster().rows.length === 0, JSON.stringify(c.workRoster()))
+  proj.publishSessionFacts({ schema: 1, sessionId: SID_D, atMs: Date.now(), pendingModel: null, busy: false, ...baseAnswer, work: [] })
+  const d = seat.daemonSessionConnectorFor(recordOf(SID_D, 'D'))
+  check('P3 a facts answer with an EMPTY work list reads as reported (the runner said nothing runs)', d.workRoster().reported !== false && d.workRoster().rows.length === 0, JSON.stringify(d.workRoster()))
   check('P3 the snapshot is stable between changes (the uSES law)', a.workRoster() === a.workRoster())
 
   await seat.focusDaemonSession(recordOf(SID_A, 'A'))
