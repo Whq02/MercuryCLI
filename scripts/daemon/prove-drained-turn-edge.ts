@@ -55,7 +55,9 @@ section('§3 the roster and the print road ride the one owner')
   check('reply() still opens the edge for a delivery (the same fact, two roads into one field)', /h\.longLived\.turnActive = true\n\s*h\.longLived\.turnStartedAt = Date\.now\(\)/.test(roster))
   const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   const onTurnStart = print.slice(print.indexOf('onTurnStart: (command, batch) => {'), print.indexOf('onTurnStart: (command, batch) => {') + 900)
-  check('the print road writes the frame at the turn\'s start through the owner, before the replay acks', /io\.outbound\.enqueue\(\s*turnStartedFrame\(/.test(onTurnStart) && onTurnStart.includes('turnStartedFrame(') && onTurnStart.indexOf('turnStartedFrame(') < onTurnStart.indexOf('replayUserMessages'))
+  check('the print road mints the frame at the turn\'s start through the owner and hands it to the driver', /const openEdge = turnStartedFrame\(/.test(onTurnStart) && onTurnStart.includes('turnStartedFrame(') && onTurnStart.indexOf('turnStartedFrame(') < onTurnStart.indexOf('replayUserMessages') && /return openEdge\s*\n\s*\},/.test(print.slice(print.indexOf('onTurnStart: (command, batch) => {'), print.indexOf('onTurnStart: (command, batch) => {') + 1800)))
+  const driver = readFileSync(join(ROOT, 'src/cli/headless/turnDriver.ts'), 'utf8')
+  check('the driver writes the open edge after the turn\'s init, and before the result when no init came', /ports\.enqueueOutput\(message\)\n\s*if \(message\.type === 'system' && \(message as \{ subtype\?: unknown \}\)\.subtype === 'init'\) writeOpenEdge\(\)/.test(driver) && /if \(message\.type === 'result'\) \{[\s\S]{0,200}flushSdkEvents\(\)\n\s*writeOpenEdge\(\)/.test(driver))
   check('the frame never becomes the run\'s last message (excluded like the other bookkeeping frames)', /EXCLUDED_SYSTEM_SUBTYPES = new Set\(\[\s*TURN_STARTED_SUBTYPE,/.test(print))
 }
 

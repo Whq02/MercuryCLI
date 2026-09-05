@@ -53,7 +53,7 @@ export type TurnDriverPorts = {
     onMessage: (message: StdoutMessage) => void,
   ): Promise<void>
   beforeCycle(): Promise<void>
-  onTurnStart(command: QueuedCommand, batch: QueuedCommand[]): void
+  onTurnStart(command: QueuedCommand, batch: QueuedCommand[]): StdoutMessage | undefined
   onTurnSettled(command: QueuedCommand): void
 
   hasWaitableBackgroundTasks(): boolean
@@ -122,7 +122,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       .map(c => c.uuid)
       .filter((u): u is NonNullable<typeof u> => u !== undefined)
 
-    ports.onTurnStart(command, batch)
+    let openEdge: StdoutMessage | null = ports.onTurnStart(command, batch) ?? null
+    const writeOpenEdge = (): void => {
+      if (openEdge === null) return
+      ports.enqueueOutput(openEdge)
+      openEdge = null
+    }
 
     for (const uuid of batchUuids) {
       ports.notifyLifecycle(uuid, 'started')
@@ -131,6 +136,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     await ports.executeTurn(command, batch.length > 1 ? batchUuids : [], message => {
       if (message.type === 'result') {
         flushSdkEvents()
+        writeOpenEdge()
         if (!holdReleased && ports.hasHoldableBackgroundAgents()) {
           heldBackResult = message
         } else {
@@ -140,6 +146,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       } else {
         flushSdkEvents()
         ports.enqueueOutput(message)
+        if (message.type === 'system' && (message as { subtype?: unknown }).subtype === 'init') writeOpenEdge()
       }
     })
 
