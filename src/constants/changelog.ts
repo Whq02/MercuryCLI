@@ -51,6 +51,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Right after a session starts, the workflow panel, the board, the crew view and the chip say "not reported yet" instead of "idle"; a running workflow shows its agents within seconds of launch
 - Typing deepthink or supercode glows in your chosen critter's colour, in the composer and in the sent message, instead of a rainbow or a mix of theme colours
 - Every tip the companion and the spinner show is true today and teaches one thing, in the order a new user needs: how to stop a turn, the mode, the meter, sessions, then the depth
+- A mis-bound keyboard shortcut can no longer flash "Unknown command" for a line you never typed, and a split key sequence no longer leaks stray characters into the input box
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
