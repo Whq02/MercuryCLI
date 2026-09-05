@@ -37,6 +37,9 @@ import {
 } from '../../Tool.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
+import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
+import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
+import { NOTEBOOK_EDIT_TOOL_NAME } from '../NotebookEditTool/constants.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
@@ -483,6 +486,37 @@ export function emitTaskProgress(
   })
 }
 
+const WRITE_TOOL_NAMES = new Set([FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME, NOTEBOOK_EDIT_TOOL_NAME])
+
+export function landedWritesOf(messages: readonly Message[]): string[] {
+  const pending = new Map<string, string>()
+  const landed: string[] = []
+  for (const message of messages) {
+    if (message.type === 'assistant') {
+      const content = message.message.content
+      if (!Array.isArray(content)) continue
+      for (const block of content) {
+        if (block.type !== 'tool_use' || !WRITE_TOOL_NAMES.has(block.name)) continue
+        const input = (block.input ?? {}) as { file_path?: unknown; notebook_path?: unknown }
+        const path = typeof input.file_path === 'string' ? input.file_path : typeof input.notebook_path === 'string' ? input.notebook_path : undefined
+        if (path !== undefined) pending.set(block.id, path)
+      }
+      continue
+    }
+    if (message.type !== 'user') continue
+    const content = message.message.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      if (block.type !== 'tool_result') continue
+      const path = pending.get(block.tool_use_id)
+      if (path === undefined) continue
+      pending.delete(block.tool_use_id)
+      if (block.is_error !== true && !landed.includes(path)) landed.push(path)
+    }
+  }
+  return landed
+}
+
 export function extractPartialResult(
   messages: readonly Message[],
 ): string | undefined {
@@ -683,7 +717,7 @@ export async function runAsyncAgentLifecycle(args: {
       taskId,
       description,
       status: declined ? 'failed' : 'completed',
-      ...(declined ? { error: declined.error } : {}),
+      ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated) } : {}),
       setAppState: rootSetAppState,
       finalMessage,
       usage: {
@@ -709,6 +743,7 @@ export async function runAsyncAgentLifecycle(args: {
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
+        landedWrites: landedWritesOf(accumulated),
         ...(stopReason !== undefined ? { stopReason } : {}),
         ...worktreeResult,
       })
@@ -723,6 +758,7 @@ export async function runAsyncAgentLifecycle(args: {
       description,
       status: 'failed',
       error: errMsg,
+      landedWrites: landedWritesOf(accumulated),
       setAppState: rootSetAppState,
       toolUseId: toolUseContext.toolUseId,
       ...worktreeResult,

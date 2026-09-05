@@ -57,9 +57,11 @@ import {
   extractPartialResult,
   finalizeAgentTool,
   getLastToolUseName,
+  landedWritesOf,
   PROMOTED_NARRATION_NOTE,
   type AgentToolResult,
 } from './agentToolUtils.js'
+import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
 
@@ -97,6 +99,7 @@ export type ForegroundAgentResult = {
         outputFile: string
         canReadOutputFile: boolean
         modelNote?: string
+        backgroundReason: BackgroundHandoverReason
       }
 }
 
@@ -296,7 +299,7 @@ export async function runForegroundAgentExecution(
         taskId: backgroundedTaskId,
         description,
         status: declined ? 'failed' : 'completed',
-        ...(declined ? { error: declined.error } : {}),
+        ...(declined ? { error: declined.error, landedWrites: landedWritesOf(agentMessages) } : {}),
         setAppState: rootSetAppState,
         finalMessage,
         usage: {
@@ -320,6 +323,7 @@ export async function runForegroundAgentExecution(
           setAppState: rootSetAppState,
           toolUseId: toolUseContext.toolUseId,
           finalMessage: extractPartialResult(agentMessages),
+          landedWrites: landedWritesOf(agentMessages),
           ...(stopReason !== undefined ? { stopReason } : {}),
           ...worktreeResult,
         })
@@ -333,6 +337,7 @@ export async function runForegroundAgentExecution(
         description,
         status: 'failed',
         error: failure,
+        landedWrites: landedWritesOf(agentMessages),
         setAppState: rootSetAppState,
         toolUseId: toolUseContext.toolUseId,
         ...worktreeResult,
@@ -388,6 +393,7 @@ export async function runForegroundAgentExecution(
       let step: IteratorResult<Message, void>
       if (foregroundTask && backgroundRace && turnAbortRace) {
         let winner = await Promise.race([nextPromise, backgroundRace, turnAbortRace])
+        const handedByTurnAbort = winner === TURN_ABORTED
         if (winner === TURN_ABORTED) {
           backgroundAgentTask(foregroundTask.taskId, toolUseContext.getAppState, rootSetAppState)
           winner = BACKGROUNDED
@@ -416,6 +422,7 @@ export async function runForegroundAgentExecution(
                 outputFile: getTaskOutputPath(backgroundedTaskId),
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
+                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : 'backgrounded',
               },
             }
           }
