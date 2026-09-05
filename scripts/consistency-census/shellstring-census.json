@@ -452,7 +452,7 @@
     },
     {
       "file": "scripts/engine-connector/prove-esc-latch-turn-drive.ts",
-      "line": 231,
+      "line": 238,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -460,7 +460,7 @@
     },
     {
       "file": "scripts/engine-connector/prove-recall-send-drive.ts",
-      "line": 239,
+      "line": 248,
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
@@ -2020,9 +2020,9 @@
     },
     {
       "file": "scripts/transcript-rows/prove-clear-empties-transcript.ts",
-      "line": 179,
+      "line": 194,
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240",
+      "excerpt": "const child = spawn('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], { env, stdio: ['ignore', 'ignore', 'pipe'] })",
       "cls": "platform-owner",
       "why": "POSIX maintainer-pool prover driving the POSIX capture engine (vshot/screengrab) — the pool is a declared POSIX profile; Windows maintainers take the hosted lane (the W6-B refusal names it). The product-adjacent entrypoints (render-tui, generate-visual-baseline, doctor) route through the capture-driver resolver instead."
     },
