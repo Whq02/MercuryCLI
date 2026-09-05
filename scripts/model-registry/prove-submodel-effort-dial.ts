@@ -226,15 +226,16 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
           JSON.stringify(strip),
         )
       } else {
-        const why = !truth.supportsEffort ? 'no effort control' : truth.suppressedBy === 'thinking-off' ? 'thinking-off suppressed' : 'UNEXPLAINED'
-        if (truth.supportsEffort && truth.suppressedBy === 'thinking-off') gatedSeen++
+        const why = !truth.supportsEffort ? 'no effort control' : truth.suppressedBy === 'thinking-off' ? 'thinking-off suppressed' : truth.flooredBy === 'thinking-off' ? 'thinking-off floored' : 'UNEXPLAINED'
+        if (truth.supportsEffort && (truth.suppressedBy === 'thinking-off' || truth.flooredBy === 'thinking-off')) gatedSeen++
         check(`${container} · ${model}: no strip — ${why}; the receipt names the model`, why !== 'UNEXPLAINED' && strip.receipt.includes(model), JSON.stringify(strip))
       }
     }
   }
   check('Minerva (thinking off) turns at least one reasoning-dial lane into the receipt', gatedSeen > 0, String(gatedSeen))
   for (const model of roster) {
-    const gated = effort.resolveEffortTruth(model, 'high', { thinkingEnabled: false }).suppressedBy === 'thinking-off'
+    const gatedTruth = effort.resolveEffortTruth(model, 'high', { thinkingEnabled: false })
+    const gated = gatedTruth.suppressedBy === 'thinking-off' || gatedTruth.flooredBy === 'thinking-off'
     const supports = effort.resolveEffortTruth(model, undefined).supportsEffort
     const minerva = slots.subModelEffortStrip('minerva', model).kind
     const console_ = slots.subModelEffortStrip('console', model).kind

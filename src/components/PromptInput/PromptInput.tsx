@@ -152,6 +152,7 @@ import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import { findThinkingTriggerPositions, isDeepthinkEnabled } from '../../utils/thinking.js'
+import { keywordGlowSpans } from '../../utils/keywordGlow.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
@@ -2139,18 +2140,14 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         priority: 20,
       })
     }
-    if (isDeepthinkEnabled()) {
-      for (const position of findThinkingTriggerPositions(displayedValue)) {
-        for (let at = position.start; at < position.end; at++) {
-          spans.push({
-            start: at,
-            end: at + 1,
-            color: (['suggestion', 'permission', 'success'] as const)[(at - position.start) % 3] as keyof Theme,
-            priority: 10,
-          })
-        }
-      }
-    }
+    spans.push(
+      ...keywordGlowSpans(
+        displayedValue,
+        { accent: tokens.accent, accentSoft: tokens.accentSoft },
+        { deepthink: isDeepthinkEnabled(), supercode: true },
+        { priority: 10, shimmer: true },
+      ),
+    )
     for (const ref of parseReferences(displayedValue)) {
       if (ref.index === cursorOffset) {
         spans.push({
@@ -2190,7 +2187,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       }
     }
     return spans
-  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, teamContext])
+  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, teamContext, tokens.accent, tokens.accentSoft])
 
   const deepthinkPresent =
     isDeepthinkEnabled() && findThinkingTriggerPositions(input).length > 0

@@ -9,7 +9,7 @@ import {
   sessionTailDir,
   sessionTailPath,
 } from '../../services/engine-connector/seatProjections.js'
-import { workChipLine, workCounts } from '../../services/engine-connector/workCounts.js'
+import { WORK_UNREPORTED_MARK, workChipLine, workCounts } from '../../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { sanitizeLabel, tailActivity } from '../../services/concourse/concourseSnapshot.js'
 import { workerTranscriptPath } from '../../services/concourse/workerTranscript.js'
@@ -357,7 +357,8 @@ export function useLiveTile(
 
 export function workChipTextOf(facts: { work?: readonly WorkRowV1[] } | null): string | null {
   if (facts === null) return null
-  const line = workChipLine(workCounts(facts.work ?? []))
+  if (facts.work === undefined) return WORK_UNREPORTED_MARK
+  const line = workChipLine(workCounts(facts.work))
   return line === null ? null : `${line} running`
 }
 

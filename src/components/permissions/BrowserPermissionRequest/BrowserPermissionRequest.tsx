@@ -8,6 +8,7 @@ import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
 import { getGlobalConfig } from '../../../utils/config.js'
 import { getSystemThemeName } from '../../../utils/systemTheme.js'
+import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import { logUnaryPermissionEvent } from '../utils.js'
@@ -94,15 +95,19 @@ export function BrowserPermissionRequest({
     }
   }
 
+  const useMessage = toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
+    theme: resolveThemeName(),
+    verbose,
+  })
+
   return (
     <PermissionDialog title="Browser" workerBadge={workerBadge}>
       <Box flexDirection="column">
-        <Text>
-          {toolUseConfirm.tool.renderToolUseMessage(toolUseConfirm.input as never, {
-            theme: resolveThemeName(),
-            verbose,
-          })}
-        </Text>
+        {typeof useMessage === 'string' ? (
+          <ConsentBodyText text={useMessage} />
+        ) : (
+          <Text>{useMessage}</Text>
+        )}
         <Text dimColor>{toolUseConfirm.description}</Text>
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} toolType="tool" />
         <Text bold>Do you want to allow Mercury to drive this page?</Text>

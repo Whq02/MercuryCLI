@@ -65,6 +65,7 @@ export type ForkedAgentParams = {
   maxOutputTokens?: number
   maxTurns?: number
   onMessage?: (message: Message) => void
+  onStreamEvent?: (event: unknown) => void
   skipTranscript?: boolean
   skipCacheWrite?: boolean
 }
@@ -237,6 +238,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     maxOutputTokens,
     maxTurns,
     onMessage,
+    onStreamEvent,
     skipTranscript,
     skipCacheWrite,
   } = params
@@ -274,6 +276,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     })) {
       if (item.type === 'stream_event') {
         fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })
+        onStreamEvent?.(item.event)
         continue
       }
       if (item.type === 'stream_request_start') continue
