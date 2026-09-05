@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '417c1c25a2cca8ebc3b39290990aba4052d00e5f63e3547ddec6de33a02ba0aa'
+export const VULCAN_OPTABLE_DIGEST = '577898c9a77701ec9294bf01a30113c012c132292cf5953bb7f865d7d7f2045f'
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {
@@ -575,9 +575,9 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "category": "input",
     "cls": "exec",
     "lite": false,
-    "summary": "Run a timed input sequence",
+    "summary": "Run an input sequence as one call: inputs, waits, and advances (step_frames | step_ms) — in step mode each advance delivers the queued inputs and moves the parked game exactly that far",
     "args": {
-      "steps": "array of {key|button|action|wait_ms, …}"
+      "steps": "array of {key|button|action|wait_ms|step_frames|step_ms, …}; an input step may carry step_frames/step_ms (advance after it); in step mode wait_ms is game time"
     }
   },
   {

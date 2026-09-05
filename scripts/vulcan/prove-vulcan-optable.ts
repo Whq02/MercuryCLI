@@ -99,6 +99,8 @@ section('5. the game-driving verbs — a press is an event; step mode rides the 
   check('runtime_pause / runtime_resume: frontier exec ops, no args', ['runtime_pause', 'runtime_resume'].every(n => vulcanOp(n)?.cls === 'exec' && vulcanOp(n)?.category === 'frontier' && Object.keys(vulcanOp(n)?.args ?? { x: 1 }).length === 0))
   check('runtime_pause says input queues for the next step', /queues for the next runtime_step/.test(vulcanOp('runtime_pause')?.summary ?? ''))
   check('the 163 contract is untouched by the step verbs (all three above it)', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(n => vulcanOp(n)?.category === 'frontier'))
+  const seq = vulcanOp('input_sequence')
+  check('input_sequence steps accept step_frames and step_ms', /step_frames/.test(seq?.args.steps ?? '') && /step_ms/.test(seq?.args.steps ?? ''), seq?.args.steps)
 }
 
 console.log('\n' + (failures === 0 ? '✅ vulcan optable proof PASS' : `❌ ${failures} FAILURES`))

@@ -343,8 +343,13 @@ func _runtime_deadline_ms(op: String, args: Dictionary) -> int:
 	if op == "input_sequence" and args.get("steps") is Array:
 		var total := 0
 		for step in args.get("steps"):
-			if step is Dictionary and step.has("wait_ms"):
-				total += maxi(0, int(step["wait_ms"]))
+			if not (step is Dictionary):
+				continue
+			for key in ["wait_ms", "step_ms"]:
+				if step.has(key) and str(step[key]).is_valid_float():
+					total += maxi(0, int(step[key]))
+			if step.has("step_frames") and str(step["step_frames"]).is_valid_float():
+				total += maxi(0, int(step["step_frames"])) * STEP_WALL_MS_PER_FRAME
 		ms = maxi(ms, total + RUNTIME_TIMEOUT_MS)
 	if op == "runtime_replay":
 		ms = maxi(ms, 120000)
