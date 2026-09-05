@@ -145,9 +145,24 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
   )
 }
 
+const perMessageEffortRefused = new Set<string>()
+
+export function notePerMessageEffortRefused(model: string): void {
+  perMessageEffortRefused.add(getCanonicalName(model))
+}
+
+export function resetPerMessageEffortRefusals(): void {
+  perMessageEffortRefused.clear()
+}
+
+export function refusesPerMessageEffortRow(errorText: string): boolean {
+  return /mid-conversation-output-config|output_config/i.test(errorText)
+}
+
 export function servesPerMessageEffort(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
   const canonical = getCanonicalName(model)
+  if (perMessageEffortRefused.has(canonical)) return false
   return (
     canonical.includes('claude-fable-5-1') ||
     canonical.includes('claude-mythos-5-1') ||
