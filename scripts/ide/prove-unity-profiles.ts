@@ -114,12 +114,24 @@ section('§2 · the three shapes (doc-law pinned)')
 
 section('§3 · results-XML convention')
 {
-  const { projectHomePath } = await import('../../src/utils/projectHomeStores.js')
+  const { PROJECT_HOME_STORES } = await import('../../src/utils/projectHomeStores.js')
+  const insideProject = (root: string, p: string): boolean => {
+    const full = path.resolve(p)
+    const top = path.resolve(root)
+    return full.startsWith(top + path.sep) || full === top
+  }
   check(
-    'unityTestResultsPath: <config home>/projects/<slug>/unity-test-results/<mode>.xml',
-    unityTestResultsPath('/r', 'EditMode') === path.join(projectHomePath('/r', 'unity-test-results'), 'editmode.xml') &&
-      unityTestResultsPath('/r', 'PlayMode') === path.join(projectHomePath('/r', 'unity-test-results'), 'playmode.xml') &&
-      !unityTestResultsPath('/r', 'EditMode').startsWith(path.join('/r', '.mercury')),
+    'unityTestResultsPath: <root>/.mercury/unity-test-results/<mode>.xml',
+    unityTestResultsPath('/r', 'EditMode') === path.join('/r', '.mercury', 'unity-test-results', 'editmode.xml') &&
+      unityTestResultsPath('/r', 'PlayMode') === path.join('/r', '.mercury', 'unity-test-results', 'playmode.xml'),
+  )
+  check(
+    "the path satisfies the package's InsideProject fence (a bridged tests_run is never refused)",
+    insideProject('/r', unityTestResultsPath('/r', 'EditMode')) && insideProject('/r', unityTestResultsPath('/r', 'PlayMode')),
+  )
+  check(
+    "the editor's output is no Mercury store (the doctor's estate row never names it)",
+    !PROJECT_HOME_STORES.some(segments => segments.join('/') === 'unity-test-results'),
   )
 }
 

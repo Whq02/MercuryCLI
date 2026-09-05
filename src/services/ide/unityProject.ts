@@ -4,7 +4,7 @@ import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
-import { projectHomeStore } from '../../utils/projectHomeStores.js'
+import { projectFolderPath } from '../../utils/projectHomeStores.js'
 import { whichSync } from '../../utils/which.js'
 
 const ROOT_WALK_LIMIT = 24
@@ -17,7 +17,7 @@ export const UNITY_LICENSE_DISCLAIMER =
   "Unity's own licensing applies to headless editor runs (batch mode is subject to Unity's Terms of Service); if the editor exits with its licensing error, activating a license is yours to do — Unity Hub, or -serial with -batchmode. Mercury never checks or manages Unity licenses."
 
 export function unityTestResultsPath(root: string, mode: 'EditMode' | 'PlayMode'): string {
-  return path.join(projectHomeStore(root, 'unity-test-results'), `${mode.toLowerCase()}.xml`)
+  return path.join(projectFolderPath(root, 'unity-test-results'), `${mode.toLowerCase()}.xml`)
 }
 
 function isDir(p: string): boolean {
