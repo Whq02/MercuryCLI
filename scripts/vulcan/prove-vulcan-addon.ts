@@ -151,13 +151,16 @@ section('5. the one injection road — a press is an event; step mode is served'
   const runtime = readFileSync(path.join(catDir, 'runtime.gd'), 'utf8')
   check('the editor side forwards the three verbs from the runtime category', /"runtime_step", "runtime_pause", "runtime_resume",/.test(runtime))
   check('the editor pre-flights the step window (frames or ms, never both) before the wire', /if op == "runtime_step":\n\t\tvar bad := step_window_error\(args, "frames", "ms", ctx\)/.test(runtime) && /pass %s or %s, not both/.test(runtime))
-  check('the proxy deadline budgets stepped frames (server.gd mirrors the bridge figure)', /STEP_WALL_MS_PER_FRAME := 50/.test(server) && /int\(args\["frames"\]\) \* STEP_WALL_MS_PER_FRAME/.test(server) && /STEP_WALL_MS_PER_FRAME := 50/.test(bridge))
+  check('the proxy deadline budgets stepped frames from the ONE generated figure (no constant of its own)', /int\(args\["frames"\]\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server) && !/STEP_WALL_MS_PER_FRAME :=/.test(server))
+  check('the bridge caps a frame window from the same generated figure (no constant of its own)', /const OpClassesScript := preload\("op_classes\.gd"\)/.test(bridge) && /OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(advance) && !/STEP_WALL_MS_PER_FRAME :=/.test(bridge))
+  const opClasses = readFileSync(path.join(addon, 'core', 'op_classes.gd'), 'utf8')
+  check('op_classes.gd carries the generated figure', /^const STEP_WALL_MS_PER_FRAME := \d+$/m.test(opClasses))
   const sequence = bodies.get('_rop_input_sequence') ?? ''
   check('input_sequence steps carry step_frames | step_ms and advance after the input', /_step_window\(step, "step_frames", "step_ms", false\)/.test(sequence) && /await _advance\(int\(window\["frames"\]\), int\(window\["ms"\]\)\)/.test(sequence))
   check('a wait_ms is game time while stepped, a timer while live', /if _step_mode:\n\t\t\t\tvar w: Dictionary = await _advance\(0, /.test(sequence) && /create_timer\(wait_ms \/ 1000\.0\)\.timeout/.test(sequence))
   const input = readFileSync(path.join(catDir, 'input.gd'), 'utf8')
   check('input_sequence validation admits step_frames | step_ms and checks their shape', /step\.has\("step_frames"\) or step\.has\("step_ms"\)/.test(input) && /MercuryVulcanRuntime\.step_window_error\(step, "step_frames", "step_ms", ctx\)/.test(input))
-  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* STEP_WALL_MS_PER_FRAME/.test(server))
+  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server))
 }
 
 console.log('\n' + (failures === 0 ? '✅ vulcan addon proof PASS' : `❌ ${failures} FAILURES`))
