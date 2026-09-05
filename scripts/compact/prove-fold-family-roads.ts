@@ -835,6 +835,32 @@ section('§9 the home direct lane under thinking disabled: replayed signed think
   const thinkingBlocks = (body.messages ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as Array<{ type?: string }>).filter(b => b.type === 'thinking' || b.type === 'redacted_thinking') : []))
   check("§9: the request declares no thinking and carries NO thinking block (the strip is the one owner for every road)", (body.thinking === undefined || body.thinking.type === 'disabled') && thinkingBlocks.length === 0, `${thinkingBlocks.length} thinking block(s); thinking=${JSON.stringify(body.thinking)}`)
   check("§9: the history's own text still rides", (body.messages ?? []).some(m => JSON.stringify(m.content).includes('Bumped the version')))
+
+  {
+    const { enableDebugLogging, getDebugLogPath } = await import('../../src/utils/debug.ts')
+    const { readFileSync: readLog, existsSync: logExists } = await import('node:fs')
+    const orphanHistory = makeMessages() as Array<{ type?: string; message?: { content?: unknown[] } }>
+    const orphan = assistantRow('', {}, model) as { message: { id: string; content: unknown[] } }
+    orphan.message.content = [{ type: 'thinking', thinking: 'reasoning cut off before any text', signature: 'sig-orphan' }]
+    orphanHistory.push(orphan as never, createUserMessage({ content: 'and one more ask after the cut' }) as never)
+    enableDebugLogging()
+    const from = shared.captured.length
+    const run = await runFold(model, 'direct', orphanHistory as never)
+    const hits = shared.captured.slice(from).filter(h => h.lane === 'anthropic-seat')
+    check('§9 control: the fold over an orphan thinking-only row resolved on the home direct road (no 400)', run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 200))
+    const sent = (hits[hits.length - 1]?.body ?? {}) as { messages?: Array<{ role?: string; content?: unknown }> }
+    const rows = sent.messages ?? []
+    const blocksOf = (m: { content?: unknown }): Array<{ type?: string; text?: string }> => (Array.isArray(m.content) ? (m.content as Array<{ type?: string; text?: string }>) : [])
+    const emptyRows = rows.filter(m => (Array.isArray(m.content) && m.content.length === 0) || m.content === '')
+    const thinking = rows.flatMap(m => blocksOf(m).filter(b => b.type === 'thinking' || b.type === 'redacted_thinking'))
+    check('§9 control: the wire carries NO thinking block and NO empty-content row — the orphan row is dropped whole by the API view (apiView.ts filterOrphanedThinkingOnlyMessages), never emptied', thinking.length === 0 && emptyRows.length === 0 && !JSON.stringify(rows).includes('reasoning cut off before any text'), `${thinking.length} thinking block(s), ${emptyRows.length} empty row(s)`)
+    check("§9 control: the rows around the orphan still ride — the earlier answer and both user asks", JSON.stringify(rows).includes('Bumped the version') && JSON.stringify(rows).includes('now write the changelog entry') && JSON.stringify(rows).includes('and one more ask after the cut'))
+    check('§9 control: every assistant row on the wire carries text (no thinking-only survivor)', rows.filter(m => m.role === 'assistant').every(m => blocksOf(m).some(b => b.type === 'text' && typeof b.text === 'string' && b.text.length > 0)))
+    const logPath = getDebugLogPath()
+    const log = logExists(logPath) ? readLog(logPath, 'utf8') : ''
+    note(`§9 control: the debug log at ${logPath} holds ${log.split('\n').filter(l => l.includes('compact:')).length} fold line(s)`)
+    check('§9 control: the prefix ledger named no rewrite of sent history for the request (the debug log carries no such line)', !log.includes('the prefix ledger names a rewrite'), log.split('\n').filter(l => l.includes('prefix ledger')).slice(0, 3).join(' | '))
+  }
 }
 
 await shared.close()
