@@ -12,6 +12,7 @@ echo "############################################################"
 bash "$here/prove-gate-runner.sh" || fail=1
 bash "$here/prove-ci-shard-ceiling.sh" || fail=1
 bash "$here/prove-gate-scheduler.sh" || fail=1
+bash "$here/prove-dead-letter-orphan.sh" || fail=1
 bash "$here/prove-dist-cache.sh" || fail=1
 bash "$here/prove-ci-verdict.sh" || fail=1
 "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-ledger.ts" || fail=1
