@@ -237,6 +237,38 @@ const liveModel = (efforts: string[], def?: string) =>
   )
 }
 
+{
+  console.log('\n— 7 · a remembered wire refusal narrows the listed ladder until the wire proves the word —')
+  const store = await import('../../src/services/providers/openai/qualificationStore.js')
+  const listFetch: typeof fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        data: [
+          { id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list', priority: 1, supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], default_reasoning_level: 'low' },
+          { id: 'gpt-5.6-luna', display_name: 'GPT-5.6 Luna', visibility: 'list', priority: 3, supported_reasoning_levels: ['low', 'medium', 'high'], default_reasoning_level: 'medium' },
+        ],
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as unknown as typeof fetch
+  __resetOpenaiCatalogueForTest()
+  await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: listFetch })
+  const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+  check('no memory ⇒ the list is the vocabulary (ultra offered on Sol)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && store.readWireEffortVocabularies().length === 0)
+  store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'ultra', levels: WIRE_LIST })
+  const view = capabilities.gptEffortVocabularyView('gpt-5.6-sol')
+  const truth = effort.resolveEffortTruth('gpt-5.6-sol', 'ultra')
+  check(
+    "a remembered refusal narrows the row's vocabulary to what the wire serves: five words, ultra not offered, the ceiling max, ultra asked runs max with the asked word on the record",
+    view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max']) && !capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'max' && truth.wire === 'max' && truth.adjustedFrom === 'ultra' && !truth.selectable.includes('ultra'),
+    JSON.stringify({ view, wire: truth.wire, adjustedFrom: truth.adjustedFrom }),
+  )
+  check("the wire profile reads the same narrowed row (display ≡ dispatch): the candidate's live row lacks ultra", (() => { const c = catalogue.evaluateGptCandidate('gpt-5.6-sol', 'api-key'); return c.ok && !c.candidate.live.supportedReasoningEfforts.includes('ultra') && c.candidate.live.supportedReasoningEfforts.includes('max') })())
+  check('another row keeps its own list (Luna untouched)', JSON.stringify(capabilities.gptEffortVocabularyView('gpt-5.6-luna')) === JSON.stringify({ state: 'live', vocabulary: ['low', 'medium', 'high'], defaultEffort: 'medium' }))
+  check('the memory is dated and names the refused word and the source', store.readWireEffortVocabularies().every(m => m.refused === 'ultra' && m.sourceKind === 'api-key' && m.observedAtMs > 0))
+  store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'ultra' })
+  check('a served-and-accepted ultra clears the memory and the list is the vocabulary again', store.readWireEffortVocabularies().length === 0 && capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'ultra') && capabilities.getMaxSupportedEffortLevel('gpt-5.6-sol') === 'ultra')
+}
+
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]
   else process.env[key] = value
