@@ -177,6 +177,15 @@ const MALFORMED = { thinking: 'The command writes a commit.', shouldBlock: 'mayb
 const WELL_FORMED = { thinking: 'The command writes a commit.', shouldBlock: true, reason: 'writes to the repository history' }
 
 try {
+  const expectedDump = classifier.getAutoModeClassifierErrorDumpPath()
+  if (process.platform !== 'win32') {
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const { dirname } = await import('node:path')
+    mkdirSync(dirname(expectedDump), { recursive: true, mode: 0o755 })
+    chmodSync(dirname(expectedDump), 0o755)
+    writeFileSync(expectedDump, 'a stale dump with a wide mode\n', { mode: 0o644 })
+    chmodSync(expectedDump, 0o644)
+  }
   queue.push({ kind: 'verdict', input: MALFORMED }, { kind: 'verdict', input: MALFORMED })
   const before = seen.length
   const exhausted = await classify()
@@ -188,14 +197,16 @@ try {
   t('…the issues name the field', (exhausted.verdictIssues ?? []).some(issue => issue.startsWith('shouldBlock:')), j(exhausted.verdictIssues))
   const dumpPath = exhausted.errorDumpPath ?? ''
   t('…the evidence dump was written on the error-dump road', dumpPath !== '' && existsSync(dumpPath), dumpPath)
+  t('…at the path the owner names (the pre-existing directory and file, re-used)', dumpPath === expectedDump, `${dumpPath} vs ${expectedDump}`)
   const dump = dumpPath !== '' && existsSync(dumpPath) ? readFileSync(dumpPath, 'utf8') : ''
   t('…the dump names the model, the stop reason, the request id and the failing field, and keeps the raw input', dump.includes(`model: ${exhausted.model}`) && dump.includes('stop_reason: tool_use') && dump.includes('request id: req_fx_') && dump.includes('shouldBlock:') && dump.includes('"maybe"'), dump.slice(0, 500))
   t('…the dump sits under the home\'s temp root (never the box\'s)', dumpPath.startsWith(join(home, 'tmp')), dumpPath)
   if (process.platform !== 'win32' && dumpPath !== '' && existsSync(dumpPath)) {
     const { statSync } = await import('node:fs')
     const { dirname } = await import('node:path')
-    t('…the dump file is readable by the operator alone (0600)', (statSync(dumpPath).mode & 0o777) === 0o600, (statSync(dumpPath).mode & 0o777).toString(8))
-    t('…and its directory too (0700)', (statSync(dirname(dumpPath)).mode & 0o777) === 0o700, (statSync(dirname(dumpPath)).mode & 0o777).toString(8))
+    t('…the dump file is readable by the operator alone (0600) — re-asserted over the wider mode it had', (statSync(dumpPath).mode & 0o777) === 0o600, (statSync(dumpPath).mode & 0o777).toString(8))
+    t('…and its directory too (0700) — re-asserted over the wider mode it had', (statSync(dirname(dumpPath)).mode & 0o777) === 0o700, (statSync(dirname(dumpPath)).mode & 0o777).toString(8))
+    t('…and the dump holds the new evidence, never the stale bytes', !readFileSync(dumpPath, 'utf8').includes('a stale dump with a wide mode'))
   }
 
   queue.push({ kind: 'verdict', input: MALFORMED }, { kind: 'verdict', input: WELL_FORMED })

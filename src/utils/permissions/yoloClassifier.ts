@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { z } from 'zod/v4'
 import { getCachedInstructionPrompt, getSessionId } from '../../bootstrap/state.js'
@@ -265,6 +265,10 @@ function writeErrorDump(errorText: string, action: string, systemPrompt: string,
       userPrompt,
     ].join('\n')
     writeFileSync(path, body, { encoding: 'utf8', mode: 0o600 })
+    if (process.platform !== 'win32') {
+      chmodSync(dirname(path), 0o700)
+      chmodSync(path, 0o600)
+    }
     return path
   } catch {
     return undefined
