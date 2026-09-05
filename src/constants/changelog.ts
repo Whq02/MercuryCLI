@@ -31,6 +31,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Every summary of a session's work reads one owner: the workflow panel, the launch line, the chip and the RUNS lane agree with the running agents; idle only when nothing runs; /compact shows compacting, never thinking
 - Removing or switching an account announces the change once; a store's first write never shows a blank; a headless run whose login lives outside the keychain prints no keychain error
 - The daemon idles quietly: it watches its owner without spawning a process every few seconds, heals its files only when they change, and reads its schedules on change (30 spawns and 142 file operations per two idle minutes became 2 and 24)
+- The GPT-5.6 rows price at today's pricing page: input, cached, cache-write and output per model, and the same over-272K long-context tier as GPT-6 Astra
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
