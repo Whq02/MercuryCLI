@@ -76,6 +76,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Godot bridge: action presses are real input events the game's callbacks hear; runtime_pause, runtime_step and runtime_resume drive a game frame by frame, so time passes only while the agent acts
 - Flow's safety check keeps the evidence when it cannot read its own verdict and says so plainly, naming the model, instead of denying the action as if it were unsafe
 - A sub-agent's briefing no longer reads as your rules to the safety check, and your latest request is the task it judges an action against
+- When Flow's safety check blocks an action in a session you are not looking at, the ask now waits for you there instead of being denied on the spot; a sub-agent's ask waits the same way
+- A sub-agent waiting on your permission reads "waiting for your answer" in the crew view and the tasks list
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
