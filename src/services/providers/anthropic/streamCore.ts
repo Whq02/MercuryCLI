@@ -887,7 +887,11 @@ async function* queryModel(
     }
     const inducedEdit = resolveInducedPrefixEdit()
     if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
-    const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
+    const effortRow = perMessageEffortRow(options.model, options.effortMessage)
+    const wireMessages = effortRow === null ? wireParts.messages : insertBeforeLastUserRow(wireParts.messages as ReadonlyArray<{ role?: string }>, effortRow)
+    const rowAt = effortRow === null ? -1 : (wireMessages as ReadonlyArray<unknown>).indexOf(effortRow)
+    const sourceIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
+    const wireMessageIds = rowAt === -1 ? sourceIds : [...sourceIds.slice(0, rowAt), null, ...sourceIds.slice(rowAt)]
     judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, {
       replaceRecord: isTurnOwningQuerySource(options.querySource),
     })
