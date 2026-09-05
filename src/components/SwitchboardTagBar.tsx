@@ -16,7 +16,7 @@ import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { truncateKeepingTail } from '../utils/truncate.js'
-import { GLYPH } from './mercury-ui/glyphs.js'
+import { GLYPH, branchChip, branchChipWidth } from './mercury-ui/glyphs.js'
 import { keyHintLabel } from './mercury-ui/keyHintLabel.js'
 import { useNowTick } from './mercury-ui/components.js'
 import { focusedWorkflowRows, useFocusedWorkRows } from './tasks/useFocusedWork.js'
@@ -171,7 +171,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
     1 +
     stringWidth(status.projectLabel) +
     (line !== '' ? 3 : 0) +
-    (worktree !== null ? stringWidth(` · ${GLYPH.branch} ${worktree}`) : 0) +
+    (worktree !== null ? stringWidth(' · ') + branchChipWidth(worktree) : 0) +
     2 +
     stringWidth(backHint)
   const fitted = fitStatusLine(line, columns, fixedWidth)
@@ -190,7 +190,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
         {worktree !== null ? (
           <Text>
             <Text color={t.textMuted}> · </Text>
-            <Text color={t.info}>{GLYPH.branch} </Text>
+            <Text color={t.info}>{branchChip('')}</Text>
             <Text color={t.infoText}>{worktree}</Text>
           </Text>
         ) : null}
