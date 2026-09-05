@@ -24,12 +24,14 @@ const SLOW_DELTAS = [
 ] as const
 export const READ_THREE_ASK = 'read three files'
 export const SLEEP_TOOL_ASK = 'run the long sleep'
+export const STUBBORN_SLEEP_ASK = 'run the stubborn sleep'
 export const READ_HOLD_MS = 6_000
 export const SLEEP_SECONDS = 40
 export const LAUNCH_AGENT_ASK = 'launch one agent'
 export const SEAT_HOLD_PROMPT = 'crew-seat: hold the headers'
 
-type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | 'read-three' | 'sleep-tool' | 'launch-agent' | 'seat-hold' | 'slow' | 'slow-note' | 'complete'
+type ToolArm = 'read-three' | 'sleep-tool' | 'stubborn-sleep' | 'launch-agent' | 'seat-hold'
+type Arm = 'hold-after-settle' | 'close-after-settle' | 'hold-after-end' | ToolArm | 'slow' | 'slow-note' | 'complete'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const named = (event: string, obj: unknown): string => `event: ${event}\n${sse(obj)}`
@@ -93,29 +95,45 @@ function streamSlowly(res: ServerResponse, frames: string[], endFrames: string):
   setTimeout(step, SLOW_FIRST_DELTA_MS).unref()
 }
 
-function toolArmOf(body: Record<string, unknown>): { arm: 'read-three' | 'sleep-tool' | 'launch-agent' | 'seat-hold'; step: number } | null {
+function toolArmOfWords(words: string): ToolArm | null {
+  if (words === READ_THREE_ASK) return 'read-three'
+  if (words === SLEEP_TOOL_ASK) return 'sleep-tool'
+  if (words === STUBBORN_SLEEP_ASK) return 'stubborn-sleep'
+  if (words === LAUNCH_AGENT_ASK) return 'launch-agent'
+  if (words.startsWith(SEAT_HOLD_PROMPT)) return 'seat-hold'
+  return null
+}
+
+const INTERRUPTION_LINE = '[Request interrupted by user'
+
+function toolArmOf(body: Record<string, unknown>): { arm: ToolArm; step: number } | null {
   const input = body.input
   const items = Array.isArray(input) ? input : Array.isArray(body.messages) ? body.messages : []
   let step = 0
-  let first = ''
+  let arm: ToolArm | null = null
+  let first = true
   for (const raw of items as Array<{ role?: string; content?: unknown; type?: string; call_id?: string }>) {
     if (raw.type === 'function_call_output') step++
-    if (raw.role === 'user') {
-      const content = raw.content
-      if (Array.isArray(content)) {
-        for (const part of content) {
-          if ((part as { type?: string }).type === 'tool_result') step++
-        }
+    if (raw.role !== 'user') continue
+    const content = raw.content
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if ((part as { type?: string }).type === 'tool_result') step++
       }
-      const text = textOf(content)
-      if (first === '' && text !== '') first = text.trim().replace(/\s+please$/, '')
+    }
+    const text = textOf(content)
+    if (text === '') continue
+    if (first) {
+      first = false
+      arm = toolArmOfWords(text.trim().replace(/\s+please$/, ''))
+      continue
+    }
+    if (text.includes(INTERRUPTION_LINE)) {
+      arm = toolArmOfWords((text.trim().split('\n').pop() ?? '').trim().replace(/\s+please$/, ''))
+      step = 0
     }
   }
-  if (first === READ_THREE_ASK) return { arm: 'read-three', step }
-  if (first === SLEEP_TOOL_ASK) return { arm: 'sleep-tool', step }
-  if (first === LAUNCH_AGENT_ASK) return { arm: 'launch-agent', step }
-  if (first.startsWith(SEAT_HOLD_PROMPT)) return { arm: 'seat-hold', step }
-  return null
+  return arm === null ? null : { arm, step }
 }
 
 const parked = new Set<ServerResponse>()
@@ -127,26 +145,46 @@ function parkHeaders(res: ServerResponse, wire: 'openai' | 'anthropic', n: numbe
   })
 }
 
+function shapeOf(body: Record<string, unknown>): string {
+  const input = body.input
+  const items = Array.isArray(input) ? input : Array.isArray(body.messages) ? body.messages : []
+  return (items as Array<{ role?: string; content?: unknown; type?: string }>)
+    .map(m => {
+      if (m.type === 'function_call_output') return 'fo'
+      if (m.type === 'function_call') return 'fc'
+      const kinds = Array.isArray(m.content)
+        ? (m.content as Array<{ type?: string }>).map(p => (p.type === 'tool_result' ? 'r' : p.type === 'tool_use' ? 'u' : p.type === 'text' ? 't' : '?')).join('')
+        : typeof m.content === 'string'
+          ? 't'
+          : '?'
+      return `${(m.role ?? '?')[0]}:${kinds}`
+    })
+    .join(' ')
+}
+
 function carriesWords(body: Record<string, unknown>, words: string[]): string[] {
   const raw = JSON.stringify(body)
   return words.filter(w => raw.includes(w))
 }
 export const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
 
-function toolStep(arm: 'read-three' | 'sleep-tool' | 'launch-agent' | 'seat-hold', step: number, cwd: string): { name: string; input: Record<string, unknown>; id: string } | null {
+function toolStep(arm: ToolArm, step: number, cwd: string, call: number): { name: string; input: Record<string, unknown>; id: string } | null {
   if (arm === 'launch-agent') {
     return step === 0
-      ? { name: 'Agent', input: { description: 'first-byte-seat', prompt: SEAT_HOLD_PROMPT, subagent_type: 'general-purpose' }, id: 'toolu_agent_1' }
+      ? { name: 'Agent', input: { description: 'first-byte-seat', prompt: SEAT_HOLD_PROMPT, subagent_type: 'general-purpose' }, id: `toolu_agent_c${call}` }
       : null
   }
   if (arm === 'seat-hold') return null
   if (arm === 'sleep-tool') {
-    return step === 0 ? { name: 'Bash', input: { command: `sleep ${SLEEP_SECONDS}`, description: 'the long sleep' }, id: 'toolu_sleep_1' } : null
+    return step === 0 ? { name: 'Bash', input: { command: `sleep ${SLEEP_SECONDS}`, description: 'the long sleep' }, id: `toolu_sleep_c${call}` } : null
+  }
+  if (arm === 'stubborn-sleep') {
+    return step === 0 ? { name: 'Bash', input: { command: `trap '' TERM; sleep ${SLEEP_SECONDS}`, description: 'the stubborn sleep' }, id: `toolu_sleep_c${call}` } : null
   }
   const files = ['a.md', 'b.md', 'c.md']
   const file = files[step]
   if (file === undefined) return null
-  return { name: 'Read', input: { file_path: `${cwd}/${file}` }, id: `toolu_read_${step + 1}` }
+  return { name: 'Read', input: { file_path: `${cwd}/${file}` }, id: `toolu_read_${step + 1}_c${call}` }
 }
 
 
@@ -213,13 +251,13 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const tool = toolArmOf(body)
       const arm = tool?.arm ?? armOf(ask)
       const carries = carriesWords(body, QUEUED_WORDS_WATCH)
-      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
+      record({ kind: 'openai', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, shape: shapeOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       const rid = `resp_turnend_${n}`
       const itemId = `msg_turnend_${n}`
       if (tool?.arm === 'seat-hold') return parkHeaders(res, 'openai', n)
       if (tool !== null) {
-        const call = toolStep(tool.arm, tool.step, fixtureCwd)
+        const call = toolStep(tool.arm, tool.step, fixtureCwd, n)
         const serve = (): void => {
           res.write(sse({ type: 'response.created', response: { id: rid } }))
           if (call !== null) {
@@ -278,11 +316,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const tool = toolArmOf(body)
       const arm = tool?.arm ?? armOf(ask)
       const carries = carriesWords(body, QUEUED_WORDS_WATCH)
-      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
+      record({ kind: 'anthropic', n, ask: ask.slice(0, 120), arm, ...(tool ? { step: tool.step } : {}), carries, shape: shapeOf(body), promptTokens: Math.max(1, Math.ceil(raw.length / 4)), at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       if (tool?.arm === 'seat-hold') return parkHeaders(res, 'anthropic', n)
       if (tool !== null) {
-        const call = toolStep(tool.arm, tool.step, fixtureCwd)
+        const call = toolStep(tool.arm, tool.step, fixtureCwd, n)
         const model = typeof body.model === 'string' ? body.model : 'fixture'
         const usage = { input_tokens: 21, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 9 }
         const serve = (): void => {
