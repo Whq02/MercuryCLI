@@ -634,9 +634,14 @@ export class QueryEngine {
           case 'attachment': {
             this.mutableMessages.push(message)
             turnMessages.push(message)
-            void recordDelta()
             const attachment = (projected as { attachment?: { type?: string } }).attachment
             const attachmentType = attachment?.type
+            if (attachmentType === 'dead_thinking' || attachmentType === 'bound_prefix') {
+              await recordDelta()
+              if (!persistenceDisabled) await flushSessionStorage()
+            } else {
+              void recordDelta()
+            }
             if (attachmentType === 'structured_output') {
               this.#structuredOutput = (attachment as { data?: unknown }).data
             } else if (attachmentType === 'max_turns_reached') {
@@ -751,7 +756,8 @@ export class QueryEngine {
               this.mutableMessages.push(systemMessage)
               if (
                 (systemMessage as { level?: string }).level === 'warning' ||
-                (systemMessage as { level?: string }).level === 'error'
+                (systemMessage as { level?: string }).level === 'error' ||
+                systemMessage.subtype === 'thinking_note'
               ) {
                 turnMessages.push(systemMessage)
                 await recordDelta()
