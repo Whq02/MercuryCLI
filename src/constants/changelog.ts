@@ -35,6 +35,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Release archives are signed with the release key and verified before they publish; an unsigned build is a named decision, said once per install; the archive carries the licence documents
 - A repeat mercury install of the version already in place says so instead of narrating staging and activating again
 - A piped doctor --json prints exactly one record and exits with the verdict's code even when the reader drains slowly
+- Selected text follows the view when you scroll with the wheel, the page keys or a drag past the edge, and the highlight never paints outside the chat pane
+- Apollo mode ends only through the review's approval or shift+tab: a consent answer can no longer switch it off, writes outside the spec directory are refused, and the review says what ended it
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
