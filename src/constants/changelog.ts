@@ -83,6 +83,8 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - A request that declares no thinking carries none; the prune's dead marks persist, and a process-wide toggle reads as a lawful change for every conversation
 - On Claude Opus 5 the fold rides the session's effort word (measured: the per-message row cost the whole prefix cache); the classifier's error dump is the operator's alone
 - A headless stream-json run opens with its init line first; the turn's open-edge frame follows it, or precedes the result when the turn yielded no init
+- A host that refuses the per-message effort row is remembered and the fold retries once without it; a fold never returns an API error as its summary
+- A blocked team task reads blocked on every screen (its edges carry the team's key); the classifier's error dump keeps its private modes on an existing file
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
