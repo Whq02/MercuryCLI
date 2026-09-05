@@ -1,5 +1,7 @@
 # Mercury
 
+Website: [mercury-cli.ai](https://mercury-cli.ai)
+
 Mercury is a terminal harness for software development. You open it in a
 repository, sign in to a model provider, and work with an agent that reads,
 edits, runs and verifies real code in that repository from a full-screen
