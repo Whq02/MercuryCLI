@@ -189,6 +189,19 @@ for (const c of refusalCases) {
   check(`${c.name}: staging cleaned`, !existsSync(join(versionsDir)) || !readFileSync(join(versionsDir, 'current.txt'), 'utf8').includes('.download'))
 }
 
+console.log('── §3b tampered provenance ⇒ refused at verify, nothing staged; unsigned still activates ──')
+{
+  seedInstalled(V_OLD)
+  const f = makeFixtures('tampered', [{ version: V_OLD }, { version: V_NEW, payload: { tampered: true } }])
+  const r = runCli(['update'], { fixtures: f })
+  const all = r.stdout + r.stderr
+  check('a signing block that does not verify refuses at verify, naming the signed sha256 mismatch', r.code === 1 && all.includes('refused at verify') && all.includes('differ from the signed sha256'), all.slice(0, 300))
+  check('nothing was staged: the active install untouched, no new version directory', currentPointer() === V_OLD && !existsSync(join(versionsDir, V_NEW)))
+  const unsigned = makeFixtures('unsigned-activates', [{ version: V_OLD }, { version: V_NEW }])
+  const ok = runCli(['update'], { fixtures: unsigned })
+  check('an unsigned release still activates and its verdict is said (the ruled tolerance)', ok.code === 0 && currentPointer() === V_NEW && (ok.stdout + ok.stderr).includes('unsigned'), (ok.stdout + ok.stderr).slice(0, 300))
+}
+
 console.log('── §4 post-switch smoke failure ⇒ automatic restore ──')
 {
   seedInstalled(V_OLD)

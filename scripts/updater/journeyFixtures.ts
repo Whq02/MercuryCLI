@@ -1,9 +1,10 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { createServer } from 'node:net'
-import { createHash } from 'node:crypto'
+import { createHash, generateKeyPairSync } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { assetNameFor } from '../../src/services/privateChannel/channelCore.js'
+import { signStatement, type SigningStatementV1 } from '../../src/services/privateChannel/artifactSigning.js'
 
 const { DOC_SET, readCompatFloor, releaseLayoutSection, topAllowlist } = (await import('../release/payloadContract.mjs')) as {
   DOC_SET: string[]
@@ -41,6 +42,7 @@ export interface PayloadOpts {
   stagedFail?: boolean
   postSwitchFail?: boolean
   shape?: PayloadShape
+  tampered?: boolean
 }
 
 export function makePayload(dir: string, version: string, opts: PayloadOpts = {}): void {
@@ -78,7 +80,24 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
   }
   writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest) + '\n')
   if (shape === 'release-layout') {
-    manifest.releaseLayout = releaseLayoutSection(dir, HOST_TARGET, FLOOR)
+    const layout = releaseLayoutSection(dir, HOST_TARGET, FLOOR) as { payloadDigest: string }
+    manifest.releaseLayout = layout
+    if (opts.tampered) {
+      const pair = generateKeyPairSync('ed25519')
+      const statement: SigningStatementV1 = {
+        schema: 1,
+        name: 'mercury',
+        version: opts.manifestVersion ?? version,
+        channel: 'private',
+        target: HOST_TARGET,
+        packagedAt: '2026-08-22T00:00:00.000Z',
+        buildTree: null,
+        primarySha256: createHash('sha256').update('not the bundle').digest('hex'),
+        payloadDigest: layout.payloadDigest,
+        licenseId: null,
+      }
+      manifest.signing = signStatement(statement, pair.privateKey.export({ format: 'pem', type: 'pkcs8' }).toString())
+    }
     writeFileSync(join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n')
   }
   if (!IS_WIN) {

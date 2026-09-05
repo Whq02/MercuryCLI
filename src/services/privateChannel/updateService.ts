@@ -182,6 +182,7 @@ export type UpdateStage =
   | 'extract'
   | 'envelope'
   | 'payload'
+  | 'verify'
   | 'staged-smoke'
   | 'staging'
   | 'pointer'
@@ -388,6 +389,14 @@ async function acquireAndActivate(
     }
     const provenance = verifyPayloadDir(payloadDir, { depth: 'deep' })
     progress('verifying', `signature: ${describeSignatureVerdict(provenance.verdict)}`)
+    if (provenance.verdict.state === 'tampered') {
+      return {
+        state: 'refused',
+        stage: 'verify',
+        reason: `the payload's signing block does not verify: ${provenance.verdict.note}`,
+        remedy: "nothing was activated; download the release again, and if it repeats report it through the repository's Security tab",
+      }
+    }
 
     progress('staging')
     const staged = smokeVersion(payloadDir, check.version, payload.bundle)
