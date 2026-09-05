@@ -295,7 +295,7 @@ export function AssistantToolUseMessage({
           {shouldShowDot && queued ? <Text dimColor>● </Text> : null}
           <Text color={tone}>{mark.glyph} </Text>
           {nameBackground ? (
-            <Text inverse backgroundColor={nameBackground} bold>
+            <Text backgroundColor={nameBackground} color="inverseText" bold>
               {userFacingName}
             </Text>
           ) : (
