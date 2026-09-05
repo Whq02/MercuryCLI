@@ -41,6 +41,7 @@ import { executePermissionRequestHooks } from '../../hooks.js'
 import {
   AUTO_REJECT_MESSAGE,
   buildClassifierUnavailableMessage,
+  buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
   buildYoloRejectionMessage,
   DONT_ASK_REJECT_MESSAGE,
@@ -761,6 +762,52 @@ export async function decideToolPermissionWithModes(
             { level: 'warn' },
           )
           return decide('classifier', engineDecision, 'unavailable — fail open')
+        }
+
+        if (classifierResult.unreadable) {
+          const model = classifierResult.model
+          const detail = classifierResult.verdictIssues?.join('; ')
+          if (cardAvailable) {
+            logForDebugging(
+              `Flow classifier verdict unreadable (${model}) — handing the ask to the operator`,
+              { level: 'warn' },
+            )
+            return decide(
+              'classifier',
+              {
+                ...engineDecision,
+                decisionReason: {
+                  type: 'other',
+                  reason: `Flow's safety check could not read its verdict from ${model}${detail ? ` (${detail})` : ''} — this approval returns to you`,
+                },
+              },
+              'unreadable verdict — human ask',
+            )
+          }
+          if (ports.ironGateClosed()) {
+            logForDebugging(
+              `Flow classifier verdict unreadable (${model}) — iron gate closed; denying without a policy verdict`,
+              { level: 'warn' },
+            )
+            return decide(
+              'classifier',
+              {
+                behavior: 'deny',
+                decisionReason: {
+                  type: 'classifier',
+                  classifier: 'auto-mode',
+                  reason: `Classifier verdict unreadable (${model})`,
+                },
+                message: buildClassifierUnreadableMessage(tool.name, model, detail),
+              },
+              'unreadable verdict — fail closed',
+            )
+          }
+          logForDebugging(
+            `Flow classifier verdict unreadable (${model}) — iron gate open; the ask returns to the operator path`,
+            { level: 'warn' },
+          )
+          return decide('classifier', engineDecision, 'unreadable verdict — fail open')
         }
 
         const afterDenial = recordDenial(denialState)

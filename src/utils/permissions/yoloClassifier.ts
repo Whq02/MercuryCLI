@@ -18,7 +18,7 @@ import type { MessageParam, TextBlockParam } from '../../types/wire.js'
 import type { Tool, Tools, ToolPermissionContext } from '../../Tool.js'
 import type { YoloClassifierResult } from '../../types/permissions.js'
 import { getMercuryTempDir } from './filesystem.js'
-import { extractToolUseBlock, parseClassifierResponse } from './classifierShared.js'
+import { extractToolUseBlock, readClassifierVerdict } from './classifierShared.js'
 import {
   emptyProjectionFailClosedVerdict,
   type FailClosedLookup,
@@ -262,6 +262,71 @@ function writeErrorDump(errorText: string, action: string, systemPrompt: string,
   }
 }
 
+function describeInputShape(raw: unknown): string {
+  if (raw === null) return 'null'
+  if (typeof raw !== 'object') return typeof raw
+  if (Array.isArray(raw)) return `array of ${raw.length}`
+  const fields = Object.entries(raw as Record<string, unknown>).map(
+    ([key, value]) => `${key}: ${value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value}`,
+  )
+  return fields.length === 0 ? 'an empty object' : `{ ${fields.join(', ')} }`
+}
+
+function unreadableVerdictEvidence(
+  response: unknown,
+  model: string,
+  issues: string[],
+  raw: unknown,
+): { logLine: string; dumpText: string } {
+  const r = response as { id?: unknown; stop_reason?: unknown; _request_id?: unknown } | null
+  const stopReason = typeof r?.stop_reason === 'string' ? r.stop_reason : 'unknown'
+  const requestId = typeof r?._request_id === 'string' ? r._request_id : 'none'
+  const messageId = typeof r?.id === 'string' ? r.id : 'none'
+  const logLine =
+    `classifier verdict unreadable (${model}): ${issues.join('; ')} · input ${describeInputShape(raw)} · ` +
+    `stop_reason ${stopReason} · request id ${requestId} · message id ${messageId}`
+  let rawText: string
+  try {
+    rawText = JSON.stringify(raw, null, 2) ?? String(raw)
+  } catch {
+    rawText = String(raw)
+  }
+  const dumpText = [
+    'classifier verdict unreadable',
+    `model: ${model}`,
+    `stop_reason: ${stopReason}`,
+    `request id: ${requestId}`,
+    `message id: ${messageId}`,
+    'issues:',
+    ...issues.map(issue => `  - ${issue}`),
+    'raw tool input:',
+    rawText,
+  ].join('\n')
+  return { logLine, dumpText }
+}
+
+function unreadableVerdict(args: {
+  reason: string
+  model: string
+  issues: string[]
+  evidence: { logLine: string; dumpText: string }
+  action: TranscriptEntry
+  systemPrompt: string
+  transcript: string
+}): YoloClassifierResult {
+  logForDebugging(args.evidence.logLine, { level: 'warn' })
+  const dumpPath = writeErrorDump(args.evidence.dumpText, JSON.stringify(args.action), args.systemPrompt, args.transcript)
+  return {
+    shouldBlock: true,
+    retryable: true,
+    unreadable: true,
+    reason: args.reason,
+    verdictIssues: args.issues,
+    model: args.model,
+    ...(dumpPath ? { errorDumpPath: dumpPath } : {}),
+  }
+}
+
 
 const classifierResponseSchema = z.object({
   thinking: z.string(),
@@ -359,26 +424,36 @@ export async function classifyYoloAction(
     const content = (response as { content?: TranscriptBlock[] }).content ?? []
     const toolUse = extractToolUseBlock(content as never, YOLO_CLASSIFIER_TOOL_NAME)
     if (!toolUse) {
-      return {
-        shouldBlock: true,
-        retryable: true,
+      const issues = [`no ${YOLO_CLASSIFIER_TOOL_NAME} tool-use block in the answer (blocks: ${content.map(block => block.type).join(', ') || 'none'})`]
+      return unreadableVerdict({
         reason: 'The classifier answered without a tool-use block — blocking for safety.',
         model,
-      } as unknown as YoloClassifierResult
+        issues,
+        evidence: unreadableVerdictEvidence(response, model, issues, content.map(block => block.type)),
+        action,
+        systemPrompt,
+        transcript,
+      })
     }
-    const parsed = parseClassifierResponse(toolUse, classifierResponseSchema)
-    if (!parsed) {
-      return {
-        shouldBlock: true,
-        retryable: true,
+    const read = readClassifierVerdict(toolUse, classifierResponseSchema, { booleanFields: ['shouldBlock'] })
+    if (!read.ok) {
+      return unreadableVerdict({
         reason: 'The classifier response did not parse — blocking for safety.',
         model,
-      } as unknown as YoloClassifierResult
+        issues: read.issues,
+        evidence: unreadableVerdictEvidence(response, model, read.issues, read.raw),
+        action,
+        systemPrompt,
+        transcript,
+      })
+    }
+    if (read.normalised) {
+      logForDebugging(`classifier verdict read after re-encoding its input (${model}): ${describeInputShape(toolUse.input)}`)
     }
     return {
-      shouldBlock: parsed.shouldBlock,
-      reason: parsed.reason,
-      thinking: parsed.thinking,
+      shouldBlock: read.data.shouldBlock,
+      reason: read.data.reason,
+      thinking: read.data.thinking,
       model,
     } as unknown as YoloClassifierResult
   } catch (error) {
@@ -544,7 +619,7 @@ async function classifyYoloActionTwoStage(
       }
       if (mode === 'fast') {
         if (verdict1 === null) {
-          return { shouldBlock: true, reason: 'Stage 1 unparseable — blocking for safety.', model, stage: 'fast' } as unknown as YoloClassifierResult
+          return { shouldBlock: true, unreadable: true, reason: 'Stage 1 unparseable — blocking for safety.', model, stage: 'fast' } as unknown as YoloClassifierResult
         }
         return {
           shouldBlock: true,
@@ -573,7 +648,7 @@ async function classifyYoloActionTwoStage(
     const text2 = responseText(stage2)
     const verdict2 = parseBlockVerdict(text2)
     if (verdict2 === null) {
-      return { shouldBlock: true, reason: 'Stage 2 unparseable — blocking for safety.', model, stage: 'thinking' } as unknown as YoloClassifierResult
+      return { shouldBlock: true, unreadable: true, reason: 'Stage 2 unparseable — blocking for safety.', model, stage: 'thinking' } as unknown as YoloClassifierResult
     }
     return {
       shouldBlock: verdict2,
@@ -637,7 +712,13 @@ export async function classifyYoloActionWithFallback(
       signal,
       primary.model,
     )
-    if (retry.retryable) return retry
+    if (retry.retryable) {
+      logForDebugging(
+        `classifier verdict unreadable twice (${retry.model}) — the check could not read its verdict`,
+        { level: 'warn' },
+      )
+      return retry
+    }
     primary = retry
   }
 

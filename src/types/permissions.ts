@@ -237,6 +237,8 @@ export type YoloClassifierResult = {
   thinking?: string
   unavailable?: boolean
   retryable?: boolean
+  unreadable?: boolean
+  verdictIssues?: string[]
   transcriptTooLong?: boolean
   usage?: ClassifierUsage
   durationMs?: number

@@ -2,6 +2,7 @@
 export {
   AUTO_REJECT_MESSAGE,
   buildClassifierUnavailableMessage,
+  buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
   buildYoloRejectionMessage,
   CANCEL_MESSAGE,
