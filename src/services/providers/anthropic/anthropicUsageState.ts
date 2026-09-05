@@ -15,6 +15,7 @@ export type AnthropicUsageReadFailure = {
   host: string
   detail: string
   atMs: number
+  retryAfterMs?: number
 }
 
 export interface AnthropicUsageReadStatus {
@@ -71,10 +72,30 @@ function endpointHost(): string {
   }
 }
 
+export function retryAfterMsOf(value: unknown, now: number): number | undefined {
+  const raw = Array.isArray(value) ? value[0] : value
+  if (typeof raw !== 'string' && typeof raw !== 'number') return undefined
+  const text = String(raw).trim()
+  if (text === '') return undefined
+  const seconds = Number(text)
+  if (Number.isFinite(seconds)) return seconds >= 0 ? Math.round(seconds * 1000) : undefined
+  const at = Date.parse(text)
+  return Number.isFinite(at) ? Math.max(0, at - now) : undefined
+}
+
 function classify(error: unknown, host: string, atMs: number): AnthropicUsageReadFailure {
   if (axios.isAxiosError(error)) {
     if (error.response !== undefined) {
-      return { kind: 'http', status: error.response.status, host, detail: `HTTP ${error.response.status}`, atMs }
+      const headers = error.response.headers as { 'retry-after'?: unknown } | undefined
+      const retryAfterMs = retryAfterMsOf(headers?.['retry-after'], atMs)
+      return {
+        kind: 'http',
+        status: error.response.status,
+        host,
+        detail: `HTTP ${error.response.status}`,
+        atMs,
+        ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),
+      }
     }
     if (error.code === 'ECONNABORTED' || /timeout/i.test(error.message)) {
       return { kind: 'timeout', host, detail: `no answer within ${READ_TIMEOUT_S} s`, atMs }
@@ -276,13 +297,28 @@ export function refreshAnthropicUsage(opts?: { reason?: 'poll' | 'turn' | 'opera
     lastAttemptAtMs = at
     requests += 1
     const host = endpointHost()
+    const request = requests
+    const started = Date.now()
+    const trace = (outcome: string): void => {
+      logForDebugging(`[usage] read #${request} (${reason}) GET ${host}/api/oauth/usage → ${outcome} in ${Date.now() - started} ms`)
+    }
     try {
       const answer = await fetchUtilization()
-      if (issued !== generation) return anthropicUsageReadStatus()
-      if (answer === null) noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
-      else noteAnswer(now())
+      if (issued !== generation) {
+        trace('settled after the account moved (discarded)')
+        return anthropicUsageReadStatus()
+      }
+      if (answer === null) {
+        trace('not asked — the sign-in token is expired')
+        noteFailure({ kind: 'token', host, detail: 'sign-in token expired', atMs: now() }, now())
+      } else {
+        trace('ok')
+        noteAnswer(now())
+      }
     } catch (error) {
-      if (issued === generation) noteFailure(classify(error, host, now()), now())
+      const failed = classify(error, host, now())
+      trace(`${failed.detail}${failed.retryAfterMs !== undefined ? ` · retry-after ${Math.round(failed.retryAfterMs / 1000)} s` : ''}`)
+      if (issued === generation) noteFailure(failed, now())
     } finally {
       if (issued === generation) inFlight = null
       noteUsageRecordChanged()
