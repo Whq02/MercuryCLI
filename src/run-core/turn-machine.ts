@@ -942,6 +942,11 @@ export async function* runEventCore(
       'apply',
     )
     let messagesForQuery = requestPlan.messages
+    {
+      const known = deadThinkingMarks(messages)
+      const fresh = (requestPlan.reductions.deadThinkingMarks ?? []).filter(mark => !known.get(mark.messageId)?.has(mark.blockIndex))
+      if (fresh.length > 0) yield emit({ kind: 'attachment', message: createDeadThinkingAttachment(fresh) })
+    }
     if (pendingOverflow?.rung === 'prune') {
       const pruned = requestPlan.reductions.pressurePruned
       yield emit({

@@ -90,6 +90,8 @@ section('§1 the time-based clearing projection strips from the first cleared me
     check('the cleared message (index 2) is a fresh object; the edit lands there', projected.messages[2] !== history[2])
     check('the assistant BEFORE the edit keeps its thinking, by reference', projected.messages[1] === history[1] && hasThinking(projected.messages[1]))
     check('the assistant AFTER the edit loses its thinking', !hasThinking(projected.messages[3]))
+    const afterId = (history[3] as { message: { id: string } }).message.id
+    check("the projection names the stripped block as a dead mark (the assistant after the edit, block 0) and nothing before the edit", projected.deadMarks.length === 1 && projected.deadMarks[0]!.messageId === afterId && projected.deadMarks[0]!.blockIndex === 0, JSON.stringify(projected.deadMarks))
     check('…and keeps its text', j(textsOf(projected.messages[3])) === j(['done']))
     check('the input history is never mutated', hasThinking(history[3]))
   }
