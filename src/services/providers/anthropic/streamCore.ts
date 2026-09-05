@@ -889,7 +889,7 @@ async function* queryModel(
     const inducedEdit = resolveInducedPrefixEdit()
     if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
     const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
-    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds)
+    judgeAndRecordPrefix(rosterOwnerKey, prefixKey, wireParts, wireMessageIds, { querySource: options.querySource })
 
     return {
       model: normalizeModelStringForAPI(options.model),
