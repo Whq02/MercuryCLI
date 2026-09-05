@@ -38,7 +38,11 @@ export function releaseTargetForUname(sysname: string, machine: string): Release
 }
 
 export function archiveNameFor(version: string, target: ReleaseTarget): string {
-  return `mercury-v${version}-${target}.${target === 'windows-x64' ? 'zip' : 'tar.gz'}`
+  return `${archiveBaseNameFor(version, target)}.${target === 'windows-x64' ? 'zip' : 'tar.gz'}`
+}
+
+export function archiveBaseNameFor(version: string, target: ReleaseTarget): string {
+  return `mercury-v${version}-${target}`
 }
 
 export function platformKey(platform: string, arch: string): string {
