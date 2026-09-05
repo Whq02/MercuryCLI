@@ -255,7 +255,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     summary: 'full editor control for Godot projects — scenes, nodes, resources, play-testing, runtime inspection, input simulation (163 ops)',
     detail: {
       controls: "The agent drives your running Godot editor directly: scene and node editing (every change is one Ctrl+Z undo step), scripts, resources, animation, physics, audio, tilemaps, shaders — plus play-testing with live game inspection and input simulation. Arming it also shifts agent behavior: sessions and spawned agents learn to prefer editor state over hand-editing scene files. Needs the bundled mercury_vulcan addon installed in the project (the tool installs it on ask) and the editor open. Local and sandboxed: a token-authed loopback connection only; running code or simulating input always asks permission first. Pairs with the Godot language lanes above (symbols + breakpoints stay with the LSP/Debug tools).",
-      on: ['the Godot tool joins the catalog in Godot projects (163 editor ops + extras)', 'reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask', 'agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts'],
+      on: ['the Godot tool joins the catalog for the session (163 editor ops + extras); outside a Godot project it answers with a teaching note, and a project created mid-session is found at once', 'reads are free; edits ask like file edits and are undoable in the editor; play/input/execute always ask', 'agents shift behavior: editor-first workflow, play-test natively, memory keeps project facts'],
       off: ['no Godot tool, no connection, no addon writes — identical to an unarmed build'],
     },
   },

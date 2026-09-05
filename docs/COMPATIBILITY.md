@@ -132,3 +132,22 @@ under the vendor CLI's service name is carried across to the Mercury name on
 the first token refresh, and one stored under the raw spelling of a
 non-canonical config-home pin is moved to the canonical name on the first
 successful read.
+
+## Platforms
+
+One release archive per target. The target owner is
+`src/services/privateChannel/releaseTarget.ts`: the packager's and the build's
+`--target` vocabulary, the archive a machine asks for (`mercury update`), and
+the installers' `uname` map. Every archive carries its own Node runtime, search
+binary and image processor for that platform, and the voice addon where it was
+built.
+
+| target | archive | machines | built |
+| --- | --- | --- | --- |
+| `linux-x64` | `mercury-v<version>-linux-x64.tar.gz` | Linux on x86_64 | natively, on its own runner |
+| `macos-arm64` | `mercury-v<version>-macos-arm64.tar.gz` | macOS on Apple silicon | natively, on its own runner |
+| `macos-x64` | `mercury-v<version>-macos-x64.tar.gz` | macOS on Intel | cross-packaged on the Apple silicon runner with the Intel packs; booted under Rosetta 2 before it publishes |
+| `windows-x64` | `mercury-v<version>-windows-x64.zip` | Windows on x86_64 | natively, on its own runner |
+
+Any other machine (Linux or Windows on arm64) builds from source (README.md);
+`mercury update` says so rather than guessing an archive.

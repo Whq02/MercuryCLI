@@ -1,4 +1,6 @@
 
+import { CLOSE_CHORD_STAGE_WINDOW_MS } from '../../services/concourse/closeChordStage.js'
+
 export type ConcourseMode = 'browse' | 'filter-edit' | 'coordinator-picker' | 'confirmation'
 
 export type ConcourseFocusRegion = 'needs-you' | 'list' | 'live' | 'coordinator' | 'chat'
@@ -134,6 +136,83 @@ export function boardSelectionClassOf(
   return 'live'
 }
 
+export type CloseChordRung =
+  | 'withdraw'
+  | 'stop'
+  | 'resend-stop'
+  | 'archive'
+  | 'arm-delete'
+  | 'delete'
+  | 'none'
+
+export function closeChordRungOf(selection: BoardSelectionClass, staged: boolean): CloseChordRung {
+  switch (selection) {
+    case 'door':
+    case 'none':
+      return 'none'
+    case 'queued':
+      return 'withdraw'
+    case 'stopped':
+      return 'archive'
+    case 'parked':
+      return staged ? 'delete' : 'arm-delete'
+    case 'live':
+    case 'paused':
+    case 'attached':
+      return staged ? 'resend-stop' : 'stop'
+  }
+}
+
+const CLOSE_CHORD_WINDOW_WORDS = `${CLOSE_CHORD_STAGE_WINDOW_MS / 1000} s`
+
+export function closeChordHintOf(rung: CloseChordRung): string | null {
+  switch (rung) {
+    case 'none':
+      return null
+    case 'withdraw':
+      return '⌃x again withdraws the queued request'
+    case 'stop':
+      return '⌃x again stops — esc keeps it'
+    case 'resend-stop':
+      return '⌃x again re-sends the stop (the row reads stopped once its runner is gone)'
+    case 'archive':
+      return '⌃x again archives it (the chat stands parked)'
+    case 'arm-delete':
+      return `⌃x again arms the delete · ⌃x ⌃x in ${CLOSE_CHORD_WINDOW_WORDS} ends it`
+    case 'delete':
+      return '⌃x again deletes it (the record ends)'
+  }
+}
+
+export function closeChordLegendOf(rung: CloseChordRung): string | null {
+  switch (rung) {
+    case 'none':
+      return null
+    case 'withdraw':
+      return 'withdraw'
+    case 'stop':
+    case 'resend-stop':
+      return 'stop · archive · delete'
+    case 'archive':
+      return 'archive · delete'
+    case 'arm-delete':
+      return 'arm · delete'
+    case 'delete':
+      return 'delete'
+  }
+}
+
+export function closeChordReceiptOf(rung: CloseChordRung): string | null {
+  switch (rung) {
+    case 'arm-delete':
+      return `⌃x ⌃x within ${CLOSE_CHORD_WINDOW_WORDS} deletes it`
+    case 'resend-stop':
+      return 'stop is on its way — the row reads stopped once its runner is gone; ⌃x ⌃x then archives it'
+    default:
+      return null
+  }
+}
+
 export function regionKeysFor(
   region: keyof typeof CONCOURSE_REGION_KEYS,
   opts: {
@@ -144,6 +223,7 @@ export function regionKeysFor(
     olderBrowse?: boolean
     armed?: boolean
     liveDraftHeld?: boolean
+    chordStaged?: boolean
   },
 ): ReadonlyArray<{ keys: string; label: string }> {
   if (opts.olderBrowse === true) {
@@ -181,6 +261,10 @@ export function regionKeysFor(
   const row = (keys: string): { keys: string; label: string } | undefined => base.find(k => k.keys === keys)
   const keep = (...names: string[]): Array<{ keys: string; label: string }> =>
     names.map(n => row(n)).filter((k): k is { keys: string; label: string } => k !== undefined)
+  const chordRow = (selection: BoardSelectionClass): Array<{ keys: string; label: string }> => {
+    const label = closeChordLegendOf(closeChordRungOf(selection, opts.chordStaged === true))
+    return label === null ? [] : [{ keys: '⌃x ⌃x', label }]
+  }
   const listRowsFor = (selection: BoardSelectionClass): ReadonlyArray<{ keys: string; label: string }> => {
     switch (selection) {
       case 'live':
@@ -191,16 +275,18 @@ export function regionKeysFor(
           { keys: 'p', label: selection === 'paused' ? 'resume' : 'pause' },
           { keys: 'm', label: 'model' },
           { keys: 'e', label: 'effort' },
-          ...keep('r', '→', '/', '⌃x ⌃x', 'n', 'space', 's'),
+          ...keep('r', '→', '/'),
+          ...chordRow(selection),
+          ...keep('n', 'space', 's'),
         ])
       case 'attached':
-        return stageFilter([...keep('↵↵', 'n', 'r', '→', '/', '⌃x ⌃x', 'space', 's')])
+        return stageFilter([...keep('↵↵', 'n', 'r', '→', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'queued':
-        return stageFilter([...keep('n', 'm', '/'), { keys: '⌃x ⌃x', label: 'withdraw' }, ...keep('space', 's')])
+        return stageFilter([...keep('n', 'm', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'parked':
-        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), { keys: '⌃x ⌃x', label: 'delete' }, ...keep('space', 's')])
+        return stageFilter([{ keys: 'parked', label: '· ↵ brings it back' }, ...keep('n', 'r', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'stopped':
-        return stageFilter([...keep('n', '/'), { keys: '⌃x ⌃x', label: 'archive' }, ...keep('space', 's')])
+        return stageFilter([...keep('n', '/'), ...chordRow(selection), ...keep('space', 's')])
       case 'door':
         return stageFilter([{ keys: '↵', label: 'open' }, ...keep('n', '/', 'space', 's')])
       case 'none':

@@ -1,9 +1,9 @@
 
 import { randomUUID } from 'crypto'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, watch as watchDir, type FSWatcher } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { homedir } from 'os'
-import { join, resolve } from 'path'
+import { basename, dirname, join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { spawn } from 'node:child_process'
 import { hasStoredOAuthToken } from '../utils/auth.js'
@@ -18,6 +18,7 @@ import { isCrewDaemon } from './daemonFeatureGates.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
 import { CREW_TEAM, makeCrewSpawnHandler } from './crewSpawn.js'
 import {
+  concourseWorkersPath,
   listConcourseWorkers,
   makeConcourseAdmitHandler,
   pauseConcourseWorker,
@@ -72,19 +73,20 @@ import { applyConcourseContractOp } from './sessionContract.js'
 import { applyConcourseScheduleOp } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { composeSignInView, refreshSignInReads } from './signInView.js'
-import { startSaturnTicker } from './saturnTicker.js'
+import { fileMoveStamp, startSaturnTicker } from './saturnTicker.js'
 import { makeSaturnBirthPort } from './saturnBirth.js'
 import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptFrame, failWorkingDispatchesForRunner, heldGitLaunchesFor, reconcileWorkingDispatches, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from './concourseDispatch.js'
 import { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
+  parseOwnerFd,
   isProcessAlive,
-  decideOrphanShutdown,
   getProcessStartToken,
   getProcessStartTokenAsync,
-  ownerIdentityMatches,
-  OWNER_WATCH_INTERVAL_MS,
-  OWNER_WATCH_GRACE_CHECKS,
+  armOwnerPipe,
+  startOwnerWatch,
+  type OwnerPipeHandleV1,
+  type OwnerWatchHandleV1,
 } from './ownerWatch.js'
 import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
@@ -277,7 +279,8 @@ async function daemonRun(args: string[]): Promise<void> {
   let roster: TaskRoster | null = null
   const dispatchDrains: DispatchDrainHandle[] = []
   const idleNudges = new Map<string, () => void>()
-  let ownerWatch: ReturnType<typeof setInterval> | undefined
+  let ownerWatch: OwnerWatchHandleV1 | undefined
+  let ownerPipe: OwnerPipeHandleV1 | undefined
   let ready = false
   let wakeReady: () => void = () => {}
   const readyPromise = new Promise<void>(resolve => {
@@ -850,51 +853,92 @@ async function daemonRun(args: string[]): Promise<void> {
         startToken: bootStartToken,
       })
       {
-        const planeHeal = setInterval(() => {
-          void (async () => {
+        let healInflight = false
+        let healQueued = false
+        const healCheck = async (): Promise<void> => {
+          if (healInflight) {
+            healQueued = true
+            return
+          }
+          healInflight = true
+          try {
+            const sockMissing = process.platform === 'win32' ? false : !existsSync(controlSockPath())
+            const keyMissing = !existsSync(controlKeyPath())
+            let foreignOwner = false
+            let stateMissing = false
             try {
-              const { existsSync, readFileSync } = await import('node:fs')
-              const sockMissing =
-                process.platform === 'win32' ? false : !existsSync(controlSockPath())
-              const keyMissing = !existsSync(controlKeyPath())
-              let foreignOwner = false
-              let stateMissing = false
-              try {
-                const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
-                if (typeof raw?.pid === 'number' && raw.pid !== process.pid) {
-                  foreignOwner = isProcessAlive(raw.pid)
-                  stateMissing = !foreignOwner
-                }
-              } catch {
-                stateMissing = true
+              const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
+              if (typeof raw?.pid === 'number' && raw.pid !== process.pid) {
+                foreignOwner = isProcessAlive(raw.pid)
+                stateMissing = !foreignOwner
               }
-              if (foreignOwner) return
-              if (!sockMissing && !keyMissing && !stateMissing) return
-              logForDebugging(
-                `[daemon] control plane degraded (sock:${sockMissing} key:${keyMissing} state:${stateMissing}) — re-asserting`,
-              )
-              await reassertControlKey(controlKey)
-              await writeSupervisorState({
-                pid: process.pid,
-                version: currentVersion(),
-                origin: 'transient',
-                startedAt,
-                dir,
-                controlSock: controlSockPath(),
-                proto: MERCURY_DAEMON_PROTO,
-                buildTree: bootBuildTree,
-                ownerPid: parseOwnerPid(),
-                foreground,
-                startToken: bootStartToken,
-              })
-              if (sockMissing) await controlServer?.rebind()
-            } catch (e) {
-              logForDebugging(`[daemon] plane self-heal failed (next beat retries): ${e}`)
+            } catch {
+              stateMissing = true
             }
-          })()
-        }, 4000)
+            if (foreignOwner) return
+            if (!sockMissing && !keyMissing && !stateMissing) return
+            logForDebugging(
+              `[daemon] control plane degraded (sock:${sockMissing} key:${keyMissing} state:${stateMissing}) — re-asserting`,
+            )
+            await reassertControlKey(controlKey)
+            await writeSupervisorState({
+              pid: process.pid,
+              version: currentVersion(),
+              origin: 'transient',
+              startedAt,
+              dir,
+              controlSock: controlSockPath(),
+              proto: MERCURY_DAEMON_PROTO,
+              buildTree: bootBuildTree,
+              ownerPid: parseOwnerPid(),
+              foreground,
+              startToken: bootStartToken,
+            })
+            if (sockMissing) await controlServer?.rebind()
+          } catch (e) {
+            logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
+          } finally {
+            healInflight = false
+            if (healQueued) {
+              healQueued = false
+              void healCheck()
+            }
+          }
+        }
+        const planeHeal = setInterval(() => {
+          void healCheck()
+        }, PLANE_HEAL_FLOOR_MS)
         planeHeal.unref?.()
-        stopPlaneHeal = () => clearInterval(planeHeal)
+        const planeNames = new Set([
+          basename(controlKeyPath()),
+          basename(supervisorStatePath()),
+          ...(process.platform === 'win32' ? [] : [basename(controlSockPath())]),
+        ])
+        const planeDirs = new Set([dirname(controlKeyPath()), ...(process.platform === 'win32' ? [] : [dirname(controlSockPath())])])
+        let healSignal: ReturnType<typeof setTimeout> | undefined
+        const planeWatchers: FSWatcher[] = []
+        for (const planeDir of planeDirs) {
+          try {
+            const watcher = watchDir(planeDir, { persistent: false }, (_event, name) => {
+              if (name !== null && name !== undefined && !planeNames.has(String(name))) return
+              if (healSignal !== undefined) return
+              healSignal = setTimeout(() => {
+                healSignal = undefined
+                void healCheck()
+              }, PLANE_HEAL_COALESCE_MS)
+              healSignal.unref?.()
+            })
+            watcher.on('error', e => logForDebugging(`[daemon] plane watch on ${planeDir} failed (the floor keeps the heal): ${e}`))
+            planeWatchers.push(watcher)
+          } catch (e) {
+            logForDebugging(`[daemon] plane watch on ${planeDir} did not arm (the floor keeps the heal): ${e}`)
+          }
+        }
+        stopPlaneHeal = () => {
+          clearInterval(planeHeal)
+          if (healSignal !== undefined) clearTimeout(healSignal)
+          for (const watcher of planeWatchers) watcher.close()
+        }
       }
       {
         const armedBeat = setInterval(() => {
@@ -979,26 +1023,36 @@ async function daemonRun(args: string[]): Promise<void> {
         const liveShorts = new Set(
           roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
         )
-        reconcileConcourseWorkers(liveShorts)
+        const bootReconcile = reconcileConcourseWorkers(liveShorts)
+        let reconcileRosterSig = [...liveShorts].sort().join(' ')
+        let reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
+        let reconcileHadLive = bootReconcile.live.length > 0
         const reconcileTick = setInterval(() => {
           try {
             const live = new Set(
               roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
             )
-            reconcileConcourseWorkers(live)
+            const rosterSig = [...live].sort().join(' ')
+            const stamp = fileMoveStamp(concourseWorkersPath())
+            if (rosterSig !== reconcileRosterSig || stamp !== reconcileRecordsStamp || reconcileHadLive) {
+              reconcileRosterSig = rosterSig
+              const receipt = reconcileConcourseWorkers(live)
+              reconcileHadLive = receipt.live.length > 0
+              try {
+                sweepIdleEmptyConcourseSessions(roster ?? undefined)
+              } catch (e) {
+                logForDebugging(`[daemon] idle retirement sweep threw (ignored): ${e}`)
+              }
+              reconcileRecordsStamp = fileMoveStamp(concourseWorkersPath())
+            }
           } catch {
-          }
-          try {
-            sweepIdleEmptyConcourseSessions(roster ?? undefined)
-          } catch (e) {
-            logForDebugging(`[daemon] idle retirement sweep threw (ignored): ${e}`)
           }
           try {
             sweepIdleWarmRunners(warmDeps)
           } catch (e) {
             logForDebugging(`[daemon] warm runner sweep threw (ignored): ${e}`)
           }
-        }, 60_000)
+        }, RECONCILE_TICK_MS)
         reconcileTick.unref?.()
       }
     } catch (e) {
@@ -1032,10 +1086,10 @@ async function daemonRun(args: string[]): Promise<void> {
         }
       }
       idleNudges.clear()
-      if (ownerWatch) {
-        clearInterval(ownerWatch)
-        ownerWatch = undefined
-      }
+      ownerWatch?.stop()
+      ownerWatch = undefined
+      ownerPipe?.close()
+      ownerPipe = undefined
       if (roster) {
         for (const j of roster.list()) {
           if (!j.outcome) {
@@ -1132,37 +1186,28 @@ async function daemonRun(args: string[]): Promise<void> {
     const ownerPid = parseOwnerPid()
     const persist = isEnvTruthy(flagEnv('MERCURY_DAEMON_PERSIST'))
     if (ownerPid !== null && !persist) {
-      let deadStreak = 0
       const ownerStartToken = getProcessStartToken(ownerPid)
-      let ownerProbeInflight = false
-      ownerWatch = setInterval(() => {
-        if (ownerProbeInflight) return
-        ownerProbeInflight = true
-        void (async () => {
-          try {
-            const ownerAlive =
-              isProcessAlive(ownerPid) &&
-              ownerIdentityMatches(await getProcessStartTokenAsync(ownerPid), ownerStartToken)
-            deadStreak = ownerAlive ? 0 : deadStreak + 1
-            if (
-              decideOrphanShutdown({
-                ownerPid,
-                ownerAlive,
-                deadStreak,
-                graceChecks: OWNER_WATCH_GRACE_CHECKS,
-                persist: false,
-              })
-            ) {
-              // eslint-disable-next-line no-console
-              console.error(`[daemon] owner pid ${ownerPid} gone — parking every active session, then self-reaping (orphaned auto-start)`)
-              void parkAllThenShutdown('owner-orphaned')
-            }
-          } finally {
-            ownerProbeInflight = false
-          }
-        })()
-      }, OWNER_WATCH_INTERVAL_MS)
-      ownerWatch.unref?.()
+      ownerWatch = startOwnerWatch({
+        ownerPid,
+        baselineToken: ownerStartToken,
+        // eslint-disable-next-line no-console
+        log: line => console.error(line),
+        onOrphan: why => {
+          ownerPipe?.close()
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] owner pid ${ownerPid} gone (${why}) — parking every active session, then self-reaping (orphaned auto-start)`)
+          void parkAllThenShutdown('owner-orphaned')
+        },
+      })
+      const ownerFd = parseOwnerFd()
+      if (ownerFd !== null) {
+        // eslint-disable-next-line no-console
+        ownerPipe = armOwnerPipe(ownerFd, () => ownerWatch?.ownerPipeClosed(), line => console.error(line))
+        if (!ownerPipe.armed) {
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] owner pipe not armed (${ownerPipe.why ?? 'unknown'}) — the liveness beat and the minute identity probe watch alone`)
+        }
+      }
     }
   })
 }
@@ -1170,6 +1215,9 @@ async function daemonRun(args: string[]): Promise<void> {
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
 const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
+const PLANE_HEAL_FLOOR_MS = 30_000
+const PLANE_HEAL_COALESCE_MS = 250
+const RECONCILE_TICK_MS = 60_000
 
 function spawnSuccessorDaemon(): number | undefined {
   try {
