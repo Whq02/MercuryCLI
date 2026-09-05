@@ -9,6 +9,11 @@ import {
   DEEPSEEK_EFFORTS,
 } from '../deepseek/deepseekPins.js'
 
+export function thinkingOffWireEffort(vocabulary: readonly string[]): string | undefined {
+  if (vocabulary.length === 0) return undefined
+  return nearestSupportedWireEffort('none', vocabulary)
+}
+
 export interface LaneExtrasArgs {
   wireModel: string
   effortValue: string | undefined
@@ -66,8 +71,9 @@ export const OPENROUTER_REASONING_EFFORTS: readonly string[] = [
 export function buildOpenrouterExtras(
   args: LaneExtrasArgs & { vocabulary: readonly string[] },
 ): Record<string, unknown> {
-  const wireEffort =
-    args.thinkingEnabled && args.effortValue !== undefined && args.vocabulary.length > 0
+  const wireEffort = !args.thinkingEnabled
+    ? thinkingOffWireEffort(args.vocabulary)
+    : args.effortValue !== undefined && args.vocabulary.length > 0
       ? args.vocabulary.includes(args.effortValue)
         ? args.effortValue
         : nearestSupportedWireEffort(args.effortValue, args.vocabulary)
@@ -84,12 +90,15 @@ export const GEMINI_REASONING_EFFORTS: readonly string[] = ['low', 'medium', 'hi
 export function buildGeminiExtras(
   args: LaneExtrasArgs & { acceptsEffort: boolean },
 ): Record<string, unknown> {
-  const wireEffort =
-    args.acceptsEffort && args.thinkingEnabled && args.effortValue !== undefined
-      ? GEMINI_REASONING_EFFORTS.includes(args.effortValue)
-        ? args.effortValue
-        : nearestSupportedWireEffort(args.effortValue, GEMINI_REASONING_EFFORTS)
-      : undefined
+  const wireEffort = !args.acceptsEffort
+    ? undefined
+    : !args.thinkingEnabled
+      ? thinkingOffWireEffort(GEMINI_REASONING_EFFORTS)
+      : args.effortValue !== undefined
+        ? GEMINI_REASONING_EFFORTS.includes(args.effortValue)
+          ? args.effortValue
+          : nearestSupportedWireEffort(args.effortValue, GEMINI_REASONING_EFFORTS)
+        : undefined
   return {
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning_effort: wireEffort } : {}),
