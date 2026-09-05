@@ -9,6 +9,8 @@ import {
 } from '../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../services/compact/compact.js'
 import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
+import { isClearedOrDigested } from '../services/compact/microCompactDigest.js'
+import { getThinkingClearLatched } from '../bootstrap/state.js'
 import {
   classifyThinkingDrops,
   deadMarksFromDrops,
@@ -186,6 +188,19 @@ import { refreshGovernorCeilings } from '../services/capacity/composeCeilings.js
 import { count } from '../utils/array.js'
 
 const MAX_OUTPUT_TOKENS_RECOVERY_LIMIT = 3
+
+function historyCarriesClearedToolResult(messages: readonly Message[]): boolean {
+  for (const message of messages) {
+    if (message.type !== 'user') continue
+    const content = (message as { message?: { content?: unknown } }).message?.content
+    if (!Array.isArray(content)) continue
+    for (const block of content) {
+      const b = block as { type?: string; content?: never }
+      if (b.type === 'tool_result' && isClearedOrDigested(b.content)) return true
+    }
+  }
+  return false
+}
 
 type EventMint = ReturnType<typeof createEventMint>
 
@@ -591,15 +606,22 @@ async function* streamModel(
             if (!responsesClassified.has(message.message.id)) {
               rememberClassifiedResponse(message.message.id)
               const drops = inputTransformationsOf(message.message)
+              const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
+              const rewrite = prefixVerdict?.mismatch ?? null
               const outcome = classifyThinkingDrops(
                 String(ownerFromToolUseContext(toolUseContext)),
                 drops,
-                prefixMarkOf(iter.messagesForQuery, iter.currentModel, {
-                  permissionMode: toolUseContext.getAppState().toolPermissionContext.mode,
-                }),
+                prefixMarkOf(
+                  iter.messagesForQuery,
+                  iter.currentModel,
+                  { permissionMode: toolUseContext.getAppState().toolPermissionContext.mode },
+                  {
+                    thinkingClearActive: getThinkingClearLatched() === true,
+                    contextEditActive: historyCarriesClearedToolResult(iter.messagesForQuery),
+                  },
+                ),
+                { byteMoved: rewrite !== null },
               )
-              const prefixVerdict = takePrefixVerdict(String(rosterOwnerFromToolUseContext(toolUseContext)))
-              const rewrite = prefixVerdict?.mismatch ?? null
               if (rewrite !== null && outcome.kind !== 'none' && outcome.lawful === null) outcome.part = rewrite.part
               if (outcome.kind !== 'none') {
                 recordThinkingDropLedger(outcome, iter.currentModel)
