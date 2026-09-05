@@ -48,9 +48,8 @@ if (g) {
     const line = rows[my]!
     const text = line.join('')
     check('mission text is truncated (carries …)', text.includes('…'))
-    const inner = text.replace(/[│╮╯├┤╭╰]\s*$/, '')
-    const nameMatch = /(\S[^│]*?)\s*$/.exec(inner)
-    const rightName = nameMatch ? nameMatch[1]!.trim() : ''
+    const afterEllipsis = text.slice(text.indexOf('…') + 1)
+    const rightName = afterEllipsis.replace(/[│╮╯├┤╭╰].*$/, '').trim()
     check('the session\'s name sits on the mission row (never a clock)', rightName !== '' && !/\d\d:\d\d:\d\d/.test(text), `right segment: "${rightName}"`)
     let border = -1
     for (let x = g.cols - 1; x >= 0; x--) {
