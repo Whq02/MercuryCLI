@@ -580,6 +580,7 @@ async function summarizeViaCacheSharingFork(
 ): Promise<AssistantMessage | null> {
   const bound = armFoldBound(context.abortController.signal)
   try {
+    context.setResponseLength?.(() => 0)
     const result = await runForkedAgent({
       promptMessages: [promptMessage],
       cacheSafeParams: { ...cacheSafeParams, forkContextMessages: messages },
@@ -588,6 +589,14 @@ async function summarizeViaCacheSharingFork(
       forkLabel: 'compact',
       maxTurns: 1,
       skipCacheWrite: true,
+      onStreamEvent: event => {
+        bound.touch()
+        const inner = event as { type?: string; delta?: { type?: string; text?: string } }
+        if (inner.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
+          const length = inner.delta.text?.length ?? 0
+          context.setResponseLength?.(prev => prev + length)
+        }
+      },
       overrides: {
         abortController: bound.controller,
         getAppState: () => {
