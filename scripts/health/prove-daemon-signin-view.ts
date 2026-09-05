@@ -188,7 +188,7 @@ try {
     const health = readFileSync(join(REPO, 'src', 'utils', 'healthReport.ts'), 'utf8')
     const row = health.slice(health.indexOf("id: 'daemon-sign-ins'"), health.indexOf("id: 'daemon',"))
     check('the row exists once, ahead of the scheduler-daemon row', row.length > 0 && health.split("id: 'daemon-sign-ins'").length === 2)
-    check('an unanswered verb reads warn and names the restart', /status: 'warn'/.test(row) && /did not answer signIns/.test(row) && /const restart = `restart the daemon: \\`\$\{binaryName\(\)\} daemon restart\\``/.test(row))
+    check('an unanswered verb reads warn and names the restart', /status: 'warn'/.test(row) && /did not answer signIns/.test(row) && /const restart = restartDaemonWords\(binaryName\(\)\)/.test(row))
     check('the comparison is the one owner\'s (compareSignInViews), never a hand table', row.includes('compareSignInViews(mine, reply.view)') && row.includes('composeSignInView()'))
     check('the fail arm carries both lists and the restart', /status: 'fail'/.test(row) && /daemon: \[/.test(row) && /client: \[/.test(row) && /fix: `\$\{restart\}/.test(row))
   }
