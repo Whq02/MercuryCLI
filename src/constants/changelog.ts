@@ -60,6 +60,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Sub-agents now tell you once how they ended, with the real cause and what they wrote; a timeout is never blamed on you; the id in a launch receipt works with SendMessage
 - After a switch back to a model you used earlier, Mercury notes the dropped older reasoning once, instead of repeating it every turn with a growing count
 - After a model switch or a context trim, Mercury shows one quiet grey line the first time it drops old reasoning, never a repeating warning on every message
+- A failed background compaction no longer makes Mercury falsely warn that it rewrote your history
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
