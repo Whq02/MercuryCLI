@@ -11,6 +11,7 @@ export default {
     const facts = focusedSessionModelFacts()
     if (facts === null || facts.effort === null || facts.effort === undefined) return undefined
     if (!modelSupportsEffort(facts.effective)) return undefined
+    if (facts.effortSent !== undefined && facts.effortSent !== null) return facts.effortSent
     return resolveStampedEffortTruth(facts.effective, parseEffortValue(facts.effort)).label
   },
   argumentHint: `[${EFFORT_LEVELS.join('|')}|supercode|auto]`,
