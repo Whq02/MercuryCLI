@@ -205,6 +205,18 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   judgeAndRecordPrefix('prune', KEY, prunedView as never)
   const prunedVerdict = judgeAndRecordPrefix('prune', KEY, prunedView as never)
   check('two consecutive post-prune requests compare identical — the ledger names no byte move (the classifier names the prune instead)', prunedVerdict.mismatch === null, j(prunedVerdict.mismatch))
+
+  resetPrefixLedger()
+  const OWN = 'conv-r2'
+  const MK = 'conv-r2|row-1|claude-fable-5-1'
+  const mainReq = { system: SYSTEM, tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('second prompt'))] }
+  judgeAndRecordPrefix(OWN, MK, mainReq as never)
+  takePrefixVerdict(OWN)
+  const foldReq = { system: [{ type: 'text', text: 'SUMMARISE the conversation so far into a single message.' }], tools: TOOLS, messages: [user(TEXT('first prompt')), assistant(THINK('one'), TEXT('a')), user(TEXT('summary instruction'))] }
+  const foldVerdict = judgeAndRecordPrefix(OWN, MK, foldReq as never, [], { replaceRecord: false })
+  check('R2 the fold request is judged (a debug line) but never becomes the record', foldVerdict.mismatch !== null && pendingPrefixVerdict(OWN) === null && prefixRecordFor(OWN)?.whole !== undefined, `mismatch=${j(foldVerdict.mismatch?.part)} pending=${pendingPrefixVerdict(OWN) === null}`)
+  const nextMain = judgeAndRecordPrefix(OWN, MK, { ...mainReq, messages: [...mainReq.messages, assistant(THINK('two'), TEXT('b')), user(TEXT('third prompt'))] } as never)
+  check('R2 the next main request compares clean against the ORIGINAL record — no false "system prompt (block N added)" rewrite', nextMain.mismatch === null, j(nextMain.mismatch))
 }
 
 section('§2 the words and the doctor — the receipts carry the named part')
@@ -444,7 +456,7 @@ if (!existsSync(DIST)) {
       const dropSeq = reqs.map(dropsOf)
       check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
-      check('[switch] the dead blocks are off the wire from the request after the switch-back (the strip persisted across the --model processes)', thinkingPer[4]! < thinkingPer[3]! + 2 && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
+      check('[switch] the request after the switch-back carries strictly fewer thinking blocks (the dead ones stripped, the record on disk before the process ended)', thinkingPer[4]! < thinkingPer[3]! && !j(reqs[4]!.messages).includes('fable one') && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
       const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
       const notices = transcriptNotices(arena, SID)
