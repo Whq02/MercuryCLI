@@ -143,6 +143,10 @@ export function seatReadingInputsWords(sample: SeatReadingSample): string {
 
 export function describeSeatReading(ceiling: number): string {
   const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
+  const operator = operatorSeatsOf(decision)
+  if (operator !== null && operator === ceiling) {
+    return `the ceiling you set: ${ceiling} seat${ceiling === 1 ? '' : 's'}`
+  }
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
   if (
     typeof stored === 'number' &&
@@ -248,23 +252,23 @@ export function capacityDecisionReceipt(allowed: boolean, recommendedSeats: numb
 }
 
 export function needsCapacityAsk(): boolean {
-  return getGlobalConfig().switchboardCapacity === undefined
+  return getGlobalConfig().switchboardCapacity?.askedAt === undefined
 }
 
 export async function recordCapacityDecision(
   allowed: boolean,
 ): Promise<{ allowed: boolean; recommendedSeats: number }> {
   if (!allowed) {
-    saveGlobalConfig(c => ({
-      ...c,
-      switchboardCapacity: { askedAt: Date.now(), allowed: false },
-    }))
+    saveGlobalConfig(c => {
+      const { recommendedSeats: _dropped, ...rest } = c.switchboardCapacity ?? {}
+      return { ...c, switchboardCapacity: { ...rest, askedAt: Date.now(), allowed: false } }
+    })
     return { allowed: false, recommendedSeats: heldMachineSeatReading() }
   }
   const recommendedSeats = recommendSeats(await probeCapacity())
   saveGlobalConfig(c => ({
     ...c,
-    switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats },
+    switchboardCapacity: { ...c.switchboardCapacity, askedAt: Date.now(), allowed: true, recommendedSeats },
   }))
   return { allowed: true, recommendedSeats }
 }
@@ -273,28 +277,109 @@ export function resolveSeatCeiling(): number {
   return seatCeilingFacts().seats
 }
 
-export type SeatCeilingSource = 'consented' | 'machine'
+export type SeatCeilingSource = 'operator' | 'consented' | 'machine'
 
 export interface SeatCeilingFacts {
   seats: number
   source: SeatCeilingSource
   sentence: string
   lever: string
+  reading: number
+  readingSentence: string
+  consented: number | null
+}
+
+type CapacityDecision = NonNullable<ReturnType<typeof getGlobalConfig>['switchboardCapacity']>
+
+function operatorSeatsOf(decision: CapacityDecision | undefined): number | null {
+  const n = decision?.operatorSeats
+  return typeof n === 'number' && Number.isFinite(n) && n >= 1 ? Math.floor(n) : null
+}
+
+export function operatorSeatsStored(): number | null {
+  return operatorSeatsOf(isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined)
 }
 
 export function seatCeilingFacts(): SeatCeilingFacts {
   const decision = isConfigReadingAllowed() ? getGlobalConfig().switchboardCapacity : undefined
+  const operator = operatorSeatsOf(decision)
   const stored = decision?.allowed === true ? decision.recommendedSeats : undefined
-  const consented = typeof stored === 'number' && Number.isFinite(stored)
-  const seats = consented ? Math.max(1, Math.floor(stored)) : heldMachineSeatReading()
+  const consented = typeof stored === 'number' && Number.isFinite(stored) ? Math.max(1, Math.floor(stored)) : null
+  const reading = heldMachineSeatReading()
+  const seats = operator ?? consented ?? reading
   return {
     seats,
-    source: consented ? 'consented' : 'machine',
+    source: operator !== null ? 'operator' : consented !== null ? 'consented' : 'machine',
     sentence: describeSeatReading(seats),
     lever: seatCeilingLever(),
+    reading,
+    readingSentence: machineReadingSentence(reading),
+    consented,
   }
 }
 
-export function seatCeilingLever(): string {
-  return `set switchboardCapacity.recommendedSeats in ${displayConfigHome()}/.mercury.json with Mercury closed`
+export function machineReadingSentence(reading: number = heldMachineSeatReading()): string {
+  const sample = heldMachineSeatFacts().sample
+  const inputs = sample !== null ? ` (${seatReadingInputsWords(sample)})` : ''
+  return `this machine's reading: ${reading} seat${reading === 1 ? '' : 's'}${inputs}`
 }
+
+export const SEAT_DOORS = "/seats N in a chat, the Seats row of the Boot Menu, or the Seats row of /config (one setting; /seats auto returns to the machine's reading)"
+
+export function seatCeilingLever(): string {
+  return `set the ceiling with ${SEAT_DOORS} — it applies to the next admission at once`
+}
+
+export function seatSourceWords(source: SeatCeilingSource): string {
+  return source === 'operator' ? 'set by you' : source === 'consented' ? 'the first-boot probe' : "this machine's reading"
+}
+
+export function seatCeilingValueWords(facts: SeatCeilingFacts = seatCeilingFacts()): string {
+  return `${facts.seats} · ${seatSourceWords(facts.source)}`
+}
+
+export function seatCostWarning(facts: SeatCeilingFacts = seatCeilingFacts()): string | null {
+  if (facts.seats <= facts.reading) return null
+  return `above ${facts.readingSentence} — each seat is a model call and, in the concourse, a runner process of about ${Math.round(SEAT_COST_BYTES.runner / MB)} MB; past the reading the machine may swap`
+}
+
+export function seatCeilingDetailLines(facts: SeatCeilingFacts = seatCeilingFacts()): string[] {
+  const lines = [
+    `ceiling ${seatCeilingValueWords(facts)}`,
+    facts.readingSentence,
+    ...(facts.consented !== null ? [`the first-boot probe stored ${facts.consented} seat${facts.consented === 1 ? '' : 's'}`] : []),
+    `a seat is one model call in flight; in the concourse, a session runner of about ${Math.round(SEAT_COST_BYTES.runner / MB)} MB`,
+  ]
+  const warning = seatCostWarning(facts)
+  if (warning !== null) lines.push(warning)
+  lines.push(`doors: ${SEAT_DOORS}`)
+  return lines
+}
+
+export function setOperatorSeats(seats: number | null): SeatCeilingFacts {
+  const next = seats === null ? null : Math.max(1, Math.floor(seats))
+  saveGlobalConfig(c => {
+    const block = { ...(c.switchboardCapacity ?? {}) }
+    if (next === null) delete block.operatorSeats
+    else block.operatorSeats = next
+    return { ...c, switchboardCapacity: block }
+  })
+  return seatCeilingFacts()
+}
+
+export const SEATS_MENU_ROW = {
+  env: 'seats',
+  label: 'Seats',
+  group: 'miscellaneous',
+  kind: 'string',
+  options: [],
+  defaultLabel: 'auto',
+  applicationClass: 'live',
+  summary: 'how many model calls may be in flight at once across your sessions, sub-agents and workflow agents — the machine reads it; you can set it',
+  detail: {
+    controls:
+      "The seat ceiling: sessions the daemon admits, and the sub-agents and workflow agents a session runs at once, share this one number. A seat is held only while a model call is in flight — an idle agent holds none. → raises it by one, ← lowers it, ⌫ returns to the machine's reading (available memory over a runner's cost, two seats a core). Applies to the next admission at once.",
+    on: ['every seat runs a model call; past the machine\'s reading each seat may cost a runner process of memory the machine does not have'],
+    off: ["the machine's own reading decides — it rises as memory frees and never falls under the seats already sitting"],
+  },
+} as const

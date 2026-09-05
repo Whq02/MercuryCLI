@@ -64,9 +64,10 @@ export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = process.env): num
 }
 
 export function seatsForProcess(): { seats: number; source: SeatCeilingSource | 'inherited' } {
+  const facts = seatCeilingFacts()
+  if (facts.source === 'operator') return { seats: facts.seats, source: 'operator' }
   const inherited = inheritedSeatsFromEnv({ MERCURY_SEATS: flagEnv('MERCURY_SEATS') ?? '' })
   if (inherited !== null) return { seats: inherited, source: 'inherited' }
-  const facts = seatCeilingFacts()
   return { seats: facts.seats, source: facts.source }
 }
 
