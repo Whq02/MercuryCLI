@@ -1,6 +1,8 @@
 
 import { findGodotProjectRoot, probeGodotEditorReachable, godotDapPort, godotLspPort, mercuryGodotEnabled } from '../lsp/godotLane.js'
 import { vulcanEnabled, vulcanLiteMode, vulcanPort } from '../../utils/vulcan/vulcanGates.js'
+import { presenceNudge, probeGodotEditorPresence } from './editorPresence.js'
+import type { GodotProcess } from './godotProcessCensus.js'
 import { getVulcanClient } from './vulcanClient.js'
 import { vulcanInstallStatus } from './addonInstaller.js'
 
@@ -23,6 +25,7 @@ export interface GodotProviderRow {
 
 export async function godotProviderInventory(
   projectRoot: string,
+  opts: { census?: { ok: boolean; processes: GodotProcess[] } } = {},
 ): Promise<GodotProviderRow[]> {
   const now = Date.now()
   const rows: GodotProviderRow[] = []
@@ -47,16 +50,16 @@ export async function godotProviderInventory(
           failureReason: 'addon not installed in this project (op:"vulcan_install")',
         })
       } else {
-        const reachable = await probeGodotEditorReachable(port)
+        const presence = await probeGodotEditorPresence(projectRoot, port, opts.census)
         const client = getVulcanClient()
         rows.push({
           id: 'vulcan', source: 'mercury_vulcan editor addon', endpoint: `127.0.0.1:${port}`,
           capabilities: caps,
-          state: reachable ? 'ready' : 'not-answering', observedAt: now,
-          ...(reachable
+          state: presence.reachable ? 'ready' : 'not-answering', observedAt: now,
+          ...(presence.reachable
             ? {}
-            : { failureReason: `addon installed${install.enabled ? '' : ' but NOT enabled'}; the editor is not answering — is it running with the project open?` }),
-          ...(client && reachable ? {} : {}),
+            : { failureReason: `addon installed${install.enabled ? '' : ' but NOT enabled'}; ${presence.words} — ${presenceNudge(presence, install)}` }),
+          ...(client && presence.reachable ? {} : {}),
         })
       }
     }

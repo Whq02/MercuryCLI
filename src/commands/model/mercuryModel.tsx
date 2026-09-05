@@ -48,6 +48,7 @@ import { slotSeatView, switchActiveSlot, type SwitchableFamily } from '../../ser
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { has1mContext } from '../../utils/context.js'
 import {
+  type EffortLevel,
   type EffortValue,
   getDisplayedEffortLabel,
   modelSupportsEffort,
@@ -143,6 +144,7 @@ function MercuryModelWrapper({
     if (mode === 'supercode') {
       unpinAllLaunchEffort()
       updateSettingsForSource('userSettings', { effortLevel: 'max', supercodeEffort: true })
+      if (settleOnSeat('max', () => setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true })))) return
       setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true }))
       return
     }
@@ -150,12 +152,34 @@ function MercuryModelWrapper({
     const persistable = toPersistableEffort(mode as EffortValue)
     if (persistable !== undefined) {
       updateSettingsForSource('userSettings', { effortLevel: persistable, supercodeEffort: undefined })
+      if (settleOnSeat(persistable, () => setAppState(prev => ({ ...prev, effortValue: persistable, supercode: false })))) return
     }
     setAppState(prev => ({
       ...prev,
       effortValue: mode as EffortValue,
       supercode: false,
     }))
+  }
+
+  function settleOnSeat(level: EffortLevel, mirror: () => void): boolean {
+    const focused = getFocusedSessionConnector()
+    if (focused.carrier !== 'daemon') return false
+    void focused.setEffort(level).then(receipt => {
+      if (receipt.state === 'refused') {
+        setEffort(initialEffort)
+        setNotice(`The effort switch was refused: ${receipt.detail}`)
+        return
+      }
+      mirror()
+      setNotice(
+        receipt.state === 'queued'
+          ? `Effort switch queued: ${level} applies when this session's turn settles`
+          : receipt.state === 'no-op'
+            ? `Already on ${level}`
+            : `Effort set to ${level} — this session's next request runs it`,
+      )
+    })
+    return true
   }
 
   const options = getModelOptions()

@@ -10,6 +10,7 @@ import {
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
 import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { crewWaitingWords } from '../services/engine-connector/crewFacts.js'
+import { workWaitingWords } from '../services/engine-connector/workCounts.js'
 import { requestWaitLine } from '../services/providers/streamIdleBudget.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { stringWidth } from '../ink/stringWidth.js'
@@ -43,7 +44,7 @@ export function statusLine(live: SessionLiveV1, s: SeatStatusV1): string {
     return `${requestWaitLine(s.wait)}${waited}${late}`
   }
   if (live.phase === 'waiting') {
-    return crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
+    return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
   }
   if (s.stuck && s.quietMs !== null && s.watchdogMs !== null) {
     return `no stream events for ${statusDuration(s.quietMs)} — the session may be stuck (the watchdog aborts at ${statusDuration(s.watchdogMs)})`

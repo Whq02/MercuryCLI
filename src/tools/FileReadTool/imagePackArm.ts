@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 export const IMAGE_PACK_PATH = 'vendor/image-processor'
 
 export function imagePackPlatform(platform: string = process.platform, arch: string = process.arch): string {
-  const libc = platform === 'linux' && isMusl() ? 'musl' : ''
+  const libc = platform === 'linux' && platform === process.platform && isMusl() ? 'musl' : ''
   return `${platform}${libc}-${arch}`
 }
 

@@ -61,6 +61,7 @@ if (existsSync(dist) && existsSync(manifestPath)) {
 
 check('linux asset name matches the packager grammar', assetNameFor(VERSION, 'linux', 'x64') === `mercury-v${VERSION}-linux-x64.tar.gz`)
 check('macos asset name matches the packager grammar', assetNameFor(VERSION, 'darwin', 'arm64') === `mercury-v${VERSION}-macos-arm64.tar.gz`)
+check('intel macos asset name matches the packager grammar', assetNameFor(VERSION, 'darwin', 'x64') === `mercury-v${VERSION}-macos-x64.tar.gz`)
 check('windows asset name matches the packager grammar', assetNameFor(VERSION, 'win32', 'x64') === `mercury-v${VERSION}-windows-x64.zip`)
 const packager = readFileSync(join(ROOT, 'scripts', 'release', 'package.mjs'), 'utf8')
 check('packager derives NAME from the root', packager.includes('mercury-v${VERSION}-${TARGET}'))
