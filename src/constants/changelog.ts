@@ -34,6 +34,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - The GPT-5.6 rows price at today's pricing page: input, cached, cache-write and output per model, and the same over-272K long-context tier as GPT-6 Astra
 - Release archives are signed with the release key and verified before they publish; an unsigned build is a named decision, said once per install; the archive carries the licence documents
 - A repeat mercury install of the version already in place says so instead of narrating staging and activating again
+- A piped doctor --json prints exactly one record and exits with the verdict's code even when the reader drains slowly
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
