@@ -51,10 +51,21 @@ function jsonOk(model: string): string {
 interface Fixture {
   base: string
   probes: number
+  holds: number
+  asks: string[]
   close(): Promise<void>
 }
+const HOLD_ASK = 'hold this turn'
+const HOLD_MS = 5_000
+function lastUserText(body: { messages?: Array<{ role?: string; content?: unknown }> }): string {
+  const last = [...(body.messages ?? [])].reverse().find(m => m.role === 'user')
+  const content = last?.content
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return (content as Array<{ type?: string; text?: string }>).filter(p => p.type === 'text' && typeof p.text === 'string').map(p => p.text as string).join('\n')
+}
 async function startFixture(): Promise<Fixture> {
-  const state = { probes: 0 }
+  const state = { probes: 0, holds: 0, asks: [] as string[] }
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
@@ -65,7 +76,7 @@ async function startFixture(): Promise<Fixture> {
         res.end('{}')
         return
       }
-      let body: { model?: string; stream?: boolean; max_tokens?: number } = {}
+      let body: { model?: string; stream?: boolean; max_tokens?: number; tools?: unknown[]; messages?: Array<{ role?: string; content?: unknown }> } = {}
       try {
         body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as typeof body
       } catch {
@@ -73,6 +84,8 @@ async function startFixture(): Promise<Fixture> {
       }
       const model = typeof body.model === 'string' ? body.model : 'fixture'
       const streaming = body.stream === true
+      const ask = lastUserText(body)
+      if (Array.isArray(body.tools) && body.tools.length > 0) state.asks.push(ask)
       if (process.env.FIELD_KEEP === '1') console.log(`[fixture] ${req.method} ${url} model=${model} stream=${String(body.stream)} max_tokens=${String(body.max_tokens)}`)
       const answer = (): void => {
         if (streaming) {
@@ -82,6 +95,15 @@ async function startFixture(): Promise<Fixture> {
           res.writeHead(200, { 'content-type': 'application/json' })
           res.end(jsonOk(model))
         }
+      }
+      if (streaming && Array.isArray(body.tools) && body.tools.length > 0 && ask.includes(HOLD_ASK)) {
+        state.holds++
+        const frames = streamedOk(model)
+        const cut = frames.indexOf('event: content_block_delta')
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
+        res.write(frames.slice(0, cut))
+        setTimeout(() => res.end(frames.slice(cut)), HOLD_MS)
+        return
       }
       if (model.includes(FIRST_PROBE_MARK)) {
         state.probes++
@@ -98,6 +120,12 @@ async function startFixture(): Promise<Fixture> {
     base: `http://127.0.0.1:${port}`,
     get probes() {
       return state.probes
+    },
+    get holds() {
+      return state.holds
+    },
+    get asks() {
+      return state.asks
     },
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
@@ -343,9 +371,63 @@ async function keybindingLeg(): Promise<void> {
   rmSync(cwd, { recursive: true, force: true })
 }
 
+const RECALL_WORDS = 'the words to take back'
+const RECALL_DIGEST = _createHash('sha256').update(RECALL_WORDS).digest('hex').slice(0, 8)
+
+async function recallLeg(): Promise<void> {
+  console.log('\n— recall: ↑ pulls a queued line back into the composer; the census keeps two roads —')
+  const fixture = await startFixture()
+  const { home, cwd } = seedWorld()
+  const tracePath = join(home, 'submit-trace.jsonl')
+  let cap: Capture
+  try {
+    cap = await capture(
+      {
+        cols: COLS,
+        rows: ROWS,
+        total: 300,
+        cwd,
+        argv: ['node', DIST],
+        sends: [
+          ...bootSends,
+          { data: `${HOLD_ASK}\r`, afterPrevTicks: 2 },
+          { data: `${RECALL_WORDS}\r`, afterPrevTicks: 8, mark: 'words-sent' },
+          { data: '', afterPrevTicks: 4, mark: 'queued' },
+          { data: '\x1b[A', afterPrevTicks: 1 },
+          { data: '', afterPrevTicks: 4, mark: 'recalled' },
+          { data: '', afterPrevTicks: Math.ceil(HOLD_MS / 200) + 8, mark: 'settled' },
+          { data: '\r', afterPrevTicks: 1 },
+          { data: '', afterPrevTicks: 14, mark: 'resent' },
+        ],
+        stableTicks: 5,
+      },
+      { ...driveEnv(home, fixture.base), MERCURY_SUBMIT_TRACE: tracePath },
+    )
+  } finally {
+    await fixture.close()
+  }
+  const { marks } = cap
+  if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`recall · ${label}`, frame)
+  const composerLine = (frame: string): string | undefined => frame.split('\n').find(line => /^│❯ /.test(line))
+  check('recall: the held turn kept the session busy (the fixture held one stream)', fixture.holds === 1, `${fixture.holds} holds`)
+  check('recall: the words painted as the QUEUED row while the turn ran', /queued\s+\[sam\] ❯ the words to take back/.test(marks['queued'] ?? ''), flat(marks['queued'] ?? '').match(/[^│]*take back[^│]*/)?.[0] ?? 'no row')
+  check('recall: after ↑ the composer holds the words and the queued row is gone', (composerLine(marks['recalled'] ?? '') ?? '').includes(RECALL_WORDS) && !/queued\s+\[sam\] ❯ the words to take back/.test(marks['recalled'] ?? ''), composerLine(marks['recalled'] ?? '') ?? 'no composer line')
+  check('recall: the turn settled with the words still in the composer (nothing drained behind it)', (composerLine(marks['settled'] ?? '') ?? '').includes(RECALL_WORDS), composerLine(marks['settled'] ?? '') ?? 'no composer line')
+  const rows = submitRows(tracePath).filter(r => r.digest === RECALL_DIGEST)
+  check('recall: the census carries the words as two composer submits and two connector deliveries (the send, the re-send)', rows.filter(r => r.site === 'repl-onSubmit').length === 2 && rows.filter(r => r.site === 'connector-deliver').length === 2, rows.map(r => r.site).join(' ') || 'no rows')
+  check('recall: no other writer submitted the words — the recall added no road', rows.every(r => r.site === 'repl-onSubmit' || r.site === 'connector-deliver'), rows.map(r => r.site).join(' '))
+  const carrying = fixture.asks.map((ask, i) => [i, ask] as const).filter(([, ask]) => ask.includes(RECALL_WORDS))
+  check('recall: the wire carried the words exactly once — the re-send, as the conversation\'s last ask', carrying.length === 1 && carrying[0]![0] === fixture.asks.length - 1, JSON.stringify(fixture.asks.map(a => a.slice(0, 40))))
+  if (failures > 0 && process.env.FIELD_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`recall · ${label}`, frame)
+  if (failures > 0 || process.env.FIELD_KEEP === '1') dump('recall · final grid', cap.text)
+  rmSync(home, { recursive: true, force: true })
+  rmSync(cwd, { recursive: true, force: true })
+}
+
 await leg('law')
 await leg('tight')
 if (LEG === 'all' || LEG === 'keybinding') await keybindingLeg()
+if (LEG === 'all' || LEG === 'recall') await recallLeg()
 
 console.log(failures === 0 ? '\nprove-field-findings-commands: ALL LAWS HOLD' : `\nprove-field-findings-commands: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
