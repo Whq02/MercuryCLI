@@ -78,6 +78,7 @@ const ASKING = 'git commit --allow-empty -q -m agent-bash-probe'
 const ALLOW_RULES = ['Bash(git commit:*)']
 const DENY_RULES = ['Bash(git commit:*)']
 const ASK_RULES = ['Bash(git commit:*)']
+const ASK_TOOL_RULES = ['Bash']
 
 const bashTool = {
   name: 'Bash',
@@ -86,7 +87,7 @@ const bashTool = {
     bashToolHasPermission(input as never, context.getAppState().toolPermissionContext as never),
 }
 
-type Rules = 'none' | 'allow' | 'deny' | 'ask'
+type Rules = 'none' | 'allow' | 'deny' | 'ask' | 'ask-tool'
 type Mode = 'default' | 'flow' | 'autopilot' | 'sovereign' | 'dontAsk'
 type Subject = 'main' | 'fg-agent' | 'bg-agent' | 'main-headless' | 'bg-agent-of-headless' | 'main-print' | 'fg-agent-of-print' | 'bg-agent-of-print'
 const PEER: Record<Subject, Subject> = {
@@ -108,7 +109,7 @@ function parentState(mode: Mode, rules: Rules, headless: boolean): Record<string
       mode,
       alwaysAllowRules: rules === 'allow' ? { userSettings: ALLOW_RULES } : {},
       alwaysDenyRules: rules === 'deny' ? { userSettings: DENY_RULES } : {},
-      alwaysAskRules: rules === 'ask' ? { userSettings: ASK_RULES } : {},
+      alwaysAskRules: rules === 'ask' ? { userSettings: ASK_RULES } : rules === 'ask-tool' ? { userSettings: ASK_TOOL_RULES } : {},
       isBypassPermissionsModeAvailable: mode === 'autopilot' || mode === 'sovereign',
       ...(headless ? { shouldAvoidPermissionPrompts: true } : {}),
     },
@@ -245,6 +246,9 @@ const ROWS: Row[] = [
     headless: { behavior: 'deny', wrapper: 'headlessAutoDeny', classifier: 0 },
   },
   { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
+  { label: 'default · whole-tool ask rule → the 1b road asks, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRule', classifier: 0 } },
+  { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
+  { label: 'autopilot · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
   { label: 'autopilot · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
   { label: 'flow · ask rule · simple command → the floor keeps the human ask; no classifier', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule', classifier: 0 } },
 ]

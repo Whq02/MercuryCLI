@@ -4,6 +4,7 @@ import type {
   PermissionMode,
   PermissionResult,
 } from '../../types/permissions.js'
+import { BYPASSED_ASK_ROAD_WORDS } from '../../types/permissions.js'
 
 export interface PermissionResultWireV1 {
   [key: string]: unknown
@@ -15,7 +16,7 @@ export type DecisionReasonWireV1 =
   | { type: 'subcommandResults'; reasons: Array<[string, PermissionResultWireV1]> }
   | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: DecisionReasonWireV1 }
 
-const BYPASSED_ASK_ROADS: ReadonlySet<string> = new Set(['contentAskRule', 'orgAskCeiling', 'safetyCheckAsk'])
+const BYPASSED_ASK_ROADS: ReadonlySet<string> = new Set(Object.keys(BYPASSED_ASK_ROAD_WORDS))
 
 export function encodeDecisionReasonForWire(
   reason: PermissionDecisionReason | undefined,
