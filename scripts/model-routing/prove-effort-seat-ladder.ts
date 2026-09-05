@@ -141,6 +141,30 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
   check('the turn machine paints the receipt row from the stamp, once per thread and word pair', machine.includes('const adjusted = settled.effortAdjusted') && machine.includes('effortAdjustedReceiptLine(adjusted)') && /effortAdjustmentsReceipted\.has\(key\)/.test(machine))
 }
 
+console.log('\n— the sent word: resolved · no key · unresolved —')
+{
+  const { effortSentOf } = await import('../../src/services/engine-connector/seatProjections.ts')
+  const live = { supportsEffort: true, wire: 'xhigh', catalogue: 'gpt-live' } as const
+  const unstated = { supportsEffort: true, wire: undefined, catalogue: 'gpt-unstated' } as const
+  const unavailable = { supportsEffort: true, wire: undefined, catalogue: 'gpt-unavailable' } as const
+  const noKey = { supportsEffort: false, wire: undefined, catalogue: 'gpt-known-empty' } as const
+  check('a served ladder resolves to the wire word (the nearest served word for the asked one)', effortSentOf(live) === 'xhigh')
+  check("an UNFETCHED ladder is UNRESOLVED — the key absent (undefined), never the no-key spelling", effortSentOf(unstated) === undefined)
+  check('an unreachable catalogue sends no key (null) — the wire omits it', effortSentOf(unavailable) === null)
+  check('a model that takes no effort sends no key (null)', effortSentOf(noKey) === null)
+  const read = (rel: string): string => readFileSync(rel, 'utf8')
+  const print = read('src/cli/print.ts')
+  check("the runner's facts answer spells the sent word through the one owner, leaving the key ABSENT while unresolved", print.includes('effortSentOf(resolveEffortTruth(') && print.includes("return sent === undefined ? {} : { effortSent: sent }"))
+  const hook = read('src/hooks/useDisplayedSessionModel.ts')
+  check('the screen\'s hook keeps the three states (unresolved · none · sent)', hook.includes("return 'unresolved'") && hook.includes("return 'none'") && hook.includes("if (sent === 'unresolved') return undefined"))
+  const chip = read('src/components/mercury-ui/EffortChip.tsx')
+  check('the chip paints the asked word AS asked while the sent word is unresolved — never a resolution of its own over a seat', chip.includes("const askedOnly = sentEffort === undefined && stamped !== undefined") && chip.includes('`${String(stamped)} (asked)`'))
+  const column = read('src/commands/effort/index.ts')
+  check('the /effort value column paints the asked word AS asked while unresolved', column.includes("if (facts.effortSent === undefined) return `${facts.effort} (asked)`"))
+  const readout = read('src/commands/effort/effort.tsx')
+  check('the /effort readout says the word is asked while the seat has not sent a request', readout.includes('(asked — the seat has not sent a request yet)'))
+}
+
 for (const [key, value] of Object.entries(savedEnv)) {
   if (value === undefined) delete process.env[key]
   else process.env[key] = value
