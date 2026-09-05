@@ -47,7 +47,7 @@ import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
-import { getModelMaxOutputTokens, servesPerMessageEffort } from '../../utils/model/capabilities.js'
+import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { checkFeatureGate_CACHED_MAY_BE_STALE, getFeatureValue_CACHED_MAY_BE_STALE } from '../analytics/featureGates.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
@@ -729,9 +729,10 @@ async function streamingFallbackAttempts(
   context: ToolUseContext,
   bound: FoldBound,
 ): Promise<AssistantMessage> {
-  const attempts = checkFeatureGate_CACHED_MAY_BE_STALE('mercury_compact_streaming_retry') ? 2 : 1
+  let attempts = checkFeatureGate_CACHED_MAY_BE_STALE('mercury_compact_streaming_retry') ? 2 : 1
   const model = context.options.mainLoopModel
   let streamingStarted = false
+  let rowRefusalRetried = false
   for (let attempt = 1; attempt <= attempts; attempt++) {
     streamingStarted = false
     context.setResponseLength?.(() => 0)
@@ -802,6 +803,16 @@ async function streamingFallbackAttempts(
       }
     } catch (err) {
       if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
+    if (captured?.isApiErrorMessage === true && !rowRefusalRetried && foldEffortMessageFor(model) !== undefined) {
+      const words = typeof captured.message.content === 'string' ? captured.message.content : captured.message.content.map(block => ((block as { text?: string }).text ?? '')).join('\n')
+      if (refusesPerMessageEffortRow(words)) {
+        notePerMessageEffortRefused(model)
+        rowRefusalRetried = true
+        attempts += 1
+        logForDebugging(`compact: the host refused the per-message effort row for ${model} — retrying once without it: ${words.slice(0, 160)}`, { level: 'warn' })
+        continue
+      }
+    }
       throw err
     }
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
