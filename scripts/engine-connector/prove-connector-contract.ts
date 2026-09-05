@@ -26,6 +26,7 @@ const DOORS = [
   'modelFacts',
   'subscribeModel',
   'setModel',
+  'setEffort',
   'usage',
   'identity',
   'skillsRoster',
