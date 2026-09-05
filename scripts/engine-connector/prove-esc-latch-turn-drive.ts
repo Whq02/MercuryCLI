@@ -123,6 +123,7 @@ async function drive(scene: Scene): Promise<void> {
     cwd: FIXTURE_CWD,
     sends,
     total: 450,
+    readyText: REPLY,
     cols: 120,
     rows: 40,
     out,
@@ -170,10 +171,14 @@ async function drive(scene: Scene): Promise<void> {
   reap()
   const marks = new Map<string, string>()
   let fin = ''
+  let endReason = ''
+  let endedAtTick = -1
   if (existsSync(out)) {
-    const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Mark[] }
+    const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Mark[]; endReason?: string; endedAtTick?: number }
     for (const m of payload.marks ?? []) marks.set(m.label, gridText(m.grid))
     fin = gridText(payload.grid)
+    endReason = payload.endReason ?? ''
+    endedAtTick = payload.endedAtTick ?? -1
   }
   const wire: Wire[] = readFileSync(captureFile, 'utf8')
     .split('\n')
@@ -216,6 +221,8 @@ async function drive(scene: Scene): Promise<void> {
 
   section(`${scene} — E1: the press lands on a running tool`)
   check(`${scene}: vshot ran the journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
+  console.log(`  [record] ${scene}: the capture ended on '${endReason}' at tick ${endedAtTick} (ready text ${JSON.stringify(REPLY)})`)
+  check(`${scene}: the capture ended on the scene's ready text, never the budget`, endReason === 'ready', `endReason=${endReason} at tick ${endedAtTick}`)
   check(`${scene}: the Bash tool was running its sleep, the row wearing "esc interrupts"`, at('tool-running').includes(TOOL_ROW) && at('tool-running').includes('running…') && /esc interrupts/.test(at('tool-running')), tail(at('tool-running')))
   if (scene === 'drain') check(`${scene}: the words typed into the running turn painted QUEUED before the press`, /queued\s+\[sam\] ❯ run the long sleep please/.test(at('queued')), tail(at('queued')))
 
