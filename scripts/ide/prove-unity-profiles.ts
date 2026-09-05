@@ -18,6 +18,7 @@ console.log('============================================================')
 console.log(' unity headless launch profiles (MERCURY_UNITY) — proof')
 console.log('============================================================')
 
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'unity-profiles-home-'))
 const { discoverLaunchProfiles } = await import('../../src/services/ide/launchProfiles.js')
 const { UNITY_LICENSE_DISCLAIMER, unityTestResultsPath } = await import(
   '../../src/services/ide/unityProject.js'
@@ -113,10 +114,12 @@ section('§2 · the three shapes (doc-law pinned)')
 
 section('§3 · results-XML convention')
 {
+  const { projectHomePath } = await import('../../src/utils/projectHomeStores.js')
   check(
-    'unityTestResultsPath: .mercury/unity-test-results/<mode>.xml',
-    unityTestResultsPath('/r', 'EditMode') === path.join('/r', '.mercury', 'unity-test-results', 'editmode.xml') &&
-      unityTestResultsPath('/r', 'PlayMode') === path.join('/r', '.mercury', 'unity-test-results', 'playmode.xml'),
+    'unityTestResultsPath: <config home>/projects/<slug>/unity-test-results/<mode>.xml',
+    unityTestResultsPath('/r', 'EditMode') === path.join(projectHomePath('/r', 'unity-test-results'), 'editmode.xml') &&
+      unityTestResultsPath('/r', 'PlayMode') === path.join(projectHomePath('/r', 'unity-test-results'), 'playmode.xml') &&
+      !unityTestResultsPath('/r', 'EditMode').startsWith(path.join('/r', '.mercury')),
   )
 }
 

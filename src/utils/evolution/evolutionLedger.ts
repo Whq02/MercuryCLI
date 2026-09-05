@@ -1,7 +1,7 @@
 
 
 
-import { adoptiveProjectPath } from '../projectStoreAdoption.js'
+import { projectHomeStore } from '../projectHomeStores.js'
 import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
@@ -66,7 +66,7 @@ export function slugForProgram(program: string): string {
 }
 
 export function defaultEvolutionLedgerDir(cwd: string): string {
-  return adoptiveProjectPath(cwd, 'evolution')
+  return projectHomeStore(cwd, 'evolution')
 }
 
 export function getEvolutionLedgerPath(ledgerDir: string, program: string): string {
