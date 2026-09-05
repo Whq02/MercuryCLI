@@ -194,7 +194,7 @@ section('C3 · effort: the row\'s vocabulary is the dial, and the wire sends fro
   const noDial = wire.buildOpenrouterExtras({ ...base, effortValue: 'high', vocabulary: openrouter.openrouterEffortVocabularyFor(claude) })
   check('no vocabulary ⇒ no reasoning key on the wire (display ≡ dispatch)', !('reasoning' in noDial), JSON.stringify(noDial))
   const off = wire.buildOpenrouterExtras({ ...base, thinkingEnabled: false, effortValue: 'high', vocabulary })
-  check('thinking disabled ⇒ no reasoning key (the provider default governs)', !('reasoning' in off))
+  check("thinking disabled ⇒ the row's thinking-off word rides (its lowest rung, never the provider default)", (off.reasoning as { effort?: string })?.effort === wire.thinkingOffWireEffort(vocabulary) && (off.reasoning as { effort?: string })?.effort !== undefined, JSON.stringify(off))
   const none = wire.buildOpenrouterExtras({ ...base, effortValue: undefined, vocabulary })
   check('no requested effort ⇒ no reasoning key; include_usage always rides', !('reasoning' in none) && (none.stream_options as { include_usage?: boolean }).include_usage === true)
   check('the displayed wire word agrees with the step-down (max → xhigh)', effort.getDisplayedEffortLabel(pro, 'max') === 'xhigh', effort.getDisplayedEffortLabel(pro, 'max'))

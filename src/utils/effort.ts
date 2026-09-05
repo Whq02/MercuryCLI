@@ -157,6 +157,7 @@ export type EffortResolution = {
   readonly providerVocabulary?: readonly string[]
   readonly providerDefault?: string
   readonly suppressedBy?: 'thinking-off'
+  readonly flooredBy?: 'thinking-off'
 }
 
 export type EffortTruthContext = {
@@ -314,15 +315,18 @@ function resolveEffortTruthWithEnv(
   if (view.kind === 'provider') {
     const vocabulary = view.vocabulary
     const request = typeof rawRequest === 'string' ? rawRequest : undefined
-    const suppressed = view.thinkingGated && !(context.thinkingEnabled ?? sessionThinkingEnabled())
-    const wire =
-      suppressed || request === undefined
+    const thinkingOff = view.thinkingGated && !(context.thinkingEnabled ?? sessionThinkingEnabled())
+    const floor = thinkingOff ? view.thinkingOffWire : undefined
+    const suppressed = thinkingOff && floor === undefined
+    const wire = thinkingOff
+      ? floor
+      : request === undefined
         ? undefined
         : vocabulary.includes(request)
           ? request
           : nearestSupportedWireEffort(request, [...vocabulary])
     const adjustedFrom =
-      !suppressed && request !== undefined && isEffortLevel(request) && request !== wire ? request : undefined
+      !thinkingOff && request !== undefined && isEffortLevel(request) && request !== wire ? request : undefined
     const applied = wire !== undefined && isEffortLevel(wire) ? wire : undefined
     return freeze({
       model,
@@ -339,6 +343,7 @@ function resolveEffortTruthWithEnv(
       providerVocabulary: [...vocabulary],
       ...(view.defaultEffort !== undefined ? { providerDefault: view.defaultEffort } : {}),
       ...(suppressed ? { suppressedBy: 'thinking-off' as const } : {}),
+      ...(thinkingOff && floor !== undefined ? { flooredBy: 'thinking-off' as const } : {}),
     })
   }
 

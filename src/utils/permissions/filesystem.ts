@@ -784,7 +784,7 @@ export function checkWritePermissionForTool(
       message: safety.message,
       decisionReason: {
         type: 'safetyCheck',
-        message: safety.message,
+        reason: safety.message,
         classifierApprovable: safety.classifierApprovable,
       },
       suggestions,

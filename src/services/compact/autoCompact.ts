@@ -33,7 +33,7 @@ import {
 import { estimateMessageTokens } from './microCompact.js'
 import { isMaintenanceLadderEnabled, runMaintenanceLadder } from './maintenanceLadder.js'
 import { runPostCompactCleanup } from './postCompactCleanup.js'
-import { trySessionMemoryCompaction } from './sessionMemoryCompact.js'
+import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './sessionMemoryCompact.js'
 
 
 void notifyCompaction
@@ -337,12 +337,13 @@ export async function autoCompactIfNeeded(
     querySource,
   }
 
+  const sessionMemoryArmed = shouldUseSessionMemoryCompaction()
   try {
-    return await withFoldStatus(toolUseContext, async () => {
+    return await withFoldStatus(toolUseContext, async scoped => {
     if (isMaintenanceLadderEnabled()) {
       const walked = await runMaintenanceLadder({
         messages,
-        toolUseContext,
+        toolUseContext: scoped,
         cacheSafeParams,
         querySource,
         recompactionInfo,
@@ -370,7 +371,8 @@ export async function autoCompactIfNeeded(
       return notCompacted
     }
 
-    const viaMemory = await trySessionMemoryCompaction(messages, toolUseContext.agentId, threshold, toolUseContext)
+    if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
+    const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
@@ -380,7 +382,7 @@ export async function autoCompactIfNeeded(
 
     const result = await compactConversation(
       messages,
-      toolUseContext,
+      scoped,
       cacheSafeParams,
       true,
       undefined,
@@ -396,7 +398,7 @@ export async function autoCompactIfNeeded(
       consecutiveFailures: 0,
       consecutiveRapidRefills: refills,
     }
-    })
+    }, { trigger: 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
   } catch (err) {
     if (err instanceof Error && err.message === ERROR_MESSAGE_USER_ABORT) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted

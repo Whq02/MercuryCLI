@@ -6,11 +6,13 @@ import { Box, NoSelect, Text } from '../../../ink.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
 import {
-  boundHunksToRows,
-  boundedPreviewPlan,
-  consentDiffBudget,
-  totalHunkRows,
-} from '../boundedDiffPreview.js'
+  boundHunks,
+  boundLines,
+  consentBodyBudget,
+  consentContentWidth,
+  diffPaintWidth,
+  filePaintWidth,
+} from '../consentBodyBudget.js'
 import { HighlightedCode } from '../../HighlightedCode.js'
 import { StructuredDiff } from '../../StructuredDiff.js'
 import { intersperse } from '../../../utils/array.js'
@@ -33,8 +35,9 @@ type Props = {
   cell_type?: string
   edit_mode?: string
   verbose: boolean
-  width: number
 }
+
+const FRAME_COLUMNS = 4
 
 function cellSourceText(cell: NotebookCell | undefined): string {
   if (!cell || cell.source === undefined) return ''
@@ -48,7 +51,6 @@ export function NotebookEditToolDiff({
   cell_type,
   edit_mode,
   verbose,
-  width,
 }: Props): React.ReactNode {
   const [cells, setCells] = useState<NotebookCell[] | null>(null)
   useEffect(() => {
@@ -80,12 +82,13 @@ export function NotebookEditToolDiff({
 
   const mode = edit_mode ?? 'replace'
 
-  const { rows } = useTerminalSize()
+  const { columns, rows } = useTerminalSize()
   const [expanded, setExpanded] = useState(false)
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
   })
-  const budget = consentDiffBudget(rows)
+  const budget = expanded ? null : consentBodyBudget(rows)
+  const width = Math.max(1, consentContentWidth(columns) - FRAME_COLUMNS)
 
   const hunks = useMemo(() => {
     if (mode !== 'replace' || cells === null) return null
@@ -98,16 +101,14 @@ export function NotebookEditToolDiff({
 
   const bounded = useMemo(() => {
     if (mode === 'replace' && hunks && hunks.length > 0) {
-      const total = totalHunkRows(hunks)
-      const plan = boundedPreviewPlan(total, budget, expanded)
-      if (plan.hidden === 0) return { hunks, body: null, hidden: 0 }
-      return { hunks: boundHunksToRows(hunks, plan.shown), body: null, hidden: plan.hidden }
+      const plan = boundHunks(hunks, diffPaintWidth(width, hunks), budget)
+      return { hunks: plan.hunks, body: null, hidden: plan.hiddenLines }
     }
     const source = mode === 'delete' ? oldSource : new_source
     const lines = source.split('\n')
-    const plan = boundedPreviewPlan(lines.length, budget, expanded)
-    return { hunks: null, body: lines.slice(0, plan.shown).join('\n'), hidden: plan.hidden }
-  }, [mode, hunks, oldSource, new_source, budget, expanded])
+    const plan = boundLines(lines, filePaintWidth(width, lines.length), budget)
+    return { hunks: null, body: plan.lines.join('\n'), hidden: plan.hiddenLines }
+  }, [mode, hunks, oldSource, new_source, width, budget])
 
   const displayPath = verbose ? notebook_path : relative(getFocusedSessionConnector().workspace().cwd, notebook_path)
   const operation =
