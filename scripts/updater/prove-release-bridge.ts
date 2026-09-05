@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { assetNameFor, repoSlugFromUrl, selectBridgePrevious } from '../../src/services/privateChannel/channelCore.js'
+import { repoSlugFromUrl, selectBridgePrevious } from '../../src/services/privateChannel/channelCore.js'
+import { RELEASE_TARGETS, archiveNameFor, isReleaseTarget, releaseTargetFor } from '../../src/services/privateChannel/releaseTarget.js'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const IS_WIN = process.platform === 'win32'
@@ -45,9 +46,13 @@ const die = (msg: string): never => {
 
 const PKG = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { version: string; repository?: { url?: string } }
 const CANDIDATE_VERSION = PKG.version
-const HOST_ASSET = (version: string): string | null => assetNameFor(version, process.platform, process.arch)
-const candidateAsset = HOST_ASSET(CANDIDATE_VERSION)
-if (!candidateAsset) die(`host ${process.platform}/${process.arch} has no channel asset — run on linux-x64/macos-arm64/windows-x64`)
+const targetAt = process.argv.indexOf('--target')
+const TARGET_ARG = targetAt === -1 ? null : (process.argv[targetAt + 1] ?? '')
+if (TARGET_ARG !== null && !isReleaseTarget(TARGET_ARG)) die(`--target wants one of ${RELEASE_TARGETS.join(', ')} (got ${TARGET_ARG || 'nothing'})`)
+const TARGET = TARGET_ARG === null ? releaseTargetFor(process.platform, process.arch) : TARGET_ARG
+if (!TARGET) die(`host ${process.platform}/${process.arch} has no channel asset — run on ${RELEASE_TARGETS.join('/')}, or name the archive with --target`)
+const TARGET_ASSET = (version: string): string => archiveNameFor(version, TARGET)
+const candidateAsset: string = TARGET_ASSET(CANDIDATE_VERSION)
 
 const candidatePath = process.env.MERCURY_BRIDGE_CANDIDATE ?? join(ROOT, 'release-out', candidateAsset!)
 if (!existsSync(candidatePath)) {
@@ -77,7 +82,7 @@ try {
   let previousTag = process.env.MERCURY_BRIDGE_PREVIOUS_TAG ?? ''
   if (!previousPath) {
     const listed = execFileSync('gh', ['api', `repos/${slug}/releases?per_page=20`], { encoding: 'utf8', timeout: 120_000 })
-    const parsedList = JSON.parse(listed) as Array<{ tag_name?: string; draft?: boolean }>
+    const parsedList = JSON.parse(listed) as Array<{ tag_name?: string; draft?: boolean; assets?: Array<{ name?: string }> }>
     const previous = selectBridgePrevious(
       parsedList.filter(r => typeof r.tag_name === 'string').map(r => ({ tagName: r.tag_name!, isDraft: r.draft === true })),
       CANDIDATE_VERSION,
@@ -91,8 +96,15 @@ try {
     }
     previousTag = previous.tag
     const prevVersion = previousTag.slice(1)
-    const prevAsset = HOST_ASSET(prevVersion)
-    if (!prevAsset) die(`previous release ${previousTag} has no asset name for this host`)
+    const prevAsset = TARGET_ASSET(prevVersion)
+    const prevAssets = (parsedList.find(r => r.tag_name === previousTag)?.assets ?? []).map(a => a.name).filter((n): n is string => typeof n === 'string')
+    if (prevAssets.length > 0 && !prevAssets.includes(prevAsset)) {
+      console.log(`  [NEUTRAL] ${previousTag} published no ${TARGET} archive (${prevAssets.length} asset(s) listed) — the candidate is this target's FIRST release and there is no shipped reader to bridge from. The bridge law resumes for ${TARGET} at the next release.`)
+      rmSync(scratch, { recursive: true, force: true })
+      console.log('')
+      console.log(`PASS prove-release-bridge (first ${TARGET} release — nothing to bridge)`)
+      process.exit(0)
+    }
     const dlDir = join(scratch, 'previous-download')
     mkdirSync(dlDir, { recursive: true })
     execFileSync('gh', ['release', 'download', previousTag, '--repo', slug, '--dir', dlDir, '--pattern', prevAsset!], {

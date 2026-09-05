@@ -3,11 +3,12 @@ import { Box, Text, useInput } from '../../ink.js';
 import { chatPresent, concourseWayBack, plainWorldWhy, stripKeyMapHint, subscribeSurfaceRoute, surfaceRouteVersion } from '../../context/surfaceRoute.js';
 import { useRegisterOverlay } from '../../context/overlayContext.js';
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js';
-import { boardSelectionClassOf, browseKeysFor, CONCOURSE_HELP_KEY, helpKeyFiresFor, regionKeysFor } from './controlManifest.js';
+import { boardSelectionClassOf, browseKeysFor, closeChordHintOf, closeChordReceiptOf, closeChordRungOf, CONCOURSE_HELP_KEY, helpKeyFiresFor, regionKeysFor } from './controlManifest.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js';
 import { boardModalOwner, gitOfferOwnsTheKeys, mayArmBoardModal, type BoardModalFactsV1 } from './boardModalOwner.js';
 import { claimConcourseCloseChord } from '../../services/concourse/closeChordSlot.js';
+import { createCloseChordStage, type CloseChordStage } from '../../services/concourse/closeChordStage.js';
 import { getPendingChordMirror, subscribePendingChordMirror } from '../../keybindings/pendingChordMirror.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { AnimatedCritterArt } from '../mercury-ui/AnimatedCritterArt.js';
@@ -121,7 +122,7 @@ export function liveComposerGateOf(
   }
   if (sel.door !== undefined) return { ok: false, line: 'a door — ↵ opens it; nothing to message' }
   if (sel.sessionId.startsWith('dispatch:') || sel.state === 'queued') return { ok: false, line: 'queued — m stacks a message for its start' }
-  if (sel.state === 'parked') return { ok: false, line: 'parked — ↵↵ brings it back; a sleeping chat takes no queue' }
+  if (sel.state === 'parked') return { ok: false, line: 'parked — ↵ brings it back; a sleeping chat takes no queue' }
   if (sel.state === 'attached') return { ok: false, line: 'with you — type in its own chat' }
   if (sel.state === 'stopped') return { ok: false, line: `stopped — nothing listens; ${keyHintLabel('⌃x ⌃x')} archives it` }
   if (sel.state === 'needs-you' || openAsk) return { ok: false, line: 'needs you · ↵↵ to answer' }
@@ -154,8 +155,6 @@ function migrateCapsuleRegion(region: string | undefined): ConcourseRegion | und
 }
 
 const NL = String.fromCharCode(10)
-
-export const CLOSE_CHORD_STAGE_WINDOW_MS = 5000
 
 export function ConcourseScreen({
   snapshot,
@@ -401,7 +400,11 @@ export function ConcourseScreen({
   }, [liveDraft.text, markedIds])
 
   const [pending, setPending] = useState(false)
-  const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
+  const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
+  useEffect(() => {
+    if (note?.row === undefined) return
+    if (boardSel !== note.row || !sessionRows.some(r => r.sessionId === note.row)) setNote(null)
+  }, [note, boardSel, sessionRows])
   const [liveNote, setLiveNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
   const [composeContext, setComposeContext] = useState<ComposeContext>({ kind: 'chat' })
   const composeContextRef = useRef<ComposeContext>(composeContext)
@@ -661,17 +664,16 @@ export function ConcourseScreen({
     helpOpen: helpOpenRef.current,
   })
 
-  const lastStopRef = useRef<{ sessionId: string; at: number } | null>(null)
+  const closeChordStageRef = useRef<CloseChordStage | null>(null)
+  if (closeChordStageRef.current === null) closeChordStageRef.current = createCloseChordStage()
+  const closeChordStage = closeChordStageRef.current
+  useEffect(() => () => closeChordStage.dispose(), [closeChordStage])
   const closeChordGesture = (): void => {
     if (closeChordBlocked()) return
     const sel = sessionRows.find(r => r.sessionId === boardSelRef.current)
     if (!sel) return
-    if (sel.sessionId.startsWith('dispatch:')) {
-      callbacks.removeSession?.(sel.sessionId)
-      return
-    }
     if (sel.sessionId.startsWith(OLDER_CHATS_ROW_PREFIX)) {
-      setNote({ tone: 'muted', text: 'the older chats stay — ↵ opens them; clear one at a time from there' })
+      setNote({ tone: 'muted', text: 'the older chats stay — ↵ opens them; clear one at a time from there', row: sel.sessionId })
       return
     }
     if (sel.door !== undefined) {
@@ -681,33 +683,40 @@ export function ConcourseScreen({
           sel.door.kind === 'switch-project'
             ? `a door — ↵ switches the board to ${sel.projectLabel}; nothing to close here`
             : 'a door — ↵ opens the repo picker; nothing to close here',
+        row: sel.sessionId,
       })
       return
     }
-    const prior = lastStopRef.current
-    const staged = prior !== null && prior.sessionId === sel.sessionId && Date.now() - prior.at < CLOSE_CHORD_STAGE_WINDOW_MS
-    if (sel.state === 'parked') {
-      if (staged) {
-        lastStopRef.current = null
+    const rung = closeChordRungOf(boardSelectionClassOf(sel), closeChordStage.standsFor(sel.sessionId))
+    const receipt = closeChordReceiptOf(rung)
+    switch (rung) {
+      case 'none':
+        return
+      case 'withdraw':
         callbacks.removeSession?.(sel.sessionId)
         return
-      }
-      lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }
-      setNote({ tone: 'muted', text: `archived — the chat stands parked · ${keyHintLabel('⌃x ⌃x')} again deletes it (the record ends; the transcript survives on disk)` })
-      return
+      case 'stop':
+        closeChordStage.arm(sel.sessionId)
+        callbacks.stopSession?.(sel.sessionId)
+        return
+      case 'resend-stop':
+        if (receipt !== null) setNote({ tone: 'muted', text: keyHintLabel(receipt), row: sel.sessionId })
+        callbacks.stopSession?.(sel.sessionId)
+        return
+      case 'archive':
+        closeChordStage.arm(sel.sessionId)
+        callbacks.archiveSession?.(sel.sessionId)
+        return
+      case 'arm-delete':
+        closeChordStage.arm(sel.sessionId)
+        if (receipt !== null) setNote({ tone: 'muted', text: keyHintLabel(receipt), row: sel.sessionId })
+        return
+      case 'delete':
+        closeChordStage.clear()
+        setNote(prev => (prev?.row === sel.sessionId ? null : prev))
+        callbacks.removeSession?.(sel.sessionId)
+        return
     }
-    if (sel.state === 'stopped') {
-      lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }
-      callbacks.archiveSession?.(sel.sessionId)
-      return
-    }
-    if (staged) {
-      setNote({ tone: 'muted', text: `stop is on its way — the row reads stopped once its runner is gone; ${keyHintLabel('⌃x ⌃x')} then archives it` })
-      callbacks.stopSession?.(sel.sessionId)
-      return
-    }
-    lastStopRef.current = { sessionId: sel.sessionId, at: Date.now() }
-    callbacks.stopSession?.(sel.sessionId)
   }
   const closeChordRoutineRef = useRef(closeChordGesture)
   closeChordRoutineRef.current = closeChordGesture
@@ -773,7 +782,8 @@ export function ConcourseScreen({
       else setGroundPickerOpen(true)
       return
     }
-    if (!reducedStage && opts.pointer !== true && boardArmedRef.current !== sessionId) {
+    const parked = sessionRows.find(r => r.sessionId === sessionId)?.state === 'parked'
+    if (!reducedStage && !parked && opts.pointer !== true && boardArmedRef.current !== sessionId) {
       boardArmedRef.current = sessionId
       setBoardArmed(sessionId)
       return
@@ -1085,6 +1095,8 @@ export function ConcourseScreen({
   )
   const rowControlNote = controlNotes?.[`board:row-control:${peekSelRow?.sessionId ?? 'none'}`]
   const pendingChordNow = useSyncExternalStore(subscribePendingChordMirror, getPendingChordMirror, getPendingChordMirror)
+  const chordStageNow = useSyncExternalStore(closeChordStage.subscribe, closeChordStage.read, closeChordStage.read)
+  const closeChordStaged = chordStageNow !== null && chordStageNow.sessionId === boardSel
   const closeChordHint = ((): string | null => {
     const stroke = pendingChordNow?.length === 1 ? pendingChordNow[0] : undefined
     const leaderPending =
@@ -1108,28 +1120,8 @@ export function ConcourseScreen({
         coordinatorFocused: region === 'coordinator',
       }) === null
     if (!boardOwned) return null
-    const prior = lastStopRef.current
-    const staged =
-      prior !== null && prior.sessionId === peekSelRow.sessionId && Date.now() - prior.at < CLOSE_CHORD_STAGE_WINDOW_MS
-    switch (boardSelectionClassOf(peekSelRow)) {
-      case 'door':
-      case 'none':
-        return null
-      case 'queued':
-        return `${keyHintLabel('⌃x')} again withdraws the queued request`
-      case 'parked':
-        return staged
-          ? `${keyHintLabel('⌃x')} again deletes it (the record ends)`
-          : `${keyHintLabel('⌃x')} again — archived, nothing to stop`
-      case 'stopped':
-        return `${keyHintLabel('⌃x')} again archives it (the chat stands parked)`
-      case 'live':
-      case 'paused':
-      case 'attached':
-        return staged
-          ? `${keyHintLabel('⌃x')} again re-sends the stop (the row reads stopped once its runner is gone)`
-          : `${keyHintLabel('⌃x')} again stops — esc keeps it`
-    }
+    const hint = closeChordHintOf(closeChordRungOf(boardSelectionClassOf(peekSelRow), closeChordStaged))
+    return hint === null ? null : keyHintLabel(hint)
   })()
   const chipRows =
     !rowPeekOpen && (chipLine !== null || rowControlNote !== undefined || boardArmed === peekSelRow?.sessionId || closeChordHint !== null) ? 1 : 0
@@ -1876,6 +1868,7 @@ export function ConcourseScreen({
         rowChipRows={chipRows}
         olderRows={olderRows}
         armedSelected={boardArmed !== null}
+        closeChordStaged={closeChordStaged}
         markedIds={markedIds}
         rowPeekNode={(rows, width) => {
           const sel = peekSelRow
