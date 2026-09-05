@@ -1,4 +1,9 @@
-import type { PermissionDecisionReason, PermissionResult } from '../../types/permissions.js'
+import type {
+  BypassedAskRoad,
+  PermissionDecisionReason,
+  PermissionMode,
+  PermissionResult,
+} from '../../types/permissions.js'
 
 export interface PermissionResultWireV1 {
   [key: string]: unknown
@@ -6,13 +11,20 @@ export interface PermissionResultWireV1 {
 }
 
 export type DecisionReasonWireV1 =
-  | Exclude<PermissionDecisionReason, { type: 'subcommandResults' }>
+  | Exclude<PermissionDecisionReason, { type: 'subcommandResults' | 'bypassedAsk' }>
   | { type: 'subcommandResults'; reasons: Array<[string, PermissionResultWireV1]> }
+  | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: DecisionReasonWireV1 }
+
+const BYPASSED_ASK_ROADS: ReadonlySet<string> = new Set(['contentAskRule', 'orgAskCeiling', 'safetyCheckAsk'])
 
 export function encodeDecisionReasonForWire(
   reason: PermissionDecisionReason | undefined,
 ): DecisionReasonWireV1 | undefined {
   if (!reason) return undefined
+  if (reason.type === 'bypassedAsk') {
+    const inner = encodeDecisionReasonForWire(reason.reason)
+    return inner === undefined ? undefined : { ...reason, reason: inner }
+  }
   if (reason.type !== 'subcommandResults') return reason
   const reasons: Array<[string, PermissionResultWireV1]> = []
   for (const [command, result] of reason.reasons) {
@@ -52,6 +64,12 @@ export function decodeDecisionReasonFromWire(value: unknown): PermissionDecision
         : undefined
     case 'permissionPromptTool':
       return value as PermissionDecisionReason
+    case 'bypassedAsk': {
+      const inner = decodeDecisionReasonFromWire(v.reason)
+      return typeof v.mode === 'string' && typeof v.road === 'string' && BYPASSED_ASK_ROADS.has(v.road) && inner !== undefined
+        ? { type: 'bypassedAsk', mode: v.mode as PermissionMode, road: v.road as BypassedAskRoad, reason: inner }
+        : undefined
+    }
     case 'subcommandResults': {
       if (!Array.isArray(v.reasons)) return undefined
       const reasons = new Map<string, PermissionResult>()
