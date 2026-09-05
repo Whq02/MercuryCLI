@@ -30,6 +30,7 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import { formatLaneSpend } from '../cost-tracker.js'
 import { crewAgentsOf, crewUsageLine } from '../services/engine-connector/crewFacts.js'
+import { WORK_UNREPORTED_MARK, workUnreported } from '../services/engine-connector/workCounts.js'
 import {
   focusedSessionIdOrNull,
   focusedWorkflowRows,
@@ -417,7 +418,7 @@ function HelmTelemetryRailImpl({
 
   const wfNodes: React.ReactNode[] = []
   if (runningWf.length === 0 && externalWf.length === 0) {
-    wfNodes.push(<EmptyHint key="wf:idle" text="idle" width={rowW} />)
+    wfNodes.push(<EmptyHint key="wf:idle" text={workUnreported(workRoster) ? WORK_UNREPORTED_MARK : 'idle'} width={rowW} />)
   } else if (runningWf.length > 0) {
     const leadDetail = workflowRowDetail(runningWf[0]!)
     for (const [i, t] of runningWf.slice(0, WF_ROWS).entries()) {

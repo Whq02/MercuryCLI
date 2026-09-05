@@ -290,14 +290,32 @@ export function createWireResponseReader(contentType: string): {
   }
 }
 
+export interface WireFoldRow {
+  kind: 'fold'
+  seq: number
+  at: number
+  family: string
+  road: 'fork' | 'direct'
+  model: string
+  outcome: 'summary' | 'overflow' | 'handover' | 'refused' | 'timeout' | 'aborted' | 'incomplete'
+  ms: number
+  detail?: string
+}
+
 let wireSeq = 0
 
-function appendWireRow(dir: string, row: WireDumpRow | WireCatalogueRow): void {
+function appendWireRow(dir: string, row: WireDumpRow | WireCatalogueRow | WireFoldRow): void {
   try {
     mkdirSync(dir, { recursive: true })
     appendFileSync(wireDumpPath(dir), `${JSON.stringify(row)}\n`)
   } catch {
   }
+}
+
+export function recordWireFoldRow(row: Omit<WireFoldRow, 'kind' | 'seq' | 'at'>): void {
+  const dir = wireDumpDir()
+  if (dir === null) return
+  appendWireRow(dir, { kind: 'fold', seq: ++wireSeq, at: Date.now(), ...row })
 }
 
 function tapBody(

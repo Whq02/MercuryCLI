@@ -221,11 +221,13 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const options = getModelOptions()
   const row = options.find(o => o.value === ID)
   check(
-    "the picker row: the live name ('GPT-6-Astra'), the OpenAI group, selectable",
-    row !== undefined && row.label === 'GPT-6-Astra' && row.group === OPENAI_MODEL_GROUP && row.unavailable === undefined,
+    `the picker row: the page's name ('${NAME}') through the one display owner, the OpenAI group, selectable`,
+    row !== undefined && row.label === NAME && row.group === OPENAI_MODEL_GROUP && row.unavailable === undefined,
     JSON.stringify(row),
   )
-  check("the strip's word stays the page's spelling ('GPT-6 Astra') through the one display owner", model.renderModelName(ID) === NAME, model.renderModelName(ID))
+  check("the picker row's model-facing description spells it the same way", row !== undefined && (row.descriptionForModel ?? '').startsWith(`${NAME} (${ID})`), String(row?.descriptionForModel).slice(0, 80))
+  check("the strip's word is the page's spelling ('GPT-6 Astra') through the one display owner", model.renderModelName(ID) === NAME, model.renderModelName(ID))
+  check('the picker and the strip agree on the row (one spelling)', row !== undefined && row.label === model.renderModelName(ID))
   const solRow = options.find(o => o.value === 'gpt-5.6-sol')
   check('the served 5.6 row stands beside it, selectable', solRow !== undefined && solRow.unavailable === undefined, JSON.stringify(solRow))
   const astraIndex = options.findIndex(o => o.value === ID)

@@ -45,6 +45,16 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Consent cards fit the screen: a long edit, file or command is cut with a "+N more lines" line and ctrl+f shows the whole thing, so the Yes/No answers never leave the pane
 - Sovereign mode asks nothing: edits to sensitive files, ask rules and a server's ask ceiling run without a card, and the transcript says what would have asked and why
 - /compact shows its progress in the chat: one row under your /compact with the stage, a bar and a clock until the summary card takes its place; the star under the critter stands still
+- The chat's title bar shows the session's name instead of a ticking clock, and the row under the composer says how long your sub-agents have worked, its glyph spinning only while they run
+- Compaction no longer keeps a half summary when its call stalls, and Gemini and OpenRouter runs with thinking off now send their lowest effort word instead of the provider default
+- The effort chip and /effort say a session's effort is "asked" until its runner reports what it sends; the picker spells a GPT model one way, the same as the strip
+- Right after a session starts, the workflow panel, the board, the crew view and the chip say "not reported yet" instead of "idle"; a running workflow shows its agents within seconds of launch
+- Typing deepthink or supercode glows in your chosen critter's colour, in the composer and in the sent message, instead of a rainbow or a mix of theme colours
+- Every tip the companion and the spinner show is true today and teaches one thing, in the order a new user needs: how to stop a turn, the mode, the meter, sessions, then the depth
+- A mis-bound keyboard shortcut can no longer flash "Unknown command" for a line you never typed, and a split key sequence no longer leaks stray characters into the input box
+- esc now belongs to the turn it interrupted: after an interrupt, the next turn's status row reads its own state, and a second esc there is a plain interrupt, never a forced stop
+- A background agent's completion now shows in the chat the moment it arrives, marked queued until the model reads it, in the order the model reads it
+- The project's .mercury folder now holds shared config only; run records, ledgers and other machine-local files live in your Mercury home, and the doctor names any leftovers
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published

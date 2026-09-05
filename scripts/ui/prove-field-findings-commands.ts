@@ -278,8 +278,74 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
   rmSync(cwd, { recursive: true, force: true })
 }
 
+import { createHash as _createHash } from 'node:crypto'
+const EFFORTR_DIGEST = _createHash('sha256').update('/effortr').digest('hex').slice(0, 8)
+
+function submitRows(path: string): Array<{ site: string; digest?: string; len?: number }> {
+  if (!existsSync(path)) return []
+  const rows: Array<{ site: string; digest?: string; len?: number }> = []
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    if (!line.trim()) continue
+    try {
+      const row = JSON.parse(line) as { site?: unknown; digest?: unknown; len?: unknown }
+      if (typeof row.site === 'string') rows.push({ site: row.site, ...(typeof row.digest === 'string' ? { digest: row.digest } : {}), ...(typeof row.len === 'number' ? { len: row.len } : {}) })
+    } catch {
+    }
+  }
+  return rows
+}
+
+async function keybindingLeg(): Promise<void> {
+  console.log('\n— keybinding: a command:* naming no command is inert; a real one runs —')
+  const fixture = await startFixture()
+  const { home, cwd } = seedWorld()
+  writeFileSync(join(home, 'keybindings.json'), JSON.stringify({ bindings: [{ context: 'Chat', bindings: { 'ctrl+x e': 'command:effortr', 'ctrl+x b': 'command:workbench' } }] }))
+  const tracePath = join(home, 'submit-trace.jsonl')
+  let cap: Capture
+  try {
+    cap = await capture(
+      {
+        cols: COLS,
+        rows: ROWS,
+        total: 260,
+        cwd,
+        argv: ['node', DIST],
+        sends: [
+          ...bootSends,
+          { data: '\x18', afterPrevTicks: 4 },
+          { data: 'e', afterPrevTicks: 2 },
+          { data: '', afterPrevTicks: 8, mark: 'after-bad' },
+          { data: '\x18', afterPrevTicks: 2 },
+          { data: 'b', afterPrevTicks: 2 },
+          { data: '', atTick: 999, awaitText: 'PROMPTS', requireAwait: true, minTick: 3, awaitSettleTicks: 4, mark: 'workbench' },
+        ],
+        stableTicks: 5,
+      },
+      { ...driveEnv(home, fixture.base), MERCURY_SUBMIT_TRACE: tracePath },
+    )
+  } finally {
+    await fixture.close()
+  }
+  const { marks } = cap
+  if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`keybinding · ${label}`, frame)
+  const afterBad = marks['after-bad'] ?? ''
+  check('keybinding: the mis-bound chord painted NO "Unknown command" line', !/Unknown command/.test(afterBad), flat(afterBad).match(/Unknown command[^│]*/)?.[0] ?? 'clean')
+  check('keybinding: the mis-bound chord submitted NOTHING (no /effortr in the composer or transcript)', !/effortr/.test(afterBad), flat(afterBad).match(/[^ ]*effortr[^ ]*/)?.[0] ?? 'clean')
+  const rows = submitRows(tracePath)
+  check('keybinding: the census carries no submit of /effortr (digest)', !rows.some(r => r.digest === EFFORTR_DIGEST), rows.filter(r => r.digest === EFFORTR_DIGEST).map(r => r.site).join(' ') || 'none')
+  const workbench = marks['workbench'] ?? ''
+  check('keybinding: the real command:* (workbench) still ran — its panel opened', /PROMPTS/.test(workbench), flat(workbench).slice(0, 80))
+  const submits = rows.filter(r => r.site === 'repl-onSubmit')
+  check('keybinding: exactly one keybinding submit reached onSubmit (the workbench, not the mis-binding)', submits.length === 1, `${submits.length} repl-onSubmit rows`)
+  if (failures > 0 && process.env.FIELD_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`keybinding · ${label}`, frame)
+  if (failures > 0 || process.env.FIELD_KEEP === '1') dump('keybinding · final grid', cap.text)
+  rmSync(home, { recursive: true, force: true })
+  rmSync(cwd, { recursive: true, force: true })
+}
+
 await leg('law')
 await leg('tight')
+if (LEG === 'all' || LEG === 'keybinding') await keybindingLeg()
 
 console.log(failures === 0 ? '\nprove-field-findings-commands: ALL LAWS HOLD' : `\nprove-field-findings-commands: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
