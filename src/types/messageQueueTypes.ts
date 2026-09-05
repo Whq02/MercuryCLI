@@ -6,6 +6,7 @@ export type QueueOperation =
   | 'dequeue'
   | 'remove'
   | 'popAll'
+  | 'pop'
   | 'restage'
 
 export type QueueOperationMessage = {
