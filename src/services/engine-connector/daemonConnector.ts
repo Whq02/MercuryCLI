@@ -421,16 +421,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private lastEventAtMs: number | null = null
   private streamBlock: 'thinking' | 'text' | 'tool_use' | null = null
   private blockSinceMs: number | null = null
-  private turnStartLatchMs: number | null = null
-
-  private turnStartLatch(inFlight: boolean): number | null {
-    if (!inFlight) {
-      this.turnStartLatchMs = null
-      return null
-    }
-    if (this.turnStartLatchMs === null) this.turnStartLatchMs = Date.now()
-    return this.turnStartLatchMs
-  }
   private readonly toolBudgets = new Map<string, { budgetMs: number; elapsedMs: number; atMs: number }>()
   private livenessTicker: ReturnType<typeof setInterval> | null = null
 
@@ -886,7 +876,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       agentsWaiting,
       ...(waitingOn !== null && waitingOnWords !== null ? { waitingOn } : {}),
       inProgressToolUseIDs,
-      turnStartedAtMs: this.liveState.turnStartedAtMs ?? this.turnStartLatch(inFlight),
+      turnStartedAtMs: this.facts?.turnStartedAt ?? this.liveState.turnStartedAtMs ?? null,
     }
     emitAll(this.liveListeners, 'live')
   }

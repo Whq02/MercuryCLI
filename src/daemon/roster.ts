@@ -179,6 +179,7 @@ export class TaskRoster {
         })
         e.model = wire.model
         e.effort = wire.effort
+        if (h.longLived.turnActive && h.longLived.turnStartedAt !== undefined) e.turnStartedAt = h.longLived.turnStartedAt
         if (wire.pendingModel !== undefined) e.pendingModel = wire.pendingModel
         if (wire.pendingEffort !== undefined) e.pendingEffort = wire.pendingEffort
         e.respawns = h.longLived.respawns
