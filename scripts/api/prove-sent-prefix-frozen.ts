@@ -12,7 +12,7 @@ process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
 delete process.env.MERCURY_THINKING_BINDING
 delete process.env.ANTHROPIC_BASE_URL
 
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { bindingDropsFor, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -234,6 +234,83 @@ section('§1b the tool roster freeze (pure) — a latched decision holds; a join
   if (saved === undefined) delete process.env.MERCURY_TOOL_SEARCH
   else process.env.MERCURY_TOOL_SEARCH = saved
   clearToolRosterLatches()
+}
+
+section('§1c the resume restore (pure) — the first exchange record, then a NEW process re-sends the frozen roster and sections byte for byte')
+{
+  const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore, pendingToolRosterRestore, conversationRosterKey } =
+    await import('../../src/services/providers/toolEconomy.ts')
+  const { buildBoundPrefixRecordData, boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted, boundPrefixRecordExists } =
+    await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
+  const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+  const { z } = await import('zod/v4')
+  const savedSearch = process.env.MERCURY_TOOL_SEARCH
+  process.env.MERCURY_TOOL_SEARCH = 'tst'
+  const MODEL = 'claude-opus-4-8'
+  const fakeTool = (name: string, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+    name, isMcp: false, inputSchema: z.object({}).passthrough(), isConcurrencySafe: () => true, isReadOnly: () => true,
+    description: async () => `${name} tool`, prompt: async () => `${name} prompt`, shouldDefer: false, ...over,
+  })
+  const search = fakeTool(TOOL_SEARCH_TOOL_NAME)
+  const read = fakeTool('Read')
+  const browser = fakeTool('Browser', { shouldDefer: true })
+  const godot = fakeTool('Godot', { shouldDefer: true })
+  const owner = 'conv-resume'
+  const messages = [{ type: 'user', uuid: 'u-first-exchange', message: { role: 'user', content: 'first' } }]
+  const rosterNames = (plan: { roster: Array<{ name: string }> }): string => j(plan.roster.map(t => t.name))
+  const marks = (plan: { deferredNames: ReadonlySet<string> }): string => j([...plan.deferredNames].sort())
+  const doPlan = (tools: Record<string, unknown>[], key: string = owner, msgs = messages) =>
+    planToolPayload({ model: MODEL, tools: tools as never, messages: msgs as never, getToolPermissionContext: async () => ({ ...getEmptyToolPermissionContext(), mode: 'default' as never }), agents: [], hasPendingMcpServers: false, source: 'prove', latchKey: key })
+  const freshProcess = (): void => { clearToolRosterLatches(); clearToolRosterRestore(); clearSystemPromptSectionState(); resetBoundPrefixEmitted() }
+
+  freshProcess()
+  setSystemPromptSectionCacheEntry('mode-vulcan', null, null)
+  setSystemPromptSectionCacheEntry('memory', 'the memory as first seen', null)
+  const p1 = await doPlan([search, read, browser])
+  const names1 = rosterNames(p1)
+  const marks1 = marks(p1)
+  const boundKey = conversationRosterKey(owner, messages as never, MODEL)
+
+  const record = buildBoundPrefixRecordData(owner, messages as never, MODEL)
+  check('§1c the record captures the frozen roster (names in first-sent order + deferral marks)', record !== null && j(record.roster.map(t => t.name)) === j(p1.roster.map(t => t.name)) && record.roster.some(t => t.name === 'Browser' && t.deferred), record ? j(record.roster) : 'null')
+  check('§1c the record captures the cached sections (name, key, text — an absent section as null)', record !== null && record.sections.some(s => s.name === 'mode-vulcan' && s.value === null) && record.sections.some(s => s.name === 'memory' && s.value === 'the memory as first seen'), record ? j(record.sections) : 'null')
+  check('§1c the record key is the conversation key (owner | first row | model)', record?.boundKey === boundKey, `${record?.boundKey} vs ${boundKey}`)
+
+  const emitted = boundPrefixRecordToEmit(owner, messages as never, MODEL)
+  check('§1c the record emits as an attachment (bound_prefix), null-rendering AND projecting NOTHING to the wire', emitted !== null && emitted.type === 'attachment' && emitted.attachment.type === 'bound_prefix' && normalizeAttachmentForAPI(emitted.attachment).length === 0 && isNullRenderingAttachment(emitted), emitted ? `render=${isNullRenderingAttachment(emitted)} wire=${normalizeAttachmentForAPI(emitted.attachment).length}` : 'null')
+  check('§1c a second emit is null (one record per conversation)', boundPrefixRecordToEmit(owner, messages as never, MODEL) === null)
+  check('§1c the record is found in a history that carries it', emitted !== null && boundPrefixRecordExists([emitted as never], boundKey))
+  const recordMessage = emitted!
+
+  freshProcess()
+  check('§1c a new process has no latch and no cached sections (the freeze does not survive a process)', getSystemPromptSectionCache().size === 0 && pendingToolRosterRestore() === null)
+  const restoredKey = restoreBoundPrefixFromMessages([recordMessage as never])
+  check('§1c the resume loader restored the record: the sections seeded into the cache, the roster armed', restoredKey === boundKey && getSystemPromptSectionCache().get('mode-vulcan')?.value === null && getSystemPromptSectionCache().get('memory')?.value === 'the memory as first seen' && pendingToolRosterRestore()?.key === boundKey, `${restoredKey}; sections=${getSystemPromptSectionCache().size}`)
+
+  const p2 = await doPlan([search, read, browser])
+  check('§1c the resumed plan re-sends the frozen roster byte for byte (names + deferral marks)', rosterNames(p2) === names1 && marks(p2) === marks1 && p2.restoredMissingTools.length === 0, `${rosterNames(p2)} vs ${names1}`)
+
+  const p3 = await doPlan([search, read, browser, godot])
+  check('§1c a tool that gated in after the record is a joiner (appended deferred, unreferenced) — the frozen prefix never gains it', p3.roster.slice(0, p1.roster.length).map(t => t.name).join(',') === p1.roster.map(t => t.name).join(',') && p3.deferredNames.has('Godot'), `${rosterNames(p3)}`)
+
+  freshProcess()
+  restoreBoundPrefixFromMessages([recordMessage as never])
+  const p4 = await doPlan([search, browser])
+  check('§1c R3 — a bound tool the record carried that this build no longer offers is reported (the caller declares the lawful change)', p4.restoredMissingTools.includes('Read'), j(p4.restoredMissingTools))
+
+  freshProcess()
+  restoreBoundPrefixFromMessages([recordMessage as never])
+  const forkOwner = 'conv-resume-FORKED'
+  const pFork = await doPlan([search, read, browser], forkOwner)
+  check('§1c a fork (a fresh owner, the same first exchange) restores the frozen roster too', rosterNames(pFork) === names1 && marks(pFork) === marks1, `${rosterNames(pFork)} vs ${names1}`)
+
+  freshProcess()
+  if (savedSearch === undefined) delete process.env.MERCURY_TOOL_SEARCH
+  else process.env.MERCURY_TOOL_SEARCH = savedSearch
 }
 
 if (!existsSync(DIST)) {
@@ -598,6 +675,35 @@ if (!existsSync(DIST)) {
       census('§6b', reqs, true)
       const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
       check('§6b the section rides every request (present at the first one), the Godot tool offered on every request', reqs.length === 3 && reqs.every(q => systemTextOf(q.body as Body).includes('Godot control surface') && offersGodot(q)), reqs.map(q => `${systemTextOf(q.body as Body).includes('Godot control surface')}/${offersGodot(q)}`).join(','))
+      await fixture.close()
+    }
+
+    section('§6c the resume road — a project BORN between two processes never rewrites the frozen prefix (the operator\'s Godot session, on the real binding check)')
+    const transcriptText = (arena: Arena, sessionId: string): string => {
+      const files: string[] = []
+      const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${sessionId}.jsonl`) files.push(f) } }
+      const root = join(arena.home, '.claude', 'projects')
+      if (existsSync(root)) walk(root)
+      return files.map(f => readFileSync(f, 'utf8')).join('\n')
+    }
+    {
+      const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6C-T${n}`, thinking: `godot c ${n}` }))
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1', MERCURY_THINKING_BINDING: 'error' })
+      const SID = 'c0ffee00-0000-4000-8000-00000000c06c'
+      const r1 = await run(arena, ['-p', 'start a game', ...common, '--session-id', SID])
+      check('§6c turn 1 (no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+      check('§6c the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
+      writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
+      const r2 = await run(arena, ['-p', 'inspect the scene', ...common, '--resume', SID])
+      check('§6c turn 2 (resumed, project BORN) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
+      const reqs = fixture.messageRequests()
+      check('§6c two message requests', reqs.length === 2, String(reqs.length))
+      const sysA = systemTextOf(reqs[0]!.body as Body)
+      const sysB = systemTextOf(reqs[1]!.body as Body)
+      check('§6c the resumed request never gained the Godot section (the system is byte-identical across the resume)', sysA === sysB && !sysB.includes('Godot control surface'), `A=${sysA.length}B B=${sysB.length}B godot=${sysB.includes('Godot control surface')}`)
+      check('§6c the resumed bound tools are byte-identical (the Godot tool did not enter the bound roster)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
+      check('§6c the fixture refused nothing and the API dropped no thinking block on the resumed request', fixture.refusals.length === 0 && bindingDropsFor(reqs[1]!.body).length === 0, `refusals=${fixture.refusals.length} drops=${bindingDropsFor(reqs[1]!.body).length}`)
       await fixture.close()
     }
 
