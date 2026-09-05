@@ -115,8 +115,9 @@ command is refused, not clobbered. `--json` on every verb.
 `mercury update` reads the configured repository's GitHub Releases over one
 of two roads: anonymously over HTTPS — no account, no sign-in, no token, the
 same lookup the install one-liner performs — or through the user's own
-signed-in GitHub CLI when one is present (the accelerator, and the only road
-that sees a private channel). GitHub's anonymous request limit is said in one
+signed-in GitHub CLI, consulted only when the anonymous road is refused (a
+private channel, a used-up anonymous limit) — the only road that sees a
+private channel. GitHub's anonymous request limit is said in one
 line with its reset time in minutes; every answer names the road that read
 the channel, and the receipt records it. Verbs:
 `--check`, `--status`, `--rollback`, `--json`; stdout carries the result,
