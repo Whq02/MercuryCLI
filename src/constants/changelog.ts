@@ -24,6 +24,12 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - The daemon reads sign-ins live, so a fresh /logins reaches the sessions it hosts without a restart; the doctor's daemon-sign-ins row compares both reads
 - Mouse: a drag that moves nothing paints nothing, a burst of drag reports paints once, and /mouse off is saved for later boots (the /config row Mouse capture)
 - Painting: a one-shot render settles on its last frame, a headless render writes no terminal bytes, the streaming tail wears its ink from the first byte, a critter frame commits once per tick, and a workflow's end lands its manifest, status and notification from one writer
+- An agent's own effort word ranks above the session's stamp; /effort and the picker set the running seat; a downgrade to what the model serves is a one-line receipt, never silent
+- The mode band paints the mode the runner actually holds, from the first frame, on every road that boots a runner; a refused mode change reaches the screen with its reason
+- Godot: the editor is found where it lives (a running one included), the bridge says open-but-unbridged instead of editor closed, every project.godot edit is receipted, and project_refresh_classes rebuilds the class cache
+- The Concourse close chord does exactly what its hint says at every second (stop, then archive, then delete), the hint never goes stale, and a parked session reopens on one Enter
+- Every summary of a session's work reads one owner: the workflow panel, the launch line, the chip and the RUNS lane agree with the running agents; idle only when nothing runs; /compact shows compacting, never thinking
+- Removing or switching an account announces the change once; a store's first write never shows a blank; a headless run whose login lives outside the keychain prints no keychain error
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
