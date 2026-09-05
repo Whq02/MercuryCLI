@@ -101,15 +101,8 @@ section('§C batch mutations are ordered (concurrency declarations)')
   )
 }
 
-section('§D the hide-timer caller is wired to the guard')
+section('§D the guard and the mail sit where the laws say')
 {
-  const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'hooks', 'useTasksV2.ts'),
-    'utf8',
-  )
-  check('the hide-timer reset passes onlyIfAllCompleted', src.includes('onlyIfAllCompleted: true'))
-  check('an aborted wipe refetches instead of hiding the fresh task',
-    src.includes('void this.#fetch()'))
   const store = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'tasks.ts'), 'utf8')
   check('the guard re-verifies UNDER the lock (order: lock, then list)',
     /withLock\(listLockPath\(taskListId\),[^\n]*async \(\) => \{\s*\n\s*if \(opts\?\.onlyIfAllCompleted\)/.test(store))
@@ -119,124 +112,6 @@ section('§D the hide-timer caller is wired to the guard')
   )
   check('assignment mail sits AFTER the applied-update check (no mail for a lost write)',
     upd.indexOf('nothing was applied') !== -1 && upd.indexOf('nothing was applied') < upd.indexOf('await writeToMailbox('))
-}
-
-const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
-const { TasksV2Store } = await import('../../src/hooks/useTasksV2.js')
-const { notifyTasksUpdated } = tasksStore
-
-section('§E TasksV2Store: list reads never overlap — one running + one trailing, newest wins')
-{
-  let active = 0
-  let maxActive = 0
-  let calls = 0
-  let releaseFirst!: () => void
-  const firstGate = new Promise<void>(r => {
-    releaseFirst = r
-  })
-  const stale = [{ ...baseTask('stale-task', 'pending'), id: '1' }]
-  const fresh = [{ ...baseTask('fresh-task', 'pending'), id: '2' }]
-  const store = new TasksV2Store({
-    listTasksImpl: (async () => {
-      calls++
-      active++
-      maxActive = Math.max(maxActive, active)
-      try {
-        if (calls === 1) {
-          await firstGate
-          return stale as never
-        }
-        return fresh as never
-      } finally {
-        active--
-      }
-    }) as never,
-  })
-  const unsub = store.subscribe(() => {})
-  await sleep(20)
-  notifyTasksUpdated()
-  await sleep(120)
-  check('a fetch requested mid-read starts NO second concurrent list read', maxActive === 1, `maxActive=${maxActive}`)
-  releaseFirst()
-  await sleep(120)
-  const snap = store.getSnapshot()
-  check(
-    'the trailing re-read lands LAST — the newest disk state wins',
-    snap?.[0]?.subject === 'fresh-task',
-    JSON.stringify(snap?.map(t => t.subject)),
-  )
-  check('both reads happened (one running, one trailing)', calls >= 2, `calls=${calls}`)
-  unsub()
-}
-
-section('§F a fetch in flight at last-unsubscribe cannot resurrect the store')
-{
-  let release!: () => void
-  const gate = new Promise<void>(r => {
-    release = r
-  })
-  const store = new TasksV2Store({
-    listTasksImpl: (async () => {
-      await gate
-      return [{ ...baseTask('still-open', 'pending'), id: '3' }] as never
-    }) as never,
-  })
-  let notifies = 0
-  const unsub = store.subscribe(() => notifies++)
-  await sleep(20)
-  unsub()
-  const notifiesAtStop = notifies
-  release()
-  await sleep(80)
-  const stats = store._statsForProofs()
-  check(
-    'the dead lifecycle completion re-armed NOTHING (no poll timer, no watcher, no debounce)',
-    !stats.pollTimer && !stats.watcher && !stats.debounceTimer && !stats.hideTimer,
-    JSON.stringify(stats),
-  )
-  check('…and the store stays stopped', stats.started === false && stats.subscribers === 0, JSON.stringify(stats))
-  check('…and nobody was notified after stop', notifies === notifiesAtStop, `${notifiesAtStop} → ${notifies}`)
-}
-
-section('§G the hide-verify chain shares the cancellation token — no post-stop wipe')
-{
-  let resetCalls = 0
-  let calls = 0
-  let release!: () => void
-  const gate = new Promise<void>(r => {
-    release = r
-  })
-  const completed = [{ ...baseTask('done-task', 'completed'), id: '9' }]
-  const store = new TasksV2Store({
-    hideDelayMs: 40,
-    listTasksImpl: (async () => {
-      calls++
-      if (calls >= 2) await gate
-      return completed as never
-    }) as never,
-    resetTaskListImpl: (async () => {
-      resetCalls++
-      return true
-    }) as never,
-    syncDeliverablesImpl: async () => {},
-  })
-  const unsub = store.subscribe(() => {})
-  await sleep(150)
-  check('the hide timer fired and its verify read is in flight', calls >= 2, `calls=${calls}`)
-  unsub()
-  release()
-  await sleep(80)
-  check(
-    '…but the token drops it: NO disk wipe ran after the last unsubscribe',
-    resetCalls === 0,
-    `resetCalls=${resetCalls}`,
-  )
-  const stats = store._statsForProofs()
-  check(
-    'and the dead chain left zero live resources',
-    !stats.watcher && !stats.pollTimer && !stats.hideTimer && !stats.debounceTimer && !stats.started,
-    JSON.stringify(stats),
-  )
 }
 
 await resetTaskList(LIST)

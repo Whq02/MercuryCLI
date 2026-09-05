@@ -92,7 +92,7 @@ for (const m of ['default', 'implement', 'strategy', 'flow', 'dontAsk']) {
 
 section('§5 parity wiring (structural) — every extended site routes the predicate')
 const parityPins: Array<[string, string[], string]> = [
-  ['utils/permissions/decision/engine.ts', ['modeBypassesPermissions(latestContext.mode)'], 'the main permission flow (the owned decision engine, stage 2a)'],
+  ['utils/permissions/decision/engine.ts', ['modeBypassesPermissions(permissionContext.mode)'], 'the main permission flow (the owned decision engine, postureBypassesAsks)'],
   ['tools/BashTool/modeValidation.ts', ['modeBypassesPermissions(toolPermissionContext.mode)'], 'bash mode-validation skip'],
   ['tools/PowerShellTool/modeValidation.ts', ['modeBypassesPermissions(toolPermissionContext.mode)'], 'the win32 twin'],
   ['tools/BashTool/bashPermissions.ts', ['modeBypassesPermissions(toolPermissionContext.mode)) return undefined', 'modeBypassesPermissions(toolPermissionContext.mode)) return false'], 'both classifier-spend guards'],

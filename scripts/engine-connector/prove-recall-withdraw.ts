@@ -183,7 +183,7 @@ section('C10 the composer: ↑ recalls before history; the recall never submits'
 {
   const composer = readFileSync(join(SRC, 'components/PromptInput/PromptInput.tsx'), 'utf8')
   const branch = composer.slice(composer.indexOf('onHistoryUp: () => {'), composer.indexOf('onHistoryDown: () => {'))
-  check('the ↑ branch pulls back a queued send on an EMPTY composer before walking history', branch.includes("if (input === '' && recallQueuedSend()) return") && branch.indexOf('recallQueuedSend()') < branch.indexOf('history.onHistoryUp()'))
+  check('the ↑ branch pulls back a queued send on an EMPTY composer before walking history', branch.includes("if (input === '' && recallQueuedSend()) return") && branch.includes('recallQueuedSend()') && branch.indexOf('recallQueuedSend()') < branch.indexOf('history.onHistoryUp()'))
   const helper = composer.slice(composer.indexOf('const recallQueuedSend = useCallback'), composer.indexOf('const helpers: PromptInputHelpers'))
   check('the recall applies the receipt the way history recall does (applyRecalledEntry, the cursor at the end)', helper.includes('applyRecalledEntry(value, receipt.mode, receipt.pastedContents)') && helper.includes('setCursorOffset(value.length)'))
   check('the recall NEVER submits — no submit call, no delivery call, in its body (never a second submit road)', !/\bsubmit\(/.test(helper) && !helper.includes('sendWords(') && !helper.includes('onSubmit('))
