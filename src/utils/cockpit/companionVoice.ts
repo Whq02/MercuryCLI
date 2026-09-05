@@ -144,6 +144,7 @@ export type TipArea = 'minerva' | 'context' | 'models' | 'mcp' | 'sessions' | 'k
 export interface Tip {
   id: string
   area: TipArea
+  stage: 1 | 2 | 3
   text: string
   surface?: string
   when?: () => boolean
@@ -183,7 +184,9 @@ export function pickTip(
     const contextual = drawFrom(fresh.filter(t => t.area === 'context'))
     if (contextual) return contextual
   }
-  const unopened = drawFrom(fresh.filter(t => t.surface !== undefined && !signals.openedSurfaces.has(t.surface)))
+  const stage = Math.min(...fresh.map(t => t.stage))
+  const lesson = fresh.filter(t => t.stage === stage)
+  const unopened = drawFrom(lesson.filter(t => t.surface !== undefined && !signals.openedSurfaces.has(t.surface)))
   if (unopened) return unopened
-  return drawFrom(fresh)
+  return drawFrom(lesson)
 }
