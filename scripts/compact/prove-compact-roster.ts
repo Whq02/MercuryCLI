@@ -200,7 +200,7 @@ check('the session-memory strategy folds the roster in when its caller hands the
 const autoSrc = readFileSync(join(ROOT, 'src/services/compact/autoCompact.ts'), 'utf8')
 const cmdSrc = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
 const ladderSrc = readFileSync(join(ROOT, 'src/services/compact/maintenanceLadder.ts'), 'utf8')
-check('the automatic road hands it', autoSrc.includes('trySessionMemoryCompaction(messages, toolUseContext.agentId, threshold, toolUseContext)'))
+check('the automatic road hands it (the fold-scoped context)', autoSrc.includes('trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)'))
 check('the /compact command hands it', cmdSrc.includes('trySessionMemoryCompaction(projected, context.agentId, undefined, context)'))
 check("the ladder's notes rung hands it", /trySessionMemoryCompaction\)\(\n\s+input\.messages,\n\s+input\.toolUseContext\.agentId,\n\s+input\.recompactionInfo\.autoCompactThreshold,\n\s+input\.toolUseContext,/.test(ladderSrc))
 const compactSrc = readFileSync(join(ROOT, 'src/services/compact/compact.ts'), 'utf8')
