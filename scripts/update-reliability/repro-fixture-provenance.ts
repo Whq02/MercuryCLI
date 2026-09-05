@@ -54,7 +54,9 @@ t.section('§3 — producer and provers consume the ONE authority')
   t.check('package.mjs imports payloadContract.mjs', packager.includes('payloadContract.mjs'))
   t.check('package.mjs derives its floor from compat-floor.json', packager.includes('compat-floor.json'))
   const journey = readFileSync(join(ROOT, 'scripts', 'updater', 'prove-update-journey.ts'), 'utf8')
-  t.check('prove-update-journey.ts builds fixtures through payloadContract.mjs', journey.includes('payloadContract.mjs'))
+  const minter = readFileSync(join(ROOT, 'scripts', 'updater', 'journeyFixtures.ts'), 'utf8')
+  t.check('prove-update-journey.ts builds fixtures through the one minter', journey.includes('journeyFixtures'))
+  t.check('the minter builds through payloadContract.mjs (the one authority)', minter.includes('payloadContract.mjs'))
 }
 
 t.finish('repro-fixture-provenance')

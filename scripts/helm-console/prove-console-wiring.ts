@@ -126,7 +126,7 @@ check('unread breathes (AttentionPulse via verbPulse)', lanes.includes('verbPuls
 check('solo gate counts daemon crew', lanes.includes('daemonCrew.length === 0'))
 
 section('workflow lead-run detail (telemetry rail)')
-check('phase + agent progress derived from workflowProgress', rail.includes("e.type === 'workflow_agent'") && rail.includes('leadDetail'))
+check('phase + agent progress derived from the one work-row owner', rail.includes('useFocusedWorkRows()') && rail.includes('focusedWorkflowRows(workRows)') && rail.includes('const leadDetail = workflowRowDetail(runningWf[0]!)'))
 
 console.log('')
 if (failures > 0) {
