@@ -115,11 +115,16 @@ section('verifyOwnership / scanDiff — derived checks, violations audited')
   }
   check('scanDiff: undeclared + missing exact', scan.ok === false && scan.undeclared.join(',') === 'src/extra.js' && scan.missing.join(',') === 'src/util.js')
 
-  const auditDir = join(scratch, '.mercury', 'themis')
+  const { themisDirs } = await import('../../src/substrate/themis/auditChain.js')
+  const auditDirs = () => themisDirs(scratch)
   const readChain = (): string =>
-    readdirSync(auditDir)
-      .filter(f => f.startsWith('audit-'))
-      .map(f => readFileSync(join(auditDir, f), 'utf8'))
+    auditDirs().flatMap(dir => {
+      try {
+        return readdirSync(dir).filter(f => f.startsWith('audit-')).map(f => readFileSync(join(dir, f), 'utf8'))
+      } catch {
+        return []
+      }
+    })
       .join('\n')
   let chainText = ''
   for (const deadline = Date.now() + 3000; ; ) {
