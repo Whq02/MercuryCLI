@@ -21,10 +21,13 @@ let failures = 0
   const { readFileSync: readSource } = await import('node:fs')
   const { join: joinPath, resolve: resolvePath } = await import('node:path')
   const svc = readSource(joinPath(resolvePath(import.meta.dir, '..', '..'), 'src', 'services', 'privateChannel', 'updateService.ts'), 'utf8')
-  const remedies = svc.match(/remedy: [^\n]*nothing was activated[^\n]*/g) ?? []
-  const halved = remedies.filter(r => !r.includes('nothing was activated — the active installation was not changed'))
-  console.log(`  [${halved.length === 0 && remedies.length >= 8 ? 'PASS' : 'FAIL'}] every refusal remedy that says nothing was activated also says the active installation was not changed (${remedies.length} remedies)${halved.length ? ` — ${halved[0]!.slice(0, 120)}` : ''}`)
-  if (halved.length !== 0 || remedies.length < 8) failures++
+  const { NOTHING_ACTIVATED_WORDS } = await import('../../src/services/privateChannel/updateService.ts')
+  const spellings = svc.match(/nothing was activated/g) ?? []
+  const remedies = svc.match(/remedy: [^\n]*(?:activated|NOTHING_ACTIVATED_WORDS)[^\n]*/g) ?? []
+  const handSpelled = remedies.filter(r => !r.includes('${NOTHING_ACTIVATED_WORDS}'))
+  const ok = NOTHING_ACTIVATED_WORDS === 'nothing was activated — the active installation was not changed' && spellings.length === 1 && handSpelled.length === 0 && remedies.length >= 8
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] the activation sentence has one spelling in the source (the exported owner) and every 'activated' remedy interpolates it (${remedies.length} remedies, ${spellings.length} spelling(s))${handSpelled.length ? ` — hand-spelled: ${handSpelled[0]!.slice(0, 120)}` : ''}`)
+  if (!ok) failures++
 }
 const check = (name: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
