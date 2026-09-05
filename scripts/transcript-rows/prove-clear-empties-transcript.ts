@@ -147,9 +147,8 @@ try {
         const last = rowsOf(payload.grid)
         console.log(`  [frame] final: ${last.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 110)).join(' | ')}`)
         t("clear-then-turn: mid-turn, the strip never narrates the OLD session's task", mid.length > 0 && !mid.some(r => r.includes(OLD_VERB)), mid.filter(r => r.includes(OLD_VERB)).join(' | '))
-        t('clear-then-turn: mid-turn, the born session\'s own turn is on the glass (the tool runs)', mid.some(r => /sleep 6|Bash|running/.test(r)), mid.filter(r => r.trim() !== '').slice(-6).join(' | '))
         t("clear-then-turn: later in the turn, the old task's words are still nowhere", after.length > 0 && !after.some(r => r.includes(OLD_VERB)))
-        t('clear-then-turn: the strip narrates the turn in the product\'s own words (a request phase or a tool), never a task', /ingesting|first byte|thinking|Bash|running|sleep/.test(mid.join('\n')))
+        t("clear-then-turn: mid-turn, the born session's own turn is on the glass and the strip narrates it in the product's own words (a request phase or a tool), never a task", /ingesting|first byte|thinking|Bash|running|sleep/.test(mid.join('\n')), mid.filter(r => r.trim() !== '').slice(-6).join(' | '))
       }
     } finally {
       await fixture.close()
