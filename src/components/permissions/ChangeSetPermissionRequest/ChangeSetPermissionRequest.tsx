@@ -7,11 +7,12 @@ import { useTerminalSize } from '../../../hooks/useTerminalSize.js';
 import { useKeybinding } from '../../../keybindings/useKeybinding.js';
 import { Box, Text } from '../../../ink.js';
 import {
-  boundHunksToRows,
-  boundedPreviewPlan,
-  consentDiffBudget,
+  boundHunks,
+  consentBodyBudget,
+  consentContentWidth,
+  diffPaintWidth,
   totalHunkRows,
-} from '../boundedDiffPreview.js';
+} from '../consentBodyBudget.js';
 import type { ChangeSetPlan } from '../../../services/changeTransaction/changeSetContracts.js';
 import { planChangeSet, formatChangeSetRefusal } from '../../../services/changeTransaction/changeSetPlan.js';
 import { getChangeSetPlan } from '../../../services/changeTransaction/changeSetStore.js';
@@ -62,7 +63,7 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
   useKeybinding('confirm:toggleFullPreview', () => setExpanded(prev => !prev), {
     context: 'Confirmation',
   });
-  const budget = consentDiffBudget(rows);
+  const budget = consentBodyBudget(rows);
   const input = toolUseConfirm.input as ChangeSetInput;
   const owner = ownerFromToolUseContext(toolUseContext);
 
@@ -110,7 +111,7 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
 
   const plan = preview.plan;
   const changed = plan?.targets.filter(t => t.changed) ?? [];
-  const innerWidth = Math.max(20, columns - 12);
+  const innerWidth = Math.max(20, consentContentWidth(columns) - 4);
 
   type BoundedFile = { target: (typeof changed)[number]; hunks: (typeof changed)[number]['diff']['hunks']; cutLines: number };
   const bounded = React.useMemo((): { files: BoundedFile[]; hiddenFiles: number } => {
@@ -123,20 +124,18 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
         hiddenFiles++;
         continue;
       }
-      const total = totalHunkRows(target.diff.hunks);
-      const spendBesideHunks = 1;
-      if (total + spendBesideHunks <= left) {
-        files.push({ target, hunks: target.diff.hunks, cutLines: 0 });
-        left -= total + spendBesideHunks;
-      } else {
-        const shown = Math.max(1, left - spendBesideHunks);
-        const plan2 = boundedPreviewPlan(total, shown, false);
-        files.push({ target, hunks: boundHunksToRows(target.diff.hunks, plan2.shown), cutLines: plan2.hidden });
+      left -= 1;
+      const paintWidth = diffPaintWidth(innerWidth, target.diff.hunks);
+      const projection = boundHunks(target.diff.hunks, paintWidth, left);
+      files.push({ target, hunks: projection.hunks, cutLines: projection.hiddenLines });
+      if (projection.hiddenLines > 0) {
         left = 0;
+      } else {
+        left -= totalHunkRows(projection.hunks, paintWidth);
       }
     }
     return { files, hiddenFiles };
-  }, [changed, budget, expanded]);
+  }, [changed, budget, expanded, innerWidth]);
 
   return (
     <PermissionDialog title="Apply change set" workerBadge={workerBadge}>

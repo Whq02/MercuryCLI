@@ -179,6 +179,8 @@ section('source: WorkflowTool.tsx wiring (bun-unloadable — text pins)')
   const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'WorkflowTool', 'WorkflowTool.tsx'), 'utf-8')
   check('initial manifest write at launch', /const writeManifest = \(/.test(src) && /if \(!\(await writeManifest\(\)\)\) \{/.test(src))
   check('flush path re-stamps, throttled', /RUN_MANIFEST_WRITE_THROTTLE_MS\)\s*\{\s*writeManifest\(\)/.test(src))
+  check('a flush inside the throttle schedules the trailing write for the throttle\'s end', /trailingManifestWrite = setTimeout\(/.test(src) && /RUN_MANIFEST_WRITE_THROTTLE_MS - sinceLast/.test(src))
+  check('the trailing write is cleared with the heartbeat', /clearInterval\(manifestHeartbeat\)\s*\n\s*if \(trailingManifestWrite !== null\) clearTimeout\(trailingManifestWrite\)/.test(src))
   check('heartbeat interval while running', /setInterval\(\s*\(\) => writeManifest\(\),\s*RUN_MANIFEST_HEARTBEAT_MS,?\s*\)/.test(src))
   check('heartbeat cleared in finally', /finally \{\s*clearInterval\(manifestHeartbeat\)/.test(src))
   check(

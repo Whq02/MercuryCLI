@@ -48,7 +48,9 @@ if (g) {
     const line = rows[my]!
     const text = line.join('')
     check('mission text is truncated (carries …)', text.includes('…'))
-    check('clock still visible on the mission row', /\d\d:\d\d:\d\d/.test(text))
+    const afterEllipsis = text.slice(text.indexOf('…') + 1)
+    const rightName = afterEllipsis.replace(/[│╮╯├┤╭╰].*$/, '').trim()
+    check('the session\'s name sits on the mission row (never a clock)', rightName !== '' && !/\d\d:\d\d:\d\d/.test(text), `right segment: "${rightName}"`)
     let border = -1
     for (let x = g.cols - 1; x >= 0; x--) {
       if ('│╮╯├┤╭╰'.includes(line[x]!)) { border = x; break }
@@ -58,11 +60,11 @@ if (g) {
       if (line[x] && line[x] !== ' ') { bleed = true; break }
     }
     check('nothing bleeds past the panel border on the mission row', border >= 0 && !bleed)
-    const clockX = text.search(/\d\d:\d\d:\d\d/)
+    const nameX = rightName === '' ? -1 : text.lastIndexOf(rightName)
     const ellipsisX = text.indexOf('…')
-    check('… precedes the clock (mission yields, clock is pinned)',
-      ellipsisX >= 0 && clockX > ellipsisX)
-    check('clock sits inside the panel border', clockX >= 0 && border > clockX)
+    check('… precedes the name (mission yields, the name is pinned)',
+      ellipsisX >= 0 && nameX > ellipsisX)
+    check('the name sits inside the panel border', nameX >= 0 && border > nameX)
   }
   cleanupScenario('cockpit-mission')
 }

@@ -58,6 +58,11 @@ function appliedTruth(
       headline: `${model} sends no effort dial while thinking is off (its effort dial is its reasoning dial), so it runs its provider default this session; ${level} was ${savedClause} and applies once thinking is on.`,
     }
   }
+  if (truth.flooredBy === 'thinking-off') {
+    return {
+      headline: `${model} sends ${truth.wire} while thinking is off (its effort dial is its reasoning dial, and ${truth.wire} is the lowest it serves); ${level} was ${savedClause} and applies once thinking is on.`,
+    }
+  }
   if (truth.wire === undefined) {
     return {
       headline: `${model} applies its provider default this session (no live effort vocabulary to resolve against); ${level} was ${savedClause} for effort-capable models.`,
@@ -166,7 +171,10 @@ export function showSeatEffort(word: string | null | undefined, sent: string | n
   if (value === undefined) {
     return `Effort is automatic — this session carries no effort word; currently ${resolveStampedEffortTruth(model, undefined).label} on ${model}.`
   }
-  const runs = sent !== undefined ? sent : (resolveStampedEffortTruth(model, value).wire ?? null)
+  if (sent === undefined) {
+    return `Effort is ${String(value)} (asked — the seat has not sent a request yet) — ${getEffortValueDescription(value, model)}.`
+  }
+  const runs = sent
   const clause =
     runs === null
       ? ` (${model} runs its provider default this session)`
@@ -200,6 +208,8 @@ export function showCurrentEffort(
   let clause = ''
   if (truth.suppressedBy === 'thinking-off') {
     clause = ` ${model} sends no effort dial while thinking is off — it runs its provider default this session.`
+  } else if (truth.flooredBy === 'thinking-off') {
+    clause = ` ${model} sends ${truth.wire} while thinking is off — the lowest effort it serves.`
   } else if (truth.wire === undefined) {
     clause = ` ${model} runs its provider default this session.`
   } else if (truth.label !== String(effective)) {

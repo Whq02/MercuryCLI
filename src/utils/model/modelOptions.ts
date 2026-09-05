@@ -9,6 +9,7 @@ import {
   type GptDisqualification,
   type GptSeatAvailability,
 } from '../../services/providers/openai/openaiCatalogue.js'
+import { gptDisplayName } from '../../services/providers/openai/gptPins.js'
 import {
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
@@ -377,11 +378,12 @@ function getQualifiedGptOptions(): ModelOption[] {
   for (const candidate of qualifiedGptCandidates('primary', availability.sourceKind)) {
     const id = candidate.identity.canonicalId
     listed.add(id)
+    const label = gptDisplayName(id) ?? candidate.displayName
     out.push({
       value: id,
-      label: candidate.displayName,
+      label,
       description: '',
-      descriptionForModel: `${candidate.displayName} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
+      descriptionForModel: `${label} (${id}) — a GPT primary agent from the live catalogue on the native OpenAI Responses engine, billed to the connected ${source}.`,
       group: OPENAI_MODEL_GROUP,
     })
   }
