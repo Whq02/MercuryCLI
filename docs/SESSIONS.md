@@ -127,17 +127,17 @@ refused for its size: it is shrunk to the provider's published limits
 left is an image whose smallest encoding still exceeds them, and its words
 say which limit and what size.
 
-The status row under the composer carries the session's name, its project
-and the CREW's clock — the sub-agents and workflow agents the session's
-runner hosts — past tense, by kind: "agents thought for 28m", "workflow
-thought for 12m", both when both stand (the larger first). Its glyph spins
-while any of them runs and sits still otherwise. The main agent is narrated
+The status row under the composer carries the project and the CREW's
+clock — the sub-agents and workflow agents the session's runner hosts —
+past tense, by kind: "agents thought for 28m", "workflow thought for 12m",
+both when both stand (the larger first). The row wears no glyph, and the
+session's name paints on the title row alone. The main agent is narrated
 once, by the transcript's thinking row and the card under the critter, and
 never repeated here; a session with no crew reads "ready" when idle and
 paints no clock while its main agent works. That is what makes esc read
 true: esc interrupts the main agent alone, so the card's glyph stops while
-the row's keeps spinning for the crew that runs on. The row's warnings stay
-its own: a request wait names what the runner waits on and the budget that
+the row's clock keeps counting for the crew that runs on. The row's
+warnings stay its own: a request wait names what the runner waits on and the budget that
 fires ("waiting for the first byte from Opus 5 — within 90 s"); a held turn
 names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
 says the request is torn down. The row says the session may be stuck only

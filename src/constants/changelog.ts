@@ -45,7 +45,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Consent cards fit the screen: a long edit, file or command is cut with a "+N more lines" line and ctrl+f shows the whole thing, so the Yes/No answers never leave the pane
 - Sovereign mode asks nothing: edits to sensitive files, ask rules and a server's ask ceiling run without a card, and the transcript says what would have asked and why
 - /compact shows its progress in the chat: one row under your /compact with the stage, a bar and a clock until the summary card takes its place; the star under the critter stands still
-- The chat's title bar shows the session's name instead of a ticking clock, and the row under the composer says how long your sub-agents have worked, its glyph spinning only while they run
+- The chat's title bar shows the session's name instead of a ticking clock, and the row under the composer says how long your sub-agents have worked
 - Compaction keeps no half summary when its call stalls or you press Esc, and Gemini and OpenRouter runs with thinking off now send their lowest effort word instead of the provider default
 - The effort chip and /effort say a session's effort is "asked" until its runner reports what it sends; the picker spells a GPT model one way, the same as the strip
 - Right after a session starts, the workflow panel, the board, the crew view and the chip say "not reported yet" instead of "idle"; a running workflow shows its agents within seconds of launch
@@ -58,6 +58,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - After a compaction Mercury re-tells itself every agent, workflow and shell still running or owed a result, so it never re-spawns work or forgets what is due
 - After a long session, Mercury no longer flashes a scary "rewrote sent history" warning when it trims old tool results to fit the window; it names the routine cleanup for what it is
 - Sub-agents now tell you once how they ended, with the real cause and what they wrote; a timeout is never blamed on you; the id in a launch receipt works with SendMessage
+- After a switch back to a model you used earlier, Mercury notes the dropped older reasoning once, instead of repeating it every turn with a growing count
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
