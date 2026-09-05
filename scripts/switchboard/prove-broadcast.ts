@@ -213,7 +213,7 @@ console.log('§3 — honest partial delivery (item 3): the ONE gate types every 
 {
   const gate = (r: Row | undefined, ask = false): { ok: boolean; line?: string } =>
     liveComposerGateOf(r, ask) as { ok: boolean; line?: string }
-  check('parked skips with its line (never force-woken — the rule)', gate(row({ state: 'parked' })).ok === false && gate(row({ state: 'parked' })).line === 'parked — ↵↵ brings it back; a sleeping chat takes no queue')
+  check('parked skips with its line (never force-woken — the rule)', gate(row({ state: 'parked' })).ok === false && gate(row({ state: 'parked' })).line === 'parked — ↵ brings it back; a sleeping chat takes no queue')
   check('queued (a held reservation) skips with its line', gate(row({ sessionId: 'dispatch:abc' })).ok === false && gate(row({ sessionId: 'dispatch:abc' })).line === 'queued — m stacks a message for its start')
   check(
     'POISON (gate-vs-fixture): a queued row by STATE with a plain id skips with the same line — the gate keys on the typed state, not only the id spelling',

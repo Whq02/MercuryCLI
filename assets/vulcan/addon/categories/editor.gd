@@ -55,6 +55,7 @@ static func _state(ctx: MercuryVulcanContext) -> Dictionary:
 		"selection": sel,
 		"playing": ed.is_playing_scene(),
 		"playing_scene": ed.get_playing_scene(),
+		"vulcan_server_started_ms": (int(ctx.server.get("started_ms")) if ctx.server != null else 0),
 	} }
 
 

@@ -28,6 +28,7 @@ import {
   type CompactionResult,
   ERROR_MESSAGE_USER_ABORT,
   type RecompactionInfo,
+  withFoldStatus,
 } from './compact.js'
 import { estimateMessageTokens } from './microCompact.js'
 import { isMaintenanceLadderEnabled, runMaintenanceLadder } from './maintenanceLadder.js'
@@ -337,6 +338,7 @@ export async function autoCompactIfNeeded(
   }
 
   try {
+    return await withFoldStatus(toolUseContext, async () => {
     if (isMaintenanceLadderEnabled()) {
       const walked = await runMaintenanceLadder({
         messages,
@@ -394,6 +396,7 @@ export async function autoCompactIfNeeded(
       consecutiveFailures: 0,
       consecutiveRapidRefills: refills,
     }
+    })
   } catch (err) {
     if (err instanceof Error && err.message === ERROR_MESSAGE_USER_ABORT) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted

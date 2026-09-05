@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'gpt6-astra-row-'))
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.chdir(join(import.meta.dir, '..', '..'))
@@ -28,6 +29,11 @@ const { providerFrontierFact, providerLightFact } = await import('../../src/util
 const { getModelOptions, OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
 const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.js')
 const { streamOneOpenaiAttempt } = await import('../../src/services/providers/openai/openaiCallModel.js')
+const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.js')
+const { imageLimitsForModel } = await import('../../src/utils/imageResizer.js')
+const { nativeSearchFamilyOf } = await import('../../src/services/search/searchDoor.js')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
+const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 import type { OpenaiStreamEvent } from '../../src/services/providers/openai/openaiWire.ts'
 
 let failures = 0
@@ -46,6 +52,7 @@ console.log('============================================================')
 const ID = 'gpt-6-astra'
 const NAME = 'GPT-6 Astra'
 const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
+const SERVED_LADDER = [...LADDER, 'ultra'] as const
 
 section('§1 THE ROW — the pin states the model-page facts; everything derives')
 {
@@ -62,7 +69,12 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   )
   check('the knowledge cutoff is recorded', pin?.knowledgeCutoff === '2026-04-30', String(pin?.knowledgeCutoff))
   check('the row is a DATED observation', /^\d{4}-\d{2}-\d{2}$/.test(pin?.observedAt ?? ''), String(pin?.observedAt))
-  check('the row carries the rollout caveat for its unavailable copy', typeof pin?.availabilityNote === 'string' && pin.availabilityNote.length > 0)
+  check('the row carries no availability caveat (the page states none; the account list serves it)', pin?.availabilityNote === undefined, String(pin?.availabilityNote))
+  check(
+    "the page's long-context rule rides the row: above 272,000 input tokens, 2x input and cache rates, 1.5x output",
+    pin?.longContext?.aboveInputTokens === 272_000 && pin.longContext.inputMultiplier === 2 && pin.longContext.outputMultiplier === 1.5,
+    JSON.stringify(pin?.longContext),
+  )
 
   const identity = pins.parseGptModelId(ID)
   check(
@@ -92,12 +104,38 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
   )
   check("the pricing string is '$10/$50 per Mtok'", cost.getModelPricingString(ID) === '$10/$50 per Mtok', String(cost.getModelPricingString(ID)))
   const usd = cost.calculateUSDCost(ID, {
+    input_tokens: 50_000,
+    output_tokens: 50_000,
+    cache_read_input_tokens: 50_000,
+    cache_creation_input_tokens: 50_000,
+  })
+  check('fifty thousand of each (a 150,000-token prompt, under the threshold): 0.5 + 2.5 + 0.05 + 0.625 = 3.675 USD', Math.abs(usd - 3.675) < 1e-6, String(usd))
+  const usdMillion = cost.calculateUSDCost(ID, {
     input_tokens: 1_000_000,
     output_tokens: 1_000_000,
     cache_read_input_tokens: 1_000_000,
     cache_creation_input_tokens: 1_000_000,
   })
-  check('a million of each: 10 + 50 + 1 + 12.5 = 73.5 USD', Math.abs(usd - 73.5) < 1e-6, String(usd))
+  check('a million of each (a 3,000,000-token prompt, past the threshold): 20 + 75 + 2 + 25 = 122 USD — the whole request at the long tier', Math.abs(usdMillion - 122) < 1e-6, String(usdMillion))
+  const long = cost.resolveModelPricing(ID, { promptTokens: 272_001 })
+  check(
+    'a request past 272,000 input tokens prices the whole request at the long-context tier: $20 in · $2 cached · $25 cache write · $75 out',
+    long.basis === 'recorded' && long.costs.inputTokens === 20 && long.costs.promptCacheReadTokens === 2 && long.costs.promptCacheWriteTokens === 25 && long.costs.outputTokens === 75,
+    JSON.stringify(long),
+  )
+  const edge = cost.resolveModelPricing(ID, { promptTokens: 272_000 })
+  check('at exactly 272,000 the base tier stands (the rule says more than)', edge.costs.inputTokens === 10 && edge.costs.outputTokens === 50, JSON.stringify(edge))
+  const longUsd = cost.calculateUSDCost(ID, { input_tokens: 200_000, output_tokens: 1_000, cache_read_input_tokens: 100_000, cache_creation_input_tokens: 0 })
+  check('a 300,000-token prompt (200,000 plain + 100,000 cached) with 1,000 out: 4 + 0.2 + 0.075 = 4.275 USD', Math.abs(longUsd - 4.275) < 1e-6, String(longUsd))
+  check('the 5.6 rows state no long-context rule (their pages were not re-read here)', pins.gptDisplayPin('gpt-5.6-sol')?.longContext === undefined)
+  check(
+    "the pin's tier function is the one owner: the base at no prompt size and at the edge, the multiples past it",
+    pin !== undefined &&
+      pins.gptPriceTierFor(pin, undefined).costInPerMtok === 10 &&
+      pins.gptPriceTierFor(pin, 272_000).costInPerMtok === 10 &&
+      pins.gptPriceTierFor(pin, 272_001).costInPerMtok === 20 &&
+      pins.gptPriceTierFor(pin, 272_001).cacheWritePerMtok === 25,
+  )
   const sol = cost.resolveModelPricing('gpt-5.6-sol')
   check(
     'a pin stating no cache-write rate still writes at its input rate (the 5.6 rows unchanged)',
@@ -117,18 +155,27 @@ section('§1 THE ROW — the pin states the model-page facts; everything derives
 
 section('§2 THE LIVE LIST DECIDES PRESENCE — served ⇒ the row; unserved ⇒ no selectable row')
 type LiveRow = Record<string, unknown>
-const liveRow = (id: string, name: string, priority: number, efforts: readonly string[], contextWindow: number): LiveRow => ({
+const liveRow = (
+  id: string,
+  name: string,
+  priority: number,
+  efforts: readonly string[],
+  contextWindow: number,
+  maxContextWindow: number = contextWindow,
+  defaultEffort = 'high',
+): LiveRow => ({
   slug: id,
   display_name: name,
   visibility: 'list',
   priority,
   supported_reasoning_levels: efforts.map(e => ({ effort: e, description: e })),
-  default_reasoning_level: 'high',
+  default_reasoning_level: defaultEffort,
   context_window: contextWindow,
+  max_context_window: maxContextWindow,
   input_modalities: ['text', 'image'],
   supported_in_api: true,
 })
-const LIVE_ASTRA = liveRow(ID, NAME, 1, LADDER, 1_050_000)
+const LIVE_ASTRA = liveRow(ID, 'GPT-6-Astra', 1, SERVED_LADDER, 272_000, 872_000, 'medium')
 const LIVE_SOL = liveRow('gpt-5.6-sol', 'GPT-5.6 Sol', 2, ['low', 'medium', 'high', 'xhigh'], 272_000)
 const fetchOf = (models: LiveRow[]): typeof fetch =>
   (async () =>
@@ -141,9 +188,9 @@ process.env.OPENAI_API_KEY = 'prover-key'
 
   const evaluated = catalogue.evaluateGptCandidate(ID, 'api-key')
   check(
-    'served ⇒ qualified, wearing the name and carrying the pin',
-    evaluated.ok && evaluated.candidate.displayName === NAME && evaluated.candidate.pin?.id === ID,
-    JSON.stringify(evaluated),
+    "served ⇒ qualified, wearing the LIVE name ('GPT-6-Astra') and carrying the pin",
+    evaluated.ok && evaluated.candidate.displayName === 'GPT-6-Astra' && evaluated.candidate.pin?.id === ID,
+    JSON.stringify(evaluated).slice(0, 300),
   )
   const head = catalogue.qualifiedGptCandidates('primary', 'api-key')[0]
   check('the class alias resolves to it — the top-priority qualified row', head?.identity.canonicalId === ID, String(head?.identity.canonicalId))
@@ -153,10 +200,11 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const options = getModelOptions()
   const row = options.find(o => o.value === ID)
   check(
-    'the picker row: the name, the OpenAI group, selectable',
-    row !== undefined && row.label === NAME && row.group === OPENAI_MODEL_GROUP && row.unavailable === undefined,
+    "the picker row: the live name ('GPT-6-Astra'), the OpenAI group, selectable",
+    row !== undefined && row.label === 'GPT-6-Astra' && row.group === OPENAI_MODEL_GROUP && row.unavailable === undefined,
     JSON.stringify(row),
   )
+  check("the strip's word stays the page's spelling ('GPT-6 Astra') through the one display owner", model.renderModelName(ID) === NAME, model.renderModelName(ID))
   const solRow = options.find(o => o.value === 'gpt-5.6-sol')
   check('the served 5.6 row stands beside it, selectable', solRow !== undefined && solRow.unavailable === undefined, JSON.stringify(solRow))
   const astraIndex = options.findIndex(o => o.value === ID)
@@ -164,12 +212,13 @@ process.env.OPENAI_API_KEY = 'prover-key'
   check('the rows keep the live priority order (Astra above Sol)', astraIndex >= 0 && solIndex > astraIndex, `${astraIndex} vs ${solIndex}`)
 
   const view = capabilities.gptEffortVocabularyView(ID)
-  check('the live vocabulary is the five-level ladder', view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(LADDER), JSON.stringify(view))
+  check("the live vocabulary is the served six-level ladder (the page's five plus ultra)", view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(SERVED_LADDER), JSON.stringify(view))
+  check('ultra ranks above max in the one wire-effort order, so max never clamps down', pins.WIRE_EFFORT_RANK.ultra! > pins.WIRE_EFFORT_RANK.max! && pins.nearestSupportedWireEffort('max', SERVED_LADDER) === 'max')
   check('max is supported', capabilities.modelSupportsMaxEffort(ID) && capabilities.getMaxSupportedEffortLevel(ID) === 'max')
   check('xhigh is supported', capabilities.modelSupportsXHighEffort(ID))
   check("applied 'max' stays 'max'", effort.resolveAppliedEffort(ID, 'max') === 'max', String(effort.resolveAppliedEffort(ID, 'max')))
   check("applied 'xhigh' stays 'xhigh'", effort.resolveAppliedEffort(ID, 'xhigh') === 'xhigh', String(effort.resolveAppliedEffort(ID, 'xhigh')))
-  check("no effort set ⇒ the live default ('high')", effort.resolveAppliedEffort(ID, undefined) === 'high', String(effort.resolveAppliedEffort(ID, undefined)))
+  check("no effort set ⇒ the live default ('medium' on this list)", effort.resolveAppliedEffort(ID, undefined) === 'medium', String(effort.resolveAppliedEffort(ID, undefined)))
   const live = catalogue.evaluateGptCandidate(ID, 'api-key')
   const liveModel = live.ok ? live.candidate.live : undefined
   const pMax = liveModel ? catalogue.resolveGptReasoningProfile('max', liveModel) : undefined
@@ -178,10 +227,24 @@ process.env.OPENAI_API_KEY = 'prover-key'
   check("the wire profile sends 'xhigh' as the user's own choice", pXhigh?.wireEffort === 'xhigh' && pXhigh.source === 'user', JSON.stringify(pXhigh))
   check('the live row admits images', liveModel?.inputModalities?.includes('image') === true)
 
-  check('credentialed, the budget is the SERVED window (1,050,000 here)', getContextWindowForModel(ID) === 1_050_000, String(getContextWindowForModel(ID)))
+  check('credentialed, the budget is the served CEILING (872,000 — the bare id budgets the declared ceiling)', getContextWindowForModel(ID) === 872_000, String(getContextWindowForModel(ID)))
+  check('the [served] opt-down budgets the served default window (272,000)', getContextWindowForModel(`${ID}[served]`) === 272_000, String(getContextWindowForModel(`${ID}[served]`)))
   process.env.MERCURY_DISABLE_1M_CONTEXT = '1'
   check('the 1M kill-switch still caps it', getContextWindowForModel(ID) === 200_000, String(getContextWindowForModel(ID)))
   delete process.env.MERCURY_DISABLE_1M_CONTEXT
+
+  check('the autocompact threshold sits at the served ceiling less the summary reserve and the compact headroom (872,000 − 20,000 − 3,000 = 849,000)', getAutoCompactThreshold(ID) === 849_000, String(getAutoCompactThreshold(ID)))
+  const limits = imageLimitsForModel(ID)
+  check("the image limits are the OpenAI family's (the route decides): 1,500 images, the 2048 detail box", limits.family === 'openai' && limits.maxImagesPerRequest === 1500 && limits.nativeLongEdgePx.standard === 2048, JSON.stringify(limits))
+  check('the native web search door admits the row (its route is a search family: openai)', nativeSearchFamilyOf(ID) === 'openai', String(nativeSearchFamilyOf(ID)))
+  check('the sign-in ledger records an OpenAI subscription sign-in as the most recent', recordSignIn('openai', 'subscription'))
+  resetComputedDefaultMemo()
+  const decision = computedDefault()
+  check(
+    'an OpenAI sign-in as the most recent ⇒ the fresh-session default lands on the row (the recorded frontier, served)',
+    decision.setting === ID && decision.provider === 'openai' && decision.source === 'sign-in' && decision.why.includes('the recorded frontier'),
+    JSON.stringify({ setting: decision.setting, provider: decision.provider, source: decision.source, why: decision.why }),
+  )
 
   catalogue.__resetOpenaiCatalogueForTest()
   await catalogue.refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: fetchOf([LIVE_SOL]) })
@@ -190,14 +253,12 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const headWithout = catalogue.qualifiedGptCandidates('primary', 'api-key')[0]
   check('the class alias resolves to the served row instead', headWithout?.identity.canonicalId === 'gpt-5.6-sol', String(headWithout?.identity.canonicalId))
   const withoutRow = getModelOptions().find(o => o.value === ID)
-  const pin = pins.gptDisplayPin(ID)
   check(
-    "unserved ⇒ the picker's row is unavailable (never selectable), carrying the resolver's reason and the pin's rollout note",
+    "unserved ⇒ the picker's row is unavailable (never selectable), carrying the resolver's reason and nothing invented (the pin states no caveat)",
     withoutRow !== undefined &&
       typeof withoutRow.unavailable === 'string' &&
       withoutRow.unavailable.includes('not served by the connected') &&
-      pin?.availabilityNote !== undefined &&
-      withoutRow.unavailable.includes(pin.availabilityNote),
+      withoutRow.label === NAME,
     JSON.stringify(withoutRow),
   )
   check('unserved, the effort view reports the live truth as unavailable for it (no invented ladder)', capabilities.gptEffortVocabularyView(ID).state !== 'live', JSON.stringify(capabilities.gptEffortVocabularyView(ID)))
@@ -235,7 +296,14 @@ section('§3 THE WIRE — a fixture Responses stream on the id: the summary and 
       output_index: 2,
       item: { type: 'message', id: 'msg_astra_2', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: ANSWER, annotations: [] }], phase: 'final_answer' },
     },
-    { type: 'response.completed', response: { id: 'resp_astra_1', model: ID, usage: { input_tokens: 40, output_tokens: 12, input_tokens_details: { cached_tokens: 0 } } } },
+    {
+      type: 'response.completed',
+      response: {
+        id: 'resp_astra_1',
+        model: ID,
+        usage: { input_tokens: 1200, output_tokens: 42, input_tokens_details: { cached_tokens: 1024, cache_write_tokens: 100 }, output_tokens_details: { reasoning_tokens: 30 } },
+      },
+    },
   ]
   for (const p of payloads) events.push(...fold.fold(p))
   const types = events.map(e => e.type)
@@ -244,6 +312,8 @@ section('§3 THE WIRE — a fixture Responses stream on the id: the summary and 
   check('two message items open, each with its register', starts.length === 2 && starts[0]?.phase === 'commentary' && starts[1]?.phase === 'final_answer', JSON.stringify(starts))
   const finish = events.find((e): e is Extract<OpenaiStreamEvent, { type: 'finish' }> => e.type === 'finish')
   check('the finish carries the reasoning item and the two labelled message items in order', finish !== undefined && finish.reasoningItems.length === 1 && JSON.stringify(finish.orderedItems.map(i => i.type)) === JSON.stringify(['reasoning', 'message', 'message']), JSON.stringify(finish?.orderedItems.map(i => i.type)))
+  const usageEvent = events.find((e): e is Extract<OpenaiStreamEvent, { type: 'usage' }> => e.type === 'usage')
+  check("the fold reads the wire's cache-write count beside the cached and reasoning counts", usageEvent?.usage.cacheWriteInputTokens === 100 && usageEvent.usage.cachedInputTokens === 1024 && usageEvent.usage.reasoningOutputTokens === 30, JSON.stringify(usageEvent?.usage))
 
   const source = (async function* () {
     for (const e of events) yield e
@@ -263,10 +333,17 @@ section('§3 THE WIRE — a fixture Responses stream on the id: the summary and 
     contractDigest: 'prover-digest',
   })
   const blocks: Array<{ type: string; text: string; phase?: string }> = []
-  const settled: Array<{ apexProviderTurn?: { items?: Array<{ type?: string; phase?: string }> }; message?: { model?: string } }> = []
+  const settled: Array<{
+    apexProviderTurn?: { items?: Array<{ type?: string; phase?: string }>; providerUsage?: Record<string, unknown> }
+    message?: { model?: string; usage?: Record<string, number> }
+  }> = []
   let r = await gen.next()
   while (!r.done) {
-    const v = r.value as { type: string; message?: { model?: string; content?: Array<Record<string, unknown>> }; apexProviderTurn?: { items?: Array<{ type?: string; phase?: string }> } }
+    const v = r.value as {
+      type: string
+      message?: { model?: string; usage?: Record<string, number>; content?: Array<Record<string, unknown>> }
+      apexProviderTurn?: { items?: Array<{ type?: string; phase?: string }>; providerUsage?: Record<string, unknown> }
+    }
     if (v.type === 'assistant') {
       settled.push(v)
       for (const b of v.message?.content ?? []) {
@@ -294,6 +371,21 @@ section('§3 THE WIRE — a fixture Responses stream on the id: the summary and 
     JSON.stringify(record?.items?.map(i => [i.type, i.phase ?? null])),
   )
   check('the minted turn names the model it ran on', settled.some(s => s.message?.model === ID), JSON.stringify(settled.map(s => s.message?.model)))
+  const last = settled.at(-1)
+  const usage = last?.message?.usage
+  check(
+    "the minted usage folds the wire's inclusive counts to the disjoint envelope: 76 plain · 1,024 cached · 100 written · 42 out",
+    usage?.input_tokens === 76 && usage.cache_read_input_tokens === 1024 && usage.cache_creation_input_tokens === 100 && usage.output_tokens === 42,
+    JSON.stringify(usage),
+  )
+  const receipt = last?.apexProviderTurn?.providerUsage
+  check(
+    'the provider receipt keeps the raw totals beside the write and reasoning counts',
+    receipt?.inputTokensTotal === 1200 && receipt.cachedInputTokens === 1024 && receipt.cacheWriteInputTokens === 100 && receipt.reasoningOutputTokens === 30,
+    JSON.stringify(receipt),
+  )
+  const turnUsd = usage === undefined ? Number.NaN : cost.calculateUSDCost(ID, usage as never)
+  check('the meter prices that turn at the four rates: 0.00076 + 0.001024 + 0.00125 + 0.0021 = 0.005134 USD', Math.abs(turnUsd - 0.005134) < 1e-9, String(turnUsd))
 }
 
 console.log(failures === 0 ? '\nprove-gpt6-astra-row: ALL LAWS HOLD' : `\nprove-gpt6-astra-row: ${failures} FAILURE(S)`)

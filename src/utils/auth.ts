@@ -1,8 +1,9 @@
-import { spawnSync, execFileSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { subprocessEnv } from './subprocessEnv.js'
 import { randomInt } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { noteCredentialChange } from './accounts/signInLedger.js'
 
 import memoize from 'lodash-es/memoize.js'
 
@@ -38,6 +39,7 @@ import {
   getUsername,
 } from './secureStorage/index.js'
 import { keychainReachable } from './secureStorage/macOsKeychainHelpers.js'
+import { readKeychainServiceSync } from './secureStorage/macOsKeychainStorage.js'
 import { getApiKeyHelperFromOutsideCheckoutSources, getSettingsForSource, getSettings_DEPRECATED } from './settings/settings.js'
 import { clearToolSchemaCache } from './toolSchemaCache.js'
 import {
@@ -423,13 +425,7 @@ function readManagedKey(): string | null {
 }
 
 function readKeychainSync(): string | null {
-  const out = execFileSync(
-    'security',
-    ['find-generic-password', '-a', getUsername(), '-s', getMacOsKeychainStorageServiceName(), '-w'],
-    { windowsHide: true, encoding: 'utf-8', timeout: 10_000, env: { ...subprocessEnv() } },
-  )
-  const trimmed = out.trim()
-  return trimmed === '' ? null : trimmed
+  return readKeychainServiceSync(getMacOsKeychainStorageServiceName())
 }
 
 const API_KEY_FORMAT_RE = /^[A-Za-z0-9_-]+$/
@@ -490,6 +486,7 @@ export async function removeApiKey(): Promise<void> {
   saveGlobalConfig(current => ({ ...current, primaryApiKey: undefined }))
   getApiKeyFromConfigOrMacOSKeychain.cache?.clear?.()
   clearLegacyApiKeyPrefetch()
+  noteCredentialChange()
 }
 
 

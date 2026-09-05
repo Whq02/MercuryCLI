@@ -96,6 +96,38 @@ console.log('\nC6 the wiring — service stamp to glass word (structural)')
   )
 }
 
+console.log('\nC7 the word covers the WHOLE fold — the entries stamp first, restore on every exit')
+{
+  const { withFoldStatus } = await import('../../src/services/compact/compact.ts')
+  const stamps: Array<string | null> = []
+  const context = { setSDKStatus: (word: string | null) => stamps.push(word) } as never
+  const seenAtWork: Array<string | null> = []
+  const out = await withFoldStatus(context, async () => {
+    seenAtWork.push(...stamps)
+    return 'folded'
+  })
+  check("the stamp lands BEFORE the work runs (the session-memory wait and the prompt build sit inside it)", seenAtWork.length === 1 && seenAtWork[0] === 'compacting')
+  check('the work\'s answer rides through', out === 'folded')
+  check('the restore follows the work (one stamp, one restore)', stamps.length === 2 && stamps[1] === null)
+  const thrown: Array<string | null> = []
+  let caught: unknown = null
+  try {
+    await withFoldStatus({ setSDKStatus: (word: string | null) => thrown.push(word) } as never, async () => {
+      throw new Error('Compaction canceled.')
+    })
+  } catch (e) {
+    caught = e
+  }
+  check('a thrown fold still restores (a stamp never outlives the command)', caught instanceof Error && caught.message === 'Compaction canceled.' && thrown.length === 2 && thrown[0] === 'compacting' && thrown[1] === null)
+  const bare = await withFoldStatus({} as never, async () => 'no status door')
+  check('a context with no status door folds unstamped and unharmed', bare === 'no status door')
+  const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
+  const command = read('src/commands/compact/compact.ts')
+  check('the /compact command wraps its WHOLE body — every strategy under the word', command.includes('return withFoldStatus(context, () => callUnderFoldStatus(args, context))'))
+  const auto = read('src/services/compact/autoCompact.ts')
+  check('the automatic road wraps its fold under the word once the decision is made', auto.includes('return await withFoldStatus(toolUseContext, async () => {'))
+}
+
 console.log(
   failures === 0
     ? '\n ✅ COMPACT STATE WORD — the fold speaks its own word, never the thinking dress'

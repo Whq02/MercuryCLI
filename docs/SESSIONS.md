@@ -179,12 +179,14 @@ motion. ↵ on a parked row brings it back in place: its transcript paints at
 once, the daemon admits the same durable session behind the paint, it
 becomes the focused chat, and shift+←/→ work from there as usual. The
 board's close key is a chord, never a letter: ctrl+x pressed twice (the
-first press shows the hint on the row, the second completes). On a parked
-row the first completed chord says there is nothing to stop; the same
-gesture again clears the row from the board — the chat survives on disk,
-and the Boot face and `/resume` still offer it — and a live row you
-release is cleared the same way, so a removed row never returns beneath as
-parked. Everything else the project
+first press shows the hint on the row, the second completes), and the
+chord is a ladder of three rungs. On a live row it stops the session (the
+row stays, wearing stopped and the next step); on a stopped row it
+archives — the row parks; on a parked row a first chord says the next one
+deletes, and that next chord (or a chord straight after the archive)
+deletes the record — the transcript survives on disk, and the Boot face and
+`/resume` still offer the chat. A door row
+(another project, the repo picker) has nothing to close. Everything else the project
 holds — chats older than a week, past the ten, cleared from the board, or
 never given words — is counted into one last line, "N older chats · ↵ to
 browse": ↵ unfolds that very list in place on the board — this project's
@@ -207,9 +209,9 @@ opens a peek of the selected row in place. A session's end is a visible
 state: a runner that crashed paints NEEDS YOU with its reason line, the row
 outlives every reconcile, your own next act on the session clears the fact,
 and only your release removes the row. ctrl+x ctrl+x stops the selected
-session — the row stays, wearing stopped and the next step — and the same
-chord again removes it from the board; typing is never a control, so a
-plain `x` lands in the composer like any other letter. The board's REPO picker
+session — the row stays, wearing stopped and the next step — the chord
+again archives it, and a third chord deletes it; typing is never a control,
+so a plain `x` lands in the composer like any other letter. The board's REPO picker
 changes the folder new sessions launch in, the whole harness follows, and
 the board follows with it — it renders the same list of projects the Boot
 face's Projects rows do.

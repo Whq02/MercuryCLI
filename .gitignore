@@ -23,6 +23,10 @@ vendor/node/
 # and never tracked: the addon and its licences land here per platform.
 vendor/voice/
 native/voice/target/
+# A cross build's target platform packages (the search binary and the image
+# processor of another platform than the host's), reproduced from bun.lock's
+# pins by scripts/vendor/fetch-platform-packages.ts; never tracked.
+vendor/platform-packages/
 release-out/
 
 # Gate shard artifacts from local runs.

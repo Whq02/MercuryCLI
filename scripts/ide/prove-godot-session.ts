@@ -187,8 +187,8 @@ try {
     const unreachable = await godot.buildGodotIdeSession(owner, proj)
     const elapsed = Date.now() - t0
     check(
-      'D3 no editor ⇒ vulcan unreachable with the teaching hint',
-      unreachable.vulcan.state === 'unreachable' && unreachable.vulcan.detail.includes('Godot editor running'),
+      'D3 no editor ⇒ vulcan unreachable, the presence words + the nudge (never "closed")',
+      unreachable.vulcan.state === 'unreachable' && unreachable.vulcan.detail.includes('no editor running') && unreachable.vulcan.detail.includes('open the project in the Godot editor') && !unreachable.vulcan.detail.includes('closed'),
       JSON.stringify(unreachable.vulcan).slice(0, 240),
     )
     check('D4 editor truth reads unavailable (VULCAN editor unreachable)', unreachable.editor.state === 'unavailable' && unreachable.editor.detail.includes('unreachable'), JSON.stringify(unreachable.editor).slice(0, 200))

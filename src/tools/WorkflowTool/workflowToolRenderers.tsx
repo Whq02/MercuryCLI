@@ -7,9 +7,9 @@ import { useNowTick } from '../../components/mercury-ui/components.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
-import { useAppState } from '../../state/AppState.js'
-import type { LocalWorkflowTaskState } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { formatQuietAge, workflowPulse } from './livePulse.js'
+import { useFocusedWorkRows } from '../../components/tasks/useFocusedWork.js'
+import { workRowRuns } from '../../services/engine-connector/workCounts.js'
+import { formatQuietAge, workflowPulseAt } from './livePulse.js'
 
 const BROKEN_SCRIPT_PREVIEW_COLS = 80
 
@@ -56,15 +56,8 @@ export function renderWorkflowToolUseMessage(
 }
 
 export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
-  const task = useAppState(s => s.tasks[taskId]) as
-    | LocalWorkflowTaskState
-    | undefined
-  const live =
-    task !== undefined &&
-    task.status !== 'completed' &&
-    task.status !== 'failed' &&
-    task.status !== 'killed' &&
-    task.status !== 'paused'
+  const task = useFocusedWorkRows().find(r => r.id === taskId && r.kind === 'workflow')
+  const live = task !== undefined && workRowRuns(task)
   const nowMs = useNowTick(live ? 10_000 : null)
 
   if (!task) {
@@ -91,16 +84,16 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
     )
   }
   if (!settled) {
-    const asks = task.pendingPermissions?.size ?? 0
-    const pulse = workflowPulse(task.workflowProgress ?? [], task.startTime, nowMs)
+    const asks = task.pendingAsks ?? 0
+    const pulse = task.pulse ? workflowPulseAt(task.pulse, nowMs) : null
+    const agentCount = task.agentCount ?? 0
+    const totalTokens = task.totalTokens ?? 0
     const clauses: string[] = []
-    if (pulse.phaseTitle) clauses.push(pulse.phaseTitle)
-    if (pulse.running > 0) clauses.push(`${pulse.running} running`)
-    else if (task.agentCount > 0)
-      clauses.push(`${task.agentCount} ${plural(task.agentCount, 'agent')}`)
-    if (pulse.maxAttempt > 1) clauses.push(`attempt ${pulse.maxAttempt}`)
-    if (task.totalTokens > 0)
-      clauses.push(`${GLYPH.tokens} ${formatTokens(task.totalTokens)}`)
+    if (pulse?.phaseTitle) clauses.push(pulse.phaseTitle)
+    if (pulse !== null && pulse.running > 0) clauses.push(`${pulse.running} running`)
+    else if (agentCount > 0) clauses.push(`${agentCount} ${plural(agentCount, 'agent')}`)
+    if (pulse !== null && pulse.maxAttempt > 1) clauses.push(`attempt ${pulse.maxAttempt}`)
+    if (totalTokens > 0) clauses.push(`${GLYPH.tokens} ${formatTokens(totalTokens)}`)
     return (
       <Text>
         {asks > 0 ? (
@@ -117,10 +110,14 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
         {clauses.length > 0 ? <Text color={FAINT}>{clauses.join(' · ')} · </Text> : null}
         {
 }
-        <Text color={pulse.moving ? FAINT : AMBER}>
-          last event {formatQuietAge(pulse.quietMs)} ago
-        </Text>
-        <Text color={FAINT}> · </Text>
+        {pulse !== null ? (
+          <>
+            <Text color={pulse.moving ? FAINT : AMBER}>
+              last event {formatQuietAge(pulse.quietMs)} ago
+            </Text>
+            <Text color={FAINT}> · </Text>
+          </>
+        ) : null}
         <Text color={TEAL}>/tasks {taskId}</Text>
         <Text color={FAINT}> to inspect</Text>
       </Text>
@@ -138,11 +135,12 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
     task.endTime && task.startTime
       ? formatDuration(task.endTime - task.startTime)
       : undefined
+  const settledAgents = task.agentCount ?? 0
+  const settledTokens = task.totalTokens ?? 0
   const clauses: string[] = []
   if (elapsed) clauses.push(`in ${elapsed}`)
-  if (task.agentCount > 0)
-    clauses.push(`${task.agentCount} ${plural(task.agentCount, 'agent')}`)
-  if (task.totalTokens > 0) clauses.push(`${formatTokens(task.totalTokens)} tokens`)
+  if (settledAgents > 0) clauses.push(`${settledAgents} ${plural(settledAgents, 'agent')}`)
+  if (settledTokens > 0) clauses.push(`${formatTokens(settledTokens)} tokens`)
   const tail = clauses.length > 0 ? ` · ${clauses.join(' · ')}` : ''
 
   return (
