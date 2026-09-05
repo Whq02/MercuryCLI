@@ -52,8 +52,8 @@ line the installer prints. `mercury --version` is the check.
 `--status`, `--rollback`; the previous version stays on disk). It reads the
 public release list and the archive anonymously — no account, no sign-in,
 no token — and verifies the archive against the release's `SHA256SUMS.txt`
-before anything activates; a signed-in GitHub CLI (`gh`), when present, is
-used instead and raises GitHub's request limit, but is never required.
+before anything activates; a signed-in GitHub CLI (`gh`) is asked only when
+that anonymous road is refused, and is never required.
 
 From 1.0.0-beta.3 every release archive is signed with the Mercury release
 key at packaging, and the release is verified against that signature before
@@ -123,7 +123,7 @@ publishes a clean-tree build to `<config home>/runtime/dist` and
 runtime is a loud launcher failure, never a silent fallback. A release
 install ([Install](#install)) uses `mercury install` and `mercury update`
 instead (no GitHub sign-in needed — the public releases are read anonymously;
-a signed-in GitHub CLI is used when present) and never touches a checkout.
+gh is asked only when that road is refused) and never touches a checkout.
 Both roads run the artifact on the
 vendored Node 24 LTS runtime the build carries, else on `MERCURY_NODE` or a
 PATH node inside the range. [AGENTS.md](AGENTS.md) is the one-screen
