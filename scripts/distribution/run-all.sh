@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/distribution/**
 # gate-watch: THIRD_PARTY_NOTICES.md package.json bun.lock vendor/*.lock.json
+# gate-watch: LICENSE.md TRADEMARKS.md MERCURY-COMMUNITY-PRODUCTION-TERMS.md scripts/release/releaseDocuments.mjs scripts/release/payloadContract.mjs
 set -u
 here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"

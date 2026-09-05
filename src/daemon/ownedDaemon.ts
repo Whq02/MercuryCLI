@@ -9,8 +9,12 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { hasStoredOAuthToken } from '../utils/auth.js'
 import { subscribeSignInEpoch } from '../utils/accounts/signInLedger.js'
 import { STORED_TOKEN_SCRUB_VARS } from '../utils/subprocessEnv.js'
-import { OWNER_PID_ENV } from './ownerWatch.js'
+import { OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
+import type { Socket } from 'node:net'
+
+const OWNER_PIPE_STDIO_INDEX = 3
+const ownerPipeEnds = new Set<Socket>()
 
 export function shouldReapAutoStartedDaemon(persistEnv: string | undefined): boolean {
   return persistEnv !== '1'
@@ -248,13 +252,23 @@ export function spawnOwnedDaemon(
     } catch {
       outFd = 'ignore'
     }
+    const ownerPipe = process.platform !== 'win32'
+    if (ownerPipe) Object.assign(env, flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX)))
     const child = spawn(process.execPath, [script, 'daemon', 'run', projectDir], {
       cwd: projectDir,
       detached: true,
       windowsHide: true,
-      stdio: ['ignore', outFd, outFd],
+      stdio: ownerPipe ? ['ignore', outFd, outFd, 'pipe'] : ['ignore', outFd, outFd],
       env,
     })
+    const pipeEnd = ownerPipe ? (child.stdio[OWNER_PIPE_STDIO_INDEX] as Socket | null | undefined) : undefined
+    if (pipeEnd) {
+      pipeEnd.on('error', () => {
+      })
+      pipeEnd.unref()
+      ownerPipeEnds.add(pipeEnd)
+      pipeEnd.once('close', () => ownerPipeEnds.delete(pipeEnd))
+    }
     if (typeof outFd === 'number') {
       try {
         closeSync(outFd)
