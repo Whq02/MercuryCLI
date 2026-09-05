@@ -54,7 +54,11 @@ if (!TARGET) die(`host ${process.platform}/${process.arch} has no channel asset 
 const TARGET_ASSET = (version: string): string => archiveNameFor(version, TARGET)
 const candidateAsset: string = TARGET_ASSET(CANDIDATE_VERSION)
 
-const candidatePath = process.env.MERCURY_BRIDGE_CANDIDATE ?? join(ROOT, 'release-out', candidateAsset!)
+const { unsignedArchiveName } = (await import('../release/payloadContract.mjs')) as { unsignedArchiveName: (archiveName: string) => string }
+const candidatePath =
+  process.env.MERCURY_BRIDGE_CANDIDATE ??
+  [candidateAsset, unsignedArchiveName(candidateAsset)].map(a => join(ROOT, 'release-out', a)).find(p => existsSync(p)) ??
+  join(ROOT, 'release-out', candidateAsset!)
 if (!existsSync(candidatePath)) {
   die(`candidate archive absent: ${candidatePath} — run \`node scripts/release/package.mjs --target <host>\` first (or set MERCURY_BRIDGE_CANDIDATE)`)
 }
