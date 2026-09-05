@@ -61,6 +61,7 @@ console.log('§1 the fixture home (Mercury-made) and a foreign Desktop repositor
   check('the fix carries the sh inspect words for the home', fix.includes('git -C "$HOME" log --oneline'), fix)
   check('the fix carries the sh removal words for the home', fix.includes('rm -rf "$HOME/.git"'), fix)
   check('the fix keeps a foreign repository ("keep it if it is yours") and names its removal words', fix.includes('keep it if it is yours') && fix.includes('rm -rf "$HOME/Desktop/.git"'), fix)
+  check('the foreign leg SAYS what fails for the user: every project beneath it keyed as one, memory and settings mixing, a forked worktree a worktree of the home', fix.includes('keys every project beneath it as one') && fix.includes('memory and project settings mix') && fix.includes('a forked worktree is a worktree of the home'), fix)
   check('the check is functional evidence', r.probe === 'functional')
   check('the detail explains the swallow and says Mercury removes nothing', (r.detail ?? '').includes('removes nothing'), r.detail)
 }
