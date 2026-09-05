@@ -110,7 +110,10 @@ half is compiled into every build as its trust roster. The private key is held b
 operator alone: it never enters the repository, and it reaches the hosted
 release workflow only as a repository secret for the packaging step.
 
-Signing is evidence, never a gate: nothing refuses to run on its verdict.
+Signing is evidence on a boot — nothing refuses to run on its verdict — and
+a gate on an update: `mercury update` refuses a tampered payload before it
+is staged, so the active installation is never changed by bytes that do not
+verify.
 The verdicts are:
 
 - **signed** — a valid signature under the release key; the bytes are what
@@ -125,7 +128,8 @@ The verdicts are:
 - **unrecognized-key** — a valid signature under a key that is not in this
   build's roster; unattested.
 - **tampered** — the bytes differ from what was signed, or the signature does
-  not verify; re-download.
+  not verify; an update refuses it before staging — download the release
+  again, and if it repeats report it through the repository's Security tab.
 
 How to check:
 
