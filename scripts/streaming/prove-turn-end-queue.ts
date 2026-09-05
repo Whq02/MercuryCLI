@@ -34,15 +34,17 @@ const ASK = 'hold after settle please'
 const READ_ASK = 'read three files please'
 const SLEEP_ASK = 'run the long sleep please'
 const LAUNCH_ASK = 'launch one agent please'
+const NOTICE_ASK = 'launch an errand and sleep please'
+const NOTICE_ROW = '● Agent "a quick errand" completed'
 const FIRST = 'first queued words'
 const SECOND = 'second queued words'
 
-type Wire = { kind: string; n?: number; ask?: string; arm?: string; at: number }
+type Wire = { kind: string; n?: number; ask?: string; arm?: string; order?: string[]; shape?: string; texts?: string[]; at: number }
 type Mark = { label: string; atTick: number; grid: Array<Array<{ c: string }>> }
 const gridText = (grid: Array<Array<{ c: string }>>): string =>
   grid.map(r => r.map(c => c.c || ' ').join('').replace(/\s+$/, '')).join('\n')
 
-async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' | 'stop' | 'crew' = 'hold'): Promise<void> {
+async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' | 'stop' | 'crew' | 'notice' = 'hold'): Promise<void> {
   const RUN_HOME = path.join(realpathSync(tmpdir()), `mercury-turnend-${route}-${scene}-${process.pid}`)
   const FIXTURE_CWD = path.join(RUN_HOME, 'fixture-repo')
   const PROBE_KEY = 'sk-ant-turnend-probe-key'
@@ -128,10 +130,17 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
       { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'after-seat' },
       { afterPrevTicks: 10, data: '', mark: 'settled' },
   ]
+  const noticeSends = [
+      { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${NOTICE_ASK}\r` },
+      { requireAwait: true, minTick: 10, awaitText: 'sleep 12', awaitSettleTicks: 15, data: `${FIRST}\r`, mark: 'notice-queued' },
+      { afterPrevTicks: 8, data: '', mark: 'both-queued' },
+      { requireAwait: true, minTick: 5, awaitText: 'after its last item', awaitSettleTicks: 8, data: '', mark: 'drained' },
+  ]
   const cfg = {
     argv: ['node', DIST, '--model', model],
     cwd: FIXTURE_CWD,
-    sends: scene === 'hold' ? holdSends : scene === 'tool' ? toolSends : scene === 'stop' ? stopSends : crewSends,
+    sends: scene === 'hold' ? holdSends : scene === 'tool' ? toolSends : scene === 'stop' ? stopSends : scene === 'crew' ? crewSends : noticeSends,
     total: scene === 'crew' ? 1100 : 400,
     cols: 120,
     rows: 40,
@@ -167,6 +176,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     MERCURY_TABULA_DIR: path.join(RUN_HOME, 'tabula'),
     MERCURY_TABULA_MINERVA: '0',
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),
+    MERCURY_CONNECTOR_TRACE: path.join(RUN_HOME, 'connector-trace.jsonl'),
   }
   delete childEnv.NODE_ENV
   delete childEnv.ANTHROPIC_AUTH_TOKEN
@@ -219,6 +229,51 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
     const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n'))
     check(`${label}: the typed line reached the record ("no first byte from … after N s")`, rows.some(l => /no first byte from/.test(l)), `rows=${rows.length}`)
+    if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
+    else console.log(`[forensics] world kept: ${RUN_HOME}`)
+    return
+  }
+
+  if (scene === 'notice') {
+    try {
+      const trace = readFileSync(path.join(RUN_HOME, 'connector-trace.jsonl'), 'utf8')
+        .split('\n')
+        .filter(l => l.trim() !== '')
+        .map(l => JSON.parse(l) as Record<string, unknown>)
+        .filter(e => ['notice', 'send', 'send-landed', 'facts'].includes(String(e.ev)))
+      const t0 = trace.length > 0 ? Number(trace[0]!.t) : 0
+      console.log('── the seat\'s timeline (connector trace) ──')
+      for (const e of trace) {
+        const { t, sid: _sid, ev, ...rest } = e
+        console.log(`  +${String(Number(t) - t0).padStart(6)}ms ${String(ev).padEnd(12)} ${JSON.stringify(rest)}`)
+      }
+    } catch {
+    }
+    console.log('── the wire ──')
+    for (const c of calls) console.log(`  #${c.n} ${c.arm} step=${(c as { step?: number }).step ?? '-'} shape=${c.shape ?? ''} order=${JSON.stringify(c.order ?? [])} texts=${JSON.stringify(c.texts ?? [])}`)
+    const arrived = marks.get('notice-queued') ?? ''
+    const both = marks.get('both-queued') ?? ''
+    const drained = marks.get('drained') ?? fin
+    const lineOf = (frame: string, re: RegExp): number => frame.split('\n').findIndex(l => re.test(l))
+    const queuedNotice = new RegExp(`queued\\s+${NOTICE_ROW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    const sentNotice = new RegExp(`\\d\\d:\\d\\d:\\d\\d ${NOTICE_ROW.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
+    const queuedWords = /queued\s+\[sam\] ❯ first queued words/
+    const sentWords = /\d\d:\d\d:\d\d \[sam\] ❯ first queued words/
+    section(`${label} — N1/N2: the crew notice paints queued when it arrives, above the words typed after it`)
+    check(`${label}: vshot ran the notice journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
+    check(`${label}: the errand's notice painted QUEUED before the operator typed`, queuedNotice.test(arrived) && !/first queued words/.test(arrived), tail(arrived))
+    check(`${label}: the typed words paint QUEUED below the notice`, queuedNotice.test(both) && queuedWords.test(both) && lineOf(both, queuedNotice) < lineOf(both, queuedWords), tail(both))
+    section(`${label} — N3/N4: the drain moves nothing`)
+    check(`${label}: after the drain both rows wear clocks, the notice still above the words`, sentNotice.test(drained) && sentWords.test(drained) && lineOf(drained, sentNotice) < lineOf(drained, sentWords), tail(drained))
+    check(`${label}: no queued row survives the drain`, !/queued\s+(●|\[sam\])/.test(drained), tail(drained))
+    check(`${label}: the reply landed and the strip is back at ready`, drained.includes(REPLY) && /· ready/.test(drained), tail(drained))
+    const folded = calls.find(c => c.arm === 'launch-and-sleep' && (c as { step?: number }).step === 2)
+    check(`${label}: the request after the sleep carries the notification BEFORE the words`, folded !== undefined && JSON.stringify(folded.order) === JSON.stringify(['A background agent completed a task:', 'first queued words']), JSON.stringify(calls.map(c => [c.n, c.arm, (c as { step?: number }).step, c.order])))
+    const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
+    const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n').filter(l => l.trim() !== ''))
+    const noticeAt = rows.findIndex(l => l.includes('"queued_command"') && l.includes('task-notification') && l.includes('a quick errand'))
+    const wordsAt = rows.findIndex(l => l.includes('"queued_command"') && l.includes(FIRST))
+    check(`${label}: the transcript file holds the notice's drained row before the words' row`, noticeAt >= 0 && wordsAt > noticeAt, `notice=${noticeAt} words=${wordsAt} rows=${rows.length}`)
     if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
     else console.log(`[forensics] world kept: ${RUN_HOME}`)
     return
@@ -322,5 +377,6 @@ if (wants('tool')) {
 }
 if (wants('stop')) await driveWire('anthropic', 'stop')
 if (wants('crew')) await driveWire('openai', 'crew')
+if (wants('notice')) await driveWire('anthropic', 'notice')
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)
