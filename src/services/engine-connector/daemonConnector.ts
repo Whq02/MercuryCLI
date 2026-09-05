@@ -54,6 +54,8 @@ import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ep
 import type { ProgressMessage } from '../../types/message.js'
 import type { MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
+import { interruptLatchRelease } from './interruptLatch.js'
+import { createNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
 import { FOLD_COMMAND_SEND, FOLD_EXIT_LINGER_MS, decodeFoldStatus, foldRowVisible, type FoldStatusV1 } from '../compact/foldStatus.js'
 import { workChipLine, workCounts } from './workCounts.js'
 import { fluxMark } from '../../utils/flux/fluxProbe.js'
@@ -371,6 +373,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private textRetiredRowUuids = new Set<string>()
   private retainedSend: { text: string; id: string } | null = null
   private interrupting = false
+  private interruptPressedAtMs: number | null = null
   private lastSize = -1
   private lastLen = -1
   private chainCursor: TranscriptChainCursor | null = null
@@ -392,7 +395,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private readonly permissionListeners: Listeners = new Set()
   private readonly workListeners: Listeners = new Set()
   private workSnapshot: WorkRosterV1 = { rows: [], mission: [] }
-  private workStamp = '[[],[]]'
+  private workStamp = '[true,[],[]]'
   private readonly checkpointListeners: Listeners = new Set()
   private checkpointSnapshot: CheckpointFactsV1 = UNKNOWN_CHECKPOINTS
   private checkpointStamp = ''
@@ -433,6 +436,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   constructor(readonly record: DaemonSessionRecordV1) {
     this.transcriptPath = join(record.home, `${record.sessionId}.jsonl`)
     this.facts = readSessionFacts(record.sessionId)
+    this.refreshWork()
     const idleFloor = (): number => (this.turnInFlight ? HEARTBEAT_MS : IDLE_PROJECTION_FLOOR_MS)
     this.factsFeed = new ProjectionFeed(sessionFactsDir(), sessionFactsPath(record.sessionId), () => this.readFacts(), idleFloor)
     this.asksFeed = new ProjectionFeed(sessionAsksDir(), sessionAsksPath(record.sessionId), () => this.readAsks(), idleFloor)
@@ -823,8 +827,20 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       this.liveState.turnStartedAtMs !== prev.turnStartedAtMs ||
       inProgressToolUseIDs.size !== prev.inProgressToolUseIDs.size ||
       [...inProgressToolUseIDs].some(id => !prev.inProgressToolUseIDs.has(id))
-    if (!inFlight && this.interrupting) this.interrupting = false
-    if (!inFlight && this.hardStopping) this.hardStopping = false
+    let latchReleased = false
+    if (this.interruptPressedAtMs !== null) {
+      const release = interruptLatchRelease(
+        { pressedAtMs: this.interruptPressedAtMs },
+        { inFlight, turnStartedAtMs: this.liveState.turnStartedAtMs },
+      )
+      if (release !== null) {
+        connectorTrace({ ev: 'latch-release', sid: this.record.sessionId, road: release })
+        this.interruptPressedAtMs = null
+        this.interrupting = false
+        this.hardStopping = false
+        latchReleased = true
+      }
+    }
     if (!inFlight && this.tailStore.read() !== null) this.tailStore.reset(null)
     if (!inFlight) this.liveTurnChars = 0
     if (!inFlight) this.liveStateWord = null
@@ -840,7 +856,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (!inFlight && this.toolBudgets.size > 0) this.toolBudgets.clear()
     this.syncLivenessTicker(inFlight)
     this.syncFeedCadence(inFlight)
-    if (!changed) return
+    if (!changed) {
+      if (latchReleased) emitAll(this.liveListeners, 'live')
+      return
+    }
     this.effectiveLive = {
       inFlight,
       phase,
@@ -853,9 +872,24 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private reconcileQueuedSends(facts: SessionFactsV1): void {
+    const queue = facts.queue ?? []
+    let born = false
+    for (const entry of queue) {
+      if (!isNoticeFact(entry)) continue
+      const key = noticeKeyOf(entry.value)
+      if (this.sends.some(s => s.clientMessageId === key)) continue
+      const atMs = Date.now()
+      this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: atMs, state: 'queued', mode: 'prompt' }]
+      this.echoRows.set(key, createNoticeRow(entry.value, atMs))
+      connectorTrace({ ev: 'notice', sid: this.record.sessionId, state: 'queued' })
+      born = true
+    }
     if (this.sends.length === 0) return
     const queuedIds = new Set<string>()
-    for (const entry of facts.queue ?? []) if (typeof entry.uuid === 'string') queuedIds.add(entry.uuid)
+    for (const entry of queue) {
+      if (typeof entry.uuid === 'string') queuedIds.add(entry.uuid)
+      if (isNoticeFact(entry)) queuedIds.add(noticeKeyOf(entry.value))
+    }
     for (const s of this.sends) {
       if (s.state === 'pending') continue
       if (queuedIds.has(s.clientMessageId)) {
@@ -864,6 +898,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.dressSend(s.clientMessageId, 'taken')
       }
     }
+    const ordered = queueOrderedSends(this.sends, queue)
+    const moved = ordered.some((entry, i) => entry !== this.sends[i])
+    if (moved) this.sends = ordered
+    if (born || moved) this.paint()
   }
 
   private dressSend(clientMessageId: string, state: SeatSend['state']): void {
@@ -887,6 +925,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     for (const s of this.sends) {
       if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued') {
         landed.add(s.clientMessageId)
+        continue
+      }
+      if (isNoticeKey(s.clientMessageId)) {
+        for (let i = this.rawRecords.length - 1; i >= 0; i--) {
+          if (noticeRowLanded(this.rawRecords[i]!, s.text)) {
+            landed.add(s.clientMessageId)
+            break
+          }
+        }
         continue
       }
       const idKeyed = UUID_SHAPE.test(s.clientMessageId)
@@ -922,6 +969,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       }
     }
     if (landed.size === 0) return false
+    connectorTrace({ ev: 'send-landed', sid: this.record.sessionId, count: landed.size })
     this.sends = this.sends.filter(s => !landed.has(s.clientMessageId))
     for (const id of landed) this.echoRows.delete(id)
     if (this.sends.length === 0) this.textRetiredRowUuids.clear()
@@ -1063,6 +1111,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     else this.disarmBusyStall()
     this.reconcileQueuedSends(next)
     this.recomputeLive()
+    connectorTrace({ ev: 'facts', sid: this.record.sessionId, busy: next.busy, atMs: next.atMs, queue: next.queue?.length ?? 0, sends: this.sends.map(s => s.state).join(','), inFlight: this.effectiveLive.inFlight, interrupting: this.interrupting, hardStopping: this.hardStopping })
     if (modelMoved) emitAll(this.modelListeners, 'model')
     if (modeMoved) emitAll(this.permissionListeners, 'permission')
     if (!modelMoved) emitAll(this.modelListeners, 'model')
@@ -1071,12 +1120,13 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private refreshWork(): void {
+    const reported = this.facts?.work !== undefined
     const rows = this.facts?.work ?? []
     const mission = this.facts?.mission ?? []
-    const stamp = JSON.stringify([rows, mission])
+    const stamp = JSON.stringify([reported, rows, mission])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
-    this.workSnapshot = { rows, mission }
+    this.workSnapshot = reported ? { rows, mission } : { rows, mission, reported: false }
     emitAll(this.workListeners, 'work')
   }
 
@@ -1283,6 +1333,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         this.paint()
       } else {
         this.dressSend(clientMessageId, this.factsBusy ? 'queued' : 'delivered')
+        connectorTrace({ ev: 'send', sid: this.record.sessionId, state: this.factsBusy ? 'queued' : 'delivered' })
       }
       this.retainedSend = state === 'held' || state === 'failed' ? { text: expanded, id: clientMessageId } : null
       emitAll(this.liveListeners, 'live')
@@ -1434,21 +1485,25 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (this.interrupting && this.hardStopping) return true
     const hard = this.interrupting
     if (hard) this.hardStopping = true
-    else this.interrupting = true
+    else {
+      this.interrupting = true
+      this.interruptPressedAtMs = Date.now()
+    }
     emitAll(this.liveListeners, 'live')
-    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', ...(hard ? { hard: true } : {}) })
+    connectorTrace({ ev: 'interrupt', sid: this.record.sessionId, hard, turnStartedAtMs: this.liveState.turnStartedAtMs })
+    const undo = (): void => {
+      if (hard) this.hardStopping = false
+      else {
+        this.interrupting = false
+        this.interruptPressedAtMs = null
+      }
+      emitAll(this.liveListeners, 'live')
+    }
+    void this.chainRpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID(), ...(hard ? { hard: true } : {}) })
       .then(reply => {
-        if (!(reply.ok === true && reply.outcome === 'applied')) {
-          if (hard) this.hardStopping = false
-          else this.interrupting = false
-          emitAll(this.liveListeners, 'live')
-        }
+        if (!(reply.ok === true && reply.outcome === 'applied')) undo()
       })
-      .catch(() => {
-        if (hard) this.hardStopping = false
-        else this.interrupting = false
-        emitAll(this.liveListeners, 'live')
-      })
+      .catch(undo)
     return true
   }
 

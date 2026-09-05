@@ -94,6 +94,15 @@ export function formatClock(ts?: string): string | null {
   return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
 }
 
+export function NameplateClock(): React.ReactNode {
+  const meta = React.useContext(MessageMetaContext)
+  if (!meta) return null
+  if (meta.queued) return <Text color={FAINT}>{QUEUED_PLATE} </Text>
+  const clock = formatClock(meta.timestamp)
+  if (!clock) return null
+  return <Text color={FAINT}>{clock} </Text>
+}
+
 export function TranscriptNameplate(): React.ReactNode {
   const meta = React.useContext(MessageMetaContext)
   const isContinuation = React.useContext(NameplateContinuationContext)

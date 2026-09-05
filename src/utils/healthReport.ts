@@ -2,6 +2,8 @@
 import { getHistoryFlushHealth, historyEverFlushedThisProcess } from '../history.js'
 import { readBootAttemptResidue } from '../substrate/bootBeacon.js'
 import { adoptiveProjectPath } from './projectStoreAdoption.js'
+import { projectHomeLeftovers, projectHomeStore } from './projectHomeStores.js'
+import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
 import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
@@ -241,6 +243,36 @@ function holdersWords(h: { runners: string[]; indexLockAgeS: number | null; obje
   return parts.length === 0 ? 'no Mercury process holds it now' : `held by Mercury now: ${parts.join(' · ')}`
 }
 
+export async function projectEstateCheck(): Promise<CheckResult> {
+  const root = healthStateRoot()
+  const leftovers = projectHomeLeftovers(root)
+  if (leftovers.length === 0) {
+    return { status: 'ok', evidence: `${MERCURY_PROJECT_DIR} holds shared configuration only — every machine-local store lives under the config home`, probe: 'functional' }
+  }
+  let tracked: string[] = []
+  try {
+    const { execFile } = await import('node:child_process')
+    const { promisify } = await import('node:util')
+    const { stdout } = await promisify(execFile)('git', ['ls-files', '-z', '--', ...leftovers], { cwd: root, timeout: 5_000, maxBuffer: 4 * 1024 * 1024 })
+    const files = stdout.split('\0').filter(f => f !== '')
+    tracked = leftovers.filter(dir => files.some(f => f === dir || f.startsWith(`${dir}/`)))
+  } catch {
+    tracked = []
+  }
+  const named = leftovers.map(dir => `${dir}${tracked.includes(dir) ? ' (tracked by git)' : ''}`).join(' · ')
+  return {
+    status: 'warn',
+    evidence: `machine-local stores still standing in the project folder: ${named}`,
+    detail:
+      'each was read once and migrated to the config home on its first touch; the project folder keeps its copy (Mercury never deletes it, and never writes an ignore rule)',
+    fix:
+      tracked.length > 0
+        ? `to stop committing them: git rm -r --cached ${tracked.map(dir => JSON.stringify(dir)).join(' ')} — then delete the folder copies when you are done with them`
+        : 'delete the folder copies when you are done with them (they are not tracked by git)',
+    probe: 'functional',
+  }
+}
+
 export async function homeRepositoryCheck(): Promise<CheckResult> {
   const home = homeDirectory()
   const candidates: string[] = [home]
@@ -383,7 +415,7 @@ function getProjectRootSafe(): string {
 }
 
 export function lastCertPath(): string {
-  return join(adoptiveProjectLocalPath(healthStateRoot(), 'doctor'), 'last-cert.json')
+  return join(projectHomeStore(healthStateRoot(), 'doctor'), 'last-cert.json')
 }
 
 export function gateVerdictPath(): string {
@@ -1128,6 +1160,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Home repository',
           probe: 'functional',
           run: () => homeRepositoryCheck(),
+        },
+        {
+          id: 'project-estate',
+          label: 'Project estate',
+          probe: 'functional',
+          run: () => projectEstateCheck(),
         },
       ],
     },

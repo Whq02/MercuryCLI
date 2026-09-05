@@ -107,7 +107,12 @@ check('no session ⇒ the /authority and /permissions columns are blank', value(
 const opusFacts: Facts = { effective: 'claude-opus-5', effectiveSource: 'live', main: 'claude-opus-5', setting: 'claude-opus-5', sessionPin: 'claude-opus-5', effort: 'xhigh', pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
 check("a seat on Opus 5 at xhigh ⇒ the /model column is the seat's row", value('model') === model.renderModelName('claude-opus-5') && value('model') !== screenLabel, String(value('model')))
-check("⇒ the /effort column is the seat's own word, resolved without this process's env pin", value('effort') === resolveStampedEffortTruth('claude-opus-5', 'xhigh').label && value('effort') === 'xhigh', String(value('effort')))
+check("⇒ the /effort column says the seat's word is ASKED while its runner has not said what it sends", value('effort') === 'xhigh (asked)', String(value('effort')))
+focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: 'xhigh' }))
+check("⇒ with the runner's sent word on the facts the column is that word", value('effort') === 'xhigh', String(value('effort')))
+focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: null }))
+check("⇒ with the runner's no-key word the column is the seat's word resolved without this process's env pin", value('effort') === resolveStampedEffortTruth('claude-opus-5', 'xhigh').label && value('effort') === 'xhigh', String(value('effort')))
+focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
 check("⇒ the mode columns read the seat's own mode door", value('authority') === permissionModeTitle('strategy') && value('permissions') === permissionModeTitle('strategy'), String(value('authority')))
 
 const gptFacts: Facts = { effective: 'gpt-5.5', effectiveSource: 'record', main: 'gpt-5.5', setting: 'gpt-5.5', sessionPin: 'gpt-5.5', effort: null, pendingSwitch: null }

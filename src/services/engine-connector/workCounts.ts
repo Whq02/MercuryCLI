@@ -1,5 +1,5 @@
 import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseSupervisor.js'
-import type { WorkRowV1 } from './types.js'
+import type { WorkRosterV1, WorkRowV1 } from './types.js'
 
 export function workRowRuns(row: WorkRowV1): boolean {
   return row.status === 'running' || row.status === 'pending'
@@ -53,6 +53,13 @@ export function workChipLine(counts: WorkCountsV1): string | null {
 export function workWaitingWords(counts: WorkCountsV1): string | null {
   const line = workChipLine(counts)
   return line === null ? null : `waiting on ${line}`
+}
+
+export const WORK_UNREPORTED_MARK = '—'
+export const WORK_UNREPORTED_LINE = 'the runner has not reported its work yet'
+
+export function workUnreported(roster: Pick<WorkRosterV1, 'reported'>): boolean {
+  return roster.reported === false
 }
 
 export function runnerRecordAlive(

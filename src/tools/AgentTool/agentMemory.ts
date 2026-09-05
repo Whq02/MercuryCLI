@@ -8,6 +8,7 @@ import {
   projectConfigDirs,
 } from '../../utils/projectConfig.js'
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
+import { projectHomePath, projectHomeStore } from '../../utils/projectHomeStores.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
 
@@ -32,10 +33,7 @@ export function getAgentMemoryDir(
         adoptiveProjectPath(getCwd(), AGENT_MEMORY_SUBDIR, dirName) + sep
       )
     case 'local':
-      return (
-        adoptiveProjectPath(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, dirName) +
-        sep
-      )
+      return projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, dirName) + sep
   }
 }
 
@@ -60,10 +58,9 @@ export function isAgentMemoryPath(absolutePath: string): boolean {
   for (const home of homes) {
     if (isUnder(path, join(home, AGENT_MEMORY_SUBDIR))) return true
   }
-  {
-    for (const home of homes) {
-      if (isUnder(path, join(home, AGENT_MEMORY_LOCAL_SUBDIR))) return true
-    }
+  if (isUnder(path, projectHomePath(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR))) return true
+  for (const home of homes) {
+    if (isUnder(path, join(home, AGENT_MEMORY_LOCAL_SUBDIR))) return true
   }
   return false
 }
@@ -79,7 +76,7 @@ export function getMemoryScopeDisplay(
       return `project (${relative(getCwd(), dir)})`
     }
     case 'local': {
-      const dir = adoptiveProjectPath(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR)
+      const dir = projectHomePath(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR)
       return `local (${join(dir, '<agent-type>')})`
     }
     default:

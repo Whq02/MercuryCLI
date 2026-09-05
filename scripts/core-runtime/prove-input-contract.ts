@@ -73,6 +73,18 @@ console.log('native-core T4 — input interpretation contract')
   const events4 = drive(['\x1b[1;', null, '5C', null])
   check('mid-flush: split CSI key force-emits then tail is text',
     events4.length >= 1, JSON.stringify(events4))
+
+  for (const head of ['\x1b[1;', '\x1b[114;1:', '\x1b[114;1:3']) {
+    const ev = drive([head, null]).filter(e => e.kind === 'key') as ParsedKey[]
+    const leaked = ev.map(k => new InputEvent(k).input).join('')
+    check(`flush-split head ${JSON.stringify(head)}: no param bytes leak as text`,
+      leaked === '', JSON.stringify(leaked))
+  }
+  {
+    const ev = drive(['\x1b[114;1:3u', null]).filter(e => e.kind === 'key') as ParsedKey[]
+    const text = ev.map(k => new InputEvent(k).input).join('')
+    check('complete event-typed release: no text', text === '', JSON.stringify(text))
+  }
 }
 
 {
