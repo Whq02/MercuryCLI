@@ -104,7 +104,7 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
-import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/longLivedSupervisor.js'
+import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/runnerFrames.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
