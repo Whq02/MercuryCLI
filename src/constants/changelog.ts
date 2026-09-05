@@ -47,6 +47,9 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - /compact shows its progress in the chat: one row under your /compact with the stage, a bar and a clock until the summary card takes its place; the star under the critter stands still
 - The chat's title bar shows the session's name instead of a ticking clock, and the row under the composer says how long your sub-agents have worked, its glyph spinning only while they run
 - Compaction no longer keeps a half summary when its call stalls, and Gemini and OpenRouter runs with thinking off now send their lowest effort word instead of the provider default
+- The effort chip and /effort say a session's effort is "asked" until its runner reports what it sends; the picker spells a GPT model one way, the same as the strip
+- Right after a session starts, the workflow panel, the board, the crew view and the chip say "not reported yet" instead of "idle"; a running workflow shows its agents within seconds of launch
+- Typing deepthink or supercode glows in your chosen critter's colour, in the composer and in the sent message, instead of a rainbow or a mix of theme colours
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
