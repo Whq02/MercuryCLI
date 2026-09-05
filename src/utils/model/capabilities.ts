@@ -163,11 +163,7 @@ export function servesPerMessageEffort(model: string): boolean {
   if (declaredRouteOf(model) !== 'anthropic') return false
   const canonical = getCanonicalName(model)
   if (perMessageEffortRefused.has(canonical)) return false
-  return (
-    canonical.includes('claude-fable-5-1') ||
-    canonical.includes('claude-mythos-5-1') ||
-    canonical.includes('claude-opus-5')
-  )
+  return canonical.includes('claude-fable-5-1') || canonical.includes('claude-mythos-5-1')
 }
 
 export function modelSupportsAutoMode(model: string): boolean {
