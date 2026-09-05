@@ -26,16 +26,26 @@ export function EffortChip({ model }: { model: string }): React.ReactNode {
   if (!model || !modelSupportsEffort(model)) return null
   const stamped = seatEffort !== null ? parseEffortValue(seatEffort) : undefined
   const seatResolution = stamped !== undefined ? resolveStampedEffortTruth(model, stamped) : null
-  const sent = sentEffort !== null ? parseEffortValue(sentEffort) : undefined
+  const sent = typeof sentEffort === 'string' ? parseEffortValue(sentEffort) : undefined
+  const askedOnly = sentEffort === undefined && stamped !== undefined
   const level =
     sent !== undefined
       ? convertEffortValueToLevel(sent)
-      : seatResolution !== null
-        ? seatResolution.appliedValue !== undefined
-          ? convertEffortValueToLevel(seatResolution.appliedValue)
-          : getDisplayedEffortLevel(model, undefined)
-        : getDisplayedEffortLevel(model, effortValue)
-  const label = sentEffort ?? (seatResolution !== null ? seatResolution.label : getDisplayedEffortLabel(model, effortValue))
+      : askedOnly
+        ? convertEffortValueToLevel(stamped)
+        : seatResolution !== null
+          ? seatResolution.appliedValue !== undefined
+            ? convertEffortValueToLevel(seatResolution.appliedValue)
+            : getDisplayedEffortLevel(model, undefined)
+          : getDisplayedEffortLevel(model, effortValue)
+  const label =
+    typeof sentEffort === 'string'
+      ? sentEffort
+      : askedOnly
+        ? `${String(stamped)} (asked)`
+        : seatResolution !== null
+          ? seatResolution.label
+          : getDisplayedEffortLabel(model, effortValue)
   return (
     <Text>
       <Text color={FAINT}> · </Text>
