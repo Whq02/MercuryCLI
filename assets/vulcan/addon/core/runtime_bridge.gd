@@ -6,6 +6,11 @@ const REC_DIR := "res://.godot/mercury-vulcan-recordings"
 const SHOT_DIR := "res://.godot/mercury-vulcan-shots"
 const RING_MAX := 400
 const MAX_BUF := 8 * 1024 * 1024
+const STEP_FRAMES_MAX := 3600
+const STEP_MS_MAX := 60000
+const STEP_WALL_MS_PER_FRAME := 50
+const STEP_WALL_MAX_MS := 60000
+const QUEUE_MAX := 256
 
 const MONITORS := {
 	"fps": Performance.TIME_FPS,
@@ -37,6 +42,11 @@ var _recording: Array = []
 var _recording_name := ""
 var _recording_t0 := 0
 var _is_recording := false
+var _log_total := 0
+var _error_total := 0
+var _step_mode := false
+var _stepping := false
+var _queued_input: Array = []
 
 
 func _ready() -> void:
@@ -123,6 +133,12 @@ func _dispatch(rop: String, args: Dictionary) -> Dictionary:
 	match rop:
 		"runtime_status":
 			return _rop_status(args)
+		"runtime_step":
+			return await _rop_step(args)
+		"runtime_pause":
+			return _rop_pause(args)
+		"runtime_resume":
+			return _rop_resume(args)
 		"runtime_tree":
 			return _rop_tree(args)
 		"runtime_node_get":
@@ -184,16 +200,132 @@ func _dispatch(rop: String, args: Dictionary) -> Dictionary:
 
 func _rop_status(_args: Dictionary) -> Dictionary:
 	var cur := get_tree().current_scene
-	return _ok({
+	var st := {
 		"playing": true,
 		"scene": cur.scene_file_path if cur != null else "",
 		"scene_root": str(cur.name) if cur != null else "",
 		"uptime_ms": Time.get_ticks_msec() - _started_ms,
 		"fps": Performance.get_monitor(Performance.TIME_FPS),
-		"paused": get_tree().paused,
 		"log_capture": _capture_mode,
 		"recording": _is_recording,
-	})
+	}
+	st.merge(_mode_state())
+	return _ok(st)
+
+
+func _mode_state() -> Dictionary:
+	return {
+		"mode": "step" if _step_mode else "live",
+		"paused": get_tree().paused,
+		"stepping": _stepping,
+		"queued": _queued_input.size(),
+		"frame": Engine.get_process_frames(),
+		"physics_frame": Engine.get_physics_frames(),
+	}
+
+
+func _step_in_flight() -> Dictionary:
+	return _err("STEP_IN_FLIGHT", "a runtime_step is still advancing the game", "wait for its answer, then send the next step")
+
+
+func _rop_pause(_args: Dictionary) -> Dictionary:
+	if _stepping:
+		return _step_in_flight()
+	_step_mode = true
+	get_tree().paused = true
+	return _ok(_mode_state())
+
+
+func _rop_resume(_args: Dictionary) -> Dictionary:
+	if _stepping:
+		return _step_in_flight()
+	_step_mode = false
+	get_tree().paused = false
+	var delivered := _deliver_queued()
+	var st := _mode_state()
+	st["delivered"] = delivered
+	return _ok(st)
+
+
+func _rop_step(args: Dictionary) -> Dictionary:
+	if _stepping:
+		return _step_in_flight()
+	var window := _step_window(args, "frames", "ms", true)
+	if window.has("err"):
+		return window["err"]
+	_step_mode = true
+	var out: Dictionary = await _advance(int(window["frames"]), int(window["ms"]))
+	if bool(args.get("screenshot", false)):
+		out["screenshot"] = await _rop_screenshot({})
+	return _ok(out)
+
+
+func _step_window(args: Dictionary, frames_key: String, ms_key: String, allow_default: bool) -> Dictionary:
+	var has_frames: bool = args.get(frames_key) != null
+	var has_ms: bool = args.get(ms_key) != null
+	if has_frames and has_ms:
+		return { "err": _err("BAD_ARG", "pass %s or %s, not both" % [frames_key, ms_key], "e.g. {\"%s\": 30} or {\"%s\": 500}" % [frames_key, ms_key]) }
+	if has_frames:
+		var v = args[frames_key]
+		var whole: bool = (typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT) and float(v) == floor(float(v))
+		if not whole or int(v) < 1 or int(v) > STEP_FRAMES_MAX:
+			return { "err": _err("BAD_ARG", "%s must be a whole number 1..%d" % [frames_key, STEP_FRAMES_MAX], "one process frame is 1/60 s at 60 fps; %s names game time instead" % ms_key) }
+		return { "frames": int(v), "ms": 0 }
+	if has_ms:
+		var v = args[ms_key]
+		if not (typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT) or int(v) < 1 or int(v) > STEP_MS_MAX:
+			return { "err": _err("BAD_ARG", "%s must be 1..%d" % [ms_key, STEP_MS_MAX], "game-time milliseconds; the window ends at the first frame boundary past it") }
+		return { "frames": 0, "ms": int(v) }
+	if not allow_default:
+		return { "frames": 0, "ms": 0 }
+	return { "frames": 0, "ms": int(ceil(1000.0 / maxf(1.0, float(Engine.physics_ticks_per_second)))) }
+
+
+func _advance(frames: int, ms: int) -> Dictionary:
+	var tree := get_tree()
+	var errors_before := _error_total
+	var log_before := _log_total
+	var stepped := _step_mode
+	_stepping = true
+	if stepped:
+		tree.paused = true
+	await tree.process_frame
+	var delivered := 0
+	if stepped:
+		tree.paused = false
+		delivered = _deliver_queued()
+	var p0 := Engine.get_physics_frames()
+	var t0 := Time.get_ticks_msec()
+	var ran := 0
+	var budget := mini(STEP_WALL_MAX_MS, frames * STEP_WALL_MS_PER_FRAME + 1000)
+	if frames > 0:
+		while ran < frames and Time.get_ticks_msec() - t0 < budget:
+			await tree.process_frame
+			ran += 1
+	else:
+		while Time.get_ticks_msec() - t0 < ms:
+			await tree.process_frame
+			ran += 1
+	if stepped:
+		tree.paused = true
+	_stepping = false
+	var out := _mode_state()
+	out["frames"] = ran
+	out["requested"] = { "frames": frames } if frames > 0 else { "ms": ms }
+	out["complete"] = ran == frames if frames > 0 else true
+	out["elapsed_ms"] = Time.get_ticks_msec() - t0
+	out["physics_frames"] = Engine.get_physics_frames() - p0
+	out["delivered"] = delivered
+	out["errors"] = _ring_since(_error_ring, _error_total - errors_before)
+	out["log"] = _ring_since(_log_ring, _log_total - log_before)
+	if frames > 0 and ran < frames:
+		out["note"] = "the wall budget (%d ms for %d frames) ended the window early: the game runs under %d fps" % [budget, frames, 1000 / STEP_WALL_MS_PER_FRAME]
+	return out
+
+
+func _ring_since(ring: Array, added: int) -> Array:
+	var take := mini(mini(maxi(0, added), ring.size()), 40)
+	return ring.slice(ring.size() - take)
 
 
 func _rop_tree(args: Dictionary) -> Dictionary:
@@ -549,6 +681,8 @@ func _rop_replay(args: Dictionary) -> Dictionary:
 	var data = JSON.parse_string(FileAccess.get_file_as_string(path))
 	if typeof(data) != TYPE_DICTIONARY or typeof(data.get("events")) != TYPE_ARRAY:
 		return _err("BAD_RECORDING", "the recording file is not parseable", "re-record it (runtime_record_start / runtime_record_stop)")
+	if _step_mode and get_tree().paused:
+		return _err("STEPPED", "the game is parked in step mode; a recording replays against a live game", "runtime_resume first, then runtime_replay")
 	var speed := maxf(0.05, float(args.get("speed", 1.0)))
 	var t := 0.0
 	var fed := 0
@@ -740,12 +874,30 @@ func _rop_input_sequence(args: Dictionary) -> Dictionary:
 
 
 func _inject(ev: InputEvent) -> bool:
+	if _step_mode and get_tree().paused:
+		if _queued_input.size() >= QUEUE_MAX:
+			_queued_input.pop_front()
+		_queued_input.append(ev)
+		return true
 	Input.parse_input_event(ev)
 	return false
 
 
+func _deliver_queued() -> int:
+	var count := _queued_input.size()
+	if count == 0:
+		return 0
+	for ev in _queued_input:
+		Input.parse_input_event(ev)
+	_queued_input.clear()
+	Input.flush_buffered_events()
+	return count
+
+
 func _sent(result: Dictionary, queued: bool) -> Dictionary:
 	result["queued"] = queued
+	if queued:
+		result["note"] = "the game is parked in step mode: delivered at the next runtime_step (or runtime_resume)"
 	return result
 
 
@@ -772,6 +924,10 @@ func _install_logger() -> void:
 func capture_log(message: String, is_error: bool) -> void:
 	var ring := _error_ring if is_error else _log_ring
 	ring.append({ "t": Time.get_ticks_msec() - _started_ms, "message": message })
+	if is_error:
+		_error_total += 1
+	else:
+		_log_total += 1
 	while ring.size() > RING_MAX:
 		ring.pop_front()
 
@@ -779,6 +935,7 @@ func capture_log(message: String, is_error: bool) -> void:
 func capture_error(row: Dictionary) -> void:
 	row["t"] = Time.get_ticks_msec() - _started_ms
 	_error_ring.append(row)
+	_error_total += 1
 	while _error_ring.size() > RING_MAX:
 		_error_ring.pop_front()
 	_send({ "event": "runtime_error", "data": row })

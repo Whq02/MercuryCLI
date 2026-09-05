@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '76ad7f6ab441b09a2c739b02c63fea2c2b7fab962de6f3c3afef13f237c08cda'
+export const VULCAN_OPTABLE_DIGEST = '417c1c25a2cca8ebc3b39290990aba4052d00e5f63e3547ddec6de33a02ba0aa'
 
 export const VULCAN_OPS: readonly VulcanOp[] = [
   {
@@ -1985,6 +1985,34 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
       "signal": "signal name",
       "timeout_ms": "optional (default 5000)"
     }
+  },
+  {
+    "name": "runtime_pause",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Park the running game (step mode): the tree pauses — physics and pausable nodes stop — while the bridge keeps answering; input sent meanwhile queues for the next runtime_step",
+    "args": {}
+  },
+  {
+    "name": "runtime_step",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Advance a parked game one bounded window — exactly N process frames, or N ms of game time (default one physics tick) — delivering the input queued since the last step at the window's start; answers with the frames run, the physics ticks, and the errors/log since; from a live game the first step arms step mode",
+    "args": {
+      "frames": "optional: process frames to run (whole, 1..3600; exact)",
+      "ms": "optional: game-time ms to run instead (1..60000)",
+      "screenshot": "optional: capture the viewport at the window end (default false)"
+    }
+  },
+  {
+    "name": "runtime_resume",
+    "category": "frontier",
+    "cls": "exec",
+    "lite": false,
+    "summary": "Leave step mode: the game runs live again; anything still queued is delivered now",
+    "args": {}
   }
 ] as const
 
