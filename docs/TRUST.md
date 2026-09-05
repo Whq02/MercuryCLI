@@ -119,9 +119,10 @@ The verdicts are:
 - **unsigned** — the manifest carries no signature. 1.0.0-beta.2 shipped this
   way: the hosted workflow never held the key, and every interactive launch of
   that release prints `mercury: provenance — unsigned …`. From 1.0.0-beta.3
-  the launcher says it once per install (a marker beside the version pointer
-  of the managed layout records that it was said; an archive run in place
-  says it at every launch); `mercury doctor` says it every time.
+  the launcher says it on a bare interactive boot (a plain `mercury`, no verb
+  or flag) once per install — a marker beside the version pointer of the
+  managed layout records that it was said; an archive run in place says it
+  at every bare boot — and `mercury doctor` says it every time.
 - **unrecognized-key** — a valid signature under a key that is not in this
   build's roster; unattested.
 - **tampered** — the bytes differ from what was signed, or the signature does

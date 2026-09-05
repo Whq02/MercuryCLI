@@ -1,3 +1,4 @@
+import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import type { EffortValue } from '../effort.js'
 import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
 import { isHaikuTier } from './modelFloor.js'
@@ -11,7 +12,7 @@ export const SEAT_ALLOWED_FAMILIES: readonly string[] = [
   'claude-fable-5-1',
 ]
 
-export const SEAT_EFFORTS: readonly string[] = ['low', 'medium', 'high', 'xhigh', 'max']
+export const SEAT_EFFORTS: readonly string[] = EFFORT_LEVELS
 
 export function validateSeatModel(
   raw: string | undefined,

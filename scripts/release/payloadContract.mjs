@@ -7,9 +7,10 @@ export const DOC_SET = ['README-FIRST.md', 'INSTALLING.md', 'UPDATING.md', 'RELE
 
 export const UNSIGNED_ARCHIVE_SUFFIX = '-unsigned'
 
-export function archiveFileName(version, target, { unsigned = false } = {}) {
-  const ext = target === 'windows-x64' ? '.zip' : '.tar.gz'
-  return `mercury-v${version}-${target}${unsigned ? UNSIGNED_ARCHIVE_SUFFIX : ''}${ext}`
+export function unsignedArchiveName(archiveName) {
+  const m = /^(.*?)(\.tar\.gz|\.zip)$/.exec(archiveName)
+  if (!m) throw new Error(`unsignedArchiveName: ${archiveName} is not an archive name (.tar.gz or .zip)`)
+  return `${m[1]}${UNSIGNED_ARCHIVE_SUFFIX}${m[2]}`
 }
 
 export function readCompatFloor() {

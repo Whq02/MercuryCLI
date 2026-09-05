@@ -16,3 +16,4 @@ prove-consent-rides-every-door-drive.ts
 prove-home-repo-drive.ts
 prove-surface-truth-drive.ts
 prove-effort-seat-drive.ts
+prove-effort-ultra-drive.ts

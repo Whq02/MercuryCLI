@@ -12,7 +12,7 @@ import type { TrustedSigningKey } from '../../src/services/privateChannel/signin
 import { posixLauncher, cmdLauncher, ps1Launcher, parseEnginesNode } from '../release/launcherTemplates.mjs'
 import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
 // @ts-expect-error — same
-import { archiveFileName, readCompatFloor, releaseLayoutSection, topAllowlist } from '../release/payloadContract.mjs'
+import { readCompatFloor, releaseLayoutSection, topAllowlist, unsignedArchiveName } from '../release/payloadContract.mjs'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -177,7 +177,9 @@ try {
   check('packager signs via MERCURY_SIGNING_KEY_FILE and says UNSIGNED loudly otherwise', packager.includes('MERCURY_SIGNING_KEY_FILE') && packager.includes('UNSIGNED —'))
   check('unsigned is a decision: without a key the packager refuses unless --unsigned was passed', packager.includes("const UNSIGNED_BY_DECISION = process.argv.includes('--unsigned')") && packager.includes('no MERCURY_SIGNING_KEY_FILE and no --unsigned'))
   check('a key AND --unsigned together are refused (choose one)', packager.includes('--unsigned given with MERCURY_SIGNING_KEY_FILE set'))
-  check('the archive name carries the decision (payloadContract.archiveFileName, -unsigned)', packager.includes('archiveFileName(VERSION, TARGET, { unsigned: UNSIGNED_BY_DECISION })') && archiveFileName('1.2.3', 'linux-x64', { unsigned: true }) === 'mercury-v1.2.3-linux-x64-unsigned.tar.gz' && archiveFileName('1.2.3', 'windows-x64') === 'mercury-v1.2.3-windows-x64.zip')
+  check('the packager names its archive from the ONE release-target owner through the built library', packager.includes('const SIGNED_ARCHIVE_NAME = signingLib.archiveNameFor(VERSION, TARGET)'))
+  check('the archive name carries the decision (the -unsigned twin before the extension)', packager.includes('UNSIGNED_BY_DECISION ? unsignedArchiveName(SIGNED_ARCHIVE_NAME) : SIGNED_ARCHIVE_NAME') && unsignedArchiveName('mercury-v1.2.3-linux-x64.tar.gz') === 'mercury-v1.2.3-linux-x64-unsigned.tar.gz' && unsignedArchiveName('mercury-v1.2.3-windows-x64.zip') === 'mercury-v1.2.3-windows-x64-unsigned.zip')
+  check('the archive verifier names the archive from the owner too (--target) and finds the unsigned twin for an unsigned expectation', readFileSync(join(ROOT, 'scripts/release/verifyArchive.mjs'), 'utf8').includes("expect === 'unsigned' ? unsignedArchiveName(signedName) : signedName"))
   check('packager self-verifies at deep depth after signing', packager.includes("verifyPayloadDir(pkgDir, { depth: 'deep' })"))
   check('packager refuses an unsigned --license-id (the seam is signature-covered)', packager.includes('--license-id given without MERCURY_SIGNING_KEY_FILE'))
   check('packager ships the verifier payload member', packager.includes("cpSync(verifierSrc, join(pkgDir, 'verify-artifact.mjs'))"))

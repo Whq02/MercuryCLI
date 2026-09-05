@@ -1,6 +1,8 @@
 
-export const EFFORT_AXIS = ['low', 'medium', 'high', 'xhigh', 'max'] as const
-export type EffortAxisLevel = (typeof EFFORT_AXIS)[number]
+import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
+
+export const EFFORT_AXIS: readonly EffortLevel[] = EFFORT_LEVELS
+export type EffortAxisLevel = EffortLevel
 
 export type EffortReach = 'live' | 'spawn' | 'gated'
 
@@ -35,6 +37,12 @@ export function describeEffortLevel(
             reach: 'live',
             note: 'accepted as standing intent — this model runs its deepest supported tier (the control states the applied value)',
           }
+    case 'ultra':
+      return {
+        level,
+        reach: 'live',
+        note: "the served top — above max only where the model's live vocabulary carries it; elsewhere it runs its deepest served tier (the control states the applied value)",
+      }
   }
 }
 

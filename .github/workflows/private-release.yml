@@ -186,12 +186,7 @@ jobs:
           MERCURY_SIGNING_KEY_FILE: ${{ steps.signing.outputs.key_file }}
         run: node scripts/release/package.mjs --target ${{ matrix.target }} ${{ steps.signing.outputs.packager_flags }}
       - name: verify the packaged archive (the shipped verifier, full depth)
-        shell: bash
-        run: |
-          for archive in release-out/*.tar.gz release-out/*.zip; do
-            [ -e "$archive" ] || continue
-            node scripts/release/verifyArchive.mjs --archive "$archive" --expect '${{ steps.signing.outputs.expect }}'
-          done
+        run: node scripts/release/verifyArchive.mjs --target ${{ matrix.target }} --expect ${{ steps.signing.outputs.expect }}
       - name: remove the signing key file
         if: always()
         shell: bash
@@ -262,14 +257,9 @@ jobs:
           esac
           MERCURY_JOURNEY_DIST="$PWD/bridge-extract/mercury/mercury.mjs" bun run scripts/updater/prove-update-journey.ts
       - name: previous shipped reader consumes the candidate archive
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          for f in release-out/*-unsigned.tar.gz release-out/*-unsigned.zip; do
-            [ -e "$f" ] && export MERCURY_BRIDGE_CANDIDATE="$PWD/$f"
-          done
-          bun run scripts/updater/prove-release-bridge.ts --target ${{ matrix.target }}
+        run: bun run scripts/updater/prove-release-bridge.ts --target ${{ matrix.target }}
 
   release:
     name: publish to Releases

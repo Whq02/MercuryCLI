@@ -79,8 +79,8 @@ const localDiscovery = await import('../../src/services/providers/local/localDis
 const localCatalogue = await import('../../src/services/providers/local/localCatalogue.ts')
 const sideQuestion = await import('../../src/utils/sideQuestion.ts')
 
-type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
-const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
+type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'
+const LEVELS: Level[] = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra']
 type Container = 'minerva' | 'console'
 const CONTAINERS: Container[] = ['minerva', 'console']
 
@@ -184,7 +184,7 @@ section('§1 the persistence owner: normalize · refuse typed · per container �
   check('…the receipt says it applies when a model is pinned (Minerva is unset)', spoken.ok && spoken.receipt === 'Minerva effort set to xhigh — applies when a model is pinned', JSON.stringify(spoken))
   const low = slots.setSubModelEffort('console', 'low')
   check('the two containers persist independently', low.ok && getGlobalConfig().subModels?.effort?.minerva === 'xhigh' && getGlobalConfig().subModels?.effort?.console === 'low' && slots.resolveSubModelEffort('console') === 'low')
-  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, minerva: 'ultra' } } }))
+  saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, effort: { ...c.subModels?.effort, minerva: 'hyper' } } }))
   check('a hand-poisoned spelling reads absent (no guess, no substitute); the sibling stands', slots.resolveSubModelEffort('minerva') === undefined && slots.resolveSubModelEffort('console') === 'low')
   const cleared = slots.setSubModelEffort('minerva', null)
   check('null clears the one container alone', cleared.ok && getGlobalConfig().subModels?.effort?.minerva === undefined && getGlobalConfig().subModels?.effort?.console === 'low', JSON.stringify(getGlobalConfig().subModels))
@@ -249,7 +249,7 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
   const restStrip = slots.subModelEffortStrip('console', 'claude-opus-5')
   check('no pick ⇒ the bracket is the model default (opus-5: high)', restStrip.kind === 'levels' && restStrip.current === 'high' && restStrip.current === effort.resolveEffortTruth('claude-opus-5', undefined).applied, JSON.stringify(restStrip))
   const bareStrip = slots.subModelEffortStrip('console', 'gpt-5.6-bare')
-  check("an unstated GPT catalogue row offers the owner's full ladder (dispatch re-validates live); the bracket rests on high", bareStrip.kind === 'levels' && bareStrip.levels.length === 5 && bareStrip.current === 'high', JSON.stringify(bareStrip))
+  check("an unstated GPT catalogue row offers the owner's full ladder (dispatch re-validates live); the bracket rests on high", bareStrip.kind === 'levels' && JSON.stringify(bareStrip.levels) === JSON.stringify(LEVELS) && bareStrip.current === 'high', JSON.stringify(bareStrip))
 }
 
 section("§3 the dispatch: the chosen level rides each family's wire field; a model that lacks it runs the model default, never a foreign level")

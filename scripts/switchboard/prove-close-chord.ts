@@ -254,19 +254,19 @@ send('disarm', 21900, 'q')
 send(undefined, 23600, CTRL_X)
 send('stop', 24050, CTRL_X)
 send('archiveArm', 35100, CTRL_X)
-send('archive', 35500, CTRL_X)
-send('flipLeader', 39300, CTRL_X)
-send('lateLeader', 44700, CTRL_X)
-send('lateArm', 45200, CTRL_X)
-send('deleteLeader', 46800, CTRL_X)
-send('delete', 47200, CTRL_X)
-;[...Array(7)].forEach((_, i) => send(undefined, 50400 + i * 80, BACKSPACE))
-send(undefined, 51400, `${ESC}[A`)
-send(undefined, 52300, CTRL_X)
-send('nStop', 52700, CTRL_X)
-send(undefined, 55700, CTRL_X)
-send('nArchive', 56100, CTRL_X)
-send('enter', 59300, '\r')
+send('archive', 36000, CTRL_X)
+send('flipLeader', 39800, CTRL_X)
+send('lateLeader', 45200, CTRL_X)
+send('lateArm', 46100, CTRL_X)
+send('deleteLeader', 47700, CTRL_X)
+send('delete', 48600, CTRL_X)
+;[...Array(7)].forEach((_, i) => send(undefined, 51800 + i * 80, BACKSPACE))
+send(undefined, 52800, `${ESC}[A`)
+send(undefined, 53700, CTRL_X)
+send('nStop', 54100, CTRL_X)
+send(undefined, 57100, CTRL_X)
+send('nArchive', 57500, CTRL_X)
+send('enter', 60700, '\r')
 const sends = sendList
 const WALL_S = driveWallSeconds(sends, { tailMs: 2500 })
 const drive = join(home, 'drive.jsonl')
@@ -329,21 +329,24 @@ if (sendRecs.length === sends.length) {
   const receiptAt = [1000, 2000, 3000, 4500, 6000].map(o => stopAt + o)
   const grabs = {
     x: at('x') + 1800,
-    arm: at('arm') + 500,
     disarm: at('disarm') + 600,
     stand: stopAt + 10_000,
-    archiveArm: at('archiveArm') + 400,
     parked: at('archive') + 2500,
-    flipIn: at('flipLeader') + 400,
     flipOut: at('flipLeader') + 1700,
-    lateLeader: at('lateLeader') + 400,
     lateArm: at('lateArm') + 700,
-    deleteArm: at('deleteLeader') + 400,
     gone: at('delete') + 2500,
     nParked: at('nArchive') + 2500,
     entered: at('enter') + 2500,
   }
-  const times = [...receiptAt, ...Object.values(grabs)]
+  const LEADER_OFFSETS = [300, 500, 700]
+  const leaderSeries = {
+    arm: LEADER_OFFSETS.map(o => at('arm') + o),
+    archiveArm: LEADER_OFFSETS.map(o => at('archiveArm') + o),
+    flipIn: LEADER_OFFSETS.map(o => at('flipLeader') + o),
+    lateLeader: LEADER_OFFSETS.map(o => at('lateLeader') + o),
+    deleteArm: LEADER_OFFSETS.map(o => at('deleteLeader') + o),
+  }
+  const times = [...receiptAt, ...Object.values(grabs), ...Object.values(leaderSeries).flat()]
   const res = spawnSync('/usr/bin/python3', [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', ...times.map(String), '-1'], { encoding: 'utf8', timeout: 120_000, maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
@@ -354,11 +357,19 @@ if (sendRecs.length === sends.length) {
   const f = (name: keyof typeof grabs): { atMs: number; rows: string[] } => frameAt(grabs[name])
   const receiptFrames = receiptAt.map(frameAt)
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
+  const hintSeen = (name: keyof typeof leaderSeries, needle: string): { frame: { atMs: number; rows: string[] }; detail: string } => {
+    const frames = leaderSeries[name].map(frameAt)
+    const hit = frames.find(g => t(g).includes(needle))
+    const frame = hit ?? frames[frames.length - 1]!
+    const lead = frame.atMs - leaderSeries[name][0]! + LEADER_OFFSETS[0]!
+    return { frame, detail: hit !== undefined ? `painted by +${lead}ms` : `never in ${LEADER_OFFSETS.map(o => `+${o}`).join('/')}ms` }
+  }
   const stopFrame = receiptFrames.find(g => /\bstopped\s+stream slowly/.test(t(g))) ?? receiptFrames[receiptFrames.length - 1]!
   if (process.env.MERCURY_CLOSE_CHORD_KEEP === '1') {
     const dir = join(home, 'frames')
     mkdirSync(dir, { recursive: true })
     for (const [name, ms] of Object.entries(grabs)) writeFileSync(join(dir, `${name}-${ms}.txt`), t(frameAt(ms)) + '\n')
+    for (const [name, series] of Object.entries(leaderSeries)) for (const ms of series) writeFileSync(join(dir, `${name}-${ms}.txt`), t(frameAt(ms)) + '\n')
     for (const g of receiptFrames) writeFileSync(join(dir, `receipt-${g.atMs}.txt`), t(g) + '\n')
   }
   const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
@@ -367,7 +378,8 @@ if (sendRecs.length === sends.length) {
   if (POISON_DIST === undefined) {
     check('POISON LETTER: plain x TYPED into the live composer (the defect retired)', f('x').rows.some(r => /❯\s+x\b/.test(r)), f('x').rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
     check('…and stopped NOTHING (the stream runs on, no stop receipt)', !/STOPPED|stopped —/i.test(t(f('x'))))
-    check('ARM: the first ⌃x paints the stage-true confirm on the row', t(f('arm')).includes(keyHintLabel('⌃x again stops — esc keeps it')), t(f('arm')).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)')
+    const armSeen = hintSeen('arm', keyHintLabel('⌃x again stops — esc keeps it'))
+    check('ARM: the first ⌃x paints the stage-true confirm on the row', t(armSeen.frame).includes(keyHintLabel('⌃x again stops — esc keeps it')), `${armSeen.detail} · ${t(armSeen.frame).match(/⌃x[^\n]*/)?.[0]?.slice(0, 90) ?? '(no hint row)'}`)
     check('DISARM: other input clears the hint, closes nothing, and the draft survives whole', !t(f('disarm')).includes(keyHintLabel('⌃x again stops')) && !/STOPPED/i.test(t(f('disarm'))) && f('disarm').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), f('disarm').rows.find(r => /❯/.test(r))?.trim().slice(0, 90) ?? '(no composer row)')
     check('STOP RUNG: the completed chord stopped the highlighted row — it STAYS, wearing stopped (inside 6 s)', /\bstopped\s+stream slowly/.test(t(stopFrame)), `+${stopFrame.atMs - stopAt}ms: ${stopWords(stopFrame)}`)
     const receiptWords = (g: { rows: string[] }): boolean => t(g).includes('applied — stop sent — ') || t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it'))
@@ -376,13 +388,17 @@ if (sendRecs.length === sends.length) {
     check('…and once the row reads stopped the receipt advances to the archive hint', receiptFrames.some(g => t(g).includes(keyHintLabel('stopped — ⌃x ⌃x archives it')) && /\bstopped\s+stream slowly/.test(t(g))), receiptRows)
     check('…and the draft still stands', stopFrame.rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(stopFrame))
     check('C4 STANDS: 10 s after the stop the row still reads stopped, never parked (no timer or sweep archived it)', /\bstopped\s+stream slowly/.test(t(f('stand'))) && !/\bparked\s+stream slowly/.test(t(f('stand'))), stopWords(f('stand')))
-    check('ARCHIVE ARM: the hint now speaks the archive rung', t(f('archiveArm')).includes(keyHintLabel('⌃x again archives it (the chat stands parked)')), stopWords(f('archiveArm')))
+    const archiveSeen = hintSeen('archiveArm', keyHintLabel('⌃x again archives it (the chat stands parked)'))
+    check('ARCHIVE ARM: the hint speaks the archive rung before the completion lands', t(archiveSeen.frame).includes(keyHintLabel('⌃x again archives it (the chat stands parked)')), `${archiveSeen.detail} · ${stopWords(archiveSeen.frame)}`)
     check('ARCHIVE: the row STAYS on the board, parked — the record stands', /stream slowly/.test(t(f('parked'))) && /\bparked\s+stream slowly/.test(t(f('parked'))), stopWords(f('parked')))
-    check('C2 INSIDE: 4 s after the archive the pending leader reads the DELETE rung', t(f('flipIn')).includes(keyHintLabel('⌃x again deletes it (the record ends)')), stopWords(f('flipIn')))
+    const flipSeen = hintSeen('flipIn', keyHintLabel('⌃x again deletes it (the record ends)'))
+    check('C2 INSIDE: 4 s after the archive the pending leader reads the DELETE rung', t(flipSeen.frame).includes(keyHintLabel('⌃x again deletes it (the record ends)')), `${flipSeen.detail} · ${stopWords(flipSeen.frame)}`)
     check('C2 THE WINDOW ENDS: at 5.5 s, the leader still pending, the hint flipped by itself to the fresh-start words (a press now arms; no stale "deletes")', t(f('flipOut')).includes(keyHintLabel('⌃x again arms the delete')) && !t(f('flipOut')).includes('again deletes it'), stopWords(f('flipOut')))
-    check('C2 OUTSIDE: a fresh leader 9 s after the archive says the press ARMS the delete and names the window', t(f('lateLeader')).includes(keyHintLabel('⌃x again arms the delete')) && /in 5 s ends it/.test(t(f('lateLeader'))), stopWords(f('lateLeader')))
+    const lateSeen = hintSeen('lateLeader', keyHintLabel('⌃x again arms the delete'))
+    check('C2 OUTSIDE: a fresh leader 9 s after the archive says the press ARMS the delete and names the window', t(lateSeen.frame).includes(keyHintLabel('⌃x again arms the delete')) && /in 5 s ends it/.test(t(lateSeen.frame)), `${lateSeen.detail} · ${stopWords(lateSeen.frame)}`)
     check('C2 THE ARM: the completed chord outside the window ARMED (the row stays parked) and its note names the window', /\bparked\s+stream slowly/.test(t(f('lateArm'))) && t(f('lateArm')).includes(keyHintLabel('⌃x ⌃x within 5 s deletes it')), stopWords(f('lateArm')))
-    check('DELETE ARM: inside the arm\'s window the hint speaks the delete rung', t(f('deleteArm')).includes(keyHintLabel('⌃x again deletes it (the record ends)')), stopWords(f('deleteArm')))
+    const deleteSeen = hintSeen('deleteArm', keyHintLabel('⌃x again deletes it (the record ends)'))
+    check('DELETE ARM: inside the arm\'s window the hint speaks the delete rung', t(deleteSeen.frame).includes(keyHintLabel('⌃x again deletes it (the record ends)')), `${deleteSeen.detail} · ${stopWords(deleteSeen.frame)}`)
     check('DELETE: exactly the highlighted session left the board', !/stream slowly/.test(t(f('gone'))))
     check('…the NEIGHBOUR survives untouched (its row still stands)', /neighbour rea/.test(t(f('gone'))) && !/no sessions running/.test(t(f('gone'))))
     check('…and the draft survives the whole ladder un-mangled', f('gone').rows.some(r => /❯\s+keep me(\s|▌|$)/.test(r)), draftRows(f('gone')))
