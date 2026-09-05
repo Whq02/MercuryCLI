@@ -64,6 +64,19 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', wsClaimed], {
   stdio: ['ignore', logFd, logFd],
 })
 
+function canonical(value: unknown): string {
+  const sortKeys = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(sortKeys)
+    if (v !== null && typeof v === 'object') {
+      const out: Record<string, unknown> = {}
+      for (const key of Object.keys(v as Record<string, unknown>).sort()) out[key] = sortKeys((v as Record<string, unknown>)[key])
+      return out
+    }
+    return v
+  }
+  return JSON.stringify(sortKeys(value), null, 1)
+}
+
 function normalize(text: string): string {
   return text
     .replaceAll(wsClaimed, '<WS>')
@@ -158,13 +171,13 @@ try {
     const b = JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }
     return a.busy === false && b.busy === false && (a.totalInputTokens ?? 0) > 0 && (b.totalInputTokens ?? 0) > 0
   }, 20_000)
-  const fClaimed = normalize(JSON.stringify(JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8')), null, 1))
-  const fCold = normalize(JSON.stringify(JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')), null, 1))
+  const fClaimed = normalize(canonical(JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8'))))
+  const fCold = normalize(canonical(JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8'))))
   check('PARITY the facts projections are identical modulo ids/clocks', fClaimed === fCold, fClaimed === fCold ? '' : firstDiff(fClaimed, fCold))
 
   const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
   const records = readSessionWorkers(daemonDir)
-  const rowOf = (workerId: string): string => normalize(JSON.stringify(records[workerId] ?? {}, null, 1))
+  const rowOf = (workerId: string): string => normalize(canonical(records[workerId] ?? {}))
   check('PARITY the worker records are identical modulo ids/clocks', rowOf(claimed.workerId) === rowOf(cold.workerId), rowOf(claimed.workerId) === rowOf(cold.workerId) ? '' : firstDiff(rowOf(claimed.workerId), rowOf(cold.workerId)))
 } finally {
   try {

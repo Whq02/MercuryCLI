@@ -317,20 +317,6 @@ export function ScrollKeybindingHandler({
     { isActive },
   )
 
-  const translateOrClear = useCallback(
-    (delta: number) => {
-      const handle = activeHandle()
-      const state = selection.getState()
-      if (!handle || !state) return
-      const top = handle.getViewportTop()
-      const bottom = top + handle.getViewportHeight() - 1
-      selection.shiftSelection(-delta, 0, Number.MAX_SAFE_INTEGER)
-      void top
-      void bottom
-    },
-    [activeHandle, selection],
-  )
-
   const pageStep = useCallback((): number => {
     const handle = activeHandle()
     if (!handle) return 1
@@ -357,12 +343,11 @@ export function ScrollKeybindingHandler({
         }
       }
       if (max <= 0) return false
-      translateOrClear(delta)
       jumpBy(handle, delta)
       notifyScroll(handle)
       return true
     },
-    [activeHandle, translateOrClear, notifyScroll],
+    [activeHandle, notifyScroll],
   )
 
   useKeybindings(
@@ -387,7 +372,6 @@ export function ScrollKeybindingHandler({
           if (topOverlayOwnsPageKeys()) return false
           const handle = activeHandle()
           if (handle) {
-            translateOrClear(-handle.getScrollTop())
             handle.scrollTo(0)
             notifyScroll(handle)
           }
@@ -400,7 +384,6 @@ export function ScrollKeybindingHandler({
               0,
               handle.getScrollHeight() - handle.getViewportHeight(),
             )
-            translateOrClear(max - handle.getScrollTop())
             handle.scrollTo(max)
             handle.scrollToBottom()
             notifyScroll(handle)
@@ -440,7 +423,6 @@ export function ScrollKeybindingHandler({
         handle.getScrollHeight() - handle.getViewportHeight(),
       )
       if (max <= 0) return
-      selection.clearSelection()
       if (wheelState.current === null) {
         const xtermJs = isXtermJs()
         wheelState.current = initWheelAccel(xtermJs)
@@ -536,17 +518,11 @@ export function ScrollKeybindingHandler({
       )
       if (direction === -1) {
         if (offset <= 0) return
-        const distance = Math.min(AUTOSCROLL_STEP_ROWS, offset)
-        selection.captureScrolledRows(bottom - distance + 1, bottom, 'below')
-        selection.shiftAnchor(distance, 0, bottom)
         handle.scrollBy(-AUTOSCROLL_STEP_ROWS)
         notifyScroll(handle)
       } else {
         const room = max - offset
         if (room <= 0) return
-        const distance = Math.min(AUTOSCROLL_STEP_ROWS, room)
-        selection.captureScrolledRows(top, top + distance - 1, 'above')
-        selection.shiftAnchor(-distance, top, bottom)
         handle.scrollBy(AUTOSCROLL_STEP_ROWS)
         notifyScroll(handle)
       }
