@@ -55,6 +55,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - esc now belongs to the turn it interrupted: after an interrupt, the next turn's status row reads its own state, and a second esc there is a plain interrupt, never a forced stop
 - A background agent's completion now shows in the chat the moment it arrives, marked queued until the model reads it, in the order the model reads it
 - The project's .mercury folder now holds shared config only; run records, ledgers and other machine-local files live in your Mercury home, and the doctor names any leftovers
+- After a compaction Mercury re-tells itself every agent, workflow and shell still running or owed a result, so it never re-spawns work or forgets what is due
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published

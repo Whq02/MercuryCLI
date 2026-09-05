@@ -908,6 +908,70 @@ if (!existsSync(DIST)) {
       check('§8 no drop notice, no API error row and no stall words in the transcript', problemRows === 0 && !r.stdout.includes('no stream events'), String(problemRows))
       await fixture.close()
     }
+
+    section("§9 a running sub-agent through the main's fold — its own prefix never moves, the API-faithful fixture drops nothing under the error behaviour, and its landing during the fold is delivered once, after the boundary")
+    {
+      const FABLE = 'claude-fable-5-1'
+      const SEAT_ALIAS = 'opus'
+      const SEAT = 'claude-opus-5'
+      const SEAT_DESCRIPTION = 'prefix-seat'
+      const summary = 'S9 SUMMARY needle: the main launched the seat and folded.'
+      const turns: ScriptedTurn[] = [
+        { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', subagent_type: 'general-purpose', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
+        { kind: 'paced', deltas: [summary], gapMs: 0, startDelayMs: 7000, whenModel: 'fable' },
+        { kind: 'text', text: 'S9-POST', thinking: 's9 after the fold', model: FABLE, whenModel: 'fable' },
+        { kind: 'text', text: 'S9-NOTED', thinking: 's9 noted', model: FABLE, whenModel: 'fable' },
+        { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 1' }, thinking: 'seat one', model: SEAT, whenModel: 'opus' },
+        { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 1' }, thinking: 'seat two', model: SEAT, whenModel: 'opus' },
+        { kind: 'tool_use', name: 'Bash', input: { command: 'sleep 1' }, thinking: 'seat three', model: SEAT, whenModel: 'opus' },
+        { kind: 'text', text: 'S9-SEAT-DONE', thinking: 'seat done', model: SEAT, whenModel: 'opus' },
+      ]
+      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error', MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9' })
+      const SID = 'c0ffee00-0000-4000-8000-00000000c0fc'
+      const debugFile = join(arena.home, 's9.debug.log')
+      const r = await runStreaming(
+        arena,
+        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--dangerously-skip-permissions', '--output-format', 'stream-json', '--verbose', '--session-id', SID, '--debug-file', debugFile],
+        [{ prompt: 'launch the seat and carry on' }],
+      )
+      check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
+      check('§9 the main answered after the fold and after the notice', r.stdout.includes('S9-POST') && r.stdout.includes('S9-NOTED'), r.stdout.slice(0, 300))
+      const debugText = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
+      const reqs = fixture.messageRequests()
+      const modelOf = (q: { body: unknown }): string => String((q.body as Body).model ?? '')
+      const seatReqs = reqs.filter(q => modelOf(q).includes('opus'))
+      const mainReqs = reqs.filter(q => modelOf(q).includes('fable'))
+      console.log(`    §9 wire order: ${reqs.map((q, i) => `${i + 1}:${modelOf(q).includes('opus') ? 'seat' : 'main'}`).join(' ')}`)
+      check('§9 eight requests: four from the seat, four from the main (the launch, the summary, the post-fold turn, the notice turn)', reqs.length === 8 && seatReqs.length === 4 && mainReqs.length === 4, `${reqs.length} total; seat ${seatReqs.length}; main ${mainReqs.length}`)
+      check(`§9 the seat rode the resolved id on the wire (${SEAT})`, seatReqs.length > 0 && seatReqs.every(q => modelOf(q) === SEAT), seatReqs.map(modelOf).join(','))
+      check('§9 the fold took the cache-sharing fork road', debugText.includes('forkedAgent(compact)'))
+      const summaryIndex = reqs.findIndex(q => modelOf(q).includes('fable') && j((q.body as Body).messages).includes('Reply with prose only'))
+      const postIndex = reqs.findIndex((q, i) => i > summaryIndex && modelOf(q).includes('fable'))
+      const seatIndexes = reqs.map((q, i) => (modelOf(q).includes('opus') ? i : -1)).filter(i => i >= 0)
+      check("§9 the seat's rounds straddled the fold (a seat request before the summary, one or more during it)", summaryIndex > 0 && postIndex > summaryIndex && seatIndexes.some(i => i < summaryIndex) && seatIndexes.some(i => i > summaryIndex && i < postIndex), `summary@${summaryIndex + 1} post@${postIndex + 1} seat@${seatIndexes.map(i => i + 1).join(',')}`)
+      census('§9 the seat', seatReqs, true)
+      const seatLast = seatReqs[seatReqs.length - 1]?.body as Body | undefined
+      check("§9 the seat's last request replays its three earlier thinking blocks", seatLast !== undefined && thinkingBlocksOf(seatLast) === 3, String(seatLast && thinkingBlocksOf(seatLast)))
+      check('§9 the API-faithful fixture REFUSED nothing under the error behaviour (0 dropped blocks, 0 refusals) — the seat never saw a rewritten prefix', fixture.refusals.length === 0 && !debugText.includes('thinking_dropped') && !r.stdout.includes('thinking_dropped'), j(fixture.refusals))
+      check("§9 every one of the main's requests carried the error behaviour on the wire", mainReqs.every(q => (q.body as Body).thinking?.block_binding?.prefix_mismatch_behavior === 'error'), reqs.map(q => String((q.body as Body).thinking?.block_binding?.prefix_mismatch_behavior)).join(','))
+      const lastSeatIndex = seatIndexes[seatIndexes.length - 1] ?? -1
+      check("§9 the seat's final request landed during the fold (before the post-fold request)", lastSeatIndex > summaryIndex && lastSeatIndex < postIndex, `seat last@${lastSeatIndex + 1} post@${postIndex + 1}`)
+      const noticeReqs = mainReqs.filter(q => {
+        const messages = ((q.body as Body).messages ?? []) as Array<{ role?: string; content?: unknown }>
+        const last = [...messages].reverse().find(m => m.role === 'user')
+        return j(last?.content ?? '').includes('task-notification') && j(last?.content ?? '').includes(SEAT_DESCRIPTION)
+      })
+      check("§9 exactly one request carried the seat's completion notice", noticeReqs.length === 1, String(noticeReqs.length))
+      const noticeFirst = j(((noticeReqs[0]?.body as Body | undefined)?.messages ?? [])[0] ?? '')
+      check('§9 …delivered after the boundary: the notice turn starts from the summary row', noticeFirst.includes('The context window turned over') && noticeFirst.includes('S9 SUMMARY needle'), noticeFirst.slice(0, 200))
+      check('§9 …and the notice carries the seat\'s report', j((noticeReqs[0]?.body as Body | undefined)?.messages ?? []).includes('S9-SEAT-DONE'))
+      const postPair = reqs.slice(postIndex).filter(q => modelOf(q).includes('fable'))
+      census('§9 the post-fold pair', postPair, true)
+      check('§9 the roster attachment rode the post-fold request naming the seat, and it was delivered once (the pair is a prefix)', j((postPair[0]?.body as Body | undefined)?.messages ?? []).includes('Agents in flight at the context turnover') && j((postPair[0]?.body as Body | undefined)?.messages ?? []).includes(SEAT_DESCRIPTION))
+      check('§9 no drop notice in the transcript', !transcriptNotices(arena, SID).some(t => t.includes('dropped')), j(transcriptNotices(arena, SID)))
+      await fixture.close()
+    }
   }
 }
 

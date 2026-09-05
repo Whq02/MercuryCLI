@@ -14,7 +14,9 @@ function analysisInstruction(scope: 'conversation' | 'recent'): string {
 Then double-check your analysis for technical accuracy and completeness.`
 }
 
-const NINE_SECTIONS = `Your summary must contain these nine numbered sections:
+const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — sub-agents, workflow runs and their agents, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
+
+const SUMMARY_SECTIONS = `Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.
 2. Technical Ground: technologies, patterns and frameworks in play.
 3. Files and Code Touched: files examined, modified or created — with particular attention to the most recent messages, full code snippets where applicable, and a note on why each file matters.
@@ -23,7 +25,8 @@ const NINE_SECTIONS = `Your summary must contain these nine numbered sections:
 6. Operator Messages: every message the operator sent that is not a tool result.
 7. Open Work: work the operator explicitly asked for that is not yet done.
 8. Where Work Stands: precisely what was being worked on most recently, with file names and code snippets.
-9. Next Move (optional): the next step directly in line with the operator's most recent explicit request and the task in flight. Do not start tangential or already-completed work without confirming first. Include verbatim quotes from the most recent conversation showing exactly what task was in hand and where it stopped.`
+9. Next Move (optional): the next step directly in line with the operator's most recent explicit request and the task in flight. Do not start tangential or already-completed work without confirming first. Include verbatim quotes from the most recent conversation showing exactly what task was in hand and where it stopped.
+${AGENTS_IN_FLIGHT_SECTION}`
 
 const OUTPUT_EXAMPLE = `Structure your output like this:
 <analysis>
@@ -48,13 +51,15 @@ const OUTPUT_EXAMPLE = `Structure your output like this:
    [...]
 9. Next Move (optional):
    [...]
+10. Agents in flight:
+   [...]
 </summary>`
 
 const EXTRA_INSTRUCTIONS_NOTE = `The included context may contain additional summarisation instructions — for example a CLAUDE.md section saying "when compacting, always preserve the full list of failing tests", or an operator note reading "focus the summary on the database migration work". Follow any such instructions when producing the summary.`
 
 const BASE_TEMPLATE = `Write the running record of this conversation: a summary detailed enough that development continues without losing context. Weigh the operator's explicit requests and your own prior actions heavily, and keep the technical grain — code patterns, architectural decisions, exact detail.
 
-${NINE_SECTIONS}
+${SUMMARY_SECTIONS}
 
 ${OUTPUT_EXAMPLE}
 
@@ -79,7 +84,7 @@ export function getCompactPrompt(
 
 const FROM_TEMPLATE = `Summarise ONLY the recent portion of this conversation — the messages after the retained earlier context. The earlier messages are being kept intact and need no summary.
 
-${NINE_SECTIONS.replace('the conversation', 'the recent messages')}
+${SUMMARY_SECTIONS.replace('the conversation', 'the recent messages')}
 
 ${OUTPUT_EXAMPLE}
 
@@ -87,7 +92,7 @@ ${EXTRA_INSTRUCTIONS_NOTE}`
 
 const UP_TO_TEMPLATE = `Summarise this conversation. Your summary will be placed at the START of a continuing session, with newer messages following it that you cannot see — so it must be thorough enough that someone reading only your summary plus those newer messages can continue the work.
 
-Your summary must contain these nine numbered sections:
+Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.
 2. Technical Ground: technologies, patterns and frameworks in play.
 3. Files and Code Touched: files examined, modified or created — with full code snippets where applicable and a note on why each file matters.
@@ -97,6 +102,7 @@ Your summary must contain these nine numbered sections:
 7. Open Work: work the operator explicitly asked for that is not yet done.
 8. Delivered This Stretch: what was finished by the end of this portion of the conversation.
 9. Context to Carry: the context, decisions and state needed to understand and continue the work in the subsequent messages.
+${AGENTS_IN_FLIGHT_SECTION}
 
 ${OUTPUT_EXAMPLE}
 
