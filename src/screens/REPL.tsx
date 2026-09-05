@@ -1321,6 +1321,7 @@ export function REPL({
         doneOptions?: { display?: 'skip' | 'system' | 'user'; nextInput?: string; submitNextInput?: boolean },
       ): void => {
         completed = true;
+        submitTrace('repl-dialog-done', input, { name: dialogName, result: (result ?? '').slice(0, 80), display: doneOptions?.display ?? 'user' });
         releaseDialogSlot();
         setToolJSX(null);
         if (result && doneOptions?.display !== 'skip') {
