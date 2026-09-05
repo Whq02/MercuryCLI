@@ -16,7 +16,7 @@ import type {
   PermissionDenyDecision,
   PermissionResult,
 } from '../PermissionResult.js'
-import type { BypassedAskRoad } from '../../../types/permissions.js'
+import type { BypassedAskRoad, PermissionMode } from '../../../types/permissions.js'
 import { createPermissionRequestMessage, ORG_ASK_REASON } from './requestMessage.js'
 import {
   getAskRuleForTool,
@@ -54,6 +54,16 @@ export const defaultDecisionPorts: DecisionPorts = {
 export interface DecisionOutcome<D> {
   decision: D
   trace: DecisionTrace
+}
+
+export function postureBypassesAsks(permissionContext: {
+  mode: PermissionMode
+  isBypassPermissionsModeAvailable?: boolean
+}): boolean {
+  return (
+    modeBypassesPermissions(permissionContext.mode) ||
+    (permissionContext.mode === 'strategy' && permissionContext.isBypassPermissionsModeAvailable === true)
+  )
 }
 
 export async function decideToolPermission(
@@ -151,15 +161,22 @@ async function runDecisionChain(
   pass('toolDenyRule')
 
   const askRule = getAskRuleForTool(permissionContext, tool)
+  let carriedAskRule: typeof askRule | null = null
   if (askRule) {
     if (!ports.sandboxAutoAllows(tool, input)) {
-      return decided('toolAskRule', {
-        behavior: 'ask',
-        decisionReason: { type: 'rule', rule: askRule },
-        message: createPermissionRequestMessage(tool.name),
-      })
+      if (postureBypassesAsks(permissionContext)) {
+        carriedAskRule = askRule
+        pass('toolAskRule', `mode: ${permissionContext.mode} — carried past the tool verdict; the ask stands down`)
+      } else {
+        return decided('toolAskRule', {
+          behavior: 'ask',
+          decisionReason: { type: 'rule', rule: askRule },
+          message: createPermissionRequestMessage(tool.name),
+        })
+      }
+    } else {
+      pass('toolAskRule', 'sandbox-auto-allow fallthrough')
     }
-    pass('toolAskRule', 'sandbox-auto-allow fallthrough')
   } else {
     pass('toolAskRule')
   }
@@ -198,13 +215,11 @@ async function runDecisionChain(
   }
 
   const latestContext = context.getAppState().toolPermissionContext
-  const shouldBypassPermissions =
-    modeBypassesPermissions(latestContext.mode) ||
-    (latestContext.mode === 'strategy' &&
-      latestContext.isBypassPermissionsModeAvailable)
+  const shouldBypassPermissions = postureBypassesAsks(latestContext)
 
   const roadUnderPosture = (
-    stage: BypassedAskRoad,
+    stage: DecisionStageId,
+    road: BypassedAskRoad,
     reason: PermissionDecisionReason,
   ): { decision: PermissionDecision; trace: DecisionTrace } | null => {
     const note = `mode: ${latestContext.mode} — the ask stands down`
@@ -217,10 +232,25 @@ async function runDecisionChain(
       {
         behavior: 'allow',
         updatedInput: getUpdatedInputOrFallback(toolVerdict, input),
-        decisionReason: { type: 'bypassedAsk', mode: latestContext.mode, road: stage, reason },
+        decisionReason: { type: 'bypassedAsk', mode: latestContext.mode, road, reason },
       },
       note,
     )
+  }
+
+  if (carriedAskRule) {
+    if (shouldBypassPermissions) {
+      const carried = roadUnderPosture('toolAskRuleCarried', 'toolAskRule', { type: 'rule', rule: carriedAskRule })
+      if (carried !== null) return carried
+    } else {
+      return decided('toolAskRuleCarried', {
+        behavior: 'ask',
+        decisionReason: { type: 'rule', rule: carriedAskRule },
+        message: createPermissionRequestMessage(tool.name),
+      })
+    }
+  } else {
+    pass('toolAskRuleCarried')
   }
 
   if (
@@ -229,7 +259,7 @@ async function runDecisionChain(
     toolVerdict.decisionReason.rule.ruleBehavior === 'ask'
   ) {
     if (!shouldBypassPermissions) return decided('contentAskRule', toolVerdict)
-    const stoodDown = roadUnderPosture('contentAskRule', toolVerdict.decisionReason)
+    const stoodDown = roadUnderPosture('contentAskRule', 'contentAskRule', toolVerdict.decisionReason)
     if (stoodDown !== null) return stoodDown
   } else {
     pass('contentAskRule')
@@ -247,7 +277,7 @@ async function runDecisionChain(
         decisionReason: reason,
       })
     }
-    const stoodDown = roadUnderPosture('orgAskCeiling', reason)
+    const stoodDown = roadUnderPosture('orgAskCeiling', 'orgAskCeiling', reason)
     if (stoodDown !== null) return stoodDown
   } else {
     pass('orgAskCeiling')
@@ -258,7 +288,7 @@ async function runDecisionChain(
     toolVerdict.decisionReason?.type === 'safetyCheck'
   ) {
     if (!shouldBypassPermissions) return decided('safetyCheckAsk', toolVerdict)
-    const stoodDown = roadUnderPosture('safetyCheckAsk', toolVerdict.decisionReason)
+    const stoodDown = roadUnderPosture('safetyCheckAsk', 'safetyCheckAsk', toolVerdict.decisionReason)
     if (stoodDown !== null) return stoodDown
   } else {
     pass('safetyCheckAsk')
