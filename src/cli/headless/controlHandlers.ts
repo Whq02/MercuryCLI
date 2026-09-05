@@ -28,6 +28,7 @@ import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type Res
 import { logError } from 'src/utils/log.js'
 import { enqueue } from 'src/utils/messageQueueManager.js'
 import { parseUserSpecifiedModel } from 'src/utils/model/model.js'
+import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isBypassPermissionsModeDisabled, transitionPermissionMode, validateModeEntry } from 'src/utils/permissions/permissionSetup.js'
 import { findUnresolvedToolUse } from 'src/utils/sessionStorage.js'
 import { type Stream } from 'src/utils/stream.js'
@@ -288,6 +289,19 @@ export async function handleRewindSession(
 }
 
 export function resolvePermissionModeTransition(
+  mode: InternalPermissionMode,
+  toolPermissionContext: ToolPermissionContext,
+  road: ModeTransitionRoad = 'control-door',
+): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
+  const verdict = decidePermissionModeTransition(mode, toolPermissionContext)
+  if (toolPermissionContext.mode !== mode) {
+    if (verdict.ok) recordModeTransition({ from: toolPermissionContext.mode, to: mode, road })
+    else holdModeTransition({ from: toolPermissionContext.mode, to: mode, road, detail: verdict.error })
+  }
+  return verdict
+}
+
+function decidePermissionModeTransition(
   mode: InternalPermissionMode,
   toolPermissionContext: ToolPermissionContext,
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
