@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
+import { isDeadThinkingPlaceholder } from './deadThinkingPlaceholder.js'
 
 export interface WirePrefixParts {
   system: unknown
@@ -148,7 +149,7 @@ function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
   })
   const messages = parts.messages.map(message => {
     const m = withoutCacheControl(message) as { role?: unknown; content?: unknown }
-    const content = Array.isArray(m.content) ? m.content.filter(block => !isThinkingBlock(block)) : m.content
+    const content = Array.isArray(m.content) ? m.content.filter(block => !isThinkingBlock(block) && !isDeadThinkingPlaceholder(block)) : m.content
     const blocks = Array.isArray(content)
       ? content.map(block => ({ kind: blockKind(block), digest: sha(j(block)) }))
       : [{ kind: typeof content === 'string' ? 'text' : 'content', digest: sha(j(content)) }]

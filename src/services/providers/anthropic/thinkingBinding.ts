@@ -13,6 +13,7 @@ import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/mode
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
+import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
 
 export type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -463,7 +464,7 @@ export function stripDeadThinking<M extends Message>(messages: M[], marks: Reado
     if (filtered.length === content.length) return msg
     changed = true
     if (filtered.length === 0) {
-      filtered.push({ type: 'text' as const, text: '[reasoning the API dropped — not carried forward]', citations: [] })
+      filtered.push({ type: 'text' as const, text: DEAD_THINKING_PLACEHOLDER, citations: [] })
     }
     return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
   })

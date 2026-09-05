@@ -7,6 +7,7 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { mergeUserMessages } from './merge.js'
+import { DEAD_THINKING_PLACEHOLDER } from '../../services/providers/anthropic/deadThinkingPlaceholder.js'
 
 type ThinkingBlockType =
   | ThinkingBlock
@@ -46,7 +47,7 @@ export function filterTrailingThinkingFromLastAssistant(
 
   const filteredContent =
     lastValidIndex < 0
-      ? [{ type: 'text' as const, text: '[No message content]', citations: [] }]
+      ? [{ type: 'text' as const, text: DEAD_THINKING_PLACEHOLDER, citations: [] }]
       : content.slice(0, lastValidIndex + 1)
 
   const result = [...messages]
