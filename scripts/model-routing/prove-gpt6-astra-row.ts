@@ -235,10 +235,11 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const view = capabilities.gptEffortVocabularyView(ID)
   check("the live vocabulary is the served six-level ladder (the page's five plus ultra)", view.state === 'live' && JSON.stringify(view.vocabulary) === JSON.stringify(SERVED_LADDER), JSON.stringify(view))
   check('ultra ranks above max in the one wire-effort order, so max never clamps down', pins.WIRE_EFFORT_RANK.ultra! > pins.WIRE_EFFORT_RANK.max! && pins.nearestSupportedWireEffort('max', SERVED_LADDER) === 'max')
-  check('max is supported', capabilities.modelSupportsMaxEffort(ID) && capabilities.getMaxSupportedEffortLevel(ID) === 'max')
+  check('max is supported and the ceiling is the served top (ultra)', capabilities.modelSupportsMaxEffort(ID) && capabilities.modelOffersEffortLevel(ID, 'ultra') && capabilities.getMaxSupportedEffortLevel(ID) === 'ultra')
   check('xhigh is supported', capabilities.modelSupportsXHighEffort(ID))
   check("applied 'max' stays 'max'", effort.resolveAppliedEffort(ID, 'max') === 'max', String(effort.resolveAppliedEffort(ID, 'max')))
   check("applied 'xhigh' stays 'xhigh'", effort.resolveAppliedEffort(ID, 'xhigh') === 'xhigh', String(effort.resolveAppliedEffort(ID, 'xhigh')))
+  check("applied 'ultra' stays 'ultra' (the served top)", effort.resolveAppliedEffort(ID, 'ultra') === 'ultra', String(effort.resolveAppliedEffort(ID, 'ultra')))
   check("no effort set ⇒ the live default ('medium' on this list)", effort.resolveAppliedEffort(ID, undefined) === 'medium', String(effort.resolveAppliedEffort(ID, undefined)))
   const live = catalogue.evaluateGptCandidate(ID, 'api-key')
   const liveModel = live.ok ? live.candidate.live : undefined
@@ -246,6 +247,8 @@ process.env.OPENAI_API_KEY = 'prover-key'
   const pXhigh = liveModel ? catalogue.resolveGptReasoningProfile('xhigh', liveModel) : undefined
   check("the wire profile sends 'max' as the user's own choice", pMax?.wireEffort === 'max' && pMax.source === 'user', JSON.stringify(pMax))
   check("the wire profile sends 'xhigh' as the user's own choice", pXhigh?.wireEffort === 'xhigh' && pXhigh.source === 'user', JSON.stringify(pXhigh))
+  const pUltra = liveModel ? catalogue.resolveGptReasoningProfile('ultra', liveModel) : undefined
+  check("the wire profile sends 'ultra' as the user's own choice", pUltra?.wireEffort === 'ultra' && pUltra.source === 'user', JSON.stringify(pUltra))
   check('the live row admits images', liveModel?.inputModalities?.includes('image') === true)
 
   check('credentialed, the budget is the served CEILING (872,000 — the bare id budgets the declared ceiling)', getContextWindowForModel(ID) === 872_000, String(getContextWindowForModel(ID)))

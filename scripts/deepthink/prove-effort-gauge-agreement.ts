@@ -52,7 +52,7 @@ console.log('— §1 the operator scene: fresh session, no stored value —')
 console.log('— §2 chip ≡ slider: the whole ladder × models × env pins —')
 {
   const MODELS = ['claude-opus-5', 'claude-fable-5', 'claude-sonnet-5', 'claude-opus-4-6']
-  const STORED: Array<EffortValue | undefined> = [undefined, 'low', 'medium', 'high', 'xhigh', 'max']
+  const STORED: Array<EffortValue | undefined> = [undefined, 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
   const ENVS: Array<string | undefined> = [undefined, 'high', 'max', 'x high']
   let cases = 0
   let agreements = 0
