@@ -52,6 +52,9 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Typing deepthink or supercode glows in your chosen critter's colour, in the composer and in the sent message, instead of a rainbow or a mix of theme colours
 - Every tip the companion and the spinner show is true today and teaches one thing, in the order a new user needs: how to stop a turn, the mode, the meter, sessions, then the depth
 - A mis-bound keyboard shortcut can no longer flash "Unknown command" for a line you never typed, and a split key sequence no longer leaks stray characters into the input box
+- esc now belongs to the turn it interrupted: after an interrupt, the next turn's status row reads its own state, and a second esc there is a plain interrupt, never a forced stop
+- A background agent's completion now shows in the chat the moment it arrives, marked queued until the model reads it, in the order the model reads it
+- The project's .mercury folder now holds shared config only; run records, ledgers and other machine-local files live in your Mercury home, and the doctor names any leftovers
 
 ## 1.0.0-beta.2
 - The first published build of the public line; 1.0.0-beta.1 was tagged and never published
