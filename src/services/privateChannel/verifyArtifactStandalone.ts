@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path'
 import { realpathSync } from 'node:fs'
 import { verifyPayloadDir } from './artifactVerify.js'
 import { describeSignatureVerdict } from './artifactSigning.js'
+import { provenanceNoticeMarkerPath, provenanceNoticeSaid, recordProvenanceNotice } from './installProvenance.js'
 
 export {
   canonicalStatementBytes,
@@ -38,8 +39,11 @@ function cliMain(): void {
   const line = describeSignatureVerdict(result.verdict)
 
   if (launcherMode) {
-    if (result.verdict.state !== 'signed') {
-      process.stderr.write(`mercury: provenance — ${line} (\`mercury doctor\` shows the full record)\n`)
+    const state = result.verdict.state
+    if (state !== 'signed' && !provenanceNoticeSaid(dir, state)) {
+      const once = provenanceNoticeMarkerPath(dir) !== null ? 'said once for this install; ' : ''
+      process.stderr.write(`mercury: provenance — ${line} (${once}\`mercury doctor\` shows the full record)\n`)
+      recordProvenanceNotice(dir, state)
     }
     process.exit(0)
   }
