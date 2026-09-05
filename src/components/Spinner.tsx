@@ -244,7 +244,7 @@ export function SpinnerWithVerb({
   )
   const effectiveTip =
     elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
-      ? 'This turn has been running a while — esc interrupts it; a fresh conversation keeps context sharp.'
+      ? 'This turn has been running a while — esc interrupts it, not its agents.'
       : (spinnerTip ?? null)
 
   const treeExpanded = expandedView === 'teammates'
