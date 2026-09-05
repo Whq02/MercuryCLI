@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "note": "VULCAN op-table contract — ONE source of truth for the Godot tool schema, the lite subset, read/mutate/exec permission classes, the addon handler-coverage proof, and the docs. Per-category counts sum to 163; the frontier category sits above it. class: read = never mutates project/editor state; mutate = UndoRedo-wrapped editor edit; exec = runs code / drives input / launches (ask-always). lite marks the 76-op core subset.",
+  "note": "VULCAN op-table contract — ONE source of truth for the Godot tool schema, the lite subset, read/mutate/exec permission classes, the addon handler-coverage proof, and the docs. Per-category counts sum to 163; the frontier category sits above it. class: read = never mutates project/editor state; mutate = UndoRedo-wrapped editor edit; exec = runs code / drives input / launches (ask-always). lite marks the 76-op core subset. step_wall_ms_per_frame is the wall budget per stepped frame (runtime_step frames, input_sequence step_frames): the client deadline, the editor's proxy deadline and the bridge's window cap all read this one figure through the generated modules.",
+  "step_wall_ms_per_frame": 50,
   "categories": [
     { "key": "project", "label": "Project", "ops": [
       { "name": "project_info", "class": "read", "lite": true, "summary": "Engine version, project name, main scene, feature tags", "args": {} },

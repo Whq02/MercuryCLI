@@ -17,7 +17,6 @@ const MAX_LINE_BYTES := 8 * 1024 * 1024
 const MAX_CONNECTIONS := 8
 const UNAUTHED_GRACE_MS := 10000
 const RUNTIME_TIMEOUT_MS := 10000
-const STEP_WALL_MS_PER_FRAME := 50
 const PLAY_POLL_INTERVAL := 0.25
 const MERCURY_SIDE_OPS := ["vulcan_install", "vulcan_uninstall", "vulcan_status", "project_refresh_classes"]
 const LOOPBACK_HOSTS := ["127.0.0.1", "::1", "0:0:0:0:0:0:0:1", "::ffff:127.0.0.1"]
@@ -339,7 +338,7 @@ func _runtime_deadline_ms(op: String, args: Dictionary) -> int:
 		if args.has(key) and str(args[key]).is_valid_float():
 			ms = maxi(ms, int(args[key]) + RUNTIME_TIMEOUT_MS)
 	if args.has("frames") and str(args["frames"]).is_valid_float():
-		ms = maxi(ms, int(args["frames"]) * STEP_WALL_MS_PER_FRAME + RUNTIME_TIMEOUT_MS)
+		ms = maxi(ms, int(args["frames"]) * OpClassesScript.STEP_WALL_MS_PER_FRAME + RUNTIME_TIMEOUT_MS)
 	if op == "input_sequence" and args.get("steps") is Array:
 		var total := 0
 		for step in args.get("steps"):
@@ -349,7 +348,7 @@ func _runtime_deadline_ms(op: String, args: Dictionary) -> int:
 				if step.has(key) and str(step[key]).is_valid_float():
 					total += maxi(0, int(step[key]))
 			if step.has("step_frames") and str(step["step_frames"]).is_valid_float():
-				total += maxi(0, int(step["step_frames"])) * STEP_WALL_MS_PER_FRAME
+				total += maxi(0, int(step["step_frames"])) * OpClassesScript.STEP_WALL_MS_PER_FRAME
 		ms = maxi(ms, total + RUNTIME_TIMEOUT_MS)
 	if op == "runtime_replay":
 		ms = maxi(ms, 120000)

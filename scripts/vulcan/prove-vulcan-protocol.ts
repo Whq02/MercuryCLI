@@ -3,6 +3,7 @@
 import * as net from 'node:net'
 import { VulcanClient } from '../../src/services/vulcan/vulcanClient.js'
 import { vulcanDeclaredBudgetMs } from '../../src/tools/GodotTool/GodotTool.js'
+import { VULCAN_STEP_WALL_MS_PER_FRAME } from '../../src/utils/vulcan/optable.generated.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -345,10 +346,10 @@ async function main(): Promise<void> {
     client.close()
     await srv.close()
 
-    check('budget: a frame step is 50 ms per frame (3600 frames = 180 s)', vulcanDeclaredBudgetMs('runtime_step', { frames: 3600 }) === 180_000)
+    check('budget: a frame step is the optable\'s one figure per frame (3600 frames × 50 ms = 180 s)', VULCAN_STEP_WALL_MS_PER_FRAME === 50 && vulcanDeclaredBudgetMs('runtime_step', { frames: 3600 }) === 3600 * VULCAN_STEP_WALL_MS_PER_FRAME && vulcanDeclaredBudgetMs('runtime_step', { frames: 3600 }) === 180_000)
     check('budget: an ms step is its ms', vulcanDeclaredBudgetMs('runtime_step', { ms: 500 }) === 500)
     check('budget: a bare step (default window) declares nothing extra', vulcanDeclaredBudgetMs('runtime_step', undefined) === 0 && vulcanDeclaredBudgetMs('runtime_pause', {}) === 0)
-    check('budget: a macro sums its frames, waits and ms across the steps', vulcanDeclaredBudgetMs('input_sequence', { steps: [...macro.steps, { wait_ms: 250 }, { step_ms: 100 }] }) === 30 * 50 + 10 * 50 + 250 + 100)
+    check('budget: a macro sums its frames, waits and ms across the steps', vulcanDeclaredBudgetMs('input_sequence', { steps: [...macro.steps, { wait_ms: 250 }, { step_ms: 100 }] }) === (30 + 10) * VULCAN_STEP_WALL_MS_PER_FRAME + 250 + 100)
     check('budget: the older windows still count (playtest_run duration + settle)', vulcanDeclaredBudgetMs('playtest_run', { duration_ms: 5000, settle_ms: 1500 }) === 6500)
     check('budget: non-numbers and negatives count as nothing', vulcanDeclaredBudgetMs('runtime_step', { frames: '30' as unknown as number, ms: -5 }) === 0)
   }
