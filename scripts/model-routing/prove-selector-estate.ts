@@ -33,7 +33,7 @@ const { getPublicModelDisplayName, getMarketingNameForModel, renderModelChip } =
   '../../src/utils/model/model.js'
 )
 const { getContextWindowForModel } = await import('../../src/utils/context.js')
-const { getModelPricingString, calculateCostFromTokens } = await import('../../src/utils/modelCost.js')
+const { formatModelPricing, getModelPricingString, calculateCostFromTokens } = await import('../../src/utils/modelCost.js')
 const { decideModelTransition, providerFamilyOfSetting, crossProviderNote } = await import(
   '../../src/utils/model/modelTransition.js'
 )
@@ -82,37 +82,42 @@ section('4 · cost — prices DERIVE from the pin, incl. the recorded cached rat
 {
   const solPin = gptDisplayPin('gpt-5.6-sol')!
   const lunaPin = gptDisplayPin('gpt-5.6-luna')!
+  const pricingOf = (pin: { costInPerMtok?: number; costOutPerMtok?: number }): string =>
+    formatModelPricing({ inputTokens: pin.costInPerMtok ?? 0, outputTokens: pin.costOutPerMtok ?? 0, promptCacheWriteTokens: 0, promptCacheReadTokens: 0, webSearchRequests: 0 })
+  check("Sol pricing string derives from the pin's recorded rates", getModelPricingString('gpt-5.6-sol') === pricingOf(solPin))
+  check("Luna pricing string derives from the pin's recorded rates", getModelPricingString('gpt-5.6-luna') === pricingOf(lunaPin))
+  const cachedUnder = calculateCostFromTokens('gpt-5.6-sol', {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadInputTokens: 200_000,
+    cacheCreationInputTokens: 0,
+  })
   check(
-    "Sol pricing string derives from the pin's recorded rates",
-    getModelPricingString('gpt-5.6-sol') === `$${solPin.costInPerMtok}/$${solPin.costOutPerMtok} per Mtok`,
+    "Sol cached-input rate is the pin's RECORDED rate",
+    solPin.cachedInPerMtok !== undefined && Math.abs(cachedUnder - solPin.cachedInPerMtok * 0.2) < 1e-9,
+    String(cachedUnder),
   )
-  check(
-    "Luna pricing string derives from the pin's recorded rates",
-    getModelPricingString('gpt-5.6-luna') === `$${lunaPin.costInPerMtok}/$${lunaPin.costOutPerMtok} per Mtok`,
-  )
-  const cachedOnly = calculateCostFromTokens('gpt-5.6-sol', {
+  const cachedPast = calculateCostFromTokens('gpt-5.6-sol', {
     inputTokens: 0,
     outputTokens: 0,
     cacheReadInputTokens: 1_000_000,
     cacheCreationInputTokens: 0,
   })
   check(
-    "Sol cached-input rate is the pin's RECORDED rate",
-    solPin.cachedInPerMtok !== undefined && Math.abs(cachedOnly - solPin.cachedInPerMtok) < 1e-9,
-    String(cachedOnly),
+    'a million cached tokens on Sol rides the long-context tier: twice the recorded cached rate',
+    solPin.cachedInPerMtok !== undefined && Math.abs(cachedPast - solPin.cachedInPerMtok * 2) < 1e-9,
+    String(cachedPast),
   )
   const terraPin = gptDisplayPin('gpt-5.6-terra')!
   const terraCached = calculateCostFromTokens('gpt-5.6-terra', {
     inputTokens: 0,
     outputTokens: 0,
-    cacheReadInputTokens: 1_000_000,
+    cacheReadInputTokens: 200_000,
     cacheCreationInputTokens: 0,
   })
   check(
-    'Terra (no recorded cached rate) falls to the 0.1× convention off its input rate',
-    terraPin.cachedInPerMtok === undefined &&
-      terraPin.costInPerMtok !== undefined &&
-      Math.abs(terraCached - terraPin.costInPerMtok * 0.1) < 1e-9,
+    "Terra cached-input rate is the pin's RECORDED rate",
+    terraPin.cachedInPerMtok !== undefined && Math.abs(terraCached - terraPin.cachedInPerMtok * 0.2) < 1e-9,
     String(terraCached),
   )
   check('Sol pin records an output ceiling (the runtime reads it, never invents one)', solPin.outputMax !== undefined)
