@@ -321,7 +321,7 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
       const holders = holdersWords(await mercuryHoldersOf(dir))
       const fix = madeByMercury
         ? `${QUIT_FIRST_WORDS}, then run ${words.inspect} — only Mercury's base commit should be listed — then remove the repository: ${words.remove}`
-        : `keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
+        : `Mercury keys every project beneath it as one: memory and project settings mix, and a forked worktree is a worktree of the home — keep it if it is yours; to remove it: ${QUIT_FIRST_WORDS}, check ${words.inspect}, then: ${words.remove}`
       return { evidence: `${dir} is a git repository (${created}; ${who}; ${holders})`, fix }
     }),
   )
