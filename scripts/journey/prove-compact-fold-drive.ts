@@ -38,12 +38,16 @@ const FOLD_NEEDLE = 'Reply with prose only'
 const SUMMARY_CHUNKS = 48
 const SUMMARY_CHUNK_MS = 160
 const RESTORE_HOLD_S = 1.5
-const AUTO_PCT = '0.5'
+const AUTO_PCT = '1.5'
 const ROW_HEAD = 'compacting context'
 const CARD = 'Compacted —'
 const CANCELLED_LINE = 'Compaction canceled.'
 const FAILED_LINE = 'Error during compaction'
 const AUTO_ASK = 'station 61: survey the ledger row and report'
+const POST_FOLD_ASK = 'station 31: survey the ledger row and report'
+const READ_ASK = 'station 0: read the notes files and report'
+const READ_DONE = 'READ-DONE'
+const NOTES = ['notes-a.txt', 'notes-b.txt'] as const
 const AUTO_REPLY = 'ok — surveyed.'
 
 function seedRows(sid: string, cwd: string, turns: number, fillers: number, inputTokens: number): string {
@@ -76,6 +80,11 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'fold-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'fold-cwd-')))
   writeFileSync(join(cwd, 'README.md'), '# the fold fixture\n')
+  for (const name of NOTES) {
+    const lines: string[] = []
+    for (let i = 1; i <= 40; i++) lines.push(`${name} line ${i}: the survey notes hold steady against the recorded baseline along the marked stations.`)
+    writeFileSync(join(cwd, name), `${lines.join('\n')}\n`)
+  }
   seedFirstRun(home, [cwd])
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ hooks: { SessionStart: [{ matcher: 'compact', hooks: [{ type: 'command', command: `sleep ${RESTORE_HOLD_S}` }] }] } }))
   process.env.MERCURY_CONFIG_DIR = home
@@ -83,13 +92,13 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
   const projDir = join(home, 'projects', sanitizePath(cwd))
   mkdirSync(projDir, { recursive: true })
   for (const key of ['fold', 'cancel', 'refuse'] as const) writeFileSync(join(projDir, `${SID[key]}.jsonl`), seedRows(SID[key], cwd, 30, 3, 900))
-  writeFileSync(join(projDir, `${SID.auto}.jsonl`), seedRows(SID.auto, cwd, 60, 6, 9000))
+  writeFileSync(join(projDir, `${SID.auto}.jsonl`), seedRows(SID.auto, cwd, 60, 6, 16_000))
   return { home, cwd }
 }
 
-type Hit = { route: 'fold' | 'chat' | 'side'; atMs: number; endMs: number; model: string; refused: boolean }
+type Hit = { route: 'fold' | 'chat' | 'read' | 'read-done' | 'side'; atMs: number; endMs: number; model: string; refused: boolean }
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
-const USAGE = { input_tokens: 4200, cache_creation_input_tokens: 0, cache_read_input_tokens: 3800 }
+const USAGE = { input_tokens: 1200, cache_creation_input_tokens: 0, cache_read_input_tokens: 800 }
 function textOf(content: unknown): string {
   if (typeof content === 'string') return content
   if (!Array.isArray(content)) return ''
@@ -111,7 +120,7 @@ function summaryText(): string {
 }
 let msgSeq = 0
 let foldMode: 'stream' | 'refuse' = 'stream'
-function startFixture(port: number): Promise<{ base: string; hits: Hit[]; close(): Promise<void> }> {
+function startFixture(port: number, fixtureCwd: string): Promise<{ base: string; hits: Hit[]; close(): Promise<void> }> {
   const hits: Hit[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
@@ -132,8 +141,22 @@ function startFixture(port: number): Promise<{ base: string; hits: Hit[]; close(
       const model = typeof body.model === 'string' ? body.model : 'fixture'
       const lastUser = [...(body.messages ?? [])].reverse().find(m => m.role === 'user')
       const lastText = lastUser ? textOf(lastUser.content) : ''
-      const userText = (body.messages ?? []).filter(m => m.role === 'user').map(m => textOf(m.content)).join('\n')
-      const route: Hit['route'] = lastText.includes(FOLD_NEEDLE) ? 'fold' : model.includes('haiku') ? 'side' : lastText.startsWith('station') || userText.includes(AUTO_ASK) ? 'chat' : 'side'
+      const lastBlocks = Array.isArray(lastUser?.content) ? (lastUser!.content as Array<{ type?: string }>) : []
+      const asks = (body.messages ?? []).filter(m => m.role === 'user').map(m => textOf(m.content)).flatMap(t => t.split('\n')).filter(line => line.startsWith('station '))
+      const ask = asks.length > 0 ? asks[asks.length - 1]! : ''
+      const route: Hit['route'] = lastText.includes(FOLD_NEEDLE)
+        ? 'fold'
+        : model.includes('haiku')
+          ? 'side'
+          : lastBlocks.some(b => b.type === 'tool_result')
+            ? ask === READ_ASK
+              ? 'read-done'
+              : 'side'
+            : ask === READ_ASK
+              ? 'read'
+              : ask !== ''
+                ? 'chat'
+                : 'side'
       const hit: Hit = { route, atMs: Date.now(), endMs: 0, model, refused: route === 'fold' && foldMode === 'refuse' }
       hits.push(hit)
       if (hit.refused) {
@@ -153,8 +176,22 @@ function startFixture(port: number): Promise<{ base: string; hits: Hit[]; close(
         hit.endMs = Date.now()
         res.end()
       }
+      if (route === 'read') {
+        res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'reading the notes' } })}`)
+        res.write(`event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`)
+        NOTES.forEach((name, i) => {
+          res.write(`event: content_block_start\n${sse({ type: 'content_block_start', index: i + 1, content_block: { type: 'tool_use', id: `toolu_fold_read_${i + 1}`, name: 'Read', input: {} } })}`)
+          res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: i + 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ file_path: join(fixtureCwd, name) }) } })}`)
+          res.write(`event: content_block_stop\n${sse({ type: 'content_block_stop', index: i + 1 })}`)
+        })
+        res.write(`event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: 'tool_use', stop_sequence: null }, usage: { ...USAGE, output_tokens: 30 } })}`)
+        res.write(`event: message_stop\n${sse({ type: 'message_stop' })}`)
+        hit.endMs = Date.now()
+        res.end()
+        return
+      }
       if (route !== 'fold') {
-        res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: route === 'chat' ? AUTO_REPLY : 'side' } })}`)
+        res.write(`event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: route === 'chat' ? AUTO_REPLY : route === 'read-done' ? READ_DONE : 'side' } })}`)
         finish(4)
         return
       }
@@ -290,7 +327,7 @@ function stripOf(frame: string | undefined): { glyph: string; words: string } | 
 }
 function belowChat(frame: string | undefined): string[] {
   const lines = (frame ?? '').split('\n')
-  return lines.slice(-9).map(l => l.replace(/\d+m\b|\d+s\b|\d\d:\d\d:\d\d|⤳\d+/g, '#'))
+  return lines.slice(-9).map(l => l.replace(/\d+m\b|\d+s\b|\d\d:\d\d:\d\d|⤳\d+|auto-compact: \d+%/g, '#').replace(/ for #\s*/, ' ').replace(/\s+(esc interrupts)/, ' $1'))
 }
 
 function frames(prefix: string, count: number, gap = 3): Array<Record<string, unknown>> {
@@ -323,7 +360,44 @@ async function scene(label: string, sid: string, world: { home: string; cwd: str
   }
 }
 
-function wireRows(home: string): Array<{ seq: number; at: number; url: string; model: string; response: { status: number; ms: number; firstByteMs?: number; usage?: Record<string, number>; stop_reason?: string | null; error?: string } }> {
+function requestParts(body: unknown): { items: number; total: number; summary: number; files: number; fileCount: number; filesNamed: number; largestFile: number; tail: number; tailRows: number; ask: number; other: number } {
+  const messages = ((body as { messages?: unknown[] })?.messages ?? []) as Array<{ role?: string; content?: unknown }>
+  const out = { items: messages.length, total: 0, summary: 0, files: 0, fileCount: 0, filesNamed: 0, largestFile: 0, tail: 0, tailRows: 0, ask: 0, other: 0 }
+  let sawSummary = false
+  const named = new Set<string>()
+  for (const message of messages) {
+    const blocks: Array<{ text: string; size: number }> =
+      typeof message.content === 'string'
+        ? [{ text: message.content, size: message.content.length }]
+        : Array.isArray(message.content)
+          ? (message.content as Array<Record<string, unknown>>).map(b => ({ text: typeof b.text === 'string' ? b.text : typeof b.content === 'string' ? b.content : '', size: JSON.stringify(b).length }))
+          : []
+    for (const block of blocks) {
+      const { text, size } = block
+      out.total += size
+      if (message.role === 'user' && /carries on from an earlier stretch|context window turned over|conversation was summarized/i.test(text)) {
+        out.summary += size
+        sawSummary = true
+      } else if (message.role === 'user' && text.includes(POST_FOLD_ASK)) {
+        out.ask += size
+      } else if (message.role === 'user' && sawSummary && NOTES.some(name => text.includes(`${name} line `))) {
+        out.files += size
+        out.fileCount++
+        out.largestFile = Math.max(out.largestFile, size)
+        for (const name of NOTES) if (text.includes(`${name} line `)) named.add(name)
+      } else if (sawSummary && (message.role === 'assistant' || /^station \d+:/.test(text))) {
+        out.tail += size
+        out.tailRows++
+      } else {
+        out.other += size
+      }
+    }
+  }
+  out.filesNamed = named.size
+  return out
+}
+
+function wireRows(home: string): Array<{ seq: number; at: number; url: string; model: string; body?: unknown; response: { status: number; ms: number; firstByteMs?: number; usage?: Record<string, number>; stop_reason?: string | null; error?: string } }> {
   const dir = join(home, 'wire')
   if (!existsSync(dir)) return []
   const out: ReturnType<typeof wireRows> = []
@@ -346,7 +420,7 @@ console.log(` the fold is a chat row with a bar — real bundle, PTY, ${SIZE.col
 console.log('============================================================')
 const KEEP = process.env.FOLD_DRIVE_KEEP === '1'
 const world = await seedWorld()
-const fixture = await startFixture(Number(process.env.FOLD_DRIVE_PORT ?? 25311))
+const fixture = await startFixture(Number(process.env.FOLD_DRIVE_PORT ?? 25311), world.cwd)
 const FOLD_FRAMES = 24
 const foldMarks = (prefix: string): string[] => Array.from({ length: FOLD_FRAMES }, (_, i) => `${prefix}-${String(i + 1).padStart(2, '0')}`)
 
@@ -363,15 +437,22 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
 {
   const hitsBefore = fixture.hits.length
   const cap = await scene('fold', SID.fold, world, fixture.base, [
+    { data: `${READ_ASK}\r`, afterPrevTicks: 2 },
+    { data: '', awaitText: READ_DONE, minTick: 2, atTick: 300, awaitSettleTicks: 5, mark: 'read-done' },
+    ...[41, 42, 43, 44, 45, 46].map(n => ({ data: `station ${n}: survey the ledger row and report\r`, afterPrevTicks: 9 })),
+    { data: '', awaitText: 'station 46: survey', minTick: 2, atTick: 500, awaitSettleTicks: 8, mark: 'filled' },
     { data: '/compact\r', afterPrevTicks: 2, mark: 'before-send' },
     ...frames('fold', FOLD_FRAMES),
     { data: '', awaitText: CARD, minTick: 2, atTick: 700, awaitSettleTicks: 4, mark: 'card' },
-    { data: '', afterPrevTicks: 6, mark: 'end' },
-  ], 760)
+    { data: `${POST_FOLD_ASK}\r`, afterPrevTicks: 4, mark: 'post-fold-send' },
+    { data: '', awaitText: AUTO_REPLY, minTick: 2, atTick: 760, awaitSettleTicks: 4, mark: 'post-fold' },
+    { data: '', afterPrevTicks: 4, mark: 'end' },
+  ], 900)
   if (cap !== null) {
     const m = cap.marks
-    const sent = cap.receipts[1]
+    const sent = cap.receipts[10]
     const foldHits = fixture.hits.slice(hitsBefore).filter(h => h.route === 'fold')
+    check('[fold] the turn before the fold read both notes files', fixture.hits.slice(hitsBefore).some(h => h.route === 'read') && fixture.hits.slice(hitsBefore).some(h => h.route === 'read-done') && rowsWith(m['read-done'], READ_DONE).length > 0, fixture.hits.slice(hitsBefore).map(h => h.route).join(' → '))
     console.log(`\n[fold] sends fired ${cap.receipts.length} · end ${cap.endReason} · routes ${fixture.hits.slice(hitsBefore).map(h => h.route).join(' → ')}`)
     if (sent && foldHits[0]) console.log(`[fold] /compact sent at +0 ms · the summary call reached the wire at +${foldHits[0].atMs - sent.ts} ms · its stream ended at +${foldHits[0].endMs - sent.ts} ms`)
     dump('fold · before the send', m['before-send'])
@@ -387,6 +468,8 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const withCard = foldMarks('fold').filter(k => rowsWith(m[k], CARD).length > 0)
     if (live.length > 0) dump(`fold · ${live[Math.min(live.length - 1, 4)]!.key} (summarising)`, m[live[Math.min(live.length - 1, 4)]!.key])
     if (live.length > 0) dump(`fold · ${live[live.length - 1]!.key} (the last live frame)`, m[live[live.length - 1]!.key])
+    const blank = foldMarks('fold').find(k => m[k] !== undefined && foldRowOf(m[k]) === null && rowsWith(m[k], CARD).length === 0 && firstLive !== undefined && cap.markMs[k]! > cap.markMs[firstLive.key]!)
+    if (blank !== undefined) dump(`fold · ${blank} (a frame with neither the row nor the card)`, m[blank])
     dump('fold · the card', m['card'])
     check('[fold] the summary call ran on the wire once', foldHits.length === 1, `${foldHits.length}`)
     check('F1 [fold] the row stands in the chat within a second of the send, under the echo', firstLive !== undefined && (cap.startedMs + cap.markMs[firstLive.key]! - (sent?.ts ?? 0)) < 1500 && rowsWith(m[firstLive.key], '❯ /compact').length > 0, firstLive ? `${firstLive.key} · ${firstLive.row}` : 'no live row in any frame')
@@ -406,11 +489,29 @@ const nonDecreasing = (values: number[]): boolean => values.every((v, i) => i ==
     const strips = live.map(l => stripOf(m[l.key])).filter((s): s is { glyph: string; words: string } => s !== null)
     check('F3 [fold] the working strip never says thinking while the fold runs', strips.every(s => !/thinking/i.test(s.words)), strips.map(s => s.words).slice(0, 3).join(' | '))
     check('F3 [fold] the working strip\'s glyph stands still through the fold', strips.length >= 3 && new Set(strips.map(s => s.glyph)).size === 1, strips.map(s => s.glyph).join(''))
-    const below = live.map(l => belowChat(m[l.key]).join('\n'))
-    check('F6 [fold] no row below the chat moves while the row stands', below.length > 0 && below.every(b => b === below[0]), below.length > 1 && below[1] !== below[0] ? `first:\n${below[0]}\nlater:\n${below[1]}`.slice(0, 600) : '')
+    const liveTurn = live.filter(l => l.facts.stage !== 'compacted' && stripOf(m[l.key]) !== null)
+    const below = liveTurn.map(l => belowChat(m[l.key]).join('\n'))
+    const variants = [...new Set(below)]
+    const diff = variants.length > 1 ? variants[0]!.split('\n').map((line, i) => (line === variants[1]!.split('\n')[i] ? null : `${i}: ${line} ⇄ ${variants[1]!.split('\n')[i] ?? ''}`)).filter((x): x is string => x !== null).join('\n') : ''
+    check('F6 [fold] no row below the chat moves while the row stands', below.length > 0 && variants.length === 1, variants.length > 1 ? `${variants.length} variants over ${liveTurn.length} frames — the rows that differ:\n${diff}`.slice(0, 900) : '')
     for (const row of wireRows(world.home)) {
       const rel = sent ? `+${row.at - sent.ts} ms` : '?'
       console.log(`  wire #${row.seq} ${row.url} ${row.model} at ${rel} · first byte ${row.response.firstByteMs ?? '?'} ms · total ${row.response.ms} ms · usage ${JSON.stringify(row.response.usage ?? {})} · ${row.response.stop_reason ?? row.response.error ?? '?'}`)
+    }
+    const postFold = wireRows(world.home).filter(r => r.model !== 'fixture' && !r.model.includes('haiku')).at(-1)
+    const postFoldReply = rowsWith(m['post-fold'], AUTO_REPLY).length > 0
+    check('F7 [fold] the first request after the fold landed its reply', postFoldReply, rowsWith(m['post-fold'], /station 31|surveyed/).map(flat).join(' | ').slice(0, 200))
+    if (postFold !== undefined) {
+      const parts = requestParts(postFold.body)
+      for (const [i, item] of (((postFold.body as { messages?: Array<{ role?: string; content?: unknown }> }).messages ?? [])).entries()) {
+        const blocks = Array.isArray(item.content) ? (item.content as Array<Record<string, unknown>>) : [{ type: 'text', text: String(item.content ?? '') }]
+        for (const [j, b] of blocks.entries()) {
+          const text = typeof b.text === 'string' ? b.text : typeof b.content === 'string' ? b.content : ''
+          console.log(`    item ${i}.${j} ${item.role} ${String(b.type ?? 'text')}: ${JSON.stringify(b).length} chars · ${flat(text).slice(0, 80)}`)
+        }
+      }
+      console.log(`  post-fold request: ${parts.items} items · ${parts.total} chars ≈ ${Math.round(parts.total / 4)} tokens — summary ${parts.summary} · restored files ${parts.files} (${parts.fileCount} rows) · kept tail ${parts.tail} (${parts.tailRows} rows) · the ask ${parts.ask} · other ${parts.other} · first byte ${postFold.response.firstByteMs ?? '?'} ms (the fixture's)`)
+      check('F7 [fold] the post-fold request carries the summary, the ask and both restored files, no file block over the per-file limit', parts.summary > 0 && parts.ask > 0 && parts.filesNamed === 2 && parts.largestFile <= 5_000 * 4 + 400, `summary ${parts.summary} chars · ask ${parts.ask} · files named ${parts.filesNamed} in ${parts.fileCount} blocks · largest block ${parts.largestFile} chars`)
     }
   }
 }

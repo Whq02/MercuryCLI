@@ -354,10 +354,10 @@ const headerIndex = (frame: string | undefined): number => rows(frame).findIndex
 const headerRow = (frame: string | undefined): string => rows(frame)[headerIndex(frame)] ?? ''
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('⇧← back'))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
-function statusTitle(frame: string | undefined): string {
-  const m = /[◐◓◑◒]\s+(.+?) · /.exec(statusRow(frame))
-  return m ? m[1]!.trim() : ''
-}
+const crewClock = (frame: string | undefined): string => (/\b(?:agents?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
+const crewClockAdvances = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(b) !== '' && crewClock(a) !== crewClock(b)
+const crewClockStands = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(a) === crewClock(b)
+const noGlyph = (frame: string | undefined): boolean => statusGlyph(frame) === ''
 const statusGlyph = (frame: string | undefined): string => (GLYPHS.exec(statusRow(frame)) ?? [''])[0]!
 const berth = (frame: string | undefined): string => rows(frame).slice(2, 13).join('\n')
 function headerRight(frame: string | undefined): string {
@@ -403,11 +403,11 @@ try {
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitSettleTicks: 8 },
         ask('hdr: launch', 'idle'),
         after(80, 'thinking'),
-        after(2, 'thinking+'),
+        after(12, 'thinking+'),
         after(2, 'esc', '\x1b'),
         after(1, 'interrupting'),
         after(14, 'after-esc'),
-        after(2, 'after-esc+'),
+        after(12, 'after-esc+'),
         { data: '/teammates\r', afterPrevTicks: 2 },
         { data: 'x', awaitText: SEATS.one, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew' },
         { data: 'x', afterPrevTicks: 3 },
@@ -416,14 +416,14 @@ try {
         { data: 'x', afterPrevTicks: 3 },
         after(12, 'x4', '\x1b'),
         after(10, 'crew-done'),
-        after(2, 'crew-done+'),
+        after(12, 'crew-done+'),
         ask('hdr: launch2'),
         { data: '', awaitText: 'waiting on 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'waiting' },
         after(2, 'esc2', '\x1b'),
         after(14, 'after-esc-2'),
-        after(2, 'after-esc-2+'),
+        after(12, 'after-esc-2+'),
         after(70, 'crew-landed'),
-        after(2, 'crew-landed+'),
+        after(12, 'crew-landed+'),
         { data: 'hdr: wait\r', awaitText: 'HDR-NOTED', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         after(25, 'first-byte'),
         after(2, 'first-byte+'),
@@ -432,7 +432,7 @@ try {
         after(2, 'tool+'),
         { data: 'hdr: fore\r', awaitText: 'HDR-TOOL-DONE', requireAwait: true, minTick: 2, awaitSettleTicks: 8 },
         after(20, 'fore'),
-        after(2, 'fore+'),
+        after(12, 'fore+'),
         { data: 'hdr: stuck\r', awaitText: 'HDR-FORE-DONE', requireAwait: true, minTick: 2, awaitSettleTicks: 8 },
         after(55, 'stuck'),
         after(40, 'end'),
@@ -460,13 +460,15 @@ if (cap !== null) {
   check(`the title row (✶ SESSION) stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(','))
   const clocked = chatFrames.filter(s => CLOCK.test(headerRow(m[s])))
   check('H1 no chat frame carries a clock-shaped string on the title row', clocked.length === 0, `clock on: ${clocked.join(',')} — ${flat(headerRight(m[clocked[0] ?? '']))}`)
+  const EXPECTED_NAME: Record<string, string> = { idle: 'new session', thinking: 'hdr: launch', 'after-esc': 'hdr: launch', 'first-byte': 'hdr: launch', stuck: 'hdr: launch' }
   for (const s of ['idle', 'thinking', 'after-esc', 'first-byte', 'stuck']) {
     if (m[s] === undefined) continue
-    const title = statusTitle(m[s])
+    const title = EXPECTED_NAME[s]!
     const right = headerRight(m[s])
-    check(`H1 ${s}: the title row's right side is the session's name (the bottom row's title "${title}")`, title !== '' && right.endsWith(title), `right: "${flat(right)}"`)
+    check(`H1 ${s}: the title row's right side is the session's name ("${title}")`, right.endsWith(title), `right: "${flat(right)}"`)
+    check(`H1 ${s}: the bottom row carries neither the name nor a glyph`, !statusRow(m[s]).includes(title) && noGlyph(m[s]), flat(statusRow(m[s])))
   }
-  check('H1 the idle chat names itself with the product\'s own unnamed word ("new session"), never blank', statusTitle(m['idle']) === 'new session' && headerRight(m['idle']).endsWith('new session'), `title "${statusTitle(m['idle'])}" · right "${flat(headerRight(m['idle']))}"`)
+  check('H1 the idle chat names itself with the product\'s own unnamed word ("new session"), never blank', headerRight(m['idle']).endsWith('new session'), `right "${flat(headerRight(m['idle']))}"`)
 
   console.log('\n— H6 no row of the frame moves —')
   const headerRows = new Set(chatFrames.map(s => headerIndex(m[s])))
@@ -481,7 +483,7 @@ if (cap !== null) {
   check('H3 the bottom row carries the crew\'s clock, past tense ("agents thought for …")', CREW_CLOCK.test(thinkingRow) && /\bagents thought for\b/.test(thinkingRow), flat(thinkingRow))
   const thinkingWordRows = rows(m['thinking']).filter(r => /\bthinking\b/.test(r))
   console.log(`  rows carrying the word "thinking": ${thinkingWordRows.length} — ${thinkingWordRows.map(flat).join(' | ').slice(0, 300)}`)
-  check('H2 the crew glyph spins while the agents run (the glyph differs across two frames)', statusGlyph(m['thinking']) !== '' && statusGlyph(m['thinking']) !== statusGlyph(m['thinking+']), `${statusGlyph(m['thinking'])} → ${statusGlyph(m['thinking+'])}`)
+  check('H2 the crew clock advances while the agents run (no glyph on the row)', crewClockAdvances(m['thinking'], m['thinking+']) && noGlyph(m['thinking']), `${crewClock(m['thinking'])} → ${crewClock(m['thinking+'])}`)
 
   console.log('\n— esc with the crew running —')
   const interruptingRow = statusRow(m['interrupting'])
@@ -495,13 +497,13 @@ if (cap !== null) {
   check('H4 after esc the card under the critter no longer narrates the main agent', !/\bthinking\b/.test(berth(m['after-esc'])), flat(berth(m['after-esc'])).slice(0, 160))
   check('the receipt says the crew run on', rows(m['after-esc']).some(r => /sub-agents? still running/.test(r)))
   check('H3 after esc the bottom row carries the crew\'s clock, not "ready"', CREW_CLOCK.test(escRow) && !/\bready\b/.test(escRow), flat(escRow))
-  check('H2 after esc the crew glyph keeps spinning', statusGlyph(m['after-esc']) !== '' && statusGlyph(m['after-esc']) !== statusGlyph(m['after-esc+']), `${statusGlyph(m['after-esc'])} → ${statusGlyph(m['after-esc+'])}`)
+  check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc'], m['after-esc+']), `${crewClock(m['after-esc'])} → ${crewClock(m['after-esc+'])}`)
 
   console.log('\n— x x on each crew row —')
   const crewRow = (frame: string | undefined, name: string): string[] => rows(frame).filter(r => r.includes(name) && /✕|◐|◓|◑|◒/.test(r) && /stopped|running|waiting|reasoning|request sent|Read/.test(r))
   check('both crew rows read stopped after x x on each', crewRow(m['x4'], SEATS.one).some(r => /stopped/.test(r)) && crewRow(m['x4'], SEATS.two).some(r => /stopped/.test(r)), [...crewRow(m['x4'], SEATS.one), ...crewRow(m['x4'], SEATS.two)].map(flat).join(' | ').slice(0, 240))
   const doneRow = statusRow(m['crew-done'])
-  check('H2 after the last stop the crew glyph is still', statusGlyph(m['crew-done']) !== '' && statusGlyph(m['crew-done']) === statusGlyph(m['crew-done+']), `${statusGlyph(m['crew-done'])} → ${statusGlyph(m['crew-done+'])}`)
+  check('H2 after the last stop the crew clock stands', crewClockStands(m['crew-done'], m['crew-done+']), `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])}`)
   check('H3 after the last stop the words follow: the crew\'s settled clock stands, past tense', CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow))
 
   console.log('\n— waiting on agents —')
@@ -510,31 +512,31 @@ if (cap !== null) {
   check('the wait words carry no phase word', !PHASE_WORDS.test(waitingRow), flat(waitingRow))
   const esc2Row = statusRow(m['after-esc-2'])
   check('H3 after esc the bottom row carries the crew\'s clock', CREW_CLOCK.test(esc2Row), flat(esc2Row))
-  check('H2 after esc the crew glyph keeps spinning', statusGlyph(m['after-esc-2']) !== '' && statusGlyph(m['after-esc-2']) !== statusGlyph(m['after-esc-2+']), `${statusGlyph(m['after-esc-2'])} → ${statusGlyph(m['after-esc-2+'])}`)
+  check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc-2'], m['after-esc-2+']), `${crewClock(m['after-esc-2'])} → ${crewClock(m['after-esc-2+'])}`)
   const landedRow = statusRow(m['crew-landed'])
   const seatsThreeFour = fixture.hits.filter(h => h.seat === 'three' || h.seat === 'four').length
   check(`the second crew landed on their own (${seatsThreeFour} seat calls)`, seatsThreeFour >= 8)
-  check('H2 after the crew land the crew glyph is still', statusGlyph(m['crew-landed']) !== '' && statusGlyph(m['crew-landed']) === statusGlyph(m['crew-landed+']), `${statusGlyph(m['crew-landed'])} → ${statusGlyph(m['crew-landed+'])}`)
+  check('H2 after the crew land the crew clock stands', crewClockStands(m['crew-landed'], m['crew-landed+']), `${crewClock(m['crew-landed'])} → ${crewClock(m['crew-landed+'])}`)
   check('H3 after the crew land the settled clock stands, past tense', CREW_CLOCK.test(landedRow) && !PHASE_WORDS.test(landedRow), flat(landedRow))
 
   console.log('\n— the first-byte wait —')
   const fbRow = statusRow(m['first-byte'])
   check('the request-wait words stand ("first byte")', /first byte/.test(fbRow), flat(fbRow))
   check('the request-wait words carry no phase word', !PHASE_WORDS.test(fbRow), flat(fbRow))
-  check('H2 with no crew running the glyph is still', statusGlyph(m['first-byte']) !== '' && statusGlyph(m['first-byte']) === statusGlyph(m['first-byte+']), `${statusGlyph(m['first-byte'])} → ${statusGlyph(m['first-byte+'])}`)
+  check('H2 with no crew running the row wears no glyph', noGlyph(m['first-byte']) && noGlyph(m['first-byte+']), flat(statusRow(m['first-byte'])))
 
   console.log('\n— the shell nap —')
   const toolRow = statusRow(m['tool'])
   check('the transcript narrates the tool (its own card)', rows(m['tool']).some(r => /eight second nap|sleep 8/.test(r)), rows(m['tool']).filter(r => /nap|sleep/.test(r)).map(flat).join(' | ').slice(0, 200))
   check('H3 the bottom row carries no "running a tool" word', !PHASE_WORDS.test(toolRow), flat(toolRow))
-  check('H2 with no crew running the glyph is still', statusGlyph(m['tool']) !== '' && statusGlyph(m['tool']) === statusGlyph(m['tool+']), `${statusGlyph(m['tool'])} → ${statusGlyph(m['tool+'])}`)
+  check('H2 with no crew running the row wears no glyph', noGlyph(m['tool']) && noGlyph(m['tool+']), flat(statusRow(m['tool'])))
   const idle2Row = statusRow(m['idle-2'])
   check('between turns the row reads "ready" with the settled crew clock gone or standing, never a phase word', /\bready\b|thought for/.test(idle2Row) && !PHASE_WORDS.test(idle2Row), flat(idle2Row))
 
   console.log('\n— the foreground agent —')
   const foreRow = statusRow(m['fore'])
   check('H3 one running agent: "agent thought for …" (singular), no tool word', /\bagent thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow))
-  check('H2 the crew glyph spins for the foreground agent', statusGlyph(m['fore']) !== '' && statusGlyph(m['fore']) !== statusGlyph(m['fore+']), `${statusGlyph(m['fore'])} → ${statusGlyph(m['fore+'])}`)
+  check('H2 the crew clock advances for the foreground agent', crewClockAdvances(m['fore'], m['fore+']), `${crewClock(m['fore'])} → ${crewClock(m['fore+'])}`)
 
   console.log('\n— the silent stream —')
   const stuckRow = statusRow(m['stuck'])

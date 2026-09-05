@@ -382,6 +382,7 @@ export type Attachment =
       deltaSummary: string | null
       outputFilePath?: string
     }
+  | AgentRosterAttachment
   | AsyncHookResponseAttachment
   | {
       type: 'token_usage'
@@ -529,4 +530,25 @@ export type TeamContextAttachment = {
   teamName: string
   teamConfigPath: string
   taskListPath: string
+}
+
+
+export type AgentRosterRow = {
+  taskId: string
+  taskType: TaskType
+  name: string
+  address: string | null
+  status: string
+  wait: string | null
+  description: string
+  owed: string | null
+  error: string | null
+  outputFilePath?: string
+  phase?: string
+  agents?: Array<{ label: string; state: string }>
+}
+
+export type AgentRosterAttachment = {
+  type: 'agent_roster'
+  rows: AgentRosterRow[]
 }

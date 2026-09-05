@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import { Text } from '../ink.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive } from '../services/engine-connector/seatLive.js'
-import { foldBarCells, foldRowWords, type FoldStatusV1 } from '../services/compact/foldStatus.js'
+import { foldBarCells, foldRowVisible, foldRowWords, isFoldLandingRow, type FoldStatusV1 } from '../services/compact/foldStatus.js'
 import { MessageResponse } from './MessageResponse.js'
 import { WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
@@ -18,11 +18,17 @@ const getFocusedFold = (): FoldStatusV1 | null => {
   return hasSeatLive(connector) && connector.fold !== undefined ? connector.fold() : null
 }
 
-export function FoldStatusRow(): React.ReactNode {
-  const fold = useSyncExternalStore(subscribeFocusedFold, getFocusedFold, getFocusedFold)
-  const live = fold !== null && fold.exit === undefined
+export type FoldLandingRowFacts = { type?: string; subtype?: string; timestamp?: string; content?: unknown }
+
+export function FoldStatusRow({ rows }: { rows: readonly FoldLandingRowFacts[] }): React.ReactNode {
+  const record = useSyncExternalStore(subscribeFocusedFold, getFocusedFold, getFocusedFold)
+  const landingPainted =
+    record !== null &&
+    rows.some(row => isFoldLandingRow({ type: row.type, subtype: row.subtype, timestamp: row.timestamp, text: typeof row.content === 'string' ? row.content : '' }, record.startedAtMs))
+  const live = record !== null && record.exit === undefined
   const nowMs = useNowTick(live ? 1000 : null)
   const tokens = useMercuryTokens()
+  const fold = foldRowVisible(record, { landingPainted, nowMs }) ? record : null
   if (fold === null) return null
   const words = foldRowWords(fold, nowMs)
   const cells = foldBarCells(fold)
