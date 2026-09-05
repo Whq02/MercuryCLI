@@ -693,17 +693,13 @@ function AnthropicUsageSection({ width }: { width?: number }): React.ReactNode {
       return <Text dimColor>loading usage…</Text>
     }
     if (showingError) {
-      const humanised = humanizeUsageError(state.error)
-      const raw =
-        state.error instanceof Error
-          ? state.error.message
-          : state.error !== null && state.error !== undefined
-            ? String(state.error)
-            : ''
+      const readerWords = typeof state.error === 'string' ? state.error : (humanizeUsageError(state.error) ?? '')
+      const raw = state.error instanceof Error ? state.error.message : ''
+      const isWait = readerWords.includes('asked us to wait')
       return (
         <Box flexDirection="column">
-          <Text color={tokens.failure}>
-            {humanised ?? `Failed to load usage${raw !== '' ? `: ${raw}` : ''}`}
+          <Text color={isWait ? tokens.warning : tokens.failure}>
+            {readerWords !== '' ? readerWords : `Failed to load usage${raw !== '' ? `: ${raw}` : ''}`}
           </Text>
           <Text dimColor>
             <ConfigurableShortcutHint
