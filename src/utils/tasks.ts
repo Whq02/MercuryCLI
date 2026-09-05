@@ -75,10 +75,17 @@ export async function listSessionMission(): Promise<Task[]> {
       tasks = []
     }
     for (const task of tasks) {
-      const id = listId === own ? task.id : `${listId}:${task.id}`
+      if (listId === own) {
+        if (seen.has(task.id)) continue
+        seen.add(task.id)
+        rows.push(task)
+        continue
+      }
+      const keyed = (taskId: string): string => `${listId}:${taskId}`
+      const id = keyed(task.id)
       if (seen.has(id)) continue
       seen.add(id)
-      rows.push(id === task.id ? task : { ...task, id })
+      rows.push({ ...task, id, blocks: task.blocks.map(keyed), blockedBy: task.blockedBy.map(keyed) })
     }
   }
   return rows
