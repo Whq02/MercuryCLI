@@ -14,18 +14,20 @@ if (process.platform === 'win32') {
   console.log('  [SKIP] archive journey — POSIX hosts only (windows-launcher.yml drives the shipped mercury.cmd on a real ConPTY)')
   process.exit(0)
 }
-const ASSET = assetNameFor(VERSION, process.platform, process.arch)
-const ARCHIVE = ASSET ? join(ROOT, 'release-out', ASSET) : null
-if (!ASSET || !ARCHIVE || !existsSync(ARCHIVE)) {
-  const target = process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
-  console.log(`  [SKIP] archive journey — no packaged host archive at release-out/${ASSET ?? '(unsupported host)'}; package one first: node scripts/release/package.mjs --target ${target}`)
-  process.exit(0)
-}
-const TARGET = ASSET.slice(`mercury-v${VERSION}-`.length).replace(/\.tar\.gz$/, '')
-
-const { readCompatFloor, releaseLayoutSection } = (await import('../release/payloadContract.mjs')) as {
+const { archiveFileName, readCompatFloor, releaseLayoutSection } = (await import('../release/payloadContract.mjs')) as {
+  archiveFileName: (version: string, target: string, opts?: { unsigned?: boolean }) => string
   readCompatFloor: () => { floorVersion: string; forwarder: string }
   releaseLayoutSection: (dir: string, target: string, floor: unknown) => Record<string, unknown>
+}
+const TARGET = process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
+const SIGNED_ASSET = assetNameFor(VERSION, process.platform, process.arch)
+const ASSET = SIGNED_ASSET
+  ? [SIGNED_ASSET, archiveFileName(VERSION, TARGET, { unsigned: true })].find(a => existsSync(join(ROOT, 'release-out', a))) ?? null
+  : null
+const ARCHIVE = ASSET ? join(ROOT, 'release-out', ASSET) : null
+if (!SIGNED_ASSET || !ASSET || !ARCHIVE) {
+  console.log(`  [SKIP] archive journey — no packaged host archive at release-out/${SIGNED_ASSET ?? '(unsupported host)'} (or its -unsigned twin); package one first: node scripts/release/package.mjs --target ${TARGET} --unsigned`)
+  process.exit(0)
 }
 const { parseEnginesNode, posixLauncher } = (await import('../release/launcherTemplates.mjs')) as {
   parseEnginesNode: (range: string | undefined) => unknown
