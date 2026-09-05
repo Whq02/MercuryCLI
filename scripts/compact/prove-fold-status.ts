@@ -16,6 +16,7 @@ const {
   foldRowWords,
   foldStatusExit,
   foldStatusOnEvent,
+  isFoldLandingRow,
 } = await import('../../src/services/compact/foldStatus.ts')
 const { withFoldStatus, ERROR_MESSAGE_USER_ABORT } = await import('../../src/services/compact/compact.ts')
 
@@ -144,16 +145,23 @@ console.log('\nS6 the one-row visibility law')
 {
   const live = beginFoldStatus({ trigger: 'manual', startedAtMs: 0, sessionMemory: false, microcompaction: true })
   const now = 1000
-  check('a live manual fold this screen sent paints while its send is unlanded', foldRowVisible(live, { sentHere: true, sendUnlanded: true, nowMs: now }))
-  check('…and hides the moment the send landed (the card paints there)', !foldRowVisible(live, { sentHere: true, sendUnlanded: false, nowMs: now }))
-  check('a live manual fold another screen sent paints', foldRowVisible(live, { sentHere: false, sendUnlanded: false, nowMs: now }))
+  check('a live manual fold paints while its landing row has not painted', foldRowVisible(live, { landingPainted: false, nowMs: now }))
+  check('…and hides the moment the landing row paints (the card takes its place)', !foldRowVisible(live, { landingPainted: true, nowMs: now }))
   const auto = beginFoldStatus({ trigger: 'auto', startedAtMs: 0, sessionMemory: false, microcompaction: false })
-  check('a live automatic fold paints', foldRowVisible(auto, { sentHere: false, sendUnlanded: false, nowMs: now }))
+  check('a live automatic fold paints (its status clearing retires it)', foldRowVisible(auto, { landingPainted: false, nowMs: now }))
   const exited = foldStatusExit(live, 'landed', 1000)
-  check('an exited fold stands while its send is unlanded, within the linger', foldRowVisible(exited, { sentHere: true, sendUnlanded: true, nowMs: 1000 + FOLD_EXIT_LINGER_MS - 1 }))
-  check('…and not past the linger', !foldRowVisible(exited, { sentHere: true, sendUnlanded: true, nowMs: 1000 + FOLD_EXIT_LINGER_MS }))
-  check('an exited fold hides once the send landed', !foldRowVisible(exited, { sentHere: true, sendUnlanded: false, nowMs: 1001 }))
-  check('no record, no row', !foldRowVisible(null, { sentHere: true, sendUnlanded: true, nowMs: now }))
+  check('an exited fold stands until its landing row paints, within the linger', foldRowVisible(exited, { landingPainted: false, nowMs: 1000 + FOLD_EXIT_LINGER_MS - 1 }))
+  check('…and not past the linger', !foldRowVisible(exited, { landingPainted: false, nowMs: 1000 + FOLD_EXIT_LINGER_MS }))
+  check('an exited fold hides once the landing row painted', !foldRowVisible(exited, { landingPainted: true, nowMs: 1001 }))
+  check('no record, no row', !foldRowVisible(null, { landingPainted: false, nowMs: now }))
+  const at = (ms: number): string => new Date(ms).toISOString()
+  const card = { type: 'system', subtype: 'local_command', timestamp: at(5000), text: '<local-command-stdout>Compacted — folded 3 messages</local-command-stdout>' }
+  check('the card is a landing row (a local-command stdout row written after the fold began)', isFoldLandingRow(card, 4000))
+  check('the cancel line is a landing row (a stderr row)', isFoldLandingRow({ ...card, text: '<local-command-stderr>Error: Compaction canceled.</local-command-stderr>' }, 4000))
+  check('the echo is not a landing row', !isFoldLandingRow({ type: 'user', timestamp: at(5000), text: '<command-name>/compact</command-name>' }, 4000))
+  check('an older receipt (a previous fold\'s card) is not this fold\'s landing', !isFoldLandingRow({ ...card, timestamp: at(1000) }, 4000))
+  check('a user row carrying the same text is never a landing row', !isFoldLandingRow({ ...card, type: 'user', subtype: undefined }, 4000))
+  check('another system row is never a landing row', !isFoldLandingRow({ ...card, subtype: 'compact_boundary' }, 4000))
 }
 
 console.log('\nS7 withFoldStatus owns the stamps')
@@ -189,7 +197,7 @@ console.log('\nS7 withFoldStatus owns the stamps')
   const first = compacting(landed.stamps[0])
   check('the first stamp is the record, before any stage word (the prelude is covered)', first !== null && first.stage === null && first.trigger === 'manual', JSON.stringify(landed.stamps[0]))
   const stages = landed.stamps.map(s => compacting(s)?.stage ?? (s === null ? 'null' : String(s)))
-  check('stage flips stamp at once and in order', stages.indexOf('micro-compaction') === 1 && stages.indexOf('summarising') > 1 && stages.indexOf('restoring') > stages.indexOf('summarising'), stages.join(' → '))
+  check('stage flips stamp at once and in order', stages.indexOf('micro-compaction') === 1 && stages.indexOf('summarising') > 1 && stages.indexOf('summarising') >= 0 && stages.indexOf('restoring') > stages.indexOf('summarising'), stages.join(' → '))
   const fillStamps = landed.stamps.filter(s => compacting(s)?.stage === 'summarising')
   check('twenty fill deltas ride a short cadence, not twenty stamps', fillStamps.length >= 2 && fillStamps.length <= 4, `${fillStamps.length} summarising stamps`)
   const last = compacting(landed.stamps[landed.stamps.length - 1])

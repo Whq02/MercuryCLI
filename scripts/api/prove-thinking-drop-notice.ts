@@ -57,8 +57,12 @@ const mark = (over: Partial<ReturnType<typeof prefixMarkOf>> = {}): ReturnType<t
   firstRow: 'row-1',
   compactBoundary: null,
   modelTransition: null,
+  rosterTransition: null,
+  rosterChange: null,
   model: 'claude-fable-5-1',
   settings: 'mode=default;profile=balanced',
+  thinkingClearActive: false,
+  contextEditActive: false,
   ...over,
 })
 
@@ -116,7 +120,9 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced' }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced', thinkingClearActive: false, contextEditActive: false }), j(m))
+  const ctxMark = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default' }, { thinkingClearActive: true, contextEditActive: true })
+  check('prefixMarkOf carries the context-edit signals when the caller passes them', ctxMark.thinkingClearActive === true && ctxMark.contextEditActive === true, j(ctxMark))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
   check('an empty history marks nulls; an unreadable mode spells ?', bare.firstRow === null && bare.compactBoundary === null && bare.modelTransition === null && bare.settings.startsWith('mode=?;profile='), bare.settings)
 
@@ -157,6 +163,55 @@ section('§1 the classifier')
   const twoOwners = classifyThinkingDrops('other-owner', [DROP('messages.1.content.0')], mark())
   check('another conversation is untouched by the declaration', twoOwners.kind === 'first' && pendingLawfulPrefixChange('seam') === 'newest clause')
   resetLawfulPrefixChanges()
+}
+
+section('§1b Mercury\'s own context edits are named, not read as a rewrite')
+{
+  const { preservedThinkingHealth } = binding
+  resetThinkingDropStates()
+  classifyThinkingDrops('pruned', [], mark({ contextEditActive: true }))
+  const pruned = classifyThinkingDrops('pruned', [DROP('messages.102.content.0')], mark({ contextEditActive: true }))
+  check('a drop while a cleared tool result rides is lawful context-edited (not first/recurrent)', pruned.kind === 'lawful' && pruned.lawful === 'context-edited' && pruned.consecutive === 1, j(pruned))
+  const prunedWords = describeThinkingDrops([DROP('messages.102.content.0')], pruned) ?? ''
+  check('the words name the prune, say expected once, and never accuse Mercury of a rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('Mercury rewrote') && !prunedWords.includes('doctor'), prunedWords)
+  const pruned2 = classifyThinkingDrops('pruned', [DROP('messages.102.content.0'), DROP('messages.104.content.0')], mark({ contextEditActive: true }))
+  check('the next context-edit drop stays lawful, paints no second row, and never becomes a growing recurrent run', pruned2.kind === 'lawful' && pruned2.lawful === 'context-edited' && pruned2.paint === false && pruned2.consecutive === 1, j(pruned2))
+  check('…and its words are null (painted once already)', describeThinkingDrops([DROP('messages.102.content.0')], pruned2) === null)
+
+  resetThinkingDropStates()
+  classifyThinkingDrops('both', [], mark({ contextEditActive: true }))
+  const byteMoved = classifyThinkingDrops('both', [DROP('messages.1.content.0')], mark({ contextEditActive: true }), { byteMoved: true })
+  check('a named byte move takes precedence over the context-edit reading', byteMoved.kind === 'first' && byteMoved.lawful === null, j(byteMoved))
+
+  resetThinkingDropStates()
+  classifyThinkingDrops('idle', [], mark({ thinkingClearActive: true }))
+  const cleared = classifyThinkingDrops('idle', [DROP('messages.50.content.0')], mark({ thinkingClearActive: true }))
+  check('a drop while the idle thinking-clear latch is armed is lawful thinking-cleared', cleared.kind === 'lawful' && cleared.lawful === 'thinking-cleared', j(cleared))
+  const clearedWords = describeThinkingDrops([DROP('messages.50.content.0')], cleared) ?? ''
+  check('the words name the idle clear and never accuse a rewrite', clearedWords.includes('cleared reasoning older than the last turn after an hour idle') && !clearedWords.includes('Mercury rewrote'), clearedWords)
+  resetThinkingDropStates()
+  classifyThinkingDrops('bothedits', [], mark({ thinkingClearActive: true, contextEditActive: true }))
+  const bothEdits = classifyThinkingDrops('bothedits', [DROP('messages.1.content.0')], mark({ thinkingClearActive: true, contextEditActive: true }))
+  check('a cleared tool result is named ahead of the idle latch when both are active', bothEdits.lawful === 'context-edited', j(bothEdits))
+
+  const now = new Date().toISOString()
+  const ctxHealth = preservedThinkingHealth({ last: { at: now, kind: 'lawful', lawful: 'context-edited', reason: 'prefix_binding_mismatch', path: 'messages.102.content.0', count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
+  check('the doctor row for a context-edit drop is info and names the prune', ctxHealth.status === 'info' && ctxHealth.evidence.includes("Mercury's tool-result prune"), j(ctxHealth))
+  const idleHealth = preservedThinkingHealth({ last: { at: now, kind: 'lawful', lawful: 'thinking-cleared', reason: 'prefix_binding_mismatch', path: 'messages.50.content.0', count: 2, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
+  check('the doctor row for an idle-clear drop is info and names the idle-hour clear', idleHealth.status === 'info' && idleHealth.evidence.includes("Mercury's idle-hour thinking clear"), j(idleHealth))
+}
+
+section('§1c the count cannot fire the prune early — a session at 88% never prunes')
+{
+  const { getBlockingLimit, calculateTokenWarningState, getEffectiveContextWindowSize } = await import('../../src/services/compact/autoCompact.ts')
+  const model = 'claude-fable-5-1'
+  const window = getEffectiveContextWindowSize(model)
+  const blockingLimit = getBlockingLimit(model)
+  const at88 = calculateTokenWarningState(Math.round(window * 0.88), model).level
+  check('the blocking limit sits below the full window (the manual-compact buffer)', blockingLimit < window && blockingLimit > 0, `limit=${blockingLimit} window=${window}`)
+  check('a session at 88% of the window is NOT blocked — the overflow ladder never arms, so the pressure prune never fires and never rewrites', at88 !== 'blocked', `88%=${Math.round(window * 0.88)} level=${at88} limit=${blockingLimit}`)
+  const atLimit = calculateTokenWarningState(blockingLimit + 1, model).level
+  check('a session past the blocking limit IS blocked (the prune rung is reachable only there)', atLimit === 'blocked', `level=${atLimit}`)
 }
 
 section('§2 the words')

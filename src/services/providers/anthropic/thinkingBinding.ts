@@ -97,7 +97,14 @@ export function describeInputTransformations(list: readonly InputTransformation[
 }
 
 
-export type LawfulPrefixChange = 'compaction' | 'model-switch' | 'operator-setting' | 'declared' | 'roster-switch'
+export type LawfulPrefixChange =
+  | 'compaction'
+  | 'model-switch'
+  | 'operator-setting'
+  | 'declared'
+  | 'roster-switch'
+  | 'thinking-cleared'
+  | 'context-edited'
 
 export interface PrefixMark {
   firstRow: string | null
@@ -107,6 +114,8 @@ export interface PrefixMark {
   rosterChange: string | null
   model: string
   settings: string
+  thinkingClearActive: boolean
+  contextEditActive: boolean
 }
 
 export interface LiveOperatorSettings {
@@ -152,6 +161,7 @@ export function prefixMarkOf(
   messages: readonly Message[],
   model: string,
   live?: LiveOperatorSettings,
+  context?: { thinkingClearActive?: boolean; contextEditActive?: boolean },
 ): PrefixMark {
   let firstRow: string | null = null
   let compactBoundary: string | null = null
@@ -177,7 +187,17 @@ export function prefixMarkOf(
     }
     if (compactBoundary !== null && modelTransition !== null && rosterTransition !== null) break
   }
-  return { firstRow, compactBoundary, modelTransition, rosterTransition, rosterChange, model, settings: spellOperatorSettings(live) }
+  return {
+    firstRow,
+    compactBoundary,
+    modelTransition,
+    rosterTransition,
+    rosterChange,
+    model,
+    settings: spellOperatorSettings(live),
+    thinkingClearActive: context?.thinkingClearActive === true,
+    contextEditActive: context?.contextEditActive === true,
+  }
 }
 
 export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
@@ -200,6 +220,7 @@ interface OwnerDropState {
   kind: DropKind
   consecutive: number
   defectNoticed: boolean
+  editNoticed: boolean
 }
 
 const dropStates = new Map<string, OwnerDropState>()
@@ -212,12 +233,13 @@ export function classifyThinkingDrops(
   owner: string,
   list: readonly InputTransformation[],
   mark: PrefixMark,
+  opts?: { byteMoved?: boolean },
 ): DropOutcome {
   const dropped = list.filter(entry => entry.type === 'thinking_dropped')
   const previous = dropStates.get(owner)
   const declared = consumeLawfulPrefixChange(owner)
   if (dropped.length === 0) {
-    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false })
+    dropStates.set(owner, { mark, kind: 'none', consecutive: 0, defectNoticed: previous?.defectNoticed ?? false, editNoticed: previous?.editNoticed ?? false })
     return { kind: 'none', lawful: null, detail: null, rosterChange: null, consecutive: 0, count: 0, path: null, reason: null, paint: false, part: null }
   }
   let lawful: LawfulPrefixChange | null = null
@@ -242,6 +264,10 @@ export function classifyThinkingDrops(
   }
   const reasons = new Set(dropped.map(entry => entry.reason))
   if (reasons.size === 1 && reasons.has('model_binding_mismatch')) lawful = 'model-switch'
+  if (lawful === null && opts?.byteMoved !== true) {
+    if (mark.contextEditActive) lawful = 'context-edited'
+    else if (mark.thinkingClearActive) lawful = 'thinking-cleared'
+  }
   let kind: DropKind
   let consecutive: number
   if (lawful !== null) {
@@ -254,9 +280,17 @@ export function classifyThinkingDrops(
     kind = 'first'
     consecutive = 1
   }
+  const isSelfEdit = lawful === 'thinking-cleared' || lawful === 'context-edited'
   const defectNoticed = previous?.defectNoticed ?? false
-  const paint = kind !== 'recurrent' || !defectNoticed
-  dropStates.set(owner, { mark, kind, consecutive, defectNoticed: defectNoticed || kind === 'recurrent' })
+  const editNoticed = previous?.editNoticed ?? false
+  const paint = isSelfEdit ? !editNoticed : kind !== 'recurrent' || !defectNoticed
+  dropStates.set(owner, {
+    mark,
+    kind,
+    consecutive,
+    defectNoticed: defectNoticed || kind === 'recurrent',
+    editNoticed: editNoticed || isSelfEdit,
+  })
   const first = dropped[0]!
   return {
     kind,
@@ -315,6 +349,12 @@ export function describeThinkingDrops(
       }
       if (outcome.lawful === 'declared') {
         return `Preserved thinking: the API dropped ${count} ${noun} after ${outcome.detail ?? 'a change you asked for'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
+      }
+      if (outcome.lawful === 'thinking-cleared') {
+        return `Preserved thinking: the API dropped ${count} ${noun} — Mercury cleared reasoning older than the last turn after an hour idle (its own context edit), so the model re-plans without that earlier reasoning; later requests carry it no more (expected once).`
+      }
+      if (outcome.lawful === 'context-edited') {
+        return `Preserved thinking: the API dropped ${count} ${noun} — Mercury pruned superseded tool results to fit the context window, and the reasoning bound to them was cleared with them, so the model re-plans without it; later requests carry it no more (expected once).`
       }
       if (outcome.reason === 'model_binding_mismatch') return describeInputTransformations(list)
       return `Preserved thinking: the API dropped ${count} ${noun} after the model switch — the history before ${path} moved with it; the model re-plans without that reasoning this turn (expected once).`
@@ -537,7 +577,11 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null): {
             ? `a change you asked for (${last.detail ?? 'unnamed'})`
             : last.lawful === 'roster-switch'
               ? "the operator's spawn-switch toggle"
-              : 'a model switch'
+              : last.lawful === 'thinking-cleared'
+                ? "Mercury's idle-hour thinking clear (its own context edit)"
+                : last.lawful === 'context-edited'
+                  ? "Mercury's tool-result prune (its own context edit)"
+                  : 'a model switch'
     return {
       status: 'info',
       evidence: `last drop ${last.at}: ${blocks} after ${cause} (${where}, model ${last.model}) — expected once`,
