@@ -102,12 +102,12 @@ async function startFixture(): Promise<Fixture> {
         const cut = frames.indexOf('event: content_block_delta')
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
         res.write(frames.slice(0, cut))
-        setTimeout(() => res.end(frames.slice(cut)), HOLD_MS)
+        setTimeout(() => res.end(frames.slice(cut)), vshotBudgetMs(HOLD_MS))
         return
       }
       if (model.includes(FIRST_PROBE_MARK)) {
         state.probes++
-        setTimeout(answer, PROBE_HOLD_MS)
+        setTimeout(answer, vshotBudgetMs(PROBE_HOLD_MS))
         return
       }
       answer()
@@ -294,7 +294,7 @@ async function leg(name: 'law' | 'tight'): Promise<void> {
     events.join(' ') || 'no census rows',
   )
   const dispatches = trace.filter(r => r.site === 'repl-dialog-dispatch')
-  check(`${tag}: the second row ran only once the first had settled (after the held probe answered)`, dispatches.length === 2 && dispatches[1]!.at - dispatches[0]!.at >= PROBE_HOLD_MS, dispatches.length === 2 ? `${dispatches[1]!.at - dispatches[0]!.at} ms apart` : `${dispatches.length} dispatches`)
+  check(`${tag}: the second row ran only once the first had settled (after the held probe answered)`, dispatches.length === 2 && dispatches[1]!.at - dispatches[0]!.at >= vshotBudgetMs(PROBE_HOLD_MS), dispatches.length === 2 ? `${dispatches[1]!.at - dispatches[0]!.at} ms apart (the hold ${vshotBudgetMs(PROBE_HOLD_MS)} ms)` : `${dispatches.length} dispatches`)
   const dones = trace.filter(r => r.site === 'repl-dialog-done').map(r => r.result ?? '')
   check(`${tag}: both dialogs completed with an applied receipt (the first's model, then the second's)`, dones.length === 2 && /Model set to Sonnet/.test(dones[0]!) && dones[1]!.includes(`Model set to ${SECOND_LABEL}`), dones.join(' ‖ ') || 'no done rows')
   const settled = marks['settled'] ?? ''
@@ -392,7 +392,7 @@ async function recallLeg(): Promise<void> {
           ...bootSends,
           { data: `${HOLD_ASK}\r`, afterPrevTicks: 2 },
           { data: `${RECALL_WORDS}\r`, afterPrevTicks: 8, mark: 'words-sent' },
-          { data: '', afterPrevTicks: 4, mark: 'queued' },
+          { data: '', atTick: 999, awaitText: 'queued', requireAwait: true, minTick: 2, awaitSettleTicks: 1, mark: 'queued' },
           { data: '\x1b[A', afterPrevTicks: 1 },
           { data: '', afterPrevTicks: 4, mark: 'recalled' },
           { data: '', afterPrevTicks: Math.ceil(HOLD_MS / 200) + 8, mark: 'settled' },
