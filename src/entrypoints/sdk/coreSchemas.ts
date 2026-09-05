@@ -1104,6 +1104,14 @@ export const SDKTurnStartedMessageSchema = lazySchema(() =>
     session_id: z.string(),
   }),
 )
+export const SDKMissionUpdatedMessageSchema = lazySchema(() =>
+  z.object({
+    type: z.literal('system'),
+    subtype: z.literal('mission_updated'),
+    uuid: z.string(),
+    session_id: z.string(),
+  }),
+)
 export const SDKStatusMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('system'),
@@ -1326,6 +1334,7 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKModelTransitionMessageSchema(),
     SDKStatusMessageSchema(),
     SDKTurnStartedMessageSchema(),
+    SDKMissionUpdatedMessageSchema(),
     SDKPostTurnSummaryMessageSchema(),
     SDKAPIRetryMessageSchema(),
     SDKLocalCommandOutputMessageSchema(),

@@ -19,7 +19,7 @@ import { getGitState, type GitRepoState } from '../utils/git.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'
 import { renderModelChip, renderModelName } from '../utils/model/model.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
-import { getTaskListId, listTasks, type Task } from '../utils/tasks.js'
+import type { MissionRowV1 } from '../services/engine-connector/types.js'
 import {
   getDisplayedEffortLabel,
   modelSupportsEffort,
@@ -77,7 +77,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
 
   const vitals = useTelemetry()
   const git = vitals.git
-  const tasks: Task[] | null = vitals.version === 0 ? null : vitals.tasks
+  const tasks: readonly MissionRowV1[] | null = vitals.version === 0 ? null : vitals.tasks
   const fleet = {
     state: vitals.fleet.state as SnapshotState,
     team: vitals.fleet.team ?? null,
@@ -138,15 +138,11 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const shown = ordered.slice(0, MAX_TASKS)
   const openIds = new Set(open.map(t => t.id))
   const blockedCount = open.filter(
-    t => t.blockedBy.length > 0 && t.blockedBy.some(id => openIds.has(id)),
+    t => (t.blockedBy ?? []).some(id => openIds.has(id)),
   ).length
   const ledger = new Map<string, { done: number; total: number }>()
   for (const t of all) {
-    const meta = t.metadata as { ledger?: unknown; missionId?: unknown } | undefined
-    const lk =
-      (typeof meta?.ledger === 'string' && meta.ledger.trim()) ||
-      (typeof meta?.missionId === 'string' && meta.missionId.trim()) ||
-      'session'
+    const lk = t.ledger ?? 'session'
     const g = ledger.get(lk) ?? { done: 0, total: 0 }
     g.total++
     if (t.status === 'completed') g.done++

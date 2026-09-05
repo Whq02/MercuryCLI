@@ -13,7 +13,9 @@ import {
 import { describeTeammateActivity } from './tasks/taskStatusUtils.js'
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
 import { toInkColor } from '../utils/ink.js'
-import { isTodoV2Enabled, type Task } from '../utils/tasks.js'
+import { isTodoV2Enabled } from '../utils/tasks.js'
+
+export type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 import { truncateToWidth } from '../utils/truncate.js'
 
 const RECENT_COMPLETION_MS = 30_000
@@ -29,7 +31,7 @@ export function TaskListV2({
   tasks,
   isStandalone = false,
 }: {
-  tasks: Task[]
+  tasks: readonly TaskRowV2[]
   isStandalone?: boolean
 }): React.ReactNode {
   const { rows, columns } = useTerminalSize()
@@ -58,7 +60,7 @@ export function TaskListV2({
       baselineRef.current.delete(task.id)
     }
   }
-  const isRecent = (task: Task): boolean => {
+  const isRecent = (task: TaskRowV2): boolean => {
     if (task.status !== 'completed') return false
     const at = completedAtRef.current.get(task.id)
     return at !== undefined && now - at < RECENT_COMPLETION_MS
@@ -109,18 +111,18 @@ export function TaskListV2({
     }
   }
 
-  const byStatus = (task: Task): 'completed' | 'in_progress' | 'pending' =>
+  const byStatus = (task: TaskRowV2): 'completed' | 'in_progress' | 'pending' =>
     task.status
 
-  const isBlocked = (task: Task): boolean =>
-    task.blockedBy.some(blockerId => {
+  const isBlocked = (task: TaskRowV2): boolean =>
+    (task.blockedBy ?? []).some(blockerId => {
       const blocker = tasks.find(t => t.id === blockerId)
       return blocker !== undefined && blocker.status !== 'completed'
     })
 
   const maxRows = rows <= 10 ? 0 : Math.min(10, Math.max(3, rows - 14))
-  let visible: Task[]
-  let hidden: Task[]
+  let visible: TaskRowV2[]
+  let hidden: TaskRowV2[]
   if (tasks.length <= maxRows) {
     visible = [...tasks].sort((a, b) => compareIds(a.id, b.id))
     hidden = []
@@ -177,7 +179,7 @@ export function TaskListV2({
       task.status === 'in_progress' && !blocked && ownerName !== undefined
         ? ownerActivities.get(ownerName)
         : undefined
-    const openBlockers = task.blockedBy
+    const openBlockers = (task.blockedBy ?? [])
       .filter(blockerId => {
         const blocker = tasks.find(t => t.id === blockerId)
         return blocker !== undefined && blocker.status !== 'completed'

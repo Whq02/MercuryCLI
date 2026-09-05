@@ -104,7 +104,7 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
-import { TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/longLivedSupervisor.js'
+import { MISSION_UPDATED_SUBTYPE, missionUpdatedFrame, TURN_STARTED_SUBTYPE, turnStartedFrame } from '../daemon/longLivedSupervisor.js'
 import {
   latchSessionScheduleRoster,
   markScheduleSeatObserved,
@@ -230,7 +230,15 @@ import { stopOrDismissAgent } from '../state/teammateViewHelpers.js'
 import { markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { drainSdkEvents } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
-import { getTaskListId as missionListId, listTasks as listMissionTasks } from '../utils/tasks.js'
+import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
+
+function missionLedgerOf(metadata: Record<string, unknown> | undefined): string | undefined {
+  const ledger = metadata?.ledger
+  if (typeof ledger === 'string' && ledger.trim() !== '') return ledger.trim()
+  const mission = metadata?.missionId
+  if (typeof mission === 'string' && mission.trim() !== '') return mission.trim()
+  return undefined
+}
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
@@ -414,6 +422,17 @@ export async function runHeadless(
     normalizeInputPrompt(inputPrompt),
     options.replayUserMessages,
   )
+  {
+    let missionTimer: NodeJS.Timeout | null = null
+    onTasksUpdated(() => {
+      if (missionTimer !== null) return
+      missionTimer = setTimeout(() => {
+        missionTimer = null
+        io.outbound.enqueue(missionUpdatedFrame(getSessionId(), randomUUID()))
+      }, 50)
+      missionTimer.unref?.()
+    })
+  }
   if (options.outputFormat === 'stream-json') {
     installStreamJsonStdoutGuard()
   }
@@ -1326,6 +1345,7 @@ export async function runHeadless(
   ])
   const EXCLUDED_SYSTEM_SUBTYPES = new Set([
     TURN_STARTED_SUBTYPE,
+    MISSION_UPDATED_SUBTYPE,
     'session_state_changed',
     'task_notification',
     'task_started',
@@ -1880,11 +1900,14 @@ export async function runHeadless(
               ...(command.priority !== undefined ? { priority: command.priority } : {}),
             })),
             work: projectWorkRoster(state.tasks),
-            mission: (await listMissionTasks(missionListId()).catch((): Awaited<ReturnType<typeof listMissionTasks>> => [])).map(task => ({
+            mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,
               subject: task.subject.slice(0, 120),
               ...(task.activeForm !== undefined ? { activeForm: task.activeForm.slice(0, 120) } : {}),
               status: task.status,
+              ...(task.blocks.length > 0 ? { blocks: task.blocks } : {}),
+              ...(task.blockedBy.length > 0 ? { blockedBy: task.blockedBy } : {}),
+              ...(missionLedgerOf(task.metadata) !== undefined ? { ledger: missionLedgerOf(task.metadata) } : {}),
             })),
             ...(sessionKitOf() !== undefined ? { kit: sessionKitOf() } : {}),
             ...((): Record<string, unknown> => {

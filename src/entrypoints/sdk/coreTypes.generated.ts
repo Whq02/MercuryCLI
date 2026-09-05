@@ -109,6 +109,7 @@ export type SDKCompactBoundaryMessage = z.infer<ReturnType<S["SDKCompactBoundary
 export type SDKModelTransitionMessage = z.infer<ReturnType<S["SDKModelTransitionMessageSchema"]>>;
 export type SDKStatusMessage = z.infer<ReturnType<S["SDKStatusMessageSchema"]>>;
 export type SDKTurnStartedMessage = z.infer<ReturnType<S["SDKTurnStartedMessageSchema"]>>;
+export type SDKMissionUpdatedMessage = z.infer<ReturnType<S["SDKMissionUpdatedMessageSchema"]>>;
 export type SDKPostTurnSummaryMessage = z.infer<ReturnType<S["SDKPostTurnSummaryMessageSchema"]>>;
 export type SDKAPIRetryMessage = z.infer<ReturnType<S["SDKAPIRetryMessageSchema"]>>;
 export type SDKLocalCommandOutputMessage = z.infer<ReturnType<S["SDKLocalCommandOutputMessageSchema"]>>;

@@ -190,6 +190,9 @@ export type WorkRowV1 = {
 }
 
 export type MissionRowV1 = {
+  blocks?: readonly string[]
+  blockedBy?: readonly string[]
+  ledger?: string
   id: string
   subject: string
   activeForm?: string
