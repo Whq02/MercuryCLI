@@ -169,7 +169,7 @@ export function crewWaitHolders(facts: CrewAgentFacts): string | null {
   const line = crewWaitLine(facts)
   if (line === null) return null
   const { holders } = splitWaitSentence(line)
-  return holders === '' ? null : holders
+  return holders === '' ? null : `held by ${holders}`
 }
 
 export function crewPhaseWords(facts: CrewAgentFacts, nowMs: number): string | null {
