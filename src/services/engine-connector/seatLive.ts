@@ -2,6 +2,7 @@ import type { EngineConnectorV1 } from './types.js'
 import type { WorkCountsV1 } from './workCounts.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
+import type { FoldStatusV1 } from '../compact/foldStatus.js'
 
 export interface SessionLiveV1 {
   inFlight: boolean
@@ -33,6 +34,8 @@ export interface SeatLiveExtensionV1 {
   status(): SeatStatusV1
   tail(): StreamingTailStore
   turnChars?(): number
+  fold?(): FoldStatusV1 | null
+  subscribeFold?(listener: () => void): () => void
 }
 
 export function hasSeatLive(
