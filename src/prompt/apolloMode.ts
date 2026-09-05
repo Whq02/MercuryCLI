@@ -26,7 +26,7 @@ The user's first clear directive is the lead. From it, find what is missing to o
 - During this phase, write and edit ONLY the spec files below. No prototype code yet.
 
 ## Phase 2 — the spec
-Write the completed spec as readable files under ${'`'}${specDir}/${'`'} (create it), in language the user reads — the spec is for them as much as for you. Whatever still blocks after the budget is NAMED in the spec, never guessed.
+Write the completed spec as readable files under ${'`'}${specDir}/${'`'} (create it), in language the user reads — the spec is for them as much as for you. Use the file tools (Write, Edit) for those files only: in Apollo Mode the spec directory is the ONE place a write is admitted, and a write anywhere else is refused by the mode (the build has not begun). Whatever still blocks after the budget is NAMED in the spec, never guessed.
 
 ## The close — the review
 When the spec is complete, call ${'`'}${APOLLO_REVIEW_TOOL_NAME}${'`'} with a layman summary of the completed spec, the blocker list (empty when nothing blocks), the spec file paths, and where the prototype will run. The review is the only door to the build — never begin project edits from the interview; until the user approves the review, write only the spec files. That call renders the closing review card:

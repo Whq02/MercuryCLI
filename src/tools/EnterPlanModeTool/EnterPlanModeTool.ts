@@ -4,6 +4,7 @@ import { enqueueNotification } from '../../context/notifications.js'
 import { buildTool } from '../../Tool.js'
 import { getAgentContext } from '../../utils/agentContext.js'
 import { EFFORT_LEVELS, isEffortLevel, type EffortLevel } from '../../utils/effort.js'
+import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
 import { isPlanModeInterviewPhaseEnabled } from '../../utils/planModeV2.js'
 import { ENTER_PLAN_MODE_TOOL_NAME, getEnterPlanModeToolPrompt } from './prompt.js'
@@ -85,6 +86,9 @@ export const EnterPlanModeTool = buildTool({
 
     context.setAppState(prev => {
       const prepared = prepareContextForPlanMode(prev.toolPermissionContext)
+      if (prev.toolPermissionContext.mode !== 'strategy') {
+        recordModeTransition({ from: prev.toolPermissionContext.mode, to: 'strategy', road: 'plan-entry' })
+      }
       return {
         ...prev,
         toolPermissionContext: {

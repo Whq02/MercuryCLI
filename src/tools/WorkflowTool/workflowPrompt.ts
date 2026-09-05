@@ -1,4 +1,5 @@
 
+import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import { evolutionLedgerEnabled } from '../../utils/evolution/evolutionLedger.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { themisActive } from '../../substrate/themis/level.js'
@@ -55,7 +56,7 @@ The script body's hooks:
   - opts.label — the display name in progress surfaces (defaults to a prompt prefix).
   - opts.phase — pin this call to a named progress group. Inside pipeline()/parallel() stages always pin explicitly; the ambient phase() pointer is global state and concurrent stages race it. Same string, same group.
   - opts.model — a model for THIS call. Omitted, the agent runs on the session's resolved model, which is the right default. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. Never invent an id; if the operator named no model and the task doesn't demand a tier, leave it out.
-  - opts.effort — reasoning effort for this call: 'low' | 'medium' | 'high' | 'xhigh' | 'max'. Omitted, the session effort applies. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages. Setting it also turns on extended reasoning where the model supports it, and the reasoning lands in the agent's transcript for the /workflows inspector.
+  - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the session effort applies. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages ('ultra' runs only where the model's live ladder serves it — elsewhere the nearest served tier runs and the transcript says so). Setting it also turns on extended reasoning where the model supports it, and the reasoning lands in the agent's transcript for the /workflows inspector.
   - opts.tier — 'orchestrator' | 'executor': declare the call's role instead of naming a model. Validation is unconditional (a junk tier throws no matter what), but routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1: an 'executor' call with no explicit model then rides the harness's pinned execution-tier model, while 'orchestrator' keeps the session model. A call that names opts.model outranks its tier.
   - opts.isolation: 'worktree' — run in a freshly created git worktree. Costly (worktree setup plus disk per agent); use it only when concurrent agents would otherwise write the same files. An untouched worktree is removed automatically; a modified one is kept for review.
   - opts.agentType — dispatch a custom subagent type (say, 'code-reviewer') rather than the built-in workflow worker. Looked up in the registry the Agent tool shares, and composable with \`schema\` (the structured-return contract is appended to the custom prompt).
