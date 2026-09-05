@@ -181,6 +181,23 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   const stripped = stripDeadThinking(wire as never, collected) as unknown as Array<{ message: { content: Block[] } }>
   check('stripDeadThinking leaves the marked blocks off: text stays, an emptied message keeps a placeholder, unmarked rows pass by reference', j(stripped[1]!.message.content) === j([TEXT('a')]) && stripped[3]!.message.content.length === 1 && stripped[3]!.message.content[0]!.type === 'text' && String(stripped[3]!.message.content[0]!.text).includes('dropped') && (stripped[4] as unknown) === wire[4] && (stripped[0] as unknown) === wire[0], j(stripped.map(m => m.message.content)))
   check('…identity when no mark applies', stripDeadThinking(wire as never, new Map()) === (wire as never))
+
+  resetPrefixLedger()
+  const placeholder = '[stale tool result pruned — content cleared]'
+  const prunedView = {
+    system: SYSTEM,
+    tools: TOOLS,
+    messages: [
+      user(TEXT('read the file')),
+      assistant(THINK('plan'), { type: 'tool_use', id: 'tu1', name: 'Read', input: {} }),
+      { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'tu1', content: placeholder }] },
+      assistant(THINK('answer bound to the ORIGINAL tool-result bytes'), TEXT('done')),
+      user(TEXT('follow-up')),
+    ],
+  }
+  judgeAndRecordPrefix('prune', KEY, prunedView as never)
+  const prunedVerdict = judgeAndRecordPrefix('prune', KEY, prunedView as never)
+  check('two consecutive post-prune requests compare identical — the ledger names no byte move (the classifier names the prune instead)', prunedVerdict.mismatch === null, j(prunedVerdict.mismatch))
 }
 
 section('§2 the words and the doctor — the receipts carry the named part')

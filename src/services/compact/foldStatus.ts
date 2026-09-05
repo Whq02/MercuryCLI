@@ -34,7 +34,7 @@ export const FOLD_EXIT_WORDS: Readonly<Record<FoldExit, string>> = {
   failed: 'failed',
 }
 export const FOLD_BAR_CELLS_PER_STAGE = 3
-export const FOLD_EXIT_LINGER_MS = 1500
+export const FOLD_EXIT_LINGER_MS = 5000
 export const FOLD_STAMP_THROTTLE_MS = 250
 
 export function beginFoldStatus(facts: {
@@ -197,13 +197,18 @@ export function foldRowWords(status: FoldStatusV1, nowMs: number): { head: strin
 
 export function foldRowVisible(
   status: FoldStatusV1 | null,
-  facts: { sentHere: boolean; sendUnlanded: boolean; nowMs: number },
+  facts: { landingPainted: boolean; nowMs: number },
 ): boolean {
   if (status === null) return false
   if (status.exit === undefined) {
-    return !(status.trigger === 'manual' && facts.sentHere && !facts.sendUnlanded)
+    return !(status.trigger === 'manual' && facts.landingPainted)
   }
-  return facts.sendUnlanded && facts.nowMs - (status.endedAtMs ?? status.startedAtMs) < FOLD_EXIT_LINGER_MS
+  return !facts.landingPainted && facts.nowMs - (status.endedAtMs ?? status.startedAtMs) < FOLD_EXIT_LINGER_MS
 }
 
-export const FOLD_COMMAND_SEND = /^\/compact(\s|$)/
+export function isFoldLandingRow(row: { type?: string; subtype?: string; timestamp?: string; text: string }, startedAtMs: number): boolean {
+  if (row.type !== 'system' || row.subtype !== 'local_command') return false
+  if (!row.text.startsWith('<local-command-stdout') && !row.text.startsWith('<local-command-stderr')) return false
+  const at = Date.parse(row.timestamp ?? '')
+  return !Number.isNaN(at) && at >= startedAtMs - 1000
+}

@@ -130,6 +130,14 @@ section('§3 the reading — input_transformations off a response')
     { type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'something_new' },
   ]) ?? ''
   check('a mixed or unknown reason names every reason and the first path', mixed.includes('prefix_binding_mismatch') && mixed.includes('something_new') && mixed.includes('first at messages.1.content.0'), mixed)
+
+  const describeDrops = binding.describeThinkingDrops
+  const ctxOutcome = { kind: 'lawful' as const, lawful: 'context-edited' as const, detail: null, rosterChange: null, consecutive: 1, count: 2, path: 'messages.102.content.0', reason: 'prefix_binding_mismatch', paint: true, part: null }
+  const ctxNote = describeDrops([{ type: 'thinking_dropped', path: 'messages.102.content.0', reason: 'prefix_binding_mismatch' }], ctxOutcome) ?? ''
+  check('a context-edit (prune) drop reads as an expected Mercury edit, not an alarm', ctxNote.startsWith('Preserved thinking:') && ctxNote.includes('pruned superseded tool results') && ctxNote.includes('expected once') && !ctxNote.includes('Mercury rewrote') && !ctxNote.includes('doctor'), ctxNote)
+  const idleOutcome = { ...ctxOutcome, lawful: 'thinking-cleared' as const }
+  const idleNote = describeDrops([{ type: 'thinking_dropped', path: 'messages.102.content.0', reason: 'prefix_binding_mismatch' }], idleOutcome) ?? ''
+  check('an idle-clear drop reads as an expected Mercury edit too', idleNote.startsWith('Preserved thinking:') && idleNote.includes('after an hour idle') && idleNote.includes('expected once') && !idleNote.includes('Mercury rewrote'), idleNote)
 }
 
 section('§4 the strips — from the first edited message onward')

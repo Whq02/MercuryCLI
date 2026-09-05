@@ -82,7 +82,7 @@ import { setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import { NameplateContinuationContext } from './messages/TranscriptNameplate.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
 import { LiveStreamingTail } from './LiveStreamingTail.js'
-import { FoldStatusRow } from './FoldStatusRow.js'
+import { FoldStatusRow, type FoldLandingRowFacts } from './FoldStatusRow.js'
 import { MercuryBrandRow, MercuryHero, MercuryHome } from './MercuryHome.js'
 import { VirtualMessageList } from './VirtualMessageList.js'
 import type { JumpHandle } from './VirtualMessageList.js'
@@ -857,7 +857,7 @@ function MessagesInner({
       ) : null}
       {
 }
-      <FoldStatusRow />
+      <FoldStatusRow rows={visible as unknown as readonly FoldLandingRowFacts[]} />
     </>
   )
 

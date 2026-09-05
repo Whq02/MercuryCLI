@@ -727,8 +727,9 @@ async function* queryModel(
   if (!thinkingClearLatched && isAgenticQuery) {
     const lastCompletion = getLastApiCompletionTimestamp()
     if (
-      lastCompletion !== null &&
-      Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS
+      isEnvTruthy(process.env.MERCURY_THINKING_CLEAR_NOW) ||
+      (lastCompletion !== null &&
+        Date.now() - lastCompletion > CACHE_TTL_1HOUR_MS)
     ) {
       thinkingClearLatched = true
       setThinkingClearLatched(true)

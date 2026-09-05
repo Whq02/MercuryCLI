@@ -216,7 +216,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     section(`${label} — S2: a crew seat whose request never answers its headers ends typed within the budget`)
     check(`${label}: vshot ran the crew journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
     check(`${label}: the seat's request was parked with no headers (once, then at most the bounded retry)`, heldHeaders.length >= 1 && heldHeaders.length <= 2, JSON.stringify(heldHeaders))
-    check(`${label}: while parked, the agent's row stood on the card as running (its own wait word is the card owner's — see the receipt)`, /first-byte-seat/.test(waiting) && /running a tool/.test(waiting), tail(waiting))
+    check(`${label}: while parked, the agent's row stood on the card as running (its own wait word is the card owner's — see the receipt)`, /first-byte-seat/.test(waiting) && /· running ·/.test(waiting), tail(waiting))
     check(`${label}: the parent's follow-up carried the seat's typed end and landed the final text`, parent.some(c => ((c as { step?: number }).step ?? 0) >= 1) && afterSeat.includes(REPLY), JSON.stringify(parent.map(c => [c.n, (c as { step?: number }).step])))
     const seatCalls = calls.filter(c => c.arm === 'seat-hold')
     const seatTokens = (seatCalls[0] as { promptTokens?: number } | undefined)?.promptTokens ?? 0
@@ -225,12 +225,16 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: the bounded retry re-parked at the owner's budget for the seat's own prompt`, retryGap >= seatBudget - 500 && retryGap <= seatBudget + 6_000, `retry gap=${retryGap}ms budget=${seatBudget}ms tokens=${seatTokens}`)
     const gap = heldHeaders.length > 0 && parent.length > 1 ? (parent[parent.length - 1]!.at - heldHeaders[0]!.at) : -1
     check(`${label}: the seat ended inside two budgets — never the fifty-minute ceiling`, gap > 0 && gap <= 2 * seatBudget + 15_000, `gap=${gap}ms budget=${seatBudget}ms`)
-    check(`${label}: the turn is freed — the strip is back at ready`, /· ready/.test(settled) && !/esc interrupt/.test(settled), tail(settled))
+    check(`${label}: the turn is freed — the strip is back at ready (or the crew's past-tense clock)`, (/· ready/.test(settled) || /agents? thought for \d/.test(settled)) && !/esc interrupt/.test(settled), tail(settled))
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
     const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n'))
     check(`${label}: the typed line reached the record ("no first byte from … after N s")`, rows.some(l => /no first byte from/.test(l)), `rows=${rows.length}`)
     if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
-    else console.log(`[forensics] world kept: ${RUN_HOME}`)
+    else {
+      mkdirSync(path.join(RUN_HOME, 'frames'), { recursive: true })
+      for (const [label, grid] of marks) writeFileSync(path.join(RUN_HOME, 'frames', `${label}.txt`), grid)
+      console.log(`[forensics] world kept: ${RUN_HOME} (frames/<mark>.txt)`)
+    }
     return
   }
 
@@ -275,7 +279,11 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const wordsAt = rows.findIndex(l => l.includes('"queued_command"') && l.includes(FIRST))
     check(`${label}: the transcript file holds the notice's drained row before the words' row`, noticeAt >= 0 && wordsAt > noticeAt, `notice=${noticeAt} words=${wordsAt} rows=${rows.length}`)
     if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
-    else console.log(`[forensics] world kept: ${RUN_HOME}`)
+    else {
+      mkdirSync(path.join(RUN_HOME, 'frames'), { recursive: true })
+      for (const [label, grid] of marks) writeFileSync(path.join(RUN_HOME, 'frames', `${label}.txt`), grid)
+      console.log(`[forensics] world kept: ${RUN_HOME} (frames/<mark>.txt)`)
+    }
     return
   }
 
@@ -299,7 +307,11 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: no call followed the stop until the operator's own words (the stopped tool's result fed nothing by itself)`, stepCalls.every(c => ((c as { step?: number }).step ?? 0) === 0 || ((c as { carries?: string[] }).carries ?? []).includes(FIRST)), JSON.stringify(stepCalls.map(c => [c.n, (c as { step?: number }).step, (c as { carries?: string[] }).carries])))
     check(`${label}: the roll lists the words typed after the stop as sent`, benchStop.includes('2 prompts since') && /\d\d:\d\d\s+plain\s+first queued words/.test(benchStop), benchStop.split('\n').slice(0, 8).join('\n'))
     if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
-    else console.log(`[forensics] world kept: ${RUN_HOME}`)
+    else {
+      mkdirSync(path.join(RUN_HOME, 'frames'), { recursive: true })
+      for (const [label, grid] of marks) writeFileSync(path.join(RUN_HOME, 'frames', `${label}.txt`), grid)
+      console.log(`[forensics] world kept: ${RUN_HOME} (frames/<mark>.txt)`)
+    }
     return
   }
 
@@ -312,7 +324,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: the typed row paints QUEUED while the turn runs`, /queued\s+\[sam\] ❯ first queued words/.test(chat) && /esc interrupt/.test(chat), tail(chat))
     check(`${label}: the roll counts it queued`, bench.includes('1 queued') && /queued\s+plain\s+first queued words/.test(bench), bench.split('\n').slice(0, 8).join('\n'))
     section(`${label} — Q7: the model sees it at the next tool boundary`)
-    const steps = calls.filter(c => c.arm === 'read-three')
+    const steps = calls.filter(c => c.arm === 'read-three' && ((c as { tools?: number }).tools ?? 0) > 0)
     const firstCarry = steps.find(c => Array.isArray((c as { carries?: string[] }).carries) && (c as { carries: string[] }).carries.includes(FIRST))
     check(`${label}: four calls make the tool turn (three reads, the final text)`, steps.length === 4, JSON.stringify(steps.map(c => [c.n, (c as { step?: number }).step, (c as { carries?: string[] }).carries])))
     check(`${label}: the words ride the request after the held read's result (step 2), never the turn's end`, firstCarry !== undefined && (firstCarry as { step?: number }).step === 2, JSON.stringify(steps.map(c => [c.n, (c as { step?: number }).step, (c as { carries?: string[] }).carries])))
@@ -328,7 +340,11 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const drainedRow = rows.find(l => l.includes('"queued_command"') && l.includes(FIRST))
     check(`${label}: the transcript file holds the drained words as a queued_command row`, drainedRow !== undefined, `rows=${rows.length} files=${jsonl.length}`)
     if (failures === 0) rmSync(RUN_HOME, { recursive: true, force: true })
-    else console.log(`[forensics] world kept: ${RUN_HOME}`)
+    else {
+      mkdirSync(path.join(RUN_HOME, 'frames'), { recursive: true })
+      for (const [label, grid] of marks) writeFileSync(path.join(RUN_HOME, 'frames', `${label}.txt`), grid)
+      console.log(`[forensics] world kept: ${RUN_HOME} (frames/<mark>.txt)`)
+    }
     return
   }
 

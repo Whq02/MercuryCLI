@@ -27,8 +27,10 @@ import {
   annotateBoundaryWithPreservedSegment,
   buildPostCompactMessages,
   type CompactionResult,
+  createAsyncAgentAttachmentsIfNeeded,
   createPlanAttachmentIfNeeded,
 } from './compact.js'
+import type { ToolUseContext } from '../../Tool.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
@@ -198,6 +200,7 @@ export async function trySessionMemoryCompaction(
   messages: Message[],
   agentId?: string,
   autoCompactThreshold?: number,
+  rosterContext?: Pick<ToolUseContext, 'getAppState' | 'agentId'>,
 ): Promise<CompactionResult | null> {
   try {
     if (!shouldUseSessionMemoryCompaction()) return null
@@ -244,6 +247,9 @@ export async function trySessionMemoryCompaction(
     const attachments = []
     const plan = createPlanAttachmentIfNeeded(agentId)
     if (plan !== null) attachments.push(plan)
+    if (rosterContext !== undefined) {
+      attachments.push(...(await createAsyncAgentAttachmentsIfNeeded(rosterContext as ToolUseContext)))
+    }
 
     annotateBoundaryWithPreservedSegment(boundary, summaryMessage.uuid, kept)
 

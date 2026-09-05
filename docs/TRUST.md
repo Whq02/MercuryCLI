@@ -106,8 +106,7 @@ manifest carries a signature: an Ed25519 signature over the release record
 (the version, the platform target, the packaging time, the source tree, the
 SHA-256 of the runtime bundle and a digest of every other shipped byte). The
 signing key is the Mercury release key, id `627b54b734ca0e72`, whose public
-half is compiled into every build (the trust roster,
-`src/services/privateChannel/signingTrust.ts`). The private key is held by the
+half is compiled into every build as its trust roster. The private key is held by the
 operator alone: it never enters the repository, and it reaches the hosted
 release workflow only as a repository secret for the packaging step.
 
