@@ -257,6 +257,7 @@
    ],
    "src/utils/permissions/yoloClassifier.ts": [
     "CLASSIFIER_FALLBACK_MODELS",
+    "LATEST_REQUEST_LEAD",
     "YOLO_CLASSIFIER_TOOL_NAME",
     "buildDefaultExternalSystemPrompt",
     "buildTranscriptEntries",
@@ -340,6 +341,7 @@
     "type:RiskLevel"
    ],
    "src/types/permissions.ts": [
+    "BYPASSED_ASK_ROAD_WORDS",
     "EXTERNAL_PERMISSION_MODES",
     "INTERNAL_PERMISSION_MODES",
     "PERMISSION_MODES",
@@ -544,6 +546,8 @@
     "createPostCompactFileAttachments",
     "createSkillAttachmentIfNeeded",
     "fitPostCompactUnderThreshold",
+    "foldEffortFor",
+    "foldEffortMessageFor",
     "foldFamilyOf",
     "isCompactCapsuleMessage",
     "mergeHookInstructions",
@@ -633,6 +637,7 @@
   "agents": {
    "src/tools/AgentTool/AgentTool.tsx": [
     "AgentTool",
+    "SUBAGENT_BRIEFING_LEAD",
     "inputSchema",
     "outputSchema",
     "type:AgentToolInput",

@@ -330,6 +330,9 @@ function continuationHint(agentId: string, name?: string): string {
 }
 
 
+export const SUBAGENT_BRIEFING_LEAD =
+  'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
+
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
   aliases: [LEGACY_AGENT_TOOL_NAME],
@@ -389,9 +392,8 @@ export const AgentTool = buildTool({
     const tags: string[] = []
     if (input.subagent_type) tags.push(input.subagent_type)
     if (input.mode) tags.push(`mode=${input.mode}`)
-    return tags.length > 0
-      ? `(${tags.join(', ')}): ${input.prompt}`
-      : `: ${input.prompt}`
+    const lead = tags.length > 0 ? `(${tags.join(', ')}) ` : ''
+    return `${lead}${SUBAGENT_BRIEFING_LEAD} ${input.prompt}`
   },
   extractSearchText(output: AgentToolOutput): string {
     const content = (output as { content?: Array<{ text?: string }> }).content

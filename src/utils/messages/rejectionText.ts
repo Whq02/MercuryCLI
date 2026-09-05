@@ -105,6 +105,19 @@ export function buildClassifierUnavailableMessage(
   )
 }
 
+export function buildClassifierUnreadableMessage(
+  toolName: string,
+  classifierModel: string,
+  detail?: string,
+): string {
+  const what = detail ? ` (${detail})` : ''
+  return (
+    `The flow safety check could not read its own verdict, so ${toolName} was not run: ${classifierModel} answered in a shape Mercury could not parse${what}, and this session cannot show the operator a consent card. ` +
+    `This is not a judgement on the action — the check may read its next verdict, the same action can be tried again, and work that does not need the check can continue. ` +
+    `The built-in read-only tools (file reads, code search, glob listings) never need the check; MCP tools always do.`
+  )
+}
+
 
 const MEMORY_CORRECTION_HINT =
   "\n\nNote: The user's next message may contain a correction or preference. Pay close attention — if they explain what went wrong or how they'd prefer you to work, consider saving that to memory for future sessions."
