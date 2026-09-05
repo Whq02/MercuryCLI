@@ -47,6 +47,8 @@ const DOORS = [
   'rewind',
   'spawnSwitches',
   'setSpawnSwitch',
+  'recallableSend',
+  'withdrawSend',
 ] as const
 
 {
